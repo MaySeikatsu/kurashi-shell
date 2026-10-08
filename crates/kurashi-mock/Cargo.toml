@@ -1,0 +1,20 @@
+[package]
+name = "kurashi-mock"
+description = "Fake kurashid serving the probe subset of the protocol (frontend dev, bake-off, benches)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kurashi-core.workspace = true
+kurashi-ipc.workspace = true
+anyhow.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+chrono.workspace = true
+clap.workspace = true
+
+[lints]
+workspace = true
