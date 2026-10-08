@@ -1,0 +1,10 @@
+/target/
+**/target/
+/result
+/result-*
+.direnv/
+tools/bench/results/
+*.qmlc
+*.jsc
+.qmlls.ini
+.claude/worktrees/
