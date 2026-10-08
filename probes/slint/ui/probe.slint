@@ -1,0 +1,261 @@
+// Compiled at runtime by slint-interpreter. @@...@@ markers are filled by src/ui.rs
+// (easing from tokens, mod-widget properties and tree). All colours/sizes come from Theme,
+// which main.rs fills from theme.tokens.
+
+export global Theme {
+    in property <color> surface: #1b1a1e;
+    in property <color> surface-container: #252329;
+    in property <color> surface-high: #2f2c33;
+    in property <color> on-surface: #e9e4d8;
+    in property <color> on-variant: #b9b2a6;
+    in property <color> outline: #5a5560;
+    in property <color> accent: #c9404b;
+    in property <color> on-accent: #fff6f1;
+    in property <length> r-sm: 6px;
+    in property <length> r-md: 12px;
+    in property <length> r-lg: 18px;
+    in property <length> r-full: 999px;
+    in property <length> sp-xs: 4px;
+    in property <length> sp-sm: 8px;
+    in property <length> sp-md: 12px;
+    in property <length> sp-lg: 16px;
+    in property <length> sp-xl: 24px;
+    in property <length> fs-caption: 11px;
+    in property <length> fs-label: 12px;
+    in property <length> fs-body: 13px;
+    in property <length> fs-title: 16px;
+    in property <length> bar-height: 36px;
+    in property <string> font: "Inter";
+    in property <string> font-jp: "Noto Sans CJK JP";
+    in property <duration> d-quick: 120ms;
+    in property <duration> d-standard: 220ms;
+    in property <duration> d-emph: 320ms;
+}
+
+export component Bar inherits Window {
+    background: transparent;
+    in property <[{focused: bool, occupied: bool}]> workspaces;
+    in property <string> clock-text;
+    in property <string> island-clock;
+    in property <string> island-media;
+    in property <int> face: 0;
+    in-out property <float> volume: 0.5;
+    callback volume-changed(float);
+    callback volume-drag(bool);
+    callback island-click();
+    callback island-pin();
+    callback island-scroll(int);
+    @@MOD_PROPS@@
+
+    Rectangle {
+        background: Theme.surface;
+
+        HorizontalLayout {
+            x: Theme.sp-lg;
+            y: 0;
+            height: parent.height;
+            width: parent.width / 3;
+            spacing: Theme.sp-sm;
+            alignment: start;
+            for ws in root.workspaces: Rectangle {
+                width: ws.focused ? 22px : 10px;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 10px;
+                    width: parent.width;
+                    border-radius: Theme.r-full;
+                    background: ws.focused ? Theme.accent : (ws.occupied ? Theme.on-variant : Theme.outline);
+                }
+            }
+        }
+
+        isl := Rectangle {
+            height: parent.height - 2 * Theme.sp-sm + 2px;
+            y: (parent.height - self.height) / 2;
+            x: (parent.width - self.width) / 2;
+            width: min(420px, 2 * Theme.sp-lg + (root.face == 1 ? mt.preferred-width : ceil(ct.preferred-width / 8px) * 8px));
+            animate width { duration: Theme.d-emph; easing: cubic-bezier(@@EASE@@); }
+            background: Theme.surface-high;
+            border-radius: Theme.r-full;
+            clip: true;
+            ct := Text {
+                x: 0;
+                width: parent.width;
+                height: parent.height;
+                text: root.island-clock;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                color: Theme.on-surface;
+                font-family: Theme.font;
+                font-size: Theme.fs-body;
+                overflow: clip;
+                opacity: root.face == 1 ? 0 : 1;
+                animate opacity { duration: Theme.d-emph; easing: cubic-bezier(@@EASE@@); }
+            }
+            mt := Text {
+                x: 0;
+                width: parent.width;
+                height: parent.height;
+                text: root.island-media;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                color: Theme.on-surface;
+                font-family: Theme.font-jp;
+                font-size: Theme.fs-body;
+                overflow: clip;
+                opacity: root.face == 1 ? 1 : 0;
+                animate opacity { duration: Theme.d-emph; easing: cubic-bezier(@@EASE@@); }
+            }
+            TouchArea {
+                pointer-event(event) => {
+                    if (event.kind == PointerEventKind.up) {
+                        if (event.button == PointerEventButton.left) {
+                            root.island-click();
+                        } else if (event.button == PointerEventButton.right) {
+                            root.island-pin();
+                        }
+                    }
+                }
+                scroll-event(event) => {
+                    if (event.delta-y < 0) {
+                        root.island-scroll(1);
+                    } else if (event.delta-y > 0) {
+                        root.island-scroll(-1);
+                    }
+                    accept
+                }
+            }
+        }
+
+        HorizontalLayout {
+            x: 0;
+            y: 0;
+            height: parent.height;
+            width: parent.width - Theme.sp-lg;
+            spacing: Theme.sp-md;
+            alignment: end;
+
+            // volume slider (optimistic; drag state reported to the daemon glue)
+            Rectangle {
+                width: 96px;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 4px;
+                    width: parent.width;
+                    border-radius: Theme.r-full;
+                    background: Theme.outline;
+                }
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 4px;
+                    width: parent.width * root.volume;
+                    border-radius: Theme.r-full;
+                    background: Theme.accent;
+                }
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    x: parent.width * root.volume - self.width / 2;
+                    width: 12px;
+                    height: 12px;
+                    border-radius: Theme.r-full;
+                    background: Theme.on-surface;
+                }
+                vta := TouchArea {
+                    pointer-event(event) => {
+                        if (event.kind == PointerEventKind.down) {
+                            root.volume-drag(true);
+                            root.volume = max(0, min(1, self.mouse-x / self.width));
+                            root.volume-changed(root.volume);
+                        } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                            root.volume-drag(false);
+                        }
+                    }
+                    moved => {
+                        if (self.pressed) {
+                            root.volume = max(0, min(1, self.mouse-x / self.width));
+                            root.volume-changed(root.volume);
+                        }
+                    }
+                }
+            }
+
+            @@MOD_WIDGETS@@
+
+            Text {
+                text: root.clock-text;
+                vertical-alignment: center;
+                color: Theme.on-surface;
+                font-family: Theme.font;
+                font-size: Theme.fs-body;
+            }
+        }
+    }
+}
+
+export component Popup inherits Window {
+    background: transparent;
+    in property <bool> shown: false;
+    in property <image> shader;
+    public function focus-field() {
+        field.focus();
+    }
+
+    card := Rectangle {
+        width: root.shown ? root.width : root.width * 0.96;
+        height: root.shown ? root.height : root.height * 0.96;
+        x: (root.width - self.width) / 2;
+        y: (root.height - self.height) / 2;
+        opacity: root.shown ? 1 : 0;
+        animate width, height, opacity { duration: Theme.d-standard; easing: cubic-bezier(@@EASE@@); }
+        background: Theme.surface-container;
+        border-radius: Theme.r-lg;
+        border-width: 1px;
+        border-color: Theme.outline;
+        clip: true;
+
+        VerticalLayout {
+            padding: Theme.sp-lg;
+            spacing: Theme.sp-md;
+            Text {
+                text: "暮らし · probe";
+                color: Theme.on-variant;
+                font-family: Theme.font-jp;
+                font-size: Theme.fs-label;
+            }
+            Rectangle {
+                height: 32px;
+                background: Theme.surface-high;
+                border-radius: Theme.r-sm;
+                field := TextInput {
+                    x: Theme.sp-sm;
+                    width: parent.width - 2 * Theme.sp-sm;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    color: Theme.on-surface;
+                    font-family: Theme.font-jp;
+                    font-size: Theme.fs-body;
+                    single-line: true;
+                }
+                Text {
+                    x: Theme.sp-sm;
+                    height: parent.height;
+                    vertical-alignment: center;
+                    visible: field.text == "";
+                    text: "type here…";
+                    color: Theme.outline;
+                    font-family: Theme.font;
+                    font-size: Theme.fs-body;
+                }
+            }
+            HorizontalLayout {
+                alignment: center;
+                Image {
+                    source: root.shader;
+                    width: 200px;
+                    height: 80px;
+                    image-fit: fill;
+                }
+            }
+        }
+    }
+}
