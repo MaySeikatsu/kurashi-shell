@@ -47,7 +47,7 @@ Three stores, never mixed, each with a monotonic **revision**:
 - `runtime` — ephemeral state (DND, volume, open panels, island current face).
 
 **Resolution** (per key, optionally per output):
-`schema default → theme:<recipe> → profile:<name> → user → forced:<reason>`.
+`schema default → nix (managed.toml, K15) → theme:<recipe> → profile:<name> → user → forced:<reason>`.
 The result carries `{value, source, forced_by?, reason?}`. Removing a user key recomputes the
 resolution (it never "sticks"). Couplings (`requires`, `capability`, `overridden_by`) are schema
 data, evaluated in the daemon — never `&&` chains in renderers.

@@ -24,4 +24,15 @@ Machine A: 12 cores, 31 GiB RAM, NVIDIA GTX 1060 6 GB (driver 580.178), NixOS, n
 | Idle frames (after 2026-10-08 fixes, headless) | ~0.8 fps |
 
 ## Results
-_(filled from M0.7 on)_
+
+### 2026-10-09 — harness self-test / Quickshell floor (commit eca978f)
+Trivial Quickshell bar (one `PanelWindow` per screen, one `Text`), headless sway gles2,
+NVIDIA GTX 1060. Not a probe — a lower bound for "anything on Quickshell".
+| Metric | Value |
+|---|---|
+| PSS @1 output | **110.1 MiB** |
+| PSS @2 outputs | 112.8 MiB (+2.7 per output) |
+| GPU memory | 4 MiB |
+| Idle CPU / wakeups / commits / syscalls | 0 / 0 / 0 / 0 |
+| Startup (launch → first commit) | 172 ms |
+→ ~40 % of shellseikatsu's 272 MB RSS is Quickshell/Qt baseline before any feature exists.
