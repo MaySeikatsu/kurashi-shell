@@ -11,6 +11,46 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-09 — session 2: bake-off probes built (cut short by usage limit)
+**State:** branch `feat/m0-bakeoff` (NOT merged to main). All 5 probes merged into it (`probes/*`,
+REPORT.md for gtk4/iced/slint/gpui written by the lead from agent hand-backs — subagent tools refuse
+report files). Bench harness fixes committed: `sandbox.sh` now fails closed (61d76fa).
+
+**Agent efficiency (Sonnet, same card):** quickshell 103k tok / 42 tools / 7.2 min / 4 fix iters ·
+gtk4 173k / 69 / 29.9 min / 4 (+2 pivots) · iced 190k / 79 / 29.9 min / 3 (+1) ·
+slint 191k / 81 / 32.0 min / 1 · gpui 176k / 84 / 32.9 min / 2.
+
+**Agent-run numbers (noisy, contended):** PSS 1-out: slint 21.6 · gtk4 59 · iced 94.5 · gpui 110 ·
+quickshell 164 MiB. Idle commits/s: 0 everywhere except gpui 61/surface (gpui_linux re-arms frame
+callback forever → fails Ma). Wakeups/s: quickshell 0, slint 0, gtk4 1.4 (gl renderer; Vulkan ~110),
+iced 118 (futex, undiagnosed), gpui 178. Popup latency ~2 ms all, gpui 26 ms.
+Gates: blur bound in quickshell/gtk4/slint (raw), ✘ iced (not done), ✘ gpui (KDE only).
+xdg_popup on layer surface: quickshell, iced; others separate layer surface. Real GPU shader:
+quickshell, iced, gtk4 (GLArea); slint/gpui CPU only. IME: ✘ slint (custom platform).
+Session lock API: quickshell, iced, slint(SCTK); ✘ gtk4/gpui (raw only). Hot reload: only quickshell.
+Lead's provisional read: **QML/Quickshell stays default** (passes all gates, only hot-reload option,
+4× cheaper agent workload); best native contender = slint (memory) but fails IME + shader gates.
+
+### Next steps (in order)
+1. Finish M0.7: quiet re-bench was started via `scratchpad/bench-all.sh` (runs from worktree binaries
+   under `.claude/worktrees/agent-*`; results in `tools/bench/results/<name>.json`). If missing, rerun:
+   `nix develop -c python3 tools/bench/measure.py --name <n> --warmup 10 --idle 30 -- <cmd>` with cmds
+   from `probes/*/bench.json` (iced/slint need their devshell LD_LIBRARY_PATH via `env`).
+2. Fill `docs/BAKEOFF.md` matrix + `docs/BENCH.md`, call advisor, decide **K3** in DECISIONS (note:
+   user wants it re-evaluable later; target feel = quick, smooth, polished, snappy). Merge
+   `feat/m0-bakeoff` → main (`--no-ff`), then remove the 5 worktrees + branches.
+3. User request: after evaluation, start M1+ with ≤5 parallel subagents on disjoint subsystems,
+   staggering compiles (e.g. `flock /tmp/kurashi-build.lock cargo …`) — M1 contracts first.
+
+### Open issues / risks
+- **Two safety incidents:** slint + gpui agents ran their probe briefly on the user's LIVE session
+  (sandbox.sh silently failed outside nix develop). They killed their own PIDs; socket removed. Fixed.
+- 12 leaked sandbox dbus-daemons (addresses `/tmp/kurashi-sb-{slint,iced}/bus`) — lead's kill was
+  denied by the permission classifier; user should kill them (`pgrep -af kurashi-sb-.*/bus`).
+- Bench commit counting needs libwayland (WAYLAND_DEBUG) — Rust-only wayland backends read 0.
+
+---
+
 ## 2026-10-09 — session 1: plan, charter, M0 foundations
 **Merged on `main`:** charter + docs (`CLAUDE.md`, `docs/*`), M0.1–M0.5:
 - Nix flake: `packages.kurashi` (kurashid, kurashi, kurashi-mock), devShell (Rust, just, quickshell,
