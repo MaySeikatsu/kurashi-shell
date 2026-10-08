@@ -55,3 +55,9 @@ identity; retrofitting i18n is expensive (WormShell D30 deferral rejected).
 
 **K14** 🟢 Session handover: every session ends by updating `docs/HANDOVER.md` (state, next
 steps, open decisions, pickup prompt). *Why:* user requirement; multi-session project.
+
+**K15** 🟢 Nix-declared settings form their own provenance layer `nix`
+(`default → nix → theme → profile → user → forced`), read from `~/.config/kurashi/managed.toml`
+(Home-Manager `programs.kurashi.settings`); `enforce = true` turns them into `forced:nix`. The
+daemon keeps writing the live `config.toml`. *Why:* HM files are read-only store symlinks, which
+conflicts with a daemon-written config; users still see "set by Home-Manager" in Settings.
