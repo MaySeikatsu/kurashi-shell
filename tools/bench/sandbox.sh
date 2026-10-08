@@ -9,7 +9,7 @@
 set -euo pipefail
 action=${1:-start}; name=${2:-dev}; renderer=${3:-gles2}
 R=/tmp/kurashi-sb-$name
-SWAY=${KURASHI_SWAY:-$(command -v sway)}
+SWAY=${KURASHI_SWAY:-$(command -v sway || true)}   # may be empty for stop/env outside nix develop
 
 env_lines() {
   local wl; wl=$(ls "$R" 2>/dev/null | grep -m1 -E '^wayland-[0-9]+$' || true)
@@ -44,7 +44,7 @@ case $action in
   stop)
     pids=()
     for p in $(pgrep -u "$(id -u)" . || true); do
-      if tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$R"; then pids+=("$p"); fi
+      if { tr "\0" "\n" < "/proc/$p/environ"; } 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$R"; then pids+=("$p"); fi
     done
     [ -f "$R/dbus.out" ] && pids+=("$(sed -n 2p "$R/dbus.out")")
     [ ${#pids[@]} -gt 0 ] && kill "${pids[@]}" 2>/dev/null || true
