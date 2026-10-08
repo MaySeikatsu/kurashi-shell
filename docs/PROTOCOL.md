@@ -44,7 +44,9 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 ```json
 → {"t":"cfg.get","id":"2","key":"bar.main.edge"}
 ← {"t":"cfg.val","id":"2","key":"bar.main.edge",
-   "v":{"value":"top","source":"profile:kanso","forced_by":null,"reason":null}}
+   "v":{"value":"top","source":{"kind":"profile","name":"kanso"}}}
+// source kinds: default | theme(name) | profile(name) | nix | user | forced(name); optional
+// "forced_by" / "reason" appear only when set (crates/kurashi-core `Provenanced`).
 → {"t":"cfg.explain","id":"3","key":"theme.material.blur"}
 ← {"t":"cfg.why","id":"3","layers":[{"source":"default","value":true},
    {"source":"forced:capability","value":false,"reason":"compositor lacks ext-background-effect"}]}
@@ -75,7 +77,9 @@ backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
+| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state) |
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
 
+Probe actions: `island.next`, `island.prev`, `island.pin`, `probe.popup.toggle`, `audio.mute.toggle`.
 Mock control (bench/test only): `{"t":"mock.tick"}` advances the clock; `{"t":"mock.face","face":"media"}`
 forces an island switch; `{"t":"mock.workspace","idx":2}` moves focus.
