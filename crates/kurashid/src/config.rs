@@ -37,9 +37,15 @@ impl SchemaView for SchemaAdapter {
     }
 }
 
+type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
+
 pub struct ConfigStore {
     cfg: Mutex<Config<SchemaAdapter>>,
     hub: Arc<Hub>,
+    registry: &'static Registry,
+    /// `forced:accessibility` entries currently applied (only rewritten when they change).
+    a11y_forced: Mutex<Vec<(String, Value, String)>>,
+    listeners: Mutex<Vec<Listener>>,
 }
 
 /// What a committed transaction answers on the wire.
@@ -132,9 +138,61 @@ impl ConfigStore {
         let store = Arc::new(ConfigStore {
             cfg: Mutex::new(cfg),
             hub: hub.clone(),
+            registry,
+            a11y_forced: Mutex::new(Vec::new()),
+            listeners: Mutex::new(Vec::new()),
         });
+        store.apply_couplings();
         hub.register(DOC, store.document(), None);
         store
+    }
+
+    /// Run `f` after every effective change (theme recompute, island config, …).
+    pub fn on_change(&self, f: impl Fn(&ConfigStore) + Send + Sync + 'static) {
+        self.listeners.lock().expect("listeners").push(Box::new(f));
+    }
+
+    /// Schema couplings the daemon evaluates (ARCHITECTURE §3): `overridden_by` a11y modes
+    /// become `forced:accessibility` entries with `forced_by` = the mode key, so the UI shows
+    /// why a control is inert instead of silently ignoring it (Shōjiki).
+    fn apply_couplings(&self) {
+        use kurashi_schema::Coupling;
+        let mut cfg = self.cfg.lock().expect("config lock");
+        let mut want: Vec<(String, Value, String)> = Vec::new();
+        for key in self.registry.keys() {
+            let Some(meta) = self.registry.get(key) else {
+                continue;
+            };
+            for c in &meta.couplings {
+                if let Coupling::OverriddenBy {
+                    key: mode,
+                    forces: Some(v),
+                } = c
+                    && cfg
+                        .resolve(mode, None)
+                        .is_some_and(|p| p.value == Value::Bool(true))
+                {
+                    want.push((key.to_string(), v.clone(), mode.clone()));
+                    break; // first active mode wins (declaration order)
+                }
+            }
+        }
+        let mut have = self.a11y_forced.lock().expect("a11y lock");
+        if *have == want {
+            return;
+        }
+        cfg.clear_forced("accessibility", None);
+        for (key, value, mode) in &want {
+            let forced = kurashi_config::Forced {
+                value: value.clone(),
+                forced_by: Some(mode.clone()),
+                reason: Some("settings.inert.overridden_by".into()),
+            };
+            if let Err(e) = cfg.set_forced("accessibility", (key.clone(), None), forced) {
+                tracing::warn!(%key, error = %e, "cannot force a11y coupling");
+            }
+        }
+        *have = want;
     }
 
     /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}}` — rebuilt whole and
@@ -162,7 +220,11 @@ impl ConfigStore {
     }
 
     fn publish(&self) {
+        self.apply_couplings();
         let _ = self.hub.set(DOC, self.document(), None);
+        for l in self.listeners.lock().expect("listeners").iter() {
+            l(self);
+        }
     }
 
     pub fn get(&self, key: &str, output: Option<&str>) -> Option<Provenanced> {
