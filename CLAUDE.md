@@ -22,7 +22,7 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 7. **Nix-first.** Every tool comes from `nix develop`; every artifact builds with `nix build`;
    NixOS + Home-Manager modules stay working. Flakes only see git-tracked files — `git add` new
    files before `nix build`.
-8. **i18n from day one.** User-facing strings via keys in `i18n/{en,ja}.toml`. Code identifiers
+8. **i18n from day one.** User-facing strings via keys in `i18n/{en,ja}/<domain>.toml` (one file per domain so parallel work never conflicts). Code identifiers
    English; Japanese lives in copy, docs and profile names.
 9. **Budgets (docs/BENCH.md) are acceptance criteria**, not aspirations.
 
