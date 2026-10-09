@@ -4,6 +4,7 @@ self:
 let
   cfg = config.programs.kurashi;
   toml = pkgs.formats.toml { };
+  envList = lib.mapAttrsToList (k: v: "${k}=${v}") cfg.extraEnvironment;
 in
 {
   options.programs.kurashi = {
@@ -12,7 +13,7 @@ in
     package = lib.mkOption {
       type = lib.types.package;
       default = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi;
-      description = "Kurashi package (daemon + CLI).";
+      description = "Kurashi package (daemon + CLI + frontend data).";
     };
 
     settings = lib.mkOption {
@@ -36,17 +37,38 @@ in
       '';
     };
 
+    extraEnvironment = lib.mkOption {
+      type = lib.types.attrsOf lib.types.str;
+      default = { };
+      example = { RUST_LOG = "kurashid=debug"; };
+      description = ''
+        Extra environment variables for both services. `KURASHI_DATA_DIR` is deliberately not
+        set: the binary knows its own prefix (package.nix bakes it in).
+      '';
+    };
+
+    frontend = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = "Run the Quickshell frontend as a systemd user service next to kurashid.";
+      };
+      package = lib.mkPackageOption pkgs "quickshell" { };
+    };
+
     systemd.enable = lib.mkOption {
       type = lib.types.bool;
       default = true;
-      description = "Run kurashid as a systemd user service bound to the graphical session.";
+      description = "Run kurashid (and the frontend) as systemd user services bound to the graphical session.";
     };
   };
 
   config = lib.mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    xdg.configFile."kurashi/managed.toml" = lib.mkIf (cfg.settings != { }) {
+    # `settings` may be empty while `enforce` is set; the file is still written then so the
+    # flag is never silently dropped.
+    xdg.configFile."kurashi/managed.toml" = lib.mkIf (cfg.settings != { } || cfg.enforce) {
       source = toml.generate "kurashi-managed.toml" (cfg.settings // { _managed.enforce = cfg.enforce; });
     };
 
@@ -57,9 +79,34 @@ in
         After = [ "graphical-session.target" ];
       };
       Service = {
+        Type = "simple";
         ExecStart = "${cfg.package}/bin/kurashid";
         Restart = "on-failure";
+        # Backoff 1 s -> 30 s so a crash loop does not spin (Ma).
         RestartSec = 1;
+        RestartSteps = 5;
+        RestartMaxDelaySec = 30;
+        Environment = envList;
+      };
+      Install.WantedBy = [ "graphical-session.target" ];
+    };
+
+    # Requires (not BindsTo): a daemon restart must not kill the frontend; it reconnects itself.
+    systemd.user.services.kurashi-frontend = lib.mkIf (cfg.systemd.enable && cfg.frontend.enable) {
+      Unit = {
+        Description = "Kurashi shell frontend (Quickshell)";
+        PartOf = [ "graphical-session.target" ];
+        Requires = [ "kurashid.service" ];
+        After = [ "graphical-session.target" "kurashid.service" ];
+      };
+      Service = {
+        Type = "simple";
+        ExecStart = "${lib.getExe' cfg.frontend.package "qs"} -p ${cfg.package}/share/kurashi/frontend";
+        Restart = "on-failure";
+        RestartSec = 1;
+        RestartSteps = 5;
+        RestartMaxDelaySec = 30;
+        Environment = envList;
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
