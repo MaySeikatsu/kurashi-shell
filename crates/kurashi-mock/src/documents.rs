@@ -148,9 +148,24 @@ const SINKS: [(u32, &str, &str); 2] = [
     ),
 ];
 
-/// `svc.audio` shaped as kurashi-audio's `build_doc`: the sinks, the default one marked and its
-/// level and mute at the top.
-pub fn audio(volume: f64, muted: bool, default_sink: u32) -> Value {
+/// The two inputs `svc.audio` lists (W13): (id, PulseAudio name, description). Input 10 is the
+/// default, as the built-in microphone is on most machines.
+const SOURCES: [(u32, &str, &str); 2] = [
+    (
+        10,
+        "alsa_input.pci-0000_00_1f.3.analog-stereo",
+        "Built-in Audio Analog Stereo",
+    ),
+    (11, "alsa_input.usb-webcam.analog-mono", "USB Webcam"),
+];
+pub const SOURCE_DEFAULT: u32 = 10;
+
+/// The profiles power-profiles-daemon offers, in its order.
+pub const PROFILES: [&str; 3] = ["power-saver", "balanced", "performance"];
+
+/// The output list and the default output: what `audio.sink.default` changes (kurashid's
+/// `audio.sinks`, the same keys as `build_doc`).
+pub fn audio_sinks(default_sink: u32) -> Value {
     let sinks: Vec<Value> = SINKS
         .iter()
         .map(|&(id, name, description)| {
@@ -158,21 +173,106 @@ pub fn audio(volume: f64, muted: bool, default_sink: u32) -> Value {
         })
         .collect();
     let sink = sinks.iter().find(|s| s["default"] == true).cloned();
-    let mut doc = json!({"available": true, "volume": volume, "muted": muted, "sinks": sinks});
+    let mut doc = json!({"sinks": sinks});
     if let Some(sink) = sink {
         doc["sink"] = sink;
     }
     doc
 }
 
+/// The input list with the default marked (`audio.source.default` changes the mark).
+pub fn audio_sources(default_source: u32) -> Value {
+    Value::Array(
+        SOURCES
+            .iter()
+            .map(|&(id, name, description)| {
+                json!({"id": id, "name": name, "description": description, "default": id == default_source})
+            })
+            .collect(),
+    )
+}
+
+/// Whether the mock's sound server has an input with this id.
+pub fn has_source(id: u32) -> bool {
+    SOURCES.iter().any(|s| s.0 == id)
+}
+
+/// The default input with its level and mute (`source`), as kurashid's `build_doc` writes it.
+pub fn audio_source(default_source: u32, volume: f64, muted: bool) -> Value {
+    let (id, name, description) = SOURCES
+        .iter()
+        .copied()
+        .find(|s| s.0 == default_source)
+        .unwrap_or(SOURCES[0]);
+    json!({"id": id, "name": name, "description": description, "default": true, "volume": volume, "muted": muted})
+}
+
+/// Two playing applications: a player and a browser, the browser's icon named by its app.
+pub fn audio_streams() -> Value {
+    json!([
+        {"id": 20, "app": "Music", "volume": 0.6, "muted": false},
+        {"id": 21, "app": "Firefox", "icon": "firefox", "volume": 1.0, "muted": false},
+    ])
+}
+
+/// `svc.audio` shaped as kurashi-audio's `build_doc`: the sinks, the default one marked and its
+/// level and mute at the top, then the inputs and the playing applications.
+pub fn audio(volume: f64, muted: bool, default_sink: u32) -> Value {
+    let mut doc = json!({"available": true, "volume": volume, "muted": muted});
+    let obj = doc.as_object_mut().expect("object");
+    for (key, value) in audio_sinks(default_sink).as_object().expect("object") {
+        obj.insert(key.clone(), value.clone());
+    }
+    obj.insert("sources".into(), audio_sources(SOURCE_DEFAULT));
+    obj.insert("source".into(), audio_source(SOURCE_DEFAULT, 0.8, false));
+    obj.insert("streams".into(), audio_streams());
+    doc
+}
+
 /// `svc.network` (kurashid's `read`): wifi on and connected to a wifi network, or wifi off and no
-/// link. The mock has one connection, so the wifi switch is the whole story.
+/// link. `airplane` is false: both radios on or only wifi off is not airplane mode.
 pub fn network(wifi_on: bool) -> Value {
     if wifi_on {
-        json!({"state": "connected", "wifi_enabled": true, "primary": {"kind": "wifi", "name": "home-wifi", "strength": 60}})
+        json!({"state": "connected", "wifi_enabled": true, "primary": {"kind": "wifi", "name": "home-wifi", "strength": 60}, "airplane": false})
     } else {
-        json!({"state": "disconnected", "wifi_enabled": false})
+        json!({"state": "disconnected", "wifi_enabled": false, "airplane": false})
     }
+}
+
+/// The networks in range: (SSID, strength, secured, saved). The mock's one saved network is the one
+/// it is connected to; the others are refused by `network.connect` with the reason kurashid gives.
+const NETWORKS: [(&str, u8, bool, bool); 3] = [
+    ("home-wifi", 60, true, true),
+    ("cafe-guest", 80, false, false),
+    ("office-5g", 30, true, false),
+];
+
+/// The SSIDs and their strength, as `network.connect` looks them up: (SSID, strength, secured, saved).
+pub fn network_in_range(ssid: &str) -> Option<(&'static str, u8, bool, bool)> {
+    NETWORKS.iter().copied().find(|n| n.0 == ssid)
+}
+
+/// `svc.network.scan` (kurashid's `scan_doc`): the networks with the active one first, or the
+/// reason nothing can be listed while wifi is off. `primary` is the connected network's SSID.
+pub fn network_scan(wifi_on: bool, primary: Option<&str>) -> Value {
+    if !wifi_on {
+        return json!({"available": false, "reason": "error.network.wifi_off"});
+    }
+    let mut rows: Vec<(bool, u8, Value)> = NETWORKS
+        .iter()
+        .map(|&(ssid, strength, secure, known)| {
+            let active = Some(ssid) == primary;
+            let row = json!({"ssid": ssid, "strength": strength, "secure": secure, "known": known, "active": active});
+            (active, strength, row)
+        })
+        .collect();
+    rows.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.cmp(&a.1)));
+    json!({"available": true, "networks": rows.into_iter().map(|r| r.2).collect::<Vec<_>>()})
+}
+
+/// `svc.power`'s profile part (kurashid's `power`): the daemon's active profile and what it offers.
+pub fn power(profile: &str) -> Value {
+    json!({"available": true, "present": false, "on_battery": false, "profile": profile, "profiles": PROFILES})
 }
 
 /// `tray.menu {id}` (K23): the tree kurashi-tray builds (`menu.rs`). The same small tree for every
@@ -326,13 +426,18 @@ pub fn seed_notes(now_ms: i64) -> Vec<Note> {
 
 /// `svc.notifications`: kurashi-notify's document. `toasts` lists the showing ids, and `unread`
 /// counts the rest. Optional item fields are left out, never null (PROTOCOL §3).
-pub fn notes_doc(notes: &[Note], dnd: bool) -> Value {
-    json!({
+pub fn notes_doc(notes: &[Note], dnd: bool, dnd_until: Option<i64>) -> Value {
+    let mut doc = json!({
         "dnd": dnd,
         "unread": notes.iter().filter(|n| !n.read).count(),
         "toasts": notes.iter().filter(|n| n.showing).map(|n| n.id).collect::<Vec<_>>(),
         "items": notes.iter().map(Note::to_json).collect::<Vec<_>>(),
-    })
+    });
+    // Only while timed do-not-disturb is on (PROTOCOL §8). The mock has no timer to end it.
+    if let Some(until) = dnd_until {
+        doc["dnd_until"] = json!(until);
+    }
+    doc
 }
 
 /// The launcher's fake index as `(desktop id, name, generic name, icon)`, listed alphabetically
