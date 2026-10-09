@@ -1,4 +1,5 @@
 Bar 1.0 Bar.qml
+BarConfig 1.0 BarConfig.qml
 Stage 1.0 Stage.qml
 Lock 1.0 Lock.qml
 Toasts 1.0 Toasts.qml

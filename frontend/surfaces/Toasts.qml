@@ -48,8 +48,10 @@ Scope {
         visible: shown     // unmapped at idle: mapped-surface budget (docs/BENCH.md)
         readonly property int slide: 16
 
-        anchors { top: true; right: true }
-        margins { top: Theme.barH + 4; right: Theme.gap }
+        // Clears this output's bar: below a top bar, above a bottom one, left of a right one.
+        BarConfig { id: bars; screen: win.screen }
+        anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
+        margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
         implicitWidth: stack.width
         implicitHeight: Math.max(1, stack.height)
         exclusionMode: ExclusionMode.Ignore
