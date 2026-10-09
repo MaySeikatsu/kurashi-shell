@@ -297,6 +297,45 @@ pub fn power(profile: &str) -> Value {
     json!({"available": true, "present": false, "on_battery": false, "profile": profile, "profiles": PROFILES})
 }
 
+/// The two players `svc.media` offers: a track in mpv, which can seek, and a live stream in
+/// Firefox, which has no length and cannot seek. The ids are the bus names kurashid lists.
+pub const MEDIA_PLAYERS: [(&str, &str); 2] = [
+    ("org.mpris.MediaPlayer2.mpv", "mpv"),
+    ("org.mpris.MediaPlayer2.firefox", "Firefox"),
+];
+/// The track's length, and the position a fresh read of it finds (microseconds).
+pub const MEDIA_LENGTH_US: i64 = 260_000_000;
+pub const MEDIA_POSITION_US: i64 = 83_000_000;
+
+/// `svc.media` (PROTOCOL §8) for player `active`, an index into `MEDIA_PLAYERS`. `playing[i]` is
+/// player i's play state; `position_us` was read at `read_at_ms`, the mock's clock. Keys a player
+/// does not have are left out, as kurashid leaves them out.
+pub fn media(active: usize, playing: [bool; 2], position_us: i64, read_at_ms: i64) -> Value {
+    let track = active == 0;
+    let players: Vec<Value> = MEDIA_PLAYERS
+        .iter()
+        .enumerate()
+        .map(|(i, (id, name))| json!({"id": id, "name": name, "playing": playing[i], "active": i == active}))
+        .collect();
+    let mut doc = json!({
+        "available": true,
+        "title": if track { "夜に駆ける" } else { "深夜ラジオ" },
+        "artist": if track { "YOASOBI" } else { "" },
+        "player": MEDIA_PLAYERS[active].1,
+        "playing": playing[active],
+        "rate": 1.0,
+        "can": {"seek": track, "next": track, "prev": track, "play": true, "pause": true},
+        "players": players,
+        "position_us": position_us,
+        "position_at_ms": read_at_ms,
+    });
+    if track {
+        doc["album"] = json!("THE BOOK");
+        doc["length_us"] = json!(MEDIA_LENGTH_US);
+    }
+    doc
+}
+
 /// `tray.menu {id}` (K23): the tree kurashi-tray builds (`menu.rs`). The same small tree for every
 /// item: one separator, one checkmark, a submenu with radio entries, and a disabled entry.
 pub fn tray_menu() -> Value {
