@@ -122,12 +122,15 @@ on_accent = "#f0e0e0"
 
 #[test]
 fn tokens_contain_every_mock_theme_doc_key() {
-    let src = include_str!("../../kurashi-mock/src/main.rs");
-    let start = src.find("fn theme_doc").expect("theme_doc in mock");
+    let src = include_str!("../../kurashi-mock/src/documents.rs");
+    let start = src
+        .find("pub fn theme()")
+        .expect("theme() in mock documents");
+    // The body ends where the next top-level fn begins.
     let body = &src[start
-        ..src[start..]
-            .find("fn initial_docs")
-            .map_or(src.len(), |e| start + e)];
+        ..src[start + 1..]
+            .find("\npub fn ")
+            .map_or(src.len(), |e| start + 1 + e)];
     let mut keys = vec![];
     let b = body.as_bytes();
     let mut i = 0;

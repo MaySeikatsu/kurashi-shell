@@ -1,7 +1,14 @@
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use crate::SecretString;
+
+/// Whether PAM has a service file `dir/service` (`/etc/pam.d/<service>`). Without one PAM falls
+/// back to the `other` stack, which the lock screen cannot rely on, so nothing could unlock it.
+pub fn service_configured(dir: &Path, service: &str) -> bool {
+    dir.join(service).is_file()
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PromptKind {

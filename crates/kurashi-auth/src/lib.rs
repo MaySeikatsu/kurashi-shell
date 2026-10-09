@@ -8,7 +8,9 @@ mod session;
 
 #[cfg(feature = "pam")]
 pub use backend::PamAuthenticator;
-pub use backend::{AuthError, Authenticator, Conversation, FakeAuthenticator, PromptKind};
+pub use backend::{
+    AuthError, Authenticator, Conversation, FakeAuthenticator, PromptKind, service_configured,
+};
 pub use secret::SecretString;
 pub use session::{
     Clock, LockConfig, LockSession, ManualClock, SubmitError, SubmitOutcome, SystemClock,
