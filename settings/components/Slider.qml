@@ -1,9 +1,9 @@
 import QtQuick
 import "../core"
 
-// Slider with local preview: while dragging only the shown number moves; the value goes out once,
-// on release (`committed`), so one interaction = one apply transaction. Arrow keys move one step, and
-// each key press is one transaction too.
+// Slider. While dragging only the shown number moves; the value goes out once, on release (`committed`), so one drag
+// is one change. Arrow keys move one step (`previewed`, so a previewable row can show it first); Return commits what
+// is shown, Escape is `cancelled`.
 Item {
     id: s
     property real value: 0
@@ -15,6 +15,8 @@ Item {
     property bool enabled: true
     property string label: ""
     signal committed(real value)
+    signal previewed(real value)
+    signal cancelled()
 
     property bool dragging: false
     property real dragValue: 0
@@ -31,6 +33,7 @@ Item {
     activeFocusOnTab: s.enabled
     Accessible.role: Accessible.Slider
     Accessible.name: s.label
+    Accessible.description: readout.text
 
     function snap(v) {
         v = Math.max(from, Math.min(to, v))
@@ -39,13 +42,13 @@ Item {
         return Number(v.toFixed(decimals))
     }
     function at(x) { return snap(from + Math.max(0, Math.min(1, x / track.width)) * (to - from)) }
-    // One step per arrow key, from the value in effect. Without a step: a hundredth of the range
-    // (never less than 1 for an integer setting, so a key always moves it).
+    // One step per arrow key, from the value shown. Without a step: a hundredth of the range (never less than 1 for an
+    // integer setting, so a key always moves it).
     function nudge(d) {
         if (!s.enabled) return
         var st = step > 0 ? step : Math.max(integer ? 1 : 0, (to - from) / 100)
-        var v = snap(value + d * st)
-        if (v !== value) s.committed(v)
+        var v = snap(shown + d * st)
+        if (v !== shown) s.previewed(v)
     }
 
     Keys.onPressed: event => {
@@ -53,6 +56,8 @@ Item {
         switch (event.key) {
         case Qt.Key_Left: case Qt.Key_Down: d = -1; break
         case Qt.Key_Right: case Qt.Key_Up: d = 1; break
+        case Qt.Key_Return: case Qt.Key_Enter: s.committed(s.shown); event.accepted = true; return
+        case Qt.Key_Escape: s.cancelled(); event.accepted = true; return
         default: return
         }
         s.nudge(d)
@@ -70,7 +75,7 @@ Item {
         color: Theme.containerHigh
         opacity: s.enabled ? 1 : 0.5
         Rectangle {
-            width: parent.width * (to > from ? (s.shown - s.from) / (s.to - s.from) : 0)
+            width: parent.width * (s.to > s.from ? (s.shown - s.from) / (s.to - s.from) : 0)
             height: parent.height
             radius: 2
             color: Theme.accent
@@ -88,7 +93,7 @@ Item {
         id: readout
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        width: 64
+        width: 72
         horizontalAlignment: Text.AlignRight
         color: Theme.fg
         font.pixelSize: Theme.fs

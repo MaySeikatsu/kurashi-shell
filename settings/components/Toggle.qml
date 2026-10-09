@@ -1,8 +1,9 @@
 import QtQuick
 import "../core"
 
-// Switch. `checked` is the daemon's effective value; a click, Space or Return only emits the wished value.
-Rectangle {
+// Switch. `checked` is the daemon's effective value; a click, Space or Return only emits the wished value. The focus ring
+// sits 3 px outside the track: an inner ring would sit on the accent fill of an ON switch (as the shell's ToggleSwitch).
+Item {
     id: t
     property bool checked: false
     property bool enabled: true
@@ -11,14 +12,9 @@ Rectangle {
 
     function flip() { if (t.enabled) t.toggled(!t.checked) }
 
-    implicitWidth: 40
-    implicitHeight: 22
-    radius: height / 2
-    color: checked ? Theme.accent : Theme.containerHigh
-    border.width: 1
-    border.color: Theme.outline
-    opacity: enabled ? 1 : 0.5
-
+    implicitWidth: track.width
+    implicitHeight: Theme.controlH
+    opacity: t.enabled ? 1 : 0.5
     activeFocusOnTab: t.enabled
     Keys.onSpacePressed: event => { t.flip(); event.accepted = true }
     Keys.onReturnPressed: event => { t.flip(); event.accepted = true }
@@ -29,23 +25,33 @@ Rectangle {
     Accessible.checked: t.checked
 
     Rectangle {
-        width: 16
-        height: 16
-        radius: 8
-        y: 3
-        x: t.checked ? t.width - width - 3 : 3
-        color: Theme.fg
+        id: track
+        anchors.centerIn: parent
+        width: 40
+        height: 22
+        radius: height / 2
+        color: t.checked ? Theme.accent : Theme.containerHigh
+        border.width: 1
+        border.color: t.checked ? Theme.accent : Theme.outline
+
+        Rectangle {
+            width: 16
+            height: 16
+            radius: 8
+            y: 3
+            x: t.checked ? track.width - width - 3 : 3
+            color: t.checked ? Theme.fgOnAccent : Theme.fg
+        }
     }
     MouseArea {
         anchors.fill: parent
-        // The switch keeps its 22 px; the hit area grows to the control height (32 px floor).
-        anchors.margins: -Math.max(0, (Theme.controlH - t.height) / 2)
         enabled: t.enabled
         onClicked: t.flip()
     }
     FocusRing {
-        anchors.fill: parent
+        anchors.fill: track
+        anchors.margins: -3
         shown: t.activeFocus
-        corner: t.radius
+        corner: track.radius + 3
     }
 }
