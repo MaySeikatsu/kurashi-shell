@@ -39,11 +39,26 @@ fn with_id(id: &str, provides: &str) -> String {
         .replace("demo", id)
 }
 
+/// A mod's strings: the shared `mods` domain or its own `mod-<id>` domain (K28: one file per mod).
+fn mod_strings(locale: &str, id: &str) -> toml::Table {
+    let mut table = toml::Table::new();
+    for file in ["mods.toml".to_string(), format!("mod-{id}.toml")] {
+        let path = manifest_dir(&format!("../../i18n/{locale}/{file}"));
+        if let Ok(text) = fs::read_to_string(path) {
+            table.extend(text.parse::<toml::Table>().unwrap());
+        }
+    }
+    table
+}
+
 #[test]
 fn bundled_manifests_validate() {
     let r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
     let ids: Vec<_> = r.iter().map(|e| e.id.as_str()).collect();
-    assert_eq!(ids, ["easter-eggs", "media"]);
+    // Every bundled mod validates; the first two are the oldest (more join as cards land).
+    for id in ["easter-eggs", "media"] {
+        assert!(ids.contains(&id), "{id} missing from {ids:?}");
+    }
     for e in r.iter() {
         assert_eq!(e.state, ModState::Available, "{}: {:?}", e.id, e.state);
         let m = e.manifest.as_ref().unwrap();
@@ -509,12 +524,12 @@ fn bundled_descriptions_resolve_in_both_locales() {
     for e in r.iter() {
         let key = e.manifest.as_ref().unwrap().description.as_deref().unwrap();
         for locale in ["en", "ja"] {
-            let path = manifest_dir(&format!("../../i18n/{locale}/mods.toml"));
-            let table: toml::Table = fs::read_to_string(path).unwrap().parse().unwrap();
+            let table = mod_strings(locale, &e.id);
             let text = table.get(key).and_then(|v| v.as_str());
             assert!(
                 text.is_some_and(|s| !s.trim().is_empty()),
-                "{key} missing in i18n/{locale}/mods.toml"
+                "{key} missing in i18n/{locale}/mods.toml and mod-{}.toml",
+                e.id
             );
         }
     }
@@ -536,13 +551,13 @@ fn bundled_setting_strings_resolve_in_both_locales() {
                     .map(|c| format!("{}.{c}", m.config_key(&s.key))),
             );
             for locale in ["en", "ja"] {
-                let path = manifest_dir(&format!("../../i18n/{locale}/mods.toml"));
-                let table: toml::Table = fs::read_to_string(path).unwrap().parse().unwrap();
+                let table = mod_strings(locale, &e.id);
                 for key in &keys {
                     let text = table.get(key).and_then(|v| v.as_str());
                     assert!(
                         text.is_some_and(|t| !t.trim().is_empty()),
-                        "{key} missing in i18n/{locale}/mods.toml"
+                        "{key} missing in i18n/{locale}/mods.toml and mod-{}.toml",
+                        e.id
                     );
                 }
             }

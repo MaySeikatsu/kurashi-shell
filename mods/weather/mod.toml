@@ -1,0 +1,57 @@
+id = "weather"
+name = "Weather"
+description = "mods.weather.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# Bar widget, panel, rain-soon face (Island), clock aside (K28 slot), saved-place choices, the
+# mod service and its actions (docs/ux/weather.md). Each must be registered by the Rust crate.
+provides = [
+    "service:weather",
+    "action:weather.*",
+    "island-face:weather",
+    "choices:weather.places",
+    "widget:weather",
+    "panel:weather",
+    "slot:clock.expanded.aside",
+]
+capabilities = ["network", "fs:scoped"]
+cost = "low"
+
+[[setting]]
+key = "place"
+type = "string"
+default = ""
+choices_from = "weather.places"
+label = "mods.weather.place"
+help = "mods.weather.place.help"
+
+[[setting]]
+key = "units"
+type = "enum"
+default = "auto"
+choices = ["auto", "metric", "imperial"]
+label = "mods.weather.units"
+
+[[setting]]
+key = "refresh"
+type = "int"
+default = 30
+range = [10, 180]
+unit = "min"
+label = "mods.weather.refresh"
+help = "mods.weather.refresh.help"
+
+[[setting]]
+key = "rain_alerts"
+type = "bool"
+default = false
+label = "mods.weather.rain_alerts"
+help = "mods.weather.rain_alerts.help"
+
+[[setting]]
+key = "bar_template"
+type = "string"
+default = "{glyph} {temp}"
+label = "mods.weather.bar_template"
+help = "mods.weather.bar_template.help"
