@@ -9,7 +9,7 @@ import "faces"
 // not animate. Unknown face ids (mod faces) fall back to the clock rather than showing nothing.
 // Input is presentational: the surface passes island.main's resolved bindings in `slots` and gets
 // `activated(slot)` for a bound slot only. What a slot does is the daemon's call (input.dispatch).
-Rectangle {
+Item {
     id: isl
     property string face: "clock"
     // `{ "<slot>": {action, source, forced_by?} }`; an unbound slot is absent, never null.
@@ -34,23 +34,34 @@ Rectangle {
         : shown === "notifications" ? notifs.wantW : clock.wantW
 
     height: Theme.barH - 10
-    radius: Theme.rFull
-    color: Theme.containerHigh
-    clip: true
     width: faceW + 2 * Theme.pad
     Behavior on width {
         enabled: isl.animate
         NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
     }
 
-    ClockFace { id: clock; anchors.fill: parent; current: isl.shown === "clock"; animate: isl.animate }
-    MediaFace { id: media; anchors.fill: parent; current: isl.shown === "media"; animate: isl.animate }
-    VolumeFace { id: volume; anchors.fill: parent; current: isl.shown === "volume"; animate: isl.animate }
-    BrightnessFace { id: bright; anchors.fill: parent; current: isl.shown === "brightness"; animate: isl.animate }
-    NotificationsFace { id: notifs; anchors.fill: parent; current: isl.shown === "notifications"; animate: isl.animate }
-
-    MouseArea {
+    // The pill is what is drawn: the faces paint inside it and nothing outside it.
+    Rectangle {
+        id: pill
         anchors.fill: parent
+        radius: Theme.rFull
+        color: Theme.containerHigh
+        clip: true
+
+        ClockFace { id: clock; anchors.fill: parent; current: isl.shown === "clock"; animate: isl.animate }
+        MediaFace { id: media; anchors.fill: parent; current: isl.shown === "media"; animate: isl.animate }
+        VolumeFace { id: volume; anchors.fill: parent; current: isl.shown === "volume"; animate: isl.animate }
+        BrightnessFace { id: bright; anchors.fill: parent; current: isl.shown === "brightness"; animate: isl.animate }
+        NotificationsFace { id: notifs; anchors.fill: parent; current: isl.shown === "notifications"; animate: isl.animate }
+    }
+
+    // The pointer target is the bar's full thickness (review #11: at least 32 px), centred on the pill.
+    // It is a sibling of the pill, not a child: a clipping parent does not deliver pointer events to
+    // children outside it, and the pill keeps its clip.
+    MouseArea {
+        anchors.centerIn: parent
+        width: parent.width
+        height: Theme.barH
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         // A pointer only promises a click when the left click does something (unbound = no pointer).
