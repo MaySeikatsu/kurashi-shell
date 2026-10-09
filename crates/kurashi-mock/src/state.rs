@@ -9,7 +9,11 @@ use std::hash::{BuildHasher, Hasher};
 use chrono::NaiveTime;
 use kurashi_core::Rev;
 use kurashi_ipc::{ServerMsg, merge_patch};
-use kurashid::wiring::{ARGS_INVALID, CONFIRM_REQUIRED, NO_SUCH_SINK, SERVICE_CALL_FAILED};
+use kurashid::wiring::{
+    ARGS_INVALID, CONFIRM_REQUIRED, NETWORK_NEEDS_SECRET, NETWORK_NOT_FOUND, NETWORK_NOT_SAVED,
+    NETWORK_UNAVAILABLE, NO_SUCH_PROFILE, NO_SUCH_SINK, NO_SUCH_SOURCE, NO_SUCH_STREAM,
+    SERVICE_CALL_FAILED,
+};
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
@@ -21,6 +25,8 @@ const BRIGHTNESS_START: u32 = documents::BRIGHTNESS_MAX / 2;
 const BRIGHTNESS_STEP: f64 = 0.05;
 /// Rows per launcher query, as kurashid's launcher provider answers (`query(q, 30)`).
 const QUERY_LIMIT: usize = 30;
+/// The highest level a stream or the volume takes: kurashi_audio's `MAX_VOLUME` (150 %).
+const LEVEL_MAX: f64 = 1.5;
 
 pub struct Doc {
     pub rev: Rev,
@@ -63,6 +69,8 @@ pub struct State {
     notes: Vec<Note>,
     next_note_id: u32,
     dnd: bool,
+    /// Timed do-not-disturb's end, ms since the epoch (`notify.dnd {until}`).
+    dnd_until: Option<i64>,
 }
 
 impl State {
@@ -79,7 +87,10 @@ impl State {
                 ),
             ),
             ("svc.clock", documents::clock(documents::now(fixed_time))),
-            ("svc.notifications", documents::notes_doc(&notes, false)),
+            (
+                "svc.notifications",
+                documents::notes_doc(&notes, false, None),
+            ),
             ("svc.workspaces", documents::workspaces(outputs, 1)),
             ("svc.audio", documents::audio(0.5, false, 1)),
             (
@@ -92,11 +103,12 @@ impl State {
                 "svc.session",
                 json!({"available": true, "idle_hint": false, "locked_hint": false, "preparing_for_sleep": false}),
             ),
-            (
-                "svc.power",
-                json!({"available": true, "present": false, "on_battery": false}),
-            ),
+            ("svc.power", documents::power("balanced")),
             ("svc.network", documents::network(true)),
+            (
+                "svc.network.scan",
+                documents::network_scan(true, Some("home-wifi")),
+            ),
             ("svc.tray", documents::tray()),
             ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
@@ -145,6 +157,7 @@ impl State {
             notes,
             next_note_id,
             dnd: false,
+            dnd_until: None,
         }
     }
 
@@ -273,6 +286,14 @@ impl State {
             // The quick settings card (K24), as kurashid's wiring serves them.
             "audio.sink.default" => self.sink_default(args)?,
             "network.wifi" => self.network_wifi(args)?,
+            "network.connect" => self.network_connect(args)?,
+            "network.disconnect" => self.network_disconnect()?,
+            "network.airplane" => self.network_airplane(args)?,
+            "power.profile" => self.power_profile(args)?,
+            "audio.source.default" => self.source_default(args)?,
+            "audio.stream.volume" => self.stream_volume(args)?,
+            "audio.stream.mute" => self.stream_mute(args)?,
+            "audio.mic.mute.toggle" => self.mic_mute_toggle()?,
             "brightness.up" => self.brightness_step(args, 1),
             "brightness.down" => self.brightness_step(args, -1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
@@ -315,10 +336,7 @@ impl State {
                 }
                 self.publish_notes();
             }
-            "notify.dnd" => {
-                self.dnd = args["on"].as_bool().unwrap_or(true);
-                self.publish_notes();
-            }
+            "notify.dnd" => self.notify_dnd(args)?,
             "mock.notify" => return self.mock_notify(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
             "launcher.launch" => {
@@ -447,9 +465,8 @@ impl State {
         {
             return Err(Fail::invalid(NO_SUCH_SINK));
         }
-        let volume = doc["volume"].as_f64().unwrap_or(0.5);
-        let muted = doc["muted"].as_bool().unwrap_or(false);
-        self.patch("svc.audio", documents::audio(volume, muted, id), None);
+        // Only the output list moves: the level, the inputs and the playing applications stay.
+        self.patch("svc.audio", documents::audio_sinks(id), None);
         Ok(())
     }
 
@@ -462,6 +479,167 @@ impl State {
             ops["primary"] = Value::Null;
         }
         self.patch("svc.network", ops, None);
+        self.sync_scan();
+        Ok(())
+    }
+
+    /// `network.connect {ssid}` as kurashid answers it: a saved network joins and becomes the
+    /// primary connection; any other is refused with the reason kurashid gives. Wifi off cannot join.
+    fn network_connect(&mut self, args: &Value) -> Result<(), Fail> {
+        let ssid = str_arg(args, "ssid")?;
+        if ssid.is_empty() {
+            return Err(Fail::invalid(ARGS_INVALID));
+        }
+        let Some((name, strength, secure, saved)) = documents::network_in_range(&ssid) else {
+            return Err(Fail::unavailable(NETWORK_NOT_FOUND));
+        };
+        if !saved {
+            let key = if secure {
+                NETWORK_NEEDS_SECRET
+            } else {
+                NETWORK_NOT_SAVED
+            };
+            return Err(Fail::unavailable(key));
+        }
+        if self.data("svc.network")["wifi_enabled"] != true {
+            return Err(Fail::unavailable(NETWORK_UNAVAILABLE));
+        }
+        let ops = json!({
+            "state": "connected",
+            "primary": {"kind": "wifi", "name": name, "strength": strength},
+            "airplane": false,
+        });
+        self.patch("svc.network", ops, None);
+        self.sync_scan();
+        Ok(())
+    }
+
+    /// `network.disconnect`: the primary connection goes. Nothing connected is not an error.
+    fn network_disconnect(&mut self) -> Result<(), Fail> {
+        if self.data("svc.network").get("primary").is_some() {
+            let mut ops = json!({"state": "disconnected"});
+            ops["primary"] = Value::Null;
+            self.patch("svc.network", ops, None);
+            self.sync_scan();
+        }
+        Ok(())
+    }
+
+    /// `network.airplane {on}`: wifi and mobile broadband off together. Off brings wifi back up, and
+    /// the mock's network connects again, as it does whenever wifi is on.
+    fn network_airplane(&mut self, args: &Value) -> Result<(), Fail> {
+        let on = bool_arg(args, "on")?;
+        let mut ops = documents::network(!on);
+        if on {
+            ops["primary"] = Value::Null;
+            ops["airplane"] = json!(true);
+        }
+        self.patch("svc.network", ops, None);
+        self.sync_scan();
+        Ok(())
+    }
+
+    /// `svc.network.scan` follows the wifi switch and the primary connection, as kurashid's scan does.
+    /// A key the new document lacks is removed, not kept from the old one (rule 2).
+    fn sync_scan(&mut self) {
+        let net = self.data("svc.network");
+        let wifi = net["wifi_enabled"] == true;
+        let primary = net["primary"]["name"].as_str().map(str::to_owned);
+        let mut ops = documents::network_scan(wifi, primary.as_deref());
+        for key in ["networks", "reason"] {
+            if ops.get(key).is_none() {
+                ops[key] = Value::Null;
+            }
+        }
+        self.patch("svc.network.scan", ops, None);
+    }
+
+    /// `power.profile {name}`: one of the profiles the daemon offers; anything else is refused.
+    fn power_profile(&mut self, args: &Value) -> Result<(), Fail> {
+        let name = str_arg(args, "name")?;
+        if !documents::PROFILES.contains(&name.as_str()) {
+            return Err(Fail::invalid(NO_SUCH_PROFILE));
+        }
+        self.patch("svc.power", json!({"profile": name}), None);
+        Ok(())
+    }
+
+    /// `audio.source.default {id}`: the input picker. The default input's level and mute stay.
+    fn source_default(&mut self, args: &Value) -> Result<(), Fail> {
+        let id = id_arg(args)?;
+        if !documents::has_source(id) {
+            return Err(Fail::invalid(NO_SUCH_SOURCE));
+        }
+        let cur = self.data("svc.audio")["source"].clone();
+        let volume = cur["volume"].as_f64().unwrap_or(0.8);
+        let muted = cur["muted"].as_bool().unwrap_or(false);
+        let ops = json!({
+            "sources": documents::audio_sources(id),
+            "source": documents::audio_source(id, volume, muted),
+        });
+        self.patch("svc.audio", ops, None);
+        Ok(())
+    }
+
+    /// `audio.stream.volume {id, value}`: a playing application's level, `0..=1.5` as the sliders
+    /// send it. Anything else is refused before the list is touched.
+    fn stream_volume(&mut self, args: &Value) -> Result<(), Fail> {
+        let id = id_arg(args)?;
+        let value = args["value"]
+            .as_f64()
+            .filter(|v| (0.0..=LEVEL_MAX).contains(v))
+            .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+        let mut streams = self.data("svc.audio")["streams"].clone();
+        find_stream(&mut streams, id)?["volume"] = json!(value);
+        self.patch("svc.audio", json!({"streams": streams}), None);
+        Ok(())
+    }
+
+    /// `audio.stream.mute {id, on?}`: without `on` the mute flips, as kurashid's worker reads it.
+    fn stream_mute(&mut self, args: &Value) -> Result<(), Fail> {
+        let id = id_arg(args)?;
+        let on = match args.get("on") {
+            None => None,
+            Some(v) => Some(v.as_bool().ok_or_else(|| Fail::invalid(ARGS_INVALID))?),
+        };
+        let mut streams = self.data("svc.audio")["streams"].clone();
+        let stream = find_stream(&mut streams, id)?;
+        let muted = on.unwrap_or(!stream["muted"].as_bool().unwrap_or(false));
+        stream["muted"] = json!(muted);
+        self.patch("svc.audio", json!({"streams": streams}), None);
+        Ok(())
+    }
+
+    /// `audio.mic.mute.toggle`: the default input's mute flips.
+    fn mic_mute_toggle(&mut self) -> Result<(), Fail> {
+        let muted = !self.data("svc.audio")["source"]["muted"]
+            .as_bool()
+            .unwrap_or(false);
+        self.patch("svc.audio", json!({"source": {"muted": muted}}), None);
+        Ok(())
+    }
+
+    /// `notify.dnd {on?, until?}` as kurashid serves it: without `until`, on is indefinite; with one,
+    /// do-not-disturb is on and ends at that time (ms since the epoch), which must be later than now.
+    /// The mock has no timer, so a timed one stays on until it is changed.
+    fn notify_dnd(&mut self, args: &Value) -> Result<(), Fail> {
+        let on = args["on"].as_bool().unwrap_or(true);
+        match args.get("until") {
+            None => {
+                self.dnd = on;
+                self.dnd_until = None;
+            }
+            Some(until) => {
+                let now = documents::now(self.fixed_time).timestamp_millis();
+                let until = until
+                    .as_i64()
+                    .filter(|u| on && *u > now)
+                    .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+                self.dnd = true;
+                self.dnd_until = Some(until);
+            }
+        }
+        self.publish_notes();
         Ok(())
     }
 
@@ -549,7 +727,11 @@ impl State {
     /// Rebuilds `svc.notifications` from the list. The patch is the whole document (arrays replace
     /// under merge-patch), and `apply` drops it when nothing changed.
     fn publish_notes(&mut self) {
-        let doc = documents::notes_doc(&self.notes, self.dnd);
+        let mut doc = documents::notes_doc(&self.notes, self.dnd, self.dnd_until);
+        // The patch merges: an end time that is gone must be removed, not kept (RFC 7396 null).
+        if self.dnd_until.is_none() {
+            doc["dnd_until"] = Value::Null;
+        }
         self.patch("svc.notifications", doc, None);
     }
 
@@ -577,6 +759,24 @@ impl State {
 }
 
 /// A required argument: missing or of another JSON type is refused as kurashid refuses it.
+/// The `id` of a device or stream action: a PulseAudio index, else refused as the arguments are.
+fn id_arg(args: &Value) -> Result<u32, Fail> {
+    args["id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok())
+        .ok_or_else(|| Fail::invalid(ARGS_INVALID))
+}
+
+/// The playing application `id` in a `streams` list; an id the list does not hold is refused.
+fn find_stream(streams: &mut Value, id: u32) -> Result<&mut Value, Fail> {
+    streams
+        .as_array_mut()
+        .into_iter()
+        .flatten()
+        .find(|s| s["id"] == id)
+        .ok_or_else(|| Fail::invalid(NO_SUCH_STREAM))
+}
+
 fn str_arg(args: &Value, key: &str) -> Result<String, Fail> {
     args[key]
         .as_str()
@@ -1387,5 +1587,130 @@ mod tests {
             st.act("network.wifi", &json!({})),
             Err(Fail::invalid(ARGS_INVALID))
         );
+    }
+
+    #[test]
+    fn network_scan_and_its_actions_follow_the_fixture_and_the_switches() {
+        let mut st = state();
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_quick_pages.json"
+        ))
+        .unwrap();
+        assert_eq!(st.data("svc.network.scan"), &fixture["data"]);
+
+        // Disconnect, then join the saved network: it is the active row again. The others are refused
+        // with the key kurashid gives.
+        assert_eq!(st.act("network.disconnect", &none()), Ok(None));
+        assert!(st.data("svc.network").get("primary").is_none());
+        assert_eq!(st.data("svc.network.scan")["networks"][0]["active"], false);
+        assert_eq!(
+            st.act("network.connect", &json!({"ssid": "home-wifi"})),
+            Ok(None)
+        );
+        assert_eq!(st.data("svc.network")["primary"]["name"], "home-wifi");
+        assert_eq!(st.data("svc.network.scan")["networks"][0]["active"], true);
+        assert_eq!(
+            st.act("network.connect", &json!({"ssid": "office-5g"})),
+            Err(Fail::unavailable(NETWORK_NEEDS_SECRET))
+        );
+        assert_eq!(
+            st.act("network.connect", &json!({"ssid": "cafe-guest"})),
+            Err(Fail::unavailable(NETWORK_NOT_SAVED))
+        );
+        assert_eq!(
+            st.act("network.connect", &json!({"ssid": "nowhere"})),
+            Err(Fail::unavailable(NETWORK_NOT_FOUND))
+        );
+        assert_eq!(
+            st.act("network.connect", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+
+        // Airplane: both radios off, no list, and the reason says why; off again brings it back.
+        assert_eq!(st.act("network.airplane", &json!({"on": true})), Ok(None));
+        assert_eq!(st.data("svc.network")["airplane"], true);
+        assert_eq!(
+            st.data("svc.network.scan")["reason"],
+            "error.network.wifi_off"
+        );
+        assert!(st.data("svc.network.scan").get("networks").is_none());
+        assert_eq!(st.act("network.airplane", &json!({"on": false})), Ok(None));
+        assert_eq!(st.data("svc.network")["airplane"], false);
+        assert!(st.data("svc.network.scan").get("reason").is_none());
+    }
+
+    #[test]
+    fn sources_streams_and_the_mic_follow_their_actions() {
+        let mut st = state();
+        assert_eq!(st.data("svc.audio")["source"]["id"], 10);
+        assert_eq!(st.act("audio.source.default", &json!({"id": 11})), Ok(None));
+        assert_eq!(st.data("svc.audio")["source"]["id"], 11);
+        assert_eq!(st.data("svc.audio")["sources"][1]["default"], true);
+        assert_eq!(
+            st.act("audio.source.default", &json!({"id": 99})),
+            Err(Fail::invalid(NO_SUCH_SOURCE))
+        );
+
+        assert_eq!(
+            st.act("audio.stream.volume", &json!({"id": 20, "value": 0.25})),
+            Ok(None)
+        );
+        assert_eq!(st.data("svc.audio")["streams"][0]["volume"], 0.25);
+        assert_eq!(
+            st.act("audio.stream.volume", &json!({"id": 20, "value": 2.0})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(
+            st.act("audio.stream.volume", &json!({"id": 99, "value": 0.5})),
+            Err(Fail::invalid(NO_SUCH_STREAM))
+        );
+
+        assert_eq!(st.act("audio.stream.mute", &json!({"id": 21})), Ok(None));
+        assert_eq!(st.data("svc.audio")["streams"][1]["muted"], true);
+        assert_eq!(
+            st.act("audio.stream.mute", &json!({"id": 21, "on": false})),
+            Ok(None)
+        );
+        assert_eq!(st.data("svc.audio")["streams"][1]["muted"], false);
+
+        assert_eq!(st.act("audio.mic.mute.toggle", &none()), Ok(None));
+        assert_eq!(st.data("svc.audio")["source"]["muted"], true);
+
+        // The output picker moves only the outputs: the streams and the inputs stay.
+        assert_eq!(st.act("audio.sink.default", &json!({"id": 2})), Ok(None));
+        assert_eq!(st.data("svc.audio")["streams"][0]["volume"], 0.25);
+        assert_eq!(st.data("svc.audio")["sources"][1]["default"], true);
+    }
+
+    #[test]
+    fn power_profile_and_timed_do_not_disturb_are_checked() {
+        let mut st = state();
+        assert_eq!(st.data("svc.power")["profile"], "balanced");
+        assert_eq!(
+            st.act("power.profile", &json!({"name": "performance"})),
+            Ok(None)
+        );
+        assert_eq!(st.data("svc.power")["profile"], "performance");
+        assert_eq!(
+            st.act("power.profile", &json!({"name": "turbo"})),
+            Err(Fail::invalid(NO_SUCH_PROFILE))
+        );
+
+        // Timed: on, with the end in the document; an end in the past, or with `on` off, is refused.
+        let end = documents::now(None).timestamp_millis() + 60_000;
+        assert_eq!(st.act("notify.dnd", &json!({"until": end})), Ok(None));
+        assert_eq!(st.data("svc.notifications")["dnd"], true);
+        assert_eq!(st.data("svc.notifications")["dnd_until"], end);
+        assert_eq!(
+            st.act("notify.dnd", &json!({"on": true, "until": 1})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(
+            st.act("notify.dnd", &json!({"on": false, "until": end})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(st.act("notify.dnd", &json!({"on": false})), Ok(None));
+        assert_eq!(st.data("svc.notifications")["dnd"], false);
+        assert!(st.data("svc.notifications").get("dnd_until").is_none());
     }
 }

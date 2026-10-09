@@ -54,9 +54,15 @@ async fn power_lifecycle() {
     // UPower not on the bus yet.
     let (handle, _c) = power::start(bus.conn().await, rec.clone()).await.unwrap();
     let d = rec.wait("absent", |_| true).await;
+    // No UPower and no profile daemon: nothing is known, and the profile says why it is missing.
     assert_eq!(
         d,
-        serde_json::json!({"available": false, "present": false, "on_battery": false})
+        serde_json::json!({
+            "available": false,
+            "present": false,
+            "on_battery": false,
+            "profile_reason": "error.power.profiles_unavailable"
+        })
     );
 
     let srv = bus.server("org.freedesktop.UPower").await;

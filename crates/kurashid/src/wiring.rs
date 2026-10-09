@@ -7,7 +7,8 @@ use std::sync::{Arc, Mutex};
 
 use kurashi_ipc::ApplyOp;
 use kurashi_services::brightness::{self as backlight, Change};
-use kurashi_services::network::WifiError;
+use kurashi_services::network::{ConnectError, WifiError};
+use kurashi_services::power_profiles::ProfileError;
 use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry, ActionResult};
@@ -463,6 +464,22 @@ pub fn notifications_with_facts(
         });
     }
     let get = move || commands.lock().expect("notify lock").clone();
+    notify_actions(actions, get);
+}
+
+/// The current wall-clock time in ms since the epoch (the `until` of `notify.dnd` is compared with it).
+fn unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
+}
+
+/// The `notify.*` actions over the notification server's commands, which exist once it is up. Not
+/// running is an error, never a start: the server holds the bus name for the daemon's lifetime.
+pub fn notify_actions(
+    actions: &mut ActionRegistry,
+    get: impl Fn() -> Option<kurashi_notify::Commands> + Clone + Send + Sync + 'static,
+) {
     let id_of = |v: &Value| v["id"].as_u64().map(|n| n as u32);
     let g = get.clone();
     actions.register("notify.dismiss", "action.notify.dismiss", move |v| {
@@ -499,7 +516,18 @@ pub fn notifications_with_facts(
             let c = c.ok_or_else(|| {
                 ActionError::Unavailable("notification server not running".into())
             })?;
-            c.set_dnd(v["on"].as_bool().unwrap_or(true));
+            let on = v["on"].as_bool().unwrap_or(true);
+            match v.get("until") {
+                None => c.set_dnd(on),
+                Some(until) => {
+                    // `until` is ms since the epoch: a do-not-disturb that is on and ends later on.
+                    let until = until
+                        .as_u64()
+                        .filter(|u| on && *u > unix_ms())
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                    c.set_dnd_until(until);
+                }
+            }
             Ok(None)
         }
     });
@@ -870,24 +898,30 @@ impl AudioProvider {
         })
     }
 
-    /// `audio.sink.default` names a sink of the current document. The worker drops an unknown id
-    /// without a word, so the answer has to come from here (rule 2). Unavailable audio has no list.
-    fn known_sink(&self, hub: &Hub, id: u32) -> Result<(), ActionError> {
+    /// An id the picker or the mixer names must be in the current document. The worker drops an
+    /// unknown id without a word, so the answer has to come from here (rule 2). Unavailable audio
+    /// has no lists.
+    fn known_in(&self, hub: &Hub, list: &str, id: u32, missing: &str) -> Result<(), ActionError> {
         let unavailable = || ActionError::Unavailable(AUDIO_UNAVAILABLE.into());
         let (_, doc) = hub.snapshot("svc.audio").map_err(|_| unavailable())?;
         if doc["available"].as_bool() != Some(true) {
             return Err(unavailable());
         }
-        let known = doc["sinks"].as_array().is_some_and(|sinks| {
-            sinks
+        let known = doc[list].as_array().is_some_and(|items| {
+            items
                 .iter()
                 .any(|s| s["id"].as_u64() == Some(u64::from(id)))
         });
         if known {
             Ok(())
         } else {
-            Err(ActionError::Invalid(NO_SUCH_SINK.into()))
+            Err(ActionError::Invalid(missing.into()))
         }
+    }
+
+    /// `audio.sink.default` names a sink of the current document.
+    fn known_sink(&self, hub: &Hub, id: u32) -> Result<(), ActionError> {
+        self.known_in(hub, "sinks", id, NO_SUCH_SINK)
     }
 }
 
@@ -959,12 +993,12 @@ pub fn audio_with(
         });
     }
     // The output picker of the quick settings card (K24). Not running is an error, never a start.
-    let (p, hub) = (provider.clone(), hub.clone());
+    let (p, h) = (provider.clone(), hub.clone());
     actions.register(
         "audio.sink.default",
         "action.audio.sink.default",
         move |args: Value| {
-            let (p, hub) = (p.clone(), hub.clone());
+            let (p, h) = (p.clone(), h.clone());
             async move {
                 let id = args["id"]
                     .as_u64()
@@ -973,8 +1007,89 @@ pub fn audio_with(
                 let c = p
                     .commands()
                     .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
-                p.known_sink(&hub, id)?;
+                p.known_sink(&h, id)?;
                 c.set_default_sink(id);
+                Ok(None)
+            }
+        },
+    );
+    // The input picker and the per-app mixer (W13). Ids come from the current document, as for sinks.
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.source.default",
+        "action.audio.source.default",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "sources", id, NO_SUCH_SOURCE)?;
+                c.set_default_source(id);
+                Ok(None)
+            }
+        },
+    );
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.stream.volume",
+        "action.audio.stream.volume",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                // A level in `0..=MAX_VOLUME`, as the sliders send it; anything else is refused.
+                let value = args["value"]
+                    .as_f64()
+                    .filter(|v| (0.0..=kurashi_audio::MAX_VOLUME).contains(v))
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "streams", id, NO_SUCH_STREAM)?;
+                c.set_stream_volume(id, value);
+                Ok(None)
+            }
+        },
+    );
+    // `{id, on?}`: without `on` the stream's mute flips, as the worker reads it.
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.stream.mute",
+        "action.audio.stream.mute",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                let on = match args.get("on") {
+                    None => None,
+                    Some(v) => Some(
+                        v.as_bool()
+                            .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?,
+                    ),
+                };
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "streams", id, NO_SUCH_STREAM)?;
+                match on {
+                    Some(on) => c.set_stream_muted(id, on),
+                    None => c.toggle_stream_mute(id),
+                }
+                Ok(None)
+            }
+        },
+    );
+    let p = provider.clone();
+    actions.register(
+        "audio.mic.mute.toggle",
+        "action.audio.mic.mute.toggle",
+        move |_| {
+            let c = p.commands();
+            async move {
+                c.ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?
+                    .toggle_source_mute();
                 Ok(None)
             }
         },
@@ -989,10 +1104,22 @@ pub fn audio_with(
     });
 }
 
+/// The `id` argument of a device or stream action: a PulseAudio index.
+fn id_arg(args: &Value) -> Result<u32, ActionError> {
+    args["id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok())
+        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
 /// Error keys of the key actions; the frontend and the CLI render them (rule 8).
 pub const AUDIO_UNAVAILABLE: &str = "error.audio.unavailable";
 /// `audio.sink.default` with an id that is no sink of the current document.
 pub const NO_SUCH_SINK: &str = "error.audio.no_such_sink";
+/// `audio.source.default` with an id that is no input of the current document.
+pub const NO_SUCH_SOURCE: &str = "error.audio.no_such_source";
+/// `audio.stream.*` with an id that is no playing application of the current document.
+pub const NO_SUCH_STREAM: &str = "error.audio.no_such_stream";
 pub const NO_BACKLIGHT: &str = "error.brightness.no_device";
 pub const STEP_RANGE: &str = "error.step.out_of_range";
 /// `session.lock` without the PAM service is refused: nothing could unlock the screen afterwards.
@@ -1324,11 +1451,18 @@ pub const ARGS_INVALID: &str = "error.args.invalid";
 const TRAY_DOC: &str = "svc.tray";
 const BLUETOOTH_DOC: &str = "svc.bluetooth";
 const NETWORK_DOC: &str = "svc.network";
+const NETWORK_SCAN_DOC: &str = "svc.network.scan";
+const POWER_DOC: &str = "svc.power";
 
-/// `network.wifi` keys (K24, quick settings): NetworkManager refused the change (polkit), or there
-/// is no NetworkManager to change it.
+/// `network.*` keys (K24, quick settings): NetworkManager refused the change (polkit), or there is
+/// no NetworkManager to change it.
 pub const NETWORK_REFUSED: &str = "error.network.refused";
 pub const NETWORK_UNAVAILABLE: &str = "error.network.unavailable";
+/// `network.connect` to a network that is not saved: a secured one needs a password (not asked for
+/// yet), an open one has no profile to join with yet, and one out of range cannot be joined.
+pub const NETWORK_NEEDS_SECRET: &str = "error.network.needs_secret";
+pub const NETWORK_NOT_SAVED: &str = "error.network.not_saved";
+pub const NETWORK_NOT_FOUND: &str = "error.network.not_found";
 
 /// The session bus, opened when a service starts (never at daemon startup).
 fn session_bus() -> ConnectFn {
@@ -1459,17 +1593,27 @@ pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Con
     });
 }
 
-/// `svc.network` (NetworkManager on the system bus, refcounted) and the `network.wifi {on}` action
-/// of the quick settings card (K24).
+/// `svc.network` and `svc.network.scan` (NetworkManager on the system bus, both refcounted), and the
+/// quick settings actions `network.{wifi,airplane,connect,disconnect}`.
 pub fn network(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     network_with(hub, actions, system_bus());
 }
 
 /// [`network`] with the bus injected (tests run it on a private bus with a fake NetworkManager).
 pub fn network_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    network_paced(hub, actions, connect, kurashi_services::network::SCAN_EVERY);
+}
+
+/// [`network_with`] with the scan cadence injected: tests count the rescans of a subscription.
+pub fn network_paced(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    scan_every: std::time::Duration,
+) {
     let service = Arc::new(ServiceProvider::with_connect(
         NETWORK_DOC,
-        connect,
+        connect.clone(),
         kurashi_services::network::start,
     ));
     hub.register(
@@ -1477,19 +1621,112 @@ pub fn network_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Conne
         json!({"state": "unknown"}),
         Some(service.clone()),
     );
-    service_action(actions, "network.wifi", service, |c, a| async move {
-        let on = bool_arg(&a, "on")?;
-        c.set_wifi_enabled(on).await.map_err(|e| {
-            ActionError::Unavailable(
-                match e {
-                    WifiError::Refused => NETWORK_REFUSED,
-                    WifiError::Unavailable => NETWORK_UNAVAILABLE,
-                }
-                .into(),
-            )
+    // Nothing is known before the first scan: the document is empty until it answers (rule 2).
+    let scan = Arc::new(
+        ServiceProvider::with_connect(NETWORK_SCAN_DOC, connect, move |c, s| {
+            kurashi_services::network::start_scan_every(c, s, scan_every)
+        })
+        .unavailable(json!({"available": false, "reason": NETWORK_UNAVAILABLE})),
+    );
+    hub.register(NETWORK_SCAN_DOC, json!({}), Some(scan));
+    service_action(
+        actions,
+        "network.wifi",
+        service.clone(),
+        |c, a| async move {
+            let on = bool_arg(&a, "on")?;
+            c.set_wifi_enabled(on).await.map_err(wifi_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "network.airplane",
+        service.clone(),
+        |c, a| async move {
+            let on = bool_arg(&a, "on")?;
+            c.set_airplane(on).await.map_err(wifi_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "network.connect",
+        service.clone(),
+        |c, a| async move {
+            let ssid = str_arg(&a, "ssid")?;
+            if ssid.is_empty() {
+                return Err(ActionError::Invalid(ARGS_INVALID.into()));
+            }
+            c.connect(&ssid).await.map_err(|e| {
+                ActionError::Unavailable(
+                    match e {
+                        ConnectError::Refused => NETWORK_REFUSED,
+                        ConnectError::Unavailable => NETWORK_UNAVAILABLE,
+                        ConnectError::NeedsSecret => NETWORK_NEEDS_SECRET,
+                        ConnectError::NotSaved => NETWORK_NOT_SAVED,
+                        ConnectError::NotFound => NETWORK_NOT_FOUND,
+                    }
+                    .into(),
+                )
+            })?;
+            Ok(None)
+        },
+    );
+    service_action(actions, "network.disconnect", service, |c, _a| async move {
+        c.disconnect().await.map_err(wifi_failed)?;
+        Ok(None)
+    });
+}
+
+/// `svc.power` (UPower and power-profiles-daemon on the system bus, refcounted) and `power.profile`.
+pub fn power(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
+    power_with(hub, actions, system_bus());
+}
+
+/// [`power`] with the bus injected (tests run it on a private bus with fake daemons).
+pub fn power_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    let service = Arc::new(ServiceProvider::with_connect(
+        POWER_DOC,
+        connect,
+        kurashi_services::power::start,
+    ));
+    hub.register(
+        POWER_DOC,
+        json!({
+            "available": false,
+            "present": false,
+            "on_battery": false,
+            "profile_reason": kurashi_services::power_profiles::UNAVAILABLE,
+        }),
+        Some(service.clone()),
+    );
+    service_action(actions, "power.profile", service, |c, a| async move {
+        let name = str_arg(&a, "name")?;
+        c.set_profile(&name).await.map_err(|e| match e {
+            ProfileError::Unknown => ActionError::Invalid(NO_SUCH_PROFILE.into()),
+            ProfileError::Refused => ActionError::Unavailable(POWER_REFUSED.into()),
+            ProfileError::Unavailable => ActionError::Unavailable(POWER_UNAVAILABLE.into()),
         })?;
         Ok(None)
     });
+}
+
+/// `power.profile` with a name the profile daemon does not offer.
+pub const NO_SUCH_PROFILE: &str = "error.power.no_such_profile";
+/// The profile daemon refused the change (polkit), or is not there to make it.
+pub const POWER_REFUSED: &str = "error.power.refused";
+pub const POWER_UNAVAILABLE: &str = "error.power.unavailable";
+
+/// A refused or failed radio or link change, as its key.
+fn wifi_failed(e: WifiError) -> ActionError {
+    ActionError::Unavailable(
+        match e {
+            WifiError::Refused => NETWORK_REFUSED,
+            WifiError::Unavailable => NETWORK_UNAVAILABLE,
+        }
+        .into(),
+    )
 }
 
 /// Registers `id` to run `run` on the service's commands. Not running is an error, never an
@@ -2398,6 +2635,9 @@ mod tests {
         fn set_muted(&mut self, _muted: bool) {}
         fn set_default_sink(&mut self, _id: u32) {}
         fn set_source_muted(&mut self, _muted: bool) {}
+        fn set_default_source(&mut self, _id: u32) {}
+        fn set_stream_volume(&mut self, _id: u32, _linear: f64) {}
+        fn set_stream_muted(&mut self, _id: u32, _muted: bool) {}
     }
 
     #[tokio::test]

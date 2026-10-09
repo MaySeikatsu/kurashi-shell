@@ -91,6 +91,10 @@ struct Item {
 struct State {
     next_id: u32,
     dnd: bool,
+    /// When do-not-disturb ends by itself: wall-clock ms for the document, and the monotonic
+    /// deadline the timer sleeps to. Both absent for an indefinite (or no) do-not-disturb.
+    dnd_until_ms: Option<u64>,
+    dnd_deadline: Option<Instant>,
     /// Newest first.
     items: Vec<Item>,
     last_doc: Option<Json>,
@@ -338,20 +342,32 @@ impl Core {
                 }
             }
         }
-        if !sigs.is_empty() {
+        let mut changed = !sigs.is_empty();
+        if st.dnd_deadline.is_some_and(|d| d <= now) {
+            // Timed do-not-disturb ends once: the document says so, and nothing re-arms.
+            st.dnd = false;
+            st.dnd_until_ms = None;
+            st.dnd_deadline = None;
+            changed = true;
+        }
+        if changed {
             st.items.retain(|i| !gone.contains(&i.id));
             self.publish(&mut st);
         }
         sigs
     }
 
+    /// The earliest moment the timer must wake: a toast running out, or timed do-not-disturb ending.
+    /// None while neither is pending, so an idle daemon sleeps (Ma).
     fn next_deadline(&self) -> Option<Instant> {
-        self.lock()
+        let st = self.lock();
+        let toasts = st
             .items
             .iter()
             .filter(|i| i.showing)
             .filter_map(|i| i.deadline)
-            .min()
+            .min();
+        [toasts, st.dnd_deadline].into_iter().flatten().min()
     }
 }
 
@@ -390,12 +406,17 @@ fn doc(st: &State) -> Json {
             o
         })
         .collect();
-    json!({
+    let mut d = json!({
         "dnd": st.dnd,
         "unread": st.items.iter().filter(|i| !i.read).count(),
         "toasts": st.items.iter().filter(|i| i.showing).map(|i| i.id).collect::<Vec<_>>(),
         "items": items,
-    })
+    });
+    // Absent unless timed do-not-disturb is on (PROTOCOL §8): ms since the epoch.
+    if let Some(until) = st.dnd_until_ms {
+        d["dnd_until"] = json!(until);
+    }
+    d
 }
 
 struct Iface(Arc<Core>);
@@ -514,9 +535,29 @@ impl Commands {
     }
 
     /// Affects only notifications arriving afterwards; toasts already showing run out normally.
+    /// Indefinite: an earlier `set_dnd_until` ends with it.
     pub fn set_dnd(&self, on: bool) {
         let mut st = self.0.lock();
         st.dnd = on;
+        st.dnd_until_ms = None;
+        st.dnd_deadline = None;
+        self.0.publish(&mut st);
+    }
+
+    /// Do-not-disturb until the wall-clock time `until_ms` (ms since the epoch), then off by itself
+    /// (the timer ends it once). A time that has already passed means off, at once.
+    pub fn set_dnd_until(&self, until_ms: u64) {
+        let mut st = self.0.lock();
+        let left = until_ms.saturating_sub(now_ms());
+        if left == 0 {
+            st.dnd = false;
+            st.dnd_until_ms = None;
+            st.dnd_deadline = None;
+        } else {
+            st.dnd = true;
+            st.dnd_until_ms = Some(until_ms);
+            st.dnd_deadline = Some(Instant::now() + Duration::from_millis(left));
+        }
         self.0.publish(&mut st);
     }
 }
@@ -560,6 +601,8 @@ impl Server {
             state: Mutex::new(State {
                 next_id: 0,
                 dnd: cfg.dnd,
+                dnd_until_ms: None,
+                dnd_deadline: None,
                 items: vec![],
                 last_doc: None,
             }),

@@ -205,3 +205,11 @@ contribution takes no space. (2) A mod's `island-face:<name>` registers with the
 (rule 4); relevance stays in the core arbiter (K24). Per-slot user order/hide: later (BACKLOG).
 *Why:* related modules must meet in one view (clock + calendar + weather, media + lyrics) without the core knowing
 them, and mod features must reach the Island and dropdowns the same way core features do.
+
+**K29** 🟢 Quick settings' daemon pages (lead, session 5; CONTRACT row 34, W13-quick-daemon). The Wi-Fi list is its own
+refcounted document `svc.network.scan` (a scan every 15 s only while subscribed — GNOME scans only while its menu is
+open), not a field of `svc.network`; `network.connect` joins saved networks only and refuses others honestly
+(`error.network.needs_secret` secured, `error.network.not_saved` open) until password entry exists; `svc.audio` gains
+sources/streams with their actions, `svc.power` the power-profiles-daemon profile (absent + `profile_reason` without
+it), `svc.notifications` `dnd_until` (a daemon timer only while set). *Why:* `docs/ux/quick-settings.md`; Ma (no scan
+while closed), Shōjiki (no claimed password need for open networks).
