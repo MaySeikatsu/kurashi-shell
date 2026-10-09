@@ -1,6 +1,5 @@
 # Quick settings — UX brief
-Status: agreed (lead, session 5) — functional base merged (W10-bar-quick, W10-stage-panels, W12-quick-ui); UX pass:
-card W13-quick-ux
+Status: UX pass merged (W13-quick-ux, 1e63bfd); lead review 1 done — open items below ("Lead review")
 
 ## Job
 One place for "the state of my machine and the switches I flip daily": connectivity, sound out, power, display
@@ -71,3 +70,12 @@ for the daemon card). Per-output budget: the card lives on the one Stage (no per
 
 ## Later
 Edit mode UI · per-app stream routing · VPN management · hotspot · screen-share indicator (BACKLOG rows).
+
+## Lead review 1 (2026-10-10, screenshots `frontend/shots/quick-sections/`)
+Met: status sentence with live segments; six tiles with value subtitles and in-card pages (Wi-Fi with honest
+"needs password"/"not saved" refusals, Audio with outputs/inputs/per-app streams, Power with profiles, Focus with
+until-choices, Display, Bluetooth); connecting/failed/recovered; media row; footer; no scan while closed; 400 px card.
+Open: (1) **tile on-state is too loud** — a solid crimson fill per active tile reads as alarm; use a tonal container
+(accent at low alpha) + accent icon, keep the solid fill for "needs attention" (BACKLOG I51); (2) tile-level unavailable and
+forced states not drawn (mock control, I50); (3) footer gated-off and battery block not verified (I50); (4) mod tiles keep their
+own size (96×40) — a tile-size contract for `quick.tiles` (I52); (5) "until next event" waits for a calendar mod.
