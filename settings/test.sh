@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Settings app smoke test + screenshots (cards M5-settings, S-settings-polish, W9-config-profiles: Undo from
-# config.history, a profile file listed while the page is open, refusal lines of mods). Runs ONLY in a headless
+# config.history, a profile file listed while the page is open, refusal lines of mods; W10-settings: mod pages in
+# the sidebar, the head switch, Load / Remove from Settings, the palette dropdown and the island's pick list, both
+# driven from the keyboard where the card asks for it). Runs ONLY in a headless
 # sway sandbox with an isolated kurashid (own XDG dirs); never touches the real session or ~/.config.
 #   settings/test.sh                        → exit 0 and settings/shots/*.png
 #   KURASHI_BIN_DIR=<dir> settings/test.sh  → take kurashid + kurashi from <dir>; no cargo build
@@ -190,5 +192,91 @@ Q undo
 for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=on" ] && break; sleep 0.2; done
 [ "$(Q undoState)" = "undo=on,redo=on" ] || { echo "history: after Undo, expected undo=on,redo=on ($(Q undoState))"; exit 1; }
 shot 10-undo-redo
+
+# 11. mod pages (K25): media is loaded and off (easter-eggs is on by default, demo-blur on from step 6). The
+#     sidebar places each mod page among the core pages by name; navOrder lists the entries the window built.
+Q mod media false
+for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
+[[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || { echo "mods: media is still on after mod.disable"; exit 1; }
+want="bar,appearance,accessibility,mods.demo-blur,mods.easter-eggs,island,mods.media,notifications,launcher,@mods,@profiles"
+for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
+[ "$(Q navOrder)" = "$want" ] || { echo "sidebar: order is $(Q navOrder), expected $want"; exit 1; }
+Q goto bar
+shot 11-sidebar-mods
+
+# 12. a mod's page (K25): its switch (off), the running line, and its settings, each with the reason they are not
+#     in effect (the mod is off, so its values are kept).
+Q goto mods.media
+shot 12-media-page
+
+# 13. the Mods page: Load on the available rows, Remove from Settings and the switch on the loaded ones, the
+#     refusal and the errors of the invalid one.
+Q goto @mods
+shot 13-mods-page
+
+# 14. keyboard only: Tab walks to the palette dropdown (its objectName is select:<key>); Enter opens it, Down moves
+#     to the next palette, Enter picks it. The daemon's config must then show the new palette.
+Q goto appearance
+Q focusList >/dev/null
+mkfifo "$R/keys2.fifo"
+python3 -I tools/bench/wl_keys.py --serve < "$R/keys2.fifo" & pids+=($!)
+exec 4> "$R/keys2.fifo"
+tabs=0
+for _ in $(seq 60); do
+  echo tab >&4
+  tabs=$((tabs + 1))
+  sleep 0.3
+  [ "$(Q focused)" = "select:theme.colors.palette" ] && break
+done
+[ "$(Q focused)" = "select:theme.colors.palette" ] || { echo "dropdown: Tab never reached select:theme.colors.palette ($(Q focused))"; exit 1; }
+echo return >&4
+sleep 0.5
+echo down >&4
+sleep 0.5
+echo return >&4
+exec 4>&-
+for _ in $(seq 50); do
+  case "$(K '{"t":"cfg.get","id":"k2","key":"theme.colors.palette"}')" in *'"value":"kanso"'*) break ;; esac
+  sleep 0.2
+done
+after=$(K '{"t":"cfg.get","id":"k2","key":"theme.colors.palette"}')
+case "$after" in *'"value":"kanso"'*) ;; *) echo "dropdown: keyboard did not select kanso: $after"; exit 1;; esac
+echo "dropdown: Tab x$tabs, Return, Down, Return selected kanso"
+shot 14-palette-keyboard
+
+# 15. the palette dropdown open (opened the way Enter opens it): the offers, the chosen one ticked and highlighted.
+Q goto appearance
+Q openChoice theme.colors.palette
+shot 15-palette-dropdown
+
+# 16. the island's faces: an ordered pick list (move, remove, add from the rest) and the default face's dropdown.
+Q goto island
+shot 16-island-pick-list
+
+# 17. Remove from Settings, then Load (the Mods page's two buttons, through the same calls): media leaves the
+#     loaded list and comes back.
+Q modUnload media
+for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m2","key":"mods.loaded"}')" != *media* ]] && break; sleep 0.2; done
+[[ "$(K '{"t":"cfg.get","id":"m2","key":"mods.loaded"}')" != *media* ]] || { echo "mods: Remove from Settings did not unload media"; exit 1; }
+Q modLoad media
+for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m3","key":"mods.loaded"}')" == *media* ]] && break; sleep 0.2; done
+[[ "$(K '{"t":"cfg.get","id":"m3","key":"mods.loaded"}')" == *media* ]] || { echo "mods: Load did not load media again"; exit 1; }
+echo "mods: Remove from Settings and Load took media out and back in"
+
+# 18. a value the daemon keeps but no offer names (I9, K21): the dropdown shows the value as it is, the row says it
+#     has no effect, and the row stays editable. Set through the same path as the controls.
+Q set theme.colors.palette '"from-a-mod"'
+for _ in $(seq 50); do
+  case "$(K '{"t":"cfg.get","id":"k3","key":"theme.colors.palette"}')" in *from-a-mod*) break ;; esac
+  sleep 0.2
+done
+case "$(K '{"t":"cfg.get","id":"k3","key":"theme.colors.palette"}')" in *from-a-mod*) ;; *) echo "dropdown: from-a-mod was not kept"; exit 1;; esac
+Q goto appearance
+shot 18-palette-unavailable
+
+# 19. a mod without settings (demo-blur, loaded and on): its page has the switch and the running line, and says
+#     there is nothing to configure instead of "No settings match".
+Q goto mods.demo-blur
+shot 19-mod-no-settings
 
 echo "ok: settings/shots/"; ls settings/shots
