@@ -22,6 +22,31 @@
 #   range: 16..=96, step 2 (px) · only while bar.enabled == true · per-output
 # height = 32
 
+# [theme.colors]
+#
+# Palette — Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+# palette = "wa-iro"
+#
+# Scheme — Dark or light surfaces.
+#   choices: "dark" | "light"
+# scheme = "dark"
+#
+# Contrast — Raises the contrast between surfaces and text.
+#   choices: "standard" | "medium" | "high" · forced to "high" while a11y.high_contrast is on
+# contrast = "standard"
+#
+# Colour-blind adjustment — Shifts accent colours so they stay distinguishable.
+#   choices: "none" | "protanopia" | "deuteranopia" | "tritanopia"
+# colorblind = "none"
+#
+# Seasonal tint (旬) — A slight seasonal drift of hues following the 24 solar terms.
+#   advanced
+# season = false
+#
+# Pure black (OLED) — Pure-black grounds on dark schemes.
+#   only while theme.colors.scheme == "dark"
+# oled = false
+
 # [theme.shape]
 #
 # Corners — Corner style of bars, popups and the island.

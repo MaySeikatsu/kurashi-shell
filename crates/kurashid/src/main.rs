@@ -86,6 +86,16 @@ async fn main() -> anyhow::Result<()> {
                 },
             );
             store.register_actions(&mut actions);
+            // fc-list once at startup (subprocess); fonts installed later need a restart for now.
+            let fonts: Arc<dyn kurashi_theme::FontProvider + Send + Sync> =
+                match kurashi_theme::FcList::query() {
+                    Ok(f) => Arc::new(f),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "fc-list unavailable; font chains unresolved");
+                        Arc::new(kurashi_theme::FakeFonts::new(&[]))
+                    }
+                };
+            kurashid::theme::register(&hub, &store, fonts);
             Some(store)
         }
         None => {
