@@ -1,0 +1,10 @@
+# Fixed config for the golden screenshots: run.sh copies it into the sandbox's XDG_CONFIG_HOME.
+# reduce_motion keeps every frame out of an animation; wa-iro is the default palette, pinned here
+# so a later default change cannot move the references.
+schema_version = 1
+
+[theme.colors]
+palette = "wa-iro"
+
+[a11y]
+reduce_motion = true

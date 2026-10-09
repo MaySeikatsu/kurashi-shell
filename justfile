@@ -43,3 +43,7 @@ nix-eval-test:
 bench-gate:
     python3 tools/bench/measure.py --name frontend-real --daemon real -- frontend/launch.sh
     python3 tools/bench/budget.py tools/bench/results/frontend-real.json
+
+# Golden screenshots of the core surfaces: `just golden` compares, `just golden --update` rewrites tools/golden/ref
+golden *ARGS:
+    tools/golden/run.sh {{ARGS}}
