@@ -293,11 +293,8 @@ async fn bluetooth_lifecycle() {
 #[tokio::test]
 async fn bluez_restart_resets_document() {
     let bus = TestBus::start();
-    let rec = Rec::new();
-    let (handle, _cmds) = bluetooth::start(bus.conn().await, rec.clone())
-        .await
-        .unwrap();
-
+    // BlueZ is up before the service starts, so the match rules are added while org.bluez has an
+    // owner. The restart below has to be heard from the new owner.
     let srv = serve_bluez(&bus).await;
     srv.object_server()
         .at(
@@ -321,6 +318,10 @@ async fn bluez_restart_resets_document() {
         )
         .await
         .unwrap();
+    let rec = Rec::new();
+    let (handle, _cmds) = bluetooth::start(bus.conn().await, rec.clone())
+        .await
+        .unwrap();
     rec.wait("device", |d| find(d, HEADSET_ADDR).is_some())
         .await;
 
@@ -329,8 +330,11 @@ async fn bluez_restart_resets_document() {
     rec.wait("gone", |d| d == &json!({"available": false}))
         .await;
 
-    // BlueZ comes back with a powered-off adapter and nothing paired: the document follows.
+    // BlueZ comes back with a powered-off adapter. The pause lets the service see the new owner and
+    // snapshot the empty tree first, so the adapter can only reach the document through the new
+    // owner's InterfacesAdded.
     let srv = serve_bluez(&bus).await;
+    tokio::time::sleep(Duration::from_millis(200)).await;
     srv.object_server()
         .at(
             ADAPTER,
