@@ -693,6 +693,7 @@ dependencies = [
  "kurashi-core",
  "kurashi-ipc",
  "kurashi-island",
+ "kurashi-services",
  "serde",
  "serde_json",
  "thiserror",
@@ -701,6 +702,7 @@ dependencies = [
  "toml",
  "tracing",
  "tracing-subscriber",
+ "zbus",
 ]
 
 [[package]]

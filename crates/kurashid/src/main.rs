@@ -73,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
         &["clock", "media"],
     );
     island.register_actions(&mut actions);
+    register_services(&hub, &island, &mut actions);
     let daemon = Arc::new(Daemon::new(hub, actions, Intents::default()));
     tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 
@@ -87,4 +88,76 @@ async fn main() -> anyhow::Result<()> {
     let _ = std::fs::remove_file(&path);
     tracing::info!("kurashid stopped");
     Ok(())
+}
+
+/// D-Bus services as refcounted documents (ARCHITECTURE §1, rule 5). Media also feeds the Island.
+fn register_services(
+    hub: &Arc<Hub>,
+    island: &Arc<kurashid::island::IslandHost>,
+    actions: &mut ActionRegistry,
+) {
+    use kurashi_services::{brightness, media, network, power, session};
+    use kurashid::services::{Bus, ServiceProvider};
+
+    let isl = island.clone();
+    let media = Arc::new(
+        ServiceProvider::new("svc.media", Bus::Session, media::start).observe(move |doc| {
+            let playing = doc["playing"].as_bool().unwrap_or(false);
+            isl.signal(kurashi_island::FaceSignal {
+                face: "media".into(),
+                relevance: if playing { 60 } else { 0 },
+                condition: playing,
+                transient: None,
+            });
+        }),
+    );
+    hub.register("svc.media", json!({"playing": false}), Some(media.clone()));
+    for (id, which) in [
+        ("media.play_pause", 0),
+        ("media.next", 1),
+        ("media.prev", 2),
+    ] {
+        let media = media.clone();
+        actions.register(id, &format!("action.{id}"), move |_| {
+            let cmds = media.commands();
+            async move {
+                let cmds = cmds.ok_or_else(|| {
+                    kurashid::ActionError::Unavailable("media service not running".into())
+                })?;
+                match which {
+                    0 => cmds.play_pause().await,
+                    1 => cmds.next().await,
+                    _ => cmds.prev().await,
+                }
+                .map_err(|e| kurashid::ActionError::Unavailable(e.to_string()))?;
+                Ok(None)
+            }
+        });
+    }
+
+    // power has no commands (and its marker type isn't Clone).
+    let power = Arc::new(ServiceProvider::new(
+        "svc.power",
+        Bus::System,
+        |c, s| async move { power::start(c, s).await.map(|(h, _)| (h, ())) },
+    ));
+    hub.register("svc.power", json!({"present": false}), Some(power));
+    let session = Arc::new(ServiceProvider::new(
+        "svc.session",
+        Bus::System,
+        session::start,
+    ));
+    hub.register("svc.session", json!({}), Some(session));
+    let network = Arc::new(ServiceProvider::new(
+        "svc.network",
+        Bus::System,
+        network::start,
+    ));
+    hub.register("svc.network", json!({"state": "unknown"}), Some(network));
+    let brightness = Arc::new(ServiceProvider::new(
+        "svc.brightness",
+        Bus::System,
+        brightness::start,
+    ));
+    hub.register("svc.brightness", json!({}), Some(brightness));
 }
