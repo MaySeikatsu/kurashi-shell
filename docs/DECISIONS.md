@@ -108,3 +108,15 @@ finds one; the frontend stays locked while disconnected (and the compositor keep
 ext-session-lock if the frontend dies). *Why:* the lock-UI work showed a restarted daemon reported
 `locked:false` and the surface unlocked — killing a process must never unlock the screen. The
 runtime dir is cleared on logout, so a stale marker can't outlive the session.
+
+**K21** 🟢 The daemon reports *why a value has no effect*, not just who set it. `Provenanced` gains
+an optional `inert_by` (config key). (1) `requires` couplings are evaluated in the daemon over
+effective values: an inert dependent keeps its `value`/`source` and carries `reason` (the
+coupling's key, e.g. `settings.inert.requires`) + `inert_by` (the required key); clients format
+"{key} is {value}" from the schema coupling. (2) A `restart`-flagged key whose configured value
+differs from the one its service started with carries `reason: "settings.pending.restart"`.
+`forced_by` keeps meaning "the value was replaced"; `reason` without `forced_by` means "configured
+but not in effect". Additive and optional, so protocol v1 stays compatible (K17).
+*Why:* the M5 honesty test (wave 7) found 9 inert-by-requires cases where `cfg.get` reported no
+reason; only the settings app evaluated `requires` client-side (business logic in a view, rule 1),
+and restart keys showed new values as in effect before they were (rule 2).
