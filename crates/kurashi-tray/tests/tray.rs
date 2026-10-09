@@ -29,6 +29,7 @@ type Layout = (i32, HashMap<String, OwnedValue>, Vec<OwnedValue>);
 struct ItemIface {
     title: Arc<Mutex<String>>,
     calls: Calls,
+    menu_only: bool,
 }
 
 #[zbus::interface(name = "org.kde.StatusNotifierItem")]
@@ -36,6 +37,10 @@ impl ItemIface {
     #[zbus(property)]
     fn title(&self) -> String {
         self.title.lock().unwrap().clone()
+    }
+    #[zbus(property)]
+    fn item_is_menu(&self) -> bool {
+        self.menu_only
     }
     #[zbus(property)]
     fn status(&self) -> String {
@@ -72,6 +77,25 @@ impl ItemIface {
             .lock()
             .unwrap()
             .push(format!("scroll {delta} {orientation}"));
+    }
+}
+
+/// An item from before `ItemIsMenu` existed: no such property at all.
+struct BareItemIface;
+
+#[zbus::interface(name = "org.kde.StatusNotifierItem")]
+impl BareItemIface {
+    #[zbus(property)]
+    fn title(&self) -> String {
+        "Bare".into()
+    }
+    #[zbus(property)]
+    fn status(&self) -> String {
+        "Active".into()
+    }
+    #[zbus(property)]
+    fn icon_name(&self) -> String {
+        "image-missing".into()
     }
 }
 
@@ -155,6 +179,15 @@ struct Item {
 
 impl Item {
     async fn new(bus: &TestBus, title: &str) -> Self {
+        Self::spawn(bus, title, false).await
+    }
+
+    /// An item that only offers its menu (`ItemIsMenu` true).
+    async fn menu_only(bus: &TestBus, title: &str) -> Self {
+        Self::spawn(bus, title, true).await
+    }
+
+    async fn spawn(bus: &TestBus, title: &str, menu_only: bool) -> Self {
         let conn = bus.conn().await;
         let title = Arc::new(Mutex::new(title.to_owned()));
         let calls: Calls = Arc::default();
@@ -166,6 +199,7 @@ impl Item {
                 ItemIface {
                     title: title.clone(),
                     calls: calls.clone(),
+                    menu_only,
                 },
             )
             .await
@@ -450,8 +484,9 @@ async fn second_watcher_is_not_stolen() {
         "registered as a host"
     );
 
-    // Items the watcher announces reach the tray, which never registers them itself.
-    let item = Item::new(&bus, "Wi-Fi").await;
+    // Items the watcher announces reach the tray, which never registers them itself. A menu-only
+    // item keeps `item_is_menu` on the hosted path too (row 20).
+    let item = Item::menu_only(&bus, "Wi-Fi").await;
     let id = item.id();
     foreign_conn
         .emit_signal(
@@ -463,10 +498,12 @@ async fn second_watcher_is_not_stolen() {
         )
         .await
         .unwrap();
-    rec.wait("item via the foreign watcher", |d| {
-        item_titled(d, "Wi-Fi").is_some()
-    })
-    .await;
+    let doc = rec
+        .wait("item via the foreign watcher", |d| {
+            item_titled(d, "Wi-Fi").is_some()
+        })
+        .await;
+    assert_eq!(item_titled(&doc, "Wi-Fi").unwrap()["item_is_menu"], true);
     foreign_conn
         .emit_signal(
             None::<&str>,
@@ -566,4 +603,42 @@ async fn dropped_watcher_passes_to_a_waiting_host() {
             item_titled(d, "Wi-Fi").is_some()
         })
         .await;
+}
+
+/// Row 20 / K27: `ItemIsMenu` true is served as `item_is_menu: true`. False, and an item that
+/// does not export the property at all, leave the key out.
+#[tokio::test]
+async fn item_is_menu_is_served_only_when_true() {
+    let bus = TestBus::start();
+    let (rec, _handle, _cmds) = start_tray(&bus).await;
+    rec.wait("owner", |d| d["available"] == true).await;
+
+    let menu = Item::menu_only(&bus, "Network").await;
+    let plain = Item::new(&bus, "Wi-Fi").await;
+    let bare = bus.conn().await;
+    bare.object_server()
+        .at("/Bare", BareItemIface)
+        .await
+        .unwrap();
+    menu.register().await;
+    plain.register().await;
+    register(&bare, "/Bare").await;
+
+    let doc = rec.wait("three items", |d| item_count(d) == 3).await;
+    assert_eq!(item_titled(&doc, "Network").unwrap()["item_is_menu"], true);
+    assert!(
+        item_titled(&doc, "Wi-Fi")
+            .unwrap()
+            .get("item_is_menu")
+            .is_none(),
+        "false is left out"
+    );
+    assert!(
+        item_titled(&doc, "Bare")
+            .unwrap()
+            .get("item_is_menu")
+            .is_none(),
+        "absent is left out"
+    );
+    assert_no_null(&doc);
 }
