@@ -10,7 +10,7 @@ Machine A: 12 cores, 31 GiB RAM, NVIDIA GTX 1060 6 GB (driver 580.178), NixOS, n
 |---|---|
 | Idle frames, all windows, 30 s | ≤ 1 fps total |
 | Idle CPU, daemon + frontend, 10 min | < 0.5 % |
-| PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +6 MiB per extra output (K16; was ≤ 50 % of shellseikatsu) |
+| PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +10 MiB per extra output (K16, K19; was ≤ 50 % of shellseikatsu) |
 | Popup input → first frame | ≤ 1 frame after map |
 | Mapped surfaces per output at idle | ≤ 4 |
 

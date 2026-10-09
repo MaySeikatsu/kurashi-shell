@@ -63,7 +63,8 @@ undo stack (bounded); profile loads are a single transaction with a diff preview
 
 ## 4. Surfaces (frontend, any renderer)
 Per output, at most: bar(s) (one per configured bar, any edge) · **stage** (one overlay surface
-holding popups, OSD, toasts, island expansions — mapped only while something is visible) ·
+holding popups, OSD, toasts, island expansions — content-sized, on the focused output; kept mapped
+but transparent, input-less and at 0 frames while hidden, because remapping leaked memory, K19) ·
 background (wallpaper-layer decor, optional) · lock (session lock, only while locked).
 Budget: ≤ 4 mapped at idle. Corner ownership between bars is computed in the daemon's layout
 step and delivered as geometry (renderers never re-derive it).
