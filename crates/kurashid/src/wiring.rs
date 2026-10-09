@@ -1507,19 +1507,30 @@ mod tests {
         assert_eq!(ui_doc()["face"], "", "no island document: generic card");
         actions.invoke("ui.close", json!({})).await.unwrap();
 
-        hub.register("runtime.island.main", json!({"face": "media", "reason": "live"}), None);
+        hub.register(
+            "runtime.island.main",
+            json!({"face": "media", "reason": "live"}),
+            None,
+        );
         actions.invoke("island.expand", json!({})).await.unwrap();
         assert_eq!(
             ui_doc(),
             json!({"popup": true, "panel": "island", "launcher": false, "tray": "", "face": "media"})
         );
-        hub.set("runtime.island.main", json!({"face": "volume", "reason": "transient"}), None)
-            .unwrap();
+        hub.set(
+            "runtime.island.main",
+            json!({"face": "volume", "reason": "transient"}),
+            None,
+        )
+        .unwrap();
         assert_eq!(ui_doc()["face"], "media", "latched while open");
         actions.invoke("island.expand", json!({})).await.unwrap();
         assert_eq!(ui_doc(), ui_closed(), "expand again closes");
 
-        actions.invoke("island.expand", json!({"island": "main"})).await.unwrap();
+        actions
+            .invoke("island.expand", json!({"island": "main"}))
+            .await
+            .unwrap();
         assert_eq!(ui_doc()["face"], "volume");
         actions.invoke("quick.toggle", json!({})).await.unwrap();
         assert_eq!(ui_doc()["panel"], "quick");
@@ -1527,7 +1538,11 @@ mod tests {
         actions.invoke("quick.toggle", json!({})).await.unwrap();
         assert_eq!(ui_doc(), ui_closed());
 
-        for bad in [json!({"island": "nope"}), json!({"island": ""}), json!({"island": 1})] {
+        for bad in [
+            json!({"island": "nope"}),
+            json!({"island": ""}),
+            json!({"island": 1}),
+        ] {
             assert_eq!(
                 actions.invoke("island.expand", bad).await,
                 Err(ActionError::Invalid(ARGS_INVALID.into()))
