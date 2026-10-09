@@ -42,3 +42,30 @@ Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 3
   watched docs re-subscribed on welcome; `instance` change drops cached docs.
 - `I18n.tr` reads the daemon's `i18n` doc. Island `reason` `manual` counts as `user` (`byUser`).
 - Real-daemon smoke test: `nix develop -c frontend/test-real.sh` (screenshots in `shots/real/`).
+
+## Memory (M3-memory, 2026-10-09)
+Launch through `frontend/launch.sh` (not bare `qs -p frontend`): with the NVIDIA driver active it
+pins glvnd to the NVIDIA EGL vendor, so Mesa's libgallium + libLLVM are not loaded for nothing
+(**-13 MiB**, 135.6 -> 122.9 MiB mean of 3). It does nothing without NVIDIA or when
+`__EGL_VENDOR_LIBRARY_FILENAMES` is already set. Tried with no effect: `MALLOC_ARENA_MAX=1`,
+`QSG_RENDER_LOOP=basic`.
+
+PSS @1 output, real daemon, headless sway gles2, GTX 1060, one surface removed per row, 3 runs
+(mean [min-max] MiB; run-to-run spread is ~5 MiB, so deltas under that are noise):
+| variant | PSS @1 out | popup |
+|---|---|---|
+| all surfaces | 135.6 [129.6-139.1] | 137.9 |
+| no Bar | 130.1 [127.8-131.9] | 129.7 |
+| no Stage | 132.6 [131.8-133.0] | 132.7 |
+| no Island in Bar | 135.4 [134.2-136.9] | 135.9 |
+| no Launcher | 135.5 [134.2-136.2] | 137.5 |
+| no Toasts+Center | 138.7 [138.1-139.3] | 140.7 |
+| no Lock | 139.2 [139.0-139.5] | 140.9 |
+Composition of the full stack (smaps): anon heap 56, libnvidia-gpucomp 15.7, libLLVM 7.0,
+libnvidia-eglcore 6.3, Qt Quick/Gui/Qml 14, libgallium 4.8, CJK font 4.3. Each surface costs
+0-5 MiB: below the noise, nothing worth lazy-loading; the floor is driver + Qt.
+
+Cycle gate: `measure.py` (real daemon) opens/closes island, notification center and launcher
+`--cycles` (20) times each after an equally long warm-up. First-use allocations keep landing for
+~20 opens (+5.8 MiB island, then +0.2 MiB per further 20), which is saturation, not a leak, hence
+the warm-up. Result now +0.5 MiB / 20 cycles.

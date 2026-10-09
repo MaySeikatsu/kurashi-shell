@@ -18,13 +18,11 @@ PanelWindow {
     // stop services nobody shows (Ma).
     Watch { doc: "svc.clock" }
     Watch { doc: "svc.workspaces" }
-    Watch { doc: "svc.media" }
     Watch { doc: "runtime.island.main" }
     Watch { doc: "svc.audio" }
     Watch { doc: "mods.probe" }
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
-    readonly property var media: Store.docs["svc.media"] || ({})
     readonly property var island: Store.docs["runtime.island.main"] || ({})
     readonly property var audio: Store.docs["svc.audio"] || ({})
     readonly property var mods: Store.docs["mods.probe"] || ({})
@@ -82,9 +80,7 @@ PanelWindow {
         Island {
             anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
             face: bar.island.face || "clock"
-            clockText: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--") + " · " + (bar.clock.weekday ?? "")
             reason: bar.island.reason || "default"
-            mediaText: (bar.media.title ?? "") + " — " + (bar.media.artist ?? "")
             onPrimary: Store.act("probe.popup.toggle")
             onSecondary: Store.act("island.pin")
             onScrolled: dir => Store.act(dir > 0 ? "island.prev" : "island.next")
