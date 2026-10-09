@@ -28,10 +28,12 @@ Item {
     property bool armed: false
     Component.onCompleted: armed = true
 
-    readonly property real faceW: shown === "media" ? media.wantW
-        : shown === "volume" ? volume.wantW
-        : shown === "brightness" ? bright.wantW
-        : shown === "notifications" ? notifs.wantW : clock.wantW
+    readonly property real faceW: {
+        var l = [clock, media, volume, bright, notifs]
+        for (var i = 0; i < l.length; i++)
+            if (l[i].current && l[i].item) return l[i].item.wantW
+        return 0
+    }
 
     height: Theme.barH - 10
     width: faceW + 2 * Theme.pad
@@ -48,11 +50,28 @@ Item {
         color: Theme.containerHigh
         clip: true
 
-        ClockFace { id: clock; anchors.fill: parent; current: isl.shown === "clock"; animate: isl.animate }
-        MediaFace { id: media; anchors.fill: parent; current: isl.shown === "media"; animate: isl.animate }
-        VolumeFace { id: volume; anchors.fill: parent; current: isl.shown === "volume"; animate: isl.animate }
-        BrightnessFace { id: bright; anchors.fill: parent; current: isl.shown === "brightness"; animate: isl.animate }
-        NotificationsFace { id: notifs; anchors.fill: parent; current: isl.shown === "notifications"; animate: isl.animate }
+        // A face exists only while it is current or still fading out: the four idle faces cost
+        // ~1 MiB per bar, i.e. per output (B7, docs/BENCH.md).
+        FaceSlot { id: clock; face: "clock"; sourceComponent: ClockFace { current: clock.current; animate: isl.animate } }
+        FaceSlot { id: media; face: "media"; sourceComponent: MediaFace { current: media.current; animate: isl.animate } }
+        FaceSlot { id: volume; face: "volume"; sourceComponent: VolumeFace { current: volume.current; animate: isl.animate } }
+        FaceSlot { id: bright; face: "brightness"; sourceComponent: BrightnessFace { current: bright.current; animate: isl.animate } }
+        FaceSlot { id: notifs; face: "notifications"; sourceComponent: NotificationsFace { current: notifs.current; animate: isl.animate } }
+    }
+
+    // Keeps its face while current and, after that, until the face has faded out.
+    component FaceSlot: Loader {
+        id: slot
+        required property string face
+        readonly property bool current: isl.shown === face
+        property bool fading: false
+        onCurrentChanged: fading = !current && item !== null && item.visible
+        anchors.fill: parent
+        active: current || fading
+        Connections {
+            target: slot.item
+            function onVisibleChanged() { if (!slot.item.visible) slot.fading = false }
+        }
     }
 
     // The pointer target is the bar's full thickness (review #11: at least 32 px), centred on the pill.
