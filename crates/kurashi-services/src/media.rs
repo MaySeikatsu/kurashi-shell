@@ -165,7 +165,7 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
             }
             // No player can be followed any more, and commands must not target one that is gone.
             *active.lock().unwrap() = None;
-            util::ended("media", &em, document(&[], None));
+            util::ended("media", &em, unavailable());
         })
     };
     Ok((ServiceHandle::new(task), Commands { conn, active, tx }))
@@ -218,12 +218,21 @@ async fn read_players(conn: &Connection) -> Vec<PlayerInfo> {
     out
 }
 
+/// The document once the MPRIS stream is gone. Its empty player list would otherwise read as "no
+/// players"; `available:false` says the bus stopped telling us about players.
+fn unavailable() -> Value {
+    let mut doc = document(&[], None);
+    doc["available"] = json!(false);
+    doc
+}
+
 fn document(players: &[PlayerInfo], active: Option<&str>) -> Value {
     let list: Vec<Value> = players
         .iter()
         .map(|p| json!({"id": p.id, "name": p.identity, "playing": p.playing}))
         .collect();
     let mut doc = json!({
+        "available": true,
         "title": "", "artist": "", "playing": false, "player": "",
         "can_next": false, "can_prev": false, "can_seek": false,
         "players": list,

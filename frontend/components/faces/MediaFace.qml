@@ -4,7 +4,10 @@ import "../../core"
 // media: [art] glyph title — artist, from svc.media. Art only loads while the face is live.
 FaceBase {
     id: f
-    readonly property var d: Store.docs["svc.media"] || ({})
+    readonly property var raw: Store.docs["svc.media"] || ({})
+    // available:false means the MPRIS stream is gone, which is not "no players": show nothing from
+    // it, so the face reads as idle (the same as an empty player list).
+    readonly property var d: raw.available === false ? ({}) : raw
     readonly property string title: d.title ?? ""
     readonly property string artist: d.artist ?? ""
     readonly property string art: d.art_url ?? ""

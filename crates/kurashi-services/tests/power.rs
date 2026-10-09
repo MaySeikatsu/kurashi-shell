@@ -56,7 +56,7 @@ async fn power_lifecycle() {
     let d = rec.wait("absent", |_| true).await;
     assert_eq!(
         d,
-        serde_json::json!({"present": false, "on_battery": false})
+        serde_json::json!({"available": false, "present": false, "on_battery": false})
     );
 
     let srv = bus.server("org.freedesktop.UPower").await;
@@ -89,6 +89,7 @@ async fn power_lifecycle() {
         .unwrap();
 
     let d = rec.wait("battery", |d| d["present"] == true).await;
+    assert_eq!(d["available"], true);
     assert_eq!(d["percent"], 80.0);
     assert_eq!(d["state"], "discharging");
     assert_eq!(d["on_battery"], true);
@@ -107,16 +108,17 @@ async fn power_lifecycle() {
     let d = rec.wait("55", |d| d["percent"] == 55.0).await;
     assert_eq!(d["state"], "charging");
 
-    // No battery present.
+    // No battery present: UPower answers, so the document is available.
     r.get_mut().await.present = false;
     r.get()
         .await
         .is_present_changed(r.signal_emitter())
         .await
         .unwrap();
-    rec.wait("not present", |d| d["present"] == false).await;
+    let d = rec.wait("not present", |d| d["present"] == false).await;
+    assert_eq!(d["available"], true);
 
-    // Owner disappears.
+    // Owner disappears: no UPower at all, which is not the same as no battery.
     r.get_mut().await.present = true;
     r.get()
         .await
@@ -126,7 +128,8 @@ async fn power_lifecycle() {
     rec.wait("back", |d| d["present"] == true).await;
     drop(r);
     drop(srv);
-    rec.wait("owner gone", |d| d["present"] == false).await;
+    let d = rec.wait("owner gone", |d| d["available"] == false).await;
+    assert_eq!(d["present"], false);
 
     drop(handle);
     tokio::time::sleep(Duration::from_millis(100)).await;
@@ -138,4 +141,87 @@ async fn power_lifecycle() {
         .unwrap();
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(rec.count(), n, "sink called after handle drop");
+}
+
+#[tokio::test]
+async fn silent_display_device_is_unavailable_not_no_battery() {
+    // UPower answers, but its display device goes silent: nothing says whether there is a battery,
+    // so the document must not claim "no battery" (available:true, present:false).
+    let bus = TestBus::start();
+    let rec = Rec::new();
+    let srv = bus.server("org.freedesktop.UPower").await;
+    srv.object_server()
+        .at("/org/freedesktop/UPower", Root { on_battery: false })
+        .await
+        .unwrap();
+    srv.object_server()
+        .at(
+            DISPLAY,
+            Dev {
+                present: false,
+                pct: 0.0,
+                state: 0,
+            },
+        )
+        .await
+        .unwrap();
+    let (handle, _c) = power::start(bus.conn().await, rec.clone()).await.unwrap();
+    rec.wait("no battery", |d| {
+        d["available"] == true && d["present"] == false
+    })
+    .await;
+
+    assert!(
+        srv.object_server().remove::<Dev, _>(DISPLAY).await.unwrap(),
+        "display device was not served"
+    );
+    let r = srv
+        .object_server()
+        .interface::<_, Root>("/org/freedesktop/UPower")
+        .await
+        .unwrap();
+    r.get()
+        .await
+        .on_battery_changed(r.signal_emitter())
+        .await
+        .unwrap();
+    let d = rec.wait("silent", |d| d["available"] == false).await;
+    assert_eq!(d["present"], false);
+    assert_no_null(&d);
+    drop(handle);
+}
+
+#[tokio::test]
+async fn bus_gone_marks_unavailable() {
+    // The daemon dies while UPower is up: the stream ends, and the battery must not keep reading
+    // as present.
+    let mut bus = TestBus::start();
+    let srv = bus.server("org.freedesktop.UPower").await;
+    srv.object_server()
+        .at("/org/freedesktop/UPower", Root { on_battery: true })
+        .await
+        .unwrap();
+    srv.object_server()
+        .at(
+            DISPLAY,
+            Dev {
+                present: true,
+                pct: 80.0,
+                state: 2,
+            },
+        )
+        .await
+        .unwrap();
+    let rec = Rec::new();
+    let (handle, _c) = power::start(bus.conn().await, rec.clone()).await.unwrap();
+    rec.wait("battery", |d| {
+        d["present"] == true && d["available"] == true
+    })
+    .await;
+
+    bus.kill();
+    let d = rec.wait("bus gone", |d| d["available"] == false).await;
+    assert_eq!(d["present"], false);
+    assert_no_null(&d);
+    drop(handle);
 }
