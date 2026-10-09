@@ -339,6 +339,31 @@ fn watcher_drop_stops_threads_and_no_dirs_is_an_error() {
 }
 
 #[test]
+fn watcher_drop_after_root_deleted_does_not_hang() {
+    let t = tempfile::tempdir().unwrap();
+    let root = t.path().join("apps");
+    std::fs::create_dir(&root).unwrap();
+    let w = Watcher::new(
+        std::slice::from_ref(&root),
+        Duration::from_millis(10),
+        || {},
+    )
+    .unwrap();
+    std::fs::remove_dir_all(&root).unwrap();
+    // Let the reader consume the kernel's IN_IGNORED for the deleted root.
+    std::thread::sleep(Duration::from_millis(100));
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        drop(w);
+        let _ = tx.send(());
+    });
+    assert!(
+        rx.recv_timeout(Duration::from_secs(5)).is_ok(),
+        "dropping the watcher hung after its root was deleted"
+    );
+}
+
+#[test]
 fn latency_bench_500_entries() {
     let t = tempfile::tempdir().unwrap();
     let words = [

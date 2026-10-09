@@ -139,6 +139,12 @@ impl Drop for Watcher {
         for wd in self.roots.drain(..) {
             let _ = self.watches.remove(wd);
         }
+        // A root deleted from disk was already removed by the kernel (its IN_IGNORED is long
+        // consumed), so the loop above may queue nothing. Add and remove a watch on `/`, which
+        // always exists, to guarantee one more IN_IGNORED; otherwise the join below hangs.
+        if let Ok(wd) = self.watches.add("/", WatchMask::DELETE_SELF) {
+            let _ = self.watches.remove(wd);
+        }
         for t in self.threads.drain(..) {
             let _ = t.join();
         }
