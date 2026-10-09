@@ -8,8 +8,11 @@ use kurashid::{ActionRegistry, Daemon, Hub, Intents};
 use serde_json::json;
 use tokio::net::UnixListener;
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+/// How long blocking work (a PAM conversation, a D-Bus call) may keep running after the socket is
+/// closed. Past it the process exits anyway: `Runtime` drop would wait for it indefinitely.
+const SHUTDOWN_GRACE: std::time::Duration = std::time::Duration::from_secs(2);
+
+fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
@@ -17,6 +20,15 @@ async fn main() -> anyhow::Result<()> {
         .with_writer(std::io::stderr)
         .init();
 
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
+    let result = rt.block_on(run());
+    rt.shutdown_timeout(SHUTDOWN_GRACE);
+    result
+}
+
+async fn run() -> anyhow::Result<()> {
     let path = kurashi_core::default_socket_path();
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
@@ -154,7 +166,7 @@ async fn main() -> anyhow::Result<()> {
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
     kurashid::wiring::brightness(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
-    kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker);
+    let lock = kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker, facts.clone());
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
     let bindings = config.clone().map(|store| {
         let h = island.clone();
@@ -183,6 +195,8 @@ async fn main() -> anyhow::Result<()> {
         }
     };
     kurashid::server::serve(listener, daemon, shutdown).await;
+    // A conversation still waiting for a prompt would otherwise pin its blocking thread.
+    lock.cancel();
     let _ = std::fs::remove_file(&path);
     tracing::info!("kurashid stopped");
     Ok(())
@@ -252,4 +266,6 @@ fn register_services(
         network::start,
     ));
     hub.register("svc.network", json!({"state": "unknown"}), Some(network));
+    kurashid::wiring::tray(hub, actions);
+    kurashid::wiring::bluetooth(hub, actions);
 }

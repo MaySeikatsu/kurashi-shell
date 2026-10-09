@@ -1,15 +1,17 @@
 //! Startup wiring of the feature crates whose lifetime is the daemon's: launcher queries, the
 //! notification server, the mods registry and the `runtime.ui` panel state.
 
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use kurashi_services::brightness::{self as backlight, Change};
 use serde_json::{Value, json};
 
-use crate::actions::{ActionError, ActionRegistry};
+use crate::actions::{ActionError, ActionRegistry, ActionResult};
 use crate::config::ConfigStore;
 use crate::doctor::SharedFacts;
-use crate::hub::Hub;
+use crate::hub::{Hub, Provider};
 use crate::services::{Bus, ServiceProvider};
 use crate::{Daemon, QueryFn};
 
@@ -160,6 +162,9 @@ impl LauncherWatch {
 fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
     let mut events = hub.events();
     tokio::spawn(async move {
+        // Starts closed, like the watcher: only a change of the launcher's state is acted on.
+        // Every other hub event would otherwise cost a blocking task.
+        let mut last = false;
         loop {
             match events.recv().await {
                 Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
@@ -169,6 +174,10 @@ fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
             let open = hub
                 .snapshot("runtime.ui")
                 .is_ok_and(|(_, d)| d["launcher"].as_bool() == Some(true));
+            if open == last {
+                continue;
+            }
+            last = open;
             let w = watch.clone();
             if tokio::task::spawn_blocking(move || w.apply(open))
                 .await
@@ -788,18 +797,20 @@ impl kurashi_services::DocSink for LockSink {
 
 /// Where PAM keeps its service files, and the service the lock screen authenticates against
 /// (NixOS: `security.pam.services.kurashi`).
-const PAM_DIR: &str = "/etc/pam.d";
-const PAM_SERVICE: &str = "kurashi";
+pub const PAM_DIR: &str = "/etc/pam.d";
+pub const PAM_SERVICE: &str = "kurashi";
 
 /// `runtime.lock` + intents `lock.submit` / `lock.cancel` + action `session.lock` (K2: the secret
-/// is handled only here and never logged; the frontend owns ext-session-lock).
+/// is handled only here and never logged; the frontend owns ext-session-lock). The returned
+/// session lets `main` cancel a conversation still waiting for a prompt at shutdown.
 pub fn lock(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     intents: &mut crate::Intents,
     marker: std::path::PathBuf,
-) {
-    lock_with(hub, actions, intents, marker, PAM_DIR.into());
+    facts: SharedFacts,
+) -> kurashi_auth::LockSession {
+    lock_with(hub, actions, intents, marker, PAM_DIR.into(), facts)
 }
 
 /// [`lock`] with the PAM directory injected (tests).
@@ -809,10 +820,14 @@ pub fn lock_with(
     intents: &mut crate::Intents,
     marker: std::path::PathBuf,
     pam_dir: std::path::PathBuf,
-) {
+    facts: SharedFacts,
+) -> kurashi_auth::LockSession {
     use kurashi_auth::{LockConfig, LockSession, PamAuthenticator, SystemClock};
     let user = std::env::var("USER").unwrap_or_default();
     let was_locked = marker.exists();
+    // Probed here, once, like the other startup facts; doctor reports it (K20 lockout guard).
+    let pam_ok = kurashi_auth::service_configured(&pam_dir, PAM_SERVICE);
+    facts.update(|f| f.pam_service = Some(pam_ok));
     hub.register(
         "runtime.lock",
         json!({"locked": was_locked, "busy": false, "failures": 0}),
@@ -829,6 +844,14 @@ pub fn lock_with(
         LockConfig::default(),
     );
     if was_locked {
+        if !pam_ok {
+            // Still locked: a restart must never unlock the screen. Only the module can fix it.
+            tracing::error!(
+                service = PAM_SERVICE,
+                "previous instance was locked but its PAM service is missing: starting locked; \
+                 enable programs.kurashi in the NixOS module"
+            );
+        }
         tracing::warn!("previous instance was locked: starting locked");
         session.lock();
     }
@@ -841,6 +864,7 @@ pub fn lock_with(
             });
         });
     }
+    let handle = session.clone();
     actions.register("session.lock", "action.session.lock", move |_| {
         let (s, pam_dir) = (session.clone(), pam_dir.clone());
         async move {
@@ -852,6 +876,7 @@ pub fn lock_with(
             Ok(None)
         }
     });
+    handle
 }
 
 /// Opens the bus the logind calls go to. Injected so tests never reach the real system bus.
@@ -944,8 +969,311 @@ pub fn session_with(actions: &mut ActionRegistry, facts: SharedFacts, connect: C
     }
 }
 
+// ---- svc.tray and svc.bluetooth ----------------------------------------------------------------
+
+/// Not subscribed (or still starting): nothing to talk to. Actions never start a service.
+pub const SERVICE_NOT_RUNNING: &str = "error.service.not_running";
+/// The service was reached but the request failed. The D-Bus text goes to the log, not the UI.
+pub const SERVICE_CALL_FAILED: &str = "error.service.call_failed";
+/// Arguments missing or of the wrong shape.
+pub const ARGS_INVALID: &str = "error.args.invalid";
+
+const TRAY_DOC: &str = "svc.tray";
+const BLUETOOTH_DOC: &str = "svc.bluetooth";
+
+/// The session bus, opened when a service starts (never at daemon startup).
+fn session_bus() -> ConnectFn {
+    Arc::new(|| Box::pin(zbus::Connection::session()))
+}
+
+/// The system bus (BlueZ lives there), opened when the service starts.
+fn system_bus() -> ConnectFn {
+    Arc::new(|| Box::pin(zbus::Connection::system()))
+}
+
+/// `svc.tray` (StatusNotifierItem host on the session bus) and the `tray.*` actions.
+pub fn tray(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
+    tray_with(hub, actions, session_bus());
+}
+
+/// [`tray`] with the bus injected (tests run it on a private dbus-daemon).
+pub fn tray_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    let service = Arc::new(RefcountedService::new(
+        TRAY_DOC,
+        connect,
+        kurashi_tray::start,
+    ));
+    hub.register(
+        TRAY_DOC,
+        json!({"available": false, "items": []}),
+        Some(service.clone()),
+    );
+    service_action(
+        actions,
+        "tray.activate",
+        service.clone(),
+        |c, a| async move {
+            let (id, x, y) = (str_arg(&a, "id")?, int_arg(&a, "x")?, int_arg(&a, "y")?);
+            c.activate(&id, x, y).await.map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "tray.secondary",
+        service.clone(),
+        |c, a| async move {
+            let (id, x, y) = (str_arg(&a, "id")?, int_arg(&a, "x")?, int_arg(&a, "y")?);
+            c.secondary_activate(&id, x, y).await.map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(actions, "tray.scroll", service.clone(), |c, a| async move {
+        let id = str_arg(&a, "id")?;
+        let delta = int_arg(&a, "delta")?;
+        let orientation = str_arg(&a, "orientation")?;
+        if !matches!(orientation.as_str(), "horizontal" | "vertical") {
+            return Err(ActionError::Invalid(ARGS_INVALID.into()));
+        }
+        c.scroll(&id, delta, &orientation)
+            .await
+            .map_err(call_failed)?;
+        Ok(None)
+    });
+    service_action(actions, "tray.menu", service.clone(), |c, a| async move {
+        let tree = c.menu(&str_arg(&a, "id")?).await.map_err(call_failed)?;
+        Ok(Some(tree))
+    });
+    service_action(actions, "tray.menu_event", service, |c, a| async move {
+        let (id, item) = (str_arg(&a, "id")?, int_arg(&a, "item")?);
+        c.menu_event(&id, item).await.map_err(call_failed)?;
+        Ok(None)
+    });
+}
+
+/// `svc.bluetooth` (BlueZ on the system bus) and the `bluetooth.*` actions.
+pub fn bluetooth(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
+    bluetooth_with(hub, actions, system_bus());
+}
+
+/// [`bluetooth`] with the bus injected (tests).
+pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    let service = Arc::new(RefcountedService::new(
+        BLUETOOTH_DOC,
+        connect,
+        kurashi_services::bluetooth::start,
+    ));
+    hub.register(
+        BLUETOOTH_DOC,
+        json!({"available": false}),
+        Some(service.clone()),
+    );
+    service_action(
+        actions,
+        "bluetooth.power",
+        service.clone(),
+        |c, a| async move {
+            c.set_powered(bool_arg(&a, "on")?)
+                .await
+                .map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "bluetooth.connect",
+        service.clone(),
+        |c, a| async move {
+            c.connect(&str_arg(&a, "address")?)
+                .await
+                .map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "bluetooth.disconnect",
+        service.clone(),
+        |c, a| async move {
+            c.disconnect(&str_arg(&a, "address")?)
+                .await
+                .map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(actions, "bluetooth.scan", service, |c, a| async move {
+        let on = bool_arg(&a, "on")?;
+        let result = if on {
+            c.start_discovery().await
+        } else {
+            c.stop_discovery().await
+        };
+        result.map_err(call_failed)?;
+        Ok(None)
+    });
+}
+
+/// Registers `id` to run `run` on the service's commands. Not running is an error, never an
+/// auto-start: a click must not wake a service nobody is watching (Ma, rule 5).
+fn service_action<H, C, Fut>(
+    actions: &mut ActionRegistry,
+    id: &str,
+    service: Arc<RefcountedService<H, C>>,
+    run: impl Fn(C, Value) -> Fut + Send + Sync + 'static,
+) where
+    H: Send + 'static,
+    C: Clone + Send + 'static,
+    Fut: Future<Output = ActionResult> + Send + 'static,
+{
+    let run = Arc::new(run);
+    actions.register(id, &format!("action.{id}"), move |args: Value| {
+        let (service, run) = (service.clone(), run.clone());
+        async move {
+            let commands = service
+                .commands()
+                .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+            run(commands, args).await
+        }
+    });
+}
+
+/// Logs the raw error for diagnostics and returns the key the UI shows.
+fn call_failed(e: impl std::fmt::Display) -> ActionError {
+    tracing::warn!(error = %e, "service request failed");
+    ActionError::Unavailable(SERVICE_CALL_FAILED.into())
+}
+
+fn str_arg(args: &Value, key: &str) -> Result<String, ActionError> {
+    args[key]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
+fn int_arg(args: &Value, key: &str) -> Result<i32, ActionError> {
+    args[key]
+        .as_i64()
+        .and_then(|v| i32::try_from(v).ok())
+        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
+fn bool_arg(args: &Value, key: &str) -> Result<bool, ActionError> {
+    args[key]
+        .as_bool()
+        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
+type StartFut<H, C> = Pin<Box<dyn Future<Output = anyhow::Result<(H, C)>> + Send>>;
+type StartFn<H, C> = Arc<
+    dyn Fn(zbus::Connection, Arc<dyn kurashi_services::DocSink>) -> StartFut<H, C> + Send + Sync,
+>;
+
+/// A refcounted D-Bus service whose handle type is not `kurashi_services::ServiceHandle`.
+/// `services::ServiceProvider` cannot hold the tray: its start must return that type, which has
+/// no public constructor, and the tray's own handle also releases its bus names on drop. The
+/// rules are `ServiceProvider`'s: the connection and the task exist between the first subscribe
+/// and the last unsubscribe (rule 5). The bus is injected so tests can use a private dbus-daemon
+/// (as `session_with` does). docs/CONTRACT-CHANGE.md #9 asks for a connect-fn constructor on
+/// `ServiceProvider`; this copy can then go.
+pub struct RefcountedService<H, C> {
+    doc: &'static str,
+    connect: ConnectFn,
+    start: StartFn<H, C>,
+    running: Arc<Mutex<Running<H, C>>>,
+}
+
+struct Running<H, C> {
+    /// Bumped on every start and stop, so a slow start that finishes after `stop` is discarded.
+    generation: u64,
+    handle: Option<H>,
+    commands: Option<C>,
+}
+
+/// Where a service's documents go: straight into the hub under the service's doc name.
+struct HubDoc {
+    hub: Arc<Hub>,
+    doc: &'static str,
+}
+
+impl kurashi_services::DocSink for HubDoc {
+    fn set(&self, doc: Value) {
+        let _ = self.hub.set(self.doc, doc, None);
+    }
+}
+
+impl<H: Send + 'static, C: Clone + Send + 'static> RefcountedService<H, C> {
+    pub fn new<F, Fut>(doc: &'static str, connect: ConnectFn, start: F) -> Self
+    where
+        F: Fn(zbus::Connection, Arc<dyn kurashi_services::DocSink>) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = anyhow::Result<(H, C)>> + Send + 'static,
+    {
+        Self {
+            doc,
+            connect,
+            start: Arc::new(move |conn, sink| Box::pin(start(conn, sink))),
+            running: Arc::new(Mutex::new(Running {
+                generation: 0,
+                handle: None,
+                commands: None,
+            })),
+        }
+    }
+
+    /// Commands of the running service; `None` while nobody subscribes.
+    pub fn commands(&self) -> Option<C> {
+        self.running.lock().expect("svc lock").commands.clone()
+    }
+}
+
+impl<H: Send + 'static, C: Clone + Send + 'static> Provider for RefcountedService<H, C> {
+    fn start(&self, hub: Arc<Hub>) {
+        let generation = {
+            let mut r = self.running.lock().expect("svc lock");
+            r.generation += 1;
+            r.generation
+        };
+        let (doc, connect, start, running) = (
+            self.doc,
+            self.connect.clone(),
+            self.start.clone(),
+            self.running.clone(),
+        );
+        let sink: Arc<dyn kurashi_services::DocSink> = Arc::new(HubDoc { hub, doc });
+        tokio::spawn(async move {
+            let started = match connect().await {
+                Ok(conn) => start(conn, sink).await,
+                Err(e) => Err(e.into()),
+            };
+            match started {
+                Ok((handle, commands)) => {
+                    let mut r = running.lock().expect("svc lock");
+                    if r.generation == generation {
+                        r.handle = Some(handle);
+                        r.commands = Some(commands);
+                    }
+                    // else: stopped meanwhile; `handle` drops after the lock and stops it again.
+                }
+                // The document keeps its initial value; doctor shows the docs row.
+                Err(e) => tracing::warn!(%doc, error = %e, "service failed to start"),
+            }
+        });
+    }
+
+    fn stop(&self) {
+        let (handle, commands) = {
+            let mut r = self.running.lock().expect("svc lock");
+            r.generation += 1;
+            (r.handle.take(), r.commands.take())
+        };
+        // Outside the lock: dropping the handle aborts the task, which may release bus names.
+        drop(commands);
+        drop(handle);
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::time::Duration;
 
     use super::*;
@@ -967,6 +1295,7 @@ mod tests {
             &mut crate::Intents::default(),
             marker.clone(),
             dir.join("pam.d"),
+            SharedFacts::default(),
         );
         actions.invoke("session.lock", Value::Null).await.unwrap();
         assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], true);
@@ -980,6 +1309,7 @@ mod tests {
             &mut crate::Intents::default(),
             marker.clone(),
             dir.join("pam.d"),
+            SharedFacts::default(),
         );
         assert_eq!(hub2.snapshot("runtime.lock").unwrap().1["locked"], true);
         let _ = std::fs::remove_dir_all(&dir);
@@ -1064,6 +1394,254 @@ mod tests {
         until("catch-up reindex", || launcher.len() == 3).await;
         assert!(watch.is_watching());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// K20 lockout guard: a locked marker without the PAM service still starts locked (a restart
+    /// never unlocks), and doctor says the screen cannot be unlocked.
+    #[test]
+    fn locked_marker_without_pam_service_starts_locked_and_doctor_says_why() {
+        let dir = temp_dir("lockout");
+        let marker = dir.join("locked");
+        std::fs::write(&marker, b"").unwrap();
+
+        let hub = Hub::new();
+        let facts = SharedFacts::default();
+        lock_with(
+            &hub,
+            &mut ActionRegistry::default(),
+            &mut crate::Intents::default(),
+            marker.clone(),
+            dir.join("pam.d"),
+            facts.clone(),
+        );
+        assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], true);
+        let row = pam_row(&hub, &facts);
+        assert_eq!(row["status"], "fail");
+        assert_eq!(row["fix_key"], "doctor.pam_service.fix");
+
+        // Unlocked start: the same missing service only disables locking, which doctor reports.
+        std::fs::remove_file(&marker).unwrap();
+        let hub = Hub::new();
+        let facts = SharedFacts::default();
+        lock_with(
+            &hub,
+            &mut ActionRegistry::default(),
+            &mut crate::Intents::default(),
+            marker.clone(),
+            dir.join("pam.d"),
+            facts.clone(),
+        );
+        assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], false);
+        assert_eq!(pam_row(&hub, &facts)["status"], "warn");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// The `pam_service` row of the doctor query, as the CLI receives it.
+    fn pam_row(hub: &Arc<Hub>, facts: &SharedFacts) -> Value {
+        let mut d = Daemon::new(
+            hub.clone(),
+            ActionRegistry::default(),
+            crate::Intents::default(),
+        );
+        crate::doctor::register(&mut d, facts.clone());
+        let query = d.queries.get("doctor").unwrap().clone();
+        query("")
+            .into_iter()
+            .find(|r| r["id"] == "pam_service")
+            .expect("pam_service row")
+    }
+
+    // ---- svc.tray and svc.bluetooth on a private bus ---------------------------------------
+
+    /// Connections to `addr`; counts how often a service actually connected to it.
+    fn private_bus(addr: String, connects: Arc<AtomicUsize>) -> ConnectFn {
+        Arc::new(move || {
+            let (addr, connects) = (addr.clone(), connects.clone());
+            Box::pin(async move {
+                connects.fetch_add(1, Ordering::SeqCst);
+                zbus::connection::Builder::address(addr.as_str())?
+                    .build()
+                    .await
+            })
+        })
+    }
+
+    async fn owns(dbus: &zbus::fdo::DBusProxy<'_>, name: &str) -> bool {
+        dbus.name_has_owner(zbus::names::BusName::try_from(name).unwrap())
+            .await
+            .unwrap()
+    }
+
+    /// Capped wait until `name` has (or has lost) an owner on the bus.
+    async fn settle_owner(dbus: &zbus::fdo::DBusProxy<'_>, name: &str, want: bool) {
+        for _ in 0..200 {
+            if owns(dbus, name).await == want {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("{name} never became owned={want}");
+    }
+
+    /// Live client connections on the bus (unique names).
+    async fn clients(dbus: &zbus::fdo::DBusProxy<'_>) -> usize {
+        dbus.list_names()
+            .await
+            .unwrap()
+            .iter()
+            .filter(|n| n.as_str().starts_with(':'))
+            .count()
+    }
+
+    async fn settle_clients(dbus: &zbus::fdo::DBusProxy<'_>, want: usize) {
+        for _ in 0..200 {
+            if clients(dbus).await == want {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(25)).await;
+        }
+        panic!("the service connection never closed");
+    }
+
+    /// The tray runs only while subscribed: the first subscribe takes the watcher name on the
+    /// bus, the last unsubscribe releases it, and actions never start it.
+    #[tokio::test]
+    async fn tray_runs_only_while_subscribed() {
+        const WATCHER: &str = "org.kde.StatusNotifierWatcher";
+        let bus = Bus::start();
+        let connects = Arc::new(AtomicUsize::new(0));
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        tray_with(
+            &hub,
+            &mut actions,
+            private_bus(bus.addr.clone(), connects.clone()),
+        );
+        let item = json!({"id": ":1.9/StatusNotifierItem", "x": 0, "y": 0});
+        assert_eq!(
+            actions.invoke("tray.activate", item.clone()).await,
+            Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+        );
+        assert_eq!(
+            connects.load(Ordering::SeqCst),
+            0,
+            "an action must not start the tray"
+        );
+
+        let observer = bus.conn().await;
+        let dbus = zbus::fdo::DBusProxy::new(&observer).await.unwrap();
+        hub.subscribe(TRAY_DOC).unwrap();
+        hub.subscribe(TRAY_DOC).unwrap(); // a second subscriber shares the running service
+        until("tray document", || {
+            hub.snapshot(TRAY_DOC).unwrap().1["available"] == true
+        })
+        .await;
+        settle_owner(&dbus, WATCHER, true).await;
+        assert_eq!(
+            connects.load(Ordering::SeqCst),
+            1,
+            "one start for two subscribers"
+        );
+        let menu = actions
+            .invoke("tray.menu", json!({"id": ":1.9/StatusNotifierItem"}))
+            .await;
+        assert!(
+            menu.unwrap().is_some(),
+            "a running tray answers menu requests"
+        );
+
+        hub.unsubscribe(TRAY_DOC);
+        assert!(owns(&dbus, WATCHER).await, "still subscribed once");
+        hub.unsubscribe(TRAY_DOC);
+        settle_owner(&dbus, WATCHER, false).await;
+        assert_eq!(
+            actions.invoke("tray.activate", item).await,
+            Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+        );
+    }
+
+    /// Fake BlueZ: an ObjectManager and one powered adapter that accepts discovery calls.
+    struct FakeAdapter;
+
+    #[zbus::interface(name = "org.bluez.Adapter1")]
+    impl FakeAdapter {
+        #[zbus(property)]
+        fn powered(&self) -> bool {
+            true
+        }
+        #[zbus(property)]
+        fn discovering(&self) -> bool {
+            false
+        }
+        async fn start_discovery(&self) {}
+        async fn stop_discovery(&self) {}
+    }
+
+    async fn serve_fake_bluez(bus: &Bus) -> zbus::Connection {
+        let conn = bus.conn().await;
+        conn.object_server()
+            .at("/", zbus::fdo::ObjectManager)
+            .await
+            .unwrap();
+        conn.object_server()
+            .at("/org/bluez/hci0", FakeAdapter)
+            .await
+            .unwrap();
+        conn.request_name("org.bluez").await.unwrap();
+        conn
+    }
+
+    /// BlueZ is reached only while subscribed: the first subscribe connects and reads the adapter,
+    /// the last unsubscribe drops the connection, and actions never start the service.
+    #[tokio::test]
+    async fn bluetooth_runs_only_while_subscribed() {
+        let bus = Bus::start();
+        let _bluez = serve_fake_bluez(&bus).await;
+        let connects = Arc::new(AtomicUsize::new(0));
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        bluetooth_with(
+            &hub,
+            &mut actions,
+            private_bus(bus.addr.clone(), connects.clone()),
+        );
+        let scan = json!({"on": true});
+        assert_eq!(
+            actions.invoke("bluetooth.scan", scan.clone()).await,
+            Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+        );
+        assert_eq!(
+            connects.load(Ordering::SeqCst),
+            0,
+            "an action must not start BlueZ"
+        );
+
+        let observer = bus.conn().await;
+        let dbus = zbus::fdo::DBusProxy::new(&observer).await.unwrap();
+        let idle = clients(&dbus).await;
+        hub.subscribe(BLUETOOTH_DOC).unwrap();
+        until("bluetooth document", || {
+            hub.snapshot(BLUETOOTH_DOC).unwrap().1["powered"] == true
+        })
+        .await;
+        assert_eq!(connects.load(Ordering::SeqCst), 1);
+        assert_eq!(
+            clients(&dbus).await,
+            idle + 1,
+            "one connection while it runs"
+        );
+        assert_eq!(
+            actions.invoke("bluetooth.scan", scan.clone()).await,
+            Ok(None),
+            "a running service takes the action"
+        );
+
+        hub.unsubscribe(BLUETOOTH_DOC);
+        settle_clients(&dbus, idle).await;
+        assert_eq!(
+            actions.invoke("bluetooth.scan", scan).await,
+            Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+        );
     }
 
     // ---- session actions against a private bus with a fake logind --------------------------
@@ -1249,6 +1827,7 @@ mod tests {
             &mut crate::Intents::default(),
             marker.clone(),
             dir.join("pam.d"),
+            SharedFacts::default(),
         );
         assert_eq!(
             actions.invoke("session.lock", Value::Null).await,
