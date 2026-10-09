@@ -1,0 +1,5 @@
+error: config key `height` needs `#[kurashi(default = ...)]` (or `#[kurashi(nested)]` if it is a sub-table)
+ --> tests/ui/missing_default.rs:7:5
+  |
+7 |     height: u32,
+  |     ^^^^^^

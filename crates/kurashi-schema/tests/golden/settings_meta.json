@@ -1,0 +1,626 @@
+{
+  "pages": [
+    {
+      "id": "bar",
+      "label": "settings.page.bar",
+      "sections": [
+        {
+          "id": "layout",
+          "label": "settings.section.layout",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.bar.enabled.help",
+              "key": "bar.enabled",
+              "label": "config.bar.enabled.label",
+              "per_output": true,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.edge.top",
+                  "value": "top"
+                },
+                {
+                  "label": "config.choice.edge.bottom",
+                  "value": "bottom"
+                },
+                {
+                  "label": "config.choice.edge.left",
+                  "value": "left"
+                },
+                {
+                  "label": "config.choice.edge.right",
+                  "value": "right"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "bar.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "top",
+              "help": "config.bar.edge.help",
+              "key": "bar.edge",
+              "label": "config.bar.edge.label",
+              "per_output": true,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "bar.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 32,
+              "help": "config.bar.height.help",
+              "key": "bar.height",
+              "label": "config.bar.height.label",
+              "max": 96,
+              "min": 16,
+              "per_output": true,
+              "restart": false,
+              "since": 1,
+              "step": 2,
+              "type": "int",
+              "unit": "px"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "appearance",
+      "label": "settings.page.appearance",
+      "sections": [
+        {
+          "id": "shape",
+          "label": "settings.section.shape",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.corners.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.corners.rounded",
+                  "value": "rounded"
+                },
+                {
+                  "label": "config.choice.corners.squircle",
+                  "value": "squircle"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "rounded",
+              "help": "config.theme.shape.corners.help",
+              "key": "theme.shape.corners",
+              "label": "config.theme.shape.corners.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.shape.corners",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.shape.radius_scale.help",
+              "key": "theme.shape.radius_scale",
+              "label": "config.theme.shape.radius_scale.label",
+              "max": 2.0,
+              "min": 0.0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.05,
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "id": "material",
+          "label": "settings.section.material",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.material.solid",
+                  "value": "solid"
+                },
+                {
+                  "label": "config.choice.material.translucent",
+                  "value": "translucent"
+                },
+                {
+                  "label": "config.choice.material.glass",
+                  "value": "glass"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "solid",
+                  "key": "a11y.reduce_transparency",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                },
+                {
+                  "forces": "solid",
+                  "key": "a11y.high_contrast",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "translucent",
+              "help": "config.theme.material.kind.help",
+              "key": "theme.material.kind",
+              "label": "config.theme.material.kind.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.material.kind",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "solid"
+                },
+                {
+                  "forces": 1.0,
+                  "key": "a11y.reduce_transparency",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": 0.85,
+              "help": "config.theme.material.opacity.help",
+              "key": "theme.material.opacity",
+              "label": "config.theme.material.opacity.label",
+              "max": 1.0,
+              "min": 0.3,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.01,
+              "type": "float"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.material.kind",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "glass"
+                },
+                {
+                  "kind": "capability",
+                  "name": "blur",
+                  "reason": "settings.inert.capability"
+                },
+                {
+                  "forces": false,
+                  "key": "a11y.reduce_transparency",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.material.blur.help",
+              "key": "theme.material.blur",
+              "label": "config.theme.material.blur.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "id": "motion",
+          "label": "settings.section.motion",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.motion_profile.calm",
+                  "value": "calm"
+                },
+                {
+                  "label": "config.choice.motion_profile.lively",
+                  "value": "lively"
+                },
+                {
+                  "label": "config.choice.motion_profile.none",
+                  "value": "none"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "none",
+                  "key": "a11y.reduce_motion",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "calm",
+              "help": "config.theme.motion.profile.help",
+              "key": "theme.motion.profile",
+              "label": "config.theme.motion.profile.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.motion.speed.help",
+              "key": "theme.motion.speed",
+              "label": "config.theme.motion.speed.label",
+              "max": 3.0,
+              "min": 0.25,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.05,
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "id": "layout",
+          "label": "settings.section.layout",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.density.compact",
+                  "value": "compact"
+                },
+                {
+                  "label": "config.choice.density.regular",
+                  "value": "regular"
+                },
+                {
+                  "label": "config.choice.density.airy",
+                  "value": "airy"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "regular",
+              "help": "config.theme.density.help",
+              "key": "theme.density",
+              "label": "config.theme.density.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "typography",
+          "label": "settings.section.typography",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "font",
+              "couplings": [],
+              "default": [
+                "Inter",
+                "Noto Sans CJK JP",
+                "sans-serif"
+              ],
+              "help": "config.theme.typography.family.help",
+              "key": "theme.typography.family",
+              "label": "config.theme.typography.family.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "font"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "forces": 1.25,
+                  "key": "a11y.large_text",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.typography.scale.help",
+              "key": "theme.typography.scale",
+              "label": "config.theme.typography.scale.label",
+              "max": 2.0,
+              "min": 0.75,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.05,
+              "type": "float"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "accessibility",
+      "label": "settings.page.accessibility",
+      "sections": [
+        {
+          "id": "modes",
+          "label": "settings.section.modes",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.a11y.reduce_motion.help",
+              "key": "a11y.reduce_motion",
+              "label": "config.a11y.reduce_motion.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.a11y.reduce_transparency.help",
+              "key": "a11y.reduce_transparency",
+              "label": "config.a11y.reduce_transparency.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.a11y.high_contrast.help",
+              "key": "a11y.high_contrast",
+              "label": "config.a11y.high_contrast.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.a11y.large_text.help",
+              "key": "a11y.large_text",
+              "label": "config.a11y.large_text.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "island",
+      "label": "settings.page.island",
+      "sections": [
+        {
+          "id": "main",
+          "label": "settings.section.main",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "list",
+              "couplings": [],
+              "default": [
+                "clock",
+                "media",
+                "notifications"
+              ],
+              "help": "config.island.main.faces.help",
+              "key": "island.main.faces",
+              "label": "config.island.main.faces.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [],
+              "default": "clock",
+              "help": "config.island.main.default.help",
+              "key": "island.main.default",
+              "label": "config.island.main.default.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 5,
+              "help": "config.island.main.ttl.help",
+              "key": "island.main.ttl",
+              "label": "config.island.main.ttl.label",
+              "max": 60,
+              "min": 1,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "s"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "island.expand",
+              "key": "island.main.input.left",
+              "label": "config.input.left",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "island.face_picker",
+              "key": "island.main.input.right",
+              "label": "config.input.right",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "",
+              "key": "island.main.input.middle",
+              "label": "config.input.middle",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "",
+              "key": "island.main.input.hover",
+              "label": "config.input.hover",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "island.face.prev",
+              "key": "island.main.input.scroll_up",
+              "label": "config.input.scroll_up",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "island.face.next",
+              "key": "island.main.input.scroll_down",
+              "label": "config.input.scroll_down",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "",
+              "key": "island.main.input.shift_scroll_up",
+              "label": "config.input.shift_scroll_up",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            },
+            {
+              "advanced": true,
+              "control": "action_binding",
+              "couplings": [],
+              "default": "",
+              "key": "island.main.input.shift_scroll_down",
+              "label": "config.input.shift_scroll_down",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "action"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "schema_version": 1
+}

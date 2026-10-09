@@ -1,0 +1,19 @@
+[package]
+name = "kurashi-schema"
+description = "Kurashi config schema: key registry, validation, settings/TOML/docs generators"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kurashi-schema-derive = { path = "../kurashi-schema-derive" }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+toml = "1"
+trybuild = "1"
+
+[lints]
+workspace = true
