@@ -56,7 +56,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | Step | Description | Status | Branch / notes |
 |---|---|---|---|
 | M5.13 | Brightness/volume key actions + island OSD; lock refuses without PAM service | ✅ | merged; island timer spawn fixed (handle + poison-tolerant locks); volume keys need a standing svc.audio subscriber |
-| M5.14 | UI: session menu + brightness face | 🟡 | card M5-ui-session; `session.menu` panel on main |
+| M5.14 | UI: session menu + brightness face | ✅ | merged; island maps brightness face; menu opens on focused output (d9bdaf5) |
 | M5.15 | UI: input via `bindings` / `input.dispatch` | ✅ | merged; `frontend/test-bindings.sh` (left click driven via virtual pointer; other slots unexercised) |
 | M7.4 | `nix run` apps + README "Running" | ✅ | merged; `nix run .#sandbox` green; default/settings verified by eval only (never run on the display) |
 | M4.5 | SNI tray crate | ✅ | merged, not wired; add `icon_theme_path` before frontend work |
@@ -64,12 +64,12 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.16 | Settings search + Mods page | ✅ | merged; + forced-reason placeholder and bundled-mod version fixes; mod description = CONTRACT row 5 (open) |
 | M0.8 | Mock parity (runtime.ui panels, bindings, brightness, session) | ✅ | merged; mock lacks svc.notifications/notify.* (later) |
 | M5.17 | Honesty test over all keys | ✅ | merged; found requires-inert gap → K21 (case ignored until M1.11) |
-| M1.11 | Daemon reports inert/pending-restart reasons (K21) | 🟡 | card M1-inert-reasons |
+| M1.11 | Daemon reports inert/pending-restart reasons (K21) | ✅ | merged; honesty test 7/7, none ignored; settings words daemon reasons |
 | R.1 | Daemon concurrency / Ma review | ✅ | 14 findings (1 high: island timer spawn off-runtime → fixed in M5.13 branch); fixes F-* below; 3/10/13/14 later |
 | F.1 | Hub lifecycle races, accept busy-loop, lag recovery, atomic update, bounded replies | 🟡 | card F-hub-server |
-| F.2 | Notify sanitiser linear + outside lock, body cap | 🟡 | card F-notify |
-| F.3 | Watcher spawn leak + debounce max-wait; services emit unavailable on stream end | 🟡 | card F-watch-services |
-| M6.2 | Mod descriptions; no nulls in `mods` doc (CONTRACT row 5 accepted) | 🟡 | card M6-mod-description |
-| M0.9 | Mock: notifications, launcher query, instance, fixed clock | 🟡 | card M0-mock-notify |
+| F.2 | Notify sanitiser linear + outside lock, body cap | ✅ | merged; 1 MiB hostile body 184 s → 0.1 s (debug); 2 more quadratic paths fixed |
+| F.3 | Watcher spawn leak + debounce max-wait; services emit unavailable on stream end | ✅ | merged; media no longer stops when Commands drop |
+| M6.2 | Mod descriptions; no nulls in `mods` doc (CONTRACT row 5 accepted) | ✅ | merged |
+| M0.9 | Mock: notifications, launcher query, instance, fixed clock | ✅ | merged; `kurashi act mock.notify '{"summary":…}'` adds one |
 | M3.3 | Golden screenshots (`just golden`) | 🟡 | card M3-golden |
 | M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | 🟡 | card M4-wire-tray-bt |
