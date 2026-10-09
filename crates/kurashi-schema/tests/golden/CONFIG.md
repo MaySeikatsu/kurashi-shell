@@ -216,7 +216,7 @@ Face shown when nothing more relevant is happening.
 
 #### `island.main.ttl` — Transient duration
 
-How long a transient face (volume, notification) stays before falling back.
+How long a transient face (volume, brightness, notification) stays before falling back.
 
 - type: `int` · default: `5`
 - range: `1..=60` (s)

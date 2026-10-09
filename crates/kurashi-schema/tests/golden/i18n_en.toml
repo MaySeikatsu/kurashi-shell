@@ -91,7 +91,7 @@
 "config.island.main.default.label" = "Default face"
 "config.island.main.default.help" = "Face shown when nothing more relevant is happening."
 "config.island.main.ttl.label" = "Transient duration"
-"config.island.main.ttl.help" = "How long a transient face (volume, notification) stays before falling back."
+"config.island.main.ttl.help" = "How long a transient face (volume, brightness, notification) stays before falling back."
 "config.input.left" = "Left click"
 "config.input.right" = "Right click"
 "config.input.middle" = "Middle click"
