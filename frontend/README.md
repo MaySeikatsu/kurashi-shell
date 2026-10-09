@@ -19,7 +19,7 @@ Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 3
   retargeted to the focused output (focused workspace's output, latched while open).
 - `core/` singletons: `Store` (IPC, merge-patch, revision-gap resync, 250 ms to 4 s reconnect,
   `connected`/`live`), `Theme` (the only reader of `theme.tokens`), `I18n` (`tr(key)`).
-- `components/` Button, IconButton, Slider, Chip, ProvenanceChip, Island, ModNode (mod UI tree).
+- `components/` Button, IconButton, Slider, Chip, ProvenanceChip, Island (mod UI tree).
 - `surfaces/` `Bar`; `Stage` (content-sized overlay layer, top-centred under the Island; permanently mapped but
   transparent with empty input/blur regions while hidden: map/unmap cycles leaked heap, K16;
   reveal = slide on first presented frame, no group opacity).
