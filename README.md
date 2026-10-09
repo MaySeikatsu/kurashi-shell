@@ -82,10 +82,9 @@ Without binds the shell is mouse and CLI only. `docs/niri-binds.kdl` is a ready 
 1. Save it as `~/.config/niri/kurashi-binds.kdl`.
 2. Add `include "kurashi-binds.kdl"` to `~/.config/niri/config.kdl` **after** your `binds {}` block.
    Later binds override earlier ones, so the kurashi keys replace niri's defaults for the same keys:
-   `Mod+Escape`, `Super+Alt+L`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute`,
-   `XF86MonBrightnessUp` and `XF86MonBrightnessDown`. `Mod+Escape` loses niri's keyboard-shortcut
-   inhibit toggle; the session menu on that key still opens while a VM or remote desktop captures
-   the keyboard.
+   `Mod+Shift+E`, `Super+Alt+L`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute`,
+   `XF86MonBrightnessUp` and `XF86MonBrightnessDown`. `Mod+Shift+E` opens the session menu instead of
+   niri's quit dialog (log out is in the menu, with a confirm step); niri's `Ctrl+Alt+Delete` still quits.
 3. Check the config with `niri validate`. The binds run `kurashi act`, which needs the daemon
    running (`kurashid`, or its Home-Manager user service).
 
