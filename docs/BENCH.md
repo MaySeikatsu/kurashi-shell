@@ -80,6 +80,20 @@ Headroom: 46 MiB at 1 output (was 12 before M3.2). The per-output row sits exact
 (+6.0 vs ≤ +6): watch it — the next surface added per output must pay for itself.
 Same frontend against the mock: 118.8 MiB @1 out, 0 wakeups/s (`docs/BAKEOFF.md` re-measure).
 
+### 2026-10-09 15:15–15:35 — bench gate after wave 8, quiet machine B iGPU (313f094)
+Tray widget + tray menu + Bluetooth panel, hybrid EGL pin (Mesa on the Radeon), release binaries from main,
+`KURASHI_RENDER_NODE=/dev/dri/renderD129`, load < 1, 4 runs.
+| run | idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | 20-cycle growth | result |
+|---|---|---|---|---|---|---|---|
+| 1 | 0 | 0 % | 115.5 MiB | **+6.5** ✘ | 3.6 ms | +1.30 MiB | 1 violation |
+| 2 | 0.03 | 0 % | 114.5 MiB | +5.9 | 3.3 ms | +0.50 MiB | 0 violations |
+| 3 | — | — | 114.3 MiB | **+6.7** ✘ | — | — | 1 violation |
+| 4 | — | — | 114.9 MiB | +4.7 | — | — | 0 violations |
+@1 output dropped ~10 MiB (123.5–126.9 → 114.3–115.5) as the Mesa-pin experiment predicted. **Per extra
+output sits on its limit: mean ≈ +5.95, 2 of 4 runs over by ≤ 0.7 MiB** (before the wave: +4.5–5.6, so
+within the ±1 MiB run-to-run spread — not yet attributable to wave 8). Budget unchanged (lead/user
+decision); next step: attribute (A/B 6b13d56 vs 313f094, ≥ 3 runs each) and cut per-output cost.
+
 ### 2026-10-09 14:09–14:40 — bench gate, quiet machine B (e72690f)
 Real `kurashid` + full UI via `frontend/launch.sh`, release binaries from main, no compile jobs (load < 1).
 | GPU (render node) | idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | 20-cycle growth | mapped surfaces | result |
