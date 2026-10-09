@@ -192,7 +192,7 @@ ShellRoot {
                                     color: parent.on ? Theme.fg : Theme.dim
                                     font.pixelSize: Theme.fs
                                     font.family: Theme.fam(text, Theme.families)
-                                    text: I18n.tr(modelData.label)
+                                    text: I18n.pageTitle(modelData.id, modelData.label)
                                 }
                                 MouseArea {
                                     anchors.fill: parent

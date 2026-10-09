@@ -143,6 +143,12 @@ impl<S: SchemaView> Config<S> {
         &self.schema
     }
 
+    /// Mutable access for a schema that changes at runtime (mod settings, K22). Follow a change
+    /// with [`Config::refresh_keys`]; until then the engine still uses the key set it read.
+    pub fn schema_mut(&mut self) -> &mut S {
+        &mut self.schema
+    }
+
     /// Current diagnostics of every file (user, managed, profile state).
     pub fn diagnostics(&self) -> Vec<Diagnostic> {
         self.diagnostics.values().flatten().cloned().collect()
@@ -547,6 +553,25 @@ impl<S: SchemaView> Config<S> {
             rev: self.rev,
             entries,
             diagnostics,
+        }
+    }
+
+    /// Re-reads the key set from the schema and every file that may name those keys. `open` sees
+    /// only the keys known at start, so mod settings (K22) join here once the mods registry is
+    /// discovered, and stored values are validated against the schema as it is now (a changed
+    /// range can make one invalid). A value whose key is gone stays in its file and is reported
+    /// as unknown; nothing is deleted.
+    pub fn refresh_keys(&mut self) {
+        let mut keys = self.schema.keys();
+        keys.sort();
+        self.known = keys.iter().cloned().collect();
+        self.keys = keys;
+        self.reload_managed_file();
+        self.reload_user_file();
+        let before = self.layers.profile.clone();
+        self.load_profile_state();
+        if self.layers.profile != before {
+            self.rev += 1;
         }
     }
 

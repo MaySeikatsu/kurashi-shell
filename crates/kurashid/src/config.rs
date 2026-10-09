@@ -8,7 +8,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use kurashi_config::{Config, Op, Options, Paths, SchemaView};
 use kurashi_core::Provenanced;
 use kurashi_ipc::{ApplyOp, DiffEntry, LayerValue, OpError};
-use kurashi_schema::{Coupling, Registry};
+use kurashi_mods::{Manifest, ModState, Setting, SettingType, SettingValue};
+use kurashi_schema::{Choice, Coupling, KeyMeta, Registry, Ty, validate_value};
 use serde_json::{Map, Value, json};
 
 use crate::actions::{ActionError, ActionRegistry};
@@ -18,26 +19,170 @@ pub const DOC: &str = "config";
 pub const SETTINGS_DOC: &str = "schema.settings";
 /// Reason of a `restart` key whose value differs from the one its service started with (K21).
 pub const REASON_PENDING_RESTART: &str = "settings.pending.restart";
+/// Reason of a mod setting whose mod is off: the value is kept and has no effect (K22, K21).
+pub const REASON_MOD_DISABLED: &str = "mods.disabled";
 
-/// `kurashi-config` is schema-agnostic; this is the only place the two meet.
-pub struct SchemaAdapter(pub &'static Registry);
+/// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
+/// the static schema; mod settings (`mods.<id>.<key>`, K22) from `mods`, rebuilt by
+/// [`ConfigStore::sync_mods`] whenever the mods registry changes.
+pub struct SchemaAdapter {
+    core: &'static Registry,
+    mods: ModTable,
+}
 
 impl SchemaView for SchemaAdapter {
     fn version(&self) -> u32 {
-        self.0.version()
+        self.core.version()
     }
     fn default(&self, key: &str) -> Option<Value> {
-        self.0.get(key).map(|m| m.default.clone())
+        self.core
+            .get(key)
+            .map(|m| m.default.clone())
+            .or_else(|| self.mods.find(key).map(|(_, m)| m.default.clone()))
     }
     fn validate(&self, key: &str, v: &Value) -> Result<(), String> {
-        self.0.validate(key, v).map_err(|e| e.i18n_key().into())
+        let checked = match self.mods.find(key) {
+            Some((_, meta)) => validate_value(meta, v),
+            None => self.core.validate(key, v),
+        };
+        checked.map_err(|e| e.i18n_key().into())
     }
     fn per_output(&self, key: &str) -> bool {
-        self.0.get(key).is_some_and(|m| m.flags.per_output)
+        self.core.get(key).is_some_and(|m| m.flags.per_output)
     }
     fn keys(&self) -> Vec<String> {
-        self.0.keys().map(String::from).collect()
+        self.core
+            .keys()
+            .map(String::from)
+            .chain(self.mods.keys())
+            .collect()
     }
+}
+
+/// The settings of every mod with a valid manifest (K22). A mod that is off keeps its entries, so
+/// its stored values stay valid and are reported inert instead of being dropped.
+#[derive(Default)]
+struct ModTable {
+    mods: Vec<ModSettings>,
+}
+
+struct ModSettings {
+    id: String,
+    /// The manifest's name: an i18n key or plain text. It titles the mod's settings page.
+    name: String,
+    enabled: bool,
+    keys: Vec<KeyMeta>,
+}
+
+impl ModTable {
+    fn from_registry(reg: &kurashi_mods::Registry) -> Self {
+        let mods = reg
+            .iter()
+            .filter_map(|e| {
+                let m = e.manifest.as_ref()?;
+                Some(ModSettings {
+                    id: m.id.clone(),
+                    name: m.name.clone(),
+                    enabled: e.state == ModState::Enabled,
+                    keys: m.settings.iter().map(|s| setting_meta(m, s)).collect(),
+                })
+            })
+            .collect();
+        Self { mods }
+    }
+
+    /// The mod that owns `key`, and the key's metadata.
+    fn find(&self, key: &str) -> Option<(&ModSettings, &KeyMeta)> {
+        self.mods
+            .iter()
+            .find_map(|m| m.keys.iter().find(|k| k.key == key).map(|k| (m, k)))
+    }
+
+    fn keys(&self) -> impl Iterator<Item = String> + '_ {
+        self.mods
+            .iter()
+            .flat_map(|m| m.keys.iter().map(|k| k.key.clone()))
+    }
+
+    fn is_disabled(&self, key: &str) -> bool {
+        self.find(key).is_some_and(|(m, _)| !m.enabled)
+    }
+}
+
+/// One manifest setting as the schema sees it. Same types, bounds and choices as the manifest, so
+/// the schema's one validator (`validate_value`) rejects what the manifest rejects (K22).
+fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
+    let key = m.config_key(&s.key);
+    let ty = match s.ty {
+        SettingType::Bool => Ty::Bool,
+        SettingType::Int => Ty::Int,
+        SettingType::Float => Ty::Float,
+        SettingType::String => Ty::String,
+        SettingType::Enum => Ty::Choice,
+        SettingType::Color => Ty::Color,
+    };
+    let default = match &s.default {
+        SettingValue::Bool(b) => json!(b),
+        SettingValue::Int(n) => json!(n),
+        SettingValue::Float(f) => json!(f),
+        SettingValue::Str(t) => json!(t),
+    };
+    let mut meta = KeyMeta::new(key.clone(), ty, default);
+    // Labels are i18n keys like core keys; without one the derived key names the setting.
+    meta.label = s.label.clone().unwrap_or_else(|| key.clone());
+    meta.help = s.help.clone();
+    meta.page = format!("mods.{}", m.id);
+    meta.section = "general".into();
+    meta.constraints.unit = s.unit.clone();
+    if let Some((lo, hi)) = s.range {
+        meta.constraints.min = Some(bound(s.ty, lo));
+        meta.constraints.max = Some(bound(s.ty, hi));
+    }
+    meta.constraints.choices = s
+        .choices
+        .iter()
+        .map(|c| Choice {
+            value: c.clone(),
+            label: format!("{key}.{c}"),
+            text: String::new(),
+        })
+        .collect();
+    meta
+}
+
+/// A range bound in the setting's own type: whole numbers for an int setting, so the page shows
+/// `1`, not `1.0`.
+fn bound(ty: SettingType, x: f64) -> Value {
+    if ty == SettingType::Int && x.fract() == 0.0 {
+        json!(x as i64)
+    } else {
+        json!(x)
+    }
+}
+
+/// `schema.settings`: the core pages, then one page per enabled mod that declares settings. The
+/// page id is `mods.<id>`; its title is the mod's name, which the frontend shows as "Mods › name".
+fn settings_document(core: &Registry, mods: &ModTable) -> Value {
+    let mut doc = kurashi_schema::settings_meta(core);
+    let pages = doc["pages"]
+        .as_array_mut()
+        .expect("settings_meta lists its pages");
+    for m in mods.mods.iter().filter(|m| m.enabled && !m.keys.is_empty()) {
+        match Registry::from_keys(core.version(), m.keys.clone()) {
+            Ok(reg) => {
+                let mut meta = kurashi_schema::settings_meta(&reg);
+                let mut page = meta["pages"][0].take();
+                page["label"] = json!(m.name);
+                pages.push(page);
+            }
+            Err(errs) => tracing::warn!(mod_id = %m.id, ?errs, "mod settings page left out"),
+        }
+    }
+    doc
+}
+
+fn is_mod_key(key: &str) -> bool {
+    key.starts_with("mods.")
 }
 
 type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
@@ -135,11 +280,21 @@ impl ConfigStore {
         paths: Paths,
         opts: Options,
     ) -> Arc<Self> {
-        let cfg = Config::open(SchemaAdapter(registry), paths, opts);
-        for d in cfg.diagnostics() {
+        let schema = SchemaAdapter {
+            core: registry,
+            mods: ModTable::default(),
+        };
+        let cfg = Config::open(schema, paths, opts);
+        // Mod keys are unknown until the mods registry is discovered (`sync_mods`); their
+        // diagnostics wait for that instead of warning on every start.
+        for d in cfg.diagnostics().iter().filter(|d| !is_mod_key(&d.key)) {
             tracing::warn!(file = %d.file.display(), key = %d.key, reason = d.reason.i18n_key(), "config diagnostic");
         }
-        hub.register(SETTINGS_DOC, kurashi_schema::settings_meta(registry), None);
+        hub.register(
+            SETTINGS_DOC,
+            settings_document(registry, &ModTable::default()),
+            None,
+        );
         let store = Arc::new(ConfigStore {
             cfg: Mutex::new(cfg),
             hub: hub.clone(),
@@ -270,6 +425,11 @@ impl ConfigStore {
         if p.reason.is_some() {
             return p;
         }
+        // K22: a mod that is off keeps its settings. They are configured, not in effect.
+        if cfg.schema().mods.is_disabled(key) {
+            p.reason = Some(REASON_MOD_DISABLED.into());
+            return p;
+        }
         let value_of = |k: &str| cfg.resolve(k, output).map(|q| q.value);
         let requires = self.registry.get(key).and_then(|m| {
             m.couplings.iter().find_map(|c| match c {
@@ -315,6 +475,23 @@ impl ConfigStore {
                 }
             }
         }
+        self.publish();
+    }
+
+    /// Mod settings (K22): the keys of every valid mod (`mods.<id>.<key>`) join the schema, the
+    /// enabled mods get their pages, and stored values are read again and validated. Call after
+    /// discovery and after every enable, disable or rescan of the mods registry.
+    pub fn sync_mods(&self, reg: &kurashi_mods::Registry) {
+        let page = {
+            let mut cfg = self.cfg.lock().expect("config lock");
+            cfg.schema_mut().mods = ModTable::from_registry(reg);
+            cfg.refresh_keys();
+            for d in cfg.diagnostics().iter().filter(|d| is_mod_key(&d.key)) {
+                tracing::warn!(file = %d.file.display(), key = %d.key, reason = d.reason.i18n_key(), "config diagnostic");
+            }
+            settings_document(self.registry, &cfg.schema().mods)
+        };
+        let _ = self.hub.set(SETTINGS_DOC, page, None);
         self.publish();
     }
 

@@ -14,4 +14,9 @@ Singleton {
         for (var k in vars) s = s.split("{" + k + "}").join(String(vars[k]))
         return s
     }
+    // A page's title. A mod's page (id `mods.<id>`, K22) reads "Mods › <name>"; the name is the
+    // mod's own key or text, translated only if it is a key.
+    function pageTitle(id, label) {
+        return id.indexOf("mods.") === 0 ? fmt("settings.ui.mod_page", { name: tr(label) }) : tr(label)
+    }
 }
