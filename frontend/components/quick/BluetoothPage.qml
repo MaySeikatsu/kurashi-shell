@@ -3,8 +3,8 @@ import "../../core"
 import "../expanded"
 import ".."
 
-// The Bluetooth page (docs/ux/quick-settings.md, Design 2): the existing BluetoothPanel, which has the adapter's switch,
-// its scan and the devices with their battery. Every control sends one bluetooth.* request; a refused one shows its line
+// The Bluetooth page (docs/ux/quick-settings.md, Design 2): the header with the adapter's switch, then the existing
+// BluetoothPanel (its scan and the devices with their battery, without its own title row). Every control sends one bluetooth.* request; a refused one shows its line
 // here. Without an adapter, or with BlueZ gone, one dim line says why.
 Column {
     id: bt
@@ -26,14 +26,31 @@ Column {
         })
     }
 
-    PageHeader {
-        id: header
-        title: I18n.tr("island.quick.tile.bluetooth")
-        backName: I18n.tr("island.quick.back")
-        onBack: bt.backRequested()
+    // The header names the page and carries the adapter's switch; the panel's own title row is off here.
+    Row {
+        width: bt.width
+        spacing: Theme.gap
+        PageHeader {
+            id: header
+            title: I18n.tr("island.quick.tile.bluetooth")
+            backName: I18n.tr("island.quick.back")
+            onBack: bt.backRequested()
+        }
+        Item {
+            width: bt.width - header.width - sw.width - 2 * Theme.gap
+            height: sw.height
+        }
+        ToggleSwitch {
+            id: sw
+            checked: bt.d.powered === true
+            enabled: bt.avail
+            label: I18n.tr("frontend.bt.title")
+            onToggled: on => bt.act("bluetooth.power", {on: on})
+        }
     }
     BluetoothPanel {
         visible: bt.avail
+        titled: false
         width: bt.width
         doc: bt.d
         errText: bt.errText
