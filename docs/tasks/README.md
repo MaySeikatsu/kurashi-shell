@@ -205,5 +205,6 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W14-mods-live](W14-mods-live.md) | `frontend/test-mods-live.sh`, kurashid `test-mods` feature, hello test data | haiku |
 | [W14-sysmon-ux](W14-sysmon-ux.md) | sysmon crate + `mods/sysmon` | haiku |
 | [W14-wallpaper-ux](W14-wallpaper-ux.md) | wallpaper crate + `mods/wallpaper`, kurashi-theme (wallpaper source, warn role) | haiku |
+| [W14-settings-daemon](W14-settings-daemon.md) | profile export/import, `kurashi settings`, `settings.open`, face labels, wl_keys modifiers | haiku |
 | [W14-weather-ux](W14-weather-ux.md) | weather crate + `mods/weather` | haiku |
 
