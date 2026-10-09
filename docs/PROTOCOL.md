@@ -56,7 +56,9 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 ← {"t":"cfg.val","id":"2","key":"bar.main.edge",
    "v":{"value":"top","source":{"kind":"profile","name":"kanso"}}}
 // source kinds: default | theme(name) | profile(name) | nix | user | forced(name); optional
-// "forced_by" / "reason" appear only when set (crates/kurashi-core `Provenanced`).
+// "forced_by" / "reason" / "inert_by" appear only when set (crates/kurashi-core `Provenanced`).
+// forced_by = value replaced; reason without forced_by = configured but not in effect
+// (inert_by names the required key, or reason "settings.pending.restart") — K21.
 → {"t":"cfg.explain","id":"3","key":"theme.material.blur"}
 ← {"t":"cfg.why","id":"3","layers":[{"source":"default","value":true},
    {"source":"forced:capability","value":false,"reason":"compositor lacks ext-background-effect"}]}
