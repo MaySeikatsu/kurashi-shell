@@ -38,7 +38,7 @@ cargo build --release -p kurashi-mock -p kurashi
 python3 tools/bench/measure.py --name <name> [--warmup 10 --idle 30 --passes abc] -- <run command>
 ```
 - **Pass A (clean):** idle CPU %, wakeups/s (ctx switches, all threads), PSS @1 output, PSS with
-  popup, PSS @2 outputs (hotplug), GPU MiB (`nvidia-smi -q -d PIDS`), hotplug survival.
+  popup, PSS @2 and @3 outputs (hotplug; the gate takes the mean of the two deltas), GPU MiB (`nvidia-smi -q -d PIDS`), hotplug survival.
 - **Pass B (`WAYLAND_DEBUG=client`):** startup (launch → first `wl_surface.commit`), idle commits/s
   per surface, popup action → first commit latency (median of 5), island morph commits + frame
   pacing (p50/p99 gap). Lines are timestamped on arrival (libwayland stderr is unbuffered), so

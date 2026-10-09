@@ -67,15 +67,18 @@ def pss(r, budget):
     base = float(re.search(r"≤\s*(\d+(?:\.\d+)?)\s*MiB", budget).group(1))
     extra = float(re.search(r"\+\s*(\d+(?:\.\d+)?)\s*MiB", budget).group(1))
     one, two = get(r, "pass_a", "pss_mib_1out"), get(r, "pass_a", "pss_mib_2out")
+    three = get(r, "pass_a", "pss_mib_3out")
     if one is None:
         return "-", f"≤ {base:g} MiB", None, "no pass A"
     ok = one <= base
     text = f"{one:g} MiB"
     if two is not None:
-        # Delta against the popup-closed reading when present (see measure.py pass A).
-        delta = two - (get(r, "pass_a", "pss_mib_popup_closed") or one)
+        # Delta against the popup-closed reading when present (see measure.py pass A); the mean
+        # over two hotplugged outputs when the run has a third one.
+        start = get(r, "pass_a", "pss_mib_popup_closed") or one
+        delta = (three - start) / 2 if three is not None else two - start
         ok = ok and delta <= extra
-        text += f", +{delta:.1f}/output"
+        text += f", +{delta:.1f}/output" + (" (mean of 2)" if three is not None else "")
     return text, f"≤ {base:g} MiB, ≤ +{extra:g}/output", ok, ""
 
 

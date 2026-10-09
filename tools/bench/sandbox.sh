@@ -3,7 +3,7 @@
 #   sandbox.sh start [name] [renderer]  → prints `export ...` lines (eval them)
 #   sandbox.sh env   [name]             → prints the export lines again
 #   sandbox.sh stop  [name]             → kills ONLY processes whose environ has this runtime dir
-#   sandbox.sh output-add [name]        → hotplug a second output (HEADLESS-2)
+#   sandbox.sh output-add [name]        → hotplug one more output (HEADLESS-2, -3, …)
 # Renderer: gles2 (default; needed for dmabuf → clients render on the GPU, and for screencopy)
 #           or pixman (software). KURASHI_RENDER_NODE=/dev/dri/renderD… overrides the GPU.
 set -euo pipefail
@@ -40,9 +40,16 @@ case $action in
       "$0" stop "$name" >/dev/null
     fi
     printf 'output HEADLESS-1 resolution 2560x1440\noutput * bg #101014 solid_color\n' > "$R/sway.conf"
-    # First render node (renderD128 on single-GPU machines, may differ elsewhere); none → pixman.
-    # KURASHI_RENDER_NODE picks another one (hybrid laptops: measure on the iGPU the session uses).
-    node=${KURASHI_RENDER_NODE:-$(ls /dev/dri/renderD* 2>/dev/null | head -n 1)}
+    # The render node of the firmware's display GPU (boot_vga=1), else the first one; none → pixman.
+    # On hybrid laptops the first node is often the dGPU, whose runtime-PM resumes stall tests (B10).
+    # KURASHI_RENDER_NODE picks another one.
+    node=${KURASHI_RENDER_NODE:-}
+    if [ -z "$node" ]; then
+      for r in /sys/class/drm/renderD*; do
+        [ "$(cat "$r/device/boot_vga" 2>/dev/null)" = 1 ] && { node=/dev/dri/${r##*/}; break; }
+      done
+    fi
+    node=${node:-$(ls /dev/dri/renderD* 2>/dev/null | head -n 1)}
     if [ "$renderer" = gles2 ] && [ -z "$node" ]; then
       echo "sandbox: no DRM render node, falling back to pixman" >&2
       renderer=pixman
@@ -61,8 +68,11 @@ case $action in
     ;;
   env) env_lines ;;
   output-add)
-    SWAYSOCK=$(ls "$R"/sway-ipc.*.sock | head -1) swaymsg create_output >/dev/null
-    SWAYSOCK=$(ls "$R"/sway-ipc.*.sock | head -1) swaymsg output HEADLESS-2 resolution 2560x1440 >/dev/null || true
+    sock=$(ls "$R"/sway-ipc.*.sock | head -1)
+    SWAYSOCK=$sock swaymsg create_output >/dev/null
+    # The new output is the highest HEADLESS-<n>; same mode as HEADLESS-1.
+    out=$(SWAYSOCK=$sock swaymsg -t get_outputs -r | grep -o '"HEADLESS-[0-9]*"' | tr -d '"' | sort -t- -k2 -n | tail -1)
+    SWAYSOCK=$sock swaymsg output "${out:-HEADLESS-2}" resolution 2560x1440 >/dev/null || true
     ;;
   stop)
     pids=()
