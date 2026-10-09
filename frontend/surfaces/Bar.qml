@@ -233,6 +233,12 @@ PanelWindow {
                     font.family: Theme.fam(text, Theme.families)
                     text: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--")
                 }
+                // Quick settings sit before the tray (K24); the panel is the daemon's runtime.ui.panel.
+                QuickButton {
+                    anchors.verticalCenter: parent.verticalCenter
+                    open: (Store.docs["runtime.ui"] || ({})).panel === "quick"
+                    onClicked: Store.act("quick.toggle")
+                }
                 // The tray ends the row: its menus align to the bar's end (K23).
                 Repeater {
                     model: bar.trayItems
@@ -338,6 +344,10 @@ PanelWindow {
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
                     text: (bar.clock.hh ?? "--") + "\n" + (bar.clock.mm ?? "--")
+                }
+                QuickButton {
+                    open: (Store.docs["runtime.ui"] || ({})).panel === "quick"
+                    onClicked: Store.act("quick.toggle")
                 }
                 Repeater {
                     model: bar.trayItems
