@@ -1,10 +1,18 @@
-# Test native mod (K26): linked by crates/kurashi-mod-hello, never shipped in mods/.
+# Test native mod (K26, K28): linked by crates/kurashi-mod-hello, never shipped in mods/. It provides
+# every kind once: a service, actions, an island face, a panel, a slot and a choice source.
 id = "hello"
 name = "Hello"
 version = "0.1.0"
 tier = "native"
 kurashi = ">=0.0.1"
-provides = ["service:hello", "action:hello.*"]
+provides = [
+    "service:hello",
+    "action:hello.*",
+    "island-face:hello",
+    "panel:hello",
+    "slot:clock.expanded.footer",
+    "choices:hello.greetings",
+]
 capabilities = []
 cost = "low"
 
@@ -12,4 +20,5 @@ cost = "low"
 key = "greeting"
 type = "string"
 default = "hi"
+choices_from = "hello.greetings"
 label = "mods.hello.greeting"
