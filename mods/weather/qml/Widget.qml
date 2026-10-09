@@ -126,7 +126,12 @@ Item {
     property bool peekOpen: area.containsMouse || w.activeFocus
     Rectangle {
         id: peek
-        visible: w.peekOpen && w.peekLines.length > 0
+        // Fades in and out with the quick token (DESIGN-SYSTEM §9); invisible at 0, so it draws nothing.
+        opacity: w.peekOpen && w.peekLines.length > 0 ? 1 : 0
+        visible: opacity > 0
+        Behavior on opacity {
+            NumberAnimation { duration: Theme.quickMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
+        }
         z: 10
         anchors.bottom: parent.top
         anchors.bottomMargin: Theme.gap

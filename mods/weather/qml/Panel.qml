@@ -128,6 +128,12 @@ Rectangle {
         })
     }
 
+    // A search result is chosen for the preview; saving is a second, explicit step.
+    function choose(place) {
+        p.selected = place
+        p.saveStatus = ""
+    }
+
     function save() {
         if (!p.selected) return
         Store.act("weather.place.add", { place: p.selected }, function (done, err) {
@@ -565,10 +571,15 @@ Rectangle {
                 Repeater {
                     model: p.results
                     Rectangle {
+                        id: resultRow
                         width: places.width
                         height: 28
                         radius: Theme.rSm
+                        activeFocusOnTab: true
                         color: p.selected && p.selected.id === modelData.id ? Theme.containerHigh : "transparent"
+                        Keys.onReturnPressed: p.choose(modelData)
+                        Keys.onEnterPressed: p.choose(modelData)
+                        FocusRing { anchors.fill: parent; shown: resultRow.activeFocus; corner: Theme.rSm }
                         Text {
                             x: Theme.gap
                             width: parent.width - Theme.gap * 2
@@ -583,10 +594,7 @@ Rectangle {
                         }
                         MouseArea {
                             anchors.fill: parent
-                            onClicked: {
-                                p.selected = modelData
-                                p.saveStatus = ""
-                            }
+                            onClicked: p.choose(modelData)
                         }
                         Accessible.role: Accessible.ListItem
                         Accessible.name: modelData.name

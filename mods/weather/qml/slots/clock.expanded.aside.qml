@@ -22,6 +22,10 @@ Item {
     readonly property var today: d.days && d.days.length > 0 ? d.days[0] : null
     readonly property bool dim: d.tier === "stale" || d.tier === "very_stale"
     readonly property string unitTemp: I18n.tr("mod-weather.unit.temp." + (d.units || "metric"))
+    readonly property string ageText: {
+        var g = W.ageParts(d.age_s)
+        return g.n > 0 ? W.fill(I18n.tr(g.key), { n: g.n }) : I18n.tr(g.key)
+    }
 
     Accessible.role: Accessible.Button
     Accessible.name: hasNow
@@ -29,7 +33,7 @@ Item {
             place: d.place ? d.place.name : "",
             temp: W.num(now.temp) + unitTemp,
             condition: I18n.tr("mod-weather.condition." + now.code),
-            age: ""
+            age: a.ageText
         })
         : I18n.tr(d.reason || "mod-weather.loading")
 
