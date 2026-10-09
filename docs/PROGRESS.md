@@ -69,3 +69,6 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | F.1 | Hub lifecycle races, accept busy-loop, lag recovery, atomic update, bounded replies | 🟡 | card F-hub-server |
 | F.2 | Notify sanitiser linear + outside lock, body cap | 🟡 | card F-notify |
 | F.3 | Watcher spawn leak + debounce max-wait; services emit unavailable on stream end | 🟡 | card F-watch-services |
+| M6.2 | Mod descriptions; no nulls in `mods` doc (CONTRACT row 5 accepted) | 🟡 | card M6-mod-description |
+| M0.9 | Mock: notifications, launcher query, instance, fixed clock | 🟡 | card M0-mock-notify |
+| M3.3 | Golden screenshots (`just golden`) | 🟡 | card M3-golden |

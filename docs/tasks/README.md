@@ -115,3 +115,6 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [F-hub-server](F-hub-server.md) | `kurashid/src/{hub,server,clock,workspaces,services}.rs` | haiku |
 | [F-notify](F-notify.md) | `crates/kurashi-notify/` | haiku |
 | [F-watch-services](F-watch-services.md) | launcher `watch.rs`, services `{media,session,network,power,util}.rs` | haiku |
+| [M6-mod-description](M6-mod-description.md) | `crates/kurashi-mods/`, `mods/*/mod.toml`, `mods.toml`, `ModsPage.qml` | haiku |
+| [M0-mock-notify](M0-mock-notify.md) | `crates/kurashi-mock/` | haiku |
+| [M3-golden](M3-golden.md) | `tools/golden/` | haiku |
