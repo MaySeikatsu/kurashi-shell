@@ -28,7 +28,8 @@ use crate::island::IslandHost;
 /// The first-party native mods linked into this daemon (K26). None ship yet; the wallpaper mod
 /// (W12) is the first. The test mod `hello` is linked by the tests only: its manifest is test data.
 pub fn linked() -> Vec<Box<dyn NativeMod>> {
-    Vec::new()
+    let weather: Box<dyn NativeMod> = Box::new(kurashi_mod_weather::WeatherMod::new());
+    vec![weather]
 }
 
 /// `runtime.slots` (K28): the contributions of enabled mods to the core views' slots.

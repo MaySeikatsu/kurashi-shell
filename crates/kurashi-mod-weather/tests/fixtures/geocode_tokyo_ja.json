@@ -1,0 +1,11 @@
+{
+  "results": [
+    {"id": 1850147, "name": "東京", "latitude": 35.6895, "longitude": 139.69171, "elevation": 40.0,
+     "feature_code": "PPLC", "country_code": "JP", "admin1_id": 1850144, "timezone": "Asia/Tokyo",
+     "population": 8336599, "country_id": 1861060, "country": "日本", "admin1": "東京都"},
+    {"id": 4887398, "name": "シカゴ", "latitude": 41.85003, "longitude": -87.65005, "elevation": 181.0,
+     "feature_code": "PPLA2", "country_code": "US", "admin1_id": 4896861, "timezone": "America/Chicago",
+     "population": 2679044, "country_id": 6252001, "country": "アメリカ合衆国", "admin1": "イリノイ州"}
+  ],
+  "generationtime_ms": 0.6
+}

@@ -53,6 +53,9 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I20 | 2026-10-09 | W13-island-daemon report | "Usual output" for the OSD device name is the first default the daemon saw; make it a config key or learn it. | new |
 | I21 | 2026-10-09 | W11-mod-qml report | A test build of kurashid that links `kurashi-mod-hello`, so `frontend/test-modqml.sh` runs every enabled-state step against the real daemon and its stand-in proxy can retire. | new |
 | I22 | 2026-10-09 | W11-mod-qml report | Measure the Bar's per-output PSS after mod widgets moved to ModLoader (bench-gate on a quiet machine). | new |
+| I23 | 2026-10-09 | W12-weather report (CONTRACT 37) | A supervised background-job API in `ModCtx` (start/stop with the mod, `running` + reason "rain alerts" on the mod page) — weather's rain watch and sysmon's trouble watch need it. | accepted |
+| I24 | 2026-10-09 | W12-weather report (CONTRACT 38) | Mod-provided custom Settings controls (e.g. weather place search on its Settings page instead of only in the panel). | accepted |
+| I25 | 2026-10-09 | W12-weather report (CONTRACT 39) | Action `settings.open {page?, key?}`: the daemon launches Settings at a row (weather's "Set place", inert rows' "Controlled by …" links). | accepted |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
