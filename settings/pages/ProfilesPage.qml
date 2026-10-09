@@ -2,11 +2,15 @@ import QtQuick
 import "../core"
 import "../components"
 
-// Profiles: list (profile.list), diff before switching (profile.preview), load, save current.
+// Profiles: list, diff before switching (profile.preview), load, save current.
 // Every number shown comes from the daemon's answers; nothing is computed here.
 Flickable {
     id: p
-    property var profiles: []
+    // The list is the daemon's `config.profiles` (K27): pushed, and current when a profile file appears or
+    // goes. A daemon without that field gets `profile.list` once per connection instead.
+    property var listed: []
+    readonly property bool pushed: Store.config.profiles !== undefined
+    readonly property var profiles: pushed ? Store.config.profiles : listed
     property string selected: ""
     property var diff: null          // null = nothing previewed yet
     property string message: ""
@@ -18,9 +22,11 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
+    // Only for a daemon that does not push the list; the pushed one needs no request.
     function refresh() {
+        if (pushed) return
         Store.act("profile.list", {}, function (m) {
-            if (m.t === "done") p.profiles = (m.data && m.data.profiles) || []
+            if (m.t === "done") p.listed = (m.data && m.data.profiles) || []
             else { p.failed = true; p.message = Store.actError(m, "settings.err.profile_list") }
         })
     }
