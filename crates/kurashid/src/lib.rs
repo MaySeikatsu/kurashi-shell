@@ -6,6 +6,7 @@ pub mod hub;
 pub mod i18n;
 pub mod intents;
 pub mod server;
+pub mod workspaces;
 
 use std::sync::Arc;
 
