@@ -8,7 +8,8 @@ license.workspace = true
 [dependencies]
 kurashi-core.workspace = true
 kurashi-ipc.workspace = true
-kurashid = { path = "../kurashid" }   # i18n loader only
+kurashi-schema = { path = "../kurashi-schema" }   # input-slot defaults behind `bindings`
+kurashid = { path = "../kurashid" }   # i18n loader and the CONFIRM_REQUIRED code
 anyhow.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
