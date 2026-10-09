@@ -74,4 +74,23 @@ kurashi reset <key> | undo | redo
 kurashi profile list|preview|load|save <name>
 ```
 
+### Keybindings (niri)
+
+Without binds the shell is mouse and CLI only. `docs/niri-binds.kdl` is a ready snippet. Its
+`include` needs niri 25.11 or later; on older niri, paste its `binds {}` block into your config instead:
+
+1. Save it as `~/.config/niri/kurashi-binds.kdl`.
+2. Add `include "kurashi-binds.kdl"` to `~/.config/niri/config.kdl` **after** your `binds {}` block.
+   Later binds override earlier ones, so the kurashi keys replace niri's defaults for the same keys:
+   `Mod+Shift+E`, `Super+Alt+L`, `XF86AudioRaiseVolume`, `XF86AudioLowerVolume`, `XF86AudioMute`,
+   `XF86MonBrightnessUp` and `XF86MonBrightnessDown`. `Mod+Shift+E` opens the session menu instead of
+   niri's quit dialog (log out is in the menu, with a confirm step); niri's `Ctrl+Alt+Delete` still quits.
+3. Check the config with `niri validate`. The binds run `kurashi act`, which needs the daemon
+   running (`kurashid`, or its Home-Manager user service).
+
+With Home-Manager, `programs.kurashi.niri.binds.enable = true;` writes the same file with the store
+path of `kurashi`. Add or change keys in `programs.kurashi.niri.binds.keys` (niri key name to action
+id, e.g. `"Mod+L" = "session.lock";`); `null` removes a default. The file does nothing until the
+include line is there.
+
 License: GPL-3.0-or-later.
