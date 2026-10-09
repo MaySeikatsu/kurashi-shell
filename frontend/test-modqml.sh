@@ -1,29 +1,26 @@
 #!/usr/bin/env bash
-# Mod QML in the bar, the Island and the card (K26, K28), invisibly (headless sway sandbox). The test mod `hello`
-# (its QML in $KURASHI_MOD_HELLO, default crates/kurashid/tests/data/mods/hello/qml) logs `MODQML <what> created`
-# and `... destroyed` for every component it instantiates, so the test can count them. The daemon serves `mods`,
-# `runtime.slots` and `mod.panel.open` for `hello`: a build of kurashid that links it, or kurashi-mock once it does.
-# $KURASHI_MODQML_DAEMON (an executable) stands in for that: it listens on $KURASHI_SOCKET and forwards everything
-# to the mock at $KURASHI_MOCK_SOCKET. Steps:
-#   1. mod off: the bar and the clock card instantiate nothing of the mod;
-#   2. mod.enable hello: the bar widget loads; the clock card shows the footer and aside slots, never the `day`
-#      contribution (ready false); the card is 400 px wide and centred under the island;
-#   3. mod.panel.open {id, panel}: the card shows the hello panel, 360 px and centred; the clock slots are destroyed;
-#   4. ui.close: the panel is destroyed and no card is drawn;
-#   5. the panel open, then mod.disable hello: the panel and the widget are destroyed, the card closes, runtime.ui
-#      names no panel;
-#   6. with the mod on, `mock face hello` draws the mod's face and its expanded card; with it off, the clock stands in.
-# The frontend logs no QML error and no ModLoader failure. Screenshots: frontend/shots/modqml/.
-#   nix develop -c frontend/test-modqml.sh [sandbox-name]
-# Binaries as in test-stage.sh: the CLI from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug), the
-# mock from $KURASHI_MOCK_BIN. They are copied first, since shared target dirs get overwritten.
+# Mod QML in the bar, the Island and the Stage (K26, K28), invisibly (headless sway sandbox). The test mod `hello`
+# (crates/kurashid/tests/data/mods/hello/qml, or $KURASHI_MOD_HELLO) logs `MODQML <what> created|destroyed` for every
+# component it instantiates, so the test counts what loads and when it goes. Two daemons:
+#   1. the prebuilt kurashid ($KURASHI_BIN_DIR): `hello` is not linked into it (native::linked() is empty), so it is
+#      listed with no qml map, and `mod.enable hello` is refused: the disabled path, against the real daemon;
+#   2. a stand-in in front of kurashi-mock (embedded below, frontend tests only): it serves `mods`, `runtime.slots`
+#      and `mod.enable`/`mod.disable` as kurashid does for a linked `hello`, and refuses `mod.panel.open` while the
+#      mod is off. Everything else goes to the mock. Retire it once a kurashid that links `hello` is built for tests.
+# Steps (stand-in): mod off, nothing; mod.enable, the bar widget and the clock card's footer and aside (the day
+# contribution is not ready: never loads); mod.panel.open, the Stage card shows the panel and the clock's slots are
+# gone; ui.close; panel open then mod.disable, the panel and the widget go and no panel is named; the mod's island face
+# and its expanded card; media slots (backdrop, below); the notification header; the quick tile.
+# The frontend logs no QML warning: no qml/scene WARN or ERROR, no binding loop, no reference or type error.
+# Screenshots: frontend/shots/modqml/. Usage:
+#   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashi, kurashid, kurashi-mock> \
+#     timeout 900 nix develop -c frontend/test-modqml.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-fe-modqml}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 MOCK_BIN=${KURASHI_MOCK_BIN:-$BIN/kurashi-mock}
 HELLO=${KURASHI_MOD_HELLO:-$ROOT/crates/kurashid/tests/data/mods/hello}
-DAEMON=${KURASHI_MODQML_DAEMON:-}
 OUT=$ROOT/frontend/shots/modqml
 mkdir -p "$OUT"
 fail() { echo "test-modqml: $*" >&2; exit 1; }
@@ -32,7 +29,7 @@ eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
-cp "$BIN/kurashi" "$W/"
+cp "$BIN/kurashi" "$BIN/kurashid" "$W/"
 cp "$MOCK_BIN" "$W/kurashi-mock"
 
 pids=()
@@ -40,7 +37,7 @@ stop_phase() {  # kills only the processes this script started
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
   pids=()
-  rm -f "$KURASHI_SOCKET" "$R/mock.sock"
+  rm -f "$KURASHI_SOCKET" "$KURASHI_SOCKET.mock"
 }
 cleanup() {
   stop_phase
@@ -48,9 +45,13 @@ cleanup() {
 }
 trap cleanup EXIT
 
+rm -rf "$R/xdg"   # hermetic: a config left by an earlier run would leave `hello` enabled
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+# The real kurashid discovers the test mod in its data dir (kurashid/src/main.rs roots); it is not linked, so it is off.
+mkdir -p "$XDG_DATA_HOME/kurashi/mods"
+ln -sfn "$HELLO" "$XDG_DATA_HOME/kurashi/mods/hello"
 
 # `ipc.py <doc>` prints the first snapshot's data of a document (plain stdlib, as in test-stage.sh).
 cat > "$W/ipc.py" <<'PY'
@@ -85,7 +86,208 @@ PY
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 
-# The card's surface (Theme.container, color.surface_container) in the output's centre column: its bounding box.
+# The stand-in: kurashi-mock behind a proxy that serves `hello` the way kurashid does for a linked mod.
+cat > "$W/standin.py" <<'PY'
+import asyncio
+import json
+import os
+import signal
+import subprocess
+import sys
+
+SOCK = os.environ["KURASHI_SOCKET"]
+MOCK_SOCK = SOCK + ".mock"
+MOCK_BIN, HELLO_DIR, MOCK_ARGS = sys.argv[1], sys.argv[2], sys.argv[3:]
+mock = subprocess.Popen([MOCK_BIN, *MOCK_ARGS, "--socket", MOCK_SOCK])
+
+
+def stop(*_):
+    mock.terminate()
+    os._exit(0)
+
+
+signal.signal(signal.SIGTERM, stop)
+signal.signal(signal.SIGINT, stop)
+
+NAME = "hello"
+# The provides kurashid would list for hello: its manifest (mod.toml) plus the widget and slots the frontend needs.
+# The manifest is not this card's file (docs/CONTRACT-CHANGE.md asks for these provides).
+PROVIDES = [
+    "service:hello", "action:hello.*", "island-face:hello", "panel:hello", "widget:hello",
+    "slot:clock.expanded.footer", "slot:clock.expanded.aside", "slot:clock.expanded.day",
+    "slot:media.expanded.below", "slot:media.expanded.backdrop", "slot:notifications.expanded.header",
+    "slot:quick.tiles", "choices:hello.greetings",
+]
+NOT_READY = {"clock.expanded.day"}   # kurashid lists a contribution whose primary document is not available
+state = {"state": "disabled"}        # loaded and off, as the mod starts
+
+
+def files():
+    # The `qml` map kurashid builds for an enabled native mod: only the files that exist (native.rs qml_of).
+    d = os.path.join(HELLO_DIR, "qml")
+    out = {}
+
+    def add(key, rel):
+        p = os.path.join(d, rel)
+        if os.path.isfile(p):
+            out[key] = "file://" + os.path.abspath(p)
+
+    for p in PROVIDES:
+        kind, _, rest = p.partition(":")
+        if kind == "widget":
+            add(p, "Widget.qml")
+        elif kind == "panel":
+            add(p, "Panel.qml")
+        elif kind == "island-face":
+            add(p, "Face.qml")
+            add(p + ":expanded", "FaceExpanded.qml")
+        elif kind == "slot":
+            add(p, "slots/%s.qml" % rest)
+    return out
+
+
+def mods_data():
+    e = {"id": NAME, "name": "Hello", "version": "0.1.0", "tier": "native", "state": state["state"],
+         "running": False, "capabilities": [], "cost": "low", "provides": PROVIDES, "errors": [],
+         "shadows_bundled": False}
+    if state["state"] == "enabled":
+        e["qml"] = files()
+    return {"mods": [e]}
+
+
+def slots_data():
+    if state["state"] != "enabled":
+        return {}
+    out = {}
+    q = files()
+    for p in PROVIDES:
+        if p.startswith("slot:") and p in q:
+            slot = p[len("slot:"):]
+            out.setdefault(slot, []).append({"mod": NAME, "qml": q[p], "ready": slot not in NOT_READY})
+    return out
+
+
+OWNED = {"mods": mods_data, "runtime.slots": slots_data}
+clients = set()
+
+
+class Client:
+    def __init__(self, w):
+        self.w = w
+        self.subs = set()
+        self.rev = {}
+
+    def send(self, obj):
+        self.w.write((json.dumps(obj) + "\n").encode())
+
+    def snap(self, doc, rid=None):
+        self.rev[doc] = self.rev.get(doc, 0) + 1
+        m = {"t": "snap", "doc": doc, "rev": self.rev[doc], "data": OWNED[doc]()}
+        if rid is not None:
+            m["id"] = rid
+        self.send(m)
+
+
+def set_state(new):
+    state["state"] = new
+    for c in list(clients):
+        for doc in OWNED:
+            if doc in c.subs:
+                c.snap(doc)
+
+
+async def upstream(c, r):
+    while True:
+        line = await r.readline()
+        if not line:
+            return
+        try:
+            m = json.loads(line)
+        except ValueError:
+            c.w.write(line)
+            continue
+        if m.get("doc") in OWNED or m.get("id") == "standin-close":
+            continue
+        c.w.write(line)
+
+
+async def downstream(c, r, uw):
+    while True:
+        line = await r.readline()
+        if not line:
+            return
+        try:
+            m = json.loads(line)
+        except ValueError:
+            uw.write(line)
+            await uw.drain()
+            continue
+        t, doc, rid = m.get("t"), m.get("doc"), m.get("id")
+        if t == "sub" and doc in OWNED:
+            c.subs.add(doc)
+            c.snap(doc, rid)
+            continue
+        if t == "resync" and doc in OWNED:
+            if doc in c.subs:
+                c.snap(doc, rid)
+            continue
+        if t == "unsub" and doc in OWNED:
+            c.subs.discard(doc)
+            continue
+        if t == "act":
+            action, args = m.get("action"), m.get("args") or {}
+            if action in ("mod.enable", "mod.disable"):
+                if args.get("id") != NAME:
+                    c.send({"t": "err", "id": rid, "kind": "not_found", "msg": "mods.error.not_declared"})
+                    continue
+                if action == "mod.enable":
+                    set_state("enabled")
+                else:
+                    if state["state"] == "enabled":
+                        # kurashid closes a mod's panel when the mod goes off (the Stage card would be stale).
+                        uw.write((json.dumps({"t": "act", "id": "standin-close", "action": "ui.close",
+                                              "args": {}}) + "\n").encode())
+                        await uw.drain()
+                    set_state("disabled")
+                c.send({"t": "done", "id": rid})
+                continue
+            if action == "mod.panel.open" and args.get("id") == NAME and state["state"] != "enabled":
+                c.send({"t": "err", "id": rid, "kind": "invalid", "msg": "mods.error.panel_unavailable"})
+                continue
+        uw.write(line)
+        await uw.drain()
+
+
+async def handle(r, w):
+    ur, uw = await asyncio.open_unix_connection(MOCK_SOCK)
+    c = Client(w)
+    clients.add(c)
+    up = asyncio.ensure_future(upstream(c, ur))
+    try:
+        await downstream(c, r, uw)
+    except (ConnectionError, asyncio.IncompleteReadError):
+        pass
+    finally:
+        clients.discard(c)
+        up.cancel()
+        uw.close()
+        w.close()
+
+
+async def main():
+    while not os.path.exists(MOCK_SOCK):
+        await asyncio.sleep(0.05)
+    if os.path.exists(SOCK):
+        os.unlink(SOCK)
+    server = await asyncio.start_unix_server(handle, path=SOCK)
+    async with server:
+        await server.serve_forever()
+
+
+asyncio.run(main())
+PY
+
+# Card geometry from a screenshot (PPM): the card's surface colour in the output's centre column.
 cat > "$W/analyse.py" <<'PY'
 import json, sys
 
@@ -128,9 +330,13 @@ print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
 PY
 analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
 
+ppm_shot() {  # ppm_shot <name> <seconds>: waits, then takes the whole output as a PPM for the analysis
+  sleep "$2"
+  timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
+}
 # card <name> <width>: the card is drawn at the width asked for, centred on the output; the crop is the evidence shot.
 card() {
-  local res cx cy x0 y0 x1 y1
+  local res x0 y0 x1 y1 cx cy
   ppm_shot "$1" 2.5
   res=$(analyse "$1") || fail "$1: analysis failed"
   echo "$1: $res"
@@ -152,71 +358,103 @@ closed() {
   echo "$1: $res"
   jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$1: a card is still drawn ($res)"
 }
-# bar <name>: the bar's middle and right part (the Island and the widget slot), as evidence.
-bar() { timeout 20 grim -g "1100,0 1460x40" "$OUT/$1.png" || fail "grim failed on $1"; }
-ppm_shot() {
-  sleep "$2"
-  timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
-}
-# Log counts: the test mod's QML lines (the frontend's qs.log), cumulative since the frontend started.
+# bar <name>: the whole top bar (the Island's face and the mod's widget), as evidence.
+bar() { timeout 20 grim -g "0,0 2560x36" "$OUT/$1.png" || fail "grim failed on $1"; }
+shot() { timeout 20 grim -o HEADLESS-1 "$OUT/$1.png" || fail "grim failed on $1"; }
+
+# Log counts: the test mod's lifetime lines in this phase's qs.log (one frontend per phase).
 mq() { grep -c -F "MODQML $1" "$R/qs.log" || true; }
-expect() {  # expect <what> <count> <want>
+expect() {  # expect <what> <label> <count>
   local got
   got=$(mq "$1")
   [ "$got" -eq "$3" ] || fail "$2: MODQML '$1' seen $got times, want $3"
   echo "log: $2 ($1 x$got)"
 }
-
-start_daemon() {
-  rm -f "$KURASHI_SOCKET" "$R/mock.sock"
-  if [ -n "$DAEMON" ]; then
-    export KURASHI_MOCK_SOCKET=$R/mock.sock KURASHI_MOD_HELLO=$HELLO
-    RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$KURASHI_MOCK_SOCKET" \
-      >> "$R/server.log" 2>&1 &
-    pids+=("$!")
-    for _ in $(seq 100); do [ -S "$KURASHI_MOCK_SOCKET" ] && break; sleep 0.1; done
-    "$DAEMON" >> "$R/server.log" 2>&1 &
-    pids+=("$!")
-  else
-    RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$KURASHI_SOCKET" \
-      >> "$R/server.log" 2>&1 &
-    pids+=("$!")
-  fi
-  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && return 0; sleep 0.1; done
-  fail "daemon did not come up (see $R/server.log)"
+# The frontend's QML warnings: any qml or scene WARN/ERROR (quickshell's socket and compositor notices are not QML),
+# binding loops, reference and type errors.
+qml_warnings() {
+  grep -E '(WARN|ERROR)[^:]*(qml|scene)|Binding loop|ReferenceError|TypeError|is not a function|Unable to assign|Expected a qualified' "$R/qs.log" || true
 }
+no_qml_warnings() {  # no_qml_warnings <label>
+  local w
+  w=$(qml_warnings)
+  if [ -n "$w" ]; then
+    echo "$w" | head -20 >&2
+    fail "$1: $(echo "$w" | wc -l) QML warning line(s) in qs.log"
+  fi
+  echo "log: $1: no QML warnings"
+}
+
 start_frontend() {
+  : > "$R/qs.log"
   # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
-  for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   sleep 3   # the bar's documents and the first frames
 }
+wait_socket() {  # wait_socket <what>: the daemon serves svc.clock
+  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && return 0; sleep 0.1; done
+  fail "$1 did not come up (see $R/server.log)"
+}
 
-: > "$R/qs.log"
+# ---- Phase 1: the prebuilt kurashid. It links no native mod, so `hello` has no runtime side. Its answers to
+# `mod.enable` and to the panel are recorded (PROTOCOL §5/§8); the frontend must load what the daemon's `qml` map names
+# and drop it when the mod goes off.
 : > "$R/server.log"
-start_daemon
+RUST_LOG=info "$W/kurashid" >> "$R/server.log" 2>&1 &
+pids+=("$!")
+wait_socket kurashid
+start_frontend
+ipc mods | jq -c '.mods[] | select(.id == "hello")' | tee "$R/real-off.json"
+ipc runtime.slots | jq -e '. == {}' >/dev/null || fail "real kurashid: runtime.slots lists something while hello is off"
+K act mod.enable '{"id":"hello"}' >/dev/null || true
+sleep 1
+ipc mods | jq -c '.mods[] | select(.id == "hello")' | tee "$R/real-on.json"
+ipc runtime.slots | tee "$R/real-slots-on.json"
+if jq -e '.state == "enabled" and (.qml["panel:hello"] != null)' "$R/real-on.json" >/dev/null; then
+  K act mod.panel.open '{"id":"hello","panel":"hello"}' || true
+  sleep 2
+  ipc runtime.ui | tee "$R/real-ui-panel.json"
+  shot real-panel
+  expect "panel created" "real kurashid: the panel loads from the daemon's qml map" 1
+  K act mod.disable '{"id":"hello"}' >/dev/null || true
+  sleep 2
+  expect "panel destroyed" "real kurashid: disabling the mod destroys the panel" 1
+  ipc mods | jq -e '[.mods[] | select(.id == "hello") | has("qml")] == [false]' >/dev/null \
+    || fail "real kurashid: hello still has a qml map after mod.disable"
+else
+  echo "real kurashid: the enable did not take (see $R/real-on.json); nothing of the mod loads"
+  expect "" "real kurashid: no MODQML line" 0
+fi
+no_qml_warnings "real kurashid"
+stop_phase
+
+# ---- Phase 2: the stand-in (kurashi-mock behind a proxy that serves `hello` as a linked kurashid would).
+: > "$R/server.log"
+RUST_LOG=info python3 -I "$W/standin.py" "$W/kurashi-mock" "$HELLO" --outputs HEADLESS-1 --fixed-time 12:34 \
+  >> "$R/server.log" 2>&1 &
+pids+=("$!")
+wait_socket "stand-in"
 start_frontend
 
-# 1. mod off: the clock card (and the bar) instantiate nothing of the mod.
-mods=$(ipc mods) || fail "the mods document is not served (the daemon must serve it for hello)"
-jq -e '[.mods[] | select(.id == "hello") | has("qml")] == [false]' <<<"$mods" >/dev/null \
+# 1. mod off: the bar and the clock card instantiate nothing of the mod.
+ipc mods | jq -e '[.mods[] | select(.id == "hello") | has("qml")] == [false]' >/dev/null \
   || fail "mods: hello has a qml map while it is off"
 K act island.expand >/dev/null
 card clock-mod-off 400
 K act ui.close >/dev/null
 closed closed-mod-off
+bar bar-mod-off
 expect "" "mod off: no MODQML line" 0
 
 # 2. mod.enable: the bar widget, and the clock card's footer and aside (the day contribution is not ready).
 K act mod.enable '{"id":"hello"}' >/dev/null
 sleep 1.5
 expect "widget created" "enabled: bar widget loaded" 1
-slots=$(ipc runtime.slots) || fail "runtime.slots is not served (the daemon must serve it for hello)"
-jq -e '(."clock.expanded.footer" | length) == 1 and ."clock.expanded.footer"[0].ready == true
-    and ((."clock.expanded.day" // []) | map(select(.ready == true)) | length) == 0' <<<"$slots" >/dev/null \
+ipc runtime.slots | jq -e '(."clock.expanded.footer" | length) == 1 and ."clock.expanded.footer"[0].ready == true
+    and ((."clock.expanded.day" // []) | map(select(.ready == true)) | length) == 0' >/dev/null \
   || fail "runtime.slots does not list the ready footer and no ready day contribution"
-bar island-widget
+bar bar-widget
 K act island.expand >/dev/null
 card clock-slots 400
 expect "slot clock.expanded.footer created" "enabled: footer in the clock card" 1
@@ -246,14 +484,16 @@ expect "panel destroyed" "disabled with the panel open: the panel is destroyed" 
 expect "widget destroyed" "disabled: the widget is destroyed" 1
 ipc runtime.ui | jq -e '(.panel // "") == ""' >/dev/null || fail "runtime.ui still names a panel after mod.disable"
 closed closed-disabled
+bar bar-widget-gone
 
 # 6. the island face of the mod: drawn with the mod on, the clock stands in with it off.
 K act mod.enable '{"id":"hello"}' >/dev/null
 sleep 1.5
+expect "widget created" "re-enabled: the widget loads again" 2
 K mock face hello >/dev/null
 sleep 2
 expect "face created" "enabled: the island draws the mod face" 1
-bar island-face-hello
+bar bar-face-hello
 K act island.expand >/dev/null
 card face-expanded 360
 expect "face-expanded created" "the expanded face loads in the card" 1
@@ -263,12 +503,52 @@ expect "face-expanded destroyed" "closed: the expanded face is destroyed" 1
 K act mod.disable '{"id":"hello"}' >/dev/null
 sleep 2
 expect "face destroyed" "disabled: the mod face is destroyed" 1
-bar island-face-fallback
+bar bar-face-fallback
 
+# 7. media: the card's aside-less slots, backdrop and the line under the transport.
+K act mod.enable '{"id":"hello"}' >/dev/null
+sleep 1.5
+K mock face media >/dev/null
+sleep 1
+K act island.expand >/dev/null
+card media-slots 400
+expect "slot media.expanded.backdrop created" "media card: the backdrop loads" 1
+expect "slot media.expanded.below created" "media card: the line under the transport loads" 1
+K act ui.close >/dev/null
+closed closed-media
+
+# 8. notifications: the header row in the notifications face's expanded card (the centre is its own surface);
+# 9. quick settings: the tile.
+K mock face notifications >/dev/null
+sleep 1
+K act island.expand >/dev/null
+card notifications-header 360
+expect "slot notifications.expanded.header created" "notifications: the header loads" 1
+K act ui.close >/dev/null
+closed closed-notifications
+K act quick.toggle >/dev/null
+card quick-tiles 360
+expect "slot quick.tiles created" "quick settings: the tile loads" 1
+K act ui.close >/dev/null
+closed closed-quick
+
+# 10. mod.disable with everything closed: every component of the mod is gone. The widget was enabled three times (steps
+# 2, 6 and 7) and the island face shown twice (step 6, and again on the re-enable in step 7, before the media face).
+K act mod.disable '{"id":"hello"}' >/dev/null
+sleep 2
+expect "widget created" "the widget loaded once per enable" 3
+expect "widget destroyed" "disabled: the widget is gone" 3
+expect "face created" "the island showed the mod face twice" 2
+expect "panel created" "the panel opened twice" 2
+expect "slot clock.expanded.day created" "the not-ready day never loaded" 0
+# Every component the mod loaded has been destroyed: nothing of a disabled mod stays instantiated.
+for what in "widget" "face" "face-expanded" "panel" "slot clock.expanded.footer" "slot clock.expanded.aside" \
+    "slot media.expanded.backdrop" "slot media.expanded.below" "slot notifications.expanded.header" "slot quick.tiles"; do
+  c=$(mq "$what created"); d=$(mq "$what destroyed")
+  [ "$c" -eq "$d" ] || fail "'$what': $c created, $d destroyed after mod.disable"
+done
+echo "log: every component created was destroyed"
+no_qml_warnings "stand-in"
 stop_phase
-if grep -q "ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined\|is not a type\|Cannot assign\|Cannot anchor\|Binding loop\|ModLoader: cannot load\|Expected a qualified" "$R/qs.log"; then
-  echo "qs.log has errors:" >&2
-  grep "ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined\|is not a type\|Cannot assign\|Cannot anchor\|Binding loop\|ModLoader: cannot load\|Expected a qualified" "$R/qs.log" | head >&2
-  exit 1
-fi
+
 echo "ok: screenshots in $OUT"
