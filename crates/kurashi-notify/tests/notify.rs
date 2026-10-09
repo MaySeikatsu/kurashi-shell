@@ -1,11 +1,16 @@
 mod common;
 
 use std::collections::HashMap;
+use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use common::{Rec, TestBus, assert_no_null};
 use futures_util::StreamExt;
-use kurashi_notify::{Commands, NotifyConfig, NotifyHandle, Server};
+use kurashi_notify::{
+    Commands, DocSink, MAX_BODY_BYTES, MAX_SUMMARY_BYTES, NotifyConfig, NotifyHandle, Server,
+};
 use tokio::sync::mpsc;
 use zbus::zvariant::{StructureBuilder, Value};
 use zbus::{Connection, MatchRule, MessageStream};
@@ -327,6 +332,25 @@ async fn markup_is_sanitised() {
 }
 
 #[tokio::test]
+async fn oversized_summary_and_body_are_cut_with_ellipsis() {
+    let f = fixture(|_| {}).await;
+    let long = "x".repeat(1 << 20);
+    f.notify(0, &long, &long, &[], HashMap::new(), 0).await;
+    let d = f
+        .rec
+        .wait("item", |d| !d["items"].as_array().unwrap().is_empty())
+        .await;
+    let item = &d["items"][0];
+    let summary = item["summary"].as_str().unwrap();
+    let body = item["body"].as_str().unwrap();
+    let ell = '…'.len_utf8();
+    assert_eq!(summary.len(), MAX_SUMMARY_BYTES + ell);
+    assert!(summary.ends_with('…'));
+    assert_eq!(body.len(), MAX_BODY_BYTES + ell);
+    assert!(body.ends_with('…'));
+}
+
+#[tokio::test]
 async fn image_hint_is_cached_as_file() {
     let f = fixture(|_| {}).await;
     let px: Vec<u8> = (0..2 * 2).flat_map(|i| [i * 10, 0, 255, 255]).collect();
@@ -403,6 +427,45 @@ async fn capabilities_and_server_information() {
         .unwrap();
     assert_eq!(name, "kurashi");
     assert_eq!(spec, "1.2");
+}
+
+/// Panics once, inside the state lock, then records like `Rec`.
+struct PanicOnce {
+    armed: AtomicBool,
+    rec: Arc<Rec>,
+}
+
+impl DocSink for PanicOnce {
+    fn set(&self, doc: serde_json::Value) {
+        if self.armed.swap(false, Ordering::SeqCst) {
+            panic!("sink failure (test)");
+        }
+        self.rec.set(doc);
+    }
+}
+
+#[tokio::test]
+async fn panicking_sink_does_not_wedge_the_server() {
+    let bus = TestBus::start();
+    let conn = bus.conn().await;
+    let cache = tempfile::tempdir().unwrap();
+    let mut cfg = NotifyConfig::new(cache.path().join("img"));
+    cfg.claim_name = false;
+    let sink = Arc::new(PanicOnce {
+        armed: AtomicBool::new(false),
+        rec: Rec::new(),
+    });
+    let (_h, cmds) = Server::serve(conn, sink.clone(), cfg).await.unwrap();
+    sink.armed.store(true, Ordering::SeqCst);
+    // The sink panics while the state lock is held; catch it so the test can carry on.
+    let crashed = std::panic::catch_unwind(AssertUnwindSafe(|| cmds.set_dnd(true)));
+    assert!(crashed.is_err());
+    // The mutex is now poisoned and the sink never took `dnd: true`: the same change must reach
+    // it again, and later mutations must still work.
+    cmds.set_dnd(true);
+    assert_eq!(sink.rec.last().unwrap()["dnd"], true);
+    cmds.set_dnd(false);
+    assert_eq!(sink.rec.last().unwrap()["dnd"], false);
 }
 
 #[tokio::test]
