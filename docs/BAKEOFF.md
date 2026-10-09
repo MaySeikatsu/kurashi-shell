@@ -89,6 +89,40 @@ with Quickshell once opened. No result reopens K3 (its re-evaluation clause asks
 session lock + hot reload, which the numbers don't speak to). Re-test other frameworks once the
 Quickshell version is stable.
 
+#### Machine B (2026-10-09 13:55–14:12, e72690f) — record only, K3 unchanged
+Same probes and method, rebuilt from `archive/bakeoff-probes/` unchanged, one at a time, load < 1; headless
+sway gles2 on the first render node = **NVIDIA RTX 3070 Laptop** (driver 595.99.02) of a hybrid laptop
+(Ryzen 7 6800H + Radeon 680M). Raw JSON: `tools/bench/baselines/machine-b-2026-10-09/` (kept outside
+`archive/`, which stays untouched).
+
+| | quickshell | iced | slint¹ | gpui | gtk4 | frontend (mock) |
+|---|---|---|---|---|---|---|
+| PSS 1 output (MiB) | 157.8 | 151.6 | 23.3 | 147.7 | 143.5 | 110.5 |
+| PSS popup open | 159.4 | 157.5 | 23.9 | 148.7 | 217.3 | 111.2 |
+| PSS 2 outputs | 159.8 | 157.5 | 24.1 | 149.9 | 218.0 | 114.4 |
+| idle CPU % | 5.86² | 5.93² | 0.0 | 0.33 | 0.0 | 0.0 |
+| idle wakeups/s | 1.3 | 120.1 ✘ | 0.0 | 175.2 ✘ | 0.0 | 0.0 |
+| idle syscalls/s | 0.0 | 225.1 ✘ | 0.0 | 699.9 ✘ | 33.8 | 1.2 |
+| idle commits/s | 0.0 | 0.03 | 0.0 | 58.8 ✘ | 0.7 | 0.0 |
+| startup ms | 128 | 335 | 36 | 459 | 513 | 156 |
+| popup input→commit ms (median) | 2.7 | 2.8 | 2.3 | 26.3 | 2.3 | 3.0 |
+| morph commits / p99 frame ms | 21 / 17.3 | 23 / 19.6 | 23 / 16.9 | 88 / 18.0 | 16 / 16.9 | 22 / 16.6 |
+
+² The idle window caught an NVIDIA runtime-PM resume (~1.7 s of driver CPU on the client's main thread
+while the dGPU wakes; BENCH machine B section) — not the probe's own work; wakeups/syscalls stay ~0.
+
+Machine A vs B: the behavioural picture is identical on both machines — iced and gpui never idle, gpui
+commits forever and is ~10× slower to the first popup frame, GTK4's popup still costs +74 MiB (a second
+GL surface), Slint (CPU-rendered, ¹) stays the lightest. Absolute GPU-rendered PSS is 15–65 MiB higher on
+B's RTX 3070 / driver 595 than on A's GTX 1060 / 580 (Quickshell probe 157.8 vs 123.4; GTK4 143.5 vs
+78.0), while today's frontend is *lighter* on B (110.5 vs 118.8): the probe is the unoptimised M0 code,
+the frontend has the M3.2 memory work. Hybrid laptops add a failure mode A cannot show (dGPU resume
+stalls), which argues for rendering on the iGPU, not for another framework. Nothing here reopens K3.
+
+**Idea for a later re-test (not implemented, user note 2026-10-09):** add **Bevy** as a candidate when the
+archived frameworks are re-tested — interesting for complex graphics and animations, small minigame
+mechanics and complex surface merging (layer-shell support and the idle/Ma budget would be the gates).
+
 ### Capability (✔ / partial / ✘; hard gates **bold**)
 | | quickshell | iced | slint | gpui | gtk4 |
 |---|---|---|---|---|---|

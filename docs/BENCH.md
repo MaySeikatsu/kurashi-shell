@@ -4,7 +4,11 @@ Measured numbers per milestone. Method: `just bench …` (see `tools/bench/READM
 Always record: date, commit, machine, compositor, renderer, outputs, profile.
 
 Machine A: 12 cores, 31 GiB RAM, NVIDIA GTX 1060 6 GB (driver 580.178), NixOS, niri 26.04.
-Machine B: _not measured yet_ (the user's second machine; the shell must meet the budgets on both) — procedure: `docs/RUNBOOK-MACHINE-B.md`.
+Machine B: laptop, AMD Ryzen 7 6800H (8 cores / 16 threads), 38 GiB RAM, **hybrid GPU**: Radeon 680M iGPU
+(Mesa 26.2.2, boot GPU — niri renders on it) + NVIDIA RTX 3070 Laptop 8 GB (open kernel module 595.99.02,
+runtime PM), NixOS 26.11, niri 26.04. Procedure: `docs/RUNBOOK-MACHINE-B.md`. The sandbox picks the first
+render node (renderD128 = the NVIDIA dGPU here); `KURASHI_RENDER_NODE=/dev/dri/renderD129` measures on the
+iGPU, the GPU this machine's session actually uses.
 
 **Per-machine baselines.** Budgets apply on every target machine; numbers are only comparable
 within one machine (GPU driver floor differs: NVIDIA vs Mesa). Take each machine's baseline
@@ -75,6 +79,29 @@ no other compile jobs (the first quiet baseline for machine A).
 Headroom: 46 MiB at 1 output (was 12 before M3.2). The per-output row sits exactly at its limit
 (+6.0 vs ≤ +6): watch it — the next surface added per output must pay for itself.
 Same frontend against the mock: 118.8 MiB @1 out, 0 wakeups/s (`docs/BAKEOFF.md` re-measure).
+
+### 2026-10-09 14:09–14:40 — bench gate, quiet machine B (e72690f)
+Real `kurashid` + full UI via `frontend/launch.sh`, release binaries from main, no compile jobs (load < 1).
+| GPU (render node) | idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | 20-cycle growth | mapped surfaces | result |
+|---|---|---|---|---|---|---|---|---|
+| RTX 3070 dGPU (D128), run 1 | 0.03 | **5.80 %** ✘ | 106.1 MiB | +2.1 | 3.4 ms | +0.12 MiB | 3 | 1 violation |
+| RTX 3070 dGPU (D128), run 2 | 0.03 | **5.73 %** ✘ | 106.2 MiB | +2.3 | 3.2 ms | +0.30 MiB | 3 | 1 violation |
+| RTX 3070 dGPU (D128), run 3 | — | 0 % | — | — | — | — | — | 0 violations |
+| Radeon 680M iGPU (D129), run 1 | 0.03 | 0.07 % | 126.9 MiB | +5.6 | 3.1 ms | −0.14 MiB | 3 | **0 violations** |
+| Radeon 680M iGPU (D129), run 2 | 0 | 0 % | 123.5 MiB | +4.5 | 3.4 ms | +0.32 MiB | 3 | **0 violations** |
+| iGPU, Mesa EGL pinned (experiment) | 0 | 0 % | 114.4 MiB | +5.1 | 3.0 ms | +1.80 MiB | 3 | 0 violations |
+
+**The dGPU idle-CPU failures are a runtime-PM artefact, not a frontend loop:** a per-second timeline shows
+0 ticks for ~45 s, then ~1.7 s of CPU on qs's *main thread* (inside the NVIDIA driver) exactly while the
+RTX 3070 is `resuming` from runtime suspend (`/sys/bus/pci/devices/0000:01:00.0/power/runtime_status`),
+then 0 again. A 30 s window that catches a resume fails; one that doesn't reads 0 %. Two consequences: on
+the dGPU a resume also blocks the UI thread for ~2 s, and a hybrid laptop should never render the shell on
+the dGPU (it also keeps the dGPU in use). niri renders on the iGPU here, so the **iGPU rows are machine B's
+baseline**. Raw JSON: `tools/bench/baselines/machine-b-2026-10-09/` (dGPU gate JSON not kept).
+Headroom on the iGPU: 23–27 MiB at 1 output; per extra output **+4.5–5.6 of ≤ +6** — as tight as machine
+A. glvnd loads both EGL vendors on a hybrid (`launch.sh` pins only with one render node): pinning Mesa on
+the iGPU saves ~10 MiB (114.4 MiB) → Kaizen card (pin the vendor of the GPU the session renders on).
+Golden screenshots on machine B are pixel-identical to machine A's refs (same Nix fonts, pixman).
 
 ### 2026-10-09 — bench gate after wave 5 (b39974d): full UI on the real stack
 Bar + Stage + island faces + toasts/center + launcher + lock, real `kurashid`, serial run.
