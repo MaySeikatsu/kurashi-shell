@@ -154,12 +154,24 @@ async fn main() -> anyhow::Result<()> {
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
     kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker);
+    // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
+    let bindings = config.clone().map(|store| {
+        let h = island.clone();
+        store.on_change(move |c| h.apply_config(c));
+        island.apply_config(&store);
+        let b = kurashid::bindings::Bindings::new(&hub, store);
+        b.register_actions(&mut actions);
+        b
+    });
     let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     kurashid::doctor::register(&mut daemon, facts);
     daemon.config = config;
     daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
     let daemon = Arc::new(daemon);
+    if let Some(b) = &bindings {
+        b.attach(&daemon);
+    }
     tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;

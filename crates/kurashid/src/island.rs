@@ -7,6 +7,7 @@ use kurashi_island::{Arbiter, Face, FaceSignal, IslandConfig, Ms, Source, doc};
 use serde_json::Value;
 
 use crate::actions::ActionRegistry;
+use crate::config::ConfigStore;
 use crate::hub::Hub;
 
 /// Wall-clock ms, so `until` in the document means something to frontends.
@@ -56,6 +57,37 @@ impl IslandHost {
 
     pub fn unregister_face(self: &Arc<Self>, id: &str) {
         self.with(|arb, _| arb.unregister_face(id));
+    }
+
+    /// Map `island.main.{faces,default,ttl}` onto the arbiter and re-publish. Re-register on
+    /// every change with `ConfigStore::on_change`. `volume` is always transient-only, whatever
+    /// `faces` says, and `ttl` overrides the transient kinds the schema documents (K9).
+    pub fn apply_config(self: &Arc<Self>, cfg: &ConfigStore) {
+        let faces = cfg
+            .get("island.main.faces", None)
+            .and_then(|p| serde_json::from_value::<Vec<String>>(p.value).ok());
+        let default = cfg
+            .get("island.main.default", None)
+            .and_then(|p| p.value.as_str().map(String::from));
+        let ttl = cfg
+            .get("island.main.ttl", None)
+            .and_then(|p| p.value.as_u64());
+        self.with(|arb, _| {
+            let mut c = arb.config().clone();
+            if let Some(f) = faces {
+                c.faces = f;
+            }
+            if let Some(d) = default {
+                c.default = d;
+            }
+            if let Some(s) = ttl {
+                for kind in ["volume", "notification"] {
+                    c.ttl_overrides.insert(kind.into(), s * 1000);
+                }
+            }
+            c.transient_only.insert("volume".into());
+            arb.set_config(c);
+        });
     }
 
     /// Apply an input, re-decide, publish, re-arm the single deadline timer.
@@ -147,6 +179,71 @@ mod tests {
 
     fn face(hub: &Hub) -> Value {
         hub.snapshot("runtime.island.main").unwrap().1
+    }
+
+    fn store(hub: &Arc<Hub>, user_toml: &str) -> (Arc<ConfigStore>, std::path::PathBuf) {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "kurashid-island-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        let paths = kurashi_config::Paths::rooted(&root);
+        if !user_toml.is_empty() {
+            let f = paths.user_file();
+            std::fs::create_dir_all(f.parent().unwrap()).unwrap();
+            std::fs::write(f, user_toml).unwrap();
+        }
+        let s = ConfigStore::open(
+            hub.clone(),
+            kurashi_schema::v1::registry(),
+            paths,
+            kurashi_config::Options::default(),
+        );
+        (s, root)
+    }
+
+    #[tokio::test]
+    async fn config_reconfigures_island() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "");
+        let h = IslandHost::new(
+            hub.clone(),
+            "main",
+            IslandConfig::default(),
+            &["clock", "media", "notifications", "volume"],
+        );
+        let mut actions = ActionRegistry::default();
+        h.register_actions(&mut actions);
+        {
+            let h = h.clone();
+            cfg.on_change(move |c| h.apply_config(c));
+        }
+        h.apply_config(&cfg);
+        // `volume` is registered but not in the cycling ring.
+        assert_eq!(face(&hub)["face"], "clock");
+        for _ in 0..5 {
+            actions.invoke("island.next", Value::Null).await.unwrap();
+            assert_ne!(face(&hub)["face"], "volume");
+        }
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.default".into(),
+            value: json!("media"),
+            output: None,
+        }])
+        .unwrap();
+        // Manual hold from the cycling above still wins; unpinned default is checked in the doc.
+        assert_eq!(h.arb.lock().unwrap().config().default, "media");
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.ttl".into(),
+            value: json!(2),
+            output: None,
+        }])
+        .unwrap();
+        assert_eq!(h.arb.lock().unwrap().config().ttl_overrides["volume"], 2000);
+        let _ = std::fs::remove_dir_all(root);
     }
 
     #[tokio::test]

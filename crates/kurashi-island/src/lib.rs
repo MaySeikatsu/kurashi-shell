@@ -53,6 +53,8 @@ pub struct IslandConfig {
     /// Per-kind TTL replacing the signal's own.
     pub ttl_overrides: BTreeMap<String, Ms>,
     pub manual_hold_ms: Ms,
+    /// Faces only a transient may show (the volume OSD): never reachable by cycling.
+    pub transient_only: BTreeSet<String>,
 }
 
 impl Default for IslandConfig {
@@ -63,6 +65,7 @@ impl Default for IslandConfig {
             interruptible_by: BTreeSet::new(),
             ttl_overrides: BTreeMap::new(),
             manual_hold_ms: 10_000,
+            transient_only: BTreeSet::new(),
         }
     }
 }
@@ -127,6 +130,10 @@ impl Arbiter {
 
     pub fn set_config(&mut self, cfg: IslandConfig) {
         self.cfg = cfg;
+    }
+
+    pub fn config(&self) -> &IslandConfig {
+        &self.cfg
     }
 
     pub fn register_face(&mut self, face: Face) {
@@ -202,10 +209,19 @@ impl Arbiter {
 
     fn cycle(&mut self, now: Ms, dir: isize) -> Decision {
         let cur = self.decide(now);
-        let n = cur.faces.len() as isize;
+        let ring: Vec<&String> = cur
+            .faces
+            .iter()
+            .filter(|f| !self.cfg.transient_only.contains(*f))
+            .collect();
+        let n = ring.len() as isize;
         if self.pinned.is_none() && n > 1 {
-            let i = cur.faces.iter().position(|f| *f == cur.face).unwrap_or(0) as isize;
-            let f = cur.faces[(i + dir).rem_euclid(n) as usize].clone();
+            // Showing a transient-only face: step from just before/after the ring's start.
+            let i = ring
+                .iter()
+                .position(|f| **f == cur.face)
+                .map_or(if dir > 0 { -1 } else { 0 }, |i| i as isize);
+            let f = ring[(i + dir).rem_euclid(n) as usize].clone();
             self.manual = Some((f, now.saturating_add(self.cfg.manual_hold_ms)));
         }
         self.decide(now)
@@ -336,6 +352,31 @@ mod tests {
             transient: None,
         }
     }
+    #[test]
+    fn transient_only_faces_are_not_cyclable() {
+        let mut c = IslandConfig {
+            faces: vec!["clock".into(), "media".into()],
+            default: "clock".into(),
+            ..Default::default()
+        };
+        c.transient_only.insert("volume".into());
+        c.interruptible_by.insert("volume".into());
+        let mut a = Arbiter::new(c);
+        for (f, p) in [("clock", 3), ("media", 2), ("volume", 1)] {
+            a.register_face(face(f, p));
+        }
+        let mut seen = vec![a.decide(0).face];
+        for _ in 0..4 {
+            seen.push(a.next(0).face);
+        }
+        assert!(!seen.iter().any(|f| f == "volume"), "{seen:?}");
+        // Cycling while the OSD is up picks a ring face, shown once the OSD expires.
+        a.signal(0, osd("volume", 1000, true));
+        assert_eq!(a.decide(0).face, "volume");
+        a.next(0);
+        assert_ne!(a.decide(2000).face, "volume");
+    }
+
     fn osd(f: &str, ttl: Ms, interrupt: bool) -> FaceSignal {
         FaceSignal {
             face: f.into(),
