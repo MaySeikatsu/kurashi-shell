@@ -6,7 +6,7 @@ use tempfile::TempDir;
 use toml_edit::DocumentMut;
 
 use crate::engine::Layers;
-use crate::testing::{EDGES, FakeSchema};
+use crate::testing::{EDGES, FakeKey, FakeSchema, Kind};
 use crate::*;
 
 const KEYS: &[&str] = &[
@@ -603,6 +603,189 @@ fn save_profile_snapshots_non_defaults_and_shadows_bundled() {
         cfg.preview_profile("missing", None),
         Err(ConfigError::ProfileNotFound(_))
     ));
+}
+
+// --- per-mod profile sections (K7, K18, K22; card C-mod-sections) ---------------------------
+
+const MOD_KEYS: &[&str] = &[
+    "mods.media.seek_step",
+    "mods.media.show_art",
+    "mods.clock.size",
+];
+
+/// The fake schema plus two mods' settings, keyed `mods.<id>.<key>` as K22 declares them.
+fn mod_schema() -> FakeSchema {
+    let key = |default, kind| FakeKey {
+        default,
+        kind,
+        per_output: false,
+    };
+    let mut schema = FakeSchema::new();
+    schema.keys.insert(
+        "mods.media.seek_step".into(),
+        key(json!(5), Kind::Int { min: 1, max: 60 }),
+    );
+    schema
+        .keys
+        .insert("mods.media.show_art".into(), key(json!(true), Kind::Bool));
+    schema.keys.insert(
+        "mods.clock.size".into(),
+        key(json!(3), Kind::Int { min: 1, max: 9 }),
+    );
+    schema
+}
+
+/// One bundled profile (`night`) that sets both mods.
+fn mod_profile_setup() -> (TempDir, Config<FakeSchema>) {
+    let dir = TempDir::new().unwrap();
+    let bundled = dir.path().join("bundled");
+    std::fs::create_dir_all(&bundled).unwrap();
+    std::fs::write(
+        bundled.join("night.toml"),
+        "schema_version = 1\n[mods.media]\nseek_step = 12\nshow_art = false\n[mods.clock]\nsize = 7\n",
+    )
+    .unwrap();
+    let opts = Options {
+        bundled_profile_dirs: vec![bundled],
+        ..Options::default()
+    };
+    let cfg = open_with(&dir, mod_schema(), opts);
+    (dir, cfg)
+}
+
+fn mod_snapshot(cfg: &Config<FakeSchema>) -> Vec<Option<Provenanced>> {
+    MOD_KEYS.iter().map(|k| cfg.resolve(k, None)).collect()
+}
+
+#[test]
+fn section_of_a_mod_key_is_the_mod() {
+    use crate::engine::section;
+    assert_eq!(section("mods.media.seek_step"), "mods.media");
+    assert_eq!(section("mods.media.deep.key"), "mods.media");
+    assert_eq!(section("mods.media"), "mods");
+    assert_eq!(section("mods..x"), "mods");
+    assert_eq!(section("bar.main.edge"), "bar");
+}
+
+#[test]
+fn mod_section_load_changes_only_that_mod_as_one_undoable_tx() {
+    let (dir, mut cfg) = mod_profile_setup();
+    cfg.apply(&[
+        Op::set("mods.media.seek_step", json!(20)),
+        Op::set("mods.clock.size", json!(5)),
+    ])
+    .unwrap();
+    let rev = cfg.rev();
+    let (a, _) = cfg.load_profile("night", Some(&["mods.media"])).unwrap();
+    assert_eq!(a.rev, rev + 1);
+    let mut changed = a.changed.clone();
+    changed.sort();
+    assert_eq!(
+        changed,
+        vec![
+            slot("mods.media.seek_step", None),
+            slot("mods.media.show_art", None),
+        ]
+    );
+    let night = || Source::Profile("night".into());
+    assert_eq!(
+        val(&cfg, "mods.media.seek_step", None),
+        (json!(12), night())
+    );
+    assert_eq!(
+        val(&cfg, "mods.media.show_art", None),
+        (json!(false), night())
+    );
+    // Outside the section: the clock keeps its pin and receives no profile value.
+    assert_eq!(val(&cfg, "mods.clock.size", None), (json!(5), Source::User));
+    let reopened = open_with(&dir, mod_schema(), Options::default());
+    assert_eq!(mod_snapshot(&reopened), mod_snapshot(&cfg));
+
+    cfg.undo().unwrap().unwrap();
+    assert_eq!(
+        val(&cfg, "mods.media.seek_step", None),
+        (json!(20), Source::User)
+    );
+    assert_eq!(
+        val(&cfg, "mods.media.show_art", None),
+        (json!(true), Source::Default)
+    );
+    assert_eq!(val(&cfg, "mods.clock.size", None), (json!(5), Source::User));
+    cfg.redo().unwrap().unwrap();
+    assert_eq!(val(&cfg, "mods.media.seek_step", None).0, json!(12));
+}
+
+#[test]
+fn mods_section_loads_every_mod() {
+    let (_dir, mut cfg) = mod_profile_setup();
+    cfg.apply(&[
+        Op::set("mods.media.seek_step", json!(20)),
+        Op::set("mods.clock.size", json!(5)),
+    ])
+    .unwrap();
+    let d = cfg.preview_profile("night", Some(&["mods"])).unwrap();
+    assert_eq!(d.entries.len(), 3);
+    cfg.load_profile("night", Some(&["mods"])).unwrap();
+    assert_eq!(
+        val(&cfg, "mods.media.seek_step", None),
+        (json!(12), Source::Profile("night".into()))
+    );
+    assert_eq!(
+        val(&cfg, "mods.clock.size", None),
+        (json!(7), Source::Profile("night".into()))
+    );
+}
+
+#[test]
+fn mod_section_filter_matches_whole_segments_only() {
+    let (dir, mut cfg) = mod_profile_setup();
+    cfg.apply(&[
+        Op::set("mods.media.seek_step", json!(20)),
+        Op::set("mods.clock.size", json!(5)),
+    ])
+    .unwrap();
+    // `mods.med` names no section: nothing is previewed, loaded or unpinned.
+    let d = cfg.preview_profile("night", Some(&["mods.med"])).unwrap();
+    assert!(d.entries.is_empty());
+    let (a, _) = cfg.load_profile("night", Some(&["mods.med"])).unwrap();
+    assert_eq!(a.tx_id, None);
+    assert_eq!(
+        val(&cfg, "mods.media.seek_step", None),
+        (json!(20), Source::User)
+    );
+    // Saving one mod writes only that mod's keys.
+    let path = cfg.save_profile("mine", Some(&["mods.clock"])).unwrap();
+    let saved = std::fs::read_to_string(path).unwrap();
+    assert!(saved.contains("[mods.clock]\nsize = 5\n"), "{saved}");
+    assert!(!saved.contains("seek_step"), "{saved}");
+    assert!(dir.path().join("config/profiles/mine.toml").exists());
+}
+
+#[test]
+fn old_layout_profile_state_loads_like_the_nested_one() {
+    // Before per-mod sections every mod key sat under one `[<profile>.mods]` table. The dotted
+    // keys below are the same TOML tables as the nested form, so both must load identically.
+    let old = "[night.mods]\nmedia.seek_step = 12\nmedia.show_art = false\nclock.size = 7\n";
+    let nested =
+        "[night.mods.media]\nseek_step = 12\nshow_art = false\n\n[night.mods.clock]\nsize = 7\n";
+    let open_state = |text: &str| {
+        let dir = TempDir::new().unwrap();
+        let state = Paths::rooted(dir.path()).profile_state_file();
+        std::fs::create_dir_all(state.parent().unwrap()).unwrap();
+        std::fs::write(&state, text).unwrap();
+        (open_with(&dir, mod_schema(), Options::default()), dir)
+    };
+    let (old_cfg, _old_dir) = open_state(old);
+    let (nested_cfg, _nested_dir) = open_state(nested);
+    assert_eq!(mod_snapshot(&old_cfg), mod_snapshot(&nested_cfg));
+    assert_eq!(
+        val(&old_cfg, "mods.media.seek_step", None),
+        (json!(12), Source::Profile("night".into()))
+    );
+    assert_eq!(
+        val(&old_cfg, "mods.clock.size", None),
+        (json!(7), Source::Profile("night".into()))
+    );
 }
 
 // --- properties -----------------------------------------------------------------------------

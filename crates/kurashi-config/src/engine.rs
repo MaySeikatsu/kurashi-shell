@@ -85,8 +85,30 @@ fn patch<V: Clone>(m: &mut BTreeMap<Slot, V>, changes: &[Change<V>], forward: bo
     }
 }
 
+/// Profile section of a key (K7, K18). Each mod's settings (`mods.<id>.<key>`, K22) are a section
+/// of their own, so a profile can carry and load one mod alone; every other key's section is its
+/// first segment. Mod ids and setting keys never contain `.` (`kurashi-mods` manifest), so
+/// `mods.<id>` is always exactly two segments.
 pub(crate) fn section(key: &str) -> &str {
-    key.split('.').next().unwrap_or(key)
+    let mut segs = key.splitn(3, '.');
+    match (segs.next(), segs.next(), segs.next()) {
+        (Some("mods"), Some(id), Some(_)) if !id.is_empty() => &key[.."mods.".len() + id.len()],
+        (first, _, _) => first.unwrap_or(key),
+    }
+}
+
+/// Whether `key` is in the chosen sections (`None` = all). A section also covers the sections
+/// below it on whole segments: `mods` covers every `mods.<id>`, while `mods.med` covers nothing.
+fn in_sections(sections: Option<&[&str]>, key: &str) -> bool {
+    let sec = section(key);
+    sections.is_none_or(|list| {
+        list.iter().any(|s| {
+            sec == *s
+                || sec
+                    .strip_prefix(*s)
+                    .is_some_and(|rest| rest.starts_with('.'))
+        })
+    })
 }
 
 /// The config engine. Single-threaded by design: the daemon owns it on its state task.
@@ -830,7 +852,7 @@ impl<S: SchemaView> Config<S> {
         sections: Option<&[&str]>,
     ) -> Layers {
         let mut next = self.layers.clone();
-        let inside = |k: &str| sections.is_none_or(|s| s.contains(&section(k)));
+        let inside = |k: &str| in_sections(sections, k);
         next.profile.retain(|(k, _), _| !inside(k));
         next.user.retain(|(k, _), _| !inside(k));
         for (slot, v) in entries {
@@ -841,7 +863,8 @@ impl<S: SchemaView> Config<S> {
         next
     }
 
-    /// Effective before/after of loading `name` (sections = top-level tables; `None` = all).
+    /// Effective before/after of loading `name` (sections: top-level tables or `mods.<id>`;
+    /// `None` = all).
     pub fn preview_profile(
         &self,
         name: &str,
@@ -880,7 +903,7 @@ impl<S: SchemaView> Config<S> {
         set_version(&mut doc, self.schema.version());
         let keep = |p: &Provenanced| !matches!(p.source, Source::Forced(_));
         for key in &self.keys {
-            if sections.is_some_and(|s| !s.contains(&section(key))) {
+            if !in_sections(sections, key) {
                 continue;
             }
             let global = self.resolve(key, None);
