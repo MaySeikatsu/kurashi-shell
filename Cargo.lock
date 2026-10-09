@@ -908,6 +908,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-tray"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "futures-util",
+ "image",
+ "kurashi-services",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "kurashid"
 version = "0.0.1"
 dependencies = [
