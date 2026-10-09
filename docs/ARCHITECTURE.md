@@ -33,12 +33,17 @@
 | `kurashi-ipc` | protocol types, NDJSON codec, golden fixtures | core |
 | `kurashi-schema` (+`-derive`) | `#[kurashi(...)]` derive, key registry, validation, generators (settings meta, example TOML, docs) | core |
 | `kurashi-config` | layered resolution with provenance, sparse TOML (`toml_edit`), migrations, profiles, transactions/undo (schema-agnostic via `SchemaView`) | core |
-| `kurashi-theme` | palette pipeline, roles, component tokens, WCAG, fonts, exporter | core, schema |
+| `kurashi-theme` | palette pipeline, roles, component tokens, WCAG, fonts (`ThemeInput` → `TokenMap`; exporters later) | — |
 | `kurashi-services` | system services behind a refcounted `Service` trait | core |
 | `kurashi-compositor` | `Compositor` trait + capabilities + niri adapter | core |
-| `kurashi-mods` | manifests, lifecycle, Luau host API (v0.2) | core, schema |
-| `kurashid` | daemon binary: wiring, stores, IPC server, actions, island arbiter | all |
-| `kurashi` | CLI binary | ipc |
+| `kurashi-mods` | manifests, discovery, enable/disable registry, `mods` catalog (Luau host API v0.2) | — |
+| `kurashi-island` | Island arbitration (K9): pure, time as input, one deadline | — |
+| `kurashi-notify` | `org.freedesktop.Notifications` server, history, `svc.notifications` | services (`DocSink`) |
+| `kurashi-launcher` | desktop-entry index (inotify), fuzzy + frecency ranking, launch | — |
+| `kurashi-audio` | `svc.audio` from PipeWire/Pulse (wave 3) | services |
+| `kurashi-auth` | PAM + lock state machine, `runtime.lock` (wave 4) | services |
+| `kurashid` | daemon: hub (docs, revs, refcounted providers), IPC server, actions, intents, config store, theme, providers, wiring | all |
+| `kurashi` | CLI: get/set/why/reset/undo/redo/profile, act/sub/intent/raw/mock | ipc |
 | `kurashi-mock` | fake daemon (scripted/recorded state) for frontend work and the bake-off | ipc |
 
 ## 3. State model
