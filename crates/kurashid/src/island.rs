@@ -308,10 +308,11 @@ impl IslandHost {
         }));
     }
 
-    /// The core sources are read only while someone subscribes (Ma), and the quick card is the only
-    /// reader of the power and Bluetooth documents, and only while it is open. The Island keeps its
-    /// own subscription, so a charger or a headset is seen whenever it changes. Both services are
-    /// event-driven (no polling); while their bus is absent they retry with the usual backoff.
+    /// The core sources run only while someone subscribes (Ma), and the frontend's readers of the
+    /// power and Bluetooth documents (quick settings, the island panel) subscribe only while open.
+    /// The Island keeps its own subscription, so a charger or a headset is seen whenever it changes
+    /// (Ma trade-off, CONTRACT-CHANGE 35). Both services are event-driven (no polling); while their
+    /// bus is absent they retry with the usual backoff.
     pub fn follow_core(&self) {
         for doc in ["svc.power", "svc.bluetooth"] {
             if let Err(e) = self.hub.subscribe(doc) {
