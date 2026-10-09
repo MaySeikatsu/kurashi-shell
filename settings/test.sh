@@ -16,7 +16,7 @@ cargo build -q -p kurashid -p kurashi
 BIN=$(mktemp -d)
 cp "$CARGO_TARGET_DIR/debug/kurashid" "$CARGO_TARGET_DIR/debug/kurashi" "$BIN/"
 
-NAME=settings
+NAME=${KURASHI_SB_NAME:-settings-$$}   # unique: concurrent runs must not stop each other's sway
 envfile=$(mktemp)
 tools/bench/sandbox.sh start "$NAME" > "$envfile"
 # shellcheck disable=SC1090
