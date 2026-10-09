@@ -27,6 +27,7 @@ PanelWindow {
     Watch { doc: "runtime.island.main"; active: bar.visible }
     Watch { doc: "svc.audio"; active: bar.visible }
     Watch { doc: "mods.probe"; active: bar.visible }
+    Watch { doc: "svc.tray"; active: bar.visible }
     // Input bindings (ARCHITECTURE §6): what each island slot runs. Only while this bar is shown.
     Watch { doc: "bindings"; active: bar.visible }
     readonly property var clock: Store.docs["svc.clock"] || ({})
@@ -34,13 +35,58 @@ PanelWindow {
     readonly property var island: Store.docs["runtime.island.main"] || ({})
     readonly property var audio: Store.docs["svc.audio"] || ({})
     readonly property var mods: Store.docs["mods.probe"] || ({})
+    readonly property var trayDoc: Store.docs["svc.tray"] || ({})
     readonly property var bindings: Store.docs["bindings"] || ({})
+    // Items to draw: none while the tray service is unavailable, and Passive items stay hidden
+    // (status Passive says there is nothing to show). No delegates exist for the others.
+    readonly property var trayItems: trayDoc.available === true
+        ? (trayDoc.items || []).filter(function (it) { return it.status !== "Passive" }) : []
+    // A tray menu is shown by the Stage on the output whose tray was clicked (shell.qml).
+    signal trayMenuRequested(string id)
     readonly property real daemonVolume: audio.volume ?? 0
     // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
     readonly property var pills: {
         var o = workspaces.outputs || {}
         var n = screen ? screen.name : ""
         return o[n] || o["*"] || []
+    }
+
+    // Screen coordinates of a point in `item`: the SNI calls take them. The surface sits at the
+    // output's top-left, or at its bottom or right edge for a bar on those sides.
+    function screenPoint(item, x, y) {
+        var p = item.mapToItem(null, x, y)
+        var s = bar.screen
+        var ox = s && cfg.edge === "right" ? s.width - bar.width : 0
+        var oy = s && cfg.edge === "bottom" ? s.height - bar.height : 0
+        return { x: Math.round((s ? s.x : 0) + ox + p.x), y: Math.round((s ? s.y : 0) + oy + p.y) }
+    }
+    // A tray click. A menu request goes to the shell, which knows the output the Stage shows it on;
+    // the other buttons are sent here, as tray.activate or tray.secondary.
+    function trayRequest(action, id, item, x, y) {
+        if (action === "menu") { bar.trayMenuRequested(id); return }
+        var p = screenPoint(item, x, y)
+        Store.act(action === "secondary" ? "tray.secondary" : "tray.activate", {id: id, x: p.x, y: p.y})
+    }
+
+    // One tray item, the same in both layouts. The bar's full thickness is its pointer target.
+    Component {
+        id: trayIconDelegate
+        TrayIcon {
+            id: ticon
+            required property var modelData
+            title: modelData.title ?? ""
+            iconName: modelData.icon_name ?? ""
+            iconTheme: modelData.icon_theme_path ?? ""
+            pixmap: (modelData.icon_pixmap && modelData.icon_pixmap.png_base64)
+                ? "data:image/png;base64," + modelData.icon_pixmap.png_base64 : ""
+            attention: modelData.status === "NeedsAttention"
+            hasMenu: modelData.has_menu === true
+            menuOnly: modelData.item_is_menu === true
+            tip: modelData.tooltip ?? ""
+            onRequested: (action, x, y) => bar.trayRequest(action, modelData.id, ticon, x, y)
+            onScrolled: (delta, orientation) =>
+                Store.act("tray.scroll", {id: modelData.id, delta: delta, orientation: orientation})
+        }
     }
 
     // Volume intents. A wheel notch is one 5 % step from the last value sent, so fast scrolling
@@ -175,6 +221,11 @@ PanelWindow {
                     font.family: Theme.fam(text, Theme.families)
                     text: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--")
                 }
+                // The tray ends the row: its menus align to the bar's end (K23).
+                Repeater {
+                    model: bar.trayItems
+                    delegate: trayIconDelegate
+                }
             }
         }
     }
@@ -272,6 +323,10 @@ PanelWindow {
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
                     text: (bar.clock.hh ?? "--") + "\n" + (bar.clock.mm ?? "--")
+                }
+                Repeater {
+                    model: bar.trayItems
+                    delegate: trayIconDelegate
                 }
             }
         }
