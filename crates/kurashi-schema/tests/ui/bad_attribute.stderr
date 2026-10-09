@@ -1,4 +1,4 @@
-error: unknown kurashi attribute `colour`; expected one of: default, range, step, unit, choices, label, help, page, section, per_output, requires, capability, overridden_by, restart, advanced, hidden, since, nested
+error: unknown kurashi attribute `colour`; expected one of: default, range, step, unit, choices, choices_from, label, help, page, section, per_output, requires, capability, overridden_by, restart, advanced, hidden, since, nested
  --> tests/ui/bad_attribute.rs:6:29
   |
 6 |     #[kurashi(default = 32, colour = "red")]

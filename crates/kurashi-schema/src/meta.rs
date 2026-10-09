@@ -66,6 +66,10 @@ pub struct Constraints {
     pub step: Option<Value>,
     pub unit: Option<String>,
     pub choices: Vec<Choice>,
+    /// Named source of a dynamic option set (`choices_from = "palettes"`, I9): the daemon resolves
+    /// it into the settings row's `choices`; values are not checked against it here (a value
+    /// outside the current set is reported inert, never rejected).
+    pub choices_from: Option<String>,
     /// Implicit bounds of the Rust type (e.g. `0..=255` for `u8`); validated but not shown.
     pub type_bounds: Option<(Value, Value)>,
 }

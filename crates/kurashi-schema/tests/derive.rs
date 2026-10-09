@@ -293,3 +293,41 @@ fn coupling_evaluation() {
     let free = style.blocked_by(&|_| Some(json!(false)), &|_| false);
     assert!(matches!(free[..], [Coupling::Capability { .. }]));
 }
+
+/// I9: `choices_from` names a runtime source; the row says which, renders as a select (string) or
+/// pick list (string list), and values are not checked against a static set.
+#[derive(Debug, PartialEq, KurashiSchema)]
+#[kurashi(page = "test", section = "dynamic")]
+struct Dynamic {
+    /// Palette
+    #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
+    palette: String,
+    /// Faces
+    #[kurashi(default = vec!["clock".to_owned()], choices_from = "island.faces")]
+    faces: Vec<String>,
+}
+
+#[test]
+fn choices_from_is_a_runtime_source() {
+    let reg = Registry::build::<Dynamic>(1).expect("consistent");
+    let palette = reg.get("palette").unwrap();
+    assert_eq!(
+        palette.constraints.choices_from.as_deref(),
+        Some("palettes")
+    );
+    assert!(palette.constraints.choices.is_empty());
+    assert_eq!(control_kind(palette), "select");
+    assert_eq!(control_kind(reg.get("faces").unwrap()), "pick_list");
+    assert!(
+        reg.validate("palette", &json!("from-a-mod")).is_ok(),
+        "no static set to check"
+    );
+    let meta = kurashi_schema::settings_meta(&reg);
+    let row = &meta["pages"][0]["sections"][0]["rows"][0];
+    assert_eq!(row["choices_from"], "palettes");
+    assert_eq!(
+        row["choices"],
+        json!([]),
+        "empty until the daemon resolves it"
+    );
+}

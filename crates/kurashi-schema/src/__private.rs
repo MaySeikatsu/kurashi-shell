@@ -127,5 +127,13 @@ numeric!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
 pub trait Textual {}
 impl Textual for String {}
 
+#[diagnostic::on_unimplemented(
+    message = "`choices_from` needs a `String` or `Vec<String>` field, not `{Self}`"
+)]
+pub trait ChoiceSource {}
+impl ChoiceSource for String {}
+impl ChoiceSource for Vec<String> {}
+
 pub fn assert_numeric<T: Numeric>() {}
 pub fn assert_textual<T: Textual>() {}
+pub fn assert_choice_source<T: ChoiceSource>() {}
