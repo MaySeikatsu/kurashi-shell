@@ -1,0 +1,5 @@
+# ロック画面UIの文言 (ja)。デーモンが出すキーは lock.toml。
+"lockui.prompt.password" = "パスワード"
+"lockui.checking" = "確認中…"
+"lockui.retry_in" = "{s} 秒後に再試行できます"
+"lockui.disconnected" = "デーモンに接続できません。ロックは維持されます"
