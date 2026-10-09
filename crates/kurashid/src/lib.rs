@@ -5,6 +5,7 @@ pub mod actions;
 pub mod hub;
 pub mod i18n;
 pub mod intents;
+pub mod island;
 pub mod server;
 pub mod workspaces;
 
