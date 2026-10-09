@@ -38,6 +38,8 @@ const KNOWN_DOCS: &[&str] = &[
     "runtime.ui",
     "runtime.island.main",
     "svc.clock",
+    "svc.audio",
+    "runtime.lock",
 ];
 
 /// Row id `bus_session` + status `n/a` → summary key `doctor.bus_session.na` (TOML-friendly).
