@@ -110,7 +110,9 @@ mod tests {
 
     #[test]
     fn shipped_frontend_strings_exist_in_every_locale() {
-        let root = data_dir().join("i18n");
+        // The source tree, not data_dir(): under `nix build` the install prefix is empty while
+        // tests run.
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../i18n");
         let en = load_locale(&root, "en");
         let ja = load_locale(&root, "ja");
         assert!(!en.is_empty());

@@ -1,4 +1,4 @@
-{ lib, rustPlatform }:
+{ lib, rustPlatform, dbus }:
 
 let
   fs = lib.fileset;
@@ -22,6 +22,8 @@ rustPlatform.buildRustPackage {
   };
 
   cargoLock.lockFile = ../Cargo.lock;
+  # kurashi-services tests run fake D-Bus objects on a private dbus-daemon.
+  nativeCheckInputs = [ dbus ];
 
   # kurashid finds i18n/, palettes/ and the frontend here (crates/kurashid/src/i18n.rs).
   env.KURASHI_DATA_DIR = "${placeholder "out"}/share/kurashi";
