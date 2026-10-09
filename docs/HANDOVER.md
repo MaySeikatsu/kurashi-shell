@@ -32,15 +32,13 @@ Decisions K24–K28 in DECISIONS.md (user answered K24/K25/K26 this session).
 (2) **UX bar** (CLAUDE.md): every user-facing feature gets a researched brief in `docs/ux/` and is "done" only against
 it; think what a feature *can become* and what it combines with (`docs/ux/COMPOSITION.md`), not the minimum.
 
-**Half-done (branches exist, not merged):**
-- `worktree-agent-a6d8999436a9c1b73` W13-quick-daemon — DONE and reviewed OK (scan doc, connect/airplane, audio
-  sources/streams, power profiles, DND until). Merge conflicts: `kurashi-mock/src/documents.rs` (keep both hunks) and
-  CONTRACT-CHANGE row 30 (renumber to 34; add a K29 note: scan is its own doc, open unsaved networks refused). Then gate.
-- Stopped mid-work (check each branch's last commit, finish or re-run its card): W11-mod-qml (`af600d39…`),
-  W13-settings-ux (`aea383de…`), W12-wallpaper (`a906f070…`), W12-sysmon (`afedb81d…`), W12-weather (`a34560be…`),
-  W13-island-daemon (`acbd8903…`) — `git branch | grep worktree-agent`.
+**Half-done (update after the usage-limit reset):** W13-quick-daemon merged (3699371, K29). Restarted as agents:
+W11-mod-qml and W13-settings-ux continue from local branches `wip/w11-mod-qml`, `wip/w13-settings-ux` (WIP commits);
+W12-wallpaper, W12-sysmon, W12-weather, W13-island-daemon restarted from scratch (their first worktrees were lost on
+stop — agents now commit after every step). If a session ends with agents running: `git branch | grep worktree-agent`
+and `git worktree list`, commit WIP in each worktree, then re-spawn the card with "merge branch X first".
 
-**Next steps (ordered):** 1. merge W13-quick-daemon (above). 2. For each stopped branch: review, finish (SendMessage
+**Next steps (ordered):** 1. (done) 2. For each running/stopped card: review, finish (SendMessage
 won't resume across sessions — re-spawn the card with "continue from branch X"), merge with the gate. 3. W13-quick-ux and
 W13-island-views (cards ready; need W11-mod-qml merged). 4. Lead UX review of every merged user-facing feature against
 its brief; PROGRESS "UX ✅" only then. 5. B7: quiet-machine repro of the +29.8 MiB cycle spike (main vs lazy faces, 3
