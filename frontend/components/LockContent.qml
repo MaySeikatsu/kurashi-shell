@@ -66,15 +66,17 @@ Rectangle {
             radius: Theme.rLg
             color: Theme.container
             border.width: 1
-            border.color: c.isError ? Theme.accent : (field.activeFocus ? Theme.fg : Theme.outline)
+            border.color: c.isError ? Theme.error : (field.activeFocus ? Theme.fg : Theme.outline)
             opacity: c.busy ? 0.6 : 1
 
+            // Step lengths are shares of the quick motion token (120 ms calm), so the motion profile
+            // and speed apply; under motion none they are 0 and the box does not move.
             SequentialAnimation {
                 id: shake
-                NumberAnimation { target: box; property: "x"; to: 10; duration: 50 }
-                NumberAnimation { target: box; property: "x"; to: -10; duration: 80 }
-                NumberAnimation { target: box; property: "x"; to: 6; duration: 70 }
-                NumberAnimation { target: box; property: "x"; to: 0; duration: 50 }
+                NumberAnimation { target: box; property: "x"; to: 10; duration: Math.round(Theme.quickMs * 0.42) }
+                NumberAnimation { target: box; property: "x"; to: -10; duration: Math.round(Theme.quickMs * 0.67) }
+                NumberAnimation { target: box; property: "x"; to: 6; duration: Math.round(Theme.quickMs * 0.58) }
+                NumberAnimation { target: box; property: "x"; to: 0; duration: Math.round(Theme.quickMs * 0.42) }
             }
             Connections {
                 target: c
@@ -103,6 +105,7 @@ Rectangle {
                 selectionColor: Theme.accent
                 cursorVisible: activeFocus && !readOnly
                 focus: true
+                Accessible.name: c.promptText
                 onAccepted: {
                     if (text === "") return
                     var s = text
@@ -121,7 +124,7 @@ Rectangle {
             wrapMode: Text.Wrap
             text: c.busy ? I18n.tr("lockui.checking") : c.messageText
             visible: text !== ""
-            color: c.isError && !c.busy ? Theme.accent : Theme.dim
+            color: c.isError && !c.busy ? Theme.error : Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
         }

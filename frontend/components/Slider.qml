@@ -3,20 +3,51 @@ import "../core"
 
 // Optimistic slider: follows the pointer locally while dragging, sends at most one intent per
 // frame (and only while the pointer is held, Ma), and shows the daemon value otherwise.
+// Keyboard: Tab focuses it; Left/Down and Right/Up step by `step`, PageUp/PageDown by 10 %, Home
+// and End go to the ends. A key press is an event, so each press sends one intent. The knob keeps
+// showing the daemon value until it answers, so only values in effect are shown (Shōjiki).
 Item {
     id: s
     property real value: 0              // daemon value
     property color track: Theme.outline
     property color fill: Theme.accent
+    property string a11y: ""            // translated accessible name, from the caller
+    property real step: 0.05
     signal moved(real v)
 
     property bool dragging: false
     property real local: 0
     property bool dirty: false
+    // A key target the daemon has not confirmed yet; repeated keys build on it.
+    property bool keyPending: false
+    property real keyTarget: 0
     readonly property real shown: dragging ? local : value
 
     implicitWidth: 120
     implicitHeight: 20
+    activeFocusOnTab: true
+
+    onValueChanged: if (keyPending && Math.abs(value - keyTarget) < 0.005) keyPending = false
+
+    function setKey(v) {
+        keyTarget = Math.max(0, Math.min(1, v)); keyPending = true; s.moved(keyTarget)
+    }
+    function nudge(d) { setKey((keyPending ? keyTarget : value) + d) }
+
+    Keys.onPressed: event => {
+        switch (event.key) {
+        case Qt.Key_Left: case Qt.Key_Down: s.nudge(-s.step); break
+        case Qt.Key_Right: case Qt.Key_Up: s.nudge(s.step); break
+        case Qt.Key_PageDown: s.nudge(-0.1); break
+        case Qt.Key_PageUp: s.nudge(0.1); break
+        case Qt.Key_Home: s.setKey(0); break
+        case Qt.Key_End: s.setKey(1); break
+        default: return
+        }
+        event.accepted = true
+    }
+    Accessible.role: Accessible.Slider
+    Accessible.name: s.a11y
 
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
@@ -37,9 +68,17 @@ Item {
     }
     MouseArea {
         anchors.fill: parent
+        // The hit area grows to the control height; the drawn track keeps its size.
+        anchors.topMargin: -Math.max(0, (Theme.controlH - s.height) / 2)
+        anchors.bottomMargin: -Math.max(0, (Theme.controlH - s.height) / 2)
         onPressed: m => { s.dragging = true; s.setFrom(m.x) }
         onPositionChanged: m => { if (s.dragging) s.setFrom(m.x) }
         onReleased: { s.dragging = false; s.moved(s.local); s.dirty = false }
         onCanceled: { s.dragging = false; s.dirty = false }
+    }
+    FocusRing {
+        anchors.fill: parent
+        shown: s.activeFocus
+        corner: Theme.rSm
     }
 }

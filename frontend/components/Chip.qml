@@ -10,7 +10,7 @@ Rectangle {
     property color edge: Theme.outline
 
     implicitWidth: t.implicitWidth + Theme.gap * 1.5
-    implicitHeight: t.implicitHeight + 4
+    implicitHeight: t.implicitHeight + Theme.xs
     radius: Theme.rFull
     color: bg
     border.width: 1
@@ -20,7 +20,7 @@ Rectangle {
         id: t
         anchors.centerIn: parent
         color: c.fg
-        font.pixelSize: Theme.fs - 2
+        font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: c.text
     }

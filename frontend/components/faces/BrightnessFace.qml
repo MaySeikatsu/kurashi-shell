@@ -35,7 +35,7 @@ FaceBase {
                 // Short; runs only while the level changes under a live face.
                 Behavior on width {
                     enabled: f.animate && f.live
-                    NumberAnimation { duration: Theme.stdMs / 2; easing.type: Easing.OutCubic }
+                    NumberAnimation { duration: Theme.stdMs / 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
                 }
             }
         }

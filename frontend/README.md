@@ -30,6 +30,10 @@ Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 3
 - Components are presentational: signals out, props in; surfaces turn signals into `Store.act/intent`.
 - Every animation/timer is gated on visibility or on an active interaction; idle = zero frames.
 - New QML types must be added to the folder's `qmldir`. Never assign `anchor.item` dynamically.
+- Never name a property `on<Capital>…` (e.g. `onAccent`): QML treats it as a signal handler and it reads
+  back wrong. Theme uses `fgOnAccent`.
+- Focus: interactive components take Tab focus, act on Return/Enter/Space and draw `FocusRing` on
+  `activeFocus` only; hit areas bind to `Theme.controlH` (≥ 32 px), visuals may stay smaller.
 - Reconnect veil: `Store.live` false keeps last state, dims content (`opacity.stale`), shows a glyph.
 
 ## Core API (`core/`)

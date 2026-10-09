@@ -31,7 +31,9 @@ FaceBase {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
         }
+        // Play state only while something is loaded; with no player the face is idle, not paused.
         Text {
+            visible: f.title !== ""
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.accent
             font.pixelSize: Theme.fs
