@@ -1,0 +1,5 @@
+# Lock screen UI strings (en); daemon-emitted keys live in lock.toml.
+"lockui.prompt.password" = "Password"
+"lockui.checking" = "Checking…"
+"lockui.retry_in" = "Try again in {s} s"
+"lockui.disconnected" = "Daemon disconnected — session stays locked"
