@@ -104,3 +104,11 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | W9.5 | Shared virtual keyboard/pointer in `tools/bench/` (I6) | ✅ | W9-test-helpers 75ff0dc + lead 4248bc4 (settings/test.sh switched, `settings/keys.py` removed); helpers refuse any socket outside `/tmp/kurashi-sb-*` |
 | W9.6 | niri keybinding snippet + HM option (I8) | ✅ | W9-niri-binds a82f957; `docs/niri-binds.kdl`, `programs.kurashi.niri.binds.{enable,keys}`, eval test runs `niri validate`; lead: session menu on Mod+Shift+E (niri's Mod+Escape inhibit escape hatch kept) |
 | D.3 | Wave 10 contracts: K24 `runtime.ui.face` + `quick.toggle` (daemon + mock + fixture), K25/K26/I9 in MODS.md/PROTOCOL + `snap_mods.json`, schema `choices_from`; wave 10 cards | ✅ | lead 27f60d2 |
+## Wave 10 (session 5, machine B; Haiku 5.5 agents at max effort)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W10.1 | Island click → expanded view of the shown face (clock calendar, media transport, notifications, volume, brightness; generic for others); quick settings card holds Bluetooth (K24, B1, I2) | ✅ | W10-stage-panels 2d82bc0; `frontend/test-stage.sh`; golden machine B re-recorded; multi-output re-pick for quick → BACKLOG B14 |
+| W10.2 | Quick-settings button in the bar (◐, bar-thick target) | ✅ | W10-bar-quick; lead: Theme roles instead of hex fallbacks; `frontend/test-quick.sh` |
+| W10.3 | Mods as config lists `mods.loaded`/`mods.enabled` (persisted, B11), page per loaded mod, `running` hook, `choices_from` resolved (palettes, island faces), `color.status.on/off` (K25, I9) | ✅ | W10-mods-daemon; `tests/mods_state.rs`; CONTRACT 23 deferred to K26, 24 decided (one transaction) |
+| W10.4 | Settings: mod pages in the sidebar with state marks, Load/Unload, Select + PickList | 🔄 | card W10-settings |
+
