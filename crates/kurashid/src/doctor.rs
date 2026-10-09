@@ -31,6 +31,12 @@ const KNOWN_DOCS: &[&str] = &[
     "svc.power",
     "svc.session",
     "svc.network",
+    "svc.notifications",
+    "theme",
+    "i18n",
+    "mods",
+    "runtime.ui",
+    "runtime.island.main",
 ];
 
 /// Row id `bus_session` + status `n/a` → summary key `doctor.bus_session.na` (TOML-friendly).
