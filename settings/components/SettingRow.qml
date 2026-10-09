@@ -23,6 +23,9 @@ Item {
     implicitWidth: 600
 
     function commit(v) { Store.setValue(row.key, v, out) }
+    // Search jump target: one short glow, then nothing runs. Only a jump calls this, and a hidden row
+    // skips it (Ma: no timer, no animation while the row is not on screen).
+    function flash() { if (r.visible) flashAnim.restart() }
 
     Column {
         id: col
@@ -129,6 +132,24 @@ Item {
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("settings.ui.rejected") + ": " + r.error
         }
+    }
+
+    Rectangle {
+        id: glow
+        anchors.fill: parent
+        anchors.margins: -Theme.gap / 2
+        radius: Theme.rSm
+        color: Theme.accent
+        opacity: 0
+        z: -1
+    }
+    NumberAnimation {
+        id: flashAnim
+        target: glow
+        property: "opacity"
+        from: 0.35
+        to: 0
+        duration: 900
     }
 
     Rectangle {

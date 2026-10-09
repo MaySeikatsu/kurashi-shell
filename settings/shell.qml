@@ -18,7 +18,12 @@ ShellRoot {
         color: Theme.surface
         onVisibleChanged: if (!visible) Qt.quit()
 
-        // "" = first schema page; "@profiles" = the profiles page.
+        Shortcut {
+            sequence: "Ctrl+F"
+            onActivated: search.focusInput()
+        }
+
+        // "" = first schema page; "@mods" and "@profiles" = the Mods and profiles pages.
         property string page: ""
         property string query: ""
         property bool advanced: false
@@ -26,6 +31,20 @@ ShellRoot {
         readonly property var pages: Store.schema.pages || []
         readonly property string current: page !== "" ? page : (pages.length ? pages[0].id : "")
         readonly property bool searching: query.trim() !== ""
+
+        // A search hit was chosen (Enter, or a click on its breadcrumb): leave the search, open the
+        // row's page (an advanced row needs the advanced view) and bring the row into view.
+        function jump(pageId: string, row: var): void {
+            if (row.advanced) win.advanced = true
+            win.query = ""
+            win.page = pageId
+            settingsPages.reveal(row.key)
+        }
+        function jumpFirst(): void {
+            if (!win.searching) return
+            const h = settingsPages.firstHit()
+            if (h) win.jump(h.pageId, h.row)
+        }
 
         // Test/automation hook: `qs -p settings ipc call settings <fn> ...`. Goes through the same
         // paths as the controls (Store.setValue, page selection), so it exercises the real UI.
@@ -39,11 +58,27 @@ ShellRoot {
             function output(name: string): void { win.output = name }
             function advanced(on: bool): void { win.advanced = on }
             function preview(name: string): void { win.page = "@profiles"; profiles.select(name) }
+            function jump(key: string): void {
+                const h = Store.rowOf(key)
+                if (h) win.jump(h.pageId, h.row)
+            }
+            function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
         }
 
         Column {
+            id: keys
             anchors.fill: parent
             opacity: Store.live ? 1 : Theme.staleOpacity
+            // Typing on the list starts a search (Ctrl+F does the same from anywhere).
+            focus: true
+            Keys.onPressed: event => {
+                const printable = event.text.length === 1 && event.text >= " " && event.text !== "\x7f"
+                if (printable && (event.modifiers & ~Qt.ShiftModifier) === 0) {
+                    win.query += event.text
+                    search.focusInput()
+                    event.accepted = true
+                }
+            }
 
             // --- header --------------------------------------------------------------------
             Rectangle {
@@ -62,11 +97,14 @@ ShellRoot {
                         text: I18n.tr("settings.ui.title")
                     }
                     TextField {
+                        id: search
                         anchors.verticalCenter: parent.verticalCenter
                         width: 260
                         value: win.query
                         placeholder: I18n.tr("settings.ui.search")
                         onTyping: t => win.query = t
+                        onSubmitted: win.jumpFirst()
+                        onEscaped: { win.query = ""; keys.forceActiveFocus() }
                     }
                     Button {
                         anchors.verticalCenter: parent.verticalCenter
@@ -139,7 +177,8 @@ ShellRoot {
                         spacing: 2
                         Repeater {
                             model: win.pages.map(function (p) { return { id: p.id, label: p.label } })
-                                .concat([{ id: "@profiles", label: "settings.ui.profiles" }])
+                                .concat([{ id: "@mods", label: "settings.ui.mods" },
+                                         { id: "@profiles", label: "settings.ui.profiles" }])
                             delegate: Rectangle {
                                 required property var modelData
                                 readonly property bool on: !win.searching && modelData.id === win.current
@@ -169,12 +208,19 @@ ShellRoot {
                     width: parent.width - 220
                     height: parent.height
                     SettingsPages {
+                        id: settingsPages
                         anchors.fill: parent
-                        visible: win.searching || win.current !== "@profiles"
+                        visible: win.searching || (win.current !== "@profiles" && win.current !== "@mods")
                         pageId: win.current
                         query: win.query
                         showAdvanced: win.advanced
                         output: win.output
+                        onJumpRequested: (targetPage, row) => win.jump(targetPage, row)
+                    }
+                    ModsPage {
+                        id: modsPage
+                        anchors.fill: parent
+                        visible: !win.searching && win.current === "@mods"
                     }
                     ProfilesPage {
                         id: profiles
