@@ -618,7 +618,7 @@ pub fn mods_native(
         }
         None => {
             let policy = Policy {
-                default_enabled: ["easter-eggs".to_string()].into(),
+                default_enabled: Default::default(),
             };
             for (id, r) in st.reg.apply_defaults(&policy) {
                 if let Err(e) = r {

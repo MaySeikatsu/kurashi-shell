@@ -17,7 +17,6 @@ use serde_json::{Value, json};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::runtime::Handle;
 // tokio's Instant, so the sustain window and the rates follow the paused clock in tests.
 use tokio::sync::watch;
 use tokio::time::Instant;
@@ -57,16 +56,20 @@ impl Cfg {
             activity: int(&format!("{stat}_activity"), activity, 0, max) as f64,
             critical: int(&format!("{stat}_critical"), critical, 0, max) as f64,
         };
-        let bar = [
-            ("show_cpu", "cpu", true),
-            ("show_mem", "mem", true),
-            ("show_temp", "temp", false),
-            ("show_load", "load", false),
-        ]
-        .into_iter()
-        .filter(|(key, _, default)| flag(key, *default))
-        .map(|(_, stat, _)| stat)
-        .collect();
+        // The stats the bar shows (I26): a pick list, shown in the order the user picked, each once.
+        const STATS: [&str; 4] = ["cpu", "mem", "temp", "load"];
+        let shown = s
+            .get("show")
+            .and_then(|v| v.as_array().cloned())
+            .unwrap_or_else(|| vec![json!("cpu"), json!("mem")]);
+        let mut bar: Vec<&'static str> = Vec::new();
+        for stat in shown.iter().filter_map(Value::as_str) {
+            if let Some(known) = STATS.into_iter().find(|s| *s == stat) {
+                if !bar.contains(&known) {
+                    bar.push(known);
+                }
+            }
+        }
         let sensor = s
             .get("temp_sensor")
             .and_then(|v| v.as_str().map(|t| t.trim().to_string()))
@@ -127,27 +130,19 @@ impl Signaller for Kernel {
 pub struct Sysmon {
     roots: Roots,
     signaller: Arc<dyn Signaller>,
-    /// The daemon's runtime, captured where it is known to exist: the watch task is spawned from `enable`,
-    /// which the config store may call from a thread that is not part of the runtime.
-    runtime: Option<Handle>,
     self_pid: u32,
 }
 
 impl Sysmon {
-    /// The live system, signalled through kill(2), on the runtime that is current here.
+    /// The live system, signalled through kill(2).
     pub fn new() -> Self {
-        Self::with(
-            Roots::system(),
-            Arc::new(Kernel),
-            Handle::try_current().ok(),
-        )
+        Self::with(Roots::system(), Arc::new(Kernel))
     }
 
-    pub fn with(roots: Roots, signaller: Arc<dyn Signaller>, runtime: Option<Handle>) -> Self {
+    pub fn with(roots: Roots, signaller: Arc<dyn Signaller>) -> Self {
         Self {
             roots,
             signaller,
-            runtime,
             self_pid: std::process::id(),
         }
     }
@@ -499,11 +494,6 @@ impl NativeMod for Sysmon {
     }
 
     fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
-        let runtime = self
-            .runtime
-            .clone()
-            .or_else(|| Handle::try_current().ok())
-            .ok_or_else(|| ModError::Failed("the daemon runtime is not running".into()))?;
         let face = ctx.face(
             "sysmon",
             FaceSpec {
@@ -559,8 +549,13 @@ impl NativeMod for Sysmon {
                 async move { r }
             })?;
         }
-        // Lives while the mod does: the settings feed ends with the enable, and so does the watch.
-        runtime.spawn(watch(shared, ctx.settings().clone()));
+        // The watch samples while its setting is on (I23): the daemon runs it then, and cancels it on
+        // disable. Pause stops it too, inside the task.
+        let s = shared.clone();
+        ctx.background("watch", "mods.running.watch", "watch", move |job| {
+            let (s, settings) = (s.clone(), job.settings().clone());
+            async move { watch(s, settings).await }
+        })?;
         Ok(())
     }
 }

@@ -4,6 +4,8 @@
 //! returned `Ok`, so a refused enable registers nothing. Settings arrive through [`Settings`]
 //! (`mods.<id>.<key>`, K22). Faces and choice sources (K28) work the same way: a handle the mod
 //! keeps raises or clears through [`Hooks`], and the daemon ignores it once the enable is over.
+//! Background jobs (I23) are not registrations: [`ModCtx::background`] declares one, and the daemon
+//! takes it with [`ModCtx::take_jobs`] and runs it while the mod is on and its setting wants it.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
@@ -35,6 +37,10 @@ pub type ActionFn =
 /// enable and after [`ChoicesHandle::choices_changed`]; it must not call that itself.
 pub type ChoicesFn = Arc<dyn Fn() -> Vec<Choice> + Send + Sync>;
 
+/// A background job's body. The daemon starts it again each time its setting turns the job on, so
+/// it is a `Fn` and not an `FnOnce`.
+pub type JobFn = Arc<dyn Fn(JobCtx) -> BoxFuture<()> + Send + Sync>;
+
 /// A first-party mod linked into the daemon. `id` is the `mod.toml` id and directory name.
 pub trait NativeMod: Send + Sync + 'static {
     fn id(&self) -> &'static str;
@@ -56,6 +62,10 @@ pub enum ModError {
     /// The mod failed for its own reason.
     #[error("{0}")]
     Failed(String),
+    /// The manifest declares daemon code (a service, action, island face, choice source or job) and
+    /// this build links no code for the mod. Set by the daemon, not by the mod (B15).
+    #[error("the mod's daemon code is not linked into this build")]
+    NotBuilt,
 }
 
 impl ModError {
@@ -64,6 +74,7 @@ impl ModError {
             Self::NotDeclared(_) => "mods.error.not_declared",
             Self::Duplicate(_) => "mods.error.duplicate",
             Self::Failed(_) => "mods.error.enable_failed",
+            Self::NotBuilt => "mods.error.not_built",
         }
     }
 }
@@ -204,6 +215,33 @@ pub enum Registration {
     Choices { source: String, options: ChoicesFn },
 }
 
+/// What a background job gets when the daemon starts it: its settings, live like a service's.
+pub struct JobCtx {
+    settings: Settings,
+}
+
+impl JobCtx {
+    /// For the daemon: the job's settings feed.
+    pub fn new(settings: Settings) -> Self {
+        Self { settings }
+    }
+
+    pub fn settings(&self) -> &Settings {
+        &self.settings
+    }
+}
+
+/// A background job a mod declared (`job:<name>`, I23). The daemon takes it with
+/// [`ModCtx::take_jobs`] and runs it while the mod is enabled and the bool setting `wanted_by` is
+/// true; it is cancelled when either stops. While it runs, `reason` (an i18n key) is in the
+/// `mods` document's `running_reasons` (Settings: "Running now").
+pub struct Job {
+    pub name: String,
+    pub reason: String,
+    pub wanted_by: String,
+    pub run: JobFn,
+}
+
 /// The settings of a mod that is enabled. Reads never block. `changed` resolves on the next
 /// change of any setting and is `false` once the mod is disabled.
 #[derive(Clone)]
@@ -234,6 +272,7 @@ pub struct ModCtx {
     settings: Settings,
     hooks: Arc<dyn Hooks>,
     regs: Vec<Registration>,
+    jobs: Vec<Job>,
     seen: BTreeSet<String>,
     refused: Vec<ModError>,
 }
@@ -247,9 +286,41 @@ impl ModCtx {
             settings,
             hooks,
             regs: Vec::new(),
+            jobs: Vec::new(),
             seen: BTreeSet::new(),
             refused: Vec::new(),
         }
+    }
+
+    /// Background job `name` (I23, `job:<name>`): runs while the mod is enabled and its bool setting
+    /// `wanted_by` is true, and is cancelled when either stops. It shows in the `mods` document as
+    /// `reason` (an i18n key) while it runs, so a poll the user can see is never unreported.
+    pub fn background<F, Fut>(
+        &mut self,
+        name: &str,
+        reason: &str,
+        wanted_by: &str,
+        run: F,
+    ) -> Result<(), ModError>
+    where
+        F: Fn(JobCtx) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = ()> + Send + 'static,
+    {
+        self.claim("job", name)?;
+        let run: JobFn = Arc::new(move |ctx| Box::pin(run(ctx)));
+        self.jobs.push(Job {
+            name: name.into(),
+            reason: reason.into(),
+            wanted_by: wanted_by.into(),
+            run,
+        });
+        Ok(())
+    }
+
+    /// The background jobs of this enable, for the daemon to run. Taken before [`ModCtx::finish`]:
+    /// a job that is left behind would never run, so `finish` refuses it.
+    pub fn take_jobs(&mut self) -> Vec<Job> {
+        std::mem::take(&mut self.jobs)
     }
 
     pub fn settings(&self) -> &Settings {
@@ -319,12 +390,18 @@ impl ModCtx {
         })
     }
 
-    /// The registrations for the daemon to apply, or the first refused one.
+    /// The registrations for the daemon to apply, or the first refused one. Jobs not taken with
+    /// [`ModCtx::take_jobs`] refuse the enable: they would never run.
     pub fn finish(self) -> Result<Vec<Registration>, ModError> {
-        match self.refused.into_iter().next() {
-            Some(e) => Err(e),
-            None => Ok(self.regs),
+        if let Some(e) = self.refused.into_iter().next() {
+            return Err(e);
         }
+        if !self.jobs.is_empty() {
+            return Err(ModError::Failed(
+                "background jobs are taken with take_jobs before finish".into(),
+            ));
+        }
+        Ok(self.regs)
     }
 
     fn claim(&mut self, kind: &str, id: &str) -> Result<(), ModError> {
@@ -489,6 +566,41 @@ mod tests {
                 "face b Raise { relevance: 0, ttl: Some(3s) }",
             ]
         );
+    }
+
+    #[test]
+    fn a_background_job_is_declared_taken_and_never_left_behind() {
+        let mut c = ctx(&["job:tick"]);
+        c.background("tick", "mods.running.tick", "on", |_| async {})
+            .unwrap();
+        assert!(
+            matches!(c.finish(), Err(ModError::Failed(_))),
+            "a job the daemon does not take refuses the enable"
+        );
+
+        let mut c = ctx(&["job:tick"]);
+        assert_eq!(
+            c.background("tock", "mods.running.tock", "on", |_| async {}),
+            Err(ModError::NotDeclared("job:tock".into()))
+        );
+        assert!(matches!(c.finish(), Err(ModError::NotDeclared(_))));
+
+        let mut c = ctx(&["job:tick"]);
+        c.background("tick", "mods.running.tick", "on", |_| async {})
+            .unwrap();
+        assert_eq!(
+            c.background("tick", "mods.running.tick", "on", |_| async {}),
+            Err(ModError::Duplicate("job:tick".into()))
+        );
+
+        let mut c = ctx(&["job:tick"]);
+        c.background("tick", "mods.running.tick", "on", |_| async {})
+            .unwrap();
+        let jobs = c.take_jobs();
+        assert_eq!(jobs.len(), 1);
+        assert_eq!(jobs[0].name, "tick");
+        assert_eq!(jobs[0].wanted_by, "on");
+        assert!(c.finish().unwrap().is_empty());
     }
 
     #[test]
