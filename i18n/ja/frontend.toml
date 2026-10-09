@@ -30,3 +30,5 @@
 "frontend.bt.new" = "未ペアリング"
 "frontend.bt.battery" = "バッテリー"
 "frontend.bt.failed" = "Bluetooth の操作に失敗しました。"
+"frontend.volume.unavailable" = "音声なし"
+"frontend.volume.muted" = "ミュート"
