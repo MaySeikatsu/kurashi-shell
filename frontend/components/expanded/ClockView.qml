@@ -1,9 +1,11 @@
 import QtQuick
 import "../../core"
+import ".."
 
 // The expanded view of the clock face (K24): today's date and a month grid, Monday first, today in
 // the accent. The grid is built from svc.clock.date, the day the daemon means, so the view is
-// presentation only. Watches svc.clock only while it is on screen (Ma).
+// presentation only. Watches svc.clock only while it is on screen (Ma). Mod contributions (K28):
+// `aside` beside the date, `day` under the grid (the agenda), `footer` at the bottom.
 Column {
     id: view
     width: parent.width
@@ -22,19 +24,28 @@ Column {
     readonly property int count: valid ? new Date(year, month, 0).getDate() : 0
     readonly property int cell: 36
 
-    Text {
+    Row {
         width: view.width
-        color: Theme.fg
-        font.pixelSize: Theme.fsTitle
-        font.family: Theme.fam(text, Theme.families)
-        text: view.valid ? Qt.locale().toString(new Date(view.year, view.month - 1, view.today), "dddd, d MMMM yyyy") : ""
-    }
-    Text {
-        width: view.width
-        color: Theme.dim
-        font.pixelSize: Theme.fsLabel
-        font.family: Theme.fam(text, Theme.families)
-        text: view.valid ? Qt.locale().toString(view.first, "MMMM yyyy") : ""
+        spacing: Theme.gap
+        Column {
+            width: view.width - (aside.visible ? aside.width + Theme.gap : 0)
+            spacing: Theme.gap
+            Text {
+                width: parent.width
+                color: Theme.fg
+                font.pixelSize: Theme.fsTitle
+                font.family: Theme.fam(text, Theme.families)
+                text: view.valid ? Qt.locale().toString(new Date(view.year, view.month - 1, view.today), "dddd, d MMMM yyyy") : ""
+            }
+            Text {
+                width: parent.width
+                color: Theme.dim
+                font.pixelSize: Theme.fsLabel
+                font.family: Theme.fam(text, Theme.families)
+                text: view.valid ? Qt.locale().toString(view.first, "MMMM yyyy") : ""
+            }
+        }
+        SlotHost { id: aside; slot: "clock.expanded.aside"; width: 140 }
     }
     Item {
         width: view.width
@@ -81,4 +92,6 @@ Column {
             }
         }
     }
+    SlotHost { slot: "clock.expanded.day"; width: view.width }
+    SlotHost { slot: "clock.expanded.footer"; width: view.width }
 }
