@@ -10,9 +10,9 @@ use chrono::NaiveTime;
 use kurashi_core::Rev;
 use kurashi_ipc::{ServerMsg, merge_patch};
 use kurashid::wiring::{
-    ARGS_INVALID, CONFIRM_REQUIRED, NETWORK_NEEDS_SECRET, NETWORK_NOT_FOUND, NETWORK_NOT_SAVED,
-    NETWORK_UNAVAILABLE, NO_SUCH_PROFILE, NO_SUCH_SINK, NO_SUCH_SOURCE, NO_SUCH_STREAM,
-    SERVICE_CALL_FAILED,
+    ARGS_INVALID, CONFIRM_REQUIRED, MEDIA_CANNOT_SEEK, MEDIA_NO_SUCH_PLAYER, NETWORK_NEEDS_SECRET,
+    NETWORK_NOT_FOUND, NETWORK_NOT_SAVED, NETWORK_UNAVAILABLE, NO_SUCH_PROFILE, NO_SUCH_SINK,
+    NO_SUCH_SOURCE, NO_SUCH_STREAM, SERVICE_CALL_FAILED,
 };
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
@@ -95,7 +95,12 @@ impl State {
             ("svc.audio", documents::audio(0.5, false, 1)),
             (
                 "svc.media",
-                json!({"available": true, "title": "夜に駆ける", "artist": "YOASOBI", "playing": true}),
+                documents::media(
+                    0,
+                    [true, false],
+                    documents::MEDIA_POSITION_US,
+                    documents::now(fixed_time).timestamp_millis(),
+                ),
             ),
             // Services the daemon serves once something subscribes. Their `available` is true
             // here, as kurashid reports it on a machine with the bus up (F-services-available).
@@ -294,6 +299,13 @@ impl State {
             "audio.stream.volume" => self.stream_volume(args)?,
             "audio.stream.mute" => self.stream_mute(args)?,
             "audio.mic.mute.toggle" => self.mic_mute_toggle()?,
+            // The media transport and seek (W13-media-position), as kurashid answers them.
+            "media.play_pause" => self.media_play_pause(),
+            // One track per player and no queue: there is no other track to move to.
+            "media.next" | "media.prev" => {}
+            "media.seek" => self.media_move(args, true)?,
+            "media.set_position" => self.media_move(args, false)?,
+            "media.player.select" => self.media_select(args)?,
             "brightness.up" => self.brightness_step(args, 1),
             "brightness.down" => self.brightness_step(args, -1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
@@ -448,6 +460,93 @@ impl State {
             return Err(call_failed());
         }
         self.patch("svc.bluetooth", json!({"discovering": on}), None);
+        Ok(())
+    }
+
+    /// What the mock's `svc.media` says now: the shown player, each player's play state, and the
+    /// shown position.
+    fn media_state(&self) -> (usize, [bool; 2], i64) {
+        let doc = self.data("svc.media");
+        let active = doc["players"]
+            .as_array()
+            .and_then(|ps| ps.iter().position(|p| p["active"] == true))
+            .unwrap_or(0);
+        let playing = [0usize, 1].map(|i| doc["players"][i]["playing"] == true);
+        (active, playing, doc["position_us"].as_i64().unwrap_or(0))
+    }
+
+    /// Publishes `new` as `svc.media`. A key `new` lacks is removed by a null (RFC 7396): a live
+    /// stream has no `length_us`, so switching to it drops the length.
+    fn set_media(&mut self, new: Value) {
+        let mut ops = new;
+        let keys: Vec<String> = self
+            .data("svc.media")
+            .as_object()
+            .map(|o| o.keys().cloned().collect())
+            .unwrap_or_default();
+        for key in keys {
+            if ops.get(key.as_str()).is_none() {
+                ops[key.as_str()] = Value::Null;
+            }
+        }
+        self.patch("svc.media", ops, None);
+    }
+
+    /// `media.play_pause`: the shown player's play state flips, and its position is read again, as
+    /// kurashid reads it on every play or pause.
+    fn media_play_pause(&mut self) {
+        let (active, mut playing, position) = self.media_state();
+        playing[active] = !playing[active];
+        let now = documents::now(self.fixed_time).timestamp_millis();
+        self.set_media(documents::media(active, playing, position, now));
+    }
+
+    /// `media.seek {offset_us}` (relative) and `media.set_position {us}` (absolute). Both are refused
+    /// unless the shown player can seek, as kurashid refuses them; the position stays in `0..=length`.
+    fn media_move(&mut self, args: &Value, relative: bool) -> Result<(), Fail> {
+        let key = if relative { "offset_us" } else { "us" };
+        let value = args[key]
+            .as_i64()
+            .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+        if !relative && value < 0 {
+            return Err(Fail::invalid(ARGS_INVALID));
+        }
+        let doc = self.data("svc.media");
+        if doc["can"]["seek"] != true {
+            return Err(Fail::unavailable(MEDIA_CANNOT_SEEK));
+        }
+        let length = doc["length_us"].as_i64().unwrap_or(i64::MAX);
+        let (active, playing, position) = self.media_state();
+        let target = if relative {
+            position.saturating_add(value)
+        } else {
+            value
+        }
+        .clamp(0, length);
+        let now = documents::now(self.fixed_time).timestamp_millis();
+        self.set_media(documents::media(active, playing, target, now));
+        Ok(())
+    }
+
+    /// `media.player.select {id}`: the named player is shown, with its own play state. The mock keeps
+    /// no position per player, so a switch reads the player's default position, as a fresh read does.
+    fn media_select(&mut self, args: &Value) -> Result<(), Fail> {
+        let id = str_arg(args, "id")?;
+        let active = documents::MEDIA_PLAYERS
+            .iter()
+            .position(|(pid, _)| *pid == id)
+            .ok_or_else(|| Fail::invalid(MEDIA_NO_SUCH_PLAYER))?;
+        let (shown, playing, _) = self.media_state();
+        if active == shown {
+            return Ok(());
+        }
+        let position = if active == 0 {
+            documents::MEDIA_POSITION_US
+        } else {
+            0
+        };
+        let now = documents::now(self.fixed_time).timestamp_millis();
+        self.set_media(documents::media(active, playing, position, now));
         Ok(())
     }
 
@@ -1115,6 +1214,74 @@ mod tests {
                 "{key} is not in the island fixture"
             );
         }
+    }
+
+    /// The media document is the daemon's shape (PROTOCOL §8, `snap_media.json`): every key the mock
+    /// publishes is one the fixture names, and the other way round for the shown track.
+    #[test]
+    fn media_document_carries_the_daemon_fields() {
+        fn keys(v: &Value) -> Vec<String> {
+            let mut k: Vec<String> = v.as_object().unwrap().keys().cloned().collect();
+            k.sort();
+            k
+        }
+        let st = state();
+        let fixture: Value =
+            serde_json::from_str(include_str!("../../../fixtures/ipc/server/snap_media.json"))
+                .unwrap();
+        let media = st.data("svc.media");
+        assert_eq!(keys(media), keys(&fixture["data"]));
+        assert_eq!(keys(&media["can"]), keys(&fixture["data"]["can"]));
+        assert_eq!(
+            keys(&media["players"][0]),
+            keys(&fixture["data"]["players"][0])
+        );
+    }
+
+    #[test]
+    fn media_seek_is_refused_on_a_live_stream_and_moves_a_track() {
+        let mut st = state();
+        let firefox = json!({"id": "org.mpris.MediaPlayer2.firefox"});
+        assert_eq!(st.act("media.player.select", &firefox), Ok(None));
+        assert_eq!(st.data("svc.media")["player"], "Firefox");
+        assert!(
+            st.data("svc.media").get("length_us").is_none(),
+            "a live stream has no length"
+        );
+        assert_eq!(
+            st.act("media.seek", &json!({"offset_us": 5})),
+            Err(Fail::unavailable(MEDIA_CANNOT_SEEK))
+        );
+        assert_eq!(
+            st.act(
+                "media.player.select",
+                &json!({"id": "org.mpris.MediaPlayer2.nope"})
+            ),
+            Err(Fail::invalid(MEDIA_NO_SUCH_PLAYER))
+        );
+
+        let mpv = json!({"id": "org.mpris.MediaPlayer2.mpv"});
+        assert_eq!(st.act("media.player.select", &mpv), Ok(None));
+        assert_eq!(
+            st.act("media.seek", &json!({"offset_us": 5_000_000})),
+            Ok(None)
+        );
+        assert_eq!(
+            st.data("svc.media")["position_us"],
+            documents::MEDIA_POSITION_US + 5_000_000
+        );
+        assert_eq!(
+            st.act("media.set_position", &json!({"us": -1})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(
+            st.act("media.set_position", &json!({"us": 1_000})),
+            Ok(None)
+        );
+        assert_eq!(st.data("svc.media")["position_us"], 1_000);
+        assert_eq!(st.act("media.play_pause", &json!({})), Ok(None));
+        assert_eq!(st.data("svc.media")["playing"], false);
+        assert_eq!(st.data("svc.media")["players"][0]["playing"], false);
     }
 
     #[test]
