@@ -74,5 +74,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M3.3 | Golden screenshots (`just golden`) | ✅ | merged; 5 states incl. session menu, 0 px drift across runs; refs are per machine (fonts) |
 | M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | ✅ | merged; no frontend for tray/BT yet |
 | M6.3 | Mod settings as config keys + pages (K22) | 🟡 | card M6-mod-settings |
-| F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | 🟡 | card F-services-available |
-| R.2 | UX/visual review | 🟡 | card R-ux-review (read-only) |
+| F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | ✅ | merged; placeholders unavailable; TODO: explicit logind session for systemd --user |
+| R.2 | UX/visual review | ✅ | 25 findings → `docs/reviews/2026-10-09-ux-review.md` |
+| U.1 | Components: AA contrast, focus/keys, hit targets, motion tokens, provenance chip | 🟡 | card U-components |
+| U.2 | Surfaces: bar.enabled/edge honoured, Stage scaffolding removed, launcher errors | 🟡 | card U-surfaces |
