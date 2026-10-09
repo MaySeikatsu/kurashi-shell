@@ -213,8 +213,8 @@ PanelWindow {
     Rectangle {
         id: card
         visible: stage.shown
-        // Media and the calendar need the wider card; the rest keep 360 px.
-        width: stage.contentKind === "media" || stage.contentKind === "clock" ? 400 : 360
+        // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; the rest keep 360 px.
+        width: stage.contentKind === "media" || stage.contentKind === "clock" || stage.contentKind === "quick" ? 400 : 360
         height: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the first frame has
