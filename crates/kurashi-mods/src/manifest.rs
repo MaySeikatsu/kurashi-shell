@@ -65,6 +65,19 @@ pub const KNOWN_CAPABILITIES: &[&str] = &[
     "secrets",
 ];
 
+/// The contribution slots of the core views (K28, `docs/ux/COMPOSITION.md` §3). A mod's
+/// `slot:<name>` must name one of these; the core never names a mod, so the list is the contract.
+pub const SLOTS: &[&str] = &[
+    "clock.expanded.aside",
+    "clock.expanded.day",
+    "clock.expanded.footer",
+    "media.expanded.below",
+    "media.expanded.backdrop",
+    "notifications.expanded.header",
+    "quick.tiles",
+    "lock.aside",
+];
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(tag = "kind", content = "id", rename_all = "kebab-case")]
 pub enum Provide {
@@ -77,6 +90,10 @@ pub enum Provide {
     Palette(String),
     Decor(String),
     Launcher(String),
+    /// Fills a core view's slot (K28); the name is one of [`SLOTS`].
+    Slot(String),
+    /// A choice source a setting names with `choices_from` (K28 (3), I9).
+    Choices(String),
     I18n,
 }
 
@@ -96,6 +113,9 @@ impl Provide {
         if !valid {
             return Err("provide_malformed");
         }
+        if kind == "slot" && !SLOTS.contains(&id) {
+            return Err("provide_unknown_slot");
+        }
         let id = id.to_string();
         Ok(match kind {
             "widget" => Self::Widget(id),
@@ -106,6 +126,8 @@ impl Provide {
             "palette" => Self::Palette(id),
             "decor" => Self::Decor(id),
             "launcher" => Self::Launcher(id),
+            "slot" => Self::Slot(id),
+            "choices" => Self::Choices(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -123,6 +145,8 @@ impl Provide {
                     (None, None) => a == b,
                 }
             }
+            // Several mods fill one slot; that is what slots are for (K28).
+            (Self::Slot(_), Self::Slot(_)) => false,
             _ => self == other,
         }
     }
@@ -139,6 +163,8 @@ impl fmt::Display for Provide {
             Self::Palette(i) => write!(f, "palette:{i}"),
             Self::Decor(i) => write!(f, "decor:{i}"),
             Self::Launcher(i) => write!(f, "launcher:{i}"),
+            Self::Slot(i) => write!(f, "slot:{i}"),
+            Self::Choices(i) => write!(f, "choices:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }
@@ -172,6 +198,9 @@ pub struct Setting {
     pub default: SettingValue,
     pub range: Option<(f64, f64)>,
     pub choices: Vec<String>,
+    /// A choice source (I9, MODS.md wallpaper): the options are what the source offers now, and a
+    /// value it does not offer is inert (`settings.choice.unavailable`), never rejected.
+    pub choices_from: Option<String>,
     pub unit: Option<String>,
     pub label: Option<String>,
     pub help: Option<String>,
@@ -233,6 +262,7 @@ struct RawSetting {
     range: Option<Vec<toml::Value>>,
     #[serde(default)]
     choices: Vec<String>,
+    choices_from: Option<String>,
     unit: Option<String>,
     label: Option<String>,
     help: Option<String>,
@@ -260,6 +290,13 @@ fn num(v: &toml::Value) -> Option<f64> {
         toml::Value::Float(f) => Some(*f),
         _ => None,
     }
+}
+
+/// A choice source name: the charset of provide ids (`hello.greetings`).
+fn is_source_id(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-_.".contains(c))
 }
 
 fn is_color(s: &str) -> bool {
@@ -405,6 +442,20 @@ pub fn parse(
         } else if ty != SettingType::Enum && !s.choices.is_empty() {
             err("setting_choices_not_enum", &at("choices"), &s.ty);
         }
+        let choices_from = s.choices_from.as_ref().and_then(|src| {
+            if ty != SettingType::String {
+                err("setting_choices_from_type", &at("choices_from"), &s.ty);
+                None
+            } else if !s.choices.is_empty() {
+                err("setting_choices_and_from", &at("choices_from"), src);
+                None
+            } else if !is_source_id(src) {
+                err("setting_choices_from_invalid", &at("choices_from"), src);
+                None
+            } else {
+                Some(src.clone())
+            }
+        });
         let default = match (ty, &s.default) {
             (SettingType::Bool, toml::Value::Boolean(b)) => Some(SettingValue::Bool(*b)),
             (SettingType::Int, toml::Value::Integer(n)) => Some(SettingValue::Int(*n)),
@@ -454,6 +505,7 @@ pub fn parse(
                 default,
                 range,
                 choices: s.choices.clone(),
+                choices_from,
                 unit: s.unit.clone(),
                 label: s.label.clone(),
                 help: s.help.clone(),
@@ -476,5 +528,92 @@ pub fn parse(
             settings,
         }),
         _ => Err(errs),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn text(provides: &str, setting: &str) -> String {
+        format!(
+            "id = \"demo\"\nname = \"Demo\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+             kurashi = \">=0.0.1\"\nprovides = [{provides}]\n{setting}"
+        )
+    }
+
+    fn codes(t: &str) -> Vec<&'static str> {
+        match parse("demo", t, &Version::new(0, 1, 0)) {
+            Ok(_) => vec![],
+            Err(errs) => errs.iter().map(|e| e.code).collect(),
+        }
+    }
+
+    #[test]
+    fn slot_names_are_the_core_slots_only() {
+        assert_eq!(
+            Provide::parse("slot:clock.expanded.footer"),
+            Ok(Provide::Slot("clock.expanded.footer".into()))
+        );
+        assert_eq!(
+            Provide::parse("slot:clock.expanded.nope"),
+            Err("provide_unknown_slot")
+        );
+        assert_eq!(Provide::parse("slot:"), Err("provide_malformed"));
+        assert!(codes(&text(r#""slot:lock.aside""#, "")).is_empty());
+        assert_eq!(
+            codes(&text(r#""slot:island.face""#, "")),
+            ["provide_unknown_slot"]
+        );
+    }
+
+    #[test]
+    fn several_mods_may_fill_one_slot_but_not_one_face_or_source() {
+        let a = Provide::parse("slot:quick.tiles").unwrap();
+        let b = Provide::parse("slot:quick.tiles").unwrap();
+        assert!(!a.conflicts_with(&b));
+        let f = Provide::parse("island-face:weather").unwrap();
+        assert!(f.conflicts_with(&Provide::parse("island-face:weather").unwrap()));
+        let c = Provide::parse("choices:weather.units").unwrap();
+        assert!(c.conflicts_with(&Provide::parse("choices:weather.units").unwrap()));
+    }
+
+    #[test]
+    fn choice_sources_are_provide_ids() {
+        assert_eq!(
+            Provide::parse("choices:hello.greetings"),
+            Ok(Provide::Choices("hello.greetings".into()))
+        );
+        assert_eq!(Provide::parse("choices:Hello"), Err("provide_malformed"));
+        assert_eq!(Provide::parse("choices:"), Err("provide_malformed"));
+        assert_eq!(
+            Provide::Choices("a.b".into()).to_string(),
+            "choices:a.b"
+        );
+        assert_eq!(Provide::Slot("lock.aside".into()).to_string(), "slot:lock.aside");
+    }
+
+    #[test]
+    fn a_string_setting_may_name_a_choice_source() {
+        let t = text(
+            r#""choices:demo.pick""#,
+            "[[setting]]\nkey = \"pick\"\ntype = \"string\"\ndefault = \"a\"\n\
+             choices_from = \"demo.pick\"\n",
+        );
+        let m = parse("demo", &t, &Version::new(0, 1, 0)).unwrap();
+        assert_eq!(m.settings[0].choices_from.as_deref(), Some("demo.pick"));
+        assert!(m.settings[0].choices.is_empty());
+        // Only a string takes a source, and the name is checked like a provide id.
+        let bool_t = text(
+            "",
+            "[[setting]]\nkey = \"on\"\ntype = \"bool\"\ndefault = true\nchoices_from = \"x.y\"\n",
+        );
+        assert_eq!(codes(&bool_t), ["setting_choices_from_type"]);
+        let bad = text(
+            "",
+            "[[setting]]\nkey = \"pick\"\ntype = \"string\"\ndefault = \"a\"\n\
+             choices_from = \"Demo Pick\"\n",
+        );
+        assert_eq!(codes(&bad), ["setting_choices_from_invalid"]);
     }
 }
