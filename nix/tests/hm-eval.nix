@@ -58,10 +58,11 @@ let
     [ "kurashid bound to graphical session" (daemon.Install.WantedBy == [ "graphical-session.target" ] && daemon.Unit.PartOf == [ "graphical-session.target" ]) ]
     [ "kurashid does not set KURASHI_DATA_DIR" (!(lib.any (lib.hasPrefix "KURASHI_DATA_DIR") daemon.Service.Environment)) ]
     [ "kurashid restarts on failure" (one daemon.Service.Restart == "on-failure") ]
-    [ "frontend ExecStart" (one front.Service.ExecStart == "${qs} -p ${stub}/share/kurashi/frontend") ]
+    [ "frontend ExecStart" (one front.Service.ExecStart == "${stub}/share/kurashi/frontend/launch.sh") ]
+    [ "frontend gets quickshell via KURASHI_QS" (lib.elem "KURASHI_QS=${qs}" front.Service.Environment) ]
     [ "frontend Requires (not BindsTo) kurashid" (front.Unit.Requires == [ "kurashid.service" ] && !(front.Unit ? BindsTo)) ]
     [ "frontend ordered after kurashid" (lib.elem "kurashid.service" front.Unit.After) ]
-    [ "extraEnvironment reaches both" (daemon.Service.Environment == [ "RUST_LOG=kurashid=debug" ] && front.Service.Environment == daemon.Service.Environment) ]
+    [ "extraEnvironment reaches both" (daemon.Service.Environment == [ "RUST_LOG=kurashid=debug" ] && lib.elem "RUST_LOG=kurashid=debug" front.Service.Environment) ]
     [ "managed.toml generated" (cfg.xdg.configFile ? "kurashi/managed.toml") ]
   ];
   failed = map (c: lib.head c) (lib.filter (c: !(lib.elemAt c 1)) checks);
@@ -77,7 +78,8 @@ pkgs.runCommand "kurashi-hm-eval"
     grep -q "ExecStart=${stub}/bin/kurashid" $unit/kurashid.service
     grep -q "WantedBy=graphical-session.target" $unit/kurashid.service
     grep -q "Requires=kurashid.service" $unit/kurashi-frontend.service
-    grep -q "ExecStart=${qs} -p ${stub}/share/kurashi/frontend" $unit/kurashi-frontend.service
+    grep -q "ExecStart=${stub}/share/kurashi/frontend/launch.sh" $unit/kurashi-frontend.service
+    grep -q "KURASHI_QS=${qs}" $unit/kurashi-frontend.service
     ! grep -q BindsTo $unit/kurashi-frontend.service
     grep -q 'palette = "wa-iro"' $managed
     grep -q 'enforce = true' $managed
