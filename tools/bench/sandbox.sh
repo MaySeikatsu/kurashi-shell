@@ -5,7 +5,7 @@
 #   sandbox.sh stop  [name]             → kills ONLY processes whose environ has this runtime dir
 #   sandbox.sh output-add [name]        → hotplug a second output (HEADLESS-2)
 # Renderer: gles2 (default; needed for dmabuf → clients render on the GPU, and for screencopy)
-#           or pixman (software).
+#           or pixman (software). KURASHI_RENDER_NODE=/dev/dri/renderD… overrides the GPU.
 set -euo pipefail
 action=${1:-start}; name=${2:-dev}; renderer=${3:-gles2}
 R=/tmp/kurashi-sb-$name
@@ -41,7 +41,8 @@ case $action in
     fi
     printf 'output HEADLESS-1 resolution 2560x1440\noutput * bg #101014 solid_color\n' > "$R/sway.conf"
     # First render node (renderD128 on single-GPU machines, may differ elsewhere); none → pixman.
-    node=$(ls /dev/dri/renderD* 2>/dev/null | head -n 1)
+    # KURASHI_RENDER_NODE picks another one (hybrid laptops: measure on the iGPU the session uses).
+    node=${KURASHI_RENDER_NODE:-$(ls /dev/dri/renderD* 2>/dev/null | head -n 1)}
     if [ "$renderer" = gles2 ] && [ -z "$node" ]; then
       echo "sandbox: no DRM render node, falling back to pixman" >&2
       renderer=pixman
