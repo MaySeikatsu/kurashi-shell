@@ -246,6 +246,7 @@ pub struct AudioProvider {
     /// Origin of the latest `audio.volume` intent: the server's change event that follows is
     /// patched with it, so the dragging slider recognises its own echo (PROTOCOL §4).
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
+    island: Option<Arc<crate::island::IslandHost>>,
 }
 
 /// Echo window: a server round-trip is a few ms; anything later is someone else's change.
@@ -254,10 +255,32 @@ const ORIGIN_ECHO: std::time::Duration = std::time::Duration::from_millis(500);
 struct AudioSink {
     hub: Arc<Hub>,
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
+    island: Option<Arc<crate::island::IslandHost>>,
+    /// (volume, muted) last seen; a change shows the island's transient `volume` face (OSD).
+    last: Mutex<Option<(f64, bool)>>,
 }
 
 impl kurashi_services::DocSink for AudioSink {
     fn set(&self, doc: Value) {
+        let now = (
+            doc["volume"].as_f64().unwrap_or(0.0),
+            doc["muted"].as_bool().unwrap_or(false),
+        );
+        let prev = self.last.lock().expect("audio last").replace(now);
+        if let (Some(island), Some(prev)) = (&self.island, prev)
+            && prev != now
+        {
+            island.signal(kurashi_island::FaceSignal {
+                face: "volume".into(),
+                relevance: 0,
+                condition: true,
+                transient: Some(kurashi_island::Transient {
+                    kind: "volume".into(),
+                    ttl_ms: 1500,
+                    may_interrupt: true,
+                }),
+            });
+        }
         let origin = self
             .last_origin
             .lock()
@@ -274,6 +297,8 @@ impl crate::hub::Provider for AudioProvider {
         let (h, c) = kurashi_audio::start(Arc::new(AudioSink {
             hub,
             last_origin: self.last_origin.clone(),
+            island: self.island.clone(),
+            last: Mutex::new(None),
         }));
         *self.running.lock().expect("audio lock") = Some((h, c));
     }
@@ -293,10 +318,16 @@ impl AudioProvider {
     }
 }
 
-pub fn audio(hub: &Arc<Hub>, actions: &mut ActionRegistry, intents: &mut crate::Intents) {
+pub fn audio(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
     let provider = Arc::new(AudioProvider {
         running: Mutex::new(None),
         last_origin: Arc::default(),
+        island,
     });
     hub.register(
         "svc.audio",
