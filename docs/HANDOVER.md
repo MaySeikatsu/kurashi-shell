@@ -5,9 +5,83 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ## Pickup prompt (paste into a fresh Claude Code session started in `~/Projects/kurashi-shell`)
 > Read `CLAUDE.md`, then the latest entry of `docs/HANDOVER.md`, and continue with its "Next
 > steps" in order. Use subagents as described there (parallel, isolated git worktrees, disjoint
-> ownership, the task cards in `tools/bakeoff/`), keep the lead role yourself (review, measure,
+> ownership, the task cards in `docs/tasks/`), keep the lead role yourself (review, measure,
 > merge, decide). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, and write
 > a new handover entry before ending the session.
+
+---
+
+## 2026-10-09 — session 3: wave 7 with Haiku agents (M3–M7 depth, review-driven fixes)
+**State:** `main` green at handover (`just check` in a **private** target dir: fmt, clippy -D warnings,
+all workspace tests, **0 ignored**; `just golden` 5/5; `nix flake check --no-build` ✔). Lead = Opus,
+agents = Haiku at max effort, up to 10 in parallel, task cards in `docs/tasks/` (README = rules).
+**Two agents may still be running or have finished unmerged** (see "Half-done"). The user paused new
+work until 12:50.
+
+**Merged this session (all with tests; details in PROGRESS "Wave 7")**
+- Memory branch M3.2: `frontend/launch.sh` pins the NVIDIA EGL vendor only with exactly one render
+  node; HM frontend service runs it (`KURASHI_QS`); BENCH 20-cycle growth budget. Bench re-run pending.
+- Launcher watcher `Drop` hang fixed (a test hung 4.5 h; real daemon bug); bake-off probes moved to
+  `archive/bakeoff-probes/` (unused, K3 re-run baseline).
+- Features: `session.menu` + session menu UI (2-press destructive confirm); brightness/volume key
+  actions with island OSD faces; `session.lock` refuses without PAM service `kurashi`; input via
+  `bindings`/`input.dispatch`; settings search + Mods page + mod descriptions; **mod settings as config
+  keys** `mods.<id>.<key>` with pages (K22); tray (SNI) + BlueZ crates **wired** (`svc.tray`,
+  `svc.bluetooth`, refcounted, actions never auto-start); `nix run .#{default,settings,mock,sandbox}`
+  + README "Running"; mock parity (panels, bindings, brightness, session, notifications, launcher,
+  instance, `--fixed-time`); golden screenshots `just golden` (pixman, masks for clock/caret);
+  weekday localised (`i18n/*/clock.toml`); `available` flags on svc.session/media/power.
+- Honesty: test over all 39 keys (M5.17) → **K21**: daemon reports `reason` + `inert_by` for
+  requires-inert keys and `settings.pending.restart`; settings app stopped evaluating couplings.
+- Review R.1 (daemon concurrency) → fixed: island timer spawned off-runtime (HIGH: first volume
+  change killed the audio worker), hub subscribe/unsubscribe race + orphaned tasks, atomic
+  `Hub::update`, lag re-snapshot, bounded reply queue + `bye overflow`, accept backoff, quadratic
+  notify sanitiser (184 s → 0.1 s) + caps, watcher spawn/debounce, services report unavailable,
+  shutdown grace 2 s (PAM 2FA hang), PAM lockout doctor check.
+- Review R.2 (UX) → `docs/reviews/2026-10-09-ux-review.md` (25 findings); #14 fixed by the lead; the
+  rest is in cards U-components / U-surfaces (running) and the next steps below.
+- Decisions: K21 (inert/pending reasons), K22 (mod settings). CONTRACT-CHANGE rows 5–19 decided
+  (16 deferred: fold `RefcountedService` into `ServiceProvider`).
+
+**Half-done / where it lives**
+- `U-components` (theme tokens, AA contrast, focus/keys, hit targets, motion, provenance chip) and
+  `U-surfaces` (bar.enabled/edge honoured, Stage sample chips removed, launcher errors, sizing) ran as
+  Haiku agents in worktrees `.claude/worktrees/agent-*` on branches `worktree-agent-<id>`
+  (`git branch | grep worktree-agent`). If their reports were not merged: for each branch, check the
+  diff stays in the card's owned paths, run the gate (below) + `frontend/test-real.sh` + `just golden`,
+  Read the screenshots, then `git merge --no-ff`. If a branch has no commits, re-run the card.
+- Bench gate not re-run since the memory merge (machine was loaded; PSS rows were noisy ±15 MiB).
+
+**Next steps (ordered)**
+1. Land U-components / U-surfaces (above). Then settings polish from the UX review (#3 settings
+   focus/keys, #7, #8, #9, #11 settings, #13 error codes→keys, #17, #18, #23) as one card owning `settings/`.
+2. Quiet-machine `just bench-gate` on this machine (Machine A), then a first baseline on the user's
+   second machine (Machine B, `docs/BENCH.md`), plus `just golden --update` there (refs are per machine).
+3. Frontend for tray + Bluetooth (bar widget + stage panel) against `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
+4. logind session for a `systemd --user` daemon (resolve the user's graphical session explicitly;
+   today session hints may stay `available:false`).
+5. Fold `RefcountedService` into `ServiceProvider` (row 16); per-mod profile sections (K22 note);
+   connection-level reconnect for D-Bus services (they stay unavailable after a bus loss).
+6. M6 first native mods (media + lyrics, wallpaper, sysmon, weather), live niri test with the user present.
+
+**Process lessons (keep)**
+- **Gate every merge with `just check` in the repo's own target dir** (`unset CARGO_TARGET_DIR`,
+  `CARGO_INCREMENTAL=0`): the shared agent dir hands worktrees each other's path-crate artifacts and
+  embedded files (seen 5×: missing fields/modules, a test palette baked into a binary). Crate-only
+  checks let a cross-crate break through once (theme test read the mock's moved source).
+- Always `timeout` + `set -o pipefail` (a piped failure got committed once; a deadlock ran 4.5 h).
+- CONTRACT-CHANGE rows collide when agents append in parallel: renumber at merge.
+- Frontend agents can use prebuilt daemon binaries (`KURASHI_BIN_DIR`) to avoid compiling.
+
+**Risks / open**
+- **Disk ~20 GB free (99 %)**: `~/.cache/kurashi-agents-target` ≈ 51 GB. Pruning it was denied to the
+  agent; the user can run
+  `find ~/.cache/kurashi-agents-target/debug/incremental -mindepth 1 -maxdepth 1 -type d -mmin +180 -exec rm -rf {} +`.
+  Don't run many compiling agents until it is pruned.
+- 13 leaked bake-off `dbus-daemon`s (`/tmp/kurashi-sb-{slint,iced,gpui}`), harmless; user may
+  `pkill -f 'address=unix:path=/tmp/kurashi-sb-'`.
+- Volume keys need a standing `svc.audio` subscriber (the bar has one). Lock with stale marker but no
+  PAM service starts locked (doctor reports it).
 
 ---
 

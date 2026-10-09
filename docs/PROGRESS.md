@@ -73,7 +73,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M0.9 | Mock: notifications, launcher query, instance, fixed clock | ✅ | merged; `kurashi act mock.notify '{"summary":…}'` adds one |
 | M3.3 | Golden screenshots (`just golden`) | ✅ | merged; 5 states incl. session menu, 0 px drift across runs; refs are per machine (fonts) |
 | M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | ✅ | merged; no frontend for tray/BT yet |
-| M6.3 | Mod settings as config keys + pages (K22) | 🟡 | card M6-mod-settings |
+| M6.3 | Mod settings as config keys + pages (K22) | ✅ | merged + wired (a3a0443); profiles treat all mod keys as one `mods` section (per-mod sections = later) |
 | F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | ✅ | merged; placeholders unavailable; TODO: explicit logind session for systemd --user |
 | R.2 | UX/visual review | ✅ | 25 findings → `docs/reviews/2026-10-09-ux-review.md` |
 | U.1 | Components: AA contrast, focus/keys, hit targets, motion tokens, provenance chip | 🟡 | card U-components |
