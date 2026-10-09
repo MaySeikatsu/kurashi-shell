@@ -56,6 +56,11 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I23 | 2026-10-09 | W12-weather report (CONTRACT 37) | A supervised background-job API in `ModCtx` (start/stop with the mod, `running` + reason "rain alerts" on the mod page) — weather's rain watch and sysmon's trouble watch need it. | accepted |
 | I24 | 2026-10-09 | W12-weather report (CONTRACT 38) | Mod-provided custom Settings controls (e.g. weather place search on its Settings page instead of only in the panel). | accepted |
 | I25 | 2026-10-09 | W12-weather report (CONTRACT 39) | Action `settings.open {page?, key?}`: the daemon launches Settings at a row (weather's "Set place", inert rows' "Controlled by …" links). | accepted |
+| I26 | 2026-10-09 | W12-sysmon report (CONTRACT 41) | Manifest `list` setting type (multi-select over fixed values → `pick_list`); sysmon's four `show_*` bools become one `show` list. | accepted |
+| I27 | 2026-10-09 | W12-sysmon report (CONTRACT 43) | `color.status.warn` theme role (AA on surface) for activity levels (sysmon, battery low). | accepted |
+| I28 | 2026-10-09 | W12-sysmon report (CONTRACT 40) | `KNOWN_CAPABILITIES` gains `fs:read`, `proc:signal`; sysmon declares them (Settings shows them). | accepted |
+| I29 | 2026-10-09 | W12-sysmon report | AMD `Tctl` carries an offset on some Ryzen parts (machine B reads Tctl 89.9 °C with no Tdie) — the 85 °C critical default fires on Tctl alone; prefer Tdie/Tccd, or raise the Tctl default, and say which sensor is used. | accepted |
+| I30 | 2026-10-09 | W12-sysmon report | Sysmon not yet to brief: bar tabular figures + sparkline + peek + middle/right click, Pause in Settings, "paths searched" for no sensor, VM/container "host values", Open in btop, battery power-use row, live loader screenshots. | accepted (UX pass) |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

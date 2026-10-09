@@ -1,0 +1,25 @@
+[package]
+name = "kurashi-mod-sysmon"
+description = "System monitor native mod (M6, K26/K28): /proc and /sys sampling while subscribed, the sustained-trouble face, process actions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+serde_json.workspace = true
+tokio.workspace = true
+# Safe wrappers for kill(2), getuid(2) and the page size: the workspace forbids `unsafe`.
+rustix = { version = "1", features = ["process", "param"] }
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util"] }
+# The shipped manifest is checked by the daemon's own validator.
+kurashi-mods = { path = "../kurashi-mods" }
+semver = "1"
+toml = "0.8"
+
+[lints]
+workspace = true
