@@ -15,4 +15,63 @@ nix develop      # toolchain, quickshell, sway (headless tests), bench tools
 just             # list tasks
 ```
 
+## Running
+
+Four ways, from the safest to the most committed:
+
+1. **Sandbox smoke test, invisible.** `nix run .#sandbox` starts a headless sway with a private
+   session bus and an isolated `kurashid` (own XDG dirs, socket and system-bus address), drives the
+   frontend through its steps and writes screenshots to `./shots-sandbox/`. Nothing reaches your
+   display, socket, bus or config. Inside `nix develop` the same sequence is `frontend/test-real.sh`,
+   after `cargo build -p kurashid -p kurashi`.
+2. **Live from the repo.** In `nix develop`, run `just dev` (the real daemon, on your session socket)
+   and `frontend/launch.sh` in another shell. For frontend work without a daemon, `just mock` serves
+   fake data on the same socket.
+3. **`nix run` apps.** From a checkout use `nix run .#<app>`; from elsewhere pass the checkout path,
+   e.g. `nix run /path/to/kurashi-shell#sandbox`.
+
+   | App | Does |
+   |---|---|
+   | `nix run .#` | Live session. Starts `kurashid` from this package unless `kurashi ping` already gets an answer, runs the frontend in the foreground, and stops the daemon it started when the frontend exits. Daemon log: `$XDG_STATE_HOME/kurashi/kurashid.log`. |
+   | `nix run .#settings` | Settings against the running daemon. It starts none. |
+   | `nix run .#mock -- --outputs HEADLESS-1` | `kurashi-mock`, the fake daemon for frontend work. It serves the real socket, so do not run it beside a live daemon. |
+   | `nix run .#sandbox` | The invisible smoke test from item 1. |
+
+4. **NixOS and Home-Manager.** The flake exports `nixosModules.default` and `homeManagerModules.default`.
+
+   ```nix
+   # NixOS: package, UPower, and the PAM service of the lock screen
+   programs.kurashi.enable = true;
+
+   # Home-Manager: kurashid and the frontend as user services bound to graphical-session.target
+   programs.kurashi = {
+     enable = true;
+     settings.theme.palette = "wa-iro"; # ~/.config/kurashi/managed.toml, the nix layer
+     enforce = false; # true: these values win over profiles and user changes
+     systemd.enable = true; # false: no user units, start kurashid yourself
+     frontend.enable = true; # false: run the daemon only
+   };
+   ```
+
+   The lock screen authenticates through the PAM service `kurashi`, which only the NixOS module
+   defines (`security.pam.services.kurashi`). Enable `programs.kurashi.enable` at system level even
+   when the shell itself runs under Home-Manager.
+
+### Command line
+
+`kurashi` talks to the daemon over its socket (`$KURASHI_SOCKET`, else `$XDG_RUNTIME_DIR/kurashi/ipc.sock`;
+`--socket` overrides, `--json` prints raw replies).
+
+```sh
+kurashi ping                   # handshake and round trip (exit 3: no daemon answers)
+kurashi doctor                 # what works, what does not, and how to fix it (exit 1 on failures)
+kurashi act <action> [json]    # invoke an action, e.g. kurashi act island.expand
+kurashi sub <doc> [--count N]  # snapshot, then patches as they arrive (alias: watch)
+kurashi get <key>              # effective value with its provenance
+kurashi why <key>              # every layer that carries the key
+kurashi set <key> <value>      # or key=value pairs in one transaction; --dry-run previews
+kurashi reset <key> | undo | redo
+kurashi profile list|preview|load|save <name>
+```
+
 License: GPL-3.0-or-later.
