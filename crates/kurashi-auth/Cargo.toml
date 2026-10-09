@@ -1,0 +1,23 @@
+[package]
+name = "kurashi-auth"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Lock-screen authentication: PAM backend, session state machine, rate limiting"
+
+[features]
+# Real PAM backend; needs linux-pam headers/library at build time (see CONTRACT-CHANGE).
+pam = ["dep:pam-client"]
+
+[dependencies]
+kurashi-services = { path = "../kurashi-services" }
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zeroize = "1"
+pam-client = { version = "0.5", optional = true }
+
+[lints]
+workspace = true
