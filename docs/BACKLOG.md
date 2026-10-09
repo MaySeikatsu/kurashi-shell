@@ -61,6 +61,12 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I28 | 2026-10-09 | W12-sysmon report (CONTRACT 40) | `KNOWN_CAPABILITIES` gains `fs:read`, `proc:signal`; sysmon declares them (Settings shows them). | accepted |
 | I29 | 2026-10-09 | W12-sysmon report | AMD `Tctl` carries an offset on some Ryzen parts (machine B reads Tctl 89.9 °C with no Tdie) — the 85 °C critical default fires on Tctl alone; prefer Tdie/Tccd, or raise the Tctl default, and say which sensor is used. | accepted |
 | I30 | 2026-10-09 | W12-sysmon report | Sysmon not yet to brief: bar tabular figures + sparkline + peek + middle/right click, Pause in Settings, "paths searched" for no sensor, VM/container "host values", Open in btop, battery power-use row, live loader screenshots. | accepted (UX pass) |
+| I31 | 2026-10-09 | W12-wallpaper report | Theme source `wallpaper` in kurashi-theme (palette from the current image, DESIGN-SYSTEM §2) so the picker's "Apply with theme" and theme diff work; favourites store the look. | accepted |
+| I32 | 2026-10-09 | W12-wallpaper report | Wallpaper not yet to brief: keyboard grid/search not exercised, grow origin from tile, drag-and-drop, folder breadcrumb, light/dark pair badges, lock screen, launcher "look:" provider, thumbnail cache size cap, duplicate first-page requests at picker open. | accepted (UX pass) |
+| B16 | 2026-10-09 | lead (live mod check) | Mod strings show as raw keys: the daemon's `i18n` document does not merge `i18n/<locale>/mod-<id>.toml` of loaded mods (MODS.md promises it). | fixing (lead) |
+| B17 | 2026-10-09 | lead (live mod check) | ModLoader assigns `store/theme/i18n` to mod components that do not declare them (all three mods import the core singletons): QML warnings per load. | fixing (lead) |
+| B18 | 2026-10-09 | lead (live mod check) | Sysmon panel overflows the Stage card on the right ("Force quit", "Swap" clipped). | accepted |
+| B19 | 2026-10-09 | lead (live mod check) | Dates follow the system locale (German "Freitag, 9 Oktober") while the UI is en/ja: format with kurashi's locale (`i18n.locale`). | accepted |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

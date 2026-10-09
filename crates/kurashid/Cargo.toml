@@ -24,6 +24,7 @@ kurashi-mods = { path = "../kurashi-mods" }
 kurashi-mod-api = { path = "../kurashi-mod-api" }
 kurashi-mod-weather = { path = "../kurashi-mod-weather" }
 kurashi-mod-sysmon = { path = "../kurashi-mod-sysmon" }
+kurashi-mod-wallpaper = { path = "../kurashi-mod-wallpaper" }
 semver = "1"
 kurashi-audio = { path = "../kurashi-audio" }
 kurashi-auth = { path = "../kurashi-auth", features = ["pam"] }

@@ -31,6 +31,7 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
     vec![
         Box::new(kurashi_mod_weather::WeatherMod::new()) as Box<dyn NativeMod>,
         Box::new(kurashi_mod_sysmon::Sysmon::new()),
+        Box::new(kurashi_mod_wallpaper::Wallpaper::new()),
     ]
 }
 
