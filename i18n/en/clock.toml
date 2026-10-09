@@ -1,0 +1,8 @@
+# Short weekday names for svc.clock (Monday = 1).
+"clock.weekday.1" = "Mon"
+"clock.weekday.2" = "Tue"
+"clock.weekday.3" = "Wed"
+"clock.weekday.4" = "Thu"
+"clock.weekday.5" = "Fri"
+"clock.weekday.6" = "Sat"
+"clock.weekday.7" = "Sun"

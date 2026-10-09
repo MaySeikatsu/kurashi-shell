@@ -1,0 +1,8 @@
+# svc.clock の曜日（月曜 = 1）。
+"clock.weekday.1" = "月"
+"clock.weekday.2" = "火"
+"clock.weekday.3" = "水"
+"clock.weekday.4" = "木"
+"clock.weekday.5" = "金"
+"clock.weekday.6" = "土"
+"clock.weekday.7" = "日"
