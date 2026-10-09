@@ -3,6 +3,8 @@
 # and frontend keyboard tests. It speaks only to the sandbox's own socket: XDG_RUNTIME_DIR must be a
 # tools/bench/sandbox.sh runtime dir (/tmp/kurashi-sb-<name>), so eval the sandbox's env lines first.
 #   tools/bench/wl_keys.py tab space  → one keyboard for this call: press Tab, then Space
+#   tools/bench/wl_keys.py alt+up shift+tab escape → chords: Alt held while Up, Shift while Tab, then Escape
+#                                       (modifiers: shift, ctrl, alt; ctrl+shift+tab holds both)
 #   tools/bench/wl_keys.py --serve    → one keyboard for the whole run: every stdin line is keys to press
 #                                       ("tab", "space", "x", …); EOF ends it. A keyboard that goes away makes
 #                                       the compositor drop the window's keyboard focus, so a test that Tabs
@@ -18,32 +20,51 @@ import sys
 import time
 
 # Named keys: evdev code and keysym. The keymap maps evdev code + 8, as XKB keycodes do.
-SPECIAL = {"tab": (15, "Tab"), "return": (28, "Return"), "space": (57, "space"),
+SPECIAL = {"tab": (15, "Tab"), "return": (28, "Return"), "space": (57, "space"), "escape": (1, "Escape"),
            "backspace": (14, "BackSpace"), "delete": (111, "Delete"),
            "left": (105, "Left"), "right": (106, "Right"), "up": (103, "Up"), "down": (108, "Down")}
+# Modifiers: evdev code, keysym and the XKB real modifier they set (Alt is Mod1).
+MODIFIERS = {"shift": (42, "Shift_L", "Shift"), "ctrl": (29, "Control_L", "Control"),
+             "alt": (56, "Alt_L", "Mod1")}
 # Letters a-z (evdev codes in QWERTY order), for typing into text fields.
 LETTER_CODES = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 37, 38,
                 44, 45, 46, 47, 48, 49, 50]
 LETTERS = {letter: (code, letter) for letter, code in zip("qwertyuiopasdfghjklzxcvbnm", LETTER_CODES)}
 KEYS = {name: code for name, (code, _) in SPECIAL.items()}
 KEYS.update({letter: code for letter, (code, _) in LETTERS.items()})
+KEYS.update({name: code for name, (code, _, _) in MODIFIERS.items()})
+# Keycodes in table order: the named keys, the letters, then the modifiers.
+ENTRIES = (list(SPECIAL.values()) + list(LETTERS.values())
+           + [(code, sym) for code, sym, _ in MODIFIERS.values()])
 
 # The only socket this helper opens is in a sandbox runtime dir; the user's /run/user/<uid> never matches.
 SANDBOX_RUNTIME = re.compile(r"/tmp/kurashi-sb-[^/]+")
-USAGE = "usage: wl_keys.py <key> [key ...] | wl_keys.py --serve   (keys: " + " ".join(KEYS) + ")"
+USAGE = ("usage: wl_keys.py <key|modifier+key> [...] | wl_keys.py --serve   (keys: " + " ".join(KEYS)
+         + "; modifiers: " + " ".join(MODIFIERS) + ")")
 
 
 def keymap():
     # A complete keymap for exactly the keys above, with no includes: the compositor needs no
     # xkeyboard-config data to compile it. Keycode names are K00, K01, … in table order.
-    entries = list(SPECIAL.values()) + list(LETTERS.values())
-    codes = " ".join(f"<K{i:02d}> = {code + 8};" for i, (code, _) in enumerate(entries))
-    symbols = " ".join(f"key <K{i:02d}> {{ [ {sym} ] }};" for i, (_, sym) in enumerate(entries))
+    codes = " ".join(f"<K{i:02d}> = {code + 8};" for i, (code, _) in enumerate(ENTRIES))
+    symbols = []
+    for i, (_, sym) in enumerate(ENTRIES):
+        if sym == "Tab":  # Shift+Tab is ISO_Left_Tab, as on a real keyboard
+            symbols.append(f"key <K{i:02d}> {{ type = \"TWO_LEVEL\", symbols[Group1] = [ Tab, ISO_Left_Tab ] }};")
+        else:
+            symbols.append(f"key <K{i:02d}> {{ [ {sym} ] }};")
+    # A modifier key sets its real modifier, so keys pressed while it is held see it.
+    first = len(ENTRIES) - len(MODIFIERS)
+    for j, (_, _, mod) in enumerate(MODIFIERS.values()):
+        symbols.append(f"modifier_map {mod} {{ <K{first + j:02d}> }};")
+    types = ('type "ONE_LEVEL" { modifiers = none; level_name[Level1] = "Any"; }; '
+             'type "TWO_LEVEL" { modifiers = Shift; map[Shift] = Level2; '
+             'level_name[Level1] = "Base"; level_name[Level2] = "Shift"; };')
     text = ("xkb_keymap {\n"
             f'  xkb_keycodes "kurashi" {{ minimum = 8; maximum = 255; {codes} }};\n'
-            '  xkb_types "kurashi" { type "ONE_LEVEL" { modifiers = none; level_name[Level1] = "Any"; }; };\n'
+            f'  xkb_types "kurashi" {{ {types} }};\n'
             '  xkb_compat "kurashi" { };\n'
-            f'  xkb_symbols "kurashi" {{ {symbols} }};\n'
+            f'  xkb_symbols "kurashi" {{ {" ".join(symbols)} }};\n'
             "};\n")
     return text.encode() + b"\x00"
 
@@ -158,13 +179,24 @@ class Keyboard:
         # Clients learn about the new keyboard asynchronously; a key sent before they have it is lost.
         time.sleep(0.5)
 
-    def press(self, name):
-        code = KEYS[name]
+    def key(self, code, state):
         # key(time, key, state): pressed (1), then released (0).
-        self.send(KBD, 1, struct.pack("<III", ms(), code, 1))
+        self.send(KBD, 1, struct.pack("<III", ms(), code, state))
+
+    def chord(self, mods, name):
+        # Modifiers go down first and up last; each change is confirmed by a roundtrip, so the
+        # compositor has it before the key that needs it.
+        held = [MODIFIERS[m][0] for m in mods]
+        for code in held:
+            self.key(code, 1)
+            self.roundtrip()
+        self.key(KEYS[name], 1)
         time.sleep(0.05)
-        self.send(KBD, 1, struct.pack("<III", ms(), code, 0))
+        self.key(KEYS[name], 0)
         self.roundtrip()
+        for code in reversed(held):
+            self.key(code, 0)
+            self.roundtrip()
         time.sleep(0.1)
 
 
@@ -177,27 +209,31 @@ def string(text):
     return struct.pack("<I", len(raw)) + raw + b"\0" * (-len(raw) % 4)
 
 
-def check(names):
-    for name in names:
-        if name not in KEYS:
-            die(f"wl_keys.py: unknown key {name!r} (known: {' '.join(KEYS)})")
+def parse(token):
+    # `alt+up`: Alt held while Up is pressed; `ctrl+shift+tab` holds both; a bare name is pressed alone.
+    *mods, name = token.split("+")
+    for mod in mods:
+        if mod not in MODIFIERS:
+            die(f"wl_keys.py: {mod!r} is not a modifier (modifiers: {' '.join(MODIFIERS)})")
+    if name not in KEYS:
+        die(f"wl_keys.py: unknown key {name!r} (known: {' '.join(KEYS)})")
+    return mods, name
 
 
 def main(argv):
     if argv == ["--serve"]:
         kb = Keyboard()
         for line in sys.stdin:
-            names = line.split()
-            check(names)
-            for name in names:
-                kb.press(name)
+            chords = [parse(token) for token in line.split()]  # refuse a line before pressing any of it
+            for mods, name in chords:
+                kb.chord(mods, name)
         return
     if not argv:
         die(USAGE)
-    check(argv)
+    chords = [parse(token) for token in argv]
     kb = Keyboard()
-    for name in argv:
-        kb.press(name)
+    for mods, name in chords:
+        kb.chord(mods, name)
 
 
 if __name__ == "__main__":
