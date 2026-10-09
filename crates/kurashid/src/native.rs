@@ -29,13 +29,19 @@ use crate::hub::{Hub, Provider};
 use crate::island::IslandHost;
 
 /// The first-party native mods linked into this daemon (K26). The test mod `hello` is linked by the
-/// tests only: its manifest is test data.
+/// tests, and by the `test-mods` feature for the live mods test (W14): its manifest is test data.
 pub fn linked() -> Vec<Box<dyn NativeMod>> {
-    vec![
+    let mods = vec![
         Box::new(kurashi_mod_weather::WeatherMod::new()) as Box<dyn NativeMod>,
         Box::new(kurashi_mod_sysmon::Sysmon::new()),
         Box::new(kurashi_mod_wallpaper::Wallpaper::new()),
-    ]
+    ];
+    #[cfg(feature = "test-mods")]
+    let mods = mods
+        .into_iter()
+        .chain([Box::new(kurashi_mod_hello::Hello) as Box<dyn NativeMod>])
+        .collect();
+    mods
 }
 
 /// `runtime.slots` (K28): the contributions of enabled mods to the core views' slots.
