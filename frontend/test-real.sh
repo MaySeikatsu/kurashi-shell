@@ -52,6 +52,11 @@ K act island.expand >/dev/null
 shot popup-expand
 K act island.expand >/dev/null   # toggle the popup closed again
 
+# Session menu: open, look, close. Destructive entries are never pressed here (no confirm).
+K act session.menu >/dev/null
+shot session-menu
+K act ui.close >/dev/null
+
 kill "$DPID"; wait "$DPID" 2>/dev/null || true
 shot veil-disconnected 2.5
 
