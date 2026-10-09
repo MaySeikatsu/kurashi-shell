@@ -86,3 +86,11 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [M5-ui-launcher](M5-ui-launcher.md) | `frontend/surfaces/Launcher.qml` | sonnet |
 | [M5-ui-lock](M5-ui-lock.md) | `frontend/surfaces/Lock.qml` | sonnet |
 
+## Wave 6 (memory first; daemon tasks in disjoint files, none edits `main.rs`)
+| Card | Owner paths | Model |
+|---|---|---|
+| [M3-memory](M3-memory.md) | `frontend/`, `tools/bench/` | sonnet |
+| [M2-blur-capability](M2-blur-capability.md) | `crates/kurashi-compositor/`, `kurashid/src/capabilities.rs` | sonnet |
+| [M5-island-config](M5-island-config.md) | `kurashid/src/{island,bindings}.rs`, `crates/kurashi-island/` | sonnet |
+| [M5-daemon-polish](M5-daemon-polish.md) | `kurashid/src/{wiring,doctor}.rs` | sonnet |
+
