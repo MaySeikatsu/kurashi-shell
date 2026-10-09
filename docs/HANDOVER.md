@@ -17,6 +17,43 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-09 — session 5 (machine B): waves 9–13, native mods, K24–K28, UX bar
+**State:** `main` green and pushed (b53d79f: `just check` 384 tests, golden B ok, `nix build .#kurashi` ok). Usage limit hit
+mid-wave: agents were stopped; their **unmerged branches/worktrees remain** (see Half-done).
+
+**Merged:** wave 9 fixes (B2 volume honesty, B3 brightness session, row 20 `item_is_menu`, rows 21–22 config history +
+live profiles, B5/B6/B8, I6 test helpers, I8 niri binds); wave 10 (K24 island expanded views + quick settings card +
+◐ bar button; K25 mods as config lists `mods.loaded/enabled` — persisted, B11; Settings mod pages, dropdown, pick list;
+I9 `choices_from`); K26 native mods (`kurashi-mod-api`, ledger); K28 slots/mod faces/choice sources/`mod.panel.open`
+(daemon); quick settings sections (Wi-Fi, power, audio out, BT); B7 lazy island faces + bench mean-of-two-hotplugs.
+Decisions K24–K28 in DECISIONS.md (user answered K24/K25/K26 this session).
+
+**User rules added this session (keep):** (1) implementation by parallel Haiku max-effort agents, lead reviews/merges;
+(2) **UX bar** (CLAUDE.md): every user-facing feature gets a researched brief in `docs/ux/` and is "done" only against
+it; think what a feature *can become* and what it combines with (`docs/ux/COMPOSITION.md`), not the minimum.
+
+**Half-done (branches exist, not merged):**
+- `worktree-agent-a6d8999436a9c1b73` W13-quick-daemon — DONE and reviewed OK (scan doc, connect/airplane, audio
+  sources/streams, power profiles, DND until). Merge conflicts: `kurashi-mock/src/documents.rs` (keep both hunks) and
+  CONTRACT-CHANGE row 30 (renumber to 34; add a K29 note: scan is its own doc, open unsaved networks refused). Then gate.
+- Stopped mid-work (check each branch's last commit, finish or re-run its card): W11-mod-qml (`af600d39…`),
+  W13-settings-ux (`aea383de…`), W12-wallpaper (`a906f070…`), W12-sysmon (`afedb81d…`), W12-weather (`a34560be…`),
+  W13-island-daemon (`acbd8903…`) — `git branch | grep worktree-agent`.
+
+**Next steps (ordered):** 1. merge W13-quick-daemon (above). 2. For each stopped branch: review, finish (SendMessage
+won't resume across sessions — re-spawn the card with "continue from branch X"), merge with the gate. 3. W13-quick-ux and
+W13-island-views (cards ready; need W11-mod-qml merged). 4. Lead UX review of every merged user-facing feature against
+its brief; PROGRESS "UX ✅" only then. 5. B7: quiet-machine repro of the +29.8 MiB cycle spike (main vs lazy faces, 3
+outputs); I10 basic render loop on machine A. 6. BACKLOG B13 (profile load clears user keys — ask the user), B14 (quick
+settings multi-output re-pick binding loop).
+
+**Gotchas:** shared CARGO_TARGET_DIR hands worktrees stale path-crate rlibs (agents: touch + rebuild; lead: always gate
+in the private target dir). Test runs regenerate tracked shots (`frontend/shots/*`, `settings/shots`) — restore them
+unless the UI changed. Machine A golden refs need `just golden --update` there (bar changed). The user's live kurashi
+qs shares Qt pages, so absolute @1-out PSS is lower than baseline (per-output deltas unaffected).
+
+---
+
 ## 2026-10-09 — session 4 close: handover to the next agent (user feedback from the first live run)
 **State:** `main` green and pushed (`just check` 330 tests + `test-launch.sh`, golden 5/5). No agents, no
 extra worktrees. The user ran `nix run .#` live on niri for the first time: the bar showed
