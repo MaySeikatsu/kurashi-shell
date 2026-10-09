@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use futures_util::stream::SelectAll;
+use futures_util::{Stream, StreamExt};
 use serde_json::Value;
 use zbus::message::Type as MsgType;
 use zbus::zvariant::OwnedValue;
@@ -73,6 +75,36 @@ pub(crate) async fn watch(conn: &Connection, rules: Vec<MatchRule<'static>>) -> 
     Ok(all)
 }
 
+/// Runs `refresh` for every bus event and emits what it returns. The stream ending, or an `Err`
+/// item, ends the loop: zbus sends the `Err` when the socket dies and ends the stream right after
+/// it, so nothing past that point asks the bus anything.
+pub(crate) async fn follow<T, S, F, Fut>(
+    service: &'static str,
+    em: &Emitter,
+    mut events: S,
+    unavailable: Value,
+    mut refresh: F,
+) where
+    S: Stream<Item = zbus::Result<T>> + Unpin,
+    F: FnMut(T) -> Fut,
+    Fut: Future<Output = Value>,
+{
+    while let Some(Ok(item)) = events.next().await {
+        em.emit(refresh(item).await);
+    }
+    ended(service, em, unavailable);
+}
+
+/// Nothing refreshes the document once its event stream is over, so it says `unavailable` instead
+/// of keeping its last value (rule 2). Logged once; the service task ends right after this.
+pub(crate) fn ended(service: &'static str, em: &Emitter, unavailable: Value) {
+    tracing::warn!(
+        service,
+        "D-Bus signal stream ended; document is now unavailable"
+    );
+    em.emit(unavailable);
+}
+
 pub(crate) fn props_changed(path_ns: &'static str) -> Result<MatchRule<'static>> {
     Ok(MatchRule::builder()
         .msg_type(MsgType::Signal)
@@ -140,4 +172,69 @@ where
 {
     conn.call_method(Some(dest), path, Some(iface), method, body)
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    use futures_util::stream;
+    use serde_json::json;
+
+    use super::*;
+
+    #[derive(Default)]
+    struct Docs(Mutex<Vec<Value>>);
+
+    impl DocSink for Docs {
+        fn set(&self, doc: Value) {
+            self.0.lock().unwrap().push(doc);
+        }
+    }
+
+    #[tokio::test]
+    async fn stream_end_marks_unavailable_after_the_last_refresh() {
+        let docs = Arc::new(Docs::default());
+        let em = Emitter::new(docs.clone());
+        let events = stream::iter(vec![Ok::<i32, zbus::Error>(1), Ok(2)]);
+        follow(
+            "test",
+            &em,
+            events,
+            json!({"gone": true}),
+            |n: i32| async move { json!({"n": n}) },
+        )
+        .await;
+        assert_eq!(
+            *docs.0.lock().unwrap(),
+            vec![json!({"n": 1}), json!({"n": 2}), json!({"gone": true})]
+        );
+    }
+
+    #[tokio::test]
+    async fn error_item_ends_the_stream_without_asking_the_bus() {
+        // zbus sends an Err when the socket dies and ends the stream right after it: no call on
+        // that dead connection, and nothing after the Err is read.
+        let docs = Arc::new(Docs::default());
+        let em = Emitter::new(docs.clone());
+        let asked = Arc::new(AtomicBool::new(false));
+        let events = stream::iter(vec![
+            Err(zbus::Error::Failure("socket closed".into())),
+            Ok(1),
+        ]);
+        follow("test", &em, events, json!({"gone": true}), |_: i32| {
+            let asked = asked.clone();
+            async move {
+                asked.store(true, Ordering::SeqCst);
+                json!({"refreshed": true})
+            }
+        })
+        .await;
+        assert!(
+            !asked.load(Ordering::SeqCst),
+            "refreshed after the socket failed"
+        );
+        assert_eq!(*docs.0.lock().unwrap(), vec![json!({"gone": true})]);
+    }
 }

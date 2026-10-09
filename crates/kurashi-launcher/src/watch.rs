@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use inotify::{EventMask, Inotify, WatchDescriptor, WatchMask, Watches};
 
@@ -18,6 +18,10 @@ const MASK: WatchMask = WatchMask::CLOSE_WRITE
     .union(WatchMask::DELETE_SELF)
     .union(WatchMask::MOVE_SELF);
 
+/// A burst may keep the callback waiting at most this many debounce periods. Without the cap, a
+/// steady stream of events, each within `debounce` of the previous one, would postpone it forever.
+const MAX_WAIT_FACTOR: u32 = 5;
+
 /// Dropping the watcher stops both threads.
 pub struct Watcher {
     stop: Arc<AtomicBool>,
@@ -28,7 +32,7 @@ pub struct Watcher {
 
 impl Watcher {
     /// Watch `dirs` (existing ones; subdirectories included) and call `on_change` once per burst
-    /// of changes, `debounce` after the last event.
+    /// of changes: `debounce` after the last event, or `MAX_WAIT_FACTOR` debounces after the first.
     pub fn new(
         dirs: &[PathBuf],
         debounce: Duration,
@@ -52,12 +56,34 @@ impl Watcher {
 
         let stop = Arc::new(AtomicBool::new(false));
         let (tx, rx) = mpsc::channel::<()>();
+        let max_wait = debounce.saturating_mul(MAX_WAIT_FACTOR);
+
+        // The debouncer is spawned first. If the reader then fails to spawn, its closure is dropped
+        // together with `tx`, the debouncer's `recv` fails, and joining it leaves nothing running.
+        let debouncer = thread::Builder::new()
+            .name("launcher-debounce".into())
+            .spawn(move || {
+                // Block until the first event, then absorb the burst until it has been quiet for
+                // `debounce`, or `max_wait` has passed, whichever comes first.
+                while rx.recv().is_ok() {
+                    let deadline = Instant::now() + max_wait;
+                    loop {
+                        let left = deadline.saturating_duration_since(Instant::now());
+                        match rx.recv_timeout(debounce.min(left)) {
+                            Ok(()) if Instant::now() < deadline => continue,
+                            Ok(()) | Err(mpsc::RecvTimeoutError::Timeout) => break,
+                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                        }
+                    }
+                    on_change();
+                }
+            })?;
 
         let reader = {
             let stop = stop.clone();
             let mut watches = watches.clone();
             let mut inotify = inotify;
-            thread::Builder::new()
+            let spawned = thread::Builder::new()
                 .name("launcher-inotify".into())
                 .spawn(move || {
                     let mut buf = [0u8; 4096];
@@ -87,24 +113,16 @@ impl Watcher {
                             break;
                         }
                     }
-                })?
-        };
-
-        let debouncer = thread::Builder::new()
-            .name("launcher-debounce".into())
-            .spawn(move || {
-                // Block until the first event, then absorb the burst.
-                while rx.recv().is_ok() {
-                    loop {
-                        match rx.recv_timeout(debounce) {
-                            Ok(()) => continue,
-                            Err(mpsc::RecvTimeoutError::Timeout) => break,
-                            Err(mpsc::RecvTimeoutError::Disconnected) => return,
-                        }
-                    }
-                    on_change();
+                });
+            match spawned {
+                Ok(reader) => reader,
+                Err(e) => {
+                    // The failed closure already dropped `tx`, so the debouncer is on its way out.
+                    let _ = debouncer.join();
+                    return Err(e);
                 }
-            })?;
+            }
+        };
 
         Ok(Self {
             stop,
