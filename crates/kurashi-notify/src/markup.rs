@@ -7,16 +7,20 @@ const DROP_WITH_CONTENT: [&str; 2] = ["script", "style"];
 
 pub fn sanitize(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
-    let mut open: Vec<&'static str> = Vec::new();
+    // Indices into KEEP, innermost last, plus how many of each are open. The counts make an
+    // unmatched closing tag O(1); scanning the stack for one was quadratic on "<b>…</i>…".
+    let mut open: Vec<usize> = Vec::new();
+    let mut depth = [0usize; KEEP.len()];
     let mut rest = input;
     while let Some(lt) = rest.find('<') {
         out.push_str(&rest[..lt]);
         let after = &rest[lt + 1..];
         let Some(gt) = after.find('>') else {
-            // Unterminated tag: literal text.
-            out.push_str("&lt;");
-            rest = after;
-            continue;
+            // No '>' after this point, so nothing from here on can be a tag: the rest is text.
+            // Handling each '<' on its own rescanned the remainder every time (quadratic).
+            out.push_str(&rest[lt..].replace('<', "&lt;"));
+            rest = "";
+            break;
         };
         let inner = &after[..gt];
         rest = &after[gt + 1..];
@@ -26,8 +30,9 @@ pub fn sanitize(input: &str) -> String {
         let name = body[..name_end].to_ascii_lowercase();
         if !closing && DROP_WITH_CONTENT.contains(&name.as_str()) {
             let needle = format!("</{name}");
-            let lower = rest.to_ascii_lowercase();
-            rest = match lower.find(&needle) {
+            // Case-insensitive without copying `rest`: a lowercase copy per dropped element was
+            // quadratic.
+            rest = match find_ascii_ci(rest, &needle) {
                 Some(p) => match rest[p..].find('>') {
                     Some(g) => &rest[p + g + 1..],
                     None => "",
@@ -36,32 +41,45 @@ pub fn sanitize(input: &str) -> String {
             };
             continue;
         }
-        let Some(tag) = KEEP.iter().copied().find(|k| *k == name) else {
+        let Some(ki) = KEEP.iter().position(|k| *k == name) else {
             continue;
         };
+        let tag = KEEP[ki];
         if closing {
-            if let Some(pos) = open.iter().rposition(|t| *t == tag) {
+            if depth[ki] > 0 {
                 // Close anything opened inside it first so output stays well-nested.
-                while open.len() > pos {
-                    let t = open.pop().unwrap();
-                    out.push_str(&format!("</{t}>"));
+                while let Some(t) = open.pop() {
+                    depth[t] -= 1;
+                    out.push_str(&format!("</{}>", KEEP[t]));
+                    if t == ki {
+                        break;
+                    }
                 }
             }
         } else if tag == "a" {
             if let Some(href) = href(&body[name_end..]) {
                 out.push_str(&format!("<a href=\"{href}\">"));
-                open.push("a");
+                open.push(ki);
+                depth[ki] += 1;
             }
         } else {
             out.push_str(&format!("<{tag}>"));
-            open.push(tag);
+            open.push(ki);
+            depth[ki] += 1;
         }
     }
     out.push_str(rest);
     while let Some(t) = open.pop() {
-        out.push_str(&format!("</{t}>"));
+        out.push_str(&format!("</{}>", KEEP[t]));
     }
     out
+}
+
+/// ASCII case-insensitive `find` for an ASCII `needle`, without copying `hay`.
+fn find_ascii_ci(hay: &str, needle: &str) -> Option<usize> {
+    hay.as_bytes()
+        .windows(needle.len())
+        .position(|w| w.eq_ignore_ascii_case(needle.as_bytes()))
 }
 
 fn href(attrs: &str) -> Option<String> {
@@ -81,7 +99,48 @@ fn href(attrs: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use super::sanitize;
+
+    /// Budget for 1 MB of hostile markup: 100 ms release, 1 s debug.
+    fn budget() -> Duration {
+        if cfg!(debug_assertions) {
+            Duration::from_secs(1)
+        } else {
+            Duration::from_millis(100)
+        }
+    }
+
+    #[test]
+    fn drop_blocks_are_linear() {
+        let input = "<style>x</style>".repeat(1 << 16); // 1 MiB
+        let t = Instant::now();
+        let out = sanitize(&input);
+        let took = t.elapsed();
+        assert!(out.is_empty());
+        assert!(took < budget(), "sanitize took {took:?}");
+    }
+
+    #[test]
+    fn lone_lt_is_linear() {
+        let input = "<".repeat(1 << 20);
+        let t = Instant::now();
+        let out = sanitize(&input);
+        let took = t.elapsed();
+        assert!(out == "&lt;".repeat(1 << 20));
+        assert!(took < budget(), "sanitize took {took:?}");
+    }
+
+    #[test]
+    fn unmatched_closers_are_linear() {
+        let input = format!("{}{}", "<b>".repeat(1 << 16), "</i>".repeat(1 << 16));
+        let t = Instant::now();
+        let out = sanitize(&input);
+        let took = t.elapsed();
+        assert!(out == format!("{}{}", "<b>".repeat(1 << 16), "</b>".repeat(1 << 16)));
+        assert!(took < budget(), "sanitize took {took:?}");
+    }
 
     #[test]
     fn strips_dangerous() {
