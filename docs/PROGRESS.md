@@ -131,6 +131,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W13.2 | Quick settings daemon pages (scan doc, connect/airplane, sources/streams, power profiles, DND until) | ✅ | 3699371 (K29) |
 | W13.3 | Island daemon: secondary/overflow/detail/stale_at, core transient signals | ✅ | K30 |
 | W13.4 | svc.media position/rate/can/players, seek/select | ✅ | K31 |
-| W13.5 | UX passes: settings, quick settings UI, island views | 🔄 | W13-settings-ux, W13-quick-ux, W13-island-views |
+| W13.5 | UX passes: settings (849c0ea), quick settings (1e63bfd), island views (4f49b0b) | ✅ functional · UX review 1 done, polish open (I44–I47, I50–I52) | lead reviews in docs/ux/*.md |
 | W14 | Mod runtime (jobs, list settings, capabilities, unlinked refusal), live all-mods test, mod UX passes | 🔄 | W14-* (sysmon/weather UX after mod-runtime) |
 
