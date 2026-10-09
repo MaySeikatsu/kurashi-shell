@@ -23,7 +23,9 @@ ShellRoot {
     // Latched while the popup is open so it never jumps outputs; re-picked on each open.
     property var stageScreen: focusedScreen()
     // The Stage shows the island panel only; other panels (notifications) have their own surface.
-    readonly property bool want: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].panel) === "island"
+    // (kurashi-mock has no `panel`, only `popup`.)
+    readonly property var ui: Store.docs["runtime.ui"]
+    readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true : ui.panel === "island")
     property bool stageOpen: false      // follows want, but only after the screen is re-picked
     onWantChanged: { if (want) stageScreen = focusedScreen(); stageOpen = want }
 
