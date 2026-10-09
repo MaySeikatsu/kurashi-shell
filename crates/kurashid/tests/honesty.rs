@@ -19,8 +19,10 @@ use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
 
 const A11Y_LAYER: &str = "accessibility";
 const A11Y_REASON: &str = "settings.inert.overridden_by";
+const REQUIRES_REASON: &str = "settings.inert.requires";
+const PENDING_RESTART: &str = "settings.pending.restart";
 const INERT_REASONS: [&str; 3] = [
-    "settings.inert.requires",
+    REQUIRES_REASON,
     "settings.inert.capability",
     "settings.inert.overridden_by",
 ];
@@ -347,6 +349,7 @@ async fn enforced_managed_value_pins_the_key_and_masks_the_user_set() {
             source: Source::Forced(FORCED_NIX.into()),
             forced_by: Some(FORCED_NIX.into()),
             reason: Some(REASON_NIX_ENFORCED.into()),
+            inert_by: None,
         };
 
         let mut client = start(Some(managed)).await;
@@ -400,6 +403,7 @@ async fn a11y_modes_force_their_coupled_keys_with_a_reason() {
                 source: Source::Forced(A11Y_LAYER.into()),
                 forced_by: Some(mode.clone()),
                 reason: Some(A11Y_REASON.into()),
+                inert_by: None,
             };
             let p = client.get(key, None).await;
             if p != want {
@@ -431,11 +435,112 @@ async fn a11y_modes_force_their_coupled_keys_with_a_reason() {
     assert!(bad.is_empty(), "{bad:#?}");
 }
 
+/// K21 (rule 2): a `restart` key that runs another value than its service started with says so
+/// until it is set back. The reason is pending, not inert: the row stays editable, and the value
+/// the service runs with does not change before the restart.
+#[tokio::test]
+async fn restart_keys_report_pending_until_set_back_to_start_up() {
+    let mut bad = Vec::new();
+    for m in registry().iter().filter(|m| m.flags.restart) {
+        let key = m.key.as_str();
+        if m.flags.per_output {
+            bad.push(format!(
+                "{key}: a restart key is per output, but pending-restart is tracked per key"
+            ));
+            continue;
+        }
+        let mut client = start(None).await;
+        let changed = non_default(m);
+        if !matches!(
+            client.apply(vec![set(key, changed.clone())]).await,
+            ServerMsg::Applied { .. }
+        ) {
+            bad.push(format!("{key}: valid value {changed} rejected"));
+            continue;
+        }
+        let p = client.get(key, None).await;
+        if p.value != changed
+            || p.source != Source::User
+            || p.reason.as_deref() != Some(PENDING_RESTART)
+            || p.inert_by.is_some()
+        {
+            bad.push(format!(
+                "{key}: set {changed}, expected pending restart, cfg.get says {p:?}"
+            ));
+        }
+        audit(&mut client, &format!("{key}=pending"), &mut bad).await;
+
+        if !matches!(
+            client.apply(vec![set(key, m.default.clone())]).await,
+            ServerMsg::Applied { .. }
+        ) {
+            bad.push(format!(
+                "{key}: setting the start-up value back was rejected"
+            ));
+            continue;
+        }
+        let p = client.get(key, None).await;
+        if p.value != m.default || p.reason.is_some() || p.inert_by.is_some() {
+            bad.push(format!(
+                "{key}: back at its start-up value, expected no reason, cfg.get says {p:?}"
+            ));
+        }
+        audit(&mut client, &format!("{key}=back"), &mut bad).await;
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// K21, per output: `bar.enabled` off on one output makes `bar.edge` inert there and nowhere else.
+/// `bar.edge` has no value of its own on that output, so the output's entry in the `config` document
+/// must carry the reason anyway: the view falls back to the global entry and does not evaluate
+/// `requires` itself.
+#[tokio::test]
+async fn output_scoped_requires_is_reported_in_that_output_only() {
+    let mut client = start(None).await;
+    let off_on_dp1 = ApplyOp::Set {
+        set: "bar.enabled".into(),
+        value: json!(false),
+        output: Some("DP-1".into()),
+    };
+    assert!(
+        matches!(
+            client.apply(vec![off_on_dp1]).await,
+            ServerMsg::Applied { .. }
+        ),
+        "bar.enabled@DP-1 = false rejected"
+    );
+    let mut bad = Vec::new();
+    let inert = client.get("bar.edge", Some("DP-1")).await;
+    if inert.reason.as_deref() != Some(REQUIRES_REASON)
+        || inert.inert_by.as_deref() != Some("bar.enabled")
+    {
+        bad.push(format!(
+            "bar.edge@DP-1 should be inert by bar.enabled, cfg.get says {inert:?}"
+        ));
+    }
+    for scope in [None, Some("DP-2")] {
+        let p = client.get("bar.edge", scope).await;
+        if p.reason.is_some() || p.inert_by.is_some() {
+            bad.push(format!(
+                "bar.edge@{scope:?} should be active, cfg.get says {p:?}"
+            ));
+        }
+    }
+    let doc = client.config_doc().await;
+    if doc["outputs"]["DP-1"]["bar.edge"] != json!(&inert) {
+        bad.push(format!(
+            "config doc lists bar.edge@DP-1 as {}, cfg.get says {inert:?}",
+            doc["outputs"]["DP-1"]["bar.edge"]
+        ));
+    }
+    audit(&mut client, "bar.enabled@DP-1=off", &mut bad).await;
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
 /// Goal of the card: a control the schema makes inert (a `requires` coupling, or an active
 /// `overridden_by` mode) carries a reason in the daemon's report. The schema's own `blocked_by`,
 /// evaluated over the daemon's effective values, gives the expected inert set.
 #[tokio::test]
-#[ignore = "K21: requires-inertness reported by the daemon (card M1-inert-reasons)"]
 async fn inert_controls_report_why_they_are_inert() {
     let mut scenarios: Vec<(String, Vec<ApplyOp>)> = vec![("defaults".into(), vec![])];
     scenarios.push((
@@ -477,6 +582,27 @@ async fn inert_controls_report_why_they_are_inert() {
                         m.key
                     ))
                 }
+                _ => {}
+            }
+            // K21: `inert_by` names a blocking `requires` key, and is present exactly when the
+            // reason is the requires one.
+            let by_requires: BTreeSet<&str> = blocking
+                .iter()
+                .filter_map(|c| match c {
+                    Coupling::Requires { key, .. } => Some(key.as_str()),
+                    _ => None,
+                })
+                .collect();
+            match (p.reason.as_deref(), p.inert_by.as_deref()) {
+                (Some(REQUIRES_REASON), Some(by)) if by_requires.contains(by) => {}
+                (Some(REQUIRES_REASON), by) => bad.push(format!(
+                    "[{name}] {}: requires reason with inert_by {by:?}, blocking requires keys {by_requires:?}",
+                    m.key
+                )),
+                (_, Some(by)) => bad.push(format!(
+                    "[{name}] {}: inert_by {by} without the requires reason ({p:?})",
+                    m.key
+                )),
                 _ => {}
             }
         }

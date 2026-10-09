@@ -10,6 +10,7 @@
 "settings.ui.no_results" = "No settings match"
 "settings.ui.per_output" = "per output"
 "settings.ui.restart" = "needs restart"
+"settings.pending.restart" = "Saved; takes effect after the shell restarts."
 "settings.ui.forced_by" = "Forced by"
 "settings.ui.requires_ne" = "Only applies while {key} is not {value}."
 "settings.ui.on" = "on"

@@ -2,12 +2,13 @@
 //! and `schema.settings` documents, answering `cfg.*` / `apply` / `undo` / `redo` and the
 //! `profile.*` actions (PROTOCOL §5).
 
-use std::sync::{Arc, Mutex};
+use std::collections::{BTreeSet, HashMap};
+use std::sync::{Arc, Mutex, OnceLock};
 
 use kurashi_config::{Config, Op, Options, Paths, SchemaView};
 use kurashi_core::Provenanced;
 use kurashi_ipc::{ApplyOp, DiffEntry, LayerValue, OpError};
-use kurashi_schema::Registry;
+use kurashi_schema::{Coupling, Registry};
 use serde_json::{Map, Value, json};
 
 use crate::actions::{ActionError, ActionRegistry};
@@ -15,6 +16,8 @@ use crate::hub::Hub;
 
 pub const DOC: &str = "config";
 pub const SETTINGS_DOC: &str = "schema.settings";
+/// Reason of a `restart` key whose value differs from the one its service started with (K21).
+pub const REASON_PENDING_RESTART: &str = "settings.pending.restart";
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet.
 pub struct SchemaAdapter(pub &'static Registry);
@@ -45,6 +48,8 @@ pub struct ConfigStore {
     registry: &'static Registry,
     /// `forced:accessibility` entries currently applied (only rewritten when they change).
     a11y_forced: Mutex<Vec<(String, Value, String)>>,
+    /// Effective value of each `restart` key when the daemon started: what its service runs with.
+    started: OnceLock<HashMap<String, Value>>,
     listeners: Mutex<Vec<Listener>>,
 }
 
@@ -140,11 +145,29 @@ impl ConfigStore {
             hub: hub.clone(),
             registry,
             a11y_forced: Mutex::new(Vec::new()),
+            started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
         });
         store.apply_couplings();
+        store.remember_started();
         hub.register(DOC, store.document(), None);
         store
+    }
+
+    /// Records the `restart` keys' effective values once, after the couplings forced what they
+    /// force: a later difference is pending until the next start (K21). Restart keys are global;
+    /// a per-output one would need per-output starts (the honesty test asserts there is none).
+    fn remember_started(&self) {
+        let cfg = self.cfg.lock().expect("config lock");
+        let started = self
+            .registry
+            .iter()
+            .filter(|m| m.flags.restart)
+            .filter_map(|m| cfg.resolve(&m.key, None).map(|p| (m.key.clone(), p.value)))
+            .collect();
+        self.started
+            .set(started)
+            .expect("restart values are taken once, at open");
     }
 
     /// Run `f` after every effective change (theme recompute, island config, …).
@@ -156,7 +179,6 @@ impl ConfigStore {
     /// become `forced:accessibility` entries with `forced_by` = the mode key, so the UI shows
     /// why a control is inert instead of silently ignoring it (Shōjiki).
     fn apply_couplings(&self) {
-        use kurashi_schema::Coupling;
         let mut cfg = self.cfg.lock().expect("config lock");
         let mut want: Vec<(String, Value, String)> = Vec::new();
         for key in self.registry.keys() {
@@ -196,27 +218,79 @@ impl ConfigStore {
     }
 
     /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}}` — rebuilt whole and
-    /// diffed by the hub, so patches carry exactly what changed (K17).
+    /// diffed by the hub, so patches carry exactly what changed (K17). An output with values of its
+    /// own lists every per-output key, so a key inert on that output alone says so without an
+    /// override of its own: the view falls back to the global entry, and must not have to evaluate
+    /// `requires` itself (K21).
     pub fn document(&self) -> Value {
         let cfg = self.cfg.lock().expect("config lock");
+        let keys = cfg.schema().keys();
         let mut values = Map::new();
-        let mut outputs: Map<String, Value> = Map::new();
-        for key in cfg.schema().keys() {
-            if let Some(p) = cfg.resolve(&key, None) {
-                values.insert(key.clone(), json!(p));
-            }
-            for out in cfg.outputs_for(&key) {
-                if let Some(p) = cfg.resolve(&key, Some(&out)) {
-                    outputs
-                        .entry(out)
-                        .or_insert_with(|| json!({}))
-                        .as_object_mut()
-                        .expect("object")
-                        .insert(key.clone(), json!(p));
-                }
+        for key in &keys {
+            if let Some(p) = cfg.resolve(key, None) {
+                values.insert(key.clone(), json!(self.decorate(&cfg, key, None, p)));
             }
         }
+        let explicit: Vec<(&String, BTreeSet<String>)> =
+            keys.iter().map(|k| (k, cfg.outputs_for(k))).collect();
+        let named: BTreeSet<String> = explicit
+            .iter()
+            .flat_map(|(_, outs)| outs.iter().cloned())
+            .collect();
+        let mut outputs: Map<String, Value> = Map::new();
+        for out in &named {
+            let mut scope = Map::new();
+            for (key, own) in &explicit {
+                if !(own.contains(out) || cfg.schema().per_output(key)) {
+                    continue;
+                }
+                let scoped = Some(out.as_str());
+                if let Some(p) = cfg.resolve(key, scoped) {
+                    scope.insert(key.to_string(), json!(self.decorate(&cfg, key, scoped, p)));
+                }
+            }
+            outputs.insert(out.clone(), Value::Object(scope));
+        }
         json!({"values": values, "outputs": outputs})
+    }
+
+    /// K21: the provenance `cfg.get`, `cfg.explain` and the `config` document all report, so they
+    /// agree. A reason a forced layer already gave stays: the value was replaced, which is the
+    /// stronger statement, and the honesty test pins that reason. Otherwise a `requires` coupling
+    /// that does not hold makes the key inert, `inert_by` naming the key it waits on (read in the
+    /// same output scope). Failing that, a restart key running another value than at start is
+    /// pending. The value and source never change.
+    fn decorate(
+        &self,
+        cfg: &Config<SchemaAdapter>,
+        key: &str,
+        output: Option<&str>,
+        mut p: Provenanced,
+    ) -> Provenanced {
+        if p.reason.is_some() {
+            return p;
+        }
+        let value_of = |k: &str| cfg.resolve(k, output).map(|q| q.value);
+        let requires = self.registry.get(key).and_then(|m| {
+            m.couplings.iter().find_map(|c| match c {
+                Coupling::Requires { key: by, .. } if c.blocks(&value_of, &|_: &str| true) => {
+                    Some((c.reason_key(), by.clone()))
+                }
+                _ => None,
+            })
+        });
+        if let Some((reason, by)) = requires {
+            p.reason = Some(reason.into());
+            p.inert_by = Some(by);
+        } else if self
+            .started
+            .get()
+            .and_then(|s| s.get(key))
+            .is_some_and(|start| *start != p.value)
+        {
+            p.reason = Some(REASON_PENDING_RESTART.into());
+        }
+        p
     }
 
     pub fn registry(&self) -> &'static Registry {
@@ -253,20 +327,34 @@ impl ConfigStore {
     }
 
     pub fn get(&self, key: &str, output: Option<&str>) -> Option<Provenanced> {
-        self.cfg.lock().expect("config lock").resolve(key, output)
+        let cfg = self.cfg.lock().expect("config lock");
+        let p = cfg.resolve(key, output)?;
+        Some(self.decorate(&cfg, key, output, p))
     }
 
     pub fn explain(&self, key: &str, output: Option<&str>) -> Vec<LayerValue> {
-        let layers = self.cfg.lock().expect("config lock").explain(key, output);
+        let cfg = self.cfg.lock().expect("config lock");
+        let layers = cfg.explain(key, output);
+        // The active layer states the reason `cfg.get` reports, so the two cannot disagree (K21).
+        let shown = cfg
+            .resolve(key, output)
+            .map(|p| self.decorate(&cfg, key, output, p));
         let n = layers.len();
         layers
             .into_iter()
             .enumerate()
-            .map(|(i, l)| LayerValue {
-                source: l.source,
-                value: l.value,
-                active: i + 1 == n,
-                reason: l.reason.or(l.forced_by),
+            .map(|(i, l)| {
+                let active = i + 1 == n;
+                let reason = match (active, &shown) {
+                    (true, Some(p)) => p.reason.clone().or_else(|| p.forced_by.clone()),
+                    _ => l.reason.or(l.forced_by),
+                };
+                LayerValue {
+                    source: l.source,
+                    value: l.value,
+                    active,
+                    reason,
+                }
             })
             .collect()
     }

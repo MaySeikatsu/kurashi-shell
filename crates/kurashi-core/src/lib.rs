@@ -28,6 +28,10 @@ pub struct Provenanced {
     pub forced_by: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
+    /// With `reason` = `settings.inert.requires`: the key whose value the `requires` coupling
+    /// waits on (K21). Absent for every other reason.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub inert_by: Option<String>,
 }
 
 /// Default socket location: `$KURASHI_SOCKET` or `$XDG_RUNTIME_DIR/kurashi/ipc.sock`.
