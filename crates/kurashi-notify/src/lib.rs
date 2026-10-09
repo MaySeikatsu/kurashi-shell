@@ -542,7 +542,20 @@ impl Server {
         }
         conn.object_server().at(PATH, Iface(core.clone())).await?;
         if claim {
-            conn.request_name(IFACE).await?;
+            // Never steal the name from a running notification daemon (e.g. the user's current
+            // shell): no ReplaceExisting, no queueing. Without the name the server keeps serving
+            // its document and commands; it just receives nothing.
+            let flags = zbus::fdo::RequestNameFlags::DoNotQueue.into();
+            match conn.request_name_with_flags(IFACE, flags).await {
+                Ok(zbus::fdo::RequestNameReply::PrimaryOwner)
+                | Ok(zbus::fdo::RequestNameReply::AlreadyOwner) => {}
+                Ok(other) => {
+                    tracing::warn!(?other, "org.freedesktop.Notifications is owned elsewhere")
+                }
+                Err(e) => {
+                    tracing::warn!(error = %e, "could not request org.freedesktop.Notifications")
+                }
+            }
         }
         let c = core.clone();
         let timer = tokio::spawn(async move {

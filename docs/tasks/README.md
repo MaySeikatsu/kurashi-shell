@@ -27,7 +27,9 @@ merges, and records progress; agents only build what their card says.
 5. **Never touch the user's session.** No GUI on the real display; use `tools/bench/sandbox.sh`
    (fails closed since 61d76fa) and only your own sandbox name. Kill only PIDs you started; never
    `pkill`/`killall`. Reading state from the live compositor is allowed only if your card says so,
-   and then strictly read-only.
+   and then strictly read-only. Running `kurashid` yourself: isolated `XDG_CONFIG_HOME`,
+   `XDG_STATE_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, `KURASHI_SOCKET` **and** the sandbox's
+   `DBUS_SESSION_BUS_ADDRESS` (the daemon exports a notification server on the session bus).
 6. **Quality bar.** `cargo fmt`, `cargo clippy -p <crate> --all-targets -- -D warnings`, tests
    green, `[lints] workspace = true` in every new crate. Code identifiers English; user-facing
    strings only via i18n keys. Comment density like the existing crates (sparse, explain why;

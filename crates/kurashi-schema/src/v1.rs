@@ -28,6 +28,10 @@ pub struct Config {
     pub a11y: A11y,
     #[kurashi(nested)]
     pub island: Island,
+    #[kurashi(nested)]
+    pub notifications: Notifications,
+    #[kurashi(nested)]
+    pub launcher: Launcher,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -260,9 +264,9 @@ pub struct Island {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(input_slots(
     left = "island.expand",
-    right = "island.face_picker",
-    scroll_up = "island.face.prev",
-    scroll_down = "island.face.next"
+    right = "island.pin",
+    scroll_up = "island.prev",
+    scroll_down = "island.next"
 ))]
 pub struct IslandInstance {
     /// Faces
@@ -277,4 +281,38 @@ pub struct IslandInstance {
     /// How long a transient face (volume, notification) stays before falling back.
     #[kurashi(default = 5, range = 1..=60, unit = "s")]
     pub ttl: u32,
+}
+
+// --- notifications ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "notifications", section = "server")]
+pub struct Notifications {
+    /// Notification server
+    /// Receive desktop notifications. Never takes over from another running notification daemon.
+    #[kurashi(default = true, restart)]
+    pub server: bool,
+    /// Do not disturb
+    /// Store notifications silently; critical ones still show.
+    #[kurashi(default = false)]
+    pub dnd: bool,
+    /// History size
+    /// How many notifications are kept.
+    #[kurashi(default = 200, range = 10..=2000, step = 10, advanced, restart)]
+    pub history_max: u32,
+}
+
+// --- launcher --------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "launcher", section = "apps")]
+pub struct Launcher {
+    /// Terminal command
+    /// Prefix for apps that need a terminal, e.g. foot -e.
+    #[kurashi(default = strings(&["foot", "-e"]), restart)]
+    pub terminal: Vec<String>,
+    /// Separate app scopes
+    /// Start apps in their own systemd scope so they outlive the shell.
+    #[kurashi(default = true, advanced, restart)]
+    pub systemd_scope: bool,
 }

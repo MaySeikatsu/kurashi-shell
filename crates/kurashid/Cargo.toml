@@ -17,6 +17,10 @@ kurashi-schema = { path = "../kurashi-schema" }
 notify = "8"
 kurashi-theme = { path = "../kurashi-theme" }
 chrono.workspace = true
+kurashi-launcher = { path = "../kurashi-launcher" }
+kurashi-notify = { path = "../kurashi-notify" }
+kurashi-mods = { path = "../kurashi-mods" }
+semver = "1"
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 anyhow.workspace = true
 serde_json.workspace = true

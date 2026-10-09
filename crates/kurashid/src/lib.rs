@@ -10,6 +10,7 @@ pub mod island;
 pub mod server;
 pub mod services;
 pub mod theme;
+pub mod wiring;
 pub mod workspaces;
 
 use std::sync::Arc;
@@ -17,6 +18,9 @@ use std::sync::Arc;
 pub use actions::{ActionError, ActionRegistry};
 pub use hub::{Hub, Provider};
 pub use intents::Intents;
+
+/// A `query` provider (PROTOCOL §6): query text → result items.
+pub type QueryFn = Arc<dyn Fn(&str) -> Vec<serde_json::Value> + Send + Sync>;
 
 /// Shared daemon state handed to every connection.
 pub struct Daemon {
@@ -28,6 +32,8 @@ pub struct Daemon {
     pub instance: String,
     /// `None` only in protocol tests that don't need config.
     pub config: Option<Arc<config::ConfigStore>>,
+    /// `query` providers by `kind` (e.g. `launcher`).
+    pub queries: std::collections::BTreeMap<String, QueryFn>,
 }
 
 impl Daemon {
@@ -39,6 +45,7 @@ impl Daemon {
             caps: Vec::new(),
             instance: new_instance_id(),
             config: None,
+            queries: Default::default(),
         }
     }
 }
@@ -48,4 +55,21 @@ fn new_instance_id() -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
     format!("{:x}{:x}", nanos as u64, std::process::id())
+}
+
+/// `$XDG_<kind>_HOME/kurashi` with the spec's fallbacks (`state` → ~/.local/state, `cache` →
+/// ~/.cache, `data` → ~/.local/share).
+pub fn xdg_dir(kind: &str) -> std::path::PathBuf {
+    let (var, fallback) = match kind {
+        "state" => ("XDG_STATE_HOME", ".local/state"),
+        "cache" => ("XDG_CACHE_HOME", ".cache"),
+        _ => ("XDG_DATA_HOME", ".local/share"),
+    };
+    let base = std::env::var_os(var)
+        .filter(|v| !v.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default()).join(fallback)
+        });
+    base.join("kurashi")
 }
