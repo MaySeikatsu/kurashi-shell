@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDateTime, Timelike};
 use serde_json::{Map, Value, json};
 
 use crate::api::{self, Day, Forecast, Hour, Units};
-use crate::places::Place;
+use crate::places::{self, Place};
 use crate::rain::{self, Nowcast};
 
 /// Past this age, temperatures are not sent: the panel says "last known … at HH:MM" only.
@@ -89,16 +89,26 @@ pub struct Input<'a> {
     /// `setting` when the user picked the unit system, `locale` when it comes from the locale.
     pub units_from: &'static str,
     pub template: &'a str,
+    /// The saved places in order, and the `place` setting (`""` = the first one is the default).
+    pub saved: &'a [Place],
+    pub configured: &'a str,
 }
 
 /// The document for the current state. Without a place there is nothing to show but the call to
-/// action; without data the state says loading or why the first fetch failed.
+/// action; without data the state says loading or why the first fetch failed. The saved places
+/// and the default are always there: the panel's place list must not depend on the weather.
 pub fn build(i: &Input) -> Value {
     let mut doc = Map::new();
     doc.insert("template".into(), json!(i.template));
     doc.insert("refresh_min".into(), json!(i.refresh_s / 60));
     doc.insert("units".into(), json!(i.units.key()));
     doc.insert("units_from".into(), json!(i.units_from));
+    doc.insert(
+        "places".into(),
+        json!(i.saved.iter().map(|p| place_json(p, &p.tz)).collect::<Vec<_>>()),
+    );
+    let default_id = places::effective(i.saved, i.configured, None).map(|p| p.id.clone());
+    doc.insert("default_id".into(), json!(default_id));
     let Some(place) = i.place else {
         doc.insert("available".into(), json!(false));
         doc.insert("reason".into(), json!("mod-weather.no_location"));
@@ -347,6 +357,42 @@ mod tests {
             sun_json(&d).is_empty(),
             "no times and no polar reason: no sun row"
         );
+    }
+
+    fn saved(id: &str) -> Place {
+        Place {
+            id: id.into(),
+            name: format!("place {id}"),
+            admin: None,
+            country: None,
+            country_code: None,
+            lat: 0.0,
+            lon: 0.0,
+            tz: "UTC".into(),
+        }
+    }
+
+    #[test]
+    fn saved_places_and_the_default_come_without_any_data() {
+        let list = vec![saved("1"), saved("2")];
+        let mut i = Input {
+            place: None,
+            data: None,
+            failure: None,
+            now: 0,
+            refresh_s: 1800,
+            units: Units::Metric,
+            units_from: "locale",
+            template: "{glyph} {temp}",
+            saved: &list,
+            configured: "",
+        };
+        let doc = build(&i);
+        assert_eq!(doc["places"].as_array().map(Vec::len), Some(2));
+        assert_eq!(doc["default_id"], json!("1"), "the first saved place is the default");
+        assert_eq!(doc["reason"], json!("mod-weather.no_location"));
+        i.configured = "2";
+        assert_eq!(build(&i)["default_id"], json!("2"));
     }
 
     #[test]
