@@ -6,7 +6,7 @@ fresh headless-sway sandbox per pass and writes tools/bench/results/<name>.json 
   python3 tools/bench/measure.py --name frontend-real --daemon real -- qs -p frontend
 
 Pass A (clean)          : idle CPU %, wakeups/s (ctx switches), PSS @1 output, PSS popup open,
-                          PSS @2 outputs (hotplug), GPU memory (nvidia-smi), surviving after hotplug
+                          PSS @2 and @3 outputs (hotplug), GPU memory (nvidia-smi), surviving after hotplug
                           (real daemon: + PSS growth over --cycles open/close cycles of each panel)
 Pass B (WAYLAND_DEBUG)  : startup ms (launch → first commit), idle commits/s per surface,
                           popup input→commit latency (median of 5), island morph frame pacing
@@ -270,6 +270,11 @@ def pass_a(name, cmd, warmup, idle, cycles=20):
         sb.add_output()
         time.sleep(4)
         r["pss_mib_2out"] = round(pss_kib(tree(app.pid)) / 1024, 1)
+        # A third output: one hotplug delta scatters by about ±1 MiB (heap growth that is not
+        # per output), so the gate takes the mean of two (budget.py, B7).
+        sb.add_output()
+        time.sleep(4)
+        r["pss_mib_3out"] = round(pss_kib(tree(app.pid)) / 1024, 1)
         r["survived_hotplug"] = app.poll() is None
         if DAEMON == "real" and cycles > 0:
             r.update(cycle_test(sb.env, app, cycles))
