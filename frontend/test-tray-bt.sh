@@ -103,95 +103,10 @@ shot() { # <name> [settle-seconds]
   echo "shot $1"
 }
 
-# A virtual pointer clicks inside the sandbox (its seat has no pointer device); same protocol as
-# frontend/test-bindings.sh. click <x> <y> <left|middle|right>.
+# A virtual pointer clicks inside the sandbox (its seat has no pointer device): tools/bench/wl_pointer.py, the
+# helper frontend/test-bindings.sh uses too. click <x> <y> <left|middle|right>, at layout coordinates.
 click() {
-  timeout 30 python3 -I - "$1" "$2" "$SW" "$SH" "$3" <<'PY'
-import os, socket, struct, sys, time
-
-x, y, w, h = (int(a) for a in sys.argv[1:5])
-button = {"left": 272, "right": 273, "middle": 274}[sys.argv[5]]
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.path.join(os.environ["XDG_RUNTIME_DIR"], os.environ["WAYLAND_DISPLAY"]))
-inbuf = bytearray()
-
-DISPLAY, REG, SYNC1, SEAT, MANAGER, POINTER, SYNC2 = 1, 2, 3, 4, 5, 6, 7
-
-
-def send(obj, op, payload=b""):
-    sock.sendall(struct.pack("<IHH", obj, op, 8 + len(payload)) + payload)
-
-
-def string(text):
-    raw = text.encode() + b"\0"
-    return struct.pack("<I", len(raw)) + raw + b"\0" * (-len(raw) % 4)
-
-
-def read_event():
-    while True:
-        if len(inbuf) >= 8:
-            obj, op, size = struct.unpack_from("<IHH", inbuf)
-            if len(inbuf) >= size:
-                body = bytes(inbuf[8:size])
-                del inbuf[:size]
-                return obj, op, body
-        chunk = sock.recv(65536)
-        if not chunk:
-            sys.exit("click: compositor closed the connection")
-        inbuf.extend(chunk)
-
-
-send(DISPLAY, 1, struct.pack("<I", REG))
-send(DISPLAY, 0, struct.pack("<I", SYNC1))
-globals_ = {}
-while True:
-    obj, op, body = read_event()
-    if obj == REG and op == 0:
-        name, = struct.unpack_from("<I", body, 0)
-        n, = struct.unpack_from("<I", body, 4)
-        iface = body[8:8 + n - 1].decode()
-        version, = struct.unpack_from("<I", body, 8 + ((n + 3) & ~3))
-        globals_[iface] = (name, version)
-    elif obj == SYNC1 and op == 0:
-        break
-    elif obj == DISPLAY and op == 0:
-        sys.exit(f"click: wayland error {body!r}")
-
-
-def bind(iface, max_version, new_id):
-    name, version = globals_[iface]
-    send(REG, 0, struct.pack("<I", name) + string(iface)
-         + struct.pack("<II", min(version, max_version), new_id))
-
-
-bind("wl_seat", 5, SEAT)
-bind("zwlr_virtual_pointer_manager_v1", 2, MANAGER)
-send(MANAGER, 0, struct.pack("<II", SEAT, POINTER))
-
-
-def ms():
-    return int(time.monotonic() * 1000) & 0xFFFFFFFF
-
-
-time.sleep(0.5)
-send(POINTER, 1, struct.pack("<IIIII", ms(), x, y, w, h))
-send(POINTER, 4)
-time.sleep(0.2)
-send(POINTER, 2, struct.pack("<III", ms(), button, 1))
-send(POINTER, 4)
-send(POINTER, 2, struct.pack("<III", ms(), button, 0))
-send(POINTER, 4)
-send(DISPLAY, 0, struct.pack("<I", SYNC2))
-while True:
-    obj, op, body = read_event()
-    if obj == SYNC2 and op == 0:
-        break
-    if obj == DISPLAY and op == 0:
-        sys.exit(f"click: wayland error {body!r}")
-time.sleep(0.5)
-PY
+  timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" "$3"
 }
 
 # 1. The bar: the mock's two items at the bar's end.
