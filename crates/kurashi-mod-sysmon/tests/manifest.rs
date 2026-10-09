@@ -71,15 +71,19 @@ fn the_shipped_manifest_passes_the_validator_and_declares_what_the_crate_registe
         Provide::Panel("sysmon".into()),
         Provide::IslandFace("sysmon".into()),
         Provide::Action("sysmon.*".into()),
+        Provide::Job("watch".into()),
     ] {
         assert!(m.provides.contains(&want), "{want:?}");
     }
     let keys: Vec<&str> = m.settings.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys.len(), 14, "{keys:?}");
+    assert_eq!(keys.len(), 11, "{keys:?}");
     let interval = m.settings.iter().find(|s| s.key == "interval").unwrap();
     assert_eq!(interval.ty, SettingType::Int);
     assert_eq!(interval.range, Some((1.0, 60.0)));
-    assert!(m.capabilities.is_empty());
+    let show = m.settings.iter().find(|s| s.key == "show").unwrap();
+    assert_eq!(show.ty, SettingType::List);
+    assert_eq!(show.choices, ["cpu", "mem", "temp", "load"]);
+    assert_eq!(m.capabilities, ["fs:read", "proc:signal"]);
 }
 
 #[test]
