@@ -77,3 +77,12 @@ merges, and records progress; agents only build what their card says.
 Lead (in parallel): config/schema wiring into kurashid (M1.5), theme + notify wiring.
 
 Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kurashi-mock` / CLI.
+
+## Wave 5 (UI, after frontend-core)
+| Card | Owner paths | Model |
+|---|---|---|
+| [M5-ui-island-faces](M5-ui-island-faces.md) | `frontend/components/Island.qml`, `frontend/components/faces/` | sonnet |
+| [M5-ui-notifications](M5-ui-notifications.md) | `frontend/surfaces/{Toasts,NotificationCenter}.qml` | sonnet |
+| [M5-ui-launcher](M5-ui-launcher.md) | `frontend/surfaces/Launcher.qml` | sonnet |
+| [M5-ui-lock](M5-ui-lock.md) | `frontend/surfaces/Lock.qml` | sonnet |
+
