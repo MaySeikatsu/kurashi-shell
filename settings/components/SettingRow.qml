@@ -42,7 +42,8 @@ Item {
 
             Column {
                 id: labels
-                width: Math.max(160, parent.width * 0.36)
+                // A capped label column (UX review R.2 item 17): wide windows give the control the rest.
+                width: Math.min(300, Math.max(160, parent.width * 0.36))
                 spacing: 2
                 Text {
                     width: parent.width
@@ -89,7 +90,7 @@ Item {
                 id: slot
                 x: labels.width + Theme.pad
                 width: head.width - x - chip.width - resetBtn.width - 2 * Theme.pad
-                height: Math.max(ctl.item ? ctl.item.implicitHeight : 0, 28)
+                height: Math.max(ctl.item ? ctl.item.implicitHeight : 0, Theme.controlH)
                 anchors.verticalCenter: parent.verticalCenter
                 opacity: r.inert ? 0.5 : 1
                 Loader {
@@ -163,6 +164,8 @@ Item {
     Component {
         id: cToggle
         Toggle {
+            objectName: "toggle:" + r.row.key
+            label: I18n.tr(r.row.label)
             checked: r.value === true
             enabled: r.editable
             onToggled: v => r.commit(v)
@@ -171,6 +174,7 @@ Item {
     Component {
         id: cSlider
         Slider {
+            label: I18n.tr(r.row.label)
             value: Number(r.value)
             from: r.row.min ?? 0
             to: r.row.max ?? 1
@@ -193,6 +197,7 @@ Item {
     Component {
         id: cList
         ListEdit {
+            label: I18n.tr(r.row.label)
             items: Array.isArray(r.value) ? r.value : []
             enabled: r.editable
             onEdited: v => r.commit(v)
@@ -203,6 +208,7 @@ Item {
         TextField {
             readonly property bool numeric: r.row.type === "int" || r.row.type === "float"
             readonly property bool isColor: r.row.control === "color"
+            label: I18n.tr(r.row.label)
             width: 240
             value: r.value === undefined ? "" : String(r.value)
             enabled: r.editable

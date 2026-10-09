@@ -7,3 +7,5 @@ Segmented 1.0 Segmented.qml
 TextField 1.0 TextField.qml
 ListEdit 1.0 ListEdit.qml
 SettingRow 1.0 SettingRow.qml
+FocusRing 1.0 FocusRing.qml
+PageHeader 1.0 PageHeader.qml
