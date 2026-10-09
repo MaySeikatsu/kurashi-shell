@@ -312,8 +312,11 @@ fn settings_document(
     doc
 }
 
+/// `mods.<id>.<key>` (K22): a mod's setting. `mods.loaded` and `mods.enabled` are the lists, which
+/// are always known and so keep their diagnostics.
 fn is_mod_key(key: &str) -> bool {
-    key.starts_with("mods.")
+    key.strip_prefix("mods.")
+        .is_some_and(|rest| rest.contains('.'))
 }
 
 type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
@@ -713,6 +716,14 @@ impl ConfigStore {
         for l in self.listeners.lock().expect("listeners").iter() {
             l(self);
         }
+    }
+
+    /// Republishes `schema.settings` with the sources' current options, for a source that changed
+    /// without a config change (the island registered a face, a mod's palette came and went). The
+    /// `config` document follows, since a value may now be outside its options (I9).
+    pub fn refresh_choices(&self) {
+        self.publish_settings();
+        self.publish_document();
     }
 
     /// `schema.settings` with the sources' current options: the island's faces change with what
