@@ -29,7 +29,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | 🟡 | card M4-audio (wave 3) |
 | M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
 | M5.2 | `kurashi-notify` notification server + history | ✅ | merged; 14 tests on private bus; not wired yet |
-| M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | 🟡 | card M5-launcher (wave 3) |
+| M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | ✅ | merged; 35 tests, p99 0.82 ms/500 apps (release); not wired yet |
 | M1.8 | CLI get/set/why/reset/undo/redo/profile | 🟡 | card M1-cli (wave 3b) |
 | M5.4 | Settings app (schema-generated pages, provenance, profiles) | 🟡 | card M5-settings (wave 3b) |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
