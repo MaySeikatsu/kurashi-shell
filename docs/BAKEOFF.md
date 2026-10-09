@@ -1,7 +1,7 @@
 # Frontend bake-off (M0) — decides K3
 
 Same probe, same task card (`tools/bakeoff/TASK-CARD.md`), five candidates, each built by a
-Sonnet agent in its own worktree under `probes/<name>/`. The lead measures with `tools/bench`.
+Sonnet agent in its own worktree under `archive/bakeoff-probes/<name>/`. The lead measures with `tools/bench`.
 
 ## Candidates
 1. **quickshell** — Quickshell 0.3.x (Qt 6 / QML) thin view
@@ -33,7 +33,7 @@ ecosystem/maturity 10 %. QML stays default unless a candidate passes all gates a
 
 ## Results (M0.7, 2026-10-09, lead re-measure)
 Quiet run: one probe at a time, headless sway gles2, NVIDIA GTX 1060, `measure.py --warmup 10 --idle 30`,
-binaries from the merged probe commits. Raw JSON: `probes/<name>/bench-lead.json` (the agents' own
+binaries from the merged probe commits. Raw JSON: `archive/bakeoff-probes/<name>/bench-lead.json` (the agents' own
 `bench.json` were taken while 4 other agents compiled and ran GPU clients — shared driver pages
 diluted PSS; **don't use them for memory**).
 

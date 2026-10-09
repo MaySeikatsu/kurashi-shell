@@ -3,7 +3,7 @@
 # usage: dev/up.sh [probe-binary]
 set -u
 ROOT=$(git rev-parse --show-toplevel)
-BIN=${1:-$ROOT/probes/gtk4/target/release/probe-gtk4}
+BIN=${1:-$ROOT/archive/bakeoff-probes/gtk4/target/release/probe-gtk4}
 source <("$ROOT/tools/bench/sandbox.sh" start gtk4)
 mkdir -p "$(dirname "$KURASHI_SOCKET")"
 nohup "$ROOT/target/release/kurashi-mock" --outputs HEADLESS-1,HEADLESS-2 > "$XDG_RUNTIME_DIR/mock.log" 2>&1 &

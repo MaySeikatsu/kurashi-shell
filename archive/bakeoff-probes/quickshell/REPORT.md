@@ -1,6 +1,6 @@
 # Probe quickshell
 Versions: Quickshell 0.3.1 (nixpkgs), Qt 6.11.2, qsb from qtshadertools 6.11.2. QML only.
-Run: `qs -p probes/quickshell` (or `nix run ./probes/quickshell`; `nix build` verified).
+Run: `qs -p archive/bakeoff-probes/quickshell` (or `nix run ./archive/bakeoff-probes/quickshell`; `nix build` verified).
 
 ## Capability checklist
 - layer-shell any edge + exclusive zone: ✔ PanelWindow anchors + auto exclusion.
