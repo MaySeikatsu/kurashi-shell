@@ -30,6 +30,8 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
 | M5.2 | `kurashi-notify` notification server + history | ✅ | merged; 14 tests on private bus; not wired yet |
 | M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | 🟡 | card M5-launcher (wave 3) |
+| M1.8 | CLI get/set/why/reset/undo/redo/profile | 🟡 | card M1-cli (wave 3b) |
+| M5.4 | Settings app (schema-generated pages, provenance, profiles) | 🟡 | card M5-settings (wave 3b) |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
 | M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
 | M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
