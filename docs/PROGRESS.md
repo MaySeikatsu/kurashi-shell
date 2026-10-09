@@ -84,3 +84,4 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | Step | Description | Status | Branch / notes |
 |---|---|---|---|
 | M4.8 | Tray menu as a Stage panel (K23): `tray.menu.open`, `runtime.ui.tray` (daemon + mock) | ✅ | lead; frontend in card B-tray-bluetooth |
+| M6.4 | Per-mod profile sections (`mods.<id>`, K22 addendum) | ✅ | C-mod-sections 27374af; 5 new tests (3 fail on the old `section()`), gate 315/0 |
