@@ -1,0 +1,3 @@
+# ランチャーの文字列 (ja): frontend/surfaces/Launcher.qml
+"launcher.placeholder" = "アプリを検索…"
+"launcher.empty" = "一致なし"
