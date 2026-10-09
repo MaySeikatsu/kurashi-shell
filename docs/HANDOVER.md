@@ -8,6 +8,14 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 > ownership, the task cards in `docs/tasks/`), keep the lead role yourself (review, measure,
 > merge, decide). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, and write
 > a new handover entry before ending the session.
+>
+> **Benchmark window first (2026-10-09):** before spawning implementation agents, if the machine is
+> quiet (no other compile jobs: check `uptime` and `pgrep -c rustc`; another session may start
+> compiling at **13:30** system time), re-run the benchmarks: `just bench-gate` on the real stack and a
+> re-measure of the archived bake-off probes in `archive/bakeoff-probes/` exactly as they are (rebuild
+> per their READMEs, measure one at a time with `tools/bench/measure.py`, mock daemon). Record the
+> numbers in `docs/BENCH.md` / `docs/BAKEOFF.md`. The Quickshell decision (K3) stays fixed; do not
+> extend the probes — other frameworks may be re-tested once the Quickshell version is stable.
 
 ---
 
@@ -55,7 +63,8 @@ work until 12:50.
 **Next steps (ordered)**
 1. Land U-components / U-surfaces (above). Then settings polish from the UX review (#3 settings
    focus/keys, #7, #8, #9, #11 settings, #13 error codes→keys, #17, #18, #23) as one card owning `settings/`.
-2. Quiet-machine `just bench-gate` on this machine (Machine A), then a first baseline on the user's
+2. Quiet-machine benchmarks on this machine (Machine A) — see the pickup prompt's benchmark window
+   (bench-gate + archived probes re-measured unchanged; K3 stays). Then a first baseline on the user's
    second machine (Machine B, `docs/BENCH.md`), plus `just golden --update` there (refs are per machine).
 3. Frontend for tray + Bluetooth (bar widget + stage panel) against `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
 4. logind session for a `systemd --user` daemon (resolve the user's graphical session explicitly;
@@ -74,10 +83,8 @@ work until 12:50.
 - Frontend agents can use prebuilt daemon binaries (`KURASHI_BIN_DIR`) to avoid compiling.
 
 **Risks / open**
-- **Disk ~20 GB free (99 %)**: `~/.cache/kurashi-agents-target` ≈ 51 GB. Pruning it was denied to the
-  agent; the user can run
-  `find ~/.cache/kurashi-agents-target/debug/incremental -mindepth 1 -maxdepth 1 -type d -mmin +180 -exec rm -rf {} +`.
-  Don't run many compiling agents until it is pruned.
+- Disk: the user cleaned up (138 GB free at 12:27). The shared agent dir grows ~1–2 GB per agent;
+  prune its stale `debug/incremental` dirs between waves (ask the user if the tool is denied).
 - 13 leaked bake-off `dbus-daemon`s (`/tmp/kurashi-sb-{slint,iced,gpui}`), harmless; user may
   `pkill -f 'address=unix:path=/tmp/kurashi-sb-'`.
 - Volume keys need a standing `svc.audio` subscriber (the bar has one). Lock with stale marker but no
