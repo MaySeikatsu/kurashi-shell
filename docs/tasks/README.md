@@ -170,3 +170,16 @@ I9 schema attribute `choices_from` in kurashi-schema.
 | [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, Stage `mod:*` panel, Bar mod widget slot (after W11-native-mods) | haiku |
 Then: W12-wallpaper (crate `kurashi-mod-wallpaper`, awww/swww adapters, picker panel) on that mechanism.
 Lead (before W11-mod-qml): PROTOCOL §8 `mod.panel.open {id, panel}` → `runtime.ui.panel = "mod:<id>:<panel>"`.
+
+## Wave 12 (session 5; M6 native mods + M7 quick settings; Haiku 5.5, max effort) — after W11-native-mods
+| Card | Owner paths | Model |
+|---|---|---|
+| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, Stage `mod:*` loader, Bar mod widget slot | haiku |
+| [W12-wallpaper](W12-wallpaper.md) | `crates/kurashi-mod-wallpaper/**`, `mods/wallpaper/**`, `mod-wallpaper.toml` | haiku |
+| [W12-sysmon](W12-sysmon.md) | `crates/kurashi-mod-sysmon/**`, `mods/sysmon/**`, `mod-sysmon.toml` | haiku |
+| [W12-weather](W12-weather.md) | `crates/kurashi-mod-weather/**`, `mods/weather/**`, `mod-weather.toml` | haiku |
+| [W12-quick-daemon](W12-quick-daemon.md) | kurashid audio/network actions, `network.rs`, mock parity | haiku |
+| [W12-quick-ui](W12-quick-ui.md) | `QuickPanel.qml`, `components/quick/**`, Slider clamp (B12) | haiku |
+Mod cards each add one line to `kurashid/Cargo.toml` + `main.rs` (lead resolves the trivial conflicts).
+Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.default`, `network.wifi`.
+
