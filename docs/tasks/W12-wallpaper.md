@@ -1,5 +1,9 @@
 # Card W12-wallpaper — the wallpaper native mod (K26, BACKLOG I7)
 
+**UX brief (governs this card):** `docs/ux/wallpaper.md` — its Design, States, Contract notes and Definition of done are
+this card's acceptance on top of the tests below; where this card's older text disagrees with the brief, the brief
+wins. Also `docs/ux/COMPOSITION.md` and K28 (slots, mod faces, choice sources — merged before this card starts).
+
 **Read first:** `docs/tasks/README.md`, `docs/DECISIONS.md` K22, K25, K26, `docs/MODS.md` ("States…", "Native mods",
 "First native mod: wallpaper"), `docs/PROTOCOL.md` §5 (choices), `crates/kurashi-mod-api/` + `crates/kurashid/src/native.rs`
 (the mechanism from W11-native-mods) and its test mod `hello` (copy its shape), `mods/media/mod.toml` (manifest format),
@@ -32,3 +36,6 @@ logs its argv): enable → daemon started once; `wallpaper.set` → `img <path> 
 `backend.available:false`; rotate=1 with a paused tokio clock → one `img` per minute; disable → timer gone.
 Plus `crates/kurashid/tests/native_mods.rs`-style test: `mod.enable wallpaper` registers `mod.wallpaper`.
 clippy -D warnings, fmt. Do not run the real awww against the user's session.
+
+**Report:** list every Definition-of-done item of `docs/ux/wallpaper.md` as met / not met (README rule 10), with the screenshot
+or test that shows it.

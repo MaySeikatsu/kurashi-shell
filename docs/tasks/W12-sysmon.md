@@ -1,5 +1,9 @@
 # Card W12-sysmon — system monitor native mod (M6)
 
+**UX brief (governs this card):** `docs/ux/sysmon.md` — its Design, States, Contract notes and Definition of done are
+this card's acceptance on top of the tests below; where this card's older text disagrees with the brief, the brief
+wins. Also `docs/ux/COMPOSITION.md` and K28 (slots, mod faces, choice sources — merged before this card starts).
+
 **Read first:** `docs/tasks/README.md`, `docs/DECISIONS.md` K25, K26, `docs/MODS.md` ("Native mods"),
 `crates/kurashi-mod-api/` + the `hello` test mod (copy its shape), `mods/media/mod.toml`.
 
@@ -18,3 +22,6 @@ i18n labels.
 root path): cpu% from two snapshots, mem from meminfo, missing thermal → no `temp_c`; with a paused tokio clock
 the sampler ticks every `interval` while subscribed and stops after the last unsubscribe (count reads).
 clippy -D warnings, fmt.
+
+**Report:** list every Definition-of-done item of `docs/ux/sysmon.md` as met / not met (README rule 10), with the screenshot
+or test that shows it.
