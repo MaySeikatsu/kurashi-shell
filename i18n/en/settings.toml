@@ -96,3 +96,7 @@
 "mods.error.setting_default_not_in_choices" = "the default is not one of the choices"
 "mods.error.setting_default_not_color" = "the default is not a colour"
 "mods.error.setting_default_out_of_range" = "the default is out of range"
+
+# Mod settings pages (K22): a mod's page is titled "Mods › <name>"; its settings sit in "General".
+"settings.ui.mod_page" = "Mods › {name}"
+"settings.section.general" = "General"

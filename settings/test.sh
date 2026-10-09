@@ -31,8 +31,8 @@ cleanup() {
 trap cleanup EXIT
 
 # --- isolated daemon state --------------------------------------------------------------------
-mkdir -p "$R/cfg/kurashi/profiles" "$R/state" "$R/data" "$R/root/i18n/en" "$R/root/i18n/ja"
-export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data
+mkdir -p "$R/cfg/kurashi/profiles" "$R/state" "$R/data" "$R/cache" "$R/root/i18n/en" "$R/root/i18n/ja"
+export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
 cat > "$R/cfg/kurashi/config.toml" <<'T'
 schema_version = 1
 [bar]
@@ -110,5 +110,11 @@ Q goto @mods
 Q mod demo-blur true
 Q mod broken-demo true
 shot 6-mods
+
+# 7. a mod's settings page (K22): Media turned on; its page reads "Mods › Media" with the album-art
+#    toggle and the seek step slider
+Q mod media true
+Q goto mods.media
+shot 7-mod-page
 
 echo "ok: settings/shots/"; ls settings/shots

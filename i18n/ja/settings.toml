@@ -95,3 +95,7 @@
 "mods.error.setting_default_not_in_choices" = "default が choices にありません"
 "mods.error.setting_default_not_color" = "default は色ではありません"
 "mods.error.setting_default_out_of_range" = "default が範囲外です"
+
+# モッドの設定ページ (K22): ページ名は「モッド › <名前>」、設定は「一般」にまとまります。
+"settings.ui.mod_page" = "モッド › {name}"
+"settings.section.general" = "一般"
