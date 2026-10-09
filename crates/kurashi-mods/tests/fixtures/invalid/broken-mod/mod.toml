@@ -1,0 +1,15 @@
+# Deliberately invalid: id != directory, bad tier, unknown capability, bad setting default.
+id = "other-name"
+name = "Broken"
+version = "0.1.0"
+tier = "wasm"
+kurashi = ">=0.1"
+provides = ["widget:ok", "gadget:nope"]
+capabilities = ["teleport"]
+cost = "low"
+
+[[setting]]
+key = "n"
+type = "int"
+default = 99
+range = [1, 10]
