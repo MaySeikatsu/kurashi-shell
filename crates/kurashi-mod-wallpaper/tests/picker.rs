@@ -81,7 +81,10 @@ async fn a_picture_that_cannot_be_read_is_refused_before_the_backend_is_asked() 
         .await
         .unwrap_err();
     assert_eq!(refused.to_string(), "mod-wallpaper.image.unreadable");
-    assert!(fake.lines("awww img").is_empty(), "the backend was not asked");
+    assert!(
+        fake.lines("awww img").is_empty(),
+        "the backend was not asked"
+    );
     assert_ne!(
         m.doc()["backend"]["reason"],
         "mod-wallpaper.backend.down",

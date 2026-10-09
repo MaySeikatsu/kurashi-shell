@@ -14,7 +14,7 @@ provides = [
     "choices:wallpaper.backends",
     "slot:quick.tiles",
 ]
-capabilities = ["exec", "fs:scoped"]
+capabilities = ["exec:awww", "exec:swww", "fs:scoped"]
 cost = "low"
 
 [[setting]]
