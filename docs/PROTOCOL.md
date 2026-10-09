@@ -110,7 +110,7 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 | Document | Shape |
 |---|---|
 | `theme` | `{"tokens":{"color.surface":"#1c1b22","color.on_surface":"#e8e3d8","color.accent":"#c1323b","color.surface_alpha":0.82,"radius.md":12,"space.md":8,"font.family":"Inter","font.size.md":13,"motion.standard_ms":220,…}}` |
-| `svc.clock` | `{"hh":"14","mm":"07","date":"2026-10-09","weekday":"Fri"}` (patch once per minute) |
+| `svc.clock` | `{"hh":"14","mm":"07","date":"2026-10-09","weekday":"Fri"}` (patch once per minute; kurashid sends `weekday` in its locale from i18n domain `clock`) |
 | `svc.workspaces` | `{"outputs":{"<name>":[{"id":1,"idx":1,"focused":true,"occupied":true},…]}}` |
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
