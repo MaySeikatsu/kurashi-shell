@@ -206,9 +206,20 @@ async fn connection(
                 },
                 ClientMsg::Undo { id } => step(&daemon, id, false, &reply),
                 ClientMsg::Redo { id } => step(&daemon, id, true, &reply),
-                ClientMsg::Query { id, .. } => {
-                    reply(err(Some(id), "unavailable", "no query providers yet"));
-                }
+                ClientMsg::Query { id, kind, q } => match daemon.queries.get(&kind).cloned() {
+                    // Off the read loop: providers are fast but may touch the filesystem.
+                    Some(f) => {
+                        let out = out_tx.clone();
+                        tokio::task::spawn_blocking(move || {
+                            let _ = out.send(ServerMsg::Results { id, items: f(&q) });
+                        });
+                    }
+                    None => reply(err(
+                        Some(id),
+                        "invalid",
+                        format!("no query provider {kind}"),
+                    )),
+                },
                 ClientMsg::Ping => reply(ServerMsg::Pong),
                 ClientMsg::MockTick
                 | ClientMsg::MockFace { .. }

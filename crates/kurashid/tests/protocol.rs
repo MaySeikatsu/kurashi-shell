@@ -126,7 +126,12 @@ async fn start() -> Fixture {
         h.update("svc.audio", origin, |d| d["volume"] = v).unwrap();
     });
 
-    let daemon = Arc::new(Daemon::new(hub.clone(), actions, intents));
+    let mut daemon = Daemon::new(hub.clone(), actions, intents);
+    daemon.queries.insert(
+        "echo".into(),
+        Arc::new(|q: &str| vec![json!({"id": q, "score": 1.0})]),
+    );
+    let daemon = Arc::new(daemon);
     let (stop_tx, stop_rx) = oneshot::channel::<()>();
     tokio::spawn(kurashid::server::serve(listener, daemon, async {
         let _ = stop_rx.await;
@@ -308,4 +313,26 @@ async fn pushed_snapshot_has_no_id() {
         }
         other => panic!("{other:?}"),
     }
+}
+
+#[tokio::test]
+async fn queries_route_by_kind() {
+    let f = start().await;
+    let mut c = Client::connect(&f.path).await;
+    c.send(ClientMsg::Query {
+        id: "q1".into(),
+        kind: "echo".into(),
+        q: "fire".into(),
+    })
+    .await;
+    assert!(
+        matches!(c.recv().await, ServerMsg::Results { id, items } if id == "q1" && items[0]["id"] == "fire")
+    );
+    c.send(ClientMsg::Query {
+        id: "q2".into(),
+        kind: "nope".into(),
+        q: String::new(),
+    })
+    .await;
+    assert!(matches!(c.recv().await, ServerMsg::Err { kind, .. } if kind == "invalid"));
 }

@@ -19,6 +19,7 @@ rustPlatform.buildRustPackage {
       ../palettes
       ../frontend
       ../settings
+      ../mods
     ];
   };
 
@@ -30,7 +31,7 @@ rustPlatform.buildRustPackage {
   env.KURASHI_DATA_DIR = "${placeholder "out"}/share/kurashi";
   postInstall = ''
     mkdir -p $out/share/kurashi
-    cp -r i18n palettes frontend settings $out/share/kurashi/
+    cp -r i18n palettes frontend settings mods $out/share/kurashi/
   '';
 
   meta = {

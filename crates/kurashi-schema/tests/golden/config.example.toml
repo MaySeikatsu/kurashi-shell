@@ -135,7 +135,7 @@
 #
 # Right click
 #   advanced
-# right = "island.face_picker"
+# right = "island.pin"
 #
 # Middle click
 #   advanced
@@ -147,11 +147,11 @@
 #
 # Scroll up
 #   advanced
-# scroll_up = "island.face.prev"
+# scroll_up = "island.prev"
 #
 # Scroll down
 #   advanced
-# scroll_down = "island.face.next"
+# scroll_down = "island.next"
 #
 # Shift + scroll up
 #   advanced
@@ -160,3 +160,27 @@
 # Shift + scroll down
 #   advanced
 # shift_scroll_down = ""
+
+# [notifications]
+#
+# Notification server — Receive desktop notifications. Never takes over from another
+# running notification daemon.
+#   restart required
+# server = true
+#
+# Do not disturb — Store notifications silently; critical ones still show.
+# dnd = false
+#
+# History size — How many notifications are kept.
+#   range: 10..=2000, step 10 · restart required · advanced
+# history_max = 200
+
+# [launcher]
+#
+# Terminal command — Prefix for apps that need a terminal, e.g. foot -e.
+#   restart required
+# terminal = ["foot", "-e"]
+#
+# Separate app scopes — Start apps in their own systemd scope so they outlive the shell.
+#   restart required · advanced
+# systemd_scope = true
