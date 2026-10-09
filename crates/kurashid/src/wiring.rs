@@ -1785,6 +1785,129 @@ fn bool_arg(args: &Value, key: &str) -> Result<bool, ActionError> {
         .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
 }
 
+const MEDIA_DOC: &str = "svc.media";
+/// `media.seek` or `media.set_position` where the shown player does not allow a seek (`can.seek`
+/// false), or `set_position` where the player names no track to address.
+pub const MEDIA_CANNOT_SEEK: &str = "error.media.cannot_seek";
+/// A media command while no player is shown.
+pub const MEDIA_NO_PLAYER: &str = "error.media.no_player";
+/// `media.player.select` with an id that is not a player of the document.
+pub const MEDIA_NO_SUCH_PLAYER: &str = "error.media.no_such_player";
+
+/// `svc.media` (MPRIS, refcounted) on the session bus, and its actions. The island follows it.
+pub fn media(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    media_observed(hub, actions, session_bus(), island);
+}
+
+/// [`media`] with the bus injected (tests run it on a private bus with a fake player).
+pub fn media_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    media_observed(hub, actions, connect, None);
+}
+
+fn media_observed(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    let mut service =
+        ServiceProvider::with_connect(MEDIA_DOC, connect, kurashi_services::media::start);
+    if let Some(island) = island {
+        service = service.observe(move |doc| island.observe_media(doc));
+    }
+    let service = Arc::new(service);
+    hub.register(
+        MEDIA_DOC,
+        json!({
+            "available": false,
+            "playing": false,
+            "players": [],
+            "can": {"seek": false, "next": false, "prev": false, "play": false, "pause": false},
+        }),
+        Some(service.clone()),
+    );
+    service_action(
+        actions,
+        "media.play_pause",
+        service.clone(),
+        |c, _| async move {
+            c.play_pause().await.map_err(call_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(actions, "media.next", service.clone(), |c, _| async move {
+        c.next().await.map_err(call_failed)?;
+        Ok(None)
+    });
+    service_action(actions, "media.prev", service.clone(), |c, _| async move {
+        c.prev().await.map_err(call_failed)?;
+        Ok(None)
+    });
+    // `{offset_us}` seeks relative to the position; `{us}` sets it, on the shown track.
+    service_action(actions, "media.seek", service.clone(), |c, a| async move {
+        let offset_us = a["offset_us"]
+            .as_i64()
+            .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+        c.seek(offset_us).await.map_err(media_error)?;
+        Ok(None)
+    });
+    service_action(
+        actions,
+        "media.set_position",
+        service.clone(),
+        |c, a| async move {
+            let us = a["us"]
+                .as_i64()
+                .filter(|us| *us >= 0)
+                .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+            c.set_position(us).await.map_err(media_error)?;
+            Ok(None)
+        },
+    );
+    let hub = hub.clone();
+    service_action(actions, "media.player.select", service, move |c, a| {
+        let hub = hub.clone();
+        async move {
+            let id = str_arg(&a, "id")?;
+            media_player_known(&hub, &id)?;
+            c.select_player(&id);
+            Ok(None)
+        }
+    });
+}
+
+/// `media.player.select` names a player of the current document: the ones the view offers.
+fn media_player_known(hub: &Hub, id: &str) -> Result<(), ActionError> {
+    let (_, doc) = hub
+        .snapshot(MEDIA_DOC)
+        .map_err(|_| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+    let known = doc["players"]
+        .as_array()
+        .is_some_and(|players| players.iter().any(|p| p["id"].as_str() == Some(id)));
+    if known {
+        Ok(())
+    } else {
+        Err(ActionError::Invalid(MEDIA_NO_SUCH_PLAYER.into()))
+    }
+}
+
+/// A refused media command as its key: no player to send it to, a player that does not allow the
+/// seek (or cannot be addressed for one), or a call that failed.
+fn media_error(e: kurashi_services::media::CommandError) -> ActionError {
+    use kurashi_services::media::CommandError;
+    match e {
+        CommandError::NoPlayer => ActionError::Unavailable(MEDIA_NO_PLAYER.into()),
+        CommandError::CannotSeek | CommandError::NoTrack => {
+            ActionError::Unavailable(MEDIA_CANNOT_SEEK.into())
+        }
+        CommandError::Bus(e) => call_failed(e),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};

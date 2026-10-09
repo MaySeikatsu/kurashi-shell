@@ -222,3 +222,11 @@ moved (OSD names a non-usual device) — each once per state change, TTL from `i
 island keeps `svc.power` and `svc.bluetooth` subscribed for the daemon's lifetime (event-driven, no timers) — without
 it the shell could not announce a plugged charger; follow-ups: absent bus names wait for NameOwnerChanged instead of
 the ≤ 30 s retry, and a key to turn system transients off (BACKLOG I17, I18); measure laptop idle wakeups (bench).
+
+**K31** 🟢 `svc.media` carries honest progress (lead, session 5; W13-media-position, BACKLOG I19). `position_us` +
+`position_at_ms` (wall time of the read) + `rate`; Position is never polled — read on first subscriber, player change,
+track change, play/pause, rate change and Seeked; the view interpolates `position_us + (now − position_at_ms) × rate`
+while playing; no `length_us` (live streams) means no progress bar. `can {seek, next, prev, play, pause}` gates the
+controls (replaces `can_next/can_prev/can_seek`), `players[].active` + `media.player.select {id}` drive the switcher,
+`media.seek {offset_us}` / `media.set_position {us}` are refused with `error.media.cannot_seek` when not allowed.
+*Why:* `docs/ux/island.md` media view; Ma (no polling) and Shōjiki (a frozen or guessed position would lie).
