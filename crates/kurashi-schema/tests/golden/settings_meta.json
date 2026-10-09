@@ -99,7 +99,9 @@
           "rows": [
             {
               "advanced": false,
-              "control": "text",
+              "choices": [],
+              "choices_from": "palettes",
+              "control": "select",
               "couplings": [],
               "default": "wa-iro",
               "help": "config.theme.colors.palette.help",
@@ -618,7 +620,9 @@
           "rows": [
             {
               "advanced": false,
-              "control": "list",
+              "choices": [],
+              "choices_from": "island.faces",
+              "control": "pick_list",
               "couplings": [],
               "default": [
                 "clock",
@@ -635,7 +639,9 @@
             },
             {
               "advanced": false,
-              "control": "text",
+              "choices": [],
+              "choices_from": "island.faces",
+              "control": "select",
               "couplings": [],
               "default": "clock",
               "help": "config.island.main.default.help",
