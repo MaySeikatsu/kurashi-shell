@@ -9,10 +9,75 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 > merge, decide). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, and write
 > a new handover entry before ending the session.
 >
-> **Benchmarks:** the quiet re-measure on machine A is done (2026-10-09 13:29, `docs/BAKEOFF.md`
-> "Quiet re-measure", `docs/BENCH.md`); K3 (Quickshell) stays fixed and the archived probes are not to
-> be extended. Re-bench only on a quiet machine (`uptime`, `pgrep -c rustc`); another session may
-> compile from 13:30 on 2026-10-09. Still open: a first baseline on the user's second machine.
+> **On a different machine than the one with the GTX 1060** (or if you are unsure): you have no
+> memory of earlier sessions — everything you need is in this repo. If machine B has no baseline in
+> `docs/BENCH.md` yet, do `docs/RUNBOOK-MACHINE-B.md` first (benchmarks only, on a quiet machine;
+> K3 = Quickshell stays fixed; never modify `archive/bakeoff-probes/`), then the next steps below.
+
+---
+
+## 2026-10-09 — session 3 close: handover for any machine (no prior context assumed)
+**Read this whole entry; it does not assume you remember anything.** The repo is the only memory:
+`CLAUDE.md` (rules), `docs/VISION.md` (why), `docs/ARCHITECTURE.md` (what talks to what),
+`docs/PROTOCOL.md` (IPC v1, frozen + additive), `docs/DECISIONS.md` (K1–K22), `docs/PROGRESS.md`
+(every step), `docs/tasks/` (agent cards + README rules), `docs/reviews/` (review findings).
+
+**What exists (main, green):** Rust daemon `kurashid` owns all state and serves NDJSON over a unix
+socket; the Quickshell frontend (`frontend/`) and the settings app (`settings/`) are thin views;
+`kurashi` CLI; `kurashi-mock` fake daemon. Features: bar (per-output, any edge), Island with faces
+(clock, media, notifications, volume/brightness OSD), notification server + toasts + centre, launcher,
+session menu, lock screen (PAM; refuses without the `kurashi` PAM service), settings app with
+provenance, search, profiles, Mods page and per-mod settings pages, theming (palettes, a11y
+couplings), input bindings, tray + Bluetooth services (no UI yet), `nix run` apps, NixOS +
+Home-Manager modules. Run/test instructions: `README.md` "Running".
+
+**How to verify anything** (inside `nix develop`):
+- `just check` — fmt + clippy -D warnings + all tests. For merges use a private target dir:
+  `unset CARGO_TARGET_DIR; CARGO_INCREMENTAL=0 just check`.
+- `frontend/test-real.sh`, `settings/test.sh`, `frontend/test-bindings.sh` — headless sandbox smoke
+  tests with screenshots (Read them). `just golden` — visual regression (per-machine refs via
+  `KURASHI_GOLDEN_REF`). `just bench-gate` — budgets on the real stack (quiet machine only).
+- Never run the shell on the user's display; never kill processes you didn't start.
+
+**How the work is organised (if you use subagents):** you are the lead (review, verify, merge,
+decide); agents get one card each in `docs/tasks/` (goal, owned paths, frozen contracts, one
+acceptance test) and work in isolated git worktrees. This session used Haiku agents at max effort,
+up to ~10 in parallel — that worked well when each card owned disjoint files; the user may set a
+different limit. Agents share `CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target` (builds take
+turns via cargo's lock). Lead checklist per returned branch: (1) diff only touches the card's owned
+paths, (2) merge with `--no-ff --no-commit`, (3) full gate with a private target dir, (4) for UI:
+run the sandbox test and Read screenshots, (5) renumber `docs/CONTRACT-CHANGE.md` rows if two
+agents appended the same number, (6) commit, remove the worktree, update `docs/PROGRESS.md`.
+
+**Next steps (ordered, each a card-sized task):**
+1. Machine B baseline if not done (`docs/RUNBOOK-MACHINE-B.md`).
+2. Settings polish from `docs/reviews/2026-10-09-ux-review.md`: #3 (settings focus/keys, focus ring),
+   #4/#5 (use `Theme.fgOnAccent`, titles in `Theme.fg`), #7, #8, #9, #11 (settings hit targets ≥ 32 px),
+   #13 (daemon error codes → catalog keys), #17, #18, #23. Owns `settings/` + `i18n/*/settings.toml`.
+3. Island hit target is 26 px (< 32, review #11): enlarge the bar's island hit area without changing
+   visuals (`frontend/surfaces/Bar.qml` + `components/Island.qml`); decide with the golden refs.
+4. Tray + Bluetooth UI: a bar tray widget and a Stage panel, against the shapes in
+   `fixtures/ipc/server/snap_{tray,bluetooth}.json` and the actions in `docs/PROTOCOL.md` §7.
+   Mind the per-output PSS budget (+6.0 of +6 used on machine A): measure with `just bench-gate`.
+5. logind session for a `systemd --user` daemon: resolve the user's graphical session explicitly
+   (session hints may report `available:false` today) — `crates/kurashi-services/src/session.rs`.
+6. Cleanups: fold `RefcountedService` into `ServiceProvider` (CONTRACT-CHANGE row 16); per-mod profile
+   sections (K22 note: all mod keys share the `mods` section); D-Bus connection-level reconnect
+   (services stay unavailable after a bus loss); mock `available` fields.
+7. M6 first native mods (media + lyrics, wallpaper, sysmon, weather) per `docs/MODS.md`; then M7
+   hardening towards v0.1 (`docs/ROADMAP.md`), including a live niri test **with the user present**.
+
+**Known numbers (machine A, quiet, 2026-10-09):** real stack 104.3 MiB @1 output, +6.0/output,
+popup 2.6 ms, 0.03 idle fps, 0 % CPU, +0.63 MiB over 20 panel cycles — 0 violations. Archived probes:
+`docs/BAKEOFF.md` "Quiet re-measure".
+
+**Gotchas learned (keep):** shared target dirs hand worktrees each other's crates/embedded files —
+gate merges with a private target dir; always `timeout` + `set -o pipefail`; never name a QML
+property `on<Capital>…`; frontend agents can use prebuilt daemon binaries (`KURASHI_BIN_DIR`) to
+avoid compiling; prune `~/.cache/kurashi-agents-target/debug/incremental` between waves (disk).
+
+**Remote:** `origin = git@github.com:MaySeikatsu/kurashi-shell.git` (configured 2026-10-09; first push
+by the user). Local-only files stay untracked (`.claude/settings.local.json`, worktrees, results).
 
 ---
 

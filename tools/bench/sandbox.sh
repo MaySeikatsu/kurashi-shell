@@ -40,8 +40,14 @@ case $action in
       "$0" stop "$name" >/dev/null
     fi
     printf 'output HEADLESS-1 resolution 2560x1440\noutput * bg #101014 solid_color\n' > "$R/sway.conf"
+    # First render node (renderD128 on single-GPU machines, may differ elsewhere); none → pixman.
+    node=$(ls /dev/dri/renderD* 2>/dev/null | head -n 1)
+    if [ "$renderer" = gles2 ] && [ -z "$node" ]; then
+      echo "sandbox: no DRM render node, falling back to pixman" >&2
+      renderer=pixman
+    fi
     renderer_env=(WLR_RENDERER="$renderer")
-    [ "$renderer" = gles2 ] && renderer_env+=(WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128)
+    [ "$renderer" = gles2 ] && renderer_env+=(WLR_RENDER_DRM_DEVICE="$node")
     env -i HOME="$HOME" PATH="$PATH" XDG_RUNTIME_DIR="$R" WLR_BACKENDS=headless \
       WLR_LIBINPUT_NO_DEVICES=1 "${renderer_env[@]}" "$SWAY" -c "$R/sway.conf" > "$R/sway.log" 2>&1 &
     echo $! > "$R/sway.pid"
