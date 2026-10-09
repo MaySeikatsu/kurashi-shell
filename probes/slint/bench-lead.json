@@ -1,0 +1,40 @@
+{
+  "name": "slint",
+  "cmd": [
+    "env",
+    "LD_LIBRARY_PATH=/nix/store/li1008zymvj7sz8jkdk9brkslfq9jy8w-wayland-1.26.0/lib:/nix/store/nvrv5w6rhc39h8snrsw03nqs679cf7rh-libxkbcommon-1.13.2/lib:/nix/store/g5p3gslpl160yagi4bzai5yhpcg0di5l-fontconfig-2.18.3-lib/lib:/nix/store/81xfxjiw58spk795jgcc7z1diwmy3xmi-freetype-2.14.3/lib",
+    "/home/maike/Projects/kurashi-shell/.claude/worktrees/agent-acf41a45c2b13a995/probes/slint/target/release/kurashi-probe-slint"
+  ],
+  "date": "2026-10-09 01:20",
+  "commit": "8832f1f",
+  "pass_a": {
+    "idle_cpu_pct": 0.033,
+    "wakeups_per_s": 1.6,
+    "pss_mib_1out": 25.2,
+    "gpu_mib": 0,
+    "processes": 1,
+    "pss_mib_popup": 27.6,
+    "pss_mib_2out": 27.8,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 54,
+    "idle_commits_per_s": 0.0,
+    "idle_commits_by_surface": {},
+    "popup_latency_ms_median": 1.8,
+    "popup_latency_ms_all": [
+      1.8,
+      1.8,
+      1.9,
+      1.8,
+      2.0
+    ],
+    "morph_commits": 21,
+    "morph_frame_ms_p50": 16.2,
+    "morph_frame_ms_p99": 16.6
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 0.0,
+    "top_syscalls": {}
+  }
+}
