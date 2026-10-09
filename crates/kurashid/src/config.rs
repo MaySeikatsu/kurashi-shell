@@ -1,16 +1,22 @@
 //! Config store (M1.5): the schema registry behind `kurashi-config`, published as the `config`
-//! and `schema.settings` documents, answering `cfg.*` / `apply` / `undo` / `redo` and the
-//! `profile.*` actions (PROTOCOL §5).
+//! and `schema.settings` documents, answering `cfg.*` / `apply` / `undo` / `redo`, the `profile.*`
+//! actions (PROTOCOL §5, §6) and `settings.open` (I25, the Settings window).
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::ffi::{OsStr, OsString};
+use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::CommandExt;
+use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use kurashi_config::{
-    Config, ConfigError, DiagnosticReason, Op, Options, Paths, SchemaView, Source,
+    Config, ConfigError, DiagnosticReason, Op, Options, Paths, ProfileReview, SchemaView, Source,
 };
 use kurashi_core::Provenanced;
 use kurashi_ipc::{ApplyOp, DiffEntry, LayerValue, OpError};
-use kurashi_mods::{Manifest, ModState, Setting, SettingType, SettingValue};
+use kurashi_mods::{Manifest, ModState, Provide, Setting, SettingType, SettingValue};
 use kurashi_schema::{Choice, Coupling, KeyMeta, Registry, Ty, validate_value};
 use serde_json::{Map, Value, json};
 
@@ -131,8 +137,9 @@ impl Offer {
 
 /// The options of every source the daemon can resolve now. `palettes` are the bundled palettes
 /// (a mod's palette file cannot be loaded yet, so it is no option); `island.faces` are the faces
-/// the island registered (`runtime.island.main`), without the OSD faces.
-fn offers_now(hub: &Hub) -> BTreeMap<String, Vec<Offer>> {
+/// the island registered (`runtime.island.main`), without the OSD faces. `mod_faces` names the
+/// faces a mod provides, with the mod's name as their label (I37); a core face has its catalogue key.
+fn offers_now(hub: &Hub, mod_faces: &BTreeMap<String, String>) -> BTreeMap<String, Vec<Offer>> {
     let mut offers = BTreeMap::new();
     let palettes = kurashi_theme::bundled_names()
         .into_iter()
@@ -146,7 +153,13 @@ fn offers_now(hub: &Hub) -> BTreeMap<String, Vec<Offer>> {
             .flatten()
             .filter_map(Value::as_str)
             .filter(|f| !TRANSIENT_FACES.contains(f))
-            .map(|f| Offer::on(f, format!("config.face.{f}")))
+            .map(|f| {
+                let label = mod_faces
+                    .get(f)
+                    .cloned()
+                    .unwrap_or_else(|| format!("config.face.{f}"));
+                Offer::on(f, label)
+            })
             .collect();
         offers.insert("island.faces".to_string(), faces);
     }
@@ -169,6 +182,8 @@ struct ModSettings {
     /// On: its contributions are live, its settings take effect.
     enabled: bool,
     keys: Vec<KeyMeta>,
+    /// The island faces it provides (`island-face:<name>`): labelled with its name (I37).
+    faces: Vec<String>,
 }
 
 impl ModTable {
@@ -177,16 +192,33 @@ impl ModTable {
             .iter()
             .filter_map(|e| {
                 let m = e.manifest.as_ref()?;
+                let faces = m
+                    .provides
+                    .iter()
+                    .filter_map(|p| match p {
+                        Provide::IslandFace(f) => Some(f.clone()),
+                        _ => None,
+                    })
+                    .collect();
                 Some(ModSettings {
                     id: m.id.clone(),
                     name: m.name.clone(),
                     loaded: matches!(e.state, ModState::Disabled | ModState::Enabled),
                     enabled: e.state == ModState::Enabled,
                     keys: m.settings.iter().map(|s| setting_meta(m, s)).collect(),
+                    faces,
                 })
             })
             .collect();
         Self { mods }
+    }
+
+    /// Face id → the name of the mod that provides it (the label of its island offer).
+    fn face_names(&self) -> BTreeMap<String, String> {
+        self.mods
+            .iter()
+            .flat_map(|m| m.faces.iter().map(move |f| (f.clone(), m.name.clone())))
+            .collect()
     }
 
     /// The mod that owns `key`, and the key's metadata.
@@ -425,6 +457,41 @@ fn profile_entries(cfg: &Config<SchemaAdapter>) -> Vec<Value> {
 
 /// A profile request without a usable name is refused as an invalid name.
 const PROFILE_INVALID_NAME: &str = "config.error.profile_invalid_name";
+/// A profile file path that is missing or not absolute: the daemon does not resolve it against its
+/// own working directory.
+const PROFILE_PATH: &str = "config.error.profile_path";
+/// Arguments of an action missing or of the wrong type (catalogue: session domain).
+const ARGS_INVALID: &str = "error.args.invalid";
+/// `settings.open` of a key no layer knows (catalogue: schema domain, with `{key}`).
+const UNKNOWN_KEY: &str = "error.config.unknown_key";
+/// `settings.open` without a Settings directory (`shell.qml` missing) or without `qs` on the PATH.
+const SETTINGS_NOT_INSTALLED: &str = "error.settings.not_installed";
+const SETTINGS_NO_RUNTIME: &str = "error.settings.no_runtime";
+
+/// The profile review as the actions answer it: the effective changes and the entries a forced
+/// layer holds back (`not_applied`, PROTOCOL §6).
+fn review_json(r: &ProfileReview) -> Value {
+    json!({"diff": diff_entries(&r.diff), "not_applied": r.not_applied})
+}
+
+/// A profile file path argument: absolute, or refused.
+fn absolute_path(v: &Value) -> Result<PathBuf, ActionError> {
+    let path = PathBuf::from(v.get("path").and_then(Value::as_str).unwrap_or_default());
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Err(ActionError::Invalid(PROFILE_PATH.into()))
+    }
+}
+
+/// `apply` of `profile.import`: absent means review only; anything but a boolean is refused.
+fn apply_flag(v: &Value) -> Result<bool, ActionError> {
+    match v.get("apply") {
+        None => Ok(false),
+        Some(Value::Bool(b)) => Ok(*b),
+        Some(_) => Err(ActionError::Invalid(ARGS_INVALID.into())),
+    }
+}
 
 /// A refused profile action as its i18n key (K27, B5). The engine's text is English detail and
 /// never goes on the wire: the key says what is wrong, the catalog says what to do about it.
@@ -458,7 +525,8 @@ impl ConfigStore {
         paths: Paths,
         opts: Options,
     ) -> Arc<Self> {
-        let offers = offers_now(&hub);
+        // No mods yet: their face labels follow with `sync_mods`.
+        let offers = offers_now(&hub, &BTreeMap::new());
         let schema = SchemaAdapter {
             core: registry,
             lists: list_keys(registry.version()),
@@ -759,7 +827,15 @@ impl ConfigStore {
     /// it registers, the mods' pages with their state. Republished whole; an unchanged document is
     /// no patch (hub).
     fn publish_settings(&self) {
-        let mut offers = offers_now(&self.hub);
+        // The mods' face names are read under their own lock first: `offers_now` reads the hub.
+        let mod_faces = self
+            .cfg
+            .lock()
+            .expect("config lock")
+            .schema()
+            .mods
+            .face_names();
+        let mut offers = offers_now(&self.hub, &mod_faces);
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers
@@ -886,9 +962,15 @@ impl ConfigStore {
         self.cfg.lock().expect("config lock").paths().clone()
     }
 
-    /// `profile.list` / `profile.preview` / `profile.load` / `profile.save`. Refusals carry i18n
-    /// keys (`config.error.profile_*`, K27); the list is also pushed in the `config` document.
+    /// `profile.*` and `settings.open` (the daemon's Settings launcher, [`SettingsApp::from_env`]).
     pub fn register_actions(self: &Arc<Self>, actions: &mut ActionRegistry) {
+        self.register_actions_with(actions, SettingsApp::from_env());
+    }
+
+    /// `profile.list` / `profile.preview` / `profile.load` / `profile.save` / `profile.export` /
+    /// `profile.import` (PROTOCOL §6) and `settings.open` through `app`. Refusals carry i18n keys
+    /// (`config.error.profile_*`, K27); the list is also pushed in the `config` document.
+    pub fn register_actions_with(self: &Arc<Self>, actions: &mut ActionRegistry, app: SettingsApp) {
         fn args(v: &Value) -> (Option<String>, Option<Vec<String>>) {
             let name = v.get("name").and_then(Value::as_str).map(String::from);
             let sections = v.get("sections").and_then(Value::as_array).map(|a| {
@@ -918,13 +1000,13 @@ impl ConfigStore {
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
-                let diff = me
+                let review = me
                     .cfg
                     .lock()
                     .expect("config lock")
                     .preview_profile(&name, secs.as_deref())
                     .map_err(profile_refusal)?;
-                Ok(Some(json!({"diff": diff_entries(&diff)})))
+                Ok(Some(review_json(&review)))
             }
         });
         let me = self.clone();
@@ -936,14 +1018,18 @@ impl ConfigStore {
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
-                let (applied, _) = me
+                let loaded = me
                     .cfg
                     .lock()
                     .expect("config lock")
                     .load_profile(&name, secs.as_deref())
                     .map_err(profile_refusal)?;
                 me.publish();
-                Ok(Some(json!({"rev": applied.rev, "undo": applied.tx_id})))
+                Ok(Some(json!({
+                    "rev": loaded.applied.rev,
+                    "undo": loaded.applied.tx_id,
+                    "not_applied": loaded.not_applied,
+                })))
             }
         });
         let me = self.clone();
@@ -966,6 +1052,223 @@ impl ConfigStore {
                 Ok(Some(json!({"path": path})))
             }
         });
+        let me = self.clone();
+        actions.register("profile.export", "action.profile.export", move |v| {
+            let me = me.clone();
+            async move {
+                let (name, _) = args(&v);
+                let name = name.ok_or_else(&no_name)?;
+                let path = absolute_path(&v)?;
+                let exported = me
+                    .cfg
+                    .lock()
+                    .expect("config lock")
+                    .export_profile(&name, &path)
+                    .map_err(profile_refusal)?;
+                Ok(Some(
+                    json!({"path": exported.path, "left_out": exported.left_out}),
+                ))
+            }
+        });
+        let me = self.clone();
+        actions.register("profile.import", "action.profile.import", move |v| {
+            let me = me.clone();
+            async move {
+                let path = absolute_path(&v)?;
+                let apply = apply_flag(&v)?;
+                let (_, sections) = args(&v);
+                let secs: Option<Vec<&str>> = sections
+                    .as_ref()
+                    .map(|s| s.iter().map(String::as_str).collect());
+                let name = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or_default()
+                    .to_string();
+                if !apply {
+                    let review = me
+                        .cfg
+                        .lock()
+                        .expect("config lock")
+                        .review_profile_file(&path, secs.as_deref())
+                        .map_err(profile_refusal)?;
+                    let mut out = review_json(&review);
+                    out["name"] = json!(name);
+                    out["diagnostics"] = json!(review.diff.diagnostics);
+                    return Ok(Some(out));
+                }
+                let loaded = me
+                    .cfg
+                    .lock()
+                    .expect("config lock")
+                    .load_profile_file(&path, secs.as_deref())
+                    .map_err(profile_refusal)?;
+                me.publish();
+                Ok(Some(json!({
+                    "name": name,
+                    "rev": loaded.applied.rev,
+                    "undo": loaded.applied.tx_id,
+                    "not_applied": loaded.not_applied,
+                    "diagnostics": loaded.diagnostics,
+                })))
+            }
+        });
+        let app = Arc::new(app);
+        let me = self.clone();
+        actions.register("settings.open", "action.settings.open", move |v| {
+            let me = me.clone();
+            let app = app.clone();
+            async move {
+                let key = match v.get("key") {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(k)) if !k.is_empty() => Some(k.clone()),
+                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                };
+                // A page link needs Settings to read a page at start, which it cannot yet (PROTOCOL §6).
+                if v.get("page").is_some() {
+                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
+                }
+                if let Some(k) = &key
+                    && me.get(k, None).is_none()
+                {
+                    return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
+                }
+                // Probing and starting block (a `qs` call that waits for its reply): off the runtime.
+                let how = tokio::task::spawn_blocking(move || app.open(key.as_deref()))
+                    .await
+                    .map_err(|e| ActionError::Internal(e.to_string()))??;
+                Ok(Some(json!({"opened": how})))
+            }
+        });
+    }
+}
+
+/// The Settings window (`settings/`, a Quickshell config; I25, I36): the daemon opens it on a
+/// setting, or jumps the window that already runs. The window starts as a program with its
+/// arguments, never through a shell, and outside the daemon's process group.
+#[derive(Debug, Clone)]
+pub struct SettingsApp {
+    /// What `qs -p` loads: `<data dir>/settings`, the package's copy.
+    pub dir: PathBuf,
+    /// Where `qs` is looked up: the PATH the daemon runs with (tests pass their own).
+    pub path: OsString,
+}
+
+/// How long one `qs ipc` probe may take before it counts as "no window".
+const PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
+impl SettingsApp {
+    pub fn from_env() -> Self {
+        Self {
+            dir: crate::i18n::data_dir().join("settings"),
+            path: std::env::var_os("PATH").unwrap_or_default(),
+        }
+    }
+
+    /// Opens Settings on `key`, or shows it without one. Answers `jumped` (a running window moved
+    /// to `key`), `open` (a running window, no key) or `launched` (a new window, with
+    /// `KURASHI_SETTINGS_KEY` set to `key`).
+    pub fn open(&self, key: Option<&str>) -> Result<&'static str, ActionError> {
+        if !self.dir.join("shell.qml").is_file() {
+            return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
+        }
+        let qs = find_program("qs", &self.path)
+            .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
+        match key {
+            Some(key) if probe(&qs, &self.dir, &["jump", key]) => return Ok("jumped"),
+            None if probe(&qs, &self.dir, &["current"]) => return Ok("open"),
+            _ => {}
+        }
+        let mut cmd = Command::new(&qs);
+        cmd.arg("-p")
+            .arg(&self.dir)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0);
+        match key {
+            Some(key) => cmd.env("KURASHI_SETTINGS_KEY", key),
+            None => cmd.env_remove("KURASHI_SETTINGS_KEY"),
+        };
+        let child = cmd.spawn().map_err(|e| {
+            tracing::warn!(error = %e, "settings window did not start");
+            ActionError::Unavailable(SETTINGS_NO_RUNTIME.into())
+        })?;
+        reap(child);
+        Ok("launched")
+    }
+}
+
+/// The first executable `name` on `path`.
+fn find_program(name: &str, path: &OsStr) -> Option<PathBuf> {
+    std::env::split_paths(path)
+        .map(|dir| dir.join(name))
+        .find(|p| {
+            p.metadata()
+                .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+        })
+}
+
+/// Whether `qs -p <dir> ipc call settings <args>` answers, i.e. a Settings window runs. A probe
+/// that does not finish within [`PROBE_TIMEOUT`] counts as no window.
+fn probe(qs: &Path, dir: &Path, args: &[&str]) -> bool {
+    let spawned = Command::new(qs)
+        .arg("-p")
+        .arg(dir)
+        .args(["ipc", "call", "settings"])
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn();
+    let Ok(mut child) = spawned else {
+        return false;
+    };
+    let deadline = Instant::now() + PROBE_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(status)) => return status.success(),
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return false;
+            }
+        }
+    }
+}
+
+/// Waits for a started window on a thread of its own, so it does not stay a zombie of the daemon.
+fn reap(mut child: Child) {
+    let spawned = std::thread::Builder::new()
+        .name("settings-window".into())
+        .spawn(move || {
+            let _ = child.wait();
+        });
+    if let Err(e) = spawned {
+        tracing::warn!(error = %e, "settings window not reaped");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_mod_face_is_labelled_with_the_mod_name() {
+        let hub = Hub::new();
+        hub.register(
+            "runtime.island.main",
+            json!({"faces": ["clock", "weather", "bluetooth", "volume"]}),
+            None,
+        );
+        let mods = BTreeMap::from([("weather".to_string(), "mods.weather.name".to_string())]);
+        let offers = offers_now(&hub, &mods);
+        let faces = &offers["island.faces"];
+        let label = |v: &str| faces.iter().find(|o| o.value == v).map(|o| o.label.clone());
+        assert_eq!(label("weather").as_deref(), Some("mods.weather.name"));
+        assert_eq!(label("bluetooth").as_deref(), Some("config.face.bluetooth"));
+        assert_eq!(label("volume"), None, "OSD faces are not offered");
     }
 }
 

@@ -59,3 +59,6 @@
 "error.media.cannot_seek" = "このプレーヤーはシークに対応していません。"
 "error.media.no_player" = "再生中のメディアプレーヤーがありません。"
 "error.media.no_such_player" = "そのIDのメディアプレーヤーはありません。"
+"action.settings.open" = "設定を開く"
+"error.settings.not_installed" = "設定が見つからないため、開けません。"
+"error.settings.no_runtime" = "Quickshell（qs）が使えないため、設定を開けません。"
