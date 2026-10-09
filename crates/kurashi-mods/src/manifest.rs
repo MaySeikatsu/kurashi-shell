@@ -1,0 +1,467 @@
+//! `mod.toml` parsing and validation. Errors carry a stable code (`mods.error.<code>`, i18n key)
+//! and the offending field path so Settings can say exactly why a mod is inert (Shōjiki).
+
+use semver::{Version, VersionReq};
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ValidationError {
+    /// Stable machine code; the i18n key is `mods.error.<code>`.
+    pub code: &'static str,
+    /// Field path, e.g. `setting[1].default`.
+    pub path: String,
+    /// Offending value or extra context (not user-facing prose).
+    pub detail: String,
+}
+
+impl ValidationError {
+    pub(crate) fn new(
+        code: &'static str,
+        path: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
+        Self {
+            code,
+            path: path.into(),
+            detail: detail.into(),
+        }
+    }
+    pub fn i18n_key(&self) -> String {
+        format!("mods.error.{}", self.code)
+    }
+}
+
+impl fmt::Display for ValidationError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} at {}: {}", self.i18n_key(), self.path, self.detail)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Tier {
+    Native,
+    Portable,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Cost {
+    Low,
+    Medium,
+    High,
+}
+
+/// Capabilities are declared and shown in Settings; unknown ones are an error, not ignored.
+pub const KNOWN_CAPABILITIES: &[&str] = &[
+    "dbus:session",
+    "dbus:system",
+    "network",
+    "audio",
+    "notifications",
+    "fs:scoped",
+    "exec",
+    "secrets",
+];
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(tag = "kind", content = "id", rename_all = "kebab-case")]
+pub enum Provide {
+    Widget(String),
+    IslandFace(String),
+    Panel(String),
+    Service(String),
+    /// Exact action id or a glob ending in `.*`.
+    Action(String),
+    Palette(String),
+    Decor(String),
+    Launcher(String),
+    I18n,
+}
+
+impl Provide {
+    fn parse(s: &str) -> Result<Self, &'static str> {
+        if s == "i18n" {
+            return Ok(Self::I18n);
+        }
+        let (kind, id) = s.split_once(':').ok_or("provide_malformed")?;
+        let ok_char = |c: char| c.is_ascii_lowercase() || c.is_ascii_digit() || "-_.".contains(c);
+        let valid = if kind == "action" {
+            let body = id.strip_suffix(".*").unwrap_or(id);
+            !body.is_empty() && body.chars().all(ok_char)
+        } else {
+            !id.is_empty() && id.chars().all(ok_char)
+        };
+        if !valid {
+            return Err("provide_malformed");
+        }
+        let id = id.to_string();
+        Ok(match kind {
+            "widget" => Self::Widget(id),
+            "island-face" => Self::IslandFace(id),
+            "panel" => Self::Panel(id),
+            "service" => Self::Service(id),
+            "action" => Self::Action(id),
+            "palette" => Self::Palette(id),
+            "decor" => Self::Decor(id),
+            "launcher" => Self::Launcher(id),
+            _ => return Err("provide_unknown_kind"),
+        })
+    }
+
+    /// True when two provides claim the same slot (action globs overlap by prefix).
+    pub fn conflicts_with(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Action(a), Self::Action(b)) => {
+                let (pa, pb) = (a.strip_suffix(".*"), b.strip_suffix(".*"));
+                let under = |glob: &str, x: &str| x == glob || x.starts_with(&format!("{glob}."));
+                match (pa, pb) {
+                    (Some(ga), Some(gb)) => under(ga, gb) || under(gb, ga),
+                    (Some(g), None) => under(g, b),
+                    (None, Some(g)) => under(g, a),
+                    (None, None) => a == b,
+                }
+            }
+            _ => self == other,
+        }
+    }
+}
+
+impl fmt::Display for Provide {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Widget(i) => write!(f, "widget:{i}"),
+            Self::IslandFace(i) => write!(f, "island-face:{i}"),
+            Self::Panel(i) => write!(f, "panel:{i}"),
+            Self::Service(i) => write!(f, "service:{i}"),
+            Self::Action(i) => write!(f, "action:{i}"),
+            Self::Palette(i) => write!(f, "palette:{i}"),
+            Self::Decor(i) => write!(f, "decor:{i}"),
+            Self::Launcher(i) => write!(f, "launcher:{i}"),
+            Self::I18n => write!(f, "i18n"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
+pub enum SettingValue {
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+    Str(String),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SettingType {
+    Bool,
+    Int,
+    Float,
+    String,
+    Enum,
+    Color,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Setting {
+    pub key: String,
+    #[serde(rename = "type")]
+    pub ty: SettingType,
+    pub default: SettingValue,
+    pub range: Option<(f64, f64)>,
+    pub choices: Vec<String>,
+    pub unit: Option<String>,
+    pub label: Option<String>,
+    pub help: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct Manifest {
+    pub id: String,
+    pub name: String,
+    pub version: Version,
+    pub tier: Tier,
+    pub kurashi: VersionReq,
+    pub provides: Vec<Provide>,
+    pub capabilities: Vec<String>,
+    pub cost: Cost,
+    pub settings: Vec<Setting>,
+}
+
+impl Manifest {
+    /// Config key for one of this mod's settings (`mod.<id>.<key>`).
+    pub fn config_key(&self, key: &str) -> String {
+        format!("mod.{}.{key}", self.id)
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Raw {
+    id: String,
+    name: String,
+    version: String,
+    tier: String,
+    kurashi: String,
+    #[serde(default)]
+    provides: Vec<String>,
+    #[serde(default)]
+    capabilities: Vec<String>,
+    #[serde(default = "default_cost")]
+    cost: String,
+    #[serde(default, rename = "setting")]
+    settings: Vec<RawSetting>,
+}
+
+fn default_cost() -> String {
+    "low".into()
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawSetting {
+    key: String,
+    #[serde(rename = "type")]
+    ty: String,
+    default: toml::Value,
+    range: Option<Vec<toml::Value>>,
+    #[serde(default)]
+    choices: Vec<String>,
+    unit: Option<String>,
+    label: Option<String>,
+    help: Option<String>,
+}
+
+fn ident_ok(s: &str) -> bool {
+    s.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
+fn key_ok(s: &str) -> bool {
+    s.chars().next().is_some_and(|c| c.is_ascii_lowercase())
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+}
+
+fn num(v: &toml::Value) -> Option<f64> {
+    match v {
+        toml::Value::Integer(i) => Some(*i as f64),
+        toml::Value::Float(f) => Some(*f),
+        _ => None,
+    }
+}
+
+fn is_color(s: &str) -> bool {
+    s.strip_prefix('#')
+        .is_some_and(|h| matches!(h.len(), 6 | 8) && h.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+/// Parse and validate `text`. `dir_name` is the mod's directory (id must match it);
+/// `daemon` is checked against the manifest's `kurashi` requirement.
+/// All problems are collected, not just the first.
+pub fn parse(
+    dir_name: &str,
+    text: &str,
+    daemon: &Version,
+) -> Result<Manifest, Vec<ValidationError>> {
+    let raw: Raw = toml::from_str(text).map_err(|e| {
+        vec![ValidationError::new(
+            "parse",
+            "mod.toml",
+            e.message().to_string(),
+        )]
+    })?;
+    let mut errs: Vec<ValidationError> = Vec::new();
+    let mut err = |c: &'static str, p: &str, d: &str| errs.push(ValidationError::new(c, p, d));
+
+    if !ident_ok(&raw.id) {
+        err("id_invalid", "id", &raw.id);
+    } else if raw.id != dir_name {
+        err(
+            "id_dir_mismatch",
+            "id",
+            &format!("{} != {dir_name}", raw.id),
+        );
+    }
+    if raw.name.trim().is_empty() {
+        err("name_empty", "name", "");
+    }
+    let version = match Version::parse(&raw.version) {
+        Ok(v) => Some(v),
+        Err(e) => {
+            err("version_invalid", "version", &e.to_string());
+            None
+        }
+    };
+    let tier = match raw.tier.as_str() {
+        "native" => Some(Tier::Native),
+        "portable" => Some(Tier::Portable),
+        t => {
+            err("tier_invalid", "tier", t);
+            None
+        }
+    };
+    let kurashi = match VersionReq::parse(&raw.kurashi) {
+        Ok(r) => {
+            if !r.matches(daemon) {
+                err(
+                    "kurashi_incompatible",
+                    "kurashi",
+                    &format!("{r} does not match daemon {daemon}"),
+                );
+            }
+            Some(r)
+        }
+        Err(e) => {
+            err("kurashi_invalid", "kurashi", &e.to_string());
+            None
+        }
+    };
+    let cost = match raw.cost.as_str() {
+        "low" => Some(Cost::Low),
+        "medium" => Some(Cost::Medium),
+        "high" => Some(Cost::High),
+        c => {
+            err("cost_invalid", "cost", c);
+            None
+        }
+    };
+
+    let mut provides = Vec::new();
+    for (i, p) in raw.provides.iter().enumerate() {
+        match Provide::parse(p) {
+            Ok(v) if provides.contains(&v) => {
+                err("provide_duplicate", &format!("provides[{i}]"), p)
+            }
+            Ok(v) => provides.push(v),
+            Err(c) => err(c, &format!("provides[{i}]"), p),
+        }
+    }
+    for (i, c) in raw.capabilities.iter().enumerate() {
+        if !KNOWN_CAPABILITIES.contains(&c.as_str()) {
+            err("capability_unknown", &format!("capabilities[{i}]"), c);
+        }
+    }
+
+    let mut settings = Vec::new();
+    let mut seen = Vec::<&str>::new();
+    for (i, s) in raw.settings.iter().enumerate() {
+        let at = |f: &str| format!("setting[{i}].{f}");
+        if !key_ok(&s.key) {
+            err("setting_key_invalid", &at("key"), &s.key);
+        } else if seen.contains(&s.key.as_str()) {
+            err("setting_key_duplicate", &at("key"), &s.key);
+        }
+        seen.push(&s.key);
+        let ty = match s.ty.as_str() {
+            "bool" => SettingType::Bool,
+            "int" => SettingType::Int,
+            "float" => SettingType::Float,
+            "string" => SettingType::String,
+            "enum" => SettingType::Enum,
+            "color" => SettingType::Color,
+            t => {
+                err("setting_type_invalid", &at("type"), t);
+                continue;
+            }
+        };
+        let numeric = matches!(ty, SettingType::Int | SettingType::Float);
+        let range = match &s.range {
+            None => None,
+            Some(_) if !numeric => {
+                err("setting_range_not_numeric", &at("range"), &s.ty);
+                None
+            }
+            Some(r) => match r.as_slice() {
+                [a, b] if num(a).is_some() && num(b).is_some() && num(a) <= num(b) => {
+                    num(a).zip(num(b))
+                }
+                _ => {
+                    err(
+                        "setting_range_invalid",
+                        &at("range"),
+                        "expected [min, max] with min <= max",
+                    );
+                    None
+                }
+            },
+        };
+        if ty == SettingType::Enum && s.choices.is_empty() {
+            err("setting_choices_missing", &at("choices"), "");
+        } else if ty != SettingType::Enum && !s.choices.is_empty() {
+            err("setting_choices_not_enum", &at("choices"), &s.ty);
+        }
+        let default = match (ty, &s.default) {
+            (SettingType::Bool, toml::Value::Boolean(b)) => Some(SettingValue::Bool(*b)),
+            (SettingType::Int, toml::Value::Integer(n)) => Some(SettingValue::Int(*n)),
+            (SettingType::Float, v @ (toml::Value::Float(_) | toml::Value::Integer(_))) => {
+                num(v).map(SettingValue::Float)
+            }
+            (SettingType::String, toml::Value::String(t)) => Some(SettingValue::Str(t.clone())),
+            (SettingType::Enum, toml::Value::String(t)) => {
+                if !s.choices.contains(t) {
+                    err("setting_default_not_in_choices", &at("default"), t);
+                }
+                Some(SettingValue::Str(t.clone()))
+            }
+            (SettingType::Color, toml::Value::String(t)) => {
+                if !is_color(t) {
+                    err("setting_default_not_color", &at("default"), t);
+                }
+                Some(SettingValue::Str(t.clone()))
+            }
+            (_, v) => {
+                err(
+                    "setting_default_type",
+                    &at("default"),
+                    &format!("{v} is not {}", s.ty),
+                );
+                None
+            }
+        };
+        if let (Some(d), Some((lo, hi))) = (&default, range) {
+            let x = match d {
+                SettingValue::Int(n) => *n as f64,
+                SettingValue::Float(f) => *f,
+                _ => lo,
+            };
+            if x < lo || x > hi {
+                err(
+                    "setting_default_out_of_range",
+                    &at("default"),
+                    &format!("{x} not in [{lo}, {hi}]"),
+                );
+            }
+        }
+        if let Some(default) = default {
+            settings.push(Setting {
+                key: s.key.clone(),
+                ty,
+                default,
+                range,
+                choices: s.choices.clone(),
+                unit: s.unit.clone(),
+                label: s.label.clone(),
+                help: s.help.clone(),
+            });
+        }
+    }
+
+    match (errs.is_empty(), version, tier, kurashi, cost) {
+        (true, Some(version), Some(tier), Some(kurashi), Some(cost)) => Ok(Manifest {
+            id: raw.id,
+            name: raw.name,
+            version,
+            tier,
+            kurashi,
+            provides,
+            capabilities: raw.capabilities,
+            cost,
+            settings,
+        }),
+        _ => Err(errs),
+    }
+}
