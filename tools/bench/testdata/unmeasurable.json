@@ -1,0 +1,7 @@
+{
+  "name": "selftest-unmeasurable",
+  "daemon": "mock",
+  "commit": "testdata",
+  "pass_a": {"idle_cpu_pct": 0.0, "idle_window_s": 30.0, "pss_mib_1out": 100.0, "pss_mib_2out": 102.0},
+  "pass_b": {"commits": "unmeasurable", "startup_ms": null}
+}
