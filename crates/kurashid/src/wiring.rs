@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry};
 use crate::config::ConfigStore;
+use crate::doctor::SharedFacts;
 use crate::hub::Hub;
 use crate::{Daemon, QueryFn};
 
@@ -81,6 +82,97 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     });
 }
 
+/// Debounce for the applications-dir watcher; a package install touches many files in a burst.
+const INDEX_DEBOUNCE: std::time::Duration = std::time::Duration::from_millis(500);
+
+/// The applications-dir watcher lives only while the launcher is open (Ma, rule 5). Changes
+/// made while it was closed are caught by one `reindex()` on the next open.
+pub struct LauncherWatch {
+    launcher: kurashi_launcher::Launcher,
+    state: Mutex<WatchState>,
+    debounce: std::time::Duration,
+}
+
+struct WatchState {
+    watcher: Option<kurashi_launcher::Watcher>,
+    /// The watcher stopped (or never ran) since the index was last known fresh.
+    stale: bool,
+}
+
+impl LauncherWatch {
+    pub fn new(launcher: kurashi_launcher::Launcher) -> Arc<Self> {
+        Self::with_debounce(launcher, INDEX_DEBOUNCE)
+    }
+
+    pub fn with_debounce(
+        launcher: kurashi_launcher::Launcher,
+        debounce: std::time::Duration,
+    ) -> Arc<Self> {
+        // Stale from the start: nothing watched between daemon start and the first open.
+        Arc::new(Self {
+            launcher,
+            state: Mutex::new(WatchState {
+                watcher: None,
+                stale: true,
+            }),
+            debounce,
+        })
+    }
+
+    pub fn is_watching(&self) -> bool {
+        self.state.lock().expect("watch lock").watcher.is_some()
+    }
+
+    /// Idempotent: called with the launcher's current visibility. Blocking (reindex, inotify).
+    pub fn apply(&self, open: bool) {
+        let mut st = self.state.lock().expect("watch lock");
+        match (open, st.watcher.is_some()) {
+            (true, false) => {
+                // Watch first, then reindex, so a change between the two is not lost. The
+                // watcher re-indexes by itself; the launcher queries on demand, so no push.
+                match self.launcher.watch(self.debounce, || {}) {
+                    Ok(w) => st.watcher = Some(w),
+                    Err(e) => tracing::warn!(error = %e, "launcher index watcher unavailable"),
+                }
+                if st.stale {
+                    self.launcher.reindex();
+                    st.stale = false;
+                }
+            }
+            (false, true) => {
+                st.watcher = None; // dropping stops both threads
+                st.stale = true;
+            }
+            (false, false) => st.stale = true,
+            (true, true) => {}
+        }
+    }
+}
+
+/// Follows `runtime.ui.launcher` on the hub and drives the watcher. Event-driven, no polling.
+fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
+    let mut events = hub.events();
+    tokio::spawn(async move {
+        loop {
+            match events.recv().await {
+                Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(_) => return,
+            }
+            // Re-read instead of interpreting patches: lag-proof and cheap.
+            let open = hub
+                .snapshot("runtime.ui")
+                .is_ok_and(|(_, d)| d["launcher"].as_bool() == Some(true));
+            let w = watch.clone();
+            if tokio::task::spawn_blocking(move || w.apply(open))
+                .await
+                .is_err()
+            {
+                return;
+            }
+        }
+    });
+}
+
 /// `query kind:"launcher"` + `launcher.launch {id, files?}`.
 pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::path::PathBuf) {
     use kurashi_launcher::{IndexConfig, LaunchOptions, Launcher};
@@ -103,6 +195,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         opts,
         state_dir.join("launcher.json"),
     );
+    watch_while_open(daemon.hub.clone(), LauncherWatch::new(launcher.clone()));
     let l = launcher.clone();
     let query: QueryFn = Arc::new(move |q: &str| {
         l.query(q, 30)
@@ -162,12 +255,39 @@ impl kurashi_services::DocSink for NotifySink {
     }
 }
 
+/// Does `conn` itself own `name` right now?
+async fn name_owned_by(conn: &zbus::Connection, name: &str) -> bool {
+    let Ok(dbus) = zbus::fdo::DBusProxy::new(conn).await else {
+        return false;
+    };
+    let Ok(bus_name) = zbus::names::BusName::try_from(name) else {
+        return false;
+    };
+    match (dbus.get_name_owner(bus_name).await, conn.unique_name()) {
+        (Ok(owner), Some(me)) => owner.as_str() == me.as_str(),
+        _ => false,
+    }
+}
+
 pub fn notifications(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     cfg: Option<&ConfigStore>,
     cache_dir: std::path::PathBuf,
     island: Option<Arc<crate::island::IslandHost>>,
+) {
+    notifications_with_facts(hub, actions, cfg, cache_dir, island, SharedFacts::default());
+}
+
+/// Like [`notifications`]; the task reports the session bus and the name ownership it actually
+/// observed into the doctor's `facts`.
+pub fn notifications_with_facts(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    cfg: Option<&ConfigStore>,
+    cache_dir: std::path::PathBuf,
+    island: Option<Arc<crate::island::IslandHost>>,
+    facts: SharedFacts,
 ) {
     use kurashi_notify::{NotifyConfig, Server};
     hub.register(
@@ -192,15 +312,29 @@ pub fn notifications(
         tokio::spawn(async move {
             let conn = match zbus::Connection::session().await {
                 Ok(c) => c,
-                Err(e) => return tracing::warn!(error = %e, "no session bus: notifications off"),
+                Err(e) => {
+                    facts.update(|f| {
+                        f.session_bus = Some(false);
+                        f.notification_name_owned = Some(false);
+                    });
+                    return tracing::warn!(error = %e, "no session bus: notifications off");
+                }
             };
-            match Server::serve(conn, Arc::new(NotifySink { hub, island }), nc).await {
+            facts.update(|f| f.session_bus = Some(true));
+            match Server::serve(conn.clone(), Arc::new(NotifySink { hub, island }), nc).await {
                 Ok((handle, cmds)) => {
+                    // `serve` succeeds even when another daemon holds the name (it never steals
+                    // it), so ask the bus who owns it instead of assuming.
+                    let owned = name_owned_by(&conn, "org.freedesktop.Notifications").await;
+                    facts.update(|f| f.notification_name_owned = Some(owned));
                     *commands.lock().expect("notify lock") = Some(cmds);
                     // The server runs until the daemon exits.
                     std::mem::forget(handle);
                 }
-                Err(e) => tracing::warn!(error = %e, "notification server failed"),
+                Err(e) => {
+                    facts.update(|f| f.notification_name_owned = Some(false));
+                    tracing::warn!(error = %e, "notification server failed");
+                }
             }
         });
     }
@@ -483,8 +617,100 @@ pub fn lock(
     });
 }
 
+/// Opens the bus the logind calls go to. Injected so tests never reach the real system bus.
+pub type ConnectFn = Arc<
+    dyn Fn() -> std::pin::Pin<
+            Box<dyn std::future::Future<Output = zbus::Result<zbus::Connection>> + Send>,
+        > + Send
+        + Sync,
+>;
+
+/// Error text of the `invalid` reply when `{confirm: true}` is missing; the UI keys its confirm
+/// step on it.
+pub const CONFIRM_REQUIRED: &str = "session.confirm_required";
+
+/// `session.{suspend,reboot,poweroff,logout}`: destructive, so each needs `{confirm: true}` in
+/// its args. Talks to logind on the system bus.
+pub fn session(actions: &mut ActionRegistry, facts: SharedFacts) {
+    let connect: ConnectFn = Arc::new(|| Box::pin(zbus::Connection::system()));
+    session_with(actions, facts, connect);
+}
+
+pub fn session_with(actions: &mut ActionRegistry, facts: SharedFacts, connect: ConnectFn) {
+    const DEST: &str = "org.freedesktop.login1";
+    // (action, object path, interface, method, takes the `interactive` bool)
+    const CMDS: [(&str, &str, &str, &str, bool); 4] = [
+        (
+            "session.suspend",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            "Suspend",
+            true,
+        ),
+        (
+            "session.reboot",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            "Reboot",
+            true,
+        ),
+        (
+            "session.poweroff",
+            "/org/freedesktop/login1",
+            "org.freedesktop.login1.Manager",
+            "PowerOff",
+            true,
+        ),
+        // `auto` resolves to the caller's own session, so no session id lookup is needed.
+        (
+            "session.logout",
+            "/org/freedesktop/login1/session/auto",
+            "org.freedesktop.login1.Session",
+            "Terminate",
+            false,
+        ),
+    ];
+    // One short probe at startup so `doctor` can say whether logind is reachable at all; the
+    // connection is dropped right away (Ma).
+    {
+        let (connect, facts) = (connect.clone(), facts.clone());
+        tokio::spawn(async move {
+            let ok = connect().await.is_ok();
+            facts.update(|f| f.system_bus = Some(ok));
+        });
+    }
+    for (id, path, iface, method, interactive) in CMDS {
+        let (connect, facts) = (connect.clone(), facts.clone());
+        actions.register(id, &format!("action.{id}"), move |args: Value| {
+            let (connect, facts) = (connect.clone(), facts.clone());
+            async move {
+                // Checked before any bus traffic: an unconfirmed call must be inert.
+                if args["confirm"].as_bool() != Some(true) {
+                    return Err(ActionError::Invalid(CONFIRM_REQUIRED.into()));
+                }
+                let conn = connect().await.map_err(|e| {
+                    facts.update(|f| f.system_bus = Some(false));
+                    ActionError::Unavailable(e.to_string())
+                })?;
+                facts.update(|f| f.system_bus = Some(true));
+                let reply = if interactive {
+                    conn.call_method(Some(DEST), path, Some(iface), method, &(false,))
+                        .await
+                } else {
+                    conn.call_method(Some(DEST), path, Some(iface), method, &())
+                        .await
+                };
+                reply.map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use super::*;
 
     #[tokio::test]
@@ -516,5 +742,253 @@ mod tests {
         );
         assert_eq!(hub2.snapshot("runtime.lock").unwrap().1["locked"], true);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn temp_dir(tag: &str) -> std::path::PathBuf {
+        let d = std::env::temp_dir().join(format!("kurashid-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    fn desktop(dir: &std::path::Path, file: &str, name: &str) {
+        std::fs::write(
+            dir.join(file),
+            format!("[Desktop Entry]\nType=Application\nName={name}\nExec=true\n"),
+        )
+        .unwrap();
+    }
+
+    fn launcher_over(dir: &std::path::Path) -> kurashi_launcher::Launcher {
+        let cfg = kurashi_launcher::IndexConfig {
+            dirs: vec![dir.to_path_buf()],
+            locale: None,
+            desktops: vec![],
+            check_try_exec: false,
+        };
+        kurashi_launcher::Launcher::new(
+            cfg,
+            kurashi_launcher::LaunchOptions {
+                terminal_cmd: vec![],
+                systemd_scope: false,
+            },
+            kurashi_launcher::Frecency::memory(),
+        )
+    }
+
+    async fn until(what: &str, mut f: impl FnMut() -> bool) {
+        for _ in 0..200 {
+            if f() {
+                return;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+        }
+        panic!("timed out waiting for {what}");
+    }
+
+    #[tokio::test]
+    async fn launcher_watcher_follows_the_open_state() {
+        let dir = temp_dir("apps");
+        desktop(&dir, "a.desktop", "Alpha");
+        let launcher = launcher_over(&dir);
+        assert_eq!(launcher.len(), 1);
+        let watch = LauncherWatch::with_debounce(launcher.clone(), Duration::from_millis(30));
+        let hub = Hub::new();
+        hub.register(
+            "runtime.ui",
+            json!({"popup": false, "panel": "", "launcher": false}),
+            None,
+        );
+        watch_while_open(hub.clone(), watch.clone());
+        assert!(!watch.is_watching(), "closed launcher: no watcher");
+
+        // Opening starts the watcher (and the first open reindexes once).
+        hub.update("runtime.ui", None, |d| d["launcher"] = json!(true))
+            .unwrap();
+        until("watcher started", || watch.is_watching()).await;
+        desktop(&dir, "b.desktop", "Beta");
+        until("live reindex", || launcher.len() == 2).await;
+
+        // Closing stops it: a change while closed is not seen...
+        hub.update("runtime.ui", None, |d| d["launcher"] = json!(false))
+            .unwrap();
+        until("watcher stopped", || !watch.is_watching()).await;
+        desktop(&dir, "c.desktop", "Gamma");
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(launcher.len(), 2, "nothing watches while closed");
+
+        // ...but the next open catches up with one reindex.
+        hub.update("runtime.ui", None, |d| d["launcher"] = json!(true))
+            .unwrap();
+        until("catch-up reindex", || launcher.len() == 3).await;
+        assert!(watch.is_watching());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---- session actions against a private bus with a fake logind --------------------------
+
+    struct Bus {
+        child: std::process::Child,
+        addr: String,
+        dir: std::path::PathBuf,
+    }
+
+    impl Bus {
+        fn start() -> Self {
+            use std::io::{BufRead, BufReader};
+            let dir = temp_dir("bus");
+            let conf = dir.join("bus.conf");
+            std::fs::write(
+                &conf,
+                format!(
+                    r#"<busconfig><type>session</type>
+<listen>unix:tmpdir={}</listen><auth>EXTERNAL</auth>
+<policy context="default"><allow send_destination="*" eavesdrop="true"/><allow eavesdrop="true"/><allow own="*"/></policy>
+</busconfig>"#,
+                    dir.display()
+                ),
+            )
+            .unwrap();
+            let mut child = std::process::Command::new("dbus-daemon")
+                .arg(format!("--config-file={}", conf.display()))
+                .args(["--nofork", "--print-address"])
+                .stdout(std::process::Stdio::piped())
+                .spawn()
+                .expect("dbus-daemon (run inside nix develop)");
+            let mut addr = String::new();
+            BufReader::new(child.stdout.as_mut().unwrap())
+                .read_line(&mut addr)
+                .unwrap();
+            Self {
+                child,
+                addr: addr.trim().to_owned(),
+                dir,
+            }
+        }
+
+        async fn conn(&self) -> zbus::Connection {
+            zbus::connection::Builder::address(self.addr.as_str())
+                .unwrap()
+                .build()
+                .await
+                .unwrap()
+        }
+    }
+
+    impl Drop for Bus {
+        fn drop(&mut self) {
+            let _ = self.child.kill();
+            let _ = self.child.wait();
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    struct FakeManager(Arc<Mutex<Vec<String>>>);
+    #[zbus::interface(name = "org.freedesktop.login1.Manager")]
+    impl FakeManager {
+        fn suspend(&self, _i: bool) {
+            self.0.lock().unwrap().push("Suspend".into());
+        }
+        fn reboot(&self, _i: bool) {
+            self.0.lock().unwrap().push("Reboot".into());
+        }
+        fn power_off(&self, _i: bool) {
+            self.0.lock().unwrap().push("PowerOff".into());
+        }
+    }
+
+    struct FakeSession(Arc<Mutex<Vec<String>>>);
+    #[zbus::interface(name = "org.freedesktop.login1.Session")]
+    impl FakeSession {
+        fn terminate(&self) {
+            self.0.lock().unwrap().push("Terminate".into());
+        }
+    }
+
+    #[tokio::test]
+    async fn session_actions_need_confirmation_and_report_the_system_bus() {
+        let bus = Bus::start();
+        let calls = Arc::new(Mutex::new(Vec::<String>::new()));
+        let srv = bus.conn().await;
+        srv.object_server()
+            .at("/org/freedesktop/login1", FakeManager(calls.clone()))
+            .await
+            .unwrap();
+        srv.object_server()
+            .at(
+                "/org/freedesktop/login1/session/auto",
+                FakeSession(calls.clone()),
+            )
+            .await
+            .unwrap();
+        srv.request_name("org.freedesktop.login1").await.unwrap();
+
+        let facts = SharedFacts::default();
+        let addr = bus.addr.clone();
+        let connect: ConnectFn = Arc::new(move || {
+            let addr = addr.clone();
+            Box::pin(async move {
+                zbus::connection::Builder::address(addr.as_str())?
+                    .build()
+                    .await
+            })
+        });
+        let mut actions = ActionRegistry::default();
+        session_with(&mut actions, facts.clone(), connect);
+        until("probe reports", || facts.get().system_bus == Some(true)).await;
+
+        for id in [
+            "session.suspend",
+            "session.reboot",
+            "session.poweroff",
+            "session.logout",
+        ] {
+            for args in [
+                Value::Null,
+                json!({}),
+                json!({"confirm": false}),
+                json!({"confirm": "yes"}),
+            ] {
+                assert_eq!(
+                    actions.invoke(id, args).await,
+                    Err(ActionError::Invalid(CONFIRM_REQUIRED.into())),
+                    "{id} must demand confirmation"
+                );
+            }
+        }
+        assert!(
+            calls.lock().unwrap().is_empty(),
+            "unconfirmed calls are inert"
+        );
+
+        for id in [
+            "session.suspend",
+            "session.reboot",
+            "session.poweroff",
+            "session.logout",
+        ] {
+            actions.invoke(id, json!({"confirm": true})).await.unwrap();
+        }
+        assert_eq!(
+            *calls.lock().unwrap(),
+            vec!["Suspend", "Reboot", "PowerOff", "Terminate"]
+        );
+    }
+
+    #[tokio::test]
+    async fn session_actions_report_an_unreachable_bus() {
+        let facts = SharedFacts::default();
+        let connect: ConnectFn = Arc::new(|| {
+            Box::pin(async { Err(zbus::Error::Failure("no system bus (test)".into())) })
+        });
+        let mut actions = ActionRegistry::default();
+        session_with(&mut actions, facts.clone(), connect);
+        until("probe reports", || facts.get().system_bus == Some(false)).await;
+        assert!(matches!(
+            actions
+                .invoke("session.suspend", json!({"confirm": true}))
+                .await,
+            Err(ActionError::Unavailable(_))
+        ));
     }
 }
