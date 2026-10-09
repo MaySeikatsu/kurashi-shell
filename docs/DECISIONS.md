@@ -120,3 +120,12 @@ but not in effect". Additive and optional, so protocol v1 stays compatible (K17)
 *Why:* the M5 honesty test (wave 7) found 9 inert-by-requires cases where `cfg.get` reported no
 reason; only the settings app evaluated `requires` client-side (business logic in a view, rule 1),
 and restart keys showed new values as in effect before they were (rule 2).
+
+**K22** 🟢 Mod settings are ordinary config keys under `mods.<id>.<key>`, declared by the mod's
+`[[setting]]` entries and validated against that declaration. They get the same layers and
+provenance as schema keys (default from the manifest → profile → user → forced), appear in
+`schema.settings` as one page per enabled mod ("Mods › <name>"), and stay stored while the mod is
+disabled (the Mods page promises "a mod that is off keeps its settings"). A disabled mod's keys are
+reported inert with `reason: "mods.disabled"` (K21 semantics), never deleted.
+*Why:* rule 3 (one schema) — mods must not grow a parallel settings system; M6 exit criterion
+"settings pages appear".
