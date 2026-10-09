@@ -16,6 +16,66 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-09 — session 4 (machine B): baseline, wave 8 merged
+**Machine B** = hybrid laptop (Ryzen 7 6800H, Radeon 680M iGPU — niri renders on it — + RTX 3070 Laptop
+dGPU with runtime PM). Its baseline is in `docs/BENCH.md`; the runbook is done (don't repeat it).
+Everything below is on `main` and pushed to origin; `just check` green (330 tests, 0 ignored,
++ `frontend/test-launch.sh`), `just golden` 5/5 unchanged, `nix flake check --no-build` ✔.
+
+**Merged this session**
+- B.2 machine-B baseline: iGPU gate 0 violations; dGPU idle-CPU "failures" = NVIDIA runtime-PM resume
+  (~1.7 s driver CPU on qs's main thread, UI blocked ~2 s) — never render the shell on a hybrid's dGPU.
+  Probes re-measured (K3 unchanged). Raw JSON in `tools/bench/baselines/` — **`archive/` stays untouched**
+  (user rule; the runbook now says so). Golden refs `tools/golden/ref-machine-b` = pixel-identical to A's.
+  `tools/bench/sandbox.sh`: `KURASHI_RENDER_NODE` picks the GPU.
+- K23 (lead): tray menus are a Stage panel (`tray.menu.open`, `runtime.ui.tray`), daemon + mock.
+- Wave 8 (6 Haiku agents, all merged after review + private-dir gate + sandbox/golden + screenshots):
+  S-settings-polish (keyboard/focus ring, AA, 32 px hits, translated errors, headers), B-tray-bluetooth
+  (tray widget, tray menu, Bluetooth in the island panel, island hit area = bar thickness, mock docs),
+  C-services (one `ServiceProvider<C,H>`, restart with backoff after bus loss), L-logind (explicit
+  graphical session: XDG_SESSION_ID → user Display → Sessions → auto), C-mod-sections (`mods.<id>`
+  profile sections, K22 addendum), K-hybrid-egl (`launch.sh` pins the EGL vendor of the compositor's
+  dmabuf main device; −10 MiB here; HM + `nix run` pass `KURASHI_WAYLAND_INFO`).
+- Lead fixes: `frontend/test-real.sh` and golden point kurashid at a missing system bus (no host BlueZ
+  from tests); CONTRACT-CHANGE deduped/renumbered (rows 19–21 decided); MODS.md/PROTOCOL §5 K22 text.
+
+**Numbers (machine B iGPU, after wave 8):** 114.3–115.5 MiB @1 out, idle 0 fps / 0 % CPU, popup 3.3–3.6 ms,
+cycles ≤ +1.3 MiB — but **per extra output +4.7…+6.7 (mean ≈ 5.95, 2 of 4 runs over ≤ +6)**.
+
+**Next steps (ordered)**
+1. **Per-output PSS headroom (budget at its limit on A and B).** A/B on machine B iGPU: 6b13d56 vs 451347d,
+   ≥ 3 quiet runs each (`KURASHI_RENDER_NODE=/dev/dri/renderD129 just bench-gate`), to attribute wave 8;
+   then cut per-bar cost (candidates: per-bar Watches/Loaders, Island wrapper, tray Repeater, the unused
+   `mods.probe` watch + ModNode repeater in Bar). Don't change the budget without the user.
+2. Contract rows 20 + 21 (accepted, lead): `item_is_menu` in kurashi-tray (SNI `ItemIsMenu`; frontend reads
+   it), and `config.history {can_undo, can_redo}` in kurashid + fixture + PROTOCOL §5; then settings
+   `Store.qml` drops its reply-derived `canUndo/canRedo`.
+3. Small fixes from reviews: brightness `SetBrightness` still on `session/auto` (same systemd --user gap as
+   L-logind — reuse its resolver); tray start failure (watcher name taken by another shell) retries every
+   30 s while a bar is visible → wait for NameOwnerChanged instead; profile actions should send error codes
+   (settings shows "(code: invalid)"); move `settings/keys.py` + test-bindings' virtual pointer into
+   `tools/bench/` (CONTRACT #6); profile list refresh when files appear.
+4. **Live test with the user** (M7): `nix run .#` on niri was never run on a real display before this
+   session — collect the user's findings, then fix (tray with real SNI items, menu-only items, scroll
+   sign, side bars, keyboard paths are untested against real apps).
+5. M6 first native mods (media + lyrics, wallpaper, sysmon, weather): needs a lead design first — how a
+   native mod contributes QML components + Rust services when enabled (`docs/MODS.md` "Lifecycle").
+6. Idea (user, not planned): Bevy as a candidate in the next framework re-test (`docs/BAKEOFF.md`).
+
+**Process lessons (keep)**
+- Agent worktrees may be created from `origin/main`, not local `main`: **push (or fast-forward) before
+  spawning**, or tell agents to `git merge --ff-only main` first (4 of 6 started on a stale base).
+- A restarted Claude process restarts its background agents; check `ListAgents` before touching worktrees
+  (the classifier rightly blocked removing live ones).
+- Agents running in parallel append the same CONTRACT-CHANGE row number — renumber at merge (again).
+- zsh: `git show $B:crates/...` breaks (`:c` modifier) — quote as `"$B:path"`.
+- Hybrid GPUs: export `KURASHI_RENDER_NODE=/dev/dri/renderD129` for every sandbox test on machine B.
+
+**Half-done / risks:** none half-done; no agents running, no extra worktrees. Per-output PSS (step 1) is the
+open risk. `frontend/shots/tray-bt/` is generated, untracked.
+
+---
+
 ## 2026-10-09 — session 3 close: handover for any machine (no prior context assumed)
 **Read this whole entry; it does not assume you remember anything.** The repo is the only memory:
 `CLAUDE.md` (rules), `docs/VISION.md` (why), `docs/ARCHITECTURE.md` (what talks to what),
