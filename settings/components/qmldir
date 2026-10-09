@@ -4,8 +4,11 @@ ProvenanceChip 1.0 ProvenanceChip.qml
 Toggle 1.0 Toggle.qml
 Slider 1.0 Slider.qml
 Segmented 1.0 Segmented.qml
+Select 1.0 Select.qml
+PickList 1.0 PickList.qml
 TextField 1.0 TextField.qml
 ListEdit 1.0 ListEdit.qml
 SettingRow 1.0 SettingRow.qml
 FocusRing 1.0 FocusRing.qml
 PageHeader 1.0 PageHeader.qml
+ModHead 1.0 ModHead.qml

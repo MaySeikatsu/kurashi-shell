@@ -66,7 +66,7 @@
 # Mods page. The mods.error.* keys are what the daemon sends for a refused mod.enable/disable
 # (action error msg) and for the reasons an invalid mod.toml gives (catalog key per code).
 "settings.ui.mods" = "Mods"
-"settings.ui.mods_help" = "Turning a mod on or off takes effect at once. A mod that is off keeps its settings."
+"settings.ui.mods_help" = "Load adds a mod's page to Settings; Remove from Settings takes it away again. Turning a mod on or off takes effect at once, and a mod that is off keeps its settings."
 "settings.ui.mods_empty" = "No mods found. A mod is a folder with a mod.toml file, kept in the mods folder of your kurashi data."
 "settings.ui.mods_failed" = "Could not change this mod"
 "settings.ui.mod_state.available" = "available"
@@ -116,3 +116,18 @@
 # Mod settings pages (K22): a mod's page is titled "Mods › <name>"; its settings sit in "General".
 "settings.ui.mod_page" = "Mods › {name}"
 "settings.section.general" = "General"
+
+# Dropdowns and pick lists (I9): the add control, the moves, and the add control when nothing is left to add.
+"settings.ui.pick_add" = "Add…"
+"settings.ui.pick_none_left" = "Every option is already listed"
+"settings.ui.pick_up" = "Move {item} up"
+"settings.ui.pick_down" = "Move {item} down"
+
+# Mod pages and the sidebar (K25): the state mark's text, the switch, the running line, Load and Remove.
+"settings.ui.mod_nav" = "{name} — {state}"
+"settings.mods.enabled" = "Enabled"
+"settings.mods.running_yes" = "Running now: yes"
+"settings.mods.running_no" = "Running now: no"
+"settings.mods.load" = "Load"
+"settings.mods.unload" = "Remove from Settings"
+"settings.mods.no_settings" = "This mod has no settings."
