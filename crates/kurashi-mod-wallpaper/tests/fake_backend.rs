@@ -144,7 +144,10 @@ async fn the_real_executor_starts_the_daemon_once_and_logs_the_flags_of_each_img
     let log = root.join("calls.log");
     script(&bin.join("awww"), CLIENT);
     script(&bin.join("awww-daemon"), DAEMON);
-    std::fs::write(folder.join("a.png"), b"x").unwrap();
+    // A picture the backend could show: `set` reads the header before it asks the backend.
+    image::RgbImage::from_pixel(1, 1, image::Rgb([90, 120, 200]))
+        .save(folder.join("a.png"))
+        .unwrap();
     let exec = Arc::new(SystemExec::with(
         vec![bin.clone()],
         vec![
