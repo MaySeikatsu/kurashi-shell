@@ -88,3 +88,9 @@ subset. *Why:* RFC 7396 can't delete a member without an explicit `null`; a hand
 would leave stale `forced_by`/`reason` on screen — a Shōjiki violation. Diffing makes every
 patch exact by construction (property-tested). Instance ids avoid trusting cached revisions
 across daemon restarts.
+
+**K18** 🟢 Loading a profile clears the user overrides in the loaded sections (all sections when
+none are given), in the same undoable transaction. *Why:* a profile that loads "successfully" but
+changes nothing visible because older user pins win would be dishonest (Shōjiki); the diff
+preview shows the cleared pins and undo restores them. Forced values are never saved into or
+cleared by profiles. (`kurashi-config`, M1.4.)

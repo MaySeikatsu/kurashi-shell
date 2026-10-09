@@ -1,0 +1,12 @@
+# 設定エンジンの文言 (ja): 診断・操作エラー・強制理由 (crates/kurashi-config)。
+"config.diag.parse" = "config.toml を解析できません。修正するまで変更は保存されません"
+"config.diag.io" = "設定ファイルを読み込めません"
+"config.diag.unknown_key" = "不明な設定のため無視しました"
+"config.diag.not_per_output" = "この設定は出力ごとに指定できないため無視しました"
+"config.diag.invalid" = "無効な値のため無視しました"
+"config.diag.newer_schema" = "新しい Kurashi で書かれた設定です。不明な部分はそのまま残します"
+"config.diag.migration_missing" = "この設定バージョンの移行手順がありません"
+"config.diag.migration_failed" = "設定の移行に失敗しました。元のファイルを保持しています"
+"config.error.unrepresentable" = "この値は TOML に保存できません"
+"config.error.user_file_unreadable" = "config.toml を読み込めません。設定を変更する前に修正してください"
+"config.forced.nix_enforced" = "Nix の設定で強制されています"
