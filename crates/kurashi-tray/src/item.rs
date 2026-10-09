@@ -30,6 +30,9 @@ pub struct View {
     pub tooltip: Option<String>,
     /// Object path of the item's dbusmenu, when it has one.
     pub menu: Option<String>,
+    /// SNI `ItemIsMenu`: the item only offers its menu, so a left click should open it (row 20).
+    /// Absent counts as false.
+    pub item_is_menu: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -67,6 +70,7 @@ pub async fn read(conn: &Connection, unique: &str, path: &str) -> Option<View> {
         menu: prop::<OwnedObjectPath>(&props, "Menu")
             .map(|p| p.to_string())
             .filter(|p| !p.is_empty() && p != "/"),
+        item_is_menu: prop::<bool>(&props, "ItemIsMenu").unwrap_or(false),
     })
 }
 
