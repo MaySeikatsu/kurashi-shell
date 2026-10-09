@@ -2,7 +2,7 @@
 _(Written by the lead from the agent's hand-back — the agent's tools refused report files.)_
 
 Versions: gpui + gpui_platform from zed git rev b5e03c7 (crates.io gpui 0.2.2 has no layer-shell), feature `wayland`; wayland-client 0.31.15 (second connection for hotplug); rustc 1.98; wgpu renderer.
-Run: `probes/gpui/run.sh` (build: `nix develop ./probes/gpui -c cargo build --release --manifest-path probes/gpui/Cargo.toml`).
+Run: `archive/bakeoff-probes/gpui/run.sh` (build: `nix develop ./archive/bakeoff-probes/gpui -c cargo build --release --manifest-path archive/bakeoff-probes/gpui/Cargo.toml`).
 
 ## Capability checklist
 - layer-shell any edge + exclusive zone: ✔ `WindowKind::LayerShell(LayerShellOptions{..})`

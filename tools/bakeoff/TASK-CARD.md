@@ -6,8 +6,8 @@ Read this card fully, then `docs/PROTOCOL.md` (§1–§4 and §8) and `crates/ku
 (message shapes). Do not read other docs unless stuck.
 
 ## Ownership (hard rule)
-- You may create/edit files **only under `probes/<NAME>/`** (your own `flake.nix`, sources,
-  `README.md`, `REPORT.md`, screenshots in `probes/<NAME>/shots/`).
+- You may create/edit files **only under `archive/bakeoff-probes/<NAME>/`** (your own `flake.nix`, sources,
+  `README.md`, `REPORT.md`, screenshots in `archive/bakeoff-probes/<NAME>/shots/`).
 - Everything else is read-only. Missing something outside? Write it in `REPORT.md` → "Requests".
 - Never touch the user's session: run only inside the sandbox (below). Kill only PIDs you started
   (`tools/bench/sandbox.sh stop <name>` does this safely). Never `pkill -f`.
@@ -15,10 +15,10 @@ Read this card fully, then `docs/PROTOCOL.md` (§1–§4 and §8) and `crates/ku
 
 ## Environment
 - `nix develop` (repo root) gives Rust, quickshell, sway, grim, strace, python, just.
-- Your probe gets its own `probes/<NAME>/flake.nix` (inputs: `nixpkgs` =
+- Your probe gets its own `archive/bakeoff-probes/<NAME>/flake.nix` (inputs: `nixpkgs` =
   `github:NixOS/nixpkgs/nixos-unstable`). Its devShell must provide every system library your
   framework needs (wayland, libxkbcommon, vulkan-loader, libGL, fontconfig, gtk4, …) and its
-  package/app must produce ONE run command. Document build + run in `probes/<NAME>/README.md`.
+  package/app must produce ONE run command. Document build + run in `archive/bakeoff-probes/<NAME>/README.md`.
 - Data source: `kurashi-mock` (fake daemon). Build once at the repo root:
   `cargo build --release -p kurashi-mock -p kurashi`.
 - Sandbox (invisible headless sway, GPU renderer):
@@ -26,7 +26,7 @@ Read this card fully, then `docs/PROTOCOL.md` (§1–§4 and §8) and `crates/ku
   eval "$(tools/bench/sandbox.sh start <NAME>)"      # exports XDG_RUNTIME_DIR, WAYLAND_DISPLAY, KURASHI_SOCKET
   mkdir -p "$(dirname "$KURASHI_SOCKET")"; target/release/kurashi-mock &   # in the same env
   <your run command> &
-  grim probes/<NAME>/shots/bar.png                     # screenshot, then Read it to check
+  grim archive/bakeoff-probes/<NAME>/shots/bar.png                     # screenshot, then Read it to check
   target/release/kurashi act probe.popup.toggle        # open/close popup
   target/release/kurashi mock face media               # island → media face
   target/release/kurashi act island.next               # what scroll on the island does
@@ -83,7 +83,7 @@ retry with backoff (250 ms → 4 s) and keep showing the last state.
    `python3 tools/bench/measure.py --name <NAME> --warmup 10 --idle 30 -- <your run command>`
    Acceptance: `pass_a.error` absent; `pass_b.popup_latency_ms_median` and
    `pass_b.morph_commits` not null/zero (proves popup + morph work); `idle_commits_per_s` ≈ 0.
-   Copy `tools/bench/results/<NAME>.json` to `probes/<NAME>/bench.json`.
+   Copy `tools/bench/results/<NAME>.json` to `archive/bakeoff-probes/<NAME>/bench.json`.
 
 ## REPORT.md (required, concise)
 ```
@@ -103,7 +103,7 @@ compile-fix iterations you needed (honest count) | docs quality 1–5 + note
 ## Bench summary
 (key numbers from bench.json)
 ## Pain points / surprises
-## Requests (anything you needed outside probes/<NAME>/)
+## Requests (anything you needed outside archive/bakeoff-probes/<NAME>/)
 ```
 Time-box: if a requirement is impossible in this framework, stop trying after a reasonable effort,
 mark it ✘ with the reason, and move on. Token thrift: read only what you need; keep the report terse.

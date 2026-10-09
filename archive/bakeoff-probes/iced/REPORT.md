@@ -2,7 +2,7 @@
 _(Written by the lead from the agent's hand-back — the agent's tools refused report files.)_
 
 Versions: iced 0.14.0 (wgpu), iced_layershell 0.19.1 (layershellev 0.19.1), wayland-client 0.31 (own wl_output watcher thread), tokio 1; winit-core/winit-common pinned to 0.31.0-beta.2 (beta.3 breaks iced_exdevtools); wayland-backend `client_system` enabled so WAYLAND_DEBUG works (needed by the bench's commit counter).
-Run: `probes/iced/target/release/kurashi-probe-iced` (build: `cd probes/iced && nix develop -c cargo build --release`; run tooling via `nix develop ./probes/iced -c …`).
+Run: `archive/bakeoff-probes/iced/target/release/kurashi-probe-iced` (build: `cd archive/bakeoff-probes/iced && nix develop -c cargo build --release`; run tooling via `nix develop ./archive/bakeoff-probes/iced -c …`).
 
 ## Capability checklist
 - layer-shell any edge + exclusive zone: ✔ NewLayerShellSettings{anchor, exclusive_zone}
@@ -34,4 +34,4 @@ idle commits/s 0.0; popup latency 2.5 ms; morph 23 commits (p50 16.5, p99 16.8 m
 - `sandbox.sh stop` without pgrep (procps) in PATH silently kills nothing → stale sways accumulate.
 
 ## Requests
-Bench needs libwayland (`client_system`) for commit counting; run through `nix develop ./probes/iced`.
+Bench needs libwayland (`client_system`) for commit counting; run through `nix develop ./archive/bakeoff-probes/iced`.

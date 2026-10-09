@@ -2,7 +2,7 @@
 _(Written by the lead from the agent's hand-back — the agent's tools refused report files.)_
 
 Versions: GTK 4.22.4 (nixpkgs unstable 2026-10-08), gtk4-rs 0.10.3, gtk4-layer-shell 0.7.1 (C lib 1.3.0), gdk4-wayland 0.10.3, wayland-client 0.31.15 + wayland-protocols 0.32.13 (blur only), glow 0.16 (shader), serde_json, async-channel. No relm4 (plain gtk4-rs was enough).
-Run: `probes/gtk4/result/bin/probe-gtk4` (build: `nix build ./probes/gtk4 -o probes/gtk4/result`). Forces `GSK_RENDERER=gl`, `GTK_A11Y=none`; app flag NON_UNIQUE (no D-Bus name).
+Run: `archive/bakeoff-probes/gtk4/result/bin/probe-gtk4` (build: `nix build ./archive/bakeoff-probes/gtk4 -o archive/bakeoff-probes/gtk4/result`). Forces `GSK_RENDERER=gl`, `GTK_A11Y=none`; app flag NON_UNIQUE (no D-Bus name).
 
 ## Capability checklist
 - layer-shell any edge + exclusive zone: ✔ LayerShell trait, auto_exclusive_zone_enable(), top/left/right anchors

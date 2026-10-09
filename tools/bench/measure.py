@@ -2,7 +2,7 @@
 """Kurashi frontend bench (docs/BAKEOFF.md). Runs a frontend command against kurashi-mock in a
 fresh headless-sway sandbox per pass and writes tools/bench/results/<name>.json (+ .md row).
 
-  python3 tools/bench/measure.py --name quickshell -- qs -p probes/quickshell
+  python3 tools/bench/measure.py --name quickshell -- qs -p archive/bakeoff-probes/quickshell
   python3 tools/bench/measure.py --name frontend-real --daemon real -- qs -p frontend
 
 Pass A (clean)          : idle CPU %, wakeups/s (ctx switches), PSS @1 output, PSS popup open,

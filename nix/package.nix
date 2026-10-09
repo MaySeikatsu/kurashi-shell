@@ -7,7 +7,7 @@ rustPlatform.buildRustPackage {
   pname = "kurashi";
   version = (lib.importTOML ../Cargo.toml).workspace.package.version;
 
-  # Rust workspace + runtime data — probes/ and docs/ never invalidate the package build.
+  # Rust workspace + runtime data — archive/ and docs/ never invalidate the package build.
   src = fs.toSource {
     root = ../.;
     # Screenshots are review artefacts, not runtime data.
