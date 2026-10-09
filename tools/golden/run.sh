@@ -67,9 +67,11 @@ cp "$G/config.toml" "$XDG_CONFIG_HOME/kurashi/config.toml"
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # 3. Real daemon. XDG_DATA_DIRS is set for kurashid alone: the launcher then indexes only the
-#    fixtures, while qs keeps the host's font and icon paths.
+#    fixtures, while qs keeps the host's font and icon paths. The system bus is a socket that does not
+#    exist, so svc.bluetooth reads as unavailable whatever BlueZ the host runs (frames stay deterministic).
 rm -f "$KURASHI_SOCKET"
-env XDG_DATA_DIRS="$G/fixtures/share" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
+env XDG_DATA_DIRS="$G/fixtures/share" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
+  "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do
   [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break
