@@ -169,6 +169,7 @@ async fn run() -> anyhow::Result<()> {
         ],
         config.clone(),
         kurashid::native::linked(),
+        Some(island.clone()),
     );
     let mut intents = Intents::default();
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));

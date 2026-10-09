@@ -28,6 +28,12 @@ type = "int"
 default = 5
 range = [1, 60]
 unit = "s"
+
+[[setting]]                    # options from a source (I9, K28): a core one or a mod's `choices:<source>`
+key = "backend"
+type = "string"
+default = "awww"
+choices_from = "wallpaper.backends"   # string settings only; exclusive with `choices`
 ```
 Settings are ordinary config keys `mods.<id>.<key>` (K22): they live in the user config under
 `[mods.<id>]`, travel with provenance like core keys, get one settings page per enabled mod

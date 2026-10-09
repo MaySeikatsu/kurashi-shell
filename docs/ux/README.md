@@ -45,9 +45,9 @@ Ideas deliberately left out, each a BACKLOG row.
 | Feature | Brief | Status |
 |---|---|---|
 | Composition map (which modules feed which views) | [COMPOSITION.md](COMPOSITION.md) | draft |
-| Quick settings | [quick-settings.md](quick-settings.md) | draft (research running) |
-| Island + expanded views + OSD | [island.md](island.md) | draft (research running) |
-| Settings app, mods, pickers | [settings.md](settings.md) | draft (research running) |
-| Wallpaper mod | [wallpaper.md](wallpaper.md) | draft (research running) |
-| System monitor mod | [sysmon.md](sysmon.md) | draft (research running) |
-| Weather mod | [weather.md](weather.md) | draft (research running) |
+| Quick settings | [quick-settings.md](quick-settings.md) | agreed · functional base merged · UX pass W13-quick-daemon + W13-quick-ux |
+| Island + expanded views + OSD | [island.md](island.md) | agreed · functional base merged · UX pass W13-island-daemon + W13-island-views |
+| Settings app, mods, pickers | [settings.md](settings.md) | agreed · functional base merged · UX pass W13-settings-ux |
+| Wallpaper mod | [wallpaper.md](wallpaper.md) | agreed · card W12-wallpaper |
+| System monitor mod | [sysmon.md](sysmon.md) | agreed · card W12-sysmon |
+| Weather mod | [weather.md](weather.md) | agreed · card W12-weather |

@@ -108,6 +108,8 @@ impl State {
                 "runtime.ui",
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
             ),
+            // K28: one fake contribution, the test mod `hello`'s footer row.
+            ("runtime.slots", documents::slots()),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
             (
@@ -225,6 +227,19 @@ impl State {
             "notifications.center" => self.toggle_panel("notifications"),
             "session.menu" => self.toggle_panel("session"),
             "quick.toggle" => self.toggle_panel("quick"),
+            // K26/K28, as kurashid: a mod's Stage panel. The mock's one fake mod is `hello`, on, with
+            // `panel:hello`; any other panel is refused with the daemon's key.
+            "mod.panel.open" => {
+                let id = str_arg(args, "id")?;
+                let panel = str_arg(args, "panel")?;
+                if id.is_empty() || panel.is_empty() {
+                    return Err(Fail::invalid(ARGS_INVALID));
+                }
+                if (id.as_str(), panel.as_str()) != ("hello", "hello") {
+                    return Err(Fail::invalid("mods.error.panel_unavailable"));
+                }
+                self.toggle_panel(&format!("mod:{id}:{panel}"));
+            }
             // K23, as kurashid: the same item closes its menu, another item switches to its menu.
             "tray.menu.open" => {
                 let id = args["id"]
@@ -1167,6 +1182,48 @@ mod tests {
         ] {
             assert_eq!(st.data(doc)["available"], true, "{doc}");
         }
+    }
+
+    /// K28/K26 parity: `runtime.slots` has the fixture's shape, and `mod.panel.open` toggles the fake
+    /// mod's panel as kurashid does; any other panel is refused with the daemon's key.
+    #[test]
+    fn runtime_slots_and_mod_panels_follow_kurashid() {
+        let mut st = state();
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_runtime_slots.json"
+        ))
+        .unwrap();
+        let keys = |v: &Value| {
+            let mut k: Vec<String> = v.as_object().unwrap().keys().cloned().collect();
+            k.sort();
+            k
+        };
+        let entry = &st.data("runtime.slots")["clock.expanded.footer"][0];
+        assert_eq!(
+            keys(entry),
+            keys(&fixture["data"]["clock.expanded.aside"][0])
+        );
+        assert_eq!(entry["mod"], "hello");
+        assert_eq!(entry["ready"], true);
+
+        st.act("mod.panel.open", &json!({"id": "hello", "panel": "hello"}))
+            .unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "mod:hello:hello");
+        assert_eq!(st.data("runtime.ui")["popup"], true);
+        st.act("mod.panel.open", &json!({"id": "hello", "panel": "hello"}))
+            .unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+        let refused = st
+            .act("mod.panel.open", &json!({"id": "hello", "panel": "other"}))
+            .unwrap_err();
+        assert_eq!(
+            (refused.kind, refused.msg.as_str()),
+            ("invalid", "mods.error.panel_unavailable")
+        );
+        let missing = st
+            .act("mod.panel.open", &json!({"id": "hello"}))
+            .unwrap_err();
+        assert_eq!(missing.msg, ARGS_INVALID);
     }
 
     #[test]
