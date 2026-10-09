@@ -1,0 +1,47 @@
+{
+  "name": "rerun-iced",
+  "cmd": [
+    "env",
+    "LD_LIBRARY_PATH=/nix/store/li1008zymvj7sz8jkdk9brkslfq9jy8w-wayland-1.26.0/lib:/nix/store/nvrv5w6rhc39h8snrsw03nqs679cf7rh-libxkbcommon-1.13.2/lib:/nix/store/vjdqsn0bz2llabfqa746zfgk4kmswba5-vulkan-loader-1.4.357.0/lib:/nix/store/mj9klbkhzal0vc1aazsajrydkimhc0h2-libglvnd-1.7.0/lib:/nix/store/g5p3gslpl160yagi4bzai5yhpcg0di5l-fontconfig-2.18.3-lib/lib:/nix/store/81xfxjiw58spk795jgcc7z1diwmy3xmi-freetype-2.14.3/lib",
+    "/home/maike/Projects/kurashi-shell/archive/bakeoff-probes/iced/target/release/kurashi-probe-iced"
+  ],
+  "daemon": "mock",
+  "date": "2026-10-09 13:18",
+  "commit": "0470378",
+  "pass_a": {
+    "idle_cpu_pct": 0.166,
+    "wakeups_per_s": 118.5,
+    "pss_mib_1out": 118.9,
+    "gpu_mib": 15,
+    "processes": 1,
+    "idle_window_s": 30.1,
+    "pss_mib_popup": 124.0,
+    "pss_mib_popup_closed": 124.0,
+    "pss_mib_2out": 124.0,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 358,
+    "idle_commits_per_s": 0.0,
+    "idle_commits_by_surface": {},
+    "popup_latency_ms_median": 2.3,
+    "popup_latency_ms_all": [
+      2.3,
+      2.3,
+      2.3,
+      2.3,
+      2.4
+    ],
+    "mapped_layer_surfaces_idle": 1,
+    "morph_commits": 23,
+    "morph_frame_ms_p50": 16.4,
+    "morph_frame_ms_p99": 17.5
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 229.9,
+    "top_syscalls": {
+      "futex": 6874,
+      "ioctl": 24
+    }
+  }
+}
