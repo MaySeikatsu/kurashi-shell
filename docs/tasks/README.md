@@ -111,3 +111,4 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [M0-mock-parity](M0-mock-parity.md) | `crates/kurashi-mock/` | haiku |
 | [M5-honesty](M5-honesty.md) | `kurashid/tests/honesty.rs` (new) | haiku |
 | [R-daemon-review](R-daemon-review.md) | read-only | haiku |
+| [M1-inert-reasons](M1-inert-reasons.md) | `kurashi-core` Provenanced (K21), `kurashid/src/config.rs`, honesty test, `settings/core/` | haiku |
