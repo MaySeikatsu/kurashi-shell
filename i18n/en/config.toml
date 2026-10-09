@@ -1,0 +1,12 @@
+# Config engine strings (en): diagnostics, op errors, forced reasons (crates/kurashi-config).
+"config.diag.parse" = "config.toml could not be parsed; changes are not saved until it is fixed"
+"config.diag.io" = "config file could not be read"
+"config.diag.unknown_key" = "unknown setting, ignored"
+"config.diag.not_per_output" = "this setting cannot be set per output, ignored"
+"config.diag.invalid" = "invalid value, ignored"
+"config.diag.newer_schema" = "config was written by a newer Kurashi; unknown parts are left untouched"
+"config.diag.migration_missing" = "no migration path for this config version"
+"config.diag.migration_failed" = "config migration failed; the original file was kept"
+"config.error.unrepresentable" = "this value cannot be stored in TOML"
+"config.error.user_file_unreadable" = "config.toml is unreadable; fix it before changing settings"
+"config.forced.nix_enforced" = "enforced by your Nix configuration"
