@@ -2,7 +2,6 @@
 //! notification server, the mods registry and the `runtime.ui` panel state.
 
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::{Arc, Mutex};
 
 use kurashi_services::brightness::{self as backlight, Change};
@@ -11,8 +10,8 @@ use serde_json::{Value, json};
 use crate::actions::{ActionError, ActionRegistry, ActionResult};
 use crate::config::ConfigStore;
 use crate::doctor::SharedFacts;
-use crate::hub::{Hub, Provider};
-use crate::services::{Bus, ServiceProvider};
+use crate::hub::Hub;
+use crate::services::{Bus, ConnectFn, ServiceProvider, ServiceTask};
 use crate::{Daemon, QueryFn};
 
 fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
@@ -893,14 +892,6 @@ pub fn lock_with(
     handle
 }
 
-/// Opens the bus the logind calls go to. Injected so tests never reach the real system bus.
-pub type ConnectFn = Arc<
-    dyn Fn() -> std::pin::Pin<
-            Box<dyn std::future::Future<Output = zbus::Result<zbus::Connection>> + Send>,
-        > + Send
-        + Sync,
->;
-
 /// Error text of the `invalid` reply when `{confirm: true}` is missing; the UI keys its confirm
 /// step on it.
 pub const CONFIRM_REQUIRED: &str = "session.confirm_required";
@@ -997,12 +988,12 @@ const BLUETOOTH_DOC: &str = "svc.bluetooth";
 
 /// The session bus, opened when a service starts (never at daemon startup).
 fn session_bus() -> ConnectFn {
-    Arc::new(|| Box::pin(zbus::Connection::session()))
+    Bus::Session.connect()
 }
 
 /// The system bus (BlueZ lives there), opened when the service starts.
 fn system_bus() -> ConnectFn {
-    Arc::new(|| Box::pin(zbus::Connection::system()))
+    Bus::System.connect()
 }
 
 /// `svc.tray` (StatusNotifierItem host on the session bus) and the `tray.*` actions.
@@ -1012,16 +1003,13 @@ pub fn tray(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
 
 /// [`tray`] with the bus injected (tests run it on a private dbus-daemon).
 pub fn tray_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    let service = Arc::new(RefcountedService::new(
-        TRAY_DOC,
-        connect,
-        kurashi_tray::start,
-    ));
-    hub.register(
-        TRAY_DOC,
-        json!({"available": false, "items": []}),
-        Some(service.clone()),
+    // The tray's task does not mark its own outage, so the provider shows this when it ends.
+    let idle = json!({"available": false, "items": []});
+    let service = Arc::new(
+        ServiceProvider::with_connect(TRAY_DOC, connect, kurashi_tray::start)
+            .unavailable(idle.clone()),
     );
+    hub.register(TRAY_DOC, idle, Some(service.clone()));
     service_action(
         actions,
         "tray.activate",
@@ -1072,7 +1060,7 @@ pub fn bluetooth(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
 
 /// [`bluetooth`] with the bus injected (tests).
 pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    let service = Arc::new(RefcountedService::new(
+    let service = Arc::new(ServiceProvider::with_connect(
         BLUETOOTH_DOC,
         connect,
         kurashi_services::bluetooth::start,
@@ -1132,10 +1120,10 @@ pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Con
 fn service_action<H, C, Fut>(
     actions: &mut ActionRegistry,
     id: &str,
-    service: Arc<RefcountedService<H, C>>,
+    service: Arc<ServiceProvider<C, H>>,
     run: impl Fn(C, Value) -> Fut + Send + Sync + 'static,
 ) where
-    H: Send + 'static,
+    H: ServiceTask,
     C: Clone + Send + 'static,
     Fut: Future<Output = ActionResult> + Send + 'static,
 {
@@ -1175,114 +1163,6 @@ fn bool_arg(args: &Value, key: &str) -> Result<bool, ActionError> {
     args[key]
         .as_bool()
         .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
-}
-
-type StartFut<H, C> = Pin<Box<dyn Future<Output = anyhow::Result<(H, C)>> + Send>>;
-type StartFn<H, C> = Arc<
-    dyn Fn(zbus::Connection, Arc<dyn kurashi_services::DocSink>) -> StartFut<H, C> + Send + Sync,
->;
-
-/// A refcounted D-Bus service whose handle type is not `kurashi_services::ServiceHandle`.
-/// `services::ServiceProvider` cannot hold the tray: its start must return that type, which has
-/// no public constructor, and the tray's own handle also releases its bus names on drop. The
-/// rules are `ServiceProvider`'s: the connection and the task exist between the first subscribe
-/// and the last unsubscribe (rule 5). The bus is injected so tests can use a private dbus-daemon
-/// (as `session_with` does). docs/CONTRACT-CHANGE.md #9 asks for a connect-fn constructor on
-/// `ServiceProvider`; this copy can then go.
-pub struct RefcountedService<H, C> {
-    doc: &'static str,
-    connect: ConnectFn,
-    start: StartFn<H, C>,
-    running: Arc<Mutex<Running<H, C>>>,
-}
-
-struct Running<H, C> {
-    /// Bumped on every start and stop, so a slow start that finishes after `stop` is discarded.
-    generation: u64,
-    handle: Option<H>,
-    commands: Option<C>,
-}
-
-/// Where a service's documents go: straight into the hub under the service's doc name.
-struct HubDoc {
-    hub: Arc<Hub>,
-    doc: &'static str,
-}
-
-impl kurashi_services::DocSink for HubDoc {
-    fn set(&self, doc: Value) {
-        let _ = self.hub.set(self.doc, doc, None);
-    }
-}
-
-impl<H: Send + 'static, C: Clone + Send + 'static> RefcountedService<H, C> {
-    pub fn new<F, Fut>(doc: &'static str, connect: ConnectFn, start: F) -> Self
-    where
-        F: Fn(zbus::Connection, Arc<dyn kurashi_services::DocSink>) -> Fut + Send + Sync + 'static,
-        Fut: Future<Output = anyhow::Result<(H, C)>> + Send + 'static,
-    {
-        Self {
-            doc,
-            connect,
-            start: Arc::new(move |conn, sink| Box::pin(start(conn, sink))),
-            running: Arc::new(Mutex::new(Running {
-                generation: 0,
-                handle: None,
-                commands: None,
-            })),
-        }
-    }
-
-    /// Commands of the running service; `None` while nobody subscribes.
-    pub fn commands(&self) -> Option<C> {
-        self.running.lock().expect("svc lock").commands.clone()
-    }
-}
-
-impl<H: Send + 'static, C: Clone + Send + 'static> Provider for RefcountedService<H, C> {
-    fn start(&self, hub: Arc<Hub>) {
-        let generation = {
-            let mut r = self.running.lock().expect("svc lock");
-            r.generation += 1;
-            r.generation
-        };
-        let (doc, connect, start, running) = (
-            self.doc,
-            self.connect.clone(),
-            self.start.clone(),
-            self.running.clone(),
-        );
-        let sink: Arc<dyn kurashi_services::DocSink> = Arc::new(HubDoc { hub, doc });
-        tokio::spawn(async move {
-            let started = match connect().await {
-                Ok(conn) => start(conn, sink).await,
-                Err(e) => Err(e.into()),
-            };
-            match started {
-                Ok((handle, commands)) => {
-                    let mut r = running.lock().expect("svc lock");
-                    if r.generation == generation {
-                        r.handle = Some(handle);
-                        r.commands = Some(commands);
-                    }
-                    // else: stopped meanwhile; `handle` drops after the lock and stops it again.
-                }
-                // The document keeps its initial value; doctor shows the docs row.
-                Err(e) => tracing::warn!(%doc, error = %e, "service failed to start"),
-            }
-        });
-    }
-
-    fn stop(&self) {
-        let (handle, commands) = {
-            let mut r = self.running.lock().expect("svc lock");
-            r.generation += 1;
-            (r.handle.take(), r.commands.take())
-        };
-        // Outside the lock: dropping the handle aborts the task, which may release bus names.
-        drop(commands);
-        drop(handle);
-    }
 }
 
 #[cfg(test)]
