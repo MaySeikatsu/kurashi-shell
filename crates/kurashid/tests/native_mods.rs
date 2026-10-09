@@ -1063,3 +1063,41 @@ async fn a_job_that_ends_by_itself_is_no_longer_reported() {
     tokio::time::sleep(Duration::from_millis(10)).await;
     assert_eq!(reasons(&d, "once"), json!([]));
 }
+
+/// A `list` setting is an ordered pick from its fixed choices (I26): its row is a pick list of them,
+/// the order stored is the order in effect, and a member outside the choices is refused.
+#[tokio::test]
+async fn a_list_setting_is_a_pick_list_of_its_choices() {
+    let extra = scratch("list-mods");
+    write(
+        &extra.join("picker/mod.toml"),
+        "id = \"picker\"\nname = \"Picker\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\n\n[[setting]]\nkey = \"show\"\ntype = \"list\"\n\
+         default = [\"mem\", \"cpu\"]\nchoices = [\"cpu\", \"mem\", \"temp\"]\n",
+    );
+    let d = start(&scratch("list"), std::slice::from_ref(&extra), Vec::new());
+    d.act("mod.enable", "picker").await.unwrap();
+
+    let row = setting_row(&d, "mods.picker.show");
+    assert_eq!(row["control"], "pick_list");
+    assert_eq!(row["default"], json!(["mem", "cpu"]));
+    assert_eq!(offered(&row), ["cpu", "mem", "temp"]);
+
+    let set = |value: Value| {
+        d.store.apply(&[ApplyOp::Set {
+            set: "mods.picker.show".into(),
+            value,
+            output: None,
+        }])
+    };
+    set(json!(["temp", "cpu"])).expect("members of the choices, in the order picked");
+    let p = d.store.get("mods.picker.show", None).unwrap();
+    assert_eq!(p.value, json!(["temp", "cpu"]));
+    assert_eq!(p.reason, None);
+    assert!(set(json!(["gpu"])).is_err(), "a member outside the choices");
+    assert_eq!(
+        d.store.get("mods.picker.show", None).unwrap().value,
+        json!(["temp", "cpu"]),
+        "a refused value leaves the one in effect"
+    );
+}

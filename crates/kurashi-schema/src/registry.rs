@@ -214,6 +214,21 @@ pub fn validate_value(m: &KeyMeta, v: &Value) -> Result<(), ValidationError> {
             if m.ty == Ty::Font && items.is_empty() {
                 return Err(ValidationError::EmptyList { key: key() });
             }
+            // Fixed choices (a mod's `list` setting, I26): every member is one of them.
+            if !c.choices.is_empty() {
+                let member_of = |s: &str| c.choices.iter().any(|ch| ch.value == s);
+                if let Some(bad) = items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .find(|s| !member_of(s))
+                {
+                    return Err(ValidationError::UnknownChoice {
+                        key: key(),
+                        got: bad.into(),
+                        choices: c.choices.iter().map(|ch| ch.value.clone()).collect(),
+                    });
+                }
+            }
             Ok(())
         }
         Ty::Color => {
