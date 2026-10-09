@@ -1100,9 +1100,8 @@ mod tests {
             "../../../fixtures/ipc/server/snap_bluetooth.json"
         ))
         .unwrap();
-        // The fixture's item is the first one; the second only names an icon.
-        assert_eq!(st.data("svc.tray")["items"][0], tray["data"]["items"][0]);
-        assert_eq!(st.data("svc.tray")["items"].as_array().unwrap().len(), 2);
+        // The fixture's items; the second only names an icon and is menu-only.
+        assert_eq!(st.data("svc.tray")["items"], tray["data"]["items"]);
         assert!(st.data("svc.tray")["items"][1].get("icon_pixmap").is_none());
         assert_eq!(st.data("svc.bluetooth"), &bt["data"]);
     }
