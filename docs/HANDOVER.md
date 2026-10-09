@@ -11,61 +11,66 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-09 — session 2: M0 decided, M1 complete, M2/M4/M5/M6/M7 foundations (parallel waves)
-**State:** everything is on `main` (green: `just check`, ~180 tests). Work happened in waves of ≤5
-Sonnet/Opus subagents with task cards in `docs/tasks/` (README = common rules), each in its own
-worktree, builds serialised through one shared `CARGO_TARGET_DIR=~/.cache/kurashi-agents-target`.
+## 2026-10-09 — session 2: M0 decided, M1 complete, M2–M7 foundations + first full UI (parallel waves)
+**State:** everything is on `main`, green (`just check` ~200 tests; `just bench-gate` 0 violations on
+the real stack; `nix build .#kurashi` ✔). Work ran in waves of ≤5 subagents with task cards in
+`docs/tasks/` (README = common rules), each in its own worktree; builds serialised through one shared
+`CARGO_TARGET_DIR=~/.cache/kurashi-agents-target`. No agents running at handover.
 
 **Decided / merged this session**
-- **K3 = Quickshell/QML** (bake-off matrix in `BAKEOFF.md`, quiet re-bench in `probes/*/bench-lead.json`);
-  K16 PSS budget revised to ≤150 MiB @1 output (+≤6/output); K17 protocol v1 **frozen**; K18 profile
-  loads clear section pins.
-- Daemon (`kurashid`): hub (revisions, merge-patch diffs, refcounted providers), action registry,
-  intent coalescing, config store (`config` + `schema.settings` docs, cfg.get/explain, apply +
-  dry-run preview, undo/redo, profile.* actions, file watcher, a11y couplings → `forced:accessibility`),
-  `theme` doc from `kurashi-theme`, `i18n` doc, `svc.workspaces` (niri adapter), D-Bus services
-  (`svc.media/power/session/network/brightness`, media feeds the island), island arbiter
-  (`runtime.island.main`, island.next/prev/pin/expand), `runtime.ui`, launcher queries + launch,
-  notification server (non-stealing name claim), mods registry (`mods` doc, mod.enable/disable).
-- Crates: schema(+derive), config, theme, compositor, services, island, notify, launcher, mods, auth.
-- CLI: `kurashi get/set/why/reset/undo/redo/profile` (exit codes 0/1/2/3), smoke-tested end to end.
-- Frontend skeleton (`frontend/`, still on the mock) + Settings app (`settings/`, schema-generated pages,
-  provenance chips, inert reasons, profiles; `settings/test.sh`). i18n en+ja for frontend, settings,
-  config, schema (generated en catalog with staleness test), lock.
-- Nix: package ships i18n/palettes/frontend/settings/mods; HM module runs kurashid + frontend as
-  user services (`just nix-eval-test`, impure); `nix build .#kurashi` verified mid-session.
-
-**Agent efficiency (bake-off, Sonnet, same card):** quickshell 103k tok/42 tools/7 min · gtk4 173k/69/30 ·
-iced 190k/79/30 · slint 191k/81/32 · gpui 176k/84/33.
+- K3 = Quickshell/QML (bake-off, `BAKEOFF.md`); K16 PSS budget ≤150 MiB @1 out, ≤+6/out (measured
+  vs popup-closed); K17 protocol v1 **frozen**; K18 profile loads clear section pins; K19 Stage =
+  one content-sized, permanently mapped, transparent surface on the focused output; K20 a locked
+  session survives daemon restarts.
+- Daemon `kurashid`: hub (revisions, merge-patch diffs, refcounted providers), actions, intent
+  coalescing, config store (`config`, `schema.settings`, cfg.*, apply/dry-run/undo/redo, profiles,
+  file watcher, a11y → `forced:accessibility`), `theme` (kurashi-theme), `i18n`, `svc.clock`,
+  `svc.workspaces` (niri), `svc.media/power/session/network/brightness` (D-Bus), `svc.audio`
+  (libpulse, origin echo), island arbiter (`runtime.island.main`: clock/media/notifications/volume
+  faces; volume = transient OSD; notifications = unread relevance), `runtime.ui` (panel/launcher),
+  launcher queries + launch, notification server (non-stealing), mods registry, `runtime.lock` (PAM),
+  `doctor` query.
+- CLI: get/set/why/reset/undo/redo/profile/doctor/act/sub/intent/raw.
+- Frontend (`frontend/`, real daemon or mock): Store core API (watch/unwatch refcounted, act, query),
+  Bar, Stage, Island faces, toasts + notification center, launcher, lock screen. Settings app
+  (`settings/`, schema-generated). i18n en+ja for every domain (schema catalog generated + test).
+- Nix: package ships data dirs, libpulse + PAM inputs; HM module runs kurashid + frontend
+  (`just nix-eval-test`); NixOS module installs PAM service `kurashi`.
+- Bench: `just bench-gate` (real stack) — 0.03 fps idle, 0 % CPU, 137.9 MiB, +4.0/output, popup 3.9 ms.
 
 ### Next steps (in order)
-1. Merge the agents still running at handover time (see "half-done").
-2. Switch `frontend/` from the mock to the real daemon: subscribe `i18n` (fill `I18n.strings`),
-   `config`, `svc.audio` (once wired), `runtime.island.main` reason `manual`; keep the mock working.
-3. Wire `kurashi-audio` (svc.audio + `audio.volume` intent coalesced) and `kurashi-auth`
-   (`runtime.lock`, intent `lock.submit` — never log it; action `session.lock`) into kurashid; add
-   `linux-pam` + `rustPlatform.bindgenHook` to `nix/package.nix` and enable `kurashi-auth/pam` (CONTRACT #4a).
-4. Frontend UI cards (disjoint files under `frontend/surfaces/`): notification toasts + center,
-   launcher, OSD (volume/brightness via island transient), lock screen (`WlSessionLock`), session menu.
-5. Capability forcing for blur (`forced:capability`) once we can tell whether the compositor offers
-   ext-background-effect (ask the frontend to report the global, or probe it in the daemon).
-6. `kurashi doctor`, then M7 budgets via the bench gate (`tools/bench/budget.py`) on the real stack.
+1. **Memory headroom (risk):** real stack 137.9 MiB, mock 150.5 with popup — each new surface costs
+   ~3–5 MiB. Kaizen task: lazy-create rarely used surfaces' *content* (Launcher list, Lock content,
+   NotificationCenter) via Loaders without unmapping (K19 leak), drop the unused probe props from Bar
+   (`clockText/mediaText`, `mods.probe` watch), find Quickshell's per-surface baseline.
+2. Blur honesty: report ext-background-effect availability (frontend sees the global) → daemon
+   `forced:capability` for `theme.material.blur` with reason (schema coupling already declared).
+3. Session menu (lock/suspend/reboot/poweroff via `svc.session` commands, confirm step) + OSD for
+   brightness (island transient like volume).
+4. Island config from schema (`island.main.faces/default/ttl` → IslandConfig), input-slot bindings
+   resolved by the daemon (schema `input_slots`) instead of hardcoded actions in the frontend.
+5. Mods: register contributions on enable (island faces, services, settings pages) — M6; first native
+   mods (media+lyrics, wallpaper, sysmon, weather, clipboard) as cards.
+6. Launcher watcher refcounted per launcher open; `doctor` async facts (buses, notification name).
+7. M7: live test on niri **with the user present** (never start the shell on their session unasked);
+   golden screenshots for the component kit; `--idle 600` CPU budget run.
 
 ### Open decisions / risks
-- Stage surface memory (K16) — card M3-stage measures and fixes; budget may need a decision.
-- The notification server runs for the daemon's lifetime (deliberate Ma exception, documented in
-  `crates/kurashid/src/wiring.rs`); it never steals the name from the user's running shell.
-- Mod contributions (faces, services, settings pages) are not registered yet — only the catalog.
-- `kurashi-launcher` watcher not started (refcount per launcher subscriber is TODO).
-- Shared target dir: `debug/<bin>` is overwritten by other worktrees — copy right after building.
+- Memory headroom (above). Mod widget documents: real `mods` is a registry; the probe's `mods.probe`
+  widget-list shape needs a successor (M6).
+- Notification server owns the name for the daemon's lifetime (deliberate Ma exception).
+- `volume` face is cyclable via scroll (registered face, not in config order) — decide whether
+  transient-only faces should be excluded from cycling (arbiter change).
 
 ### Gotchas learned this session
-- Subagents' tools refuse to write report files → reports come back as text; the lead saves them.
-- Two agents briefly drew on the live session because `sandbox.sh start` failed silently outside
-  `nix develop` — fixed (fails closed). Leaked sandbox dbus-daemons may remain (`pgrep -af kurashi-sb-`).
-- Exporting `XDG_CONFIG_HOME` for a smoke test in the same shell breaks `git commit` (identity lives
-  in ~/.config/git).
-- zsh: `"$B:path"` triggers the `:p` modifier — write `"${B}:path"`.
+- Subagent tools refuse report files → reports come back as text; the lead saves/acts on them.
+- `sandbox.sh start` once failed silently outside `nix develop` and two agents drew on the live
+  session — fixed (fails closed). Bench sandboxes now carry the pid (parallel runs killed each other).
+- Shared target dir: `debug/<bin>` is overwritten by other worktrees — copy right after building.
+- Never chain `merge` after a check with `;` — use `&&` (one broken merge, fixed in 186066d).
+- Exporting `XDG_CONFIG_HOME` for a smoke test in the same shell breaks `git commit`.
+- zsh: `"$B:path"` triggers a history modifier — write `"${B}:path"`.
+- PAM: without `/etc/pam.d/kurashi` PAM falls back to `other` (deny); tests never use real credentials.
 
 ## 2026-10-09 — session 1: plan, charter, M0 foundations
 **Merged on `main`:** charter + docs (`CLAUDE.md`, `docs/*`), M0.1–M0.5:
