@@ -184,7 +184,8 @@ async fn session_lifecycle() {
 #[tokio::test]
 async fn logind_without_our_session_is_unavailable() {
     // logind answers on the bus but has no session object for us: the hints are unknown, so the
-    // document must not report idle=false as a fact until the session can be read.
+    // document must not report idle=false as a fact. PrepareForSleep is a real signal from the
+    // Manager, so it still shows.
     let bus = TestBus::start();
     let rec = Rec::new();
     let srv = bus.server("org.freedesktop.login1").await;
@@ -197,9 +198,25 @@ async fn logind_without_our_session_is_unavailable() {
         )
         .await
         .unwrap();
+    let m = srv
+        .object_server()
+        .interface::<_, Manager>("/org/freedesktop/login1")
+        .await
+        .unwrap();
     let (handle, _cmds) = session::start(bus.conn().await, rec.clone()).await.unwrap();
     let d = rec.wait("no session object", |_| true).await;
     assert_eq!(d["available"], false);
+
+    Manager::prepare_for_sleep(m.signal_emitter(), true)
+        .await
+        .unwrap();
+    let d = rec
+        .wait("sleep without a session", |d| {
+            d["preparing_for_sleep"] == true
+        })
+        .await;
+    assert_eq!(d["available"], false);
+    assert_eq!(d["idle_hint"], false);
 
     srv.object_server()
         .at(
@@ -211,16 +228,13 @@ async fn logind_without_our_session_is_unavailable() {
         )
         .await
         .unwrap();
-    let m = srv
-        .object_server()
-        .interface::<_, Manager>("/org/freedesktop/login1")
-        .await
-        .unwrap();
     Manager::prepare_for_sleep(m.signal_emitter(), false)
         .await
         .unwrap();
-    rec.wait("session readable", |d| d["available"] == true)
-        .await;
+    rec.wait("session readable", |d| {
+        d["available"] == true && d["preparing_for_sleep"] == false
+    })
+    .await;
     drop(handle);
 }
 
