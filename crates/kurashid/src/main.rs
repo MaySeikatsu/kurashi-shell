@@ -109,7 +109,23 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| tracing::warn!(error = %e, "config watcher unavailable"))
             .ok()
     });
+    kurashid::wiring::ui(&hub, &mut actions);
+    kurashid::wiring::notifications(
+        &hub,
+        &mut actions,
+        config.as_deref(),
+        kurashid::xdg_dir("cache").join("notify-img"),
+    );
+    kurashid::wiring::mods(
+        &hub,
+        &mut actions,
+        vec![
+            kurashid::i18n::data_dir().join("mods"),
+            kurashid::xdg_dir("data").join("mods"),
+        ],
+    );
     let mut daemon = Daemon::new(hub, actions, Intents::default());
+    kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     daemon.config = config;
     daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
     let daemon = Arc::new(daemon);
