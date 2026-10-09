@@ -16,6 +16,7 @@
 "action.tray.scroll" = "トレイ: 項目をスクロール"
 "action.tray.menu" = "トレイ: 項目のメニュー"
 "action.tray.menu_event" = "トレイ: メニュー項目"
+"action.tray.menu.open" = "トレイ: 項目のメニューを開く"
 "action.bluetooth.power" = "Bluetooth の電源"
 "action.bluetooth.connect" = "Bluetooth 接続"
 "action.bluetooth.disconnect" = "Bluetooth 切断"

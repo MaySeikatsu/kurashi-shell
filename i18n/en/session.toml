@@ -16,6 +16,7 @@
 "action.tray.scroll" = "Tray: scroll item"
 "action.tray.menu" = "Tray: item menu"
 "action.tray.menu_event" = "Tray: menu entry"
+"action.tray.menu.open" = "Tray: open item menu"
 "action.bluetooth.power" = "Bluetooth power"
 "action.bluetooth.connect" = "Bluetooth connect"
 "action.bluetooth.disconnect" = "Bluetooth disconnect"

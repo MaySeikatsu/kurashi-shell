@@ -129,3 +129,13 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [R-ux-review](R-ux-review.md) | read-only | haiku |
 | [U-components](U-components.md) | `frontend/core/Theme.qml`, `frontend/components/**`, kurashi-theme `stages.rs` | haiku |
 | [U-surfaces](U-surfaces.md) | `frontend/surfaces/**`, `shell.qml`, `surfaces.toml` | haiku |
+
+## Wave 8 (session 4, machine B; Haiku agents, max effort; after the machine-B baseline)
+| Card | Owner paths | Model |
+|---|---|---|
+| [S-settings-polish](S-settings-polish.md) | `settings/**`, `i18n/*/settings.toml` | haiku |
+| [B-tray-bluetooth](B-tray-bluetooth.md) | `frontend/surfaces/{Bar,Stage}.qml`, `shell.qml`, Island hit area, new tray/BT components, `kurashi-mock`, golden bus isolation | haiku |
+| [C-services](C-services.md) | `kurashid/src/{services,wiring(service parts),main(providers)}.rs`, `kurashi-services/src/util.rs`, `kurashi-tray` handle | haiku |
+| [L-logind](L-logind.md) | `kurashi-services/src/session.rs` + its tests | haiku |
+| [C-mod-sections](C-mod-sections.md) | `crates/kurashi-config/` | haiku |
+Lead (before the wave): K23 tray menu panel (`tray.menu.open`, `runtime.ui.tray`) in kurashid + mock.
