@@ -21,7 +21,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M1.2 | Daemon core: hub (revs, refcounted providers), action registry, intent coalescing, server | ✅ | lead; 7 socket tests |
 | M1.3 | `kurashi-schema` + derive (registry, validation, generators, v1 tree) | ✅ | merged; goldens + trybuild |
 | M1.4 | `kurashi-config` (layers, provenance, sparse TOML, migrations, profiles, undo) | ✅ | merged; 23 tests incl. proptests; K18 |
-| M1.5 | Wire config/schema into kurashid (`config`, `schema.settings`, cfg.*), CLI get/set/why/undo/profile | 🟡 | daemon side ✅ (4 socket tests, file watcher, profile.* actions, engine `preview`); CLI ⬜ |
+| M1.5 | Wire config/schema into kurashid (`config`, `schema.settings`, cfg.*), CLI get/set/why/undo/profile | ✅ | daemon + CLI; smoke-tested end to end with isolated XDG dirs |
 | M2.2 | Theme wiring: config → `kurashi-theme` → `theme` doc; v1 schema `theme.colors.*`; a11y `overridden_by` → `forced:accessibility` | ✅ | lead; test: reduce_motion zeroes motion tokens with provenance |
 | M1.6 | Frontend skeleton (Store, Theme, I18n, Bar, Stage, Island, ProvenanceChip, veil) | ✅ | merged; idle 0 commits, popup 2.1 ms; PSS popup/2-out 221 MiB ✘ K16 → M3.1 |
 | M2.1 | `kurashi-theme` pipeline → token map | ✅ | merged; 14 tests, AA on all palettes × modes |
@@ -31,8 +31,10 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
 | M5.2 | `kurashi-notify` notification server + history | ✅ | merged; 14 tests on private bus; not wired yet |
 | M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | ✅ | merged; 35 tests, p99 0.82 ms/500 apps (release); not wired yet |
-| M1.8 | CLI get/set/why/reset/undo/redo/profile | 🟡 | card M1-cli (wave 3b) |
-| M5.4 | Settings app (schema-generated pages, provenance, profiles) | 🟡 | card M5-settings (wave 3b) |
+| M1.8 | CLI get/set/why/reset/undo/redo/profile | ✅ | merged; exit codes 0/1/2/3 |
+| M1.9 | **M1 exit: protocol v1 frozen** | ✅ | PROTOCOL.md status, K17 |
+| M5.4 | Settings app (schema-generated pages, provenance, profiles) | ✅ | merged; `settings/test.sh` + 4 shots; schema i18n en+ja |
+| M5.5 | `kurashi-auth` PAM + lock state machine | 🟡 | card M5-auth (wave 4) |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
 | M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
 | M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
