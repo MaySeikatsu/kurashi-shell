@@ -3,3 +3,4 @@
 "lock.error.rate_limited" = "Too many attempts — try again shortly"
 "lock.error.unavailable" = "Authentication is unavailable"
 "lock.prompt.password" = "Password"
+"error.lock.no_pam" = "Locking is unavailable: the PAM service “kurashi” is not installed."

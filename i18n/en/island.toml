@@ -4,3 +4,5 @@
 "island.volume.unavailable" = "Audio unavailable"
 "island.notifications.unread" = "{n} new"
 "island.notifications.none" = "No new notifications"
+"error.brightness.no_device" = "No backlight device found"
+"error.audio.unavailable" = "Audio is not available"

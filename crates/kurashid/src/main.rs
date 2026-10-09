@@ -68,11 +68,11 @@ async fn main() -> anyhow::Result<()> {
         kurashi_island::IslandConfig {
             faces: vec!["clock".into(), "media".into(), "notifications".into()],
             default: "clock".into(),
-            // The volume OSD may interrupt a manual face choice; it is transient-only.
-            interruptible_by: ["volume".to_string()].into(),
+            // The OSD faces may interrupt a manual face choice; they are transient-only.
+            interruptible_by: ["volume".to_string(), "brightness".to_string()].into(),
             ..Default::default()
         },
-        &["clock", "media", "notifications", "volume"],
+        &["clock", "media", "notifications", "volume", "brightness"],
     );
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
@@ -152,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
     );
     let mut intents = Intents::default();
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
+    kurashid::wiring::brightness(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
     kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker);
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
@@ -193,7 +194,7 @@ fn register_services(
     island: &Arc<kurashid::island::IslandHost>,
     actions: &mut ActionRegistry,
 ) {
-    use kurashi_services::{brightness, media, network, power, session};
+    use kurashi_services::{media, network, power, session};
     use kurashid::services::{Bus, ServiceProvider};
 
     let isl = island.clone();
@@ -251,10 +252,4 @@ fn register_services(
         network::start,
     ));
     hub.register("svc.network", json!({"state": "unknown"}), Some(network));
-    let brightness = Arc::new(ServiceProvider::new(
-        "svc.brightness",
-        Bus::System,
-        brightness::start,
-    ));
-    hub.register("svc.brightness", json!({}), Some(brightness));
 }

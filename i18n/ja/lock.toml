@@ -3,3 +3,4 @@
 "lock.error.rate_limited" = "試行回数が多すぎます。しばらくしてからお試しください"
 "lock.error.unavailable" = "認証を利用できません"
 "lock.prompt.password" = "パスワード"
+"error.lock.no_pam" = "PAM サービス「kurashi」が未設定のため、ロックできません。"
