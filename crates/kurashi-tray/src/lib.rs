@@ -554,6 +554,13 @@ pub struct ServiceHandle {
     shared: Arc<Shared>,
 }
 
+impl ServiceHandle {
+    /// Resolves once the task has ended by itself (the bus went away); pending while the tray runs.
+    pub async fn ended(&mut self) {
+        let _ = (&mut self.task).await;
+    }
+}
+
 impl Drop for ServiceHandle {
     fn drop(&mut self) {
         self.task.abort();
