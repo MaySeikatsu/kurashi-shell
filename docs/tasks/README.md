@@ -152,3 +152,13 @@ Lead (before the wave): K23 tray menu panel (`tray.menu.open`, `runtime.ui.tray`
 | [W9-test-helpers](W9-test-helpers.md) | `tools/bench/wl_{keys,pointer}.py`, `frontend/test-{bindings,tray-bt}.sh` | haiku |
 | [W9-niri-binds](W9-niri-binds.md) | `README.md` keybindings subsection, `nix/hm-module.nix`, `nix/tests/`, `docs/niri-binds.kdl` | haiku |
 Lead (before the wave): contract rows 20–22 (fixtures, mock, PROTOCOL, K27); K24–K26 recorded; B7 per-output PSS.
+
+## Wave 10 (session 5, after wave 9 merges; Haiku 5.5, max effort)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W10-stage-panels](W10-stage-panels.md) | `Stage.qml`, `components/expanded/**`, `QuickPanel.qml`, `BluetoothPanel.qml`, `island.toml` | haiku |
+| [W10-bar-quick](W10-bar-quick.md) | Bar right row (one item), `QuickButton.qml`, `frontend.toml` | haiku |
+| [W10-mods-daemon](W10-mods-daemon.md) | `kurashi-mods/**`, kurashid `config.rs`/`wiring.rs` mods parts, `kurashi-theme` status tokens | haiku |
+| [W10-settings](W10-settings.md) | `settings/**`, `settings.toml` | haiku |
+Lead (before): K24 `runtime.ui.face` + `quick.toggle` (daemon + mock, done), K25/K26/I9 contracts (docs + fixture),
+I9 schema attribute `choices_from` in kurashi-schema.

@@ -6,6 +6,7 @@
 "session.confirm_required" = "続行するには確認してください"
 "action.input.dispatch" = "割り当てられた操作を実行"
 "action.session.menu" = "セッションメニュー"
+"action.quick.toggle" = "クイック設定"
 "action.brightness.up" = "明るさを上げる"
 "action.brightness.down" = "明るさを下げる"
 "action.audio.volume.up" = "音量を上げる"
