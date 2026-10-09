@@ -27,3 +27,11 @@
 "config.error.profile_unreadable" = "プロファイルファイルを読み込めません"
 "config.error.profile_parse" = "プロファイルファイルを TOML として解析できません"
 "config.error.profile_write" = "プロファイルを書き込めません"
+"config.face.bluetooth" = "Bluetooth"
+"config.face.power" = "電源"
+"config.face.volume" = "音量"
+"config.face.brightness" = "明るさ"
+# profile.export: 書き出しから外す値と理由 (I35)。
+"config.export.per_output" = "この値は出力ごとのものなので、この機器に残します。"
+"config.export.path" = "この値はこの機器のファイルやフォルダーを指すため、この機器に残します。"
+"config.error.profile_path" = "プロファイルのパスは絶対パスで指定してください。"

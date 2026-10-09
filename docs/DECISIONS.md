@@ -230,3 +230,11 @@ while playing; no `length_us` (live streams) means no progress bar. `can {seek, 
 controls (replaces `can_next/can_prev/can_seek`), `players[].active` + `media.player.select {id}` drive the switcher,
 `media.seek {offset_us}` / `media.set_position {us}` are refused with `error.media.cannot_seek` when not allowed.
 *Why:* `docs/ux/island.md` media view; Ma (no polling) and Shōjiki (a frozen or guessed position would lie).
+
+**K32** 🟢 Settings reachable from anywhere, profiles portable (lead, session 5; W14-settings-daemon, CONTRACT row 54).
+`settings.open {key?}` (registered with the config store: it validates the key) jumps a running Settings window or launches
+one detached with `KURASHI_SETTINGS_KEY` (no shell); `kurashi settings [<key>]` goes through it. `profile.export {name, path}`
+writes a profile without machine-local values (per-output, paths — value-based until the schema has a path type, BACKLOG),
+`profile.import {path, apply?}` reviews (dry run) or loads as one transaction; `profile.preview`/`load` answer `not_applied`
+for keys a forced layer holds (Nix, capability, accessibility). Face offers carry labels (`config.face.<id>` or the mod's name).
+*Why:* `docs/ux/settings.md` DoD 4 and 7; weather's "Set place", inert rows' "Controlled by …" links.

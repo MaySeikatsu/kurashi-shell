@@ -8,7 +8,8 @@ import "pages"
 // Settings app (K2): a separate, on-demand process; `qs -p settings`. A normal xdg toplevel, not a layer surface. Pages are
 // generated from the daemon's `schema.settings` document (rule 3); this file lays out the chrome. The process ends when the
 // window closes. `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start; a running window takes the
-// same link through `qs -p settings ipc call settings jump <key>`. (`kurashi settings <key>` is not built yet: CONTRACT-CHANGE 36.)
+// same link through `qs -p settings ipc call settings jump <key>`; `kurashi settings <key>` and the daemon action
+// `settings.open {key}` do either for you (K32).
 ShellRoot {
     FloatingWindow {
         id: win
