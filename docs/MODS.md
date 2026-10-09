@@ -100,8 +100,8 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   is the mod's settings feed, and `wanted_by` names a bool setting of the same mod. The enable hands the
   job to the daemon with `ctx.take_jobs()` before `finish()`, which refuses a job left behind. The daemon
   runs a job while the mod is enabled and the setting is true, cancels it when either stops, and shows
-  `reason` (an i18n key) in `running_reasons` while it runs. A job that returns by itself stops
-  running. Weather's rain alerts and sysmon's trouble watch are jobs; a poll the user can see is never a
+  `reason` (an i18n key) in `running_reasons` while it runs. A job whose body returns or panics stops
+  running; a `wanted_by` that is not a bool setting of the mod refuses the enable. Weather's rain alerts and sysmon's trouble watch are jobs; a poll the user can see is never a
   bare task.
 - **Refused without code (B15):** a native mod whose manifest declares daemon code (`service:`,
   `action:`, `island-face:`, `choices:`, `job:`) is refused with `mods.error.not_built` when this build
