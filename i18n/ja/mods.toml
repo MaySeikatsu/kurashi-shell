@@ -16,3 +16,6 @@
 # モッドの一覧の操作 (K25): mod.load / mod.unload / mod.enable / mod.disable が断られた理由。
 "mods.error.not_loadable" = "このモッドは無効なため読み込めません"
 "mods.error.id_reserved" = "この id はモッドの一覧用に予約されています"
+"mods.error.not_declared" = "このモッドはマニフェストに宣言していないものを登録しようとしました"
+"mods.error.duplicate" = "このモッドはシェルや他のモッドが既に使っている名前を登録しようとしました"
+"mods.error.enable_failed" = "このモッドをオンにできませんでした"

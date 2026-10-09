@@ -62,8 +62,8 @@ the core pages (K25); the indicator uses `color.status.*` tokens and shape (ring
 A native mod is first-party code shipped with kurashi: Rust linked into `kurashid` (crate
 `crates/kurashi-mod-<id>`) + QML components in `mods/<id>/qml/`. Nothing of it runs while it is not
 `enabled`.
-- **Daemon:** the crate implements `kurashi_mods::NativeMod { fn id(); fn enable(&self, ctx:
-  &mut ModCtx); }`. `ModCtx` registers what the manifest `provides` (and nothing else — a
+- **Daemon:** the crate implements `kurashi_mod_api::NativeMod { fn id(); fn enable(&self, ctx:
+  &mut ModCtx); }` (crate `kurashi-mod-api`: `NativeMod`, `ModCtx`, `Settings`, `ModError`). `ModCtx` registers what the manifest `provides` (and nothing else — a
   registration the manifest does not declare is refused): documents behind a refcounted
   `ServiceProvider` (start on first subscriber, stop on last, rule 5), actions `<id>.*`, island
   faces, launcher providers, choice sources (`choices_from`, I9), a palette source. `ModCtx`

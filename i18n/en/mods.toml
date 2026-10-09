@@ -16,3 +16,6 @@
 # Mod list actions (K25): refusals of mod.load / mod.unload / mod.enable / mod.disable.
 "mods.error.not_loadable" = "this mod is invalid and cannot be loaded"
 "mods.error.id_reserved" = "this id is reserved for the mods lists"
+"mods.error.not_declared" = "this mod tried to register something its manifest does not declare"
+"mods.error.duplicate" = "this mod tried to register a name the shell or another mod already uses"
+"mods.error.enable_failed" = "this mod could not be turned on"
