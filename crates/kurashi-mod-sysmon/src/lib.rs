@@ -5,10 +5,13 @@
 //! `procs`, all parsing fixture-testable text), `sampler` (deltas between two reads), `trouble` (hysteresis
 //! on sustained readings), `doc` (the documents), `sysmon` (the native mod: services, watch, actions).
 
+pub mod battery;
 pub mod cpu;
 pub mod doc;
 pub mod gpu;
+pub mod host;
 pub mod io;
+pub mod launch;
 pub mod mem;
 pub mod power;
 pub mod pressure;
