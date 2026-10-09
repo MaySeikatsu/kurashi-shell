@@ -34,10 +34,14 @@ Flickable {
             structure = groups
         }
     }
+    // The values, the schema's pages and labels and the catalogue (the page titles) decide the list, and any of them may
+    // arrive first: the list is rebuilt when one of them changes.
     Component.onCompleted: refreshStructure()
     Connections {
         target: Store
         function onConfigChanged() { p.refreshStructure() }
+        function onSchemaChanged() { p.refreshStructure() }
+        function onI18nChanged() { p.refreshStructure() }
     }
 
     // The count of changed settings, and the ones the user set (the ones a reset can undo).
