@@ -265,6 +265,13 @@ pub fn build(
         "color.status.off",
         at_least(g("on_surface_variant"), surface, 3.0, fg),
     );
+    // I27: activity levels and warnings (sysmon, low battery) are text as often as marks, so the
+    // warn role meets AA for text (4.5:1) on the surface, whatever the palette's own yellow is.
+    col(
+        &mut t,
+        "color.status.warn",
+        at_least(g("warning"), surface, 4.5, fg),
+    );
 
     // --- overrides (per-surface / per-output); unknown keys are errors, not silent ---
     for (k, v) in overrides {
