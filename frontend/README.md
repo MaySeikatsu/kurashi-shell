@@ -15,12 +15,14 @@ tools/bench/sandbox.sh stop dev
 Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 30 -- qs -p frontend`.
 
 ## Layout
-- `shell.qml` one `Bar` + one `Stage` per output (Variants over `Quickshell.screens`, hotplug-safe).
+- `shell.qml` one `Bar` per output (Variants over `Quickshell.screens`, hotplug-safe) + ONE `Stage`
+  retargeted to the focused output (focused workspace's output, latched while open).
 - `core/` singletons: `Store` (IPC, merge-patch, revision-gap resync, 250 ms to 4 s reconnect,
   `connected`/`live`), `Theme` (the only reader of `theme.tokens`), `I18n` (`tr(key)`).
 - `components/` Button, IconButton, Slider, Chip, ProvenanceChip, Island, ModNode (mod UI tree).
-- `surfaces/` `Bar`; `Stage` (overlay layer, mapped only while visible, input region = card,
-  reveal on first presented frame).
+- `surfaces/` `Bar`; `Stage` (content-sized overlay layer, top-centred under the Island; permanently mapped but
+  transparent with empty input/blur regions while hidden: map/unmap cycles leaked heap, K16;
+  reveal = slide on first presented frame, no group opacity).
 - Strings: `i18n/{en,ja}/frontend.toml`. Until the daemon serves them, `tr` returns the key.
 
 ## Conventions
