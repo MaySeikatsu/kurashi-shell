@@ -84,8 +84,9 @@ Raw JSON: `tools/bench/results/rerun-*.json`, `tools/bench/results/frontend-real
 - **Budgets** (BENCH.md) are acceptance criteria: idle ≤ 1 fps, idle CPU < 0.5 %, PSS ≤ 150 MiB @1
   output and ≤ +6 MiB per extra output, popup ≤ 1 frame, ≤ 2 MiB growth over 20 panel cycles, ≤ 4
   mapped surfaces per output. On machine A the per-output row sits exactly at +6.0 — watch it.
-- `frontend/launch.sh` pins the NVIDIA EGL vendor only with NVIDIA and exactly one render node (saves
-  ~13 MiB); on AMD/Intel or hybrid laptops it changes nothing — expect a different PSS floor.
+- `frontend/launch.sh` pins the EGL vendor of the GPU the compositor renders on whenever NVIDIA is
+  installed (one node: NVIDIA, ~13 MiB; hybrid: the dmabuf main device's driver, ~10 MiB on machine B);
+  on AMD/Intel-only machines it changes nothing — expect a different PSS floor per GPU.
 - Slint's probe renders on the CPU, so its memory is not comparable to the GPU-rendered probes.
 - **Hybrid GPUs:** the sandbox takes the first render node, which may be the dGPU. Find the GPU the
   session renders on (`/sys/class/drm/card*/device/boot_vga`, the compositor's open `/dev/dri` fds) and

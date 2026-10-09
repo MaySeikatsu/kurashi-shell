@@ -8,6 +8,7 @@ check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
+    sh frontend/test-launch.sh
 
 fmt:
     cargo fmt --all

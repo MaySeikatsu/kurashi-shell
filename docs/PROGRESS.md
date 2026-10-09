@@ -86,3 +86,4 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M4.8 | Tray menu as a Stage panel (K23): `tray.menu.open`, `runtime.ui.tray` (daemon + mock) | ✅ | lead; frontend in card B-tray-bluetooth |
 | M6.4 | Per-mod profile sections (`mods.<id>`, K22 addendum) | ✅ | C-mod-sections 27374af; 5 new tests (3 fail on the old `section()`), gate 315/0 |
 | M4.9 | svc.session resolves the graphical session explicitly (XDG_SESSION_ID → user Display → Sessions → auto) | ✅ | L-logind cbdb73f; 6 new tests on a fake logind; `user/self` alias checked read-only on machine B; brightness.rs still uses session/auto (follow-up) |
+| M3.4 | Hybrid-aware EGL vendor pin in `launch.sh` (dmabuf main device → driver → vendor) | ✅ | K-hybrid-egl a04df65; 17-case `test-launch.sh` in `just check`; real niri session here → Mesa (renderD129); HM + `nix run` pass `KURASHI_WAYLAND_INFO`; bench after wave |

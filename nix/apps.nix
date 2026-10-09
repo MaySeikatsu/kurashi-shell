@@ -23,6 +23,8 @@ let
         state="''${XDG_STATE_HOME:-$HOME/.local/state}/kurashi"
         mkdir -p "$state"
         export KURASHI_QS=${lib.getExe' pkgs.quickshell "qs"}
+        # launch.sh asks it for the compositor's main GPU to pin the right EGL vendor (K-hybrid-egl).
+        export KURASHI_WAYLAND_INFO=${lib.getExe' pkgs.wayland-utils "wayland-info"}
 
         daemon=
         cleanup() {
