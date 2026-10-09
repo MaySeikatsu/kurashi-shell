@@ -6,6 +6,8 @@ import "../core"
 Rectangle {
     id: b
     property string label: ""
+    // The name a screen reader says, when the visible label is a glyph ("↑") that says nothing by itself.
+    property string accessibleName: ""
     property bool primary: false
     property bool enabled: true
     signal clicked()
@@ -25,7 +27,7 @@ Rectangle {
     Keys.onEnterPressed: event => { b.press(); event.accepted = true }
     Keys.onSpacePressed: event => { b.press(); event.accepted = true }
     Accessible.role: Accessible.Button
-    Accessible.name: b.label
+    Accessible.name: b.accessibleName !== "" ? b.accessibleName : b.label
 
     Text {
         id: txt
