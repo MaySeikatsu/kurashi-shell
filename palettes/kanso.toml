@@ -1,0 +1,29 @@
+# Palette file format (kurashi-theme)
+#   name        string, matches the file name; selected as `palette:<name>`
+#   kind        "pair" (both [dark] and [light]) | "dark" | "light"
+#   [dark]/[light]  semantic roles as "#rrggbb" (DESIGN-SYSTEM §1). Required: surface,
+#               on_surface, accent, secondary, tertiary, warning. Everything else
+#               (containers, outline*, on_*, error, success, scrim, shadow) is derived when
+#               absent. The WCAG stage may still nudge on_* / accent roles; the pipeline
+#               notes say exactly what changed and why.
+#
+# 簡素 kanso — neutral, low-chroma mono. Accent is just a lighter/darker grey.
+name = "kanso"
+kind = "pair"
+description = "Neutral mono for a quiet desktop"
+
+[dark]
+surface = "#181818"
+on_surface = "#e4e4e4"
+accent = "#c8c8c8"
+secondary = "#a0a0a0"
+tertiary = "#808080"
+warning = "#c4b080"
+
+[light]
+surface = "#f4f4f4"
+on_surface = "#202020"
+accent = "#3a3a3a"
+secondary = "#585858"
+tertiary = "#707070"
+warning = "#7a5f10"

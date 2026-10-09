@@ -1,0 +1,34 @@
+# Palette file format (kurashi-theme)
+#   name        string, matches the file name; selected as `palette:<name>`
+#   kind        "pair" (both [dark] and [light]) | "dark" | "light"
+#   [dark]/[light]  semantic roles as "#rrggbb" (DESIGN-SYSTEM §1). Required: surface,
+#               on_surface, accent, secondary, tertiary, warning. Everything else
+#               (containers, outline*, on_*, error, success, scrim, shadow) is derived when
+#               absent. The WCAG stage may still nudge on_* / accent roles; the pipeline
+#               notes say exactly what changed and why.
+#
+# 和色 wa-iro — the default. Sumi ink / washi paper with beni, ai, matcha, yamabuki.
+name = "wa-iro"
+kind = "pair"
+description = "Traditional Japanese colours (DESIGN-SYSTEM §6)"
+
+[dark]
+surface = "#1b1a1e"        # 墨 sumi
+on_surface = "#e9e4d8"
+accent = "#c9404b"         # 紅 beni
+secondary = "#5b7fa6"      # 藍 ai
+tertiary = "#8fa868"       # 抹茶 matcha
+warning = "#e0a33b"        # 山吹 yamabuki
+on_accent = "#fff6f1"
+surface_container = "#252329"
+surface_container_high = "#2f2c33"
+on_surface_variant = "#b9b2a6"
+outline = "#5a5560"
+
+[light]
+surface = "#f3eee3"        # 和紙 washi
+on_surface = "#2b2a2e"
+accent = "#a8323b"
+secondary = "#284f7e"
+tertiary = "#5d7a3a"
+warning = "#b07a14"
