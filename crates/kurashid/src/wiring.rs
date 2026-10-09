@@ -149,11 +149,32 @@ impl kurashi_services::DocSink for HubSink {
 
 /// The notification server lives for the daemon's lifetime: owning the bus name is what lets
 /// notifications arrive at all (the one deliberate exception to refcounted services).
+struct NotifySink {
+    hub: Arc<Hub>,
+    island: Option<Arc<crate::island::IslandHost>>,
+}
+
+impl kurashi_services::DocSink for NotifySink {
+    fn set(&self, doc: Value) {
+        if let Some(island) = &self.island {
+            let unread = doc["unread"].as_u64().unwrap_or(0);
+            island.signal(kurashi_island::FaceSignal {
+                face: "notifications".into(),
+                relevance: if unread > 0 { 40 } else { 0 },
+                condition: unread > 0,
+                transient: None,
+            });
+        }
+        let _ = self.hub.set("svc.notifications", doc, None);
+    }
+}
+
 pub fn notifications(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     cfg: Option<&ConfigStore>,
     cache_dir: std::path::PathBuf,
+    island: Option<Arc<crate::island::IslandHost>>,
 ) {
     use kurashi_notify::{NotifyConfig, Server};
     hub.register(
