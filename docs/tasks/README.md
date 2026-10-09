@@ -195,5 +195,6 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W13-quick-daemon](W13-quick-daemon.md) | network/power/audio/notify services + kurashid blocks + mock parity | haiku |
 | [W13-quick-ux](W13-quick-ux.md) (after W11-mod-qml + W13-quick-daemon) | `QuickPanel.qml`, `components/quick/**` — drill-down pages, status sentence, footer | haiku |
 | [W13-island-daemon](W13-island-daemon.md) (after W12-mod-hooks) | arbiter secondary/overflow/stale_at, core transient signals | haiku |
+| [W13-media-position](W13-media-position.md) | svc.media position/rate/can/players + seek/select actions, mock | haiku |
 | [W13-island-views](W13-island-views.md) (after W11-mod-qml + W13-island-daemon) | `components/expanded/**` to `docs/ux/island.md` | haiku |
 
