@@ -194,9 +194,9 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    /// Config key for one of this mod's settings (`mod.<id>.<key>`).
+    /// Config key for one of this mod's settings: `mods.<id>.<key>` (K22).
     pub fn config_key(&self, key: &str) -> String {
-        format!("mod.{}.{key}", self.id)
+        format!("mods.{}.{key}", self.id)
     }
 }
 

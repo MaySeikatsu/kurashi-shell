@@ -2,3 +2,13 @@
 # Mods page shows the translated text under the mod's name.
 "mods.media.description" = "Now playing from MPRIS players: title, album art, and playback and seek controls."
 "mods.easter-eggs.description" = "Subtle seasonal touches in the clock and the Island. On by default; one switch turns it off."
+
+# Mod settings (K22): labels and help of the bundled mods' settings, the choices of their enum
+# settings (`mods.<id>.<key>.<choice>`), and why a value of an off mod has no effect.
+"mods.media.show_art" = "Show album art"
+"mods.media.seek_step" = "Seek step"
+"mods.media.seek_step.help" = "How many seconds the seek buttons skip."
+"mods.easter-eggs.frequency" = "How often"
+"mods.easter-eggs.frequency.rare" = "Rarely"
+"mods.easter-eggs.frequency.sometimes" = "Sometimes"
+"mods.disabled" = "This mod is off. The value is kept and takes effect when the mod is turned on."
