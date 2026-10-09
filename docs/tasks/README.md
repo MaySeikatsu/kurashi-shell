@@ -41,7 +41,8 @@ merges, and records progress; agents only build what their card says.
    cite K-ids for non-obvious choices).
 7. **Commits** on your worktree branch, conventional messages (`feat(<area>): …`), **no AI
    attribution / Co-Authored-By lines**.
-8. **No report files** (your tools refuse them). Your final message is the report, exactly:
+8. **No report files** (your tools refuse them). Bugs or ideas you notice outside your card go into your
+   report under "not done / deviations"; the lead files them in `docs/BACKLOG.md`. Your final message is the report, exactly:
    ```
    branch: <name> · sha: <HEAD>
    acceptance: <command> → <result>

@@ -33,6 +33,8 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 - Commit messages: conventional (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`).
   **No AI attribution / Co-Authored-By lines.**
 - New architectural choices → `docs/DECISIONS.md` (K-ids, cite the lesson/evidence + URLs).
+- Bugs, ideas and improvements that are not scheduled now → a row in `docs/BACKLOG.md` (date, source,
+  status) — never only in a chat, an agent report or a handover. Agents report them; the lead adds the rows.
 - **Session start:** read `docs/HANDOVER.md` (latest entry) and continue its "Next steps".
 - **Session end (K14):** add a new top entry to `docs/HANDOVER.md` — state, what was merged,
   next steps (concrete, ordered), open decisions/risks, anything half-done and where it lives —
@@ -62,6 +64,7 @@ nix build .#kurashid   # packaged daemon
 | `docs/BENCH.md` / `BAKEOFF.md` | measured numbers / frontend framework comparison |
 | `docs/CONTRACT-CHANGE.md` | requested contract changes from subagents |
 | `docs/HANDOVER.md` | session handovers + pickup prompt (read first, write last) |
+| `docs/BACKLOG.md` | unscheduled bugs, improvements, ideas (append; never lose one) |
 
 ## Subagent task cards
 Every delegated task gets a card: goal · owned paths (edit only these) · frozen contracts to code
