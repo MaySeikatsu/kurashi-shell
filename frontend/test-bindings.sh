@@ -45,101 +45,13 @@ expect_left() { # <action|"">
 }
 
 # A click needs a pointer, and the sandbox seat has none (WLR_LIBINPUT_NO_DEVICES, headless backend), so
-# `swaymsg seat - cursor press` reaches no client. A virtual pointer (zwlr_virtual_pointer_v1 on the
-# sandbox's own socket) clicks instead. The island is centred on the top bar: x = output centre, y = 18
-# (bar.height 36, island centred in it).
+# `swaymsg seat - cursor press` reaches no client. tools/bench/wl_pointer.py clicks instead: a virtual pointer
+# on the sandbox's own socket, at layout coordinates. The island is centred on the top bar: x = output centre,
+# y = 18 (bar.height 36, island centred in it).
 click_island() {
-  local w h
-  read -r w h < <(swaymsg -t get_outputs -r | jq -r '.[0].rect | "\(.width) \(.height)"')
-  timeout 30 python3 - "$((w / 2))" 18 "$w" "$h" <<'PY'
-import os, socket, struct, sys, time
-
-x, y, w, h = (int(a) for a in sys.argv[1:5])
-settle = 0.5
-
-sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-sock.settimeout(5)
-sock.connect(os.path.join(os.environ["XDG_RUNTIME_DIR"], os.environ["WAYLAND_DISPLAY"]))
-inbuf = bytearray()
-
-DISPLAY, REG, SYNC1, SEAT, MANAGER, POINTER, SYNC2 = 1, 2, 3, 4, 5, 6, 7
-BTN_LEFT = 272
-
-
-def send(obj, op, payload=b""):
-    sock.sendall(struct.pack("<IHH", obj, op, 8 + len(payload)) + payload)
-
-
-def string(text):
-    raw = text.encode() + b"\0"
-    return struct.pack("<I", len(raw)) + raw + b"\0" * (-len(raw) % 4)
-
-
-def read_event():
-    while True:
-        if len(inbuf) >= 8:
-            obj, op, size = struct.unpack_from("<IHH", inbuf)
-            if len(inbuf) >= size:
-                body = bytes(inbuf[8:size])
-                del inbuf[:size]
-                return obj, op, body
-        chunk = sock.recv(65536)
-        if not chunk:
-            sys.exit("click: compositor closed the connection")
-        inbuf.extend(chunk)
-
-
-# wl_display.get_registry, then sync: the globals are announced before the sync callback fires.
-send(DISPLAY, 1, struct.pack("<I", REG))
-send(DISPLAY, 0, struct.pack("<I", SYNC1))
-globals_ = {}
-while True:
-    obj, op, body = read_event()
-    if obj == REG and op == 0:  # wl_registry.global(name, interface, version)
-        name, = struct.unpack_from("<I", body, 0)
-        n, = struct.unpack_from("<I", body, 4)
-        iface = body[8:8 + n - 1].decode()
-        version, = struct.unpack_from("<I", body, 8 + ((n + 3) & ~3))
-        globals_[iface] = (name, version)
-    elif obj == SYNC1 and op == 0:
-        break
-    elif obj == DISPLAY and op == 0:  # wl_display.error
-        sys.exit(f"click: wayland error {body!r}")
-
-
-def bind(iface, max_version, new_id):
-    name, version = globals_[iface]  # KeyError: the compositor does not offer it
-    send(REG, 0, struct.pack("<I", name) + string(iface)
-         + struct.pack("<II", min(version, max_version), new_id))
-
-
-bind("wl_seat", 5, SEAT)
-bind("zwlr_virtual_pointer_manager_v1", 2, MANAGER)
-# create_virtual_pointer(seat, new_id): the seat gains a pointer capability for the clients.
-send(MANAGER, 0, struct.pack("<II", SEAT, POINTER))
-
-
-def ms():
-    return int(time.monotonic() * 1000) & 0xFFFFFFFF
-
-
-time.sleep(0.5)  # let clients learn about the new pointer capability before the first event
-send(POINTER, 1, struct.pack("<IIIII", ms(), x, y, w, h))  # motion_absolute in the layout
-send(POINTER, 4)  # frame
-time.sleep(0.2)
-send(POINTER, 2, struct.pack("<III", ms(), BTN_LEFT, 1))  # button pressed
-send(POINTER, 4)
-send(POINTER, 2, struct.pack("<III", ms(), BTN_LEFT, 0))  # button released
-send(POINTER, 4)
-send(DISPLAY, 0, struct.pack("<I", SYNC2))
-while True:  # the compositor has processed everything above
-    obj, op, body = read_event()
-    if obj == SYNC2 and op == 0:
-        break
-    if obj == DISPLAY and op == 0:
-        sys.exit(f"click: wayland error {body!r}")
-time.sleep(settle)  # closing the socket destroys the virtual pointer
-PY
+  local w
+  w=$(swaymsg -t get_outputs -r | jq -r '.[0].rect.width')
+  timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$((w / 2))" 18 left
 }
 
 # The daemon acts asynchronously: poll (bounded) for the expected panel.

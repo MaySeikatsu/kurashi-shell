@@ -5,6 +5,8 @@ Invisible, reproducible measurements of frontends (K3 bake-off, milestone budget
 | File | Purpose |
 |---|---|
 | `sandbox.sh` | headless sway (gles2 by default → clients render on the GPU) with its own `XDG_RUNTIME_DIR` (`/tmp/kurashi-sb-<name>`) and private D-Bus; `start/env/stop/output-add` |
+| `wl_keys.py` | virtual keyboard on the sandbox seat (zwp_virtual_keyboard_v1, raw wire): `wl_keys.py tab space`, or `--serve` (one keyboard, one key line per stdin line); only the sandbox's own socket (eval `sandbox.sh start` first; refuses anything else) |
+| `wl_pointer.py` | virtual pointer on the sandbox seat (zwlr_virtual_pointer_v1, raw wire): `wl_pointer.py move x y`, `click x y left/middle/right`, or `--serve`; x, y are layout coordinates (the layout box comes from xdg-output); same sandbox-socket rule |
 | `measure.py` | 3 passes per frontend, each in a fresh sandbox, against `kurashi-mock` or the real `kurashid` (`--daemon real`) → `results/<name>.json` |
 | `budget.py` | the gate: compares a result with the budget table in `docs/BENCH.md`, exits 1 on any violation |
 | `bin/` | untracked copies of `kurashid`, `kurashi`, `kurashi-mock` (the shared cargo target dir is overwritten by other worktrees, so copy right after building) |
