@@ -211,14 +211,17 @@ pub struct LayerValue {
     pub reason: Option<String>,
 }
 
-/// Effective-value change of one key (profile previews, dry runs).
+/// Effective-value change of one key (profile previews, dry runs). `before`/`after` are absent
+/// when no layer (not even the schema) has a value on that side.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiffEntry {
     pub key: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output: Option<String>,
-    pub before: Provenanced,
-    pub after: Provenanced,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub before: Option<Provenanced>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub after: Option<Provenanced>,
 }
 
 /// Why one op of a transaction was rejected. `code` is an i18n key (rule 8).

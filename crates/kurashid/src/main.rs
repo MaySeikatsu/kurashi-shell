@@ -74,7 +74,35 @@ async fn main() -> anyhow::Result<()> {
     );
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
-    let daemon = Arc::new(Daemon::new(hub, actions, Intents::default()));
+    let config = match kurashi_config::Paths::from_xdg() {
+        Some(paths) => {
+            let store = kurashid::config::ConfigStore::open(
+                hub.clone(),
+                kurashi_schema::v1::registry(),
+                paths,
+                kurashi_config::Options {
+                    bundled_profile_dirs: vec![kurashid::i18n::data_dir().join("profiles")],
+                    migrations: Vec::new(),
+                },
+            );
+            store.register_actions(&mut actions);
+            Some(store)
+        }
+        None => {
+            tracing::error!("no XDG config dir: running without config (defaults only)");
+            None
+        }
+    };
+    // Kept alive for the daemon's lifetime.
+    let _watcher = config.clone().and_then(|c| {
+        kurashid::config::watch(c)
+            .map_err(|e| tracing::warn!(error = %e, "config watcher unavailable"))
+            .ok()
+    });
+    let mut daemon = Daemon::new(hub, actions, Intents::default());
+    daemon.config = config;
+    daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
+    let daemon = Arc::new(daemon);
     tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
