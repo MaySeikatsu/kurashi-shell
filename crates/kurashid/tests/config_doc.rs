@@ -193,7 +193,9 @@ async fn profile_refusals_are_catalog_keys_in_both_locales() {
     }
 
     // Settings shows the catalog text of the key, so every key needs text in en and ja (rule 8).
-    let catalog = i18n::data_dir().join("i18n");
+    // The checkout's catalog: `data_dir()` names the install prefix, which a Nix build's check
+    // phase has not populated yet.
+    let catalog = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../i18n");
     for locale in ["en", "ja"] {
         let strings = i18n::load_locale(&catalog, locale);
         for key in [
