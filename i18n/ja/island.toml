@@ -1,4 +1,4 @@
-# Island face strings (ja): frontend/components/faces/.
+# Island strings (ja): the faces (frontend/components/faces/) and their expanded views (components/expanded/, QuickPanel).
 "island.media.idle" = "再生なし"
 "island.volume.muted" = "ミュート"
 "island.volume.unavailable" = "音声を利用できません"
@@ -6,3 +6,17 @@
 "island.notifications.none" = "新着通知なし"
 "error.brightness.no_device" = "明るさを調整できるデバイスが見つかりません"
 "error.audio.unavailable" = "音声を利用できません"
+"island.media.heading" = "再生中"
+"island.media.prev" = "前の曲"
+"island.media.play" = "再生"
+"island.media.pause" = "一時停止"
+"island.media.next" = "次の曲"
+"island.media.failed" = "再生を操作できませんでした"
+"island.notifications.all" = "すべての通知"
+"island.volume.heading" = "音量"
+"island.volume.mute" = "ミュート"
+"island.volume.unmute" = "ミュート解除"
+"island.volume.failed" = "ミュートを切り替えられませんでした"
+"island.brightness.heading" = "明るさ"
+"island.quick.heading" = "クイック設定"
+"island.quick.empty" = "まだ調整できる項目はありません。"
