@@ -1,0 +1,21 @@
+error[E0277]: `range`/`step` need a numeric field type, `bool` is not numeric
+ --> tests/ui/range_on_non_numeric.rs:7:12
+  |
+7 |     shown: bool,
+  |            ^^^^ the trait `kurashi_schema::__private::Numeric` is not implemented for `bool`
+  |
+  = help: the following other types implement trait `kurashi_schema::__private::Numeric`:
+            f32
+            f64
+            i16
+            i32
+            i64
+            i8
+            u16
+            u32
+          and $N others
+note: required by a bound in `kurashi_schema::__private::assert_numeric`
+ --> src/__private.rs
+  |
+  | pub fn assert_numeric<T: Numeric>() {}
+  |                          ^^^^^^^ required by this bound in `assert_numeric`
