@@ -9,14 +9,16 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use kurashi_config::{Options, Paths};
-use kurashi_ipc::{ApplyOp, ServerMsg};
+use kurashi_ipc::{ApplyOp, ClientMsg, LineReader, ServerMsg, write_msg};
 use kurashi_mod_api::{ActionError as ModActionError, ModCtx, ModError, NativeMod};
 use kurashi_mod_hello::Hello;
 use kurashid::config::ConfigStore;
 use kurashid::hub::UnknownDoc;
 use kurashid::{ActionError, ActionRegistry, Hub, wiring};
 use serde_json::{Value, json};
-use tokio::sync::broadcast;
+use tokio::net::UnixStream;
+use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
+use tokio::sync::{broadcast, oneshot};
 
 /// Registers an action its manifest declares, then one it does not.
 struct Rogue;
@@ -319,4 +321,185 @@ async fn an_enabled_native_mod_names_the_component_files_that_exist() {
     );
     d.act("mod.disable", "panelmod").await.unwrap();
     assert!(d.entry("panelmod").get("qml").is_none());
+}
+
+/// A client of the daemon's socket, as the frontend speaks it (PROTOCOL §2–§7).
+struct Wire {
+    rd: LineReader<OwnedReadHalf>,
+    wr: OwnedWriteHalf,
+}
+
+impl Wire {
+    async fn connect(path: &Path) -> Wire {
+        let (rd, wr) = UnixStream::connect(path).await.unwrap().into_split();
+        let mut w = Wire {
+            rd: LineReader::new(rd),
+            wr,
+        };
+        w.send(ClientMsg::Hello {
+            v: 1,
+            client: "test".into(),
+            caps: vec![],
+        })
+        .await;
+        assert!(matches!(w.recv().await, ServerMsg::Welcome { .. }));
+        w
+    }
+
+    async fn send(&mut self, m: ClientMsg) {
+        write_msg(&mut self.wr, &m).await.unwrap();
+    }
+
+    async fn recv(&mut self) -> ServerMsg {
+        tokio::time::timeout(Duration::from_secs(2), self.rd.next_value())
+            .await
+            .expect("timed out waiting for the daemon")
+            .unwrap()
+            .expect("the daemon closed the connection")
+    }
+
+    /// The first message that matches; patches and other replies in between are skipped.
+    async fn until(&mut self, what: impl Fn(&ServerMsg) -> bool) -> ServerMsg {
+        loop {
+            let m = self.recv().await;
+            if what(&m) {
+                return m;
+            }
+        }
+    }
+
+    async fn reply_to(&mut self, id: &str) -> ServerMsg {
+        self.until(|m| match m {
+            ServerMsg::Done { id: i, .. } | ServerMsg::Err { id: Some(i), .. } => i == id,
+            ServerMsg::Snap { id: Some(i), .. } => i == id,
+            _ => false,
+        })
+        .await
+    }
+}
+
+#[tokio::test]
+async fn over_the_socket_a_disabled_mod_answers_unknown_doc_and_unknown_action() {
+    let d = start(&scratch("wire"), &[], hello());
+    let path = scratch("sock").join("kurashid.sock");
+    let mut daemon = kurashid::Daemon::new(
+        d.hub.clone(),
+        d.actions.clone(),
+        kurashid::Intents::default(),
+    );
+    daemon.config = Some(d.store.clone());
+    let (stop_tx, stop_rx) = oneshot::channel::<()>();
+    let listener = tokio::net::UnixListener::bind(&path).unwrap();
+    tokio::spawn(kurashid::server::serve(listener, Arc::new(daemon), async {
+        let _ = stop_rx.await;
+    }));
+    let mut w = Wire::connect(&path).await;
+
+    // Off: the document and the action are unknown.
+    w.send(ClientMsg::Sub {
+        id: "1".into(),
+        doc: "mod.hello".into(),
+    })
+    .await;
+    let ServerMsg::Err { kind, .. } = w.reply_to("1").await else {
+        panic!("a disabled mod's document is not served");
+    };
+    assert_eq!(kind, "unknown_doc");
+    w.send(ClientMsg::Act {
+        id: "2".into(),
+        action: "hello.ping".into(),
+        args: json!({}),
+    })
+    .await;
+    let ServerMsg::Err { kind, .. } = w.reply_to("2").await else {
+        panic!("a disabled mod's action ran");
+    };
+    assert_eq!(kind, "unknown_action");
+
+    // On: served, the action answers, and the mods document says the mod runs while subscribed.
+    w.send(ClientMsg::Act {
+        id: "3".into(),
+        action: "mod.enable".into(),
+        args: json!({"id": "hello"}),
+    })
+    .await;
+    assert!(matches!(w.reply_to("3").await, ServerMsg::Done { .. }));
+    w.send(ClientMsg::Sub {
+        id: "4".into(),
+        doc: "mod.hello".into(),
+    })
+    .await;
+    let ServerMsg::Snap { data, .. } = w.reply_to("4").await else {
+        panic!("an enabled mod serves its document");
+    };
+    assert_eq!(data, json!({"available": true, "greeting": "hi"}));
+    w.send(ClientMsg::Act {
+        id: "5".into(),
+        action: "hello.ping".into(),
+        args: json!({}),
+    })
+    .await;
+    let ServerMsg::Done { data, .. } = w.reply_to("5").await else {
+        panic!("hello.ping answers");
+    };
+    assert_eq!(data, Some(json!({"pong": true})));
+    w.send(ClientMsg::Sub {
+        id: "6".into(),
+        doc: "mods".into(),
+    })
+    .await;
+    let ServerMsg::Snap { data, .. } = w.reply_to("6").await else {
+        panic!("the mods document is served");
+    };
+    let hello = data["mods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "hello")
+        .unwrap();
+    assert_eq!(hello["running"], true);
+
+    // Disabled again while subscribed: the subscriber gets the final snapshot, then the same
+    // errors as before, and nothing of the mod runs.
+    w.send(ClientMsg::Act {
+        id: "7".into(),
+        action: "mod.disable".into(),
+        args: json!({"id": "hello"}),
+    })
+    .await;
+    // The reply and the final snapshot come in either order (replies go first when both are ready).
+    let (mut done, mut fin) = (false, None);
+    while !done || fin.is_none() {
+        match w.recv().await {
+            ServerMsg::Done { id, .. } if id == "7" => done = true,
+            ServerMsg::Snap {
+                id: None,
+                doc,
+                data,
+                ..
+            } if doc == "mod.hello" => fin = Some(data),
+            _ => {}
+        }
+    }
+    assert_eq!(fin, Some(json!({"available": false})));
+    w.send(ClientMsg::Sub {
+        id: "8".into(),
+        doc: "mod.hello".into(),
+    })
+    .await;
+    assert!(matches!(
+        w.reply_to("8").await,
+        ServerMsg::Err { kind, .. } if kind == "unknown_doc"
+    ));
+    w.send(ClientMsg::Act {
+        id: "9".into(),
+        action: "hello.ping".into(),
+        args: json!({}),
+    })
+    .await;
+    assert!(matches!(
+        w.reply_to("9").await,
+        ServerMsg::Err { kind, .. } if kind == "unknown_action"
+    ));
+    let _ = stop_tx.send(());
 }
