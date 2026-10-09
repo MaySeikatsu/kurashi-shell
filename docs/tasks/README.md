@@ -112,3 +112,6 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [M5-honesty](M5-honesty.md) | `kurashid/tests/honesty.rs` (new) | haiku |
 | [R-daemon-review](R-daemon-review.md) | read-only | haiku |
 | [M1-inert-reasons](M1-inert-reasons.md) | `kurashi-core` Provenanced (K21), `kurashid/src/config.rs`, honesty test, `settings/core/` | haiku |
+| [F-hub-server](F-hub-server.md) | `kurashid/src/{hub,server,clock,workspaces,services}.rs` | haiku |
+| [F-notify](F-notify.md) | `crates/kurashi-notify/` | haiku |
+| [F-watch-services](F-watch-services.md) | launcher `watch.rs`, services `{media,session,network,power,util}.rs` | haiku |
