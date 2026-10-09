@@ -14,7 +14,8 @@ Item {
     readonly property var prov: Store.prov(row.key, out)
     readonly property var value: prov === undefined ? row.default : prov.value
     readonly property var reasons: { Store.config; return Store.inertReasons(row, out) }
-    readonly property bool inert: reasons.length > 0
+    // A pending restart is not inertness: the value can be changed and reset meanwhile.
+    readonly property bool inert: reasons.some(function (x) { return x.kind !== "pending" })
     readonly property bool editable: !inert && Store.live
     readonly property string error: Store.rowErrors[row.key] || ""
     readonly property bool canReset: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
@@ -110,7 +111,7 @@ Item {
             }
         }
 
-        // Why the control is inert (one line per coupling / forced layer).
+        // Why the control is inert, or its value is not in effect yet (one line per reason).
         Repeater {
             model: r.reasons
             delegate: Text {
@@ -120,7 +121,7 @@ Item {
                 color: Theme.dim
                 font.pixelSize: Theme.fs - 2
                 font.family: Theme.fam(text, Theme.families)
-                text: "⊘ " + modelData.text
+                text: (modelData.kind === "pending" ? "↻ " : "⊘ ") + modelData.text
             }
         }
         Text {
