@@ -48,8 +48,20 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
 | M4.1 | `kurashi-compositor` trait + niri adapter + fake | ✅ | merged; niri 26.04 fixtures (read-only) |
 | M4.2 | `kurashi-services` (MPRIS, UPower, logind, NM, brightness) | ✅ | merged + wired as refcounted providers; media → island signal |
-| M3.2 | Memory headroom Kaizen + leak-cycle gate | 🟡 | card M3-memory (wave 6) |
+| M3.2 | Memory headroom Kaizen + leak-cycle gate | 🟡 | merged (launch.sh EGL pin, 122.6 MiB; 20-cycle growth budget); quiet `just bench-gate` re-run pending |
 | M2.3 | Blur capability probe → `forced:capability` | ✅ | `compositor.caps` doc; probed at startup |
-| M5.11 | Island from config, `bindings` doc, `input.dispatch` | 🟡 | card M5-island-config (wave 6) |
+| M5.11 | Island from config, `bindings` doc, `input.dispatch` | ✅ | merged + wired; launcher watcher drop hang fixed (5e08eb5) |
 | M5.12 | Launcher watcher refcount, async doctor facts, session actions | ✅ | confirm-required session actions; doctor bus/name facts live |
-
+## Wave 7 (Haiku agents; cards in `docs/tasks/README.md`)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| M5.13 | Brightness/volume key actions + island OSD; lock refuses without PAM service | 🟡 | card M5-osd-session-daemon |
+| M5.14 | UI: session menu + brightness face | 🟡 | card M5-ui-session; `session.menu` panel on main |
+| M5.15 | UI: input via `bindings` / `input.dispatch` | 🟡 | card M5-ui-bindings |
+| M7.4 | `nix run` apps + README "Running" | 🟡 | card M7-run |
+| M4.5 | SNI tray crate | 🟡 | card M4-tray |
+| M4.6 | BlueZ service | 🟡 | card M4-bluetooth |
+| M5.16 | Settings search + Mods page | 🟡 | card M5-settings-search-mods |
+| M0.8 | Mock parity (runtime.ui panels, bindings, brightness, session) | 🟡 | card M0-mock-parity |
+| M5.17 | Honesty test over all keys | 🟡 | card M5-honesty |
+| R.1 | Daemon concurrency / Ma review | 🟡 | card R-daemon-review (read-only) |
