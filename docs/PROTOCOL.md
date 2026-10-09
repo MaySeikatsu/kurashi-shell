@@ -109,6 +109,7 @@ backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
 | `bindings` | `{"island.main":{"left":{"action":"island.expand","source":"default"},…}}` (unbound slots absent); action `input.dispatch {component, slot, args?}` |
 | `svc.brightness` | `{"present":true,"device":"…","value":500,"max":1000,"percent":50}`; actions `brightness.up`/`brightness.down` `{step?}` (fraction of full scale, default 0.05) |
+| `svc.brightness` (kurashid) | same shape; intent `brightness.set` (0..1); actions `brightness.up`/`brightness.down` and `audio.volume.up`/`audio.volume.down` take optional `{step}` (0..1, default 0.05; volume keys stop at 100 %); each change shows the transient island face `brightness`/`volume` (TTL `island.main.ttl`) |
 | `runtime.lock` | `{"locked":false,…}` (static in the mock; lock-surface results from the mock are not evidence) |
 
 Probe actions: `island.next`, `island.prev`, `island.pin`, `probe.popup.toggle`, `audio.mute.toggle`.
