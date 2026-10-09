@@ -107,7 +107,13 @@ backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
 | `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`) and `launcher` (bool); actions `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`, `ui.close` |
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
+| `bindings` | `{"island.main":{"left":{"action":"island.expand","source":"default"},…}}` (unbound slots absent); action `input.dispatch {component, slot, args?}` |
+| `svc.brightness` | `{"present":true,"device":"…","value":500,"max":1000,"percent":50}`; actions `brightness.up`/`brightness.down` `{step?}` (fraction of full scale, default 0.05) |
+| `runtime.lock` | `{"locked":false,…}` (static in the mock; lock-surface results from the mock are not evidence) |
 
 Probe actions: `island.next`, `island.prev`, `island.pin`, `probe.popup.toggle`, `audio.mute.toggle`.
+Mock parity (M0.8): also `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`,
+`ui.close`, `session.lock`, `session.{suspend,logout,reboot,poweroff}` (error msg
+`session.confirm_required` unless `{confirm:true}`). Unknown docs/actions log `unknown_doc`/`unknown_action`.
 Mock control (bench/test only): `{"t":"mock.tick"}` advances the clock; `{"t":"mock.face","face":"media"}`
 forces an island switch; `{"t":"mock.workspace","idx":2}` moves focus.
