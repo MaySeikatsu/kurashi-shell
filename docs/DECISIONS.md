@@ -141,3 +141,43 @@ to where the tray sits; entries send `tray.menu_event`. Additive field + action 
 *Why:* K16/K19 — map/unmap cycles of a popup window leave ~5 MiB of heap behind per cycle, and the
 per-output PSS budget is already at its limit; rule 1 — which menu is open is daemon-owned UI state
 like every other panel, so keyboard bindings and mods can open it too.
+
+**K24** 🟢 Island model (user + lead, session 5; BACKLOG I1, B1, I2). The **arbiter stays daemon core**
+(which face wins, relevance, TTL/OSD interrupts — rule 1; the OSD depends on it). Everything the user
+sees becomes configurable: island *instances* (`island.<id>`), their *placement* (bar module today;
+standalone surface later), their faces (core + mod faces, user-ordered) and whether an island exists at
+all; with no island, a transient OSD falls back to a small Stage toast. **Each face = compact view (pill)
++ expanded view.** `island.expand` opens the expanded view of the face shown at that moment, latched for
+as long as it is open (`runtime.ui` carries the face), as Stage content (K19, one surface); first expanded
+views: media, notifications, clock, volume/brightness. Bluetooth (later network, audio devices, power)
+moves to a **quick-settings card** (bar widget → Stage panel). **Order (user):** expanded views first; the
+standalone placement only after the per-output PSS work (B7) has freed budget, focused output first.
+*Why:* DESIGN-SYSTEM §8 already promised "left click → expanded view"; the first live run showed a generic
+card instead (B1). Relevance across core and mods is business logic and must not live in a view or a mod.
+
+**K25** 🟢 Mods in Settings (user, session 5; BACKLOG I3). Each *loaded* mod gets its page in the normal
+Settings sidebar, **sorted alphabetically among the core pages**, with a small state indicator:
+hollow ring = loaded, off; filled dot = on (token colour `color.status.*`, never colour alone: shape +
+accessible text). A mod that is only *detected* has no page, only its Mods-page row; the Mods page stays a
+core page (catalogue, install/load). **No "in use" state in the sidebar** (user: its benefit did not
+justify the noise of a dot that changes as panels open); instead the mod's own page and its Mods-page row
+show a text line "Running now: …" (which of its services has a subscriber). Contract: `mods` document
+gains the loaded/on split and a per-mod `running` flag; per-mod on/off is a config key under K22.
+*Why:* mods are first-class settings citizens (rule 3: same generated pages); cost transparency (Ma) where
+the user looks for it, without sidebar noise.
+
+**K26** 🟡 Wallpaper = the first native mod; drives the native-mod mechanism (MODS.md "Lifecycle").
+Rendering by an **external daemon, awww / swww** (user, session 4), selected from a dropdown (BACKLOG I9:
+daemon-resolved choices; a backend that is not installed is shown disabled with its reason). v1 = local
+library folders, per-output state, `wallpaper.set/next/prev`, optional rotation timer (only while on),
+theme source `wallpaper` (DESIGN-SYSTEM §2), Stage picker panel. **Wallhaven later** (user, session 5).
+Mechanism design (how an enabled native mod registers Rust service/actions/settings and ships QML loaded
+on demand) is the lead's next design step. *Why:* zero frontend cost — a full-output texture would be
+~14 MiB per 2560×1440 output, far over the per-output budget.
+
+**K27** 🟢 Small additive contract changes (session 5; CONTRACT rows 20–22, all optional/additive, K17):
+`svc.tray` items carry `item_is_menu: true` for SNI `ItemIsMenu` items (omitted otherwise); the `config`
+document carries `history {can_undo, can_redo}` and `profiles [{name, bundled}]`, kept current by the
+daemon (watcher for profile files); profile actions answer errors with i18n keys (`config.error.*`).
+Pinned by `fixtures/ipc/server/snap_{tray,config}.json`. *Why:* Settings derived undo state from replies
+and fetched profiles once per connection — client-side state the daemon already owns (rule 1, B6, row 21).

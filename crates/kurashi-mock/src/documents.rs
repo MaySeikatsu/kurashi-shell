@@ -91,8 +91,9 @@ pub fn brightness(value: u32) -> Value {
     })
 }
 
-/// `svc.tray` (PROTOCOL §7; the first item is `fixtures/ipc/server/snap_tray.json`, which the unit
-/// tests compare with). The second item only names an icon, so the frontend's fallbacks show.
+/// `svc.tray` (PROTOCOL §7; both items are `fixtures/ipc/server/snap_tray.json`, which the unit
+/// tests compare with). The second only names an icon, so the frontend's fallbacks show, and is
+/// menu-only (`item_is_menu`, CONTRACT row 20): a left click opens its menu.
 pub fn tray() -> Value {
     json!({
         "available": true,
@@ -112,7 +113,8 @@ pub fn tray() -> Value {
                 "title": "Network",
                 "icon_name": "network-wired",
                 "status": "Active",
-                "has_menu": true
+                "has_menu": true,
+                "item_is_menu": true
             }
         ]
     })

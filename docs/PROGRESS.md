@@ -92,3 +92,14 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.19 | Settings polish (review R.2 #3,4,5,7,8,9,11,13,17,18,23): keyboard + focus ring, a11y names, AA colours, 32 px hit areas, translated errors, page headers, undo/redo state | ✅ | S-settings-polish 5da9b4a; `settings/test.sh` incl. keyboard step (8 shots read); undo/redo reply-derived until CONTRACT row 21 |
 | M7.5 | Live-start fix: QML clients use the protocol's default socket (`nix run .#` / HM showed "disconnected") | ✅ | found in the user's first live run; tests now run without KURASHI_SOCKET and assert the frontend's hello |
 | D.1 | `docs/BACKLOG.md` (bugs/improvements/ideas, user feedback from the first live run) + CLAUDE.md rule | ✅ | island model, mods in Settings, wallpaper notes; handover "session 4 close" |
+## Wave 9 (session 5, machine B; Haiku 5.5 agents at max effort; cards in `docs/tasks/README.md`)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| D.2 | Decisions with the user: K24 island model, K25 mods in Settings, K26 wallpaper (Wallhaven later); K27 contract rows 20–22 (fixtures, mock, PROTOCOL) | ✅ | lead, feat/m7-wave9-contracts |
+| B.3 | Per-output PSS (B7): attribution on machine B iGPU, lazy island faces, gate = mean of two hotplugged outputs, sandbox on the boot_vga GPU (B10) | 🔄 | lead, feat/m7-per-output-pss |
+| W9.1 | Bar volume slider honest when audio is unavailable/muted (B2) | ⏳ | card W9-bar-volume |
+| W9.2 | Brightness writes on the resolved logind session (B3) | ⏳ | card W9-brightness-session |
+| W9.3 | Tray waits for the watcher name (B4) + `item_is_menu` (row 20) | ⏳ | card W9-tray |
+| W9.4 | `config.history` + `config.profiles` (rows 21–22), profile error keys (B5), Settings follows (B6, B8) | ⏳ | card W9-config-profiles |
+| W9.5 | Shared virtual keyboard/pointer in `tools/bench/` (I6) | ⏳ | card W9-test-helpers |
+| W9.6 | niri keybinding snippet + HM option (I8) | ⏳ | card W9-niri-binds |
