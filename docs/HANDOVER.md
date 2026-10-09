@@ -3,16 +3,17 @@
 Updated at the **end of every session** (K14). Newest entry on top; keep the last 5 entries.
 
 ## Pickup prompt (paste into a fresh Claude Code session started in `~/Projects/kurashi-shell`)
-> Read `CLAUDE.md`, then the latest entry of `docs/HANDOVER.md`, and continue with its "Next
-> steps" in order (`docs/BACKLOG.md` holds every unscheduled bug/idea; file new ones there). Use subagents as described there (parallel, isolated git worktrees, disjoint
-> ownership, the task cards in `docs/tasks/`), keep the lead role yourself (review, measure,
-> merge, decide). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, and write
-> a new handover entry before ending the session.
+> Read `CLAUDE.md`, then the latest entry of `docs/HANDOVER.md` and `docs/BACKLOG.md`, and continue
+> with the handover's "Next steps" in order. You have no memory of earlier sessions — everything you
+> need is in this repo. Use subagents as described there (parallel, isolated git worktrees, disjoint
+> ownership, task cards in `docs/tasks/`; push `main` before spawning them) and keep the lead role
+> yourself (review, measure, merge, decide). Ask me the open design decisions the handover lists
+> before building them. Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, file
+> every new bug or idea in `docs/BACKLOG.md`, and write a new handover entry before ending the session.
 >
-> **On a different machine than the one with the GTX 1060** (or if you are unsure): you have no
-> memory of earlier sessions — everything you need is in this repo. If machine B has no baseline in
-> `docs/BENCH.md` yet, do `docs/RUNBOOK-MACHINE-B.md` first (benchmarks only, on a quiet machine;
-> K3 = Quickshell stays fixed; never modify `archive/bakeoff-probes/`), then the next steps below.
+> Machines: both have a quiet baseline in `docs/BENCH.md` (A = desktop with a GTX 1060; B = hybrid
+> laptop, measure on its iGPU with `KURASHI_RENDER_NODE=/dev/dri/renderD129`). Benchmarks only on a
+> quiet machine; K3 = Quickshell stays fixed; never modify `archive/bakeoff-probes/`.
 
 ---
 
