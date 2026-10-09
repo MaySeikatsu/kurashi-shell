@@ -13,10 +13,10 @@ provides = [
     "panel:sysmon",
     "island-face:sysmon",
     "action:sysmon.*",
+    "job:watch",
 ]
-# Declared only once the validator knows them (kurashi-mods KNOWN_CAPABILITIES): reading /proc and /sys
-# and signalling processes are requested in docs/CONTRACT-CHANGE.md.
-capabilities = []
+# Reads /proc and /sys for the figures; signals a process of the user after confirmation (I28).
+capabilities = ["fs:read", "proc:signal"]
 cost = "low"
 
 [[setting]]
@@ -29,28 +29,11 @@ label = "mods.sysmon.interval"
 help = "mods.sysmon.interval.help"
 
 [[setting]]
-key = "show_cpu"
-type = "bool"
-default = true
-label = "mods.sysmon.show_cpu"
-
-[[setting]]
-key = "show_mem"
-type = "bool"
-default = true
-label = "mods.sysmon.show_mem"
-
-[[setting]]
-key = "show_temp"
-type = "bool"
-default = false
-label = "mods.sysmon.show_temp"
-
-[[setting]]
-key = "show_load"
-type = "bool"
-default = false
-label = "mods.sysmon.show_load"
+key = "show"
+type = "list"
+default = ["cpu", "mem"]
+choices = ["cpu", "mem", "temp", "load"]
+label = "mods.sysmon.show"
 
 [[setting]]
 key = "temp_sensor"

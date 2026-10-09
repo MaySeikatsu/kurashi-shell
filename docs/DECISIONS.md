@@ -238,3 +238,12 @@ writes a profile without machine-local values (per-output, paths — value-based
 `profile.import {path, apply?}` reviews (dry run) or loads as one transaction; `profile.preview`/`load` answer `not_applied`
 for keys a forced layer holds (Nix, capability, accessibility). Face offers carry labels (`config.face.<id>` or the mod's name).
 *Why:* `docs/ux/settings.md` DoD 4 and 7; weather's "Set place", inert rows' "Controlled by …" links.
+
+**K33** 🟢 Mod runtime completed (lead, session 5; W14-mod-runtime, CONTRACT rows 55–60). Background jobs:
+`ModCtx::background(name, reason, wanted_by, run)` declares `job:<name>` (manifest provide) and runs while the mod is on and
+its bool setting is true; the `mods` doc reports `running_reasons` (`mods.running.subscribed` + job reasons), `running` =
+non-empty. Manifest `type = "list"` settings (string lists over fixed choices → `pick_list`). Capabilities `fs:read`,
+`proc:signal`, `exec:<binary>`. B15: a native mod whose manifest declares daemon kinds (service/action/island-face/choices/
+job) but whose code is not linked is refused (`mods.error.not_built`); frontend-only mods enable as before. Consequence: no
+bundled mod is on by default (easter-eggs has no code yet). *Why:* honest "Running now" (weather rain alerts, sysmon watch),
+no "on" that does nothing (rule 2).

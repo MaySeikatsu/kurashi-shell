@@ -86,15 +86,11 @@ impl SchemaView for SchemaAdapter {
 }
 
 /// `mods.loaded` and `mods.enabled` (K25): lists of mod ids, `enabled ⊆ loaded`. Both default to
-/// the bundled mod that is on by default. Hidden from the generated pages: the Mods page and the
-/// mod pages drive them.
+/// empty: no bundled mod is on by default (CONTRACT row 61 — `easter-eggs` has no code in this build,
+/// B15). Hidden from the generated pages: the Mods page and the mod pages drive them.
 fn list_keys(version: u32) -> Registry {
     let key = |name: &str| {
-        let mut m = KeyMeta::new(
-            format!("mods.{name}"),
-            Ty::StringList,
-            json!(["easter-eggs"]),
-        );
+        let mut m = KeyMeta::new(format!("mods.{name}"), Ty::StringList, json!([]));
         m.flags.hidden = true;
         m
     };
@@ -264,12 +260,15 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
         SettingType::String => Ty::String,
         SettingType::Enum => Ty::Choice,
         SettingType::Color => Ty::Color,
+        // A `list` is a string list with fixed choices (I26): the schema's validator and `pick_list`.
+        SettingType::List => Ty::StringList,
     };
     let default = match &s.default {
         SettingValue::Bool(b) => json!(b),
         SettingValue::Int(n) => json!(n),
         SettingValue::Float(f) => json!(f),
         SettingValue::Str(t) => json!(t),
+        SettingValue::List(items) => json!(items),
     };
     let mut meta = KeyMeta::new(key.clone(), ty, default);
     // Labels are i18n keys like core keys; without one the derived key names the setting.

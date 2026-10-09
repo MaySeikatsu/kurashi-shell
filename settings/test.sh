@@ -411,12 +411,12 @@ for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=off" ] && break; sleep
 Q goto bar
 shot 10b-cli-change
 
-# 11. mod pages (K25): media is loaded and off (easter-eggs is on by default, demo-blur on from step 6). The sidebar
+# 11. mod pages (K25): media is loaded and off (nothing is on by default — K33 —, demo-blur on from step 6). The sidebar
 #     places each mod page among the core pages by name; navOrder lists the entries the window built.
 Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
-want="bar,appearance,accessibility,mods.demo-blur,mods.easter-eggs,island,mods.media,notifications,launcher,@changed,@mods,@profiles"
+want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto bar
@@ -518,7 +518,7 @@ shot ja-changed
 Q goto @profiles
 Q preview roomy
 shot ja-profiles
-Q goto mods.easter-eggs
+Q goto mods.media
 shot ja-mod-page
 Q goto @mods
 shot ja-mods

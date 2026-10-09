@@ -13,7 +13,9 @@ use kurashid::config::ConfigStore;
 use kurashid::{ActionError, ActionRegistry, Hub, wiring};
 use serde_json::{Value, json};
 
-/// The bundled mods: `easter-eggs` (on by default) and `media` (available).
+/// The bundled mods: `easter-eggs` and `media` (both available; nothing is on by default, K33). Both declare daemon code
+/// that this test build does not link, so enabling them is refused (B15): the lifecycle tests switch
+/// on `plain` from [`vehicle`] instead.
 fn bundled() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods")
 }
@@ -26,6 +28,18 @@ fn scratch(tag: &str) -> PathBuf {
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(&root).unwrap();
     root
+}
+
+/// A directory of extra mods holding `plain`, a mod with a frontend-only provide: enabling it needs
+/// no daemon code, so it can be switched on in the lifecycle tests.
+fn vehicle(tag: &str) -> PathBuf {
+    let dir = scratch(tag);
+    write(
+        &dir.join("plain/mod.toml"),
+        "id = \"plain\"\nname = \"Plain\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"widget:plain\"]\n",
+    );
+    dir
 }
 
 /// A daemon's mod side over `root`: the store, the hub and the actions, as `main` wires them.
@@ -93,62 +107,65 @@ fn write(path: &Path, text: &str) {
 #[tokio::test]
 async fn enable_is_a_config_write_that_undo_reverts_and_a_restart_keeps() {
     let root = scratch("persist");
-    let d = start(&root, &[]);
-    assert_eq!(d.state("easter-eggs"), "enabled");
+    let extra = vehicle("persist-mods");
+    let d = start(&root, std::slice::from_ref(&extra));
+    // Nothing is on by default (K33: easter-eggs has no code in this build).
+    assert_eq!(d.state("easter-eggs"), "available");
+    assert!(d.store.string_list("mods.enabled").is_empty());
     assert_eq!(d.state("media"), "available");
     assert!(d.page("mods.media").is_none());
 
     // Loaded first (its own transaction), then on.
-    d.act("mod.load", "media").await.unwrap();
-    d.act("mod.enable", "media").await.unwrap();
-    assert_eq!(
-        d.store.string_list("mods.enabled"),
-        ["easter-eggs", "media"]
-    );
-    assert_eq!(d.state("media"), "enabled");
-    let page = d.page("mods.media").expect("the loaded mod has its page");
-    assert_eq!(page["mod"], "media");
-    assert_eq!(page["label"], "Media");
+    d.act("mod.load", "plain").await.unwrap();
+    d.act("mod.enable", "plain").await.unwrap();
+    assert_eq!(d.store.string_list("mods.enabled"), ["plain"]);
+    assert_eq!(d.state("plain"), "enabled");
+    let page = d.page("mods.plain").expect("the loaded mod has its page");
+    assert_eq!(page["mod"], "plain");
+    assert_eq!(page["label"], "Plain");
 
     // Undo takes the enable back; the mod stays loaded, so it is off again.
     d.store.undo(false).unwrap();
-    assert_eq!(d.state("media"), "disabled");
+    assert_eq!(d.state("plain"), "disabled");
     d.store.undo(true).unwrap();
-    assert_eq!(d.state("media"), "enabled");
+    assert_eq!(d.state("plain"), "enabled");
 
     // A restart over the same directories starts with the mod on (B11).
     drop(d);
-    let d = start(&root, &[]);
-    assert_eq!(d.state("media"), "enabled");
-    assert!(d.page("mods.media").is_some());
+    let d = start(&root, std::slice::from_ref(&extra));
+    assert_eq!(d.state("plain"), "enabled");
+    assert!(d.page("mods.plain").is_some());
 }
 
 #[tokio::test]
 async fn enabling_an_available_mod_loads_it_and_one_undo_takes_both_back() {
-    let d = start(&scratch("one-tx"), &[]);
-    d.act("mod.enable", "media").await.unwrap();
-    assert_eq!(d.state("media"), "enabled");
-    assert_eq!(d.store.string_list("mods.loaded"), ["easter-eggs", "media"]);
+    let extra = vehicle("one-tx-mods");
+    let d = start(&scratch("one-tx"), std::slice::from_ref(&extra));
+    d.act("mod.enable", "plain").await.unwrap();
+    assert_eq!(d.state("plain"), "enabled");
+    assert_eq!(d.store.string_list("mods.loaded"), ["plain"]);
     d.store.undo(false).unwrap();
-    assert_eq!(d.state("media"), "available");
-    assert!(d.page("mods.media").is_none());
+    assert_eq!(d.state("plain"), "available");
+    assert!(d.page("mods.plain").is_none());
 }
 
 #[tokio::test]
 async fn disable_keeps_the_mod_loaded_and_unload_takes_it_back_to_available() {
     let root = scratch("unload");
-    let d = start(&root, &[]);
-    d.act("mod.enable", "media").await.unwrap();
-    d.act("mod.disable", "media").await.unwrap();
-    assert_eq!(d.state("media"), "disabled");
-    assert!(d.page("mods.media").is_some(), "loaded, off keeps its page");
-    assert_eq!(d.store.string_list("mods.loaded"), ["easter-eggs", "media"]);
-    d.act("mod.unload", "media").await.unwrap();
-    assert_eq!(d.state("media"), "available");
-    assert!(d.page("mods.media").is_none());
+    let extra = vehicle("unload-mods");
+    let d = start(&root, std::slice::from_ref(&extra));
+    d.act("mod.enable", "plain").await.unwrap();
+    d.act("mod.disable", "plain").await.unwrap();
+    assert_eq!(d.state("plain"), "disabled");
+    assert!(d.page("mods.plain").is_some(), "loaded, off keeps its page");
+    assert_eq!(d.store.string_list("mods.loaded"), ["plain"]);
+    d.act("mod.unload", "plain").await.unwrap();
+    assert_eq!(d.state("plain"), "available");
+    assert!(d.page("mods.plain").is_none());
     // Unloading the mod that is on takes it off as well.
-    d.act("mod.unload", "easter-eggs").await.unwrap();
-    assert_eq!(d.state("easter-eggs"), "available");
+    d.act("mod.enable", "plain").await.unwrap();
+    d.act("mod.unload", "plain").await.unwrap();
+    assert_eq!(d.state("plain"), "available");
     assert_eq!(d.store.string_list("mods.enabled"), Vec::<String>::new());
 }
 
@@ -197,25 +214,25 @@ async fn forced_lists_refuse_the_mod_actions_and_write_nothing() {
     let forced = Err(ActionError::Invalid("config.error.forced".into()));
     assert_eq!(d.act("mod.enable", "media").await, forced);
     assert_eq!(d.act("mod.disable", "easter-eggs").await, forced);
-    // The refused enable wrote no list: the loaded one is not touched either.
-    assert_eq!(d.store.string_list("mods.loaded"), ["easter-eggs"]);
+    // The refused enable wrote no list: the loaded one is not touched either (empty by default).
+    assert!(d.store.string_list("mods.loaded").is_empty());
     assert_eq!(d.state("media"), "available");
 }
 
 #[tokio::test]
 async fn a_file_edit_reconciles_the_registry() {
     let root = scratch("edit");
-    let d = start(&root, &[]);
+    let extra = vehicle("edit-mods");
+    let d = start(&root, std::slice::from_ref(&extra));
     write(
         &Paths::rooted(&root).user_file(),
-        "[mods]\nenabled = [\"media\"]\n",
+        "[mods]\nenabled = [\"plain\"]\n",
     );
     d.store.reload();
-    // Enabled implies loaded (K25): media is on. easter-eggs is still in the default loaded list,
-    // so it is loaded and off, and keeps its page.
-    assert_eq!(d.state("media"), "enabled");
-    assert_eq!(d.state("easter-eggs"), "disabled");
-    assert!(d.page("mods.easter-eggs").is_some());
+    // Enabled implies loaded (K25): plain is on; nothing else was loaded by default.
+    assert_eq!(d.state("plain"), "enabled");
+    assert_eq!(d.state("easter-eggs"), "available");
+    assert!(d.page("mods.easter-eggs").is_none());
 }
 
 #[tokio::test]
