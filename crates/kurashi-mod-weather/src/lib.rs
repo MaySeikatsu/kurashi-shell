@@ -40,7 +40,7 @@ impl WeatherMod {
     pub fn new() -> Self {
         Self::with(
             Arc::new(Ureq::new()),
-            Endpoints::default(),
+            Endpoints::from_env(),
             Arc::new(system_clock),
             state_dir(),
             locale_units(),
@@ -121,6 +121,15 @@ impl NativeMod for WeatherMod {
             move |args| {
                 let s = s.clone();
                 async move { actions::remove(&s, args) }
+            },
+        )?;
+        let s = shared.clone();
+        ctx.action(
+            "weather.place.move",
+            "mod-weather.action.move",
+            move |args| {
+                let s = s.clone();
+                async move { actions::move_place(&s, args) }
             },
         )?;
         let s = shared.clone();

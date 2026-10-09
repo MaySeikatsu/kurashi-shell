@@ -125,6 +125,38 @@ pub fn remove(s: &Shared, args: Value) -> Result<Option<Value>, ActionError> {
     Ok(Some(json!({"removed": id})))
 }
 
+/// `weather.place.move {id, dir}`: one step up or down the saved list. The top place is the default
+/// while the `place` setting is empty, so this is how the user changes the default. A move past either
+/// end changes nothing and answers `moved: false`; an unknown place or direction is refused.
+pub fn move_place(s: &Shared, args: Value) -> Result<Option<Value>, ActionError> {
+    let id = args["id"].as_str().unwrap_or("").to_owned();
+    let step: isize = match args["dir"].as_str() {
+        Some("up") => -1,
+        Some("down") => 1,
+        _ => return Err(invalid("mod-weather.error.bad_move")),
+    };
+    let moved = s.with(|st| -> Result<bool, ActionError> {
+        let Some(at) = st.places.iter().position(|p| p.id == id) else {
+            return Err(invalid("mod-weather.error.unknown_place"));
+        };
+        let Some(to) = at
+            .checked_add_signed(step)
+            .filter(|to| *to < st.places.len())
+        else {
+            return Ok(false);
+        };
+        let mut next = st.places.clone();
+        next.swap(at, to);
+        places::save(&s.places_path, &next).map_err(|_| internal("mod-weather.error.save"))?;
+        st.places = next;
+        Ok(true)
+    })?;
+    if moved {
+        s.places_changed();
+    }
+    Ok(Some(json!({"id": id, "moved": moved})))
+}
+
 /// `weather.place.next`: scrolling on the bar widget moves to the saved place after the one shown.
 /// The choice lasts for this session; the setting still names the default.
 pub fn next(s: &Shared) -> Value {
