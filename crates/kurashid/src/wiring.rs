@@ -3,12 +3,14 @@
 
 use std::sync::{Arc, Mutex};
 
+use kurashi_services::brightness::{self as backlight, Change};
 use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry};
 use crate::config::ConfigStore;
 use crate::doctor::SharedFacts;
 use crate::hub::Hub;
+use crate::services::{Bus, ServiceProvider};
 use crate::{Daemon, QueryFn};
 
 fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
@@ -439,14 +441,35 @@ pub fn mods(hub: &Arc<Hub>, actions: &mut ActionRegistry, roots: Vec<std::path::
 }
 
 /// `svc.audio` (refcounted: the pulse connection and its thread exist only while watched) +
-/// intent `audio.volume` (coalesced per frame by the daemon) + `audio.mute.toggle`.
+/// intent `audio.volume` (coalesced per frame by the daemon) + `audio.mute.toggle` +
+/// `audio.volume.{up,down}`, which step through the same worker so the `volume` OSD follows.
 pub struct AudioProvider {
     running: Mutex<Option<(kurashi_audio::AudioHandle, kurashi_audio::Commands)>>,
     /// Origin of the latest `audio.volume` intent: the server's change event that follows is
     /// patched with it, so the dragging slider recognises its own echo (PROTOCOL §4).
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
     island: Option<Arc<crate::island::IslandHost>>,
+    start: AudioStart,
+    /// Volume the last key step asked for, and when. Key repeat outruns the server's change
+    /// event, so a step builds on this while it is fresh instead of on the stale document.
+    last_key: Mutex<Option<(f64, std::time::Instant)>>,
 }
+
+/// How the worker is started: the sound server in production, a fake backend in tests.
+type AudioStart = Arc<
+    dyn Fn(
+            Arc<dyn kurashi_services::DocSink>,
+        ) -> (kurashi_audio::AudioHandle, kurashi_audio::Commands)
+        + Send
+        + Sync,
+>;
+
+/// A key step is 5 % of full scale. It stops at 100 % (over-amplification stays a deliberate
+/// slider gesture) and never lowers a volume that is already louder.
+const VOLUME_STEP: f64 = 0.05;
+const KEY_CEILING: f64 = 1.0;
+/// Key repeat faster than this builds on the last key command, not on the server's document.
+const KEY_CHAIN: std::time::Duration = std::time::Duration::from_millis(500);
 
 /// Echo window: a server round-trip is a few ms; anything later is someone else's change.
 const ORIGIN_ECHO: std::time::Duration = std::time::Duration::from_millis(500);
@@ -455,6 +478,9 @@ struct AudioSink {
     hub: Arc<Hub>,
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
     island: Option<Arc<crate::island::IslandHost>>,
+    /// The worker is a plain thread, but the island's expiry timer needs the runtime, so OSD
+    /// signals are handed to it. No runtime when subscribed means no OSD, never a panic.
+    runtime: Option<tokio::runtime::Handle>,
     /// (volume, muted) last seen; a change shows the island's transient `volume` face (OSD).
     last: Mutex<Option<(f64, bool)>>,
 }
@@ -466,10 +492,11 @@ impl kurashi_services::DocSink for AudioSink {
             doc["muted"].as_bool().unwrap_or(false),
         );
         let prev = self.last.lock().expect("audio last").replace(now);
-        if let (Some(island), Some(prev)) = (&self.island, prev)
+        if let (Some(island), Some(runtime), Some(prev)) = (&self.island, &self.runtime, prev)
             && prev != now
         {
-            island.signal(kurashi_island::FaceSignal {
+            let island = island.clone();
+            let signal = kurashi_island::FaceSignal {
                 face: "volume".into(),
                 relevance: 0,
                 condition: true,
@@ -478,7 +505,9 @@ impl kurashi_services::DocSink for AudioSink {
                     ttl_ms: 1500,
                     may_interrupt: true,
                 }),
-            });
+            };
+            // Detached on purpose: the signal is fire-and-forget.
+            runtime.spawn(async move { island.signal(signal) });
         }
         let origin = self
             .last_origin
@@ -493,10 +522,11 @@ impl kurashi_services::DocSink for AudioSink {
 
 impl crate::hub::Provider for AudioProvider {
     fn start(&self, hub: Arc<Hub>) {
-        let (h, c) = kurashi_audio::start(Arc::new(AudioSink {
+        let (h, c) = (self.start)(Arc::new(AudioSink {
             hub,
             last_origin: self.last_origin.clone(),
             island: self.island.clone(),
+            runtime: tokio::runtime::Handle::try_current().ok(),
             last: Mutex::new(None),
         }));
         *self.running.lock().expect("audio lock") = Some((h, c));
@@ -515,6 +545,20 @@ impl AudioProvider {
             .as_ref()
             .map(|(_, c)| c.clone())
     }
+
+    /// The volume a key step starts from. Unavailable audio is an error, never a guessed volume.
+    fn key_base(&self, hub: &Hub) -> Result<f64, ActionError> {
+        let unavailable = || ActionError::Unavailable(AUDIO_UNAVAILABLE.into());
+        let (_, doc) = hub.snapshot("svc.audio").map_err(|_| unavailable())?;
+        if doc["available"].as_bool() != Some(true) {
+            return Err(unavailable());
+        }
+        let fresh = *self.last_key.lock().expect("key lock");
+        Ok(match fresh {
+            Some((volume, at)) if at.elapsed() < KEY_CHAIN => volume,
+            _ => doc["volume"].as_f64().unwrap_or(0.0),
+        })
+    }
 }
 
 pub fn audio(
@@ -523,10 +567,30 @@ pub fn audio(
     intents: &mut crate::Intents,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
+    audio_with(
+        hub,
+        actions,
+        intents,
+        island,
+        Arc::new(kurashi_audio::start),
+    );
+}
+
+/// [`audio`] with the worker's start injected: tests run the real command and event path over a
+/// fake backend.
+pub fn audio_with(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    island: Option<Arc<crate::island::IslandHost>>,
+    start: AudioStart,
+) {
     let provider = Arc::new(AudioProvider {
         running: Mutex::new(None),
         last_origin: Arc::default(),
         island,
+        start,
+        last_key: Mutex::new(None),
     });
     hub.register(
         "svc.audio",
@@ -541,6 +605,27 @@ pub fn audio(
             c.set_volume(v);
         }
     });
+    for (id, sign) in [("audio.volume.up", 1.0), ("audio.volume.down", -1.0)] {
+        let (p, hub) = (provider.clone(), hub.clone());
+        actions.register(id, &format!("action.{id}"), move |args: Value| {
+            let (p, hub) = (p.clone(), hub.clone());
+            async move {
+                let step = step_arg(&args, VOLUME_STEP)?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(AUDIO_UNAVAILABLE.into()))?;
+                let base = p.key_base(&hub)?;
+                let target = if sign > 0.0 {
+                    (base + step).min(KEY_CEILING).max(base)
+                } else {
+                    (base - step).max(0.0)
+                };
+                *p.last_key.lock().expect("key lock") = Some((target, std::time::Instant::now()));
+                c.set_volume(target);
+                Ok(None)
+            }
+        });
+    }
     actions.register("audio.mute.toggle", "action.audio.mute.toggle", move |_| {
         let c = provider.commands();
         async move {
@@ -549,6 +634,138 @@ pub fn audio(
             Ok(None)
         }
     });
+}
+
+/// Error keys of the key actions; the frontend and the CLI render them (rule 8).
+pub const AUDIO_UNAVAILABLE: &str = "error.audio.unavailable";
+pub const NO_BACKLIGHT: &str = "error.brightness.no_device";
+pub const STEP_RANGE: &str = "error.step.out_of_range";
+/// `session.lock` without the PAM service is refused: nothing could unlock the screen afterwards.
+pub const NO_PAM: &str = "error.lock.no_pam";
+
+/// The optional `step` argument of a key action: a fraction in `0..=1`.
+fn step_arg(args: &Value, default: f64) -> Result<f64, ActionError> {
+    match args.get("step") {
+        None => Ok(default),
+        Some(v) => v
+            .as_f64()
+            .filter(|s| (0.0..=1.0).contains(s))
+            .ok_or_else(|| ActionError::Invalid(STEP_RANGE.into())),
+    }
+}
+
+/// Brightness key step: 5 % of the device maximum.
+const BRIGHTNESS_STEP: f64 = 0.05;
+
+/// `svc.brightness` (refcounted, read on demand) + actions `brightness.{up,down}` + intent
+/// `brightness.set` (`0..=1`). Writes are one-shot and need no subscription (rule 5).
+pub fn brightness(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    let connect: ConnectFn = Arc::new(|| Box::pin(zbus::Connection::system()));
+    brightness_with(
+        hub,
+        actions,
+        intents,
+        island,
+        backlight::DEFAULT_DIR.into(),
+        connect,
+    );
+}
+
+/// [`brightness`] with the backlight directory and the bus injected (tests).
+pub fn brightness_with(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    island: Option<Arc<crate::island::IslandHost>>,
+    dir: std::path::PathBuf,
+    connect: ConnectFn,
+) {
+    let svc_dir = dir.clone();
+    let provider = Arc::new(ServiceProvider::new(
+        "svc.brightness",
+        Bus::System,
+        move |conn, sink| {
+            let dir = svc_dir.clone();
+            async move { backlight::start_at(conn, sink, dir).await }
+        },
+    ));
+    hub.register("svc.brightness", json!({}), Some(provider.clone()));
+    let writer = Arc::new(BrightnessWriter {
+        hub: hub.clone(),
+        provider,
+        island,
+        dir,
+        connect,
+        turn: tokio::sync::Mutex::new(()),
+    });
+    for (id, sign) in [("brightness.up", 1.0), ("brightness.down", -1.0)] {
+        let w = writer.clone();
+        actions.register(id, &format!("action.{id}"), move |args: Value| {
+            let w = w.clone();
+            async move {
+                let step = step_arg(&args, BRIGHTNESS_STEP)?;
+                w.apply(Change::By(sign * step), None).await?;
+                Ok(None)
+            }
+        });
+    }
+    intents.register("brightness.set", move |v, origin| {
+        // Intents have no reply: a value outside 0..=1 is dropped, a failed write shows no OSD.
+        if let Some(level) = v.as_f64().filter(|l| (0.0..=1.0).contains(l)) {
+            let w = writer.clone();
+            tokio::spawn(async move {
+                let _ = w.apply(Change::To(level), origin).await;
+            });
+        }
+    });
+}
+
+/// Brightness writes. `turn` serialises them, so every step starts from the level the previous
+/// one left in effect (key repeat). Only writers wait on it; readers never do.
+struct BrightnessWriter {
+    hub: Arc<Hub>,
+    provider: Arc<ServiceProvider<backlight::Commands>>,
+    island: Option<Arc<crate::island::IslandHost>>,
+    dir: std::path::PathBuf,
+    connect: ConnectFn,
+    turn: tokio::sync::Mutex<()>,
+}
+
+impl BrightnessWriter {
+    async fn apply(&self, change: Change, origin: Option<String>) -> Result<(), ActionError> {
+        let _turn = self.turn.lock().await;
+        let plan = backlight::plan(&self.dir, change)
+            .ok_or_else(|| ActionError::Unavailable(NO_BACKLIGHT.into()))?;
+        let conn = (self.connect)()
+            .await
+            .map_err(|e| ActionError::Unavailable(e.to_string()))?;
+        let doc = plan
+            .apply(&conn)
+            .await
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+        // A running service keeps its document in step with the level now in effect.
+        if self.provider.commands().is_some() {
+            let _ = self.hub.set("svc.brightness", doc, origin);
+        }
+        if let Some(island) = &self.island {
+            island.signal(kurashi_island::FaceSignal {
+                face: "brightness".into(),
+                relevance: 0,
+                condition: true,
+                transient: Some(kurashi_island::Transient {
+                    kind: "brightness".into(),
+                    ttl_ms: 1500,
+                    may_interrupt: true,
+                }),
+            });
+        }
+        Ok(())
+    }
 }
 
 /// Marks a locked session in the runtime dir (cleared on logout), so a daemon that restarts or
@@ -574,6 +791,11 @@ impl kurashi_services::DocSink for LockSink {
     }
 }
 
+/// Where PAM keeps its service files, and the service the lock screen authenticates against
+/// (NixOS: `security.pam.services.kurashi`).
+const PAM_DIR: &str = "/etc/pam.d";
+const PAM_SERVICE: &str = "kurashi";
+
 /// `runtime.lock` + intents `lock.submit` / `lock.cancel` + action `session.lock` (K2: the secret
 /// is handled only here and never logged; the frontend owns ext-session-lock).
 pub fn lock(
@@ -581,6 +803,17 @@ pub fn lock(
     actions: &mut ActionRegistry,
     intents: &mut crate::Intents,
     marker: std::path::PathBuf,
+) {
+    lock_with(hub, actions, intents, marker, PAM_DIR.into());
+}
+
+/// [`lock`] with the PAM directory injected (tests).
+pub fn lock_with(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    marker: std::path::PathBuf,
+    pam_dir: std::path::PathBuf,
 ) {
     use kurashi_auth::{LockConfig, LockSession, PamAuthenticator, SystemClock};
     let user = std::env::var("USER").unwrap_or_default();
@@ -592,7 +825,7 @@ pub fn lock(
     );
     let session = LockSession::new(
         user,
-        Arc::new(PamAuthenticator::new("kurashi")),
+        Arc::new(PamAuthenticator::new(PAM_SERVICE)),
         Arc::new(LockSink {
             hub: hub.clone(),
             marker,
@@ -614,8 +847,12 @@ pub fn lock(
         });
     }
     actions.register("session.lock", "action.session.lock", move |_| {
-        let s = session.clone();
+        let (s, pam_dir) = (session.clone(), pam_dir.clone());
         async move {
+            // Refused before any state changes: without the service nothing could unlock it.
+            if !kurashi_auth::service_configured(&pam_dir, PAM_SERVICE) {
+                return Err(ActionError::Unavailable(NO_PAM.into()));
+            }
             s.handle_action("session.lock");
             Ok(None)
         }
@@ -723,15 +960,18 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("kurashid-lock-{}", std::process::id()));
         let marker = dir.join("locked");
         let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("pam.d")).unwrap();
+        std::fs::write(dir.join("pam.d").join("kurashi"), "").unwrap();
 
         // First instance locks.
         let hub = Hub::new();
         let mut actions = ActionRegistry::default();
-        lock(
+        lock_with(
             &hub,
             &mut actions,
             &mut crate::Intents::default(),
             marker.clone(),
+            dir.join("pam.d"),
         );
         actions.invoke("session.lock", Value::Null).await.unwrap();
         assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], true);
@@ -739,11 +979,12 @@ mod tests {
 
         // "Restart": a fresh instance must come back locked.
         let hub2 = Hub::new();
-        lock(
+        lock_with(
             &hub2,
             &mut ActionRegistry::default(),
             &mut crate::Intents::default(),
             marker.clone(),
+            dir.join("pam.d"),
         );
         assert_eq!(hub2.snapshot("runtime.lock").unwrap().1["locked"], true);
         let _ = std::fs::remove_dir_all(&dir);
@@ -841,7 +1082,11 @@ mod tests {
     impl Bus {
         fn start() -> Self {
             use std::io::{BufRead, BufReader};
-            let dir = temp_dir("bus");
+            // One directory per bus: tests run in parallel, and a shared one is torn down by
+            // whichever bus drops first.
+            static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+            let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let dir = temp_dir(&format!("bus-{n}"));
             let conf = dir.join("bus.conf");
             std::fs::write(
                 &conf,
@@ -995,5 +1240,233 @@ mod tests {
                 .await,
             Err(ActionError::Unavailable(_))
         ));
+    }
+
+    #[tokio::test]
+    async fn lock_refuses_without_a_pam_service_and_stays_unlocked() {
+        let dir = temp_dir("pam-missing");
+        let marker = dir.join("locked");
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        lock_with(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            marker.clone(),
+            dir.join("pam.d"),
+        );
+        assert_eq!(
+            actions.invoke("session.lock", Value::Null).await,
+            Err(ActionError::Unavailable(NO_PAM.into()))
+        );
+        assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], false);
+        assert!(!marker.exists(), "a refused lock leaves no marker");
+
+        // The check runs per request: once the service exists, the same action locks.
+        std::fs::create_dir_all(dir.join("pam.d")).unwrap();
+        std::fs::write(dir.join("pam.d").join("kurashi"), "").unwrap();
+        assert_eq!(actions.invoke("session.lock", Value::Null).await, Ok(None));
+        assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], true);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // ---- brightness and volume keys --------------------------------------------------------
+
+    fn island_host(hub: &Arc<Hub>, core: &[&str]) -> Arc<crate::island::IslandHost> {
+        crate::island::IslandHost::new(
+            hub.clone(),
+            "main",
+            kurashi_island::IslandConfig {
+                faces: vec!["clock".into()],
+                default: "clock".into(),
+                interruptible_by: ["brightness".to_string(), "volume".to_string()].into(),
+                ..Default::default()
+            },
+            core,
+        )
+    }
+
+    fn island_face(hub: &Hub) -> Value {
+        hub.snapshot("runtime.island.main").unwrap().1["face"].clone()
+    }
+
+    /// Fake logind: `SetBrightness` writes the sysfs file the real one would write.
+    struct FakeBacklight(std::path::PathBuf);
+    #[zbus::interface(name = "org.freedesktop.login1.Session")]
+    impl FakeBacklight {
+        fn set_brightness(&self, _subsystem: &str, name: &str, value: u32) {
+            let _ = std::fs::write(self.0.join(name).join("brightness"), value.to_string());
+        }
+    }
+
+    #[tokio::test]
+    async fn brightness_keys_write_through_logind_and_signal_the_osd() {
+        let bus = Bus::start();
+        let sysfs = temp_dir("backlight");
+        let dev = sysfs.join("intel_backlight");
+        std::fs::create_dir_all(&dev).unwrap();
+        std::fs::write(dev.join("max_brightness"), "100").unwrap();
+        std::fs::write(dev.join("brightness"), "50").unwrap();
+        let srv = bus.conn().await;
+        srv.object_server()
+            .at(
+                "/org/freedesktop/login1/session/auto",
+                FakeBacklight(sysfs.clone()),
+            )
+            .await
+            .unwrap();
+        srv.request_name("org.freedesktop.login1").await.unwrap();
+
+        let addr = bus.addr.clone();
+        let connect: ConnectFn = Arc::new(move || {
+            let addr = addr.clone();
+            Box::pin(async move {
+                zbus::connection::Builder::address(addr.as_str())?
+                    .build()
+                    .await
+            })
+        });
+        let hub = Hub::new();
+        let island = island_host(&hub, &["clock", "brightness"]);
+        let mut actions = ActionRegistry::default();
+        brightness_with(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            Some(island),
+            sysfs.clone(),
+            connect,
+        );
+        let level = || std::fs::read_to_string(dev.join("brightness")).unwrap();
+
+        actions.invoke("brightness.up", Value::Null).await.unwrap();
+        assert_eq!(level(), "55");
+        assert_eq!(island_face(&hub), "brightness");
+
+        actions
+            .invoke("brightness.down", json!({"step": 0.1}))
+            .await
+            .unwrap();
+        assert_eq!(level(), "45");
+        assert_eq!(
+            actions.invoke("brightness.up", json!({"step": 2})).await,
+            Err(ActionError::Invalid(STEP_RANGE.into()))
+        );
+        assert_eq!(level(), "45", "a refused step writes nothing");
+        let _ = std::fs::remove_dir_all(&sysfs);
+    }
+
+    #[tokio::test]
+    async fn brightness_without_a_device_errors_before_the_bus_and_shows_no_osd() {
+        let hub = Hub::new();
+        let empty = temp_dir("no-backlight");
+        let connect: ConnectFn = Arc::new(|| {
+            Box::pin(async {
+                Err(zbus::Error::Failure(
+                    "the bus must not be used (test)".into(),
+                ))
+            })
+        });
+        let mut actions = ActionRegistry::default();
+        brightness_with(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            Some(island_host(&hub, &["clock", "brightness"])),
+            empty.clone(),
+            connect,
+        );
+        assert_eq!(
+            actions.invoke("brightness.up", Value::Null).await,
+            Err(ActionError::Unavailable(NO_BACKLIGHT.into()))
+        );
+        assert_eq!(island_face(&hub), "clock", "no device, no OSD");
+        let _ = std::fs::remove_dir_all(&empty);
+    }
+
+    /// Stand-in for the sound server: `set_volume` is reported back through the notifier, as the
+    /// pulse backend reports it, so the worker's change event (and with it the OSD) follows.
+    struct FakeAudio {
+        notifier: kurashi_audio::Notifier,
+        volume: Arc<Mutex<f64>>,
+    }
+
+    impl kurashi_audio::Backend for FakeAudio {
+        fn snapshot(&mut self) -> anyhow::Result<kurashi_audio::Snapshot> {
+            let volume = *self.volume.lock().unwrap();
+            Ok(kurashi_audio::Snapshot {
+                sinks: vec![kurashi_audio::Device {
+                    id: 1,
+                    name: "fake".into(),
+                    description: "fake sink".into(),
+                    volume,
+                    muted: false,
+                }],
+                default_sink: Some(1),
+                ..Default::default()
+            })
+        }
+        fn set_volume(&mut self, linear: f64) {
+            *self.volume.lock().unwrap() = linear;
+            self.notifier.notify();
+        }
+        fn set_muted(&mut self, _muted: bool) {}
+        fn set_default_sink(&mut self, _id: u32) {}
+        fn set_source_muted(&mut self, _muted: bool) {}
+    }
+
+    #[tokio::test]
+    async fn volume_keys_step_through_the_audio_path_and_signal_the_osd() {
+        let hub = Hub::new();
+        let island = island_host(&hub, &["clock", "volume"]);
+        let mut actions = ActionRegistry::default();
+        let volume = Arc::new(Mutex::new(0.5));
+        let shared = volume.clone();
+        let start: AudioStart = Arc::new(move |sink: Arc<dyn kurashi_services::DocSink>| {
+            let shared = shared.clone();
+            kurashi_audio::start_with(sink, move |notifier| {
+                Ok(FakeAudio {
+                    notifier,
+                    volume: shared,
+                })
+            })
+        });
+        audio_with(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            Some(island),
+            start,
+        );
+
+        // No running service, no volume: an honest error rather than a guess.
+        assert_eq!(
+            actions.invoke("audio.volume.up", Value::Null).await,
+            Err(ActionError::Unavailable(AUDIO_UNAVAILABLE.into()))
+        );
+        hub.subscribe("svc.audio").unwrap();
+        until("audio service up", || {
+            hub.snapshot("svc.audio").unwrap().1["available"] == true
+        })
+        .await;
+        assert_eq!(island_face(&hub), "clock");
+
+        actions
+            .invoke("audio.volume.up", Value::Null)
+            .await
+            .unwrap();
+        until("volume OSD", || island_face(&hub) == "volume").await;
+        assert!((*volume.lock().unwrap() - 0.55).abs() < 1e-9);
+
+        // A quick second step builds on the first one, not on the not-yet-updated document.
+        actions
+            .invoke("audio.volume.down", json!({"step": 0.1}))
+            .await
+            .unwrap();
+        until("second step applied", || {
+            (*volume.lock().unwrap() - 0.45).abs() < 1e-9
+        })
+        .await;
+        hub.unsubscribe("svc.audio");
     }
 }
