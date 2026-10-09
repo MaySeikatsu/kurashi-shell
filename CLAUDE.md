@@ -33,6 +33,11 @@ Read `docs/VISION.md` once, then the doc for the area you touch (map below).
 - Commit messages: conventional (`feat:`, `fix:`, `perf:`, `docs:`, `refactor:`, `test:`).
   **No AI attribution / Co-Authored-By lines.**
 - New architectural choices → `docs/DECISIONS.md` (K-ids, cite the lesson/evidence + URLs).
+- **UX bar (user rule):** a user-facing feature is not done when it merely works. Before or with its cards, write
+  a UX brief `docs/ux/<feature>.md` (how other shells do it — GNOME, KDE, COSMIC, macOS, Windows, Quickshell
+  shells like Caelestia/end-4/DankMaterialShell/Noctalia, HyprPanel —, states incl. empty/loading/error/offline,
+  keyboard + a11y, motion, multi-output, fit with Island/Stage/quick settings/Settings, budget, definition of
+  done). Cards cite it; the lead reviews screenshots against it; PROGRESS tracks *functional* and *UX* separately.
 - Bugs, ideas and improvements that are not scheduled now → a row in `docs/BACKLOG.md` (date, source,
   status) — never only in a chat, an agent report or a handover. Agents report them; the lead adds the rows.
 - **Session start:** read `docs/HANDOVER.md` (latest entry) and continue its "Next steps".

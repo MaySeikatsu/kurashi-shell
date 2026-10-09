@@ -54,7 +54,11 @@ merges, and records progress; agents only build what their card says.
 9. **Never hang.** Wrap every test/run in `timeout` (`timeout 600 cargo test …`) and use
    `set -o pipefail` when piping into `tail`/`grep`, so a deadlock or failure surfaces in minutes
    (a test once hung 4.5 h unnoticed; a piped failure once got committed).
-10. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
+10. **UX bar.** A user-facing card cites its UX brief (`docs/ux/<feature>.md`) and meets that brief's definition
+   of done, not just the function: every state the brief lists (empty, loading, error, offline, unavailable,
+   forced) is drawn and screenshotted, keyboard paths work, a11y names exist, motion follows DESIGN-SYSTEM §9.
+   Your report lists each definition-of-done item as met / not met.
+11. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
    repo. Time-box anything blocked; report it instead.
 
 ## Wave 1 (2026-10-09, session 2)
