@@ -23,13 +23,14 @@ Rectangle {
     // `manual` (island.next/prev/pin via the arbiter) is a deliberate user choice, like `user`.
     readonly property bool byUser: reason === "user" || reason === "manual"
 
-    readonly property string shown: ["clock", "media", "volume", "notifications"].indexOf(face) >= 0 ? face : "clock"
+    readonly property string shown: ["clock", "media", "volume", "brightness", "notifications"].indexOf(face) >= 0 ? face : "clock"
     readonly property bool animate: armed && visible
     property bool armed: false
     Component.onCompleted: armed = true
 
     readonly property real faceW: shown === "media" ? media.wantW
         : shown === "volume" ? volume.wantW
+        : shown === "brightness" ? bright.wantW
         : shown === "notifications" ? notifs.wantW : clock.wantW
 
     height: Theme.barH - 10
@@ -45,6 +46,7 @@ Rectangle {
     ClockFace { id: clock; anchors.fill: parent; current: isl.shown === "clock"; animate: isl.animate }
     MediaFace { id: media; anchors.fill: parent; current: isl.shown === "media"; animate: isl.animate }
     VolumeFace { id: volume; anchors.fill: parent; current: isl.shown === "volume"; animate: isl.animate }
+    BrightnessFace { id: bright; anchors.fill: parent; current: isl.shown === "brightness"; animate: isl.animate }
     NotificationsFace { id: notifs; anchors.fill: parent; current: isl.shown === "notifications"; animate: isl.animate }
 
     MouseArea {
