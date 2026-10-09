@@ -2,8 +2,8 @@
 //! frontend work relies on: `runtime.ui` panels, `bindings` + `input.dispatch`, `svc.brightness`
 //! with `brightness.up/down`, and the session actions. Documents and actions live in `state.rs`.
 //!
-//! Ma: it only emits patches when something changes (clock on minute boundaries,
-//! user intents/actions, mock.* control messages) so idle benches stay idle.
+//! Ma: it only emits patches when something changes (user intents and actions), so idle benches
+//! stay idle. The clock (minute boundaries) and the mock.* controls emit whenever they fire.
 
 mod documents;
 mod state;

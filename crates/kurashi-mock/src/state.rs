@@ -112,10 +112,16 @@ impl State {
     /// Merge-patch a document and broadcast it under the next revision. A patch that changes
     /// nothing is dropped, so an idle mock stays silent (Ma).
     fn patch(&mut self, doc: &str, ops: Value, origin: Option<String>) {
+        self.apply(doc, ops, origin, false);
+    }
+
+    /// `force` is for the mock control messages: an explicit request to emit (`mock.tick` advances
+    /// the clock, PROTOCOL §8), so it is never deduplicated.
+    fn apply(&mut self, doc: &str, ops: Value, origin: Option<String>, force: bool) {
         let d = self.docs.get_mut(doc).expect("known doc");
         let mut next = d.data.clone();
         merge_patch(&mut next, &ops);
-        if next == d.data {
+        if next == d.data && !force {
             return;
         }
         d.data = next;
@@ -243,20 +249,21 @@ impl State {
 
     /// Mock control (`mock.face`): the island switches face, as an event would make it.
     pub fn mock_face(&mut self, face: &str) {
-        self.patch(
+        self.apply(
             "runtime.island.main",
             json!({"face": face, "reason": "event"}),
             None,
+            true,
         );
     }
 
     pub fn mock_tick(&mut self) {
-        self.patch("svc.clock", documents::clock(), None);
+        self.apply("svc.clock", documents::clock(), None, true);
     }
 
     pub fn mock_workspace(&mut self, idx: u32) {
         let ws = documents::workspaces(&self.outputs, idx);
-        self.patch("svc.workspaces", ws, None);
+        self.apply("svc.workspaces", ws, None, true);
     }
 }
 
@@ -457,5 +464,25 @@ mod tests {
         st.mock_face("brightness");
         assert_eq!(st.data("runtime.island.main")["face"], "brightness");
         assert_eq!(st.data("runtime.island.main")["reason"], "event");
+    }
+
+    #[test]
+    fn mock_controls_emit_even_when_nothing_changes() {
+        let mut st = state();
+        let mut rx = st.tx.subscribe();
+        st.mock_tick();
+        st.mock_tick();
+        assert!(matches!(rx.try_recv(), Ok(ServerMsg::Patch { .. })));
+        assert!(matches!(rx.try_recv(), Ok(ServerMsg::Patch { .. })));
+        assert!(rx.try_recv().is_err());
+
+        st.mock_face("media");
+        st.mock_face("media");
+        assert!(matches!(rx.try_recv(), Ok(ServerMsg::Patch { .. })));
+        assert!(matches!(rx.try_recv(), Ok(ServerMsg::Patch { .. })));
+        assert_eq!(
+            st.docs["runtime.island.main"].rev, 3,
+            "1 + two forced patches"
+        );
     }
 }
