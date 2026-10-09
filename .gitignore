@@ -9,3 +9,4 @@ tools/bench/results/
 .qmlls.ini
 .claude/worktrees/
 shots-sandbox/
+.claude/settings.local.json

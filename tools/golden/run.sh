@@ -2,6 +2,8 @@
 # Golden screenshots of the core surfaces (M3 exit criterion): a visual regression check.
 #   tools/golden/run.sh            render the states, compare with tools/golden/ref (exit 1 on fail)
 #   tools/golden/run.sh --update   render the states and overwrite tools/golden/ref (Read them first)
+# References depend on the machine's fonts: another machine keeps its own set via
+#   KURASHI_GOLDEN_REF=tools/golden/ref-<machine> tools/golden/run.sh [--update]
 # Everything runs in the headless sway sandbox `golden`, never on the user's display:
 #   - sway with the pixman renderer, output HEADLESS-1 at 1920x1080 scale 1, set before qs starts
 #   - real kurashid with isolated XDG dirs, the fixed config (config.toml: wa-iro, reduce_motion) and
@@ -14,6 +16,8 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 G=$ROOT/tools/golden
+REF=${KURASHI_GOLDEN_REF:-$G/ref}   # per-machine reference set (fonts differ between machines)
+case $REF in /*) ;; *) REF=$ROOT/$REF ;; esac
 OUT=$G/out
 UPDATE=0
 case "${1:-}" in
@@ -121,10 +125,10 @@ fi
 
 # 6. Compare with the references, or replace them with this run's captures.
 if [ "$UPDATE" = 1 ]; then
-  mkdir -p "$G/ref"
-  for s in "${captured[@]}"; do cp "$OUT/$s.png" "$G/ref/$s.png"; done
-  echo "golden: updated ${captured[*]} in tools/golden/ref (Read each before committing)"
+  mkdir -p "$REF"
+  for s in "${captured[@]}"; do cp "$OUT/$s.png" "$REF/$s.png"; done
+  echo "golden: updated ${captured[*]} in $REF (Read each before committing)"
 else
-  python3 "$G/compare.py" --check "$G/ref" "$OUT" "${captured[@]}" || fail "FAILED"
+  python3 "$G/compare.py" --check "$REF" "$OUT" "${captured[@]}" || fail "FAILED"
   echo "golden: ok (${captured[*]})"
 fi
