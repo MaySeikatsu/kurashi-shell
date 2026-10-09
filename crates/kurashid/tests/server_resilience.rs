@@ -149,7 +149,9 @@ async fn client_that_overflows_its_reply_queue_is_dropped_with_bye() {
     for _ in 0..4 * 1024 {
         burst.extend_from_slice(encode(&ClientMsg::Ping).unwrap().as_bytes());
     }
-    c.wr.write_all(&burst).await.unwrap();
+    // The server may close the socket before the whole burst is read; the bye it wrote first is
+    // still delivered, so a failed write is not what this test is about.
+    let _ = c.wr.write_all(&burst).await;
 
     let mut pongs = 0usize;
     let bye = loop {
