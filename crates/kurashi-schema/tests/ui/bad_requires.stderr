@@ -1,0 +1,5 @@
+error: `requires` must look like "<key> == <value>" or "<key> != <value>", got "bar.enabled = true"
+ --> tests/ui/bad_requires.rs:6:40
+  |
+6 |     #[kurashi(default = 32, requires = "bar.enabled = true")]
+  |                                        ^^^^^^^^^^^^^^^^^^^^
