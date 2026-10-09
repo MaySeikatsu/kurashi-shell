@@ -27,8 +27,8 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M3.1 | Stage sized to content, popup only on focused output (K16) | 🟡 | card M3-stage (sonnet, wave 2) |
 | M6.1 | `kurashi-mods` manifest, discovery, lifecycle registry | ✅ | merged; not wired yet |
 | M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | 🟡 | card M4-audio (wave 3) |
-| M7.1 | HM/NixOS modules: user services, managed layer, eval test | 🟡 | card M7-nix-modules (wave 3) |
-| M5.2 | `kurashi-notify` notification server + history | 🟡 | card M5-notifications (wave 3) |
+| M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
+| M5.2 | `kurashi-notify` notification server + history | ✅ | merged; 14 tests on private bus; not wired yet |
 | M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | 🟡 | card M5-launcher (wave 3) |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
 | M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
