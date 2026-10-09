@@ -8,6 +8,8 @@ Column {
     id: bt
     property var doc: ({})            // svc.bluetooth as the daemon serves it
     property string errText: ""       // translated line for the last refused request, or ""
+    // false on a page whose own header names the panel and carries the power switch: no second title row.
+    property bool titled: true
     readonly property bool powered: doc.powered === true
     readonly property bool discovering: doc.discovering === true
     readonly property var paired: (doc.devices || []).filter(function (d) { return d.paired === true })
@@ -50,6 +52,7 @@ Column {
     spacing: Theme.gap
 
     Row {
+        visible: bt.titled
         width: bt.width
         spacing: Theme.gap
         Text {
