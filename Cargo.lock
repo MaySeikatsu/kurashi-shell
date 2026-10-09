@@ -514,12 +514,14 @@ name = "kurashid"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "kurashi-compositor",
  "kurashi-core",
  "kurashi-ipc",
  "serde",
  "serde_json",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "toml",
  "tracing",
  "tracing-subscriber",

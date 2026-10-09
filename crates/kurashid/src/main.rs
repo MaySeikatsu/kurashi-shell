@@ -40,11 +40,28 @@ async fn main() -> anyhow::Result<()> {
         kurashid::i18n::document(&kurashid::i18n::data_dir().join("i18n"), &locale),
         None,
     );
-    let daemon = Arc::new(Daemon::new(
-        hub,
-        ActionRegistry::default(),
-        Intents::default(),
-    ));
+    let mut actions = ActionRegistry::default();
+    // niri first (ARCHITECTURE §7); other adapters slot in here. Without a compositor socket the
+    // document stays empty rather than pretending (Shōjiki).
+    match std::env::var_os("NIRI_SOCKET") {
+        Some(sock) => {
+            let sock = std::path::PathBuf::from(sock);
+            let provider = kurashid::workspaces::WorkspacesProvider::new(move || {
+                kurashi_compositor::niri::NiriCompositor::spawn(sock.clone())
+            });
+            provider.register_actions(&mut actions);
+            hub.register(
+                kurashid::workspaces::DOC,
+                json!({"outputs": {}}),
+                Some(provider),
+            );
+        }
+        None => {
+            tracing::warn!("NIRI_SOCKET not set: svc.workspaces stays empty");
+            hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
+        }
+    }
+    let daemon = Arc::new(Daemon::new(hub, actions, Intents::default()));
     tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
