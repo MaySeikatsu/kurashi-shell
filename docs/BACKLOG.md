@@ -25,7 +25,8 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | B11 | 2026-10-09 | lead (K25 design) | Mod enablement is not persisted: only the startup policy (`easter-eggs`) is applied, so a mod switched on in Settings is off again after a daemon restart. | accepted — K25 addendum (`mods.loaded`/`mods.enabled` config lists), wave 10 |
 | B12 | 2026-10-09 | W9-bar-volume report | `Slider` does not clamp its level: `svc.audio` volume can reach 1.5 (PulseBackend MAX_VOLUME), and fill + knob then draw past the track. | new |
 | B13 | 2026-10-09 | W9-config-profiles report | Loading a profile without a section filter clears every user override, not only the profile's keys (seen: History size 210 user → 200 default). Documented engine behaviour, but surprising in Settings: decide (keep + say so in the preview, or keep user keys the profile does not set). | new |
-| B14 | 2026-10-09 | lead (W10-stage-panels merge) | Quick settings open on the output latched at the last island/session/tray open (shell.qml re-picks `stageScreen` only on `want`). Adding `quick` to `want` made Stage report a binding loop on `ui`/`wantedKind` (frontend/test-stage.sh keyboard step) — find the loop, then re-pick the output for quick too (CONTRACT row 25). Single output unaffected. | accepted |
+| B14 | 2026-10-09 | lead (W10-stage-panels merge) | Quick settings open on the output latched at the last island/session/tray open (shell.qml re-picks `stageScreen` only on `want`). Adding `quick` to `want` made Stage report a binding loop on `ui`/`wantedKind` (frontend/test-stage.sh keyboard step) — find the loop, then re-pick the output for quick too (CONTRACT row 25). Single output unaffected. | accepted — likely root cause found by W11-mod-qml (Store.unwatch wrote `docs` inside a binding chain; now deferred): retry adding `quick` to shell.qml `want` |
+| B15 | 2026-10-09 | W11-mod-qml report | A native-tier mod whose daemon code is not linked into this build (bundled `media`, `easter-eggs`, the test mod `hello` in a release build) can be switched on: the registry says `enabled`, its QML map is served, but nothing registers — "on" that does nothing (rule 2). Decide: refuse with `mods.error.not_built` when the manifest provides daemon kinds (service/action/island-face/choices) and no `NativeMod` is linked, or show it on with an error line. | accepted |
 
 ## Improvements
 | # | Date | Source | What | Status |
@@ -50,6 +51,8 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I18 | 2026-10-09 | lead (K30) | A key to turn the island's system transients off (`island.main.system_events`), which also drops the permanent svc.power/svc.bluetooth subscriptions (Ma for users who never want them). | accepted |
 | I19 | 2026-10-09 | W13-island-daemon report | `svc.media` has no position/rate/timestamp, so the media peek and expanded view cannot show elapsed time or a live progress bar honestly. Add them (position read on change + rate, the view interpolates). | accepted (needed by W13-island-views) |
 | I20 | 2026-10-09 | W13-island-daemon report | "Usual output" for the OSD device name is the first default the daemon saw; make it a config key or learn it. | new |
+| I21 | 2026-10-09 | W11-mod-qml report | A test build of kurashid that links `kurashi-mod-hello`, so `frontend/test-modqml.sh` runs every enabled-state step against the real daemon and its stand-in proxy can retire. | new |
+| I22 | 2026-10-09 | W11-mod-qml report | Measure the Bar's per-output PSS after mod widgets moved to ModLoader (bench-gate on a quiet machine). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

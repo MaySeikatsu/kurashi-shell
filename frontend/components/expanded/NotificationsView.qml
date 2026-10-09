@@ -21,6 +21,8 @@ Column {
         font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("notifications.center.title")
     }
+    // K28: a mod's header row (a focus or DND schedule); nothing when no mod contributes.
+    SlotHost { slot: "notifications.expanded.header"; width: view.width }
     Text {
         visible: view.newest.length === 0
         width: view.width
