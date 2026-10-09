@@ -21,11 +21,14 @@ PanelWindow {
     Watch { doc: "runtime.island.main" }
     Watch { doc: "svc.audio" }
     Watch { doc: "mods.probe" }
+    // Input bindings (ARCHITECTURE §6): what each island slot runs. Only while this bar is shown.
+    Watch { doc: "bindings"; active: bar.visible }
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
     readonly property var island: Store.docs["runtime.island.main"] || ({})
     readonly property var audio: Store.docs["svc.audio"] || ({})
     readonly property var mods: Store.docs["mods.probe"] || ({})
+    readonly property var bindings: Store.docs["bindings"] || ({})
 
     anchors { top: true; left: true; right: true }
     implicitHeight: Theme.barH
@@ -81,9 +84,9 @@ PanelWindow {
             anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
             face: bar.island.face || "clock"
             reason: bar.island.reason || "default"
-            onPrimary: Store.act("probe.popup.toggle")
-            onSecondary: Store.act("island.pin")
-            onScrolled: dir => Store.act(dir > 0 ? "island.prev" : "island.next")
+            slots: bar.bindings["island.main"] || ({})
+            // The user's binding decides what a slot does; an absent slot never reaches here.
+            onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
         }
 
         // ---- right: volume, mod widgets, clock ----------------------------------------------
