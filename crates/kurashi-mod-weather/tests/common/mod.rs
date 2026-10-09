@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{Duration, NaiveDateTime};
 use kurashi_mod_api::{
-    ActionFn, ChoicesFn, FaceUpdate, Hooks, ModCtx, NativeMod, Registration, ServiceFn, Settings,
-    Values,
+    ActionFn, ChoicesFn, FaceUpdate, Hooks, JobCtx, ModCtx, NativeMod, Registration, ServiceFn,
+    Settings, Values,
 };
 use kurashi_mod_weather::{Endpoints, WeatherMod, places::Place};
 use serde_json::{Value, json};
@@ -64,14 +64,22 @@ pub fn enable(m: &WeatherMod, values: Values) -> Enabled {
         "action:weather.*",
         "island-face:weather",
         "choices:weather.places",
+        "job:rain",
     ]
     .iter()
     .map(|s| (*s).to_owned())
     .collect();
-    let (tx, rx) = watch::channel(values);
+    let (tx, rx) = watch::channel(values.clone());
     let recorder = Arc::new(Recorder::default());
-    let mut ctx = ModCtx::new(&provides, Settings::new(rx), recorder.clone());
+    let mut ctx = ModCtx::new(&provides, Settings::new(rx.clone()), recorder.clone());
     m.enable(&mut ctx).expect("the mod enables");
+    // The daemon starts a job while its setting wants it (I23): the rain job while alerts are on.
+    let wanted = values.get("rain_alerts") == Some(&json!(true));
+    for job in ctx.take_jobs() {
+        if wanted {
+            tokio::spawn((job.run)(JobCtx::new(Settings::new(rx.clone()))));
+        }
+    }
     let regs = ctx.finish().expect("no refused registration");
     Enabled { regs, tx, recorder }
 }
