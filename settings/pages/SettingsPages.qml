@@ -2,8 +2,10 @@ import QtQuick
 import "../core"
 import "../components"
 
-// Renders `schema.settings` rows for one page, or for every page matching a search query. A search
-// hit shows its breadcrumb (page › section › label); choosing one emits jumpRequested.
+// Renders `schema.settings` rows for one page, or for every page matching a search query. A search hit shows its
+// breadcrumb (page › section › label); choosing one emits jumpRequested, and so does a reason's link to the setting
+// that controls a row. A page can reset the settings the user set on it (diff first), name its related pages (UX brief,
+// settings 2 and 7), and a mod's page starts with its head (settings 5).
 Flickable {
     id: p
     property string pageId: ""
@@ -11,10 +13,11 @@ Flickable {
     property bool showAdvanced: false
     property string output: ""
     signal jumpRequested(string targetPage, var row)
+    signal pageRequested(string pageId)
 
     readonly property bool searching: query.trim() !== ""
-    // The page's title, through I18n.pageTitle (a mod's page reads "Mods › <name>"). The strings are
-    // read so the title is re-evaluated when they arrive.
+    // The page's title, through I18n.pageTitle (a mod's page reads "Mods › <name>"). The strings are read so the title
+    // is re-evaluated when they arrive.
     readonly property string heading: {
         var tr = I18n.strings
         var ps = Store.schema.pages || []
@@ -28,6 +31,21 @@ Flickable {
         for (var i = 0; i < ps.length; i++)
             if (ps[i].id === p.pageId) return ps[i].mod || ""
         return ""
+    }
+    // Related pages (UX brief, settings 7): the pages whose settings act on this one's, when they exist.
+    readonly property var relatedPages: {
+        var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility"],
+                  accessibility: ["appearance"], bar: ["appearance"] }
+        var ps = Store.schema.pages || []
+        return (m[p.pageId] || []).filter(function (id) {
+            return ps.some(function (x) { return x.id === id })
+        })
+    }
+    // The reset ops for every setting the user set on this page (one change when confirmed); none while searching.
+    readonly property var userOps: {
+        Store.config
+        if (p.searching) return []
+        return Store.userSetEntries(p.pageId).map(function (e) { return Store.resetOp(e.key, e.output) })
     }
 
     contentWidth: width
@@ -64,6 +82,8 @@ Flickable {
         }
         return out
     }
+    // How many settings a search looked through (the empty-search line names its scope, UX brief "empty search").
+    readonly property int scopeCount: Store.allRows().length
 
     // The first search hit as {pageId, row}, or null (Enter in the search field).
     function firstHit() {
@@ -100,6 +120,11 @@ Flickable {
         var hit = findRow(col, key)
         if (hit) hit.openControl()
     }
+    // A reason's link: the setting that controls this row, wherever it is.
+    function openKey(key) {
+        var h = Store.rowOf(key)
+        if (h) p.jumpRequested(h.pageId, h.row)
+    }
 
     Column {
         id: col
@@ -113,10 +138,17 @@ Flickable {
             width: col.width
             text: p.heading
         }
+        // A page's own reset: every setting the user set here, previewed as a diff and then made one change.
+        ResetFlow {
+            visible: !p.searching && p.userOps.length > 0
+            ops: p.userOps
+            enabled: Store.live
+            label: I18n.fmt("settings.ui.reset_page", { n: p.userOps.length })
+        }
         ModHead {
             visible: !p.searching && p.modId !== ""
-            width: col.width
             modId: p.modId
+            onPageRequested: id => p.pageRequested(id)
         }
         Text {
             visible: p.view.length === 0
@@ -125,9 +157,11 @@ Flickable {
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            // A mod without settings has an empty page: its head, with the switch, says what there is.
+            // A mod without settings has an empty page: its head, with the switch, says what there is. A search that
+            // finds nothing names what it looked through.
             text: !Store.live ? I18n.tr("settings.ui.disconnected")
-                : I18n.tr(p.modId !== "" && !p.searching ? "settings.mods.no_settings" : "settings.ui.no_results")
+                : p.searching ? I18n.fmt("settings.ui.no_match_scope", { query: p.query.trim(), count: p.scopeCount })
+                : I18n.tr(p.modId !== "" ? "settings.mods.no_settings" : "settings.ui.no_results")
         }
         Repeater {
             model: p.view
@@ -144,6 +178,7 @@ Flickable {
                         Text {
                             visible: !p.searching
                             bottomPadding: Theme.gap
+                            topPadding: Theme.gap
                             color: Theme.dim
                             font.pixelSize: Theme.fs
                             font.bold: true
@@ -193,10 +228,34 @@ Flickable {
                                     width: parent.width
                                     row: modelData.row
                                     output: p.output
+                                    onOpenKey: key => p.openKey(key)
                                 }
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // Related pages (UX brief, settings 7): links, not a menu. Hidden while searching.
+        Row {
+            visible: !p.searching && p.relatedPages.length > 0
+            topPadding: Theme.pad
+            spacing: Theme.gap
+            Text {
+                height: Theme.controlH - 8
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 2
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("settings.ui.related") + ":"
+            }
+            Repeater {
+                model: p.relatedPages
+                delegate: LinkText {
+                    required property var modelData
+                    text: I18n.tr("settings.page." + modelData)
+                    onActivated: p.pageRequested(modelData)
                 }
             }
         }
