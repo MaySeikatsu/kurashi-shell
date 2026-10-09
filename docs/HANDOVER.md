@@ -41,6 +41,8 @@ D1, plus design notes). Read that file before planning; add new findings there (
    resolver (kurashi-services brightness.rs), B4 tray waits for NameOwnerChanged (kurashi-tray), B5+B6
    profile error codes + list refresh (kurashid config.rs + settings ProfilesPage), I6 test helpers →
    `tools/bench/`, I8 niri keybinding snippet (README + optional HM option), B10 sandbox default GPU.
+   Plus **I9 dropdowns for option sets** (schema `choices_from` resolved by the daemon + a Select control in
+   Settings; palette, island default face, faces pick-list) — a prerequisite for the wallpaper backend choice.
    Lead first: contract rows 20 (`item_is_menu`) + 21 (`config.history`), then the settings card drops
    its reply-derived undo flags.
 3. **K24 Island model** (lead decides *with the user*, then cards): `island.expand` opens the current
@@ -53,14 +55,14 @@ D1, plus design notes). Read that file before planning; add new findings there (
 5. **K26 Native mod mechanism, driven by the wallpaper mod** (lead design → cards): how an enabled native
    mod registers its Rust service/actions/settings and ships QML loaded on demand (MODS.md "Lifecycle").
    Wallpaper mod: per-output state, library folders, `wallpaper.set/next/prev`, optional rotation timer,
-   theme source `wallpaper` (DESIGN-SYSTEM §2), picker panel in the Stage. **Rendering: ask the user** —
-   recommendation: an external setter backend first (which one do they use: swww, wpaperd, swaybg?),
-   zero frontend cost; own background surface/renderer later (video).
+   theme source `wallpaper` (DESIGN-SYSTEM §2), picker panel in the Stage. **Rendering decided by the
+   user:** external daemon **awww / swww**, selected in Settings from a dropdown (BACKLOG I7, I9); awww/swww
+   is the default if only one is supported at first. Needs I9 (dynamic choices → dropdown) first or with it.
 6. M6 mods after that (media + lyrics, sysmon, weather), each a card on the K26 mechanism; keep the live
    test loop with the user (collect findings into BACKLOG).
 
 **Decisions to ask the user:** K24 (arbiter stays core? standalone island placement priority), K25
-(indicator semantics/colours), K26 (wallpaper rendering backend; Wallhaven now or later).
+(indicator semantics/colours), K26 (Wallhaven now or later; backend is decided: awww/swww).
 
 **How to work (unchanged):** lead = review/verify/merge/decide; agents (Haiku, max effort) get cards in
 `docs/tasks/`, isolated worktrees, disjoint ownership. **Push `main` before spawning agents** (their
