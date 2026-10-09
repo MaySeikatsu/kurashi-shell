@@ -1,11 +1,15 @@
 import QtQuick
-import "../../../../frontend/core"
-import "../../../../frontend/components"
+import qs.core
+import qs.components
 
 // The wallpaper tile in quick settings (K28 slot `quick.tiles`): what the rotation is doing, and its
 // three one-step actions. The slot shows it only while the daemon says the mod is available; the tile
 // subscribes to `mod.wallpaper` for its own line, and that subscription is all it does.
 Item {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: tile
     implicitWidth: 240
     implicitHeight: 88
