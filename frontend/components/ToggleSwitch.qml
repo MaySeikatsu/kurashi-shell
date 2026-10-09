@@ -1,8 +1,9 @@
 import QtQuick
 import "../core"
 
-// On/off switch (Bluetooth power). The state is the knob's side and the accent fill, not colour
-// alone. Reachable by Tab; Space, Return and Enter, or a click, flip it. Emits `toggled(on)`.
+// On/off switch (Wi-Fi and Bluetooth in quick settings). The state is the knob's side and the accent fill,
+// not colour alone. Reachable by Tab; Space, Return and Enter, or a click, flip it. Emits `toggled(on)`.
+// The focus ring sits 3 px outside the track: an inner ring would be the accent fill of an ON switch.
 Item {
     id: sw
     property bool checked: false
@@ -50,8 +51,9 @@ Item {
 
     FocusRing {
         anchors.fill: track
+        anchors.margins: -3
         shown: sw.activeFocus
-        corner: track.radius
+        corner: track.radius + 3
     }
     TapHandler {
         enabled: sw.enabled
