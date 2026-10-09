@@ -16,6 +16,7 @@
 "settings.ui.on" = "on"
 "settings.ui.off" = "off"
 "settings.ui.list_add" = "add…"
+"settings.ui.list_remove" = "Remove {item}"
 "settings.ui.output" = "Output"
 "settings.ui.all_outputs" = "All outputs"
 "settings.ui.profiles" = "Profiles"
@@ -23,6 +24,7 @@
 "settings.ui.bundled" = "bundled"
 "settings.ui.diff_title" = "Changes when loading"
 "settings.ui.no_changes" = "Nothing would change"
+"settings.ui.not_set" = "not set"
 "settings.ui.load" = "Load profile"
 "settings.ui.save_current" = "Save current settings as a profile"
 "settings.ui.save_name" = "Profile name"
@@ -47,11 +49,25 @@
 "settings.err.error.config.invalid_action" = "not a known action"
 "settings.err.error.config.empty_list" = "the list cannot be empty"
 
+# Failures the daemon reports without catalog text. Its own wording is English and is never shown:
+# these lines say what failed, plus the code. settings.ui.error_code is the generic one.
+"settings.ui.error_code" = "{what} (code: {code})"
+"settings.err.rejected_value" = "This value was not accepted"
+"settings.err.undo" = "Undo failed"
+"settings.err.redo" = "Redo failed"
+"settings.err.unknown_action" = "Unknown error"
+"settings.err.profile_list" = "The profiles could not be listed"
+"settings.err.profile_preview" = "The profile could not be previewed"
+"settings.err.profile_load" = "The profile could not be loaded"
+"settings.err.profile_save" = "The profile could not be saved"
+"settings.err.config.error.nothing_to_undo" = "Nothing to undo"
+"settings.err.config.error.nothing_to_redo" = "Nothing to redo"
+
 # Mods page. The mods.error.* keys are what the daemon sends for a refused mod.enable/disable
 # (action error msg) and for the reasons an invalid mod.toml gives (catalog key per code).
 "settings.ui.mods" = "Mods"
 "settings.ui.mods_help" = "Turning a mod on or off takes effect at once. A mod that is off keeps its settings."
-"settings.ui.mods_empty" = "No mods found. A mod is a folder with a mod.toml under $XDG_DATA_HOME/mods."
+"settings.ui.mods_empty" = "No mods found. A mod is a folder with a mod.toml file, kept in the mods folder of your kurashi data."
 "settings.ui.mods_failed" = "Could not change this mod"
 "settings.ui.mod_state.available" = "available"
 "settings.ui.mod_state.enabled" = "enabled"

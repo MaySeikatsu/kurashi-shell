@@ -16,6 +16,7 @@
 "settings.ui.on" = "オン"
 "settings.ui.off" = "オフ"
 "settings.ui.list_add" = "追加…"
+"settings.ui.list_remove" = "{item} を削除"
 "settings.ui.output" = "出力"
 "settings.ui.all_outputs" = "すべての出力"
 "settings.ui.profiles" = "プロファイル"
@@ -23,6 +24,7 @@
 "settings.ui.bundled" = "同梱"
 "settings.ui.diff_title" = "読み込むと変わる項目:"
 "settings.ui.no_changes" = "変更はありません"
+"settings.ui.not_set" = "未設定"
 "settings.ui.load" = "プロファイルを読み込む"
 "settings.ui.save_current" = "現在の設定をプロファイルとして保存"
 "settings.ui.save_name" = "プロファイル名"
@@ -46,11 +48,25 @@
 "settings.err.error.config.invalid_action" = "不明なアクションです"
 "settings.err.error.config.empty_list" = "リストを空にはできません"
 
+# デーモンが catalog の文言なしで返す失敗。デーモンの英語の文言は表示せず、何が失敗したかとコードを示します。
+# settings.ui.error_code が汎用の行です。
+"settings.ui.error_code" = "{what}（コード: {code}）"
+"settings.err.rejected_value" = "この値は受け付けられませんでした"
+"settings.err.undo" = "元に戻せませんでした"
+"settings.err.redo" = "やり直せませんでした"
+"settings.err.unknown_action" = "不明なエラー"
+"settings.err.profile_list" = "プロファイルの一覧を取得できませんでした"
+"settings.err.profile_preview" = "プロファイルの内容を確認できませんでした"
+"settings.err.profile_load" = "プロファイルを読み込めませんでした"
+"settings.err.profile_save" = "プロファイルを保存できませんでした"
+"settings.err.config.error.nothing_to_undo" = "元に戻す操作はありません"
+"settings.err.config.error.nothing_to_redo" = "やり直す操作はありません"
+
 # モッド画面。mods.error.* は、モッドの有効化・無効化が拒否されたときと、mod.toml が不正なときに
 # デーモンが返すキー (コードごと) です。
 "settings.ui.mods" = "モッド"
 "settings.ui.mods_help" = "モッドの有効化と無効化はすぐに反映されます。無効のモッドも設定は残ります。"
-"settings.ui.mods_empty" = "モッドが見つかりません。モッドは $XDG_DATA_HOME/mods の下にある mod.toml を含むフォルダです。"
+"settings.ui.mods_empty" = "モッドが見つかりません。モッドは mod.toml を入れたフォルダで、暮らしのデータの中の mods フォルダに置きます。"
 "settings.ui.mods_failed" = "このモッドを変更できませんでした"
 "settings.ui.mod_state.available" = "利用可能"
 "settings.ui.mod_state.enabled" = "有効"
