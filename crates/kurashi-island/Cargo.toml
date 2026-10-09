@@ -1,0 +1,16 @@
+[package]
+name = "kurashi-island"
+description = "Island (島) face arbitration: pure, deterministic, time is an input (K9)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+
+[dev-dependencies]
+proptest = "1"
+
+[lints]
+workspace = true
