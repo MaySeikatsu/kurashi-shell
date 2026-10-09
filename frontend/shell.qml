@@ -35,6 +35,7 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Bar {}
     }
+    Lock {}
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
