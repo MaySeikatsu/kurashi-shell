@@ -2,4 +2,5 @@ FaceBase 1.0 FaceBase.qml
 ClockFace 1.0 ClockFace.qml
 MediaFace 1.0 MediaFace.qml
 VolumeFace 1.0 VolumeFace.qml
+BrightnessFace 1.0 BrightnessFace.qml
 NotificationsFace 1.0 NotificationsFace.qml
