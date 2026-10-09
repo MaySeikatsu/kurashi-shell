@@ -95,10 +95,9 @@ changes nothing visible because older user pins win would be dishonest (Shōjiki
 preview shows the cleared pins and undo restores them. Forced values are never saved into or
 cleared by profiles. (`kurashi-config`, M1.4.)
 
-**K19** 🟡 Per-extra-output PSS budget revised from +6 to **+10 MiB**; the Stage is one
-content-sized overlay layer surface, permanently mapped but transparent, input-less and rendering 0
-frames while hidden, retargeted to the focused output. *Why:* M3.1 measured +8.9 MiB per extra output
-(≈2.5 the second Bar, the rest Quickshell's retained layer-surface cost on hotplug); the bake-off
-probe itself was +11 (155 vs 144); unmapping per open leaked ~5 MiB/cycle and every alternative
-(per-output stages, PopupWindow, destroy/recreate) measured +9…+11.6. Popup-open PSS is now 112 MiB
-(was 221). Kaizen: find the hotplug share inside Quickshell; revisit when K3 is re-evaluated.
+**K19** 🟢 The Stage is one content-sized overlay layer surface, permanently mapped but transparent,
+input-less and rendering 0 frames while hidden, retargeted to the focused output. *Why:* unmapping
+per open leaked ~5 MiB/cycle; per-output stages, PopupWindow and destroy/recreate all measured worse.
+Popup-open PSS 221 → 112 MiB. **Budget:** an interim raise of the per-output budget to +10 MiB was
+reverted the same day — the bench gate (M7.2) now measures the second output against the
+popup-closed reading (popup memory stays resident after closing) and finds **+0.8 MiB**, so +6 stands.

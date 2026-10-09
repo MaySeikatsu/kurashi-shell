@@ -38,3 +38,8 @@ nix-check:
 # Home-Manager module evaluation test (impure; see CONTRACT-CHANGE #3)
 nix-eval-test:
     nix build --no-link --impure -f nix/tests/hm-eval.nix
+
+# Budgets (docs/BENCH.md) on the real stack: kurashid + frontend in a headless sandbox (rule 9)
+bench-gate:
+    python3 tools/bench/measure.py --name frontend-real --daemon real -- qs -p frontend
+    python3 tools/bench/budget.py tools/bench/results/frontend-real.json
