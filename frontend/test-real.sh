@@ -52,6 +52,19 @@ K act island.expand >/dev/null
 shot popup-expand
 K act island.expand >/dev/null   # toggle the popup closed again
 
+# Bar placement from the config document: a bottom bar (the island panel must open above it),
+# then no bar, then back to the default. Edge only counts while the bar is enabled, so the bar is
+# re-enabled before its edge is restored.
+K set bar.edge bottom >/dev/null
+shot bar-bottom
+K act island.expand >/dev/null
+shot popup-bottom
+K act island.expand >/dev/null
+K set bar.enabled=false >/dev/null
+shot bar-disabled
+K set bar.enabled=true >/dev/null
+K set bar.edge top >/dev/null
+
 # Session menu: open, look, close. Destructive entries are never pressed here (no confirm).
 K act session.menu >/dev/null
 shot session-menu

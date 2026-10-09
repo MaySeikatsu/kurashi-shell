@@ -1,0 +1,5 @@
+# 画面の文言 (ja)。frontend/surfaces/ が I18n.tr() のキーで参照する。
+"surfaces.launcher.error.failed" = "うまくいきませんでした。もう一度お試しください。"
+"surfaces.launcher.error.unavailable" = "今は利用できません。"
+"surfaces.launcher.error.invalid" = "リクエストが正しくありません。"
+"surfaces.launcher.error.internal" = "暮らしの内部でエラーが起きました。"

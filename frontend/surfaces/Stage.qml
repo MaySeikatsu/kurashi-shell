@@ -27,17 +27,22 @@ PanelWindow {
     readonly property string wantedKind: sessionWanted ? "session" : (want ? "island" : "")
     property string contentKind: "island"
     onWantedKindChanged: if (wantedKind !== "") contentKind = wantedKind
-    // A probe field that held focus loses it when the content changes; the card takes it back.
+    // The card keeps the Stage's one keyboard focus across content changes (the session menu is
+    // driven from it), so it takes focus back whenever the content swaps.
     onContentKindChanged: Qt.callLater(function () { card.forceActiveFocus() })
+
+    // The bar of this output: the card sits just under a top bar, just above a bottom bar, and at
+    // the screen edge otherwise (no bar, or a side bar a centred card does not meet).
+    BarConfig { id: bars; screen: stage.screen }
 
     readonly property int slide: 12     // px the card travels while revealing
     property real p: 0                  // reveal progress 0..1
     property bool gate: false           // waiting for the first presented frame
     property bool shown: false          // card is on screen (opening, open or closing)
 
-    // Only top anchored -> the compositor centres the surface horizontally.
-    anchors { top: true }
-    margins { top: Theme.barH + 4 }
+    // Only one vertical edge anchored -> the compositor centres the surface horizontally.
+    anchors { top: !bars.atBottom; bottom: bars.atBottom }
+    margins { top: bars.topInset; bottom: bars.bottomInset }
     implicitWidth: card.width
     implicitHeight: card.height
     exclusionMode: ExclusionMode.Ignore
@@ -76,7 +81,7 @@ PanelWindow {
         }
     }
 
-    // ---- card under the Island: island probe content, or the session menu ------------------------
+    // ---- card under the Island: island panel (title and close), or the session menu -------------
     Rectangle {
         id: card
         visible: stage.shown
@@ -107,35 +112,8 @@ PanelWindow {
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("frontend.stage.title")
             }
-            Rectangle {
-                width: parent.width; height: 32
-                radius: Theme.rSm
-                color: Theme.surface
-                border.width: 1
-                border.color: field.activeFocus ? Theme.accent : Theme.outline
-                TextInput {
-                    id: field
-                    anchors { fill: parent; margins: 6 }
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
-                    verticalAlignment: TextInput.AlignVCenter
-                    selectByMouse: true
-                    Keys.onEscapePressed: Store.act("ui.close")
-                }
-            }
-            // Static sample until the daemon serves cfg.* (Provenanced values).
-            ProvenanceChip {
-                prov: ({ value: "42%", source: "default" })
-            }
-            ProvenanceChip {
-                prov: ({ value: "dark", source: "profile", forced_by: "profile:presentation", reason: "sample" })
-            }
-            Row {
-                spacing: Theme.gap
-                Button { label: I18n.tr("frontend.stage.close"); primary: true; onClicked: Store.act("ui.close") }
-                IconButton { glyph: "✕"; a11y: I18n.tr("frontend.stage.close"); onClicked: Store.act("ui.close") }
-            }
+            // The one close action of the island panel.
+            Button { label: I18n.tr("frontend.stage.close"); primary: true; onClicked: Store.act("ui.close") }
         }
 
         SessionMenu {
