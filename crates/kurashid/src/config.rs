@@ -219,6 +219,31 @@ impl ConfigStore {
         json!({"values": values, "outputs": outputs})
     }
 
+    pub fn registry(&self) -> &'static Registry {
+        self.registry
+    }
+
+    /// Pins (`Some`) or unpins (`None`) `key` in `forced:capability` and republishes.
+    /// Used by `capabilities::apply`.
+    pub fn force_capability(&self, key: &str, forced: Option<kurashi_config::Forced>) {
+        {
+            let mut cfg = self.cfg.lock().expect("config lock");
+            let slot = (key.to_string(), None);
+            match forced {
+                Some(f) => {
+                    if let Err(e) = cfg.set_forced("capability", slot, f) {
+                        tracing::warn!(%key, error = %e, "cannot force capability coupling");
+                        return;
+                    }
+                }
+                None => {
+                    cfg.clear_forced("capability", Some(&slot));
+                }
+            }
+        }
+        self.publish();
+    }
+
     fn publish(&self) {
         self.apply_couplings();
         let _ = self.hub.set(DOC, self.document(), None);
