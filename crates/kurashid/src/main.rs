@@ -160,7 +160,7 @@ async fn run() -> anyhow::Result<()> {
         facts.clone(),
     );
     kurashid::wiring::session(&mut actions, facts.clone());
-    kurashid::wiring::mods(
+    kurashid::wiring::mods_native(
         &hub,
         &mut actions,
         vec![
@@ -168,6 +168,7 @@ async fn run() -> anyhow::Result<()> {
             kurashid::xdg_dir("data").join("mods"),
         ],
         config.clone(),
+        kurashid::native::linked(),
     );
     let mut intents = Intents::default();
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));

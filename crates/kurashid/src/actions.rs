@@ -1,11 +1,14 @@
 //! Action registry: every user-triggerable operation has a stable id (`island.next`,
 //! `audio.mute.toggle`, …). Input bindings, the CLI and mods all invoke actions by id
 //! (ARCHITECTURE §6), so behaviour never lives in a renderer.
+//!
+//! Clones share one table: the daemon's registry and the handles native mods keep (K26) see the same
+//! actions, and a mod's actions are registered and removed while the daemon runs.
 
 use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 use serde::Serialize;
 use serde_json::Value;
@@ -46,12 +49,16 @@ pub struct ActionMeta {
     pub label: String,
 }
 
-#[derive(Default)]
+type Table = BTreeMap<String, (ActionMeta, Handler)>;
+
+#[derive(Clone, Default)]
 pub struct ActionRegistry {
-    map: BTreeMap<String, (ActionMeta, Handler)>,
+    map: Arc<RwLock<Table>>,
 }
 
 impl ActionRegistry {
+    /// Registers `id`, replacing an action of the same id. `&mut` as before for the startup code;
+    /// the table itself is shared, so a native mod's handle registers at runtime too (K26).
     pub fn register<F, Fut>(&mut self, id: &str, label: &str, handler: F)
     where
         F: Fn(Value) -> Fut + Send + Sync + 'static,
@@ -62,18 +69,36 @@ impl ActionRegistry {
             label: label.into(),
         };
         let h: Handler = Arc::new(move |args| Box::pin(handler(args)));
-        self.map.insert(id.into(), (meta, h));
+        self.map
+            .write()
+            .expect("actions lock")
+            .insert(id.into(), (meta, h));
+    }
+
+    pub fn contains(&self, id: &str) -> bool {
+        self.map.read().expect("actions lock").contains_key(id)
+    }
+
+    /// Removes `id`; invoking it afterwards is `unknown_action`. False when there was none.
+    pub fn unregister(&self, id: &str) -> bool {
+        self.map.write().expect("actions lock").remove(id).is_some()
     }
 
     pub async fn invoke(&self, id: &str, args: Value) -> ActionResult {
-        let handler = match self.map.get(id) {
+        // The lock is released before the handler runs.
+        let handler = match self.map.read().expect("actions lock").get(id) {
             Some((_, h)) => h.clone(),
             None => return Err(ActionError::Unknown(id.into())),
         };
         handler(args).await
     }
 
-    pub fn list(&self) -> impl Iterator<Item = &ActionMeta> {
-        self.map.values().map(|(m, _)| m)
+    pub fn list(&self) -> Vec<ActionMeta> {
+        self.map
+            .read()
+            .expect("actions lock")
+            .values()
+            .map(|(m, _)| m.clone())
+            .collect()
     }
 }
