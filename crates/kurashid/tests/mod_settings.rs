@@ -1,6 +1,6 @@
 //! Mod settings as config keys (K22): `mods.<id>.<key>` goes through the same layers and
 //! validation as core keys, keeps its value while its mod is off (inert, `mods.disabled`), and has
-//! a settings page only while the mod is on. Drives `ConfigStore` directly, no socket.
+//! a settings page while the mod is loaded (K25). Drives `ConfigStore` directly, no socket.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -200,10 +200,10 @@ fn disabled_mod_keeps_its_value_and_reports_why_it_is_inert() {
     assert_eq!((p.value, p.source), (json!(20), Source::User));
     assert_eq!(p.reason.as_deref(), Some("mods.disabled"));
     assert_eq!(p.inert_by, None);
-    // The config document says the same as cfg.get, and the settings page is gone.
+    // The config document says the same as cfg.get. The mod is still loaded, so its page stays.
     let (_, doc) = hub.snapshot("config").unwrap();
     assert_eq!(doc["values"][SEEK]["reason"], "mods.disabled");
-    assert!(page(&hub, "mods.media").is_none());
+    assert!(page(&hub, "mods.media").is_some());
     // Turning it back on makes the value effective again, with no reason.
     turn(&store, &mut reg, "media", true);
     let p = store.get(SEEK, None).unwrap();
@@ -211,9 +211,9 @@ fn disabled_mod_keeps_its_value_and_reports_why_it_is_inert() {
 }
 
 #[test]
-fn settings_pages_exist_only_for_enabled_mods() {
+fn settings_pages_exist_for_loaded_mods() {
     let (store, hub, mut reg) = open(None);
-    // Discovery alone turns nothing on (the daemon's policy turns easter-eggs on at start).
+    // Discovery alone loads nothing (the mods lists decide that, K25).
     store.sync_mods(&reg);
     assert!(page(&hub, "mods.easter-eggs").is_none());
     assert!(page(&hub, "mods.media").is_none());
@@ -233,7 +233,11 @@ fn settings_pages_exist_only_for_enabled_mods() {
             {"value": "sometimes", "label": "mods.easter-eggs.frequency.sometimes"},
         ])
     );
+    // Off but loaded keeps its page (the switch is there); unloaded loses it.
     turn(&store, &mut reg, "media", false);
+    assert!(page(&hub, "mods.media").is_some());
+    reg.unload("media").unwrap();
+    store.sync_mods(&reg);
     assert!(page(&hub, "mods.media").is_none());
     assert!(page(&hub, "mods.easter-eggs").is_some());
 }

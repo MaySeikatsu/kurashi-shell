@@ -12,3 +12,7 @@
 "mods.easter-eggs.frequency.rare" = "たまに"
 "mods.easter-eggs.frequency.sometimes" = "ときどき"
 "mods.disabled" = "このモッドはオフです。値は残り、モッドをオンにすると効き始めます。"
+
+# モッドの一覧の操作 (K25): mod.load / mod.unload / mod.enable / mod.disable が断られた理由。
+"mods.error.not_loadable" = "このモッドは無効なため読み込めません"
+"mods.error.id_reserved" = "この id はモッドの一覧用に予約されています"

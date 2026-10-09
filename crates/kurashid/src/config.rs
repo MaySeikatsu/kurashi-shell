@@ -2,10 +2,12 @@
 //! and `schema.settings` documents, answering `cfg.*` / `apply` / `undo` / `redo` and the
 //! `profile.*` actions (PROTOCOL §5).
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use kurashi_config::{Config, ConfigError, DiagnosticReason, Op, Options, Paths, SchemaView};
+use kurashi_config::{
+    Config, ConfigError, DiagnosticReason, Op, Options, Paths, SchemaView, Source,
+};
 use kurashi_core::Provenanced;
 use kurashi_ipc::{ApplyOp, DiffEntry, LayerValue, OpError};
 use kurashi_mods::{Manifest, ModState, Setting, SettingType, SettingValue};
@@ -21,13 +23,25 @@ pub const SETTINGS_DOC: &str = "schema.settings";
 pub const REASON_PENDING_RESTART: &str = "settings.pending.restart";
 /// Reason of a mod setting whose mod is off: the value is kept and has no effect (K22, K21).
 pub const REASON_MOD_DISABLED: &str = "mods.disabled";
+/// Reason of a value outside the options its `choices_from` source offers (I9, K21).
+pub const REASON_CHOICE_UNAVAILABLE: &str = "settings.choice.unavailable";
+/// The island instance the `island.main.*` keys configure; its document lists the faces.
+const ISLAND_DOC: &str = "runtime.island.main";
+/// OSD faces: transient-only, never in the cycle, so they are no option of `island.*.faces`
+/// (island.rs `apply_config`, K9).
+const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
-/// the static schema; mod settings (`mods.<id>.<key>`, K22) from `mods`, rebuilt by
+/// the static schema; the mods' lists `mods.loaded` / `mods.enabled` (K25) are hidden keys of
+/// their own; mod settings (`mods.<id>.<key>`, K22) come from `mods`, rebuilt by
 /// [`ConfigStore::sync_mods`] whenever the mods registry changes.
 pub struct SchemaAdapter {
     core: &'static Registry,
+    lists: Registry,
     mods: ModTable,
+    /// Options of each `choices_from` source (I9), by source name. A source that is missing here
+    /// is not known yet, so its values are not judged.
+    offers: BTreeMap<String, Vec<Offer>>,
 }
 
 impl SchemaView for SchemaAdapter {
@@ -37,12 +51,14 @@ impl SchemaView for SchemaAdapter {
     fn default(&self, key: &str) -> Option<Value> {
         self.core
             .get(key)
+            .or_else(|| self.lists.get(key))
             .map(|m| m.default.clone())
             .or_else(|| self.mods.find(key).map(|(_, m)| m.default.clone()))
     }
     fn validate(&self, key: &str, v: &Value) -> Result<(), String> {
         let checked = match self.mods.find(key) {
             Some((_, meta)) => validate_value(meta, v),
+            None if self.lists.get(key).is_some() => self.lists.validate(key, v),
             None => self.core.validate(key, v),
         };
         checked.map_err(|e| e.i18n_key().into())
@@ -53,10 +69,85 @@ impl SchemaView for SchemaAdapter {
     fn keys(&self) -> Vec<String> {
         self.core
             .keys()
+            .chain(self.lists.keys())
             .map(String::from)
             .chain(self.mods.keys())
             .collect()
     }
+}
+
+/// `mods.loaded` and `mods.enabled` (K25): lists of mod ids, `enabled ⊆ loaded`. Both default to
+/// the bundled mod that is on by default. Hidden from the generated pages: the Mods page and the
+/// mod pages drive them.
+fn list_keys(version: u32) -> Registry {
+    let key = |name: &str| {
+        let mut m = KeyMeta::new(
+            format!("mods.{name}"),
+            Ty::StringList,
+            json!(["easter-eggs"]),
+        );
+        m.flags.hidden = true;
+        m
+    };
+    Registry::from_keys(version, vec![key("loaded"), key("enabled")])
+        .unwrap_or_else(|errs| panic!("mods list keys are inconsistent: {errs:?}"))
+}
+
+/// One option of a `choices_from` source (I9, PROTOCOL §5): what `schema.settings` lists.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Offer {
+    pub value: String,
+    /// i18n key of the label.
+    pub label: String,
+    /// `false` with a `reason` for an option that cannot work now (a backend not installed).
+    pub enabled: bool,
+    pub reason: Option<String>,
+}
+
+impl Offer {
+    fn on(value: &str, label: String) -> Self {
+        Self {
+            value: value.into(),
+            label,
+            enabled: true,
+            reason: None,
+        }
+    }
+
+    fn json(&self) -> Value {
+        let mut v = json!({"value": self.value, "label": self.label});
+        if !self.enabled {
+            v["enabled"] = json!(false);
+        }
+        if let Some(r) = &self.reason {
+            v["reason"] = json!(r);
+        }
+        v
+    }
+}
+
+/// The options of every source the daemon can resolve now. `palettes` are the bundled palettes
+/// (a mod's palette file cannot be loaded yet, so it is no option); `island.faces` are the faces
+/// the island registered (`runtime.island.main`), without the OSD faces.
+fn offers_now(hub: &Hub) -> BTreeMap<String, Vec<Offer>> {
+    let mut offers = BTreeMap::new();
+    let palettes = kurashi_theme::bundled_names()
+        .into_iter()
+        .map(|name| Offer::on(name, format!("config.choice.palette.{name}")))
+        .collect();
+    offers.insert("palettes".to_string(), palettes);
+    if let Ok((_, doc)) = hub.snapshot(ISLAND_DOC) {
+        let faces = doc["faces"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .filter(|f| !TRANSIENT_FACES.contains(f))
+            .map(|f| Offer::on(f, format!("config.face.{f}")))
+            .collect();
+        offers.insert("island.faces".to_string(), faces);
+    }
+    offers
 }
 
 /// The settings of every mod with a valid manifest (K22). A mod that is off keeps its entries, so
@@ -70,6 +161,9 @@ struct ModSettings {
     id: String,
     /// The manifest's name: an i18n key or plain text. It titles the mod's settings page.
     name: String,
+    /// Loaded (K25): the mod has a settings page, on or off.
+    loaded: bool,
+    /// On: its contributions are live, its settings take effect.
     enabled: bool,
     keys: Vec<KeyMeta>,
 }
@@ -83,6 +177,7 @@ impl ModTable {
                 Some(ModSettings {
                     id: m.id.clone(),
                     name: m.name.clone(),
+                    loaded: matches!(e.state, ModState::Disabled | ModState::Enabled),
                     enabled: e.state == ModState::Enabled,
                     keys: m.settings.iter().map(|s| setting_meta(m, s)).collect(),
                 })
@@ -107,6 +202,20 @@ impl ModTable {
     fn is_disabled(&self, key: &str) -> bool {
         self.find(key).is_some_and(|(m, _)| !m.enabled)
     }
+}
+
+/// Whether the offers of a `choices_from` source take `value`, a string or a list of strings.
+/// `None` while the source is not known (nothing to judge).
+fn offered(offers: &BTreeMap<String, Vec<Offer>>, source: &str, value: &Value) -> Option<bool> {
+    let options = offers.get(source)?;
+    let ok = |v: &Value| {
+        v.as_str()
+            .is_some_and(|s| options.iter().any(|o| o.enabled && o.value == s))
+    };
+    Some(match value {
+        Value::Array(items) => items.iter().all(ok),
+        v => ok(v),
+    })
 }
 
 /// One manifest setting as the schema sees it. Same types, bounds and choices as the manifest, so
@@ -160,29 +269,54 @@ fn bound(ty: SettingType, x: f64) -> Value {
     }
 }
 
-/// `schema.settings`: the core pages, then one page per enabled mod that declares settings. The
-/// page id is `mods.<id>`; its title is the mod's name, which the frontend shows as "Mods › name".
-fn settings_document(core: &Registry, mods: &ModTable) -> Value {
+/// `schema.settings`: the core pages, then one page per loaded mod (K25), with or without
+/// settings. The page id is `mods.<id>`, its title the mod's name (the frontend shows "Mods ›
+/// name"), and `mod` names the mod so the sidebar can find its state. Rows whose `choices_from`
+/// names a source carry that source's options (I9).
+fn settings_document(
+    core: &Registry,
+    mods: &ModTable,
+    offers: &BTreeMap<String, Vec<Offer>>,
+) -> Value {
     let mut doc = kurashi_schema::settings_meta(core);
     let pages = doc["pages"]
         .as_array_mut()
         .expect("settings_meta lists its pages");
-    for m in mods.mods.iter().filter(|m| m.enabled && !m.keys.is_empty()) {
-        match Registry::from_keys(core.version(), m.keys.clone()) {
-            Ok(reg) => {
-                let mut meta = kurashi_schema::settings_meta(&reg);
-                let mut page = meta["pages"][0].take();
-                page["label"] = json!(m.name);
-                pages.push(page);
+    for m in mods.mods.iter().filter(|m| m.loaded) {
+        let mut page = json!({"id": format!("mods.{}", m.id), "label": m.name, "sections": []});
+        if !m.keys.is_empty() {
+            match Registry::from_keys(core.version(), m.keys.clone()) {
+                Ok(reg) => {
+                    page["sections"] =
+                        kurashi_schema::settings_meta(&reg)["pages"][0]["sections"].take()
+                }
+                Err(errs) => tracing::warn!(mod_id = %m.id, ?errs, "mod settings left out"),
             }
-            Err(errs) => tracing::warn!(mod_id = %m.id, ?errs, "mod settings page left out"),
+        }
+        page["mod"] = json!(m.id);
+        pages.push(page);
+    }
+    for page in pages.iter_mut() {
+        for section in page["sections"].as_array_mut().into_iter().flatten() {
+            for row in section["rows"].as_array_mut().into_iter().flatten() {
+                let Some(source) = row["choices_from"].as_str().map(String::from) else {
+                    continue;
+                };
+                let options = offers
+                    .get(&source)
+                    .map_or_else(Vec::new, |o| o.iter().map(Offer::json).collect());
+                row["choices"] = Value::Array(options);
+            }
         }
     }
     doc
 }
 
+/// `mods.<id>.<key>` (K22): a mod's setting. `mods.loaded` and `mods.enabled` are the lists, which
+/// are always known and so keep their diagnostics.
 fn is_mod_key(key: &str) -> bool {
-    key.starts_with("mods.")
+    key.strip_prefix("mods.")
+        .is_some_and(|rest| rest.contains('.'))
 }
 
 type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
@@ -316,9 +450,12 @@ impl ConfigStore {
         paths: Paths,
         opts: Options,
     ) -> Arc<Self> {
+        let offers = offers_now(&hub);
         let schema = SchemaAdapter {
             core: registry,
+            lists: list_keys(registry.version()),
             mods: ModTable::default(),
+            offers: offers.clone(),
         };
         let cfg = Config::open(schema, paths, opts);
         // Mod keys are unknown until the mods registry is discovered (`sync_mods`); their
@@ -328,7 +465,7 @@ impl ConfigStore {
         }
         hub.register(
             SETTINGS_DOC,
-            settings_document(registry, &ModTable::default()),
+            settings_document(registry, &ModTable::default(), &offers),
             None,
         );
         let store = Arc::new(ConfigStore {
@@ -481,9 +618,18 @@ impl ConfigStore {
                 _ => None,
             })
         });
+        let choice_gone = self
+            .registry
+            .get(key)
+            .and_then(|m| m.constraints.choices_from.as_deref())
+            .and_then(|source| offered(&cfg.schema().offers, source, &p.value))
+            == Some(false);
         if let Some((reason, by)) = requires {
             p.reason = Some(reason.into());
             p.inert_by = Some(by);
+        } else if choice_gone {
+            // I9: never rejected, just not in effect while the source does not offer it.
+            p.reason = Some(REASON_CHOICE_UNAVAILABLE.into());
         } else if self
             .started
             .get()
@@ -521,28 +667,77 @@ impl ConfigStore {
     }
 
     /// Mod settings (K22): the keys of every valid mod (`mods.<id>.<key>`) join the schema, the
-    /// enabled mods get their pages, and stored values are read again and validated. Call after
-    /// discovery and after every enable, disable or rescan of the mods registry.
+    /// loaded mods get their pages, and stored values are read again and validated. Call after
+    /// discovery (and after a rescan of the mods registry); changes of state go through
+    /// [`ConfigStore::adopt_mods`] instead.
     pub fn sync_mods(&self, reg: &kurashi_mods::Registry) {
-        let page = {
+        {
             let mut cfg = self.cfg.lock().expect("config lock");
             cfg.schema_mut().mods = ModTable::from_registry(reg);
             cfg.refresh_keys();
             for d in cfg.diagnostics().iter().filter(|d| is_mod_key(&d.key)) {
                 tracing::warn!(file = %d.file.display(), key = %d.key, reason = d.reason.i18n_key(), "config diagnostic");
             }
-            settings_document(self.registry, &cfg.schema().mods)
-        };
-        let _ = self.hub.set(SETTINGS_DOC, page, None);
+        }
         self.publish();
+    }
+
+    /// A mod was loaded, enabled, disabled or unloaded: its pages and the reasons of its values
+    /// follow. Unlike [`ConfigStore::sync_mods`] this neither re-reads files nor runs the change
+    /// listeners, so a listener (the mods reconcile) may call it.
+    pub fn adopt_mods(&self, reg: &kurashi_mods::Registry) {
+        self.cfg.lock().expect("config lock").schema_mut().mods = ModTable::from_registry(reg);
+        self.publish_settings();
+        self.publish_document();
+    }
+
+    /// The string list at `key` as it takes effect (`mods.loaded`, `mods.enabled`); empty when
+    /// there is none.
+    pub fn string_list(&self, key: &str) -> Vec<String> {
+        self.get(key, None)
+            .and_then(|p| p.value.as_array().cloned())
+            .unwrap_or_default()
+            .iter()
+            .filter_map(|v| v.as_str().map(String::from))
+            .collect()
+    }
+
+    /// Whether a forced layer (managed `_managed.enforce`, a capability pin) decides `key`: a
+    /// change written to it has no effect, so the caller refuses it.
+    pub fn is_forced(&self, key: &str) -> bool {
+        self.get(key, None)
+            .is_some_and(|p| matches!(p.source, Source::Forced(_)))
     }
 
     fn publish(&self) {
         self.apply_couplings();
+        self.publish_settings();
         let _ = self.hub.set(DOC, self.document(), None);
         for l in self.listeners.lock().expect("listeners").iter() {
             l(self);
         }
+    }
+
+    /// Republishes `schema.settings` with the sources' current options, for a source that changed
+    /// without a config change (the island registered a face, a mod's palette came and went). The
+    /// `config` document follows, since a value may now be outside its options (I9).
+    pub fn refresh_choices(&self) {
+        self.publish_settings();
+        self.publish_document();
+    }
+
+    /// `schema.settings` with the sources' current options: the island's faces change with what
+    /// it registers, the mods' pages with their state. Republished whole; an unchanged document is
+    /// no patch (hub).
+    fn publish_settings(&self) {
+        let offers = offers_now(&self.hub);
+        let page = {
+            let mut cfg = self.cfg.lock().expect("config lock");
+            cfg.schema_mut().offers = offers;
+            let schema = cfg.schema();
+            settings_document(self.registry, &schema.mods, &schema.offers)
+        };
+        let _ = self.hub.set(SETTINGS_DOC, page, None);
     }
 
     /// Republishes the `config` document alone, for a change of the profiles only: no value in

@@ -42,6 +42,7 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
 
 - type: `string` · default: `"wa-iro"`
+- choices: from `palettes` (resolved at runtime)
 
 #### `theme.colors.scheme` — Scheme
 
@@ -207,12 +208,14 @@ Raises the text scale to 125 %.
 Faces this island may show, in cycling order.
 
 - type: `string_list` · default: `["clock", "media", "notifications"]`
+- choices: from `island.faces` (resolved at runtime)
 
 #### `island.main.default` — Default face
 
 Face shown when nothing more relevant is happening.
 
 - type: `string` · default: `"clock"`
+- choices: from `island.faces` (resolved at runtime)
 
 #### `island.main.ttl` — Transient duration
 

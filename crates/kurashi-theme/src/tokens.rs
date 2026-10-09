@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde_json::{Value, json};
 
 use crate::ThemeError;
-use crate::color::{BLACK, Rgb, WHITE};
+use crate::color::{BLACK, Rgb, WHITE, contrast};
 use crate::fonts::{FontProvider, resolve_chain};
 use crate::input::{Axes, Density, Material, MotionProfile, Shape};
 use crate::palette::{Palette, ROLES};
@@ -107,6 +107,15 @@ const TYPE_SCALE: [(&str, f64); 5] = [
 /// Mix toward `toward`, used for hover/pressed overlays.
 fn overlay(base: Rgb, toward: Rgb, t: f64) -> Rgb {
     base.mix(toward, t)
+}
+
+/// `c` mixed toward `toward` in small steps, the first step that reaches `min` contrast on `bg`;
+/// `toward` itself when none does.
+fn at_least(c: Rgb, bg: Rgb, min: f64, toward: Rgb) -> Rgb {
+    (0..=20)
+        .map(|i| c.mix(toward, f64::from(i) / 20.0))
+        .find(|m| contrast(*m, bg) >= min)
+        .unwrap_or(toward)
 }
 
 pub fn build(
@@ -244,6 +253,18 @@ pub fn build(
         overlay(accent, away, 0.14),
     );
     col(&mut t, "button.primary.fg", on_accent);
+    // Mod state marks (K25): a filled dot is on, a hollow ring off. Both are graphics, so they
+    // reach 3:1 on the surface; the palette's own colour is kept unless it falls short.
+    col(
+        &mut t,
+        "color.status.on",
+        at_least(g("success"), surface, 3.0, fg),
+    );
+    col(
+        &mut t,
+        "color.status.off",
+        at_least(g("on_surface_variant"), surface, 3.0, fg),
+    );
 
     // --- overrides (per-surface / per-output); unknown keys are errors, not silent ---
     for (k, v) in overrides {
