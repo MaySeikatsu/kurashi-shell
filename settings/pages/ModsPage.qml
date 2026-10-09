@@ -2,15 +2,14 @@ import QtQuick
 import "../core"
 import "../components"
 
-// Mods page (MODS.md, "The Settings Mods page"): one entry per mod from the daemon's `mods` document. The state
-// shown is always the daemon's. Load adds a mod's page to Settings and Remove from Settings takes it away again
-// (`mod.load`, `mod.unload`); the switch asks for `mod.enable` / `mod.disable`. A refused request stays visible
-// under its mod until the mod changes state.
+// Mods page (MODS.md, "The Settings Mods page"; UX brief, settings 5): one entry per mod from the daemon's `mods` document.
+// The state shown is always the daemon's. Load adds a mod's page to Settings and Remove from Settings takes it away again
+// (`mod.load`, `mod.unload`); the switch asks for `mod.enable` / `mod.disable`. A refused request stays visible under its
+// mod until the mod changes state; an invalid mod says what is wrong with its manifest.
 Flickable {
     id: p
-    // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with
-    // its code) and the state the row had then. The line goes once the row changes state, and on any change
-    // that goes through elsewhere (B8).
+    // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with its code) and
+    // the state the row had then. The line goes once the row changes state, and on any change that goes through (B8).
     property var failures: ({})
     readonly property bool loaded: Store.mods.mods !== undefined
     readonly property var entries: loaded ? Store.mods.mods : []
@@ -51,9 +50,8 @@ Flickable {
         }
         if (dropped) failures = f
     }
-    // Why an invalid mod cannot run: the catalog text of its reason and the file it concerns. The
-    // parser's or the OS's own detail is English and stays out of the page. A path the text already
-    // names ("mod.toml is missing") is not repeated.
+    // Why an invalid mod cannot run: the catalog text of its reason and the file it concerns. The parser's or the OS's own
+    // detail is English and stays out of the page. A path the text already names ("mod.toml is missing") is not repeated.
     function problems(m) {
         return (m.errors || []).map(function (e) {
             var text = I18n.tr(e.key)
@@ -65,14 +63,17 @@ Flickable {
         function onModsChanged() { p.pruneFailures() }
         function onChangeApplied() { p.failures = ({}) }
     }
-    function joined(a) { return (a && a.length) ? a.join(", ") : I18n.tr("settings.ui.mod_none") }
-    // "v0.1.0 · native · cost low": the facts the manifest gives, and no placeholder for the rest.
+    // "v0.1.0 · tier native · cost low": the facts the manifest gives, and no placeholder for the rest.
     function facts(m) {
         var parts = []
         if (m.version) parts.push("v" + m.version)
         if (m.tier) parts.push(I18n.tr("settings.ui.tier." + m.tier))
         if (m.cost) parts.push(I18n.tr("settings.ui.cost." + m.cost))
         return parts.join(" · ")
+    }
+    // The contributions as words, joined: "a bar widget, a face in the Island".
+    function adds(m) {
+        return (m.provides || []).map(function (x) { return Store.addsLabel(x) }).join(", ")
     }
 
     Column {
@@ -139,7 +140,7 @@ Flickable {
                     Row {
                         id: ctl
                         anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.top: parent.top
                         spacing: Theme.gap
                         Button {
                             visible: entry.available
@@ -174,7 +175,7 @@ Flickable {
                         anchors.left: parent.left
                         anchors.right: ctl.left
                         anchors.rightMargin: Theme.pad
-                        spacing: 2
+                        spacing: 3
                         Row {
                             spacing: Theme.gap
                             Text {
@@ -216,14 +217,14 @@ Flickable {
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr("settings.ui.mod_caps") + ": " + p.joined(entry.modelData.capabilities)
-                                + "   " + I18n.tr("settings.ui.mod_provides") + ": " + p.joined(entry.modelData.provides)
+                            text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.modelData.capabilities, "settings.ui.cap.")
+                                + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.modelData) || I18n.tr("settings.ui.mod_none"))
                         }
                         // "Running now" (K25): one of the mod's services has a subscriber. Not in the sidebar.
                         Text {
                             visible: entry.isLoaded
                             width: parent.width
-                            color: Theme.dim
+                            color: entry.modelData.running ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
                             text: I18n.tr(entry.modelData.running ? "settings.mods.running_yes" : "settings.mods.running_no")
@@ -237,7 +238,7 @@ Flickable {
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
                     font.family: Theme.fam(text, Theme.families)
-                    text: p.problems(entry.modelData)
+                    text: "✕ " + p.problems(entry.modelData)
                 }
                 Text {
                     visible: entry.failure !== ""
@@ -246,7 +247,7 @@ Flickable {
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
                     font.family: Theme.fam(text, Theme.families)
-                    text: I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
+                    text: "✕ " + I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
                 }
                 Rectangle {
                     width: parent.width

@@ -1,8 +1,10 @@
 import QtQuick
 import "../core"
 
-// Single-line editor; commits on Enter or focus loss. Shows the daemon's value while not editing.
-// `typing` follows every edit, for controls that must react while the user types.
+// Single-line editor. Enter and leaving the field emit `accepted` with the typed text. The typed text stays while the
+// daemon refuses it (the row says why, under the control) and follows the daemon's value once that changes, so an
+// invalid input is never replaced by the old value (UX brief, settings: invalid input). Escape puts the daemon's
+// value back. `typing` follows every edit, for controls that must react while the user types.
 Rectangle {
     id: f
     property string value: ""
@@ -12,9 +14,11 @@ Rectangle {
     property bool mono: false
     property color swatch: "transparent"
     property bool showSwatch: false
+    // The daemon refused the typed text (the row's refusal line says why): the edge shows it, not colour alone.
+    property bool invalid: false
     signal accepted(string text)
     signal typing(string text)
-    // Enter in the field (search jumps to the first hit) and Escape (search clears itself).
+    // Enter in the field (search jumps to the first hit), and Escape (search clears itself, a row restores its value).
     signal submitted(string text)
     signal escaped()
 
@@ -23,12 +27,19 @@ Rectangle {
         input.forceActiveFocus()
         input.cursorPosition = input.text.length
     }
+    function clear() { input.text = "" }
+    function restore() { input.text = f.value }
 
     implicitWidth: 220
     implicitHeight: Theme.controlH
     radius: Theme.rSm
     color: Theme.containerHigh
     opacity: enabled ? 1 : 0.5
+    border.width: f.invalid ? 2 : 0
+    border.color: Theme.error
+
+    // The daemon's value is shown whenever it changes while the field is not being edited.
+    onValueChanged: if (!input.activeFocus) input.text = f.value
 
     Rectangle {
         visible: f.showSwatch
@@ -56,18 +67,13 @@ Rectangle {
         selectedTextColor: Theme.fgOnAccent
         font.pixelSize: Theme.fs
         font.family: f.mono ? "monospace" : Theme.fam(text, Theme.families)
-        // Re-bind to the daemon value whenever editing ends (accepted or not): what is shown is
-        // what is in effect (rule 2).
         text: f.value
         onTextEdited: f.typing(text)
         onAccepted: f.submitted(text)
-        Keys.onEscapePressed: f.escaped()
+        Keys.onEscapePressed: event => { f.restore(); f.escaped(); event.accepted = true }
         Accessible.role: Accessible.EditableText
         Accessible.name: f.label !== "" ? f.label : f.placeholder
-        onEditingFinished: {
-            if (text !== f.value) f.accepted(text)
-            text = Qt.binding(function () { return f.value })
-        }
+        onEditingFinished: { if (text !== f.value) f.accepted(text) }
         Text {
             visible: input.text === "" && !input.activeFocus
             color: Theme.dim
