@@ -490,6 +490,7 @@ dependencies = [
  "clap",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashid",
  "serde_json",
  "tokio",
  "tracing",
@@ -519,6 +520,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "toml",
  "tracing",
  "tracing-subscriber",
 ]

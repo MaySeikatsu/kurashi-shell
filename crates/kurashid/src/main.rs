@@ -34,6 +34,12 @@ async fn main() -> anyhow::Result<()> {
         json!({"version": env!("CARGO_PKG_VERSION")}),
         None,
     );
+    let locale = kurashid::i18n::locale_from_env();
+    hub.register(
+        "i18n",
+        kurashid::i18n::document(&kurashid::i18n::data_dir().join("i18n"), &locale),
+        None,
+    );
     let daemon = Arc::new(Daemon::new(
         hub,
         ActionRegistry::default(),

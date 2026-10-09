@@ -104,6 +104,13 @@ fn theme_doc() -> Value {
 fn initial_docs(outputs: &[String]) -> HashMap<String, Doc> {
     let docs = [
         ("theme", theme_doc()),
+        (
+            "i18n",
+            kurashid::i18n::document(
+                &kurashid::i18n::data_dir().join("i18n"),
+                &kurashid::i18n::locale_from_env(),
+            ),
+        ),
         ("svc.clock", clock_doc()),
         ("svc.workspaces", workspaces_doc(outputs, 1)),
         ("svc.audio", json!({"volume": 0.5, "muted": false})),
