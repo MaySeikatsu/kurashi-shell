@@ -1,15 +1,19 @@
 //! Native mods (K26), daemon side. A mod linked into kurashid implements `NativeMod`. While its
 //! manifest is `enabled` (K25), `enable` runs once and the registrations it made are remembered per
 //! mod: disabling drops exactly those (documents get a final `{available:false}` snapshot first,
-//! actions go, the settings feed ends), so nothing of a mod runs while it is off.
+//! actions go, faces leave the arbiter, the settings feed ends), so nothing of a mod runs while it is
+//! off. K28 adds what a mod contributes to the core views: `runtime.slots`, island faces and choice
+//! sources.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
+use kurashi_island::{Face, FaceSignal, Source, Transient};
 use kurashi_mod_api::{
-    ModCtx, ModError, NativeMod, Publish, Registration, ServiceFn, Settings, Values,
+    Choice, ChoicesFn, FaceUpdate, Hooks, ModCtx, ModError, NativeMod, Publish, Registration,
+    ServiceFn, Settings, Values,
 };
 use kurashi_mods::{ModEntry, ModState, Provide, Registry, SettingValue, Tier};
 use serde_json::{Map, Value, json};
@@ -17,14 +21,18 @@ use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
 use crate::actions::{ActionError, ActionRegistry};
-use crate::config::ConfigStore;
+use crate::config::{CORE_SOURCES, ConfigStore, Offer};
 use crate::hub::{Hub, Provider};
+use crate::island::IslandHost;
 
 /// The first-party native mods linked into this daemon (K26). None ship yet; the wallpaper mod
 /// (W12) is the first. The test mod `hello` is linked by the tests only: its manifest is test data.
 pub fn linked() -> Vec<Box<dyn NativeMod>> {
     Vec::new()
 }
+
+/// `runtime.slots` (K28): the contributions of enabled mods to the core views' slots.
+pub const SLOTS_DOC: &str = "runtime.slots";
 
 /// Which documents of which mods have a subscriber. The services keep it current; the `mods`
 /// document reads it (`running`, K25).
@@ -65,6 +73,8 @@ struct Service {
     hub: Weak<Hub>,
     /// Set while the service runs. The publish handle drops its updates otherwise.
     live: Arc<AtomicBool>,
+    /// The mod's primary document (its first service): `ready` in `runtime.slots` follows it.
+    ready: Option<Arc<AtomicBool>>,
     task: Mutex<Option<JoinHandle<()>>>,
 }
 
@@ -83,9 +93,16 @@ impl Provider for Service {
         self.live.store(true, Ordering::SeqCst);
         let publish: Publish = {
             let (live, doc, hub) = (self.live.clone(), self.doc.clone(), hub.clone());
+            let (mod_id, ready) = (self.mod_id.clone(), self.ready.clone());
             Arc::new(move |state| {
-                if live.load(Ordering::SeqCst) {
-                    let _ = hub.set(&doc, state, None);
+                if !live.load(Ordering::SeqCst) {
+                    return;
+                }
+                let available = is_available(&state);
+                let _ = hub.set(&doc, state, None);
+                if let Some(flag) = &ready {
+                    flag.store(available, Ordering::SeqCst);
+                    let _ = hub.update(SLOTS_DOC, None, |d| set_ready(d, &mod_id, available));
                 }
             })
         };
@@ -120,14 +137,112 @@ fn set_running(doc: &mut Value, mod_id: &str, running: bool) {
     }
 }
 
+/// A document is available when its state says so: the `available` flag every document a mod
+/// serves carries. A primary document without it is not ready (Shōjiki).
+fn is_available(state: &Value) -> bool {
+    state["available"] == true
+}
+
+/// Sets `ready` on the entries of `runtime.slots` that belong to `mod_id`.
+fn set_ready(doc: &mut Value, mod_id: &str, ready: bool) {
+    for list in doc.as_object_mut().into_iter().flat_map(|o| o.values_mut()) {
+        for entry in list.as_array_mut().into_iter().flatten() {
+            if entry["mod"] == mod_id {
+                entry["ready"] = json!(ready);
+            }
+        }
+    }
+}
+
+/// What a mod's face and choice handles reach (K28). One per enable: `live` goes false on disable,
+/// so a handle the mod kept does nothing afterwards, and the mod's offers leave with the enable.
+struct Link {
+    island: Option<Arc<IslandHost>>,
+    /// Weak: the store's listener is what reconciles the mods, so the store must not own the mods.
+    config: Option<Weak<ConfigStore>>,
+    state: Mutex<LinkState>,
+}
+
+#[derive(Default)]
+struct LinkState {
+    live: bool,
+    /// Each choice source of this enable, with the function that offers its options.
+    choices: BTreeMap<String, ChoicesFn>,
+    /// The options each of those sources offers now.
+    offers: BTreeMap<String, Vec<Offer>>,
+}
+
+impl Hooks for Link {
+    fn face(&self, face: &str, update: FaceUpdate) {
+        let state = self.state.lock().expect("link lock");
+        if !state.live {
+            return;
+        }
+        let Some(island) = &self.island else {
+            return;
+        };
+        match update {
+            FaceUpdate::Raise { relevance, ttl } => island.signal(FaceSignal {
+                face: face.into(),
+                relevance,
+                condition: true,
+                // A transient keeps the arbiter's TTL rules; it never displaces a manual choice.
+                transient: ttl.map(|ttl| Transient {
+                    kind: face.into(),
+                    ttl_ms: u64::try_from(ttl.as_millis()).unwrap_or(u64::MAX),
+                    may_interrupt: false,
+                }),
+            }),
+            FaceUpdate::Clear => island.clear_face(face),
+        }
+    }
+
+    fn choices_changed(&self, source: &str) {
+        let offer_fn = {
+            let state = self.state.lock().expect("link lock");
+            match state.choices.get(source) {
+                Some(f) if state.live => f.clone(),
+                _ => return,
+            }
+        };
+        // The mod's function runs without the lock; a disable that came in meanwhile is checked below.
+        let offers = offers_of(offer_fn());
+        let mut state = self.state.lock().expect("link lock");
+        if !state.live {
+            return;
+        }
+        state.offers.insert(source.into(), offers.clone());
+        if let Some(store) = self.config.as_ref().and_then(Weak::upgrade) {
+            store.set_mod_source(source, offers);
+        }
+    }
+}
+
+/// What a choice function offers, as the config store keeps it.
+fn offers_of(options: Vec<Choice>) -> Vec<Offer> {
+    options
+        .into_iter()
+        .map(|c| Offer {
+            value: c.value,
+            label: c.label,
+            enabled: c.enabled,
+            reason: c.reason,
+        })
+        .collect()
+}
+
 /// What one enable of a mod registered, so the disable can take exactly that back.
 struct Ledger {
     documents: Vec<String>,
     actions: Vec<String>,
+    faces: Vec<String>,
     /// The settings feed; the services hold receivers of it.
     settings: Arc<watch::Sender<Values>>,
     /// (key, config key, default) of each setting the manifest declares.
     keys: Vec<(String, String, SettingValue)>,
+    link: Arc<Link>,
+    /// `ready` of the primary document; true for a mod that serves none.
+    ready: Arc<AtomicBool>,
 }
 
 /// The daemon's native mods: the linked ones, which of them are active, and the reasons of refused
@@ -135,6 +250,9 @@ struct Ledger {
 pub struct Native {
     hub: Arc<Hub>,
     actions: ActionRegistry,
+    /// The island the mods' faces join (K28).
+    island: Option<Arc<IslandHost>>,
+    config: Option<Weak<ConfigStore>>,
     linked: BTreeMap<String, Arc<dyn NativeMod>>,
     active: BTreeMap<String, Ledger>,
     /// Why the last enable was refused. The mod is off; `document` shows the reason.
@@ -143,10 +261,18 @@ pub struct Native {
 }
 
 impl Native {
-    pub fn new(hub: Arc<Hub>, actions: ActionRegistry, linked: Vec<Box<dyn NativeMod>>) -> Self {
+    pub fn new(
+        hub: Arc<Hub>,
+        actions: ActionRegistry,
+        linked: Vec<Box<dyn NativeMod>>,
+        island: Option<Arc<IslandHost>>,
+        config: Option<Weak<ConfigStore>>,
+    ) -> Self {
         Self {
             hub,
             actions,
+            island,
+            config,
             linked: linked
                 .into_iter()
                 .map(|m| (m.id().to_string(), Arc::from(m)))
@@ -215,34 +341,69 @@ impl Native {
             .collect();
         let settings = Arc::new(watch::channel(values).0);
         let provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
-        let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()));
+        let link = Arc::new(Link {
+            island: self.island.clone(),
+            config: self.config.clone(),
+            state: Mutex::default(),
+        });
+        let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone());
         module.enable(&mut ctx)?;
         let registrations = ctx.finish()?;
         // Nothing may take an id the daemon or another mod holds: disabling would remove it again.
+        // A core choice source keeps its own options (config.rs `CORE_SOURCES`).
         for r in &registrations {
-            let taken = match r {
-                Registration::Service { id, .. } => self.hub.snapshot(&format!("mod.{id}")).is_ok(),
-                Registration::Action { id, .. } => self.actions.contains(id),
+            let (taken, id) = match r {
+                Registration::Service { id, .. } => (
+                    self.hub.snapshot(&format!("mod.{id}")).is_ok(),
+                    format!("service:{id}"),
+                ),
+                Registration::Action { id, .. } => {
+                    (self.actions.contains(id), format!("action:{id}"))
+                }
+                Registration::Face { name } => (
+                    self.island.as_ref().is_some_and(|i| i.has_face(name)),
+                    format!("island-face:{name}"),
+                ),
+                Registration::Choices { source, .. } => (
+                    CORE_SOURCES.contains(&source.as_str()),
+                    format!("choices:{source}"),
+                ),
             };
             if taken {
-                let id = match r {
-                    Registration::Service { id, .. } => format!("service:{id}"),
-                    Registration::Action { id, .. } => format!("action:{id}"),
-                };
                 return Err(ModError::Duplicate(id));
             }
         }
+        if self.island.is_none()
+            && registrations
+                .iter()
+                .any(|r| matches!(r, Registration::Face { .. }))
+        {
+            return Err(ModError::Failed("island-face needs an island".into()));
+        }
 
+        // Live from here, before the first registration is applied: a face or choice the enable
+        // offers is in effect from its registration on.
+        link.state.lock().expect("link lock").live = true;
+        let ready = Arc::new(AtomicBool::new(true));
         let mut ledger = Ledger {
             documents: Vec::new(),
             actions: Vec::new(),
+            faces: Vec::new(),
             settings: settings.clone(),
             keys,
+            link: link.clone(),
+            ready: ready.clone(),
         };
+        let mut primary = true;
         for registration in registrations {
             match registration {
                 Registration::Service { id, initial, run } => {
                     let doc = format!("mod.{id}");
+                    let flag = primary.then(|| ready.clone());
+                    primary = false;
+                    if let Some(flag) = &flag {
+                        flag.store(is_available(&initial), Ordering::SeqCst);
+                    }
                     let service = Service {
                         mod_id: module.id().to_string(),
                         doc: doc.clone(),
@@ -251,6 +412,7 @@ impl Native {
                         subscribed: self.subscribed.clone(),
                         hub: Arc::downgrade(&self.hub),
                         live: Arc::default(),
+                        ready: flag,
                         task: Mutex::default(),
                     };
                     self.hub.register(&doc, initial, Some(Arc::new(service)));
@@ -263,6 +425,22 @@ impl Native {
                     });
                     ledger.actions.push(id);
                 }
+                Registration::Face { name } => {
+                    if let Some(island) = &self.island {
+                        island.register_face(Face {
+                            id: name.clone(),
+                            source: Source::Mod(module.id().to_string()),
+                            default_priority: 0,
+                        });
+                    }
+                    ledger.faces.push(name);
+                }
+                Registration::Choices { source, options } => {
+                    let offers = offers_of(options());
+                    let mut state = link.state.lock().expect("link lock");
+                    state.choices.insert(source.clone(), options);
+                    state.offers.insert(source, offers);
+                }
             }
         }
         self.active.insert(module.id().to_string(), ledger);
@@ -274,11 +452,18 @@ impl Native {
         let Some(ledger) = self.active.remove(id) else {
             return;
         };
+        // The mod's handles stop reaching the island and the config before anything is taken back.
+        ledger.link.state.lock().expect("link lock").live = false;
         for doc in ledger.documents {
             self.hub.unregister(&doc, json!({"available": false}));
         }
         for action in ledger.actions {
             self.actions.unregister(&action);
+        }
+        if let Some(island) = &self.island {
+            for face in &ledger.faces {
+                island.unregister_face(face);
+            }
         }
         // Dropping the ledger ends the settings feed: the services were stopped by `unregister`.
     }
@@ -303,6 +488,63 @@ impl Native {
                 }
             });
         }
+    }
+
+    /// The options of every choice source (K28 (3)), for the config store: each source a manifest
+    /// declares, or a setting names with `choices_from`, is known. A source of an enabled mod offers
+    /// what its function returned last; every other one offers nothing, so its values are inert.
+    pub fn source_offers(&self, reg: &Registry) -> BTreeMap<String, Vec<Offer>> {
+        let mut out: BTreeMap<String, Vec<Offer>> = BTreeMap::new();
+        for e in reg.iter() {
+            let Some(m) = &e.manifest else {
+                continue;
+            };
+            let declared = m.provides.iter().filter_map(|p| match p {
+                Provide::Choices(source) => Some(source.as_str()),
+                _ => None,
+            });
+            let named = m.settings.iter().filter_map(|s| s.choices_from.as_deref());
+            for source in declared.chain(named) {
+                if !CORE_SOURCES.contains(&source) {
+                    out.entry(source.to_string()).or_default();
+                }
+            }
+        }
+        for ledger in self.active.values() {
+            let state = ledger.link.state.lock().expect("link lock");
+            for (source, offers) in &state.offers {
+                out.insert(source.clone(), offers.clone());
+            }
+        }
+        out
+    }
+
+    /// `runtime.slots` (K28, PROTOCOL §5): each contribution of an enabled mod whose slot file
+    /// exists, by slot and in mod id order. `ready` is the mod's primary document's `available`.
+    /// Called under the slots document's lock, so it reads nothing from the hub.
+    pub fn slots(&self, reg: &Registry) -> Value {
+        let mut out: Map<String, Value> = Map::new();
+        for e in reg.iter() {
+            let (Some(m), Some(ledger)) = (&e.manifest, self.active.get(&e.id)) else {
+                continue;
+            };
+            let ready = ledger.ready.load(Ordering::SeqCst);
+            for p in &m.provides {
+                let Provide::Slot(name) = p else {
+                    continue;
+                };
+                let file = e.dir.join("qml").join("slots").join(format!("{name}.qml"));
+                if !file.is_file() {
+                    continue;
+                }
+                let entry = json!({"mod": e.id, "qml": file_url(&file), "ready": ready});
+                let list = out.entry(name.clone()).or_insert_with(|| json!([]));
+                if let Some(items) = list.as_array_mut() {
+                    items.push(entry);
+                }
+            }
+        }
+        Value::Object(out)
     }
 
     /// The `mods` document (K25, K26, PROTOCOL §5): the registry's entries, `running` from the
@@ -345,25 +587,34 @@ fn setting_value(store: Option<&ConfigStore>, config_key: &str, default: &Settin
     )
 }
 
-/// `qml` of an enabled native mod (K26): the file URL of each component its manifest provides
-/// (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`, `island-face:x` → `qml/Face.qml`),
-/// listed only where the file exists: a URL to nothing is not in effect (Shōjiki).
+/// `qml` of an enabled native mod (K26, K28): the file URL of each component its manifest provides
+/// (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`, `island-face:x` → `qml/Face.qml`,
+/// `island-face:x:expanded` → `qml/FaceExpanded.qml`, `slot:x` → `qml/slots/x.qml`), listed only
+/// where the file exists: a URL to nothing is not in effect (Shōjiki).
 fn qml_of(e: &ModEntry) -> Option<Value> {
     let m = e
         .manifest
         .as_ref()
         .filter(|m| m.tier == Tier::Native && e.state == ModState::Enabled)?;
+    let dir = e.dir.join("qml");
     let mut qml = Map::new();
     for p in &m.provides {
-        let file = match p {
-            Provide::Widget(_) => "Widget.qml",
-            Provide::Panel(_) => "Panel.qml",
-            Provide::IslandFace(_) => "Face.qml",
+        let files = match p {
+            Provide::Widget(_) => vec![(p.to_string(), dir.join("Widget.qml"))],
+            Provide::Panel(_) => vec![(p.to_string(), dir.join("Panel.qml"))],
+            Provide::IslandFace(_) => vec![
+                (p.to_string(), dir.join("Face.qml")),
+                (format!("{p}:expanded"), dir.join("FaceExpanded.qml")),
+            ],
+            Provide::Slot(name) => {
+                vec![(p.to_string(), dir.join("slots").join(format!("{name}.qml")))]
+            }
             _ => continue,
         };
-        let path = e.dir.join("qml").join(file);
-        if path.is_file() {
-            qml.insert(p.to_string(), json!(file_url(&path)));
+        for (key, file) in files {
+            if file.is_file() {
+                qml.insert(key, json!(file_url(&file)));
+            }
         }
     }
     (!qml.is_empty()).then_some(Value::Object(qml))

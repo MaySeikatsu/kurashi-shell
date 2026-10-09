@@ -69,6 +69,22 @@ impl IslandHost {
         self.with(|arb, _| arb.unregister_face(id));
     }
 
+    /// Takes a face's relevance and transient back (a mod's `FaceUpdate::Clear`); the face stays
+    /// registered, so the arbiter shows what else is due.
+    pub fn clear_face(self: &Arc<Self>, id: &str) {
+        self.with(|arb, _| arb.clear(id));
+    }
+
+    /// Whether a face is registered, read from the published island document: the same answer the
+    /// frontend and the settings get, and no lock of the arbiter (a registration checks it first).
+    pub fn has_face(&self, id: &str) -> bool {
+        self.hub.snapshot(&self.doc).is_ok_and(|(_, d)| {
+            d["faces"]
+                .as_array()
+                .is_some_and(|faces| faces.iter().any(|f| f == id))
+        })
+    }
+
     /// Map `island.main.{faces,default,ttl}` onto the arbiter and re-publish. Re-register on
     /// every change with `ConfigStore::on_change`. The OSD faces (`volume`, `brightness`) are always
     /// transient-only, whatever `faces` says, and `ttl` sets how long they stay (K9).

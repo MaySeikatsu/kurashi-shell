@@ -123,7 +123,10 @@ pub struct FaceSpec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FaceUpdate {
     /// Relevance `0..=100` (0 = nothing to show). `ttl` makes the signal a transient that runs out.
-    Raise { relevance: u8, ttl: Option<Duration> },
+    Raise {
+        relevance: u8,
+        ttl: Option<Duration>,
+    },
     /// Takes back the face's relevance and any running transient.
     Clear,
 }
@@ -198,10 +201,7 @@ pub enum Registration {
     /// Island face `name`: registered with the arbiter; its signals come through the handle.
     Face { name: String },
     /// Choice source `source`, offered to the settings that name it.
-    Choices {
-        source: String,
-        options: ChoicesFn,
-    },
+    Choices { source: String, options: ChoicesFn },
 }
 
 /// The settings of a mod that is enabled. Reads never block. `changed` resolves on the next
