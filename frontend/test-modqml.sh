@@ -528,7 +528,7 @@ expect "slot notifications.expanded.header created" "notifications: the header l
 K act ui.close >/dev/null
 closed closed-notifications
 K act quick.toggle >/dev/null
-card quick-tiles 360
+card quick-tiles 400
 expect "slot quick.tiles created" "quick settings: the tile loads" 1
 K act ui.close >/dev/null
 closed closed-quick
