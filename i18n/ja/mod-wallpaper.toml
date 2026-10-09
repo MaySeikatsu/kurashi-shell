@@ -98,6 +98,7 @@
 "mod-wallpaper.cache.clear" = "サムネイルを消去"
 "mod-wallpaper.mono.warning" = "モノクロの画像です。テーマは基本の色（wa-iro）に戻ります。"
 "mod-wallpaper.theme.diff" = "テーマ"
+"mod-wallpaper.theme.not_applied" = "テーマは未反映（元の設定が未対応）"
 "mod-wallpaper.theme.previewing" = "テーマのプレビューを作っています…"
 "mod-wallpaper.theme.axes" = "既定のコントラスト。色覚補正・季節・有機ELは含みません。"
 "mod-wallpaper.theme.on" = "テーマ: 反映する"

@@ -52,6 +52,8 @@ Item {
     property bool withTheme: true       // the theme switch: Apply also makes the theme follow the picture
     property string schemeChoice: ""    // the scheme the preview shows; "" follows the configured scheme
     readonly property string previewScheme: schemeChoice !== "" ? schemeChoice : configScheme
+    // The last Apply asked the theme to follow the picture (the config intents went out).
+    property bool themeRequested: false
     property string errorKey: ""        // the last refused request, translated when shown
     property var subfolders: []         // folders under `folder`, from the last page (name, path, count)
 
@@ -263,7 +265,8 @@ Item {
             errorKey = err ? err.msg : ""
             // The theme follows the picture: the palette source and the scheme the preview showed (config intents,
             // as the Settings page sends them). A refused choice shows in the footer from the theme document.
-            if (!err && withThemeNow === true) followTheme(previewScheme, "wallpaper")
+            themeRequested = !err && withThemeNow === true
+            if (themeRequested) followTheme(previewScheme, "wallpaper")
         })
     }
     function followTheme(scheme, variant) {
@@ -590,12 +593,12 @@ Item {
             anchors.rightMargin: Theme.gap
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
-            color: (picker.errorKey !== "" || picker.doc.error || picker.themeErrorText() !== "") ? Theme.error : Theme.dim
+            color: (picker.errorKey !== "" || picker.doc.error || picker.themeNote() !== "") ? Theme.error : Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
             text: {
                 var err = picker.errorKey !== "" ? I18n.tr(picker.errorKey)
-                    : (picker.doc.error && picker.doc.error.key ? I18n.tr(picker.doc.error.key) : picker.themeErrorText())
+                    : (picker.doc.error && picker.doc.error.key ? I18n.tr(picker.doc.error.key) : picker.themeNote())
                 if (err !== "") return err
                 return picker.tr2("mod-wallpaper.footer", {
                     backend: picker.backend.id || "",
@@ -626,6 +629,13 @@ Item {
     }
 
     // The theme document's own refusal (a palette the pipeline cannot take), when the picture is in effect.
+    // What the footer says about the theme: the theme document's refusal, else that an Apply with the theme did not
+    // make it follow the picture (the palette in effect is not `wallpaper`). Empty when there is nothing to say.
+    function themeNote() {
+        if (themeErrorText() !== "") return themeErrorText()
+        if (themeRequested && configPalette !== "wallpaper") return I18n.tr("mod-wallpaper.theme.not_applied")
+        return ""
+    }
     function themeErrorText() {
         var e = themeDoc.error
         if (!e) return ""
