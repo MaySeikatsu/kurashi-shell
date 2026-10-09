@@ -1,7 +1,8 @@
 //! kurashi — CLI client. M0: raw messages, actions, subscriptions and mock control (used by
-//! the bench harness). get/set/why/undo/profile arrive with M1.
+//! the bench harness); config commands (get/set/why/undo/profile) live in the lib.
 
 use clap::{Parser, Subcommand};
+use kurashi::{ConfigCmd, Conn};
 use kurashi_ipc::{ClientMsg, LineReader, PROTOCOL_VERSION, ServerMsg, write_msg};
 use serde_json::Value;
 use tokio::net::UnixStream;
@@ -12,19 +13,25 @@ struct Cli {
     /// Socket path (default: $KURASHI_SOCKET or $XDG_RUNTIME_DIR/kurashi/ipc.sock)
     #[arg(long, global = true)]
     socket: Option<std::path::PathBuf>,
+    /// Machine-readable output
+    #[arg(long, global = true)]
+    json: bool,
     #[command(subcommand)]
     cmd: Cmd,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone)]
 enum Cmd {
+    #[command(flatten)]
+    Cfg(ConfigCmd),
     /// Invoke an action, e.g. `kurashi act island.next`
     Act {
         action: String,
         #[arg(default_value = "{}")]
         args: String,
     },
-    /// Print a document snapshot, then follow patches (`--count` to stop after N patches)
+    /// Print a document snapshot, then follow patches (alias: watch) (`--count` to stop after N patches)
+    #[command(alias = "watch")]
     Sub {
         doc: String,
         #[arg(long)]
@@ -50,9 +57,10 @@ async fn connect(
         .socket
         .clone()
         .unwrap_or_else(kurashi_core::default_socket_path);
-    let stream = UnixStream::connect(&path)
-        .await
-        .map_err(|e| anyhow::anyhow!("connect {}: {e}", path.display()))?;
+    let stream = UnixStream::connect(&path).await.map_err(|e| {
+        eprintln!("daemon unavailable: {}: {e}", path.display());
+        std::process::exit(kurashi::EXIT_UNAVAILABLE)
+    })?;
     let (rd, mut wr) = stream.into_split();
     let mut rd = LineReader::new(rd);
     write_msg(
@@ -77,8 +85,29 @@ fn print(msg: &ServerMsg) {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    if let Cmd::Cfg(c) = cli.cmd.clone() {
+        let path = cli
+            .socket
+            .clone()
+            .unwrap_or_else(kurashi_core::default_socket_path);
+        let res = match Conn::connect(&path).await {
+            Ok(mut conn) => kurashi::run(&mut conn, c, cli.json).await,
+            Err(e) => Err(e),
+        };
+        match res {
+            Ok(out) => {
+                println!("{}", out.text);
+                std::process::exit(out.code);
+            }
+            Err(e) => {
+                eprintln!("{e}");
+                std::process::exit(e.exit_code());
+            }
+        }
+    }
     let (mut rd, mut wr) = connect(&cli).await?;
     let send_one = match &cli.cmd {
+        Cmd::Cfg(_) => unreachable!("handled above"),
         Cmd::Act { action, args } => Some(ClientMsg::Act {
             id: "cli".into(),
             action: action.clone(),
