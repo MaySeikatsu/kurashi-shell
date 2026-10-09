@@ -31,7 +31,8 @@
 |---|---|---|
 | `kurashi-core` | ids, errors, shared value types (`Value`, `Source`, `Rev`) | — |
 | `kurashi-ipc` | protocol types, NDJSON codec, golden fixtures | core |
-| `kurashi-schema` (+`-derive`) | schema registry, resolution with provenance, migrations, sparse TOML, profiles | core |
+| `kurashi-schema` (+`-derive`) | `#[kurashi(...)]` derive, key registry, validation, generators (settings meta, example TOML, docs) | core |
+| `kurashi-config` | layered resolution with provenance, sparse TOML (`toml_edit`), migrations, profiles, transactions/undo (schema-agnostic via `SchemaView`) | core |
 | `kurashi-theme` | palette pipeline, roles, component tokens, WCAG, fonts, exporter | core, schema |
 | `kurashi-services` | system services behind a refcounted `Service` trait | core |
 | `kurashi-compositor` | `Compositor` trait + capabilities + niri adapter | core |
