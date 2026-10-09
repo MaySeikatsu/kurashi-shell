@@ -26,7 +26,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.6 | Daemon wiring: launcher query + launch, notification server (non-stealing claim), mods registry + `mods` doc, `runtime.ui` + `island.expand`; schema `notifications.*`, `launcher.*`; island input defaults aligned | ✅ | lead |
 | M1.6 | Frontend skeleton (Store, Theme, I18n, Bar, Stage, Island, ProvenanceChip, veil) | ✅ | merged; idle 0 commits, popup 2.1 ms; PSS popup/2-out 221 MiB ✘ K16 → M3.1 |
 | M2.1 | `kurashi-theme` pipeline → token map | ✅ | merged; 14 tests, AA on all palettes × modes |
-| M3.1 | Stage sized to content, popup only on focused output (K16) | ✅ | popup 112 MiB (was 221); +8.9/output → K19 |
+| M3.1 | Stage sized to content, popup only on focused output (K16) | ✅ | popup 112 MiB (was 221); per-output OK under corrected method (K19) |
 | M1.10 | Frontend core: generic on-demand docs + query API, real daemon (i18n, config, lock, notifications) | 🟡 | card M1.5-frontend-core (wave 4) |
 | M6.1 | `kurashi-mods` manifest, discovery, lifecycle registry | ✅ | merged; not wired yet |
 | M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | 🟡 | card M4-audio (wave 3) |
@@ -38,7 +38,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.4 | Settings app (schema-generated pages, provenance, profiles) | ✅ | merged; `settings/test.sh` + 4 shots; schema i18n en+ja |
 | M5.5 | `kurashi-auth` PAM + lock state machine | ✅ | merged; PAM feature needs native inputs (CONTRACT #4a); not wired yet |
 | M7.3 | `kurashi doctor` | ✅ | merged + registered with startup facts (bus probes n/a for now) |
-| M7.2 | Budget gate: measure.py --daemon real + budget.py | 🟡 | card M7-bench (wave 4) |
+| M7.2 | Budget gate: measure.py --daemon real + budget.py | ✅ | `just bench-gate` green: daemon 8.5 MiB, frontend ≤120 MiB, +0.8/output, 0 idle frames |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
 | M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
 | M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
