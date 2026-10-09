@@ -111,20 +111,31 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
     Ok((ServiceHandle::new(task), Commands { conn }))
 }
 
-/// The document while logind is not on the bus. Session docs have no availability flag, so without
-/// logind nothing may be reported as idle, locked or about to sleep.
+/// The document while logind is not on the bus, does not answer for our session, or its signal
+/// stream has ended. `available:false` says the hints are unknown: the values below are fillers and
+/// must not read as real states (rule 2).
 fn unavailable() -> Value {
-    json!({"idle_hint": false, "locked_hint": false, "preparing_for_sleep": false})
+    json!({
+        "available": false,
+        "idle_hint": false,
+        "locked_hint": false,
+        "preparing_for_sleep": false,
+    })
 }
 
 async fn read(conn: &Connection, preparing: bool) -> Value {
     if !util::name_has_owner(conn, DEST).await {
         return unavailable();
     }
-    let (mut idle, mut locked) = (false, false);
-    if let Some(p) = util::get_all(conn, DEST, SESSION, SESSION_IF).await {
-        idle = util::prop(&p, "IdleHint").unwrap_or(false);
-        locked = util::prop(&p, "LockedHint").unwrap_or(false);
-    }
-    json!({"idle_hint": idle, "locked_hint": locked, "preparing_for_sleep": preparing})
+    let Some(p) = util::get_all(conn, DEST, SESSION, SESSION_IF).await else {
+        return unavailable();
+    };
+    let idle = util::prop(&p, "IdleHint").unwrap_or(false);
+    let locked = util::prop(&p, "LockedHint").unwrap_or(false);
+    json!({
+        "available": true,
+        "idle_hint": idle,
+        "locked_hint": locked,
+        "preparing_for_sleep": preparing,
+    })
 }
