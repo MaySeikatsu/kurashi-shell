@@ -213,7 +213,7 @@ fn display_changed(msg: &zbus::Message) -> bool {
 /// Resolves the session and subscribes to its PropertiesChanged. The caller reads the document only
 /// after this returns, so a change in between is seen by the subscription.
 async fn attach(conn: &Connection, xdg_session_id: Option<&str>) -> Result<(String, util::Events)> {
-    let path = resolve(conn, xdg_session_id).await;
+    let path = resolve_session_path(conn, xdg_session_id).await;
     let events = util::watch(conn, vec![session_rule(&path)?]).await?;
     Ok((path, events))
 }
@@ -237,8 +237,12 @@ fn session_rule(path: &str) -> Result<MatchRule<'static>> {
         .build())
 }
 
-/// The session object the document describes (the order is in the module doc).
-async fn resolve(conn: &Connection, xdg_session_id: Option<&str>) -> String {
+/// The session object the document describes (the order is in the module doc). Also the session
+/// that backlight writes go to (`brightness`), hence `pub(crate)`.
+pub(crate) async fn resolve_session_path(
+    conn: &Connection,
+    xdg_session_id: Option<&str>,
+) -> String {
     if !util::name_has_owner(conn, DEST).await {
         // Nothing to ask. `read` gives the unavailable document for this path.
         return SESSION.to_owned();

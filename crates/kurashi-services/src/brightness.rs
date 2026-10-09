@@ -5,15 +5,18 @@
 //! (rule 5). So the document is emitted at start and after our own `set_percent`/`refresh`;
 //! changes made by other tools show up on the next `refresh()` (e.g. when the panel opens).
 //! The key actions go through [`plan`] and [`Plan::apply`] instead, which need no subscription.
+//!
+//! Writes go to the user's graphical session, resolved the way `svc.session` resolves it, and not
+//! to `session/auto`: a `systemd --user` daemon belongs to no session, so `auto` answers nothing.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, PoisonError};
 
 use anyhow::Result;
 use serde_json::{Value, json};
 use zbus::Connection;
 
-use crate::session::{DEST, SESSION, SESSION_IF};
+use crate::session::{DEST, SESSION, SESSION_IF, resolve_session_path};
 use crate::util::{self, DocSink, Emitter, ServiceHandle};
 
 pub const DEFAULT_DIR: &str = "/sys/class/backlight";
@@ -85,10 +88,40 @@ impl Plan {
     /// One logind `SetBrightness`, then one sysfs re-read. The document is the level now in
     /// effect, which is what the OSD and `svc.brightness` must show (Shōjiki).
     pub async fn apply(&self, conn: &Connection) -> zbus::Result<Value> {
+        let xdg = std::env::var("XDG_SESSION_ID").ok();
+        self.apply_with(conn, &SHARED, xdg.as_deref()).await
+    }
+
+    /// [`Plan::apply`] with the cache and `$XDG_SESSION_ID` passed in. Tests use it: edition 2024
+    /// makes `set_var` unsafe, and a test run must not pick up the session it happens to run in.
+    #[doc(hidden)]
+    pub async fn apply_with(
+        &self,
+        conn: &Connection,
+        cache: &SessionCache,
+        xdg_session_id: Option<&str>,
+    ) -> zbus::Result<Value> {
+        let bus = conn.server_guid().to_string();
+        let session = match cache.get(&bus) {
+            Some(session) => session,
+            None => resolve(conn, &bus, cache, xdg_session_id).await,
+        };
+        match self.set_on(conn, &session).await {
+            // The session went away (logind dropped it, or restarted), so the cached path is
+            // stale. Resolve once more; whatever that write answers is the answer.
+            Err(e) if session_gone(&e) => {
+                let session = resolve(conn, &bus, cache, xdg_session_id).await;
+                self.set_on(conn, &session).await
+            }
+            done => done,
+        }
+    }
+
+    async fn set_on(&self, conn: &Connection, session: &str) -> zbus::Result<Value> {
         util::call(
             conn,
             DEST,
-            SESSION,
+            session,
             SESSION_IF,
             "SetBrightness",
             &("backlight", self.device.as_str(), self.value),
@@ -96,6 +129,57 @@ impl Plan {
         .await?;
         Ok(read(&self.dir))
     }
+}
+
+/// The logind session `SetBrightness` goes to, kept between writes. A write is one key press and
+/// resolving costs several calls. The key is the bus: the daemon opens a new system-bus connection
+/// per write, and a private test bus must never be answered with another bus's session.
+#[derive(Default)]
+pub struct SessionCache(Mutex<Option<(String, String)>>);
+
+/// The cache the daemon's writes share (see [`Plan::apply`]).
+static SHARED: SessionCache = SessionCache(Mutex::new(None));
+
+impl SessionCache {
+    fn get(&self, bus: &str) -> Option<String> {
+        let slot = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        slot.as_ref()
+            .filter(|(b, _)| b == bus)
+            .map(|(_, session)| session.clone())
+    }
+
+    /// Keeps `session` for the next write, replacing the entry. The `session/auto` fallback is not
+    /// kept, which clears the entry: it means no session was found, so the next write asks again.
+    fn remember(&self, bus: &str, session: &str) {
+        let keep = (session != SESSION).then(|| (bus.to_owned(), session.to_owned()));
+        *self.0.lock().unwrap_or_else(PoisonError::into_inner) = keep;
+    }
+}
+
+/// Resolves the session writes go to, and remembers it.
+async fn resolve(
+    conn: &Connection,
+    bus: &str,
+    cache: &SessionCache,
+    xdg_session_id: Option<&str>,
+) -> String {
+    let session = resolve_session_path(conn, xdg_session_id).await;
+    cache.remember(bus, &session);
+    tracing::debug!(session = %session, "backlight writes go to this session");
+    session
+}
+
+/// The session object a write found gone: logind names it `UnknownObject` (no such object path)
+/// or `NoSuchSession` (no such session id).
+fn session_gone(e: &zbus::Error) -> bool {
+    matches!(
+        e,
+        zbus::Error::MethodError(name, _, _)
+            if matches!(
+                name.as_str(),
+                "org.freedesktop.DBus.Error.UnknownObject" | "org.freedesktop.login1.NoSuchSession"
+            )
+    )
 }
 
 /// Raw level a change lands on, within `0..=max`. A relative step always moves at least one
