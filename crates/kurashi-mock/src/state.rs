@@ -9,7 +9,7 @@ use std::hash::{BuildHasher, Hasher};
 use chrono::NaiveTime;
 use kurashi_core::Rev;
 use kurashi_ipc::{ServerMsg, merge_patch};
-use kurashid::wiring::{ARGS_INVALID, CONFIRM_REQUIRED, SERVICE_CALL_FAILED};
+use kurashid::wiring::{ARGS_INVALID, CONFIRM_REQUIRED, NO_SUCH_SINK, SERVICE_CALL_FAILED};
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
@@ -81,7 +81,7 @@ impl State {
             ("svc.clock", documents::clock(documents::now(fixed_time))),
             ("svc.notifications", documents::notes_doc(&notes, false)),
             ("svc.workspaces", documents::workspaces(outputs, 1)),
-            ("svc.audio", json!({"volume": 0.5, "muted": false})),
+            ("svc.audio", documents::audio(0.5, false, 1)),
             (
                 "svc.media",
                 json!({"available": true, "title": "夜に駆ける", "artist": "YOASOBI", "playing": true}),
@@ -96,6 +96,7 @@ impl State {
                 "svc.power",
                 json!({"available": true, "present": false, "on_battery": false}),
             ),
+            ("svc.network", documents::network(true)),
             ("svc.tray", documents::tray()),
             ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
@@ -254,6 +255,9 @@ impl State {
                 let muted = !self.data("svc.audio")["muted"].as_bool().unwrap_or(false);
                 self.patch("svc.audio", json!({"muted": muted}), None);
             }
+            // The quick settings card (K24), as kurashid's wiring serves them.
+            "audio.sink.default" => self.sink_default(args)?,
+            "network.wifi" => self.network_wifi(args)?,
             "brightness.up" => self.brightness_step(args, 1),
             "brightness.down" => self.brightness_step(args, -1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
@@ -410,6 +414,39 @@ impl State {
             return Err(call_failed());
         }
         self.patch("svc.bluetooth", json!({"discovering": on}), None);
+        Ok(())
+    }
+
+    /// `audio.sink.default {id}`: the named sink becomes the default and its entry is marked. The
+    /// mock keeps one level for both sinks, so a change of default keeps it; kurashid reads each
+    /// sink's own level.
+    fn sink_default(&mut self, args: &Value) -> Result<(), Fail> {
+        let id = args["id"]
+            .as_u64()
+            .and_then(|id| u32::try_from(id).ok())
+            .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+        let doc = self.data("svc.audio");
+        if !doc["sinks"]
+            .as_array()
+            .is_some_and(|sinks| sinks.iter().any(|s| s["id"] == id))
+        {
+            return Err(Fail::invalid(NO_SUCH_SINK));
+        }
+        let volume = doc["volume"].as_f64().unwrap_or(0.5);
+        let muted = doc["muted"].as_bool().unwrap_or(false);
+        self.patch("svc.audio", documents::audio(volume, muted, id), None);
+        Ok(())
+    }
+
+    /// `network.wifi {on}`: NetworkManager's switch. Off takes the wifi link with it, and the mock
+    /// has no other link to fall back on. A null in a patch removes the key (RFC 7396).
+    fn network_wifi(&mut self, args: &Value) -> Result<(), Fail> {
+        let on = bool_arg(args, "on")?;
+        let mut ops = documents::network(on);
+        if !on {
+            ops["primary"] = Value::Null;
+        }
+        self.patch("svc.network", ops, None);
         Ok(())
     }
 
@@ -1250,6 +1287,47 @@ mod tests {
         );
         assert_eq!(
             st.act("bluetooth.connect", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+    }
+
+    #[test]
+    fn output_picker_moves_the_default_and_refuses_what_is_not_a_sink() {
+        let mut st = state();
+        let default_id = |st: &State| st.data("svc.audio")["sink"]["id"].clone();
+        assert_eq!(default_id(&st), 1);
+
+        assert_eq!(st.act("audio.sink.default", &json!({"id": 2})), Ok(None));
+        assert_eq!(default_id(&st), 2);
+        assert_eq!(st.data("svc.audio")["sinks"][1]["default"], true);
+        assert_eq!(st.data("svc.audio")["sinks"][0]["default"], false);
+
+        // Refused before anything changes: no such sink, or no id.
+        assert_eq!(
+            st.act("audio.sink.default", &json!({"id": 9})),
+            Err(Fail::invalid(NO_SUCH_SINK))
+        );
+        assert_eq!(
+            st.act("audio.sink.default", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(default_id(&st), 2);
+    }
+
+    #[test]
+    fn wifi_switch_takes_the_link_down_and_brings_it_back() {
+        let mut st = state();
+        assert_eq!(st.act("network.wifi", &json!({"on": false})), Ok(None));
+        assert_eq!(st.data("svc.network")["wifi_enabled"], false);
+        assert_eq!(st.data("svc.network")["state"], "disconnected");
+        assert!(st.data("svc.network").get("primary").is_none());
+
+        assert_eq!(st.act("network.wifi", &json!({"on": true})), Ok(None));
+        assert_eq!(st.data("svc.network")["wifi_enabled"], true);
+        assert_eq!(st.data("svc.network")["primary"]["kind"], "wifi");
+
+        assert_eq!(
+            st.act("network.wifi", &json!({})),
             Err(Fail::invalid(ARGS_INVALID))
         );
     }

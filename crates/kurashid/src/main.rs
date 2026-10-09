@@ -215,7 +215,7 @@ fn register_services(
     island: &Arc<kurashid::island::IslandHost>,
     actions: &mut ActionRegistry,
 ) {
-    use kurashi_services::{media, network, power, session};
+    use kurashi_services::{media, power, session};
     use kurashid::services::{Bus, ServiceProvider};
 
     let isl = island.clone();
@@ -275,12 +275,7 @@ fn register_services(
         session::start,
     ));
     hub.register("svc.session", json!({"available": false}), Some(session));
-    let network = Arc::new(ServiceProvider::new(
-        "svc.network",
-        Bus::System,
-        network::start,
-    ));
-    hub.register("svc.network", json!({"state": "unknown"}), Some(network));
+    kurashid::wiring::network(hub, actions);
     kurashid::wiring::tray(hub, actions);
     kurashid::wiring::bluetooth(hub, actions);
 }
