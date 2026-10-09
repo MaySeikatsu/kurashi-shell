@@ -3,7 +3,7 @@
 //! Facts that need the outside world (sockets, buses, fontconfig) are probed once by the lead at
 //! startup and handed in as [`DoctorFacts`]; everything else is read live from the daemon.
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use kurashi_ipc::PROTOCOL_VERSION;
 use serde_json::{Value, json};
@@ -20,6 +20,28 @@ pub struct DoctorFacts {
     pub notification_name_owned: Option<bool>,
     pub fc_list_worked: Option<bool>,
     pub data_dir_found: Option<bool>,
+}
+
+/// Facts shared between the doctor query and the tasks that learn them asynchronously (the
+/// notification task connects to the session bus, the session actions to the system bus): they
+/// report what they actually saw, the query never guesses (Shōjiki).
+#[derive(Clone, Default)]
+pub struct SharedFacts(Arc<Mutex<DoctorFacts>>);
+
+impl SharedFacts {
+    pub fn update(&self, f: impl FnOnce(&mut DoctorFacts)) {
+        f(&mut self.0.lock().expect("doctor facts lock"));
+    }
+
+    pub fn get(&self) -> DoctorFacts {
+        self.0.lock().expect("doctor facts lock").clone()
+    }
+}
+
+impl From<DoctorFacts> for SharedFacts {
+    fn from(f: DoctorFacts) -> Self {
+        Self(Arc::new(Mutex::new(f)))
+    }
 }
 
 /// Documents the daemon normally registers; unregistered ones are reported, not assumed.
@@ -66,11 +88,13 @@ fn probe(id: &str, fact: Option<bool>, bad: &str, what: &str) -> Value {
 }
 
 /// Adds the `doctor` query provider. Call after `daemon.config` is set.
-pub fn register(daemon: &mut Daemon, facts: DoctorFacts) {
+pub fn register(daemon: &mut Daemon, facts: impl Into<SharedFacts>) {
+    let facts: SharedFacts = facts.into();
     let hub = daemon.hub.clone();
     let config = daemon.config.clone();
     let instance = daemon.instance.clone();
     let f: crate::QueryFn = Arc::new(move |_q| {
+        let facts = facts.get();
         let mut rows = vec![
             row("protocol", "ok", format!("v{PROTOCOL_VERSION}"), false),
             row("instance", "ok", instance.clone(), false),
@@ -143,4 +167,39 @@ pub fn register(daemon: &mut Daemon, facts: DoctorFacts) {
         rows
     });
     daemon.queries.insert("doctor".into(), f);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{ActionRegistry, Hub, Intents};
+
+    fn status(rows: &[Value], id: &str) -> String {
+        rows.iter().find(|r| r["id"] == id).unwrap()["status"]
+            .as_str()
+            .unwrap()
+            .into()
+    }
+
+    #[test]
+    fn async_facts_flip_from_na_when_tasks_report() {
+        let mut d = Daemon::new(Hub::new(), ActionRegistry::default(), Intents::default());
+        let facts = SharedFacts::default();
+        register(&mut d, facts.clone());
+        let q = d.queries.get("doctor").unwrap().clone();
+        let rows = q("");
+        assert_eq!(status(&rows, "bus_session"), "n/a");
+        assert_eq!(status(&rows, "bus_system"), "n/a");
+        assert_eq!(status(&rows, "notifications"), "n/a");
+
+        facts.update(|f| {
+            f.session_bus = Some(true);
+            f.system_bus = Some(false);
+            f.notification_name_owned = Some(false);
+        });
+        let rows = q("");
+        assert_eq!(status(&rows, "bus_session"), "ok");
+        assert_eq!(status(&rows, "bus_system"), "warn");
+        assert_eq!(status(&rows, "notifications"), "warn");
+    }
 }
