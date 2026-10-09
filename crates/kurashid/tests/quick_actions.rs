@@ -61,6 +61,9 @@ impl Backend for FakeSoundServer {
         self.notifier.notify();
     }
     fn set_source_muted(&mut self, _muted: bool) {}
+    fn set_default_source(&mut self, _id: u32) {}
+    fn set_stream_volume(&mut self, _id: u32, _linear: f64) {}
+    fn set_stream_muted(&mut self, _id: u32, _muted: bool) {}
 }
 
 #[tokio::test]
@@ -75,6 +78,7 @@ async fn audio_output_picker_switches_the_default_and_refuses_what_is_not_a_sink
                     sources: vec![],
                     default_sink: Some(1),
                     default_source: None,
+                    streams: vec![],
                 },
                 notifier,
             })

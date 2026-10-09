@@ -35,6 +35,19 @@ pub struct Device {
     pub muted: bool,
 }
 
+/// An application playing sound: a sink input (PulseAudio's term).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Stream {
+    pub id: u32,
+    /// `application.name`, else the stream's own name (PulseAudio always has one).
+    pub app: String,
+    /// `application.icon_name`, when the application names one.
+    pub icon: Option<String>,
+    /// Linear, `1.0` = 100 %.
+    pub volume: f64,
+    pub muted: bool,
+}
+
 /// Everything the document is built from.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct Snapshot {
@@ -42,6 +55,7 @@ pub struct Snapshot {
     pub sources: Vec<Device>,
     pub default_sink: Option<u32>,
     pub default_source: Option<u32>,
+    pub streams: Vec<Stream>,
 }
 
 /// The sound server. Lives on the worker thread only; commands are fire-and-forget and the
@@ -52,6 +66,10 @@ pub trait Backend: 'static {
     fn set_muted(&mut self, muted: bool);
     fn set_default_sink(&mut self, id: u32);
     fn set_source_muted(&mut self, muted: bool);
+    fn set_default_source(&mut self, id: u32);
+    /// A playing application's level. An id the last snapshot did not list is ignored.
+    fn set_stream_volume(&mut self, id: u32, linear: f64);
+    fn set_stream_muted(&mut self, id: u32, muted: bool);
 }
 
 enum Msg {
@@ -68,6 +86,27 @@ enum Cmd {
     DefaultSink(u32),
     SourceMuted(bool),
     ToggleSourceMute,
+    DefaultSource(u32),
+    StreamVolume(u32, f64),
+    StreamMuted(u32, bool),
+    ToggleStreamMute(u32),
+}
+
+/// What makes a queued command obsolete: a later one with the same key replaces it.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Key {
+    Volume,
+    StreamVolume(u32),
+}
+
+impl Cmd {
+    fn key(self) -> Option<Key> {
+        match self {
+            Cmd::Volume(_) => Some(Key::Volume),
+            Cmd::StreamVolume(id, _) => Some(Key::StreamVolume(id)),
+            _ => None,
+        }
+    }
 }
 
 /// Backends call this (from any thread) when the server reports a change.
@@ -103,6 +142,19 @@ impl Commands {
     }
     pub fn toggle_source_mute(&self) {
         self.send(Cmd::ToggleSourceMute);
+    }
+    pub fn set_default_source(&self, id: u32) {
+        self.send(Cmd::DefaultSource(id));
+    }
+    /// Linear, clamped to `0..=MAX_VOLUME`. Bursts of one stream's level are coalesced.
+    pub fn set_stream_volume(&self, id: u32, v: f64) {
+        self.send(Cmd::StreamVolume(id, v));
+    }
+    pub fn set_stream_muted(&self, id: u32, m: bool) {
+        self.send(Cmd::StreamMuted(id, m));
+    }
+    pub fn toggle_stream_mute(&self, id: u32) {
+        self.send(Cmd::ToggleStreamMute(id));
     }
     fn send(&self, c: Cmd) {
         let _ = self.0.send(Msg::Cmd(c));
@@ -224,14 +276,24 @@ fn run<B: Backend>(
     }
 }
 
-/// Keep the last `Volume` only; other commands are order-sensitive and kept as-is.
+/// Keep the last command of each key (the volume, or one stream's level); the others are
+/// order-sensitive and kept as they came.
 fn coalesce(cmds: Vec<Cmd>) -> Vec<Cmd> {
-    let last_vol = cmds.iter().rposition(|c| matches!(c, Cmd::Volume(_)));
-    cmds.into_iter()
-        .enumerate()
-        .filter(|(i, c)| !matches!(c, Cmd::Volume(_)) || Some(*i) == last_vol)
-        .map(|(_, c)| c)
-        .collect()
+    let mut seen = Vec::new();
+    let mut kept: Vec<Cmd> = cmds
+        .into_iter()
+        .rev()
+        .filter(|c| match c.key() {
+            Some(k) if seen.contains(&k) => false,
+            Some(k) => {
+                seen.push(k);
+                true
+            }
+            None => true,
+        })
+        .collect();
+    kept.reverse();
+    kept
 }
 
 fn apply<B: Backend>(b: &mut B, cached: &Snapshot, c: Cmd) {
@@ -245,8 +307,23 @@ fn apply<B: Backend>(b: &mut B, cached: &Snapshot, c: Cmd) {
         }
         Cmd::Muted(m) => b.set_muted(m),
         Cmd::SourceMuted(m) => b.set_source_muted(m),
+        // A stream the last snapshot did not list has gone (or never was): dropped, as unknown sinks are.
+        Cmd::StreamVolume(id, v) => {
+            if v.is_finite() && cached.streams.iter().any(|s| s.id == id) {
+                b.set_stream_volume(id, v.clamp(0.0, MAX_VOLUME));
+            }
+        }
+        Cmd::StreamMuted(id, m) => {
+            if cached.streams.iter().any(|s| s.id == id) {
+                b.set_stream_muted(id, m);
+            }
+        }
         // Toggles and id lookups need current state: re-read instead of trusting the cache.
-        Cmd::ToggleMute | Cmd::ToggleSourceMute | Cmd::DefaultSink(_) => {
+        Cmd::ToggleMute
+        | Cmd::ToggleSourceMute
+        | Cmd::DefaultSink(_)
+        | Cmd::DefaultSource(_)
+        | Cmd::ToggleStreamMute(_) => {
             let snap = b.snapshot().unwrap_or_else(|_| cached.clone());
             match c {
                 Cmd::ToggleMute => {
@@ -263,6 +340,17 @@ fn apply<B: Backend>(b: &mut B, cached: &Snapshot, c: Cmd) {
                     if snap.default_sink != Some(id) && snap.sinks.iter().any(|s| s.id == id) =>
                 {
                     b.set_default_sink(id);
+                }
+                Cmd::DefaultSource(id)
+                    if snap.default_source != Some(id)
+                        && snap.sources.iter().any(|s| s.id == id) =>
+                {
+                    b.set_default_source(id);
+                }
+                Cmd::ToggleStreamMute(id) => {
+                    if let Some(s) = snap.streams.iter().find(|s| s.id == id) {
+                        b.set_stream_muted(id, !s.muted);
+                    }
                 }
                 _ => {}
             }
@@ -283,6 +371,20 @@ fn dev_json(d: &Device, default: bool) -> Value {
     json!({"id": d.id, "name": d.name, "description": d.description, "default": default})
 }
 
+/// `{id, app, icon?, volume, muted}`: the icon is left out when the application names none.
+fn stream_json(s: &Stream) -> Value {
+    let mut v = json!({
+        "id": s.id,
+        "app": s.app,
+        "volume": round(s.volume.clamp(0.0, MAX_VOLUME)),
+        "muted": s.muted,
+    });
+    if let Some(icon) = &s.icon {
+        v["icon"] = json!(icon);
+    }
+    v
+}
+
 /// The `svc.audio` document. No nulls (PROTOCOL §3): absent default sink/source = absent keys.
 pub fn build_doc(s: &Snapshot) -> Value {
     let sink = default_of(&s.sinks, s.default_sink);
@@ -296,6 +398,20 @@ pub fn build_doc(s: &Snapshot) -> Value {
     if let Some(d) = sink {
         obj.insert("sink".into(), dev_json(d, true));
     }
+    // The input picker and the per-app mixer: lists the server answered, so empty means none.
+    obj.insert(
+        "sources".into(),
+        json!(
+            s.sources
+                .iter()
+                .map(|d| dev_json(d, Some(d.id) == s.default_source))
+                .collect::<Vec<_>>()
+        ),
+    );
+    obj.insert(
+        "streams".into(),
+        json!(s.streams.iter().map(stream_json).collect::<Vec<_>>()),
+    );
     if let Some(d) = default_of(&s.sources, s.default_source) {
         let mut src = dev_json(d, true);
         src["muted"] = json!(d.muted);

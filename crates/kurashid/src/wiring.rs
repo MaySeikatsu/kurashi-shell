@@ -811,24 +811,30 @@ impl AudioProvider {
         })
     }
 
-    /// `audio.sink.default` names a sink of the current document. The worker drops an unknown id
-    /// without a word, so the answer has to come from here (rule 2). Unavailable audio has no list.
-    fn known_sink(&self, hub: &Hub, id: u32) -> Result<(), ActionError> {
+    /// An id the picker or the mixer names must be in the current document. The worker drops an
+    /// unknown id without a word, so the answer has to come from here (rule 2). Unavailable audio
+    /// has no lists.
+    fn known_in(&self, hub: &Hub, list: &str, id: u32, missing: &str) -> Result<(), ActionError> {
         let unavailable = || ActionError::Unavailable(AUDIO_UNAVAILABLE.into());
         let (_, doc) = hub.snapshot("svc.audio").map_err(|_| unavailable())?;
         if doc["available"].as_bool() != Some(true) {
             return Err(unavailable());
         }
-        let known = doc["sinks"].as_array().is_some_and(|sinks| {
-            sinks
+        let known = doc[list].as_array().is_some_and(|items| {
+            items
                 .iter()
                 .any(|s| s["id"].as_u64() == Some(u64::from(id)))
         });
         if known {
             Ok(())
         } else {
-            Err(ActionError::Invalid(NO_SUCH_SINK.into()))
+            Err(ActionError::Invalid(missing.into()))
         }
+    }
+
+    /// `audio.sink.default` names a sink of the current document.
+    fn known_sink(&self, hub: &Hub, id: u32) -> Result<(), ActionError> {
+        self.known_in(hub, "sinks", id, NO_SUCH_SINK)
     }
 }
 
@@ -900,12 +906,12 @@ pub fn audio_with(
         });
     }
     // The output picker of the quick settings card (K24). Not running is an error, never a start.
-    let (p, hub) = (provider.clone(), hub.clone());
+    let (p, h) = (provider.clone(), hub.clone());
     actions.register(
         "audio.sink.default",
         "action.audio.sink.default",
         move |args: Value| {
-            let (p, hub) = (p.clone(), hub.clone());
+            let (p, h) = (p.clone(), h.clone());
             async move {
                 let id = args["id"]
                     .as_u64()
@@ -914,8 +920,89 @@ pub fn audio_with(
                 let c = p
                     .commands()
                     .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
-                p.known_sink(&hub, id)?;
+                p.known_sink(&h, id)?;
                 c.set_default_sink(id);
+                Ok(None)
+            }
+        },
+    );
+    // The input picker and the per-app mixer (W13). Ids come from the current document, as for sinks.
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.source.default",
+        "action.audio.source.default",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "sources", id, NO_SUCH_SOURCE)?;
+                c.set_default_source(id);
+                Ok(None)
+            }
+        },
+    );
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.stream.volume",
+        "action.audio.stream.volume",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                // A level in `0..=MAX_VOLUME`, as the sliders send it; anything else is refused.
+                let value = args["value"]
+                    .as_f64()
+                    .filter(|v| (0.0..=kurashi_audio::MAX_VOLUME).contains(v))
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "streams", id, NO_SUCH_STREAM)?;
+                c.set_stream_volume(id, value);
+                Ok(None)
+            }
+        },
+    );
+    // `{id, on?}`: without `on` the stream's mute flips, as the worker reads it.
+    let (p, h) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.stream.mute",
+        "action.audio.stream.mute",
+        move |args: Value| {
+            let (p, h) = (p.clone(), h.clone());
+            async move {
+                let id = id_arg(&args)?;
+                let on = match args.get("on") {
+                    None => None,
+                    Some(v) => Some(
+                        v.as_bool()
+                            .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?,
+                    ),
+                };
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_in(&h, "streams", id, NO_SUCH_STREAM)?;
+                match on {
+                    Some(on) => c.set_stream_muted(id, on),
+                    None => c.toggle_stream_mute(id),
+                }
+                Ok(None)
+            }
+        },
+    );
+    let p = provider.clone();
+    actions.register(
+        "audio.mic.mute.toggle",
+        "action.audio.mic.mute.toggle",
+        move |_| {
+            let c = p.commands();
+            async move {
+                c.ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?
+                    .toggle_source_mute();
                 Ok(None)
             }
         },
@@ -930,10 +1017,22 @@ pub fn audio_with(
     });
 }
 
+/// The `id` argument of a device or stream action: a PulseAudio index.
+fn id_arg(args: &Value) -> Result<u32, ActionError> {
+    args["id"]
+        .as_u64()
+        .and_then(|id| u32::try_from(id).ok())
+        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+}
+
 /// Error keys of the key actions; the frontend and the CLI render them (rule 8).
 pub const AUDIO_UNAVAILABLE: &str = "error.audio.unavailable";
 /// `audio.sink.default` with an id that is no sink of the current document.
 pub const NO_SUCH_SINK: &str = "error.audio.no_such_sink";
+/// `audio.source.default` with an id that is no input of the current document.
+pub const NO_SUCH_SOURCE: &str = "error.audio.no_such_source";
+/// `audio.stream.*` with an id that is no playing application of the current document.
+pub const NO_SUCH_STREAM: &str = "error.audio.no_such_stream";
 pub const NO_BACKLIGHT: &str = "error.brightness.no_device";
 pub const STEP_RANGE: &str = "error.step.out_of_range";
 /// `session.lock` without the PAM service is refused: nothing could unlock the screen afterwards.
@@ -2409,6 +2508,9 @@ mod tests {
         fn set_muted(&mut self, _muted: bool) {}
         fn set_default_sink(&mut self, _id: u32) {}
         fn set_source_muted(&mut self, _muted: bool) {}
+        fn set_default_source(&mut self, _id: u32) {}
+        fn set_stream_volume(&mut self, _id: u32, _linear: f64) {}
+        fn set_stream_muted(&mut self, _id: u32, _muted: bool) {}
     }
 
     #[tokio::test]
