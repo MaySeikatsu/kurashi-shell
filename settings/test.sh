@@ -6,14 +6,17 @@
 # Needs: nix develop (qs, grim, sway, python3); kurashid + kurashi from KURASHI_BIN_DIR, or built with
 # `cargo build -p kurashid -p kurashi`. KURASHI_RENDER_NODE picks the GPU (tools/bench/sandbox.sh).
 #
-# Coverage (UX brief docs/ux/settings.md, States and Definition of done): every state the sandbox produces has a shot:
-# default, user, profile (after a profile load), Nix-forced (managed.toml), inert (requires, overridden, mods off, restart
-# pending, choice unavailable), invalid input (kept as typed), preview (uncommitted), undo after a CLI change, empty
-# search, mod states (available, loaded-off, on, refused, invalid), Changed view, reset with its diff, profiles with
-# their differ count. Keyboard-only paths: the sidebar, the palette dropdown (type-ahead, Return), the scheme switch
-# (previewed, kept), the island pick list (Reset with its diff, Reorder by its buttons), the Reset confirm.
-# The virtual keyboard has no Escape and no modifiers (tools/bench/wl_keys.py): Esc is run through the same path as the
-# IPC hook `putBack`, and Alt+Up/Down reorder is not key-tested (the buttons are).
+# Coverage (UX brief docs/ux/settings.md, States and Definition of done). Shots: default, user, profile (after a profile
+# load), Nix-forced and its chip's stack (managed.toml), inert (requires, overridden, mods off, restart pending, choice
+# unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
+# empty search, search landing on a row (flashed), mod states (available, loaded-off, on, refused, invalid, removed while
+# on), the Changed view and its reset plan, profiles with their differ count, the Japanese copy of the main pages.
+# Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
+# font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row), the Changed view's
+# reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
+# Not key-tested: Alt+Up/Down on the pick list and Escape. tools/bench/wl_keys.py has neither modifiers nor Escape, so Esc
+# runs through the IPC hook `putBack` (the same path). Not shown: a mod's "running" line (no native mod with a service is
+# built in), greyed dropdown offers (no offer is unavailable in this sandbox), export and import (CONTRACT-CHANGE 35).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -121,6 +124,8 @@ sleep 1.5
 
 mkdir -p settings/shots
 shot() { sleep 1; grim -o HEADLESS-1 "settings/shots/$1.png"; [ -s "settings/shots/$1.png" ]; }
+# No settle delay: a search flash or a tooltip is only on screen for a moment.
+shot_now() { grim -o HEADLESS-1 "settings/shots/$1.png"; [ -s "settings/shots/$1.png" ]; }
 
 # 0. the deep link: the palette row's page opens by itself once the schema is in (the check is the page, the shot shows
 #    the row in place; its flash is over after a second).
@@ -195,10 +200,10 @@ mkfifo "$R/keys.fifo"
 python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & kbd_pid=$!; pids+=("$kbd_pid")
 exec 3> "$R/keys.fifo"
 kp() { for k in "$@"; do echo "$k" >&3; sleep 0.3; done; }
-# Tab until the focused control is the name given (objectName, else accessible name), at most 80 presses.
+# Tab until the focused control is the name given (objectName, else accessible name), at most $2 presses (default 80).
 tab_to() {
-  local want=$1
-  for _ in $(seq 80); do
+  local want=$1 max=${2:-80}
+  for _ in $(seq "$max"); do
     [ "$(Q focused)" = "$want" ] && return 0
     echo tab >&3; sleep 0.25
   done
@@ -271,15 +276,15 @@ kp m
 [ "$(val island.main.default)" = '"clock"' ] || fail "dropdown: type-ahead changed the value before Return"
 kp return
 [ "$(val island.main.default)" = '"media"' ] || fail "dropdown: Return did not pick the type-ahead offer ($(val island.main.default))"
-kp return c return
-[ "$(val island.main.default)" = '"clock"' ] || fail "dropdown: restoring clock by type-ahead failed"
+kp return up return
+[ "$(val island.main.default)" = '"clock"' ] || fail "dropdown: Up and Return did not restore clock ($(val island.main.default))"
 echo "keyboard K6: type-ahead highlights, Return picks"
 
 # K7. the pick list (vertical, UX brief settings 6): Tab into the first row, Tab to its move-down button, Return moves
 #     it; focus follows the moved row, so Tab and Return move it back up.
 Q goto island
 Q focusList >/dev/null
-tab_to "1. Clock"
+tab_to "pickrow:clock"
 kp tab return
 [ "$(val island.main.faces)" = '["media","clock","notifications"]' ] || fail "pick list: move down did not reorder ($(val island.main.faces))"
 kp tab return
@@ -291,7 +296,7 @@ shot 16-island-pick-list
 #     it; focus lands on Confirm reset; Return makes it one change.
 Q goto appearance
 Q focusList >/dev/null
-tab_to "Reset"
+tab_to "reset:theme.colors.palette"
 kp return
 shot 17b-reset-confirm
 kp return
@@ -304,12 +309,93 @@ Q advanced true
 Q goto island
 Q focusList >/dev/null
 tab_to "Left click"
-kp f o o return
+# The field holds the binding it had: clear it with Backspace, then type text the daemon refuses. An action id is lowercase
+# segments joined by dots (docs/ux/settings.md; registry.rs), so a space is refused; "foo" alone is a valid id.
+for _ in $(seq 30); do echo backspace >&3; sleep 0.1; done
+kp f o o space b a r
+# Leaving the field commits what is typed (Enter does too; the harness lost an Enter that followed a space, so Tab is used).
+kp tab
 sleep 0.5
 [ "$(val island.main.input.left)" = '"island.expand"' ] || fail "invalid input: the daemon kept a refused binding ($(val island.main.input.left))"
+[ -n "$(Q rowError island.main.input.left)" ] || fail "invalid input: the row shows no refusal"
 shot 22-invalid-input
-echo "keyboard K9: 'foo' typed into Left click was refused and stays as typed"
+echo "keyboard K9: 'foo bar' typed into Left click was refused and stays as typed"
 Q advanced false
+
+# K10. a slider previews too (UX brief, settings 3): Right moves the radius one step, shown but not kept; Put back
+#      returns the value the preview started from.
+Q goto appearance
+Q advanced true
+Q focusList >/dev/null
+tab_to "slider:theme.shape.radius_scale"
+radius0=$(val theme.shape.radius_scale)
+kp right
+[[ "$(Q previewState)" == theme.shape.radius_scale=* ]] || fail "radius: Right did not preview ($(Q previewState))"
+shot_now 20b-preview-radius
+Q putBack
+[ "$(val theme.shape.radius_scale)" = "$radius0" ] || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius_scale))"
+echo "keyboard K10: Right previewed the radius scale; Put back restored $radius0"
+
+# K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
+fonts0=$(val theme.typography.family)
+first=$(printf '%s' "$fonts0" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0])')
+Q goto appearance
+Q focusList >/dev/null
+tab_to "Remove $first" 120
+kp delete
+[[ "$(Q previewState)" == theme.typography.family=* ]] || fail "font: Delete did not preview ($(Q previewState))"
+shot_now 20c-preview-font
+Q putBack
+[ "$(val theme.typography.family)" = "$fonts0" ] || fail "font: Put back did not restore the chain ($(val theme.typography.family))"
+echo "keyboard K11: Delete on a font family previewed the chain; Put back restored it"
+
+# K12. search by keyboard (UX brief, settings 4): typing starts the search, Return lands on the first hit, and the row
+#      flashes; the shot is taken at once, inside the flash.
+Q goto bar
+Q focusList >/dev/null
+kp p a l e t t e return
+[ "$(Q current)" = appearance ] || fail "search: Return on 'palette' did not land on its page ($(Q current))"
+[ "$(Q focused)" = "select:theme.colors.palette" ] || fail "search: the keyboard focus did not land on the row's control ($(Q focused))"
+shot_now 5b-search-lands
+echo "keyboard K12: typed 'palette', Return landed on the row (appearance)"
+
+# K13. a provenance chip with focus shows every layer that sets its key (cfg.why); the Nix layer names its option path
+#      (UX brief, settings 1). theme.density is forced by Nix (managed.toml).
+Q goto appearance
+Q focusList >/dev/null
+tab_to "chip:theme.density" 120
+shot 23-chip-stack
+echo "keyboard K13: the Nix chip of theme.density shows its layers on focus"
+
+# K14. Reset with its diff in the Changed view (UX brief, settings 2): the plan lists what would change; Cancel drops it
+#      and changes nothing; a second plan and its confirm make the one change.
+Q goto @changed
+Q focusList >/dev/null
+tab_to "reset:a11y.reduce_transparency" 120
+kp return
+tab_to "confirm:a11y.reduce_transparency" 4
+shot 17d-changed-reset-plan
+tab_to "cancel:a11y.reduce_transparency" 4
+kp return
+[ "$(val a11y.reduce_transparency)" = true ] || fail "changed: Cancel changed the value ($(val a11y.reduce_transparency))"
+tab_to "reset:a11y.reduce_transparency" 4
+kp return
+tab_to "confirm:a11y.reduce_transparency" 4
+kp return
+[ "$(src a11y.reduce_transparency)" = default ] || fail "changed: confirm did not reset ($(src a11y.reduce_transparency))"
+echo "keyboard K14: Changed view: Reset showed the diff, Cancel changed nothing, the confirm reset the key"
+
+# K15. a switch that the daemon answers keeps the keyboard focus: the mods document changes, the row is updated in place.
+Q goto @mods
+Q focusList >/dev/null
+tab_to "mod:demo-blur" 120
+before=$(K '{"t":"cfg.get","id":"m2","key":"mods.enabled"}')
+kp space
+sleep 1
+[ "$(Q focused)" = "mod:demo-blur" ] || fail "mods: focus left the switch after Space ($(Q focused))"
+[[ "$(K '{"t":"cfg.get","id":"m2","key":"mods.enabled"}')" != "$before" ]] || fail "mods: Space did not change mods.enabled"
+kp space
+echo "keyboard K15: Space on the demo-blur switch changed it and the focus stayed on the switch"
 
 # --- states by IPC (the same paths as the controls) ------------------------------------------------------------------
 # 10. undo from the header (the same click as the button): the step is undone and Redo turns on
@@ -373,6 +459,14 @@ Q openChoice theme.colors.palette
 shot 15-palette-dropdown
 kp return
 
+# 15c. an offer that is not available now: the island's default face offers the Media face while its mod is off, greyed
+#      with its reason (the daemon says which). Return picks the highlighted offer, the value in effect: nothing changes.
+Q goto island
+Q openChoice island.main.default
+shot 15c-dropdown-greyed-offer
+kp return
+[ "$(val island.main.default)" = '"clock"' ] || fail "dropdown: Return on the highlighted offer changed the default face ($(val island.main.default))"
+
 # 15b. the restart line (UX brief, States: "restart pending"): a restart-flagged key saved, not in effect until the shell
 #      restarts; the value goes back afterwards.
 Q goto notifications
@@ -387,6 +481,13 @@ Q set notifications.server true
 #     nothing to configure instead of "No settings match".
 Q goto mods.demo-blur
 shot 19-mod-no-settings
+
+# 19b. a mod removed from disk while it is on (UX brief, States: "removed while on"): the page shows what the daemon
+#      now reports, and nothing stays on screen that the daemon no longer has.
+Q goto mods.demo-blur
+rm -rf "$R/data/kurashi/mods/demo-blur"
+sleep 2
+shot 19b-mod-removed-while-on
 
 # 9. profiles (K27): a profile file that appears while the Profiles page is open is listed by the same Settings process,
 #    with no reconnect (the daemon pushes the list when the file appears).
@@ -417,7 +518,7 @@ shot ja-changed
 Q goto @profiles
 Q preview roomy
 shot ja-profiles
-Q goto mods.demo-blur
+Q goto mods.easter-eggs
 shot ja-mod-page
 Q goto @mods
 shot ja-mods
