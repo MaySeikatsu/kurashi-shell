@@ -48,3 +48,15 @@ bench-gate:
 # Golden screenshots of the core surfaces: `just golden` compares, `just golden --update` rewrites tools/golden/ref
 golden *ARGS:
     tools/golden/run.sh {{ARGS}}
+
+# Every bundled mod and the test mod `hello` through the real shell, headless (W14): kurashid built with the test-mods
+# feature (it links `hello`), then the hello test and the all-mods test. Machine B: KURASHI_RENDER_NODE=/dev/dri/renderD129.
+mods-live:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    cargo build -p kurashid --features test-mods || exit 1
+    cargo build -p kurashi || exit 1
+    status=0
+    bash frontend/test-modqml.sh || status=1
+    bash frontend/test-mods-live.sh || status=1
+    exit "$status"

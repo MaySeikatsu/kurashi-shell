@@ -1,0 +1,31 @@
+# The live mods test's manifest for `hello` (W14, `frontend/test-mods-live.sh` and `frontend/test-modqml.sh`): every
+# provide the QML under qml/ answers to. The scripts copy it over mod.toml in their sandbox data dir. mod.toml itself
+# stays footer-only, because tests/native_mods.rs pins what the footer contributes.
+id = "hello"
+name = "Hello"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = [
+    "service:hello",
+    "action:hello.*",
+    "island-face:hello",
+    "panel:hello",
+    "widget:hello",
+    "slot:clock.expanded.aside",
+    "slot:clock.expanded.footer",
+    "slot:media.expanded.backdrop",
+    "slot:media.expanded.below",
+    "slot:notifications.expanded.header",
+    "slot:quick.tiles",
+    "choices:hello.greetings",
+]
+capabilities = []
+cost = "low"
+
+[[setting]]
+key = "greeting"
+type = "string"
+default = "hi"
+choices_from = "hello.greetings"
+label = "mods.hello.greeting"
