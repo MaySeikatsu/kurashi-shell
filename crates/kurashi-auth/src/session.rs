@@ -402,3 +402,86 @@ impl Conversation for Conv {
         self.answers.recv().ok()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+    use std::time::Duration;
+
+    use kurashi_services::DocSink;
+    use serde_json::Value;
+
+    use super::*;
+    use crate::FakeAuthenticator;
+
+    struct Quiet;
+    impl DocSink for Quiet {
+        fn set(&self, _doc: Value) {}
+    }
+
+    /// A password, then a second factor that nobody answers: the conversation parks there.
+    fn parked_session() -> LockSession {
+        let auth = FakeAuthenticator::new("tester", "pw").with_otp("123456", false);
+        let session = LockSession::new(
+            "tester",
+            Arc::new(auth),
+            Arc::new(Quiet),
+            Arc::new(SystemClock::new()),
+            LockConfig::default(),
+        );
+        session.lock();
+        session
+    }
+
+    /// Capped wait until the parked conversation shows its second prompt.
+    async fn wait_for_prompt(session: &LockSession) {
+        for _ in 0..200 {
+            if session.doc()["prompt"].is_string() {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        panic!("the conversation never reached its second prompt");
+    }
+
+    /// `cancel` frees a conversation parked on its second prompt: the blocking task ends and the
+    /// submit resolves, so nothing waits on a prompt that will never be answered.
+    #[tokio::test]
+    async fn cancel_releases_a_conversation_parked_on_a_second_prompt() {
+        let session = parked_session();
+        let submit = tokio::spawn({
+            let s = session.clone();
+            async move { s.submit(SecretString::new("pw")).await }
+        });
+        wait_for_prompt(&session).await;
+        session.cancel();
+        let outcome = tokio::time::timeout(Duration::from_secs(5), submit)
+            .await
+            .expect("cancel must release the parked conversation")
+            .expect("submit task");
+        assert_eq!(outcome, Ok(SubmitOutcome::Cancelled));
+    }
+
+    /// Without a cancel, a parked conversation must not hold runtime shutdown past the grace
+    /// period (kurashid's `SHUTDOWN_GRACE` mechanism). Runs on its own thread so a regression fails
+    /// the test instead of hanging it.
+    #[test]
+    fn runtime_shutdown_is_bounded_while_a_conversation_is_parked() {
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            let session = parked_session();
+            let s = session.clone();
+            let _submit = rt.spawn(async move { s.submit(SecretString::new("pw")).await });
+            rt.block_on(wait_for_prompt(&session));
+            rt.shutdown_timeout(Duration::from_millis(200));
+            let _ = done_tx.send(());
+        });
+        done_rx
+            .recv_timeout(Duration::from_secs(20))
+            .expect("runtime shutdown waited on a parked conversation");
+    }
+}

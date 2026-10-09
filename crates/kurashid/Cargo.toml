@@ -12,6 +12,7 @@ kurashi-compositor = { path = "../kurashi-compositor" }
 tokio-stream = "0.1"
 kurashi-island = { path = "../kurashi-island" }
 kurashi-services = { path = "../kurashi-services" }
+kurashi-tray = { path = "../kurashi-tray" }
 kurashi-config = { path = "../kurashi-config" }
 kurashi-schema = { path = "../kurashi-schema" }
 notify = "8"

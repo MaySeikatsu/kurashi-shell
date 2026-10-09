@@ -48,3 +48,8 @@
 "doctor.client_niri.ok" = "$NIRI_SOCKET が設定されています"
 "doctor.client_niri.warn" = "$NIRI_SOCKET が設定されていません"
 "doctor.client_niri.fix" = "niri のセッション内で実行してください。"
+"doctor.pam_service.ok" = "ロック画面の PAM サービスがインストールされています"
+"doctor.pam_service.fail" = "ロック中に PAM サービスがありません。ロック画面を解除できません"
+"doctor.pam_service.warn" = "PAM サービスがありません。ロック画面は利用できません"
+"doctor.pam_service.na" = "PAM サービスは未確認です"
+"doctor.pam_service.fix" = "NixOS モジュールで programs.kurashi を有効にし、kurashid を再起動してください。"
