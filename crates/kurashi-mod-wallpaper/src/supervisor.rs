@@ -414,7 +414,9 @@ impl Supervisor {
         // A picture the backend cannot read is refused before anything changes: its failure would
         // otherwise look like a backend that is down. Only the header is read.
         if image::image_dimensions(&path).is_err() {
-            return Err(ActionError::Invalid("mod-wallpaper.image.unreadable".into()));
+            return Err(ActionError::Invalid(
+                "mod-wallpaper.image.unreadable".into(),
+            ));
         }
         let path = path.display().to_string();
         self.ready().await?;
