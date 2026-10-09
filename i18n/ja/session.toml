@@ -4,3 +4,4 @@
 "action.session.poweroff" = "シャットダウン"
 "action.session.logout" = "ログアウト"
 "session.confirm_required" = "続行するには確認してください"
+"action.input.dispatch" = "割り当てられた操作を実行"
