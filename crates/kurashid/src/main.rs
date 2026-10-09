@@ -143,7 +143,13 @@ async fn run() -> anyhow::Result<()> {
         let hub = hub.clone();
         tokio::task::spawn_blocking(move || kurashid::capabilities::probe_and_apply(&store, &hub));
     }
-    kurashid::clock::register(&hub);
+    kurashid::clock::register(
+        &hub,
+        kurashid::clock::weekdays(&kurashid::i18n::load_locale(
+            &kurashid::i18n::data_dir().join("i18n"),
+            &locale,
+        )),
+    );
     kurashid::wiring::ui(&hub, &mut actions);
     kurashid::wiring::notifications_with_facts(
         &hub,
