@@ -1,0 +1,60 @@
+{
+  "name": "frontend-real",
+  "cmd": [
+    "frontend/launch.sh"
+  ],
+  "daemon": "real",
+  "date": "2026-10-09 14:25",
+  "commit": "e72690f",
+  "pass_a": {
+    "idle_cpu_pct": 0.033,
+    "wakeups_per_s": 0.6,
+    "pss_mib_1out": 126.9,
+    "gpu_mib": 0,
+    "processes": 1,
+    "idle_window_s": 30.0,
+    "daemon_idle_cpu_pct": 0.033,
+    "daemon_wakeups_per_s": 0.0,
+    "daemon_pss_mib": 13.9,
+    "idle_cpu_pct_total": 0.066,
+    "pss_mib_popup": 128.3,
+    "pss_mib_popup_closed": 128.3,
+    "pss_mib_2out": 133.9,
+    "survived_hotplug": true,
+    "cycle_count": 20,
+    "pss_mib_cycle_before": 149.57,
+    "pss_mib_cycle_after": 149.43,
+    "pss_mib_cycle_growth": -0.14,
+    "daemon_pss_mib_end": 15.5
+  },
+  "pass_b": {
+    "startup_ms": 161,
+    "idle_commits_per_s": 0.03,
+    "idle_commits_by_surface": {
+      "36": 1
+    },
+    "popup_latency_ms_median": 3.1,
+    "popup_latency_ms_all": [
+      4.7,
+      3.0,
+      3.1,
+      2.9,
+      3.1
+    ],
+    "mapped_layer_surfaces_idle": 3,
+    "morph_commits": 23,
+    "morph_frame_ms_p50": 16.2,
+    "morph_frame_ms_p99": 18.1
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 2.5,
+    "top_syscalls": {
+      "futex": 31,
+      "ioctl": 7,
+      "ppoll": 7,
+      "mprotect": 6,
+      "read": 5,
+      "write": 4
+    }
+  }
+}

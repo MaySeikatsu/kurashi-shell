@@ -1,0 +1,44 @@
+{
+  "name": "rerun-slint",
+  "cmd": [
+    "env",
+    "LD_LIBRARY_PATH=/nix/store/li1008zymvj7sz8jkdk9brkslfq9jy8w-wayland-1.26.0/lib:/nix/store/nvrv5w6rhc39h8snrsw03nqs679cf7rh-libxkbcommon-1.13.2/lib:/nix/store/g5p3gslpl160yagi4bzai5yhpcg0di5l-fontconfig-2.18.3-lib/lib:/nix/store/81xfxjiw58spk795jgcc7z1diwmy3xmi-freetype-2.14.3/lib",
+    "/home/maike/Projects/kurashi-shell/archive/bakeoff-probes/slint/target/release/kurashi-probe-slint"
+  ],
+  "daemon": "mock",
+  "date": "2026-10-09 14:00",
+  "commit": "e72690f",
+  "pass_a": {
+    "idle_cpu_pct": 0.0,
+    "wakeups_per_s": 0.0,
+    "pss_mib_1out": 23.3,
+    "gpu_mib": 0,
+    "processes": 1,
+    "idle_window_s": 30.0,
+    "pss_mib_popup": 23.9,
+    "pss_mib_popup_closed": 23.9,
+    "pss_mib_2out": 24.1,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 36,
+    "idle_commits_per_s": 0.0,
+    "idle_commits_by_surface": {},
+    "popup_latency_ms_median": 2.3,
+    "popup_latency_ms_all": [
+      2.7,
+      2.2,
+      2.4,
+      2.3,
+      2.3
+    ],
+    "mapped_layer_surfaces_idle": 1,
+    "morph_commits": 23,
+    "morph_frame_ms_p50": 16.3,
+    "morph_frame_ms_p99": 16.9
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 0.0,
+    "top_syscalls": {}
+  }
+}

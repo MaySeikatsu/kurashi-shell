@@ -1,0 +1,51 @@
+{
+  "name": "rerun-gpui",
+  "cmd": [
+    "/home/maike/Projects/kurashi-shell/archive/bakeoff-probes/gpui/run.sh"
+  ],
+  "daemon": "mock",
+  "date": "2026-10-09 14:04",
+  "commit": "e72690f",
+  "pass_a": {
+    "idle_cpu_pct": 0.333,
+    "wakeups_per_s": 175.2,
+    "pss_mib_1out": 147.7,
+    "gpu_mib": 24,
+    "processes": 1,
+    "idle_window_s": 30.0,
+    "pss_mib_popup": 148.7,
+    "pss_mib_popup_closed": 149.6,
+    "pss_mib_2out": 149.9,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 459,
+    "idle_commits_per_s": 58.8,
+    "idle_commits_by_surface": {
+      "23": 1764
+    },
+    "popup_latency_ms_median": 26.3,
+    "popup_latency_ms_all": [
+      26.3,
+      0.8,
+      26.6,
+      2.1,
+      27.5
+    ],
+    "mapped_layer_surfaces_idle": 1,
+    "morph_commits": 88,
+    "morph_frame_ms_p50": 16.9,
+    "morph_frame_ms_p99": 18.0
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 699.9,
+    "top_syscalls": {
+      "futex": 6779,
+      "epoll_ctl": 3550,
+      "recvmsg": 3546,
+      "read": 1777,
+      "timerfd_settime": 1775,
+      "epoll_pwait": 1775
+    }
+  }
+}

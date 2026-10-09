@@ -74,8 +74,8 @@ Raw JSON: `tools/bench/results/rerun-*.json`, `tools/bench/results/frontend-real
    **do not change budgets** — that is a decision for the lead/user.
 2. `docs/BAKEOFF.md`: under "Quiet re-measure", add a machine-B table with the same rows/columns as
    machine A's, plus one paragraph comparing the two machines.
-3. Copy each probe JSON to `archive/bakeoff-probes/<name>/bench-rerun-<date>-machine-b.json`
-   (the only allowed change under `archive/`).
+3. Copy each probe JSON (and the gate JSONs) to `tools/bench/baselines/<machine>-<date>/` —
+   `archive/` stays untouched (user rule, session 4).
 4. `docs/PROGRESS.md`: add a row `B.2 | Quiet baseline machine B | ✅ | <commit>, <one-line result>`.
 5. Work on a branch, commit with a conventional message (`docs(bench): machine B baseline`),
    `git merge --no-ff` into `main`, push.
@@ -87,4 +87,8 @@ Raw JSON: `tools/bench/results/rerun-*.json`, `tools/bench/results/frontend-real
 - `frontend/launch.sh` pins the NVIDIA EGL vendor only with NVIDIA and exactly one render node (saves
   ~13 MiB); on AMD/Intel or hybrid laptops it changes nothing — expect a different PSS floor.
 - Slint's probe renders on the CPU, so its memory is not comparable to the GPU-rendered probes.
+- **Hybrid GPUs:** the sandbox takes the first render node, which may be the dGPU. Find the GPU the
+  session renders on (`/sys/class/drm/card*/device/boot_vga`, the compositor's open `/dev/dri` fds) and
+  run the gate there too: `KURASHI_RENDER_NODE=/dev/dri/renderD<n> just bench-gate`. An NVIDIA dGPU with
+  runtime PM costs ~1.7 s of client CPU per resume; an idle window that catches one fails the CPU budget.
 - A noisy machine shows up as PSS swings of ±15 MiB between runs of the same build: re-run then.
