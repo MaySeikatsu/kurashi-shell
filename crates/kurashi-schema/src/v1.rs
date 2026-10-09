@@ -109,7 +109,7 @@ pub enum Colorblind {
 pub struct Colors {
     /// Palette
     /// Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
-    #[kurashi(default = "wa-iro".to_owned())]
+    #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
     pub palette: String,
     /// Scheme
     /// Dark or light surfaces.
@@ -271,11 +271,14 @@ pub struct Island {
 pub struct IslandInstance {
     /// Faces
     /// Faces this island may show, in cycling order.
-    #[kurashi(default = strings(&["clock", "media", "notifications"]))]
+    #[kurashi(
+        default = strings(&["clock", "media", "notifications"]),
+        choices_from = "island.faces"
+    )]
     pub faces: Vec<String>,
     /// Default face
     /// Face shown when nothing more relevant is happening.
-    #[kurashi(default = "clock".to_owned())]
+    #[kurashi(default = "clock".to_owned(), choices_from = "island.faces")]
     pub default: String,
     /// Transient duration
     /// How long a transient face (volume, brightness, notification) stays before falling back.

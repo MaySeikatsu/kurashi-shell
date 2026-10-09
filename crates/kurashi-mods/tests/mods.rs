@@ -1,5 +1,6 @@
 use kurashi_mods::{ModState, ModsError, Policy, Registry, manifest};
 use semver::Version;
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -276,13 +277,119 @@ fn enable_disable_symmetric_and_idempotent() {
     assert_eq!(on.added.len(), 5 + 2);
     assert!(on.removed.is_empty());
     assert!(r.enable("media").unwrap().added.is_empty());
+    // Disabling drops the provides; the mod is still loaded, so its settings stay registered.
     let off = r.disable("media").unwrap();
     assert_eq!(r.get("media").unwrap().state, ModState::Disabled);
-    assert_eq!(off.removed, on.added);
+    assert_eq!(off.removed, on.added[..5]);
     assert!(off.added.is_empty());
     assert!(r.disable("media").unwrap().removed.is_empty());
+    // Unloading takes the settings too, and enabling an available mod registers all of it again.
+    let unloaded = r.unload("media").unwrap();
+    assert_eq!(unloaded.removed, on.added[5..]);
+    assert_eq!(r.get("media").unwrap().state, ModState::Available);
     assert_eq!(r.enable("media").unwrap().added, on.added);
     assert!(matches!(r.enable("nope"), Err(ModsError::Unknown(_))));
+}
+
+#[test]
+fn load_registers_settings_and_leaves_provides_off() {
+    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let loaded = r.load("media").unwrap();
+    assert_eq!(r.get("media").unwrap().state, ModState::Disabled);
+    assert!(
+        loaded
+            .added
+            .iter()
+            .all(|c| matches!(c, kurashi_mods::Contribution::Setting { .. }))
+    );
+    assert_eq!(loaded.added.len(), 2);
+    assert!(r.load("media").unwrap().added.is_empty(), "idempotent");
+    // Loading a mod that is on changes nothing; unloading it switches it off first.
+    r.enable("media").unwrap();
+    assert!(r.load("media").unwrap().added.is_empty());
+    let gone = r.unload("media").unwrap();
+    assert_eq!(gone.removed.len(), 5 + 2);
+    assert_eq!(r.get("media").unwrap().state, ModState::Available);
+    assert!(r.unload("media").unwrap().removed.is_empty());
+    assert!(matches!(r.load("nope"), Err(ModsError::Unknown(_))));
+    assert!(matches!(r.unload("nope"), Err(ModsError::Unknown(_))));
+}
+
+#[test]
+fn reconcile_makes_the_registry_equal_to_the_lists() {
+    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let set = |ids: &[&str]| ids.iter().map(|s| s.to_string()).collect();
+    // An enabled id is loaded even when the loaded list does not name it (K25, enabled ⊆ loaded).
+    assert!(r.reconcile(&set(&[]), &set(&["media"])).is_empty());
+    assert_eq!(r.get("media").unwrap().state, ModState::Enabled);
+    // Dropping it from both lists unloads it; unknown ids are ignored.
+    assert!(r.reconcile(&set(&["nope"]), &set(&["nope"])).is_empty());
+    assert_eq!(r.get("media").unwrap().state, ModState::Available);
+    // Loaded but off.
+    r.reconcile(&set(&["media"]), &set(&[]));
+    assert_eq!(r.get("media").unwrap().state, ModState::Disabled);
+    // Idempotent: the same lists again change nothing.
+    let before = r.doc();
+    r.reconcile(&set(&["media"]), &set(&[]));
+    assert_eq!(r.doc(), before);
+}
+
+#[test]
+fn reconcile_switches_off_before_it_switches_on() {
+    let t = tempfile::tempdir().unwrap();
+    write(t.path(), "aa", &with_id("aa", r#"["widget:x"]"#));
+    write(t.path(), "bb", &with_id("bb", r#"["widget:x"]"#));
+    let set = |ids: &[&str]| -> BTreeSet<String> { ids.iter().map(|s| s.to_string()).collect() };
+    let mut r = Registry::discover(&[t.path().into()], &daemon());
+    r.reconcile(&set(&["aa"]), &set(&["aa"]));
+    // The rival is listed in place of the mod it replaces: the swap must go through.
+    let refused = r.reconcile(&set(&["bb"]), &set(&["bb"]));
+    assert!(refused.is_empty(), "{refused:?}");
+    assert_eq!(r.get("bb").unwrap().state, ModState::Enabled);
+    assert_eq!(r.get("aa").unwrap().state, ModState::Available);
+    // Both listed as enabled from scratch: the first by id gets the provide, the other is
+    // reported and stays off.
+    let mut r = Registry::discover(&[t.path().into()], &daemon());
+    let refused = r.reconcile(&set(&["aa", "bb"]), &set(&["aa", "bb"]));
+    assert_eq!(refused.len(), 1);
+    assert_eq!(refused[0].0, "bb");
+    assert_eq!(r.get("aa").unwrap().state, ModState::Enabled);
+    assert_eq!(r.get("bb").unwrap().state, ModState::Disabled);
+}
+
+#[test]
+fn running_is_reported_per_mod_and_defaults_off() {
+    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    r.enable("media").unwrap();
+    assert!(
+        r.doc()["mods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|m| m["running"] == false)
+    );
+    r.set_running("media", true);
+    r.set_running("nope", true);
+    let doc = r.doc();
+    let media = doc["mods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "media")
+        .unwrap();
+    assert_eq!(media["running"], true);
+    assert_eq!(media["state"], "enabled");
+}
+
+#[test]
+fn ids_of_the_mods_lists_are_reserved() {
+    // `mods.loaded` / `mods.enabled` are config keys: a mod table of the same name cannot exist.
+    for id in ["loaded", "enabled"] {
+        let errs = manifest::parse(id, &with_id(id, r#"["widget:x"]"#), &daemon())
+            .expect_err("reserved id");
+        let codes: Vec<_> = errs.iter().map(|e| e.code).collect();
+        assert_eq!(codes, ["id_reserved"], "{id}");
+    }
 }
 
 #[test]

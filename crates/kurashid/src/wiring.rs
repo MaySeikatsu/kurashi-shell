@@ -1,9 +1,11 @@
 //! Startup wiring of the feature crates whose lifetime is the daemon's: launcher queries, the
 //! notification server, the mods registry and the `runtime.ui` panel state.
 
+use std::collections::BTreeSet;
 use std::future::Future;
 use std::sync::{Arc, Mutex};
 
+use kurashi_ipc::ApplyOp;
 use kurashi_services::brightness::{self as backlight, Change};
 use serde_json::{Value, json};
 
@@ -467,10 +469,10 @@ pub fn notifications_with_facts(
     });
 }
 
-/// `mods` document + `mod.enable` / `mod.disable`. Contributions (faces, services, …) are
-/// registered by later milestones; for now the registry and its honest catalog are live.
-/// The mods registry, its `mods` document and `mod.{enable,disable}`. With a config store, mod
-/// settings follow the registry (K22): keys exist while discovered, pages while enabled.
+/// The mods registry, its `mods` document and the `mod.{load,unload,enable,disable}` actions
+/// (K25). The actions are config writes on `mods.loaded` / `mods.enabled`; a listener reconciles
+/// the registry after every config change, so an action, a file edit, an undo or a profile load
+/// all end the same way. Without a config store the lists live in memory only.
 pub fn mods(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
@@ -483,40 +485,179 @@ pub fn mods(
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }
-    for (id, r) in reg.apply_defaults(&Policy {
-        default_enabled: ["easter-eggs".to_string()].into(),
-    }) {
-        if let Err(e) = r {
-            tracing::warn!(%id, error = e.i18n_key(), "mod not enabled");
+    match &config {
+        Some(c) => {
+            let (loaded, enabled) = lists_of(c);
+            log_refused(reg.reconcile(&loaded, &enabled));
+            c.sync_mods(&reg);
         }
-    }
-    if let Some(c) = &config {
-        c.sync_mods(&reg);
+        None => {
+            let policy = Policy {
+                default_enabled: ["easter-eggs".to_string()].into(),
+            };
+            for (id, r) in reg.apply_defaults(&policy) {
+                if let Err(e) = r {
+                    tracing::warn!(%id, error = e.i18n_key(), "mod not enabled");
+                }
+            }
+        }
     }
     hub.register("mods", reg.doc(), None);
     let reg = Arc::new(Mutex::new(reg));
-    for (action, enable) in [("mod.enable", true), ("mod.disable", false)] {
-        let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
-        actions.register(action, &format!("action.{action}"), move |v: Value| {
-            let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
-            async move {
-                let id = v["id"]
-                    .as_str()
-                    .ok_or_else(|| ActionError::Invalid(format!("{action} needs id")))?;
-                let doc = {
-                    let mut r = reg.lock().expect("mods lock");
-                    let res = if enable { r.enable(id) } else { r.disable(id) };
-                    res.map_err(|e| ActionError::Invalid(e.i18n_key().to_string()))?;
-                    // Lock order mods → config; no config listener may touch mods.
-                    if let Some(c) = &config {
-                        c.sync_mods(&r);
-                    }
-                    r.doc()
-                };
-                let _ = hub.set("mods", doc, None);
-                Ok(None)
+    if let Some(c) = &config {
+        let (hub, reg) = (hub.clone(), reg.clone());
+        c.on_change(move |store| {
+            let (loaded, enabled) = lists_of(store);
+            let mut r = reg.lock().expect("mods lock");
+            let before = r.doc();
+            log_refused(r.reconcile(&loaded, &enabled));
+            let doc = r.doc();
+            if doc == before {
+                return;
             }
+            // Lock order: the registry, then the config. Listeners run with no config lock held.
+            store.adopt_mods(&r);
+            let _ = hub.set("mods", doc, None);
         });
+    }
+    for op in [ModOp::Load, ModOp::Unload, ModOp::Enable, ModOp::Disable] {
+        let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
+        actions.register(
+            op.name(),
+            &format!("action.{}", op.name()),
+            move |v: Value| {
+                let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
+                async move {
+                    let id = v["id"]
+                        .as_str()
+                        .ok_or_else(|| ActionError::Invalid(format!("{} needs id", op.name())))?;
+                    mod_action(op, id, &hub, &reg, config.as_deref())
+                }
+            },
+        );
+    }
+}
+
+#[derive(Clone, Copy)]
+enum ModOp {
+    Load,
+    Unload,
+    Enable,
+    Disable,
+}
+
+impl ModOp {
+    fn name(self) -> &'static str {
+        match self {
+            ModOp::Load => "mod.load",
+            ModOp::Unload => "mod.unload",
+            ModOp::Enable => "mod.enable",
+            ModOp::Disable => "mod.disable",
+        }
+    }
+}
+
+/// The lists as they take effect: (`mods.loaded`, `mods.enabled`).
+fn lists_of(store: &crate::config::ConfigStore) -> (BTreeSet<String>, BTreeSet<String>) {
+    (
+        store.string_list("mods.loaded").into_iter().collect(),
+        store.string_list("mods.enabled").into_iter().collect(),
+    )
+}
+
+fn log_refused(refused: Vec<(String, kurashi_mods::ModsError)>) {
+    for (id, e) in refused {
+        tracing::warn!(%id, error = e.i18n_key(), "mod not enabled");
+    }
+}
+
+/// One `mod.*` action. The registry first says whether the change can happen at all (unknown,
+/// invalid, a provide another enabled mod holds): a refused change writes nothing. The change is
+/// then a config write on the lists, one undoable transaction; the listener brings the registry
+/// and the `mods` document along.
+fn mod_action(
+    op: ModOp,
+    id: &str,
+    hub: &Hub,
+    reg: &Mutex<kurashi_mods::Registry>,
+    config: Option<&crate::config::ConfigStore>,
+) -> ActionResult {
+    use kurashi_mods::ModsError;
+    let mut next = reg.lock().expect("mods lock").clone();
+    let outcome = match op {
+        ModOp::Load => next.load(id),
+        ModOp::Unload => next.unload(id),
+        ModOp::Enable => next.enable(id),
+        ModOp::Disable => next.disable(id),
+    };
+    outcome.map_err(|e| {
+        // An invalid mod is "not loadable" when it is the load that is refused.
+        let key = match (op, &e) {
+            (ModOp::Load, ModsError::Invalid(_)) => "mods.error.not_loadable",
+            _ => e.i18n_key(),
+        };
+        ActionError::Invalid(key.into())
+    })?;
+    let Some(store) = config else {
+        let doc = next.doc();
+        *reg.lock().expect("mods lock") = next;
+        let _ = hub.set("mods", doc, None);
+        return Ok(None);
+    };
+    let loaded = store.string_list("mods.loaded");
+    let enabled = store.string_list("mods.enabled");
+    let (new_loaded, new_enabled) = next_lists(op, id, loaded.clone(), enabled.clone());
+    let mut ops = Vec::new();
+    for (key, old, new) in [
+        ("mods.loaded", &loaded, &new_loaded),
+        ("mods.enabled", &enabled, &new_enabled),
+    ] {
+        if old == new {
+            continue;
+        }
+        if store.is_forced(key) {
+            return Err(ActionError::Invalid("config.error.forced".into()));
+        }
+        ops.push(ApplyOp::Set {
+            set: key.into(),
+            value: json!(new),
+            output: None,
+        });
+    }
+    if ops.is_empty() {
+        return Ok(None);
+    }
+    store.apply(&ops).map_err(|errs| {
+        let code = errs
+            .first()
+            .map_or("config.error.unrepresentable", |e| e.code.as_str());
+        ActionError::Invalid(code.into())
+    })?;
+    Ok(None)
+}
+
+/// The lists after `op` (K25): load adds to `loaded`; enable adds to both; disable takes the id
+/// off `enabled` only; unload takes it off both.
+fn next_lists(
+    op: ModOp,
+    id: &str,
+    loaded: Vec<String>,
+    enabled: Vec<String>,
+) -> (Vec<String>, Vec<String>) {
+    fn with(mut list: Vec<String>, id: &str) -> Vec<String> {
+        if !list.iter().any(|x| x == id) {
+            list.push(id.to_string());
+        }
+        list
+    }
+    fn without(list: Vec<String>, id: &str) -> Vec<String> {
+        list.into_iter().filter(|x| x != id).collect()
+    }
+    match op {
+        ModOp::Load => (with(loaded, id), enabled),
+        ModOp::Unload => (without(loaded, id), without(enabled, id)),
+        ModOp::Enable => (with(loaded, id), with(enabled, id)),
+        ModOp::Disable => (loaded, without(enabled, id)),
     }
 }
 

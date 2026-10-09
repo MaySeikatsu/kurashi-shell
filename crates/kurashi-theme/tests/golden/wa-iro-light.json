@@ -32,6 +32,8 @@
   "color.scrim": "#000000",
   "color.secondary": "#284f7e",
   "color.shadow": "#000000",
+  "color.status.off": "#5d5b5b",
+  "color.status.on": "#2e7d32",
   "color.success": "#2e7d32",
   "color.surface": "#f3eee3",
   "color.surface_alpha": 0.82,
