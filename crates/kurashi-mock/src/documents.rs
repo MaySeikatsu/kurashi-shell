@@ -91,6 +91,67 @@ pub fn brightness(value: u32) -> Value {
     })
 }
 
+/// `svc.tray` (PROTOCOL §7; the first item is `fixtures/ipc/server/snap_tray.json`, which the unit
+/// tests compare with). The second item only names an icon, so the frontend's fallbacks show.
+pub fn tray() -> Value {
+    json!({
+        "available": true,
+        "items": [
+            {
+                "id": ":1.42/StatusNotifierItem",
+                "title": "Nextcloud",
+                "icon_name": "nextcloud-client",
+                "status": "Active",
+                "has_menu": true,
+                "icon_pixmap": {"w": 1, "h": 1, "png_base64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg=="},
+                "icon_theme_path": "/usr/share/icons/hicolor",
+                "tooltip": "Nextcloud\nUp to date"
+            },
+            {
+                "id": ":1.57/StatusNotifierItem",
+                "title": "Network",
+                "icon_name": "network-wired",
+                "status": "Active",
+                "has_menu": true
+            }
+        ]
+    })
+}
+
+/// `svc.bluetooth` (PROTOCOL §7; `fixtures/ipc/server/snap_bluetooth.json`): a powered adapter with
+/// one connected keyboard. The unpaired device is listed by the frontend only while a scan runs.
+pub fn bluetooth() -> Value {
+    json!({
+        "available": true,
+        "powered": true,
+        "discovering": false,
+        "devices": [
+            {"address": "AA:BB:CC:DD:EE:FF", "name": "Keyboard", "paired": true, "connected": true, "icon": "input-keyboard", "battery": 80},
+            {"address": "11:22:33:44:55:66", "name": "11:22:33:44:55:66", "paired": false, "connected": false}
+        ]
+    })
+}
+
+/// `tray.menu {id}` (K23): the tree kurashi-tray builds (`menu.rs`). The same small tree for every
+/// item: one separator, one checkmark, a submenu with radio entries, and a disabled entry.
+pub fn tray_menu() -> Value {
+    json!({
+        "id": 0,
+        "enabled": true,
+        "children": [
+            {"id": 1, "label": "Open", "enabled": true, "icon_name": "document-open"},
+            {"id": 2, "separator": true, "enabled": true},
+            {"id": 3, "label": "Show notifications", "enabled": true, "toggle": "checkmark", "checked": true},
+            {"id": 4, "label": "Account", "enabled": true, "children": [
+                {"id": 5, "label": "Work", "enabled": true, "toggle": "radio", "checked": true},
+                {"id": 6, "label": "Personal", "enabled": true, "toggle": "radio", "checked": false}
+            ]},
+            {"id": 7, "label": "Sync paused", "enabled": false},
+            {"id": 8, "label": "Quit", "enabled": true}
+        ]
+    })
+}
+
 /// `bindings`: every `<component>.input.<slot>` whose schema default is a non-empty action, as
 /// `{action, source}`. Unbound slots are absent, never null. Derived from the registry, so the
 /// mock cannot drift from the schema's island defaults.

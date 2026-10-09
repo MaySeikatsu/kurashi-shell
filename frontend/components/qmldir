@@ -8,3 +8,7 @@ ModNode 1.0 ModNode.qml
 LockContent 1.0 LockContent.qml
 NotificationCard 1.0 NotificationCard.qml
 FocusRing 1.0 FocusRing.qml
+TrayIcon 1.0 TrayIcon.qml
+TrayMenu 1.0 TrayMenu.qml
+BluetoothSwitch 1.0 BluetoothSwitch.qml
+BluetoothPanel 1.0 BluetoothPanel.qml

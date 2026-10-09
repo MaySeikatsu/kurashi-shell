@@ -9,7 +9,7 @@ use std::hash::{BuildHasher, Hasher};
 use chrono::NaiveTime;
 use kurashi_core::Rev;
 use kurashi_ipc::{ServerMsg, merge_patch};
-use kurashid::wiring::CONFIRM_REQUIRED;
+use kurashid::wiring::{ARGS_INVALID, CONFIRM_REQUIRED, SERVICE_CALL_FAILED};
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
@@ -84,8 +84,20 @@ impl State {
             ("svc.audio", json!({"volume": 0.5, "muted": false})),
             (
                 "svc.media",
-                json!({"title": "夜に駆ける", "artist": "YOASOBI", "playing": true}),
+                json!({"available": true, "title": "夜に駆ける", "artist": "YOASOBI", "playing": true}),
             ),
+            // Services the daemon serves once something subscribes. Their `available` is true
+            // here, as kurashid reports it on a machine with the bus up (F-services-available).
+            (
+                "svc.session",
+                json!({"available": true, "idle_hint": false, "locked_hint": false, "preparing_for_sleep": false}),
+            ),
+            (
+                "svc.power",
+                json!({"available": true, "present": false, "on_battery": false}),
+            ),
+            ("svc.tray", documents::tray()),
+            ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
             (
                 "runtime.island.main",
@@ -291,6 +303,36 @@ impl State {
                 }
                 tracing::info!(%id, "launcher.launch: not spawned in the mock");
             }
+            // svc.tray: the mock owns no items, so the calls are checked the way kurashid checks
+            // them (wiring.rs `tray_with`) and then logged. Nothing is sent to an item.
+            "tray.activate" | "tray.secondary" => {
+                let id = str_arg(args, "id")?;
+                let (x, y) = (int_arg(args, "x")?, int_arg(args, "y")?);
+                tracing::info!(%action, %id, x, y, "tray action: logged in the mock");
+            }
+            "tray.scroll" => {
+                let id = str_arg(args, "id")?;
+                let delta = int_arg(args, "delta")?;
+                let orientation = str_arg(args, "orientation")?;
+                if !matches!(orientation.as_str(), "horizontal" | "vertical") {
+                    return Err(Fail::invalid(ARGS_INVALID));
+                }
+                tracing::info!(%id, delta, %orientation, "tray.scroll: logged in the mock");
+            }
+            "tray.menu" => {
+                str_arg(args, "id")?;
+                return Ok(Some(documents::tray_menu()));
+            }
+            "tray.menu_event" => {
+                let id = str_arg(args, "id")?;
+                let item = int_arg(args, "item")?;
+                tracing::info!(%id, item, "tray.menu_event: logged in the mock");
+            }
+            // svc.bluetooth: the adapter and devices in the document change as BlueZ would change them.
+            "bluetooth.power" => self.bluetooth_power(bool_arg(args, "on")?),
+            "bluetooth.connect" => self.bluetooth_link(&str_arg(args, "address")?, true)?,
+            "bluetooth.disconnect" => self.bluetooth_link(&str_arg(args, "address")?, false)?,
+            "bluetooth.scan" => self.bluetooth_scan(bool_arg(args, "on")?)?,
             "input.dispatch" => return self.dispatch(args),
             _ => {
                 return Err(Fail {
@@ -321,6 +363,46 @@ impl State {
             json!({"panel": panel, "popup": !open, "tray": ""}),
             None,
         );
+    }
+
+    /// `bluetooth.power {on}`. Switching the adapter off ends any scan and every link, as BlueZ does.
+    fn bluetooth_power(&mut self, on: bool) {
+        let mut doc = self.data("svc.bluetooth").clone();
+        doc["powered"] = json!(on);
+        if !on {
+            doc["discovering"] = json!(false);
+            for d in doc["devices"].as_array_mut().into_iter().flatten() {
+                d["connected"] = json!(false);
+            }
+        }
+        self.patch("svc.bluetooth", doc, None);
+    }
+
+    /// `bluetooth.connect|disconnect {address}`. BlueZ needs a powered adapter and a paired device
+    /// and refuses anything else; kurashid reports the refusal as the call-failed key.
+    fn bluetooth_link(&mut self, address: &str, connect: bool) -> Result<(), Fail> {
+        let mut doc = self.data("svc.bluetooth").clone();
+        let powered = doc["powered"].as_bool().unwrap_or(false);
+        let devices = doc["devices"].as_array_mut().ok_or_else(call_failed)?;
+        let device = devices
+            .iter_mut()
+            .find(|d| d["address"] == address)
+            .ok_or_else(call_failed)?;
+        if !powered || device["paired"] != true {
+            return Err(call_failed());
+        }
+        device["connected"] = json!(connect);
+        self.patch("svc.bluetooth", doc, None);
+        Ok(())
+    }
+
+    /// `bluetooth.scan {on}`: needs a powered adapter, as BlueZ's `StartDiscovery` does.
+    fn bluetooth_scan(&mut self, on: bool) -> Result<(), Fail> {
+        if self.data("svc.bluetooth")["powered"] != true {
+            return Err(call_failed());
+        }
+        self.patch("svc.bluetooth", json!({"discovering": on}), None);
+        Ok(())
     }
 
     /// `brightness.up/down {step?}`: `step` is a fraction of full scale, clamped to the device.
@@ -431,6 +513,34 @@ impl State {
     pub fn mock_workspace(&mut self, idx: u32) {
         let ws = documents::workspaces(&self.outputs, idx);
         self.apply("svc.workspaces", ws, None, true);
+    }
+}
+
+/// A required argument: missing or of another JSON type is refused as kurashid refuses it.
+fn str_arg(args: &Value, key: &str) -> Result<String, Fail> {
+    args[key]
+        .as_str()
+        .map(str::to_owned)
+        .ok_or_else(|| Fail::invalid(ARGS_INVALID))
+}
+
+fn int_arg(args: &Value, key: &str) -> Result<i64, Fail> {
+    args[key]
+        .as_i64()
+        .ok_or_else(|| Fail::invalid(ARGS_INVALID))
+}
+
+fn bool_arg(args: &Value, key: &str) -> Result<bool, Fail> {
+    args[key]
+        .as_bool()
+        .ok_or_else(|| Fail::invalid(ARGS_INVALID))
+}
+
+/// What kurashid answers when a service refuses a call (`ActionError::Unavailable`).
+fn call_failed() -> Fail {
+    Fail {
+        kind: "unavailable",
+        msg: SERVICE_CALL_FAILED.into(),
     }
 }
 
@@ -978,5 +1088,158 @@ mod tests {
         let (a, b) = (state(), state());
         assert!(!a.instance.is_empty());
         assert_ne!(a.instance, b.instance);
+    }
+
+    #[test]
+    fn tray_and_bluetooth_serve_the_fixture_contents() {
+        let st = state();
+        let tray: Value =
+            serde_json::from_str(include_str!("../../../fixtures/ipc/server/snap_tray.json"))
+                .unwrap();
+        let bt: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_bluetooth.json"
+        ))
+        .unwrap();
+        // The fixture's item is the first one; the second only names an icon.
+        assert_eq!(st.data("svc.tray")["items"][0], tray["data"]["items"][0]);
+        assert_eq!(st.data("svc.tray")["items"].as_array().unwrap().len(), 2);
+        assert!(st.data("svc.tray")["items"][1].get("icon_pixmap").is_none());
+        assert_eq!(st.data("svc.bluetooth"), &bt["data"]);
+    }
+
+    #[test]
+    fn services_the_frontend_watches_report_themselves_available() {
+        let st = state();
+        for doc in [
+            "svc.media",
+            "svc.session",
+            "svc.power",
+            "svc.tray",
+            "svc.bluetooth",
+        ] {
+            assert_eq!(st.data(doc)["available"], true, "{doc}");
+        }
+    }
+
+    #[test]
+    fn tray_menu_has_the_entries_the_frontend_draws() {
+        let tree = documents::tray_menu();
+        assert_eq!(tree["id"], 0);
+        let top = tree["children"].as_array().unwrap();
+        let count = |pred: &dyn Fn(&Value) -> bool| top.iter().filter(|e| pred(e)).count();
+        assert_eq!(count(&|e| e["separator"] == true), 1);
+        assert_eq!(count(&|e| e["toggle"] == "checkmark"), 1);
+        assert_eq!(count(&|e| e["children"].is_array()), 1);
+        assert_eq!(count(&|e| e["enabled"] == false), 1);
+        // Only the keys kurashi-tray's node builder writes.
+        for e in top {
+            for key in e.as_object().unwrap().keys() {
+                assert!(
+                    [
+                        "id",
+                        "label",
+                        "separator",
+                        "enabled",
+                        "icon_name",
+                        "toggle",
+                        "checked",
+                        "children"
+                    ]
+                    .contains(&key.as_str()),
+                    "unexpected key {key}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn tray_actions_check_their_arguments_and_return_the_menu() {
+        let mut st = state();
+        let click = json!({"id": ":1.42/StatusNotifierItem", "x": 1900, "y": 18});
+        assert_eq!(st.act("tray.activate", &click), Ok(None));
+        assert_eq!(st.act("tray.secondary", &click), Ok(None));
+        assert_eq!(
+            st.act("tray.activate", &json!({"id": "a", "x": 1})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        let scroll = json!({"id": "a", "delta": -1, "orientation": "vertical"});
+        assert_eq!(st.act("tray.scroll", &scroll), Ok(None));
+        assert_eq!(
+            st.act(
+                "tray.scroll",
+                &json!({"id": "a", "delta": 1, "orientation": "diagonal"})
+            ),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(
+            st.act("tray.menu_event", &json!({"id": "a", "item": 8})),
+            Ok(None)
+        );
+        assert_eq!(
+            st.act("tray.menu", &json!({"id": "a"})),
+            Ok(Some(documents::tray_menu()))
+        );
+        assert_eq!(
+            st.act("tray.menu", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+    }
+
+    #[test]
+    fn bluetooth_power_scan_and_links_follow_bluez() {
+        let mut st = state();
+        let keyboard = "AA:BB:CC:DD:EE:FF";
+        let stranger = "11:22:33:44:55:66";
+        let connected = |st: &State| st.data("svc.bluetooth")["devices"][0]["connected"].clone();
+
+        // Paired and powered: a link goes through, an unpaired device is refused.
+        assert_eq!(
+            st.act("bluetooth.disconnect", &json!({"address": keyboard})),
+            Ok(None)
+        );
+        assert_eq!(connected(&st), false);
+        assert_eq!(
+            st.act("bluetooth.connect", &json!({"address": keyboard})),
+            Ok(None)
+        );
+        assert_eq!(connected(&st), true);
+        assert_eq!(
+            st.act("bluetooth.connect", &json!({"address": stranger})),
+            Err(call_failed())
+        );
+        assert_eq!(
+            st.act("bluetooth.connect", &json!({"address": "no:such:device"})),
+            Err(call_failed())
+        );
+
+        // Scanning starts and stops on the document.
+        assert_eq!(st.act("bluetooth.scan", &json!({"on": true})), Ok(None));
+        assert_eq!(st.data("svc.bluetooth")["discovering"], true);
+
+        // Powering off ends the scan and drops every link; nothing can connect while off.
+        assert_eq!(st.act("bluetooth.power", &json!({"on": false})), Ok(None));
+        assert_eq!(st.data("svc.bluetooth")["powered"], false);
+        assert_eq!(st.data("svc.bluetooth")["discovering"], false);
+        assert_eq!(connected(&st), false);
+        assert_eq!(
+            st.act("bluetooth.connect", &json!({"address": keyboard})),
+            Err(call_failed())
+        );
+        assert_eq!(
+            st.act("bluetooth.scan", &json!({"on": true})),
+            Err(call_failed())
+        );
+        assert_eq!(st.act("bluetooth.power", &json!({"on": true})), Ok(None));
+        assert_eq!(st.data("svc.bluetooth")["powered"], true);
+
+        // Missing arguments are refused before anything changes.
+        assert_eq!(
+            st.act("bluetooth.power", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
+        assert_eq!(
+            st.act("bluetooth.connect", &json!({})),
+            Err(Fail::invalid(ARGS_INVALID))
+        );
     }
 }

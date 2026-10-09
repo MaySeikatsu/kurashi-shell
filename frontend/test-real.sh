@@ -33,7 +33,9 @@ K() { "$W/kurashi" "$@"; }
 shot() { sleep "${2:-1.5}"; grim "$OUT/$1.png"; [ -s "$OUT/$1.png" ] || { echo "empty screenshot $1" >&2; exit 1; }; echo "shot $1"; }
 start_daemon() {
   rm -f "$KURASHI_SOCKET"
-  "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
+  # The system bus is a socket that does not exist: the island panel subscribes svc.bluetooth, which
+  # must not reach the host's BlueZ from a test.
+  DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
   DPID=$!; pids+=("$DPID")
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && return 0; sleep 0.1; done
   echo "kurashid did not come up (see $R/kurashid.log)" >&2; exit 1
