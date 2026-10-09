@@ -1,0 +1,6 @@
+"action.session.lock" = "ロック"
+"action.session.suspend" = "サスペンド"
+"action.session.reboot" = "再起動"
+"action.session.poweroff" = "シャットダウン"
+"action.session.logout" = "ログアウト"
+"session.confirm_required" = "続行するには確認してください"

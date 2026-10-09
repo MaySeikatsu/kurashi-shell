@@ -1,0 +1,6 @@
+"action.session.lock" = "Lock"
+"action.session.suspend" = "Suspend"
+"action.session.reboot" = "Restart"
+"action.session.poweroff" = "Shut down"
+"action.session.logout" = "Log out"
+"session.confirm_required" = "Confirm to continue"
