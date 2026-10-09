@@ -154,20 +154,20 @@ panel=$(ipc sub runtime.ui | jq -r '.panel')
 [ "$panel" = "" ] || fail "second right click did not close the tray menu (panel \"$panel\")"
 echo "ok: second right click closes the tray menu"
 
-# 5. The island panel with Bluetooth: powered, one connected keyboard.
-ipc act island.expand >/dev/null || fail "island.expand refused"
-shot island-bluetooth 2
+# 5. Quick settings with Bluetooth (K24: Bluetooth left the island card): powered, one connected keyboard.
+ipc act quick.toggle >/dev/null || fail "quick.toggle refused"
+shot quick-bluetooth 2
 bt=$(ipc sub svc.bluetooth | jq -r '[.powered, ([.devices[] | select(.connected)] | length)] | @tsv')
 [ "$bt" = "$(printf 'true\t1')" ] || fail "mock bluetooth state is \"$bt\", want powered and one connected device"
 
 # 6. A scan lists the nearby device; the adapter state is what the mock was asked for.
 ipc act bluetooth.scan '{"on": true}' >/dev/null || fail "bluetooth.scan refused"
-shot island-bluetooth-scan 1.5
+shot quick-bluetooth-scan 1.5
 
 # 6b. Connect on the unpaired device: the mock refuses it (BlueZ needs pairing), and the panel shows
 # the translated call-failed line, not the daemon's key.
 click 1404 260 left
-shot island-bluetooth-error 1.5
+shot quick-bluetooth-error 1.5
 [ "$(ipc sub svc.bluetooth | jq -r '.discovering')" = "true" ] || fail "scan did not start in the mock"
 ipc act bluetooth.scan '{"on": false}' >/dev/null || fail "bluetooth.scan off refused"
 ipc act ui.close >/dev/null

@@ -13,3 +13,4 @@ TrayMenu 1.0 TrayMenu.qml
 BluetoothSwitch 1.0 BluetoothSwitch.qml
 BluetoothPanel 1.0 BluetoothPanel.qml
 QuickButton 1.0 QuickButton.qml
+QuickPanel 1.0 QuickPanel.qml
