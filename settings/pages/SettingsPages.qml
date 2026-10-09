@@ -22,6 +22,13 @@ Flickable {
             if (ps[i].id === p.pageId) return I18n.pageTitle(ps[i].id, ps[i].label)
         return ""
     }
+    // The mod a mod page is for (the daemon's `mod` id, K25), "" on a core page: its head carries the switch.
+    readonly property string modId: {
+        var ps = Store.schema.pages || []
+        for (var i = 0; i < ps.length; i++)
+            if (ps[i].id === p.pageId) return ps[i].mod || ""
+        return ""
+    }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -88,6 +95,11 @@ Flickable {
         }
         return null
     }
+    // Opens the dropdown of a row on this page: the settings test hook (the keyboard opens it the same way).
+    function openControl(key) {
+        var hit = findRow(col, key)
+        if (hit) hit.openControl()
+    }
 
     Column {
         id: col
@@ -101,12 +113,21 @@ Flickable {
             width: col.width
             text: p.heading
         }
+        ModHead {
+            visible: !p.searching && p.modId !== ""
+            width: col.width
+            modId: p.modId
+        }
         Text {
             visible: p.view.length === 0
+            width: col.width
+            wrapMode: Text.WordWrap
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr(Store.live ? "settings.ui.no_results" : "settings.ui.disconnected")
+            // A mod without settings has an empty page: its head, with the switch, says what there is.
+            text: !Store.live ? I18n.tr("settings.ui.disconnected")
+                : I18n.tr(p.modId !== "" && !p.searching ? "settings.mods.no_settings" : "settings.ui.no_results")
         }
         Repeater {
             model: p.view

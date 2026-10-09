@@ -8,6 +8,8 @@ Singleton {
     readonly property var tokens: (Store.theme && Store.theme.tokens) ? Store.theme.tokens : ({})
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
     function color(k, d) { return Qt.color(tok(k, d)) }
+    // A colour token that may be missing (a palette without it): the given colour stands in.
+    function colorOr(k, d) { var v = tokens[k]; return v === undefined ? d : Qt.color(v) }
     // QML Text has no per-script family list; pick the CJK family by script.
     function fam(t, f) { if (!f || f.length < 2) return ""; return /[　-ヿ一-鿿]/.test(t || "") ? f[1] : f[0] }
 
@@ -25,6 +27,9 @@ Singleton {
     readonly property color container: color("color.surface_container", "#252329")
     readonly property color containerHigh: color("color.surface_container_high", "#2f2c33")
     readonly property color error: color("color.error", "#e5766e")
+    // Mod state marks (K25): the palette's status tokens; without them the accent and the dim text stand in.
+    readonly property color statusOn: colorOr("color.status.on", accent)
+    readonly property color statusOff: colorOr("color.status.off", dim)
     readonly property int pad: tok("space.md", 12)
     readonly property int gap: tok("space.sm", 8)
     readonly property int fs: tok("font.size.body", 13)

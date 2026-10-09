@@ -2,9 +2,10 @@ import QtQuick
 import "../core"
 import "../components"
 
-// Mods page (MODS.md, "The Settings Mods page"): one entry per mod from the daemon's `mods` document.
-// The state shown is always the daemon's. A toggle only asks for `mod.enable` / `mod.disable`; the
-// entry changes when the document does, and a refused request stays visible under its mod.
+// Mods page (MODS.md, "The Settings Mods page"): one entry per mod from the daemon's `mods` document. The state
+// shown is always the daemon's. Load adds a mod's page to Settings and Remove from Settings takes it away again
+// (`mod.load`, `mod.unload`); the switch asks for `mod.enable` / `mod.disable`. A refused request stays visible
+// under its mod until the mod changes state.
 Flickable {
     id: p
     // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with
@@ -13,18 +14,24 @@ Flickable {
     property var failures: ({})
     readonly property bool loaded: Store.mods.mods !== undefined
     readonly property var entries: loaded ? Store.mods.mods : []
+    // Why the loaded list and the enabled list are forced by a layer (nix): their controls are inert, and say so.
+    readonly property string forcedLoaded: Store.forcedReason("mods.loaded")
+    readonly property string forcedEnabled: Store.forcedReason("mods.enabled")
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
-    // Public so the test hook can drive the page like a click would.
-    function setEnabled(id, on) {
+    // Public so the test hooks can drive the page like a click would.
+    function setEnabled(id, on) { request(on ? "mod.enable" : "mod.disable", id) }
+    function load(id) { request("mod.load", id) }
+    function unload(id) { request("mod.unload", id) }
+    function request(action, id) {
         var f = Object.assign({}, failures)
         delete f[id]
         failures = f
-        Store.act(on ? "mod.enable" : "mod.disable", { id: id }, function (m) {
+        Store.act(action, { id: id }, function (m) {
             if (m.t === "done") return
             var g = Object.assign({}, p.failures)
             g[id] = { text: Store.actError(m, "settings.err.unknown_action"), state: stateOf(id) }
@@ -88,6 +95,15 @@ Flickable {
             text: I18n.tr("settings.ui.mods_help")
         }
         Text {
+            visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: Theme.dim
+            font.pixelSize: Theme.fs - 2
+            font.family: Theme.fam(text, Theme.families)
+            text: "⊘ " + (p.forcedLoaded !== "" ? p.forcedLoaded : p.forcedEnabled)
+        }
+        Text {
             visible: p.loaded && p.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
@@ -110,17 +126,53 @@ Flickable {
                 id: entry
                 required property var modelData
                 readonly property bool invalid: modelData.state === "invalid"
+                // Loaded: its page is in Settings, on or off. Available: detected only, with a Load.
+                readonly property bool isLoaded: modelData.state === "enabled" || modelData.state === "disabled"
+                readonly property bool available: modelData.state === "available"
                 readonly property string failure: p.failures[modelData.id] ? p.failures[modelData.id].text : ""
                 width: col.width
                 spacing: 4
 
                 Item {
                     width: parent.width
-                    height: Math.max(info.implicitHeight, tog.height)
+                    height: Math.max(info.implicitHeight, ctl.height)
+                    Row {
+                        id: ctl
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: Theme.gap
+                        Button {
+                            visible: entry.available
+                            primary: true
+                            label: I18n.tr("settings.mods.load")
+                            enabled: Store.live && p.forcedLoaded === ""
+                            onClicked: p.load(entry.modelData.id)
+                        }
+                        Button {
+                            visible: entry.isLoaded
+                            label: I18n.tr("settings.mods.unload")
+                            enabled: Store.live && p.forcedLoaded === ""
+                            onClicked: p.unload(entry.modelData.id)
+                        }
+                        Item {
+                            visible: entry.isLoaded
+                            width: tog.width
+                            height: Theme.controlH
+                            Toggle {
+                                id: tog
+                                objectName: "mod:" + entry.modelData.id
+                                label: I18n.tr(entry.modelData.name)
+                                anchors.verticalCenter: parent.verticalCenter
+                                checked: entry.modelData.state === "enabled"
+                                enabled: Store.live && p.forcedEnabled === ""
+                                onToggled: v => p.setEnabled(entry.modelData.id, v)
+                            }
+                        }
+                    }
                     Column {
                         id: info
                         anchors.left: parent.left
-                        anchors.right: tog.left
+                        anchors.right: ctl.left
                         anchors.rightMargin: Theme.pad
                         spacing: 2
                         Row {
@@ -167,16 +219,15 @@ Flickable {
                             text: I18n.tr("settings.ui.mod_caps") + ": " + p.joined(entry.modelData.capabilities)
                                 + "   " + I18n.tr("settings.ui.mod_provides") + ": " + p.joined(entry.modelData.provides)
                         }
-                    }
-                    Toggle {
-                        id: tog
-                        objectName: "mod:" + entry.modelData.id
-                        label: I18n.tr(entry.modelData.name)
-                        anchors.right: parent.right
-                        anchors.verticalCenter: parent.verticalCenter
-                        checked: entry.modelData.state === "enabled"
-                        enabled: Store.live && !entry.invalid
-                        onToggled: v => p.setEnabled(entry.modelData.id, v)
+                        // "Running now" (K25): one of the mod's services has a subscriber. Not in the sidebar.
+                        Text {
+                            visible: entry.isLoaded
+                            width: parent.width
+                            color: Theme.dim
+                            font.pixelSize: Theme.fs - 2
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr(entry.modelData.running ? "settings.mods.running_yes" : "settings.mods.running_no")
+                        }
                     }
                 }
                 Text {
