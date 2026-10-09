@@ -5,3 +5,4 @@
 "action.session.logout" = "Log out"
 "session.confirm_required" = "Confirm to continue"
 "action.input.dispatch" = "Run the bound action"
+"action.session.menu" = "Session menu"

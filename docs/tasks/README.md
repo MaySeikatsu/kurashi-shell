@@ -45,7 +45,10 @@ merges, and records progress; agents only build what their card says.
    contract requests: <CONTRACT-CHANGE row #s or none>
    integration notes for the lead: <how kurashid should wire this, ≤5 bullets>
    ```
-9. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
+9. **Never hang.** Wrap every test/run in `timeout` (`timeout 600 cargo test …`) and use
+   `set -o pipefail` when piping into `tail`/`grep`, so a deadlock or failure surfaces in minutes
+   (a test once hung 4.5 h unnoticed; a piped failure once got committed).
+10. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
    repo. Time-box anything blocked; report it instead.
 
 ## Wave 1 (2026-10-09, session 2)
@@ -94,3 +97,17 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [M5-island-config](M5-island-config.md) | `kurashid/src/{island,bindings}.rs`, `crates/kurashi-island/` | sonnet |
 | [M5-daemon-polish](M5-daemon-polish.md) | `kurashid/src/{wiring,doctor}.rs` | sonnet |
 
+
+## Wave 7 (Haiku agents, max effort; up to 10 in parallel)
+| Card | Owner paths | Model |
+|---|---|---|
+| [M5-osd-session-daemon](M5-osd-session-daemon.md) | `kurashid/src/{wiring,main,island}.rs`, `kurashi-services/src/brightness.rs`, `kurashi-auth/` | haiku |
+| [M5-ui-session](M5-ui-session.md) | `frontend/surfaces/{SessionMenu,Stage}.qml`, faces `BrightnessFace`, `frontend.toml` | haiku |
+| [M5-ui-bindings](M5-ui-bindings.md) | `frontend/components/Island.qml`, `frontend/surfaces/Bar.qml`, `frontend/core/` | haiku |
+| [M7-run](M7-run.md) | `flake.nix` (apps), `nix/apps.nix`, `README.md` | haiku |
+| [M4-tray](M4-tray.md) | `crates/kurashi-tray/` (new) | haiku |
+| [M4-bluetooth](M4-bluetooth.md) | `kurashi-services/src/bluetooth.rs` (new) | haiku |
+| [M5-settings-search-mods](M5-settings-search-mods.md) | `settings/`, `settings.toml` | haiku |
+| [M0-mock-parity](M0-mock-parity.md) | `crates/kurashi-mock/` | haiku |
+| [M5-honesty](M5-honesty.md) | `kurashid/tests/honesty.rs` (new) | haiku |
+| [R-daemon-review](R-daemon-review.md) | read-only | haiku |
