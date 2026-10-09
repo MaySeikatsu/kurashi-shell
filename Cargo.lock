@@ -636,9 +636,13 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "clap",
+ "kurashi-config",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashi-schema",
+ "kurashid",
  "serde_json",
+ "thiserror",
  "tokio",
 ]
 
