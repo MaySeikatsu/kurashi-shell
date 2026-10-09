@@ -1,0 +1,390 @@
+//! The palette pipeline (DESIGN-SYSTEM §2): pure `Palette -> Palette` stages, each
+//! returning notes for provenance. Order: source, scheme, oled, contrast, season,
+//! colorblind, wcag (wcag last so nothing can undo the legibility guarantee).
+
+use material_colors::color::Argb;
+use material_colors::quantize::{Quantizer, QuantizerCelebi};
+use material_colors::scheme::Scheme as MScheme;
+use material_colors::score::Score;
+use material_colors::theme::ThemeBuilder;
+
+use crate::ThemeError;
+use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
+use crate::input::{Colorblind, ContrastLevel, Scheme, Source, Wallpaper};
+use crate::palette::{CHROMA_ROLES, CONTAINERS, Palette, PaletteSet, ROLES, RawRoles};
+use crate::season::{Date, solar_term, warmth};
+
+pub struct StageOut {
+    pub palette: Palette,
+    pub notes: Vec<String>,
+}
+
+fn out(palette: Palette, notes: Vec<String>) -> StageOut {
+    StageOut { palette, notes }
+}
+
+// ---------- 1. source ----------
+
+pub fn source(src: &Source) -> Result<(PaletteSet, Vec<String>), ThemeError> {
+    match src {
+        Source::Palette(name) => Ok((
+            crate::palette::bundled(name)?,
+            vec![format!("source: palette:{name}")],
+        )),
+        Source::PaletteToml(text) => {
+            let set = PaletteSet::from_toml(text)?;
+            let n = format!("source: palette:{} (user file)", set.name);
+            Ok((set, vec![n]))
+        }
+        Source::Manual(roles) => Ok((
+            PaletteSet::manual("manual", roles.clone()),
+            vec!["source: manual roles".into()],
+        )),
+        Source::Wallpaper(w) => {
+            let (set, seed) = from_wallpaper(w)?;
+            Ok((set, vec![format!("source: wallpaper, seed colour {seed}")]))
+        }
+    }
+}
+
+fn rgb_of(a: Argb) -> Rgb {
+    Rgb(a.red, a.green, a.blue)
+}
+
+/// Quantise + score the pixels (material-colors), then build both schemes from the seed.
+pub fn from_wallpaper(w: &Wallpaper) -> Result<(PaletteSet, Rgb), ThemeError> {
+    if w.rgba.len() != (w.width as usize) * (w.height as usize) * 4 || w.rgba.is_empty() {
+        return Err(ThemeError::Image(
+            "wallpaper buffer size does not match its dimensions".into(),
+        ));
+    }
+    let pixels: Vec<Argb> = w
+        .rgba
+        .chunks_exact(4)
+        .filter(|p| p[3] >= 128) // ignore transparent pixels
+        .map(|p| Argb::new(255, p[0], p[1], p[2]))
+        .collect();
+    if pixels.is_empty() {
+        return Err(ThemeError::Image("wallpaper is fully transparent".into()));
+    }
+    let q = QuantizerCelebi::quantize(&pixels, 128);
+    let ranked = Score::score(&q.color_to_count, None, None, None);
+    let seed = ranked[0];
+    let theme = ThemeBuilder::with_source(seed).build();
+    let roles = |s: &MScheme, warning: &str| -> RawRoles {
+        [
+            ("surface", s.surface),
+            ("surface_container_lowest", s.surface_container_lowest),
+            ("surface_container_low", s.surface_container_low),
+            ("surface_container", s.surface_container),
+            ("surface_container_high", s.surface_container_high),
+            ("surface_container_highest", s.surface_container_highest),
+            ("on_surface", s.on_surface),
+            ("on_surface_variant", s.on_surface_variant),
+            ("outline", s.outline),
+            ("outline_variant", s.outline_variant),
+            ("accent", s.primary),
+            ("on_accent", s.on_primary),
+            ("accent_container", s.primary_container),
+            ("on_accent_container", s.on_primary_container),
+            ("secondary", s.secondary),
+            ("on_secondary", s.on_secondary),
+            ("tertiary", s.tertiary),
+            ("on_tertiary", s.on_tertiary),
+            ("error", s.error),
+            ("on_error", s.on_error),
+            ("scrim", s.scrim),
+            ("shadow", s.shadow),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.to_string(), rgb_of(v)))
+        // Material has no warning role: use wa-iro's yamabuki, the WCAG stage fits it.
+        .chain([("warning".to_string(), Rgb::parse(warning).unwrap())])
+        .collect()
+    };
+    let set = PaletteSet {
+        name: "wallpaper".into(),
+        dark: Some(roles(&theme.schemes.dark, "#e0a33b")),
+        light: Some(roles(&theme.schemes.light, "#b07a14")),
+    };
+    Ok((set, rgb_of(seed)))
+}
+
+// ---------- 2. scheme ----------
+
+pub fn scheme(set: PaletteSet, which: Scheme) -> Result<StageOut, ThemeError> {
+    let (want, other) = match which {
+        Scheme::Dark => (set.dark.clone(), set.light.clone()),
+        Scheme::Light => (set.light.clone(), set.dark.clone()),
+    };
+    let word = if which == Scheme::Dark {
+        "dark"
+    } else {
+        "light"
+    };
+    let (roles, note) = match (want, other) {
+        (Some(r), _) => (r, format!("scheme: {word}")),
+        (None, Some(r)) => {
+            // Honest fallback: the palette ships one scheme only; say so.
+            let o = if which == Scheme::Dark {
+                "light"
+            } else {
+                "dark"
+            };
+            (
+                r,
+                format!("scheme: {word} requested but palette only has {o}; using {o} roles"),
+            )
+        }
+        (None, None) => return Err(ThemeError::Parse(format!("palette {} is empty", set.name))),
+    };
+    // `dark` follows what was requested for derivations only when the roles exist for it;
+    // in the fallback case the roles' own lightness decides.
+    let dark = match roles.get("surface") {
+        Some(s) => s.luminance() < 0.18,
+        None => which == Scheme::Dark,
+    };
+    let p = Palette {
+        name: set.name,
+        dark,
+        roles,
+    }
+    .complete()?;
+    Ok(out(p, vec![note]))
+}
+
+// ---------- 2b. oled ----------
+
+pub fn oled(mut p: Palette, on: bool) -> StageOut {
+    if !on {
+        return out(p, vec!["oled: off".into()]);
+    }
+    if !p.dark {
+        return out(p, vec!["oled: on but scheme is light; no effect".into()]);
+    }
+    p.set("surface", BLACK);
+    p.derive_containers();
+    out(
+        p,
+        vec!["oled: surface #000000, containers re-derived".into()],
+    )
+}
+
+// ---------- 3. contrast ----------
+
+pub fn contrast_level(mut p: Palette, level: ContrastLevel) -> StageOut {
+    let k = match level {
+        ContrastLevel::Standard => return out(p, vec!["contrast: standard".into()]),
+        ContrastLevel::Medium => 0.25,
+        ContrastLevel::High => 0.6,
+    };
+    let (fg_end, bg_end) = if p.dark {
+        (WHITE, BLACK)
+    } else {
+        (BLACK, WHITE)
+    };
+    for r in [
+        "on_surface",
+        "on_surface_variant",
+        "outline",
+        "outline_variant",
+    ] {
+        let c = p.get(r).mix(fg_end, k);
+        p.set(r, c);
+    }
+    for r in [
+        "accent",
+        "secondary",
+        "tertiary",
+        "success",
+        "warning",
+        "error",
+    ] {
+        let c = p.get(r).mix(fg_end, k * 0.4);
+        p.set(r, c);
+    }
+    // Push grounds slightly away from the text so the gap widens from both sides.
+    for r in std::iter::once(&"surface").chain(CONTAINERS.iter()) {
+        let c = p.get(r).mix(bg_end, k * 0.3);
+        p.set(r, c);
+    }
+    let n = format!(
+        "contrast: {level:?}, text/outline/accent +{:.0}%, grounds +{:.0}%",
+        k * 100.0,
+        k * 30.0
+    );
+    out(p, vec![n])
+}
+
+// ---------- 4. season (旬) ----------
+
+/// Max fraction of the way toward the warm/cool target hue at full warmth.
+const SEASON_STRENGTH: f64 = 0.05;
+const WARM_HUE: f64 = 30.0;
+const COOL_HUE: f64 = 215.0;
+
+pub fn season(mut p: Palette, date: Option<Date>) -> StageOut {
+    let Some(date) = date else {
+        return out(p, vec!["season: off".into()]);
+    };
+    let term = solar_term(date);
+    let w = warmth(term);
+    let target = if w >= 0.0 { WARM_HUE } else { COOL_HUE };
+    let frac = SEASON_STRENGTH * w.abs();
+    for r in ROLES.iter().filter(|r| !matches!(**r, "scrim" | "shadow")) {
+        let c = p.get(r);
+        let (h, s, l) = c.to_hsl();
+        let nc = if s < 0.03 {
+            // True greys have no hue to rotate: add a whisper of temperature instead.
+            Rgb::from_hsl(target, 0.015 * w.abs(), l)
+        } else {
+            let mut d = (target - h).rem_euclid(360.0);
+            if d > 180.0 {
+                d -= 360.0;
+            }
+            Rgb::from_hsl(h + d * frac, s, l)
+        };
+        p.set(r, nc);
+    }
+    let n = format!(
+        "season: {} {} (warmth {:+.2}), hue {:.1}% toward {}",
+        term.ja,
+        term.romaji,
+        w,
+        frac * 100.0,
+        if w >= 0.0 { "warm" } else { "cool" }
+    );
+    out(p, vec![n])
+}
+
+// ---------- 5. colorblind ----------
+
+type M3 = [[f64; 3]; 3];
+
+/// Machado, Oliveira & Fernandes (2009), severity 1.0, applied to linear RGB.
+pub fn machado(kind: Colorblind) -> Option<M3> {
+    match kind {
+        Colorblind::None => None,
+        Colorblind::Protanopia => Some([
+            [0.152286, 1.052583, -0.204868],
+            [0.114503, 0.786281, 0.099216],
+            [-0.003882, -0.048116, 1.051998],
+        ]),
+        Colorblind::Deuteranopia => Some([
+            [0.367322, 0.860646, -0.227968],
+            [0.280085, 0.672501, 0.047413],
+            [-0.011820, 0.042940, 0.968881],
+        ]),
+        Colorblind::Tritanopia => Some([
+            [1.255528, -0.076749, -0.178779],
+            [-0.078411, 0.930809, 0.147602],
+            [0.004733, 0.691367, 0.303900],
+        ]),
+    }
+}
+
+fn mul(m: &M3, v: [f64; 3]) -> [f64; 3] {
+    [0, 1, 2].map(|i| m[i][0] * v[0] + m[i][1] * v[1] + m[i][2] * v[2])
+}
+
+/// What a person with this deficiency sees for `c`.
+pub fn simulate(c: Rgb, kind: Colorblind) -> Rgb {
+    match machado(kind) {
+        None => c,
+        Some(m) => Rgb::from_linear(mul(&m, c.to_linear())),
+    }
+}
+
+/// Daltonisation: move the information the viewer loses (orig - simulated) into channels
+/// they can still tell apart, so accent/secondary/status colours stay distinguishable.
+/// Simulating alone would make them *less* distinguishable, which is the opposite of the goal.
+pub fn daltonize(c: Rgb, kind: Colorblind) -> Rgb {
+    let o = c.to_linear();
+    let s = simulate(c, kind).to_linear();
+    let e = [o[0] - s[0], o[1] - s[1], o[2] - s[2]];
+    let shift: M3 = match kind {
+        Colorblind::Tritanopia => [[0.0, 0.0, 0.7], [0.0, 0.0, 0.7], [0.0, 0.0, 0.0]],
+        _ => [[0.0, 0.0, 0.0], [0.7, 0.0, 0.0], [0.7, 0.0, 0.0]],
+    };
+    let add = mul(&shift, e);
+    Rgb::from_linear([o[0] + add[0], o[1] + add[1], o[2] + add[2]])
+}
+
+pub fn colorblind(mut p: Palette, kind: Colorblind) -> StageOut {
+    if kind == Colorblind::None {
+        return out(p, vec!["colorblind: none".into()]);
+    }
+    for r in CHROMA_ROLES {
+        let c = daltonize(p.get(r), kind);
+        p.set(r, c);
+    }
+    out(
+        p,
+        vec![format!(
+            "colorblind: {kind:?} (Machado 2009, severity 1.0), chroma roles daltonised"
+        )],
+    )
+}
+
+// ---------- 6. wcag ----------
+
+pub const BODY: f64 = 4.5;
+pub const UI: f64 = 3.0;
+
+/// (foreground role, background role, minimum ratio). The foreground is the one moved.
+/// UI-colour pairs come first so the `on_*` pairs are checked against their final backgrounds.
+pub fn aa_pairs() -> Vec<(&'static str, &'static str, f64)> {
+    let mut v = vec![];
+    for fg in [
+        "outline",
+        "accent",
+        "secondary",
+        "tertiary",
+        "success",
+        "warning",
+        "error",
+    ] {
+        v.push((fg, "surface", UI));
+    }
+    for (on, bg) in [
+        ("on_accent", "accent"),
+        ("on_accent_container", "accent_container"),
+        ("on_secondary", "secondary"),
+        ("on_tertiary", "tertiary"),
+        ("on_success", "success"),
+        ("on_warning", "warning"),
+        ("on_error", "error"),
+    ] {
+        v.push((on, bg, BODY));
+    }
+    for bg in std::iter::once("surface").chain(CONTAINERS.iter().copied()) {
+        v.push(("on_surface", bg, BODY));
+    }
+    for bg in ["surface", "surface_container", "surface_container_high"] {
+        v.push(("on_surface_variant", bg, BODY));
+    }
+    v
+}
+
+pub fn wcag(mut p: Palette, on: bool) -> StageOut {
+    if !on {
+        return out(p, vec!["wcag: off (legibility not enforced)".into()]);
+    }
+    let mut notes = vec![];
+    for (fg, bg, min) in aa_pairs() {
+        let (f, b) = (p.get(fg), p.get(bg));
+        let before = contrast(f, b);
+        let nf = ensure_contrast(f, b, min);
+        if nf != f {
+            notes.push(format!(
+                "wcag: {fg} {f} → {nf} ({before:.1} → {:.1}:1 on {bg}, need {min})",
+                contrast(nf, b)
+            ));
+            p.set(fg, nf);
+        }
+    }
+    if notes.is_empty() {
+        notes.push("wcag: AA already satisfied, no changes".into());
+    }
+    out(p, notes)
+}

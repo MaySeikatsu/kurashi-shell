@@ -1,0 +1,39 @@
+# Palette file format (kurashi-theme)
+#   name        string, matches the file name; selected as `palette:<name>`
+#   kind        "pair" (both [dark] and [light]) | "dark" | "light"
+#   [dark]/[light]  semantic roles as "#rrggbb" (DESIGN-SYSTEM §1). Required: surface,
+#               on_surface, accent, secondary, tertiary, warning. Everything else
+#               (containers, outline*, on_*, error, success, scrim, shadow) is derived when
+#               absent. The WCAG stage may still nudge on_* / accent roles; the pipeline
+#               notes say exactly what changed and why.
+#
+# High contrast — pure black/white grounds, saturated accents, strong outlines.
+name = "high-contrast"
+kind = "pair"
+description = "Maximum legibility; pairs with accessibility.high_contrast"
+
+[dark]
+surface = "#000000"
+on_surface = "#ffffff"
+on_surface_variant = "#e6e6e6"
+outline = "#ffffff"
+outline_variant = "#9a9a9a"
+accent = "#ffd60a"
+on_accent = "#000000"
+secondary = "#66b2ff"
+tertiary = "#7ee081"
+warning = "#ffb000"
+error = "#ff7b7b"
+
+[light]
+surface = "#ffffff"
+on_surface = "#000000"
+on_surface_variant = "#1a1a1a"
+outline = "#000000"
+outline_variant = "#666666"
+accent = "#0033cc"
+on_accent = "#ffffff"
+secondary = "#7a0099"
+tertiary = "#006600"
+warning = "#8a4b00"
+error = "#b00020"
