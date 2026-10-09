@@ -73,19 +73,34 @@ async fn run() -> anyhow::Result<()> {
             hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
         }
     }
-    // Island faces come from config once M1.5 wires it; core faces for now (K9).
+    // Island faces come from config once M1.5 wires it; core faces for now (K9). The charger and
+    // Bluetooth faces are core transients too (island.rs); their peek lines come from the copy.
     let island = kurashid::island::IslandHost::new(
         hub.clone(),
         "main",
         kurashi_island::IslandConfig {
             faces: vec!["clock".into(), "media".into(), "notifications".into()],
             default: "clock".into(),
-            // The OSD faces may interrupt a manual face choice; they are transient-only.
-            interruptible_by: ["volume".to_string(), "brightness".to_string()].into(),
+            // The OSD and battery faces may interrupt a manual face choice; they are transient-only.
+            interruptible_by: ["volume", "brightness", "power", "battery"]
+                .map(String::from)
+                .into(),
             ..Default::default()
         },
-        &["clock", "media", "notifications", "volume", "brightness"],
+        &[
+            "clock",
+            "media",
+            "notifications",
+            "volume",
+            "brightness",
+            "power",
+            "bluetooth",
+        ],
     );
+    island.set_texts(kurashid::island::Texts::load(
+        &kurashid::i18n::data_dir().join("i18n"),
+        &locale,
+    ));
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
     let mut fc_ok: Option<bool> = None;
@@ -222,15 +237,8 @@ fn register_services(
 
     let isl = island.clone();
     let media = Arc::new(
-        ServiceProvider::new("svc.media", Bus::Session, media::start).observe(move |doc| {
-            let playing = doc["playing"].as_bool().unwrap_or(false);
-            isl.signal(kurashi_island::FaceSignal {
-                face: "media".into(),
-                relevance: if playing { 60 } else { 0 },
-                condition: playing,
-                transient: None,
-            });
-        }),
+        ServiceProvider::new("svc.media", Bus::Session, media::start)
+            .observe(move |doc| isl.observe_media(doc)),
     );
     hub.register(
         "svc.media",
@@ -260,7 +268,7 @@ fn register_services(
         });
     }
 
-    kurashid::wiring::power(hub, actions);
+    kurashid::wiring::power(hub, actions, Some(island.clone()));
     let session = Arc::new(ServiceProvider::new(
         "svc.session",
         Bus::System,
@@ -269,5 +277,7 @@ fn register_services(
     hub.register("svc.session", json!({"available": false}), Some(session));
     kurashid::wiring::network(hub, actions);
     kurashid::wiring::tray(hub, actions);
-    kurashid::wiring::bluetooth(hub, actions);
+    kurashid::wiring::bluetooth(hub, actions, Some(island.clone()));
+    // Last: the documents exist now. The charger and Bluetooth edges need the services running.
+    island.follow_core();
 }
