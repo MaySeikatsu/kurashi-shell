@@ -33,7 +33,13 @@ PanelWindow {
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
     readonly property var island: Store.docs["runtime.island.main"] || ({})
-    readonly property var audio: Store.docs["svc.audio"] || ({})
+    // Volume. The slider shows a level only for audio the daemon reports: no document yet, or
+    // available === false (no audio server; its volume there is 0), is no level, not a guessed 0 %.
+    // A muted sink keeps its level, drawn dim (Shōjiki, B2).
+    readonly property var audioDoc: Store.docs["svc.audio"]
+    readonly property var audio: audioDoc || ({})
+    readonly property bool audioUsable: audioDoc !== undefined && audioDoc.available !== false
+    readonly property bool audioMuted: audio.muted === true
     readonly property var mods: Store.docs["mods.probe"] || ({})
     readonly property var trayDoc: Store.docs["svc.tray"] || ({})
     readonly property var bindings: Store.docs["bindings"] || ({})
@@ -44,6 +50,8 @@ PanelWindow {
     // A tray menu is shown by the Stage on the output whose tray was clicked (shell.qml).
     signal trayMenuRequested(string id)
     readonly property real daemonVolume: audio.volume ?? 0
+    readonly property string volumeA11y: !audioUsable ? I18n.tr("frontend.volume.unavailable")
+        : (audioMuted ? I18n.tr("frontend.volume.muted") : "")
     // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
     readonly property var pills: {
         var o = workspaces.outputs || {}
@@ -94,11 +102,12 @@ PanelWindow {
     property real volumeTarget: -1
     onDaemonVolumeChanged: volumeTarget = -1
     function setVolume(v) {
+        if (!audioUsable) return
         volumeTarget = -1
         Store.intent("audio.volume", v, origin)
     }
     function volumeStep(dy) {
-        if (dy === 0) return
+        if (dy === 0 || !audioUsable) return
         var base = volumeTarget >= 0 ? volumeTarget : daemonVolume
         volumeTarget = Math.max(0, Math.min(1, base + (dy > 0 ? 0.05 : -0.05)))
         Store.intent("audio.volume", volumeTarget, origin)
@@ -199,8 +208,11 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 110
                     value: bar.daemonVolume
+                    unavailable: !bar.audioUsable
+                    fill: bar.audioMuted ? Theme.dim : Theme.accent
+                    a11y: bar.volumeA11y
                     onMoved: v => bar.setVolume(v)
-                    WheelHandler { onWheel: event => bar.volumeStep(event.angleDelta.y) }
+                    WheelHandler { enabled: bar.audioUsable; onWheel: event => bar.volumeStep(event.angleDelta.y) }
                 }
                 Repeater {
                     model: bar.mods.widgets || []
@@ -296,8 +308,11 @@ PanelWindow {
                         width: 110
                         rotation: -90
                         value: bar.daemonVolume
+                        unavailable: !bar.audioUsable
+                        fill: bar.audioMuted ? Theme.dim : Theme.accent
+                        a11y: bar.volumeA11y
                         onMoved: v => bar.setVolume(v)
-                        WheelHandler { onWheel: event => bar.volumeStep(event.angleDelta.y) }
+                        WheelHandler { enabled: bar.audioUsable; onWheel: event => bar.volumeStep(event.angleDelta.y) }
                     }
                 }
                 Repeater {
