@@ -9,7 +9,7 @@ mod markup;
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -23,6 +23,11 @@ pub use kurashi_services::DocSink;
 
 const PATH: &str = "/org/freedesktop/Notifications";
 const IFACE: &str = "org.freedesktop.Notifications";
+
+/// Longest summary kept, in bytes. Longer text is cut on a char boundary and ends with `…`.
+pub const MAX_SUMMARY_BYTES: usize = 1024;
+/// Longest body kept, in bytes, cut before sanitising so one message's work stays bounded.
+pub const MAX_BODY_BYTES: usize = 64 * 1024;
 
 /// Reasons from the spec's `NotificationClosed` signal.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -112,18 +117,34 @@ fn now_ms() -> u64 {
         .map_or(0, |d| d.as_millis() as u64)
 }
 
+/// Cuts `s` to at most `max` bytes on a char boundary, marking the cut with an ellipsis.
+fn truncate(s: &mut String, max: usize) {
+    if s.len() <= max {
+        return;
+    }
+    let mut cut = max;
+    while !s.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    s.truncate(cut);
+    s.push('…');
+}
+
 impl Core {
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state.lock().unwrap()
+        // A panicking sink poisons the mutex. Every mutation finishes before `publish`, so the
+        // state is consistent at that point: keep serving instead of cascading the panic.
+        self.state.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     /// Rebuild the document and hand it to the sink if it changed. Called with the lock held so
-    /// the sink sees documents in mutation order.
+    /// the sink sees documents in mutation order. `last_doc` is recorded only after the sink took
+    /// the document, so a panicking sink leaves the next publish free to send it again.
     fn publish(&self, st: &mut State) {
         let doc = doc(st);
         if st.last_doc.as_ref() != Some(&doc) {
-            st.last_doc = Some(doc.clone());
-            self.sink.set(doc);
+            self.sink.set(doc.clone());
+            st.last_doc = Some(doc);
         }
         self.wake.notify_one();
     }
@@ -171,12 +192,17 @@ impl Core {
         app_name: String,
         replaces_id: u32,
         app_icon: String,
-        summary: String,
-        body: &str,
+        mut summary: String,
+        mut body: String,
         actions: Vec<String>,
         hints: &HashMap<String, Value<'_>>,
         expire_timeout: i32,
     ) -> (u32, Vec<Sig>) {
+        // Work that needs only the message runs before the state lock: a large hostile body must
+        // not stall other clients while it is sanitised.
+        truncate(&mut summary, MAX_SUMMARY_BYTES);
+        truncate(&mut body, MAX_BODY_BYTES);
+        let body = markup::sanitize(&body);
         let hint_str = |k: &str| match hints.get(k) {
             Some(Value::Str(s)) => Some(s.to_string()),
             _ => None,
@@ -202,6 +228,9 @@ impl Core {
             .map(|c| (c[0].clone(), c[1].clone()))
             .collect();
         let transient = hint_bool("transient");
+        let category = hint_str("category");
+        let desktop_entry = hint_str("desktop-entry");
+        let resident = hint_bool("resident");
 
         let mut st = self.lock();
         let show = urgency == 2 || !st.dnd;
@@ -234,16 +263,16 @@ impl Core {
             app_name,
             app_icon,
             summary,
-            body: markup::sanitize(body),
+            body,
             actions,
             urgency,
-            category: hint_str("category"),
-            desktop_entry: hint_str("desktop-entry"),
+            category,
+            desktop_entry,
             image,
             time_ms: t,
             read: false,
             showing: show,
-            resident: hint_bool("resident"),
+            resident,
             transient,
             deadline,
             expires_at_ms: deadline.map(|_| t + u64::from(timeout_ms)),
@@ -403,7 +432,7 @@ impl Iface {
             replaces_id,
             app_icon,
             summary,
-            &body,
+            body,
             actions,
             &hints,
             expire_timeout,
@@ -586,4 +615,28 @@ impl Server {
 
 fn urgency_name(u: u8) -> &'static str {
     ["low", "normal", "critical"][usize::from(u.min(2))]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MAX_BODY_BYTES, MAX_SUMMARY_BYTES, truncate};
+
+    #[test]
+    fn truncate_cuts_on_a_char_boundary() {
+        // 1024 falls inside a 3-byte char here, so the cut backs off to 1023.
+        let mut s = "あ".repeat(400);
+        truncate(&mut s, MAX_SUMMARY_BYTES);
+        assert_eq!(s, format!("{}…", "あ".repeat(341)));
+
+        // 65536 is mid-char too: 65535 bytes of text, then the ellipsis.
+        let mut b = "あ".repeat(30_000);
+        truncate(&mut b, MAX_BODY_BYTES);
+        assert!(b.ends_with('…'));
+        assert_eq!(b.len(), 65_535 + '…'.len_utf8());
+        assert!(b.trim_end_matches('…').chars().all(|c| c == 'あ'));
+
+        let mut short = String::from("ok");
+        truncate(&mut short, MAX_SUMMARY_BYTES);
+        assert_eq!(short, "ok");
+    }
 }
