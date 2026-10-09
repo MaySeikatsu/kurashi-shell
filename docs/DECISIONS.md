@@ -14,11 +14,20 @@ mods; frontends are thin views; Settings is a separate on-demand process.
 *Why:* shellseikatsu had 109 Processes and logic spread over 60 QML singletons; WormShell D1/D2;
 DMS's Go backend; services survive any renderer swap.
 
-**K3** 🟡 Renderer chosen by the M0 bake-off (Quickshell, iced, Slint, GPUI, GTK4/Relm4) with a
-weighted matrix (runtime 35 %, capability 30 % with hard gates, dev workload 25 %, ecosystem
-10 %). QML is the default unless a candidate passes all gates and wins overall.
-*Why:* no native Rust stack publishes idle-memory numbers or covers shaders+lock+blur+popups+
-hot-reload together (research 2026-10-08); measure, don't assume. → see `BAKEOFF.md`.
+**K3** 🟢 Renderer = **Quickshell (Qt 6 / QML)** as the thin view over `kurashid` (decided by the M0
+bake-off, 2026-10-09). Only candidate passing all hard gates (xdg_popup on layer surfaces, session
+lock, ext-background-effect binding, IME); idle-silent (0 wakeups, ~0 commits); only one with hot
+reload; ~4× cheaper per agent task (103k tokens / 7 min vs ~180k / 30 min). Score 8.7 vs gtk4 6.2,
+slint 6.1, iced 5.2, gpui 2.5 (matrix in `BAKEOFF.md`).
+*Why not the others:* gpui — `gpui_linux` re-arms `wl_surface.frame` and commits forever (61
+commits/s idle), no session lock, KDE blur only ([zed gpui_linux](https://github.com/zed-industries/zed/tree/main/crates/gpui));
+iced — no blur yet, 118 wakeups/s + 233 futex/s idle, no screencopy ([iced_layershell](https://github.com/waycrate/exwlshelleventloop));
+slint — custom platform has no IME, no shader API, CPU-only (its 25 MiB is the software renderer);
+gtk4 — no session-lock API, popups only as 2nd layer surface (+77 MiB), GskGLShader dead in 4.22.
+*Re-evaluation clause (user, 2026-10-09):* reopen with a fresh bake-off if Quickshell restricts a
+feature, the feel goal (quick, smooth, polished, snappy) or quick iteration, or a native stack
+passes IME + blur + lock with hot reload. Mods stay renderer-independent (K1) and the probes stay in
+`probes/` as the re-run baseline. Known cost: memory over budget → K16.
 
 **K4** 🟢 IPC framing is NDJSON (not length-prefixed).
 *Why:* trivially parsed by every candidate frontend (QML `SplitParser`, GLib, tokio
@@ -61,3 +70,11 @@ steps, open decisions, pickup prompt). *Why:* user requirement; multi-session pr
 (Home-Manager `programs.kurashi.settings`); `enforce = true` turns them into `forced:nix`. The
 daemon keeps writing the live `config.toml`. *Why:* HM files are read-only store symlinks, which
 conflicts with a daemon-written config; users still see "set by Home-Manager" in Settings.
+
+**K16** 🟡 PSS budget revised: v0.1 frontend PSS ≤ **150 MiB @ 1 output, +≤ 6 MiB per extra output**
+(was "≤ 50 % of shellseikatsu" = 108 MiB). *Why:* every GPU-rendered candidate measured 144–156 MiB
+at 1 output on NVIDIA (bake-off quiet run); the trivial Quickshell floor is already 110 MiB
+(libnvidia 27 · Qt 21 · ICU/fonts/other libs 49 · heap 46). 108 MiB is unreachable without software
+rendering, which costs shaders and smooth animation. The shellseikatsu comparison stays as a
+reported ratio (probe = 67 % of 216 MiB). Kaizen targets: ICU data, unused Qt modules, lazy popups.
+

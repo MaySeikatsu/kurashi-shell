@@ -9,7 +9,7 @@
 set -euo pipefail
 action=${1:-start}; name=${2:-dev}; renderer=${3:-gles2}
 R=/tmp/kurashi-sb-$name
-SWAY=${KURASHI_SWAY:-$(command -v sway)}
+SWAY=${KURASHI_SWAY:-$(command -v sway || true)}   # may be empty for stop/env outside nix develop
 
 env_lines() {
   local wl; wl=$(ls "$R" 2>/dev/null | grep -m1 -E '^wayland-[0-9]+$' || true)
@@ -23,17 +23,33 @@ env_lines() {
 
 case $action in
   start)
+    # Fail closed: on any failure print env lines that point clients at a socket that does not
+    # exist, so nothing ever falls back to the user's real session.
+    fail() {
+      echo "sandbox.sh: $*" >&2
+      echo "export XDG_RUNTIME_DIR=$R WAYLAND_DISPLAY=kurashi-sandbox-FAILED KURASHI_SOCKET=$R/FAILED"
+      echo "unset DISPLAY NIRI_SOCKET HYPRLAND_INSTANCE_SIGNATURE SWAYSOCK"
+      echo "false"
+      exit 1
+    }
+    [ -n "$SWAY" ] || fail "sway not on PATH (run inside 'nix develop')"
+    command -v pgrep >/dev/null || fail "pgrep not on PATH"
     mkdir -p "$R" && chmod 700 "$R"
+    # A stale sway from an earlier start of the same sandbox would add HEADLESS-2/3 confusion.
+    if [ -f "$R/sway.pid" ] && kill -0 "$(cat "$R/sway.pid")" 2>/dev/null; then
+      "$0" stop "$name" >/dev/null
+    fi
     printf 'output HEADLESS-1 resolution 2560x1440\noutput * bg #101014 solid_color\n' > "$R/sway.conf"
     renderer_env=(WLR_RENDERER="$renderer")
     [ "$renderer" = gles2 ] && renderer_env+=(WLR_RENDER_DRM_DEVICE=/dev/dri/renderD128)
     env -i HOME="$HOME" PATH="$PATH" XDG_RUNTIME_DIR="$R" WLR_BACKENDS=headless \
       WLR_LIBINPUT_NO_DEVICES=1 "${renderer_env[@]}" "$SWAY" -c "$R/sway.conf" > "$R/sway.log" 2>&1 &
     echo $! > "$R/sway.pid"
-    dbus-daemon --session --fork --print-address=1 --print-pid=1 \
+    XDG_RUNTIME_DIR="$R" dbus-daemon --session --fork --print-address=1 --print-pid=1 \
       --address="unix:path=$R/bus" > "$R/dbus.out" 2>/dev/null || true
     head -1 "$R/dbus.out" > "$R/dbus.addr" 2>/dev/null || true
     for _ in $(seq 50); do ls "$R" | grep -qE '^wayland-[0-9]+$' && break; sleep 0.1; done
+    ls "$R" | grep -qE '^wayland-[0-9]+$' || fail "headless sway did not start (see $R/sway.log)"
     env_lines
     ;;
   env) env_lines ;;
@@ -44,7 +60,8 @@ case $action in
   stop)
     pids=()
     for p in $(pgrep -u "$(id -u)" . || true); do
-      if tr '\0' '\n' < "/proc/$p/environ" 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$R"; then pids+=("$p"); fi
+      [ "$p" = $$ ] || [ "$p" = "$PPID" ] && continue   # never the caller's own shell
+      if { tr "\0" "\n" < "/proc/$p/environ"; } 2>/dev/null | grep -qx "XDG_RUNTIME_DIR=$R"; then pids+=("$p"); fi
     done
     [ -f "$R/dbus.out" ] && pids+=("$(sed -n 2p "$R/dbus.out")")
     [ ${#pids[@]} -gt 0 ] && kill "${pids[@]}" 2>/dev/null || true

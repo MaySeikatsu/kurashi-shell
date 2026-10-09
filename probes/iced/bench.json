@@ -1,0 +1,41 @@
+{
+  "name": "iced",
+  "cmd": [
+    "probes/iced/target/release/kurashi-probe-iced"
+  ],
+  "date": "2026-10-09 01:07",
+  "commit": "d0588f8",
+  "pass_a": {
+    "idle_cpu_pct": 0.2,
+    "wakeups_per_s": 117.9,
+    "pss_mib_1out": 94.5,
+    "gpu_mib": 15,
+    "processes": 1,
+    "pss_mib_popup": 100.0,
+    "pss_mib_2out": 100.0,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 356,
+    "idle_commits_per_s": 0.0,
+    "idle_commits_by_surface": {},
+    "popup_latency_ms_median": 2.5,
+    "popup_latency_ms_all": [
+      2.5,
+      3.0,
+      2.3,
+      2.5,
+      2.5
+    ],
+    "morph_commits": 23,
+    "morph_frame_ms_p50": 16.5,
+    "morph_frame_ms_p99": 16.8
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 230.3,
+    "top_syscalls": {
+      "futex": 6884,
+      "ioctl": 24
+    }
+  }
+}

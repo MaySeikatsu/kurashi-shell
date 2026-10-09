@@ -1,0 +1,47 @@
+{
+  "name": "gpui",
+  "cmd": [
+    "/home/maike/Projects/kurashi-shell/.claude/worktrees/agent-a0c7eb99534725bcf/probes/gpui/run.sh"
+  ],
+  "date": "2026-10-09 01:22",
+  "commit": "8832f1f",
+  "pass_a": {
+    "idle_cpu_pct": 0.266,
+    "wakeups_per_s": 177.9,
+    "pss_mib_1out": 148.5,
+    "gpu_mib": 18,
+    "processes": 1,
+    "pss_mib_popup": 151.1,
+    "pss_mib_2out": 153.5,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 339,
+    "idle_commits_per_s": 61.83,
+    "idle_commits_by_surface": {
+      "23": 1855
+    },
+    "popup_latency_ms_median": 22.8,
+    "popup_latency_ms_all": [
+      23.1,
+      23.9,
+      22.8,
+      22.7,
+      1.1
+    ],
+    "morph_commits": 93,
+    "morph_frame_ms_p50": 16.1,
+    "morph_frame_ms_p99": 16.9
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 724.7,
+    "top_syscalls": {
+      "futex": 6854,
+      "epoll_ctl": 3716,
+      "recvmsg": 3716,
+      "read": 1858,
+      "sendmsg": 1858,
+      "timerfd_settime": 1858
+    }
+  }
+}
