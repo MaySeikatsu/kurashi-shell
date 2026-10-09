@@ -2,6 +2,7 @@
 //! socket; everything testable lives here.
 
 pub mod actions;
+pub mod config;
 pub mod hub;
 pub mod i18n;
 pub mod intents;
@@ -24,6 +25,8 @@ pub struct Daemon {
     pub caps: Vec<String>,
     /// Changes every start (PROTOCOL §2).
     pub instance: String,
+    /// `None` only in protocol tests that don't need config.
+    pub config: Option<Arc<config::ConfigStore>>,
 }
 
 impl Daemon {
@@ -34,6 +37,7 @@ impl Daemon {
             intents: Arc::new(intents),
             caps: Vec::new(),
             instance: new_instance_id(),
+            config: None,
         }
     }
 }
