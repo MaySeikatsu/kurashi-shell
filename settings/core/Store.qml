@@ -14,6 +14,7 @@ Singleton {
     property var schema: ({})
     property var i18n: ({})
     property var workspaces: ({})
+    property var mods: ({})
     property bool connected: false
     property bool live: false
     // key -> error text of the last rejected apply touching it (cleared by the next apply of it)
@@ -22,7 +23,7 @@ Singleton {
     property string notice: ""
 
     // Only these documents are subscribed, and only while this process lives (Ma).
-    readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces"]
+    readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces", "mods"]
     property var data: ({})
     property var revs: ({})
     property var pending: ({})
@@ -68,15 +69,20 @@ Singleton {
         return out
     }
 
-    // key -> label i18n key, for naming the keys a coupling points at.
-    function labelOf(key) {
+    // key -> {pageId, row} of a schema row, or null: search jumps and the IPC hook.
+    function rowOf(key) {
         var pages = schema.pages || []
         for (var i = 0; i < pages.length; i++)
             for (var j = 0; j < pages[i].sections.length; j++) {
                 var rows = pages[i].sections[j].rows
-                for (var k = 0; k < rows.length; k++) if (rows[k].key === key) return rows[k].label
+                for (var k = 0; k < rows.length; k++) if (rows[k].key === key) return { pageId: pages[i].id, row: rows[k] }
             }
-        return key
+        return null
+    }
+    // key -> label i18n key, for naming the keys a coupling points at.
+    function labelOf(key) {
+        var h = rowOf(key)
+        return h ? h.row.label : key
     }
 
     // Why a row is inert: [{kind, text}]. Couplings are schema data (the daemon owns the rules);
@@ -183,6 +189,7 @@ Singleton {
         case "schema.settings": schema = v; break
         case "i18n": i18n = v; break
         case "svc.workspaces": workspaces = v; break
+        case "mods": mods = v; break
         }
     }
 
