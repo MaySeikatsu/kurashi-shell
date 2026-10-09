@@ -5,4 +5,4 @@ schema types). They append a request here; the lead decides, implements, and rec
 
 | # | Date | Requester (task) | Contract | Requested change | Reason | Decision |
 |---|---|---|---|---|---|---|
-| 1 | 2026-10-09 | M1.5-frontend | PROTOCOL (docs) | Serve an `i18n` document (`i18n.strings`: flat key to string for the active locale, subscribable) | Frontend `I18n.tr` currently returns the key; strings live in `i18n/{en,ja}/frontend.toml` and must reach the view without a parallel list | |
+| 1 | 2026-10-09 | M1.5-frontend | PROTOCOL (docs) | Serve an `i18n` document (`i18n.strings`: flat key to string for the active locale, subscribable) | Frontend `I18n.tr` currently returns the key; strings live in `i18n/{en,ja}/frontend.toml` and must reach the view without a parallel list | ✅ accepted (K17): doc `i18n` = `{locale, fallback, strings}`; lead implements in kurashid |
