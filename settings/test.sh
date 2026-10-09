@@ -49,12 +49,9 @@ enforce = true
 blur = false
 T
 printf '[theme.shape]\nradius_scale = 1.5\n[a11y]\nlarge_text = true\n' > "$R/cfg/kurashi/profiles/roomy.toml"
-# Data dir: the repo's strings plus the schema-generated catalog (i18n/en/config.toml is still
-# the lead's to write), so labels render instead of raw keys.
-for l in en ja; do for f in "$ROOT"/i18n/$l/*.toml; do ln -sf "$f" "$R/root/i18n/$l/"; done; done
-cp "$ROOT/crates/kurashi-schema/tests/golden/i18n_en.toml" "$R/root/i18n/en/catalog.toml"
-ln -sfn "$ROOT/palettes" "$R/root/palettes"
-export KURASHI_DATA_DIR=$R/root
+# Data dir = the repo itself: i18n/ (incl. the generated schema catalog) and palettes/, exactly
+# what the package installs.
+export KURASHI_DATA_DIR=$ROOT
 
 "$BIN/kurashid" > "$R/kurashid.log" 2>&1 & pids+=($!)
 for _ in $(seq 50); do [ -S "$KURASHI_SOCKET" ] && break; sleep 0.1; done
