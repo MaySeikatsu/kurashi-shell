@@ -412,7 +412,14 @@ pub fn notifications_with_facts(
 
 /// `mods` document + `mod.enable` / `mod.disable`. Contributions (faces, services, …) are
 /// registered by later milestones; for now the registry and its honest catalog are live.
-pub fn mods(hub: &Arc<Hub>, actions: &mut ActionRegistry, roots: Vec<std::path::PathBuf>) {
+/// The mods registry, its `mods` document and `mod.{enable,disable}`. With a config store, mod
+/// settings follow the registry (K22): keys exist while discovered, pages while enabled.
+pub fn mods(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    roots: Vec<std::path::PathBuf>,
+    config: Option<Arc<crate::config::ConfigStore>>,
+) {
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
     let mut reg = Registry::discover(&roots, &version);
@@ -426,12 +433,15 @@ pub fn mods(hub: &Arc<Hub>, actions: &mut ActionRegistry, roots: Vec<std::path::
             tracing::warn!(%id, error = e.i18n_key(), "mod not enabled");
         }
     }
+    if let Some(c) = &config {
+        c.sync_mods(&reg);
+    }
     hub.register("mods", reg.doc(), None);
     let reg = Arc::new(Mutex::new(reg));
     for (action, enable) in [("mod.enable", true), ("mod.disable", false)] {
-        let (hub, reg) = (hub.clone(), reg.clone());
+        let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
         actions.register(action, &format!("action.{action}"), move |v: Value| {
-            let (hub, reg) = (hub.clone(), reg.clone());
+            let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
             async move {
                 let id = v["id"]
                     .as_str()
@@ -440,6 +450,10 @@ pub fn mods(hub: &Arc<Hub>, actions: &mut ActionRegistry, roots: Vec<std::path::
                     let mut r = reg.lock().expect("mods lock");
                     let res = if enable { r.enable(id) } else { r.disable(id) };
                     res.map_err(|e| ActionError::Invalid(e.i18n_key().to_string()))?;
+                    // Lock order mods → config; no config listener may touch mods.
+                    if let Some(c) = &config {
+                        c.sync_mods(&r);
+                    }
                     r.doc()
                 };
                 let _ = hub.set("mods", doc, None);
