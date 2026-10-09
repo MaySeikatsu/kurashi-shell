@@ -64,10 +64,17 @@ impl TestBus {
     }
 }
 
-impl Drop for TestBus {
-    fn drop(&mut self) {
+impl TestBus {
+    /// Kills the daemon: every connection on this private bus sees its socket close.
+    pub fn kill(&mut self) {
         let _ = self.child.kill();
         let _ = self.child.wait();
+    }
+}
+
+impl Drop for TestBus {
+    fn drop(&mut self) {
+        self.kill();
     }
 }
 

@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures_util::StreamExt;
 use serde_json::{Value, json};
 use zbus::Connection;
 
@@ -17,7 +16,7 @@ const DISPLAY: &str = "/org/freedesktop/UPower/devices/DisplayDevice";
 pub struct Commands;
 
 pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceHandle, Commands)> {
-    let mut events = util::watch(
+    let events = util::watch(
         &conn,
         vec![
             util::props_changed(ROOT_PATH)?,
@@ -28,9 +27,7 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
     let em = Emitter::new(sink);
     em.emit(read(&conn).await);
     let task = tokio::spawn(async move {
-        while events.next().await.is_some() {
-            em.emit(read(&conn).await);
-        }
+        util::follow("power", &em, events, unavailable(), |_| read(&conn)).await;
     });
     Ok((ServiceHandle::new(task), Commands))
 }
@@ -47,9 +44,14 @@ fn state_name(s: u32) -> &'static str {
     }
 }
 
+/// The document while UPower is not on the bus, or not answering.
+fn unavailable() -> Value {
+    json!({"present": false, "on_battery": false})
+}
+
 async fn read(conn: &Connection) -> Value {
     if !util::name_has_owner(conn, DEST).await {
-        return json!({"present": false, "on_battery": false});
+        return unavailable();
     }
     let on_battery = match util::get_all(conn, DEST, ROOT_PATH, DEST).await {
         Some(p) => util::prop::<bool>(&p, "OnBattery").unwrap_or(false),

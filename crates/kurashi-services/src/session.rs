@@ -6,7 +6,6 @@
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use futures_util::StreamExt;
 use serde_json::{Value, json};
 use zbus::message::Type as MsgType;
 use zbus::zvariant::OwnedFd;
@@ -75,7 +74,7 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
         .member("PrepareForSleep")?
         .path(MANAGER)?
         .build();
-    let mut events = util::watch(
+    let events = util::watch(
         &conn,
         vec![
             util::props_changed("/org/freedesktop/login1")?,
@@ -90,30 +89,42 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
     let task = {
         let conn = conn.clone();
         tokio::spawn(async move {
-            while let Some(ev) = events.next().await {
-                if let Ok(msg) = ev {
+            util::follow(
+                "session",
+                &em,
+                events,
+                unavailable(),
+                |msg: zbus::message::Message| {
                     let h = msg.header();
                     if h.member().is_some_and(|m| m.as_str() == "PrepareForSleep") {
                         if let Ok(b) = msg.body().deserialize::<bool>() {
                             *preparing.lock().unwrap() = b;
                         }
                     }
-                }
-                let p = *preparing.lock().unwrap();
-                em.emit(read(&conn, p).await);
-            }
+                    let p = *preparing.lock().unwrap();
+                    read(&conn, p)
+                },
+            )
+            .await;
         })
     };
     Ok((ServiceHandle::new(task), Commands { conn }))
 }
 
+/// The document while logind is not on the bus. Session docs have no availability flag, so without
+/// logind nothing may be reported as idle, locked or about to sleep.
+fn unavailable() -> Value {
+    json!({"idle_hint": false, "locked_hint": false, "preparing_for_sleep": false})
+}
+
 async fn read(conn: &Connection, preparing: bool) -> Value {
+    if !util::name_has_owner(conn, DEST).await {
+        return unavailable();
+    }
     let (mut idle, mut locked) = (false, false);
-    if util::name_has_owner(conn, DEST).await {
-        if let Some(p) = util::get_all(conn, DEST, SESSION, SESSION_IF).await {
-            idle = util::prop(&p, "IdleHint").unwrap_or(false);
-            locked = util::prop(&p, "LockedHint").unwrap_or(false);
-        }
+    if let Some(p) = util::get_all(conn, DEST, SESSION, SESSION_IF).await {
+        idle = util::prop(&p, "IdleHint").unwrap_or(false);
+        locked = util::prop(&p, "LockedHint").unwrap_or(false);
     }
     json!({"idle_hint": idle, "locked_hint": locked, "preparing_for_sleep": preparing})
 }

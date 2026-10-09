@@ -162,6 +162,7 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
             apply(&conn, &session, &mut objects, &msg).await;
             em.emit(render(&objects));
         }
+        util::ended("bluetooth", &em, json!({"available": false}));
     });
     Ok((ServiceHandle::new(task), commands))
 }
