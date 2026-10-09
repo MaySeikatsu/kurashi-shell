@@ -5,6 +5,7 @@
 //! (Ma: idle = silent). Dropping the [`ServiceHandle`] aborts the task and with it the match
 //! rules, so the daemon's refcounting maps 1:1 onto subscribe/unsubscribe.
 
+pub mod bluetooth;
 pub mod brightness;
 pub mod media;
 pub mod network;
