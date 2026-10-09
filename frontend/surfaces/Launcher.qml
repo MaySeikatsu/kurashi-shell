@@ -17,12 +17,15 @@ PanelWindow {
     readonly property int slide: 12
     readonly property int rowH: 44
     readonly property int maxRows: 7
+    readonly property int minRows: 1      // the empty state keeps one row of height
+    // The list follows its results: as many rows as there are, within [minRows, maxRows].
+    readonly property int listH: Math.max(minRows, Math.min(results.length, maxRows)) * rowH
     property real p: 0
     property bool gate: false
     property bool shown: false
     property var results: []
     property int sel: 0
-    property string err: ""
+    property string err: ""     // translated failure line above the list; "" when there is none
     property var scr: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null   // latched on open so the card never jumps outputs
 
     function focusedScreen() {
@@ -35,20 +38,28 @@ PanelWindow {
         }
         return s.length > 0 ? s[0] : null
     }
+    // A failure carries a kind (invalid, unavailable, internal, or the Store's own). Its message is
+    // English and is never shown: the kind picks a translated line, unknown kinds the generic one.
+    function errorText(e) {
+        var k = "surfaces.launcher.error." + (e.kind || "failed")
+        var t = I18n.tr(k)
+        return t !== k ? t : I18n.tr("surfaces.launcher.error.failed")
+    }
     function run(q) {
         Store.query("launcher", q, function (items, e) {
             if (!lp.want) return
             lp.results = items || []
             lp.sel = 0
-            lp.err = e ? e.msg : ""
+            lp.err = e ? lp.errorText(e) : ""
         })
     }
     function launch() {
         if (sel < 0 || sel >= results.length) return
         Store.act("launcher.launch", { id: results[sel].id }, function (done, e) {
-            if (e) lp.err = e.msg
+            // Close only once the app is up: a failure stays open with its reason.
+            if (e) { lp.err = lp.errorText(e); return }
+            Store.act("ui.close")
         })
-        Store.act("ui.close")
     }
 
     screen: scr
@@ -98,7 +109,7 @@ PanelWindow {
         id: card
         visible: lp.shown
         width: 560
-        height: 2 * Theme.pad + 40 + Theme.gap + lp.maxRows * lp.rowH
+        height: 2 * Theme.pad + 40 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
         y: -lp.slide * (1 - lp.p)
         radius: Theme.rLg
         color: Theme.container
@@ -139,10 +150,26 @@ PanelWindow {
             }
         }
 
+        // Failure line above the results (a failed launch or query). The results stay usable.
+        Text {
+            id: errRow
+            visible: lp.err !== ""
+            x: Theme.pad
+            y: box.y + box.height + Theme.gap
+            width: card.width - 2 * Theme.pad
+            wrapMode: Text.WordWrap
+            color: Theme.fg
+            font.pixelSize: Theme.fs
+            font.family: Theme.fam(text, Theme.families)
+            text: lp.err
+        }
+
         ListView {
             id: list
-            anchors { left: parent.left; right: parent.right; top: box.bottom; bottom: parent.bottom
-                      margins: Theme.pad; topMargin: Theme.gap }
+            x: Theme.pad
+            y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
+            width: card.width - 2 * Theme.pad
+            height: lp.listH
             clip: true
             interactive: false
             model: lp.results
@@ -155,9 +182,8 @@ PanelWindow {
                 width: list.width
                 height: lp.rowH
                 radius: Theme.rSm
+                // One emphasis for the selected row: its fill.
                 color: index === lp.sel ? Theme.containerHigh : "transparent"
-                border.width: index === lp.sel ? 1 : 0
-                border.color: Theme.accent
 
                 Item {
                     id: ico
@@ -222,7 +248,7 @@ PanelWindow {
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            text: lp.err !== "" ? lp.err : I18n.tr("launcher.empty")
+            text: I18n.tr("launcher.empty")
         }
     }
 }

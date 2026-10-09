@@ -34,8 +34,10 @@ PanelWindow {
         return order
     }
 
-    anchors { top: true; right: true }
-    margins { top: Theme.barH + 4; right: Theme.gap }
+    // Clears this output's bar, as Toasts does.
+    BarConfig { id: bars; screen: win.screen }
+    anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
+    margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
     implicitWidth: card.width
     implicitHeight: card.height
     exclusionMode: ExclusionMode.Ignore
@@ -131,6 +133,19 @@ PanelWindow {
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("notifications.center.empty")
+        }
+
+        // Scroll cue: a fade over the bottom of the list while more notifications lie below it.
+        // Static (no animation, no timer); it only exists while the list overflows.
+        Rectangle {
+            z: 1
+            visible: list.visible && !list.atYEnd
+            anchors { left: list.left; right: list.right; bottom: list.bottom }
+            height: Theme.pad * 2
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 1.0; color: Theme.container }
+            }
         }
 
         Flickable {
