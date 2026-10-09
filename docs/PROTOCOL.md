@@ -103,7 +103,7 @@ backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
-| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`) and `launcher` (bool); actions `island.expand`, `notifications.center`, `launcher.toggle`, `ui.close` |
+| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`) and `launcher` (bool); actions `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`, `ui.close` |
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
 
 Probe actions: `island.next`, `island.prev`, `island.pin`, `probe.popup.toggle`, `audio.mute.toggle`.
