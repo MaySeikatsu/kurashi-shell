@@ -135,7 +135,8 @@ async fn main() -> anyhow::Result<()> {
     );
     let mut intents = Intents::default();
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
-    kurashid::wiring::lock(&hub, &mut actions, &mut intents);
+    let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
+    kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker);
     let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     // Only facts we know synchronously; bus/notification probes stay n/a until they report
