@@ -165,11 +165,55 @@ Item {
         }
         Repeater {
             model: picker.outputNames
-            delegate: Button {
+            // An output's chip shows the image it has now (its current thumbnail), and its name.
+            delegate: Rectangle {
+                id: outChip
                 required property string modelData
-                label: modelData
-                primary: picker.target === modelData
-                onClicked: picker.target = modelData
+                readonly property var out: picker.outputs[modelData] || ({})
+                readonly property bool chosen: picker.target === modelData
+                width: chipRow.width + Theme.gap * 2
+                height: Theme.controlH
+                radius: Theme.rSm
+                color: chosen ? Theme.accent : Theme.containerHigh
+                activeFocusOnTab: true
+                Keys.onReturnPressed: picker.target = modelData
+                Keys.onEnterPressed: picker.target = modelData
+                FocusRing {
+                    anchors.fill: parent
+                    corner: outChip.radius
+                    shown: outChip.activeFocus
+                }
+                Row {
+                    id: chipRow
+                    x: Theme.gap
+                    y: (outChip.height - height) / 2
+                    spacing: Theme.xs
+                    Image {
+                        width: 32
+                        height: 18
+                        source: outChip.out.path ? picker.fileUrl(outChip.out.path) : ""
+                        sourceSize.width: 32
+                        sourceSize.height: 18
+                        asynchronous: true
+                        fillMode: Image.PreserveAspectCrop
+                        visible: source !== ""
+                    }
+                    Text {
+                        height: 18
+                        verticalAlignment: Text.AlignVCenter
+                        color: outChip.chosen ? Theme.fgOnAccent : Theme.fg
+                        font.pixelSize: Theme.fsLabel
+                        font.family: Theme.fam(text, Theme.families)
+                        text: outChip.modelData
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: {
+                        picker.target = outChip.modelData
+                        outChip.forceActiveFocus()
+                    }
+                }
             }
         }
         Chip {
@@ -392,10 +436,12 @@ Item {
             Button {
                 label: picker.target === "" ? I18n.tr("mod-wallpaper.apply.all") : I18n.tr("mod-wallpaper.apply")
                 primary: true
+                enabled: picker.backendUp && picker.selectedRow !== null
                 onClicked: if (picker.selectedRow) picker.apply(picker.selectedRow.path, false)
             }
             Button {
                 label: I18n.tr("mod-wallpaper.apply.everywhere")
+                enabled: picker.backendUp && picker.selectedRow !== null
                 onClicked: if (picker.selectedRow) picker.apply(picker.selectedRow.path, true)
             }
             Button {
@@ -479,7 +525,7 @@ Item {
             focus: true
             keyNavigationEnabled: true
             model: picker.total
-            cellWidth: Math.floor(width / Math.max(1, Math.floor(width / 176)))
+            cellWidth: Math.floor(width / Math.max(1, Math.floor(width / 150)))
             cellHeight: Math.round(cellWidth * 9 / 16) + 22
 
             Keys.onPressed: function (event) {
