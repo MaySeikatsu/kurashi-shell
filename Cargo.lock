@@ -851,6 +851,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-sysmon"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "rustix",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "kurashi-mods"
 version = "0.0.1"
 dependencies = [
