@@ -30,6 +30,9 @@ const ISLAND_DOC: &str = "runtime.island.main";
 /// OSD faces: transient-only, never in the cycle, so they are no option of `island.*.faces`
 /// (island.rs `apply_config`, K9).
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
+/// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
+/// names: its offers would replace the core's.
+pub const CORE_SOURCES: [&str; 2] = ["palettes", "island.faces"];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
 /// the static schema; the mods' lists `mods.loaded` / `mods.enabled` (K25) are hidden keys of
@@ -256,6 +259,8 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
             text: String::new(),
         })
         .collect();
+    // I9: the options come from the source at publish time, not from the manifest.
+    meta.constraints.choices_from = s.choices_from.clone();
     meta
 }
 
@@ -330,6 +335,9 @@ pub struct ConfigStore {
     /// Effective value of each `restart` key when the daemon started: what its service runs with.
     started: OnceLock<HashMap<String, Value>>,
     listeners: Mutex<Vec<Listener>>,
+    /// Options of the mods' choice sources (K28 (3)), by source name. A source a manifest declares
+    /// is known here even while its mod is off (no options): its values are then inert, not unjudged.
+    mod_sources: Mutex<BTreeMap<String, Vec<Offer>>>,
 }
 
 /// What a committed transaction answers on the wire.
@@ -475,6 +483,7 @@ impl ConfigStore {
             a11y_forced: Mutex::new(Vec::new()),
             started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
+            mod_sources: Mutex::new(BTreeMap::new()),
         });
         store.apply_couplings();
         store.remember_started();
@@ -610,7 +619,12 @@ impl ConfigStore {
             return p;
         }
         let value_of = |k: &str| cfg.resolve(k, output).map(|q| q.value);
-        let requires = self.registry.get(key).and_then(|m| {
+        // A mod's setting is not in the core registry: its metadata is the mod table's (K22).
+        let meta = self
+            .registry
+            .get(key)
+            .or_else(|| cfg.schema().mods.find(key).map(|(_, m)| m));
+        let requires = meta.and_then(|m| {
             m.couplings.iter().find_map(|c| match c {
                 Coupling::Requires { key: by, .. } if c.blocks(&value_of, &|_: &str| true) => {
                     Some((c.reason_key(), by.clone()))
@@ -618,9 +632,7 @@ impl ConfigStore {
                 _ => None,
             })
         });
-        let choice_gone = self
-            .registry
-            .get(key)
+        let choice_gone = meta
             .and_then(|m| m.constraints.choices_from.as_deref())
             .and_then(|source| offered(&cfg.schema().offers, source, &p.value))
             == Some(false);
@@ -726,11 +738,34 @@ impl ConfigStore {
         self.publish_document();
     }
 
+    /// Replaces the options of every mod choice source (K28 (3)). The native mods send the whole
+    /// table after each registry change: a declared source offers what its enabled mod returns, and
+    /// an empty list when the mod is off, so the values that name it are inert, not unjudged.
+    pub fn set_mod_sources(&self, sources: BTreeMap<String, Vec<Offer>>) {
+        *self.mod_sources.lock().expect("mod sources") = sources;
+        self.refresh_choices();
+    }
+
+    /// One mod choice source's options changed (`ChoicesHandle::changed`, K28 (3)).
+    pub fn set_mod_source(&self, source: &str, options: Vec<Offer>) {
+        self.mod_sources
+            .lock()
+            .expect("mod sources")
+            .insert(source.to_string(), options);
+        self.refresh_choices();
+    }
+
     /// `schema.settings` with the sources' current options: the island's faces change with what
     /// it registers, the mods' pages with their state. Republished whole; an unchanged document is
     /// no patch (hub).
     fn publish_settings(&self) {
-        let offers = offers_now(&self.hub);
+        let mut offers = offers_now(&self.hub);
+        for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
+            // A core source keeps its own options (the native mods refuse those names).
+            offers
+                .entry(source.clone())
+                .or_insert_with(|| options.clone());
+        }
         let page = {
             let mut cfg = self.cfg.lock().expect("config lock");
             cfg.schema_mut().offers = offers;
