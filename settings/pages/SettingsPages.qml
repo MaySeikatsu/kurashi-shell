@@ -13,6 +13,15 @@ Flickable {
     signal jumpRequested(string targetPage, var row)
 
     readonly property bool searching: query.trim() !== ""
+    // The page's title, through I18n.pageTitle (a mod's page reads "Mods › <name>"). The strings are
+    // read so the title is re-evaluated when they arrive.
+    readonly property string heading: {
+        var tr = I18n.strings
+        var ps = Store.schema.pages || []
+        for (var i = 0; i < ps.length; i++)
+            if (ps[i].id === p.pageId) return I18n.pageTitle(ps[i].id, ps[i].label)
+        return ""
+    }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -87,6 +96,11 @@ Flickable {
         width: p.width - 2 * Theme.pad
         spacing: Theme.pad
 
+        PageHeader {
+            visible: !p.searching
+            width: col.width
+            text: p.heading
+        }
         Text {
             visible: p.view.length === 0
             color: Theme.dim
@@ -121,19 +135,37 @@ Flickable {
                                 required property var modelData
                                 width: col.width
                                 spacing: 2
-                                Text {
+                                // The breadcrumb of a search hit: a link to the row, reachable by Tab.
+                                Item {
+                                    id: crumb
                                     visible: p.searching
                                     width: parent.width
-                                    elide: Text.ElideRight
-                                    color: crumbs.containsMouse ? Theme.fg : Theme.accent
-                                    font.pixelSize: Theme.fs - 2
-                                    font.family: Theme.fam(text, Theme.families)
-                                    text: modelData.crumb
+                                    height: Theme.controlH
+                                    activeFocusOnTab: true
+                                    Keys.onReturnPressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
+                                    Keys.onEnterPressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
+                                    Keys.onSpacePressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
+                                    Accessible.role: Accessible.Link
+                                    Accessible.name: modelData.crumb
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: parent.width
+                                        elide: Text.ElideRight
+                                        color: Theme.fg
+                                        font.pixelSize: Theme.fs - 2
+                                        font.family: Theme.fam(text, Theme.families)
+                                        font.underline: hover.hovered || crumb.activeFocus
+                                        text: modelData.crumb
+                                    }
+                                    HoverHandler { id: hover }
                                     MouseArea {
-                                        id: crumbs
                                         anchors.fill: parent
-                                        hoverEnabled: true
                                         onClicked: p.jumpRequested(modelData.pageId, modelData.row)
+                                    }
+                                    FocusRing {
+                                        anchors.fill: parent
+                                        shown: crumb.activeFocus
+                                        corner: Theme.rSm
                                     }
                                 }
                                 SettingRow {

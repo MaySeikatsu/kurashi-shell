@@ -2,10 +2,12 @@ import QtQuick
 import "../core"
 
 // Single-line editor; commits on Enter or focus loss. Shows the daemon's value while not editing.
+// `typing` follows every edit, for controls that must react while the user types.
 Rectangle {
     id: f
     property string value: ""
     property string placeholder: ""
+    property string label: ""
     property bool enabled: true
     property bool mono: false
     property color swatch: "transparent"
@@ -23,11 +25,9 @@ Rectangle {
     }
 
     implicitWidth: 220
-    implicitHeight: 28
+    implicitHeight: Theme.controlH
     radius: Theme.rSm
     color: Theme.containerHigh
-    border.width: input.activeFocus ? 1 : 0
-    border.color: Theme.fg
     opacity: enabled ? 1 : 0.5
 
     Rectangle {
@@ -50,8 +50,10 @@ Rectangle {
         verticalAlignment: TextInput.AlignVCenter
         clip: true
         enabled: f.enabled
+        activeFocusOnTab: f.enabled
         color: Theme.fg
         selectionColor: Theme.accent
+        selectedTextColor: Theme.fgOnAccent
         font.pixelSize: Theme.fs
         font.family: f.mono ? "monospace" : Theme.fam(text, Theme.families)
         // Re-bind to the daemon value whenever editing ends (accepted or not): what is shown is
@@ -60,6 +62,8 @@ Rectangle {
         onTextEdited: f.typing(text)
         onAccepted: f.submitted(text)
         Keys.onEscapePressed: f.escaped()
+        Accessible.role: Accessible.EditableText
+        Accessible.name: f.label !== "" ? f.label : f.placeholder
         onEditingFinished: {
             if (text !== f.value) f.accepted(text)
             text = Qt.binding(function () { return f.value })
@@ -71,5 +75,10 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             text: f.placeholder
         }
+    }
+    FocusRing {
+        anchors.fill: parent
+        shown: input.activeFocus
+        corner: f.radius
     }
 }

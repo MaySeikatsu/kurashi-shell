@@ -63,6 +63,14 @@ ShellRoot {
                 if (h) win.jump(h.pageId, h.row)
             }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
+            // Keyboard test: the control that has keyboard focus: its objectName, else its accessible name.
+            function focused(): string {
+                const f = keys.Window.activeFocusItem
+                if (!f) return "(none)"
+                return f.objectName || f.Accessible.name || ("(" + f.toString() + ")")
+            }
+            // Keyboard test: put focus back on the list, where Tab starts walking the window.
+            function focusList(): void { keys.forceActiveFocus() }
         }
 
         Column {
@@ -100,28 +108,47 @@ ShellRoot {
                         id: search
                         anchors.verticalCenter: parent.verticalCenter
                         width: 260
+                        label: I18n.tr("settings.ui.search")
                         value: win.query
                         placeholder: I18n.tr("settings.ui.search")
                         onTyping: t => win.query = t
                         onSubmitted: win.jumpFirst()
                         onEscaped: { win.query = ""; keys.forceActiveFocus() }
                     }
+                    // Undo and redo are on only while the daemon's replies say there is something to take back.
                     Button {
                         anchors.verticalCenter: parent.verticalCenter
                         label: I18n.tr("settings.ui.undo")
-                        enabled: Store.live
+                        enabled: Store.live && Store.canUndo
                         onClicked: Store.undo()
                     }
                     Button {
                         anchors.verticalCenter: parent.verticalCenter
                         label: I18n.tr("settings.ui.redo")
-                        enabled: Store.live
+                        enabled: Store.live && Store.canRedo
                         onClicked: Store.redo()
                     }
-                    Button {
+                    Row {
                         anchors.verticalCenter: parent.verticalCenter
-                        label: (win.advanced ? "✓ " : "") + I18n.tr("settings.ui.advanced")
-                        onClicked: win.advanced = !win.advanced
+                        spacing: Theme.gap
+                        Text {
+                            height: Theme.controlH
+                            verticalAlignment: Text.AlignVCenter
+                            color: Theme.fg
+                            font.pixelSize: Theme.fs
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr("settings.ui.advanced")
+                        }
+                        Item {
+                            width: 40
+                            height: Theme.controlH
+                            Toggle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                label: I18n.tr("settings.ui.advanced")
+                                checked: win.advanced
+                                onToggled: v => win.advanced = v
+                            }
+                        }
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -180,23 +207,36 @@ ShellRoot {
                                 .concat([{ id: "@mods", label: "settings.ui.mods" },
                                          { id: "@profiles", label: "settings.ui.profiles" }])
                             delegate: Rectangle {
+                                id: entry
                                 required property var modelData
                                 readonly property bool on: !win.searching && modelData.id === win.current
+                                function open(): void { win.page = modelData.id; win.query = "" }
                                 width: parent.width
-                                height: 32
+                                height: Theme.controlH
                                 radius: Theme.rSm
                                 color: on ? Theme.containerHigh : "transparent"
+                                activeFocusOnTab: true
+                                Keys.onReturnPressed: event => { entry.open(); event.accepted = true }
+                                Keys.onEnterPressed: event => { entry.open(); event.accepted = true }
+                                Keys.onSpacePressed: event => { entry.open(); event.accepted = true }
+                                Accessible.role: Accessible.PageTab
+                                Accessible.name: I18n.pageTitle(modelData.id, modelData.label)
                                 Text {
                                     x: Theme.pad
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: parent.on ? Theme.fg : Theme.dim
+                                    color: entry.on ? Theme.fg : Theme.dim
                                     font.pixelSize: Theme.fs
                                     font.family: Theme.fam(text, Theme.families)
                                     text: I18n.pageTitle(modelData.id, modelData.label)
                                 }
                                 MouseArea {
                                     anchors.fill: parent
-                                    onClicked: { win.page = modelData.id; win.query = "" }
+                                    onClicked: entry.open()
+                                }
+                                FocusRing {
+                                    anchors.fill: parent
+                                    shown: entry.activeFocus
+                                    corner: entry.radius
                                 }
                             }
                         }
