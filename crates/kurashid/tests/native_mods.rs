@@ -1064,6 +1064,34 @@ async fn a_job_that_ends_by_itself_is_no_longer_reported() {
     assert_eq!(reasons(&d, "once"), json!([]));
 }
 
+/// Declares a job whose body panics: a panic is the end of its run, so it is no longer reported.
+struct Boom;
+
+impl NativeMod for Boom {
+    fn id(&self) -> &'static str {
+        "boom"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.background("boom", "mods.running.boom", "on", |_job| async {
+            panic!("the job fails")
+        })
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_job_that_panics_is_no_longer_reported() {
+    let extra = scratch("boom-mods");
+    job_mod(&extra, "boom", &["boom"]);
+    let linked = vec![Box::new(Boom) as Box<dyn NativeMod>];
+    let d = start(&scratch("boom"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "boom").await.unwrap();
+    set_on(&d, "boom", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "boom"), json!([]));
+    assert!(!d.running("boom"));
+}
+
 /// A `list` setting is an ordered pick from its fixed choices (I26): its row is a pick list of them,
 /// the order stored is the order in effect, and a member outside the choices is refused.
 #[tokio::test]
