@@ -1,0 +1,9 @@
+Button 1.0 Button.qml
+Chip 1.0 Chip.qml
+ProvenanceChip 1.0 ProvenanceChip.qml
+Toggle 1.0 Toggle.qml
+Slider 1.0 Slider.qml
+Segmented 1.0 Segmented.qml
+TextField 1.0 TextField.qml
+ListEdit 1.0 ListEdit.qml
+SettingRow 1.0 SettingRow.qml
