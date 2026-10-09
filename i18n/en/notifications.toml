@@ -1,0 +1,5 @@
+# Notification center + toasts (en)
+"notifications.center.title" = "Notifications"
+"notifications.center.empty" = "Nothing new"
+"notifications.center.clear_all" = "Clear all"
+"notifications.dnd" = "Do not disturb"

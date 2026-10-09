@@ -1,0 +1,5 @@
+# 通知センターとトースト (ja)
+"notifications.center.title" = "通知"
+"notifications.center.empty" = "新しい通知はありません"
+"notifications.center.clear_all" = "すべて消去"
+"notifications.dnd" = "サイレント"
