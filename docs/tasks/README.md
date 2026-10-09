@@ -69,6 +69,7 @@ merges, and records progress; agents only build what their card says.
 | [M5-notifications](M5-notifications.md) | `crates/kurashi-notify/` | sonnet |
 | [M5-launcher](M5-launcher.md) | `crates/kurashi-launcher/` | sonnet |
 | [M1-cli](M1-cli.md) | `crates/kurashi/` | sonnet (wave 3b) |
+| [M1.5-frontend-core](M1.5-frontend-core.md) | `frontend/core/`, `frontend/shell.qml`, … | sonnet (wave 4) |
 | [M7-doctor](M7-doctor.md) | `crates/kurashid/src/doctor.rs`, `crates/kurashi/src/`, `i18n/*/doctor.toml` | sonnet (wave 4) |
 | [M7-bench](M7-bench.md) | `tools/bench/` | sonnet (wave 4) |
 | [M5-auth](M5-auth.md) | `crates/kurashi-auth/` | sonnet (wave 4) |
