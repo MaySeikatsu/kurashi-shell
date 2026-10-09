@@ -9,6 +9,7 @@ pub mod intents;
 pub mod island;
 pub mod server;
 pub mod services;
+pub mod theme;
 pub mod workspaces;
 
 use std::sync::Arc;

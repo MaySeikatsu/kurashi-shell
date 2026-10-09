@@ -805,6 +805,7 @@ name = "kurashid"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "chrono",
  "kurashi-compositor",
  "kurashi-config",
  "kurashi-core",
@@ -812,6 +813,7 @@ dependencies = [
  "kurashi-island",
  "kurashi-schema",
  "kurashi-services",
+ "kurashi-theme",
  "notify",
  "serde",
  "serde_json",

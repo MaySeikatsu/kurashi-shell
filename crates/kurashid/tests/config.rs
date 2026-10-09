@@ -245,3 +245,35 @@ async fn schema_settings_document_is_served() {
         other => panic!("{other:?}"),
     }
 }
+
+#[tokio::test]
+async fn a11y_mode_forces_coupled_keys_and_theme_follows() {
+    let f = start().await;
+    let hub = Hub::new();
+    let fonts: Arc<dyn kurashi_theme::FontProvider + Send + Sync> =
+        Arc::new(kurashi_theme::FakeFonts::new(&["Inter"]));
+    kurashid::theme::register(&hub, &f.store, fonts);
+    let before = hub.snapshot("theme").unwrap().1;
+    assert!(before["tokens"]["motion.standard_ms"].as_f64().unwrap() > 0.0);
+
+    f.store
+        .apply(&[set("a11y.reduce_motion", json!(true))])
+        .unwrap();
+    let p = f.store.get("theme.motion.profile", None).unwrap();
+    assert_eq!(p.value, json!("none"));
+    assert_eq!(p.source, Source::Forced("accessibility".into()));
+    assert_eq!(p.forced_by.as_deref(), Some("a11y.reduce_motion"));
+    let after = hub.snapshot("theme").unwrap().1;
+    assert_eq!(
+        after["tokens"]["motion.standard_ms"],
+        json!(0),
+        "motion off"
+    );
+
+    f.store.undo(false).unwrap();
+    assert_eq!(
+        f.store.get("theme.motion.profile", None).unwrap().source,
+        Source::Default,
+        "forcing lifts when the mode is off"
+    );
+}

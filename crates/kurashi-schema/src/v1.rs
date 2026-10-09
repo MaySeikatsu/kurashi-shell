@@ -63,6 +63,8 @@ pub struct Bar {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "appearance")]
 pub struct Theme {
+    #[kurashi(nested, section = "colors")]
+    pub colors: Colors,
     #[kurashi(nested, section = "shape")]
     pub shape: Shape,
     #[kurashi(nested, section = "material")]
@@ -75,6 +77,56 @@ pub struct Theme {
     pub density: Density,
     #[kurashi(nested, section = "typography")]
     pub typography: Typography,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Scheme {
+    Dark,
+    Light,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Contrast {
+    Standard,
+    Medium,
+    High,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Colorblind {
+    /// Off
+    None,
+    Protanopia,
+    Deuteranopia,
+    Tritanopia,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct Colors {
+    /// Palette
+    /// Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+    #[kurashi(default = "wa-iro".to_owned())]
+    pub palette: String,
+    /// Scheme
+    /// Dark or light surfaces.
+    #[kurashi(default = Scheme::Dark)]
+    pub scheme: Scheme,
+    /// Contrast
+    /// Raises the contrast between surfaces and text.
+    #[kurashi(default = Contrast::Standard, overridden_by = "a11y.high_contrast => high")]
+    pub contrast: Contrast,
+    /// Colour-blind adjustment
+    /// Shifts accent colours so they stay distinguishable.
+    #[kurashi(default = Colorblind::None)]
+    pub colorblind: Colorblind,
+    /// Seasonal tint (旬)
+    /// A slight seasonal drift of hues following the 24 solar terms.
+    #[kurashi(default = false, advanced)]
+    pub season: bool,
+    /// Pure black (OLED)
+    /// Pure-black grounds on dark schemes.
+    #[kurashi(default = false, requires = "theme.colors.scheme == dark")]
+    pub oled: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
