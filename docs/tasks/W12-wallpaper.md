@@ -10,9 +10,8 @@ wins. Also `docs/ux/COMPOSITION.md` and K28 (slots, mod faces, choice sources �
 awww/swww CLI (`awww --help`, `awww img --help`; awww is installed on this machine; nixpkgs has `awww` and `swww`).
 
 **Owned paths:** `crates/kurashi-mod-wallpaper/**` (new crate), `mods/wallpaper/**` (manifest, `qml/Panel.qml`),
-`i18n/{en,ja}/mod-wallpaper.toml` (new domain), `crates/kurashid/Cargo.toml` + `crates/kurashid/src/main.rs` (one
-line each: link the crate / add it to the native mods list — expect a trivial merge conflict with sibling mod
-cards), `nix/package.nix` only if the crate needs a runtime input (it should not: the backend is found on PATH).
+`i18n/{en,ja}/mod-wallpaper.toml` (new domain), `crates/kurashid/Cargo.toml` + `native::linked()` in `crates/kurashid/src/native.rs` (one line each — expect trivial
+conflicts with sibling mod cards), `nix/package.nix` only if the crate needs a runtime input (it should not: the backend is found on PATH).
 NOT the frontend core, kurashi-ipc, PROTOCOL, other mods.
 
 **Do:** manifest `provides = ["service:wallpaper", "action:wallpaper.*", "panel:wallpaper", "choices:wallpaper.backends"]`,
@@ -39,3 +38,8 @@ clippy -D warnings, fmt. Do not run the real awww against the user's session.
 
 **Report:** list every Definition-of-done item of `docs/ux/wallpaper.md` as met / not met (README rule 10), with the screenshot
 or test that shows it.
+
+**Mechanism notes (lead, after W12-mod-hooks):** use `kurashi_mod_api::ModCtx` as the hello test mod does
+(`crates/kurashi-mod-hello`, `crates/kurashid/tests/data/mods/hello`): services, actions, `ctx.face(...)` → `FaceHandle`
+(raise/clear), `ctx.choices(source, …)` with `Choice::new(..).unavailable(key)` (do not re-add it), slots by
+`qml/slots/<slot>.qml` + `slot:<slot>` in provides. Ship the mod's manifest + qml under `mods/<id>/`.
