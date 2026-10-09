@@ -2,7 +2,7 @@ id = "easter-eggs"
 name = "Easter eggs"
 version = "0.1.0"
 tier = "native"
-kurashi = ">=0.1"
+kurashi = ">=0.0.1"
 provides = ["action:easter.*", "i18n"]
 capabilities = []
 cost = "low"

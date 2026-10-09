@@ -2,7 +2,7 @@ id = "media"
 name = "Media"
 version = "0.1.0"
 tier = "native"
-kurashi = ">=0.1"
+kurashi = ">=0.0.1"
 provides = ["widget:media", "island-face:media", "panel:media", "service:mpris", "action:media.*"]
 capabilities = ["dbus:session", "network"]
 cost = "low"
