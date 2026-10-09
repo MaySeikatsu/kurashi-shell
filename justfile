@@ -52,7 +52,11 @@ golden *ARGS:
 # Every bundled mod and the test mod `hello` through the real shell, headless (W14): kurashid built with the test-mods
 # feature (it links `hello`), then the hello test and the all-mods test. Machine B: KURASHI_RENDER_NODE=/dev/dri/renderD129.
 mods-live:
-    cargo build -p kurashid --features test-mods
-    cargo build -p kurashi
-    bash frontend/test-modqml.sh
-    bash frontend/test-mods-live.sh
+    #!/usr/bin/env bash
+    set -uo pipefail
+    cargo build -p kurashid --features test-mods || exit 1
+    cargo build -p kurashi || exit 1
+    status=0
+    bash frontend/test-modqml.sh || status=1
+    bash frontend/test-mods-live.sh || status=1
+    exit "$status"
