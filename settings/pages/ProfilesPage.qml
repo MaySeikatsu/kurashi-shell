@@ -18,11 +18,10 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
-    function fail(m) { failed = true; message = m.msg || m.kind || "" }
     function refresh() {
         Store.act("profile.list", {}, function (m) {
             if (m.t === "done") p.profiles = (m.data && m.data.profiles) || []
-            else p.fail(m)
+            else { p.failed = true; p.message = Store.actError(m, "settings.err.profile_list") }
         })
     }
     function preview(name) {
@@ -31,14 +30,15 @@ Flickable {
         message = ""
         Store.act("profile.preview", { name: name }, function (m) {
             if (m.t === "done") { p.diff = (m.data && m.data.diff) || []; p.failed = false }
-            else p.fail(m)
+            else { p.failed = true; p.message = Store.actError(m, "settings.err.profile_preview") }
         })
     }
     function load() {
         Store.act("profile.load", { name: selected }, function (m) {
             p.failed = m.t !== "done"
-            p.message = p.failed ? (m.msg || "") : I18n.tr("settings.ui.profile_loaded")
+            // The preview clears the message, so it runs first and the outcome is set after it.
             if (!p.failed) p.preview(p.selected)
+            p.message = p.failed ? Store.actError(m, "settings.err.profile_load") : I18n.tr("settings.ui.profile_loaded")
         })
     }
     function save() {
@@ -46,7 +46,7 @@ Flickable {
         if (n === "") return
         Store.act("profile.save", { name: n }, function (m) {
             p.failed = m.t !== "done"
-            p.message = p.failed ? (m.msg || "") : I18n.tr("settings.ui.profile_saved")
+            p.message = p.failed ? Store.actError(m, "settings.err.profile_save") : I18n.tr("settings.ui.profile_saved")
             if (!p.failed) { p.saveName = ""; p.refresh() }
         })
     }
@@ -66,10 +66,8 @@ Flickable {
         width: p.width - 2 * Theme.pad
         spacing: Theme.pad
 
-        Text {
-            color: Theme.accent
-            font.pixelSize: Theme.fsTitle
-            font.family: Theme.fam(text, Theme.families)
+        PageHeader {
+            width: parent.width
             text: I18n.tr("settings.ui.profiles")
         }
         Text {
@@ -85,26 +83,34 @@ Flickable {
             Repeater {
                 model: p.profiles
                 delegate: Rectangle {
+                    id: tile
                     required property var modelData
                     readonly property bool on: modelData.name === p.selected
                     implicitWidth: n.implicitWidth + 2 * Theme.pad + (b.visible ? b.implicitWidth + Theme.gap : 0)
-                    implicitHeight: 30
+                    implicitHeight: Theme.controlH
                     radius: Theme.rSm
                     color: on ? Theme.accent : Theme.containerHigh
                     border.width: 1
                     border.color: Theme.outline
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: event => { p.preview(tile.modelData.name); event.accepted = true }
+                    Keys.onEnterPressed: event => { p.preview(tile.modelData.name); event.accepted = true }
+                    Keys.onSpacePressed: event => { p.preview(tile.modelData.name); event.accepted = true }
+                    Accessible.role: Accessible.Button
+                    Accessible.name: tile.modelData.name
                     Text {
                         id: n
                         x: Theme.pad
                         anchors.verticalCenter: parent.verticalCenter
-                        color: Theme.fg
+                        // Text on the accent fill takes on_accent (4.5:1).
+                        color: tile.on ? Theme.fgOnAccent : Theme.fg
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
-                        text: modelData.name
+                        text: tile.modelData.name
                     }
                     Chip {
                         id: b
-                        visible: modelData.bundled === true
+                        visible: tile.modelData.bundled === true
                         anchors.right: parent.right
                         anchors.rightMargin: Theme.gap / 2
                         anchors.verticalCenter: parent.verticalCenter
@@ -112,7 +118,12 @@ Flickable {
                     }
                     MouseArea {
                         anchors.fill: parent
-                        onClicked: p.preview(modelData.name)
+                        onClicked: p.preview(tile.modelData.name)
+                    }
+                    FocusRing {
+                        anchors.fill: parent
+                        shown: tile.activeFocus
+                        corner: tile.radius
                     }
                 }
             }
@@ -153,14 +164,14 @@ Flickable {
                     Text {
                         color: Theme.dim
                         font.pixelSize: Theme.fs
-                        text: modelData.before ? Store.displayValue(modelData.before.value) : "—"
+                        text: modelData.before ? Store.displayValue(modelData.before.value) : I18n.tr("settings.ui.not_set")
                     }
                     ProvenanceChip { prov: modelData.before }
                     Text { color: Theme.dim; font.pixelSize: Theme.fs; text: "→" }
                     Text {
                         color: Theme.fg
                         font.pixelSize: Theme.fs
-                        text: modelData.after ? Store.displayValue(modelData.after.value) : "—"
+                        text: modelData.after ? Store.displayValue(modelData.after.value) : I18n.tr("settings.ui.not_set")
                     }
                     ProvenanceChip { prov: modelData.after }
                 }
@@ -186,9 +197,11 @@ Flickable {
             spacing: Theme.gap
             TextField {
                 width: 220
+                label: I18n.tr("settings.ui.save_name")
                 value: p.saveName
                 placeholder: I18n.tr("settings.ui.save_name")
-                onAccepted: t => p.saveName = t
+                // Follows every edit, so Save is enabled as soon as a name is typed.
+                onTyping: t => p.saveName = t
             }
             Button {
                 enabled: p.saveName.trim() !== "" && Store.live

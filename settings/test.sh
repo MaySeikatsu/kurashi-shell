@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
-# Settings app smoke test + screenshots (card M5-settings). Runs ONLY in a headless sway sandbox
-# with an isolated kurashid (own XDG dirs); never touches the real session or ~/.config.
-#   settings/test.sh            → exit 0 and settings/shots/*.png
-# Needs: nix develop (qs, grim, sway), kurashid + kurashi built (cargo build -p kurashid -p kurashi).
+# Settings app smoke test + screenshots (card M5-settings, S-settings-polish). Runs ONLY in a headless
+# sway sandbox with an isolated kurashid (own XDG dirs); never touches the real session or ~/.config.
+#   settings/test.sh                        → exit 0 and settings/shots/*.png
+#   KURASHI_BIN_DIR=<dir> settings/test.sh  → take kurashid + kurashi from <dir>; no cargo build
+# Needs: nix develop (qs, grim, sway, python3); kurashid + kurashi from KURASHI_BIN_DIR, or built with
+# `cargo build -p kurashid -p kurashi`. KURASHI_RENDER_NODE picks the GPU (tools/bench/sandbox.sh).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
 if ! command -v qs >/dev/null || ! command -v sway >/dev/null; then
   exec nix develop -c "$0" "$@"
 fi
-export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$HOME/.cache/kurashi-agents-target}
-# The target dir is shared with other agents' worktrees, so always rebuild (a no-op when current)
-# and snapshot the binaries right away; a bare `debug/kurashi` may belong to another branch.
-cargo build -q -p kurashid -p kurashi
 BIN=$(mktemp -d)
-cp "$CARGO_TARGET_DIR/debug/kurashid" "$CARGO_TARGET_DIR/debug/kurashi" "$BIN/"
+if [ -n "${KURASHI_BIN_DIR:-}" ]; then
+  cp "$KURASHI_BIN_DIR/kurashid" "$KURASHI_BIN_DIR/kurashi" "$BIN/"
+else
+  export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$HOME/.cache/kurashi-agents-target}
+  # The target dir is shared with other agents' worktrees, so always rebuild (a no-op when current)
+  # and snapshot the binaries right away; a bare `debug/kurashi` may belong to another branch.
+  cargo build -q -p kurashid -p kurashi
+  cp "$CARGO_TARGET_DIR/debug/kurashid" "$CARGO_TARGET_DIR/debug/kurashi" "$BIN/"
+fi
 
 NAME=${KURASHI_SB_NAME:-settings-$$}   # unique: concurrent runs must not stop each other's sway
 envfile=$(mktemp)
@@ -30,7 +36,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# --- isolated daemon state --------------------------------------------------------------------
+# --- isolated daemon state --------------------------------------------------------------------------
 mkdir -p "$R/cfg/kurashi/profiles" "$R/state" "$R/data" "$R/cache" "$R/root/i18n/en" "$R/root/i18n/ja"
 export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
 cat > "$R/cfg/kurashi/config.toml" <<'T'
@@ -117,5 +123,33 @@ shot 6-mods
 Q mod media true
 Q goto mods.media
 shot 7-mod-page
+
+# 8. keyboard only: Tab walks the window's focus order until the bar's "show bar" toggle has focus
+#    (its objectName is toggle:<key>), then Space flips it. The daemon must confirm the flip, and the
+#    shot shows the 1 px focus ring on that toggle. At most 60 Tabs; never a pointer event.
+Q goto bar
+Q focusList >/dev/null
+# One virtual keyboard for the whole step (settings/keys.py --serve, fed through a FIFO): a keyboard
+# that goes away makes the compositor drop the window's keyboard focus.
+mkfifo "$R/keys.fifo"
+python3 settings/keys.py --serve < "$R/keys.fifo" & pids+=($!)
+exec 3> "$R/keys.fifo"
+tabs=0
+for _ in $(seq 60); do
+  echo tab >&3
+  tabs=$((tabs + 1))
+  sleep 0.3
+  [ "$(Q focused)" = "toggle:bar.enabled" ] && break
+done
+[ "$(Q focused)" = "toggle:bar.enabled" ] || { echo "keyboard: Tab never reached toggle:bar.enabled ($(Q focused))"; exit 1; }
+before=$(K '{"t":"cfg.get","id":"k0","key":"bar.enabled"}')
+case "$before" in *'"value":true'*) ;; *) echo "keyboard: bar.enabled not on before the test: $before"; exit 1;; esac
+echo space >&3
+sleep 0.5
+after=$(K '{"t":"cfg.get","id":"k1","key":"bar.enabled"}')
+case "$after" in *'"value":false'*) ;; *) echo "keyboard: Space did not flip bar.enabled: $after"; exit 1;; esac
+shot 8-keyboard-focus   # while the keyboard is still there: its focus is what the ring shows
+exec 3>&-
+echo "keyboard: Tab x$tabs, Space flipped bar.enabled"
 
 echo "ok: settings/shots/"; ls settings/shots

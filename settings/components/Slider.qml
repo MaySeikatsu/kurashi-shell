@@ -2,7 +2,8 @@ import QtQuick
 import "../core"
 
 // Slider with local preview: while dragging only the shown number moves; the value goes out once,
-// on release (`committed`), so one interaction = one apply transaction.
+// on release (`committed`), so one interaction = one apply transaction. Arrow keys move one step, and
+// each key press is one transaction too.
 Item {
     id: s
     property real value: 0
@@ -12,6 +13,7 @@ Item {
     property bool integer: false
     property string unit: ""
     property bool enabled: true
+    property string label: ""
     signal committed(real value)
 
     property bool dragging: false
@@ -25,7 +27,10 @@ Item {
     }
 
     implicitWidth: 260
-    implicitHeight: 24
+    implicitHeight: Theme.controlH
+    activeFocusOnTab: s.enabled
+    Accessible.role: Accessible.Slider
+    Accessible.name: s.label
 
     function snap(v) {
         v = Math.max(from, Math.min(to, v))
@@ -34,12 +39,31 @@ Item {
         return Number(v.toFixed(decimals))
     }
     function at(x) { return snap(from + Math.max(0, Math.min(1, x / track.width)) * (to - from)) }
+    // One step per arrow key, from the value in effect. Without a step: a hundredth of the range
+    // (never less than 1 for an integer setting, so a key always moves it).
+    function nudge(d) {
+        if (!s.enabled) return
+        var st = step > 0 ? step : Math.max(integer ? 1 : 0, (to - from) / 100)
+        var v = snap(value + d * st)
+        if (v !== value) s.committed(v)
+    }
+
+    Keys.onPressed: event => {
+        var d = 0
+        switch (event.key) {
+        case Qt.Key_Left: case Qt.Key_Down: d = -1; break
+        case Qt.Key_Right: case Qt.Key_Up: d = 1; break
+        default: return
+        }
+        s.nudge(d)
+        event.accepted = true
+    }
 
     Rectangle {
         id: track
         anchors.verticalCenter: parent.verticalCenter
         anchors.left: parent.left
-        anchors.right: label.left
+        anchors.right: readout.left
         anchors.rightMargin: Theme.gap
         height: 4
         radius: 2
@@ -61,7 +85,7 @@ Item {
         }
     }
     Text {
-        id: label
+        id: readout
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 64
@@ -72,8 +96,13 @@ Item {
         text: s.shown.toFixed(s.decimals) + (s.unit ? " " + s.unit : "")
     }
     MouseArea {
-        anchors.fill: track
-        anchors.margins: -6
+        // The track is 4 px tall; the hit area spans the control height and 6 px past both ends.
+        anchors.left: track.left
+        anchors.right: track.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.leftMargin: -6
+        anchors.rightMargin: -6
         enabled: s.enabled
         onPressed: mouse => { s.dragging = true; s.dragValue = s.at(mouse.x - 6) }
         onPositionChanged: mouse => { if (pressed) s.dragValue = s.at(mouse.x - 6) }
@@ -83,5 +112,10 @@ Item {
             if (v !== s.value) s.committed(v)
         }
         onCanceled: s.dragging = false
+    }
+    FocusRing {
+        anchors.fill: parent
+        shown: s.activeFocus
+        corner: 4
     }
 }

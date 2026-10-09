@@ -15,6 +15,11 @@ Singleton {
     readonly property color fg: color("color.on_surface", "#e9e4d8")
     readonly property color dim: color("color.on_surface_variant", "#b9b2a6")
     readonly property color accent: color("color.accent", "#c9404b")
+    // Text on the accent fill. Not `onAccent`: the frontend Theme found that name read back as black.
+    readonly property color fgOnAccent: color("color.on_accent", "#fff6f1")
+    readonly property color focusRing: color("focus.ring", "#c9404b")
+    // Control height: button visuals take it; smaller controls enlarge their hit area to it (32 px floor).
+    readonly property int controlH: tok("control.height", 32)
     readonly property color outline: color("color.outline", "#5a5560")
     readonly property color surface: color("color.surface", "#1b1a1e")
     readonly property color container: color("color.surface_container", "#252329")

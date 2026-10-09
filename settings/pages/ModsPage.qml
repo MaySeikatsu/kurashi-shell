@@ -7,7 +7,7 @@ import "../components"
 // entry changes when the document does, and a refused request stays visible under its mod.
 Flickable {
     id: p
-    // mod id -> the daemon's message for the last refused request for that mod.
+    // mod id -> why its last request was refused, as text (the catalog text, or the generic line with its code).
     property var failures: ({})
     readonly property bool loaded: Store.mods.mods !== undefined
     readonly property var entries: loaded ? Store.mods.mods : []
@@ -25,17 +25,26 @@ Flickable {
         Store.act(on ? "mod.enable" : "mod.disable", { id: id }, function (m) {
             if (m.t === "done") return
             var g = Object.assign({}, p.failures)
-            g[id] = m.msg || m.kind || ""
+            g[id] = Store.actError(m, "settings.err.unknown_action")
             p.failures = g
         })
     }
-    // Why an invalid mod cannot run, in the daemon's words: catalog key, file path, detail.
+    // Why an invalid mod cannot run: the catalog text of its reason and the file it concerns. The
+    // parser's or the OS's own detail is English and stays out of the page.
     function problems(m) {
         return (m.errors || []).map(function (e) {
-            return I18n.tr(e.key) + (e.path ? " (" + e.path + ")" : "") + (e.detail ? ": " + e.detail : "")
+            return I18n.tr(e.key) + (e.path ? " (" + e.path + ")" : "")
         }).join("\n")
     }
     function joined(a) { return (a && a.length) ? a.join(", ") : I18n.tr("settings.ui.mod_none") }
+    // "v0.1.0 · native · cost low": the facts the manifest gives, and no placeholder for the rest.
+    function facts(m) {
+        var parts = []
+        if (m.version) parts.push("v" + m.version)
+        if (m.tier) parts.push(I18n.tr("settings.ui.tier." + m.tier))
+        if (m.cost) parts.push(I18n.tr("settings.ui.cost." + m.cost))
+        return parts.join(" · ")
+    }
 
     Column {
         id: col
@@ -44,10 +53,8 @@ Flickable {
         width: p.width - 2 * Theme.pad
         spacing: Theme.pad
 
-        Text {
-            color: Theme.accent
-            font.pixelSize: Theme.fsTitle
-            font.family: Theme.fam(text, Theme.families)
+        PageHeader {
+            width: parent.width
             text: I18n.tr("settings.ui.mods")
         }
         Text {
@@ -103,12 +110,6 @@ Flickable {
                                 font.family: Theme.fam(text, Theme.families)
                                 text: I18n.tr(entry.modelData.name)
                             }
-                            Text {
-                                color: Theme.dim
-                                font.pixelSize: Theme.fs - 2
-                                font.family: "monospace"
-                                text: entry.modelData.id
-                            }
                             Chip {
                                 text: I18n.tr("settings.ui.mod_state." + entry.modelData.state)
                                 edge: entry.invalid ? Theme.error : Theme.outline
@@ -129,12 +130,11 @@ Flickable {
                             text: entry.modelData.description ? I18n.tr(entry.modelData.description) : ""
                         }
                         Text {
+                            visible: text !== ""
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: (entry.modelData.version ? "v" + entry.modelData.version : "—")
-                                + " · " + (entry.modelData.tier ? I18n.tr("settings.ui.tier." + entry.modelData.tier) : "—")
-                                + " · " + (entry.modelData.cost ? I18n.tr("settings.ui.cost." + entry.modelData.cost) : "—")
+                            text: p.facts(entry.modelData)
                         }
                         Text {
                             width: parent.width
@@ -148,6 +148,8 @@ Flickable {
                     }
                     Toggle {
                         id: tog
+                        objectName: "mod:" + entry.modelData.id
+                        label: I18n.tr(entry.modelData.name)
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         checked: entry.modelData.state === "enabled"
@@ -171,7 +173,7 @@ Flickable {
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
                     font.family: Theme.fam(text, Theme.families)
-                    text: I18n.tr("settings.ui.mods_failed") + ": " + I18n.tr(entry.failure)
+                    text: I18n.tr("settings.ui.mods_failed") + ": " + entry.failure
                 }
                 Rectangle {
                     width: parent.width
