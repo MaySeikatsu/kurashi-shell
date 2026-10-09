@@ -478,9 +478,6 @@ struct AudioSink {
     hub: Arc<Hub>,
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
     island: Option<Arc<crate::island::IslandHost>>,
-    /// The worker is a plain thread, but the island's expiry timer needs the runtime, so OSD
-    /// signals are handed to it. No runtime when subscribed means no OSD, never a panic.
-    runtime: Option<tokio::runtime::Handle>,
     /// (volume, muted) last seen; a change shows the island's transient `volume` face (OSD).
     last: Mutex<Option<(f64, bool)>>,
 }
@@ -492,11 +489,10 @@ impl kurashi_services::DocSink for AudioSink {
             doc["muted"].as_bool().unwrap_or(false),
         );
         let prev = self.last.lock().expect("audio last").replace(now);
-        if let (Some(island), Some(runtime), Some(prev)) = (&self.island, &self.runtime, prev)
+        if let (Some(island), Some(prev)) = (&self.island, prev)
             && prev != now
         {
-            let island = island.clone();
-            let signal = kurashi_island::FaceSignal {
+            island.signal(kurashi_island::FaceSignal {
                 face: "volume".into(),
                 relevance: 0,
                 condition: true,
@@ -505,9 +501,7 @@ impl kurashi_services::DocSink for AudioSink {
                     ttl_ms: 1500,
                     may_interrupt: true,
                 }),
-            };
-            // Detached on purpose: the signal is fire-and-forget.
-            runtime.spawn(async move { island.signal(signal) });
+            });
         }
         let origin = self
             .last_origin
@@ -526,7 +520,6 @@ impl crate::hub::Provider for AudioProvider {
             hub,
             last_origin: self.last_origin.clone(),
             island: self.island.clone(),
-            runtime: tokio::runtime::Handle::try_current().ok(),
             last: Mutex::new(None),
         }));
         *self.running.lock().expect("audio lock") = Some((h, c));
@@ -602,6 +595,8 @@ pub fn audio_with(
         if let (Some(c), Some(v)) = (p.commands(), v.as_f64()) {
             *p.last_origin.lock().expect("origin lock") =
                 origin.map(|o| (o, std::time::Instant::now()));
+            // A slider move ends any key-repeat chain: the next key step starts from the slider.
+            *p.last_key.lock().expect("key lock") = None;
             c.set_volume(v);
         }
     });
@@ -1299,10 +1294,14 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn brightness_keys_write_through_logind_and_signal_the_osd() {
+    /// A private bus with a fake logind over a fake backlight at 50 of 100. The server connection
+    /// keeps the fake alive; the `ConnectFn` opens client connections to the same bus.
+    async fn backlight_rig() -> (Bus, zbus::Connection, std::path::PathBuf, ConnectFn) {
         let bus = Bus::start();
-        let sysfs = temp_dir("backlight");
+        // One directory per rig: the tests run in parallel and share this process id.
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let sysfs = temp_dir(&format!("backlight-{n}"));
         let dev = sysfs.join("intel_backlight");
         std::fs::create_dir_all(&dev).unwrap();
         std::fs::write(dev.join("max_brightness"), "100").unwrap();
@@ -1316,7 +1315,6 @@ mod tests {
             .await
             .unwrap();
         srv.request_name("org.freedesktop.login1").await.unwrap();
-
         let addr = bus.addr.clone();
         let connect: ConnectFn = Arc::new(move || {
             let addr = addr.clone();
@@ -1326,6 +1324,13 @@ mod tests {
                     .await
             })
         });
+        (bus, srv, sysfs, connect)
+    }
+
+    #[tokio::test]
+    async fn brightness_keys_write_through_logind_and_signal_the_osd() {
+        let (_bus, _srv, sysfs, connect) = backlight_rig().await;
+        let dev = sysfs.join("intel_backlight");
         let hub = Hub::new();
         let island = island_host(&hub, &["clock", "brightness"]);
         let mut actions = ActionRegistry::default();
@@ -1353,6 +1358,40 @@ mod tests {
             Err(ActionError::Invalid(STEP_RANGE.into()))
         );
         assert_eq!(level(), "45", "a refused step writes nothing");
+        let _ = std::fs::remove_dir_all(&sysfs);
+    }
+
+    #[tokio::test]
+    async fn brightness_set_intent_writes_the_level_and_drops_out_of_range_values() {
+        let (_bus, _srv, sysfs, connect) = backlight_rig().await;
+        let dev = sysfs.join("intel_backlight");
+        let hub = Hub::new();
+        let island = island_host(&hub, &["clock", "brightness"]);
+        let mut actions = ActionRegistry::default();
+        let mut intents = crate::Intents::default();
+        brightness_with(
+            &hub,
+            &mut actions,
+            &mut intents,
+            Some(island),
+            sysfs.clone(),
+            connect,
+        );
+        let intents = Arc::new(intents);
+        let level = || std::fs::read_to_string(dev.join("brightness")).unwrap();
+
+        intents
+            .submit("brightness.set", json!(0.25), None, false)
+            .unwrap();
+        until("level set by the intent", || level() == "25").await;
+        assert_eq!(island_face(&hub), "brightness");
+
+        // Intents have no reply: an out-of-range value is dropped without a write.
+        intents
+            .submit("brightness.set", json!(2), None, false)
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        assert_eq!(level(), "25");
         let _ = std::fs::remove_dir_all(&sysfs);
     }
 
