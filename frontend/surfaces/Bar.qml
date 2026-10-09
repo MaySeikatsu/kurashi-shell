@@ -14,6 +14,21 @@ PanelWindow {
     // Veil: daemon away (or not yet current) -> keep last state, dim it, show the glyph.
     readonly property bool stale: !Store.live
 
+    // What this bar renders; unwatched when the bar goes away (output unplugged) so the daemon can
+    // stop services nobody shows (Ma).
+    Watch { doc: "svc.clock" }
+    Watch { doc: "svc.workspaces" }
+    Watch { doc: "svc.media" }
+    Watch { doc: "runtime.island.main" }
+    Watch { doc: "svc.audio" }
+    Watch { doc: "mods.probe" }
+    readonly property var clock: Store.docs["svc.clock"] || ({})
+    readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
+    readonly property var media: Store.docs["svc.media"] || ({})
+    readonly property var island: Store.docs["runtime.island.main"] || ({})
+    readonly property var audio: Store.docs["svc.audio"] || ({})
+    readonly property var mods: Store.docs["mods.probe"] || ({})
+
     anchors { top: true; left: true; right: true }
     implicitHeight: Theme.barH
     color: "transparent"       // exclusionMode Auto -> exclusive zone = height
@@ -42,7 +57,7 @@ PanelWindow {
             spacing: Theme.gap
             Repeater {
                 model: {
-                    var o = (Store.workspaces && Store.workspaces.outputs) || {}
+                    var o = bar.workspaces.outputs || {}
                     var n = bar.screen ? bar.screen.name : ""
                     return o[n] || o["*"] || []
                 }
@@ -66,9 +81,10 @@ PanelWindow {
         // ---- center: Island ----------------------------------------------------------------
         Island {
             anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
-            face: (Store.island && Store.island.face) || "clock"
-            clockText: (Store.clock.hh ?? "--") + ":" + (Store.clock.mm ?? "--") + " · " + (Store.clock.weekday ?? "")
-            mediaText: (Store.media.title ?? "") + " — " + (Store.media.artist ?? "")
+            face: bar.island.face || "clock"
+            clockText: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--") + " · " + (bar.clock.weekday ?? "")
+            reason: bar.island.reason || "default"
+            mediaText: (bar.media.title ?? "") + " — " + (bar.media.artist ?? "")
             onPrimary: Store.act("probe.popup.toggle")
             onSecondary: Store.act("island.pin")
             onScrolled: dir => Store.act(dir > 0 ? "island.prev" : "island.next")
@@ -81,11 +97,11 @@ PanelWindow {
             Slider {
                 anchors.verticalCenter: parent.verticalCenter
                 width: 110
-                value: Store.audio.volume ?? 0
+                value: bar.audio.volume ?? 0
                 onMoved: v => Store.intent("audio.volume", v, bar.origin)
             }
             Repeater {
-                model: (Store.mods && Store.mods.widgets) || []
+                model: bar.mods.widgets || []
                 delegate: ModNode {
                     required property var modelData
                     anchors.verticalCenter: parent.verticalCenter
@@ -101,7 +117,7 @@ PanelWindow {
                 color: Theme.fg
                 font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
-                text: (Store.clock.hh ?? "--") + ":" + (Store.clock.mm ?? "--")
+                text: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--")
             }
         }
     }

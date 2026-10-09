@@ -13,6 +13,10 @@ Rectangle {
     signal secondary()               // right click
     signal scrolled(int dir)         // +1 up, -1 down
 
+    property string reason: "default"   // why the daemon picked this face
+    // `manual` (island.next/prev/pin via the arbiter) is a deliberate user choice, like `user`.
+    readonly property bool byUser: reason === "user" || reason === "manual"
+
     readonly property bool media: face === "media"
     readonly property bool animate: armed && visible
     property bool armed: false

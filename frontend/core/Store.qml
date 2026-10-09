@@ -4,38 +4,87 @@ import Quickshell
 import Quickshell.Io
 
 // IPC client over the kurashi socket (NDJSON, PROTOCOL v1). Holds the daemon's state, nothing else.
+// Documents are subscribed on demand (watch/unwatch, refcounted) so the daemon only runs services
+// something actually renders (Ma).
 Singleton {
     id: root
 
-    property var theme: ({})
-    property var clock: ({})
-    property var workspaces: ({})
-    property var audio: ({})
-    property var media: ({})
-    property var island: ({})
-    property var ui: ({})
-    property var mods: ({})
-    property string audioOrigin: ""
+    // Reactive document map: Store.docs["svc.media"]. Reassigned (shallow copy) on every change so
+    // bindings re-evaluate; a doc that is not watched, or that the daemon does not serve, is absent.
+    property var docs: ({})
 
     // Socket is up and welcomed.
     property bool connected: false
     // Connected AND at least one snapshot arrived since the last welcome (state is current again).
     property bool live: false
+    property string instance: ""
 
-    readonly property var subs: ["theme", "svc.clock", "svc.workspaces", "svc.audio", "svc.media",
-                                 "runtime.island.main", "runtime.ui", "mods.probe"]
-    property var data: ({})
     property var revs: ({})
+    property var wanted: ({})       // doc -> watcher count
+    property var pending: ({})      // request id -> callback (act) | {kind, cb} (query)
+    property var latestQuery: ({})  // kind -> id of the newest query (older results are dropped)
     property int seq: 0
+    property var cur: null          // the live Socket instance
 
     function send(m) {
-        if (!sock.connected) return
+        var sock = root.cur
+        if (!sock || !sock.connected) return
         sock.write(JSON.stringify(m) + "\n")
         sock.flush()
     }
-    function act(a) { send({ t: "act", id: "a" + (++seq), action: a }) }
+
+    // First watcher subscribes, last unwatch unsubscribes (the daemon then stops the backing
+    // service). Safe to call while disconnected: the welcome subscribes everything wanted.
+    function watch(doc) {
+        var n = (wanted[doc] || 0) + 1
+        wanted[doc] = n
+        if (n === 1 && connected) send({ t: "sub", id: "s:" + doc, doc: doc })
+    }
+    function unwatch(doc) {
+        var n = wanted[doc] || 0
+        if (n <= 0) return
+        if (n > 1) { wanted[doc] = n - 1; return }
+        delete wanted[doc]
+        if (connected) send({ t: "unsub", doc: doc })
+        delete revs[doc]
+        setDoc(doc, undefined)
+    }
+    function setDoc(doc, v) {
+        var d = Object.assign({}, docs)
+        if (v === undefined) delete d[doc]
+        else d[doc] = v
+        docs = d
+    }
+
+    // Actions: cb(done, err). `done` is the daemon's reply (done.data may carry a result), `err`
+    // the {kind, msg} of a failure; exactly one is non-null. cb is optional.
+    function act(action, args, cb) {
+        var id = "a" + (++seq)
+        if (cb) pending[id] = cb
+        if (!connected) { fail(id, { kind: "unavailable", msg: "disconnected" }); return }
+        send({ t: "act", id: id, action: action, args: args || {} })
+    }
+    // Queries: cb(items, err). Only the newest query per kind is answered; stale ids are dropped.
+    function query(kind, q, cb) {
+        var id = "q" + (++seq)
+        latestQuery[kind] = id
+        pending[id] = { kind: kind, cb: cb }
+        if (!connected) { fail(id, { kind: "unavailable", msg: "disconnected" }); return }
+        send({ t: "query", id: id, kind: kind, q: q })
+    }
     function intent(key, value, origin) {
         send({ t: "intent", key: key, value: value, origin: origin, coalesce: true })
+    }
+    function fail(id, e) {
+        var p = pending[id]
+        delete pending[id]
+        if (!p) return
+        if (typeof p === "function") p(null, e)
+        else if (p.cb) p.cb(null, e)
+    }
+    function failAll(e) {
+        var ids = Object.keys(pending)
+        for (var i = 0; i < ids.length; i++) fail(ids[i], e)
     }
 
     // RFC 7386 merge-patch.
@@ -49,18 +98,8 @@ Singleton {
         return t
     }
 
-    function publish(doc) {
-        var v = JSON.parse(JSON.stringify(data[doc]))
-        switch (doc) {
-        case "theme": theme = v; break
-        case "svc.clock": clock = v; break
-        case "svc.workspaces": workspaces = v; break
-        case "svc.audio": audio = v; break
-        case "svc.media": media = v; break
-        case "runtime.island.main": island = v; break
-        case "runtime.ui": ui = v; break
-        case "mods.probe": mods = v; break
-        }
+    function subscribeAll() {
+        for (var doc in wanted) send({ t: "sub", id: "s:" + doc, doc: doc })
     }
 
     function handle(line) {
@@ -68,60 +107,96 @@ Singleton {
         var m
         try { m = JSON.parse(line) } catch (e) { return }
         if (m.t === "welcome") {
+            retry.stop()
             retry.interval = 250
+            // Revisions restart per daemon instance; after any reconnect every doc is re-subscribed
+            // anyway, so a changed instance only matters for dropping what the new one may not serve.
+            if (instance !== "" && m.instance !== instance) docs = ({})
+            instance = m.instance || ""
+            revs = ({})
             connected = true
-            for (var i = 0; i < subs.length; i++) send({ t: "sub", id: "s" + i, doc: subs[i] })
+            subscribeAll()
         } else if (m.t === "snap") {
-            data[m.doc] = m.data
+            if (!wanted[m.doc]) return
             revs[m.doc] = m.rev
-            publish(m.doc)
+            setDoc(m.doc, m.data)
             live = true
         } else if (m.t === "patch") {
+            if (!wanted[m.doc] || docs[m.doc] === undefined) return
             if (revs[m.doc] === undefined || m.rev !== revs[m.doc] + 1) {
                 if (revs[m.doc] === undefined || m.rev > revs[m.doc]) send({ t: "resync", doc: m.doc })
                 return
             }
             revs[m.doc] = m.rev
-            data[m.doc] = merge(data[m.doc], m.ops)
-            if (m.doc === "svc.audio") audioOrigin = m.origin || ""
-            publish(m.doc)
+            setDoc(m.doc, merge(JSON.parse(JSON.stringify(docs[m.doc])), m.ops))
+        } else if (m.t === "done") {
+            var cb = pending[m.id]
+            delete pending[m.id]
+            if (typeof cb === "function") cb(m, null)
+        } else if (m.t === "results") {
+            var q = pending[m.id]
+            delete pending[m.id]
+            // Stale answers (a newer query of the same kind exists) are dropped.
+            if (q && q.cb && latestQuery[q.kind] === m.id) q.cb(m.items || [], null)
+        } else if (m.t === "err") {
+            if (m.id && m.id.indexOf("s:") === 0) {
+                // The daemon does not serve this doc: leave it absent, never retry (no storm).
+                var doc = m.id.substring(2)
+                delete revs[doc]
+                setDoc(doc, undefined)
+                live = true
+            } else if (m.id) {
+                fail(m.id, { kind: m.kind, msg: m.msg })
+            }
         } else if (m.t === "ping") {
             send({ t: "pong" })
         }
     }
 
-    Socket {
-        id: sock
-        path: Quickshell.env("KURASHI_SOCKET")
-        parser: SplitParser {
-            splitMarker: "\n"
-            onRead: data => root.handle(data)
-        }
-        onConnectedChanged: {
-            if (connected) {
-                root.send({ t: "hello", v: 1, client: "frontend", caps: ["intents", "resync"] })
-            } else {
-                // Keep the last state (the veil marks it stale). Revisions restart with the next
-                // session, so forget them or the first patch would look like a gap.
-                root.connected = false
-                root.live = false
-                root.revs = ({})
-                retry.start()
+    // A Socket whose first attempt failed does not reliably retry when toggled (measured: silent
+    // after the first ServerNotFound), so every attempt gets a fresh Socket instance.
+    Component {
+        id: sockComp
+        Socket {
+            id: s
+            path: Quickshell.env("KURASHI_SOCKET")
+            Component.onCompleted: { root.cur = s; connected = true }
+            Component.onDestruction: if (root.cur === s) root.cur = null
+            parser: SplitParser {
+                splitMarker: "\n"
+                onRead: data => root.handle(data)
+            }
+            onConnectedChanged: {
+                if (root.cur !== s) return   // a replaced instance dying must not touch state
+                if (connected) {
+                    root.send({ t: "hello", v: 1, client: "frontend", caps: ["intents", "resync"] })
+                } else {
+                    // Keep the last state (the veil marks it stale).
+                    root.connected = false
+                    root.live = false
+                    root.revs = ({})
+                    root.failAll({ kind: "unavailable", msg: "disconnected" })
+                    if (!retry.running) retry.start()
+                }
             }
         }
-        onError: retry.start()
     }
+    Loader { id: ld; sourceComponent: sockComp }
 
-    // Runs only while disconnected (Ma): 250 ms doubling to 4 s.
+    // Runs only while not welcomed (Ma): 250 ms doubling to 4 s. Does not rely on error signals
+    // (an attempt can fail silently): keeps ticking until the welcome arrives.
     Timer {
         id: retry
         interval: 250
         repeat: false
         onTriggered: {
             interval = Math.min(interval * 2, 4000)
-            sock.connected = true
+            if (root.connected) return
+            ld.active = false
+            ld.active = true
+            start()
         }
     }
 
-    Component.onCompleted: sock.connected = true
+    Component.onCompleted: retry.start()
 }

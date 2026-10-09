@@ -5,7 +5,7 @@ import Quickshell
 // The only reader of `theme.tokens` (rule 4). Components ask for tokens by name and never branch
 // on theme/profile names. Fallbacks only cover a daemon that has not delivered the theme yet.
 Singleton {
-    readonly property var tokens: (Store.theme && Store.theme.tokens) ? Store.theme.tokens : ({})
+    readonly property var tokens: (Store.docs["theme"] && Store.docs["theme"].tokens) ? Store.docs["theme"].tokens : ({})
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
     function color(k, d) { return Qt.color(tok(k, d)) }
     function bezier(k, d) { var c = tok(k, d); return [c[0], c[1], c[2], c[3], 1, 1] }
