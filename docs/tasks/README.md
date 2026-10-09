@@ -141,3 +141,14 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [C-mod-sections](C-mod-sections.md) | `crates/kurashi-config/` | haiku |
 | [K-hybrid-egl](K-hybrid-egl.md) | `frontend/launch.sh`, `frontend/test-launch.sh`, nix runtime deps | haiku |
 Lead (before the wave): K23 tray menu panel (`tray.menu.open`, `runtime.ui.tray`) in kurashid + mock.
+
+## Wave 9 (session 5, machine B; Haiku 5.5 agents, max effort) — the fix wave
+| Card | Owner paths | Model |
+|---|---|---|
+| [W9-bar-volume](W9-bar-volume.md) | Bar slider blocks, `components/Slider.qml`, `frontend.toml`, `frontend/test-volume.sh` | haiku |
+| [W9-brightness-session](W9-brightness-session.md) | `kurashi-services/src/{brightness,session}.rs` + tests | haiku |
+| [W9-tray](W9-tray.md) | `crates/kurashi-tray/**` | haiku |
+| [W9-config-profiles](W9-config-profiles.md) | `kurashid/src/config.rs`, `kurashi-config/`, `config.toml`, `settings/**` (not keys.py), `settings.toml` | haiku |
+| [W9-test-helpers](W9-test-helpers.md) | `tools/bench/wl_{keys,pointer}.py`, `frontend/test-{bindings,tray-bt}.sh` | haiku |
+| [W9-niri-binds](W9-niri-binds.md) | `README.md` keybindings subsection, `nix/hm-module.nix`, `nix/tests/`, `docs/niri-binds.kdl` | haiku |
+Lead (before the wave): contract rows 20–22 (fixtures, mock, PROTOCOL, K27); K24–K26 recorded; B7 per-output PSS.

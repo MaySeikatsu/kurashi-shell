@@ -75,8 +75,15 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 - `apply` is atomic: any invalid op rejects the whole batch (`code` is an i18n key). `reset` of a
   section prefix removes every user key below it. Profile loads are one transaction.
 - **`config` document** (subscribe like any other):
-  `{"values":{"<key>":Provenanced,…},"outputs":{"<name>":{"<per-output key>":Provenanced}}}`.
-  Patches carry only keys whose *effective* value or provenance changed.
+  `{"values":{"<key>":Provenanced,…},"outputs":{"<name>":{"<per-output key>":Provenanced}},
+  "history":{"can_undo":bool,"can_redo":bool},"profiles":[{"name":"kanso","bundled":true},…]}`.
+  Patches carry only keys whose *effective* value or provenance changed. `history` follows every
+  applied change, undo, redo and profile load (whoever sent it: settings, CLI, another client);
+  `profiles` is what `profile.list` answers, kept current when profile files appear or go (file
+  watcher). Both added in session 5 (K27, CONTRACT rows 21–22); pinned by
+  `fixtures/ipc/server/snap_config.json`.
+- Profile actions (`profile.list/preview/load/save`) answer errors with `msg` = an i18n key
+  (`config.error.*`, like the mods actions), never English text (K27).
 - **`schema.settings` document**: settings metadata generated from the schema (pages → sections →
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
   Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
@@ -103,7 +110,8 @@ If a connection falls behind the broadcast ring, the daemon re-sends a full `sna
 every document that connection subscribes; clients already resync by revision.
 
 Further kurashid documents (wave 7): `svc.tray` `{available, items:[{id, title, icon_name, status,
-has_menu, icon_pixmap?, tooltip?, icon_theme_path?}]}` with actions `tray.{activate,secondary,scroll,
+has_menu, item_is_menu?, icon_pixmap?, tooltip?, icon_theme_path?}]}` (`item_is_menu`: SNI `ItemIsMenu`,
+present only when true — the item only offers its menu, so a left click opens it; row 20) with actions `tray.{activate,secondary,scroll,
 menu,menu_event}`; `svc.bluetooth` `{available, powered?, discovering?, devices?:[…]}` with actions
 `bluetooth.{power,connect,disconnect,scan}`. Both start on first subscriber; their actions never
 start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
