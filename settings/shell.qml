@@ -31,6 +31,25 @@ ShellRoot {
         readonly property var pages: Store.schema.pages || []
         readonly property string current: page !== "" ? page : (pages.length ? pages[0].id : "")
         readonly property bool searching: query.trim() !== ""
+        // The sidebar (K25): the core pages keep their order, and each mod's page sits among them by name, before
+        // the first core page that sorts after it. Mods and Profiles close the list. `mod` is a mod's id, "" otherwise.
+        readonly property var navItems: {
+            var strings = I18n.strings   // re-evaluated when the strings arrive
+            var entryOf = function (x) { return { id: x.id, label: x.label, mod: x.mod !== undefined ? x.mod : "" } }
+            var nameOf = function (x) { return I18n.tr(x.label) }
+            var core = win.pages.filter(function (x) { return x.mod === undefined }).map(entryOf)
+            var mods = win.pages.filter(function (x) { return x.mod !== undefined }).map(entryOf)
+            mods.sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)) })
+            var out = []
+            var m = 0
+            core.forEach(function (c) {
+                while (m < mods.length && nameOf(mods[m]).localeCompare(nameOf(c)) < 0) out.push(mods[m++])
+                out.push(c)
+            })
+            while (m < mods.length) out.push(mods[m++])
+            return out.concat([{ id: "@mods", label: "settings.ui.mods", mod: "" },
+                               { id: "@profiles", label: "settings.ui.profiles", mod: "" }])
+        }
 
         // A search hit was chosen (Enter, or a click on its breadcrumb): leave the search, open the
         // row's page (an advanced row needs the advanced view) and bring the row into view.
@@ -63,6 +82,12 @@ ShellRoot {
                 if (h) win.jump(h.pageId, h.row)
             }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
+            function modLoad(id: string): void { modsPage.load(id) }
+            function modUnload(id: string): void { modsPage.unload(id) }
+            // Mod pages test (K25): the sidebar's entries in order, as ids; the core pages keep theirs.
+            function navOrder(): string { return win.navItems.map(function (x) { return x.id }).join(",") }
+            // Dropdown test (I9): opens the dropdown of a row on this page, as Enter does on its focus.
+            function openChoice(key: string): void { settingsPages.openControl(key) }
             // Mods test (B8): the refusal line a row shows, empty when none is shown.
             function modRefusal(id: string): string { return modsPage.failures[id] ? modsPage.failures[id].text : "" }
             // Keyboard test: the control that has keyboard focus: its objectName, else its accessible name.
@@ -212,13 +237,17 @@ ShellRoot {
                         anchors.margins: Theme.gap
                         spacing: 2
                         Repeater {
-                            model: win.pages.map(function (p) { return { id: p.id, label: p.label } })
-                                .concat([{ id: "@mods", label: "settings.ui.mods" },
-                                         { id: "@profiles", label: "settings.ui.profiles" }])
+                            model: win.navItems
                             delegate: Rectangle {
                                 id: entry
                                 required property var modelData
                                 readonly property bool on: !win.searching && modelData.id === win.current
+                                // A mod's page (K25) shows its state: a filled dot = on, a hollow ring = loaded, off.
+                                // The shape carries it; the colour (color.status.*) only repeats it.
+                                readonly property bool isMod: modelData.mod !== ""
+                                readonly property bool modOn: isMod && Store.modOn(modelData.mod)
+                                readonly property string shownName: isMod ? I18n.tr(modelData.label)
+                                    : I18n.pageTitle(modelData.id, modelData.label)
                                 function open(): void { win.page = modelData.id; win.query = "" }
                                 width: parent.width
                                 height: Theme.controlH
@@ -229,14 +258,27 @@ ShellRoot {
                                 Keys.onEnterPressed: event => { entry.open(); event.accepted = true }
                                 Keys.onSpacePressed: event => { entry.open(); event.accepted = true }
                                 Accessible.role: Accessible.PageTab
-                                Accessible.name: I18n.pageTitle(modelData.id, modelData.label)
-                                Text {
+                                Accessible.name: isMod
+                                    ? I18n.fmt("settings.ui.mod_nav", { name: shownName, state: I18n.tr(modOn ? "settings.ui.on" : "settings.ui.off") })
+                                    : shownName
+                                Rectangle {
+                                    visible: entry.isMod
                                     x: Theme.pad
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 10
+                                    height: 10
+                                    radius: 5
+                                    color: entry.modOn ? Theme.statusOn : "transparent"
+                                    border.width: 2
+                                    border.color: entry.modOn ? Theme.statusOn : Theme.statusOff
+                                }
+                                Text {
+                                    x: entry.isMod ? Theme.pad + 18 : Theme.pad
                                     anchors.verticalCenter: parent.verticalCenter
                                     color: entry.on ? Theme.fg : Theme.dim
                                     font.pixelSize: Theme.fs
                                     font.family: Theme.fam(text, Theme.families)
-                                    text: I18n.pageTitle(modelData.id, modelData.label)
+                                    text: entry.shownName
                                 }
                                 MouseArea {
                                     anchors.fill: parent

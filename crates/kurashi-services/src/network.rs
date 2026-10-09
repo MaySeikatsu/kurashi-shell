@@ -13,13 +13,55 @@ const DEST: &str = "org.freedesktop.NetworkManager";
 const NM_PATH: &str = "/org/freedesktop/NetworkManager";
 const ACTIVE_IF: &str = "org.freedesktop.NetworkManager.Connection.Active";
 
+/// Why NetworkManager did not take a `WirelessEnabled` write. The caller maps each to an i18n key
+/// (PROTOCOL §8, `network.wifi`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WifiError {
+    /// NetworkManager's polkit check, or the bus policy, said no.
+    Refused,
+    /// No NetworkManager on the bus, or the call failed for another reason.
+    Unavailable,
+}
+
+/// Error names a refused change comes back with: NetworkManager's own permission error, the polkit
+/// one, and the bus policy's.
+const REFUSED: [&str; 3] = [
+    "org.freedesktop.NetworkManager.PermissionDenied",
+    "org.freedesktop.PolicyKit1.Error.NotAuthorized",
+    "org.freedesktop.DBus.Error.AccessDenied",
+];
+
+impl WifiError {
+    fn of(err: &zbus::Error) -> Self {
+        let refused = match err {
+            zbus::Error::MethodError(name, _, _) => REFUSED.contains(&name.as_str()),
+            zbus::Error::FDO(e) => matches!(**e, zbus::fdo::Error::AccessDenied(_)),
+            _ => false,
+        };
+        if refused {
+            WifiError::Refused
+        } else {
+            WifiError::Unavailable
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct Commands {
     conn: Connection,
 }
 
 impl Commands {
-    pub async fn set_wifi_enabled(&self, on: bool) -> zbus::Result<()> {
+    /// The document follows NetworkManager's PropertiesChanged, never this call (rule 2: no
+    /// optimistic write), so a refused or failed write leaves the document as it was.
+    pub async fn set_wifi_enabled(&self, on: bool) -> Result<(), WifiError> {
+        self.write_wifi(on).await.map_err(|e| {
+            tracing::warn!(error = %e, "NetworkManager did not take the wifi change");
+            WifiError::of(&e)
+        })
+    }
+
+    async fn write_wifi(&self, on: bool) -> zbus::Result<()> {
         let p = zbus::fdo::PropertiesProxy::builder(&self.conn)
             .destination(DEST)?
             .path(NM_PATH)?
@@ -140,4 +182,26 @@ async fn wifi_strength(conn: &Connection, act: &util::Props) -> Option<u8> {
     )
     .await?;
     util::prop::<u8>(&a, "Strength")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_permission_errors_are_refusals() {
+        let fdo = |e: zbus::fdo::Error| zbus::Error::FDO(Box::new(e));
+        assert_eq!(
+            WifiError::of(&fdo(zbus::fdo::Error::AccessDenied("no".into()))),
+            WifiError::Refused
+        );
+        assert_eq!(
+            WifiError::of(&fdo(zbus::fdo::Error::ServiceUnknown("gone".into()))),
+            WifiError::Unavailable
+        );
+        assert_eq!(
+            WifiError::of(&zbus::Error::Failure("broken".into())),
+            WifiError::Unavailable
+        );
+    }
 }

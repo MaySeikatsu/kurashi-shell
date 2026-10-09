@@ -1,0 +1,15 @@
+# Test native mod (K26): linked by crates/kurashi-mod-hello, never shipped in mods/.
+id = "hello"
+name = "Hello"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["service:hello", "action:hello.*"]
+capabilities = []
+cost = "low"
+
+[[setting]]
+key = "greeting"
+type = "string"
+default = "hi"
+label = "mods.hello.greeting"

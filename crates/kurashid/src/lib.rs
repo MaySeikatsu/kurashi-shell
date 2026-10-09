@@ -11,6 +11,7 @@ pub mod hub;
 pub mod i18n;
 pub mod intents;
 pub mod island;
+pub mod native;
 pub mod server;
 pub mod services;
 pub mod theme;

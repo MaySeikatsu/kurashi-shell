@@ -1,16 +1,16 @@
-# Card W11-mod-qml — the frontend loads native mod components on demand (K26)
+# Card W11-mod-qml — the frontend loads native mod components on demand: panels, widgets, slots, faces (K26, K28)
 
-**Read first:** `docs/tasks/README.md`, `docs/MODS.md` "Native mods", `docs/PROTOCOL.md` §5 (`mods` doc `qml` map) and
+**Read first:** `docs/tasks/README.md`, `docs/DECISIONS.md` K28, `docs/ux/COMPOSITION.md`, `docs/MODS.md` "Native mods" + "Slots, faces, choices", `fixtures/ipc/server/snap_runtime_slots.json`, `frontend/components/expanded/**`, `frontend/components/Island.qml`, `docs/PROTOCOL.md` §5 (`mods` doc `qml` map) and
 §8 (`runtime.ui`: panel `mod:<id>:<name>` opened by `mod.panel.open {id, panel}` — lead adds this before the card
 starts), `frontend/shell.qml`, `frontend/surfaces/Stage.qml`, `frontend/surfaces/Bar.qml`, `frontend/core/Store.qml`.
 
-**Owned paths:** `frontend/core/ModLoader.qml` (new), `frontend/surfaces/Stage.qml` (one Loader for `mod:*` panels),
+**Owned paths:** `frontend/core/ModLoader.qml` (new), `frontend/components/SlotHost.qml` (new), `frontend/components/expanded/**` (only: add the K28 `SlotHost`s — clock aside/day/footer, media below/backdrop, notifications header), `frontend/components/Island.qml` (only: unknown face ids load the mod's `Face.qml` instead of falling back to the clock; `components/faces/**` untouched), `frontend/components/QuickPanel.qml` (only: a `quick.tiles` SlotHost at the top), `frontend/surfaces/Stage.qml` (one Loader for `mod:*` panels),
 `frontend/surfaces/Bar.qml` (mod widget slot replaces the probe-era `mods.probe` Repeater + its Watch — measure
 per-output PSS before/after with `just bench-gate` on a quiet machine, or report that you could not),
 `frontend/components/ModNode.qml` (delete if unused after that), `frontend/test-modqml.sh` (new), and a test mod's
 QML under `crates/kurashid/tests/data/mods/hello/qml/` (from W11-native-mods).
 
-**Do:** `ModLoader { provide: "panel:hello" }` resolves the URL from the `mods` doc (`qml["panel:hello"]`) and
+**Do:** `SlotHost { slot: "clock.expanded.aside" }` reads `runtime.slots` (Watch only while its view is shown), instantiates each `ready` contribution via ModLoader in a Row/Column per slot, takes zero size when empty, and grows the card smoothly (height Behavior, gated). The Stage's generic island card for a mod face loads `island-face:<name>:expanded`. `ModLoader { provide: "panel:hello" }` resolves the URL from the `mods` doc (`qml["panel:hello"]`) and
 instantiates it with a `Loader` only while active (panel open / widget placed); unloads when the mod is disabled
 (entry gone) — no stale component. Stage: `runtime.ui.panel` starting with `mod:` shows that mod panel in the card.
 Bar: widgets of enabled mods that provide `widget:*` and are placed (for now: all enabled mod widgets, end of the

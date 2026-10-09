@@ -103,16 +103,12 @@ Singleton {
 
     // Why a row is inert or not in effect yet: [{kind, text}]. The daemon decides and says so on the
     // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names
-    // inert_by. kind "pending" (saved, waits for a restart) leaves the row editable.
+    // inert_by. kinds "pending" (saved, waits for a restart), "unavailable" (an offer that is gone, I9) and
+    // "mod_off" (a setting of a mod that is off, K22) keep the row editable: the value is only not in effect yet.
     function inertReasons(row, output) {
         var out = []
         var p = prov(row.key, output)
-        if (p && p.forced_by) {
-            // forced_by is a config key (a11y coupling) or a layer name (nix, capability).
-            var by = rowOf(p.forced_by) ? I18n.tr(labelOf(p.forced_by)) : p.forced_by
-            var r = p.reason ? I18n.fmt(p.reason, { key: by, name: p.forced_by }) : ""
-            out.push({ kind: "forced", text: r || I18n.tr("settings.ui.forced_by") + " " + by })
-        }
+        if (p && p.forced_by) out.push({ kind: "forced", text: forcedText(p) })
         if (p && p.reason === "settings.inert.requires") {
             for (var j = 0; j < row.couplings.length; j++) {
                 var req = row.couplings[j]
@@ -124,6 +120,10 @@ Singleton {
             }
         } else if (p && p.reason === "settings.pending.restart") {
             out.push({ kind: "pending", text: I18n.tr("settings.pending.restart") })
+        } else if (p && p.reason === "settings.choice.unavailable") {
+            out.push({ kind: "unavailable", text: I18n.tr(p.reason) })
+        } else if (p && p.reason === "mods.disabled") {
+            out.push({ kind: "mod_off", text: I18n.tr(p.reason) })
         }
         for (var i = 0; i < row.couplings.length; i++) {
             var c = row.couplings[i]
@@ -137,6 +137,28 @@ Singleton {
             }
         }
         return out
+    }
+    // What a forced value says: the layer's reason (an i18n key that takes the layer's name), else the name.
+    function forcedText(p) {
+        // forced_by is a config key (a11y coupling) or a layer name (nix, capability).
+        var by = rowOf(p.forced_by) ? I18n.tr(labelOf(p.forced_by)) : p.forced_by
+        return p.reason ? I18n.fmt(p.reason, { key: by, name: p.forced_by }) : I18n.tr("settings.ui.forced_by") + " " + by
+    }
+    // Why a key is forced by a layer, or "" when none forces it (the mod lists and switches use it).
+    function forcedReason(key) {
+        var p = prov(key)
+        return p && p.forced_by ? forcedText(p) : ""
+    }
+    // The daemon's `mods` entry of a mod id, or null.
+    function modEntry(id) {
+        var list = (mods && mods.mods) || []
+        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]
+        return null
+    }
+    // Whether a mod is on (`enabled`); a loaded mod that is off, and a mod not loaded, are not.
+    function modOn(id) {
+        var m = modEntry(id)
+        return !!m && m.state === "enabled"
     }
     function displayValue(v) {
         if (v === true) return I18n.tr("settings.ui.on")

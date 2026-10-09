@@ -54,7 +54,11 @@ merges, and records progress; agents only build what their card says.
 9. **Never hang.** Wrap every test/run in `timeout` (`timeout 600 cargo test …`) and use
    `set -o pipefail` when piping into `tail`/`grep`, so a deadlock or failure surfaces in minutes
    (a test once hung 4.5 h unnoticed; a piped failure once got committed).
-10. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
+10. **UX bar.** A user-facing card cites its UX brief (`docs/ux/<feature>.md`) and meets that brief's definition
+   of done, not just the function: every state the brief lists (empty, loading, error, offline, unavailable,
+   forced) is drawn and screenshotted, keyboard paths work, a11y names exist, motion follows DESIGN-SYSTEM §9.
+   Your report lists each definition-of-done item as met / not met.
+11. **Token thrift.** Read your card, the files it lists, and the code you need. Don't survey the
    repo. Time-box anything blocked; report it instead.
 
 ## Wave 1 (2026-10-09, session 2)
@@ -174,7 +178,8 @@ Lead (before W11-mod-qml): PROTOCOL §8 `mod.panel.open {id, panel}` → `runtim
 ## Wave 12 (session 5; M6 native mods + M7 quick settings; Haiku 5.5, max effort) — after W11-native-mods
 | Card | Owner paths | Model |
 |---|---|---|
-| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, Stage `mod:*` loader, Bar mod widget slot | haiku |
+| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, `SlotHost.qml`, Stage `mod:*` loader, slot hosts in expanded views, mod faces in Island, Bar mod widget slot | haiku |
+| [W12-mod-hooks](W12-mod-hooks.md) | `kurashi-mod-api`, kurashid `native.rs`/`island.rs`, manifest kinds, `runtime.slots`, `mod.panel.open`, mock parity (K28) | haiku |
 | [W12-wallpaper](W12-wallpaper.md) | `crates/kurashi-mod-wallpaper/**`, `mods/wallpaper/**`, `mod-wallpaper.toml` | haiku |
 | [W12-sysmon](W12-sysmon.md) | `crates/kurashi-mod-sysmon/**`, `mods/sysmon/**`, `mod-sysmon.toml` | haiku |
 | [W12-weather](W12-weather.md) | `crates/kurashi-mod-weather/**`, `mods/weather/**`, `mod-weather.toml` | haiku |

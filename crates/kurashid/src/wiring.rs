@@ -7,12 +7,14 @@ use std::sync::{Arc, Mutex};
 
 use kurashi_ipc::ApplyOp;
 use kurashi_services::brightness::{self as backlight, Change};
+use kurashi_services::network::WifiError;
 use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry, ActionResult};
 use crate::config::ConfigStore;
 use crate::doctor::SharedFacts;
 use crate::hub::Hub;
+use crate::native::Native;
 use crate::services::{Bus, ConnectFn, ServiceProvider, ServiceTask};
 use crate::{Daemon, QueryFn};
 
@@ -469,6 +471,31 @@ pub fn notifications_with_facts(
     });
 }
 
+/// The registry (K25) and the native mods (K26) behind one lock: a reconcile, a `mod.*` action and a
+/// subscription change all write the `mods` document the same way. Lock order: this lock, then the
+/// hub (`update`), then the config (`adopt_mods`); config listeners run with no config lock held.
+struct ModsState {
+    reg: kurashi_mods::Registry,
+    native: Native,
+}
+
+/// Brings the native mods and the `mods` document in line with the registry: the mod table goes to
+/// the config, enabled native mods are activated and the others deactivated, the settings in effect
+/// are pushed, and the document is published.
+fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
+    // Before `sync`: a mod's keys must be known to the config store to read their values.
+    if let Some(s) = store {
+        s.adopt_mods(&st.reg);
+    }
+    st.native.sync(&mut st.reg, store);
+    if let Some(s) = store {
+        // Again: a refused enable turned the mod off after the first adoption.
+        s.adopt_mods(&st.reg);
+        st.native.feed(s);
+    }
+    let _ = hub.update("mods", None, |d| *d = st.native.document(&mut st.reg));
+}
+
 /// The mods registry, its `mods` document and the `mod.{load,unload,enable,disable}` actions
 /// (K25). The actions are config writes on `mods.loaded` / `mods.enabled`; a listener reconciles
 /// the registry after every config change, so an action, a file edit, an undo or a profile load
@@ -479,59 +506,69 @@ pub fn mods(
     roots: Vec<std::path::PathBuf>,
     config: Option<Arc<crate::config::ConfigStore>>,
 ) {
+    mods_native(hub, actions, roots, config, Vec::new());
+}
+
+/// [`mods`] with the native mods linked into this daemon (K26): `native::linked()` in `main`.
+pub fn mods_native(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    roots: Vec<std::path::PathBuf>,
+    config: Option<Arc<crate::config::ConfigStore>>,
+    linked: Vec<Box<dyn kurashi_mod_api::NativeMod>>,
+) {
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
-    let mut reg = Registry::discover(&roots, &version);
+    let reg = Registry::discover(&roots, &version);
     for s in &reg.shadows {
         tracing::info!(?s, "user mod shadows a bundled one");
     }
+    let mut st = ModsState {
+        reg,
+        native: Native::new(hub.clone(), actions.clone(), linked),
+    };
+    // Registered before the first refresh, which fills it in; the document is never read empty.
+    hub.register("mods", json!({"mods": []}), None);
     match &config {
         Some(c) => {
             let (loaded, enabled) = lists_of(c);
-            log_refused(reg.reconcile(&loaded, &enabled));
-            c.sync_mods(&reg);
+            log_refused(st.reg.reconcile(&loaded, &enabled));
+            c.sync_mods(&st.reg);
         }
         None => {
             let policy = Policy {
                 default_enabled: ["easter-eggs".to_string()].into(),
             };
-            for (id, r) in reg.apply_defaults(&policy) {
+            for (id, r) in st.reg.apply_defaults(&policy) {
                 if let Err(e) = r {
                     tracing::warn!(%id, error = e.i18n_key(), "mod not enabled");
                 }
             }
         }
     }
-    hub.register("mods", reg.doc(), None);
-    let reg = Arc::new(Mutex::new(reg));
+    refresh(hub, &mut st, config.as_deref());
+    let state = Arc::new(Mutex::new(st));
     if let Some(c) = &config {
-        let (hub, reg) = (hub.clone(), reg.clone());
+        let (hub, state) = (hub.clone(), state.clone());
         c.on_change(move |store| {
             let (loaded, enabled) = lists_of(store);
-            let mut r = reg.lock().expect("mods lock");
-            let before = r.doc();
-            log_refused(r.reconcile(&loaded, &enabled));
-            let doc = r.doc();
-            if doc == before {
-                return;
-            }
-            // Lock order: the registry, then the config. Listeners run with no config lock held.
-            store.adopt_mods(&r);
-            let _ = hub.set("mods", doc, None);
+            let mut st = state.lock().expect("mods lock");
+            log_refused(st.reg.reconcile(&loaded, &enabled));
+            refresh(&hub, &mut st, Some(store));
         });
     }
     for op in [ModOp::Load, ModOp::Unload, ModOp::Enable, ModOp::Disable] {
-        let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
+        let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
         actions.register(
             op.name(),
             &format!("action.{}", op.name()),
             move |v: Value| {
-                let (hub, reg, config) = (hub.clone(), reg.clone(), config.clone());
+                let (hub, state, config) = (hub.clone(), state.clone(), config.clone());
                 async move {
                     let id = v["id"]
                         .as_str()
                         .ok_or_else(|| ActionError::Invalid(format!("{} needs id", op.name())))?;
-                    mod_action(op, id, &hub, &reg, config.as_deref())
+                    mod_action(op, id, &hub, &state, config.as_deref())
                 }
             },
         );
@@ -573,17 +610,17 @@ fn log_refused(refused: Vec<(String, kurashi_mods::ModsError)>) {
 
 /// One `mod.*` action. The registry first says whether the change can happen at all (unknown,
 /// invalid, a provide another enabled mod holds): a refused change writes nothing. The change is
-/// then a config write on the lists, one undoable transaction; the listener brings the registry
-/// and the `mods` document along.
+/// then a config write on the lists, one undoable transaction; the listener brings the registry,
+/// the native mods and the `mods` document along. Without a config store the change is applied here.
 fn mod_action(
     op: ModOp,
     id: &str,
     hub: &Hub,
-    reg: &Mutex<kurashi_mods::Registry>,
+    state: &Mutex<ModsState>,
     config: Option<&crate::config::ConfigStore>,
 ) -> ActionResult {
     use kurashi_mods::ModsError;
-    let mut next = reg.lock().expect("mods lock").clone();
+    let mut next = state.lock().expect("mods lock").reg.clone();
     let outcome = match op {
         ModOp::Load => next.load(id),
         ModOp::Unload => next.unload(id),
@@ -599,9 +636,9 @@ fn mod_action(
         ActionError::Invalid(key.into())
     })?;
     let Some(store) = config else {
-        let doc = next.doc();
-        *reg.lock().expect("mods lock") = next;
-        let _ = hub.set("mods", doc, None);
+        let mut st = state.lock().expect("mods lock");
+        st.reg = next;
+        refresh(hub, &mut st, None);
         return Ok(None);
     };
     let loaded = store.string_list("mods.loaded");
@@ -773,6 +810,26 @@ impl AudioProvider {
             _ => doc["volume"].as_f64().unwrap_or(0.0),
         })
     }
+
+    /// `audio.sink.default` names a sink of the current document. The worker drops an unknown id
+    /// without a word, so the answer has to come from here (rule 2). Unavailable audio has no list.
+    fn known_sink(&self, hub: &Hub, id: u32) -> Result<(), ActionError> {
+        let unavailable = || ActionError::Unavailable(AUDIO_UNAVAILABLE.into());
+        let (_, doc) = hub.snapshot("svc.audio").map_err(|_| unavailable())?;
+        if doc["available"].as_bool() != Some(true) {
+            return Err(unavailable());
+        }
+        let known = doc["sinks"].as_array().is_some_and(|sinks| {
+            sinks
+                .iter()
+                .any(|s| s["id"].as_u64() == Some(u64::from(id)))
+        });
+        if known {
+            Ok(())
+        } else {
+            Err(ActionError::Invalid(NO_SUCH_SINK.into()))
+        }
+    }
 }
 
 pub fn audio(
@@ -842,6 +899,27 @@ pub fn audio_with(
             }
         });
     }
+    // The output picker of the quick settings card (K24). Not running is an error, never a start.
+    let (p, hub) = (provider.clone(), hub.clone());
+    actions.register(
+        "audio.sink.default",
+        "action.audio.sink.default",
+        move |args: Value| {
+            let (p, hub) = (p.clone(), hub.clone());
+            async move {
+                let id = args["id"]
+                    .as_u64()
+                    .and_then(|id| u32::try_from(id).ok())
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                let c = p
+                    .commands()
+                    .ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                p.known_sink(&hub, id)?;
+                c.set_default_sink(id);
+                Ok(None)
+            }
+        },
+    );
     actions.register("audio.mute.toggle", "action.audio.mute.toggle", move |_| {
         let c = provider.commands();
         async move {
@@ -854,6 +932,8 @@ pub fn audio_with(
 
 /// Error keys of the key actions; the frontend and the CLI render them (rule 8).
 pub const AUDIO_UNAVAILABLE: &str = "error.audio.unavailable";
+/// `audio.sink.default` with an id that is no sink of the current document.
+pub const NO_SUCH_SINK: &str = "error.audio.no_such_sink";
 pub const NO_BACKLIGHT: &str = "error.brightness.no_device";
 pub const STEP_RANGE: &str = "error.step.out_of_range";
 /// `session.lock` without the PAM service is refused: nothing could unlock the screen afterwards.
@@ -1184,6 +1264,12 @@ pub const ARGS_INVALID: &str = "error.args.invalid";
 
 const TRAY_DOC: &str = "svc.tray";
 const BLUETOOTH_DOC: &str = "svc.bluetooth";
+const NETWORK_DOC: &str = "svc.network";
+
+/// `network.wifi` keys (K24, quick settings): NetworkManager refused the change (polkit), or there
+/// is no NetworkManager to change it.
+pub const NETWORK_REFUSED: &str = "error.network.refused";
+pub const NETWORK_UNAVAILABLE: &str = "error.network.unavailable";
 
 /// The session bus, opened when a service starts (never at daemon startup).
 fn session_bus() -> ConnectFn {
@@ -1310,6 +1396,39 @@ pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Con
             c.stop_discovery().await
         };
         result.map_err(call_failed)?;
+        Ok(None)
+    });
+}
+
+/// `svc.network` (NetworkManager on the system bus, refcounted) and the `network.wifi {on}` action
+/// of the quick settings card (K24).
+pub fn network(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
+    network_with(hub, actions, system_bus());
+}
+
+/// [`network`] with the bus injected (tests run it on a private bus with a fake NetworkManager).
+pub fn network_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    let service = Arc::new(ServiceProvider::with_connect(
+        NETWORK_DOC,
+        connect,
+        kurashi_services::network::start,
+    ));
+    hub.register(
+        NETWORK_DOC,
+        json!({"state": "unknown"}),
+        Some(service.clone()),
+    );
+    service_action(actions, "network.wifi", service, |c, a| async move {
+        let on = bool_arg(&a, "on")?;
+        c.set_wifi_enabled(on).await.map_err(|e| {
+            ActionError::Unavailable(
+                match e {
+                    WifiError::Refused => NETWORK_REFUSED,
+                    WifiError::Unavailable => NETWORK_UNAVAILABLE,
+                }
+                .into(),
+            )
+        })?;
         Ok(None)
     });
 }

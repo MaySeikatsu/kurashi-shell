@@ -21,6 +21,7 @@ chrono.workspace = true
 kurashi-launcher = { path = "../kurashi-launcher" }
 kurashi-notify = { path = "../kurashi-notify" }
 kurashi-mods = { path = "../kurashi-mods" }
+kurashi-mod-api = { path = "../kurashi-mod-api" }
 semver = "1"
 kurashi-audio = { path = "../kurashi-audio" }
 kurashi-auth = { path = "../kurashi-auth", features = ["pam"] }
@@ -40,3 +41,4 @@ workspace = true
 [dev-dependencies]
 kurashi-config = { path = "../kurashi-config" }
 kurashi-theme = { path = "../kurashi-theme" }
+kurashi-mod-hello = { path = "../kurashi-mod-hello" }
