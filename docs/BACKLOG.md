@@ -25,6 +25,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | B11 | 2026-10-09 | lead (K25 design) | Mod enablement is not persisted: only the startup policy (`easter-eggs`) is applied, so a mod switched on in Settings is off again after a daemon restart. | accepted — K25 addendum (`mods.loaded`/`mods.enabled` config lists), wave 10 |
 | B12 | 2026-10-09 | W9-bar-volume report | `Slider` does not clamp its level: `svc.audio` volume can reach 1.5 (PulseBackend MAX_VOLUME), and fill + knob then draw past the track. | new |
 | B13 | 2026-10-09 | W9-config-profiles report | Loading a profile without a section filter clears every user override, not only the profile's keys (seen: History size 210 user → 200 default). Documented engine behaviour, but surprising in Settings: decide (keep + say so in the preview, or keep user keys the profile does not set). | new |
+| B14 | 2026-10-09 | lead (W10-stage-panels merge) | Quick settings open on the output latched at the last island/session/tray open (shell.qml re-picks `stageScreen` only on `want`). Adding `quick` to `want` made Stage report a binding loop on `ui`/`wantedKind` (frontend/test-stage.sh keyboard step) — find the loop, then re-pick the output for quick too (CONTRACT row 25). Single output unaffected. | accepted |
 
 ## Improvements
 | # | Date | Source | What | Status |
