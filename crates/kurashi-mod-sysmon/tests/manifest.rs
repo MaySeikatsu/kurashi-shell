@@ -20,7 +20,7 @@ fn catalogue(locale: &str) -> toml::Table {
 
 /// Every `"…"` literal in `text` that starts with one of the copy prefixes.
 fn copy_keys(text: &str) -> BTreeSet<String> {
-    const PREFIXES: [&str; 7] = [
+    const PREFIXES: [&str; 8] = [
         "action.sysmon.",
         "mods.sysmon.",
         "sysmon.error.",
@@ -28,6 +28,7 @@ fn copy_keys(text: &str) -> BTreeSet<String> {
         "sysmon.panel.",
         "sysmon.face.",
         "sysmon.state.",
+        "sysmon.battery.",
     ];
     text.split('"')
         .skip(1)
@@ -76,14 +77,39 @@ fn the_shipped_manifest_passes_the_validator_and_declares_what_the_crate_registe
         assert!(m.provides.contains(&want), "{want:?}");
     }
     let keys: Vec<&str> = m.settings.iter().map(|s| s.key.as_str()).collect();
-    assert_eq!(keys.len(), 11, "{keys:?}");
+    assert_eq!(keys.len(), 14, "{keys:?}");
     let interval = m.settings.iter().find(|s| s.key == "interval").unwrap();
     assert_eq!(interval.ty, SettingType::Int);
     assert_eq!(interval.range, Some((1.0, 60.0)));
     let show = m.settings.iter().find(|s| s.key == "show").unwrap();
     assert_eq!(show.ty, SettingType::List);
     assert_eq!(show.choices, ["cpu", "mem", "temp", "load"]);
-    assert_eq!(m.capabilities, ["fs:read", "proc:signal"]);
+    assert_eq!(
+        m.capabilities,
+        [
+            "fs:read",
+            "proc:signal",
+            "exec:btop",
+            "exec:foot",
+            "exec:alacritty",
+            "exec:kitty",
+            "exec:xterm",
+        ]
+    );
+    // Every terminal the setting offers is a program the manifest declares, and the crate starts (I28).
+    let terminal = m.settings.iter().find(|s| s.key == "terminal").unwrap();
+    for choice in &terminal.choices {
+        assert!(
+            m.capabilities.contains(&format!("exec:{choice}")),
+            "exec:{choice} is not declared"
+        );
+    }
+    for (name, _) in kurashi_mod_sysmon::launch::TERMINALS {
+        assert!(
+            terminal.choices.iter().any(|c| c == name),
+            "{name} is not offered"
+        );
+    }
 }
 
 #[test]
@@ -112,6 +138,17 @@ fn every_copy_key_exists_in_both_catalogues_with_the_same_placeholders() {
     // The Island names each trouble kind through a run-time key; all three must exist.
     for kind in ["cpu", "mem", "temp"] {
         used.insert(format!("sysmon.face.kind.{kind}"));
+    }
+    // Run-time keys the same way: the battery's state words, the Settings names of the terminals, and the
+    // host line the panel builds from the document's `host`.
+    for state in ["charging", "discharging", "full", "not_charging", "unknown"] {
+        used.insert(format!("sysmon.battery.state.{state}"));
+    }
+    for terminal in ["foot", "alacritty", "kitty", "xterm"] {
+        used.insert(format!("mods.sysmon.terminal.{terminal}"));
+    }
+    for host in ["container", "vm"] {
+        used.insert(format!("sysmon.panel.host.{host}"));
     }
     // A floor, so an empty scan cannot pass: the manifest and the crate alone have more than this.
     assert!(used.len() >= 25, "the scan found the copy: {}", used.len());
