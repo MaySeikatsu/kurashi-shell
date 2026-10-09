@@ -73,3 +73,6 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M0.9 | Mock: notifications, launcher query, instance, fixed clock | ✅ | merged; `kurashi act mock.notify '{"summary":…}'` adds one |
 | M3.3 | Golden screenshots (`just golden`) | 🟡 | card M3-golden |
 | M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | 🟡 | card M4-wire-tray-bt |
+| M6.3 | Mod settings as config keys + pages (K22) | 🟡 | card M6-mod-settings |
+| F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | 🟡 | card F-services-available |
+| R.2 | UX/visual review | 🟡 | card R-ux-review (read-only) |
