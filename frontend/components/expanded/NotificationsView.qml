@@ -146,7 +146,7 @@ Column {
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
-                text: group.modelData.app
+                text: group.modelData.app !== "" ? group.modelData.app : I18n.tr("island.notifications.app.unknown")
             }
             Repeater {
                 model: group.modelData.items

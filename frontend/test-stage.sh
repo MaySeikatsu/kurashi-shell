@@ -290,8 +290,13 @@ K act island.expand >/dev/null
 ppm_shot clock-keys 2.5
 open_card clock-keys island clock 400
 heading_click "$card_x0" "$card_y0"
-keys tab tab tab tab right right right down
+# The keyboard stays up for the shot: when it goes away the window loses its focus, and the ring with it.
+{ for k in tab tab tab tab right right right down; do echo "$k"; sleep 0.3; done; sleep 2.5; } \
+  | timeout 60 python3 -I "$KEYS_PY" --serve &
+keys_pid=$!
+sleep 3.2
 view_shot clock-keys-moved 400
+wait "$keys_pid" || fail "keys failed on the clock grid"
 K act ui.close >/dev/null
 ppm_shot closed-clock-keys 1.2
 closed_card closed-clock-keys
