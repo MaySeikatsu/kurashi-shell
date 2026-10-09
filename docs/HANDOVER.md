@@ -32,11 +32,14 @@ Decisions K24–K28 in DECISIONS.md (user answered K24/K25/K26 this session).
 (2) **UX bar** (CLAUDE.md): every user-facing feature gets a researched brief in `docs/ux/` and is "done" only against
 it; think what a feature *can become* and what it combines with (`docs/ux/COMPOSITION.md`), not the minimum.
 
-**Half-done (later in session 5):** merged since the reset: quick daemon pages (K29), island daemon (K30), mod loading
-(W11-mod-qml), weather, sysmon, wallpaper mods, media position (K31), mod import fix (B16/B17: mods import `qs.core`).
-Running as agents at the time of writing: W13-settings-ux, W13-quick-ux, W13-island-views, W14-mod-runtime, W14-mods-live,
-W14-wallpaper-ux; queued: W14-sysmon-ux, W14-weather-ux (after W14-mod-runtime). If the session ends with agents running:
-commit WIP in each worktree (`git worktree list`), rename the branch `wip/<card>`, and re-spawn with "merge branch X first".
+**Half-done (end of session 5, usage limit):** main is green and pushed (622 tests; `just mods-live` green).
+Merged since the reset: quick daemon (K29), island daemon (K30), mod loading, weather/sysmon/wallpaper mods, media position (K31),
+settings UX + settings daemon (K32), mod runtime (K33), live all-mods test, island views, quick settings UX, wallpaper UX.
+Open branches: `feat/k34-wallpaper-theme` (lead WIP: palette `wallpaper` → `Source::WallpaperFile(mod.wallpaper.theme.image)`,
+hub-event listener, "From wallpaper" offer — NOT compiled yet; finish: build, add i18n `config.choice.palette.wallpaper` +
+`theme.note.wallpaper_waiting` (en/ja), a kurashid test with a generated picture, DECISIONS K34, then merge). Agents stopped
+at the limit: W14-sysmon-ux and W14-weather-ux — `git branch | grep worktree-agent`, review their commits, re-spawn with
+"merge branch X first". The wallpaper-ux worktree is locked by a stale agent pid: `git worktree remove -f -f` it.
 
 **Next steps (ordered):** 1. (done) 2. For each running/stopped card: review, finish (SendMessage
 won't resume across sessions — re-spawn the card with "continue from branch X"), merge with the gate. 3. W13-quick-ux and
