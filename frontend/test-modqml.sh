@@ -2,8 +2,9 @@
 # Mod QML in the bar, the Island and the Stage (K26, K28), invisibly (headless sway sandbox). The test mod `hello`
 # (crates/kurashid/tests/data/mods/hello/qml, or $KURASHI_MOD_HELLO) logs `MODQML <what> created|destroyed` for every
 # component it instantiates, so the test counts what loads and when it goes. Two daemons:
-#   1. the prebuilt kurashid ($KURASHI_BIN_DIR): `hello` is not linked into it (native::linked() is empty), so it is
-#      listed with no qml map, and `mod.enable hello` is refused: the disabled path, against the real daemon;
+#   1. the prebuilt kurashid ($KURASHI_BIN_DIR), which links no native mod: `hello` (found in its data dir) is listed;
+#      `mod.enable` leaves it enabled with a qml map but nothing active (runtime.slots stays empty, a daemon gap for
+#      the report), and the panel loads from that map and goes on mod.disable. The frontend's side, on the real daemon;
 #   2. a stand-in in front of kurashi-mock (embedded below, frontend tests only): it serves `mods`, `runtime.slots`
 #      and `mod.enable`/`mod.disable` as kurashid does for a linked `hello`, and refuses `mod.panel.open` while the
 #      mod is off. Everything else goes to the mock. Retire it once a kurashid that links `hello` is built for tests.
