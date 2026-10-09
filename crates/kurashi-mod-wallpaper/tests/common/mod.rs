@@ -301,12 +301,27 @@ pub fn scratch(tag: &str) -> PathBuf {
     dir
 }
 
-/// A library folder with `names` as (empty) image files.
+/// A library folder with `names` as one-pixel pictures: `set` reads each header before the backend is asked
+/// (a picture the backend cannot read is refused), so the fake library holds real, tiny images.
 pub fn library(root: &Path, names: &[&str]) -> PathBuf {
     let folder = root.join("library");
     std::fs::create_dir_all(&folder).unwrap();
     for n in names {
-        std::fs::write(folder.join(n), b"not decoded by the fake").unwrap();
+        let path = folder.join(n);
+        // Names that are not pictures (a note, say) stay what they are: plain bytes.
+        let is_picture = path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
+            matches!(
+                e.to_ascii_lowercase().as_str(),
+                "png" | "jpg" | "jpeg" | "webp" | "gif" | "bmp"
+            )
+        });
+        if is_picture {
+            image::RgbImage::from_pixel(1, 1, image::Rgb([90, 120, 200]))
+                .save(&path)
+                .unwrap();
+        } else {
+            std::fs::write(&path, b"not a picture").unwrap();
+        }
     }
     folder
 }

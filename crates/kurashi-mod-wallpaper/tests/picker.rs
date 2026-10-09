@@ -65,6 +65,30 @@ async fn a_tile_grows_the_transition_from_its_position() {
     assert!(!line.contains("--transition-pos"), "{line}");
 }
 
+/// A picture the backend cannot read is refused before the backend is asked: its failure would otherwise
+/// look like a backend that is down.
+#[tokio::test]
+async fn a_picture_that_cannot_be_read_is_refused_before_the_backend_is_asked() {
+    let root = scratch("unreadable");
+    let folder = library_with_pictures(&root);
+    std::fs::write(folder.join("zz-broken.png"), b"not a picture").unwrap();
+    let (fake, m) = picker_mod(&root, &folder).await;
+    let refused = m
+        .act(
+            "wallpaper.set",
+            json!({"path": folder.join("zz-broken.png"), "output": "DP-1"}),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(refused.to_string(), "mod-wallpaper.image.unreadable");
+    assert!(fake.lines("awww img").is_empty(), "the backend was not asked");
+    assert_ne!(
+        m.doc()["backend"]["reason"],
+        "mod-wallpaper.backend.down",
+        "the backend is not reported down"
+    );
+}
+
 #[tokio::test]
 async fn the_theme_follows_the_picture_set_with_theme_and_a_wallpaper_only_change_keeps_it() {
     let root = scratch("theme-follows");
