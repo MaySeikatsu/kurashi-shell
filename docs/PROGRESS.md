@@ -28,7 +28,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M2.1 | `kurashi-theme` pipeline → token map | ✅ | merged; 14 tests, AA on all palettes × modes |
 | M3.1 | Stage sized to content, popup only on focused output (K16) | ✅ | popup 112 MiB (was 221); per-output OK under corrected method (K19) |
 | M1.10 | Frontend core: generic on-demand docs + query API, real daemon (i18n, config, lock, notifications) | ✅ | `frontend/test-real.sh`; reconnect bug fixed |
-| M5.7 | UI: island faces | 🟡 | wave 5 |
+| M5.7 | UI: island faces | ✅ | clock/media/volume/notifications faces; notifications face via unread relevance |
 | M5.8 | UI: notification toasts + center | 🟡 | wave 5 |
 | M5.9 | UI: launcher | 🟡 | wave 5 |
 | M5.10 | UI: lock screen | 🟡 | wave 5 |
