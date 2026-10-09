@@ -110,3 +110,4 @@
 "island.brightness.others" = "外部ディスプレイ: 明るさの調整には DDC/CI が必要で、まだ対応していません。"
 "island.brightness.night" = "ナイトライト"
 "island.brightness.night.none" = "利用できません（ナイトライトのサービスが動いていません）。"
+"island.notifications.app.unknown" = "名前のないアプリ"

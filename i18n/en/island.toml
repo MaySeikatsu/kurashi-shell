@@ -110,3 +110,4 @@
 "island.brightness.others" = "Other displays: brightness control needs DDC/CI, which is not supported yet."
 "island.brightness.night" = "Night light"
 "island.brightness.night.none" = "Not available: no night light service is running."
+"island.notifications.app.unknown" = "Unnamed app"
