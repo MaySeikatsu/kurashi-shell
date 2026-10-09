@@ -22,6 +22,11 @@ merges, and records progress; agents only build what their card says.
    **Binaries in the shared dir are overwritten by other worktrees** (`debug/<bin>` is not
    path-hashed): build and copy in one step (`cargo build -p x && cp $CARGO_TARGET_DIR/debug/x
    <your-dir>/`) and run the copy.
+   **Path crates can be picked up from another worktree too** (seen 4× in wave 7: an rlib without a
+   new field or module). If a build/test result contradicts your source, `touch` the changed
+   crates' sources and rebuild before trusting it; for binaries, grep them for a string you added.
+   The lead re-verifies every merge with a private target dir, so a false green is caught there,
+   but it costs you a round-trip.
 4. **Tools come from `nix develop`** (repo root). Run commands as `nix develop -c <cmd>` or inside
    one shell. Flakes only see git-tracked files: `git add` new files before any `nix` command.
 5. **Never touch the user's session.** No GUI on the real display; use `tools/bench/sandbox.sh`
