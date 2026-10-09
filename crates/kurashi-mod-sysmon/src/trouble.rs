@@ -3,7 +3,9 @@
 //! the critical level minus a hysteresis band for [`RECOVER`]; inside the band nothing changes. Both
 //! clocks are measured in time, not in samples, so the 2 s panel sampler and the 10 s watch mix safely.
 
-use std::time::{Duration, Instant};
+use std::time::Duration;
+// tokio's Instant: the same clock in the daemon, and the paused clock in tests.
+use tokio::time::Instant;
 
 /// How long a reading must stay below the exit level before the trouble clears.
 pub const RECOVER: Duration = Duration::from_secs(10);

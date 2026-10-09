@@ -10,7 +10,9 @@ use crate::pressure::{self, Psi};
 use crate::procs;
 use crate::roots::Roots;
 use crate::thermal::{self, Temp};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+// tokio's Instant: the same clock in the daemon, and the paused clock in tests.
+use tokio::time::Instant;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Memory {
@@ -32,7 +34,9 @@ pub struct Pressure {
 pub struct Sample {
     /// `/proc/stat` was readable. False means this machine gave us nothing to show, not zeros.
     pub available: bool,
-    /// None on the first sample: a percentage needs two reads.
+    /// The first read since the sampler started: there is nothing to take a delta from yet.
+    pub baseline: bool,
+    /// None on the first sample, and whenever no CPU time passed since the last one.
     pub cpu: Option<f64>,
     pub per_core: Option<Vec<f64>>,
     pub cores: usize,
@@ -72,10 +76,18 @@ impl Sampler {
         }
     }
 
+    /// The temperature sensor, as the setting names it. Changing it takes effect on the next sample.
+    pub fn set_sensor(&mut self, sensor: &str) {
+        if self.sensor != sensor {
+            self.sensor = sensor.to_string();
+        }
+    }
+
     /// Reads everything once. `want_procs` adds the process scan (the costly part, so only on demand).
     pub fn sample(&mut self, now: Instant, want_procs: bool) -> Sample {
         let mut s = Sample {
             available: false,
+            baseline: self.cpu.is_none(),
             cpu: None,
             per_core: None,
             cores: self.cores,

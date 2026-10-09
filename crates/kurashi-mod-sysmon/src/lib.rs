@@ -3,9 +3,10 @@
 //!
 //! Layers: `roots` (where files are read), the readers (`cpu`, `mem`, `pressure`, `thermal`, `gpu`, `io`,
 //! `procs`, all parsing fixture-testable text), `sampler` (deltas between two reads), `trouble` (hysteresis
-//! on sustained readings). The daemon owns the rest: documents, actions and the Island face.
+//! on sustained readings), `doc` (the documents), `sysmon` (the native mod: services, watch, actions).
 
 pub mod cpu;
+pub mod doc;
 pub mod gpu;
 pub mod io;
 pub mod mem;
@@ -14,7 +15,12 @@ pub mod pressure;
 pub mod procs;
 pub mod roots;
 pub mod sampler;
+pub mod sysmon;
 pub mod thermal;
 pub mod trouble;
 
+#[cfg(test)]
+mod tests;
+
 pub use roots::Roots;
+pub use sysmon::{Kernel, Sig, Signaller, Sysmon};

@@ -4,7 +4,8 @@
 
 use crate::roots::{Roots, name_of};
 use std::collections::HashMap;
-use std::time::Instant;
+// tokio's Instant: the same clock in the daemon, and the paused clock in tests.
+use tokio::time::Instant;
 
 /// `/proc` times are in USER_HZ ticks, which is 100 on every Linux ABI.
 const USER_HZ: f64 = 100.0;
@@ -135,9 +136,8 @@ impl Table {
     }
 }
 
-/// The rows to show: highest CPU (or memory) first, ties by pid, the first [`TOP`]. Owners are read for
-/// those rows only, so a scan of hundreds of processes costs one `status` read per shown row.
-pub fn top(roots: &Roots, mut rows: Vec<Row>, by_mem: bool) -> Vec<Row> {
+/// Highest CPU (or memory) first, ties by pid: the order of the list.
+fn order(a: &Row, b: &Row, by_mem: bool) -> std::cmp::Ordering {
     let key = |r: &Row| {
         if by_mem {
             r.mem_bytes as f64
@@ -145,12 +145,21 @@ pub fn top(roots: &Roots, mut rows: Vec<Row>, by_mem: bool) -> Vec<Row> {
             r.cpu.unwrap_or(0.0)
         }
     };
-    rows.sort_by(|a, b| {
-        key(b)
-            .partial_cmp(&key(a))
-            .unwrap_or(std::cmp::Ordering::Equal)
-            .then(a.pid.cmp(&b.pid))
-    });
+    key(b)
+        .partial_cmp(&key(a))
+        .unwrap_or(std::cmp::Ordering::Equal)
+        .then(a.pid.cmp(&b.pid))
+}
+
+/// The row at the top of the list: the culprit of a trouble.
+pub fn hottest(rows: &[Row], by_mem: bool) -> Option<&Row> {
+    rows.iter().min_by(|a, b| order(a, b, by_mem))
+}
+
+/// The rows to show: the first [`TOP`] in list order. Owners are read for those rows only, so a scan of
+/// hundreds of processes costs one `status` read per shown row.
+pub fn top(roots: &Roots, mut rows: Vec<Row>, by_mem: bool) -> Vec<Row> {
+    rows.sort_by(|a, b| order(a, b, by_mem));
     rows.truncate(TOP);
     for r in &mut rows {
         r.uid = read_uid(roots, r.pid);
