@@ -114,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| tracing::warn!(error = %e, "config watcher unavailable"))
             .ok()
     });
+    kurashid::clock::register(&hub);
     kurashid::wiring::ui(&hub, &mut actions);
     kurashid::wiring::notifications(
         &hub,
