@@ -9,7 +9,7 @@ included) without losing first-frame-gated reveal, input masking or Escape handl
 Common rules: `docs/tasks/README.md`.
 
 **Read:** `frontend/README.md`, `frontend/surfaces/*.qml`, `frontend/shell.qml`,
-`probes/quickshell/Bar.qml` (the probe used `PopupWindow` = xdg_popup and measured 148.7 MiB with the
+`archive/bakeoff-probes/quickshell/Bar.qml` (the probe used `PopupWindow` = xdg_popup and measured 148.7 MiB with the
 popup open), `docs/ARCHITECTURE.md` §4, `docs/BENCH.md` budgets.
 
 **Do:**

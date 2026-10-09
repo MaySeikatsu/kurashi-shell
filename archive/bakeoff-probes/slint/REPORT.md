@@ -2,7 +2,7 @@
 _(Written by the lead from the agent's hand-back — the agent's tools refused report files.)_
 
 Versions: slint 1.18.1 (renderer-software + systemfonts), slint-interpreter 1.18.1, smithay-client-toolkit 0.21.1, wayland-client 0.31 (libwayland via `client_system`), wayland-protocols 0.32 (staging).
-Run: `nix develop ./probes/slint -c probes/slint/target/release/kurashi-probe-slint` (build: `cd probes/slint && nix develop -c cargo build --release`; `nix build` defined, untested).
+Run: `nix develop ./archive/bakeoff-probes/slint -c archive/bakeoff-probes/slint/target/release/kurashi-probe-slint` (build: `cd archive/bakeoff-probes/slint && nix develop -c cargo build --release`; `nix build` defined, untested).
 Architecture: own platform backend = SCTK layer surfaces + wl_shm buffers (Abgr8888) + one MinimalSoftwareWindow per surface. Whole UI (bar, popup, mod widgets) loaded by slint-interpreter from a templated `.slint` string. Own poll loop, frame-callback pacing, no timers when idle.
 
 ## Capability checklist
