@@ -92,8 +92,10 @@ Singleton {
         var out = []
         var p = prov(row.key, output)
         if (p && p.forced_by) {
-            var r = p.reason ? I18n.tr(p.reason) : ""
-            out.push({ kind: "forced", text: I18n.tr("settings.ui.forced_by") + " " + p.forced_by + (r ? " · " + r : "") })
+            // forced_by is a config key (a11y coupling) or a layer name (nix, capability).
+            var by = rowOf(p.forced_by) ? I18n.tr(labelOf(p.forced_by)) : p.forced_by
+            var r = p.reason ? I18n.fmt(p.reason, { key: by }) : ""
+            out.push({ kind: "forced", text: r || I18n.tr("settings.ui.forced_by") + " " + by })
         }
         for (var i = 0; i < row.couplings.length; i++) {
             var c = row.couplings[i]
@@ -105,7 +107,8 @@ Singleton {
                     c.op === "eq" ? c.reason : "settings.ui.requires_ne",
                     { key: I18n.tr(labelOf(c.key)), value: displayValue(c.value) }) })
             } else if (c.kind === "overridden_by") {
-                if (valueOf(c.key, output) === true)
+                // Already explained by the forced line above.
+                if (valueOf(c.key, output) === true && !(p && p.forced_by === c.key))
                     out.push({ kind: "overridden_by", text: I18n.fmt(c.reason, { key: I18n.tr(labelOf(c.key)) }) })
             } else if (c.kind === "capability") {
                 if (p && p.forced_by === "capability")
