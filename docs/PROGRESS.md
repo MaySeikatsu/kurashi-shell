@@ -61,7 +61,8 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M7.4 | `nix run` apps + README "Running" | 🟡 | card M7-run |
 | M4.5 | SNI tray crate | 🟡 | card M4-tray |
 | M4.6 | BlueZ service | 🟡 | card M4-bluetooth |
-| M5.16 | Settings search + Mods page | 🟡 | card M5-settings-search-mods |
+| M5.16 | Settings search + Mods page | ✅ | merged; + forced-reason placeholder and bundled-mod version fixes; mod description = CONTRACT row 5 (open) |
 | M0.8 | Mock parity (runtime.ui panels, bindings, brightness, session) | 🟡 | card M0-mock-parity |
-| M5.17 | Honesty test over all keys | 🟡 | card M5-honesty |
+| M5.17 | Honesty test over all keys | ✅ | merged; found requires-inert gap → K21 (case ignored until M1.11) |
+| M1.11 | Daemon reports inert/pending-restart reasons (K21) | 🟡 | card M1-inert-reasons |
 | R.1 | Daemon concurrency / Ma review | 🟡 | card R-daemon-review (read-only) |
