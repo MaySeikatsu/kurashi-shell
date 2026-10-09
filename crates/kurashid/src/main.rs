@@ -61,6 +61,18 @@ async fn main() -> anyhow::Result<()> {
             hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
         }
     }
+    // Island faces come from config once M1.5 wires it; core faces for now (K9).
+    let island = kurashid::island::IslandHost::new(
+        hub.clone(),
+        "main",
+        kurashi_island::IslandConfig {
+            faces: vec!["clock".into(), "media".into()],
+            default: "clock".into(),
+            ..Default::default()
+        },
+        &["clock", "media"],
+    );
+    island.register_actions(&mut actions);
     let daemon = Arc::new(Daemon::new(hub, actions, Intents::default()));
     tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 

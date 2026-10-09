@@ -25,7 +25,9 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M1.6 | Frontend skeleton (Store, Theme, I18n, Bar, Stage, Island, ProvenanceChip, veil) | ✅ | merged; idle 0 commits, popup 2.1 ms; PSS popup/2-out 221 MiB ✘ K16 → M3.1 |
 | M2.1 | `kurashi-theme` pipeline → token map | ✅ | merged; 14 tests, AA on all palettes × modes |
 | M3.1 | Stage sized to content, popup only on focused output (K16) | 🟡 | card M3-stage (sonnet, wave 2) |
-| M5.1 | `kurashi-island` arbiter (K9) | 🟡 | card M5-island (sonnet, wave 2) |
+| M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
+| M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
+| M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
 | M4.1 | `kurashi-compositor` trait + niri adapter + fake | ✅ | merged; niri 26.04 fixtures (read-only) |
 | M4.2 | `kurashi-services` (MPRIS, UPower, logind, NM, brightness) | 🟡 | card M4-services (sonnet, wave 2) |
 

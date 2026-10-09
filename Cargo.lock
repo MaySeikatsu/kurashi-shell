@@ -525,6 +525,7 @@ dependencies = [
  "kurashi-compositor",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashi-island",
  "serde",
  "serde_json",
  "thiserror",
