@@ -275,6 +275,37 @@ async fn with_rotation_off_an_idle_mod_does_no_work() {
 }
 
 #[tokio::test(start_paused = true)]
+async fn a_manual_set_and_a_picker_opening_do_not_move_the_per_output_timers() {
+    let root = scratch("timers");
+    let folder = library(&root, &["a.png", "b.png"]);
+    let fake = Fake::new(&["awww"]);
+    fake.daemon_up.store(true, std::sync::atomic::Ordering::SeqCst);
+    let mut vals = values(&folder);
+    vals.insert("rotate".into(), json!(1));
+    vals.insert("rotate_per_output".into(), json!(true));
+    let mut m = Mod::enable(fake.clone(), Dirs::rooted(&root), vals).unwrap();
+    m.subscribe();
+    eventually(|| m.doc()["loaded"] == true).await;
+    assert_eq!(m.doc()["rotation"]["per_output"], true);
+
+    // Half a minute in: a picker opens (a refresh) and DP-1 is set by hand.
+    tokio::time::advance(Duration::from_secs(30)).await;
+    m.subscribe();
+    m.act("wallpaper.set", json!({"path": folder.join("b.png"), "output": "DP-1"}))
+        .await
+        .unwrap();
+    let manual = fake.count("awww img");
+    assert_eq!(manual, 1, "the manual set itself");
+
+    // The minute mark: each output rotates once, on its own due time that did not move.
+    tokio::time::advance(Duration::from_secs(30)).await;
+    eventually(|| fake.count("awww img") == manual + 2).await;
+    let rotated = fake.lines("awww img");
+    assert!(rotated[1..].iter().any(|l| l.contains("--outputs DP-1")));
+    assert!(rotated[1..].iter().any(|l| l.contains("--outputs DP-2")));
+}
+
+#[tokio::test(start_paused = true)]
 async fn disabling_the_mod_stops_the_rotation_timer() {
     let root = scratch("disable");
     let folder = library(&root, &["a.png", "b.png"]);

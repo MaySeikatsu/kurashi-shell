@@ -216,7 +216,11 @@ impl Supervisor {
             return;
         }
         if self.query(id).await.is_ok() {
-            let version = self.version(id).await;
+            // Asked once per start: a refresh keeps the version it has.
+            let version = match &self.status {
+                Status::Ok(Some(v)) => Some(v.clone()),
+                _ => self.version(id).await,
+            };
             self.status = Status::Ok(version);
             return;
         }
@@ -384,7 +388,7 @@ impl Supervisor {
             Cmd::Refresh => {
                 self.refresh_library().await;
                 self.ensure_backend(true).await;
-                self.schedule_all();
+                self.arm_missing();
                 self.choices.choices_changed();
             }
         }
@@ -461,7 +465,6 @@ impl Supervisor {
         }
         self.error = None;
         self.save();
-        self.schedule_all();
         Ok(json!({"path": path, "outputs": targets}))
     }
 
@@ -474,6 +477,7 @@ impl Supervisor {
                 if self.cfg.restore {
                     self.restore().await;
                 }
+                self.arm_missing();
                 self.choices.choices_changed();
             }
         }
@@ -591,6 +595,8 @@ impl Supervisor {
                         .await;
                 }
             }
+            // A switch starts from no status, so the new backend's version is asked for, not kept.
+            self.status = Status::Down;
             self.last_start = None;
             self.ensure_backend(true).await;
             if self.status.up() && new.restore {
@@ -638,20 +644,29 @@ impl Supervisor {
         self.cfg.rotate_min > 0 && !self.state.paused && self.status.up()
     }
 
-    /// Arms the timers for the current settings: one due time for all outputs, or one per output.
-    /// Nothing is armed when rotation is off, so an idle mod wakes for nothing.
+    /// Restarts the timers for the current settings: one due time for all outputs, or one per output.
     fn schedule_all(&mut self) {
         self.due.clear();
+        self.arm_missing();
+    }
+
+    /// Makes the timers match the rotation now, without restarting the ones that run: a key that is
+    /// armed keeps its due time, a key no longer wanted (an output unplugged) is dropped. Nothing is
+    /// armed when rotation is off, so an idle mod wakes for nothing.
+    fn arm_missing(&mut self) {
         if !self.rotation_on() {
+            self.due.clear();
             return;
         }
-        let at = Instant::now() + self.interval();
-        if self.cfg.per_output {
-            for o in &self.outputs {
-                self.due.insert(o.name.clone(), at);
-            }
+        let wanted: Vec<String> = if self.cfg.per_output {
+            self.outputs.iter().map(|o| o.name.clone()).collect()
         } else {
-            self.due.insert("*".into(), at);
+            vec!["*".into()]
+        };
+        self.due.retain(|key, _| wanted.contains(key));
+        let at = Instant::now() + self.interval();
+        for key in wanted {
+            self.due.entry(key).or_insert(at);
         }
     }
 
@@ -741,7 +756,8 @@ impl Supervisor {
             backend["reason"] = json!(reason);
         }
         let mut outputs = Map::new();
-        for o in &self.outputs {
+        let shown: &[Output] = if self.status.up() { &self.outputs } else { &[] };
+        for o in shown {
             outputs.insert(
                 o.name.clone(),
                 json!({
