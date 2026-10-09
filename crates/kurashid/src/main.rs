@@ -74,6 +74,7 @@ async fn main() -> anyhow::Result<()> {
     );
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
+    let mut fc_ok: Option<bool> = None;
     let config = match kurashi_config::Paths::from_xdg() {
         Some(paths) => {
             let store = kurashid::config::ConfigStore::open(
@@ -89,8 +90,12 @@ async fn main() -> anyhow::Result<()> {
             // fc-list once at startup (subprocess); fonts installed later need a restart for now.
             let fonts: Arc<dyn kurashi_theme::FontProvider + Send + Sync> =
                 match kurashi_theme::FcList::query() {
-                    Ok(f) => Arc::new(f),
+                    Ok(f) => {
+                        fc_ok = Some(true);
+                        Arc::new(f)
+                    }
                     Err(e) => {
+                        fc_ok = Some(false);
                         tracing::warn!(error = %e, "fc-list unavailable; font chains unresolved");
                         Arc::new(kurashi_theme::FakeFonts::new(&[]))
                     }
@@ -126,6 +131,19 @@ async fn main() -> anyhow::Result<()> {
     );
     let mut daemon = Daemon::new(hub, actions, Intents::default());
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
+    // Only facts we know synchronously; bus/notification probes stay n/a until they report
+    // asynchronously (Shōjiki: n/a, never a guessed ok).
+    kurashid::doctor::register(
+        &mut daemon,
+        kurashid::doctor::DoctorFacts {
+            compositor_socket: Some(
+                std::env::var_os("NIRI_SOCKET").is_some_and(|p| std::path::Path::new(&p).exists()),
+            ),
+            fc_list_worked: fc_ok,
+            data_dir_found: Some(kurashid::i18n::data_dir().join("i18n").is_dir()),
+            ..Default::default()
+        },
+    );
     daemon.config = config;
     daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
     let daemon = Arc::new(daemon);
