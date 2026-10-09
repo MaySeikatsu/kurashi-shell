@@ -586,11 +586,11 @@ mod tests {
         );
         assert_eq!(Provide::parse("choices:Hello"), Err("provide_malformed"));
         assert_eq!(Provide::parse("choices:"), Err("provide_malformed"));
+        assert_eq!(Provide::Choices("a.b".into()).to_string(), "choices:a.b");
         assert_eq!(
-            Provide::Choices("a.b".into()).to_string(),
-            "choices:a.b"
+            Provide::Slot("lock.aside".into()).to_string(),
+            "slot:lock.aside"
         );
-        assert_eq!(Provide::Slot("lock.aside".into()).to_string(), "slot:lock.aside");
     }
 
     #[test]
