@@ -103,3 +103,22 @@ fn is_bare_key(k: &str) -> bool {
         && k.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
 }
+
+/// The shipped English catalog (`i18n/en/schema.toml`) is generated from the schema; it must
+/// never drift (rule 3). `UPDATE_GOLDEN=1` rewrites it.
+#[test]
+fn shipped_i18n_catalog_is_current() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../i18n/en/schema.toml");
+    let want = format!(
+        "# GENERATED from the schema by kurashi-schema (tests/golden.rs) — do not edit.\n# Translate in i18n/<locale>/schema.toml.\n{}",
+        kurashi_schema::i18n_en(kurashi_schema::v1::registry())
+    );
+    if std::env::var_os("UPDATE_GOLDEN").is_some() {
+        std::fs::write(&path, &want).unwrap();
+    }
+    let have = std::fs::read_to_string(&path).unwrap_or_default();
+    assert!(
+        have == want,
+        "i18n/en/schema.toml is stale: run UPDATE_GOLDEN=1 cargo test -p kurashi-schema"
+    );
+}
