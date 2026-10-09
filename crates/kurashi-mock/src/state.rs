@@ -1,21 +1,26 @@
-//! The mock's documents and action dispatch (PROTOCOL §3–§6). Pure state: no sockets, no clock,
-//! so the daemon's rules (panel exclusivity, which session calls need `confirm`) are unit-tested
-//! here, and `tests/wire.rs` checks the same through the socket.
+//! The mock's documents and action dispatch (PROTOCOL §3–§6). Pure state: no sockets and no
+//! timers (the minute ticker lives in main.rs), so the daemon's rules (panel exclusivity, which
+//! session calls need `confirm`, what a notification action closes) are unit-tested here, and
+//! `tests/wire.rs` checks the same through the socket.
 
 use std::collections::HashMap;
+use std::hash::{BuildHasher, Hasher};
 
+use chrono::NaiveTime;
 use kurashi_core::Rev;
 use kurashi_ipc::{ServerMsg, merge_patch};
 use kurashid::wiring::CONFIRM_REQUIRED;
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
-use crate::documents;
+use crate::documents::{self, Note};
 
 /// The fake backlight starts at half scale (`svc.brightness` 0.5).
 const BRIGHTNESS_START: u32 = documents::BRIGHTNESS_MAX / 2;
 /// Default `brightness.up/down` step, a fraction of full scale (the OSD card's default).
 const BRIGHTNESS_STEP: f64 = 0.05;
+/// Rows per launcher query, as kurashid's launcher provider answers (`query(q, 30)`).
+const QUERY_LIMIT: usize = 30;
 
 pub struct Doc {
     pub rev: Rev,
@@ -37,16 +42,33 @@ impl Fail {
             msg: msg.into(),
         }
     }
+
+    fn unavailable(msg: impl Into<String>) -> Self {
+        Fail {
+            kind: "unavailable",
+            msg: msg.into(),
+        }
+    }
 }
 
 pub struct State {
     pub docs: HashMap<String, Doc>,
     pub outputs: Vec<String>,
     pub tx: broadcast::Sender<ServerMsg>,
+    /// Changes every mock start (PROTOCOL §2), so a client that reconnects sees a new instance.
+    pub instance: String,
+    /// `--fixed-time`: the time every clock reads, for the life of the process.
+    fixed_time: Option<NaiveTime>,
+    /// Newest first; `svc.notifications` is rebuilt from these after every change.
+    notes: Vec<Note>,
+    next_note_id: u32,
+    dnd: bool,
 }
 
 impl State {
-    pub fn new(outputs: &[String]) -> Self {
+    pub fn new(outputs: &[String], fixed_time: Option<NaiveTime>) -> Self {
+        let notes = documents::seed_notes(documents::now(fixed_time).timestamp_millis());
+        let next_note_id = notes.iter().map(|n| n.id + 1).max().unwrap_or(1);
         let seed = [
             ("theme", documents::theme()),
             (
@@ -56,7 +78,8 @@ impl State {
                     &kurashid::i18n::locale_from_env(),
                 ),
             ),
-            ("svc.clock", documents::clock()),
+            ("svc.clock", documents::clock(documents::now(fixed_time))),
+            ("svc.notifications", documents::notes_doc(&notes, false)),
             ("svc.workspaces", documents::workspaces(outputs, 1)),
             ("svc.audio", json!({"volume": 0.5, "muted": false})),
             (
@@ -102,11 +125,21 @@ impl State {
                 .collect(),
             outputs: outputs.to_vec(),
             tx,
+            instance: new_instance_id(),
+            fixed_time,
+            notes,
+            next_note_id,
+            dnd: false,
         }
     }
 
     pub fn data(&self, doc: &str) -> &Value {
         &self.docs[doc].data
+    }
+
+    /// Whether the minute ticker should run. Never under `--fixed-time`.
+    pub fn clock_ticks(&self) -> bool {
+        self.fixed_time.is_none()
     }
 
     /// Merge-patch a document and broadcast it under the next revision. A patch that changes
@@ -115,7 +148,7 @@ impl State {
         self.apply(doc, ops, origin, false);
     }
 
-    /// `force` is for the mock control messages: an explicit request to emit (`mock.tick` advances
+    /// `force` is for the mock control messages: an explicit request to emit (`mock.tick` re-emits
     /// the clock, PROTOCOL §8), so it is never deduplicated.
     fn apply(&mut self, doc: &str, ops: Value, origin: Option<String>, force: bool) {
         let d = self.docs.get_mut(doc).expect("known doc");
@@ -190,11 +223,58 @@ impl State {
             "brightness.down" => self.brightness_step(args, -1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
             "session.lock" => tracing::info!("session.lock: no-op in the mock"),
+            // Without a confirm the daemon refuses; with one it acts, and the mock does nothing.
             "session.suspend" | "session.reboot" | "session.poweroff" | "session.logout" => {
                 if args["confirm"].as_bool() != Some(true) {
                     return Err(Fail::invalid(CONFIRM_REQUIRED));
                 }
                 tracing::info!(%action, "session action: no-op in the mock");
+            }
+            // kurashi-notify's commands. No id means all, for dismiss and mark_read.
+            "notify.dismiss" => {
+                match note_id(args) {
+                    Some(id) => self.notes.retain(|n| n.id != id),
+                    None => self.notes.clear(),
+                }
+                self.publish_notes();
+            }
+            "notify.invoke" => {
+                let id = note_id(args).ok_or_else(|| Fail::invalid("notify.invoke needs id"))?;
+                let key = args["key"].as_str().unwrap_or("default");
+                // An unknown id or key is a silent no-op, as kurashi-notify's `invoke_action`.
+                let known = self
+                    .notes
+                    .iter()
+                    .any(|n| n.id == id && n.actions.iter().any(|(k, _)| k == key));
+                if known {
+                    self.after_interaction(id);
+                }
+            }
+            "notify.mark_read" => {
+                let id = note_id(args);
+                for n in self
+                    .notes
+                    .iter_mut()
+                    .filter(|n| id.is_none_or(|id| n.id == id))
+                {
+                    n.read = true;
+                }
+                self.publish_notes();
+            }
+            "notify.dnd" => {
+                self.dnd = args["on"].as_bool().unwrap_or(true);
+                self.publish_notes();
+            }
+            "mock.notify" => return self.mock_notify(args),
+            // Logged, never spawned: the mock has no processes to start, and it answers no pid.
+            "launcher.launch" => {
+                let id = args["id"]
+                    .as_str()
+                    .ok_or_else(|| Fail::invalid("launcher.launch needs id"))?;
+                if !documents::APPS.iter().any(|app| app.0 == id) {
+                    return Err(Fail::unavailable(format!("no app {id}")));
+                }
+                tracing::info!(%id, "launcher.launch: not spawned in the mock");
             }
             "input.dispatch" => return self.dispatch(args),
             _ => {
@@ -205,6 +285,15 @@ impl State {
             }
         }
         Ok(None)
+    }
+
+    /// `query {kind, q}` (PROTOCOL §6). Only `launcher` is served; any other kind is refused the
+    /// way kurashid refuses a kind with no provider.
+    pub fn query(&self, kind: &str, q: &str) -> Result<Vec<Value>, Fail> {
+        match kind {
+            "launcher" => Ok(launcher_rows(q)),
+            _ => Err(Fail::invalid(format!("no query provider {kind}"))),
+        }
     }
 
     /// Panels are exclusive: opening one switches away from another, and opening the open one
@@ -247,6 +336,62 @@ impl State {
         }
     }
 
+    /// `mock.notify {summary, body?, app_name?, urgency?, actions?}` adds a notification the way
+    /// kurashi-notify's `Notify` does: newest first, a toast unless DND is on (critical always
+    /// shows). Returns `{id}`. Stands in for a `kurashi mock notify` subcommand.
+    fn mock_notify(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        let summary = args["summary"]
+            .as_str()
+            .ok_or_else(|| Fail::invalid("mock.notify needs summary"))?;
+        let urgency = match args["urgency"].as_str().unwrap_or("normal") {
+            u @ ("low" | "normal" | "critical") => u,
+            other => return Err(Fail::invalid(format!("unknown urgency {other}"))),
+        };
+        let mut actions = Vec::new();
+        for a in args["actions"].as_array().into_iter().flatten() {
+            match (a["key"].as_str(), a["label"].as_str()) {
+                (Some(key), Some(label)) => actions.push((key.to_owned(), label.to_owned())),
+                _ => return Err(Fail::invalid("mock.notify actions need key and label")),
+            }
+        }
+        let id = self.next_note_id;
+        self.next_note_id += 1;
+        let mut note = Note::new(
+            id,
+            args["app_name"].as_str().unwrap_or("kurashi-mock"),
+            summary,
+            args["body"].as_str().unwrap_or(""),
+            urgency,
+            documents::now(self.fixed_time).timestamp_millis(),
+        );
+        note.actions = actions;
+        note.showing = urgency == "critical" || !self.dnd;
+        self.notes.insert(0, note);
+        self.publish_notes();
+        Ok(Some(json!({"id": id})))
+    }
+
+    /// After a notification action (kurashi-notify's `after_interaction`): a resident note only
+    /// hides its toast, anything else is removed.
+    fn after_interaction(&mut self, id: u32) {
+        if let Some(i) = self.notes.iter().position(|n| n.id == id) {
+            if self.notes[i].resident {
+                self.notes[i].showing = false;
+                self.notes[i].read = true;
+            } else {
+                self.notes.remove(i);
+            }
+            self.publish_notes();
+        }
+    }
+
+    /// Rebuilds `svc.notifications` from the list. The patch is the whole document (arrays replace
+    /// under merge-patch), and `apply` drops it when nothing changed.
+    fn publish_notes(&mut self) {
+        let doc = documents::notes_doc(&self.notes, self.dnd);
+        self.patch("svc.notifications", doc, None);
+    }
+
     /// Mock control (`mock.face`): the island switches face, as an event would make it.
     pub fn mock_face(&mut self, face: &str) {
         self.apply(
@@ -257,8 +402,11 @@ impl State {
         );
     }
 
+    /// Mock control (`mock.tick`): re-emits the clock. Under `--fixed-time` that is the same
+    /// document again, since the time does not move.
     pub fn mock_tick(&mut self) {
-        self.apply("svc.clock", documents::clock(), None, true);
+        let clock = documents::clock(documents::now(self.fixed_time));
+        self.apply("svc.clock", clock, None, true);
     }
 
     pub fn mock_workspace(&mut self, idx: u32) {
@@ -267,16 +415,78 @@ impl State {
     }
 }
 
+/// `args.id` as a notification id; absent or out of range is `None`.
+fn note_id(args: &Value) -> Option<u32> {
+    args["id"].as_u64().and_then(|id| u32::try_from(id).ok())
+}
+
+/// Launcher rows for `q`, in kurashi-launcher's `QueryResult` shape with `kind` always `app`. A
+/// case-insensitive substring match over name, generic name and desktop id; name-prefix matches
+/// rank first. An empty query lists the index.
+fn launcher_rows(q: &str) -> Vec<Value> {
+    let q = q.trim().to_lowercase();
+    let mut hits: Vec<(f64, Value)> = documents::APPS
+        .iter()
+        .filter_map(|&(id, name, generic, icon)| {
+            let name_l = name.to_lowercase();
+            let score = if q.is_empty() {
+                0.5
+            } else if name_l.starts_with(&q) {
+                1.0
+            } else if name_l.contains(&q) {
+                0.8
+            } else if generic.to_lowercase().contains(&q) || id.to_lowercase().contains(&q) {
+                0.5
+            } else {
+                return None;
+            };
+            let row = json!({
+                "id": id,
+                "name": name,
+                "generic": generic,
+                "icon": icon,
+                "kind": "app",
+                "score": score,
+            });
+            Some((score, row))
+        })
+        .collect();
+    hits.sort_by(|a, b| b.0.total_cmp(&a.0));
+    hits.into_iter()
+        .take(QUERY_LIMIT)
+        .map(|(_, row)| row)
+        .collect()
+}
+
+/// A fresh id per mock process (PROTOCOL §2). `RandomState` is seeded from the OS once per
+/// process, so the id is random without a dependency; the pid and the seed counter keep two
+/// instances in one process apart.
+fn new_instance_id() -> String {
+    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+    h.write_u32(std::process::id());
+    format!("{:016x}", h.finish())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn state() -> State {
-        State::new(&["HEADLESS-1".to_owned()])
+        State::new(&["HEADLESS-1".to_owned()], None)
     }
 
     fn none() -> Value {
         Value::Null
+    }
+
+    /// The ids in `svc.notifications.items`, in list order.
+    fn ids(st: &State) -> Vec<u64> {
+        st.data("svc.notifications")["items"]
+            .as_array()
+            .expect("items")
+            .iter()
+            .map(|i| i["id"].as_u64().expect("id"))
+            .collect()
     }
 
     #[test]
@@ -484,5 +694,255 @@ mod tests {
             st.docs["runtime.island.main"].rev, 3,
             "1 + two forced patches"
         );
+    }
+
+    #[test]
+    fn seeded_notifications_are_history_only_with_a_critical_and_an_actionable_one() {
+        let st = state();
+        let n = st.data("svc.notifications");
+        assert_eq!(n["dnd"], false);
+        assert_eq!(n["toasts"], json!([]), "nothing shows at idle (Ma)");
+        assert_eq!(n["unread"], 2, "one of the three is already read");
+        let items = n["items"].as_array().expect("items");
+        assert_eq!(items.len(), 3);
+        assert!(items.iter().any(|i| i["urgency"] == "critical"));
+        let actionable = items
+            .iter()
+            .find(|i| !i["actions"].as_array().expect("actions").is_empty())
+            .expect("one note with actions");
+        assert_eq!(
+            actionable["actions"][0],
+            json!({"key": "open", "label": "Open"})
+        );
+        for item in items {
+            for field in [
+                "id",
+                "app_name",
+                "app_icon",
+                "summary",
+                "body",
+                "actions",
+                "urgency",
+                "time",
+                "read",
+                "resident",
+                "transient",
+            ] {
+                assert!(item.get(field).is_some(), "{field} is present");
+            }
+            assert!(item.get("expires_at").is_none(), "absent, never null");
+        }
+    }
+
+    #[test]
+    fn dismiss_removes_one_note_or_all_and_an_unknown_id_changes_nothing() {
+        let mut st = state();
+        let mut rx = st.tx.subscribe();
+        st.act("notify.dismiss", &json!({"id": 999})).unwrap();
+        assert!(rx.try_recv().is_err(), "unknown id: no change, no patch");
+
+        st.act("notify.dismiss", &json!({"id": 2})).unwrap();
+        assert_eq!(ids(&st), vec![1, 3]);
+        st.act("notify.dismiss", &none()).unwrap();
+        assert_eq!(ids(&st), Vec::<u64>::new());
+        assert_eq!(st.data("svc.notifications")["unread"], 0);
+    }
+
+    #[test]
+    fn invoke_runs_a_known_action_and_closes_the_note_unless_it_is_resident() {
+        let mut st = state();
+        let mut rx = st.tx.subscribe();
+        // An unknown key or id, or no key when the note has no default action, changes nothing.
+        st.act("notify.invoke", &json!({"id": 2, "key": "nope"}))
+            .unwrap();
+        st.act("notify.invoke", &json!({"id": 999, "key": "open"}))
+            .unwrap();
+        st.act("notify.invoke", &json!({"id": 2})).unwrap();
+        assert!(rx.try_recv().is_err());
+        assert_eq!(ids(&st), vec![1, 2, 3]);
+
+        st.act("notify.invoke", &json!({"id": 2, "key": "open"}))
+            .unwrap();
+        assert_eq!(ids(&st), vec![1, 3], "a known action closes the note");
+
+        // A resident note only hides its toast and counts as read.
+        st.notes[0].resident = true;
+        st.notes[0].showing = true;
+        st.notes[0].actions = vec![("open".into(), "Open".into())];
+        st.publish_notes();
+        st.act("notify.invoke", &json!({"id": 1, "key": "open"}))
+            .unwrap();
+        assert_eq!(ids(&st), vec![1, 3], "resident: still in the list");
+        assert_eq!(st.data("svc.notifications")["toasts"], json!([]));
+        assert_eq!(st.data("svc.notifications")["unread"], 0);
+
+        assert_eq!(
+            st.act("notify.invoke", &none()),
+            Err(Fail::invalid("notify.invoke needs id"))
+        );
+    }
+
+    #[test]
+    fn mark_read_marks_one_note_or_all() {
+        let mut st = state();
+        st.act("notify.mark_read", &json!({"id": 1})).unwrap();
+        assert_eq!(st.data("svc.notifications")["unread"], 1);
+        st.act("notify.mark_read", &none()).unwrap();
+        assert_eq!(st.data("svc.notifications")["unread"], 0);
+    }
+
+    #[test]
+    fn dnd_keeps_normal_notifications_out_of_toasts_but_not_critical_ones() {
+        let mut st = state();
+        st.act("notify.dnd", &json!({"on": true})).unwrap();
+        assert_eq!(st.data("svc.notifications")["dnd"], true);
+
+        st.act("mock.notify", &json!({"summary": "quiet"})).unwrap();
+        assert_eq!(
+            st.data("svc.notifications")["toasts"],
+            json!([]),
+            "DND: a normal note is history only"
+        );
+        st.act(
+            "mock.notify",
+            &json!({"summary": "alarm", "urgency": "critical"}),
+        )
+        .unwrap();
+        assert_eq!(
+            st.data("svc.notifications")["toasts"],
+            json!([5]),
+            "critical shows under DND"
+        );
+
+        // `on` defaults to true, as the daemon's does, and turning DND off changes the flag only.
+        st.act("notify.dnd", &none()).unwrap();
+        assert_eq!(st.data("svc.notifications")["dnd"], true);
+        st.act("notify.dnd", &json!({"on": false})).unwrap();
+        assert_eq!(st.data("svc.notifications")["dnd"], false);
+    }
+
+    #[test]
+    fn mock_notify_adds_a_toast_on_top_and_returns_its_id() {
+        let mut st = state();
+        let done = st
+            .act(
+                "mock.notify",
+                &json!({
+                    "summary": "Build finished",
+                    "body": "ok",
+                    "app_name": "cargo",
+                    "actions": [{"key": "open", "label": "Open log"}]
+                }),
+            )
+            .unwrap();
+        assert_eq!(done, Some(json!({"id": 4})));
+        assert_eq!(ids(&st), vec![4, 1, 2, 3], "newest first");
+
+        let n = &st.data("svc.notifications")["items"][0];
+        assert_eq!(n["app_name"], "cargo");
+        assert_eq!(n["urgency"], "normal");
+        assert_eq!(n["actions"], json!([{"key": "open", "label": "Open log"}]));
+        assert_eq!(st.data("svc.notifications")["toasts"], json!([4]));
+        assert_eq!(st.data("svc.notifications")["unread"], 3);
+
+        // Refused input allocates no id.
+        assert_eq!(
+            st.act("mock.notify", &json!({})),
+            Err(Fail::invalid("mock.notify needs summary"))
+        );
+        assert_eq!(
+            st.act("mock.notify", &json!({"summary": "x", "urgency": "loud"})),
+            Err(Fail::invalid("unknown urgency loud"))
+        );
+        assert_eq!(
+            st.act(
+                "mock.notify",
+                &json!({"summary": "x", "actions": [{"key": "open"}]})
+            ),
+            Err(Fail::invalid("mock.notify actions need key and label"))
+        );
+        let next = st.act("mock.notify", &json!({"summary": "y"})).unwrap();
+        assert_eq!(next, Some(json!({"id": 5})));
+    }
+
+    #[test]
+    fn launcher_query_matches_by_substring_and_other_kinds_are_refused() {
+        let st = state();
+        let rows = st.query("launcher", "fire").unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0]["id"], "firefox.desktop");
+        assert_eq!(rows[0]["kind"], "app");
+        assert_eq!(rows[0]["icon"], "firefox");
+
+        assert_eq!(
+            st.query("launcher", "").unwrap().len(),
+            documents::APPS.len(),
+            "an empty query lists the index"
+        );
+        // The generic name and the desktop id match too, and case does not matter.
+        assert!(
+            st.query("launcher", "TERMINAL")
+                .unwrap()
+                .iter()
+                .any(|r| r["id"] == "foot.desktop")
+        );
+        assert!(
+            st.query("launcher", "calc")
+                .unwrap()
+                .iter()
+                .any(|r| r["name"] == "Calculator")
+        );
+        assert!(st.query("launcher", "zzz").unwrap().is_empty());
+        assert_eq!(
+            st.query("notifications", "x"),
+            Err(Fail::invalid("no query provider notifications"))
+        );
+    }
+
+    #[test]
+    fn launcher_launch_needs_a_known_app_and_changes_no_document() {
+        let mut st = state();
+        let mut rx = st.tx.subscribe();
+        assert_eq!(
+            st.act("launcher.launch", &none()),
+            Err(Fail::invalid("launcher.launch needs id"))
+        );
+        assert_eq!(
+            st.act("launcher.launch", &json!({"id": "nope.desktop"})),
+            Err(Fail::unavailable("no app nope.desktop"))
+        );
+        assert_eq!(
+            st.act("launcher.launch", &json!({"id": "foot.desktop"})),
+            Ok(None)
+        );
+        assert!(rx.try_recv().is_err(), "a launch emits nothing");
+    }
+
+    #[test]
+    fn fixed_time_pins_the_clock_and_mock_tick_only_re_emits_it() {
+        let fixed = NaiveTime::from_hms_opt(14, 7, 0).expect("time");
+        let mut st = State::new(&["HEADLESS-1".to_owned()], Some(fixed));
+        assert!(!st.clock_ticks(), "no minute ticker under --fixed-time");
+        assert_eq!(
+            st.data("svc.clock"),
+            &json!({"hh": "14", "mm": "07", "date": "2026-10-09", "weekday": "Fri"})
+        );
+
+        // An explicit mock.tick still emits (PROTOCOL §8), with the same time.
+        let mut rx = st.tx.subscribe();
+        st.mock_tick();
+        assert!(matches!(
+            rx.try_recv(),
+            Ok(ServerMsg::Patch { ref doc, .. }) if doc == "svc.clock"
+        ));
+        assert_eq!(st.data("svc.clock")["mm"], "07");
+        assert!(state().clock_ticks(), "a live mock ticks");
+    }
+
+    #[test]
+    fn each_mock_process_gets_its_own_instance_id() {
+        let (a, b) = (state(), state());
+        assert!(!a.instance.is_empty());
+        assert_ne!(a.instance, b.instance);
     }
 }
