@@ -63,6 +63,9 @@ cycles ≤ +1.3 MiB — but **per extra output +4.7…+6.7 (mean ≈ 5.95, 2 of 
 6. Idea (user, not planned): Bevy as a candidate in the next framework re-test (`docs/BAKEOFF.md`).
 
 **Process lessons (keep)**
+- Tests must not hand clients what a live session doesn't: the frontend read only `KURASHI_SOCKET`, every
+  sandbox test exported it, and `test-real.sh` passed with a disconnected bar (it took screenshots,
+  asserted nothing). Found in the user's first live run; fixed (M7.5) + a hello assertion.
 - Agent worktrees may be created from `origin/main`, not local `main`: **push (or fast-forward) before
   spawning**, or tell agents to `git merge --ff-only main` first (4 of 6 started on a stale base).
 - A restarted Claude process restarts its background agents; check `ListAgents` before touching worktrees

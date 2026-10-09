@@ -8,6 +8,10 @@ import Quickshell.Io
 // something actually renders (Ma).
 Singleton {
     id: root
+    // PROTOCOL §1: `$XDG_RUNTIME_DIR/kurashi/ipc.sock`, overridden by `KURASHI_SOCKET` — the same rule
+    // as kurashid and the CLI. (Reading only the override left every live start disconnected.)
+    readonly property string socketPath: Quickshell.env("KURASHI_SOCKET")
+        || ((Quickshell.env("XDG_RUNTIME_DIR") || "") + "/kurashi/ipc.sock")
 
     // Reactive document map: Store.docs["svc.media"]. Reassigned (shallow copy) on every change so
     // bindings re-evaluate; a doc that is not watched, or that the daemon does not serve, is absent.
@@ -159,7 +163,7 @@ Singleton {
         id: sockComp
         Socket {
             id: s
-            path: Quickshell.env("KURASHI_SOCKET")
+            path: root.socketPath
             Component.onCompleted: { root.cur = s; connected = true }
             Component.onDestruction: if (root.cur === s) root.cur = null
             parser: SplitParser {
