@@ -1,14 +1,17 @@
 import QtQuick
 import "../core"
 
-// String list: removable items plus an add field. Emits the full new list. Each item takes Tab focus;
-// Delete, Backspace, Return or Space removes it, and the × does the same with a pointer.
+// String list as removable chips plus an add field (the launcher's terminal command, the font chain). Each chip takes
+// Tab focus; Delete or Backspace removes it, and its × does the same with a pointer. Return in the add field adds the
+// typed text; Return in an empty field is `keepRequested` (a previewed list is kept there). Escape is `cancelled`.
 Flow {
     id: l
     property var items: []
     property bool enabled: true
     property string label: ""
     signal edited(var items)
+    signal keepRequested()
+    signal cancelled()
 
     spacing: Theme.gap / 2
 
@@ -24,8 +27,8 @@ Flow {
             id: entry
             required property var modelData
             required property int index
-            implicitWidth: lbl.implicitWidth + cross.implicitWidth + 2 * Theme.gap
-            implicitHeight: 26
+            implicitWidth: lbl.implicitWidth + cross.implicitWidth + 2 * Theme.gap + 4
+            implicitHeight: Theme.controlH - 6
             radius: Theme.rFull
             color: Theme.containerHigh
             border.width: 1
@@ -35,8 +38,12 @@ Flow {
             // Matched by key code: Qt has no Keys signal for Backspace.
             Keys.onPressed: event => {
                 switch (event.key) {
-                case Qt.Key_Delete: case Qt.Key_Backspace: case Qt.Key_Return: case Qt.Key_Enter: case Qt.Key_Space:
+                case Qt.Key_Delete: case Qt.Key_Backspace:
                     l.remove(entry.index)
+                    event.accepted = true
+                    break
+                case Qt.Key_Escape:
+                    l.cancelled()
                     event.accepted = true
                     break
                 }
@@ -63,7 +70,7 @@ Flow {
                 font.pixelSize: Theme.fs
                 text: "×"
                 MouseArea {
-                    // A 32 px hit area around the glyph; the chip itself keeps its 26 px.
+                    // A 32 px hit area around the glyph; the chip itself keeps its height.
                     anchors.centerIn: parent
                     width: Math.max(Theme.controlH, cross.implicitWidth)
                     height: Theme.controlH
@@ -79,14 +86,18 @@ Flow {
         }
     }
     TextField {
-        width: 120
+        id: add
+        width: 140
         height: Theme.controlH
         label: l.label !== "" ? l.label : I18n.tr("settings.ui.list_add")
         enabled: l.enabled
         placeholder: I18n.tr("settings.ui.list_add")
-        onAccepted: text => {
+        onSubmitted: text => {
             var v = text.trim()
-            if (v !== "" && l.items.indexOf(v) < 0) l.edited(l.items.concat([v]))
+            if (v === "") { l.keepRequested(); return }
+            if (l.items.indexOf(v) < 0) l.edited(l.items.concat([v]))
+            add.clear()
         }
+        onEscaped: l.cancelled()
     }
 }
