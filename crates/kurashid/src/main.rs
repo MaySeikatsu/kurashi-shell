@@ -167,6 +167,7 @@ async fn run() -> anyhow::Result<()> {
             kurashid::i18n::data_dir().join("mods"),
             kurashid::xdg_dir("data").join("mods"),
         ],
+        config.clone(),
     );
     let mut intents = Intents::default();
     kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
