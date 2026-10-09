@@ -3,6 +3,7 @@
 
 pub mod actions;
 pub mod config;
+pub mod doctor;
 pub mod hub;
 pub mod i18n;
 pub mod intents;
