@@ -31,3 +31,14 @@ Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 3
 - Every animation/timer is gated on visibility or on an active interaction; idle = zero frames.
 - New QML types must be added to the folder's `qmldir`. Never assign `anchor.item` dynamically.
 - Reconnect veil: `Store.live` false keeps last state, dims content (`opacity.stale`), shows a glyph.
+
+## Core API (`core/`)
+- `Store.watch(doc)` / `unwatch(doc)` refcounted; declaratively `Watch { doc: "svc.media"; active: cond }`.
+  Surfaces watch only what they render. `Store.docs[doc]` is reactive; docs the daemon does not
+  serve (`unknown_doc`) stay absent, with no retry.
+- `Store.act(action, args, cb)` -> `cb(done, err)` (`done.data` for results); `Store.query(kind, q, cb)`
+  -> `cb(items, err)`, only the newest query per kind is answered; `Store.intent(...)` unchanged.
+- Reconnect: fresh Socket per attempt (a reused one stayed silent after the first failure), all
+  watched docs re-subscribed on welcome; `instance` change drops cached docs.
+- `I18n.tr` reads the daemon's `i18n` doc. Island `reason` `manual` counts as `user` (`byUser`).
+- Real-daemon smoke test: `nix develop -c frontend/test-real.sh` (screenshots in `shots/real/`).
