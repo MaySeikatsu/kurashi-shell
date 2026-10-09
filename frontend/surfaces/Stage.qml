@@ -28,6 +28,8 @@ PanelWindow {
     readonly property string wantedKind: sessionWanted ? "session" : (want ? "island" : "")
     property string contentKind: "island"
     onWantedKindChanged: if (wantedKind !== "") contentKind = wantedKind
+    // A probe field that held focus loses it when the content changes; the card takes it back.
+    onContentKindChanged: Qt.callLater(function () { card.forceActiveFocus() })
 
     readonly property int slide: 12     // px the card travels while revealing
     property real p: 0                  // reveal progress 0..1
@@ -51,6 +53,8 @@ PanelWindow {
 
     onOpenChanged: {
         if (open) {
+            // Content first: a session menu closed a moment ago must not show for a frame.
+            contentKind = sessionWanted ? "session" : "island"
             anim.stop()
             if (!shown) { p = 0; gate = true; shown = true }
             else { anim.from = p; anim.to = 1; anim.start() }
@@ -85,8 +89,13 @@ PanelWindow {
         color: Theme.container
         border.width: 1
         border.color: Theme.outline
+        // The Stage's one keyboard focus holder. The session menu is driven from here and never takes
+        // focus itself (a second holder would clear this flag for good). Esc closes whichever panel.
         focus: true
-        Keys.onEscapePressed: Store.act("ui.close")
+        Keys.onPressed: event => {
+            if (stage.contentKind === "session" && menu.handleKey(event.key)) { event.accepted = true; return }
+            if (event.key === Qt.Key_Escape) { Store.act("ui.close"); event.accepted = true }
+        }
 
         Column {
             id: col
@@ -113,7 +122,7 @@ PanelWindow {
                     font.family: Theme.fam(text, Theme.families)
                     verticalAlignment: TextInput.AlignVCenter
                     selectByMouse: true
-                    Keys.onEscapePressed: Store.act("probe.popup.toggle")
+                    Keys.onEscapePressed: Store.act("ui.close")
                 }
             }
             // Static sample until the daemon serves cfg.* (Provenanced values).
@@ -125,8 +134,8 @@ PanelWindow {
             }
             Row {
                 spacing: Theme.gap
-                Button { label: I18n.tr("frontend.stage.close"); primary: true; onClicked: Store.act("probe.popup.toggle") }
-                IconButton { glyph: "✕"; a11y: I18n.tr("frontend.stage.close"); onClicked: Store.act("probe.popup.toggle") }
+                Button { label: I18n.tr("frontend.stage.close"); primary: true; onClicked: Store.act("ui.close") }
+                IconButton { glyph: "✕"; a11y: I18n.tr("frontend.stage.close"); onClicked: Store.act("ui.close") }
             }
         }
 
