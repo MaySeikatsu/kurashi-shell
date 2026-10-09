@@ -24,6 +24,9 @@ pub struct View {
     pub status: String,
     pub icon_name: String,
     pub icon: Option<Icon>,
+    /// Extra directories the icon names resolve in (SNI `IconThemePath`); libappindicator items
+    /// ship their icons this way. Absent when the item sets none.
+    pub icon_theme_path: Option<String>,
     pub tooltip: Option<String>,
     /// Object path of the item's dbusmenu, when it has one.
     pub menu: Option<String>,
@@ -58,6 +61,7 @@ pub async fn read(conn: &Connection, unique: &str, path: &str) -> Option<View> {
         status,
         icon_name,
         icon: best_icon(&pixmaps),
+        icon_theme_path: prop::<String>(&props, "IconThemePath").filter(|p| !p.is_empty()),
         tooltip: prop::<ToolTip>(&props, "ToolTip")
             .and_then(|(_, _, title, text)| tooltip(title, text)),
         menu: prop::<OwnedObjectPath>(&props, "Menu")
