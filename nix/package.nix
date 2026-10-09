@@ -18,6 +18,7 @@ rustPlatform.buildRustPackage {
       ../i18n
       ../palettes
       ../frontend
+      ../mods # kurashi-mods tests validate the bundled manifests
     ];
   };
 
