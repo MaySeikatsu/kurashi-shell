@@ -101,13 +101,17 @@ in
       };
       Service = {
         Type = "simple";
-        # launch.sh pins the EGL vendor on single-GPU NVIDIA machines (-13 MiB, K16).
+        # launch.sh pins the EGL vendor of the GPU the session renders on (K16, K-hybrid-egl). It asks
+        # wayland-info for the compositor's main device, which the service gets by store path like qs.
         ExecStart = "${cfg.package}/share/kurashi/frontend/launch.sh";
         Restart = "on-failure";
         RestartSec = 1;
         RestartSteps = 5;
         RestartMaxDelaySec = 30;
-        Environment = envList ++ [ "KURASHI_QS=${lib.getExe' cfg.frontend.package "qs"}" ];
+        Environment = envList ++ [
+          "KURASHI_QS=${lib.getExe' cfg.frontend.package "qs"}"
+          "KURASHI_WAYLAND_INFO=${lib.getExe' pkgs.wayland-utils "wayland-info"}"
+        ];
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
