@@ -95,6 +95,16 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 `{"t":"err","id"?, "kind":"invalid|unknown_doc|unknown_action|unavailable|internal","msg":"…"}`
 Keepalive: `ping`/`pong`. Shutdown: `{"t":"bye","reason":"shutdown"}`; clients reconnect with
 backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
+A client that stops reading lets its reply queue fill (1024 messages): the daemon sends
+`{"t":"bye","reason":"overflow"}` and closes; treat any `bye` as end of session and reconnect.
+If a connection falls behind the broadcast ring, the daemon re-sends a full `snap` (no `id`) for
+every document that connection subscribes; clients already resync by revision.
+
+Further kurashid documents (wave 7): `svc.tray` `{available, items:[{id, title, icon_name, status,
+has_menu, icon_pixmap?, tooltip?, icon_theme_path?}]}` with actions `tray.{activate,secondary,scroll,
+menu,menu_event}`; `svc.bluetooth` `{available, powered?, discovering?, devices?:[…]}` with actions
+`bluetooth.{power,connect,disconnect,scan}`. Both start on first subscriber; their actions never
+start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
 
 ## 8. Probe subset (M0 bake-off, served by `kurashi-mock`)
 | Document | Shape |
