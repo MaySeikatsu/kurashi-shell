@@ -9,17 +9,18 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 > merge, decide). Follow the feature-branch workflow, keep `docs/PROGRESS.md` current, and write
 > a new handover entry before ending the session.
 >
-> **Benchmark window first (2026-10-09):** before spawning implementation agents, if the machine is
-> quiet (no other compile jobs: check `uptime` and `pgrep -c rustc`; another session may start
-> compiling at **13:30** system time), re-run the benchmarks: `just bench-gate` on the real stack and a
-> re-measure of the archived bake-off probes in `archive/bakeoff-probes/` exactly as they are (rebuild
-> per their READMEs, measure one at a time with `tools/bench/measure.py`, mock daemon). Record the
-> numbers in `docs/BENCH.md` / `docs/BAKEOFF.md`. The Quickshell decision (K3) stays fixed; do not
-> extend the probes — other frameworks may be re-tested once the Quickshell version is stable.
+> **Benchmarks:** the quiet re-measure on machine A is done (2026-10-09 13:29, `docs/BAKEOFF.md`
+> "Quiet re-measure", `docs/BENCH.md`); K3 (Quickshell) stays fixed and the archived probes are not to
+> be extended. Re-bench only on a quiet machine (`uptime`, `pgrep -c rustc`); another session may
+> compile from 13:30 on 2026-10-09. Still open: a first baseline on the user's second machine.
 
 ---
 
 ## 2026-10-09 — session 3: wave 7 with Haiku agents (M3–M7 depth, review-driven fixes)
+**Update 13:30:** U-components and U-surfaces merged (ed847b0, 0470378), golden refs re-recorded; quiet
+benchmarks done (probes re-measured unchanged + real-stack gate: 104.3 MiB, +6.0/output at the limit,
+0 violations). No agents running. Next steps 1 → settings polish card; 2 → machine B baseline only.
+
 **State:** `main` green at handover (`just check` in a **private** target dir: fmt, clippy -D warnings,
 all workspace tests, **0 ignored**; `just golden` 5/5; `nix flake check --no-build` ✔). Lead = Opus,
 agents = Haiku at max effort, up to 10 in parallel, task cards in `docs/tasks/` (README = rules).
@@ -58,14 +59,12 @@ work until 12:50.
   (`git branch | grep worktree-agent`). If their reports were not merged: for each branch, check the
   diff stays in the card's owned paths, run the gate (below) + `frontend/test-real.sh` + `just golden`,
   Read the screenshots, then `git merge --no-ff`. If a branch has no commits, re-run the card.
-- Bench gate not re-run since the memory merge (machine was loaded; PSS rows were noisy ±15 MiB).
+- Island hit target still 26 px (< 32): decide in Bar (U.1 note). Per-output PSS is at its limit.
 
 **Next steps (ordered)**
-1. Land U-components / U-surfaces (above). Then settings polish from the UX review (#3 settings
+1. (U-components / U-surfaces landed.) Settings polish from the UX review (#3 settings
    focus/keys, #7, #8, #9, #11 settings, #13 error codes→keys, #17, #18, #23) as one card owning `settings/`.
-2. Quiet-machine benchmarks on this machine (Machine A) — see the pickup prompt's benchmark window
-   (bench-gate + archived probes re-measured unchanged; K3 stays). Then a first baseline on the user's
-   second machine (Machine B, `docs/BENCH.md`), plus `just golden --update` there (refs are per machine).
+2. (Machine A quiet benchmarks done.) A first baseline on the user's second machine (Machine B, `docs/BENCH.md`), plus `just golden --update` there (refs are per machine).
 3. Frontend for tray + Bluetooth (bar widget + stage panel) against `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
 4. logind session for a `systemd --user` daemon (resolve the user's graphical session explicitly;
    today session hints may stay `available:false`).

@@ -66,6 +66,16 @@ Real `kurashid` (isolated dirs, sandbox bus) + `frontend/` (main 3f40f8b), headl
 | mapped layer surfaces idle (1 output) | 1 | ≤ 4 ✔ |
 | daemon PSS / CPU / wakeups | 8.5 MiB / 0 % / 0 | — |
 
+### 2026-10-09 13:25 — bench gate after wave 7 (0470378), quiet machine A
+Real `kurashid` + full UI via `frontend/launch.sh` (NVIDIA EGL pin), release binaries from main,
+no other compile jobs (the first quiet baseline for machine A).
+| idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | 20-cycle growth | mapped surfaces | result |
+|---|---|---|---|---|---|---|---|
+| 0.03 | 0 % | 104.3 MiB | **+6.0** | 2.6 ms | +0.63 MiB | 3 | **0 violations** |
+Headroom: 46 MiB at 1 output (was 12 before M3.2). The per-output row sits exactly at its limit
+(+6.0 vs ≤ +6): watch it — the next surface added per output must pay for itself.
+Same frontend against the mock: 118.8 MiB @1 out, 0 wakeups/s (`docs/BAKEOFF.md` re-measure).
+
 ### 2026-10-09 — bench gate after wave 5 (b39974d): full UI on the real stack
 Bar + Stage + island faces + toasts/center + launcher + lock, real `kurashid`, serial run.
 | idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | mapped surfaces | result |

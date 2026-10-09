@@ -1,0 +1,44 @@
+{
+  "name": "rerun-quickshell",
+  "cmd": [
+    "qs",
+    "-p",
+    "/home/maike/Projects/kurashi-shell/archive/bakeoff-probes/quickshell"
+  ],
+  "daemon": "mock",
+  "date": "2026-10-09 13:11",
+  "commit": "0470378",
+  "pass_a": {
+    "idle_cpu_pct": 0.0,
+    "wakeups_per_s": 0.2,
+    "pss_mib_1out": 123.4,
+    "gpu_mib": 4,
+    "processes": 1,
+    "idle_window_s": 30.1,
+    "pss_mib_popup": 128.5,
+    "pss_mib_popup_closed": 129.6,
+    "pss_mib_2out": 132.4,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 155,
+    "idle_commits_per_s": 0.0,
+    "idle_commits_by_surface": {},
+    "popup_latency_ms_median": 2.2,
+    "popup_latency_ms_all": [
+      2.4,
+      2.2,
+      2.2,
+      2.1,
+      2.1
+    ],
+    "mapped_layer_surfaces_idle": 1,
+    "morph_commits": 21,
+    "morph_frame_ms_p50": 16.2,
+    "morph_frame_ms_p99": 17.2
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 0.0,
+    "top_syscalls": {}
+  }
+}

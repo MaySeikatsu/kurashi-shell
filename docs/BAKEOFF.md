@@ -61,6 +61,34 @@ the minute clock patch). ⁴ Inflated by gpui's never-ending frame loop.
 Driver floor (Quickshell probe, smaps breakdown of 144 MiB): libnvidia* 26.6 · Qt libs 21.2 · other
 libs (ICU data, fontconfig, …) 49.1 · anon/heap 46.4 (includes driver allocations).
 
+### Quiet re-measure (2026-10-09 13:11–13:29, after wave 7) — record only, K3 unchanged
+Probes rebuilt from `archive/bakeoff-probes/` exactly as merged (no source changes), measured one at a
+time on an otherwise idle machine (no compile jobs, load < 2), same method as M0.7 (`measure.py
+--warmup 10 --idle 30`, mock daemon, headless sway gles2, GTX 1060). Raw JSON:
+`archive/bakeoff-probes/<name>/bench-rerun-2026-10-09.json`. Last column: today's Quickshell frontend
+(`frontend/launch.sh`, the real UI, not a probe) against the same mock.
+
+| | quickshell | iced | slint¹ | gpui | gtk4 | frontend (mock) |
+|---|---|---|---|---|---|---|
+| PSS 1 output (MiB) (M0.7) | **123.4** (144.0) | 118.9 (154.7) | 22.1 (25.2) | 112.9 (148.5) | 78.0 (156.1) | 118.8 |
+| PSS popup open | 128.5 | 124.0 | 22.7 | 113.7 | 129.3 | 121.4 |
+| PSS 2 outputs | 132.4 | 124.0 | 22.7 | 114.7 | 131.2 | 127.1 |
+| idle CPU % | 0.0 | 0.17 | 0.0 | 0.43 | 0.07 | 0.0 |
+| idle wakeups/s | 0.2 | 118.5 ✘ | 0.0 | 178.2 ✘ | 1.4 | 0.0 |
+| idle syscalls/s | 0.0 | 229.9 ✘ | 5.9 | 719.5 ✘ | 7.6 | 4.4 |
+| idle commits/s | 0.0 | 0.0 | 0.0 | 61.2 ✘ | 0.7 | 0.0 |
+| startup ms | 155 | 358 | 65 | 371 | 532 | 193 |
+| popup input→commit ms (median) | 2.2 | 2.3 | 2.1 | 23.4 | 1.9 | 2.6 |
+| morph commits / p99 frame ms | 21 / 17.2 | 23 / 17.5 | 23 / 17.4 | 92 / 18.2 | 20 / 16.7 | 22 / 17.5 |
+
+Reading: every probe is 15–80 MiB lighter than in M0.7, which was measured while other agents held
+GPU driver pages; the quiet numbers are the better baseline. Behavioural findings are unchanged
+(iced/gpui never idle; gpui commits forever; Slint is still CPU-rendered, ¹ not comparable). GTK4's
+1-output PSS halved (78 MiB) but its popup still costs +51 MiB (a second GL surface), landing level
+with Quickshell once opened. No result reopens K3 (its re-evaluation clause asks for IME + blur +
+session lock + hot reload, which the numbers don't speak to). Re-test other frameworks once the
+Quickshell version is stable.
+
 ### Capability (✔ / partial / ✘; hard gates **bold**)
 | | quickshell | iced | slint | gpui | gtk4 |
 |---|---|---|---|---|---|
