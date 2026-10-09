@@ -1,0 +1,6 @@
+# Island face strings (en): frontend/components/faces/.
+"island.media.idle" = "Nothing playing"
+"island.volume.muted" = "Muted"
+"island.volume.unavailable" = "Audio unavailable"
+"island.notifications.unread" = "{n} new"
+"island.notifications.none" = "No new notifications"

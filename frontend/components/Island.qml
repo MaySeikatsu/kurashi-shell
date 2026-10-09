@@ -1,12 +1,16 @@
 import QtQuick
 import "../core"
+import "faces"
 
 // Island (島): the daemon decides the face (runtime.island.*); this only morphs between faces.
-// Interruptible: width/opacity are Behaviors, so a new face retargets mid-flight. Animations are
-// gated on `visible` (Ma) and armed only after the first layout so startup does not animate.
+// One component per face id (faces/); each watches only the docs it renders and only while it is
+// visible. Interruptible: width/opacity are Behaviors, so a new face retargets mid-flight.
+// Animations are gated on `visible` (Ma) and armed only after the first layout so startup does
+// not animate. Unknown face ids (mod faces) fall back to the clock rather than showing nothing.
 Rectangle {
     id: isl
     property string face: "clock"
+    // Deprecated: faces read their own docs now; kept so existing callers keep assigning.
     property string clockText: ""
     property string mediaText: ""
     signal primary()                 // left click
@@ -17,49 +21,30 @@ Rectangle {
     // `manual` (island.next/prev/pin via the arbiter) is a deliberate user choice, like `user`.
     readonly property bool byUser: reason === "user" || reason === "manual"
 
-    readonly property bool media: face === "media"
+    readonly property string shown: ["clock", "media", "volume", "notifications"].indexOf(face) >= 0 ? face : "clock"
     readonly property bool animate: armed && visible
     property bool armed: false
     Component.onCompleted: armed = true
+
+    readonly property real faceW: shown === "media" ? media.wantW
+        : shown === "volume" ? volume.wantW
+        : shown === "notifications" ? notifs.wantW : clock.wantW
 
     height: Theme.barH - 10
     radius: Theme.rFull
     color: Theme.containerHigh
     clip: true
-    width: (media ? mediaLabel.implicitWidth : clockLabel.implicitWidth) + 2 * Theme.pad
+    width: faceW + 2 * Theme.pad
     Behavior on width {
         enabled: isl.animate
         NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
     }
 
-    Text {
-        id: clockLabel
-        anchors.centerIn: parent
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
-        text: isl.clockText
-        opacity: isl.media ? 0 : 1
-        visible: opacity > 0
-        Behavior on opacity {
-            enabled: isl.animate
-            NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
-        }
-    }
-    Text {
-        id: mediaLabel
-        anchors.centerIn: parent
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
-        text: isl.mediaText
-        opacity: isl.media ? 1 : 0
-        visible: opacity > 0
-        Behavior on opacity {
-            enabled: isl.animate
-            NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
-        }
-    }
+    ClockFace { id: clock; anchors.fill: parent; current: isl.shown === "clock"; animate: isl.animate }
+    MediaFace { id: media; anchors.fill: parent; current: isl.shown === "media"; animate: isl.animate }
+    VolumeFace { id: volume; anchors.fill: parent; current: isl.shown === "volume"; animate: isl.animate }
+    NotificationsFace { id: notifs; anchors.fill: parent; current: isl.shown === "notifications"; animate: isl.animate }
+
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton | Qt.RightButton
