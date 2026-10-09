@@ -4,7 +4,10 @@
 
 use std::path::PathBuf;
 
-use kurashi_mod_api::{Settings, Values};
+use kurashi_mod_api::Settings;
+#[cfg(test)]
+use kurashi_mod_api::Values;
+#[cfg(test)]
 use serde_json::{Value, json};
 
 pub const DEFAULT_BACKEND: &str = "awww";
@@ -128,7 +131,11 @@ impl Config {
 
     /// The rotation order as the settings name it.
     pub fn order_name(&self) -> &'static str {
-        if self.shuffle { "shuffle" } else { "alphabetical" }
+        if self.shuffle {
+            "shuffle"
+        } else {
+            "alphabetical"
+        }
     }
 
     /// The settings in effect as a plain map (tests and the manifest-default check).
@@ -159,7 +166,9 @@ pub fn default_values() -> Values {
 fn expand_home(path: &str, home: Option<&std::path::Path>) -> PathBuf {
     match (path.strip_prefix("~/"), home) {
         (Some(rest), Some(home)) => home.join(rest),
-        _ if path == "~" => home.map(PathBuf::from).unwrap_or_else(|| PathBuf::from(path)),
+        _ if path == "~" => home
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from(path)),
         _ => PathBuf::from(path),
     }
 }
@@ -198,7 +207,10 @@ mod tests {
             ..Config::default()
         };
         let home = std::path::Path::new("/home/u");
-        assert_eq!(expand_home("~/Pics", Some(home)), PathBuf::from("/home/u/Pics"));
+        assert_eq!(
+            expand_home("~/Pics", Some(home)),
+            PathBuf::from("/home/u/Pics")
+        );
         assert_eq!(expand_home("/x", Some(home)), PathBuf::from("/x"));
         let roots = c.roots();
         assert_eq!(roots.len(), 3, "the empty entry is dropped");

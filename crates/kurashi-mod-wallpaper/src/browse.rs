@@ -29,7 +29,9 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
         Some(folder) => {
             let folder = PathBuf::from(folder);
             if !cfg.roots().contains(&folder) {
-                return Err(ActionError::Invalid("mod-wallpaper.error.folder_unknown".into()));
+                return Err(ActionError::Invalid(
+                    "mod-wallpaper.error.folder_unknown".into(),
+                ));
             }
             vec![folder]
         }
@@ -69,7 +71,10 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
 
     let total = items.len();
     let offset = args["offset"].as_u64().unwrap_or(0).min(total as u64);
-    let limit = args["limit"].as_u64().unwrap_or(PAGE_DEFAULT).clamp(1, PAGE_MAX);
+    let limit = args["limit"]
+        .as_u64()
+        .unwrap_or(PAGE_DEFAULT)
+        .clamp(1, PAGE_MAX);
     let page: Vec<Entry> = items
         .into_iter()
         .skip(offset as usize)

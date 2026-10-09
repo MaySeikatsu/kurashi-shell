@@ -28,14 +28,12 @@ mod thumbs;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use kurashi_mod_api::{
-    ActionError, Choice, ModCtx, ModError, NativeMod, Publish, Settings,
-};
+use kurashi_mod_api::{ActionError, Choice, ModCtx, ModError, NativeMod, Publish, Settings};
 use serde_json::{Value, json};
 use tokio::sync::{mpsc, oneshot, watch};
 
 pub use backend::{BACKENDS, BackendId};
-pub use exec::{Exec, ExecError, ExecOutput, SystemExec};
+pub use exec::{Exec, ExecError, ExecFuture, ExecOutput, SystemExec};
 
 use config::Config;
 use supervisor::{Cmd, Reply, Shared, Supervisor};
@@ -120,8 +118,8 @@ impl NativeMod for Wallpaper {
         let settings: Settings = ctx.settings().clone();
         let cfg = Config::read(&settings);
         // Installed: a PATH lookup only (no process), so the quick tile's readiness is known now.
-        let installed = BackendId::parse(&cfg.backend)
-            .is_some_and(|b| self.exec.find(b.cli()).is_some());
+        let installed =
+            BackendId::parse(&cfg.backend).is_some_and(|b| self.exec.find(b.cli()).is_some());
         let initial = initial_doc(&cfg, installed);
 
         let (doc_tx, _) = watch::channel(initial.clone());
@@ -271,14 +269,10 @@ fn register_actions(ctx: &mut ModCtx, shared: &Arc<Shared>) -> Result<(), ModErr
     )?;
 
     let s = shared.clone();
-    ctx.action(
-        "wallpaper.thumbs",
-        "action.wallpaper.thumbs",
-        move |args| {
-            let s = s.clone();
-            async move { browse::thumbs(&s, args).await }
-        },
-    )?;
+    ctx.action("wallpaper.thumbs", "action.wallpaper.thumbs", move |args| {
+        let s = s.clone();
+        async move { browse::thumbs(&s, args).await }
+    })?;
 
     let s = shared.clone();
     ctx.action(

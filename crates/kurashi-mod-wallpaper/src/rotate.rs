@@ -11,7 +11,11 @@ pub struct Rng(u64);
 impl Rng {
     pub fn new(seed: u64) -> Self {
         // Zero is a fixed point of xorshift; any other seed works.
-        Self(if seed == 0 { 0x9E37_79B9_7F4A_7C15 } else { seed })
+        Self(if seed == 0 {
+            0x9E37_79B9_7F4A_7C15
+        } else {
+            seed
+        })
     }
 
     /// A seed from the clock, for the daemon.
@@ -63,11 +67,7 @@ pub fn step(list: &[PathBuf], current: Option<&Path>, forward: bool) -> Option<P
             }
             Err(ins) => {
                 // `ins` is where `cur` would sort: the next image forward, the one before it back.
-                if forward {
-                    ins % n
-                } else {
-                    (ins + n - 1) % n
-                }
+                if forward { ins % n } else { (ins + n - 1) % n }
             }
         },
     };
@@ -110,10 +110,19 @@ mod tests {
     fn a_current_image_that_vanished_steps_to_its_neighbour() {
         let l = list(&["/w/a", "/w/c"]);
         // "/w/b" sorts between a and c.
-        assert_eq!(step(&l, Some(Path::new("/w/b")), true), Some(PathBuf::from("/w/c")));
-        assert_eq!(step(&l, Some(Path::new("/w/b")), false), Some(PathBuf::from("/w/a")));
+        assert_eq!(
+            step(&l, Some(Path::new("/w/b")), true),
+            Some(PathBuf::from("/w/c"))
+        );
+        assert_eq!(
+            step(&l, Some(Path::new("/w/b")), false),
+            Some(PathBuf::from("/w/a"))
+        );
         // Past the end: forward wraps to the start.
-        assert_eq!(step(&l, Some(Path::new("/w/z")), true), Some(PathBuf::from("/w/a")));
+        assert_eq!(
+            step(&l, Some(Path::new("/w/z")), true),
+            Some(PathBuf::from("/w/a"))
+        );
     }
 
     #[test]
@@ -126,7 +135,11 @@ mod tests {
         }
         let mut one = Rng::new(7);
         let mut two = Rng::new(7);
-        assert_eq!(one.next_u64(), two.next_u64(), "the same seed gives the same sequence");
+        assert_eq!(
+            one.next_u64(),
+            two.next_u64(),
+            "the same seed gives the same sequence"
+        );
         // A single image is picked again rather than nothing.
         assert_eq!(
             random_pick(&list(&["/w/a"]), Some(Path::new("/w/a")), &mut rng),

@@ -22,6 +22,7 @@ kurashi-launcher = { path = "../kurashi-launcher" }
 kurashi-notify = { path = "../kurashi-notify" }
 kurashi-mods = { path = "../kurashi-mods" }
 kurashi-mod-api = { path = "../kurashi-mod-api" }
+kurashi-mod-wallpaper = { path = "../kurashi-mod-wallpaper" }
 semver = "1"
 kurashi-audio = { path = "../kurashi-audio" }
 kurashi-auth = { path = "../kurashi-auth", features = ["pam"] }

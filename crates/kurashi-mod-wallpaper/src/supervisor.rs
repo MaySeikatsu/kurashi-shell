@@ -220,9 +220,7 @@ impl Supervisor {
             self.status = Status::Ok(version);
             return;
         }
-        let gap_open = self
-            .last_start
-            .is_none_or(|at| at.elapsed() >= START_GAP);
+        let gap_open = self.last_start.is_none_or(|at| at.elapsed() >= START_GAP);
         if !may_start || !gap_open {
             self.status = Status::Down;
             return;
@@ -403,9 +401,14 @@ impl Supervisor {
         let path = path.display().to_string();
         self.ready().await?;
         let targets = self.targets(&outputs)?;
-        self.set_on(&path, &targets, outputs.is_empty(), &self.cfg.transition.clone())
-            .await
-            .map(Some)
+        self.set_on(
+            &path,
+            &targets,
+            outputs.is_empty(),
+            &self.cfg.transition.clone(),
+        )
+        .await
+        .map(Some)
     }
 
     /// The outputs a request names, all of them when it names none; unknown names are refused.
@@ -413,13 +416,17 @@ impl Supervisor {
         if names.is_empty() {
             let all: Vec<String> = self.outputs.iter().map(|o| o.name.clone()).collect();
             if all.is_empty() {
-                return Err(ActionError::Unavailable("mod-wallpaper.outputs.unknown".into()));
+                return Err(ActionError::Unavailable(
+                    "mod-wallpaper.outputs.unknown".into(),
+                ));
             }
             return Ok(all);
         }
         for n in names {
             if !self.outputs.iter().any(|o| &o.name == n) {
-                return Err(ActionError::Invalid("mod-wallpaper.error.output_unknown".into()));
+                return Err(ActionError::Invalid(
+                    "mod-wallpaper.error.output_unknown".into(),
+                ));
             }
         }
         Ok(names.to_vec())
@@ -486,7 +493,9 @@ impl Supervisor {
         let scan = self.refresh_library().await;
         let list: Vec<PathBuf> = scan.entries.iter().map(|e| e.path.clone()).collect();
         if list.is_empty() {
-            return Err(ActionError::Unavailable("mod-wallpaper.library.empty".into()));
+            return Err(ActionError::Unavailable(
+                "mod-wallpaper.library.empty".into(),
+            ));
         }
         let current = match &output {
             Some(name) => self.path_of(name),
@@ -499,14 +508,21 @@ impl Supervisor {
             rotate::step(&list, current.as_deref(), forward)
         };
         let Some(next) = next else {
-            return Err(ActionError::Unavailable("mod-wallpaper.library.empty".into()));
+            return Err(ActionError::Unavailable(
+                "mod-wallpaper.library.empty".into(),
+            ));
         };
         let path = next.display().to_string();
         let names: Vec<String> = output.iter().cloned().collect();
         let targets = self.targets(&names)?;
-        self.set_on(&path, &targets, names.is_empty(), &self.cfg.transition.clone())
-            .await
-            .map(Some)
+        self.set_on(
+            &path,
+            &targets,
+            names.is_empty(),
+            &self.cfg.transition.clone(),
+        )
+        .await
+        .map(Some)
     }
 
     fn favourite(
@@ -587,7 +603,8 @@ impl Supervisor {
         if old.folders != new.folders {
             self.refresh_library().await;
         }
-        if (old.fit.as_str(), old.crop_anchor.as_str()) != (new.fit.as_str(), new.crop_anchor.as_str())
+        if (old.fit.as_str(), old.crop_anchor.as_str())
+            != (new.fit.as_str(), new.crop_anchor.as_str())
             && self.status.up()
         {
             self.reapply_all().await;
@@ -680,7 +697,8 @@ impl Supervisor {
                         .set_on(&path, &targets, names.is_empty(), &transition)
                         .await
                     {
-                        self.error = Some(("mod-wallpaper.error.rotate".into(), Some(e.to_string())));
+                        self.error =
+                            Some(("mod-wallpaper.error.rotate".into(), Some(e.to_string())));
                     }
                 }
             }
@@ -785,7 +803,6 @@ fn describe(e: &ExecError) -> String {
 /// A look's palette name: lowercase letters, digits, `-` and `_`, 1 to 40 of them.
 fn is_slug(s: &str) -> bool {
     (1..=40).contains(&s.len())
-        && s
-            .bytes()
+        && s.bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
 }

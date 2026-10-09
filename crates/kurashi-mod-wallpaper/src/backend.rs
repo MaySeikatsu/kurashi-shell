@@ -224,7 +224,11 @@ mod tests {
     #[test]
     fn no_outputs_means_every_output_and_swww_has_no_crop_anchor() {
         let args = BackendId::Swww.img_args("/p/a.png", &opts(&[]));
-        assert!(!args.iter().any(|a| a == "--outputs" || a == "--crop-gravity"));
+        assert!(
+            !args
+                .iter()
+                .any(|a| a == "--outputs" || a == "--crop-gravity")
+        );
         assert_eq!(args[0..2], ["img", "/p/a.png"]);
     }
 
