@@ -120,6 +120,15 @@ Flickable {
                             }
                         }
                         Text {
+                            visible: text !== ""
+                            width: parent.width
+                            wrapMode: Text.WordWrap
+                            color: Theme.dim
+                            font.pixelSize: Theme.fs - 1
+                            font.family: Theme.fam(text, Theme.families)
+                            text: entry.modelData.description ? I18n.tr(entry.modelData.description) : ""
+                        }
+                        Text {
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)

@@ -255,9 +255,11 @@ fn load(id: &str, dir: &Path, daemon: &Version) -> ModEntry {
     }
 }
 
-/// `{mods: [{id, name, version|null, tier|null, state, capabilities, cost|null, provides,
+/// `{mods: [{id, name, description?, version, tier, state, capabilities, cost, provides,
 /// errors: [{key, path, detail}], shadows_bundled}]}`; `state` is
-/// available|enabled|disabled|invalid. Invalid entries have null version/tier/cost and name = id.
+/// available|enabled|disabled|invalid. Documents carry no nulls (PROTOCOL): an invalid entry has
+/// no version/tier/cost and name = id, and `description` (i18n key or text) is present only when
+/// the manifest declares one.
 pub fn mods_doc(r: &Registry) -> Value {
     let mods: Vec<Value> = r
         .iter()
@@ -270,7 +272,7 @@ pub fn mods_doc(r: &Registry) -> Value {
                 _ => vec![],
             };
             let shadowed = r.shadows.iter().any(|s| s.id == e.id);
-            match &e.manifest {
+            let mut entry = match &e.manifest {
                 Some(m) => json!({
                     "id": e.id, "name": m.name, "version": m.version.to_string(), "tier": m.tier,
                     "state": e.state.name(), "capabilities": m.capabilities, "cost": m.cost,
@@ -278,11 +280,14 @@ pub fn mods_doc(r: &Registry) -> Value {
                     "errors": errors, "shadows_bundled": shadowed,
                 }),
                 None => json!({
-                    "id": e.id, "name": e.id, "version": null, "tier": null, "state": "invalid",
-                    "capabilities": [], "cost": null, "provides": [], "errors": errors,
-                    "shadows_bundled": shadowed,
+                    "id": e.id, "name": e.id, "state": "invalid", "capabilities": [],
+                    "provides": [], "errors": errors, "shadows_bundled": shadowed,
                 }),
+            };
+            if let Some(d) = e.manifest.as_ref().and_then(|m| m.description.as_ref()) {
+                entry["description"] = json!(d);
             }
+            entry
         })
         .collect();
     json!({ "mods": mods })

@@ -8,6 +8,7 @@ session menu, Settings.
 ```toml
 id = "media"
 name = "Media"            # i18n key fallback
+description = "mods.media.description"   # optional; i18n key or plain text, shown under the name
 version = "0.1.0"
 tier = "native"           # native (first-party, renderer components) | portable (v0.3)
 kurashi = ">=0.1"
