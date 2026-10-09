@@ -1,7 +1,7 @@
 //! Island hosting (K9): one arbiter per island instance, its decision published as
 //! `runtime.island.<id>`, and exactly one timer armed for the next TTL expiry (Ma).
 
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use kurashi_island::{Arbiter, Face, FaceSignal, IslandConfig, Ms, Source, doc};
 use serde_json::Value;
@@ -17,11 +17,20 @@ fn now_ms() -> Ms {
         .map_or(0, |d| d.as_millis() as Ms)
 }
 
+/// The island's state is a plain value, so a panic in another holder must not wedge it: the guard
+/// is taken back from a poisoned lock (as kurashi-auth does).
+fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
+    m.lock().unwrap_or_else(|e| e.into_inner())
+}
+
 pub struct IslandHost {
     doc: String,
     hub: Arc<Hub>,
     arb: Mutex<Arbiter>,
     timer: Mutex<Option<tokio::task::JoinHandle<()>>>,
+    /// The daemon's runtime, captured while built on it. `signal` may come from any thread (the
+    /// audio worker is a plain one), and only the runtime can run the expiry timer.
+    rt: Option<tokio::runtime::Handle>,
 }
 
 impl IslandHost {
@@ -43,6 +52,7 @@ impl IslandHost {
             hub,
             arb: Mutex::new(arb),
             timer: Mutex::new(None),
+            rt: tokio::runtime::Handle::try_current().ok(),
         })
     }
 
@@ -96,7 +106,7 @@ impl IslandHost {
     fn with(self: &Arc<Self>, f: impl FnOnce(&mut Arbiter, Ms)) {
         let now = now_ms();
         let (value, deadline) = {
-            let mut arb = self.arb.lock().expect("island lock");
+            let mut arb = lock(&self.arb);
             f(&mut arb, now);
             let d = arb.decide(now);
             (doc(&d, arb.pinned()), arb.next_deadline())
@@ -105,19 +115,26 @@ impl IslandHost {
         self.arm(deadline, now);
     }
 
+    /// Re-arms the one expiry timer on the runtime captured at construction, so it works from any
+    /// thread: the audio worker signals from a plain one.
     fn arm(self: &Arc<Self>, deadline: Option<Ms>, now: Ms) {
-        let mut timer = self.timer.lock().expect("timer lock");
+        let mut timer = lock(&self.timer);
         if let Some(t) = timer.take() {
             t.abort();
         }
-        if let Some(at) = deadline {
-            let me = self.clone();
-            let wait = std::time::Duration::from_millis(at.saturating_sub(now));
-            *timer = Some(tokio::spawn(async move {
-                tokio::time::sleep(wait).await;
-                me.with(|_, _| {});
-            }));
-        }
+        let Some(at) = deadline else {
+            return;
+        };
+        let Some(rt) = &self.rt else {
+            tracing::warn!("island built outside a tokio runtime: TTL expiry not armed");
+            return;
+        };
+        let me = self.clone();
+        let wait = std::time::Duration::from_millis(at.saturating_sub(now));
+        *timer = Some(rt.spawn(async move {
+            tokio::time::sleep(wait).await;
+            me.with(|_, _| {});
+        }));
     }
 
     /// `island.next` / `island.prev` / `island.pin` (toggle) — what scroll and right-click do.
@@ -300,5 +317,53 @@ mod tests {
             );
         }
         let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// Signals arrive from threads without a runtime (the audio worker). The transient still
+    /// appears, and the timer armed on the daemon's runtime still expires it.
+    #[tokio::test]
+    async fn signal_from_a_plain_thread_arms_the_expiry_timer() {
+        let (hub, h, _) = host();
+        let from_thread = h.clone();
+        std::thread::spawn(move || {
+            from_thread.signal(FaceSignal {
+                face: "volume".into(),
+                relevance: 0,
+                condition: true,
+                transient: Some(Transient {
+                    kind: "volume".into(),
+                    ttl_ms: 50,
+                    may_interrupt: true,
+                }),
+            });
+        })
+        .join()
+        .expect("a signal from a plain thread must not panic");
+        assert_eq!(face(&hub)["face"], "volume");
+        tokio::time::sleep(std::time::Duration::from_millis(150)).await;
+        assert_eq!(face(&hub)["face"], "clock");
+    }
+
+    /// A panic while the state is locked must not wedge the island for good.
+    #[tokio::test]
+    async fn a_poisoned_island_keeps_working() {
+        let (hub, h, _) = host();
+        let poisoner = h.clone();
+        let _ = std::thread::spawn(move || {
+            let _held = poisoner.arb.lock().unwrap();
+            panic!("poisoning the island on purpose (test)");
+        })
+        .join();
+        h.signal(FaceSignal {
+            face: "volume".into(),
+            relevance: 0,
+            condition: true,
+            transient: Some(Transient {
+                kind: "volume".into(),
+                ttl_ms: 5_000,
+                may_interrupt: true,
+            }),
+        });
+        assert_eq!(face(&hub)["face"], "volume");
     }
 }
