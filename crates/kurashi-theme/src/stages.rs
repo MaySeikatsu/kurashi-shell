@@ -346,6 +346,9 @@ pub fn aa_pairs() -> Vec<(&'static str, &'static str, f64)> {
     ] {
         v.push((fg, "surface", UI));
     }
+    // Outlines also frame the containers (notification cards, lock box, stage). Measured 2.70:1
+    // on surface_container at wa-iro, under the UI minimum (UX review R.2 item 5).
+    v.push(("outline", "surface_container", UI));
     for (on, bg) in [
         ("on_accent", "accent"),
         ("on_accent_container", "accent_container"),

@@ -2,8 +2,9 @@ import QtQuick
 import "../core"
 
 // Shōjiki (rule 2): renders a Provenanced value {value, source, forced_by?, reason?}.
-// Shows the value with a source badge; when forced_by is set the value is NOT in the user's
-// control, so the chip is drawn inert and the hover note says why. No logic beyond display.
+// Shows the value with a source badge. When forced_by is set the value is NOT in the user's
+// control: it is dimmed and a padlock marks it. No strikethrough, which reads as "not in effect".
+// The reason shows on hover and on keyboard focus; the chip takes Tab focus when it has a reason.
 Item {
     id: p
     property var prov: ({})
@@ -14,31 +15,52 @@ Item {
 
     implicitWidth: row.implicitWidth
     implicitHeight: row.implicitHeight
+    activeFocusOnTab: note !== ""
+    Accessible.role: Accessible.StaticText
+    Accessible.name: String(prov.value ?? "")
+    Accessible.description: note
 
     Row {
         id: row
         spacing: Theme.gap
-        opacity: p.forced ? 0.55 : 1
+        // Padlock drawn from two rectangles, so it needs no glyph font.
+        Item {
+            visible: p.forced
+            anchors.verticalCenter: parent.verticalCenter
+            width: 8
+            height: 11
+            Rectangle {
+                x: 1.5; y: 0; width: 5; height: 6
+                radius: 2.5
+                color: "transparent"
+                border.width: 1.5
+                border.color: Theme.dim
+            }
+            Rectangle {
+                y: 5; width: 8; height: 6
+                radius: 1.5
+                color: Theme.dim
+            }
+        }
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.fg
+            color: p.forced ? Theme.dim : Theme.fg
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            font.strikeout: p.forced
             text: String(p.prov.value ?? "")
         }
         Chip {
             anchors.verticalCenter: parent.verticalCenter
             text: p.prov.source ?? ""
-            edge: p.forced ? Theme.accent : Theme.outline
+            edge: Theme.outline
         }
     }
     HoverHandler { id: hover }
 
-    // Note is only instantiated while hovered (nothing exists at idle).
+    // Note is only instantiated while hovered or focused (nothing exists at idle).
     Loader {
-        active: hover.hovered && p.note !== ""
-        y: p.height + 4
+        active: (hover.hovered || p.activeFocus) && p.note !== ""
+        y: p.height + Theme.xs
         sourceComponent: Rectangle {
             width: noteText.implicitWidth + 2 * Theme.gap
             height: noteText.implicitHeight + Theme.gap
@@ -50,10 +72,15 @@ Item {
                 id: noteText
                 anchors.centerIn: parent
                 color: Theme.fg
-                font.pixelSize: Theme.fs - 1
+                font.pixelSize: Theme.fsLabel
                 font.family: Theme.fam(text, Theme.families)
                 text: p.note
             }
         }
+    }
+    FocusRing {
+        anchors.fill: parent
+        shown: p.activeFocus
+        corner: Theme.rSm
     }
 }
