@@ -3,7 +3,7 @@ mod common;
 use std::time::Duration;
 
 use common::{Rec, TestBus, assert_no_null};
-use kurashi_services::network;
+use kurashi_services::network::{self, WifiError};
 use zbus::zvariant::OwnedObjectPath;
 
 struct Nm {
@@ -196,5 +196,52 @@ async fn bus_gone_marks_unavailable() {
 
     bus.kill();
     rec.wait("bus gone", |d| d["state"] == "unavailable").await;
+    drop(handle);
+}
+
+/// NetworkManager as a caller without the network-control right sees it: every change is denied
+/// (the bus answers `AccessDenied`, one of the names `WifiError::Refused` covers).
+struct NmRefusing;
+
+#[zbus::interface(name = "org.freedesktop.NetworkManager")]
+impl NmRefusing {
+    #[zbus(property)]
+    fn state(&self) -> u32 {
+        70
+    }
+    #[zbus(property)]
+    fn wireless_enabled(&self) -> bool {
+        true
+    }
+    #[zbus(property)]
+    fn set_wireless_enabled(&mut self, _on: bool) -> zbus::fdo::Result<()> {
+        Err(zbus::fdo::Error::AccessDenied(
+            "Not authorized to control networking.".into(),
+        ))
+    }
+    #[zbus(property)]
+    fn primary_connection(&self) -> OwnedObjectPath {
+        OwnedObjectPath::try_from("/").unwrap()
+    }
+}
+
+#[tokio::test]
+async fn wifi_change_without_networkmanager_or_refused_is_typed() {
+    let bus = TestBus::start();
+    let rec = Rec::new();
+    let (handle, cmds) = network::start(bus.conn().await, rec.clone()).await.unwrap();
+    // Nobody owns the name: the write cannot reach NetworkManager.
+    assert_eq!(
+        cmds.set_wifi_enabled(false).await,
+        Err(WifiError::Unavailable)
+    );
+
+    let srv = bus.server("org.freedesktop.NetworkManager").await;
+    srv.object_server().at(NM, NmRefusing).await.unwrap();
+    rec.wait("NetworkManager up", |d| d["state"] == "connected")
+        .await;
+    // The permission error NetworkManager answers with is a refusal, and the document keeps its value.
+    assert_eq!(cmds.set_wifi_enabled(false).await, Err(WifiError::Refused));
+    rec.wait("still on", |d| d["wifi_enabled"] == true).await;
     drop(handle);
 }

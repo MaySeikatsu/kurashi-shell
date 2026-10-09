@@ -134,6 +134,47 @@ pub fn bluetooth() -> Value {
     })
 }
 
+/// The two sinks `svc.audio` lists: (id, PulseAudio name, description).
+const SINKS: [(u32, &str, &str); 2] = [
+    (
+        1,
+        "alsa_output.pci-0000_00_1f.3.analog-stereo",
+        "Built-in Audio Analog Stereo",
+    ),
+    (
+        2,
+        "alsa_output.pci-0000_01_00.1.hdmi-stereo",
+        "HDMI / DisplayPort",
+    ),
+];
+
+/// `svc.audio` shaped as kurashi-audio's `build_doc`: the sinks, the default one marked and its
+/// level and mute at the top.
+pub fn audio(volume: f64, muted: bool, default_sink: u32) -> Value {
+    let sinks: Vec<Value> = SINKS
+        .iter()
+        .map(|&(id, name, description)| {
+            json!({"id": id, "name": name, "description": description, "default": id == default_sink})
+        })
+        .collect();
+    let sink = sinks.iter().find(|s| s["default"] == true).cloned();
+    let mut doc = json!({"available": true, "volume": volume, "muted": muted, "sinks": sinks});
+    if let Some(sink) = sink {
+        doc["sink"] = sink;
+    }
+    doc
+}
+
+/// `svc.network` (kurashid's `read`): wifi on and connected to a wifi network, or wifi off and no
+/// link. The mock has one connection, so the wifi switch is the whole story.
+pub fn network(wifi_on: bool) -> Value {
+    if wifi_on {
+        json!({"state": "connected", "wifi_enabled": true, "primary": {"kind": "wifi", "name": "home-wifi", "strength": 60}})
+    } else {
+        json!({"state": "disconnected", "wifi_enabled": false})
+    }
+}
+
 /// `tray.menu {id}` (K23): the tree kurashi-tray builds (`menu.rs`). The same small tree for every
 /// item: one separator, one checkmark, a submenu with radio entries, and a disabled entry.
 pub fn tray_menu() -> Value {
