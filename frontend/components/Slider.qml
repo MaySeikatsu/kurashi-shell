@@ -24,7 +24,8 @@ Item {
     // A key target the daemon has not confirmed yet; repeated keys build on it.
     property bool keyPending: false
     property real keyTarget: 0
-    readonly property real shown: dragging ? local : value
+    // Clamped (B12): a level past the scale, such as svc.audio's 1.5, must not draw past the track.
+    readonly property real shown: Math.max(0, Math.min(1, dragging ? local : value))
 
     implicitWidth: 120
     implicitHeight: 20
