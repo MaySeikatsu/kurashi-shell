@@ -309,6 +309,23 @@ impl<S: SchemaView> Config<S> {
 
     /// Validates the whole batch first; any error rejects it with nothing changed.
     pub fn apply(&mut self, ops: &[Op]) -> Result<Applied, Vec<OpError>> {
+        let next = self.next_layers(ops)?;
+        self.commit(next)
+            .map_err(|message| vec![OpError::Persist { message }])
+    }
+
+    /// Effective changes `apply(ops)` would cause, without committing or touching disk
+    /// (PROTOCOL §5 `dry_run`).
+    pub fn preview(&self, ops: &[Op]) -> Result<Diff, Vec<OpError>> {
+        let next = self.next_layers(ops)?;
+        Ok(Diff {
+            rev: self.rev,
+            entries: self.diff_effective(&self.layers, &next),
+            diagnostics: Vec::new(),
+        })
+    }
+
+    fn next_layers(&self, ops: &[Op]) -> Result<Layers, Vec<OpError>> {
         let mut errors = Vec::new();
         let mut next = self.layers.clone();
         for (index, op) in ops.iter().enumerate() {
@@ -339,8 +356,7 @@ impl<S: SchemaView> Config<S> {
         if !errors.is_empty() {
             return Err(errors);
         }
-        self.commit(next)
-            .map_err(|message| vec![OpError::Persist { message }])
+        Ok(next)
     }
 
     fn check_set(
