@@ -43,8 +43,13 @@ start_daemon() {
 
 : > "$R/kurashid.log"; : > "$R/qs.log"
 start_daemon
-qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+# Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live
+# session (nix run, the HM service), where nothing sets it.
+env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
+# The frontend must actually be connected: screenshots of a disconnected bar passed this test once.
+for _ in $(seq 50); do grep -q 'hello.*frontend' "$R/kurashid.log" && break; sleep 0.1; done
+grep -q 'hello.*frontend' "$R/kurashid.log" || { echo "frontend never said hello to kurashid (see $R/qs.log)" >&2; exit 1; }
 sleep 3
 
 shot bar-idle

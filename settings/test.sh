@@ -77,7 +77,8 @@ for _ in $(seq 50); do [ -S "$KURASHI_SOCKET" ] && break; sleep 0.1; done
 [ -S "$KURASHI_SOCKET" ] || { echo "kurashid did not start"; cat "$R/kurashid.log"; exit 1; }
 K() { "$BIN/kurashi" raw "$1"; }
 
-qs -p settings > "$R/settings.log" 2>&1 & pids+=($!)
+# Without KURASHI_SOCKET, as in a live session: the protocol default must be found.
+env -u KURASHI_SOCKET qs -p settings > "$R/settings.log" 2>&1 & pids+=($!)
 Q() { qs -p settings ipc call settings "$@"; }
 for _ in $(seq 100); do Q goto bar >/dev/null 2>&1 && break; sleep 0.2; done
 Q goto bar >/dev/null 2>&1 || { echo "settings app did not start"; cat "$R/settings.log"; exit 1; }

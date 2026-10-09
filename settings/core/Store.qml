@@ -8,6 +8,10 @@ import Quickshell.Io
 // (inert reasons from schema couplings), never decisions about what a value may be.
 Singleton {
     id: root
+    // PROTOCOL §1: `$XDG_RUNTIME_DIR/kurashi/ipc.sock`, overridden by `KURASHI_SOCKET` — the same rule
+    // as kurashid and the CLI. (Reading only the override left every live start disconnected.)
+    readonly property string socketPath: Quickshell.env("KURASHI_SOCKET")
+        || ((Quickshell.env("XDG_RUNTIME_DIR") || "") + "/kurashi/ipc.sock")
 
     property var theme: ({})
     property var config: ({})
@@ -265,7 +269,7 @@ Singleton {
 
     Socket {
         id: sock
-        path: Quickshell.env("KURASHI_SOCKET")
+        path: root.socketPath
         parser: SplitParser {
             splitMarker: "\n"
             onRead: data => root.handle(data)
