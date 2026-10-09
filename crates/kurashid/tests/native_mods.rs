@@ -703,6 +703,21 @@ async fn enable_puts_the_slot_face_panel_and_choices_in_effect_and_disable_takes
             .await,
         Err(ActionError::Invalid(wiring::ARGS_INVALID.into()))
     );
+    // A mod panel left open closes when its mod goes off (the live all-mods test found it named a
+    // panel nothing drew).
+    d.actions
+        .invoke("mod.panel.open", json!({"id": "hello", "panel": "hello"}))
+        .await
+        .unwrap();
+    d.actions
+        .invoke("mod.disable", json!({"id": "hello"}))
+        .await
+        .unwrap();
+    assert_eq!(d.hub.snapshot("runtime.ui").unwrap().1["panel"], "");
+    d.actions
+        .invoke("mod.enable", json!({"id": "hello"}))
+        .await
+        .unwrap();
 
     // Disabled while its face is shown: slot, face and panel are gone, the island falls back, and the
     // greeting keeps its value, inert because its mod is off.

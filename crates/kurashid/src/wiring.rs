@@ -566,6 +566,25 @@ fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
     }
     let _ = hub.update("mods", None, |d| *d = st.native.document(&mut st.reg));
     let _ = hub.update(SLOTS_DOC, None, |d| *d = st.native.slots(&st.reg));
+    // A mod panel cannot stay open once its mod is off: the frontend already dropped the component,
+    // so `runtime.ui` would name a panel nothing draws (rule 2; found by the live all-mods test).
+    let _ = hub.update("runtime.ui", None, |d| {
+        let open_mod = d["panel"]
+            .as_str()
+            .and_then(|p| p.strip_prefix("mod:"))
+            .and_then(|rest| rest.split(':').next())
+            .map(str::to_string);
+        if let Some(id) = open_mod {
+            let on = st
+                .reg
+                .get(&id)
+                .is_some_and(|e| e.state == kurashi_mods::ModState::Enabled);
+            if !on {
+                d["panel"] = json!("");
+                d["popup"] = json!(false);
+            }
+        }
+    });
 }
 
 /// The mods registry, its `mods` document and the `mod.{load,unload,enable,disable}` actions
