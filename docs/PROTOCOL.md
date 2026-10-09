@@ -79,6 +79,8 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   Patches carry only keys whose *effective* value or provenance changed.
 - **`schema.settings` document**: settings metadata generated from the schema (pages → sections →
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
+  Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
+  manifest name (i18n key or plain text); a disabled mod's keys carry `reason: "mods.disabled"`.
 - **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
   frontend never reads `i18n/*.toml` itself.
 
