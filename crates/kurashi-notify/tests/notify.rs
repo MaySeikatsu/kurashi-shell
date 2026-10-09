@@ -242,6 +242,39 @@ async fn dnd_stores_silently_critical_ignores() {
 }
 
 #[tokio::test]
+async fn dnd_until_turns_itself_off_once() {
+    fn now_ms() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis() as u64
+    }
+    let f = fixture(|_| {}).await;
+    let until = now_ms() + 400;
+    f.cmds.set_dnd_until(until);
+    let d = f.rec.wait("dnd until", |d| d["dnd"] == true).await;
+    assert_eq!(d["dnd_until"], until);
+
+    // The timer ends it: off, and no until left in the document.
+    let d = f.rec.wait("dnd ended", |d| d["dnd"] == false).await;
+    assert!(d.get("dnd_until").is_none());
+    assert_no_null(&d);
+    // Once: nothing is published after the end (idle is silent, rule 5).
+    let settled = f.rec.count();
+    tokio::time::sleep(Duration::from_millis(600)).await;
+    assert_eq!(f.rec.count(), settled, "a document after the end");
+
+    // An indefinite do-not-disturb drops a pending end time; a time already past is off at once.
+    f.cmds.set_dnd_until(now_ms() + 60_000);
+    f.rec.wait("timed again", |d| d["dnd_until"].is_u64()).await;
+    f.cmds.set_dnd(true);
+    let d = f.rec.wait("indefinite", |d| d["dnd"] == true).await;
+    assert!(d.get("dnd_until").is_none());
+    f.cmds.set_dnd_until(now_ms().saturating_sub(1));
+    f.rec.wait("past means off", |d| d["dnd"] == false).await;
+}
+
+#[tokio::test]
 async fn actions_round_trip_with_signals() {
     let mut f = fixture(|_| {}).await;
     let id = f

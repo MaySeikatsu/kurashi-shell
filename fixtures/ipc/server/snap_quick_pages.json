@@ -1,0 +1,1 @@
+{"t":"snap","doc":"svc.network.scan","rev":1,"data":{"available":true,"networks":[{"ssid":"home-wifi","strength":60,"secure":true,"known":true,"active":true},{"ssid":"cafe-guest","strength":80,"secure":false,"known":false,"active":false},{"ssid":"office-5g","strength":30,"secure":true,"known":false,"active":false}]}}

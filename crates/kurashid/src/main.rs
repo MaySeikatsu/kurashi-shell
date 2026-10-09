@@ -217,7 +217,7 @@ fn register_services(
     island: &Arc<kurashid::island::IslandHost>,
     actions: &mut ActionRegistry,
 ) {
-    use kurashi_services::{media, power, session};
+    use kurashi_services::{media, session};
     use kurashid::services::{Bus, ServiceProvider};
 
     let isl = island.clone();
@@ -260,17 +260,7 @@ fn register_services(
         });
     }
 
-    // power has no commands (and its marker type isn't Clone).
-    let power = Arc::new(ServiceProvider::new(
-        "svc.power",
-        Bus::System,
-        |c, s| async move { power::start(c, s).await.map(|(h, _)| (h, ())) },
-    ));
-    hub.register(
-        "svc.power",
-        json!({"available": false, "present": false, "on_battery": false}),
-        Some(power),
-    );
+    kurashid::wiring::power(hub, actions);
     let session = Arc::new(ServiceProvider::new(
         "svc.session",
         Bus::System,
