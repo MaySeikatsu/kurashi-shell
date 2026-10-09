@@ -35,7 +35,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M1.8 | CLI get/set/why/reset/undo/redo/profile | ✅ | merged; exit codes 0/1/2/3 |
 | M1.9 | **M1 exit: protocol v1 frozen** | ✅ | PROTOCOL.md status, K17 |
 | M5.4 | Settings app (schema-generated pages, provenance, profiles) | ✅ | merged; `settings/test.sh` + 4 shots; schema i18n en+ja |
-| M5.5 | `kurashi-auth` PAM + lock state machine | 🟡 | card M5-auth (wave 4) |
+| M5.5 | `kurashi-auth` PAM + lock state machine | ✅ | merged; PAM feature needs native inputs (CONTRACT #4a); not wired yet |
 | M7.2 | Budget gate: measure.py --daemon real + budget.py | 🟡 | card M7-bench (wave 4) |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
 | M1.7 | `i18n` document (daemon + mock), nix package ships data | ✅ | contract row 1 |
