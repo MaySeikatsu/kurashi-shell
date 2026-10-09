@@ -25,6 +25,7 @@
 # [theme.colors]
 #
 # Palette — Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+#   choices: from `palettes` (resolved at runtime)
 # palette = "wa-iro"
 #
 # Scheme — Dark or light surfaces.
@@ -117,9 +118,11 @@
 # [island.main]
 #
 # Faces — Faces this island may show, in cycling order.
+#   choices: from `island.faces` (resolved at runtime)
 # faces = ["clock", "media", "notifications"]
 #
 # Default face — Face shown when nothing more relevant is happening.
+#   choices: from `island.faces` (resolved at runtime)
 # default = "clock"
 #
 # Transient duration — How long a transient face (volume, brightness, notification) stays
