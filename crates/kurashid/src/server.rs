@@ -170,17 +170,44 @@ async fn connection(
                         let _ = out.send(m);
                     });
                 }
-                ClientMsg::CfgGet { id, .. }
-                | ClientMsg::CfgExplain { id, .. }
-                | ClientMsg::Apply { id, .. }
-                | ClientMsg::Undo { id }
-                | ClientMsg::Redo { id }
-                | ClientMsg::Query { id, .. } => {
-                    reply(err(
-                        Some(id),
-                        "unavailable",
-                        "config store not wired yet (M1)",
-                    ));
+                ClientMsg::CfgGet { id, key, output } => match &daemon.config {
+                    Some(c) => match c.get(&key, output.as_deref()) {
+                        Some(v) => reply(ServerMsg::CfgVal { id, key, v }),
+                        None => reply(err(Some(id), "invalid", format!("unknown key {key}"))),
+                    },
+                    None => reply(err(Some(id), "unavailable", "no config store")),
+                },
+                ClientMsg::CfgExplain { id, key, output } => match &daemon.config {
+                    Some(c) => {
+                        let layers = c.explain(&key, output.as_deref());
+                        reply(ServerMsg::CfgWhy {
+                            id,
+                            key,
+                            output,
+                            layers,
+                        });
+                    }
+                    None => reply(err(Some(id), "unavailable", "no config store")),
+                },
+                ClientMsg::Apply { id, ops, dry_run } => match &daemon.config {
+                    Some(c) if dry_run => match c.preview(&ops) {
+                        Ok(diff) => reply(ServerMsg::Preview { id, diff }),
+                        Err(errors) => reply(ServerMsg::Rejected { id, errors }),
+                    },
+                    Some(c) => match c.apply(&ops) {
+                        Ok(done) => reply(ServerMsg::Applied {
+                            id,
+                            rev: done.rev,
+                            undo: done.undo,
+                        }),
+                        Err(errors) => reply(ServerMsg::Rejected { id, errors }),
+                    },
+                    None => reply(err(Some(id), "unavailable", "no config store")),
+                },
+                ClientMsg::Undo { id } => step(&daemon, id, false, &reply),
+                ClientMsg::Redo { id } => step(&daemon, id, true, &reply),
+                ClientMsg::Query { id, .. } => {
+                    reply(err(Some(id), "unavailable", "no query providers yet"));
                 }
                 ClientMsg::Ping => reply(ServerMsg::Pong),
                 ClientMsg::MockTick
@@ -205,4 +232,19 @@ async fn connection(
     drop(out_tx);
     let _ = writer.await;
     result
+}
+
+fn step(daemon: &Daemon, id: String, redo: bool, reply: &impl Fn(ServerMsg)) {
+    let Some(c) = &daemon.config else {
+        reply(err(Some(id), "unavailable", "no config store"));
+        return;
+    };
+    match c.undo(redo) {
+        Ok(done) => reply(ServerMsg::Applied {
+            id,
+            rev: done.rev,
+            undo: done.undo,
+        }),
+        Err(errors) => reply(ServerMsg::Rejected { id, errors }),
+    }
 }

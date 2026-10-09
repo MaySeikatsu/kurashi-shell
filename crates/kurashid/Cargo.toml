@@ -12,6 +12,9 @@ kurashi-compositor = { path = "../kurashi-compositor" }
 tokio-stream = "0.1"
 kurashi-island = { path = "../kurashi-island" }
 kurashi-services = { path = "../kurashi-services" }
+kurashi-config = { path = "../kurashi-config" }
+kurashi-schema = { path = "../kurashi-schema" }
+notify = "8"
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 anyhow.workspace = true
 serde_json.workspace = true
@@ -24,3 +27,6 @@ tracing-subscriber.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+kurashi-config = { path = "../kurashi-config" }
