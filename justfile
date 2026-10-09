@@ -34,3 +34,7 @@ bench name *CMD:
 
 nix-check:
     nix flake check
+
+# Home-Manager module evaluation test (impure; see CONTRACT-CHANGE #3)
+nix-eval-test:
+    nix build --no-link --impure -f nix/tests/hm-eval.nix
