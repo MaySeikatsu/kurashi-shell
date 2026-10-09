@@ -10,7 +10,7 @@ let
   niriDefaultKeys = {
     "Mod+Space" = "launcher.toggle";
     "Mod+N" = "notifications.center";
-    "Mod+Escape" = "session.menu";
+    "Mod+Shift+E" = "session.menu";
     "Super+Alt+L" = "session.lock";
     "XF86AudioRaiseVolume" = "audio.volume.up";
     "XF86AudioLowerVolume" = "audio.volume.down";
@@ -111,7 +111,7 @@ in
         description = ''
           niri key name to kurashi action id (the argument of `kurashi act`). Entries add to the
           defaults and override them for the same key; `null` removes a default. The defaults:
-          `Mod+Space` launcher.toggle, `Mod+N` notifications.center, `Mod+Escape` session.menu,
+          `Mod+Space` launcher.toggle, `Mod+N` notifications.center, `Mod+Shift+E` session.menu,
           `Super+Alt+L` session.lock, `XF86AudioRaiseVolume` and `XF86AudioLowerVolume`
           audio.volume.up and audio.volume.down, `XF86AudioMute` audio.mute.toggle,
           `XF86MonBrightnessUp` and `XF86MonBrightnessDown` brightness.up and brightness.down.

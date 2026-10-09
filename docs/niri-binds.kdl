@@ -7,8 +7,8 @@
 //     include "kurashi-binds.kdl"
 //
 // These keys replace niri's default bind for the same key (niri 26.04 defaults in brackets):
-//   Mod+Escape            [toggle-keyboard-shortcuts-inhibit]: that toggle is gone; the session
-//                         menu still opens while a VM or remote desktop captures the keyboard
+//   Mod+Shift+E           [quit, with niri's confirmation]: the session menu offers log out
+//                         (also with a confirm step), suspend, reboot and power off instead
 //   Super+Alt+L           [spawn swaylock]
 //   XF86AudioRaiseVolume  [wpctl]     XF86AudioLowerVolume  [wpctl]     XF86AudioMute  [wpctl]
 //   XF86MonBrightnessUp   [brightnessctl]     XF86MonBrightnessDown  [brightnessctl]
@@ -19,14 +19,14 @@
 // `spawn "kurashi"` looks the binary up in PATH; Home-Manager writes the store path instead.
 
 binds {
-    // Launcher (opens in the Island).
+    // Launcher.
     Mod+Space repeat=false { spawn "kurashi" "act" "launcher.toggle"; }
 
     // Notification centre.
     Mod+N repeat=false { spawn "kurashi" "act" "notifications.center"; }
 
     // Session menu: log out, suspend, reboot, power off.
-    Mod+Escape allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.menu"; }
+    Mod+Shift+E allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.menu"; }
 
     // Lock screen (kurashi's own lock, PAM service "kurashi").
     Super+Alt+L allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.lock"; }
