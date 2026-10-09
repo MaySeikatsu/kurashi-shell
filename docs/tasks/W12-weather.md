@@ -1,5 +1,9 @@
 # Card W12-weather — weather native mod (M6)
 
+**UX brief (governs this card):** `docs/ux/weather.md` — its Design, States, Contract notes and Definition of done are
+this card's acceptance on top of the tests below; where this card's older text disagrees with the brief, the brief
+wins. Also `docs/ux/COMPOSITION.md` and K28 (slots, mod faces, choice sources — merged before this card starts).
+
 **Read first:** `docs/tasks/README.md`, `docs/DECISIONS.md` K25, K26, `docs/MODS.md` ("Native mods"),
 `crates/kurashi-mod-api/` + the `hello` test mod, open-meteo API (https://open-meteo.com/en/docs — no key;
 geocoding https://open-meteo.com/en/docs/geocoding-api). Check the workspace for an existing HTTP client crate
@@ -20,3 +24,6 @@ glyph + temperature; `qml/Panel.qml`: today + 5 days. No location configured →
 **Acceptance:** `cargo test -p kurashi-mod-weather` against a local mock HTTP server (tokio TcpListener serving
 fixture JSON): geocode + forecast parse, units, refresh cadence with a paused clock (no fetch without subscriber),
 failure → stale with reason and last data kept. clippy -D warnings, fmt. No real network in tests.
+
+**Report:** list every Definition-of-done item of `docs/ux/weather.md` as met / not met (README rule 10), with the screenshot
+or test that shows it.

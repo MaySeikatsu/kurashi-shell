@@ -188,3 +188,12 @@ Lead (before W11-mod-qml): PROTOCOL §8 `mod.panel.open {id, panel}` → `runtim
 Mod cards each add one line to `kurashid/Cargo.toml` + `main.rs` (lead resolves the trivial conflicts).
 Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.default`, `network.wifi`.
 
+## Wave 13 (session 5; UX passes from `docs/ux/`; Haiku 5.5, max effort)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W13-settings-ux](W13-settings-ux.md) | `settings/**`, `settings.toml` | haiku |
+| [W13-quick-daemon](W13-quick-daemon.md) | network/power/audio/notify services + kurashid blocks + mock parity | haiku |
+| W13-quick-ux (after W11-mod-qml) | `QuickPanel.qml`, `components/quick/**` — drill-down pages, status sentence, footer | haiku |
+| W13-island-daemon (after W12-mod-hooks) | arbiter secondary/overflow/stale_at, core transient signals | haiku |
+| W13-island-views (after W11-mod-qml) | `components/expanded/**` to `docs/ux/island.md` | haiku |
+
