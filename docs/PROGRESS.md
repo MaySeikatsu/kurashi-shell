@@ -26,7 +26,8 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.6 | Daemon wiring: launcher query + launch, notification server (non-stealing claim), mods registry + `mods` doc, `runtime.ui` + `island.expand`; schema `notifications.*`, `launcher.*`; island input defaults aligned | ✅ | lead |
 | M1.6 | Frontend skeleton (Store, Theme, I18n, Bar, Stage, Island, ProvenanceChip, veil) | ✅ | merged; idle 0 commits, popup 2.1 ms; PSS popup/2-out 221 MiB ✘ K16 → M3.1 |
 | M2.1 | `kurashi-theme` pipeline → token map | ✅ | merged; 14 tests, AA on all palettes × modes |
-| M3.1 | Stage sized to content, popup only on focused output (K16) | 🟡 | card M3-stage (sonnet, wave 2) |
+| M3.1 | Stage sized to content, popup only on focused output (K16) | ✅ | popup 112 MiB (was 221); +8.9/output → K19 |
+| M1.10 | Frontend core: generic on-demand docs + query API, real daemon (i18n, config, lock, notifications) | 🟡 | card M1.5-frontend-core (wave 4) |
 | M6.1 | `kurashi-mods` manifest, discovery, lifecycle registry | ✅ | merged; not wired yet |
 | M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | 🟡 | card M4-audio (wave 3) |
 | M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
