@@ -114,10 +114,11 @@ async fn media_lifecycle() {
     let rec = Rec::new();
     let (handle, cmds) = media::start(bus.conn().await, rec.clone()).await.unwrap();
 
-    // No players: empty but well-formed.
+    // No players: empty but well-formed, and the stream is alive, so available.
     let d = rec.wait("empty", |_| true).await;
     assert_eq!(d["players"], serde_json::json!([]));
     assert_eq!(d["playing"], false);
+    assert_eq!(d["available"], true);
     assert_no_null(&d);
 
     // Player appears (paused).
@@ -184,12 +185,13 @@ async fn media_lifecycle() {
         .await;
     assert_eq!(d["title"], "Two");
 
-    // Last one vanishes -> empty again.
+    // Last one vanishes -> empty again. That is "no players", so still available.
     drop(b);
     let d = rec
         .wait("all gone", |d| d["players"] == serde_json::json!([]))
         .await;
     assert_eq!(d["title"], "");
+    assert_eq!(d["available"], true);
 
     // Dropping the handle stops all signal handling.
     drop(handle);
@@ -205,6 +207,34 @@ async fn media_lifecycle() {
     .await;
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(rec.count(), n, "sink called after handle drop");
+}
+
+#[tokio::test]
+async fn bus_gone_marks_unavailable() {
+    // The daemon dies with a player on the bus. The empty list it leaves behind would read as
+    // "nothing playing", so the document must say the MPRIS stream is gone instead.
+    let mut bus = TestBus::start();
+    let _a = serve(
+        &bus,
+        "org.mpris.MediaPlayer2.aaa",
+        "Playing",
+        "One",
+        Arc::default(),
+    )
+    .await;
+    let rec = Rec::new();
+    let (handle, _cmds) = media::start(bus.conn().await, rec.clone()).await.unwrap();
+    rec.wait("player seen", |d| {
+        d["title"] == "One" && d["available"] == true
+    })
+    .await;
+
+    bus.kill();
+    let d = rec.wait("bus gone", |d| d["available"] == false).await;
+    assert_eq!(d["players"], serde_json::json!([]));
+    assert_eq!(d["playing"], false);
+    assert_no_null(&d);
+    drop(handle);
 }
 
 #[tokio::test]
