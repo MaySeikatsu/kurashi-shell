@@ -344,7 +344,7 @@ closed closed-notifications
 # 9. quick settings: the tile at the top of the quick card.
 K act quick.toggle >/dev/null
 sleep 2
-card quick-tiles 360
+card quick-tiles 400
 expect_min "slot quick.tiles created" "quick settings: the tile loads" 1
 K act ui.close >/dev/null
 sleep 1

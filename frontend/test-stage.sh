@@ -204,32 +204,20 @@ done
 
 K act quick.toggle >/dev/null
 ppm_shot quick 2.5
-open_card quick quick "" 360
-# Keyboard: the Tab stops before the Bluetooth switch come from the data, in the card's order: the Wi-Fi switch
-# when svc.network serves a state, then one stop per audio sink when svc.audio is available. A click on the card's
-# heading gives the Stage its keyboard focus (on-demand layer surface); Tab that many times, then Space flips the
-# switch, so the mock's adapter goes off.
-net=$(ipc svc.network 2>/dev/null) || net=""
-aud=$(ipc svc.audio 2>/dev/null) || aud=""
-stops=0
-if jq -e '(.state | type) == "string" and .state != "unavailable"' <<<"$net" >/dev/null 2>&1; then
-  stops=$((stops + 1))
-fi
-if jq -e '.available == true' <<<"$aud" >/dev/null 2>&1; then
-  stops=$((stops + $(jq '(.sinks // []) | length' <<<"$aud")))
-fi
-tabs=$((stops + 1))
-echo "keyboard: the Bluetooth switch is Tab stop $tabs"
-timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$((card_x0 + 60))" "$((card_y0 + 24))" left \
+open_card quick quick "" 400
+# Keyboard (docs/ux/quick-settings.md): a click on the card's inert left padding gives the Stage its keyboard focus;
+# Tab five times reaches the Bluetooth tile (three status segments, then the Wi-Fi tile), Enter toggles it, so the mock's
+# adapter goes off.
+timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$((card_x0 + 4))" "$((card_y0 + 140))" left \
   || fail "click on the quick card failed"
 sleep 0.5
-{ for _ in $(seq "$tabs"); do echo tab; sleep 0.3; done; echo space; sleep 0.5; } \
+{ for _ in 1 2 3 4 5; do echo tab; sleep 0.3; done; echo return; sleep 0.5; } \
   | timeout 60 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve || fail "keys failed"
 sleep 1.5
 bt=$(ipc svc.bluetooth) || fail "svc.bluetooth not served"
 jq -e '.powered == false' <<<"$bt" >/dev/null \
-  || fail "Tab $tabs times, then Space, did not flip the Bluetooth switch (svc.bluetooth $bt)"
-echo "keyboard: Tab x$tabs then Space flipped the Bluetooth switch: $bt"
+  || fail "Tab x5, then Return on the Bluetooth tile, did not switch Bluetooth off (svc.bluetooth $bt)"
+echo "keyboard: Tab x5 then Return toggled the Bluetooth tile: $bt"
 K act ui.close >/dev/null
 ppm_shot closed-quick 1.2
 closed_card closed-quick

@@ -4,7 +4,7 @@
 #   - a left click on an item sends tray.activate with its screen position (the mock logs it),
 #   - a right click opens that item's menu in the Stage (runtime.ui: panel "tray", tray = its id;
 #     screenshot), and a second right click on it closes the menu,
-#   - quick settings lists Bluetooth: powered, one connected keyboard; a scan lists the nearby
+#   - quick settings opens its Bluetooth page: powered, one connected keyboard; a scan lists the nearby
 #     device (screenshots), and the adapter's state in the mock matches what was asked,
 #   - a click on the nearby device's Connect (found in the shot) is refused by the mock: the document keeps
 #     both devices as they were, and the card shows the translated call-failed line,
@@ -156,9 +156,17 @@ panel=$(ipc sub runtime.ui | jq -r '.panel')
 [ "$panel" = "" ] || fail "second right click did not close the tray menu (panel \"$panel\")"
 echo "ok: second right click closes the tray menu"
 
-# 5. Quick settings with Bluetooth (K24: Bluetooth left the island card): powered, one connected keyboard.
+# 5. Quick settings, then its Bluetooth page (docs/ux/quick-settings.md: a tile's arrow, or Right on the tile, opens its page
+#    in the card): powered, one connected keyboard. The card is 400 px and centred on the output; a click on its left
+#    padding (inert) gives the card the keyboard focus. Tab five times reaches the Bluetooth tile (the three status segments,
+#    then the Wi-Fi tile), and Right opens its page.
 ipc act quick.toggle >/dev/null || fail "quick.toggle refused"
-shot quick-bluetooth 2
+sleep 2
+click "$((SW / 2 - 195))" 300 left
+sleep 0.5
+{ for _ in 1 2 3 4 5; do echo tab; sleep 0.4; done; echo right; sleep 1.5; } \
+  | timeout 60 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve || fail "keys failed"
+shot quick-bluetooth 1
 bt=$(ipc sub svc.bluetooth | jq -r '[.powered, ([.devices[] | select(.connected)] | length)] | @tsv')
 [ "$bt" = "$(printf 'true\t1')" ] || fail "mock bluetooth state is \"$bt\", want powered and one connected device"
 
