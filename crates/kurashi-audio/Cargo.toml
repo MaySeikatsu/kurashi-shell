@@ -1,0 +1,17 @@
+[package]
+name = "kurashi-audio"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "svc.audio: default sink/source volume from the PulseAudio/PipeWire sound server, event-driven"
+
+[dependencies]
+anyhow.workspace = true
+kurashi-services = { path = "../kurashi-services" }
+libpulse-binding = "2"
+serde_json.workspace = true
+tracing.workspace = true
+
+[lints]
+workspace = true
