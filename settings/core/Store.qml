@@ -85,28 +85,33 @@ Singleton {
         return h ? h.row.label : key
     }
 
-    // Why a row is inert: [{kind, text}]. Couplings are schema data (the daemon owns the rules);
-    // this only evaluates them against the effective values for display. A compositor capability
-    // is known to the daemon alone, so it surfaces through provenance (forced_by), never guessed.
+    // Why a row is inert or not in effect yet: [{kind, text}]. The daemon decides and says so on the
+    // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names
+    // inert_by. kind "pending" (saved, waits for a restart) leaves the row editable.
     function inertReasons(row, output) {
         var out = []
         var p = prov(row.key, output)
         if (p && p.forced_by) {
             // forced_by is a config key (a11y coupling) or a layer name (nix, capability).
             var by = rowOf(p.forced_by) ? I18n.tr(labelOf(p.forced_by)) : p.forced_by
-            var r = p.reason ? I18n.fmt(p.reason, { key: by }) : ""
+            var r = p.reason ? I18n.fmt(p.reason, { key: by, name: p.forced_by }) : ""
             out.push({ kind: "forced", text: r || I18n.tr("settings.ui.forced_by") + " " + by })
+        }
+        if (p && p.reason === "settings.inert.requires") {
+            for (var j = 0; j < row.couplings.length; j++) {
+                var req = row.couplings[j]
+                if (req.kind !== "requires" || req.key !== p.inert_by) continue
+                out.push({ kind: "requires", text: I18n.fmt(
+                    req.op === "eq" ? req.reason : "settings.ui.requires_ne",
+                    { key: I18n.tr(labelOf(req.key)), value: displayValue(req.value) }) })
+                break
+            }
+        } else if (p && p.reason === "settings.pending.restart") {
+            out.push({ kind: "pending", text: I18n.tr("settings.pending.restart") })
         }
         for (var i = 0; i < row.couplings.length; i++) {
             var c = row.couplings[i]
-            if (c.kind === "requires") {
-                var v = valueOf(c.key, output)
-                var holds = JSON.stringify(v) === JSON.stringify(c.value)
-                var blocked = c.op === "eq" ? !holds : holds
-                if (blocked) out.push({ kind: "requires", text: I18n.fmt(
-                    c.op === "eq" ? c.reason : "settings.ui.requires_ne",
-                    { key: I18n.tr(labelOf(c.key)), value: displayValue(c.value) }) })
-            } else if (c.kind === "overridden_by") {
+            if (c.kind === "overridden_by") {
                 // Already explained by the forced line above.
                 if (valueOf(c.key, output) === true && !(p && p.forced_by === c.key))
                     out.push({ kind: "overridden_by", text: I18n.fmt(c.reason, { key: I18n.tr(labelOf(c.key)) }) })

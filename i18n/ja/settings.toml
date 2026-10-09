@@ -10,6 +10,7 @@
 "settings.ui.no_results" = "一致する設定はありません"
 "settings.ui.per_output" = "出力ごと"
 "settings.ui.restart" = "再起動が必要"
+"settings.pending.restart" = "保存済み。シェルを再起動すると反映されます。"
 "settings.ui.forced_by" = "強制:"
 "settings.ui.requires_ne" = "{key} が {value} 以外のときだけ有効です。"
 "settings.ui.on" = "オン"

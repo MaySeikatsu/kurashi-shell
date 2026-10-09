@@ -188,6 +188,7 @@ impl<S: SchemaView> Config<S> {
             source,
             forced_by: None,
             reason: None,
+            inert_by: None,
         };
 
         for (name, m) in l.forced.iter().rev() {
@@ -197,6 +198,8 @@ impl<S: SchemaView> Config<S> {
                     source: Source::Forced(name.clone()),
                     forced_by: f.forced_by.clone(),
                     reason: f.reason.clone(),
+                    // Requires-inertness is the daemon's (kurashid ConfigStore), not the layers'.
+                    inert_by: None,
                 });
             }
         }
