@@ -181,6 +181,9 @@ pub struct Setting {
 pub struct Manifest {
     pub id: String,
     pub name: String,
+    /// i18n key or plain text, shown under the name on the Mods page. Absent when not declared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub version: Version,
     pub tier: Tier,
     pub kurashi: VersionReq,
@@ -202,6 +205,7 @@ impl Manifest {
 struct Raw {
     id: String,
     name: String,
+    description: Option<String>,
     version: String,
     tier: String,
     kurashi: String,
@@ -454,6 +458,8 @@ pub fn parse(
         (true, Some(version), Some(tier), Some(kurashi), Some(cost)) => Ok(Manifest {
             id: raw.id,
             name: raw.name,
+            // A blank description is the same as none: the catalog only ever shows real text.
+            description: raw.description.filter(|d| !d.trim().is_empty()),
             version,
             tier,
             kurashi,

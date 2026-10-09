@@ -45,6 +45,8 @@ fn bundled_manifests_validate() {
     assert_eq!(ids, ["easter-eggs", "media"]);
     for e in r.iter() {
         assert_eq!(e.state, ModState::Available, "{}: {:?}", e.id, e.state);
+        let m = e.manifest.as_ref().unwrap();
+        assert!(m.description.is_some(), "{} lacks a description", e.id);
     }
 }
 
@@ -309,4 +311,104 @@ fn setting_contributions_use_mod_config_keys() {
         })
         .collect();
     assert_eq!(keys, ["mod.media.show_art", "mod.media.seek_step"]);
+}
+
+#[test]
+fn description_is_optional_and_blank_counts_as_absent() {
+    assert_eq!(
+        manifest::parse("demo", GOOD, &daemon())
+            .unwrap()
+            .description,
+        None
+    );
+    let text = format!("{GOOD}description = \"mods.demo.description\"\n");
+    let m = manifest::parse("demo", &text, &daemon()).unwrap();
+    assert_eq!(m.description.as_deref(), Some("mods.demo.description"));
+    let blank = format!("{GOOD}description = \"  \"\n");
+    assert_eq!(
+        manifest::parse("demo", &blank, &daemon())
+            .unwrap()
+            .description,
+        None
+    );
+}
+
+fn entry<'a>(doc: &'a serde_json::Value, id: &str) -> &'a serde_json::Value {
+    doc["mods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == id)
+        .unwrap()
+}
+
+/// A JSON null anywhere in a document breaks PROTOCOL: absence is the only "empty".
+fn assert_no_nulls(v: &serde_json::Value, at: &str) {
+    use serde_json::Value;
+    match v {
+        Value::Null => panic!("null at {at}"),
+        Value::Array(xs) => {
+            for (i, x) in xs.iter().enumerate() {
+                assert_no_nulls(x, &format!("{at}[{i}]"));
+            }
+        }
+        Value::Object(kv) => {
+            for (k, x) in kv {
+                assert_no_nulls(x, &format!("{at}.{k}"));
+            }
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn mods_doc_emits_description_only_when_declared() {
+    let t = tempfile::tempdir().unwrap();
+    write(
+        t.path(),
+        "demo",
+        &format!("{GOOD}description = \"mods.demo.description\"\n"),
+    );
+    write(t.path(), "plain", &with_id("plain", r#"["widget:plain"]"#));
+    let doc = Registry::discover(&[t.path().into()], &daemon()).doc();
+    assert_eq!(entry(&doc, "demo")["description"], "mods.demo.description");
+    assert!(entry(&doc, "plain").get("description").is_none());
+}
+
+#[test]
+fn documents_carry_no_nulls_and_invalid_entries_omit_absent_fields() {
+    let t = tempfile::tempdir().unwrap();
+    fs::create_dir(t.path().join("empty")).unwrap(); // no mod.toml at all
+    let roots = [
+        manifest_dir("../../mods"),
+        manifest_dir("tests/fixtures/invalid"),
+        t.path().into(),
+    ];
+    let doc = Registry::discover(&roots, &daemon()).doc();
+    assert_no_nulls(&doc, "doc");
+    for id in ["broken-mod", "empty"] {
+        let e = entry(&doc, id);
+        assert_eq!(e["state"], "invalid");
+        for key in ["version", "tier", "cost", "description"] {
+            assert!(e.get(key).is_none(), "{id}.{key} must be absent, not null");
+        }
+    }
+    assert_eq!(entry(&doc, "media")["version"], "0.1.0");
+}
+
+#[test]
+fn bundled_descriptions_resolve_in_both_locales() {
+    let r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    for e in r.iter() {
+        let key = e.manifest.as_ref().unwrap().description.as_deref().unwrap();
+        for locale in ["en", "ja"] {
+            let path = manifest_dir(&format!("../../i18n/{locale}/mods.toml"));
+            let table: toml::Table = fs::read_to_string(path).unwrap().parse().unwrap();
+            let text = table.get(key).and_then(|v| v.as_str());
+            assert!(
+                text.is_some_and(|s| !s.trim().is_empty()),
+                "{key} missing in i18n/{locale}/mods.toml"
+            );
+        }
+    }
 }
