@@ -16,10 +16,9 @@ import "../components"
 PanelWindow {
     id: stage
 
-    // Island panel is open. shell.qml sets it after it picked the output.
+    // Island panel or session menu is open. shell.qml sets it after it picked the output.
     property bool want: false
-    // runtime.ui.panel === "session" opens the Stage here, so shell.qml needs no line for the menu.
-    // shell.qml still picks the output only for the island (docs/CONTRACT-CHANGE.md).
+    // Which of the two the card shows comes from runtime.ui.panel.
     Watch { doc: "runtime.ui" }
     readonly property bool sessionWanted: ((Store.docs["runtime.ui"] || ({})).panel) === "session"
     readonly property bool open: want || sessionWanted
