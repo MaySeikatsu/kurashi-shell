@@ -105,7 +105,12 @@ pub fn build(i: &Input) -> Value {
     doc.insert("units_from".into(), json!(i.units_from));
     doc.insert(
         "places".into(),
-        json!(i.saved.iter().map(|p| place_json(p, &p.tz)).collect::<Vec<_>>()),
+        json!(
+            i.saved
+                .iter()
+                .map(|p| place_json(p, &p.tz))
+                .collect::<Vec<_>>()
+        ),
     );
     let default_id = places::effective(i.saved, i.configured, None).map(|p| p.id.clone());
     doc.insert("default_id".into(), json!(default_id));
@@ -389,7 +394,11 @@ mod tests {
         };
         let doc = build(&i);
         assert_eq!(doc["places"].as_array().map(Vec::len), Some(2));
-        assert_eq!(doc["default_id"], json!("1"), "the first saved place is the default");
+        assert_eq!(
+            doc["default_id"],
+            json!("1"),
+            "the first saved place is the default"
+        );
         assert_eq!(doc["reason"], json!("mod-weather.no_location"));
         i.configured = "2";
         assert_eq!(build(&i)["default_id"], json!("2"));
