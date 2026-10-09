@@ -1,0 +1,12 @@
+# Island copy composed by the daemon (kurashid island.rs): peek lines and OSD details. The faces
+# themselves are in island.toml; `{x}` marks a value the daemon fills in.
+"island.peek.join" = "{a} · {b}"
+"island.peek.percent" = "{n} %"
+"island.peek.to_full" = "満充電まで {t}"
+"island.peek.to_empty" = "残り {t}"
+"island.peek.hm" = "{h} 時間 {m} 分"
+"island.peek.m" = "{m} 分"
+"island.peek.power.charging" = "充電中"
+"island.peek.power.battery" = "バッテリー駆動"
+"island.peek.power.low" = "バッテリー残量が少ない"
+"island.peek.power.critical" = "バッテリー残量がほぼありません"
