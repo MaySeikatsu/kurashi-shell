@@ -29,6 +29,14 @@ impl ServiceHandle {
     pub(crate) fn inert() -> Self {
         Self::default()
     }
+    /// Resolves once one of the tasks has ended by itself (the bus went away, a stream ended).
+    /// Pending while they run, and forever for a handle without tasks.
+    pub async fn ended(&mut self) {
+        if self.tasks.is_empty() {
+            return std::future::pending::<()>().await;
+        }
+        let _ = futures_util::future::select_all(self.tasks.iter_mut()).await;
+    }
 }
 
 impl Drop for ServiceHandle {
