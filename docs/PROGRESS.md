@@ -97,9 +97,10 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 |---|---|---|---|
 | D.2 | Decisions with the user: K24 island model, K25 mods in Settings, K26 wallpaper (Wallhaven later); K27 contract rows 20–22 (fixtures, mock, PROTOCOL) | ✅ | lead, feat/m7-wave9-contracts |
 | B.3 | Per-output PSS (B7): attribution on machine B iGPU, lazy island faces, gate = mean of two hotplugged outputs, sandbox on the boot_vga GPU (B10) | 🔄 | lead, feat/m7-per-output-pss |
-| W9.1 | Bar volume slider honest when audio is unavailable/muted (B2) | ⏳ | card W9-bar-volume |
-| W9.2 | Brightness writes on the resolved logind session (B3) | ⏳ | card W9-brightness-session |
-| W9.3 | Tray waits for the watcher name (B4) + `item_is_menu` (row 20) | ⏳ | card W9-tray |
-| W9.4 | `config.history` + `config.profiles` (rows 21–22), profile error keys (B5), Settings follows (B6, B8) | ⏳ | card W9-config-profiles |
-| W9.5 | Shared virtual keyboard/pointer in `tools/bench/` (I6) | ⏳ | card W9-test-helpers |
-| W9.6 | niri keybinding snippet + HM option (I8) | ⏳ | card W9-niri-binds |
+| W9.1 | Bar volume slider honest when audio is unavailable/muted (B2) | ✅ | W9-bar-volume c80c399; `frontend/test-volume.sh` (pixel checks: no level without audio, dim when muted); golden refs machine B re-recorded (697 px: ⊘ instead of a 0 % knob) — machine A refs need `just golden --update` there |
+| W9.2 | Brightness writes on the resolved logind session (B3) | ✅ | W9-brightness-session fa478bc; resolver shared with svc.session, cached per bus GUID, one re-resolve when the session is gone; 3 fake-logind tests |
+| W9.3 | `item_is_menu` (row 20); B4 not reproducible | ✅ | W9-tray 5ad6f95; a foreign watcher is *hosted* since 361276b (no retry exists) — the agent's first "waiting" version would have dropped that, rejected by the lead |
+| W9.4 | `config.history` + `config.profiles` (rows 21–22), profile error keys (B5), Settings follows (B6, B8) | ✅ | W9-config-profiles 89702da; `tests/config_doc.rs`; settings/test.sh shows Undo on open and a profile file listed ~170 ms after it appears |
+| W9.5 | Shared virtual keyboard/pointer in `tools/bench/` (I6) | ✅ | W9-test-helpers 75ff0dc + lead 4248bc4 (settings/test.sh switched, `settings/keys.py` removed); helpers refuse any socket outside `/tmp/kurashi-sb-*` |
+| W9.6 | niri keybinding snippet + HM option (I8) | ✅ | W9-niri-binds a82f957; `docs/niri-binds.kdl`, `programs.kurashi.niri.binds.{enable,keys}`, eval test runs `niri validate`; lead: session menu on Mod+Shift+E (niri's Mod+Escape inhibit escape hatch kept) |
+| D.3 | Wave 10 contracts: K24 `runtime.ui.face` + `quick.toggle` (daemon + mock + fixture), K25/K26/I9 in MODS.md/PROTOCOL + `snap_mods.json`, schema `choices_from`; wave 10 cards | ✅ | lead 27f60d2 |
