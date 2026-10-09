@@ -640,3 +640,73 @@ async fn the_quick_tile_and_the_picker_share_one_document_per_subscription() {
     eventually(|| m.doc()["loaded"] == true).await;
     assert_eq!(m.doc(), first, "a second subscriber gets the same state");
 }
+
+#[tokio::test]
+async fn restart_stops_the_daemon_starts_it_again_and_shows_the_stored_images_again() {
+    let root = scratch("restart");
+    let folder = library(&root, &["a.png", "b.png"]);
+    let dirs = Dirs::rooted(&root);
+    std::fs::create_dir_all(dirs.state_file().parent().unwrap()).unwrap();
+    std::fs::write(
+        dirs.state_file(),
+        json!({"all": folder.join("a.png")}).to_string(),
+    )
+    .unwrap();
+    let fake = Fake::new(&["awww"]);
+    let mut m = Mod::enable(fake.clone(), dirs, values(&folder)).unwrap();
+    m.subscribe();
+    eventually(|| m.doc()["outputs"]["DP-1"]["path"].is_string()).await;
+    let before = fake.count("awww img");
+    assert_eq!(before, 2, "the start restored both outputs");
+
+    let answer = m.act("wallpaper.backend.restart", json!({})).await.unwrap();
+    assert_eq!(answer.unwrap()["available"], true);
+    assert_eq!(
+        fake.count("awww kill"),
+        1,
+        "the running daemon is stopped first"
+    );
+    assert_eq!(fake.count("spawn awww-daemon"), 2, "and started again");
+    assert_eq!(
+        fake.count("awww img"),
+        before + 2,
+        "and the images come back"
+    );
+}
+
+#[tokio::test]
+async fn clearing_the_cache_removes_the_thumbnails_and_they_are_made_again() {
+    let root = scratch("cache");
+    let folder = library(&root, &["a.png"]);
+    image::RgbImage::from_pixel(40, 30, image::Rgb([9, 99, 199]))
+        .save(folder.join("a.png"))
+        .unwrap();
+    let dirs = Dirs::rooted(&root);
+    let fake = Fake::new(&["awww"]);
+    fake.daemon_up
+        .store(true, std::sync::atomic::Ordering::SeqCst);
+    let mut m = Mod::enable(fake, dirs.clone(), values(&folder)).unwrap();
+    m.subscribe();
+    eventually(|| m.doc()["loaded"] == true).await;
+
+    let first = m.act("wallpaper.thumbs", json!({})).await.unwrap().unwrap();
+    assert!(first["rows"][0]["thumb"].is_string());
+    assert!(
+        dirs.thumbs().is_dir(),
+        "the thumbnail cache exists after a page"
+    );
+
+    let cleared = m
+        .act("wallpaper.cache.clear", json!({}))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(cleared["cleared"], true);
+    assert!(!dirs.thumbs().exists(), "the cache directory is gone");
+
+    let again = m.act("wallpaper.thumbs", json!({})).await.unwrap().unwrap();
+    assert!(
+        again["rows"][0]["thumb"].is_string(),
+        "made again on demand"
+    );
+}
