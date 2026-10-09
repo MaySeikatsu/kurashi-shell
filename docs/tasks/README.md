@@ -162,3 +162,11 @@ Lead (before the wave): contract rows 20–22 (fixtures, mock, PROTOCOL, K27); K
 | [W10-settings](W10-settings.md) | `settings/**`, `settings.toml` | haiku |
 Lead (before): K24 `runtime.ui.face` + `quick.toggle` (daemon + mock, done), K25/K26/I9 contracts (docs + fixture),
 I9 schema attribute `choices_from` in kurashi-schema.
+
+## Wave 11 (after wave 10; Haiku 5.5, max effort) — K26 native mods, then the wallpaper mod
+| Card | Owner paths | Model |
+|---|---|---|
+| [W11-native-mods](W11-native-mods.md) | new `kurashi-mod-api`, kurashid `native.rs` + runtime unregister in hub/actions, test mod `hello` | haiku |
+| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, Stage `mod:*` panel, Bar mod widget slot (after W11-native-mods) | haiku |
+Then: W12-wallpaper (crate `kurashi-mod-wallpaper`, awww/swww adapters, picker panel) on that mechanism.
+Lead (before W11-mod-qml): PROTOCOL §8 `mod.panel.open {id, panel}` → `runtime.ui.panel = "mod:<id>:<panel>"`.
