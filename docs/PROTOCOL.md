@@ -1,6 +1,6 @@
 # IPC Protocol v1
 
-Status: **v1 freeze candidate** (M1, K17). Changes now require a DECISIONS entry + fixture update
+Status: **v1 frozen** (end of M1, K17, 2026-10-09). Changes now require a DECISIONS entry + fixture update
 (`fixtures/ipc/`) + this file. Additive optional fields are allowed without a version bump.
 The M0 bake-off uses the **probe subset** (§8), served by `kurashi-mock`.
 
