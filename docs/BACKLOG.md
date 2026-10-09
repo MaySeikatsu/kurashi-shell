@@ -32,8 +32,9 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I4 | 2026-10-09 | B-tray report | CONTRACT row 20: `item_is_menu` on `svc.tray` items (frontend already reads it). | accepted |
 | I5 | 2026-10-09 | S-settings report | CONTRACT row 21: `config.history {can_undo, can_redo}`; Settings drops its reply-derived flags. | accepted |
 | I6 | 2026-10-09 | S-settings report | Move `settings/keys.py` and the virtual pointer of `frontend/test-bindings.sh` into `tools/bench/` (CONTRACT #6). | accepted |
-| I7 | 2026-10-09 | user | **Wallpaper management** as the first native mod (see "Wallpaper" below). | accepted — next |
+| I7 | 2026-10-09 | user | **Wallpaper management** as the first native mod (see "Wallpaper" below). Rendering decided by the user: an external daemon, **awww / swww**, chosen from a dropdown (I9). | accepted — next |
 | I8 | 2026-10-09 | lead (user's live test) | Compositor keybindings for kurashi actions (launcher, session menu, centre, volume/brightness keys): document a niri snippet (`spawn "kurashi" "act" "launcher.toggle"`) and/or let the HM module emit it. Without it the shell can only be driven by mouse and CLI. | accepted |
+| I9 | 2026-10-09 | user | **Choices instead of freeform text** in Settings: string keys with a known option set get a dropdown (Segmented stays for ≤ 4 fixed options). Today freeform: `theme.colors.palette`, `island.main.default`, `island.main.faces` (should be an ordered pick-list). Options are often dynamic (palettes incl. mod palettes, island faces incl. mod faces, installed wallpaper backends), so the daemon resolves them into `schema.settings` rows (one schema, rule 3: e.g. `#[kurashi(choices_from = "palettes")]`); an option that cannot work right now (backend not installed) is shown disabled with its reason (rule 2). | accepted |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
@@ -81,11 +82,12 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 - Daemon side (Rust, the mod's service): wallpaper state per output (path/source, fit, rotation timer
   only while rotation is on), a library (folders), actions `wallpaper.set/next/prev`, and the hand-off to
   the theme pipeline (DESIGN-SYSTEM §2 stage 1 `source = wallpaper`, material-colors → palette).
-- **Rendering is the open decision.** A full-output wallpaper texture is ~14 MiB per 2560×1440 output, far
-  over the per-output budget if the shell frontend draws it. Options: (a) an external setter as backend
-  (`swww`, `wpaperd`, `swaybg`; zero frontend cost; adapter per tool), (b) the frontend's optional
-  `background` surface (ARCHITECTURE §4) — budget accounted to the mod (`cost` in the manifest), (c) a
-  small dedicated Rust renderer process. Lead recommendation: (a) first, (b)/(c) later for video and
-  animated wallpapers.
+- **Rendering — decided by the user (2026-10-09): an external wallpaper daemon draws it**, selectable in
+  Settings from a dropdown (I9): **awww** (the renamed swww) and **swww**; if only one can be supported at
+  first, awww/swww. Zero frontend cost (a full-output texture would be ~14 MiB per 2560×1440 output, far over
+  the per-output budget). One small adapter per backend in the mod's Rust service (start/attach to its
+  daemon, set image per output with fit/transition); the option list shows which backends are installed,
+  a missing one is disabled with its reason. Others (wpaperd, swaybg) and an own renderer (video,
+  animated) later.
 - Frontend: a picker panel (Stage) with thumbnails (decoded at thumbnail size), a settings page (K22).
 - Later: Wallhaven source (network capability, API key via libsecret), video wallpapers, per-workspace.
