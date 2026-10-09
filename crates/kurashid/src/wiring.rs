@@ -140,13 +140,6 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     );
 }
 
-struct HubSink(Arc<Hub>, &'static str);
-impl kurashi_services::DocSink for HubSink {
-    fn set(&self, doc: Value) {
-        let _ = self.0.set(self.1, doc, None);
-    }
-}
-
 /// The notification server lives for the daemon's lifetime: owning the bus name is what lets
 /// notifications arrive at all (the one deliberate exception to refcounted services).
 struct NotifySink {
@@ -419,23 +412,59 @@ pub fn audio(
     });
 }
 
+/// Marks a locked session in the runtime dir (cleared on logout), so a daemon that restarts or
+/// crashes while locked comes back **locked** — killing kurashid must never unlock the screen.
+struct LockSink {
+    hub: Arc<Hub>,
+    marker: std::path::PathBuf,
+}
+
+impl kurashi_services::DocSink for LockSink {
+    fn set(&self, doc: Value) {
+        if doc["locked"].as_bool() == Some(true) {
+            if let Some(dir) = self.marker.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            if let Err(e) = std::fs::write(&self.marker, b"") {
+                tracing::error!(error = %e, "cannot persist lock state");
+            }
+        } else {
+            let _ = std::fs::remove_file(&self.marker);
+        }
+        let _ = self.hub.set("runtime.lock", doc, None);
+    }
+}
+
 /// `runtime.lock` + intents `lock.submit` / `lock.cancel` + action `session.lock` (K2: the secret
 /// is handled only here and never logged; the frontend owns ext-session-lock).
-pub fn lock(hub: &Arc<Hub>, actions: &mut ActionRegistry, intents: &mut crate::Intents) {
+pub fn lock(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    intents: &mut crate::Intents,
+    marker: std::path::PathBuf,
+) {
     use kurashi_auth::{LockConfig, LockSession, PamAuthenticator, SystemClock};
     let user = std::env::var("USER").unwrap_or_default();
+    let was_locked = marker.exists();
     hub.register(
         "runtime.lock",
-        json!({"locked": false, "busy": false, "failures": 0}),
+        json!({"locked": was_locked, "busy": false, "failures": 0}),
         None,
     );
     let session = LockSession::new(
         user,
         Arc::new(PamAuthenticator::new("kurashi")),
-        Arc::new(HubSink(hub.clone(), "runtime.lock")),
+        Arc::new(LockSink {
+            hub: hub.clone(),
+            marker,
+        }),
         Arc::new(SystemClock::new()),
         LockConfig::default(),
     );
+    if was_locked {
+        tracing::warn!("previous instance was locked: starting locked");
+        session.lock();
+    }
     for name in ["lock.submit", "lock.cancel"] {
         let s = session.clone();
         intents.register(name, move |v, _| {
@@ -452,4 +481,40 @@ pub fn lock(hub: &Arc<Hub>, actions: &mut ActionRegistry, intents: &mut crate::I
             Ok(None)
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn lock_survives_daemon_restart() {
+        let dir = std::env::temp_dir().join(format!("kurashid-lock-{}", std::process::id()));
+        let marker = dir.join("locked");
+        let _ = std::fs::remove_dir_all(&dir);
+
+        // First instance locks.
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        lock(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            marker.clone(),
+        );
+        actions.invoke("session.lock", Value::Null).await.unwrap();
+        assert_eq!(hub.snapshot("runtime.lock").unwrap().1["locked"], true);
+        assert!(marker.exists(), "lock persisted");
+
+        // "Restart": a fresh instance must come back locked.
+        let hub2 = Hub::new();
+        lock(
+            &hub2,
+            &mut ActionRegistry::default(),
+            &mut crate::Intents::default(),
+            marker.clone(),
+        );
+        assert_eq!(hub2.snapshot("runtime.lock").unwrap().1["locked"], true);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
