@@ -4,6 +4,7 @@
 //! notification without a udev netlink socket (needs libudev bindings), and polling is forbidden
 //! (rule 5). So the document is emitted at start and after our own `set_percent`/`refresh`;
 //! changes made by other tools show up on the next `refresh()` (e.g. when the panel opens).
+//! The key actions go through [`plan`] and [`Plan::apply`] instead, which need no subscription.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -29,22 +30,12 @@ impl Commands {
     pub fn refresh(&self) {
         self.em.emit(read(&self.dir));
     }
-    /// Set brightness through logind (no root needed), then re-emit.
+    /// Set brightness through logind (no root needed), then emit the level now in effect.
+    /// Without a device there is nothing to set.
     pub async fn set_percent(&self, percent: f64) -> zbus::Result<()> {
-        let Some((device, _, max)) = find(&self.dir) else {
-            return Ok(());
-        };
-        let value = ((percent.clamp(0.0, 100.0) / 100.0) * max as f64).round() as u32;
-        util::call(
-            &self.conn,
-            DEST,
-            SESSION,
-            SESSION_IF,
-            "SetBrightness",
-            &("backlight", device, value),
-        )
-        .await?;
-        self.refresh();
+        if let Some(p) = plan(&self.dir, Change::To(percent / 100.0)) {
+            self.em.emit(p.apply(&self.conn).await?);
+        }
         Ok(())
     }
 }
@@ -62,6 +53,71 @@ pub async fn start_at(
     let em = Emitter::new(sink);
     em.emit(read(&dir));
     Ok((ServiceHandle::inert(), Commands { conn, dir, em }))
+}
+
+/// A requested change, as fractions of the device maximum: `To` sets the level, `By` moves it
+/// (negative = darker).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Change {
+    To(f64),
+    By(f64),
+}
+
+/// A change resolved against the level as it is now, not yet written.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Plan {
+    dir: PathBuf,
+    device: String,
+    value: u32,
+}
+
+/// Resolve `change` against the backlight as it is now (one sysfs read). `None`: no device.
+pub fn plan(dir: &Path, change: Change) -> Option<Plan> {
+    let (device, current, max) = find(dir)?;
+    Some(Plan {
+        dir: dir.to_owned(),
+        device,
+        value: target(current, max, change),
+    })
+}
+
+impl Plan {
+    /// One logind `SetBrightness`, then one sysfs re-read. The document is the level now in
+    /// effect, which is what the OSD and `svc.brightness` must show (Shōjiki).
+    pub async fn apply(&self, conn: &Connection) -> zbus::Result<Value> {
+        util::call(
+            conn,
+            DEST,
+            SESSION,
+            SESSION_IF,
+            "SetBrightness",
+            &("backlight", self.device.as_str(), self.value),
+        )
+        .await?;
+        Ok(read(&self.dir))
+    }
+}
+
+/// Raw level a change lands on, within `0..=max`. A relative step always moves at least one
+/// unit, so a coarse backlight (`max` of 7 or 15) never stalls on rounding.
+fn target(current: u32, max: u32, change: Change) -> u32 {
+    let max_f = f64::from(max);
+    let value = match change {
+        Change::To(f) if f.is_finite() => (f.clamp(0.0, 1.0) * max_f).round(),
+        Change::By(d) if d.is_finite() => {
+            let units = (d * max_f).round();
+            let step = if d > 0.0 {
+                units.max(1.0)
+            } else if d < 0.0 {
+                units.min(-1.0)
+            } else {
+                0.0
+            };
+            f64::from(current) + step
+        }
+        _ => f64::from(current),
+    };
+    value.clamp(0.0, max_f) as u32
 }
 
 /// First device by name: (name, current, max).
@@ -91,9 +147,51 @@ fn find(dir: &Path) -> Option<(String, u32, u32)> {
 fn read(dir: &Path) -> Value {
     match find(dir) {
         None => json!({"present": false}),
-        Some((device, value, max)) => json!({
-            "present": true, "device": device, "value": value, "max": max,
-            "percent": (f64::from(value) / f64::from(max) * 1000.0).round() / 10.0,
-        }),
+        Some((device, value, max)) => doc(&device, value, max),
+    }
+}
+
+fn doc(device: &str, value: u32, max: u32) -> Value {
+    json!({
+        "present": true, "device": device, "value": value, "max": max,
+        "percent": (f64::from(value) / f64::from(max) * 1000.0).round() / 10.0,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn relative_steps_move_at_least_one_unit_and_stay_in_range() {
+        assert_eq!(target(50, 100, Change::By(0.05)), 55);
+        assert_eq!(target(50, 100, Change::By(-0.05)), 45);
+        assert_eq!(target(50, 100, Change::By(0.001)), 51);
+        // Half a unit rounds away from zero, so a 10-unit backlight still moves in both ways.
+        assert_eq!(target(5, 10, Change::By(0.05)), 6);
+        assert_eq!(target(5, 10, Change::By(-0.05)), 4);
+        assert_eq!(target(98, 100, Change::By(0.5)), 100);
+        assert_eq!(target(0, 15, Change::By(-0.5)), 0);
+        assert_eq!(target(50, 100, Change::By(0.0)), 50);
+    }
+
+    #[test]
+    fn absolute_levels_round_and_clamp() {
+        assert_eq!(target(0, 255, Change::To(0.5)), 128);
+        assert_eq!(target(0, 100, Change::To(2.0)), 100);
+        assert_eq!(target(40, 100, Change::To(f64::NAN)), 40);
+    }
+
+    #[test]
+    fn plan_reads_the_first_device_and_none_without_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let dev = dir.path().join("intel_backlight");
+        std::fs::create_dir(&dev).unwrap();
+        std::fs::write(dev.join("max_brightness"), "100\n").unwrap();
+        std::fs::write(dev.join("brightness"), "50\n").unwrap();
+        let p = plan(dir.path(), Change::By(0.05)).unwrap();
+        assert_eq!((p.device.as_str(), p.value), ("intel_backlight", 55));
+        let empty = tempfile::tempdir().unwrap();
+        assert_eq!(plan(empty.path(), Change::By(0.05)), None);
     }
 }
