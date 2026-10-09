@@ -1,0 +1,137 @@
+# Kurashi configuration — schema v1.
+# Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
+#
+# Every key is listed commented out at its default. Set only what you want to change:
+# unset keys keep following defaults, themes and profiles.
+# Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
+#
+# schema_version = 1
+
+# [bar]
+#
+# Show bar — Whether this output gets a bar at all.
+#   per-output
+# enabled = true
+#
+# Edge — Screen edge the bar is anchored to.
+#   choices: "top" | "bottom" | "left" | "right" · only while bar.enabled == true ·
+#   per-output
+# edge = "top"
+#
+# Height — Thickness of the bar in logical pixels (its width when anchored left or right).
+#   range: 16..=96, step 2 (px) · only while bar.enabled == true · per-output
+# height = 32
+
+# [theme.shape]
+#
+# Corners — Corner style of bars, popups and the island.
+#   choices: "none" | "rounded" | "squircle"
+# corners = "rounded"
+#
+# Corner radius scale — Multiplies every corner radius token.
+#   range: 0.0..=2.0, step 0.05 · only while theme.shape.corners != "none" · advanced
+# radius_scale = 1.0
+
+# [theme.material]
+#
+# Material — Surface material of shell chrome.
+#   choices: "solid" | "translucent" | "glass" · forced to "solid" while
+#   a11y.reduce_transparency is on · forced to "solid" while a11y.high_contrast is on
+# kind = "translucent"
+#
+# Opacity — Opacity of translucent and glass surfaces.
+#   range: 0.3..=1.0, step 0.01 · only while theme.material.kind != "solid" · forced to 1.0
+#   while a11y.reduce_transparency is on
+# opacity = 0.85
+#
+# Background blur — Blur what is behind glass surfaces. Forced off when the compositor
+# cannot blur.
+#   only while theme.material.kind == "glass" · needs compositor capability blur · forced to
+#   false while a11y.reduce_transparency is on
+# blur = true
+
+# [theme.motion]
+#
+# Motion — Character of animations: calm, lively, or none at all.
+#   choices: "calm" | "lively" | "none" · forced to "none" while a11y.reduce_motion is on
+# profile = "calm"
+#
+# Animation speed — Multiplies every motion duration's speed (2.0 = twice as fast).
+#   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none" · advanced
+# speed = 1.0
+
+# [theme]
+#
+# Density — Scales spacing and control sizes everywhere.
+#   choices: "compact" | "regular" | "airy"
+# density = "regular"
+
+# [theme.typography]
+#
+# Font family — Fallback chain; the first installed family wins (resolved via fontconfig).
+# family = ["Inter", "Noto Sans CJK JP", "sans-serif"]
+#
+# Text scale — Multiplies every type size token.
+#   range: 0.75..=2.0, step 0.05 · forced to 1.25 while a11y.large_text is on
+# scale = 1.0
+
+# [a11y]
+#
+# Reduce motion — Turns animations off (forces the motion profile to none).
+# reduce_motion = false
+#
+# Reduce transparency — Makes every surface solid and disables blur.
+# reduce_transparency = false
+#
+# High contrast — Solid surfaces and a high-contrast palette.
+# high_contrast = false
+#
+# Large text — Raises the text scale to 125 %.
+# large_text = false
+
+# [island.main]
+#
+# Faces — Faces this island may show, in cycling order.
+# faces = ["clock", "media", "notifications"]
+#
+# Default face — Face shown when nothing more relevant is happening.
+# default = "clock"
+#
+# Transient duration — How long a transient face (volume, notification) stays before
+# falling back.
+#   range: 1..=60 (s)
+# ttl = 5
+
+# [island.main.input]
+#
+# Left click
+#   advanced
+# left = "island.expand"
+#
+# Right click
+#   advanced
+# right = "island.face_picker"
+#
+# Middle click
+#   advanced
+# middle = ""
+#
+# Hover
+#   advanced
+# hover = ""
+#
+# Scroll up
+#   advanced
+# scroll_up = "island.face.prev"
+#
+# Scroll down
+#   advanced
+# scroll_down = "island.face.next"
+#
+# Shift + scroll up
+#   advanced
+# shift_scroll_up = ""
+#
+# Shift + scroll down
+#   advanced
+# shift_scroll_down = ""

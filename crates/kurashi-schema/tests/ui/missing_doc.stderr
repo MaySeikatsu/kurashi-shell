@@ -1,0 +1,5 @@
+error: config key `height` needs a doc comment (first line = English label, rest = help)
+ --> tests/ui/missing_doc.rs:6:5
+  |
+6 |     height: u32,
+  |     ^^^^^^
