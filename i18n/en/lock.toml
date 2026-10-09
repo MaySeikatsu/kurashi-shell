@@ -1,0 +1,5 @@
+# Lock screen strings (en): crates/kurashi-auth runtime.lock message/prompt keys.
+"lock.error.wrong_password" = "Wrong password"
+"lock.error.rate_limited" = "Too many attempts — try again shortly"
+"lock.error.unavailable" = "Authentication is unavailable"
+"lock.prompt.password" = "Password"
