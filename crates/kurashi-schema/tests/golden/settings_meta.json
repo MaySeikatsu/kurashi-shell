@@ -678,7 +678,7 @@
               "advanced": true,
               "control": "action_binding",
               "couplings": [],
-              "default": "island.face_picker",
+              "default": "island.pin",
               "key": "island.main.input.right",
               "label": "config.input.right",
               "per_output": false,
@@ -714,7 +714,7 @@
               "advanced": true,
               "control": "action_binding",
               "couplings": [],
-              "default": "island.face.prev",
+              "default": "island.prev",
               "key": "island.main.input.scroll_up",
               "label": "config.input.scroll_up",
               "per_output": false,
@@ -726,7 +726,7 @@
               "advanced": true,
               "control": "action_binding",
               "couplings": [],
-              "default": "island.face.next",
+              "default": "island.next",
               "key": "island.main.input.scroll_down",
               "label": "config.input.scroll_down",
               "per_output": false,
@@ -757,6 +757,101 @@
               "restart": false,
               "since": 1,
               "type": "action"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "notifications",
+      "label": "settings.page.notifications",
+      "sections": [
+        {
+          "id": "server",
+          "label": "settings.section.server",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.notifications.server.help",
+              "key": "notifications.server",
+              "label": "config.notifications.server.label",
+              "per_output": false,
+              "restart": true,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.notifications.dnd.help",
+              "key": "notifications.dnd",
+              "label": "config.notifications.dnd.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [],
+              "default": 200,
+              "help": "config.notifications.history_max.help",
+              "key": "notifications.history_max",
+              "label": "config.notifications.history_max.label",
+              "max": 2000,
+              "min": 10,
+              "per_output": false,
+              "restart": true,
+              "since": 1,
+              "step": 10,
+              "type": "int"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "launcher",
+      "label": "settings.page.launcher",
+      "sections": [
+        {
+          "id": "apps",
+          "label": "settings.section.apps",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "list",
+              "couplings": [],
+              "default": [
+                "foot",
+                "-e"
+              ],
+              "help": "config.launcher.terminal.help",
+              "key": "launcher.terminal",
+              "label": "config.launcher.terminal.label",
+              "per_output": false,
+              "restart": true,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": true,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.launcher.systemd_scope.help",
+              "key": "launcher.systemd_scope",
+              "label": "config.launcher.systemd_scope.label",
+              "per_output": false,
+              "restart": true,
+              "since": 1,
+              "type": "bool"
             }
           ]
         }

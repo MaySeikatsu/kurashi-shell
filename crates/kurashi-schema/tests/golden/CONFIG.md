@@ -228,7 +228,7 @@ How long a transient face (volume, notification) stays before falling back.
 
 #### `island.main.input.right` — Right click
 
-- type: `action` · default: `"island.face_picker"`
+- type: `action` · default: `"island.pin"`
 - advanced
 
 #### `island.main.input.middle` — Middle click
@@ -243,12 +243,12 @@ How long a transient face (volume, notification) stays before falling back.
 
 #### `island.main.input.scroll_up` — Scroll up
 
-- type: `action` · default: `"island.face.prev"`
+- type: `action` · default: `"island.prev"`
 - advanced
 
 #### `island.main.input.scroll_down` — Scroll down
 
-- type: `action` · default: `"island.face.next"`
+- type: `action` · default: `"island.next"`
 - advanced
 
 #### `island.main.input.shift_scroll_up` — Shift + scroll up
@@ -259,4 +259,49 @@ How long a transient face (volume, notification) stays before falling back.
 #### `island.main.input.shift_scroll_down` — Shift + scroll down
 
 - type: `action` · default: `""`
+- advanced
+
+## Notifications
+
+### Server
+
+#### `notifications.server` — Notification server
+
+Receive desktop notifications. Never takes over from another running notification daemon.
+
+- type: `bool` · default: `true`
+- restart required
+
+#### `notifications.dnd` — Do not disturb
+
+Store notifications silently; critical ones still show.
+
+- type: `bool` · default: `false`
+
+#### `notifications.history_max` — History size
+
+How many notifications are kept.
+
+- type: `int` · default: `200`
+- range: `10..=2000`, step `10`
+- restart required
+- advanced
+
+## Launcher
+
+### Apps
+
+#### `launcher.terminal` — Terminal command
+
+Prefix for apps that need a terminal, e.g. foot -e.
+
+- type: `string_list` · default: `["foot", "-e"]`
+- restart required
+
+#### `launcher.systemd_scope` — Separate app scopes
+
+Start apps in their own systemd scope so they outlive the shell.
+
+- type: `bool` · default: `true`
+- restart required
 - advanced
