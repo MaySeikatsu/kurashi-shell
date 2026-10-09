@@ -2,3 +2,13 @@
 # モッド画面では、名前の下にこの訳文を表示します。
 "mods.media.description" = "MPRIS 対応のプレーヤーで再生中の曲を表示します。曲名、ジャケット、再生と早送り・巻き戻しの操作ができます。"
 "mods.easter-eggs.description" = "時計や Island に、季節の移ろいをそっと添えます。既定で有効で、ひとつの切り替えでオフにできます。"
+
+# モッドの設定 (K22): 同梱モッドの設定の名前と説明、列挙型の設定の選択肢 (`mods.<id>.<key>.<choice>`)、
+# 無効なモッドの値に効果がない理由。
+"mods.media.show_art" = "ジャケットを表示"
+"mods.media.seek_step" = "早送り・巻き戻しの幅"
+"mods.media.seek_step.help" = "早送り・巻き戻しボタンで一度に進む秒数です。"
+"mods.easter-eggs.frequency" = "出現の頻度"
+"mods.easter-eggs.frequency.rare" = "たまに"
+"mods.easter-eggs.frequency.sometimes" = "ときどき"
+"mods.disabled" = "このモッドはオフです。値は残り、モッドをオンにすると効き始めます。"

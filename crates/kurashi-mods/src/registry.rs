@@ -14,7 +14,7 @@ pub enum Contribution {
         mod_id: String,
         provide: Provide,
     },
-    /// A typed setting; `config_key` is `mod.<id>.<key>`.
+    /// A typed setting; `config_key` is `mods.<id>.<key>` (K22).
     Setting {
         mod_id: String,
         config_key: String,
