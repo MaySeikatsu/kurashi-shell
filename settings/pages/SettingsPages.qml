@@ -12,7 +12,8 @@ Flickable {
     property string query: ""
     property bool showAdvanced: false
     property string output: ""
-    signal jumpRequested(string targetPage, var row)
+    // byKeyboard: the jump came from the keyboard (a breadcrumb or a search hit), so the focus goes to the row's control.
+    signal jumpRequested(string targetPage, var row, bool byKeyboard)
     signal pageRequested(string pageId)
 
     readonly property bool searching: query.trim() !== ""
@@ -32,11 +33,38 @@ Flickable {
             if (ps[i].id === p.pageId) return ps[i].mod || ""
         return ""
     }
+    // The page structure the rows are built from: pages, sections and rows as the schema names them, but replaced only when
+    // one of those is added, removed or renamed (structureOf). The daemon re-publishes `schema.settings` after a change (a
+    // reordered choice list, say); a value change must not rebuild the rows, or the focus on a row is lost. Each row reads
+    // its own schema row live (SettingRow.rowKey), so the new values show without a rebuild.
+    property var structure: []
+    property string structureSig: ""
+    function structureOf(pages) {
+        return JSON.stringify(pages.map(function (pg) {
+            return [pg.id, pg.label, pg.mod !== undefined ? pg.mod : "", pg.sections.map(function (s) {
+                return [s.id, s.label, s.rows.map(function (r) { return [r.key, r.label, r.help || "", !!r.advanced] })]
+            })]
+        }))
+    }
+    function refreshStructure() {
+        var pages = Store.schema.pages || []
+        var sig = structureOf(pages)
+        if (sig !== structureSig) {
+            structureSig = sig
+            structure = pages
+        }
+    }
+    Component.onCompleted: refreshStructure()
+    Connections {
+        target: Store
+        function onSchemaChanged() { p.refreshStructure() }
+    }
+
     // Related pages (UX brief, settings 7): the pages whose settings act on this one's, when they exist.
     readonly property var relatedPages: {
         var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility"],
                   accessibility: ["appearance"], bar: ["appearance"] }
-        var ps = Store.schema.pages || []
+        var ps = p.structure
         return (m[p.pageId] || []).filter(function (id) {
             return ps.some(function (x) { return x.id === id })
         })
@@ -63,7 +91,7 @@ Flickable {
     readonly property var view: {
         var q = p.query.trim().toLowerCase()
         var out = []
-        var pages = Store.schema.pages || []
+        var pages = p.structure
         var tr = I18n.strings   // re-evaluate when strings arrive
         for (var i = 0; i < pages.length; i++) {
             if (q === "" && pages[i].id !== p.pageId) continue
@@ -96,14 +124,15 @@ Flickable {
         return null
     }
     // After a jump the target page lays out on a later event: then the row is scrolled into view and
-    // flashed once. Nothing repeats and no timer runs.
-    function reveal(key) {
+    // flashed once, and a keyboard jump moves the focus onto its control. Nothing repeats and no timer runs.
+    function reveal(key, focusIt) {
         Qt.callLater(function () {
             var hit = findRow(col, key)
             if (!hit) return
             var y = hit.mapToItem(p.contentItem, 0, 0).y
             p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
             hit.flash()
+            if (focusIt) hit.focusControl()
         })
     }
     function findRow(item, key) {
@@ -123,8 +152,12 @@ Flickable {
     // A reason's link: the setting that controls this row, wherever it is.
     function openKey(key) {
         var h = Store.rowOf(key)
-        if (h) p.jumpRequested(h.pageId, h.row)
+        if (h) p.jumpRequested(h.pageId, h.row, false)
     }
+    // A page that is not in the schema any more (a mod removed from disk while its page was open): the page says so.
+    readonly property bool pageMissing: !p.searching && p.pageId !== "" && p.structure.every(function (x) {
+        return x.id !== p.pageId
+    })
 
     Column {
         id: col
@@ -143,6 +176,7 @@ Flickable {
             visible: !p.searching && p.userOps.length > 0
             ops: p.userOps
             enabled: Store.live
+            tag: "page:" + p.pageId
             label: I18n.fmt("settings.ui.reset_page", { n: p.userOps.length })
         }
         ModHead {
@@ -160,6 +194,7 @@ Flickable {
             // A mod without settings has an empty page: its head, with the switch, says what there is. A search that
             // finds nothing names what it looked through.
             text: !Store.live ? I18n.tr("settings.ui.disconnected")
+                : p.pageMissing ? I18n.tr("settings.ui.mod_gone")
                 : p.searching ? I18n.fmt("settings.ui.no_match_scope", { query: p.query.trim(), count: p.scopeCount })
                 : I18n.tr(p.modId !== "" ? "settings.mods.no_settings" : "settings.ui.no_results")
         }
@@ -198,9 +233,9 @@ Flickable {
                                     width: parent.width
                                     height: Theme.controlH
                                     activeFocusOnTab: true
-                                    Keys.onReturnPressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
-                                    Keys.onEnterPressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
-                                    Keys.onSpacePressed: event => { p.jumpRequested(modelData.pageId, modelData.row); event.accepted = true }
+                                    Keys.onReturnPressed: event => { p.jumpRequested(modelData.pageId, modelData.row, true); event.accepted = true }
+                                    Keys.onEnterPressed: event => { p.jumpRequested(modelData.pageId, modelData.row, true); event.accepted = true }
+                                    Keys.onSpacePressed: event => { p.jumpRequested(modelData.pageId, modelData.row, true); event.accepted = true }
                                     Accessible.role: Accessible.Link
                                     Accessible.name: modelData.crumb
                                     Text {
@@ -216,7 +251,7 @@ Flickable {
                                     HoverHandler { id: hover }
                                     MouseArea {
                                         anchors.fill: parent
-                                        onClicked: p.jumpRequested(modelData.pageId, modelData.row)
+                                        onClicked: p.jumpRequested(modelData.pageId, modelData.row, false)
                                     }
                                     FocusRing {
                                         anchors.fill: parent
@@ -226,7 +261,7 @@ Flickable {
                                 }
                                 SettingRow {
                                     width: parent.width
-                                    row: modelData.row
+                                    rowKey: modelData.row.key
                                     output: p.output
                                     onOpenKey: key => p.openKey(key)
                                 }

@@ -5,7 +5,8 @@ import "../components"
 // Mods page (MODS.md, "The Settings Mods page"; UX brief, settings 5): one entry per mod from the daemon's `mods` document.
 // The state shown is always the daemon's. Load adds a mod's page to Settings and Remove from Settings takes it away again
 // (`mod.load`, `mod.unload`); the switch asks for `mod.enable` / `mod.disable`. A refused request stays visible under its
-// mod until the mod changes state; an invalid mod says what is wrong with its manifest.
+// mod until the mod changes state; an invalid mod says what is wrong with its manifest. The rows are built from the mod ids
+// and read their own entry live, so a state change updates its row in place and the focus on it stays where it is.
 Flickable {
     id: p
     // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with its code) and
@@ -13,6 +14,9 @@ Flickable {
     property var failures: ({})
     readonly property bool loaded: Store.mods.mods !== undefined
     readonly property var entries: loaded ? Store.mods.mods : []
+    // The mod ids in the daemon's order: rebuilt only when a mod is added, removed or moved (refreshIds).
+    property var ids: []
+    property string idsSig: ""
     // Why the loaded list and the enabled list are forced by a layer (nix): their controls are inert, and say so.
     readonly property string forcedLoaded: Store.forcedReason("mods.loaded")
     readonly property string forcedEnabled: Store.forcedReason("mods.enabled")
@@ -50,6 +54,14 @@ Flickable {
         }
         if (dropped) failures = f
     }
+    function refreshIds() {
+        var list = entries.map(function (m) { return m.id })
+        var sig = list.join("\n")
+        if (sig !== idsSig) {
+            idsSig = sig
+            ids = list
+        }
+    }
     // Why an invalid mod cannot run: the catalog text of its reason and the file it concerns. The parser's or the OS's own
     // detail is English and stays out of the page. A path the text already names ("mod.toml is missing") is not repeated.
     function problems(m) {
@@ -58,9 +70,10 @@ Flickable {
             return e.path && text.indexOf(e.path) < 0 ? text + " (" + e.path + ")" : text
         }).join("\n")
     }
+    Component.onCompleted: refreshIds()
     Connections {
         target: Store
-        function onModsChanged() { p.pruneFailures() }
+        function onModsChanged() { p.refreshIds(); p.pruneFailures() }
         function onChangeApplied() { p.failures = ({}) }
     }
     // "v0.1.0 · tier native · cost low": the facts the manifest gives, and no placeholder for the rest.
@@ -122,15 +135,17 @@ Flickable {
         }
 
         Repeater {
-            model: p.entries
+            model: p.ids
             delegate: Column {
                 id: entry
-                required property var modelData
-                readonly property bool invalid: modelData.state === "invalid"
+                // The mod's id; its entry is read live from the `mods` document (Store.modEntry).
+                required property string modelData
+                readonly property var mod: Store.modEntry(entry.modelData) || ({})
+                readonly property bool invalid: entry.mod.state === "invalid"
                 // Loaded: its page is in Settings, on or off. Available: detected only, with a Load.
-                readonly property bool isLoaded: modelData.state === "enabled" || modelData.state === "disabled"
-                readonly property bool available: modelData.state === "available"
-                readonly property string failure: p.failures[modelData.id] ? p.failures[modelData.id].text : ""
+                readonly property bool isLoaded: entry.mod.state === "enabled" || entry.mod.state === "disabled"
+                readonly property bool available: entry.mod.state === "available"
+                readonly property string failure: p.failures[entry.modelData] ? p.failures[entry.modelData].text : ""
                 width: col.width
                 spacing: 4
 
@@ -147,13 +162,13 @@ Flickable {
                             primary: true
                             label: I18n.tr("settings.mods.load")
                             enabled: Store.live && p.forcedLoaded === ""
-                            onClicked: p.load(entry.modelData.id)
+                            onClicked: p.load(entry.modelData)
                         }
                         Button {
                             visible: entry.isLoaded
                             label: I18n.tr("settings.mods.unload")
                             enabled: Store.live && p.forcedLoaded === ""
-                            onClicked: p.unload(entry.modelData.id)
+                            onClicked: p.unload(entry.modelData)
                         }
                         Item {
                             visible: entry.isLoaded
@@ -161,12 +176,12 @@ Flickable {
                             height: Theme.controlH
                             Toggle {
                                 id: tog
-                                objectName: "mod:" + entry.modelData.id
-                                label: I18n.tr(entry.modelData.name)
+                                objectName: "mod:" + entry.modelData
+                                label: I18n.tr(entry.mod.name)
                                 anchors.verticalCenter: parent.verticalCenter
-                                checked: entry.modelData.state === "enabled"
+                                checked: entry.mod.state === "enabled"
                                 enabled: Store.live && p.forcedEnabled === ""
-                                onToggled: v => p.setEnabled(entry.modelData.id, v)
+                                onToggled: v => p.setEnabled(entry.modelData, v)
                             }
                         }
                     }
@@ -183,15 +198,15 @@ Flickable {
                                 font.pixelSize: Theme.fs
                                 font.bold: true
                                 font.family: Theme.fam(text, Theme.families)
-                                text: I18n.tr(entry.modelData.name)
+                                text: I18n.tr(entry.mod.name)
                             }
                             Chip {
-                                text: I18n.tr("settings.ui.mod_state." + entry.modelData.state)
+                                text: I18n.tr("settings.ui.mod_state." + entry.mod.state)
                                 edge: entry.invalid ? Theme.error : Theme.outline
-                                fg: entry.modelData.state === "enabled" ? Theme.fg : Theme.dim
+                                fg: entry.mod.state === "enabled" ? Theme.fg : Theme.dim
                             }
                             Chip {
-                                visible: entry.modelData.shadows_bundled === true
+                                visible: entry.mod.shadows_bundled === true
                                 text: I18n.tr("settings.ui.mod_shadows")
                             }
                         }
@@ -202,14 +217,14 @@ Flickable {
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 1
                             font.family: Theme.fam(text, Theme.families)
-                            text: entry.modelData.description ? I18n.tr(entry.modelData.description) : ""
+                            text: entry.mod.description ? I18n.tr(entry.mod.description) : ""
                         }
                         Text {
                             visible: text !== ""
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: p.facts(entry.modelData)
+                            text: p.facts(entry.mod)
                         }
                         Text {
                             width: parent.width
@@ -217,17 +232,17 @@ Flickable {
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.modelData.capabilities, "settings.ui.cap.")
-                                + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.modelData) || I18n.tr("settings.ui.mod_none"))
+                            text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.mod.capabilities, "settings.ui.cap.")
+                                + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.mod) || I18n.tr("settings.ui.mod_none"))
                         }
                         // "Running now" (K25): one of the mod's services has a subscriber. Not in the sidebar.
                         Text {
                             visible: entry.isLoaded
                             width: parent.width
-                            color: entry.modelData.running ? Theme.fg : Theme.dim
+                            color: entry.mod.running ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr(entry.modelData.running ? "settings.mods.running_yes" : "settings.mods.running_no")
+                            text: I18n.tr(entry.mod.running ? "settings.mods.running_yes" : "settings.mods.running_no")
                         }
                     }
                 }
@@ -238,7 +253,7 @@ Flickable {
                     color: Theme.error
                     font.pixelSize: Theme.fs - 2
                     font.family: Theme.fam(text, Theme.families)
-                    text: "✕ " + p.problems(entry.modelData)
+                    text: "✕ " + p.problems(entry.mod)
                 }
                 Text {
                     visible: entry.failure !== ""

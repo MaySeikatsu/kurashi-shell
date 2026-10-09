@@ -29,6 +29,8 @@ Rectangle {
     }
     function clear() { input.text = "" }
     function restore() { input.text = f.value }
+    // The typed text goes out as `accepted` when it differs from the daemon's value (a refused one is sent again).
+    function commit(t) { if (t !== f.value) f.accepted(t) }
 
     implicitWidth: 220
     implicitHeight: Theme.controlH
@@ -69,11 +71,13 @@ Rectangle {
         font.family: f.mono ? "monospace" : Theme.fam(text, Theme.families)
         text: f.value
         onTextEdited: f.typing(text)
-        onAccepted: f.submitted(text)
+        // Enter submits and commits the typed text; leaving the field commits it too (TextInput.editingFinished is not
+        // relied on: it did not follow Enter in the sandbox, so a typed value was never sent).
+        onAccepted: { f.submitted(text); f.commit(text) }
+        onActiveFocusChanged: if (!activeFocus) f.commit(text)
         Keys.onEscapePressed: event => { f.restore(); f.escaped(); event.accepted = true }
         Accessible.role: Accessible.EditableText
         Accessible.name: f.label !== "" ? f.label : f.placeholder
-        onEditingFinished: { if (text !== f.value) f.accepted(text) }
         Text {
             visible: input.text === "" && !input.activeFocus
             color: Theme.dim

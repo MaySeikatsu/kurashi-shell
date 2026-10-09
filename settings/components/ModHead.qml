@@ -31,18 +31,17 @@ Column {
         function onChangeApplied() { h.failure = "" }
     }
 
-    // --- the switch first, with its state in words (not colour alone) -------------------------------
+    // --- the switch first, with its state in words (not colour alone): the name, then the switch beside it -------------
     Item {
         width: parent.width
-        height: Math.max(title.implicitHeight, sw.height)
+        height: Math.max(title.implicitHeight, switchRow.height)
         Text {
             id: title
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: switchRow.left
-            anchors.rightMargin: Theme.pad
-            color: Theme.fg
+            width: Math.min(implicitWidth, parent.width - switchRow.width - Theme.pad * 2)
             elide: Text.ElideRight
+            color: Theme.fg
             font.pixelSize: Theme.fsTitle
             font.bold: true
             font.family: Theme.fam(text, Theme.families)
@@ -50,17 +49,10 @@ Column {
         }
         Row {
             id: switchRow
-            anchors.right: parent.right
+            anchors.left: title.right
+            anchors.leftMargin: Theme.pad * 2
             anchors.verticalCenter: parent.verticalCenter
             spacing: Theme.gap
-            Text {
-                height: Theme.controlH
-                verticalAlignment: Text.AlignVCenter
-                color: Theme.dim
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
-                text: Store.modOn(h.modId) ? I18n.tr("settings.ui.on") : I18n.tr("settings.ui.off")
-            }
             Toggle {
                 id: sw
                 objectName: "modpage:" + h.modId
@@ -68,6 +60,14 @@ Column {
                 checked: Store.modOn(h.modId)
                 enabled: Store.live && h.forced === "" && h.entry !== null && !h.invalid
                 onToggled: v => h.setOn(v)
+            }
+            Text {
+                height: Theme.controlH
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.dim
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: Store.modOn(h.modId) ? I18n.tr("settings.ui.on") : I18n.tr("settings.ui.off")
             }
         }
     }
