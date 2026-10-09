@@ -43,6 +43,50 @@ pub fn is_image(path: &Path) -> bool {
         .is_some_and(|e| EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
 }
 
+/// The light or dark half of a pair (`wall-light.png` with `wall-dark.png`, `_` too): the picker's
+/// badge. A pair is named by the picture, not by its colours, so the mod never guesses.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Variant {
+    Light,
+    Dark,
+}
+
+impl Variant {
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+        }
+    }
+
+    pub fn other(self) -> Self {
+        match self {
+            Self::Light => Self::Dark,
+            Self::Dark => Self::Light,
+        }
+    }
+}
+
+/// The folder, the base name and the variant a picture's name declares: `x-dark.png` is
+/// (its folder, "x", Dark). Only a trailing `-light`, `-dark`, `_light` or `_dark` counts.
+pub fn variant_key(path: &Path) -> Option<(PathBuf, String, Variant)> {
+    let stem = path.file_stem()?.to_str()?;
+    let lower = stem.to_ascii_lowercase();
+    for (marker, variant) in [
+        ("-light", Variant::Light),
+        ("_light", Variant::Light),
+        ("-dark", Variant::Dark),
+        ("_dark", Variant::Dark),
+    ] {
+        if lower.len() > marker.len() && lower.ends_with(marker) {
+            // The marker is ASCII, so the cut falls on a character boundary of the original stem.
+            let base = stem[..stem.len() - marker.len()].to_ascii_lowercase();
+            return Some((path.parent()?.to_path_buf(), base, variant));
+        }
+    }
+    None
+}
+
 /// Lists every image under `roots`. A root that is not a directory is reported, not skipped
 /// silently (Shōjiki); an empty one is reported as empty.
 pub fn scan(roots: &[PathBuf]) -> Scan {
@@ -159,5 +203,25 @@ mod tests {
         assert!(is_image(Path::new("/x/a.JPEG")));
         assert!(!is_image(Path::new("/x/a.svg")));
         assert!(!is_image(Path::new("/x/readme")));
+    }
+
+    #[test]
+    fn a_light_or_dark_name_declares_a_variant_of_its_base() {
+        let key = |p: &str| variant_key(Path::new(p));
+        assert_eq!(
+            key("/p/Wall-Dark.png"),
+            Some((PathBuf::from("/p"), "wall".into(), Variant::Dark))
+        );
+        assert_eq!(
+            key("/p/legion_logo_light.PNG"),
+            Some((PathBuf::from("/p"), "legion_logo".into(), Variant::Light))
+        );
+        assert_eq!(key("/p/dark.png"), None, "no base name, no pair");
+        assert_eq!(
+            key("/p/dark-mode.png"),
+            None,
+            "only a trailing marker counts"
+        );
+        assert_eq!(Variant::Dark.other(), Variant::Light);
     }
 }

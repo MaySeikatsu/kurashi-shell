@@ -74,14 +74,23 @@ impl BackendId {
         if self == Self::Awww && opts.fit == "crop" {
             args.extend(["--crop-gravity".into(), opts.crop_anchor.to_string()]);
         }
+        // A picker tile starts its transition: `grow` from the tile, in output-local pixels. Nothing
+        // is grown when the transition is off.
+        let (transition, pos) = match opts.origin {
+            Some((x, y)) if opts.transition != "none" => ("grow", Some(format!("{x},{y}"))),
+            _ => (opts.transition, None),
+        };
         args.extend([
             "--transition-type".into(),
-            opts.transition.to_string(),
+            transition.to_string(),
             "--transition-duration".into(),
             format!("{:.2}", opts.duration),
             "--transition-angle".into(),
             opts.angle.to_string(),
         ]);
+        if let Some(pos) = pos {
+            args.extend(["--transition-pos".into(), pos]);
+        }
         args
     }
 
@@ -103,6 +112,8 @@ pub struct ImgOpts<'a> {
     pub transition: &'a str,
     pub duration: f64,
     pub angle: i64,
+    /// Where the transition starts, output-local px (the picker tile a request came from).
+    pub origin: Option<(i64, i64)>,
 }
 
 /// An output the backend drives, as its query reports it.
@@ -207,7 +218,25 @@ mod tests {
             transition: "fade",
             duration: 1.0,
             angle: 45,
+            origin: None,
         }
+    }
+
+    #[test]
+    fn a_picker_tile_grows_the_transition_from_its_position() {
+        let mut o = opts(&[]);
+        o.origin = Some((812, 430));
+        let args = BackendId::Awww.img_args("/p/a.png", &o);
+        assert!(args.windows(2).any(|w| w == ["--transition-type", "grow"]));
+        assert!(
+            args.windows(2)
+                .any(|w| w == ["--transition-pos", "812,430"])
+        );
+        // Off stays off: no growing from a tile when the transition is none.
+        o.transition = "none";
+        let args = BackendId::Awww.img_args("/p/a.png", &o);
+        assert!(args.windows(2).any(|w| w == ["--transition-type", "none"]));
+        assert!(!args.iter().any(|a| a == "--transition-pos"));
     }
 
     #[test]

@@ -17,15 +17,17 @@ pub struct OutputState {
     pub path: String,
 }
 
-/// A favourite: an image and the look it was saved with. `scheme` and `palette` are what the
-/// picker passed (the theme part is not applied yet; the look is stored as the user saw it).
+/// A favourite look (★): the image, and the theme it was saved with. `scheme` is `dark` or `light`
+/// and `variant` the palette the look uses (`wallpaper`, the image's own colours, or a bundled
+/// palette name); the picker applies both with the image. The mod stores them as the user saw them.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Favourite {
-    pub path: String,
+    #[serde(alias = "path")]
+    pub image: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scheme: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub palette: Option<String>,
+    #[serde(default, alias = "palette", skip_serializing_if = "Option::is_none")]
+    pub variant: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -43,6 +45,11 @@ pub struct Persisted {
     /// Rotation paused by the user (`wallpaper.rotation.pause`); the interval stays in Settings.
     #[serde(default)]
     pub paused: bool,
+    /// The picture the theme follows (`wallpaper.set` with `theme: true`): the shell's palette is
+    /// extracted from it when the theme source is `wallpaper`. Kept apart from the outputs, so a
+    /// "wallpaper only" change leaves the theme where it was.
+    #[serde(default)]
+    pub theme_image: Option<String>,
 }
 
 /// What loading found: the state, and whether a broken file was set aside.
@@ -124,20 +131,38 @@ mod tests {
             },
         );
         state.favourites.push(Favourite {
-            path: "/w/b.png".into(),
+            image: "/w/b.png".into(),
             scheme: Some("dark".into()),
-            palette: None,
+            variant: Some("wallpaper".into()),
         });
+        state.theme_image = Some("/w/a.png".into());
         save(&path, &state).unwrap();
         let loaded = load(&path);
         assert!(!loaded.set_aside);
         assert_eq!(loaded.state.all, state.all);
         assert_eq!(loaded.state.outputs, state.outputs);
         assert_eq!(loaded.state.favourites, state.favourites);
+        assert_eq!(loaded.state.theme_image, state.theme_image);
         assert!(loaded.state.paused);
         assert!(
             !dir.join("wallpaper.json.tmp").exists(),
             "the rename consumed the temp file"
+        );
+    }
+
+    #[test]
+    fn a_favourite_saved_with_the_old_field_names_still_loads() {
+        // The first picker wrote `path` and `palette`; the look keeps its picture and palette.
+        let old: Persisted =
+            serde_json::from_str(r#"{"favourites":[{"path":"/w/x.png","palette":"kanso"}]}"#)
+                .unwrap();
+        assert_eq!(
+            old.favourites,
+            [Favourite {
+                image: "/w/x.png".into(),
+                scheme: None,
+                variant: Some("kanso".into()),
+            }]
         );
     }
 

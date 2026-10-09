@@ -40,10 +40,13 @@ pub type Reply = oneshot::Sender<Result<Option<Value>, ActionError>>;
 
 /// What the actions ask of the supervisor.
 pub enum Cmd {
-    /// Show `path` on `outputs` (empty = every output).
+    /// Show `path` on `outputs` (empty = every output). `origin` is the picker tile the request came
+    /// from (its transition grows from there); `theme` makes the theme follow the picture.
     Set {
         path: PathBuf,
         outputs: Vec<String>,
+        origin: Option<(i64, i64)>,
+        theme: bool,
         reply: Reply,
     },
     /// The image before or after the current one, or a random one.
@@ -53,11 +56,11 @@ pub enum Cmd {
         output: Option<String>,
         reply: Reply,
     },
-    /// Toggles a favourite look; `scheme` and `palette` are stored as given.
+    /// Toggles a favourite look; `scheme` and `variant` are stored as given.
     Favourite {
         path: PathBuf,
         scheme: Option<String>,
-        palette: Option<String>,
+        variant: Option<String>,
         reply: Reply,
     },
     /// `on = None` toggles the pause.
@@ -284,6 +287,7 @@ impl Supervisor {
         path: &str,
         outputs: &[String],
         transition: &str,
+        origin: Option<(i64, i64)>,
     ) -> Result<(), String> {
         let Some(id) = BackendId::parse(&self.cfg.backend) else {
             return Err("mod-wallpaper.backend.unknown".into());
@@ -296,6 +300,7 @@ impl Supervisor {
                 transition,
                 duration: self.cfg.duration,
                 angle: self.cfg.angle,
+                origin,
             };
             id.img_args(path, &opts)
         };
@@ -318,7 +323,7 @@ impl Supervisor {
             .filter(|(_, p)| Path::new(p).is_file())
             .collect();
         for (name, path) in plan {
-            if let Err(e) = self.apply(&path, &[name], "none").await {
+            if let Err(e) = self.apply(&path, &[name], "none", None).await {
                 self.error = Some(("mod-wallpaper.error.apply".into(), Some(e)));
             }
         }
@@ -352,9 +357,11 @@ impl Supervisor {
             Cmd::Set {
                 path,
                 outputs,
+                origin,
+                theme,
                 reply,
             } => {
-                let r = self.set_request(path, outputs).await;
+                let r = self.set_request(path, outputs, origin, theme).await;
                 let _ = reply.send(r);
             }
             Cmd::Step {
@@ -369,10 +376,10 @@ impl Supervisor {
             Cmd::Favourite {
                 path,
                 scheme,
-                palette,
+                variant,
                 reply,
             } => {
-                let r = self.favourite(&path, scheme, palette);
+                let r = self.favourite(&path, scheme, variant);
                 let _ = reply.send(r);
             }
             Cmd::Pause { on, reply } => {
@@ -398,6 +405,8 @@ impl Supervisor {
         &mut self,
         path: PathBuf,
         outputs: Vec<String>,
+        origin: Option<(i64, i64)>,
+        theme: bool,
     ) -> Result<Option<Value>, ActionError> {
         if !library::is_image(&path) || !path.is_file() {
             return Err(ActionError::Invalid("mod-wallpaper.error.not_image".into()));
@@ -405,14 +414,16 @@ impl Supervisor {
         let path = path.display().to_string();
         self.ready().await?;
         let targets = self.targets(&outputs)?;
-        self.set_on(
-            &path,
-            &targets,
-            outputs.is_empty(),
-            &self.cfg.transition.clone(),
-        )
-        .await
-        .map(Some)
+        let transition = self.cfg.transition.clone();
+        let done = self
+            .set_on(&path, &targets, outputs.is_empty(), &transition, origin)
+            .await?;
+        if theme {
+            // The theme follows this picture from now on; the outputs' own images are not changed by it.
+            self.state.theme_image = Some(path);
+            self.save();
+        }
+        Ok(Some(done))
     }
 
     /// The outputs a request names, all of them when it names none; unknown names are refused.
@@ -443,10 +454,11 @@ impl Supervisor {
         targets: &[String],
         all: bool,
         transition: &str,
+        origin: Option<(i64, i64)>,
     ) -> Result<Value, ActionError> {
         // The backend is given the names when the request named some, and no names for all.
         let names: &[String] = if all { &[] } else { targets };
-        if let Err(detail) = self.apply(path, names, transition).await {
+        if let Err(detail) = self.apply(path, names, transition, origin).await {
             self.error = Some(("mod-wallpaper.error.apply".into(), Some(detail.clone())));
             return Err(ActionError::Unavailable("mod-wallpaper.error.apply".into()));
         }
@@ -524,6 +536,7 @@ impl Supervisor {
             &targets,
             names.is_empty(),
             &self.cfg.transition.clone(),
+            None,
         )
         .await
         .map(Some)
@@ -533,10 +546,10 @@ impl Supervisor {
         &mut self,
         path: &Path,
         scheme: Option<String>,
-        palette: Option<String>,
+        variant: Option<String>,
     ) -> Result<Option<Value>, ActionError> {
         let key = path.display().to_string();
-        if let Some(i) = self.state.favourites.iter().position(|f| f.path == key) {
+        if let Some(i) = self.state.favourites.iter().position(|f| f.image == key) {
             self.state.favourites.remove(i);
             self.save();
             return Ok(Some(json!({"favourite": false})));
@@ -547,14 +560,14 @@ impl Supervisor {
         if scheme
             .as_deref()
             .is_some_and(|s| s != "dark" && s != "light")
-            || palette.as_deref().is_some_and(|p| !is_slug(p))
+            || variant.as_deref().is_some_and(|v| !is_slug(v))
         {
             return Err(ActionError::Invalid("mod-wallpaper.error.look".into()));
         }
         self.state.favourites.push(Favourite {
-            path: key,
+            image: key,
             scheme,
-            palette,
+            variant,
         });
         self.save();
         Ok(Some(json!({"favourite": true})))
@@ -632,7 +645,7 @@ impl Supervisor {
             .filter(|(_, p)| Path::new(p).is_file())
             .collect();
         for (name, path) in plan {
-            if let Err(e) = self.apply(&path, &[name], "none").await {
+            if let Err(e) = self.apply(&path, &[name], "none", None).await {
                 self.error = Some(("mod-wallpaper.error.apply".into(), Some(e)));
             }
         }
@@ -709,7 +722,7 @@ impl Supervisor {
                     let path = next.display().to_string();
                     let transition = self.cfg.transition.clone();
                     if let Err(e) = self
-                        .set_on(&path, &targets, names.is_empty(), &transition)
+                        .set_on(&path, &targets, names.is_empty(), &transition, None)
                         .await
                     {
                         self.error =
@@ -784,6 +797,8 @@ impl Supervisor {
                 "next_at": self.next_at_ms(),
             },
             "favourites": self.state.favourites,
+            // The picture the theme follows (null: none). The shell's theme source `wallpaper` reads it.
+            "theme": {"image": self.state.theme_image},
         });
         if let Some((key, detail)) = &self.error {
             doc["error"] = json!({"key": key, "detail": detail});

@@ -20,6 +20,7 @@ mod browse;
 mod config;
 mod exec;
 mod library;
+mod preview;
 mod rotate;
 mod state;
 mod supervisor;
@@ -190,14 +191,25 @@ fn register_actions(ctx: &mut ModCtx, shared: &Arc<Shared>) -> Result<(), ModErr
                 return Err(ActionError::Invalid("mod-wallpaper.error.path".into()));
             }
             let outputs = target_outputs(&args);
+            let origin = origin_of(&args);
+            let theme = args["theme"].as_bool().unwrap_or(false);
             ask(&s, |reply| Cmd::Set {
                 path,
                 outputs,
+                origin,
+                theme,
                 reply,
             })
             .await
         }
     })?;
+
+    // A dry run: no state, so it needs no supervisor (docs/ux/wallpaper.md, the theme diff).
+    ctx.action(
+        "wallpaper.preview",
+        "action.wallpaper.preview",
+        |args| async move { preview::run(args).await },
+    )?;
 
     for (id, label, forward, random) in [
         ("wallpaper.next", "action.wallpaper.next", true, false),
@@ -227,17 +239,23 @@ fn register_actions(ctx: &mut ModCtx, shared: &Arc<Shared>) -> Result<(), ModErr
         move |args| {
             let s = s.clone();
             async move {
-                let path = args["path"]
+                // `image` is the look's picture (`path` is accepted too); `variant` the palette
+                // it uses (`palette` too).
+                let path = args["image"]
                     .as_str()
+                    .or_else(|| args["path"].as_str())
                     .filter(|p| !p.is_empty())
                     .map(expand)
                     .ok_or_else(|| ActionError::Invalid("mod-wallpaper.error.path".into()))?;
                 let scheme = args["scheme"].as_str().map(str::to_string);
-                let palette = args["palette"].as_str().map(str::to_string);
+                let variant = args["variant"]
+                    .as_str()
+                    .or_else(|| args["palette"].as_str())
+                    .map(str::to_string);
                 ask(&s, |reply| Cmd::Favourite {
                     path,
                     scheme,
-                    palette,
+                    variant,
                     reply,
                 })
                 .await
@@ -300,6 +318,14 @@ async fn ask(
     answer.await.unwrap_or_else(|_| Err(off()))
 }
 
+/// `origin: {x, y}` of an action's arguments: the picker tile a request came from, in output-local
+/// pixels. Negative coordinates are clamped: a tile cannot sit left of or above its output.
+fn origin_of(args: &Value) -> Option<(i64, i64)> {
+    let x = args["origin"]["x"].as_i64()?;
+    let y = args["origin"]["y"].as_i64()?;
+    Some((x.max(0), y.max(0)))
+}
+
 /// `output` (one name) or `outputs` (a list) of an action's arguments; none = every output.
 fn target_outputs(args: &Value) -> Vec<String> {
     if let Some(name) = args["output"].as_str().filter(|n| !n.is_empty()) {
@@ -342,6 +368,7 @@ fn initial_doc(cfg: &Config, installed: bool) -> Value {
             "next_at": null,
         },
         "favourites": [],
+        "theme": {"image": null},
     })
 }
 

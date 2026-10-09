@@ -3,22 +3,27 @@
 //! computed once per key, in the daemon (material-colors, via kurashi-theme), and kept beside the
 //! thumbnail. Blocking work: callers run [`ensure`] on the blocking pool.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::UNIX_EPOCH;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use material_colors::color::Argb;
 use material_colors::quantize::{Quantizer, QuantizerCelebi};
 use serde_json::json;
 
+use kurashi_theme::input::Wallpaper;
+use kurashi_theme::stages::{extract, is_monochrome};
+
 /// Longest side of a thumbnail (the picker decodes at this size).
 pub const THUMB_PX: u32 = 256;
 /// Palette chips a picture gets: the seed colour and three roles of its dark scheme.
 pub const CHIPS: usize = 4;
-/// Mean HSL saturation below which an image counts as monochrome (no usable seed colour).
-const MONO_SATURATION: f64 = 0.08;
+/// The thumbnail cache's size cap: thumbnails are ~10–20 KiB, so this keeps a few thousand pictures.
+/// Past it the least recently used go (`trim`), not the whole cache.
+pub const CACHE_CAP: u64 = 64 * 1024 * 1024;
 
 pub const UNREADABLE: &str = "mod-wallpaper.image.unreadable";
 
@@ -93,11 +98,68 @@ fn read_side(file: &Path, side: &Path) -> Option<Thumb> {
         .iter()
         .filter_map(|c| c.as_str().map(str::to_string))
         .collect();
+    touch(file);
     Some(Thumb {
         file: file.to_path_buf(),
         palette,
         mono: v["mono"].as_bool().unwrap_or(false),
     })
+}
+
+/// Marks a cached thumbnail as used now, so [`trim`] keeps what the picker shows.
+fn touch(file: &Path) {
+    if let Ok(f) = fs::File::options().write(true).open(file) {
+        let _ = f.set_modified(SystemTime::now());
+    }
+}
+
+/// Keeps the cache under `cap` bytes: the least recently used thumbnails go first (their jpg and
+/// palette json together). Returns how many were removed; a missing cache is nothing to trim.
+pub fn trim(cache: &Path, cap: u64) -> io::Result<usize> {
+    let read = match fs::read_dir(cache) {
+        Ok(read) => read,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(e),
+    };
+    // One group per thumbnail key: its files' sizes and the newest of their mtimes.
+    let mut groups: BTreeMap<String, (u64, SystemTime, Vec<PathBuf>)> = BTreeMap::new();
+    for item in read.flatten() {
+        let path = item.path();
+        let (Some(key), Ok(meta)) = (
+            path.file_stem()
+                .and_then(|s| s.to_str())
+                .map(str::to_string),
+            item.metadata(),
+        ) else {
+            continue;
+        };
+        if !meta.is_file() {
+            continue;
+        }
+        let mtime = meta.modified().unwrap_or(UNIX_EPOCH);
+        let group = groups.entry(key).or_insert((0, UNIX_EPOCH, Vec::new()));
+        group.0 += meta.len();
+        group.1 = group.1.max(mtime);
+        group.2.push(path);
+    }
+    let mut total: u64 = groups.values().map(|g| g.0).sum();
+    if total <= cap {
+        return Ok(0);
+    }
+    let mut oldest_first: Vec<(u64, SystemTime, Vec<PathBuf>)> = groups.into_values().collect();
+    oldest_first.sort_by_key(|g| g.1);
+    let mut removed = 0;
+    for (size, _, files) in oldest_first {
+        if total <= cap {
+            break;
+        }
+        for file in files {
+            let _ = fs::remove_file(file);
+        }
+        total = total.saturating_sub(size);
+        removed += 1;
+    }
+    Ok(removed)
 }
 
 /// Writes through a temporary file, then renames it over `dest`, so a reader never sees half a file.
@@ -115,27 +177,30 @@ fn write_atomic(dest: &Path, write: impl FnOnce(&Path) -> io::Result<()>) -> io:
     fs::rename(&tmp, dest)
 }
 
-/// Chips and monochrome flag of an RGBA buffer (kurashi-theme's pipeline for colour pictures).
+/// Chips and monochrome flag of an RGBA buffer. Colour pictures use kurashi-theme's extraction (the
+/// same one the `wallpaper` theme source uses, so a chip is a colour the theme would take); a
+/// monochrome picture has no seed, and its chips are its dominant greys.
 pub fn palette_of(width: u32, height: u32, rgba: &[u8]) -> (Vec<String>, bool) {
-    let mono = mean_saturation(rgba) < MONO_SATURATION;
-    let w = kurashi_theme::input::Wallpaper {
+    let w = Wallpaper {
         width,
         height,
         rgba: rgba.to_vec(),
     };
-    if !mono {
-        if let Ok((set, seed)) = kurashi_theme::stages::from_wallpaper(&w) {
-            let dark = set.dark.unwrap_or_default();
-            let mut chips = vec![hex(seed.0, seed.1, seed.2)];
-            for role in ["accent", "secondary", "tertiary"] {
-                if let Some(c) = dark.get(role) {
-                    chips.push(hex(c.0, c.1, c.2));
+    match extract(&w) {
+        Ok(e) if !e.mono => {
+            let mut chips: Vec<String> = e.seed.map(|c| c.hex()).into_iter().collect();
+            if let Some(dark) = e.set.dark.as_ref() {
+                for role in ["accent", "secondary", "tertiary"] {
+                    if let Some(c) = dark.get(role) {
+                        chips.push(c.hex());
+                    }
                 }
             }
-            return (chips, false);
+            (chips, false)
         }
+        Ok(_) => (dominant(rgba), true),
+        Err(_) => (dominant(rgba), is_monochrome(rgba)),
     }
-    (dominant(rgba), mono)
 }
 
 /// The most common opaque colours, most common first, ties broken by value (stable output).
@@ -157,29 +222,6 @@ fn dominant(rgba: &[u8]) -> Vec<String> {
         .collect();
     counts.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
     counts.into_iter().take(CHIPS).map(|(h, _)| h).collect()
-}
-
-/// Mean HSL saturation of the opaque pixels that are neither near black nor near white.
-fn mean_saturation(rgba: &[u8]) -> f64 {
-    let (mut sum, mut n) = (0.0_f64, 0_u64);
-    for p in rgba.chunks_exact(4).filter(|p| p[3] >= 128) {
-        let r = f64::from(p[0]) / 255.0;
-        let g = f64::from(p[1]) / 255.0;
-        let b = f64::from(p[2]) / 255.0;
-        let (mx, mn) = (r.max(g).max(b), r.min(g).min(b));
-        let l = (mx + mn) / 2.0;
-        if !(0.08..=0.92).contains(&l) {
-            continue;
-        }
-        let d = mx - mn;
-        sum += if d == 0.0 {
-            0.0
-        } else {
-            d / (1.0 - (2.0 * l - 1.0).abs())
-        };
-        n += 1;
-    }
-    if n == 0 { 0.0 } else { sum / n as f64 }
 }
 
 fn hex(r: u8, g: u8, b: u8) -> String {
@@ -308,6 +350,63 @@ mod tests {
             2,
             "one thumbnail and its palette, no temporary files: {left:?}"
         );
+    }
+
+    #[test]
+    fn the_cache_is_trimmed_to_its_cap_least_recently_used_first() {
+        let dir = scratch("trim");
+        let cache = dir.join("cache");
+        fs::create_dir_all(&cache).unwrap();
+        // Three thumbnails of 200 bytes each (jpg and json), oldest first.
+        let base = SystemTime::now() - std::time::Duration::from_secs(3600);
+        for (i, key) in ["old", "mid", "new"].into_iter().enumerate() {
+            let at = base + std::time::Duration::from_secs(60 * i as u64);
+            for file in [format!("{key}.jpg"), format!("{key}.json")] {
+                let path = cache.join(file);
+                fs::write(&path, vec![0u8; 100]).unwrap();
+                fs::File::options()
+                    .write(true)
+                    .open(&path)
+                    .unwrap()
+                    .set_modified(at)
+                    .unwrap();
+            }
+        }
+        // 600 bytes against a cap of 250: the oldest goes, then the next; the newest stays.
+        assert_eq!(trim(&cache, 250).unwrap(), 2);
+        assert!(!cache.join("old.jpg").exists() && !cache.join("old.json").exists());
+        assert!(!cache.join("mid.jpg").exists() && !cache.join("mid.json").exists());
+        assert!(cache.join("new.jpg").exists() && cache.join("new.json").exists());
+        assert_eq!(trim(&cache, 250).unwrap(), 0, "already under the cap");
+        assert_eq!(
+            trim(&dir.join("never-made"), 1).unwrap(),
+            0,
+            "a missing cache is nothing to trim"
+        );
+    }
+
+    #[test]
+    fn a_thumbnail_that_is_used_again_outlives_one_that_was_not() {
+        let dir = scratch("lru");
+        let cache = dir.join("cache");
+        let a = dir.join("a.png");
+        let b = dir.join("b.png");
+        write_png(&a, 64, 64, |_, _| [200, 30, 30]);
+        write_png(&b, 64, 64, |_, _| [30, 200, 30]);
+        let ta = ensure(&cache, &a).unwrap();
+        // Distinct mtimes, so the order is the order of use.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        let tb = ensure(&cache, &b).unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        // A hit on `a` makes it the most recently used.
+        assert_eq!(ensure(&cache, &a).unwrap(), ta);
+        let total: u64 = fs::read_dir(&cache)
+            .unwrap()
+            .map(|e| e.unwrap().metadata().unwrap().len())
+            .sum();
+        assert_eq!(trim(&cache, total - 1).unwrap(), 1, "one group goes");
+        assert!(ta.file.is_file(), "the used one stays");
+        assert!(!tb.file.exists(), "the one not used since goes");
     }
 
     #[test]
