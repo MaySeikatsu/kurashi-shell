@@ -719,6 +719,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-audio"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "kurashi-services",
+ "libpulse-binding",
+ "serde_json",
+ "tracing",
+]
+
+[[package]]
 name = "kurashi-auth"
 version = "0.0.1"
 dependencies = [
@@ -729,17 +740,6 @@ dependencies = [
  "tokio",
  "tracing",
  "zeroize",
-]
-
-[[package]]
-name = "kurashi-audio"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "kurashi-services",
- "libpulse-binding",
- "serde_json",
- "tracing",
 ]
 
 [[package]]
@@ -906,6 +906,8 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
+ "kurashi-audio",
+ "kurashi-auth",
  "kurashi-compositor",
  "kurashi-config",
  "kurashi-core",
@@ -954,7 +956,7 @@ version = "2.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "909eb3049e16e373680fe65afe6e2a722ace06b671250cc4849557bc57d6a397"
 dependencies = [
- "bitflags",
+ "bitflags 2.13.2",
  "libc",
  "libpulse-sys",
  "num-derive",
