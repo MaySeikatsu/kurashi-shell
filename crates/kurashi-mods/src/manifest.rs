@@ -238,6 +238,10 @@ struct RawSetting {
     help: Option<String>,
 }
 
+/// Ids a mod may not take: `mods.loaded` and `mods.enabled` are config keys (K25), and a mod
+/// with one of these ids would need a `[mods.<id>]` table next to them.
+pub const RESERVED_IDS: &[&str] = &["loaded", "enabled"];
+
 fn ident_ok(s: &str) -> bool {
     s.chars().next().is_some_and(|c| c.is_ascii_lowercase())
         && s.chars()
@@ -289,6 +293,9 @@ pub fn parse(
             "id",
             &format!("{} != {dir_name}", raw.id),
         );
+    } else if RESERVED_IDS.contains(&raw.id.as_str()) {
+        // `mods.<id>` is a config table; these ids are the mods lists' own keys (K25).
+        err("id_reserved", "id", &raw.id);
     }
     if raw.name.trim().is_empty() {
         err("name_empty", "name", "");
