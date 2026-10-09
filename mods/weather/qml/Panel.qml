@@ -1,6 +1,6 @@
 import QtQuick
-import "../../../frontend/core"
-import "../../../frontend/components"
+import qs.core
+import qs.components
 import "Weather.js" as W
 
 // Panel of the weather mod (docs/ux/weather.md, Design), a Stage card about 400 px wide: header (place,
@@ -10,6 +10,10 @@ import "Weather.js" as W
 // geocoder in the UI language, previews a result and saves it; the saved list marks the default.
 // Every value is the daemon's; this file only maps and lays out.
 Rectangle {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: p
 
     // Visible = open: the document is subscribed only while the panel can be seen (Ma).

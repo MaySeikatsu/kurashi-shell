@@ -1,6 +1,6 @@
 import QtQuick
-import "../../../frontend/core"
-import "../../../frontend/components"
+import qs.core
+import qs.components
 import "Weather.js" as W
 
 // Bar widget of the weather mod (docs/ux/weather.md, Design): the glyph and temperature in the
@@ -9,6 +9,10 @@ import "Weather.js" as W
 // 0 degrees (Shōjiki). Click opens the panel; middle click asks for a refresh (the daemon allows one
 // a minute); scroll moves to the next saved place. Visible = subscribed (Ma): hidden, it holds nothing.
 Item {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: w
 
     property bool live: visible
