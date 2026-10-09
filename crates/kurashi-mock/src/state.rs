@@ -93,7 +93,7 @@ impl State {
             ),
             (
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": ""}),
             ),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
@@ -204,6 +204,21 @@ impl State {
             "island.expand" | "probe.popup.toggle" => self.toggle_panel("island"),
             "notifications.center" => self.toggle_panel("notifications"),
             "session.menu" => self.toggle_panel("session"),
+            // K23, as kurashid: the same item closes its menu, another item switches to its menu.
+            "tray.menu.open" => {
+                let id = args["id"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| Fail::invalid("tray.menu.open needs id"))?;
+                let ui = self.data("runtime.ui");
+                let open = ui["panel"] == "tray" && ui["tray"] == id;
+                let (panel, tray) = if open { ("", "") } else { ("tray", id) };
+                self.patch(
+                    "runtime.ui",
+                    json!({"panel": panel, "popup": !open, "tray": tray}),
+                    None,
+                );
+            }
             "launcher.toggle" => {
                 let open = self.data("runtime.ui")["launcher"]
                     .as_bool()
@@ -212,7 +227,7 @@ impl State {
             }
             "ui.close" => self.patch(
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": ""}),
                 None,
             ),
             "audio.mute.toggle" => {
@@ -301,7 +316,11 @@ impl State {
     fn toggle_panel(&mut self, name: &str) {
         let open = self.data("runtime.ui")["panel"] == name;
         let panel = if open { "" } else { name };
-        self.patch("runtime.ui", json!({"panel": panel, "popup": !open}), None);
+        self.patch(
+            "runtime.ui",
+            json!({"panel": panel, "popup": !open, "tray": ""}),
+            None,
+        );
     }
 
     /// `brightness.up/down {step?}`: `step` is a fraction of full scale, clamped to the device.
@@ -494,24 +513,24 @@ mod tests {
         let mut st = state();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
         );
         st.act("island.expand", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "island", "launcher": false})
+            &json!({"popup": true, "panel": "island", "launcher": false, "tray": ""})
         );
         // A second panel switches; it does not stack.
         st.act("notifications.center", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "notifications", "launcher": false})
+            &json!({"popup": true, "panel": "notifications", "launcher": false, "tray": ""})
         );
         // The open panel's own toggle closes it.
         st.act("notifications.center", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
         );
         // The probe alias is the island panel; the session menu is its own panel.
         st.act("probe.popup.toggle", &none()).unwrap();
@@ -519,6 +538,21 @@ mod tests {
         st.act("session.menu", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["panel"], "session");
         assert_eq!(st.data("runtime.ui")["popup"], true);
+        // K23: the tray panel carries its item; other panels clear it.
+        st.act("tray.menu.open", &json!({"id": "a"})).unwrap();
+        assert_eq!(
+            st.data("runtime.ui"),
+            &json!({"popup": true, "panel": "tray", "launcher": false, "tray": "a"})
+        );
+        st.act("tray.menu.open", &json!({"id": "b"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["tray"], "b");
+        st.act("tray.menu.open", &json!({"id": "b"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+        assert_eq!(st.data("runtime.ui")["tray"], "");
+        st.act("tray.menu.open", &json!({"id": "a"})).unwrap();
+        st.act("session.menu", &none()).unwrap();
+        assert_eq!(st.data("runtime.ui")["tray"], "");
+        assert!(st.act("tray.menu.open", &json!({"id": ""})).is_err());
     }
 
     #[test]
@@ -528,7 +562,7 @@ mod tests {
         st.act("launcher.toggle", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "island", "launcher": true})
+            &json!({"popup": true, "panel": "island", "launcher": true, "tray": ""})
         );
         st.act("launcher.toggle", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["launcher"], false);
@@ -536,7 +570,7 @@ mod tests {
         st.act("ui.close", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
         );
     }
 

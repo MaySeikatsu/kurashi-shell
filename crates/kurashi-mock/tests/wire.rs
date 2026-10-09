@@ -121,7 +121,7 @@ fn parity_set_over_the_wire() {
     assert_eq!(ui["t"], "snap");
     assert_eq!(
         ui["data"],
-        json!({"popup": false, "panel": "", "launcher": false})
+        json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
     );
     let b = c.call(json!({"t": "sub", "id": "b", "doc": "bindings"}));
     assert_eq!(
