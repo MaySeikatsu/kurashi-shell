@@ -1,4 +1,4 @@
-{ lib, rustPlatform, dbus }:
+{ lib, rustPlatform, dbus, pkg-config, libpulseaudio }:
 
 let
   fs = lib.fileset;
@@ -22,6 +22,9 @@ rustPlatform.buildRustPackage {
   };
 
   cargoLock.lockFile = ../Cargo.lock;
+  # kurashi-audio links libpulse (pipewire-pulse speaks it too, K-audio).
+  nativeBuildInputs = [ pkg-config ];
+  buildInputs = [ libpulseaudio ];
   # kurashi-services tests run fake D-Bus objects on a private dbus-daemon.
   nativeCheckInputs = [ dbus ];
 
