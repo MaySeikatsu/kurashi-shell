@@ -12,6 +12,13 @@
 # $KURASHI_MOCK_BIN (default: kurashi-mock in the same dir). They are copied first, since shared target
 # dirs get overwritten. The card crops in frontend/shots/stage/ are evidence to read, not just the exit
 # code. On a hybrid laptop export KURASHI_RENDER_NODE first.
+# W13 (docs/ux/island.md): after the cards above, the island's pill (the secondary glyph with "+2", the stale mark, the
+# power and bluetooth faces, the peek while the pointer is on it) and the family views in the states the mock can make:
+# the clock by keyboard (Tab to the grid, arrows move the day) and stale; the media view with a live stream (chosen by
+# keyboard; no progress, transport reasons); the notifications view with do not disturb by keyboard and timed, and Clear
+# all by keyboard to the empty state; the volume view muted. Shots: frontend/shots/island/ (read them, not just the exit code).
+# Not reachable here: locked redaction (runtime.lock is fixed in the mock), Home and PageUp/PageDown (no key names in
+# wl_keys.py), several-players progress with seek on a second track, and the other displays' reason (one output).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-fe-stage}
@@ -226,6 +233,136 @@ echo "keyboard: Tab x$tabs then Space flipped the Bluetooth switch: $bt"
 K act ui.close >/dev/null
 ppm_shot closed-quick 1.2
 closed_card closed-quick
+
+# ---- W13 island views (docs/ux/island.md). The pill first; then the views, each state drawn and read.
+ISL=$ROOT/frontend/shots/island
+mkdir -p "$ISL"
+PTR=$ROOT/tools/bench/wl_pointer.py
+KEYS_PY=$ROOT/tools/bench/wl_keys.py
+# isl_shot <name>: the bar's centre strip (the pill and its secondary glyph, overflow, tail labels).
+isl_shot() { timeout 20 grim -g "900,0 760x60" "$ISL/$1.png" || fail "grim failed on $1"; echo "shot island/$1"; }
+# view_shot <name> <card width>: the card as it stands, centred on the output, with a margin round it.
+view_shot() {
+  local x=$((1280 - $2 / 2 - 24))
+  timeout 20 grim -g "$x,24 $(( $2 + 48 ))x760" "$ISL/$1.png" || fail "grim failed on $1"
+  echo "shot island/$1"
+}
+# heading_click <card x0> <card y0>: a click on the card's heading (no action) gives the Stage its keyboard focus.
+heading_click() {
+  timeout 30 python3 -I "$PTR" click "$(( $1 + 60 ))" "$(( $2 + 24 ))" left || fail "click on the card failed"
+  sleep 0.5
+}
+# keys <key...>: presses the keys in order on one virtual keyboard.
+keys() {
+  { for k in "$@"; do echo "$k"; sleep 0.3; done; sleep 0.5; } | timeout 60 python3 -I "$KEYS_PY" --serve || fail "keys failed: $*"
+}
+
+# The pill: the secondary glyph and the overflow, then the peek while the pointer stays on the island (a held pointer:
+# a one-shot move would leave at once and take the peek with it), the stale mark, the power and bluetooth faces.
+K mock face clock >/dev/null
+K act mock.island '{"secondary":"media","overflow":2,"stale_at":null,"detail":{"clock":"10:00 Standup"}}' >/dev/null
+sleep 1
+jq -e '.secondary == "media" and .overflow == 2' <<<"$(ipc runtime.island.main)" >/dev/null \
+  || fail "the island has no secondary and overflow in effect"
+isl_shot pill-secondary
+{ echo "move 1280 16"; sleep 3; } | timeout 20 python3 -I "$PTR" --serve &
+hover_pid=$!
+sleep 1.2
+isl_shot pill-peek
+wait "$hover_pid" || true
+K act mock.island "{\"secondary\":null,\"overflow\":0,\"stale_at\":{\"clock\":$(( $(date +%s) * 1000 - 3600000 ))}}" >/dev/null
+sleep 1
+isl_shot pill-stale
+K act mock.island '{"stale_at":null}' >/dev/null
+K mock face power >/dev/null
+K act mock.island '{"detail":{"power":"On battery · 60 % · 1 h 15 min left"}}' >/dev/null
+sleep 1
+isl_shot pill-power
+K mock face bluetooth >/dev/null
+K act mock.island '{"detail":{"bluetooth":"Keyboard · 80 %"}}' >/dev/null
+sleep 1
+isl_shot pill-bluetooth
+K mock face clock >/dev/null
+K act mock.island '{"detail":{"clock":"10:00 Standup"}}' >/dev/null
+
+# Clock: by keyboard (Tab x4 to the grid, Right x3 and Down: Friday the 9th to Monday the 19th), then stale.
+K act island.expand >/dev/null
+ppm_shot clock-keys 2.5
+open_card clock-keys island clock 400
+heading_click "$card_x0" "$card_y0"
+keys tab tab tab tab right right right down
+view_shot clock-keys-moved 400
+K act ui.close >/dev/null
+ppm_shot closed-clock-keys 1.2
+closed_card closed-clock-keys
+K act mock.island "{\"stale_at\":{\"clock\":$(( $(date +%s) * 1000 - 3600000 ))}}" >/dev/null
+K act island.expand >/dev/null
+sleep 2.5
+view_shot clock-stale 400
+K act ui.close >/dev/null
+K act mock.island '{"stale_at":null}' >/dev/null
+sleep 1.2
+
+# Media: a live stream chosen by keyboard (Tab x2 to the second player, Space): no progress, the transport reasons;
+# then the track is chosen back by its action.
+K mock face media >/dev/null
+K act island.expand >/dev/null
+ppm_shot media-live 2.5
+open_card media-live island media 400
+heading_click "$card_x0" "$card_y0"
+keys tab tab space
+sleep 1.5
+jq -e '[.players[] | select(.active == true)][0].name == "Firefox"' <<<"$(ipc svc.media)" >/dev/null \
+  || fail "Space on the second player did not select Firefox"
+view_shot media-live 400
+K act media.player.select '{"id":"org.mpris.MediaPlayer2.mpv"}' >/dev/null
+sleep 1
+K act ui.close >/dev/null
+sleep 1.2
+
+# Notifications: do not disturb by keyboard (Tab x2 to the switch, Space: on, until turned off), then timed to 14:30,
+# then Clear all by keyboard (Tab, Return) to the empty state.
+K act notify.dnd '{"on":false}' >/dev/null
+K mock face notifications >/dev/null
+K act island.expand >/dev/null
+ppm_shot notif-keys 2.5
+open_card notif-keys island notifications 360
+heading_click "$card_x0" "$card_y0"
+keys tab tab space
+sleep 1
+jq -e '.dnd == true and (.dnd_until == null)' <<<"$(ipc svc.notifications)" >/dev/null \
+  || fail "Space on the do-not-disturb switch did not turn it on"
+view_shot notif-dnd-on 360
+K act notify.dnd "{\"on\":true,\"until\":$(date -d '2026-10-09 14:30' +%s%3N)}" >/dev/null
+sleep 1
+view_shot notif-dnd-until 360
+K act ui.close >/dev/null
+sleep 1.2
+# Reopened, the focus starts on the card again: Tab reaches Clear all first, Return presses it.
+K act island.expand >/dev/null
+ppm_shot notif-clear 2.5
+open_card notif-clear island notifications 360
+heading_click "$card_x0" "$card_y0"
+keys tab return
+sleep 1
+jq -e '(.items | length) == 0' <<<"$(ipc svc.notifications)" >/dev/null \
+  || fail "Return on Clear all did not clear the notifications"
+view_shot notif-empty 360
+K act notify.dnd '{"on":false}' >/dev/null
+K act ui.close >/dev/null
+sleep 1.2
+
+# Volume: muted (the level is shown as muted, not as a stale number).
+K mock face volume >/dev/null
+K act island.expand >/dev/null
+ppm_shot volume-muted 2.5
+open_card volume-muted island volume 360
+K act audio.mute.toggle >/dev/null
+sleep 1
+view_shot volume-muted 360
+K act audio.mute.toggle >/dev/null
+K act ui.close >/dev/null
+sleep 1.2
 
 stop_phase
 if grep -q "ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined\|is not a type\|Cannot assign\|Cannot anchor\|Binding loop" "$R/qs.log"; then

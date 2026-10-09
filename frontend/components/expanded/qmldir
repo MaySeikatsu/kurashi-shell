@@ -5,3 +5,4 @@ NotificationsView 1.0 NotificationsView.qml
 ClockView 1.0 ClockView.qml
 VolumeView 1.0 VolumeView.qml
 BrightnessView 1.0 BrightnessView.qml
+StaleNote 1.0 StaleNote.qml
