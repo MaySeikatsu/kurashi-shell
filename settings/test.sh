@@ -112,7 +112,8 @@ Q mod broken-demo true
 shot 6-mods
 
 # 7. a mod's settings page (K22): Media turned on; its page reads "Mods › Media" with the album-art
-#    toggle and the seek step slider
+#    toggle and the seek step slider. The page exists only where the daemon calls sync_mods (wiring);
+#    a daemon without that call serves no mod page, and this shot is then empty.
 Q mod media true
 Q goto mods.media
 shot 7-mod-page
