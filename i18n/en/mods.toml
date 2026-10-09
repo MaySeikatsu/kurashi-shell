@@ -1,0 +1,4 @@
+# Mod catalog strings (en): the `description` of each bundled mod (mods/<id>/mod.toml). The
+# Mods page shows the translated text under the mod's name.
+"mods.media.description" = "Now playing from MPRIS players: title, album art, and playback and seek controls."
+"mods.easter-eggs.description" = "Subtle seasonal touches in the clock and the Island. On by default; one switch turns it off."

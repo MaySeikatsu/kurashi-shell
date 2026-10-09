@@ -1,5 +1,6 @@
 id = "easter-eggs"
 name = "Easter eggs"
+description = "mods.easter-eggs.description"
 version = "0.1.0"
 tier = "native"
 kurashi = ">=0.0.1"
