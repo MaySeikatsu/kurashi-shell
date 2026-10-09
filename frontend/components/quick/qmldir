@@ -1,0 +1,4 @@
+NetworkSection 1.0 NetworkSection.qml
+PowerSection 1.0 PowerSection.qml
+AudioSection 1.0 AudioSection.qml
+BluetoothSection 1.0 BluetoothSection.qml

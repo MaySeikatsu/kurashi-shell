@@ -4,8 +4,10 @@
 #   - a left click on an item sends tray.activate with its screen position (the mock logs it),
 #   - a right click opens that item's menu in the Stage (runtime.ui: panel "tray", tray = its id;
 #     screenshot), and a second right click on it closes the menu,
-#   - the island panel lists Bluetooth: powered, one connected keyboard; a scan lists the nearby
+#   - quick settings lists Bluetooth: powered, one connected keyboard; a scan lists the nearby
 #     device (screenshots), and the adapter's state in the mock matches what was asked,
+#   - a click on the nearby device's Connect (found in the shot) is refused by the mock: the document keeps
+#     both devices as they were, and the card shows the translated call-failed line,
 #   - the frontend logs no QML error.
 #   nix develop -c frontend/test-tray-bt.sh [sandbox-name]
 # Binary: kurashi-mock from $KURASHI_MOCK_BIN (default $CARGO_TARGET_DIR/debug, else target/debug),
@@ -164,11 +166,113 @@ bt=$(ipc sub svc.bluetooth | jq -r '[.powered, ([.devices[] | select(.connected)
 ipc act bluetooth.scan '{"on": true}' >/dev/null || fail "bluetooth.scan refused"
 shot quick-bluetooth-scan 1.5
 
-# 6b. Connect on the unpaired device: the mock refuses it (BlueZ needs pairing), and the panel shows
-# the translated call-failed line, not the daemon's key.
-click 1404 260 left
-shot quick-bluetooth-error 1.5
-[ "$(ipc sub svc.bluetooth | jq -r '.discovering')" = "true" ] || fail "scan did not start in the mock"
+# 6b. Connect on the nearby (unpaired) device, which is listed while the scan runs. The mock refuses it: BlueZ
+# needs a pairing. The button is found in the shot (connect.py), not at a fixed place. The outcome is asserted:
+# the keyboard stays connected and the nearby device stays unconnected (a Disconnect would have changed the
+# document), and the translated call-failed line is drawn in the error colour.
+# Colours: the theme's tokens, or the frontend's own fallbacks (Theme.qml) where the theme lacks them.
+token() {  # token <name> <fallback>: a colour token of the theme document, as hex without '#'
+  local v
+  v=$(ipc sub theme 2>/dev/null | jq -r --arg k "$1" '.tokens[$k] // empty' 2>/dev/null || true)
+  v=${v#\#}
+  echo "${v:-$2}"
+}
+# connect.py locate <ppm> <surface> <containerHigh> <accent> <error>: the Connect button, the containerHigh band at
+# the card's right edge that is the lowest button above the card's accent Close button (x and y of its centre).
+# connect.py error <ppm> <same colours>: the number of error-colour pixels inside the card.
+cat > "$W/connect.py" <<'PY'
+import sys
+
+mode, ppm = sys.argv[1], sys.argv[2]
+SURFACE, HIGH, ACCENT, ERROR = (tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) for c in sys.argv[3:7])
+X0, X1, Y0, Y1 = 960, 1600, 40, 1000   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
+
+
+def read_ppm(data):
+    fields, i = [], 0
+    while len(fields) < 4:
+        while data[i:i + 1].isspace():
+            i += 1
+        j = i
+        while not data[j:j + 1].isspace():
+            j += 1
+        fields.append(data[i:j])
+        i = j
+    if fields[0] != b"P6" or fields[3] != b"255":
+        raise SystemExit(f"not an 8-bit P6 image: {fields}")
+    return int(fields[1]), int(fields[2]), data[i + 1:]
+
+
+with open(ppm, "rb") as f:
+    w, h, raster = read_ppm(f.read())
+
+
+def px(x, y):
+    o = (y * w + x) * 3
+    return raster[o], raster[o + 1], raster[o + 2]
+
+
+def near(c, colour, tol):
+    return all(abs(c[k] - colour[k]) <= tol for k in range(3))
+
+
+def card():
+    xs, ys = [], []
+    for y in range(Y0, min(Y1, h)):
+        for x in range(X0, min(X1, w)):
+            if near(px(x, y), SURFACE, 3):
+                xs.append(x)
+                ys.append(y)
+    if not xs:
+        raise SystemExit("no card in the shot")
+    return min(xs), min(ys), max(xs), max(ys)
+
+
+def bands(column, lo, hi, colour, tol):
+    # Runs of rows in one column with the colour (gaps of up to 3 rows join a run), of button height only.
+    runs = []
+    for y in range(max(lo, 0), min(hi, h - 1) + 1):
+        if near(px(column, y), colour, tol):
+            if runs and y - runs[-1][1] <= 4:
+                runs[-1][1] = y
+            else:
+                runs.append([y, y])
+    return [r for r in runs if 26 <= r[1] - r[0] + 1 <= 30]
+
+
+x0, y0, x1, y1 = card()
+if mode == "locate":
+    close = bands(x0 + 20, y0, y1, ACCENT, 8)   # the Close button: accent, 28 px, inside its left padding
+    if not close:
+        raise SystemExit("no Close button in the card")
+    connect = bands(x1 - 19, y0, close[-1][0] - 4, HIGH, 4)   # a button's right padding, clear of its label
+    if not connect:
+        raise SystemExit("no Connect button above Close")
+    a, b = connect[-1]
+    print(x1 - 19, (a + b) // 2)
+elif mode == "error":
+    print(sum(near(px(x, y), ERROR, 12) for y in range(y0, min(y1, h - 1) + 1)
+              for x in range(x0, min(x1, w - 1) + 1)))
+else:
+    raise SystemExit(f"unknown mode {mode}")
+PY
+COLOURS=("$(token color.surface_container 252329)" "$(token color.surface_container_high 2f2c33)" \
+  "$(token color.accent c9404b)" "$(token color.error e46962)")
+timeout 20 grim -o HEADLESS-1 -t ppm "$W/scan.ppm" || fail "grim failed on scan.ppm"
+read -r CONNECT_X CONNECT_Y < <(timeout 60 python3 -I "$W/connect.py" locate "$W/scan.ppm" "${COLOURS[@]}") \
+  || fail "no Connect button above the card's Close button in the scan shot (connect.py)"
+click "$CONNECT_X" "$CONNECT_Y" left
+sleep 1.5
+bt=$(ipc sub svc.bluetooth)
+jq -e '([.devices[] | select(.address == "AA:BB:CC:DD:EE:FF") | .connected] == [true])
+  and ([.devices[] | select(.address == "11:22:33:44:55:66") | .connected] == [false])
+  and .discovering == true' <<<"$bt" >/dev/null \
+  || fail "the click at $CONNECT_X,$CONNECT_Y did not reach the nearby device's Connect (svc.bluetooth $bt)"
+timeout 20 grim -o HEADLESS-1 -t ppm "$W/error.ppm" || fail "grim failed on error.ppm"
+lines=$(timeout 60 python3 -I "$W/connect.py" error "$W/error.ppm" "${COLOURS[@]}") || fail "connect.py error failed"
+[ "$lines" -ge 20 ] || fail "no call-failed line in the card after Connect ($lines error-colour pixels)"
+shot quick-bluetooth-error 0.5
+echo "ok: Connect at $CONNECT_X,$CONNECT_Y: the mock refused it, the document keeps both devices, the card shows the call-failed line ($lines px)"
 ipc act bluetooth.scan '{"on": false}' >/dev/null || fail "bluetooth.scan off refused"
 ipc act ui.close >/dev/null
 
