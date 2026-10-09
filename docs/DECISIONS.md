@@ -129,6 +129,9 @@ disabled (the Mods page promises "a mod that is off keeps its settings"). A disa
 reported inert with `reason: "mods.disabled"` (K21 semantics), never deleted.
 *Why:* rule 3 (one schema) — mods must not grow a parallel settings system; M6 exit criterion
 "settings pages appear".
+*Addendum (session 4, C-mod-sections):* each mod is its own profile section `mods.<id>`; section filters
+match whole segments (`mods` = every mod, `mods.med` = nothing). Two-segment keys (`mods.enabled`) stay
+in `mods`. Relies on mod ids and setting keys containing no `.` (enforced by the kurashi-mods manifest).
 
 **K23** 🟢 A tray item's menu is a Stage panel, not a window of its own. Action `tray.menu.open
 {id}` sets `runtime.ui` to `{panel:"tray", tray:"<item id>"}` (the same item again closes it,
