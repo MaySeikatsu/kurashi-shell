@@ -1,0 +1,1 @@
+{"t":"rejected","id":"4","errors":[{"key":"bar.main.height","code":"error.range","msg":"bar.main.height must be within 16..=96"}]}

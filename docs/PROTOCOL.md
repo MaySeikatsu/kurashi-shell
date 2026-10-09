@@ -1,6 +1,7 @@
 # IPC Protocol v1
 
-Status: **draft** until M1 freeze (then changes require a DECISIONS entry + fixture update).
+Status: **v1 freeze candidate** (M1, K17). Changes now require a DECISIONS entry + fixture update
+(`fixtures/ipc/`) + this file. Additive optional fields are allowed without a version bump.
 The M0 bake-off uses the **probe subset** (§8), served by `kurashi-mock`.
 
 ## 1. Transport
@@ -14,8 +15,10 @@ The M0 bake-off uses the **probe subset** (§8), served by `kurashi-mock`.
 ## 2. Handshake
 ```json
 → {"t":"hello","v":1,"client":"frontend","caps":["intents","resync"]}
-← {"t":"welcome","v":1,"server":"kurashid 0.1.0","caps":["undo","profiles","island"]}
+← {"t":"welcome","v":1,"server":"kurashid 0.1.0","caps":["undo","profiles","island"],"instance":"3f0c9a2e"}
 ```
+`instance` changes on every daemon start. A client reconnecting to a different instance discards
+cached revisions and re-subscribes everything.
 Version mismatch → `{"t":"goodbye","reason":"version","supported":[1]}`.
 
 ## 3. State documents (subscribe / snapshot / patch)
@@ -30,7 +33,14 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 - `rev` is monotonic per document. A client that sees `rev != last+1` sends
   `{"t":"resync","doc":"svc.audio"}` and receives a fresh `snap`.
 - Subscriptions are refcounted daemon-side: the first subscriber starts the backing service,
-  the last unsubscribe stops it (Ma).
+  the last unsubscribe (or disconnect) stops it (Ma).
+- A `snap` **without `id`** is pushed by the server when a document is rebuilt from scratch
+  (backing service restarted, compositor `Resync`): replace local state, adopt its `rev`.
+- Documents never contain `null` values (absence is the only "empty"); the daemon computes
+  patches as the merge-patch diff of old → new, so removed fields arrive as `null` and stale
+  optional members (e.g. `forced_by`) never survive.
+- Several changes to one document within a tick may be coalesced into one `patch` (clients must
+  not assume one patch per change).
 
 ## 4. Intents (high-frequency interaction)
 ```json
@@ -50,15 +60,31 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 → {"t":"cfg.explain","id":"3","key":"theme.material.blur"}
 ← {"t":"cfg.why","id":"3","layers":[{"source":"default","value":true},
    {"source":"forced:capability","value":false,"reason":"compositor lacks ext-background-effect"}]}
-→ {"t":"apply","id":"4","ops":[{"set":"bar.main.edge","value":"left"},{"reset":"theme.motion"}]}
-← {"t":"applied","id":"4","rev":88,"undo":"tx-88"}            // or {"t":"rejected","id":"4","errors":[...]}
-→ {"t":"undo","id":"5"}   /  {"t":"redo","id":"6"}
+→ {"t":"apply","id":"4","ops":[{"set":"bar.main.edge","value":"left"},
+   {"set":"bar.main.height","value":40,"output":"DP-1"},{"reset":"theme.motion"}]}
+← {"t":"applied","id":"4","rev":88,"undo":"tx-88"}
+← {"t":"rejected","id":"4","errors":[{"key":"bar.main.height","code":"error.range","msg":"…"}]}
+→ {"t":"apply","id":"10","ops":[…],"dry_run":true}
+← {"t":"preview","id":"10","diff":[{"key":"theme.palette","before":{Provenanced},"after":{Provenanced}}]}
+→ {"t":"undo","id":"5"}   /  {"t":"redo","id":"6"}     // → applied (new rev, tx id) or rejected
 ```
+- `cfg.get` / `cfg.explain` accept `"output"` for per-output keys. `cfg.why` lists every layer
+  that has the key (lowest first); exactly one entry is `"active":true`.
+- `apply` is atomic: any invalid op rejects the whole batch (`code` is an i18n key). `reset` of a
+  section prefix removes every user key below it. Profile loads are one transaction.
+- **`config` document** (subscribe like any other):
+  `{"values":{"<key>":Provenanced,…},"outputs":{"<name>":{"<per-output key>":Provenanced}}}`.
+  Patches carry only keys whose *effective* value or provenance changed.
+- **`schema.settings` document**: settings metadata generated from the schema (pages → sections →
+  rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
+- **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
+  frontend never reads `i18n/*.toml` itself.
 
 ## 6. Actions & queries
 ```json
 → {"t":"act","id":"7","action":"island.next","args":{"island":"main"}}
 ← {"t":"done","id":"7"}                      // or {"t":"err","id":"7","kind":"...","msg":"..."}
+← {"t":"done","id":"11","data":{…}}          // actions may return data (e.g. profile.preview)
 → {"t":"query","id":"8","kind":"launcher","q":"fire"}
 ← {"t":"results","id":"8","items":[...]}    // stale ids are dropped by the client
 ```
