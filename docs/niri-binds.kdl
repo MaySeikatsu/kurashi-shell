@@ -1,0 +1,44 @@
+// Kurashi-shell keybindings for niri: copy-paste snippet (README, "Keybindings (niri)").
+// Needs kurashid running: `kurashi act` talks to the daemon. `include` needs niri 25.11 or later;
+// on older niri, paste the binds block below into your config instead.
+//
+// Install: save as ~/.config/niri/kurashi-binds.kdl and add this line to ~/.config/niri/config.kdl
+// AFTER your own binds {} block (later binds override earlier ones for the same key):
+//     include "kurashi-binds.kdl"
+//
+// These keys replace niri's default bind for the same key (niri 26.04 defaults in brackets):
+//   Mod+Escape            [toggle-keyboard-shortcuts-inhibit]: that toggle is gone; the session
+//                         menu still opens while a VM or remote desktop captures the keyboard
+//   Super+Alt+L           [spawn swaylock]
+//   XF86AudioRaiseVolume  [wpctl]     XF86AudioLowerVolume  [wpctl]     XF86AudioMute  [wpctl]
+//   XF86MonBrightnessUp   [brightnessctl]     XF86MonBrightnessDown  [brightnessctl]
+// Mod+Space and Mod+N have no niri default bind (niri ships Mod+Space commented out).
+//
+// Toggles and menus do not repeat while the key is held. Volume, mute and brightness keys
+// also work while the session is locked, as niri's own media keys do.
+// `spawn "kurashi"` looks the binary up in PATH; Home-Manager writes the store path instead.
+
+binds {
+    // Launcher (opens in the Island).
+    Mod+Space repeat=false { spawn "kurashi" "act" "launcher.toggle"; }
+
+    // Notification centre.
+    Mod+N repeat=false { spawn "kurashi" "act" "notifications.center"; }
+
+    // Session menu: log out, suspend, reboot, power off.
+    Mod+Escape allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.menu"; }
+
+    // Lock screen (kurashi's own lock, PAM service "kurashi").
+    Super+Alt+L allow-inhibiting=false repeat=false { spawn "kurashi" "act" "session.lock"; }
+
+    // Volume: repeats while held, works while locked.
+    XF86AudioRaiseVolume allow-when-locked=true { spawn "kurashi" "act" "audio.volume.up"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn "kurashi" "act" "audio.volume.down"; }
+
+    // Mute toggle: works while locked, does not flip back and forth while held.
+    XF86AudioMute allow-when-locked=true repeat=false { spawn "kurashi" "act" "audio.mute.toggle"; }
+
+    // Brightness: repeats while held, works while locked.
+    XF86MonBrightnessUp allow-when-locked=true { spawn "kurashi" "act" "brightness.up"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn "kurashi" "act" "brightness.down"; }
+}
