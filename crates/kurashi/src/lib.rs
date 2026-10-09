@@ -4,6 +4,8 @@
 
 pub mod doctor;
 
+use std::collections::HashMap;
+
 use clap::Subcommand;
 use kurashi_core::{Provenanced, Source};
 use kurashi_ipc::{
@@ -52,6 +54,10 @@ pub enum ConfigCmd {
         #[arg(long)]
         output: Option<String>,
     },
+    /// Open Settings, on a setting when one is given (jumps a window that already runs)
+    Settings {
+        key: Option<String>,
+    },
     #[command(subcommand)]
     Profile(ProfileCmd),
 }
@@ -74,6 +80,17 @@ pub enum ProfileCmd {
         name: String,
         #[arg(long, value_delimiter = ',')]
         sections: Option<Vec<String>>,
+    },
+    /// Write a profile to a file, without the entries that name this machine (outputs, places)
+    Export {
+        name: String,
+        path: std::path::PathBuf,
+    },
+    /// Review a profile file: what it would change and what Nix holds back; `--apply` loads it
+    Import {
+        path: std::path::PathBuf,
+        #[arg(long)]
+        apply: bool,
     },
 }
 
@@ -147,6 +164,11 @@ impl Conn {
             Ok(other) => Err(unavailable(format!("handshake failed: {other:?}"))),
             Err(e) => Err(unavailable(e)),
         }
+    }
+
+    /// A message that has no reply (`unsub`).
+    pub(crate) async fn send(&mut self, msg: ClientMsg) -> Result<(), CliError> {
+        write_msg(&mut self.wr, &msg).await.map_err(unavailable)
     }
 
     pub(crate) async fn request(&mut self, msg: ClientMsg) -> Result<ServerMsg, CliError> {
@@ -347,6 +369,7 @@ pub async fn run(conn: &mut Conn, cmd: ConfigCmd, json: bool) -> Result<Output, 
             let r = conn.request(ClientMsg::Redo { id: "cli".into() }).await?;
             Ok(committed(r, json))
         }
+        ConfigCmd::Settings { key } => settings(conn, key, json).await,
         ConfigCmd::Profile(p) => profile(conn, p, json).await,
     }
 }
@@ -403,61 +426,393 @@ fn unexpected(m: ServerMsg, json: bool) -> Output {
     }
 }
 
+/// What an action answered: its data, or the daemon's error kind and message (an i18n key).
+enum Reply {
+    Done(Value),
+    Failed { kind: String, msg: String },
+}
+
+async fn act(conn: &mut Conn, action: &str, args: Value) -> Result<Reply, CliError> {
+    let msg = ClientMsg::Act {
+        id: "cli".into(),
+        action: action.into(),
+        args,
+    };
+    match conn.request(msg).await? {
+        ServerMsg::Done { data, .. } => Ok(Reply::Done(data.unwrap_or(Value::Null))),
+        ServerMsg::Err { kind, msg, .. } => Ok(Reply::Failed { kind, msg }),
+        m => Err(other(format!("unexpected reply: {m:?}"))),
+    }
+}
+
+/// The daemon's texts for the active locale (its `i18n` document, read once and dropped), so the
+/// CLI says what Settings says. Without the document, or for a key it lacks, the key is shown.
+async fn catalogue(conn: &mut Conn) -> Result<HashMap<String, String>, CliError> {
+    let sub = ClientMsg::Sub {
+        id: "cli".into(),
+        doc: "i18n".into(),
+    };
+    match conn.request(sub).await? {
+        ServerMsg::Snap { data, .. } => {
+            conn.send(ClientMsg::Unsub { doc: "i18n".into() }).await?;
+            Ok(data["strings"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .filter_map(|(k, v)| Some((k.clone(), v.as_str()?.to_string())))
+                .collect())
+        }
+        ServerMsg::Err { .. } => Ok(HashMap::new()),
+        m => Err(other(format!("unexpected reply: {m:?}"))),
+    }
+}
+
+fn text(strings: &HashMap<String, String>, key: &str) -> String {
+    strings.get(key).cloned().unwrap_or_else(|| key.to_string())
+}
+
+/// `error (kind): text` for a refused action.
+fn refusal(kind: &str, msg: &str, strings: &HashMap<String, String>) -> Output {
+    Output {
+        code: EXIT_ERR,
+        text: format!("error ({kind}): {}", text(strings, msg)),
+    }
+}
+
+/// One line per entry a profile operation did not carry out: `not applied` (a forced layer holds
+/// it) or `left out` (an export keeps it on this machine), with the reason's text.
+fn skipped_lines(label: &str, list: &Value, strings: &HashMap<String, String>) -> Vec<String> {
+    list.as_array()
+        .into_iter()
+        .flatten()
+        .map(|e| {
+            let key = e["key"].as_str().unwrap_or("?");
+            let at = e["output"].as_str().map(|o| format!("@{o}"));
+            let reason = e["reason"].as_str().map(|r| text(strings, r));
+            let mut line = format!("{label} {key}{}", at.unwrap_or_default());
+            if let Some(reason) = reason {
+                line.push_str(&format!(": {reason}"));
+            }
+            line
+        })
+        .collect()
+}
+
+/// The problems the daemon found in a profile file (skipped entries, unreadable parts).
+fn diagnostic_lines(list: &Value) -> Vec<String> {
+    list.as_array()
+        .into_iter()
+        .flatten()
+        .map(|d| {
+            let file = d["file"].as_str().unwrap_or("?");
+            let kind = d["reason"]["kind"].as_str().unwrap_or("?");
+            match d["key"].as_str().filter(|k| !k.is_empty()) {
+                Some(key) => format!("skipped {key} in {file} ({kind})"),
+                None => format!("skipped {file} ({kind})"),
+            }
+        })
+        .collect()
+}
+
+/// A path as the daemon takes it: absolute, so the daemon's working directory does not matter.
+fn absolute(path: &std::path::Path) -> Result<String, CliError> {
+    let abs = std::path::absolute(path).map_err(other)?;
+    abs.to_str()
+        .map(String::from)
+        .ok_or_else(|| other("the path is not valid UTF-8"))
+}
+
+/// `kurashi settings [<key>]`: the daemon jumps a running Settings window to the key, or launches
+/// one with it. An unknown key is refused with the schema's message.
+async fn settings(conn: &mut Conn, key: Option<String>, json: bool) -> Result<Output, CliError> {
+    let args = match &key {
+        Some(k) => json!({"key": k}),
+        None => json!({}),
+    };
+    match act(conn, "settings.open", args).await? {
+        Reply::Done(data) if json => Ok(Output::ok(data.to_string())),
+        Reply::Done(data) => Ok(Output::ok(match data["opened"].as_str() {
+            Some("jumped") => format!("settings: moved to {}", key.as_deref().unwrap_or("")),
+            Some("open") => "settings: already open".into(),
+            _ => "settings: opened".into(),
+        })),
+        Reply::Failed { kind, msg } => {
+            let strings = catalogue(conn).await?;
+            if msg == "error.config.unknown_key" {
+                let name = key.as_deref().unwrap_or("");
+                let shown = text(&strings, &msg).replace("{key}", name);
+                return Ok(Output {
+                    code: EXIT_REJECTED,
+                    text: shown,
+                });
+            }
+            Ok(refusal(&kind, &msg, &strings))
+        }
+    }
+}
+
 async fn profile(conn: &mut Conn, cmd: ProfileCmd, json: bool) -> Result<Output, CliError> {
     let (action, args) = match &cmd {
         ProfileCmd::List => ("profile.list", json!({})),
         ProfileCmd::Preview { name, sections } => ("profile.preview", named(name, sections)),
         ProfileCmd::Load { name, sections } => ("profile.load", named(name, sections)),
         ProfileCmd::Save { name, sections } => ("profile.save", named(name, sections)),
+        ProfileCmd::Export { name, path } => (
+            "profile.export",
+            json!({"name": name, "path": absolute(path)?}),
+        ),
+        ProfileCmd::Import { path, apply } => (
+            "profile.import",
+            json!({"path": absolute(path)?, "apply": apply}),
+        ),
     };
-    let r = conn
-        .request(ClientMsg::Act {
-            id: "cli".into(),
-            action: action.into(),
-            args,
-        })
-        .await?;
-    let data = match r {
-        ServerMsg::Done { data, .. } => data.unwrap_or(Value::Null),
-        m => return Ok(unexpected(m, json)),
+    let data = match act(conn, action, args).await? {
+        Reply::Done(data) => data,
+        Reply::Failed { kind, msg } => {
+            if json {
+                return Ok(unexpected(
+                    ServerMsg::Err {
+                        id: None,
+                        kind,
+                        msg,
+                    },
+                    true,
+                ));
+            }
+            let strings = catalogue(conn).await?;
+            return Ok(refusal(&kind, &msg, &strings));
+        }
     };
     if json {
         return Ok(Output::ok(data.to_string()));
     }
-    Ok(Output::ok(match cmd {
-        ProfileCmd::List => data["profiles"]
-            .as_array()
-            .map(|a| {
-                a.iter()
-                    .map(|p| {
-                        let tag = if p["bundled"].as_bool() == Some(true) {
-                            "  (bundled)"
-                        } else {
-                            ""
-                        };
-                        format!("{}{tag}", p["name"].as_str().unwrap_or("?"))
-                    })
-                    .collect::<Vec<_>>()
-                    .join("\n")
-            })
-            .unwrap_or_default(),
+    let strings = catalogue(conn).await?;
+    let mut lines = match cmd {
+        ProfileCmd::List => vec![
+            data["profiles"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|p| {
+                            let tag = if p["bundled"].as_bool() == Some(true) {
+                                "  (bundled)"
+                            } else {
+                                ""
+                            };
+                            format!("{}{tag}", p["name"].as_str().unwrap_or("?"))
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                })
+                .unwrap_or_default(),
+        ],
         ProfileCmd::Preview { .. } => {
             let diff: Vec<DiffEntry> =
                 serde_json::from_value(data["diff"].clone()).map_err(other)?;
-            render_diff(&diff)
+            vec![render_diff(&diff)]
         }
-        ProfileCmd::Load { .. } => format!(
+        ProfileCmd::Load { .. } => vec![format!(
             "applied rev {} (tx {})",
             data["rev"],
             data["undo"].as_str().unwrap_or("?")
-        ),
-        ProfileCmd::Save { .. } => format!("saved {}", data["path"].as_str().unwrap_or("?")),
-    }))
+        )],
+        ProfileCmd::Save { .. } => {
+            vec![format!("saved {}", data["path"].as_str().unwrap_or("?"))]
+        }
+        ProfileCmd::Export { .. } => {
+            vec![format!("exported {}", data["path"].as_str().unwrap_or("?"))]
+        }
+        ProfileCmd::Import { apply: false, .. } => {
+            let diff: Vec<DiffEntry> =
+                serde_json::from_value(data["diff"].clone()).map_err(other)?;
+            let name = data["name"].as_str().unwrap_or("?");
+            vec![
+                format!("{name}: review, nothing applied (`--apply` loads it)"),
+                render_diff(&diff),
+            ]
+        }
+        ProfileCmd::Import { apply: true, .. } => vec![format!(
+            "applied rev {} (tx {})",
+            data["rev"],
+            data["undo"].as_str().unwrap_or("?")
+        )],
+    };
+    // The entries a forced layer holds back, and the export's exceptions, in both forms.
+    lines.extend(skipped_lines("not applied", &data["not_applied"], &strings));
+    lines.extend(skipped_lines("left out", &data["left_out"], &strings));
+    lines.extend(diagnostic_lines(&data["diagnostics"]));
+    Ok(Output::ok(lines.join("\n")))
 }
 
 fn named(name: &str, sections: &Option<Vec<String>>) -> Value {
     match sections {
         Some(s) => json!({"name": name, "sections": s}),
         None => json!({"name": name}),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use kurashid::config::{ConfigStore, SettingsApp};
+    use kurashid::{ActionRegistry, Daemon, Hub, Intents};
+
+    fn root(tag: &str) -> PathBuf {
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let n = N.fetch_add(1, Ordering::SeqCst);
+        let root = std::env::temp_dir().join(format!(
+            "kurashi-settings-cli-{tag}-{}-{n}",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    /// An in-process daemon on a temp socket; Settings is not installed there.
+    async fn connect(root: &Path) -> Conn {
+        let hub = Hub::new();
+        hub.register(
+            "i18n",
+            json!({"locale": "en", "fallback": "en", "strings": {
+                "error.config.unknown_key": "Unknown setting “{key}”.",
+                "config.forced.nix_enforced": "enforced by your Nix configuration",
+            }}),
+            None,
+        );
+        let mut actions = ActionRegistry::default();
+        let store = ConfigStore::open(
+            hub.clone(),
+            kurashi_schema::v1::registry(),
+            kurashi_config::Paths::rooted(root),
+            kurashi_config::Options::default(),
+        );
+        let app = SettingsApp {
+            dir: root.join("no-settings"),
+            path: Default::default(),
+        };
+        store.register_actions_with(&mut actions, app);
+        let mut daemon = Daemon::new(hub, actions, Intents::default());
+        daemon.config = Some(store);
+        let sock = root.join("ipc.sock");
+        let listener = tokio::net::UnixListener::bind(&sock).unwrap();
+        tokio::spawn(kurashid::server::serve(
+            listener,
+            Arc::new(daemon),
+            std::future::pending(),
+        ));
+        Conn::connect(&sock).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn settings_refuses_an_unknown_key_with_the_schema_message() {
+        let dir = root("unknown");
+        let mut conn = connect(&dir).await;
+        let out = run(
+            &mut conn,
+            ConfigCmd::Settings {
+                key: Some("bar.hieght".into()),
+            },
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(out.code, EXIT_REJECTED);
+        assert_eq!(out.text, "Unknown setting “bar.hieght”.");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn settings_says_when_settings_is_not_installed() {
+        let dir = root("missing");
+        let mut conn = connect(&dir).await;
+        let out = run(&mut conn, ConfigCmd::Settings { key: None }, false)
+            .await
+            .unwrap();
+        assert_eq!(out.code, EXIT_ERR);
+        assert_eq!(
+            out.text, "error (unavailable): error.settings.not_installed",
+            "the catalogue lacks the key in this test, so the key is shown"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn profile_import_reviews_then_applies_and_names_held_entries() {
+        let dir = root("import");
+        let file = dir.join("look.toml");
+        std::fs::write(&file, "[bar]\nheight = 40\n").unwrap();
+        let mut conn = connect(&dir).await;
+        let review = run(
+            &mut conn,
+            ConfigCmd::Profile(ProfileCmd::Import {
+                path: file.clone(),
+                apply: false,
+            }),
+            false,
+        )
+        .await
+        .unwrap();
+        assert_eq!(review.code, EXIT_OK);
+        assert!(
+            review.text.starts_with("look: review, nothing applied"),
+            "{}",
+            review.text
+        );
+        assert!(review.text.contains("bar.height"), "{}", review.text);
+        let applied = run(
+            &mut conn,
+            ConfigCmd::Profile(ProfileCmd::Import {
+                path: file,
+                apply: true,
+            }),
+            false,
+        )
+        .await
+        .unwrap();
+        assert!(
+            applied.text.starts_with("applied rev 1"),
+            "{}",
+            applied.text
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn skipped_entries_read_as_their_catalogue_text() {
+        let strings = HashMap::from([(
+            "config.export.path".to_string(),
+            "stays on this machine".to_string(),
+        )]);
+        let list = json!([
+            {"key": "bar.height", "output": "DP-1", "reason": "config.export.path"},
+            {"key": "theme.colors.palette", "reason": "config.forced.unknown"},
+        ]);
+        assert_eq!(
+            skipped_lines("left out", &list, &strings),
+            vec![
+                "left out bar.height@DP-1: stays on this machine".to_string(),
+                "left out theme.colors.palette: config.forced.unknown".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn diagnostics_name_the_file_and_the_key() {
+        let list = json!([
+            {"file": "/x/look.toml", "key": "theme.nope", "reason": {"kind": "unknown_key"}},
+            {"file": "/x/look.toml", "key": "", "reason": {"kind": "parse"}},
+        ]);
+        assert_eq!(
+            diagnostic_lines(&list),
+            vec![
+                "skipped theme.nope in /x/look.toml (unknown_key)".to_string(),
+                "skipped /x/look.toml (parse)".to_string(),
+            ]
+        );
     }
 }
