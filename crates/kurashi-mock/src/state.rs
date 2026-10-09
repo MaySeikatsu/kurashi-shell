@@ -114,7 +114,7 @@ impl State {
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
             (
                 "runtime.island.main",
-                json!({"face": "clock", "faces": ["clock", "media"], "reason": "default", "pinned": false}),
+                json!({"face": "clock", "faces": ["clock", "media"], "reason": "default", "pinned": false, "overflow": 0}),
             ),
             (
                 "runtime.ui",
@@ -338,6 +338,7 @@ impl State {
             }
             "notify.dnd" => self.notify_dnd(args)?,
             "mock.notify" => return self.mock_notify(args),
+            "mock.island" => return self.mock_island(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
             "launcher.launch" => {
                 let id = args["id"]
@@ -673,6 +674,19 @@ impl State {
             Some(action) => self.act(&action, &args["args"]),
             None => Ok(None),
         }
+    }
+
+    /// `mock.island {…}` merges the given fields into `runtime.island.main`, as a daemon decision
+    /// publishes them (`secondary`, `overflow`, `detail`, `stale_at`, W13); `null` removes a field.
+    /// Nothing is checked against the faces: the frontend renders what it is given.
+    fn mock_island(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        if !args.is_object() {
+            return Err(Fail::invalid(
+                "mock.island needs an object of island fields",
+            ));
+        }
+        self.patch("runtime.island.main", args.clone(), None);
+        Ok(None)
     }
 
     /// `mock.notify {summary, body?, app_name?, urgency?, actions?}` adds a notification the way
@@ -1082,6 +1096,50 @@ mod tests {
         st.mock_face("brightness");
         assert_eq!(st.data("runtime.island.main")["face"], "brightness");
         assert_eq!(st.data("runtime.island.main")["reason"], "event");
+    }
+
+    /// The island document carries the daemon's fields (W13): `overflow` is always there, and every
+    /// key the mock publishes is one the pinned daemon document (`snap_island.json`) names too.
+    #[test]
+    fn island_document_carries_the_daemon_fields() {
+        let st = state();
+        let island = st.data("runtime.island.main");
+        assert_eq!(island["overflow"], 0);
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_island.json"
+        ))
+        .unwrap();
+        for key in island.as_object().unwrap().keys() {
+            assert!(
+                fixture["data"].get(key).is_some(),
+                "{key} is not in the island fixture"
+            );
+        }
+    }
+
+    #[test]
+    fn mock_island_merges_the_daemon_fields_and_null_removes_them() {
+        let mut st = state();
+        st.act(
+            "mock.island",
+            &json!({"secondary": "media", "overflow": 2, "detail": {"clock": "10:00"}}),
+        )
+        .unwrap();
+        let island = st.data("runtime.island.main");
+        assert_eq!(island["secondary"], "media");
+        assert_eq!(island["overflow"], 2);
+        assert_eq!(island["detail"]["clock"], "10:00");
+        st.act("mock.island", &json!({"secondary": null, "detail": null}))
+            .unwrap();
+        let island = st.data("runtime.island.main");
+        assert!(island.get("secondary").is_none() && island.get("detail").is_none());
+        assert_eq!(island["overflow"], 2);
+        assert_eq!(
+            st.act("mock.island", &json!("nope")),
+            Err(Fail::invalid(
+                "mock.island needs an object of island fields"
+            ))
+        );
     }
 
     #[test]
