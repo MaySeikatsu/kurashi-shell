@@ -2,6 +2,11 @@
 //! returning notes for provenance. Order: source, scheme, oled, contrast, season,
 //! colorblind, wcag (wcag last so nothing can undo the legibility guarantee).
 
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::UNIX_EPOCH;
+
 use material_colors::color::Argb;
 use material_colors::quantize::{Quantizer, QuantizerCelebi};
 use material_colors::scheme::Scheme as MScheme;
@@ -41,10 +46,144 @@ pub fn source(src: &Source) -> Result<(PaletteSet, Vec<String>), ThemeError> {
             vec!["source: manual roles".into()],
         )),
         Source::Wallpaper(w) => {
-            let (set, seed) = from_wallpaper(w)?;
-            Ok((set, vec![format!("source: wallpaper, seed colour {seed}")]))
+            let e = extract(w)?;
+            let note = e.note(None);
+            Ok((e.set, vec![note]))
+        }
+        Source::WallpaperFile(path) => {
+            let e = wallpaper_file(path)?;
+            let note = e.note(Some(path));
+            Ok((e.set.clone(), vec![note]))
         }
     }
+}
+
+/// Mean HSL saturation below which a picture has no colour to build a scheme from. Material's
+/// scorer then returns its fallback blue, which is not the picture's colour; the monochrome
+/// fallback (`wa-iro`, see [`extract`]) is used instead. The picker flags the same pictures.
+pub const MONO_SATURATION: f64 = 0.08;
+
+/// The opaque pixels of an RGBA buffer that are neither near black nor near white.
+fn chromatic_pixels(rgba: &[u8]) -> impl Iterator<Item = (f64, f64)> + '_ {
+    rgba.chunks_exact(4)
+        .filter(|p| p[3] >= 128)
+        .filter_map(|p| {
+            let r = f64::from(p[0]) / 255.0;
+            let g = f64::from(p[1]) / 255.0;
+            let b = f64::from(p[2]) / 255.0;
+            let (mx, mn) = (r.max(g).max(b), r.min(g).min(b));
+            let l = (mx + mn) / 2.0;
+            if !(0.08..=0.92).contains(&l) {
+                return None;
+            }
+            let d = mx - mn;
+            let s = if d == 0.0 {
+                0.0
+            } else {
+                d / (1.0 - (2.0 * l - 1.0).abs())
+            };
+            Some((s, l))
+        })
+}
+
+/// True when the picture has no usable colour: its mean saturation is under [`MONO_SATURATION`].
+pub fn is_monochrome(rgba: &[u8]) -> bool {
+    let (sum, n) =
+        chromatic_pixels(rgba).fold((0.0_f64, 0_u64), |(s, n), (sat, _)| (s + sat, n + 1));
+    n == 0 || (sum / (n as f64)) < MONO_SATURATION
+}
+
+/// What a picture gives the `wallpaper` source: the roles of both schemes, the seed they were built
+/// from, and whether the picture is monochrome (then `set` is the bundled `wa-iro` fallback, named
+/// after the palette in effect, and `seed` is `None`).
+#[derive(Clone, Debug)]
+pub struct Extracted {
+    pub set: PaletteSet,
+    pub seed: Option<Rgb>,
+    pub mono: bool,
+}
+
+impl Extracted {
+    /// The provenance line for the `source` stage (`source: wallpaper …`).
+    fn note(&self, path: Option<&Path>) -> String {
+        let from = path.map_or(String::new(), |p| format!(" {}", p.display()));
+        match self.seed {
+            Some(seed) => format!("source: wallpaper{from}, seed colour {seed}"),
+            None => format!(
+                "source: wallpaper{from} is monochrome (no colour to build a scheme from); palette {} used",
+                self.set.name
+            ),
+        }
+    }
+}
+
+fn validate(w: &Wallpaper) -> Result<(), ThemeError> {
+    if w.rgba.len() != (w.width as usize) * (w.height as usize) * 4 || w.rgba.is_empty() {
+        return Err(ThemeError::Image(
+            "wallpaper buffer size does not match its dimensions".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Extracts a decoded picture: material roles, or the monochrome fallback.
+pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
+    validate(w)?;
+    if is_monochrome(&w.rgba) {
+        let mut set = crate::palette::bundled("wa-iro")?;
+        set.name = "wa-iro".into();
+        return Ok(Extracted {
+            set,
+            seed: None,
+            mono: true,
+        });
+    }
+    let (set, seed) = from_wallpaper(w)?;
+    Ok(Extracted {
+        set,
+        seed: Some(seed),
+        mono: false,
+    })
+}
+
+/// Longest side the extraction decodes to: colour is all it needs.
+const EXTRACT_SIDE: u32 = 128;
+/// Pictures kept extracted; the cache starts over when it is full (the picker and the theme use few).
+const CACHE_MAX: usize = 32;
+
+type CacheKey = (PathBuf, u128, u64);
+static CACHE: Mutex<BTreeMap<CacheKey, Arc<Extracted>>> = Mutex::new(BTreeMap::new());
+
+fn cache() -> MutexGuard<'static, BTreeMap<CacheKey, Arc<Extracted>>> {
+    // A panic in another extraction must not take the theme down with it: the map is still valid.
+    CACHE
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// The palette of the picture at `path`, extracted now or taken from the cache. The key is the
+/// path with its mtime and size, so an edited picture is extracted again. Blocking I/O and CPU:
+/// callers run it on a blocking thread.
+pub fn wallpaper_file(path: &Path) -> Result<Arc<Extracted>, ThemeError> {
+    let meta = std::fs::metadata(path)
+        .map_err(|e| ThemeError::Image(format!("{}: {e}", path.display())))?;
+    let mtime = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_nanos());
+    let key = (path.to_path_buf(), mtime, meta.len());
+    if let Some(hit) = cache().get(&key) {
+        return Ok(hit.clone());
+    }
+    let w = Wallpaper::load(path, EXTRACT_SIDE)?;
+    let got = Arc::new(extract(&w)?);
+    let mut map = cache();
+    if map.len() >= CACHE_MAX {
+        map.clear();
+    }
+    map.insert(key, got.clone());
+    Ok(got)
 }
 
 fn rgb_of(a: Argb) -> Rgb {

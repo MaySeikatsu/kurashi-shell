@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use kurashi_theme::color::{Rgb, contrast};
 use kurashi_theme::season::{Date, solar_term, warmth};
@@ -285,6 +286,160 @@ fn wallpaper_source_via_material_colors() {
         rgba: vec![0; 3],
     };
     assert!(stages::from_wallpaper(&bad).is_err());
+}
+
+/// A 64 px picture on disk, one colour per pixel column or row as `px` says.
+fn write_picture(dir: &std::path::Path, name: &str, px: impl Fn(u32, u32) -> [u8; 3]) -> PathBuf {
+    let path = dir.join(name);
+    image::RgbImage::from_fn(64, 64, |x, y| image::Rgb(px(x, y)))
+        .save(&path)
+        .unwrap();
+    path
+}
+
+fn scratch_dir(tag: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("kurashi-theme-{tag}-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+/// The `wallpaper` source from picture files: each fixture's accent follows its own hue, in both
+/// schemes, and the AA pairs hold whatever the picture is.
+#[test]
+fn wallpaper_file_gives_a_palette_from_fixture_pictures() {
+    let dir = scratch_dir("fixtures");
+    let teal = write_picture(&dir, "teal.png", |x, _| {
+        if x % 4 == 3 {
+            [128, 128, 128]
+        } else {
+            [0x1a, 0x9e, 0x8f]
+        }
+    });
+    let red = write_picture(&dir, "red.png", |x, _| {
+        if x < 40 {
+            [0xc8, 0x28, 0x28]
+        } else {
+            [0xe0, 0x7a, 0x30]
+        }
+    });
+    // Each picture's accent hue must fall in its family.
+    type HueFamily = fn(f64) -> bool;
+    let teal_family: HueFamily = |h| (140.0..200.0).contains(&h);
+    let red_family: HueFamily = |h| !(40.0..340.0).contains(&h);
+    let fixtures = [(teal, teal_family), (red, red_family)];
+    for scheme in [Scheme::Dark, Scheme::Light] {
+        for (path, hue_ok) in &fixtures {
+            let i = ThemeInput {
+                source: Source::WallpaperFile(path.clone()),
+                scheme,
+                ..Default::default()
+            };
+            let out = resolve(&i, &fonts()).unwrap();
+            let (h, s, _) = out.palette.get("accent").to_hsl();
+            assert!(
+                hue_ok(h) && s > 0.1,
+                "{}: accent hue {h:.0} sat {s:.2}",
+                path.display()
+            );
+            assert!(
+                out.notes
+                    .iter()
+                    .any(|n| n.text.starts_with("source: wallpaper")
+                        && n.text.contains("seed colour")),
+                "the provenance names the picture's seed"
+            );
+            for (fg, bg, min) in aa_pairs() {
+                assert!(
+                    contrast(out.palette.get(fg), out.palette.get(bg)) >= min,
+                    "{fg}/{bg}"
+                );
+            }
+        }
+    }
+}
+
+/// A picture without colour has no scheme to build: the palette in effect is `wa-iro`, and the
+/// provenance says so (Shōjiki), instead of Material's fallback blue.
+#[test]
+fn a_monochrome_picture_falls_back_to_wa_iro_and_says_so() {
+    let dir = scratch_dir("mono");
+    let grey = write_picture(&dir, "grey.png", |x, _| {
+        let v = (x * 255 / 63) as u8;
+        [v, v, v]
+    });
+    let i = ThemeInput {
+        source: Source::WallpaperFile(grey),
+        ..Default::default()
+    };
+    let (palette, notes) = resolve_palette(&i).unwrap();
+    assert_eq!(palette.name, "wa-iro", "the name is the palette in effect");
+    assert!(
+        notes
+            .iter()
+            .any(|n| n.text.contains("monochrome") && n.text.contains("wa-iro")),
+        "{notes:?}"
+    );
+    assert_eq!(
+        palette,
+        resolve_palette(&input("wa-iro", Scheme::Dark)).unwrap().0
+    );
+}
+
+/// The extraction is cached by path, mtime and size: a second request is the same value, and an
+/// edited picture (new mtime) is extracted again.
+#[test]
+fn wallpaper_file_is_extracted_once_per_path_mtime_and_size() {
+    let dir = scratch_dir("cache");
+    let p = write_picture(&dir, "a.png", |_, _| [200, 40, 40]);
+    let first = stages::wallpaper_file(&p).unwrap();
+    let again = stages::wallpaper_file(&p).unwrap();
+    assert!(
+        Arc::ptr_eq(&first, &again),
+        "same path, mtime and size: cached"
+    );
+    write_picture(&dir, "a.png", |_, _| [40, 40, 200]);
+    let later = std::time::SystemTime::now() + std::time::Duration::from_secs(60);
+    std::fs::File::options()
+        .write(true)
+        .open(&p)
+        .unwrap()
+        .set_modified(later)
+        .unwrap();
+    let edited = stages::wallpaper_file(&p).unwrap();
+    assert!(
+        !Arc::ptr_eq(&first, &edited),
+        "a new mtime is a new extraction"
+    );
+    assert_ne!(first.seed, edited.seed);
+}
+
+#[test]
+fn an_unreadable_picture_is_an_error_not_a_panic() {
+    let dir = scratch_dir("bad");
+    assert!(matches!(
+        stages::wallpaper_file(&dir.join("gone.png")),
+        Err(ThemeError::Image(_))
+    ));
+    let junk = dir.join("junk.png");
+    std::fs::write(&junk, b"not a picture").unwrap();
+    assert!(matches!(
+        stages::wallpaper_file(&junk),
+        Err(ThemeError::Image(_))
+    ));
+}
+
+/// I27: the warn role is text-grade (4.5:1) on the surface, in every palette and scheme.
+#[test]
+fn status_warn_is_aa_text_on_the_surface() {
+    for name in bundled_names() {
+        for scheme in [Scheme::Dark, Scheme::Light] {
+            let t = resolve(&input(name, scheme), &fonts()).unwrap().tokens;
+            let c = |k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+            let r = contrast(c("color.status.warn"), c("color.surface"));
+            assert!(r >= 4.5, "{name} {scheme:?}: color.status.warn = {r:.2}");
+        }
+    }
 }
 
 #[test]
