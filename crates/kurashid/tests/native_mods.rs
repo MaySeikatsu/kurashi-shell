@@ -831,3 +831,81 @@ async fn a_slot_is_ready_when_its_primary_document_says_so() {
     eventually(|| hub.snapshot("runtime.slots").unwrap().1["quick.tiles"][0]["ready"] == true)
         .await;
 }
+
+/// A mod with one island face, its handle kept for the test to raise (K28 (2)).
+struct Faced {
+    id: &'static str,
+    face: &'static str,
+    spec: FaceSpec,
+    held: Arc<Mutex<Option<FaceHandle>>>,
+}
+
+impl NativeMod for Faced {
+    fn id(&self) -> &'static str {
+        self.id
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let handle = ctx.face(self.face, self.spec)?;
+        *self.held.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// A transient face shows for its TTL after a raise, then the island falls back (K9, K28 (2)).
+#[tokio::test]
+async fn a_transient_face_runs_its_ttl_then_the_island_falls_back() {
+    let extra = scratch("osd-mods");
+    write(
+        &extra.join("osd/mod.toml"),
+        "id = \"osd\"\nname = \"Osd\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"island-face:osd\"]\n",
+    );
+    let held = Arc::new(Mutex::new(None));
+    let linked = vec![Box::new(Faced {
+        id: "osd",
+        face: "osd",
+        spec: FaceSpec {
+            transient: true,
+            ttl_s: 1,
+        },
+        held: held.clone(),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("osd"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "osd").await.unwrap();
+    let face = held.lock().unwrap().clone().expect("the face handle");
+    face.raise(0);
+    assert_eq!(island_doc(&d)["face"], "osd");
+    assert_eq!(island_doc(&d)["reason"], "transient");
+    let hub = d.hub.clone();
+    eventually(|| hub.snapshot("runtime.island.main").unwrap().1["face"] == "clock").await;
+}
+
+/// A face may not take the name of a core face: the enable is refused and the core face stays.
+#[tokio::test]
+async fn a_face_named_like_a_core_face_is_refused() {
+    let extra = scratch("dup-mods");
+    write(
+        &extra.join("dup/mod.toml"),
+        "id = \"dup\"\nname = \"Dup\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"island-face:clock\"]\n",
+    );
+    let linked = vec![Box::new(Faced {
+        id: "dup",
+        face: "clock",
+        spec: FaceSpec {
+            transient: false,
+            ttl_s: 0,
+        },
+        held: Arc::new(Mutex::new(None)),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("dup"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "dup").await.unwrap();
+    assert_eq!(d.state("dup"), "disabled");
+    assert_eq!(d.entry("dup")["errors"][0]["key"], "mods.error.duplicate");
+    assert_eq!(
+        island_faces(&d).iter().filter(|f| *f == "clock").count(),
+        1,
+        "the core face is registered once"
+    );
+}
