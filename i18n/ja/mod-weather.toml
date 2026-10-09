@@ -22,6 +22,7 @@
 "mod-weather.action.search" = "場所を検索"
 "mod-weather.action.add" = "場所を保存"
 "mod-weather.action.remove" = "場所を削除"
+"mod-weather.action.move" = "保存した場所の順番を変える"
 "mod-weather.action.next" = "次の保存した場所"
 
 # デーモン: 天気を表示できない理由（文書の reason）。
@@ -38,6 +39,7 @@
 "mod-weather.error.bad_place" = "この場所は保存できません。"
 "mod-weather.error.too_many" = "保存できる場所は20までです。"
 "mod-weather.error.unknown_place" = "この場所は保存されていません。"
+"mod-weather.error.bad_move" = "その向きには動かせません。"
 "mod-weather.error.save" = "場所を保存できませんでした。"
 
 # デーモン: WMO コード → 天気の区分（フロントエンドが記号に対応づけます）。

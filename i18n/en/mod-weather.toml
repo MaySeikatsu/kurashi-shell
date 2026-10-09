@@ -22,6 +22,7 @@
 "mod-weather.action.search" = "Search places"
 "mod-weather.action.add" = "Save place"
 "mod-weather.action.remove" = "Remove place"
+"mod-weather.action.move" = "Move saved place"
 "mod-weather.action.next" = "Next saved place"
 
 # Daemon: why there is no weather to show (the document's `reason`).
@@ -38,6 +39,7 @@
 "mod-weather.error.bad_place" = "That place cannot be saved."
 "mod-weather.error.too_many" = "Save at most 20 places."
 "mod-weather.error.unknown_place" = "That place is not saved."
+"mod-weather.error.bad_move" = "That place cannot be moved that way."
 "mod-weather.error.save" = "The places could not be saved."
 
 # Daemon: WMO code → condition key (the frontend maps the key to a glyph).
