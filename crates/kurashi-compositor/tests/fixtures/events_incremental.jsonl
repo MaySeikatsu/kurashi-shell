@@ -1,0 +1,8 @@
+{"WindowOpenedOrChanged":{"window":{"id":40,"title":"title-40","app_id":"firefox","pid":700000,"workspace_id":7,"is_focused":true,"is_floating":false,"is_urgent":false,"layout":{"pos_in_scrolling_layout":[1,1],"tile_size":[935.0,1000.0],"window_size":[935,1000],"tile_pos_in_workspace_view":null,"window_offset_in_tile":[0.0,0.0]},"focus_timestamp":{"secs":9000,"nanos":1}}}}
+{"WorkspaceActivated":{"id":7,"focused":true}}
+{"WindowFocusTimestampChanged":{"id":40,"focus_timestamp":{"secs":9001,"nanos":2}}}
+{"WorkspaceUrgencyChanged":{"id":5,"urgent":true}}
+{"WindowClosed":{"id":24}}
+{"WindowClosed":{"id":29}}
+{"WorkspaceActivated":{"id":999,"focused":true}}
+{"OverviewOpenedOrClosed":{"is_open":true}}
