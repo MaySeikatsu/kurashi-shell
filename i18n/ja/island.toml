@@ -1,0 +1,6 @@
+# Island face strings (ja): frontend/components/faces/.
+"island.media.idle" = "再生なし"
+"island.volume.muted" = "ミュート"
+"island.volume.unavailable" = "音声を利用できません"
+"island.notifications.unread" = "新着 {n} 件"
+"island.notifications.none" = "新着通知なし"
