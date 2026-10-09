@@ -43,6 +43,8 @@ enum Cmd {
     Mock { what: String, arg: Option<String> },
     /// Send one raw JSON message and print the first reply
     Raw { message: String },
+    /// Health report: what works, what does not, and how to fix it (exit 1 on failures, 3 if the daemon is down)
+    Doctor,
     /// Handshake + ping round-trip
     Ping,
 }
@@ -85,6 +87,15 @@ fn print(msg: &ServerMsg) {
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    if matches!(cli.cmd, Cmd::Doctor) {
+        let path = cli
+            .socket
+            .clone()
+            .unwrap_or_else(kurashi_core::default_socket_path);
+        let out = kurashi::doctor::run_doctor(&path, cli.json).await;
+        println!("{}", out.text);
+        std::process::exit(out.code);
+    }
     if let Cmd::Cfg(c) = cli.cmd.clone() {
         let path = cli
             .socket
@@ -107,7 +118,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let (mut rd, mut wr) = connect(&cli).await?;
     let send_one = match &cli.cmd {
-        Cmd::Cfg(_) => unreachable!("handled above"),
+        Cmd::Cfg(_) | Cmd::Doctor => unreachable!("handled above"),
         Cmd::Act { action, args } => Some(ClientMsg::Act {
             id: "cli".into(),
             action: action.clone(),

@@ -2,6 +2,8 @@
 //! functions over one protocol connection, so tests can drive them against an in-process
 //! daemon. Human output by default, `--json` prints the raw reply (scripts).
 
+pub mod doctor;
+
 use clap::Subcommand;
 use kurashi_core::{Provenanced, Source};
 use kurashi_ipc::{
@@ -147,7 +149,7 @@ impl Conn {
         }
     }
 
-    async fn request(&mut self, msg: ClientMsg) -> Result<ServerMsg, CliError> {
+    pub(crate) async fn request(&mut self, msg: ClientMsg) -> Result<ServerMsg, CliError> {
         write_msg(&mut self.wr, &msg).await.map_err(unavailable)?;
         loop {
             match self.rd.next_value::<ServerMsg>().await {
