@@ -1,4 +1,4 @@
-# Island face strings (en): frontend/components/faces/.
+# Island strings (en): the faces (frontend/components/faces/) and their expanded views (components/expanded/, QuickPanel).
 "island.media.idle" = "Nothing playing"
 "island.volume.muted" = "Muted"
 "island.volume.unavailable" = "Audio unavailable"
@@ -6,3 +6,17 @@
 "island.notifications.none" = "No new notifications"
 "error.brightness.no_device" = "No backlight device found"
 "error.audio.unavailable" = "Audio is not available"
+"island.media.heading" = "Now playing"
+"island.media.prev" = "Previous track"
+"island.media.play" = "Play"
+"island.media.pause" = "Pause"
+"island.media.next" = "Next track"
+"island.media.failed" = "Playback could not be controlled"
+"island.notifications.all" = "All notifications"
+"island.volume.heading" = "Volume"
+"island.volume.mute" = "Mute"
+"island.volume.unmute" = "Unmute"
+"island.volume.failed" = "Mute could not be changed"
+"island.brightness.heading" = "Brightness"
+"island.quick.heading" = "Quick settings"
+"island.quick.empty" = "Nothing to adjust yet."

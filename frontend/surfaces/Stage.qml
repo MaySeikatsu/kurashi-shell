@@ -3,12 +3,14 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/expanded"
 
 // Stage (ARCHITECTURE §4): overlay layer surface holding popups / OSD / island expansions, the
-// session menu and the tray item menus (K23). Sized to its content (K16: a full-output buffer cost
-// ~80 MiB), top-centred under the Island, or hung from the bar's tray end for a tray menu. One
-// instance, retargeted by shell.qml to the output that asked for it. Later OSD/toasts: grow the
-// implicit size to the union of their cards, or add sibling content-sized Stages; never a full-output one.
+// session menu, the tray item menus (K23) and the quick settings card (K24). Sized to its content
+// (K16: a full-output buffer cost ~80 MiB), top-centred under the Island, or hung from the bar's
+// tray end for a tray menu. One instance, retargeted by shell.qml to the output that asked for it.
+// Later OSD/toasts: grow the implicit size to the union of their cards, or add sibling content-sized
+// Stages; never a full-output one.
 //
 // Idle = silent (Ma) without unmapping: map/unmap cycles of this window left ~5 MiB of heap behind
 // per cycle (measured, K16), a permanently mapped, fully transparent, input-less surface costs
@@ -17,21 +19,44 @@ import "../components"
 PanelWindow {
     id: stage
 
-    // A Stage panel is wanted (island, session menu or tray menu). shell.qml sets it after it picked the output.
+    // The island panel is wanted (shell.qml sets it after it picked the output, with the session
+    // menu and the tray menu).
     property bool want: false
     // Which one the card shows comes from runtime.ui, where the daemon keeps the open panel (K23).
     Watch { doc: "runtime.ui" }
     readonly property var ui: Store.docs["runtime.ui"] || ({})
     readonly property bool sessionWanted: ui.panel === "session"
     readonly property bool trayWanted: ui.panel === "tray"
-    readonly property bool open: want
-    readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray" : (want ? "island" : ""))
+    // shell.qml's `want` does not cover the quick panel (K24), so the Stage follows runtime.ui for it.
+    readonly property bool quickWanted: ui.panel === "quick"
+    readonly property bool open: want || quickWanted
+    // K24: the island card shows the expanded view of the face the daemon latched when it opened.
+    // A face without one (mod faces, or none at all) gets the generic card.
+    readonly property var expandedFaces: ["media", "notifications", "clock", "volume", "brightness"]
+    readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : "island"
+    readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray"
+        : (quickWanted ? "quick" : (want ? islandKind : "")))
     // Content the card shows. Latched while the card slides out, so a closing menu does not flash other content.
     property string contentKind: "island"
     onWantedKindChanged: if (wantedKind !== "") contentKind = wantedKind
     // The card keeps the Stage's one keyboard focus across content changes and reopenings (the menus
     // are driven from it), so it takes focus back whenever the content swaps or the Stage opens.
     onContentKindChanged: Qt.callLater(function () { card.forceActiveFocus() })
+
+    // The card's view per kind, one component each. The Loader makes only the current one, and only
+    // while the card is on screen, so a view that is not shown holds no subscription (Ma).
+    readonly property var views: ({
+        island: genericView, media: mediaView, notifications: notificationsView, clock: clockView,
+        volume: volumeView, brightness: brightnessView, quick: quickView
+    })
+    readonly property bool viewing: views[contentKind] !== undefined
+    Component { id: genericView; GenericView {} }
+    Component { id: mediaView; MediaView {} }
+    Component { id: notificationsView; NotificationsView {} }
+    Component { id: clockView; ClockView {} }
+    Component { id: volumeView; VolumeView {} }
+    Component { id: brightnessView; BrightnessView {} }
+    Component { id: quickView; QuickPanel {} }
 
     // The bar of this output: the card sits just under a top bar, just above a bottom bar, and at
     // the screen edge otherwise (no bar, or a side bar a centred card does not meet).
@@ -81,7 +106,6 @@ PanelWindow {
             else { anim.from = p; anim.to = 1; anim.start() }
         } else if (shown) {
             gate = false
-            btErr = ""
             anim.stop(); anim.from = p; anim.to = 0; anim.start()
         }
     }
@@ -99,22 +123,10 @@ PanelWindow {
         }
     }
 
-    // Watched only while their content is on screen (Ma): a hidden card holds no subscription.
-    // Bluetooth is BlueZ's service; the tray menu reads its item's title from svc.tray.
-    readonly property var bluetooth: Store.docs["svc.bluetooth"] || ({})
-    readonly property bool islandLive: shown && contentKind === "island"
+    // Watched only while their content is on screen (Ma): a hidden card holds no subscription. The
+    // tray menu reads its item's title from svc.tray; the island views and the quick card watch their own docs.
     readonly property bool trayLive: shown && contentKind === "tray"
-    Watch { doc: "svc.bluetooth"; active: stage.islandLive }
     Watch { doc: "svc.tray"; active: stage.trayLive }
-
-    // ---- Bluetooth requests from the island panel. A refused one shows a translated line ----------
-    property string btErr: ""
-    function btAct(action, args) {
-        btErr = ""
-        Store.act(action, args, function (done, err) {
-            if (err) stage.btErr = stage.errorText(err, "frontend.bt.failed")
-        })
-    }
 
     // A failed action shows its translated text, never the daemon's raw msg: msg is an i18n key
     // (error.*). A key without text falls back to the panel's own line.
@@ -156,12 +168,13 @@ PanelWindow {
         return String(it.tooltip || "").split("\n").filter(function (l) { return l !== "" && l !== it.title }).join(" · ")
     }
 
-    // ---- card under the Island: island panel (title, Bluetooth, close), session menu, or tray menu
+    // ---- card under the Island: the island's view or the quick card, session menu, or tray menu
     Rectangle {
         id: card
         visible: stage.shown
-        width: 360
-        height: (stage.contentKind === "island" ? col.implicitHeight
+        // Media and the calendar need the wider card; the rest keep 360 px.
+        width: stage.contentKind === "media" || stage.contentKind === "clock" ? 400 : 360
+        height: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
         y: -stage.slide * (1 - stage.p)   // above the surface edge = clipped away
@@ -180,27 +193,17 @@ PanelWindow {
 
         Column {
             id: col
-            visible: stage.contentKind === "island"
+            visible: stage.viewing
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
             spacing: Theme.pad
-            Text {
-                color: Theme.fg
-                font.pixelSize: Theme.fsTitle
-                font.family: Theme.fam(text, Theme.families)
-                text: I18n.tr("frontend.stage.title")
-            }
-            // Visible only while the daemon serves svc.bluetooth (no BlueZ, nothing to show).
-            BluetoothPanel {
+            // Its height is the view's implicit one (an explicit binding to it loops in Qt).
+            Loader {
+                id: view
                 width: col.width
-                visible: stage.bluetooth.available === true
-                doc: stage.bluetooth
-                errText: stage.btErr
-                onPowerRequested: on => stage.btAct("bluetooth.power", {on: on})
-                onScanRequested: on => stage.btAct("bluetooth.scan", {on: on})
-                onLinkRequested: (address, connect) =>
-                    stage.btAct(connect ? "bluetooth.connect" : "bluetooth.disconnect", {address: address})
+                active: stage.shown && stage.viewing
+                sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
-            // The one close action of the island panel.
+            // The one close action of the island and quick cards (Esc closes them too).
             Button { label: I18n.tr("frontend.stage.close"); primary: true; onClicked: Store.act("ui.close") }
         }
 
