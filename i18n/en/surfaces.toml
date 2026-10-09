@@ -1,0 +1,5 @@
+# Surface strings (en): frontend/surfaces/. One domain file, flattened with the rest (rule 8).
+"surfaces.launcher.error.failed" = "Something went wrong. Try again."
+"surfaces.launcher.error.unavailable" = "Not available right now."
+"surfaces.launcher.error.invalid" = "That request was not valid."
+"surfaces.launcher.error.internal" = "Something went wrong inside kurashi."
