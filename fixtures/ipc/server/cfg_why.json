@@ -1,0 +1,1 @@
+{"t":"cfg.why","id":"3","key":"theme.material.blur","layers":[{"source":{"kind":"default"},"value":true},{"source":{"kind":"user"},"value":true},{"source":{"kind":"forced","name":"capability"},"value":false,"active":true,"reason":"compositor lacks ext-background-effect"}]}

@@ -1,0 +1,1 @@
+{"t":"apply","id":"4","ops":[{"set":"bar.main.edge","value":"left"},{"set":"bar.main.height","value":40,"output":"DP-1"},{"reset":"theme.motion"}]}

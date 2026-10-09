@@ -78,3 +78,13 @@ at 1 output on NVIDIA (bake-off quiet run); the trivial Quickshell floor is alre
 rendering, which costs shaders and smooth animation. The shellseikatsu comparison stays as a
 reported ratio (probe = 67 % of 216 MiB). Kaizen targets: ICU data, unused Qt modules, lazy popups.
 
+
+**K17** 🟢 Protocol v1 completed for the M1 freeze: typed `apply` ops (`set`/`reset`, optional
+`output`, `dry_run` → `preview`), `cfg.why` layers with one `active`, typed `rejected` errors
+(`code` = i18n key), `done.data`, server-pushed `snap` without `id`, `welcome.instance`, the
+`config` / `schema.settings` / `i18n` documents, and **daemon patches = merge-patch diff of
+old → new** (`kurashi_ipc::diff_patch`, documents contain no `null`). All additive for the probe
+subset. *Why:* RFC 7396 can't delete a member without an explicit `null`; a hand-written patch
+would leave stale `forced_by`/`reason` on screen — a Shōjiki violation. Diffing makes every
+patch exact by construction (property-tested). Instance ids avoid trusting cached revisions
+across daemon restarts.

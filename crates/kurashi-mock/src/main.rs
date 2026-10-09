@@ -240,6 +240,7 @@ async fn serve(
                     v: PROTOCOL_VERSION,
                     server: format!("kurashi-mock {}", env!("CARGO_PKG_VERSION")),
                     caps: vec!["island".into(), "mock".into()],
+                    instance: String::new(),
                 });
             }
             ClientMsg::Sub { id, doc } => snapshot(&state, &subscribed, &reply, id, doc).await,
@@ -306,7 +307,7 @@ async fn serve(
                 };
                 drop(st);
                 reply(if ok {
-                    ServerMsg::Done { id }
+                    ServerMsg::Done { id, data: None }
                 } else {
                     ServerMsg::Err {
                         id: Some(id),
@@ -358,7 +359,7 @@ async fn snapshot(
         Some(d) => {
             subscribed.lock().await.insert(doc.clone());
             reply(ServerMsg::Snap {
-                id,
+                id: Some(id),
                 doc,
                 rev: d.rev,
                 data: d.data.clone(),
