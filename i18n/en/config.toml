@@ -10,3 +10,9 @@
 "config.error.unrepresentable" = "this value cannot be stored in TOML"
 "config.error.user_file_unreadable" = "config.toml is unreadable; fix it before changing settings"
 "config.forced.nix_enforced" = "enforced by your Nix configuration"
+# Profile actions (profile.*): a refusal names what is wrong, never the engine's English (K27).
+"config.error.profile_not_found" = "no profile has this name"
+"config.error.profile_invalid_name" = "the profile name is not valid"
+"config.error.profile_unreadable" = "the profile file cannot be read"
+"config.error.profile_parse" = "the profile file is not valid TOML"
+"config.error.profile_write" = "the profile could not be written"
