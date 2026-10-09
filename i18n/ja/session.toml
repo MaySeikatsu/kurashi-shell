@@ -25,3 +25,8 @@
 "error.service.not_running" = "サービスが動作していません。先に購読してください。"
 "error.service.call_failed" = "サービスが要求を完了できませんでした。"
 "error.args.invalid" = "引数が不足しているか、不正です。"
+"action.audio.sink.default" = "音声出力: 既定に設定"
+"action.network.wifi" = "Wi-Fi のオン/オフ"
+"error.audio.no_such_sink" = "その ID の音声出力はありません。"
+"error.network.refused" = "NetworkManager が変更を拒否しました（権限がありません）。"
+"error.network.unavailable" = "NetworkManager が利用できません。"
