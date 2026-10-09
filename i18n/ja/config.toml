@@ -10,3 +10,9 @@
 "config.error.unrepresentable" = "この値は TOML に保存できません"
 "config.error.user_file_unreadable" = "config.toml を読み込めません。設定を変更する前に修正してください"
 "config.forced.nix_enforced" = "Nix の設定で強制されています"
+# プロファイル操作 (profile.*)。拒否の理由はキーで示し、エンジンの英語は出しません (K27)。
+"config.error.profile_not_found" = "この名前のプロファイルはありません"
+"config.error.profile_invalid_name" = "プロファイル名が正しくありません"
+"config.error.profile_unreadable" = "プロファイルファイルを読み込めません"
+"config.error.profile_parse" = "プロファイルファイルを TOML として解析できません"
+"config.error.profile_write" = "プロファイルを書き込めません"

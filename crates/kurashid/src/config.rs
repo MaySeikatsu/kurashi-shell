@@ -5,7 +5,7 @@
 use std::collections::{BTreeSet, HashMap};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use kurashi_config::{Config, Op, Options, Paths, SchemaView};
+use kurashi_config::{Config, ConfigError, DiagnosticReason, Op, Options, Paths, SchemaView};
 use kurashi_core::Provenanced;
 use kurashi_ipc::{ApplyOp, DiffEntry, LayerValue, OpError};
 use kurashi_mods::{Manifest, ModState, Setting, SettingType, SettingValue};
@@ -273,6 +273,42 @@ fn diff_entries(d: &kurashi_config::Diff) -> Vec<DiffEntry> {
         .collect()
 }
 
+/// `profile.list`'s answer and the `config` document's `profiles` (K27): one list, one order.
+fn profile_entries(cfg: &Config<SchemaAdapter>) -> Vec<Value> {
+    cfg.list_profiles()
+        .into_iter()
+        .map(|(name, _, bundled)| json!({"name": name, "bundled": bundled}))
+        .collect()
+}
+
+/// A profile request without a usable name is refused as an invalid name.
+const PROFILE_INVALID_NAME: &str = "config.error.profile_invalid_name";
+
+/// A refused profile action as its i18n key (K27, B5). The engine's text is English detail and
+/// never goes on the wire: the key says what is wrong, the catalog says what to do about it.
+fn profile_refusal(e: ConfigError) -> ActionError {
+    let key = match &e {
+        ConfigError::ProfileNotFound(_) => "config.error.profile_not_found",
+        ConfigError::InvalidProfileName(_) => PROFILE_INVALID_NAME,
+        // A syntax error is for the user to fix; any other read failure is the file itself.
+        ConfigError::Unreadable(diags)
+            if diags
+                .iter()
+                .any(|d| matches!(d.reason, DiagnosticReason::Parse { .. })) =>
+        {
+            "config.error.profile_parse"
+        }
+        ConfigError::Unreadable(_) => "config.error.profile_unreadable",
+        ConfigError::Io { .. } => "config.error.profile_write",
+        // The engine refuses with a catalog key when config.toml itself cannot be used.
+        ConfigError::Refused(key) if key == "config.error.user_file_unreadable" => {
+            "config.error.user_file_unreadable"
+        }
+        ConfigError::Refused(_) => "config.error.profile_write",
+    };
+    ActionError::Invalid(key.into())
+}
+
 impl ConfigStore {
     pub fn open(
         hub: Arc<Hub>,
@@ -372,11 +408,12 @@ impl ConfigStore {
         *have = want;
     }
 
-    /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}}` — rebuilt whole and
-    /// diffed by the hub, so patches carry exactly what changed (K17). An output with values of its
-    /// own lists every per-output key, so a key inert on that output alone says so without an
-    /// override of its own: the view falls back to the global entry, and must not have to evaluate
-    /// `requires` itself (K21).
+    /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}, "history":{can_undo,
+    /// can_redo}, "profiles":[{name, bundled}]}` — rebuilt whole and diffed by the hub, so patches
+    /// carry exactly what changed (K17). An output with values of its own lists every per-output
+    /// key, so a key inert on that output alone says so without an override of its own: the view
+    /// falls back to the global entry, and must not have to evaluate `requires` itself (K21).
+    /// `history` and `profiles` are the daemon's own state, pushed so no client keeps a copy (K27).
     pub fn document(&self) -> Value {
         let cfg = self.cfg.lock().expect("config lock");
         let keys = cfg.schema().keys();
@@ -406,7 +443,12 @@ impl ConfigStore {
             }
             outputs.insert(out.clone(), Value::Object(scope));
         }
-        json!({"values": values, "outputs": outputs})
+        json!({
+            "values": values,
+            "outputs": outputs,
+            "history": {"can_undo": cfg.can_undo(), "can_redo": cfg.can_redo()},
+            "profiles": profile_entries(&cfg),
+        })
     }
 
     /// K21: the provenance `cfg.get`, `cfg.explain` and the `config` document all report, so they
@@ -501,6 +543,12 @@ impl ConfigStore {
         for l in self.listeners.lock().expect("listeners").iter() {
             l(self);
         }
+    }
+
+    /// Republishes the `config` document alone, for a change of the profiles only: no value in
+    /// effect moved, so the couplings and the listeners stay as they are.
+    fn publish_document(&self) {
+        let _ = self.hub.set(DOC, self.document(), None);
     }
 
     pub fn get(&self, key: &str, output: Option<&str>) -> Option<Provenanced> {
@@ -608,7 +656,8 @@ impl ConfigStore {
         self.cfg.lock().expect("config lock").paths().clone()
     }
 
-    /// `profile.list` / `profile.preview` / `profile.load` / `profile.save`.
+    /// `profile.list` / `profile.preview` / `profile.load` / `profile.save`. Refusals carry i18n
+    /// keys (`config.error.profile_*`, K27); the list is also pushed in the `config` document.
     pub fn register_actions(self: &Arc<Self>, actions: &mut ActionRegistry) {
         fn args(v: &Value) -> (Option<String>, Option<Vec<String>>) {
             let name = v.get("name").and_then(Value::as_str).map(String::from);
@@ -620,20 +669,13 @@ impl ConfigStore {
             });
             (name, sections)
         }
-        let invalid = |m: &str| ActionError::Invalid(m.into());
+        let no_name = || ActionError::Invalid(PROFILE_INVALID_NAME.into());
 
         let me = self.clone();
         actions.register("profile.list", "action.profile.list", move |_| {
             let me = me.clone();
             async move {
-                let list: Vec<Value> = me
-                    .cfg
-                    .lock()
-                    .expect("config lock")
-                    .list_profiles()
-                    .into_iter()
-                    .map(|(name, _, bundled)| json!({"name": name, "bundled": bundled}))
-                    .collect();
+                let list = profile_entries(&me.cfg.lock().expect("config lock"));
                 Ok(Some(json!({"profiles": list})))
             }
         });
@@ -642,7 +684,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(|| invalid("profile.preview needs name"))?;
+                let name = name.ok_or_else(&no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -651,7 +693,7 @@ impl ConfigStore {
                     .lock()
                     .expect("config lock")
                     .preview_profile(&name, secs.as_deref())
-                    .map_err(|e| ActionError::Invalid(e.to_string()))?;
+                    .map_err(profile_refusal)?;
                 Ok(Some(json!({"diff": diff_entries(&diff)})))
             }
         });
@@ -660,7 +702,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(|| invalid("profile.load needs name"))?;
+                let name = name.ok_or_else(&no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -669,7 +711,7 @@ impl ConfigStore {
                     .lock()
                     .expect("config lock")
                     .load_profile(&name, secs.as_deref())
-                    .map_err(|e| ActionError::Invalid(e.to_string()))?;
+                    .map_err(profile_refusal)?;
                 me.publish();
                 Ok(Some(json!({"rev": applied.rev, "undo": applied.tx_id})))
             }
@@ -679,7 +721,7 @@ impl ConfigStore {
             let me = me.clone();
             async move {
                 let (name, sections) = args(&v);
-                let name = name.ok_or_else(|| invalid("profile.save needs name"))?;
+                let name = name.ok_or_else(&no_name)?;
                 let secs: Option<Vec<&str>> = sections
                     .as_ref()
                     .map(|s| s.iter().map(String::as_str).collect());
@@ -688,39 +730,66 @@ impl ConfigStore {
                     .lock()
                     .expect("config lock")
                     .save_profile(&name, secs.as_deref())
-                    .map_err(|e| ActionError::Invalid(e.to_string()))?;
+                    .map_err(profile_refusal)?;
+                // The file is listed now; the watcher's (debounced) publish would only repeat this.
+                me.publish_document();
                 Ok(Some(json!({"path": path})))
             }
         });
     }
 }
 
+/// What a burst of file events touched: a config file (everything is reloaded), or only files in
+/// the profiles directory (the `profiles` list is republished).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Touched {
+    Config,
+    Profiles,
+}
+
+/// `profiles/<name>.toml`, or the profiles directory itself (created or removed: the list changes).
+fn is_profile_event(path: &std::path::Path, profiles: &std::path::Path) -> bool {
+    path == profiles
+        || (path.parent() == Some(profiles) && path.extension().is_some_and(|x| x == "toml"))
+}
+
 /// Watch the config directory and reload on external edits of `config.toml` / `managed.toml`
-/// (debounced; our own writes produce an empty diff). Keep the returned watcher alive.
+/// (debounced; our own writes produce an empty diff). Files in `profiles/` (K27) are watched too,
+/// so the `profiles` list follows them without a reconnect. The watch is recursive because
+/// `profiles/` may not exist yet: a watch on it alone would have to wait for its creation. Keep the
+/// returned watcher alive.
 pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatcher> {
     use notify::{RecursiveMode, Watcher};
     let paths = store.paths();
     let names = [paths.user_file(), paths.managed_file()];
-    let dir = names[0]
-        .parent()
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_default();
+    let profiles = paths.user_profiles_dir();
+    let dir = paths.config_dir.clone();
     std::fs::create_dir_all(&dir).ok();
-    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<()>();
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Touched>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
-        if let Ok(ev) = res
-            && ev.paths.iter().any(|p| names.contains(p))
-        {
-            let _ = tx.send(());
+        let Ok(ev) = res else { return };
+        if ev.paths.iter().any(|p| names.contains(p)) {
+            let _ = tx.send(Touched::Config);
+        } else if ev.paths.iter().any(|p| is_profile_event(p, &profiles)) {
+            let _ = tx.send(Touched::Profiles);
         }
     })?;
-    watcher.watch(&dir, RecursiveMode::NonRecursive)?;
+    watcher.watch(&dir, RecursiveMode::Recursive)?;
     tokio::spawn(async move {
-        while rx.recv().await.is_some() {
-            // Editors write in bursts (temp file, rename, chmod): settle, then reload once.
+        while let Some(first) = rx.recv().await {
+            // Editors write in bursts (temp file, rename, chmod): settle, then act once.
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
-            while rx.try_recv().is_ok() {}
-            store.reload();
+            let mut touched = first;
+            while let Ok(next) = rx.try_recv() {
+                if next == Touched::Config {
+                    touched = Touched::Config;
+                }
+            }
+            match touched {
+                // Reloads and publishes the whole `config` document.
+                Touched::Config => store.reload(),
+                Touched::Profiles => store.publish_document(),
+            }
         }
     });
     Ok(watcher)

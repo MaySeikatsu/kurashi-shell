@@ -21,15 +21,17 @@ Singleton {
     property var mods: ({})
     property bool connected: false
     property bool live: false
-    // key -> error text of the last rejected apply touching it (cleared by the next apply of it)
+    // key -> error text of the last rejected apply touching it (cleared by the next apply of it, and by any
+    // change that goes through: a refusal is stale once something else succeeded, B8)
     property var rowErrors: ({})
     // Undo/redo/profile failures that belong to no row.
     property string notice: ""
-    // Undo and redo availability, from the daemon's replies only (no local history). Both start off:
-    // the daemon does not report its history yet (CONTRACT-CHANGE row 20), so the first change made
-    // in this window turns Undo on.
-    property bool canUndo: false
-    property bool canRedo: false
+    // Undo and redo availability is the daemon's `config.history` (K27): current after every change, undo,
+    // redo and profile load, whoever made it. Nothing is kept here.
+    readonly property bool canUndo: !!(config.history && config.history.can_undo)
+    readonly property bool canRedo: !!(config.history && config.history.can_redo)
+    // A change went through (an applied batch, a done action, an undo or redo).
+    signal changeApplied()
 
     // Only these documents are subscribed, and only while this process lives (Ma).
     readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces", "mods"]
@@ -50,15 +52,14 @@ Singleton {
         if (cb) pending[m.id] = cb
         return send(m)
     }
-    // An action that changed the config reports its undo token in `data` (profile.load), as `applied` does.
     function act(action, args, cb) {
         request({ t: "act", action: action, args: args || ({}) }, function (m) {
-            if (m.t === "done" && m.data && m.data.undo) noteChange()
+            if (m.t === "done") noteApplied()
             if (cb) cb(m)
         })
     }
-    // A change was applied: it can be undone, and the redo branch is gone.
-    function noteChange() { canUndo = true; canRedo = false }
+    // A change went through: refusal lines still shown by rows are stale now (B8).
+    function noteApplied() { rowErrors = ({}); changeApplied() }
 
     // --- config helpers ------------------------------------------------------------------------
     // Provenanced {value, source, forced_by?, reason?}; the output entry wins when present.
@@ -152,7 +153,7 @@ Singleton {
         rowErrors = errs
         notice = ""
         return request({ t: "apply", ops: ops }, function (m) {
-            if (m.t === "applied") noteChange()
+            if (m.t === "applied") noteApplied()
             if (m.t === "rejected") {
                 var e = Object.assign({}, rowErrors)
                 var attempted = {}
@@ -193,22 +194,13 @@ Singleton {
     }
     function undo() { stepHistory("undo") }
     function redo() { stepHistory("redo") }
-    // The daemon refuses a step with nothing to take back, which turns that button off. A step that
-    // works turns the opposite button on; the depth is unknown, so the button used stays on until a refusal.
+    // The buttons follow `config.history`, which the daemon pushes after the step; a refusal only says why.
     function stepHistory(t) {
         notice = ""
         request({ t: t }, function (m) {
-            if (m.t === "applied") {
-                if (t === "undo") canRedo = true
-                else canUndo = true
-            } else if (m.t === "rejected" && m.errors.length) {
-                var code = m.errors[0].code
-                if (code === "config.error.nothing_to_undo") canUndo = false
-                if (code === "config.error.nothing_to_redo") canRedo = false
-                notice = errorText(m.errors[0])
-            } else {
-                notice = actError(m, t === "undo" ? "settings.err.undo" : "settings.err.redo")
-            }
+            if (m.t === "applied") noteApplied()
+            else if (m.t === "rejected" && m.errors.length) notice = errorText(m.errors[0])
+            else notice = actError(m, t === "undo" ? "settings.err.undo" : "settings.err.redo")
         })
     }
 

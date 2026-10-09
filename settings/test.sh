@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Settings app smoke test + screenshots (card M5-settings, S-settings-polish). Runs ONLY in a headless
+# Settings app smoke test + screenshots (cards M5-settings, S-settings-polish, W9-config-profiles: Undo from
+# config.history, a profile file listed while the page is open, refusal lines of mods). Runs ONLY in a headless
 # sway sandbox with an isolated kurashid (own XDG dirs); never touches the real session or ~/.config.
 #   settings/test.sh                        → exit 0 and settings/shots/*.png
 #   KURASHI_BIN_DIR=<dir> settings/test.sh  → take kurashid + kurashi from <dir>; no cargo build
@@ -77,6 +78,10 @@ for _ in $(seq 50); do [ -S "$KURASHI_SOCKET" ] && break; sleep 0.1; done
 [ -S "$KURASHI_SOCKET" ] || { echo "kurashid did not start"; cat "$R/kurashid.log"; exit 1; }
 K() { "$BIN/kurashi" raw "$1"; }
 
+# History (K27): one change before Settings starts, so the daemon already has something to undo. The
+# seed is an advanced, harmless key that no shot shows.
+"$BIN/kurashi" set notifications.history_max 210 | grep '^applied' >/dev/null || { echo "seed: kurashi set was not applied"; exit 1; }
+
 # Without KURASHI_SOCKET, as in a live session: the protocol default must be found.
 env -u KURASHI_SOCKET qs -p settings > "$R/settings.log" 2>&1 & pids+=($!)
 Q() { qs -p settings ipc call settings "$@"; }
@@ -86,6 +91,13 @@ sleep 1.5
 
 mkdir -p settings/shots
 shot() { sleep 1; grim -o HEADLESS-1 "settings/shots/$1.png"; [ -s "settings/shots/$1.png" ]; }
+
+# 0. history (K27): the daemon's history is pushed with the config, so Undo is on as soon as Settings opens
+#    (the seed above is the only change this daemon has seen). Redo is off: nothing was undone.
+for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=off" ] && break; sleep 0.2; done
+[ "$(Q undoState)" = "undo=on,redo=off" ] || { echo "history: Undo not on after opening ($(Q undoState))"; exit 1; }
+Q goto bar
+shot 0-undo-on-open
 
 # 1. a user value: chip "user" + reset button (bar.height = 40 from config.toml)
 Q goto bar
@@ -117,6 +129,7 @@ Q goto @mods
 Q mod demo-blur true
 Q mod broken-demo true
 shot 6-mods
+[ -n "$(Q modRefusal broken-demo)" ] || { echo "mods: the refusal under broken-demo is not shown"; exit 1; }
 
 # 7. a mod's settings page (K22): Media turned on; its page reads "Mods › Media" with the album-art
 #    toggle and the seek step slider. The page exists only where the daemon calls sync_mods (wiring);
@@ -124,6 +137,12 @@ shot 6-mods
 Q mod media true
 Q goto mods.media
 shot 7-mod-page
+# 7b. B8: a change that went through elsewhere (the Media enable above) takes broken-demo's refusal line
+#     away; the row keeps its one-sentence reason (shot 6 showed it before this change)
+Q goto @mods
+for _ in $(seq 15); do [ -z "$(Q modRefusal broken-demo)" ] && break; sleep 0.2; done
+[ -z "$(Q modRefusal broken-demo)" ] || { echo "mods: refusal survived a change elsewhere: $(Q modRefusal broken-demo)"; exit 1; }
+shot 7b-mods-after-change
 
 # 8. keyboard only: Tab walks the window's focus order until the bar's "show bar" toggle has focus
 #    (its objectName is toggle:<key>), then Space flips it. The daemon must confirm the flip, and the
@@ -152,5 +171,24 @@ case "$after" in *'"value":false'*) ;; *) echo "keyboard: Space did not flip bar
 shot 8-keyboard-focus   # while the keyboard is still there: its focus is what the ring shows
 exec 3>&-
 echo "keyboard: Tab x$tabs, Space flipped bar.enabled"
+
+# 9. profiles (K27): a profile file that appears while the Profiles page is open is listed by the same
+#    Settings process, with no reconnect (the daemon pushes the list when the file appears).
+Q goto @profiles
+t0=$(date +%s%N)
+printf '[bar]\nheight = 44\n' > "$R/cfg/kurashi/profiles/late.toml"
+while [[ "$(Q profileNames)" != *late* ]]; do
+  elapsed=$(( ($(date +%s%N) - t0) / 1000000 ))
+  [ "$elapsed" -lt 5000 ] || { echo "profiles: late.toml not listed within 5 s ($(Q profileNames))"; exit 1; }
+  sleep 0.1
+done
+echo "profiles: late.toml listed after $(( ($(date +%s%N) - t0) / 1000000 )) ms (IPC round trips included)"
+shot 9-profiles-live
+
+# 10. undo from the header (the same click as the button): the step is undone and Redo turns on
+Q undo
+for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=on" ] && break; sleep 0.2; done
+[ "$(Q undoState)" = "undo=on,redo=on" ] || { echo "history: after Undo, expected undo=on,redo=on ($(Q undoState))"; exit 1; }
+shot 10-undo-redo
 
 echo "ok: settings/shots/"; ls settings/shots
