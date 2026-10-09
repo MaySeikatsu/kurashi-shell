@@ -4,16 +4,21 @@
 //! is refused and the mod stays off. Drives the daemon's wiring over a scratch config root, no socket.
 
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use kurashi_config::{Options, Paths};
 use kurashi_ipc::{ApplyOp, ClientMsg, LineReader, ServerMsg, write_msg};
-use kurashi_mod_api::{ActionError as ModActionError, ModCtx, ModError, NativeMod};
+use kurashi_island::IslandConfig;
+use kurashi_mod_api::{
+    ActionError as ModActionError, Choice, ChoicesHandle, FaceHandle, FaceSpec, ModCtx, ModError,
+    NativeMod,
+};
 use kurashi_mod_hello::Hello;
 use kurashid::config::ConfigStore;
 use kurashid::hub::UnknownDoc;
+use kurashid::island::IslandHost;
 use kurashid::{ActionError, ActionRegistry, Hub, wiring};
 use serde_json::{Value, json};
 use tokio::net::UnixStream;
@@ -91,6 +96,17 @@ struct Daemon {
 
 fn start(root: &Path, extra: &[PathBuf], linked: Vec<Box<dyn NativeMod>>) -> Daemon {
     let hub = Hub::new();
+    // The island is built before the config is opened, as `main` does: the offers read its faces.
+    let island = IslandHost::new(
+        hub.clone(),
+        "main",
+        IslandConfig {
+            faces: vec!["clock".into(), "media".into()],
+            default: "clock".into(),
+            ..Default::default()
+        },
+        &["clock", "media"],
+    );
     let store = ConfigStore::open(
         hub.clone(),
         kurashi_schema::v1::registry(),
@@ -98,12 +114,14 @@ fn start(root: &Path, extra: &[PathBuf], linked: Vec<Box<dyn NativeMod>>) -> Dae
         Options::default(),
     );
     let mut actions = ActionRegistry::default();
+    wiring::ui(&hub, &mut actions);
     wiring::mods_native(
         &hub,
         &mut actions,
         roots(extra),
         Some(store.clone()),
         linked,
+        Some(island),
     );
     Daemon {
         hub,
@@ -502,4 +520,392 @@ async fn over_the_socket_a_disabled_mod_answers_unknown_doc_and_unknown_action()
         ServerMsg::Err { kind, .. } if kind == "unknown_action"
     ));
     let _ = stop_tx.send(());
+}
+
+/// Keeps its face handle past the disable, to show a raise after it does nothing (K28).
+struct Keeper(Arc<Mutex<Option<FaceHandle>>>);
+
+impl NativeMod for Keeper {
+    fn id(&self) -> &'static str {
+        "keeper"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let handle = ctx.face(
+            "keeper",
+            FaceSpec {
+                transient: false,
+                ttl_s: 0,
+            },
+        )?;
+        *self.0.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// Offers the options it holds, and keeps the handle that says when they changed (K28 (3)).
+struct Shifty(Arc<Mutex<Vec<String>>>, Arc<Mutex<Option<ChoicesHandle>>>);
+
+impl NativeMod for Shifty {
+    fn id(&self) -> &'static str {
+        "shifty"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let held = self.0.clone();
+        let handle = ctx.choices("shifty.pick", move || {
+            held.lock()
+                .unwrap()
+                .iter()
+                .map(|v| Choice::new(v, v))
+                .collect()
+        })?;
+        *self.1.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// A primary document that is not available until it is subscribed to (K28 `ready`).
+struct Gate;
+
+impl NativeMod for Gate {
+    fn id(&self) -> &'static str {
+        "gate"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.service(
+            "gate",
+            json!({"available": false}),
+            |publish, _| async move {
+                publish(json!({"available": true}));
+            },
+        )
+    }
+}
+
+/// `file://` URL of a file of the test mod `hello`, as the daemon lists it.
+fn hello_file(rel: &str) -> String {
+    format!(
+        "file://{}/tests/data/mods/hello/{rel}",
+        env!("CARGO_MANIFEST_DIR")
+    )
+}
+
+fn island_doc(d: &Daemon) -> Value {
+    d.hub.snapshot("runtime.island.main").unwrap().1
+}
+
+fn island_faces(d: &Daemon) -> Vec<Value> {
+    island_doc(d)["faces"].as_array().unwrap().clone()
+}
+
+/// The row of `key` in the `schema.settings` document.
+fn setting_row(d: &Daemon, key: &str) -> Value {
+    let (_, doc) = d.hub.snapshot("schema.settings").unwrap();
+    doc["pages"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|page| page["sections"].as_array().into_iter().flatten())
+        .flat_map(|section| section["rows"].as_array().into_iter().flatten())
+        .find(|row| row["key"] == key)
+        .cloned()
+        .unwrap_or_else(|| panic!("no row for {key}"))
+}
+
+/// The values a settings row offers.
+fn offered(row: &Value) -> Vec<String> {
+    row["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["value"].as_str().unwrap().to_string())
+        .collect()
+}
+
+/// The reason a setting's value is not in effect, if any.
+fn reason_of(d: &Daemon, key: &str) -> Option<String> {
+    d.store.get(key, None).and_then(|p| p.reason)
+}
+
+#[tokio::test]
+async fn enable_puts_the_slot_face_panel_and_choices_in_effect_and_disable_takes_them_back() {
+    let d = start(&scratch("hooks"), &[], hello());
+    assert_eq!(d.hub.snapshot("runtime.slots").unwrap().1, json!({}));
+    assert!(!island_faces(&d).contains(&json!("hello")));
+
+    d.act("mod.enable", "hello").await.unwrap();
+
+    // The footer slot: its file, ready from the primary document (`mod.hello` is available).
+    assert_eq!(
+        d.hub.snapshot("runtime.slots").unwrap().1,
+        json!({"clock.expanded.footer": [{
+            "mod": "hello",
+            "qml": hello_file("qml/slots/clock.expanded.footer.qml"),
+            "ready": true,
+        }]})
+    );
+    // The mods document names the component files that exist: the expanded face view and the slot too.
+    assert_eq!(
+        d.entry("hello")["qml"],
+        json!({
+            "island-face:hello": hello_file("qml/Face.qml"),
+            "island-face:hello:expanded": hello_file("qml/FaceExpanded.qml"),
+            "panel:hello": hello_file("qml/Panel.qml"),
+            "slot:clock.expanded.footer": hello_file("qml/slots/clock.expanded.footer.qml"),
+        })
+    );
+
+    // The face is registered: in the cycle, shown by relevance when raised, back to the default on clear.
+    assert!(island_faces(&d).contains(&json!("hello")));
+    d.actions
+        .invoke("hello.raise", json!({"relevance": 60}))
+        .await
+        .unwrap();
+    let shown = island_doc(&d);
+    assert_eq!(shown["face"], "hello");
+    assert_eq!(shown["reason"], "relevance");
+    d.actions.invoke("hello.clear", json!({})).await.unwrap();
+    let shown = island_doc(&d);
+    assert_eq!(shown["face"], "clock");
+    assert_eq!(shown["reason"], "default");
+
+    // The choice source: the greeting setting, which names it, offers the mod's options.
+    let row = setting_row(&d, "mods.hello.greeting");
+    assert_eq!(row["choices_from"], "hello.greetings");
+    assert_eq!(offered(&row), ["hi", "hello", "yo"]);
+    assert_eq!(reason_of(&d, "mods.hello.greeting"), None);
+
+    // The panel: `mod.panel.open` toggles `mod:hello:hello`; a panel the mod does not provide is refused.
+    d.actions
+        .invoke("mod.panel.open", json!({"id": "hello", "panel": "hello"}))
+        .await
+        .unwrap();
+    assert_eq!(
+        d.hub.snapshot("runtime.ui").unwrap().1["panel"],
+        "mod:hello:hello"
+    );
+    d.actions
+        .invoke("mod.panel.open", json!({"id": "hello", "panel": "hello"}))
+        .await
+        .unwrap();
+    assert_eq!(d.hub.snapshot("runtime.ui").unwrap().1["panel"], "");
+    assert_eq!(
+        d.actions
+            .invoke("mod.panel.open", json!({"id": "hello", "panel": "other"}))
+            .await,
+        Err(ActionError::Invalid("mods.error.panel_unavailable".into()))
+    );
+    assert_eq!(
+        d.actions
+            .invoke("mod.panel.open", json!({"id": "hello"}))
+            .await,
+        Err(ActionError::Invalid(wiring::ARGS_INVALID.into()))
+    );
+
+    // Disabled while its face is shown: slot, face and panel are gone, the island falls back, and the
+    // greeting keeps its value, inert because its mod is off.
+    d.actions
+        .invoke("hello.raise", json!({"relevance": 60}))
+        .await
+        .unwrap();
+    d.act("mod.disable", "hello").await.unwrap();
+    assert_eq!(d.hub.snapshot("runtime.slots").unwrap().1, json!({}));
+    assert!(!island_faces(&d).contains(&json!("hello")));
+    assert_eq!(island_doc(&d)["face"], "clock");
+    assert_eq!(
+        d.actions
+            .invoke("mod.panel.open", json!({"id": "hello", "panel": "hello"}))
+            .await,
+        Err(ActionError::Invalid("mods.error.panel_unavailable".into()))
+    );
+    assert_eq!(
+        reason_of(&d, "mods.hello.greeting").as_deref(),
+        Some("mods.disabled")
+    );
+}
+
+/// A setting of one mod that names another mod's choice source: in effect while the source's mod is
+/// on, inert (`settings.choice.unavailable`) while it is off, as a source that offers nothing.
+#[tokio::test]
+async fn a_setting_naming_a_choice_source_is_inert_while_the_source_mod_is_off() {
+    let extra = scratch("consumer-mods");
+    write(
+        &extra.join("consumer/mod.toml"),
+        "id = \"consumer\"\nname = \"Consumer\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\n\n[[setting]]\nkey = \"pick\"\ntype = \"string\"\n\
+         default = \"hi\"\nchoices_from = \"hello.greetings\"\n",
+    );
+    let d = start(&scratch("consumer"), std::slice::from_ref(&extra), hello());
+    d.act("mod.enable", "consumer").await.unwrap();
+    // hello is off: its source is known with no options, so the value is judged and inert.
+    assert_eq!(
+        reason_of(&d, "mods.consumer.pick").as_deref(),
+        Some("settings.choice.unavailable")
+    );
+    d.act("mod.enable", "hello").await.unwrap();
+    assert_eq!(reason_of(&d, "mods.consumer.pick"), None);
+    d.act("mod.disable", "hello").await.unwrap();
+    assert_eq!(
+        reason_of(&d, "mods.consumer.pick").as_deref(),
+        Some("settings.choice.unavailable")
+    );
+}
+
+/// A face handle kept past its disable raises nothing, also after the mod is enabled again (K28).
+#[tokio::test]
+async fn a_face_handle_kept_past_a_disable_raises_nothing() {
+    let extra = scratch("keeper-mods");
+    write(
+        &extra.join("keeper/mod.toml"),
+        "id = \"keeper\"\nname = \"Keeper\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"island-face:keeper\"]\n",
+    );
+    let kept = Arc::new(Mutex::new(None));
+    let linked = vec![Box::new(Keeper(kept.clone())) as Box<dyn NativeMod>];
+    let d = start(&scratch("keeper"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "keeper").await.unwrap();
+    let old = kept.lock().unwrap().clone().expect("the face handle");
+    d.act("mod.disable", "keeper").await.unwrap();
+    old.raise(90);
+    assert_eq!(island_doc(&d)["face"], "clock");
+    assert!(!island_faces(&d).contains(&json!("keeper")));
+
+    d.act("mod.enable", "keeper").await.unwrap();
+    assert!(island_faces(&d).contains(&json!("keeper")));
+    old.raise(90);
+    assert_eq!(
+        island_doc(&d)["reason"],
+        "default",
+        "the old handle does not reach the new enable"
+    );
+}
+
+/// `ChoicesHandle::changed` asks the source again: the settings that name it show the new options.
+#[tokio::test]
+async fn changed_choices_reach_the_settings_at_once() {
+    let extra = scratch("shifty-mods");
+    write(
+        &extra.join("shifty/mod.toml"),
+        "id = \"shifty\"\nname = \"Shifty\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"choices:shifty.pick\"]\n\n[[setting]]\n\
+         key = \"pick\"\ntype = \"string\"\ndefault = \"a\"\nchoices_from = \"shifty.pick\"\n",
+    );
+    let options = Arc::new(Mutex::new(vec!["a".to_string()]));
+    let handle = Arc::new(Mutex::new(None));
+    let linked = vec![Box::new(Shifty(options.clone(), handle.clone())) as Box<dyn NativeMod>];
+    let d = start(&scratch("shifty"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "shifty").await.unwrap();
+    assert_eq!(offered(&setting_row(&d, "mods.shifty.pick")), ["a"]);
+    options.lock().unwrap().push("b".into());
+    handle
+        .lock()
+        .unwrap()
+        .as_ref()
+        .expect("the choices handle")
+        .choices_changed();
+    assert_eq!(offered(&setting_row(&d, "mods.shifty.pick")), ["a", "b"]);
+}
+
+/// `runtime.slots` `ready` follows the primary document's `available`: not ready until the service
+/// publishes it, which happens once something subscribes (rule 5).
+#[tokio::test]
+async fn a_slot_is_ready_when_its_primary_document_says_so() {
+    let extra = scratch("gate-mods");
+    let dir = extra.join("gate");
+    write(
+        &dir.join("mod.toml"),
+        "id = \"gate\"\nname = \"Gate\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"service:gate\", \"slot:quick.tiles\"]\n",
+    );
+    write(&dir.join("qml/slots/quick.tiles.qml"), "import QtQuick\n");
+    let linked = vec![Box::new(Gate) as Box<dyn NativeMod>];
+    let d = start(&scratch("gate"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "gate").await.unwrap();
+    let ready =
+        |d: &Daemon| d.hub.snapshot("runtime.slots").unwrap().1["quick.tiles"][0]["ready"].clone();
+    assert_eq!(ready(&d), json!(false), "not available until it runs");
+    d.hub.subscribe("mod.gate").unwrap();
+    let hub = d.hub.clone();
+    eventually(|| hub.snapshot("runtime.slots").unwrap().1["quick.tiles"][0]["ready"] == true)
+        .await;
+}
+
+/// A mod with one island face, its handle kept for the test to raise (K28 (2)).
+struct Faced {
+    id: &'static str,
+    face: &'static str,
+    spec: FaceSpec,
+    held: Arc<Mutex<Option<FaceHandle>>>,
+}
+
+impl NativeMod for Faced {
+    fn id(&self) -> &'static str {
+        self.id
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let handle = ctx.face(self.face, self.spec)?;
+        *self.held.lock().unwrap() = Some(handle);
+        Ok(())
+    }
+}
+
+/// A transient face shows for its TTL after a raise, then the island falls back (K9, K28 (2)).
+#[tokio::test]
+async fn a_transient_face_runs_its_ttl_then_the_island_falls_back() {
+    let extra = scratch("osd-mods");
+    write(
+        &extra.join("osd/mod.toml"),
+        "id = \"osd\"\nname = \"Osd\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"island-face:osd\"]\n",
+    );
+    let held = Arc::new(Mutex::new(None));
+    let linked = vec![Box::new(Faced {
+        id: "osd",
+        face: "osd",
+        spec: FaceSpec {
+            transient: true,
+            ttl_s: 1,
+        },
+        held: held.clone(),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("osd"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "osd").await.unwrap();
+    let face = held.lock().unwrap().clone().expect("the face handle");
+    face.raise(0);
+    assert_eq!(island_doc(&d)["face"], "osd");
+    assert_eq!(island_doc(&d)["reason"], "transient");
+    let hub = d.hub.clone();
+    eventually(|| hub.snapshot("runtime.island.main").unwrap().1["face"] == "clock").await;
+}
+
+/// A face may not take the name of a core face: the enable is refused and the core face stays.
+#[tokio::test]
+async fn a_face_named_like_a_core_face_is_refused() {
+    let extra = scratch("dup-mods");
+    write(
+        &extra.join("dup/mod.toml"),
+        "id = \"dup\"\nname = \"Dup\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"island-face:clock\"]\n",
+    );
+    let linked = vec![Box::new(Faced {
+        id: "dup",
+        face: "clock",
+        spec: FaceSpec {
+            transient: false,
+            ttl_s: 0,
+        },
+        held: Arc::new(Mutex::new(None)),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("dup"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "dup").await.unwrap();
+    assert_eq!(d.state("dup"), "disabled");
+    assert_eq!(d.entry("dup")["errors"][0]["key"], "mods.error.duplicate");
+    assert_eq!(
+        island_faces(&d).iter().filter(|f| *f == "clock").count(),
+        1,
+        "the core face is registered once"
+    );
 }

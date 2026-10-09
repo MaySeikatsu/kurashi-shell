@@ -19,3 +19,10 @@
 "mods.error.not_declared" = "このモッドはマニフェストに宣言していないものを登録しようとしました"
 "mods.error.duplicate" = "このモッドはシェルや他のモッドが既に使っている名前を登録しようとしました"
 "mods.error.enable_failed" = "このモッドをオンにできませんでした"
+
+# モッドのパネルと寄与 (K28): mod.panel.open と、マニフェストの項目が断られた理由。
+"mods.error.panel_unavailable" = "このモッドにはそのパネルがないか、モッドがオフです"
+"mods.error.provide_unknown_slot" = "このモッドは、シェルにないスロットを埋めようとしています"
+"mods.error.setting_choices_from_type" = "選択肢を別の供給元から取れるのは文字列の設定だけです"
+"mods.error.setting_choices_and_from" = "設定の選択肢は一覧か供給元のどちらか一方です"
+"mods.error.setting_choices_from_invalid" = "選択肢の供給元の名前が正しくありません"

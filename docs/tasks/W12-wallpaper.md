@@ -1,14 +1,17 @@
 # Card W12-wallpaper — the wallpaper native mod (K26, BACKLOG I7)
 
+**UX brief (governs this card):** `docs/ux/wallpaper.md` — its Design, States, Contract notes and Definition of done are
+this card's acceptance on top of the tests below; where this card's older text disagrees with the brief, the brief
+wins. Also `docs/ux/COMPOSITION.md` and K28 (slots, mod faces, choice sources — merged before this card starts).
+
 **Read first:** `docs/tasks/README.md`, `docs/DECISIONS.md` K22, K25, K26, `docs/MODS.md` ("States…", "Native mods",
 "First native mod: wallpaper"), `docs/PROTOCOL.md` §5 (choices), `crates/kurashi-mod-api/` + `crates/kurashid/src/native.rs`
 (the mechanism from W11-native-mods) and its test mod `hello` (copy its shape), `mods/media/mod.toml` (manifest format),
 awww/swww CLI (`awww --help`, `awww img --help`; awww is installed on this machine; nixpkgs has `awww` and `swww`).
 
 **Owned paths:** `crates/kurashi-mod-wallpaper/**` (new crate), `mods/wallpaper/**` (manifest, `qml/Panel.qml`),
-`i18n/{en,ja}/mod-wallpaper.toml` (new domain), `crates/kurashid/Cargo.toml` + `crates/kurashid/src/main.rs` (one
-line each: link the crate / add it to the native mods list — expect a trivial merge conflict with sibling mod
-cards), `nix/package.nix` only if the crate needs a runtime input (it should not: the backend is found on PATH).
+`i18n/{en,ja}/mod-wallpaper.toml` (new domain), `crates/kurashid/Cargo.toml` + `native::linked()` in `crates/kurashid/src/native.rs` (one line each — expect trivial
+conflicts with sibling mod cards), `nix/package.nix` only if the crate needs a runtime input (it should not: the backend is found on PATH).
 NOT the frontend core, kurashi-ipc, PROTOCOL, other mods.
 
 **Do:** manifest `provides = ["service:wallpaper", "action:wallpaper.*", "panel:wallpaper", "choices:wallpaper.backends"]`,
@@ -32,3 +35,11 @@ logs its argv): enable → daemon started once; `wallpaper.set` → `img <path> 
 `backend.available:false`; rotate=1 with a paused tokio clock → one `img` per minute; disable → timer gone.
 Plus `crates/kurashid/tests/native_mods.rs`-style test: `mod.enable wallpaper` registers `mod.wallpaper`.
 clippy -D warnings, fmt. Do not run the real awww against the user's session.
+
+**Report:** list every Definition-of-done item of `docs/ux/wallpaper.md` as met / not met (README rule 10), with the screenshot
+or test that shows it.
+
+**Mechanism notes (lead, after W12-mod-hooks):** use `kurashi_mod_api::ModCtx` as the hello test mod does
+(`crates/kurashi-mod-hello`, `crates/kurashid/tests/data/mods/hello`): services, actions, `ctx.face(...)` → `FaceHandle`
+(raise/clear), `ctx.choices(source, …)` with `Choice::new(..).unavailable(key)` (do not re-add it), slots by
+`qml/slots/<slot>.qml` + `slot:<slot>` in provides. Ship the mod's manifest + qml under `mods/<id>/`.
