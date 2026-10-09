@@ -1,7 +1,9 @@
 //! Document builders. Each shape is the one kurashid serves: `svc.brightness` follows
 //! kurashi-services `brightness::read`, `bindings` follows kurashid `bindings::resolve` over
-//! defaults only (no user config). The rest follows PROTOCOL §8.
+//! defaults only (no user config), `svc.notifications` follows kurashi-notify's `doc()`, and the
+//! launcher rows follow kurashi-launcher's `QueryResult`. The rest follows PROTOCOL §8.
 
+use chrono::{DateTime, Local, NaiveDate, NaiveTime};
 use kurashi_core::Source;
 use kurashi_schema::Registry;
 use serde_json::{Map, Value, json};
@@ -9,8 +11,26 @@ use serde_json::{Map, Value, json};
 /// Full scale of the fake backlight (what sysfs reports as `max_brightness`).
 pub const BRIGHTNESS_MAX: u32 = 1000;
 
-pub fn clock() -> Value {
-    let now = chrono::Local::now();
+/// The date `--fixed-time` pins: the PROTOCOL §8 example. A fixed time alone would still move the
+/// clock face's weekday and the lock screen's date from one day to the next, and golden
+/// screenshots would follow them.
+const FIXED_DATE: (i32, u32, u32) = (2026, 10, 9);
+
+/// The mock's "now": the real time, or `FIXED_DATE` at the fixed time of day. Everything the mock
+/// stamps with a time reads it through here, so a fixed run is fixed everywhere.
+pub fn now(fixed: Option<NaiveTime>) -> DateTime<Local> {
+    let real = Local::now();
+    let Some(time) = fixed else {
+        return real;
+    };
+    let (y, m, d) = FIXED_DATE;
+    NaiveDate::from_ymd_opt(y, m, d)
+        .and_then(|day| day.and_time(time).and_local_timezone(Local).earliest())
+        .unwrap_or(real)
+}
+
+/// `svc.clock` for the instant `now`.
+pub fn clock(now: DateTime<Local>) -> Value {
     json!({
         "hh": now.format("%H").to_string(),
         "mm": now.format("%M").to_string(),
@@ -91,4 +111,186 @@ pub fn bindings(registry: &Registry) -> Value {
             .insert(slot.to_owned(), json!({"action": action, "source": source}));
     }
     Value::Object(out)
+}
+
+/// One notification as kurashi-notify keeps it (`Item`) and serializes it (`doc`). The list is
+/// newest first, as kurashi-notify inserts them.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Note {
+    pub id: u32,
+    pub app_name: String,
+    pub app_icon: String,
+    pub summary: String,
+    pub body: String,
+    /// `(key, label)`; the frontend draws each as a button.
+    pub actions: Vec<(String, String)>,
+    /// `low`, `normal` or `critical`.
+    pub urgency: String,
+    /// Epoch milliseconds.
+    pub time: i64,
+    pub read: bool,
+    /// Whether the note is a toast right now (listed in `toasts`).
+    pub showing: bool,
+    pub resident: bool,
+    pub transient: bool,
+}
+
+impl Note {
+    /// History only: unread, no actions, not showing. Callers that want a toast set `showing`.
+    pub fn new(
+        id: u32,
+        app_name: &str,
+        summary: &str,
+        body: &str,
+        urgency: &str,
+        time: i64,
+    ) -> Self {
+        Note {
+            id,
+            app_name: app_name.into(),
+            app_icon: String::new(),
+            summary: summary.into(),
+            body: body.into(),
+            actions: Vec::new(),
+            urgency: urgency.into(),
+            time,
+            read: false,
+            showing: false,
+            resident: false,
+            transient: false,
+        }
+    }
+
+    fn to_json(&self) -> Value {
+        json!({
+            "id": self.id,
+            "app_name": self.app_name,
+            "app_icon": self.app_icon,
+            "summary": self.summary,
+            "body": self.body,
+            "actions": self.actions.iter()
+                .map(|(key, label)| json!({"key": key, "label": label}))
+                .collect::<Vec<_>>(),
+            "urgency": self.urgency,
+            "time": self.time,
+            "read": self.read,
+            "resident": self.resident,
+            "transient": self.transient,
+        })
+    }
+}
+
+/// The three notes an idle mock starts with. None is showing: the toast surface stays unmapped
+/// until a `mock.notify` adds a toast (Ma, docs/BENCH.md), and unread > 0 gives the center
+/// something to count.
+pub fn seed_notes(now_ms: i64) -> Vec<Note> {
+    const MIN: i64 = 60_000;
+    let mut battery = Note::new(
+        1,
+        "System",
+        "Battery low",
+        "5% left. Plug in the charger.",
+        "critical",
+        now_ms - 2 * MIN,
+    );
+    battery.app_icon = "battery-caution".into();
+    let mut messages = Note::new(
+        2,
+        "Messages",
+        "Ren",
+        "明日の打ち合わせ、10時からでいい?",
+        "normal",
+        now_ms - 9 * MIN,
+    );
+    messages.app_icon = "mail-unread".into();
+    messages.actions = vec![
+        ("open".into(), "Open".into()),
+        ("later".into(), "Later".into()),
+    ];
+    let mut standup = Note::new(
+        3,
+        "Calendar",
+        "Standup",
+        "Starts in 10 minutes",
+        "low",
+        now_ms - 40 * MIN,
+    );
+    standup.app_icon = "x-office-calendar".into();
+    standup.read = true;
+    vec![battery, messages, standup]
+}
+
+/// `svc.notifications`: kurashi-notify's document. `toasts` lists the showing ids, and `unread`
+/// counts the rest. Optional item fields are left out, never null (PROTOCOL §3).
+pub fn notes_doc(notes: &[Note], dnd: bool) -> Value {
+    json!({
+        "dnd": dnd,
+        "unread": notes.iter().filter(|n| !n.read).count(),
+        "toasts": notes.iter().filter(|n| n.showing).map(|n| n.id).collect::<Vec<_>>(),
+        "items": notes.iter().map(Note::to_json).collect::<Vec<_>>(),
+    })
+}
+
+/// The launcher's fake index as `(desktop id, name, generic name, icon)`, listed alphabetically
+/// so an empty query shows it in that order.
+pub const APPS: &[(&str, &str, &str, &str)] = &[
+    (
+        "btop.desktop",
+        "btop",
+        "System Monitor",
+        "utilities-system-monitor",
+    ),
+    (
+        "org.gnome.Calculator.desktop",
+        "Calculator",
+        "Calculator",
+        "accessories-calculator",
+    ),
+    (
+        "org.gnome.Calendar.desktop",
+        "Calendar",
+        "Calendar",
+        "x-office-calendar",
+    ),
+    (
+        "org.gnome.Nautilus.desktop",
+        "Files",
+        "File Manager",
+        "system-file-manager",
+    ),
+    ("firefox.desktop", "Firefox", "Web Browser", "firefox"),
+    ("foot.desktop", "Foot", "Terminal", "foot"),
+    (
+        "org.gnome.Loupe.desktop",
+        "Image Viewer",
+        "Image Viewer",
+        "org.gnome.Loupe",
+    ),
+    ("mpv.desktop", "mpv", "Media Player", "mpv"),
+    (
+        "org.gnome.Settings.desktop",
+        "Settings",
+        "System Settings",
+        "preferences-system",
+    ),
+    (
+        "org.gnome.TextEditor.desktop",
+        "Text Editor",
+        "Text Editor",
+        "accessories-text-editor",
+    ),
+];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_now_is_the_pinned_date_at_the_given_time() {
+        let t = NaiveTime::from_hms_opt(14, 7, 0).expect("time");
+        assert_eq!(
+            clock(now(Some(t))),
+            json!({"hh": "14", "mm": "07", "date": "2026-10-09", "weekday": "Fri"})
+        );
+    }
 }
