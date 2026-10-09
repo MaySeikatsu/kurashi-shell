@@ -66,13 +66,13 @@ async fn main() -> anyhow::Result<()> {
         hub.clone(),
         "main",
         kurashi_island::IslandConfig {
-            faces: vec!["clock".into(), "media".into()],
+            faces: vec!["clock".into(), "media".into(), "notifications".into()],
             default: "clock".into(),
             // The volume OSD may interrupt a manual face choice; it is transient-only.
             interruptible_by: ["volume".to_string()].into(),
             ..Default::default()
         },
-        &["clock", "media", "volume"],
+        &["clock", "media", "notifications", "volume"],
     );
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
@@ -123,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
         &mut actions,
         config.as_deref(),
         kurashid::xdg_dir("cache").join("notify-img"),
+        Some(island.clone()),
     );
     kurashid::wiring::mods(
         &hub,

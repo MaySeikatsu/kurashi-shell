@@ -180,7 +180,7 @@ pub fn notifications(
                 Ok(c) => c,
                 Err(e) => return tracing::warn!(error = %e, "no session bus: notifications off"),
             };
-            match Server::serve(conn, Arc::new(HubSink(hub, "svc.notifications")), nc).await {
+            match Server::serve(conn, Arc::new(NotifySink { hub, island }), nc).await {
                 Ok((handle, cmds)) => {
                     *commands.lock().expect("notify lock") = Some(cmds);
                     // The server runs until the daemon exits.
