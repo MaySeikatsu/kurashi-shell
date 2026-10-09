@@ -22,7 +22,8 @@ ShellRoot {
 
     // Latched while the popup is open so it never jumps outputs; re-picked on each open.
     property var stageScreen: focusedScreen()
-    readonly property bool want: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].popup) === true
+    // The Stage shows the island panel only; other panels (notifications) have their own surface.
+    readonly property bool want: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].panel) === "island"
     property bool stageOpen: false      // follows want, but only after the screen is re-picked
     onWantChanged: { if (want) stageScreen = focusedScreen(); stageOpen = want }
 
@@ -39,6 +40,7 @@ ShellRoot {
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
+    Toasts { screen: root.focusedScreen() }
     Stage {
         screen: root.stageScreen
         want: root.stageOpen
