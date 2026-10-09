@@ -13,7 +13,8 @@ use kurashid::hub::Hub;
 use kurashid::services::ConnectFn;
 use kurashid::wiring::{
     ARGS_INVALID, NETWORK_NEEDS_SECRET, NETWORK_NOT_FOUND, NETWORK_NOT_SAVED, NETWORK_REFUSED,
-    NO_SUCH_SOURCE, NO_SUCH_STREAM, SERVICE_NOT_RUNNING,
+    NO_SUCH_PROFILE, NO_SUCH_SOURCE, NO_SUCH_STREAM, POWER_REFUSED, POWER_UNAVAILABLE,
+    SERVICE_NOT_RUNNING,
 };
 use serde_json::{Value, json};
 use zbus::Connection;
@@ -796,4 +797,230 @@ async fn audio_sources_streams_and_the_mic_follow_the_sound_server() {
         "an unknown id reached the server: {calls:?}"
     );
     hub.unsubscribe("svc.audio");
+}
+
+// ---- svc.power: the profile from power-profiles-daemon -------------------------------------------
+
+const PPD_DEST: &str = "net.hadess.PowerProfiles";
+const PPD_PATH: &str = "/net/hadess/PowerProfiles";
+const PROFILE_NAMES: [&str; 3] = ["power-saver", "balanced", "performance"];
+
+/// The fake profile daemon's state: the active profile, and whether it refuses changes.
+struct Daemon {
+    active: String,
+    refuse: bool,
+}
+
+/// `net.hadess.PowerProfiles`, as power-profiles-daemon serves it.
+struct ProfileDaemon(Arc<Mutex<Daemon>>);
+
+#[zbus::interface(name = "net.hadess.PowerProfiles")]
+impl ProfileDaemon {
+    #[zbus(property)]
+    fn active_profile(&self) -> String {
+        self.0.lock().unwrap().active.clone()
+    }
+    #[zbus(property)]
+    fn set_active_profile(&mut self, name: String) -> zbus::fdo::Result<()> {
+        let mut d = self.0.lock().unwrap();
+        if d.refuse {
+            return Err(refused());
+        }
+        d.active = name;
+        Ok(())
+    }
+    #[zbus(property)]
+    fn profiles(&self) -> Vec<HashMap<String, OwnedValue>> {
+        PROFILE_NAMES
+            .iter()
+            .map(|name| {
+                let value = OwnedValue::try_from(zbus::zvariant::Value::from(*name)).unwrap();
+                HashMap::from([("Profile".to_string(), value)])
+            })
+            .collect()
+    }
+}
+
+async fn serve_profile_daemon(addr: &str, state: Arc<Mutex<Daemon>>) -> Connection {
+    let conn = zbus::connection::Builder::address(addr)
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    conn.request_name(PPD_DEST).await.unwrap();
+    conn.object_server()
+        .at(PPD_PATH, ProfileDaemon(state))
+        .await
+        .unwrap();
+    conn
+}
+
+#[tokio::test]
+async fn power_profile_follows_the_daemon_and_says_why_when_it_is_gone() {
+    let scratch = Scratch::new("power");
+    let _bus = PrivateBus::start(&scratch);
+    let state = Arc::new(Mutex::new(Daemon {
+        active: "balanced".into(),
+        refuse: false,
+    }));
+    let daemon = serve_profile_daemon(&scratch.addr(), state.clone()).await;
+    let hub = Hub::new();
+    let mut actions = ActionRegistry::default();
+    kurashid::wiring::power_with(&hub, &mut actions, bus_at(scratch.addr()));
+    let doc = |hub: &Hub| hub.snapshot("svc.power").unwrap().1;
+
+    // Not subscribed: nothing starts, the switch says so.
+    assert_eq!(
+        actions
+            .invoke("power.profile", json!({"name": "balanced"}))
+            .await,
+        Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+    );
+
+    hub.subscribe("svc.power").unwrap();
+    until("the active profile", || doc(&hub)["profile"] == "balanced").await;
+    assert_eq!(doc(&hub)["profiles"], json!(PROFILE_NAMES));
+    assert!(doc(&hub).get("profile_reason").is_none());
+
+    // A profile the daemon offers is switched; any other name, or none, is refused before the write.
+    assert_eq!(
+        actions
+            .invoke("power.profile", json!({"name": "performance"}))
+            .await,
+        Ok(None)
+    );
+    until("the new profile", || doc(&hub)["profile"] == "performance").await;
+    assert_eq!(
+        actions
+            .invoke("power.profile", json!({"name": "turbo"}))
+            .await,
+        Err(ActionError::Invalid(NO_SUCH_PROFILE.into()))
+    );
+    assert_eq!(
+        actions.invoke("power.profile", json!({})).await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+
+    // Polkit refuses: the key comes back and the profile stays what the daemon says.
+    state.lock().unwrap().refuse = true;
+    assert_eq!(
+        actions
+            .invoke("power.profile", json!({"name": "power-saver"}))
+            .await,
+        Err(ActionError::Unavailable(POWER_REFUSED.into()))
+    );
+    assert_eq!(doc(&hub)["profile"], "performance");
+    state.lock().unwrap().refuse = false;
+
+    // The daemon leaves the bus: no profile is shown, and the reason says why.
+    drop(daemon);
+    until("the reason", || {
+        doc(&hub)["profile_reason"] == "error.power.profiles_unavailable"
+    })
+    .await;
+    assert!(doc(&hub).get("profile").is_none());
+    assert!(doc(&hub).get("profiles").is_none());
+    assert_eq!(
+        actions
+            .invoke("power.profile", json!({"name": "balanced"}))
+            .await,
+        Err(ActionError::Unavailable(POWER_UNAVAILABLE.into()))
+    );
+    hub.unsubscribe("svc.power");
+}
+
+// ---- notify.dnd: do-not-disturb until a time ----------------------------------------------------
+
+fn unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64
+}
+
+/// The notification server's document, kept in order.
+#[derive(Default)]
+struct NoteDocs(Mutex<Vec<Value>>);
+
+impl kurashi_services::DocSink for NoteDocs {
+    fn set(&self, doc: Value) {
+        self.0.lock().unwrap().push(doc);
+    }
+}
+
+impl NoteDocs {
+    fn last(&self) -> Value {
+        self.0.lock().unwrap().last().cloned().expect("a document")
+    }
+}
+
+#[tokio::test]
+async fn do_not_disturb_until_is_checked_and_follows_the_server() {
+    let scratch = Scratch::new("dnd");
+    let _bus = PrivateBus::start(&scratch);
+    let conn = zbus::connection::Builder::address(scratch.addr().as_str())
+        .unwrap()
+        .build()
+        .await
+        .unwrap();
+    let docs = Arc::new(NoteDocs::default());
+    let mut cfg = kurashi_notify::NotifyConfig::new(scratch.0.join("img"));
+    cfg.claim_name = false;
+    let (_server, cmds) = kurashi_notify::Server::serve(conn, docs.clone(), cfg)
+        .await
+        .unwrap();
+    let served = Arc::new(Mutex::new(Some(cmds)));
+    let mut actions = ActionRegistry::default();
+    let get = {
+        let served = served.clone();
+        move || served.lock().unwrap().clone()
+    };
+    kurashid::wiring::notify_actions(&mut actions, get);
+
+    // Until a time in the future: on, with the end time in the document.
+    let end = unix_ms() + 60_000;
+    assert_eq!(
+        actions
+            .invoke("notify.dnd", json!({"on": true, "until": end}))
+            .await,
+        Ok(None)
+    );
+    until("timed do-not-disturb", || docs.last()["dnd_until"] == end).await;
+    assert_eq!(docs.last()["dnd"], true);
+
+    // A time already past, or an end time with `on` off, is refused before anything changes.
+    assert_eq!(
+        actions
+            .invoke("notify.dnd", json!({"on": true, "until": unix_ms() - 1000}))
+            .await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+    assert_eq!(
+        actions
+            .invoke("notify.dnd", json!({"on": false, "until": end}))
+            .await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+    assert_eq!(docs.last()["dnd_until"], end);
+
+    // Off clears the end time; on without one is indefinite and carries none.
+    assert_eq!(
+        actions.invoke("notify.dnd", json!({"on": false})).await,
+        Ok(None)
+    );
+    until("off", || docs.last()["dnd"] == false).await;
+    assert!(docs.last().get("dnd_until").is_none());
+    assert_eq!(actions.invoke("notify.dnd", json!({})).await, Ok(None));
+    until("indefinite", || docs.last()["dnd"] == true).await;
+    assert!(docs.last().get("dnd_until").is_none());
+
+    // No server: the action says so and changes nothing.
+    *served.lock().unwrap() = None;
+    assert_eq!(
+        actions.invoke("notify.dnd", json!({"on": false})).await,
+        Err(ActionError::Unavailable(
+            "notification server not running".into()
+        ))
+    );
+    assert_eq!(docs.last()["dnd"], true);
 }
