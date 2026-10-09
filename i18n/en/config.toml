@@ -10,6 +10,17 @@
 "config.error.unrepresentable" = "this value cannot be stored in TOML"
 "config.error.user_file_unreadable" = "config.toml is unreadable; fix it before changing settings"
 "config.forced.nix_enforced" = "enforced by your Nix configuration"
+# A change refused because a forced layer decides the value (K25: mod lists under Nix).
+"config.error.forced" = "this is set by your system configuration and cannot be changed here"
+# Reason of a value outside the options its source offers (I9, K21): kept, not in effect.
+"settings.choice.unavailable" = "not available right now, so this value has no effect"
+# Options of the `choices_from` sources (I9), resolved by the daemon: palettes and island faces.
+"config.choice.palette.wa-iro" = "Wa-iro"
+"config.choice.palette.kanso" = "Kanso"
+"config.choice.palette.high-contrast" = "High contrast"
+"config.face.clock" = "Clock"
+"config.face.media" = "Media"
+"config.face.notifications" = "Notifications"
 # Profile actions (profile.*): a refusal names what is wrong, never the engine's English (K27).
 "config.error.profile_not_found" = "no profile has this name"
 "config.error.profile_invalid_name" = "the profile name is not valid"
