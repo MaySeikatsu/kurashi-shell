@@ -94,6 +94,8 @@ pub enum Provide {
     Slot(String),
     /// A choice source a setting names with `choices_from` (K28 (3), I9).
     Choices(String),
+    /// A background job (I23, `ModCtx::background`): a poll or watch the daemon runs while it is wanted.
+    Job(String),
     I18n,
 }
 
@@ -128,6 +130,7 @@ impl Provide {
             "launcher" => Self::Launcher(id),
             "slot" => Self::Slot(id),
             "choices" => Self::Choices(id),
+            "job" => Self::Job(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -145,8 +148,8 @@ impl Provide {
                     (None, None) => a == b,
                 }
             }
-            // Several mods fill one slot; that is what slots are for (K28).
-            (Self::Slot(_), Self::Slot(_)) => false,
+            // Several mods fill one slot; that is what slots are for (K28). Job names belong to their mod.
+            (Self::Slot(_), Self::Slot(_)) | (Self::Job(_), Self::Job(_)) => false,
             _ => self == other,
         }
     }
@@ -165,6 +168,7 @@ impl fmt::Display for Provide {
             Self::Launcher(i) => write!(f, "launcher:{i}"),
             Self::Slot(i) => write!(f, "slot:{i}"),
             Self::Choices(i) => write!(f, "choices:{i}"),
+            Self::Job(i) => write!(f, "job:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }

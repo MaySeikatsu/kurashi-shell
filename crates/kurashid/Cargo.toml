@@ -45,3 +45,5 @@ workspace = true
 kurashi-config = { path = "../kurashi-config" }
 kurashi-theme = { path = "../kurashi-theme" }
 kurashi-mod-hello = { path = "../kurashi-mod-hello" }
+# Paused clock for the background-job tests (native_mods.rs).
+tokio = { workspace = true, features = ["test-util"] }
