@@ -25,10 +25,10 @@ use crate::config::{CORE_SOURCES, ConfigStore, Offer};
 use crate::hub::{Hub, Provider};
 use crate::island::IslandHost;
 
-/// The first-party native mods linked into this daemon (K26). None ship yet; the wallpaper mod
-/// (W12) is the first. The test mod `hello` is linked by the tests only: its manifest is test data.
+/// The first-party native mods linked into this daemon (K26). The test mod `hello` is linked by the
+/// tests only: its manifest is test data.
 pub fn linked() -> Vec<Box<dyn NativeMod>> {
-    Vec::new()
+    vec![Box::new(kurashi_mod_sysmon::Sysmon::new()) as Box<dyn NativeMod>]
 }
 
 /// `runtime.slots` (K28): the contributions of enabled mods to the core views' slots.

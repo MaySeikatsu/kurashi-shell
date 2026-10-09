@@ -1,0 +1,130 @@
+# System monitor (M6; docs/ux/sysmon.md): CPU, memory, temperature and GPU, with a sustained-trouble
+# Island face naming the culprit and End / Force quit. Native: linked as crates/kurashi-mod-sysmon.
+id = "sysmon"
+name = "System monitor"
+description = "mods.sysmon.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = [
+    "service:sysmon",
+    "service:sysmon.procs",
+    "widget:sysmon",
+    "panel:sysmon",
+    "island-face:sysmon",
+    "action:sysmon.*",
+]
+# Declared only once the validator knows them (kurashi-mods KNOWN_CAPABILITIES): reading /proc and /sys
+# and signalling processes are requested in docs/CONTRACT-CHANGE.md.
+capabilities = []
+cost = "low"
+
+[[setting]]
+key = "interval"
+type = "int"
+default = 2
+range = [1, 60]
+unit = "s"
+label = "mods.sysmon.interval"
+help = "mods.sysmon.interval.help"
+
+[[setting]]
+key = "show_cpu"
+type = "bool"
+default = true
+label = "mods.sysmon.show_cpu"
+
+[[setting]]
+key = "show_mem"
+type = "bool"
+default = true
+label = "mods.sysmon.show_mem"
+
+[[setting]]
+key = "show_temp"
+type = "bool"
+default = false
+label = "mods.sysmon.show_temp"
+
+[[setting]]
+key = "show_load"
+type = "bool"
+default = false
+label = "mods.sysmon.show_load"
+
+[[setting]]
+key = "temp_sensor"
+type = "string"
+default = "auto"
+label = "mods.sysmon.temp_sensor"
+help = "mods.sysmon.temp_sensor.help"
+
+[[setting]]
+key = "watch"
+type = "bool"
+default = false
+label = "mods.sysmon.watch"
+help = "mods.sysmon.watch.help"
+
+[[setting]]
+key = "sustain"
+type = "int"
+default = 30
+range = [5, 600]
+unit = "s"
+label = "mods.sysmon.sustain"
+help = "mods.sysmon.sustain.help"
+
+[[setting]]
+key = "cpu_activity"
+type = "int"
+default = 50
+range = [0, 100]
+unit = "%"
+label = "mods.sysmon.cpu_activity"
+help = "mods.sysmon.level.help"
+
+[[setting]]
+key = "cpu_critical"
+type = "int"
+default = 90
+range = [0, 100]
+unit = "%"
+label = "mods.sysmon.cpu_critical"
+help = "mods.sysmon.level.help"
+
+[[setting]]
+key = "mem_activity"
+type = "int"
+default = 60
+range = [0, 100]
+unit = "%"
+label = "mods.sysmon.mem_activity"
+help = "mods.sysmon.level.help"
+
+[[setting]]
+key = "mem_critical"
+type = "int"
+default = 90
+range = [0, 100]
+unit = "%"
+label = "mods.sysmon.mem_critical"
+help = "mods.sysmon.level.help"
+
+[[setting]]
+key = "temp_activity"
+type = "int"
+default = 60
+range = [0, 120]
+unit = "°C"
+label = "mods.sysmon.temp_activity"
+help = "mods.sysmon.level.help"
+
+[[setting]]
+key = "temp_critical"
+type = "int"
+default = 85
+range = [0, 120]
+unit = "°C"
+label = "mods.sysmon.temp_critical"
+help = "mods.sysmon.level.help"
