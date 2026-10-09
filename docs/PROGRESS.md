@@ -65,4 +65,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M0.8 | Mock parity (runtime.ui panels, bindings, brightness, session) | 🟡 | card M0-mock-parity |
 | M5.17 | Honesty test over all keys | ✅ | merged; found requires-inert gap → K21 (case ignored until M1.11) |
 | M1.11 | Daemon reports inert/pending-restart reasons (K21) | 🟡 | card M1-inert-reasons |
-| R.1 | Daemon concurrency / Ma review | 🟡 | card R-daemon-review (read-only) |
+| R.1 | Daemon concurrency / Ma review | ✅ | 14 findings (1 high: island timer spawn off-runtime → fixed in M5.13 branch); fixes F-* below; 3/10/13/14 later |
+| F.1 | Hub lifecycle races, accept busy-loop, lag recovery, atomic update, bounded replies | 🟡 | card F-hub-server |
+| F.2 | Notify sanitiser linear + outside lock, body cap | 🟡 | card F-notify |
+| F.3 | Watcher spawn leak + debounce max-wait; services emit unavailable on stream end | 🟡 | card F-watch-services |
