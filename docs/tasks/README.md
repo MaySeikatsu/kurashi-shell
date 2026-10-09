@@ -67,6 +67,7 @@ merges, and records progress; agents only build what their card says.
 | [M5-notifications](M5-notifications.md) | `crates/kurashi-notify/` | sonnet |
 | [M5-launcher](M5-launcher.md) | `crates/kurashi-launcher/` | sonnet |
 | [M1-cli](M1-cli.md) | `crates/kurashi/` | sonnet (wave 3b) |
+| [M5-auth](M5-auth.md) | `crates/kurashi-auth/` | sonnet (wave 4) |
 | [M5-settings](M5-settings.md) | `settings/`, `i18n/{en,ja}/settings.toml` | sonnet (wave 3b) |
 Lead (in parallel): config/schema wiring into kurashid (M1.5), theme + notify wiring.
 
