@@ -1,0 +1,1 @@
+{"t":"snap","doc":"runtime.slots","rev":4,"data":{"clock.expanded.aside":[{"mod":"weather","qml":"file:///run/current-system/sw/share/kurashi/mods/weather/qml/slots/clock.expanded.aside.qml","ready":true}],"media.expanded.below":[{"mod":"lyrics","qml":"file:///run/current-system/sw/share/kurashi/mods/lyrics/qml/slots/media.expanded.below.qml","ready":false}]}}

@@ -96,6 +96,12 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   sends each of its documents a last `snap` `{available:false}`, then the document is gone (`unknown_doc`): a client
   must `unsub` it before subscribing again. `schema.settings` mod pages carry `"mod": "<id>"`
   and exist for every loaded mod. Pinned by `fixtures/ipc/server/snap_mods.json`.
+- **`runtime.slots` document** (K28): `{"<slot>": [{"mod": "weather", "qml": "file:///…/qml/slots/clock.expanded.aside.qml",
+  "ready": true}]}` — enabled mods' contributions per slot, ordered by mod id; `ready` = the mod's primary document is
+  `available`. Slots: `clock.expanded.aside|day|footer`, `media.expanded.below|backdrop`,
+  `notifications.expanded.header`, `quick.tiles`, `lock.aside`. A mod face (`island-face:<name>`) appears in
+  `runtime.island.main.faces` like a core face; the `mods` doc `qml` map names `island-face:<name>` →
+  `qml/Face.qml` and `island-face:<name>:expanded` → `qml/FaceExpanded.qml`.
 - **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
   `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
   `choices: [{value, label, enabled?, reason?}]` (`enabled:false` + `reason` (i18n key) for an option that
