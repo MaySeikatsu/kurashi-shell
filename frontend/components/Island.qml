@@ -1,12 +1,14 @@
 import QtQuick
 import "../core"
+import "../core/mods.js" as Mods
 import "faces"
 
 // Island (島): the daemon decides the face (runtime.island.*); this only morphs between faces.
-// One component per face id (faces/); each watches only the docs it renders and only while it is
+// One component per core face id (faces/); each watches only the docs it renders and only while it is
 // visible. Interruptible: width/opacity are Behaviors, so a new face retargets mid-flight.
 // Animations are gated on `visible` (Ma) and armed only after the first layout so startup does
-// not animate. Unknown face ids (mod faces) fall back to the clock rather than showing nothing.
+// not animate. A mod's face (K28) draws its Face.qml, loaded only while it is the face; a face the
+// `mods` document names no file for (mod off, or not yet loaded) falls back to the clock, not to nothing.
 // Input is presentational: the surface passes island.main's resolved bindings in `slots` and gets
 // `activated(slot)` for a bound slot only. What a slot does is the daemon's call (input.dispatch).
 Item {
@@ -23,7 +25,10 @@ Item {
     // `manual` (island.next/prev/pin via the arbiter) is a deliberate user choice, like `user`.
     readonly property bool byUser: reason === "user" || reason === "manual"
 
-    readonly property string shown: ["clock", "media", "volume", "brightness", "notifications"].indexOf(face) >= 0 ? face : "clock"
+    readonly property var modsDoc: Store.docs["mods"]
+    readonly property bool coreFace: ["clock", "media", "volume", "brightness", "notifications"].indexOf(face) >= 0
+    readonly property bool isModFace: !coreFace && face !== "" && Mods.qmlOf(modsDoc, "island-face:" + face) !== ""
+    readonly property string shown: (coreFace || isModFace) ? face : "clock"
     readonly property bool animate: armed && visible
     property bool armed: false
     Component.onCompleted: armed = true
@@ -32,6 +37,7 @@ Item {
         var l = [clock, media, volume, bright, notifs]
         for (var i = 0; i < l.length; i++)
             if (l[i].current && l[i].item) return l[i].item.wantW
+        if (modFace.item) return modFace.item.wantW ?? modFace.item.implicitWidth
         return 0
     }
 
@@ -57,6 +63,15 @@ Item {
         FaceSlot { id: volume; face: "volume"; sourceComponent: VolumeFace { current: volume.current; animate: isl.animate } }
         FaceSlot { id: bright; face: "brightness"; sourceComponent: BrightnessFace { current: bright.current; animate: isl.animate } }
         FaceSlot { id: notifs; face: "notifications"; sourceComponent: NotificationsFace { current: notifs.current; animate: isl.animate } }
+
+        // A mod's compact face (K28): its Face.qml, instantiated only while it is the face. It is not faded:
+        // the next face replaces it at once, and the pill's width still animates.
+        ModLoader {
+            id: modFace
+            provide: "island-face:" + isl.face
+            shown: isl.isModFace
+            anchors.centerIn: parent
+        }
     }
 
     // Keeps its face while current and, after that, until the face has faded out.

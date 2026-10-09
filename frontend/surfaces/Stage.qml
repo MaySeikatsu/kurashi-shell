@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../core/mods.js" as Mods
 import "../components"
 import "../components/expanded"
 
@@ -29,13 +30,28 @@ PanelWindow {
     readonly property bool trayWanted: ui.panel === "tray"
     // shell.qml's `want` does not cover the quick panel (K24), so the Stage follows runtime.ui for it.
     readonly property bool quickWanted: ui.panel === "quick"
-    readonly property bool open: want || quickWanted
-    // K24: the island card shows the expanded view of the face the daemon latched when it opened.
-    // A face without one (mod faces, or none at all) gets the generic card.
+    // A native mod's panel (K26): `mod:<id>:<panel>` shows its Panel.qml, for as long as the mods document names it.
+    // Always watched, not by a binding on runtime.ui: a Watch whose `active` depends on Store.docs writes Store.docs
+    // from inside that binding (unwatch), which QML reports as a binding loop. The document starts no service.
+    Watch { doc: "mods" }
+    readonly property var modsDoc: Store.docs["mods"]
+    readonly property var panelRef: Mods.panelOf(ui.panel)
+    readonly property bool modWanted: panelRef !== null && Mods.qmlOf(modsDoc, "panel:" + panelRef.panel, panelRef.mod) !== ""
+    readonly property bool open: want || quickWanted || modWanted
+    // K24: the island card shows the expanded view of the face the daemon latched when it opened. A core face
+    // without one gets the generic card; a mod face loads its `island-face:<name>:expanded` (K28), or the generic card.
     readonly property var expandedFaces: ["media", "notifications", "clock", "volume", "brightness"]
-    readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : "island"
+    readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : (ui.face ? "modface" : "island")
     readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray"
-        : (quickWanted ? "quick" : (want ? islandKind : "")))
+        : (quickWanted ? "quick" : (modWanted ? "mod" : (want ? islandKind : ""))))
+    // Latched while the card slides out, as contentKind is: which mod panel, and which mod face's view, it shows.
+    property string shownPanelMod: ""
+    property string shownPanel: ""
+    property string shownFaceView: ""
+    onUiChanged: {
+        if (panelRef !== null) { shownPanelMod = panelRef.mod; shownPanel = "panel:" + panelRef.panel }
+        if (ui.face) shownFaceView = "island-face:" + ui.face + ":expanded"
+    }
     // Content the card shows. Latched while the card slides out, so a closing menu does not flash other content.
     property string contentKind: "island"
     onWantedKindChanged: if (wantedKind !== "") contentKind = wantedKind
@@ -47,7 +63,7 @@ PanelWindow {
     // while the card is on screen, so a view that is not shown holds no subscription (Ma).
     readonly property var views: ({
         island: genericView, media: mediaView, notifications: notificationsView, clock: clockView,
-        volume: volumeView, brightness: brightnessView, quick: quickView
+        volume: volumeView, brightness: brightnessView, quick: quickView, mod: modPanelView, modface: modFaceView
     })
     readonly property bool viewing: views[contentKind] !== undefined
     Component { id: genericView; GenericView {} }
@@ -57,6 +73,28 @@ PanelWindow {
     Component { id: volumeView; VolumeView {} }
     Component { id: brightnessView; BrightnessView {} }
     Component { id: quickView; QuickPanel {} }
+    // A mod's Panel.qml (K26): the card's one Loader makes it, ModLoader destroys it when the mod is disabled.
+    Component {
+        id: modPanelView
+        ModLoader { provide: stage.shownPanel; mod: stage.shownPanelMod }
+    }
+    // A mod face's expanded view (K28, `island-face:<name>:expanded`), or the generic card when the mod has none.
+    Component {
+        id: modFaceView
+        Column {
+            id: faceCol
+            width: parent.width
+            spacing: Theme.gap
+            ModLoader {
+                id: faceView
+                width: faceCol.width
+                height: implicitHeight
+                visible: resolved !== ""
+                provide: stage.shownFaceView
+            }
+            GenericView { visible: faceView.resolved === "" }
+        }
+    }
 
     // The bar of this output: the card sits just under a top bar, just above a bottom bar, and at
     // the screen edge otherwise (no bar, or a side bar a centred card does not meet).
@@ -176,6 +214,14 @@ PanelWindow {
         width: stage.contentKind === "media" || stage.contentKind === "clock" ? 400 : 360
         height: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)
+        // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the first frame has
+        // shown (the reveal is the slide), so opening the card does not animate its height from the closed size.
+        // Clipped, so a grown row is revealed by the card's edge rather than drawn over its margin.
+        clip: true
+        Behavior on height {
+            enabled: stage.open && !stage.gate
+            NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+        }
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
         y: -stage.slide * (1 - stage.p)   // above the surface edge = clipped away
         radius: Theme.rLg
