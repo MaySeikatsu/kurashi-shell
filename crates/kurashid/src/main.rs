@@ -1,9 +1,12 @@
-//! kurashid — M0 skeleton: socket lifecycle, handshake, keepalive. State stores, schema,
-//! services and actions arrive in M1+ (docs/ROADMAP.md).
+//! kurashid binary: socket lifecycle and wiring. Stores, services and actions are registered
+//! here as they land (docs/ROADMAP.md); the protocol machinery lives in the library.
+
+use std::sync::Arc;
 
 use anyhow::Context;
-use kurashi_ipc::{ClientMsg, LineReader, PROTOCOL_VERSION, ServerMsg, write_msg};
-use tokio::net::{UnixListener, UnixStream};
+use kurashid::{ActionRegistry, Daemon, Hub, Intents};
+use serde_json::json;
+use tokio::net::UnixListener;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -20,60 +23,33 @@ async fn main() -> anyhow::Result<()> {
     }
     let _ = std::fs::remove_file(&path);
     let listener = UnixListener::bind(&path).with_context(|| format!("bind {}", path.display()))?;
-    tracing::info!(socket = %path.display(), version = env!("CARGO_PKG_VERSION"), "kurashid listening");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+    }
+
+    let hub = Hub::new();
+    hub.register(
+        "daemon",
+        json!({"version": env!("CARGO_PKG_VERSION")}),
+        None,
+    );
+    let daemon = Arc::new(Daemon::new(
+        hub,
+        ActionRegistry::default(),
+        Intents::default(),
+    ));
+    tracing::info!(socket = %path.display(), instance = %daemon.instance, "kurashid listening");
 
     let mut term = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
-    loop {
+    let shutdown = async move {
         tokio::select! {
-            accepted = listener.accept() => {
-                let (stream, _) = accepted?;
-                tokio::spawn(async move {
-                    if let Err(e) = serve(stream).await {
-                        tracing::debug!(error = %e, "client closed");
-                    }
-                });
-            }
-            _ = tokio::signal::ctrl_c() => break,
-            _ = term.recv() => break,
+            _ = tokio::signal::ctrl_c() => {}
+            _ = term.recv() => {}
         }
-    }
+    };
+    kurashid::server::serve(listener, daemon, shutdown).await;
     let _ = std::fs::remove_file(&path);
     tracing::info!("kurashid stopped");
-    Ok(())
-}
-
-async fn serve(stream: UnixStream) -> anyhow::Result<()> {
-    let (rd, mut wr) = stream.into_split();
-    let mut reader = LineReader::new(rd);
-    while let Some(msg) = reader.next_value::<ClientMsg>().await? {
-        let reply = match msg {
-            ClientMsg::Hello { v, client, .. } if v == PROTOCOL_VERSION => {
-                tracing::info!(%client, "hello");
-                ServerMsg::Welcome {
-                    v: PROTOCOL_VERSION,
-                    server: format!("kurashid {}", env!("CARGO_PKG_VERSION")),
-                    caps: vec![],
-                }
-            }
-            ClientMsg::Hello { .. } => {
-                write_msg(
-                    &mut wr,
-                    &ServerMsg::Goodbye {
-                        reason: "version".into(),
-                        supported: vec![PROTOCOL_VERSION],
-                    },
-                )
-                .await?;
-                break;
-            }
-            ClientMsg::Ping => ServerMsg::Pong,
-            other => ServerMsg::Err {
-                id: None,
-                kind: "unavailable".into(),
-                msg: format!("not implemented in M0: {other:?}"),
-            },
-        };
-        write_msg(&mut wr, &reply).await?;
-    }
     Ok(())
 }
