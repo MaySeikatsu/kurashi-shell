@@ -232,12 +232,15 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
         SettingType::String => Ty::String,
         SettingType::Enum => Ty::Choice,
         SettingType::Color => Ty::Color,
+        // A `list` is a string list with fixed choices (I26): the schema's validator and `pick_list`.
+        SettingType::List => Ty::StringList,
     };
     let default = match &s.default {
         SettingValue::Bool(b) => json!(b),
         SettingValue::Int(n) => json!(n),
         SettingValue::Float(f) => json!(f),
         SettingValue::Str(t) => json!(t),
+        SettingValue::List(items) => json!(items),
     };
     let mut meta = KeyMeta::new(key.clone(), ty, default);
     // Labels are i18n keys like core keys; without one the derived key names the setting.

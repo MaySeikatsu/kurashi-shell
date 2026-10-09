@@ -181,6 +181,8 @@ pub enum SettingValue {
     Int(i64),
     Float(f64),
     Str(String),
+    /// A `list` setting: members of its `choices`, in the order the user picked them (I26).
+    List(Vec<String>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -192,6 +194,8 @@ pub enum SettingType {
     String,
     Enum,
     Color,
+    /// An ordered subset of fixed `choices` (I26, CONTRACT 41): the Settings page shows a pick list.
+    List,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -415,6 +419,7 @@ pub fn parse(
             "string" => SettingType::String,
             "enum" => SettingType::Enum,
             "color" => SettingType::Color,
+            "list" => SettingType::List,
             t => {
                 err("setting_type_invalid", &at("type"), t);
                 continue;
@@ -441,9 +446,10 @@ pub fn parse(
                 }
             },
         };
-        if ty == SettingType::Enum && s.choices.is_empty() {
+        let fixed = matches!(ty, SettingType::Enum | SettingType::List);
+        if fixed && s.choices.is_empty() {
             err("setting_choices_missing", &at("choices"), "");
-        } else if ty != SettingType::Enum && !s.choices.is_empty() {
+        } else if !fixed && !s.choices.is_empty() {
             err("setting_choices_not_enum", &at("choices"), &s.ty);
         }
         let choices_from = s.choices_from.as_ref().and_then(|src| {
@@ -478,6 +484,33 @@ pub fn parse(
                     err("setting_default_not_color", &at("default"), t);
                 }
                 Some(SettingValue::Str(t.clone()))
+            }
+            // Members of the choices, each once, in the order the default lists them.
+            (SettingType::List, toml::Value::Array(items)) => {
+                let mut members = Vec::new();
+                let mut valid = true;
+                for item in items {
+                    match item {
+                        toml::Value::String(t) if !s.choices.contains(t) => {
+                            err("setting_default_not_in_choices", &at("default"), t);
+                            valid = false;
+                        }
+                        toml::Value::String(t) if members.contains(t) => {
+                            err("setting_default_duplicate", &at("default"), t);
+                            valid = false;
+                        }
+                        toml::Value::String(t) => members.push(t.clone()),
+                        other => {
+                            err(
+                                "setting_default_type",
+                                &at("default"),
+                                &format!("{other} is not a string"),
+                            );
+                            valid = false;
+                        }
+                    }
+                }
+                valid.then_some(SettingValue::List(members))
             }
             (_, v) => {
                 err(
@@ -619,5 +652,56 @@ mod tests {
              choices_from = \"Demo Pick\"\n",
         );
         assert_eq!(codes(&bad), ["setting_choices_from_invalid"]);
+    }
+
+    #[test]
+    fn a_list_setting_takes_fixed_choices_and_a_default_of_members() {
+        let ok = text(
+            "",
+            "[[setting]]\nkey = \"show\"\ntype = \"list\"\ndefault = [\"mem\", \"cpu\"]\n\
+             choices = [\"cpu\", \"mem\", \"temp\"]\n",
+        );
+        let m = parse("demo", &ok, &Version::new(0, 1, 0)).unwrap();
+        assert_eq!(m.settings[0].ty, SettingType::List);
+        assert_eq!(
+            m.settings[0].default,
+            SettingValue::List(vec!["mem".into(), "cpu".into()])
+        );
+        assert_eq!(m.settings[0].choices, ["cpu", "mem", "temp"]);
+        assert!(m.settings[0].choices_from.is_none());
+
+        let list = |default: &str, extra: &str| {
+            text(
+                "",
+                &format!(
+                    "[[setting]]\nkey = \"show\"\ntype = \"list\"\ndefault = {default}\n{extra}\n"
+                ),
+            )
+        };
+        assert_eq!(
+            codes(&list("[]", "")),
+            ["setting_choices_missing"],
+            "fixed choices are required"
+        );
+        assert_eq!(
+            codes(&list("[\"gpu\"]", "choices = [\"cpu\"]")),
+            ["setting_default_not_in_choices"]
+        );
+        assert_eq!(
+            codes(&list("[\"cpu\", \"cpu\"]", "choices = [\"cpu\"]")),
+            ["setting_default_duplicate"]
+        );
+        assert_eq!(
+            codes(&list("[1]", "choices = [\"cpu\"]")),
+            ["setting_default_type"]
+        );
+        assert_eq!(
+            codes(&list("[]", "choices = [\"cpu\"]\nrange = [0, 1]")),
+            ["setting_range_not_numeric"]
+        );
+        assert_eq!(
+            codes(&list("[]", "choices_from = \"demo.pick\"")),
+            ["setting_choices_missing", "setting_choices_from_type"]
+        );
     }
 }
