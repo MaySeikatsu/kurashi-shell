@@ -4,7 +4,7 @@
 //! is refused and the mod stays off. Drives the daemon's wiring over a scratch config root, no socket.
 
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -908,4 +908,302 @@ async fn a_face_named_like_a_core_face_is_refused() {
         1,
         "the core face is registered once"
     );
+}
+
+/// Counts ticks in its background job `tick`, and says whether a run of the job is in progress.
+struct Ticker {
+    ticks: Arc<AtomicUsize>,
+    alive: Arc<AtomicBool>,
+}
+
+/// Clears its flag when dropped: a job the daemon cancels is dropped, so the flag tells it ended.
+struct Alive(Arc<AtomicBool>);
+
+impl Drop for Alive {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::SeqCst);
+    }
+}
+
+impl NativeMod for Ticker {
+    fn id(&self) -> &'static str {
+        "ticker"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let (ticks, alive) = (self.ticks.clone(), self.alive.clone());
+        ctx.background("tick", "mods.running.tick", "on", move |_job| {
+            let (ticks, alive) = (ticks.clone(), alive.clone());
+            async move {
+                alive.store(true, Ordering::SeqCst);
+                let _alive = Alive(alive);
+                loop {
+                    ticks.fetch_add(1, Ordering::SeqCst);
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
+            }
+        })
+    }
+}
+
+/// Declares a job whose body returns at once, so the job ends by itself.
+struct Once;
+
+impl NativeMod for Once {
+    fn id(&self) -> &'static str {
+        "once"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.background("once", "mods.running.once", "on", |_job| async {})
+    }
+}
+
+/// Writes the manifest of a test mod with one bool setting `on` and one `job:<name>` per job.
+fn job_mod(extra: &Path, id: &str, jobs: &[&str]) {
+    let provides: Vec<String> = jobs.iter().map(|j| format!("\"job:{j}\"")).collect();
+    write(
+        &extra.join(id).join("mod.toml"),
+        &format!(
+            "id = \"{id}\"\nname = \"{id}\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+             kurashi = \">=0.0.1\"\nprovides = [{}]\n\n[[setting]]\nkey = \"on\"\n\
+             type = \"bool\"\ndefault = false\n",
+            provides.join(", ")
+        ),
+    );
+}
+
+fn set_on(d: &Daemon, id: &str, on: bool) {
+    d.store
+        .apply(&[ApplyOp::Set {
+            set: format!("mods.{id}.on"),
+            value: json!(on),
+            output: None,
+        }])
+        .expect("a bool setting of the mod");
+}
+
+/// The reasons a mod reports as running now (`running_reasons` of the `mods` document).
+fn reasons(d: &Daemon, id: &str) -> Value {
+    d.entry(id)["running_reasons"].clone()
+}
+
+/// A background job runs only while its mod is on and its setting wants it, is reported with its
+/// reason while it runs, and is cancelled when the setting lets go or the mod is disabled (I23).
+#[tokio::test(start_paused = true)]
+async fn a_background_job_runs_while_on_and_wanted_and_is_reported() {
+    let extra = scratch("ticker-mods");
+    job_mod(&extra, "ticker", &["tick"]);
+    let (ticks, alive) = (
+        Arc::new(AtomicUsize::new(0)),
+        Arc::new(AtomicBool::new(false)),
+    );
+    let linked = vec![Box::new(Ticker {
+        ticks: ticks.clone(),
+        alive: alive.clone(),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("ticker"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "ticker").await.unwrap();
+
+    // On, but the setting does not want the job: nothing runs and nothing is reported.
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert_eq!(ticks.load(Ordering::SeqCst), 0);
+    assert_eq!(reasons(&d, "ticker"), json!([]));
+    assert!(!d.running("ticker"));
+
+    // The setting wants it: the job runs, and the mod says why.
+    set_on(&d, "ticker", true);
+    tokio::time::sleep(Duration::from_millis(2500)).await;
+    assert!(ticks.load(Ordering::SeqCst) >= 2, "the job ticks");
+    assert!(alive.load(Ordering::SeqCst));
+    assert_eq!(reasons(&d, "ticker"), json!(["mods.running.tick"]));
+    assert!(d.running("ticker"));
+
+    // The setting lets go: the job is cancelled and the count stops.
+    set_on(&d, "ticker", false);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    let stopped_at = ticks.load(Ordering::SeqCst);
+    assert!(
+        !alive.load(Ordering::SeqCst),
+        "the cancelled run is dropped"
+    );
+    assert_eq!(reasons(&d, "ticker"), json!([]));
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    assert_eq!(ticks.load(Ordering::SeqCst), stopped_at);
+
+    // Wanted again, then the mod is disabled: the job is cancelled with it.
+    set_on(&d, "ticker", true);
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert!(alive.load(Ordering::SeqCst));
+    d.act("mod.disable", "ticker").await.unwrap();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert!(!alive.load(Ordering::SeqCst));
+    assert_eq!(reasons(&d, "ticker"), json!([]));
+    assert!(!d.running("ticker"));
+    let stopped_at = ticks.load(Ordering::SeqCst);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    assert_eq!(ticks.load(Ordering::SeqCst), stopped_at);
+}
+
+/// A job whose body returns by itself is no longer running, and the document says so (I23).
+#[tokio::test(start_paused = true)]
+async fn a_job_that_ends_by_itself_is_no_longer_reported() {
+    let extra = scratch("once-mods");
+    job_mod(&extra, "once", &["once"]);
+    let linked = vec![Box::new(Once) as Box<dyn NativeMod>];
+    let d = start(&scratch("once"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "once").await.unwrap();
+    set_on(&d, "once", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "once"), json!([]));
+    assert!(!d.running("once"));
+    // Wanted again: it runs once more and ends again.
+    set_on(&d, "once", false);
+    set_on(&d, "once", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "once"), json!([]));
+}
+
+/// Declares a job that waits for a setting its manifest does not have: the enable is refused.
+struct Misfit;
+
+impl NativeMod for Misfit {
+    fn id(&self) -> &'static str {
+        "misfit"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.background("misfit", "mods.running.misfit", "missing", |_job| async {})
+    }
+}
+
+#[tokio::test]
+async fn a_job_must_wait_for_a_bool_setting_of_its_own_mod() {
+    let extra = scratch("misfit-mods");
+    job_mod(&extra, "misfit", &["misfit"]);
+    let linked = vec![Box::new(Misfit) as Box<dyn NativeMod>];
+    let d = start(&scratch("misfit"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "misfit").await.unwrap();
+    assert_eq!(d.state("misfit"), "disabled");
+    assert_eq!(
+        d.entry("misfit")["errors"][0]["key"],
+        "mods.error.enable_failed"
+    );
+    assert_eq!(
+        d.entry("misfit")["errors"][0]["detail"],
+        "job misfit waits for missing, which is not a bool setting"
+    );
+}
+
+/// Declares a job whose body panics: a panic is the end of its run, so it is no longer reported.
+struct Boom;
+
+impl NativeMod for Boom {
+    fn id(&self) -> &'static str {
+        "boom"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.background("boom", "mods.running.boom", "on", |_job| async {
+            panic!("the job fails")
+        })
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_job_that_panics_is_no_longer_reported() {
+    let extra = scratch("boom-mods");
+    job_mod(&extra, "boom", &["boom"]);
+    let linked = vec![Box::new(Boom) as Box<dyn NativeMod>];
+    let d = start(&scratch("boom"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "boom").await.unwrap();
+    set_on(&d, "boom", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "boom"), json!([]));
+    assert!(!d.running("boom"));
+}
+
+/// A `list` setting is an ordered pick from its fixed choices (I26): its row is a pick list of them,
+/// the order stored is the order in effect, and a member outside the choices is refused.
+#[tokio::test]
+async fn a_list_setting_is_a_pick_list_of_its_choices() {
+    let extra = scratch("list-mods");
+    write(
+        &extra.join("picker/mod.toml"),
+        "id = \"picker\"\nname = \"Picker\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\n\n[[setting]]\nkey = \"show\"\ntype = \"list\"\n\
+         default = [\"mem\", \"cpu\"]\nchoices = [\"cpu\", \"mem\", \"temp\"]\n",
+    );
+    let d = start(&scratch("list"), std::slice::from_ref(&extra), Vec::new());
+    d.act("mod.enable", "picker").await.unwrap();
+
+    let row = setting_row(&d, "mods.picker.show");
+    assert_eq!(row["control"], "pick_list");
+    assert_eq!(row["default"], json!(["mem", "cpu"]));
+    assert_eq!(offered(&row), ["cpu", "mem", "temp"]);
+
+    let set = |value: Value| {
+        d.store.apply(&[ApplyOp::Set {
+            set: "mods.picker.show".into(),
+            value,
+            output: None,
+        }])
+    };
+    set(json!(["temp", "cpu"])).expect("members of the choices, in the order picked");
+    let p = d.store.get("mods.picker.show", None).unwrap();
+    assert_eq!(p.value, json!(["temp", "cpu"]));
+    assert_eq!(p.reason, None);
+    assert!(set(json!(["gpu"])).is_err(), "a member outside the choices");
+    assert_eq!(
+        d.store.get("mods.picker.show", None).unwrap().value,
+        json!(["temp", "cpu"]),
+        "a refused value leaves the one in effect"
+    );
+}
+
+/// B15: a mod whose manifest declares daemon code (a service, action, island face, choice source or
+/// job) is refused when this build links none for it; a frontend-only mod is switched on as before.
+/// The bundled `media` and `easter-eggs` (on by default) declare daemon code and no linked module.
+#[tokio::test]
+async fn an_unlinked_mod_with_daemon_provides_is_refused_and_a_frontend_only_one_is_on() {
+    let extra = scratch("unbuilt-mods");
+    write(
+        &extra.join("ghost/mod.toml"),
+        "id = \"ghost\"\nname = \"Ghost\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"action:ghost.*\"]\n",
+    );
+    write(
+        &extra.join("glass/mod.toml"),
+        "id = \"glass\"\nname = \"Glass\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"widget:glass\", \"panel:glass\", \"slot:quick.tiles\"]\n",
+    );
+    let d = start(
+        &scratch("unbuilt"),
+        std::slice::from_ref(&extra),
+        Vec::new(),
+    );
+
+    // Nothing is on by default (K33); switched on, the bundled easter-eggs has an action and no code: refused.
+    assert_eq!(d.state("easter-eggs"), "available");
+    d.act("mod.enable", "easter-eggs").await.unwrap();
+    assert_eq!(d.state("easter-eggs"), "disabled");
+    assert_eq!(
+        d.entry("easter-eggs")["errors"][0]["key"],
+        "mods.error.not_built"
+    );
+
+    d.act("mod.enable", "ghost").await.unwrap();
+    assert_eq!(d.state("ghost"), "disabled");
+    assert_eq!(d.entry("ghost")["errors"][0]["key"], "mods.error.not_built");
+
+    // The bundled media declares a service, a face and actions: the same refusal, and nothing served.
+    d.act("mod.enable", "media").await.unwrap();
+    assert_eq!(d.state("media"), "disabled");
+    assert_eq!(d.entry("media")["errors"][0]["key"], "mods.error.not_built");
+    assert!(d.hub.snapshot("mod.media").is_err());
+
+    // Frontend-only provides need no code: on, with their components listed.
+    d.act("mod.enable", "glass").await.unwrap();
+    assert_eq!(d.state("glass"), "enabled");
+    assert_eq!(d.entry("glass")["errors"], json!([]));
 }

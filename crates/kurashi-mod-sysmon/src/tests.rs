@@ -6,27 +6,27 @@
 use crate::roots::Roots;
 use crate::sysmon::{Cfg, Sig, Signaller, Sysmon, end_process};
 use kurashi_mod_api::{
-    ActionError, ActionFn, FaceUpdate, Hooks, ModCtx, NativeMod, Publish, Registration, ServiceFn,
-    Settings, Values,
+    ActionError, ActionFn, FaceUpdate, Hooks, JobCtx, ModCtx, NativeMod, Publish, Registration,
+    ServiceFn, Settings, Values,
 };
 use serde_json::{Value, json};
 use std::io;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 use tokio::time::Instant;
 
 /// What the manifest of `mods/sysmon` provides.
-const PROVIDES: [&str; 6] = [
+const PROVIDES: [&str; 7] = [
     "service:sysmon",
     "service:sysmon.procs",
     "widget:sysmon",
     "panel:sysmon",
     "island-face:sysmon",
     "action:sysmon.*",
+    "job:watch",
 ];
 
 #[derive(Default)]
@@ -73,8 +73,13 @@ fn enable(sys: &Sysmon, values: Values) -> Enabled {
     let (settings, rx) = watch::channel(values);
     let rec = Arc::new(Rec::default());
     let provides: Vec<String> = PROVIDES.iter().map(|p| p.to_string()).collect();
-    let mut ctx = ModCtx::new(&provides, Settings::new(rx), rec.clone());
+    let mut ctx = ModCtx::new(&provides, Settings::new(rx.clone()), rec.clone());
     sys.enable(&mut ctx).unwrap();
+    // The daemon starts the watch job while its setting wants it. The harness starts it on every
+    // enable instead: the watch idles while `watch` is off, and the watch tests check that it does.
+    for job in ctx.take_jobs() {
+        tokio::spawn((job.run)(JobCtx::new(Settings::new(rx.clone()))));
+    }
     let mut summary = None;
     let mut procs = None;
     let mut actions = Vec::new();
@@ -197,7 +202,7 @@ fn settings_default_to_the_manifest_and_clamp_out_of_range_values() {
 
     let (_, rx) = watch::channel(values(&[
         ("interval", json!(500)),
-        ("show_temp", json!(true)),
+        ("show", json!(["cpu", "mem", "temp"])),
         ("temp_sensor", json!("  ")),
         ("cpu_critical", json!(-4)),
         ("sustain", json!(1)),
@@ -216,11 +221,7 @@ fn settings_default_to_the_manifest_and_clamp_out_of_range_values() {
 #[tokio::test(start_paused = true)]
 async fn nothing_is_read_until_a_view_subscribes_and_nothing_after_the_last_unsubscribe() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     tokio::time::sleep(Duration::from_secs(60)).await;
     assert_eq!(stat_reads(&m.roots), 0, "enabling alone samples nothing");
@@ -247,11 +248,7 @@ async fn nothing_is_read_until_a_view_subscribes_and_nothing_after_the_last_unsu
 #[tokio::test(start_paused = true)]
 async fn the_summary_document_carries_cpu_from_the_second_read_and_the_bar_setting() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     let writer = load_writer(m.roots.clone(), Instant::now(), 1000);
     let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
@@ -278,11 +275,7 @@ async fn the_summary_document_carries_cpu_from_the_second_read_and_the_bar_setti
 #[tokio::test(start_paused = true)]
 async fn pause_stops_sampling_and_resume_starts_a_fresh_baseline() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
     tokio::time::sleep(Duration::from_secs(3)).await;
@@ -307,11 +300,7 @@ async fn pause_stops_sampling_and_resume_starts_a_fresh_baseline() {
 #[tokio::test(start_paused = true)]
 async fn the_watch_raises_the_face_after_sustained_load_and_clears_it_after_recovery() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, values(&[("watch", json!(true))]));
     let writer = load_writer(m.roots.clone(), Instant::now(), 60);
     // Load from 0 to 60 s, idle after: raised at 40 s (30 s over 90 %), cleared at 80 s (10 s under 85 %).
@@ -327,11 +316,7 @@ async fn the_watch_raises_the_face_after_sustained_load_and_clears_it_after_reco
 #[tokio::test(start_paused = true)]
 async fn the_watch_is_off_until_its_setting_is_on_and_then_samples_every_ten_seconds() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     tokio::time::sleep(Duration::from_secs(60)).await;
     assert_eq!(stat_reads(&m.roots), 0, "watch off: no read");
@@ -347,11 +332,7 @@ async fn the_watch_is_off_until_its_setting_is_on_and_then_samples_every_ten_sec
 #[tokio::test(start_paused = true)]
 async fn leaving_the_summary_clears_a_trouble_that_nothing_else_measures() {
     let m = machine();
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     let writer = load_writer(m.roots.clone(), Instant::now(), 10_000);
     let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
@@ -373,11 +354,7 @@ async fn the_process_list_says_why_an_end_is_not_offered() {
     let m = machine();
     process(&m.roots, 500, 100, 1000);
     process(&m.roots, 600, 200, 0);
-    let sys = Sysmon::with(
-        m.roots.clone(),
-        Arc::new(Sent::default()),
-        Some(Handle::current()),
-    );
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
     let e = enable(&sys, Values::new());
     let task = subscribe(&e.procs, &e.procs_docs, &e.settings);
     tokio::time::sleep(Duration::from_millis(10)).await;

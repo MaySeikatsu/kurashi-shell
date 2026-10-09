@@ -13,6 +13,11 @@
 "mods.easter-eggs.frequency.sometimes" = "ときどき"
 "mods.disabled" = "このモッドはオフです。値は残り、モッドをオンにすると効き始めます。"
 
+# 実行中 (K25, I23): モッドが動いている理由。モッドの画面と一覧に、`running_reasons` として表示されます。
+"mods.running.subscribed" = "ライブのデータを表示中"
+"mods.running.rain_alerts" = "雨の予報を監視中"
+"mods.running.watch" = "続いている負荷を監視中"
+
 # モッドの一覧の操作 (K25): mod.load / mod.unload / mod.enable / mod.disable が断られた理由。
 "mods.error.not_loadable" = "このモッドは無効なため読み込めません"
 "mods.error.id_reserved" = "この id はモッドの一覧用に予約されています"
@@ -26,3 +31,8 @@
 "mods.error.setting_choices_from_type" = "選択肢を別の供給元から取れるのは文字列の設定だけです"
 "mods.error.setting_choices_and_from" = "設定の選択肢は一覧か供給元のどちらか一方です"
 "mods.error.setting_choices_from_invalid" = "選択肢の供給元の名前が正しくありません"
+"mods.error.setting_default_duplicate" = "既定値に同じ選択肢が二度あります"
+
+# デーモン側のコードを持たないネイティブモッド (B15): サービス、アクション、Island の顔、選択肢の供給元、
+# ジョブを宣言するマニフェストは、このビルドにそのコードがなければ断られます。フロントエンドだけのモッドは従来どおりオンにできます。
+"mods.error.not_built" = "このモッドにはこのビルドに含まれないデーモン側のコードが必要なため、オンにできません"

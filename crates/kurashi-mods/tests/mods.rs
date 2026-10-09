@@ -1,5 +1,6 @@
 use kurashi_mods::{ModState, ModsError, Policy, Registry, manifest};
 use semver::Version;
+use serde_json::json;
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -383,8 +384,8 @@ fn running_is_reported_per_mod_and_defaults_off() {
             .iter()
             .all(|m| m["running"] == false)
     );
-    r.set_running("media", true);
-    r.set_running("nope", true);
+    r.set_running_reasons("media", vec!["mods.running.subscribed".into()]);
+    r.set_running_reasons("nope", vec!["mods.running.subscribed".into()]);
     let doc = r.doc();
     let media = doc["mods"]
         .as_array()
@@ -393,7 +394,35 @@ fn running_is_reported_per_mod_and_defaults_off() {
         .find(|m| m["id"] == "media")
         .unwrap();
     assert_eq!(media["running"], true);
+    assert_eq!(media["running_reasons"], json!(["mods.running.subscribed"]));
     assert_eq!(media["state"], "enabled");
+    r.set_running_reasons("media", Vec::new());
+    let doc = r.doc();
+    let media = doc["mods"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "media")
+        .unwrap();
+    assert_eq!(media["running"], false);
+    assert_eq!(media["running_reasons"], json!([]));
+}
+
+#[test]
+fn jobs_are_declared_per_mod_and_never_conflict() {
+    // A job is the mod's own (I23): two mods may both declare `job:watch`, and both can be on.
+    let t = tempfile::tempdir().unwrap();
+    write(t.path(), "aa", &with_id("aa", r#"["job:watch"]"#));
+    write(t.path(), "bb", &with_id("bb", r#"["job:watch"]"#));
+    write(t.path(), "cc", &with_id("cc", r#"["job:Watch"]"#));
+    let mut r = Registry::discover(&[t.path().into()], &daemon());
+    assert_eq!(
+        r.get("aa").unwrap().manifest.as_ref().unwrap().provides[0].to_string(),
+        "job:watch"
+    );
+    r.enable("aa").unwrap();
+    r.enable("bb").unwrap();
+    assert_eq!(r.get("cc").unwrap().state.name(), "invalid");
 }
 
 #[test]

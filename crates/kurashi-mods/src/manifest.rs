@@ -53,7 +53,9 @@ pub enum Cost {
     High,
 }
 
-/// Capabilities are declared and shown in Settings; unknown ones are an error, not ignored.
+/// Capabilities are declared and shown in Settings; unknown ones are an error, not ignored. A
+/// program a mod runs is declared as `exec:<binary>` (its name, not a path; see [`capability_known`]).
+/// `fs:read` reads system files for the figures, `proc:signal` signals a process of the user (I28).
 pub const KNOWN_CAPABILITIES: &[&str] = &[
     "dbus:session",
     "dbus:system",
@@ -61,9 +63,25 @@ pub const KNOWN_CAPABILITIES: &[&str] = &[
     "audio",
     "notifications",
     "fs:scoped",
+    "fs:read",
+    "proc:signal",
     "exec",
     "secrets",
 ];
+
+/// Whether `c` is a capability this daemon knows: one of [`KNOWN_CAPABILITIES`], or `exec:<binary>`
+/// for a program named by its file name (`exec:awww`). The bare `exec` predates the named form.
+pub fn capability_known(c: &str) -> bool {
+    if KNOWN_CAPABILITIES.contains(&c) {
+        return true;
+    }
+    c.strip_prefix("exec:").is_some_and(|binary| {
+        !binary.is_empty()
+            && binary
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || "-_.".contains(ch))
+    })
+}
 
 /// The contribution slots of the core views (K28, `docs/ux/COMPOSITION.md` §3). A mod's
 /// `slot:<name>` must name one of these; the core never names a mod, so the list is the contract.
@@ -94,6 +112,8 @@ pub enum Provide {
     Slot(String),
     /// A choice source a setting names with `choices_from` (K28 (3), I9).
     Choices(String),
+    /// A background job (I23, `ModCtx::background`): a poll or watch the daemon runs while it is wanted.
+    Job(String),
     I18n,
 }
 
@@ -128,6 +148,7 @@ impl Provide {
             "launcher" => Self::Launcher(id),
             "slot" => Self::Slot(id),
             "choices" => Self::Choices(id),
+            "job" => Self::Job(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -145,8 +166,8 @@ impl Provide {
                     (None, None) => a == b,
                 }
             }
-            // Several mods fill one slot; that is what slots are for (K28).
-            (Self::Slot(_), Self::Slot(_)) => false,
+            // Several mods fill one slot; that is what slots are for (K28). Job names belong to their mod.
+            (Self::Slot(_), Self::Slot(_)) | (Self::Job(_), Self::Job(_)) => false,
             _ => self == other,
         }
     }
@@ -165,6 +186,7 @@ impl fmt::Display for Provide {
             Self::Launcher(i) => write!(f, "launcher:{i}"),
             Self::Slot(i) => write!(f, "slot:{i}"),
             Self::Choices(i) => write!(f, "choices:{i}"),
+            Self::Job(i) => write!(f, "job:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }
@@ -177,6 +199,8 @@ pub enum SettingValue {
     Int(i64),
     Float(f64),
     Str(String),
+    /// A `list` setting: members of its `choices`, in the order the user picked them (I26).
+    List(Vec<String>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -188,6 +212,8 @@ pub enum SettingType {
     String,
     Enum,
     Color,
+    /// An ordered subset of fixed `choices` (I26, CONTRACT 41): the Settings page shows a pick list.
+    List,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -389,7 +415,7 @@ pub fn parse(
         }
     }
     for (i, c) in raw.capabilities.iter().enumerate() {
-        if !KNOWN_CAPABILITIES.contains(&c.as_str()) {
+        if !capability_known(c) {
             err("capability_unknown", &format!("capabilities[{i}]"), c);
         }
     }
@@ -411,6 +437,7 @@ pub fn parse(
             "string" => SettingType::String,
             "enum" => SettingType::Enum,
             "color" => SettingType::Color,
+            "list" => SettingType::List,
             t => {
                 err("setting_type_invalid", &at("type"), t);
                 continue;
@@ -437,9 +464,10 @@ pub fn parse(
                 }
             },
         };
-        if ty == SettingType::Enum && s.choices.is_empty() {
+        let fixed = matches!(ty, SettingType::Enum | SettingType::List);
+        if fixed && s.choices.is_empty() {
             err("setting_choices_missing", &at("choices"), "");
-        } else if ty != SettingType::Enum && !s.choices.is_empty() {
+        } else if !fixed && !s.choices.is_empty() {
             err("setting_choices_not_enum", &at("choices"), &s.ty);
         }
         let choices_from = s.choices_from.as_ref().and_then(|src| {
@@ -474,6 +502,33 @@ pub fn parse(
                     err("setting_default_not_color", &at("default"), t);
                 }
                 Some(SettingValue::Str(t.clone()))
+            }
+            // Members of the choices, each once, in the order the default lists them.
+            (SettingType::List, toml::Value::Array(items)) => {
+                let mut members = Vec::new();
+                let mut valid = true;
+                for item in items {
+                    match item {
+                        toml::Value::String(t) if !s.choices.contains(t) => {
+                            err("setting_default_not_in_choices", &at("default"), t);
+                            valid = false;
+                        }
+                        toml::Value::String(t) if members.contains(t) => {
+                            err("setting_default_duplicate", &at("default"), t);
+                            valid = false;
+                        }
+                        toml::Value::String(t) => members.push(t.clone()),
+                        other => {
+                            err(
+                                "setting_default_type",
+                                &at("default"),
+                                &format!("{other} is not a string"),
+                            );
+                            valid = false;
+                        }
+                    }
+                }
+                valid.then_some(SettingValue::List(members))
             }
             (_, v) => {
                 err(
@@ -615,5 +670,83 @@ mod tests {
              choices_from = \"Demo Pick\"\n",
         );
         assert_eq!(codes(&bad), ["setting_choices_from_invalid"]);
+    }
+
+    #[test]
+    fn capabilities_name_what_a_mod_reads_signals_or_runs() {
+        for c in [
+            "fs:read",
+            "proc:signal",
+            "network",
+            "exec",
+            "exec:awww",
+            "exec:xdg-open",
+        ] {
+            assert!(capability_known(c), "{c} is known");
+        }
+        for c in [
+            "exec:",
+            "exec:/usr/bin/awww",
+            "exec:Awww",
+            "exec:a b",
+            "fs:write",
+            "teleport",
+        ] {
+            assert!(!capability_known(c), "{c} is not");
+        }
+        let t = "id = \"demo\"\nname = \"Demo\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+                 kurashi = \">=0.0.1\"\ncapabilities = [\"fs:read\", \"exec:/bin/sh\"]\n";
+        assert_eq!(codes(t), ["capability_unknown"]);
+    }
+
+    #[test]
+    fn a_list_setting_takes_fixed_choices_and_a_default_of_members() {
+        let ok = text(
+            "",
+            "[[setting]]\nkey = \"show\"\ntype = \"list\"\ndefault = [\"mem\", \"cpu\"]\n\
+             choices = [\"cpu\", \"mem\", \"temp\"]\n",
+        );
+        let m = parse("demo", &ok, &Version::new(0, 1, 0)).unwrap();
+        assert_eq!(m.settings[0].ty, SettingType::List);
+        assert_eq!(
+            m.settings[0].default,
+            SettingValue::List(vec!["mem".into(), "cpu".into()])
+        );
+        assert_eq!(m.settings[0].choices, ["cpu", "mem", "temp"]);
+        assert!(m.settings[0].choices_from.is_none());
+
+        let list = |default: &str, extra: &str| {
+            text(
+                "",
+                &format!(
+                    "[[setting]]\nkey = \"show\"\ntype = \"list\"\ndefault = {default}\n{extra}\n"
+                ),
+            )
+        };
+        assert_eq!(
+            codes(&list("[]", "")),
+            ["setting_choices_missing"],
+            "fixed choices are required"
+        );
+        assert_eq!(
+            codes(&list("[\"gpu\"]", "choices = [\"cpu\"]")),
+            ["setting_default_not_in_choices"]
+        );
+        assert_eq!(
+            codes(&list("[\"cpu\", \"cpu\"]", "choices = [\"cpu\"]")),
+            ["setting_default_duplicate"]
+        );
+        assert_eq!(
+            codes(&list("[1]", "choices = [\"cpu\"]")),
+            ["setting_default_type"]
+        );
+        assert_eq!(
+            codes(&list("[]", "choices = [\"cpu\"]\nrange = [0, 1]")),
+            ["setting_range_not_numeric"]
+        );
+        assert_eq!(
+            codes(&list("[]", "choices_from = \"demo.pick\"")),
+            ["setting_choices_missing", "setting_choices_from_type"]
+        );
     }
 }

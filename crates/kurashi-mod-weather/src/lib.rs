@@ -146,11 +146,19 @@ impl NativeMod for WeatherMod {
         let choices = ctx.choices("weather.places", move || s.choice_offers())?;
         shared.set_choices(choices);
 
-        // Rain alerts need a job while nothing subscribes. Spawned here, it ends with the mod: the
-        // daemon drops the settings feed on disable, and `changed()` then resolves to false.
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(service::rain_job(shared.clone(), ctx.settings().clone()));
-        }
+        // Rain alerts need a job while nothing subscribes. The daemon runs it while `rain_alerts` is on
+        // and the mod is enabled, cancels it on disable, and reports it as running (I23).
+        let s = shared.clone();
+        ctx.background(
+            "rain",
+            "mods.running.rain_alerts",
+            "rain_alerts",
+            move |job| {
+                let s = s.clone();
+                let settings = job.settings().clone();
+                async move { service::rain_job(s, settings).await }
+            },
+        )?;
         Ok(())
     }
 }

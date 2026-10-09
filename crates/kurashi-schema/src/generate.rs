@@ -20,7 +20,8 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Choice => "select",
         Ty::String if !c.choices.is_empty() || c.choices_from.is_some() => "select",
         Ty::String => "text",
-        Ty::StringList if c.choices_from.is_some() => "pick_list",
+        // Fixed choices (a mod's `list` setting, I26) or a choice source: an ordered pick list.
+        Ty::StringList if c.choices_from.is_some() || !c.choices.is_empty() => "pick_list",
         Ty::StringList => "list",
         Ty::Color => "color",
         Ty::Font => "font",

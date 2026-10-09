@@ -12,11 +12,14 @@ use std::sync::{Arc, Mutex, Weak};
 
 use kurashi_island::{Face, FaceSignal, Source, Transient};
 use kurashi_mod_api::{
-    Choice, ChoicesFn, FaceUpdate, Hooks, ModCtx, ModError, NativeMod, Publish, Registration,
-    ServiceFn, Settings, Values,
+    Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod, Publish,
+    Registration, ServiceFn, Settings, Values,
 };
-use kurashi_mods::{ModEntry, ModState, Provide, Registry, SettingValue, Tier};
+use kurashi_mods::{
+    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
+};
 use serde_json::{Map, Value, json};
+use tokio::runtime::Handle;
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
@@ -38,17 +41,22 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
 /// `runtime.slots` (K28): the contributions of enabled mods to the core views' slots.
 pub const SLOTS_DOC: &str = "runtime.slots";
 
-/// Which documents of which mods have a subscriber. The services keep it current; the `mods`
-/// document reads it (`running`, K25).
+/// `running_reasons` of a mod whose document has a subscriber (K25 "Running now").
+const RUNNING_SUBSCRIBED: &str = "mods.running.subscribed";
+
+/// Why each mod runs now (K25, I23): a document with a subscriber, a background job that is started.
+/// The services and jobs keep it current; the `mods` document reads it as `running_reasons`.
 #[derive(Default)]
-pub struct Subscribed {
+pub struct Running {
     docs: Mutex<BTreeSet<(String, String)>>,
+    /// (mod, job) -> the job's reason, for the jobs that run now.
+    jobs: Mutex<BTreeMap<(String, String), String>>,
 }
 
-impl Subscribed {
-    fn set(&self, mod_id: &str, doc: &str, on: bool) {
+impl Running {
+    fn set_doc(&self, mod_id: &str, doc: &str, on: bool) {
         let key = (mod_id.to_string(), doc.to_string());
-        let mut docs = self.docs.lock().expect("subscribed lock");
+        let mut docs = self.docs.lock().expect("running lock");
         if on {
             docs.insert(key);
         } else {
@@ -56,13 +64,33 @@ impl Subscribed {
         }
     }
 
-    /// One of the mod's documents has a subscriber right now.
-    pub fn running(&self, mod_id: &str) -> bool {
-        self.docs
+    fn set_job(&self, mod_id: &str, job: &str, reason: Option<&str>) {
+        let key = (mod_id.to_string(), job.to_string());
+        let mut jobs = self.jobs.lock().expect("running lock");
+        match reason {
+            Some(reason) => jobs.insert(key, reason.to_string()),
+            None => jobs.remove(&key),
+        };
+    }
+
+    /// The reasons the mod runs now: its subscribers first, then its jobs by name, each once.
+    pub fn reasons(&self, mod_id: &str) -> Vec<String> {
+        let mut out = Vec::new();
+        let subscribed = self
+            .docs
             .lock()
-            .expect("subscribed lock")
+            .expect("running lock")
             .iter()
-            .any(|(m, _)| m == mod_id)
+            .any(|(m, _)| m == mod_id);
+        if subscribed {
+            out.push(RUNNING_SUBSCRIBED.to_string());
+        }
+        for ((m, _), reason) in self.jobs.lock().expect("running lock").iter() {
+            if m == mod_id && !out.contains(reason) {
+                out.push(reason.clone());
+            }
+        }
+        out
     }
 }
 
@@ -73,7 +101,7 @@ struct Service {
     doc: String,
     run: ServiceFn,
     settings: Arc<watch::Sender<Values>>,
-    subscribed: Arc<Subscribed>,
+    running: Arc<Running>,
     hub: Weak<Hub>,
     /// Set while the service runs. The publish handle drops its updates otherwise.
     live: Arc<AtomicBool>,
@@ -87,8 +115,111 @@ impl Service {
     /// read there, so the last of two racing updates always carries the current value.
     fn publish_running(&self, hub: &Hub) {
         let _ = hub.update("mods", None, |d| {
-            set_running(d, &self.mod_id, self.subscribed.running(&self.mod_id));
+            set_running(d, &self.mod_id, self.running.reasons(&self.mod_id));
         });
+    }
+}
+
+/// A background job of a mod (I23, `ModCtx::background`). It runs on the daemon's runtime while the
+/// mod is on and its `wanted_by` setting is true: `feed` starts and stops it as the setting changes,
+/// `deactivate` cancels it. A job that ends by itself stops running and says so in the document.
+struct BackgroundJob {
+    mod_id: String,
+    name: String,
+    reason: String,
+    wanted_by: String,
+    body: JobFn,
+    settings: Arc<watch::Sender<Values>>,
+    running: Arc<Running>,
+    hub: Weak<Hub>,
+    runtime: Handle,
+    run: Mutex<JobRun>,
+}
+
+/// One job's run: its task, and how many runs there were, so a run that ends late never clears
+/// the state of a later one.
+#[derive(Default)]
+struct JobRun {
+    starts: u64,
+    task: Option<JoinHandle<()>>,
+}
+
+/// Reports the end of one run of a job when it is dropped: the body returned, panicked, or was
+/// cancelled with its task.
+struct RunEnd {
+    job: Arc<BackgroundJob>,
+    start: u64,
+}
+
+impl Drop for RunEnd {
+    fn drop(&mut self) {
+        self.job.ended(self.start);
+    }
+}
+
+impl BackgroundJob {
+    /// Whether the setting in effect wants the job running.
+    fn wants(&self, values: &Values) -> bool {
+        values.get(&self.wanted_by).and_then(Value::as_bool) == Some(true)
+    }
+
+    /// Starts the job unless it runs. Its reason joins `running_reasons` until it stops.
+    fn start(self: &Arc<Self>) {
+        let mut run = self.run.lock().expect("job lock");
+        if run.task.is_some() {
+            return;
+        }
+        run.starts += 1;
+        let start = run.starts;
+        self.running
+            .set_job(&self.mod_id, &self.name, Some(&self.reason));
+        let ctx = JobCtx::new(Settings::new(self.settings.subscribe()));
+        let body = (self.body)(ctx);
+        let end = RunEnd {
+            job: self.clone(),
+            start,
+        };
+        run.task = Some(self.runtime.spawn(async move {
+            let _end = end;
+            body.await;
+        }));
+    }
+
+    /// Cancels the job if it runs. The task leaves the lock first: dropping a cancelled run reports
+    /// its end, and that takes the lock.
+    fn stop(&self) {
+        let task = self.run.lock().expect("job lock").task.take();
+        if let Some(task) = task {
+            task.abort();
+            self.running.set_job(&self.mod_id, &self.name, None);
+        }
+    }
+
+    /// The run `start` ended: its body returned, panicked, or was cancelled. A run that a stop or a
+    /// later start has already superseded changes nothing.
+    fn ended(&self, start: u64) {
+        let mut run = self.run.lock().expect("job lock");
+        if run.starts != start || run.task.take().is_none() {
+            return;
+        }
+        drop(run);
+        self.running.set_job(&self.mod_id, &self.name, None);
+        if let Some(hub) = self.hub.upgrade() {
+            let _ = hub.update("mods", None, |d| {
+                set_running(d, &self.mod_id, self.running.reasons(&self.mod_id));
+            });
+        }
+    }
+}
+
+fn set_running(doc: &mut Value, mod_id: &str, reasons: Vec<String>) {
+    if let Some(entries) = doc["mods"].as_array_mut() {
+        for entry in entries.iter_mut() {
+            if entry["id"] == mod_id {
+                entry["running"] = json!(!reasons.is_empty());
+                entry["running_reasons"] = json!(reasons);
+            }
+        }
     }
 }
 
@@ -115,7 +246,7 @@ impl Provider for Service {
         if let Some(old) = self.task.lock().expect("task lock").replace(task) {
             old.abort();
         }
-        self.subscribed.set(&self.mod_id, &self.doc, true);
+        self.running.set_doc(&self.mod_id, &self.doc, true);
         self.publish_running(&hub);
     }
 
@@ -124,19 +255,9 @@ impl Provider for Service {
         if let Some(task) = self.task.lock().expect("task lock").take() {
             task.abort();
         }
-        self.subscribed.set(&self.mod_id, &self.doc, false);
+        self.running.set_doc(&self.mod_id, &self.doc, false);
         if let Some(hub) = self.hub.upgrade() {
             self.publish_running(&hub);
-        }
-    }
-}
-
-fn set_running(doc: &mut Value, mod_id: &str, running: bool) {
-    if let Some(entries) = doc["mods"].as_array_mut() {
-        for entry in entries.iter_mut() {
-            if entry["id"] == mod_id {
-                entry["running"] = json!(running);
-            }
         }
     }
 }
@@ -240,6 +361,8 @@ struct Ledger {
     documents: Vec<String>,
     actions: Vec<String>,
     faces: Vec<String>,
+    /// The background jobs; `feed` starts and stops them, `deactivate` cancels them.
+    jobs: Vec<Arc<BackgroundJob>>,
     /// The settings feed; the services hold receivers of it.
     settings: Arc<watch::Sender<Values>>,
     /// (key, config key, default) of each setting the manifest declares.
@@ -261,7 +384,10 @@ pub struct Native {
     active: BTreeMap<String, Ledger>,
     /// Why the last enable was refused. The mod is off; `document` shows the reason.
     refused: BTreeMap<String, ModError>,
-    subscribed: Arc<Subscribed>,
+    running: Arc<Running>,
+    /// Where background jobs run. Enable may run off the runtime (a config reload), so it is taken
+    /// here; without one a job cannot run and its mod's enable is refused.
+    runtime: Option<Handle>,
 }
 
 impl Native {
@@ -283,14 +409,16 @@ impl Native {
                 .collect(),
             active: BTreeMap::new(),
             refused: BTreeMap::new(),
-            subscribed: Arc::default(),
+            running: Arc::default(),
+            runtime: Handle::try_current().ok(),
         }
     }
 
     /// Makes the native mods match the registry: an enabled mod is activated, one that is not
-    /// enabled is deactivated. A refused enable leaves the mod disabled in the registry.
+    /// enabled is deactivated. A refused enable leaves the mod disabled in the registry, and so does
+    /// an enabled mod whose daemon code is not linked (B15): switched on, it would do nothing.
     pub fn sync(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) {
-        let ids: Vec<String> = self.linked.keys().cloned().collect();
+        let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
         for id in ids {
             let on = reg.get(&id).is_some_and(|e| e.state == ModState::Enabled);
             let active = self.active.contains_key(&id);
@@ -299,16 +427,29 @@ impl Native {
             }
             if !on {
                 self.refused.remove(&id);
-            } else if !active {
-                let module = self.linked[&id].clone();
-                match self.activate(module.as_ref(), reg, store) {
-                    Ok(()) => {
-                        self.refused.remove(&id);
-                    }
-                    Err(e) => {
-                        self.refused.insert(id.clone(), e);
-                        let _ = reg.disable(&id);
-                    }
+                continue;
+            }
+            if active {
+                continue;
+            }
+            let Some(module) = self.linked.get(&id).cloned() else {
+                let needs_code = reg
+                    .get(&id)
+                    .and_then(|e| e.manifest.as_ref())
+                    .is_some_and(needs_daemon_code);
+                if needs_code {
+                    self.refused.insert(id.clone(), ModError::NotBuilt);
+                    let _ = reg.disable(&id);
+                }
+                continue;
+            };
+            match self.activate(module.as_ref(), reg, store) {
+                Ok(()) => {
+                    self.refused.remove(&id);
+                }
+                Err(e) => {
+                    self.refused.insert(id.clone(), e);
+                    let _ = reg.disable(&id);
                 }
             }
         }
@@ -352,7 +493,24 @@ impl Native {
         });
         let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone());
         module.enable(&mut ctx)?;
+        let declared_jobs = ctx.take_jobs();
         let registrations = ctx.finish()?;
+        // A job waits for a bool setting of its own mod (I23); without a runtime it could never run.
+        for job in &declared_jobs {
+            let bool_setting = manifest
+                .settings
+                .iter()
+                .any(|s| s.key == job.wanted_by && s.ty == SettingType::Bool);
+            if !bool_setting {
+                return Err(ModError::Failed(format!(
+                    "job {} waits for {}, which is not a bool setting",
+                    job.name, job.wanted_by
+                )));
+            }
+        }
+        if !declared_jobs.is_empty() && self.runtime.is_none() {
+            return Err(ModError::Failed("the daemon runtime is not running".into()));
+        }
         // Nothing may take an id the daemon or another mod holds: disabling would remove it again.
         // A core choice source keeps its own options (config.rs `CORE_SOURCES`).
         for r in &registrations {
@@ -389,10 +547,31 @@ impl Native {
         // offers is in effect from its registration on.
         link.state.lock().expect("link lock").live = true;
         let ready = Arc::new(AtomicBool::new(true));
+        let jobs: Vec<Arc<BackgroundJob>> = declared_jobs
+            .into_iter()
+            .map(|job| {
+                Arc::new(BackgroundJob {
+                    mod_id: module.id().to_string(),
+                    name: job.name,
+                    reason: job.reason,
+                    wanted_by: job.wanted_by,
+                    body: job.run,
+                    settings: settings.clone(),
+                    running: self.running.clone(),
+                    hub: Arc::downgrade(&self.hub),
+                    runtime: self
+                        .runtime
+                        .clone()
+                        .expect("checked above: jobs need a runtime"),
+                    run: Mutex::default(),
+                })
+            })
+            .collect();
         let mut ledger = Ledger {
             documents: Vec::new(),
             actions: Vec::new(),
             faces: Vec::new(),
+            jobs,
             settings: settings.clone(),
             keys,
             link: link.clone(),
@@ -413,7 +592,7 @@ impl Native {
                         doc: doc.clone(),
                         run,
                         settings: settings.clone(),
-                        subscribed: self.subscribed.clone(),
+                        running: self.running.clone(),
                         hub: Arc::downgrade(&self.hub),
                         live: Arc::default(),
                         ready: flag,
@@ -447,6 +626,13 @@ impl Native {
                 }
             }
         }
+        // A job whose setting wants it runs from the enable on (I23).
+        for job in &ledger.jobs {
+            let wanted = job.wants(&settings.borrow());
+            if wanted {
+                job.start();
+            }
+        }
         self.active.insert(module.id().to_string(), ledger);
         Ok(())
     }
@@ -458,6 +644,9 @@ impl Native {
         };
         // The mod's handles stop reaching the island and the config before anything is taken back.
         ledger.link.state.lock().expect("link lock").live = false;
+        for job in &ledger.jobs {
+            job.stop();
+        }
         for doc in ledger.documents {
             self.hub.unregister(&doc, json!({"available": false}));
         }
@@ -473,7 +662,8 @@ impl Native {
     }
 
     /// Pushes the settings in effect to the enabled mods, after every config change. A mod's
-    /// service is woken only when one of its values changed.
+    /// service is woken only when one of its values changed. A background job starts or stops as
+    /// its setting now wants it (I23).
     pub fn feed(&self, store: &ConfigStore) {
         for ledger in self.active.values() {
             let values: Values = ledger
@@ -491,6 +681,15 @@ impl Native {
                     true
                 }
             });
+            // After the send: a job started now reads the settings in effect.
+            for job in &ledger.jobs {
+                let wanted = job.wants(&ledger.settings.borrow());
+                if wanted {
+                    job.start();
+                } else {
+                    job.stop();
+                }
+            }
         }
     }
 
@@ -551,14 +750,14 @@ impl Native {
         Value::Object(out)
     }
 
-    /// The `mods` document (K25, K26, PROTOCOL §5): the registry's entries, `running` from the
-    /// subscriptions, `qml` for enabled native mods whose component files exist, and the reason of
+    /// The `mods` document (K25, K26, I23, PROTOCOL §5): the registry's entries, `running_reasons`
+    /// from the subscriptions and the started jobs, `qml` for enabled native mods whose component files exist, and the reason of
     /// a refused enable in `errors`. Called under the hub's lock (`update`), so it reads the
     /// subscriptions as they are at the write.
     pub fn document(&self, reg: &mut Registry) -> Value {
         let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
         for id in &ids {
-            reg.set_running(id, self.subscribed.running(id));
+            reg.set_running_reasons(id, self.running.reasons(id));
         }
         let mut doc = reg.doc();
         if let Some(entries) = doc["mods"].as_array_mut() {
@@ -580,6 +779,22 @@ impl Native {
         }
         doc
     }
+}
+
+/// Whether a manifest declares something only linked daemon code can serve: a service, an action, an
+/// island face, a choice source or a background job (B15). Frontend-only provides (widgets, panels,
+/// slots, palettes…) need no code and stay enable-able.
+fn needs_daemon_code(m: &Manifest) -> bool {
+    m.provides.iter().any(|p| {
+        matches!(
+            p,
+            Provide::Service(_)
+                | Provide::Action(_)
+                | Provide::IslandFace(_)
+                | Provide::Choices(_)
+                | Provide::Job(_)
+        )
+    })
 }
 
 /// `setting_value`: the value in effect for a `mods.<id>.<key>`, or the manifest default when the
