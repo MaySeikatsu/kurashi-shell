@@ -64,6 +64,27 @@ impl Backend for FakeBackend {
                 .for_each(|d| d.muted = m);
         });
     }
+    fn set_default_source(&mut self, id: u32) {
+        self.mutate(format!("default source {id}"), |s| {
+            s.default_source = Some(id)
+        });
+    }
+    fn set_stream_volume(&mut self, id: u32, v: f64) {
+        self.mutate(format!("stream vol {id} {v}"), |s| {
+            s.streams
+                .iter_mut()
+                .filter(|st| st.id == id)
+                .for_each(|st| st.volume = v);
+        });
+    }
+    fn set_stream_muted(&mut self, id: u32, m: bool) {
+        self.mutate(format!("stream mute {id} {m}"), |s| {
+            s.streams
+                .iter_mut()
+                .filter(|st| st.id == id)
+                .for_each(|st| st.muted = m);
+        });
+    }
 }
 
 struct ChanSink(Mutex<Sender<Value>>);
@@ -87,12 +108,23 @@ fn fixture() -> Shared {
     Arc::new(Mutex::new(Fake {
         snap: Snapshot {
             sinks: vec![dev(1, "speakers", 0.5), dev(2, "headset", 1.0)],
-            sources: vec![dev(10, "mic", 0.8)],
+            sources: vec![dev(10, "mic", 0.8), dev(11, "webcam", 0.4)],
             default_sink: Some(1),
             default_source: Some(10),
+            streams: vec![stream(20, "Music", 0.6), stream(21, "Browser", 1.0)],
         },
         ..Fake::default()
     }))
+}
+
+fn stream(id: u32, app: &str, volume: f64) -> Stream {
+    Stream {
+        id,
+        app: app.into(),
+        icon: None,
+        volume,
+        muted: false,
+    }
 }
 
 fn boot(shared: &Shared) -> (AudioHandle, Commands, Receiver<Value>) {
@@ -246,4 +278,72 @@ fn doc_without_defaults_has_no_nulls() {
     assert!(no_nulls(&d));
     assert!(d.get("sink").is_none());
     assert!(d.get("source").is_none());
+}
+
+#[test]
+fn sources_and_playing_streams_are_listed_with_their_levels() {
+    let shared = fixture();
+    let (_h, _c, rx) = boot(&shared);
+    let d = next(&rx);
+    assert_eq!(d["sources"].as_array().unwrap().len(), 2);
+    assert_eq!(d["sources"][0]["default"], true);
+    assert_eq!(d["sources"][1]["name"], "webcam");
+    assert_eq!(d["streams"][0]["app"], "Music");
+    assert_eq!(d["streams"][0]["volume"], 0.6);
+    assert_eq!(d["streams"][0]["muted"], false);
+    // No icon name from the application: the key is absent, not null.
+    assert!(d["streams"][0].get("icon").is_none());
+    assert!(no_nulls(&d));
+}
+
+#[test]
+fn source_and_stream_commands_reach_the_backend_and_echo_back() {
+    let shared = fixture();
+    let (_h, c, rx) = boot(&shared);
+    next(&rx);
+
+    c.set_default_source(11);
+    let d = until(&rx, |d| d["source"]["id"] == 11);
+    assert_eq!(d["sources"][1]["default"], true);
+
+    c.set_stream_volume(20, 0.3);
+    until(&rx, |d| d["streams"][0]["volume"] == 0.3);
+    c.set_stream_muted(21, true);
+    until(&rx, |d| d["streams"][1]["muted"] == true);
+    // Toggles read the current state, so a toggle flips what the server holds.
+    c.toggle_stream_mute(21);
+    until(&rx, |d| d["streams"][1]["muted"] == false);
+
+    // Unknown ids and out-of-range levels never reach the server.
+    c.set_default_source(99);
+    c.set_stream_volume(99, 0.5);
+    c.set_stream_volume(21, 9.0);
+    until(&rx, |d| d["streams"][1]["volume"] == MAX_VOLUME);
+    let calls = shared.lock().unwrap().calls.clone();
+    assert!(!calls.iter().any(|c| c.contains("99")), "{calls:?}");
+}
+
+#[test]
+fn coalesce_keeps_the_last_command_of_each_stream_and_of_the_volume() {
+    let out = coalesce(vec![
+        Cmd::StreamVolume(20, 0.1),
+        Cmd::Volume(0.2),
+        Cmd::StreamVolume(21, 0.3),
+        Cmd::StreamVolume(20, 0.4),
+    ]);
+    assert_eq!(
+        out,
+        vec![
+            Cmd::Volume(0.2),
+            Cmd::StreamVolume(21, 0.3),
+            Cmd::StreamVolume(20, 0.4)
+        ]
+    );
+}
+
+#[test]
+fn unavailable_server_says_nothing_about_sources_or_streams() {
+    let d = unavailable_doc();
+    assert!(d.get("sources").is_none());
+    assert!(d.get("streams").is_none());
 }

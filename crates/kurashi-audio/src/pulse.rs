@@ -15,7 +15,7 @@ use libpulse_binding::context::{Context, FlagSet, State};
 use libpulse_binding::mainloop::threaded::Mainloop;
 use libpulse_binding::volume::{ChannelVolumes, Volume};
 
-use crate::{Backend, Device, MAX_VOLUME, Notifier, Snapshot};
+use crate::{Backend, Device, MAX_VOLUME, Notifier, Snapshot, Stream};
 
 const TIMEOUT: Duration = Duration::from_secs(2);
 
@@ -25,9 +25,19 @@ pub struct PulseBackend {
     ml: Mainloop,
     /// Names for id -> name lookups and the default sink's channel layout for volume writes.
     sinks: Vec<(u32, String)>,
+    /// Sources by id (monitors left out) for the default-source switch.
+    sources: Vec<(u32, String)>,
+    /// Playing streams by id, with their channel count: a volume write needs the layout.
+    streams: Vec<(u32, u8)>,
     default_sink: Option<String>,
     default_source: Option<String>,
     sink_channels: u8,
+}
+
+/// A playing application, copied out of the callback like [`Raw`].
+struct RawStream {
+    stream: Stream,
+    channels: u8,
 }
 
 impl PulseBackend {
@@ -69,7 +79,10 @@ impl PulseBackend {
         let n = notifier;
         ctx.set_subscribe_callback(Some(Box::new(move |_, _, _| n.notify())));
         ctx.subscribe(
-            InterestMaskSet::SINK | InterestMaskSet::SOURCE | InterestMaskSet::SERVER,
+            InterestMaskSet::SINK
+                | InterestMaskSet::SINK_INPUT
+                | InterestMaskSet::SOURCE
+                | InterestMaskSet::SERVER,
             |_| {},
         );
         ml.unlock();
@@ -78,6 +91,8 @@ impl PulseBackend {
             ctx,
             ml,
             sinks: Vec::new(),
+            sources: Vec::new(),
+            streams: Vec::new(),
             default_sink: None,
             default_source: None,
             sink_channels: 2,
@@ -129,6 +144,7 @@ impl Backend for PulseBackend {
         let (srv_tx, srv_rx) = mpsc::channel();
         let (sink_tx, sink_rx) = mpsc::channel::<Option<Raw>>();
         let (src_tx, src_rx) = mpsc::channel::<Option<Raw>>();
+        let (stream_tx, stream_rx) = mpsc::channel::<Option<RawStream>>();
         self.with_lock(|ctx| {
             if ctx.get_state() != State::Ready {
                 return Err(anyhow!("pulse context not ready"));
@@ -175,6 +191,27 @@ impl Backend for PulseBackend {
                 };
                 let _ = src_tx.send(item);
             });
+            i.get_sink_input_info_list(move |r| {
+                let item = match r {
+                    ListResult::Item(s) => Some(RawStream {
+                        stream: Stream {
+                            id: s.index,
+                            // The application's own name first; the stream's name when it has none.
+                            app: s
+                                .proplist
+                                .get_str("application.name")
+                                .or_else(|| s.name.as_deref().map(str::to_owned))
+                                .unwrap_or_default(),
+                            icon: s.proplist.get_str("application.icon_name"),
+                            volume: linear(&s.volume),
+                            muted: s.mute,
+                        },
+                        channels: s.volume.len().max(1),
+                    }),
+                    _ => None,
+                };
+                let _ = stream_tx.send(item);
+            });
             Ok(())
         })?;
 
@@ -184,6 +221,7 @@ impl Backend for PulseBackend {
             .into_iter()
             .filter(|r| !r.is_monitor)
             .collect();
+        let streams = Self::collect(&stream_rx)?;
 
         let id_of = |devs: &[Raw], name: &Option<String>| {
             name.as_ref()
@@ -197,6 +235,11 @@ impl Backend for PulseBackend {
             .iter()
             .map(|r| (r.dev.id, r.dev.name.clone()))
             .collect();
+        self.sources = sources
+            .iter()
+            .map(|r| (r.dev.id, r.dev.name.clone()))
+            .collect();
+        self.streams = streams.iter().map(|r| (r.stream.id, r.channels)).collect();
         self.default_sink = dsink;
         self.default_source = dsource;
         if let Some(r) = sinks.iter().find(|r| Some(r.dev.id) == default_sink) {
@@ -207,6 +250,7 @@ impl Backend for PulseBackend {
             sources: sources.into_iter().map(|r| r.dev).collect(),
             default_sink,
             default_source,
+            streams: streams.into_iter().map(|r| r.stream).collect(),
         })
     }
 
@@ -246,6 +290,37 @@ impl Backend for PulseBackend {
         };
         self.with_lock(|ctx| {
             ctx.introspect().set_source_mute_by_name(&name, muted, None);
+        });
+    }
+
+    fn set_default_source(&mut self, id: u32) {
+        let Some((_, name)) = self.sources.iter().find(|(i, _)| *i == id).cloned() else {
+            return;
+        };
+        self.with_lock(|ctx| {
+            ctx.set_default_source(&name, |_| {});
+        });
+    }
+
+    fn set_stream_volume(&mut self, id: u32, linear: f64) {
+        // Only a stream of the last snapshot has a known layout; anything else is gone already.
+        let Some(&(_, channels)) = self.streams.iter().find(|(i, _)| *i == id) else {
+            return;
+        };
+        let raw = (linear.clamp(0.0, MAX_VOLUME) * f64::from(Volume::NORMAL.0)).round() as u32;
+        let mut cv = ChannelVolumes::default();
+        cv.set(channels, Volume(raw));
+        self.with_lock(|ctx| {
+            ctx.introspect().set_sink_input_volume(id, &cv, None);
+        });
+    }
+
+    fn set_stream_muted(&mut self, id: u32, muted: bool) {
+        if !self.streams.iter().any(|(i, _)| *i == id) {
+            return;
+        }
+        self.with_lock(|ctx| {
+            ctx.introspect().set_sink_input_mute(id, muted, None);
         });
     }
 }

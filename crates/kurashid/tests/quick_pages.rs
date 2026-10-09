@@ -13,7 +13,7 @@ use kurashid::hub::Hub;
 use kurashid::services::ConnectFn;
 use kurashid::wiring::{
     ARGS_INVALID, NETWORK_NEEDS_SECRET, NETWORK_NOT_FOUND, NETWORK_NOT_SAVED, NETWORK_REFUSED,
-    SERVICE_NOT_RUNNING,
+    NO_SUCH_SOURCE, NO_SUCH_STREAM, SERVICE_NOT_RUNNING,
 };
 use serde_json::{Value, json};
 use zbus::Connection;
@@ -574,4 +574,226 @@ async fn disconnect_and_airplane_follow_networkmanager_and_refusals_come_back_as
 
     hub.unsubscribe("svc.network");
     drop(nm);
+}
+
+// ---- svc.audio: sources, playing streams, the mic ------------------------------------------------
+
+/// The sound server's state: what the snapshot reports, and every write that reached it.
+#[derive(Default)]
+struct Mixer {
+    snap: kurashi_audio::Snapshot,
+    calls: Vec<String>,
+}
+
+/// A fake PulseAudio: writes change the state and report the change, as the server's subscription
+/// does, so the worker publishes the new document.
+struct FakeMixer {
+    state: Arc<Mutex<Mixer>>,
+    notifier: kurashi_audio::Notifier,
+}
+
+impl FakeMixer {
+    fn edit(&self, call: String, f: impl FnOnce(&mut kurashi_audio::Snapshot)) {
+        let mut m = self.state.lock().unwrap();
+        m.calls.push(call);
+        f(&mut m.snap);
+        self.notifier.notify();
+    }
+}
+
+impl kurashi_audio::Backend for FakeMixer {
+    fn snapshot(&mut self) -> anyhow::Result<kurashi_audio::Snapshot> {
+        Ok(self.state.lock().unwrap().snap.clone())
+    }
+    fn set_volume(&mut self, _linear: f64) {}
+    fn set_muted(&mut self, _muted: bool) {}
+    fn set_default_sink(&mut self, _id: u32) {}
+    fn set_source_muted(&mut self, muted: bool) {
+        self.edit(format!("source mute {muted}"), |s| {
+            let id = s.default_source;
+            for d in s.sources.iter_mut().filter(|d| Some(d.id) == id) {
+                d.muted = muted;
+            }
+        });
+    }
+    fn set_default_source(&mut self, id: u32) {
+        self.edit(format!("default source {id}"), |s| {
+            s.default_source = Some(id)
+        });
+    }
+    fn set_stream_volume(&mut self, id: u32, linear: f64) {
+        self.edit(format!("stream volume {id} {linear}"), |s| {
+            for st in s.streams.iter_mut().filter(|st| st.id == id) {
+                st.volume = linear;
+            }
+        });
+    }
+    fn set_stream_muted(&mut self, id: u32, muted: bool) {
+        self.edit(format!("stream mute {id} {muted}"), |s| {
+            for st in s.streams.iter_mut().filter(|st| st.id == id) {
+                st.muted = muted;
+            }
+        });
+    }
+}
+
+fn mixer_device(id: u32, name: &str) -> kurashi_audio::Device {
+    kurashi_audio::Device {
+        id,
+        name: name.into(),
+        description: format!("{name} device"),
+        volume: 0.5,
+        muted: false,
+    }
+}
+
+fn playing(id: u32, app: &str, volume: f64) -> kurashi_audio::Stream {
+    kurashi_audio::Stream {
+        id,
+        app: app.into(),
+        icon: None,
+        volume,
+        muted: false,
+    }
+}
+
+#[tokio::test]
+async fn audio_sources_streams_and_the_mic_follow_the_sound_server() {
+    let state = Arc::new(Mutex::new(Mixer {
+        snap: kurashi_audio::Snapshot {
+            sinks: vec![mixer_device(1, "speakers")],
+            sources: vec![mixer_device(10, "mic"), mixer_device(11, "webcam")],
+            default_sink: Some(1),
+            default_source: Some(10),
+            streams: vec![playing(20, "Music", 0.6), playing(21, "Browser", 1.0)],
+        },
+        calls: Vec::new(),
+    }));
+    let hub = Hub::new();
+    let mut actions = ActionRegistry::default();
+    let shared = state.clone();
+    let start = Arc::new(move |sink: Arc<dyn kurashi_services::DocSink>| {
+        let shared = shared.clone();
+        kurashi_audio::start_with(sink, move |notifier| {
+            Ok(FakeMixer {
+                state: shared,
+                notifier,
+            })
+        })
+    });
+    kurashid::wiring::audio_with(
+        &hub,
+        &mut actions,
+        &mut kurashid::Intents::default(),
+        None,
+        start,
+    );
+    let doc = |hub: &Hub| hub.snapshot("svc.audio").unwrap().1;
+
+    // Not subscribed: nothing runs and nothing starts.
+    assert_eq!(
+        actions
+            .invoke("audio.source.default", json!({"id": 11}))
+            .await,
+        Err(ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))
+    );
+
+    hub.subscribe("svc.audio").unwrap();
+    until("the playing streams", || {
+        doc(&hub)["streams"]
+            .as_array()
+            .is_some_and(|s| s.len() == 2)
+    })
+    .await;
+    assert_eq!(doc(&hub)["streams"][0]["app"], "Music");
+    assert_eq!(doc(&hub)["sources"][0]["default"], true);
+
+    // The input picker: a listed input becomes the default, anything else is refused.
+    assert_eq!(
+        actions
+            .invoke("audio.source.default", json!({"id": 9}))
+            .await,
+        Err(ActionError::Invalid(NO_SUCH_SOURCE.into()))
+    );
+    assert_eq!(
+        actions.invoke("audio.source.default", json!({})).await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+    assert_eq!(
+        actions
+            .invoke("audio.source.default", json!({"id": 11}))
+            .await,
+        Ok(None)
+    );
+    until("the new default input", || doc(&hub)["source"]["id"] == 11).await;
+
+    // The per-app mixer: a level within 0..=1.5 reaches the stream; unknown ids and levels do not.
+    assert_eq!(
+        actions
+            .invoke("audio.stream.volume", json!({"id": 20, "value": 0.25}))
+            .await,
+        Ok(None)
+    );
+    until("the stream's level", || {
+        doc(&hub)["streams"][0]["volume"] == 0.25
+    })
+    .await;
+    assert_eq!(
+        actions
+            .invoke("audio.stream.volume", json!({"id": 99, "value": 0.25}))
+            .await,
+        Err(ActionError::Invalid(NO_SUCH_STREAM.into()))
+    );
+    assert_eq!(
+        actions
+            .invoke("audio.stream.volume", json!({"id": 20, "value": 2.0}))
+            .await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+    assert_eq!(
+        actions
+            .invoke("audio.stream.volume", json!({"id": 20}))
+            .await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+
+    // Mute: without `on` the stream's mute flips; with it, the value is set.
+    assert_eq!(
+        actions.invoke("audio.stream.mute", json!({"id": 21})).await,
+        Ok(None)
+    );
+    until("the browser muted", || {
+        doc(&hub)["streams"][1]["muted"] == true
+    })
+    .await;
+    assert_eq!(
+        actions
+            .invoke("audio.stream.mute", json!({"id": 21, "on": false}))
+            .await,
+        Ok(None)
+    );
+    until("the browser unmuted", || {
+        doc(&hub)["streams"][1]["muted"] == false
+    })
+    .await;
+    assert_eq!(
+        actions
+            .invoke("audio.stream.mute", json!({"id": 21, "on": "yes"}))
+            .await,
+        Err(ActionError::Invalid(ARGS_INVALID.into()))
+    );
+
+    // The mic: the default input's mute flips.
+    assert_eq!(
+        actions.invoke("audio.mic.mute.toggle", json!({})).await,
+        Ok(None)
+    );
+    until("the mic muted", || doc(&hub)["source"]["muted"] == true).await;
+
+    let calls = state.lock().unwrap().calls.clone();
+    assert!(
+        calls.iter().all(|c| !c.contains("99")),
+        "an unknown id reached the server: {calls:?}"
+    );
+    hub.unsubscribe("svc.audio");
 }
