@@ -11,45 +11,61 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-09 — session 2: bake-off probes built (cut short by usage limit)
-**State:** branch `feat/m0-bakeoff` (NOT merged to main). All 5 probes merged into it (`probes/*`,
-REPORT.md for gtk4/iced/slint/gpui written by the lead from agent hand-backs — subagent tools refuse
-report files). Bench harness fixes committed: `sandbox.sh` now fails closed (61d76fa).
+## 2026-10-09 — session 2: M0 decided, M1 complete, M2/M4/M5/M6/M7 foundations (parallel waves)
+**State:** everything is on `main` (green: `just check`, ~180 tests). Work happened in waves of ≤5
+Sonnet/Opus subagents with task cards in `docs/tasks/` (README = common rules), each in its own
+worktree, builds serialised through one shared `CARGO_TARGET_DIR=~/.cache/kurashi-agents-target`.
 
-**Agent efficiency (Sonnet, same card):** quickshell 103k tok / 42 tools / 7.2 min / 4 fix iters ·
-gtk4 173k / 69 / 29.9 min / 4 (+2 pivots) · iced 190k / 79 / 29.9 min / 3 (+1) ·
-slint 191k / 81 / 32.0 min / 1 · gpui 176k / 84 / 32.9 min / 2.
+**Decided / merged this session**
+- **K3 = Quickshell/QML** (bake-off matrix in `BAKEOFF.md`, quiet re-bench in `probes/*/bench-lead.json`);
+  K16 PSS budget revised to ≤150 MiB @1 output (+≤6/output); K17 protocol v1 **frozen**; K18 profile
+  loads clear section pins.
+- Daemon (`kurashid`): hub (revisions, merge-patch diffs, refcounted providers), action registry,
+  intent coalescing, config store (`config` + `schema.settings` docs, cfg.get/explain, apply +
+  dry-run preview, undo/redo, profile.* actions, file watcher, a11y couplings → `forced:accessibility`),
+  `theme` doc from `kurashi-theme`, `i18n` doc, `svc.workspaces` (niri adapter), D-Bus services
+  (`svc.media/power/session/network/brightness`, media feeds the island), island arbiter
+  (`runtime.island.main`, island.next/prev/pin/expand), `runtime.ui`, launcher queries + launch,
+  notification server (non-stealing name claim), mods registry (`mods` doc, mod.enable/disable).
+- Crates: schema(+derive), config, theme, compositor, services, island, notify, launcher, mods, auth.
+- CLI: `kurashi get/set/why/reset/undo/redo/profile` (exit codes 0/1/2/3), smoke-tested end to end.
+- Frontend skeleton (`frontend/`, still on the mock) + Settings app (`settings/`, schema-generated pages,
+  provenance chips, inert reasons, profiles; `settings/test.sh`). i18n en+ja for frontend, settings,
+  config, schema (generated en catalog with staleness test), lock.
+- Nix: package ships i18n/palettes/frontend/settings/mods; HM module runs kurashid + frontend as
+  user services (`just nix-eval-test`, impure); `nix build .#kurashi` verified mid-session.
 
-**Agent-run numbers (noisy, contended):** PSS 1-out: slint 21.6 · gtk4 59 · iced 94.5 · gpui 110 ·
-quickshell 164 MiB. Idle commits/s: 0 everywhere except gpui 61/surface (gpui_linux re-arms frame
-callback forever → fails Ma). Wakeups/s: quickshell 0, slint 0, gtk4 1.4 (gl renderer; Vulkan ~110),
-iced 118 (futex, undiagnosed), gpui 178. Popup latency ~2 ms all, gpui 26 ms.
-Gates: blur bound in quickshell/gtk4/slint (raw), ✘ iced (not done), ✘ gpui (KDE only).
-xdg_popup on layer surface: quickshell, iced; others separate layer surface. Real GPU shader:
-quickshell, iced, gtk4 (GLArea); slint/gpui CPU only. IME: ✘ slint (custom platform).
-Session lock API: quickshell, iced, slint(SCTK); ✘ gtk4/gpui (raw only). Hot reload: only quickshell.
-Lead's provisional read: **QML/Quickshell stays default** (passes all gates, only hot-reload option,
-4× cheaper agent workload); best native contender = slint (memory) but fails IME + shader gates.
+**Agent efficiency (bake-off, Sonnet, same card):** quickshell 103k tok/42 tools/7 min · gtk4 173k/69/30 ·
+iced 190k/79/30 · slint 191k/81/32 · gpui 176k/84/33.
 
 ### Next steps (in order)
-1. Finish M0.7: quiet re-bench was started via `scratchpad/bench-all.sh` (runs from worktree binaries
-   under `.claude/worktrees/agent-*`; results in `tools/bench/results/<name>.json`). If missing, rerun:
-   `nix develop -c python3 tools/bench/measure.py --name <n> --warmup 10 --idle 30 -- <cmd>` with cmds
-   from `probes/*/bench.json` (iced/slint need their devshell LD_LIBRARY_PATH via `env`).
-2. Fill `docs/BAKEOFF.md` matrix + `docs/BENCH.md`, call advisor, decide **K3** in DECISIONS (note:
-   user wants it re-evaluable later; target feel = quick, smooth, polished, snappy). Merge
-   `feat/m0-bakeoff` → main (`--no-ff`), then remove the 5 worktrees + branches.
-3. User request: after evaluation, start M1+ with ≤5 parallel subagents on disjoint subsystems,
-   staggering compiles (e.g. `flock /tmp/kurashi-build.lock cargo …`) — M1 contracts first.
+1. Merge the agents still running at handover time (see "half-done").
+2. Switch `frontend/` from the mock to the real daemon: subscribe `i18n` (fill `I18n.strings`),
+   `config`, `svc.audio` (once wired), `runtime.island.main` reason `manual`; keep the mock working.
+3. Wire `kurashi-audio` (svc.audio + `audio.volume` intent coalesced) and `kurashi-auth`
+   (`runtime.lock`, intent `lock.submit` — never log it; action `session.lock`) into kurashid; add
+   `linux-pam` + `rustPlatform.bindgenHook` to `nix/package.nix` and enable `kurashi-auth/pam` (CONTRACT #4a).
+4. Frontend UI cards (disjoint files under `frontend/surfaces/`): notification toasts + center,
+   launcher, OSD (volume/brightness via island transient), lock screen (`WlSessionLock`), session menu.
+5. Capability forcing for blur (`forced:capability`) once we can tell whether the compositor offers
+   ext-background-effect (ask the frontend to report the global, or probe it in the daemon).
+6. `kurashi doctor`, then M7 budgets via the bench gate (`tools/bench/budget.py`) on the real stack.
 
-### Open issues / risks
-- **Two safety incidents:** slint + gpui agents ran their probe briefly on the user's LIVE session
-  (sandbox.sh silently failed outside nix develop). They killed their own PIDs; socket removed. Fixed.
-- 12 leaked sandbox dbus-daemons (addresses `/tmp/kurashi-sb-{slint,iced}/bus`) — lead's kill was
-  denied by the permission classifier; user should kill them (`pgrep -af kurashi-sb-.*/bus`).
-- Bench commit counting needs libwayland (WAYLAND_DEBUG) — Rust-only wayland backends read 0.
+### Open decisions / risks
+- Stage surface memory (K16) — card M3-stage measures and fixes; budget may need a decision.
+- The notification server runs for the daemon's lifetime (deliberate Ma exception, documented in
+  `crates/kurashid/src/wiring.rs`); it never steals the name from the user's running shell.
+- Mod contributions (faces, services, settings pages) are not registered yet — only the catalog.
+- `kurashi-launcher` watcher not started (refcount per launcher subscriber is TODO).
+- Shared target dir: `debug/<bin>` is overwritten by other worktrees — copy right after building.
 
----
+### Gotchas learned this session
+- Subagents' tools refuse to write report files → reports come back as text; the lead saves them.
+- Two agents briefly drew on the live session because `sandbox.sh start` failed silently outside
+  `nix develop` — fixed (fails closed). Leaked sandbox dbus-daemons may remain (`pgrep -af kurashi-sb-`).
+- Exporting `XDG_CONFIG_HOME` for a smoke test in the same shell breaks `git commit` (identity lives
+  in ~/.config/git).
+- zsh: `"$B:path"` triggers the `:p` modifier — write `"${B}:path"`.
 
 ## 2026-10-09 — session 1: plan, charter, M0 foundations
 **Merged on `main`:** charter + docs (`CLAUDE.md`, `docs/*`), M0.1–M0.5:
