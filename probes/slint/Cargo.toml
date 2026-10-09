@@ -1,0 +1,22 @@
+[package]
+name = "kurashi-probe-slint"
+version = "0.0.1"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "renderer-software", "software-renderer-systemfonts"] }
+slint-interpreter = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "renderer-software"] }
+smithay-client-toolkit = { version = "0.21", default-features = false, features = ["xkbcommon"] }
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-client = "0.31"
+wayland-protocols = { version = "0.32", features = ["client", "staging"] }
+serde_json = "1"
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+debug = false

@@ -1,0 +1,47 @@
+{
+  "name": "gtk4",
+  "cmd": [
+    "/home/maike/Projects/kurashi-shell/.claude/worktrees/agent-aafeaae9a3d28019a/probes/gtk4/result/bin/probe-gtk4"
+  ],
+  "date": "2026-10-09 01:25",
+  "commit": "8832f1f",
+  "pass_a": {
+    "idle_cpu_pct": 0.0,
+    "wakeups_per_s": -0.0,
+    "pss_mib_1out": 156.1,
+    "gpu_mib": 6,
+    "processes": 1,
+    "pss_mib_popup": 233.5,
+    "pss_mib_2out": 234.2,
+    "survived_hotplug": true
+  },
+  "pass_b": {
+    "startup_ms": 489,
+    "idle_commits_per_s": 0.7,
+    "idle_commits_by_surface": {
+      "12": 21
+    },
+    "popup_latency_ms_median": 1.9,
+    "popup_latency_ms_all": [
+      3.1,
+      1.9,
+      1.7,
+      1.9,
+      1.8
+    ],
+    "morph_commits": 15,
+    "morph_frame_ms_p50": 16.2,
+    "morph_frame_ms_p99": 17.5
+  },
+  "pass_c": {
+    "idle_syscalls_per_s": 46.4,
+    "top_syscalls": {
+      "ioctl": 257,
+      "close": 242,
+      "openat": 175,
+      "fcntl": 175,
+      "dup3": 175,
+      "getpid": 170
+    }
+  }
+}
