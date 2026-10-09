@@ -121,6 +121,8 @@ A client that stops reading lets its reply queue fill (1024 messages): the daemo
 If a connection falls behind the broadcast ring, the daemon re-sends a full `snap` (no `id`) for
 every document that connection subscribes; clients already resync by revision.
 
+`svc.network` `{state, wifi_enabled, primary?:{kind, name, strength?}}` with action `network.wifi {on}` (sets NM `WirelessEnabled`; refusal → `unavailable` + i18n key; the document follows NM, never optimistically). `svc.power` `{available, present, on_battery, percent?, state?, time_to_empty_s?, time_to_full_s?}`.
+
 Further kurashid documents (wave 7): `svc.tray` `{available, items:[{id, title, icon_name, status,
 has_menu, item_is_menu?, icon_pixmap?, tooltip?, icon_theme_path?}]}` (`item_is_menu`: SNI `ItemIsMenu`,
 present only when true — the item only offers its menu, so a left click opens it; row 20) with actions `tray.{activate,secondary,scroll,
@@ -134,7 +136,7 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 | `theme` | `{"tokens":{"color.surface":"#1c1b22","color.on_surface":"#e8e3d8","color.accent":"#c1323b","color.surface_alpha":0.82,"radius.md":12,"space.md":8,"font.family":"Inter","font.size.md":13,"motion.standard_ms":220,…}}` |
 | `svc.clock` | `{"hh":"14","mm":"07","date":"2026-10-09","weekday":"Fri"}` (patch once per minute; kurashid sends `weekday` in its locale from i18n domain `clock`) |
 | `svc.workspaces` | `{"outputs":{"<name>":[{"id":1,"idx":1,"focused":true,"occupied":true},…]}}` |
-| `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
+| `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume`. kurashid adds `available`, `sinks:[{id, name, description, default}]` and action `audio.sink.default {id}` (quick settings, K24) |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
 | `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`/`"tray"`/`"quick"`), `launcher` (bool), `tray` (item id whose menu the `tray` panel shows, `""` otherwise, K23) and `face` (the island face whose expanded view the `island` panel shows, latched when `island.expand {island?}` opened it — default instance `main`; `""` otherwise or when the island has no document, K24); actions `island.expand`, `notifications.center`, `session.menu`, `quick.toggle` (quick settings, K24), `tray.menu.open {id}`, `mod.panel.open {id, panel}` (a native mod's Stage panel: `panel` = `"mod:<id>:<panel>"`, toggles like the others; refused unless mod `<id>` is enabled and its manifest provides `panel:<panel>`, K26), `launcher.toggle`, `ui.close`. Pinned by `fixtures/ipc/server/snap_runtime_ui.json` |
