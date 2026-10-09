@@ -74,7 +74,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M3.3 | Golden screenshots (`just golden`) | ✅ | merged; 5 states incl. session menu, 0 px drift across runs; refs are per machine (fonts) |
 | M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | ✅ | merged; no frontend for tray/BT yet |
 | M6.3 | Mod settings as config keys + pages (K22) | ✅ | merged + wired (a3a0443); profiles treat all mod keys as one `mods` section (per-mod sections = later) |
-| F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | ✅ | merged; placeholders unavailable; TODO: explicit logind session for systemd --user |
+| F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | ✅ | merged; placeholders unavailable; explicit logind session → M4.9 |
 | R.2 | UX/visual review | ✅ | 25 findings → `docs/reviews/2026-10-09-ux-review.md` |
 | U.1 | Components: AA contrast, focus/keys, hit targets, motion tokens, provenance chip | ✅ | merged ed847b0; island hit target 26 px still open |
 | U.2 | Surfaces: bar.enabled/edge honoured, Stage scaffolding removed, launcher errors | ✅ | merged 0470378; golden refs re-recorded |
@@ -85,3 +85,4 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 |---|---|---|---|
 | M4.8 | Tray menu as a Stage panel (K23): `tray.menu.open`, `runtime.ui.tray` (daemon + mock) | ✅ | lead; frontend in card B-tray-bluetooth |
 | M6.4 | Per-mod profile sections (`mods.<id>`, K22 addendum) | ✅ | C-mod-sections 27374af; 5 new tests (3 fail on the old `section()`), gate 315/0 |
+| M4.9 | svc.session resolves the graphical session explicitly (XDG_SESSION_ID → user Display → Sessions → auto) | ✅ | L-logind cbdb73f; 6 new tests on a fake logind; `user/self` alias checked read-only on machine B; brightness.rs still uses session/auto (follow-up) |
