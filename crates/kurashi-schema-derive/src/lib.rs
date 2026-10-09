@@ -12,7 +12,7 @@ use syn::{
     parse_macro_input,
 };
 
-const FIELD_ATTRS: &str = "default, range, step, unit, choices, label, help, page, section, \
+const FIELD_ATTRS: &str = "default, range, step, unit, choices, choices_from, label, help, page, section, \
     per_output, requires, capability, overridden_by, restart, advanced, hidden, since, nested";
 const CONTAINER_ATTRS: &str = "page, section, input_slots";
 const SLOTS: &[&str] = &[
@@ -67,6 +67,7 @@ struct FieldAttrs {
     step: Option<Expr>,
     unit: Option<LitStr>,
     choices: Option<Vec<LitStr>>,
+    choices_from: Option<LitStr>,
     label: Option<LitStr>,
     help: Option<LitStr>,
     page: Option<LitStr>,
@@ -164,6 +165,17 @@ fn parse_field_attrs(attrs: &[Attribute]) -> syn::Result<FieldAttrs> {
                         return Err(meta.error("`choices` must not be empty"));
                     }
                     set_once(&mut a.choices, items, span, "choices")?;
+                }
+                "choices_from" => {
+                    leaf_only(&mut a, "choices_from");
+                    let src: LitStr = meta.value()?.parse()?;
+                    if src.value().is_empty() {
+                        return Err(syn::Error::new(
+                            src.span(),
+                            "`choices_from` must name a source",
+                        ));
+                    }
+                    set_once(&mut a.choices_from, src, span, "choices_from")?;
                 }
                 "label" => {
                     leaf_only(&mut a, "label");
@@ -473,6 +485,18 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
                 ::kurashi_schema::__private::assert_textual::<#ty>();
                 __m.constraints.choices =
                     ::kurashi_schema::__private::string_choices(&__m.key, &[#(#pairs),*]);
+            });
+        }
+        if let Some(src) = &a.choices_from {
+            if let Some(c) = &a.choices {
+                return Err(syn::Error::new(
+                    c[0].span(),
+                    "use either `choices` or `choices_from`, not both",
+                ));
+            }
+            body.push(quote_spanned! {src.span()=>
+                ::kurashi_schema::__private::assert_choice_source::<#ty>();
+                __m.constraints.choices_from = ::core::option::Option::Some(#src.to_owned());
             });
         }
         if let Some(label) = &a.label {
