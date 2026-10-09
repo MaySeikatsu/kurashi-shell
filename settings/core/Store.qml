@@ -3,13 +3,13 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 
-// IPC client over the kurashi socket (NDJSON, PROTOCOL v1). Holds the daemon's documents and
-// correlates request ids; no business logic (rule 1). The only derived data are display helpers
-// (inert reasons from schema couplings), never decisions about what a value may be.
+// IPC client over the kurashi socket (NDJSON, PROTOCOL v1). Holds the daemon's documents and correlates request ids;
+// no business logic (rule 1). The derived data here are display helpers only: the words for a provenance layer,
+// the inert reasons the schema couplings name, the list of changed keys, and a cache of cfg.why answers. What a value
+// may be, and whether a change went through, is always the daemon's answer.
 Singleton {
     id: root
-    // PROTOCOL §1: `$XDG_RUNTIME_DIR/kurashi/ipc.sock`, overridden by `KURASHI_SOCKET` — the same rule
-    // as kurashid and the CLI. (Reading only the override left every live start disconnected.)
+    // PROTOCOL §1: `$XDG_RUNTIME_DIR/kurashi/ipc.sock`, overridden by `KURASHI_SOCKET` (the rule kurashid and the CLI use).
     readonly property string socketPath: Quickshell.env("KURASHI_SOCKET")
         || ((Quickshell.env("XDG_RUNTIME_DIR") || "") + "/kurashi/ipc.sock")
 
@@ -21,15 +21,19 @@ Singleton {
     property var mods: ({})
     property bool connected: false
     property bool live: false
-    // key -> error text of the last rejected apply touching it (cleared by the next apply of it, and by any
-    // change that goes through: a refusal is stale once something else succeeded, B8)
+    // key -> error text of the last rejected apply touching it (cleared by the next apply of it, and by any change
+    // that goes through: a refusal is stale once something else succeeded, B8)
     property var rowErrors: ({})
     // Undo/redo/profile failures that belong to no row.
     property string notice: ""
-    // Undo and redo availability is the daemon's `config.history` (K27): current after every change, undo,
-    // redo and profile load, whoever made it. Nothing is kept here.
+    // Undo and redo availability is the daemon's `config.history` (K27): current after every change, undo, redo and
+    // profile load, whoever made it.
     readonly property bool canUndo: !!(config.history && config.history.can_undo)
     readonly property bool canRedo: !!(config.history && config.history.can_redo)
+    // A preview taken back by undo is still the daemon's redo step; Redo stays off until a change goes through
+    // (Changes sets this after its revert, every other change clears it).
+    property bool redoHidden: false
+    readonly property bool redoShown: canRedo && !redoHidden
     // A change went through (an applied batch, a done action, an undo or redo).
     signal changeApplied()
 
@@ -39,6 +43,8 @@ Singleton {
     property var revs: ({})
     property var pending: ({})
     property int seq: 0
+    // cfg.why answers by "key|output" (PROTOCOL §5): the daemon's layers, kept until the config changes.
+    property var explained: ({})
 
     function send(m) {
         if (!sock.connected) return false
@@ -46,7 +52,7 @@ Singleton {
         sock.flush()
         return true
     }
-    // Request with a reply callback (applied / rejected / done / err / preview).
+    // Request with a reply callback (applied / rejected / done / err / preview / cfg.why).
     function request(m, cb) {
         m.id = "c" + (++seq)
         if (cb) pending[m.id] = cb
@@ -58,8 +64,8 @@ Singleton {
             if (cb) cb(m)
         })
     }
-    // A change went through: refusal lines still shown by rows are stale now (B8).
-    function noteApplied() { rowErrors = ({}); changeApplied() }
+    // A change went through: refusal lines still shown by rows are stale now (B8), and Redo is the daemon's again.
+    function noteApplied() { rowErrors = ({}); redoHidden = false; changeApplied() }
 
     // --- config helpers ------------------------------------------------------------------------
     // Provenanced {value, source, forced_by?, reason?}; the output entry wins when present.
@@ -85,7 +91,8 @@ Singleton {
         return out
     }
 
-    // key -> {pageId, row} of a schema row, or null: search jumps and the IPC hook.
+    // --- schema helpers ------------------------------------------------------------------------
+    // key -> {pageId, row} of a schema row, or null: search jumps, deep links and the inert reasons.
     function rowOf(key) {
         var pages = schema.pages || []
         for (var i = 0; i < pages.length; i++)
@@ -95,45 +102,102 @@ Singleton {
             }
         return null
     }
+    // A page's title by its id ("Bar", "Mods › Media"); the id itself when the schema does not list the page.
+    function pageLabel(pageId) {
+        var ps = schema.pages || []
+        for (var i = 0; i < ps.length; i++)
+            if (ps[i].id === pageId) return I18n.pageTitle(ps[i].id, ps[i].label)
+        return pageId
+    }
     // key -> label i18n key, for naming the keys a coupling points at.
     function labelOf(key) {
         var h = rowOf(key)
         return h ? h.row.label : key
     }
+    // Every schema row in page order: [{pageId, pageLabel, section, row}].
+    function allRows() {
+        var out = []
+        var pages = schema.pages || []
+        for (var i = 0; i < pages.length; i++)
+            for (var j = 0; j < pages[i].sections.length; j++) {
+                var s = pages[i].sections[j]
+                for (var k = 0; k < s.rows.length; k++)
+                    out.push({ pageId: pages[i].id, pageLabel: pages[i].label, section: s, row: s.rows[k] })
+            }
+        return out
+    }
+    // Whether a mod is on (`enabled`); a loaded mod that is off, and a mod not loaded, are not.
+    function modEntry(id) {
+        var list = (mods && mods.mods) || []
+        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]
+        return null
+    }
+    function modOn(id) {
+        var m = modEntry(id)
+        return !!m && m.state === "enabled"
+    }
 
-    // Why a row is inert or not in effect yet: [{kind, text}]. The daemon decides and says so on the
-    // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names
-    // inert_by. kinds "pending" (saved, waits for a restart), "unavailable" (an offer that is gone, I9) and
-    // "mod_off" (a setting of a mod that is off, K22) keep the row editable: the value is only not in effect yet.
+    // --- provenance words (UX brief: "Kanso profile", "you", "Nix: programs.kurashi.settings.x", "accessibility")
+    function nixPath(key) { return "programs.kurashi.settings." + key }
+    // Whether a layer is the Nix layer (the managed file), named either way the daemon may send it.
+    function isNix(src) {
+        return !!src && (src.kind === "nix" || (src.kind === "forced" && src.name === "nix"))
+    }
+    // A layer's source as words. `src` is {kind, name?}; the key names the Nix option path.
+    function sourceName(key, src) {
+        var s = src || ({})
+        switch (s.kind) {
+        case "default": return I18n.tr("settings.source.default")
+        case "user": return I18n.tr("settings.source.user")
+        case "profile": return I18n.fmt("settings.source.profile", { name: s.name || "" })
+        case "theme": return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
+        case "nix": return I18n.fmt("settings.source.nix", { path: nixPath(key) })
+        case "forced":
+            if (s.name === "nix") return I18n.fmt("settings.source.nix", { path: nixPath(key) })
+            return I18n.has("settings.source.by." + s.name) ? I18n.tr("settings.source.by." + s.name)
+                : I18n.fmt("settings.source.forced", { name: s.name || "" })
+        }
+        return s.kind || ""
+    }
+    // Whether a provenance is one the user or a profile gave, or Nix did: what the Changed view lists.
+    function isChangedSource(p) {
+        var s = p && p.source ? p.source : ({})
+        return s.kind === "user" || s.kind === "profile" || isNix(s)
+    }
+
+    // Why a row is inert or not in effect yet: [{kind, text, key}]. The daemon decides and says so on the
+    // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names inert_by. `key`
+    // is the setting that controls this one ("" when none): the row offers a link to it. kinds "pending", "unavailable"
+    // and "mod_off" keep the row editable: the value is only not in effect yet.
     function inertReasons(row, output) {
         var out = []
         var p = prov(row.key, output)
-        if (p && p.forced_by) out.push({ kind: "forced", text: forcedText(p) })
+        if (p && p.forced_by) out.push({ kind: "forced", text: forcedText(p), key: rowOf(p.forced_by) ? p.forced_by : "" })
         if (p && p.reason === "settings.inert.requires") {
             for (var j = 0; j < row.couplings.length; j++) {
                 var req = row.couplings[j]
                 if (req.kind !== "requires" || req.key !== p.inert_by) continue
-                out.push({ kind: "requires", text: I18n.fmt(
+                out.push({ kind: "requires", key: req.key, text: I18n.fmt(
                     req.op === "eq" ? req.reason : "settings.ui.requires_ne",
                     { key: I18n.tr(labelOf(req.key)), value: displayValue(req.value) }) })
                 break
             }
         } else if (p && p.reason === "settings.pending.restart") {
-            out.push({ kind: "pending", text: I18n.tr("settings.pending.restart") })
+            out.push({ kind: "pending", key: "", text: I18n.tr("settings.pending.restart") })
         } else if (p && p.reason === "settings.choice.unavailable") {
-            out.push({ kind: "unavailable", text: I18n.tr(p.reason) })
+            out.push({ kind: "unavailable", key: "", text: I18n.tr(p.reason) })
         } else if (p && p.reason === "mods.disabled") {
-            out.push({ kind: "mod_off", text: I18n.tr(p.reason) })
+            out.push({ kind: "mod_off", key: "", text: I18n.tr(p.reason) })
         }
         for (var i = 0; i < row.couplings.length; i++) {
             var c = row.couplings[i]
             if (c.kind === "overridden_by") {
                 // Already explained by the forced line above.
                 if (valueOf(c.key, output) === true && !(p && p.forced_by === c.key))
-                    out.push({ kind: "overridden_by", text: I18n.fmt(c.reason, { key: I18n.tr(labelOf(c.key)) }) })
+                    out.push({ kind: "overridden_by", key: c.key, text: I18n.fmt(c.reason, { key: I18n.tr(labelOf(c.key)) }) })
             } else if (c.kind === "capability") {
                 if (p && p.forced_by === "capability")
-                    out.push({ kind: "capability", text: I18n.fmt(c.reason, { name: c.name }) })
+                    out.push({ kind: "capability", key: "", text: I18n.fmt(c.reason, { name: c.name }) })
             }
         }
         return out
@@ -149,22 +213,90 @@ Singleton {
         var p = prov(key)
         return p && p.forced_by ? forcedText(p) : ""
     }
-    // The daemon's `mods` entry of a mod id, or null.
-    function modEntry(id) {
-        var list = (mods && mods.mods) || []
-        for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]
-        return null
-    }
-    // Whether a mod is on (`enabled`); a loaded mod that is off, and a mod not loaded, are not.
-    function modOn(id) {
-        var m = modEntry(id)
-        return !!m && m.state === "enabled"
-    }
     function displayValue(v) {
         if (v === true) return I18n.tr("settings.ui.on")
         if (v === false) return I18n.tr("settings.ui.off")
         if (Array.isArray(v)) return v.join(", ")
         return String(v)
+    }
+    // Every page-level and per-key reset is a list of reset ops; this is the op for one key on one output.
+    function resetOp(key, output) {
+        var op = { reset: key }
+        if (output) op.output = output
+        return op
+    }
+    // Keys the user set (source user), on a page or everywhere: [{key, output, row}] (the Changed view and the page reset).
+    function userSetEntries(pageId) {
+        var out = []
+        var rows = allRows()
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i]
+            if (pageId !== undefined && r.pageId !== pageId) continue
+            var p = config.values ? config.values[r.row.key] : undefined
+            if (p && p.source && p.source.kind === "user") out.push({ key: r.row.key, output: "", row: r.row, prov: p })
+            if (r.row.per_output && config.outputs)
+                for (var name in config.outputs) {
+                    var q = config.outputs[name][r.row.key]
+                    if (q && q.source && q.source.kind === "user") out.push({ key: r.row.key, output: name, row: r.row, prov: q })
+                }
+        }
+        return out
+    }
+    // Every changed setting across pages and outputs: [{pageId, row, output, prov}] (the Changed view).
+    function changedEntries() {
+        var out = []
+        var rows = allRows()
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i]
+            var p = config.values ? config.values[r.row.key] : undefined
+            if (isChangedSource(p)) out.push({ pageId: r.pageId, row: r.row, output: "", prov: p })
+            if (r.row.per_output && config.outputs)
+                for (var name in config.outputs) {
+                    var q = config.outputs[name][r.row.key]
+                    if (isChangedSource(q)) out.push({ pageId: r.pageId, row: r.row, output: name, prov: q })
+                }
+        }
+        return out
+    }
+
+    // --- explanations (cfg.explain -> cfg.why) -----------------------------------------------------
+    // The layers of a key, lowest first: [{source, value, active?, reason?}]. Asked on demand (a hover, a focus on a
+    // provenance chip) and kept until the config changes; the cache holds only the daemon's answers.
+    function explain(key, output, cb) {
+        var k = key + "|" + (output || "")
+        if (explained[k] !== undefined) { if (cb) cb(explained[k]); return }
+        var m = { t: "cfg.explain", key: key }
+        if (output) m.output = output
+        request(m, function (r) {
+            if (r.t !== "cfg.why") return
+            var e = Object.assign({}, explained)
+            e[k] = r.layers
+            explained = e
+            if (cb) cb(r.layers)
+        })
+    }
+
+    // --- mods, as words (UX brief, settings 5) ----------------------------------------------------
+    // A catalog word for a daemon value ("cost low", a capability): the catalog text when there is one, else the value.
+    function word(prefix, v) {
+        var k = prefix + v
+        return I18n.has(k) ? I18n.tr(k) : String(v)
+    }
+    function joinedWords(list, prefix) {
+        if (!list || list.length === 0) return I18n.tr("settings.ui.mod_none")
+        return list.map(function (x) { return word(prefix, x) }).join(", ")
+    }
+    // One contribution as words. A `provides` entry is "kind:id" (MODS.md); the catalog says what each kind is.
+    function addsLabel(p) {
+        var i = p.indexOf(":")
+        var kind = i < 0 ? p : p.slice(0, i)
+        var k = "settings.adds." + kind
+        return I18n.has(k) ? I18n.fmt(k, { id: i < 0 ? "" : p.slice(i + 1) }) : p
+    }
+    // The page a contribution shows on, when Settings has one ("" when none): a face sits on the Island's page.
+    function addsPage(p) {
+        var kind = p.split(":")[0]
+        return kind === "island-face" ? "island" : (kind === "widget" ? "bar" : "")
     }
 
     // --- writes --------------------------------------------------------------------------------
@@ -188,15 +320,17 @@ Singleton {
             if (cb) cb(m)
         })
     }
+    // A dry run: the daemon answers `preview` {diff} and changes nothing (PROTOCOL §5).
+    function dryRun(ops, cb) {
+        return request({ t: "apply", ops: ops, dry_run: true }, cb)
+    }
     function setValue(key, value, output) {
         var op = { set: key, value: value }
         if (output) op.output = output
         return apply([op])
     }
     function reset(key, output) {
-        var op = { reset: key }
-        if (output) op.output = output
-        return apply([op])
+        return apply([resetOp(key, output)])
     }
     // Text for a refused apply op. The wire `msg` is English and is never shown (UX review R.2 item 13):
     // a code without catalog text becomes the generic line with the code.
@@ -242,7 +376,7 @@ Singleton {
         var v = JSON.parse(JSON.stringify(data[doc]))
         switch (doc) {
         case "theme": theme = v; break
-        case "config": config = v; break
+        case "config": config = v; explained = ({}); break
         case "schema.settings": schema = v; break
         case "i18n": i18n = v; break
         case "svc.workspaces": workspaces = v; break

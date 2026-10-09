@@ -10,9 +10,10 @@ use crate::sparse::{
     set_version,
 };
 use crate::{
-    Applied, ConfigError, Diagnostic, DiagnosticReason, Diff, DiffEntry, FORCED_NIX, Forced,
-    LayerValue, Op, OpError, Paths, Provenanced, REASON_NIX_ENFORCED, Rev, SchemaView, Slot,
-    Source,
+    Applied, ConfigError, Diagnostic, DiagnosticReason, Diff, DiffEntry, Exported, FORCED_NIX,
+    Forced, LayerValue, Op, OpError, Paths, ProfileLoaded, ProfileReview, Provenanced,
+    REASON_EXPORT_PATH, REASON_EXPORT_PER_OUTPUT, REASON_FORCED, REASON_NIX_ENFORCED, Rev,
+    SchemaView, Skipped, Slot, Source,
 };
 
 /// Bounded global undo stack (ARCHITECTURE §3).
@@ -109,6 +110,23 @@ fn in_sections(sections: Option<&[&str]>, key: &str) -> bool {
                     .is_some_and(|rest| rest.starts_with('.'))
         })
     })
+}
+
+/// Whether a value names a place on this machine (`profile.export` leaves it out): an absolute or
+/// `~` path, a `:`-joined list of them (`mods.wallpaper.folders`), or a list that holds one. A URL
+/// is no place: its `//` part does not start a path.
+fn names_location(v: &Json) -> bool {
+    fn place(s: &str) -> bool {
+        s == "~" || s.starts_with('/') || s.starts_with("~/")
+    }
+    fn one(s: &str) -> bool {
+        place(s) || (s.contains(':') && s.split(':').all(place))
+    }
+    match v {
+        Json::String(s) => one(s),
+        Json::Array(items) => items.iter().any(|x| x.as_str().is_some_and(one)),
+        _ => false,
+    }
 }
 
 /// The config engine. Single-threaded by design: the daemon owns it on its state task.
@@ -830,17 +848,44 @@ impl<S: SchemaView> Config<S> {
         seen.into_iter().map(|(n, (p, b))| (n, p, b)).collect()
     }
 
-    fn read_profile(&self, name: &str) -> Result<Flat, ConfigError> {
-        let path = self.find_profile(name)?;
-        let loaded = read_doc(&path, self.schema.version(), &self.opts.migrations, false);
+    /// A profile file as the engine reads it: its entries and diagnostics. A path that is no file is
+    /// unreadable (`read_doc` would take a missing file for an empty one).
+    fn read_path(&self, path: &Path) -> Result<Flat, ConfigError> {
+        if !path.is_file() {
+            let reason = DiagnosticReason::Io {
+                message: "not a file".into(),
+            };
+            let file = path.to_path_buf();
+            let key = String::new();
+            return Err(ConfigError::Unreadable(vec![Diagnostic {
+                file,
+                key,
+                reason,
+            }]));
+        }
+        let loaded = read_doc(path, self.schema.version(), &self.opts.migrations, false);
         let Some(doc) = &loaded.doc else {
             return Err(ConfigError::Unreadable(loaded.diagnostics));
         };
-        let mut flat = self.flatten_doc(doc, &path, &[VERSION_KEY]);
+        let mut flat = self.flatten_doc(doc, path, &[VERSION_KEY]);
         let mut d = loaded.diagnostics;
         d.append(&mut flat.diagnostics);
         flat.diagnostics = d;
         Ok(flat)
+    }
+
+    fn read_profile(&self, name: &str) -> Result<Flat, ConfigError> {
+        self.read_path(&self.find_profile(name)?)
+    }
+
+    /// A profile file's name is its file stem, checked like any profile name.
+    fn name_of_file(path: &Path) -> Result<String, ConfigError> {
+        let stem = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default();
+        Self::check_name(stem)?;
+        Ok(stem.to_string())
     }
 
     /// Loading replaces the profile layer for the chosen sections (all with `None`) and clears
@@ -848,7 +893,7 @@ impl<S: SchemaView> Config<S> {
     fn profile_candidate(
         &self,
         name: &str,
-        entries: BTreeMap<Slot, Json>,
+        entries: &BTreeMap<Slot, Json>,
         sections: Option<&[&str]>,
     ) -> Layers {
         let mut next = self.layers.clone();
@@ -857,38 +902,148 @@ impl<S: SchemaView> Config<S> {
         next.user.retain(|(k, _), _| !inside(k));
         for (slot, v) in entries {
             if inside(&slot.0) {
-                next.profile.insert(slot, (name.to_string(), v));
+                next.profile
+                    .insert(slot.clone(), (name.to_string(), v.clone()));
             }
         }
         next
     }
 
+    /// The profile's entries (in `sections`) that a forced layer holds back: the profile sets
+    /// them, but the value in effect after the load is forced (`not_applied`, PROTOCOL §6).
+    fn held_back(
+        &self,
+        next: &Layers,
+        entries: &BTreeMap<Slot, Json>,
+        sections: Option<&[&str]>,
+    ) -> Vec<Skipped> {
+        entries
+            .keys()
+            .filter(|(key, _)| in_sections(sections, key))
+            .filter_map(|(key, output)| {
+                let p = self.resolve_in(next, key, output.as_deref())?;
+                matches!(p.source, Source::Forced(_)).then(|| Skipped {
+                    key: key.clone(),
+                    output: output.clone(),
+                    reason: p.reason.unwrap_or_else(|| REASON_FORCED.into()),
+                    forced_by: p.forced_by,
+                })
+            })
+            .collect()
+    }
+
+    fn review(&self, flat: &Flat, name: &str, sections: Option<&[&str]>) -> ProfileReview {
+        let next = self.profile_candidate(name, &flat.entries, sections);
+        ProfileReview {
+            diff: Diff {
+                rev: self.rev,
+                entries: self.diff_effective(&self.layers, &next),
+                diagnostics: flat.diagnostics.clone(),
+            },
+            not_applied: self.held_back(&next, &flat.entries, sections),
+        }
+    }
+
     /// Effective before/after of loading `name` (sections: top-level tables or `mods.<id>`;
-    /// `None` = all).
+    /// `None` = all), and what a forced layer would hold back. Nothing changes.
     pub fn preview_profile(
         &self,
         name: &str,
         sections: Option<&[&str]>,
-    ) -> Result<Diff, ConfigError> {
+    ) -> Result<ProfileReview, ConfigError> {
         let flat = self.read_profile(name)?;
-        let next = self.profile_candidate(name, flat.entries, sections);
-        Ok(Diff {
-            rev: self.rev,
-            entries: self.diff_effective(&self.layers, &next),
-            diagnostics: flat.diagnostics,
-        })
+        Ok(self.review(&flat, name, sections))
     }
 
-    /// Loads a profile as **one** undoable transaction; returns the file's diagnostics too.
+    /// The review of a profile file (import reviews first): same answer as `preview_profile`, the
+    /// name being the file's stem.
+    pub fn review_profile_file(
+        &self,
+        path: &Path,
+        sections: Option<&[&str]>,
+    ) -> Result<ProfileReview, ConfigError> {
+        let name = Self::name_of_file(path)?;
+        let flat = self.read_path(path)?;
+        Ok(self.review(&flat, &name, sections))
+    }
+
+    /// Loads a profile as **one** undoable transaction; returns the file's diagnostics and what a
+    /// forced layer holds back.
     pub fn load_profile(
         &mut self,
         name: &str,
         sections: Option<&[&str]>,
-    ) -> Result<(Applied, Vec<Diagnostic>), ConfigError> {
+    ) -> Result<ProfileLoaded, ConfigError> {
         let flat = self.read_profile(name)?;
-        let next = self.profile_candidate(name, flat.entries, sections);
+        self.load(name, &flat, sections)
+    }
+
+    /// Loads a profile file as one transaction (name = file stem), as `load_profile` does.
+    pub fn load_profile_file(
+        &mut self,
+        path: &Path,
+        sections: Option<&[&str]>,
+    ) -> Result<ProfileLoaded, ConfigError> {
+        let name = Self::name_of_file(path)?;
+        let flat = self.read_path(path)?;
+        self.load(&name, &flat, sections)
+    }
+
+    fn load(
+        &mut self,
+        name: &str,
+        flat: &Flat,
+        sections: Option<&[&str]>,
+    ) -> Result<ProfileLoaded, ConfigError> {
+        let next = self.profile_candidate(name, &flat.entries, sections);
+        let not_applied = self.held_back(&next, &flat.entries, sections);
         let applied = self.commit(next).map_err(ConfigError::Refused)?;
-        Ok((applied, flat.diagnostics))
+        Ok(ProfileLoaded {
+            applied,
+            diagnostics: flat.diagnostics.clone(),
+            not_applied,
+        })
+    }
+
+    /// Writes profile `name` to `path` for another machine (`profile.export`). Entries of a
+    /// per-output key, and values that name a place on this machine, are left out and listed.
+    pub fn export_profile(&self, name: &str, path: &Path) -> Result<Exported, ConfigError> {
+        let flat = self.read_profile(name)?;
+        let mut doc = DocumentMut::new();
+        set_version(&mut doc, self.schema.version());
+        let mut left_out = Vec::new();
+        for ((key, output), v) in &flat.entries {
+            let reason = if output.is_some() {
+                Some(REASON_EXPORT_PER_OUTPUT)
+            } else if names_location(v) {
+                Some(REASON_EXPORT_PATH)
+            } else {
+                None
+            };
+            match (reason, json_to_value(v)) {
+                (Some(reason), _) => left_out.push(Skipped {
+                    key: key.clone(),
+                    output: output.clone(),
+                    reason: reason.into(),
+                    forced_by: None,
+                }),
+                (None, Some(value)) => set_path(
+                    doc.as_table_mut(),
+                    false,
+                    &segments(&(key.clone(), None)),
+                    value,
+                ),
+                (None, None) => {}
+            }
+        }
+        atomic_write(path, &doc.to_string()).map_err(|source| ConfigError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        Ok(Exported {
+            path: path.to_path_buf(),
+            left_out,
+        })
     }
 
     /// Snapshots current effective values that differ from the schema default (forced values

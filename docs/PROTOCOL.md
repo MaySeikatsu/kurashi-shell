@@ -83,7 +83,8 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   watcher). Both added in session 5 (K27, CONTRACT rows 21–22); pinned by
   `fixtures/ipc/server/snap_config.json`.
 - Profile actions (`profile.list/preview/load/save`) answer errors with `msg` = an i18n key
-  (`config.error.*`, like the mods actions), never English text (K27).
+  (`config.error.*`, like the mods actions), never English text (K27). `preview` and `load` also answer
+  `not_applied` (§6, I35); the file actions and `settings.open` are in §6.
 - **`schema.settings` document**: settings metadata generated from the schema (pages → sections →
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
   Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
@@ -120,6 +121,31 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 → {"t":"query","id":"8","kind":"launcher","q":"fire"}
 ← {"t":"results","id":"8","items":[...]}    // stale ids are dropped by the client
 ```
+
+Profile and Settings actions (session 5, W14; I25, I35, I36):
+- `profile.preview {name, sections?}` and `profile.load {name, sections?}` answer, besides the diff or
+  `{rev, undo}`, `not_applied: [{key, output?, reason, forced_by?}]`: the entries the profile sets that a
+  forced layer holds back (`_managed.enforce` Nix values, capability and accessibility pins). `reason` is
+  an i18n key (`config.forced.nix_enforced`, `settings.inert.overridden_by`, else `config.error.forced`);
+  `forced_by` names the pin when one is set. The value in effect stays the forced one.
+- `profile.export {name, path}`: writes profile `name` (user or bundled) to the absolute `path` as a profile
+  file, without its machine-local entries: a per-output value (`config.export.per_output`) and a value that
+  names a place (an absolute or `~` path, a `:`-joined list of them, or a list holding one:
+  `config.export.path`). Answers `{path, left_out: [{key, output?, reason}]}`.
+- `profile.import {path, apply?}`: reads the profile file at the absolute `path` (its name is the file stem,
+  checked like a profile name). Without `apply` it changes nothing and answers the review
+  `{name, diff, not_applied, diagnostics}` (`diagnostics`: the file's skipped entries, `file`, `key`, `reason`).
+  `apply: true` loads it as one undoable transaction (`{name, rev, undo, not_applied, diagnostics}`); a file
+  that is not there or not a file is `config.error.profile_unreadable`, a relative path `config.error.profile_path`.
+- `settings.open {key?}`: opens Settings (the Quickshell window in `settings/`) on the setting `key`. A window
+  that runs jumps to the row (`qs -p <dir> ipc call settings jump <key>`); otherwise one starts with
+  `KURASHI_SETTINGS_KEY=<key>` (detached, no shell). Answers `{opened: "launched"|"jumped"|"open"}`; `open`
+  is a running window and no key. An unknown key is `invalid` with `error.config.unknown_key` (the schema's
+  message, `{key}` filled in). `unavailable` with `error.settings.not_installed` (no `shell.qml` in the
+  package's `settings/`) or `error.settings.no_runtime` (no `qs` on the daemon's PATH). A `page` argument is
+  refused (`error.args.invalid`): Settings cannot start on a page yet.
+- Island face offers (`schema.settings`, `island.main.faces` and the like): each face carries a label, the
+  catalogue key `config.face.<id>` for a core face and the providing mod's name for a mod's face (I37).
 
 ## 7. Errors & lifecycle
 `{"t":"err","id"?, "kind":"invalid|unknown_doc|unknown_action|unavailable|internal","msg":"…"}`
