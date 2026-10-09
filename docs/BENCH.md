@@ -4,7 +4,7 @@ Measured numbers per milestone. Method: `just bench …` (see `tools/bench/READM
 Always record: date, commit, machine, compositor, renderer, outputs, profile.
 
 Machine A: 12 cores, 31 GiB RAM, NVIDIA GTX 1060 6 GB (driver 580.178), NixOS, niri 26.04.
-Machine B: _not measured yet_ (the user's second machine; the shell must meet the budgets on both).
+Machine B: _not measured yet_ (the user's second machine; the shell must meet the budgets on both) — procedure: `docs/RUNBOOK-MACHINE-B.md`.
 
 **Per-machine baselines.** Budgets apply on every target machine; numbers are only comparable
 within one machine (GPU driver floor differs: NVIDIA vs Mesa). Take each machine's baseline
