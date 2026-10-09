@@ -129,3 +129,12 @@ disabled (the Mods page promises "a mod that is off keeps its settings"). A disa
 reported inert with `reason: "mods.disabled"` (K21 semantics), never deleted.
 *Why:* rule 3 (one schema) — mods must not grow a parallel settings system; M6 exit criterion
 "settings pages appear".
+
+**K23** 🟢 A tray item's menu is a Stage panel, not a window of its own. Action `tray.menu.open
+{id}` sets `runtime.ui` to `{panel:"tray", tray:"<item id>"}` (the same item again closes it,
+another item switches; every other panel and `ui.close` reset `tray` to `""`). The frontend fetches
+the tree with `tray.menu` (action data, once per open) and renders it in the one Stage card, aligned
+to where the tray sits; entries send `tray.menu_event`. Additive field + action (K17).
+*Why:* K16/K19 — map/unmap cycles of a popup window leave ~5 MiB of heap behind per cycle, and the
+per-output PSS budget is already at its limit; rule 1 — which menu is open is daemon-owned UI state
+like every other panel, so keyboard bindings and mods can open it too.

@@ -22,14 +22,11 @@ fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
 }
 
 /// `runtime.ui` — daemon-owned panel state (ARCHITECTURE §4):
-/// `{popup, panel, launcher}`. `panel` names what the Stage shows (`""` = nothing); `popup` mirrors
-/// `panel != ""` for the probe-era frontend. Panels are exclusive; the launcher is its own surface.
+/// `{popup, panel, launcher, tray}`. `panel` names what the Stage shows (`""` = nothing); `popup`
+/// mirrors `panel != ""` for the probe-era frontend. Panels are exclusive; the launcher is its own
+/// surface. `tray` is the item whose menu the `tray` panel shows (`""` otherwise, K23).
 pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    hub.register(
-        "runtime.ui",
-        json!({"popup": false, "panel": "", "launcher": false}),
-        None,
-    );
+    hub.register("runtime.ui", ui_closed(), None);
     let toggle_panel = |hub: Arc<Hub>, name: &'static str| {
         move |_| {
             let hub = hub.clone();
@@ -38,6 +35,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     let open = d["panel"].as_str() == Some(name);
                     d["panel"] = json!(if open { "" } else { name });
                     d["popup"] = json!(!open);
+                    d["tray"] = json!("");
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -65,6 +63,26 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         "action.session.menu",
         toggle_panel(hub.clone(), "session"),
     );
+    // K23: a tray item's menu is the Stage's `tray` panel. The same item again closes it; another
+    // item switches to its menu. Not tied to svc.tray running: this is UI state only.
+    let h = hub.clone();
+    actions.register("tray.menu.open", "action.tray.menu.open", move |a| {
+        let hub = h.clone();
+        async move {
+            let id = str_arg(&a, "id")?;
+            if id.is_empty() {
+                return Err(ActionError::Invalid(ARGS_INVALID.into()));
+            }
+            hub.update("runtime.ui", None, |d| {
+                let open = d["panel"].as_str() == Some("tray") && d["tray"].as_str() == Some(&id);
+                d["panel"] = json!(if open { "" } else { "tray" });
+                d["popup"] = json!(!open);
+                d["tray"] = json!(if open { "" } else { id.as_str() });
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
     let h = hub.clone();
     actions.register("launcher.toggle", "action.launcher.toggle", move |_| {
         let hub = h.clone();
@@ -80,15 +98,16 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     actions.register("ui.close", "action.ui.close", move |_| {
         let hub = h.clone();
         async move {
-            hub.set(
-                "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false}),
-                None,
-            )
-            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            hub.set("runtime.ui", ui_closed(), None)
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
         }
     });
+}
+
+/// `runtime.ui` with nothing open.
+fn ui_closed() -> Value {
+    json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
 }
 
 /// Debounce for the applications-dir watcher; a package install touches many files in a burst.
@@ -1515,6 +1534,43 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         panic!("the service connection never closed");
+    }
+
+    /// K23: `tray.menu.open` opens the `tray` panel for one item; the same item closes it, another
+    /// switches, and any other panel or `ui.close` clears the item.
+    #[tokio::test]
+    async fn tray_menu_is_an_exclusive_panel_with_its_item() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+        assert_eq!(ui_doc(), ui_closed());
+        let open = |id: &str| json!({"id": id});
+
+        actions.invoke("tray.menu.open", open("a")).await.unwrap();
+        assert_eq!(
+            ui_doc(),
+            json!({"popup": true, "panel": "tray", "launcher": false, "tray": "a"})
+        );
+        actions.invoke("tray.menu.open", open("b")).await.unwrap();
+        assert_eq!(ui_doc()["tray"], "b", "another item switches the menu");
+        actions.invoke("tray.menu.open", open("b")).await.unwrap();
+        assert_eq!(ui_doc(), ui_closed(), "the same item closes it");
+
+        actions.invoke("tray.menu.open", open("a")).await.unwrap();
+        actions.invoke("island.expand", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["panel"], "island");
+        assert_eq!(ui_doc()["tray"], "", "another panel clears the item");
+        actions.invoke("tray.menu.open", open("a")).await.unwrap();
+        actions.invoke("ui.close", json!({})).await.unwrap();
+        assert_eq!(ui_doc(), ui_closed());
+
+        for bad in [json!({}), json!({"id": ""}), json!({"id": 3})] {
+            assert_eq!(
+                actions.invoke("tray.menu.open", bad).await,
+                Err(ActionError::Invalid(ARGS_INVALID.into()))
+            );
+        }
     }
 
     /// The tray runs only while subscribed: the first subscribe takes the watcher name on the
