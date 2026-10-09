@@ -49,7 +49,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M4.1 | `kurashi-compositor` trait + niri adapter + fake | ✅ | merged; niri 26.04 fixtures (read-only) |
 | M4.2 | `kurashi-services` (MPRIS, UPower, logind, NM, brightness) | ✅ | merged + wired as refcounted providers; media → island signal |
 | M3.2 | Memory headroom Kaizen + leak-cycle gate | 🟡 | card M3-memory (wave 6) |
-| M2.3 | Blur capability probe → `forced:capability` | 🟡 | card M2-blur-capability (wave 6) |
+| M2.3 | Blur capability probe → `forced:capability` | ✅ | `compositor.caps` doc; probed at startup |
 | M5.11 | Island from config, `bindings` doc, `input.dispatch` | 🟡 | card M5-island-config (wave 6) |
-| M5.12 | Launcher watcher refcount, async doctor facts, session actions | 🟡 | card M5-daemon-polish (wave 6) |
+| M5.12 | Launcher watcher refcount, async doctor facts, session actions | ✅ | confirm-required session actions; doctor bus/name facts live |
 

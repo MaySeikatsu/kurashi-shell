@@ -116,15 +116,32 @@ async fn main() -> anyhow::Result<()> {
             .map_err(|e| tracing::warn!(error = %e, "config watcher unavailable"))
             .ok()
     });
+    // Facts we know synchronously; bus/notification facts are filled in by the tasks that
+    // actually connect (Shōjiki: n/a until then, never a guessed ok).
+    let facts = kurashid::doctor::SharedFacts::from(kurashid::doctor::DoctorFacts {
+        compositor_socket: Some(
+            std::env::var_os("NIRI_SOCKET").is_some_and(|p| std::path::Path::new(&p).exists()),
+        ),
+        fc_list_worked: fc_ok,
+        data_dir_found: Some(kurashid::i18n::data_dir().join("i18n").is_dir()),
+        ..Default::default()
+    });
+    // Compositor capabilities (blur, session lock, …) → `forced:capability` pins (M2.3).
+    if let Some(store) = config.clone() {
+        let hub = hub.clone();
+        tokio::task::spawn_blocking(move || kurashid::capabilities::probe_and_apply(&store, &hub));
+    }
     kurashid::clock::register(&hub);
     kurashid::wiring::ui(&hub, &mut actions);
-    kurashid::wiring::notifications(
+    kurashid::wiring::notifications_with_facts(
         &hub,
         &mut actions,
         config.as_deref(),
         kurashid::xdg_dir("cache").join("notify-img"),
         Some(island.clone()),
+        facts.clone(),
     );
+    kurashid::wiring::session(&mut actions, facts.clone());
     kurashid::wiring::mods(
         &hub,
         &mut actions,
@@ -139,19 +156,7 @@ async fn main() -> anyhow::Result<()> {
     kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker);
     let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
-    // Only facts we know synchronously; bus/notification probes stay n/a until they report
-    // asynchronously (Shōjiki: n/a, never a guessed ok).
-    kurashid::doctor::register(
-        &mut daemon,
-        kurashid::doctor::DoctorFacts {
-            compositor_socket: Some(
-                std::env::var_os("NIRI_SOCKET").is_some_and(|p| std::path::Path::new(&p).exists()),
-            ),
-            fc_list_worked: fc_ok,
-            data_dir_found: Some(kurashid::i18n::data_dir().join("i18n").is_dir()),
-            ..Default::default()
-        },
-    );
+    kurashid::doctor::register(&mut daemon, facts);
     daemon.config = config;
     daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
     let daemon = Arc::new(daemon);
