@@ -12,6 +12,15 @@ Rectangle {
     property bool showSwatch: false
     signal accepted(string text)
     signal typing(string text)
+    // Enter in the field (search jumps to the first hit) and Escape (search clears itself).
+    signal submitted(string text)
+    signal escaped()
+
+    // Focus from a shortcut or a keystroke on the list; the caret goes to the end.
+    function focusInput() {
+        input.forceActiveFocus()
+        input.cursorPosition = input.text.length
+    }
 
     implicitWidth: 220
     implicitHeight: 28
@@ -49,6 +58,8 @@ Rectangle {
         // what is in effect (rule 2).
         text: f.value
         onTextEdited: f.typing(text)
+        onAccepted: f.submitted(text)
+        Keys.onEscapePressed: f.escaped()
         onEditingFinished: {
             if (text !== f.value) f.accepted(text)
             text = Qt.binding(function () { return f.value })
