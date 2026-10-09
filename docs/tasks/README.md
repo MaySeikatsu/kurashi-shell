@@ -118,3 +118,4 @@ Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kuras
 | [M6-mod-description](M6-mod-description.md) | `crates/kurashi-mods/`, `mods/*/mod.toml`, `mods.toml`, `ModsPage.qml` | haiku |
 | [M0-mock-notify](M0-mock-notify.md) | `crates/kurashi-mock/` | haiku |
 | [M3-golden](M3-golden.md) | `tools/golden/` | haiku |
+| [M4-wire-tray-bt](M4-wire-tray-bt.md) | `kurashid/src/{main,wiring,doctor}.rs`, `kurashi-tray/`, `kurashi-auth/` | haiku |

@@ -55,7 +55,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 ## Wave 7 (Haiku agents; cards in `docs/tasks/README.md`)
 | Step | Description | Status | Branch / notes |
 |---|---|---|---|
-| M5.13 | Brightness/volume key actions + island OSD; lock refuses without PAM service | 🟡 | card M5-osd-session-daemon |
+| M5.13 | Brightness/volume key actions + island OSD; lock refuses without PAM service | ✅ | merged; island timer spawn fixed (handle + poison-tolerant locks); volume keys need a standing svc.audio subscriber |
 | M5.14 | UI: session menu + brightness face | 🟡 | card M5-ui-session; `session.menu` panel on main |
 | M5.15 | UI: input via `bindings` / `input.dispatch` | ✅ | merged; `frontend/test-bindings.sh` (left click driven via virtual pointer; other slots unexercised) |
 | M7.4 | `nix run` apps + README "Running" | ✅ | merged; `nix run .#sandbox` green; default/settings verified by eval only (never run on the display) |
@@ -72,3 +72,4 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M6.2 | Mod descriptions; no nulls in `mods` doc (CONTRACT row 5 accepted) | 🟡 | card M6-mod-description |
 | M0.9 | Mock: notifications, launcher query, instance, fixed clock | 🟡 | card M0-mock-notify |
 | M3.3 | Golden screenshots (`just golden`) | 🟡 | card M3-golden |
+| M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | 🟡 | card M4-wire-tray-bt |
