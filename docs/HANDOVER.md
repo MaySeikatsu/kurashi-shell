@@ -32,11 +32,11 @@ Decisions K24–K28 in DECISIONS.md (user answered K24/K25/K26 this session).
 (2) **UX bar** (CLAUDE.md): every user-facing feature gets a researched brief in `docs/ux/` and is "done" only against
 it; think what a feature *can become* and what it combines with (`docs/ux/COMPOSITION.md`), not the minimum.
 
-**Half-done (update after the usage-limit reset):** W13-quick-daemon merged (3699371, K29). Restarted as agents:
-W11-mod-qml and W13-settings-ux continue from local branches `wip/w11-mod-qml`, `wip/w13-settings-ux` (WIP commits);
-W12-wallpaper, W12-sysmon, W12-weather, W13-island-daemon restarted from scratch (their first worktrees were lost on
-stop — agents now commit after every step). If a session ends with agents running: `git branch | grep worktree-agent`
-and `git worktree list`, commit WIP in each worktree, then re-spawn the card with "merge branch X first".
+**Half-done (later in session 5):** merged since the reset: quick daemon pages (K29), island daemon (K30), mod loading
+(W11-mod-qml), weather, sysmon, wallpaper mods, media position (K31), mod import fix (B16/B17: mods import `qs.core`).
+Running as agents at the time of writing: W13-settings-ux, W13-quick-ux, W13-island-views, W14-mod-runtime, W14-mods-live,
+W14-wallpaper-ux; queued: W14-sysmon-ux, W14-weather-ux (after W14-mod-runtime). If the session ends with agents running:
+commit WIP in each worktree (`git worktree list`), rename the branch `wip/<card>`, and re-spawn with "merge branch X first".
 
 **Next steps (ordered):** 1. (done) 2. For each running/stopped card: review, finish (SendMessage
 won't resume across sessions — re-spawn the card with "continue from branch X"), merge with the gate. 3. W13-quick-ux and

@@ -1,0 +1,22 @@
+[package]
+name = "kurashi-mod-weather"
+description = "Weather native mod (K26, K28): Open-Meteo forecast, saved places, rain-soon face, clock aside; fetches only while subscribed or while rain alerts are on (docs/ux/weather.md)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

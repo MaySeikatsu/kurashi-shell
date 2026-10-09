@@ -1,0 +1,26 @@
+[package]
+name = "kurashi-mod-wallpaper"
+description = "Wallpaper native mod (K26, W12): awww/swww adapters, library, thumbnails and palette chips, rotation, favourites"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+kurashi-theme = { path = "../kurashi-theme" }
+material-colors = "0.4"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["process"] }
+tracing.workspace = true
+
+[dev-dependencies]
+# The daemon's own wiring is the test subject of `tests/kurashid_wiring.rs` (a dev-dependency cycle
+# is allowed by cargo; the normal build never sees it).
+kurashid = { path = "../kurashid" }
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true
