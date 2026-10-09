@@ -278,7 +278,7 @@ pub struct IslandInstance {
     #[kurashi(default = "clock".to_owned())]
     pub default: String,
     /// Transient duration
-    /// How long a transient face (volume, notification) stays before falling back.
+    /// How long a transient face (volume, brightness, notification) stays before falling back.
     #[kurashi(default = 5, range = 1..=60, unit = "s")]
     pub ttl: u32,
 }

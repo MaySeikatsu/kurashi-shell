@@ -122,8 +122,8 @@
 # Default face — Face shown when nothing more relevant is happening.
 # default = "clock"
 #
-# Transient duration — How long a transient face (volume, notification) stays before
-# falling back.
+# Transient duration — How long a transient face (volume, brightness, notification) stays
+# before falling back.
 #   range: 1..=60 (s)
 # ttl = 5
 

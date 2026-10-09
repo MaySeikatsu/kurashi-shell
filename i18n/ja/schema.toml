@@ -87,7 +87,7 @@
 "config.island.main.default.label" = "既定の面"
 "config.island.main.default.help" = "特に何も起きていないときに表示する面。"
 "config.island.main.ttl.label" = "一時表示の長さ"
-"config.island.main.ttl.help" = "一時的な面（音量・通知）が元に戻るまでの時間。"
+"config.island.main.ttl.help" = "一時的な面（音量・明るさ・通知）が元に戻るまでの時間。"
 "config.input.left" = "左クリック"
 "config.input.right" = "右クリック"
 "config.input.middle" = "中クリック"
