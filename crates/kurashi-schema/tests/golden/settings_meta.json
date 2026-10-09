@@ -94,6 +94,147 @@
       "label": "settings.page.appearance",
       "sections": [
         {
+          "id": "colors",
+          "label": "settings.section.colors",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [],
+              "default": "wa-iro",
+              "help": "config.theme.colors.palette.help",
+              "key": "theme.colors.palette",
+              "label": "config.theme.colors.palette.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.scheme.dark",
+                  "value": "dark"
+                },
+                {
+                  "label": "config.choice.scheme.light",
+                  "value": "light"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "dark",
+              "help": "config.theme.colors.scheme.help",
+              "key": "theme.colors.scheme",
+              "label": "config.theme.colors.scheme.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.contrast.standard",
+                  "value": "standard"
+                },
+                {
+                  "label": "config.choice.contrast.medium",
+                  "value": "medium"
+                },
+                {
+                  "label": "config.choice.contrast.high",
+                  "value": "high"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "high",
+                  "key": "a11y.high_contrast",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "standard",
+              "help": "config.theme.colors.contrast.help",
+              "key": "theme.colors.contrast",
+              "label": "config.theme.colors.contrast.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.colorblind.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.colorblind.protanopia",
+                  "value": "protanopia"
+                },
+                {
+                  "label": "config.choice.colorblind.deuteranopia",
+                  "value": "deuteranopia"
+                },
+                {
+                  "label": "config.choice.colorblind.tritanopia",
+                  "value": "tritanopia"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "none",
+              "help": "config.theme.colors.colorblind.help",
+              "key": "theme.colors.colorblind",
+              "label": "config.theme.colors.colorblind.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": true,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.colors.season.help",
+              "key": "theme.colors.season",
+              "label": "config.theme.colors.season.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.colors.scheme",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "dark"
+                }
+              ],
+              "default": false,
+              "help": "config.theme.colors.oled.help",
+              "key": "theme.colors.oled",
+              "label": "config.theme.colors.oled.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        },
+        {
           "id": "shape",
           "label": "settings.section.shape",
           "rows": [

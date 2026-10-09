@@ -35,6 +35,50 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 
 ## Appearance
 
+### Colors
+
+#### `theme.colors.palette` — Palette
+
+Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+
+- type: `string` · default: `"wa-iro"`
+
+#### `theme.colors.scheme` — Scheme
+
+Dark or light surfaces.
+
+- type: `choice` · default: `"dark"`
+- choices: `"dark"` | `"light"`
+
+#### `theme.colors.contrast` — Contrast
+
+Raises the contrast between surfaces and text.
+
+- type: `choice` · default: `"standard"`
+- choices: `"standard"` | `"medium"` | `"high"`
+- forced to `"high"` while `a11y.high_contrast` is on
+
+#### `theme.colors.colorblind` — Colour-blind adjustment
+
+Shifts accent colours so they stay distinguishable.
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"protanopia"` | `"deuteranopia"` | `"tritanopia"`
+
+#### `theme.colors.season` — Seasonal tint (旬)
+
+A slight seasonal drift of hues following the 24 solar terms.
+
+- type: `bool` · default: `false`
+- advanced
+
+#### `theme.colors.oled` — Pure black (OLED)
+
+Pure-black grounds on dark schemes.
+
+- type: `bool` · default: `false`
+- only while `theme.colors.scheme == "dark"`
+
 ### Shape
 
 #### `theme.shape.corners` — Corners
