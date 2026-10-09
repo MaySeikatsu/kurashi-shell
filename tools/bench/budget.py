@@ -94,7 +94,16 @@ def mapped(r, budget):
     return f"{v}", f"≤ {limit:g}", v <= limit, "layer surfaces with a buffer, 1 output"
 
 
-CHECKS = [("idle frames", idle_frames), ("idle cpu", idle_cpu), ("pss", pss),
+def cycles(r, budget):
+    limit = numbers(budget)[0]
+    v = get(r, "pass_a", "pss_mib_cycle_growth")
+    if v is None:
+        return "-", f"≤ {limit:g} MiB", None, "needs --daemon real (no panel actions on the mock)"
+    n = get(r, "pass_a", "cycle_count")
+    return f"{v:+.2f} MiB / {n} cycles", f"≤ {limit:g} MiB", v <= limit, "island + center + launcher"
+
+
+CHECKS = [("open/close", cycles), ("idle frames", idle_frames), ("idle cpu", idle_cpu), ("pss", pss),
           ("popup", popup), ("mapped surfaces", mapped)]
 
 
