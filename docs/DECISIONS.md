@@ -101,3 +101,10 @@ per open leaked ~5 MiB/cycle; per-output stages, PopupWindow and destroy/recreat
 Popup-open PSS 221 → 112 MiB. **Budget:** an interim raise of the per-output budget to +10 MiB was
 reverted the same day — the bench gate (M7.2) now measures the second output against the
 popup-closed reading (popup memory stays resident after closing) and finds **+0.8 MiB**, so +6 stands.
+
+**K20** 🟢 A locked session survives daemon restarts and crashes: `kurashid` writes a `locked`
+marker next to its socket in `$XDG_RUNTIME_DIR/kurashi/` while locked and starts locked when it
+finds one; the frontend stays locked while disconnected (and the compositor keeps the
+ext-session-lock if the frontend dies). *Why:* the lock-UI work showed a restarted daemon reported
+`locked:false` and the surface unlocked — killing a process must never unlock the screen. The
+runtime dir is cleared on logout, so a stale marker can't outlive the session.
