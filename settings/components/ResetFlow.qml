@@ -8,6 +8,8 @@ Column {
     property var ops: []
     property bool enabled: true
     property string label: I18n.tr("settings.ui.reset")
+    // Names the reset for the test hooks (objectName "reset:<tag>", "confirm:<tag>", "cancel:<tag>").
+    property string tag: ""
     // "idle" (no plan), "planned" (the diff is listed), "failed" (the daemon would not plan it).
     property string phase: "idle"
     property var diff: []
@@ -47,6 +49,7 @@ Column {
 
     Button {
         id: resetBtn
+        objectName: "reset:" + f.tag
         visible: f.phase === "idle"
         label: f.label
         enabled: f.enabled && Store.live && f.ops.length > 0
@@ -88,6 +91,7 @@ Column {
             spacing: Theme.gap
             Button {
                 id: confirmBtn
+                objectName: "confirm:" + f.tag
                 visible: f.phase === "planned" && f.diff.length > 0
                 primary: true
                 label: I18n.tr("settings.ui.reset_confirm")
@@ -95,6 +99,7 @@ Column {
             }
             Button {
                 id: cancelBtn
+                objectName: "cancel:" + f.tag
                 visible: f.phase !== "idle"
                 label: I18n.tr("settings.ui.cancel")
                 onClicked: f.cancel()

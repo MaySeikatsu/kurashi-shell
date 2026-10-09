@@ -8,11 +8,29 @@ import "../components"
 // schema row: nothing here knows a particular setting (rule 3), except the preview policy in Changes.
 Item {
     id: r
-    property var row: ({})
+    // The key of the schema row this one shows. The row itself is read live from the schema (Store.rowOf), so a value
+    // change the daemon publishes updates the row in place, without a rebuild that would lose the focus (SettingsPages).
+    property string rowKey: ""
+    readonly property var row: { Store.schema; var h = Store.rowOf(r.rowKey); return h ? h.row : ({}) }
     // The selected output (per_output rows); "" = all outputs.
     property string output: ""
     // A link to the setting that controls this row (a reason's "open").
     signal openKey(string key)
+
+    // The offers of a choice control, replaced only when their content changes: the daemon re-publishes the schema after
+    // a change, and an open dropdown must keep its highlight when the offers it shows are the same.
+    readonly property var liveOffers: r.row.choices ?? []
+    property var offers: []
+    property string offersSig: ""
+    function refreshOffers(): void {
+        const sig = JSON.stringify(r.liveOffers)
+        if (sig !== r.offersSig) {
+            r.offersSig = sig
+            r.offers = r.liveOffers
+        }
+    }
+    onLiveOffersChanged: refreshOffers()
+    Component.onCompleted: refreshOffers()
 
     readonly property string out: row.per_output ? output : ""
     readonly property var prov: Store.prov(row.key, out)
@@ -66,6 +84,21 @@ Item {
     // Search jump target: one short glow, then nothing runs. Only a jump calls this, and a hidden row
     // skips it (Ma: no timer, no animation while the row is not on screen).
     function flash() { if (r.visible) flashAnim.restart() }
+    // The keyboard focus goes to the row's control: a search hit or a breadcrumb reached by the keyboard lands on the setting.
+    function focusControl(): void {
+        const first = r.firstTabStop(ctl.item ? ctl.item : slot)
+        if (first) first.forceActiveFocus()
+    }
+    function firstTabStop(item) {
+        if (!item) return null
+        if (item.activeFocusOnTab && item.visible && item.enabled !== false) return item
+        const kids = item.children || []
+        for (var i = 0; i < kids.length; i++) {
+            const f = r.firstTabStop(kids[i])
+            if (f) return f
+        }
+        return null
+    }
 
     Item {
         id: body
@@ -178,6 +211,7 @@ Item {
                     visible: r.canReset && !r.previewing
                     enabled: Store.live
                     ops: [Store.resetOp(r.row.key, r.out)]
+                    tag: r.row.key + (r.out !== "" ? "@" + r.out : "")
                     width: Math.min(parent.width - chipRow.width - Theme.gap, 420)
                 }
             }
@@ -274,7 +308,7 @@ Item {
         id: cSegmented
         Segmented {
             objectName: "segment:" + r.row.key
-            choices: r.row.choices ?? []
+            choices: r.offers
             current: r.value
             enabled: r.editable
             onPicked: v => r.setValue(v)
@@ -288,7 +322,7 @@ Item {
         ChoiceSwitch {
             objectName: "switch:" + r.row.key
             label: I18n.tr(r.row.label)
-            choices: r.row.choices ?? []
+            choices: r.offers
             current: r.value
             enabled: r.editable
             onPicked: v => r.setValue(v)
@@ -303,7 +337,7 @@ Item {
         Select {
             objectName: "select:" + r.row.key
             label: I18n.tr(r.row.label)
-            choices: r.row.choices ?? []
+            choices: r.offers
             current: r.value
             enabled: r.editable
             onPicked: v => r.setValue(v)
@@ -317,9 +351,10 @@ Item {
         PickList {
             objectName: "pick:" + r.row.key
             label: I18n.tr(r.row.label)
-            choices: r.row.choices ?? []
+            choices: r.offers
             items: Array.isArray(r.value) ? r.value : []
             enabled: r.editable
+            refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)
         }
     }

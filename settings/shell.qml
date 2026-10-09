@@ -7,8 +7,8 @@ import "pages"
 
 // Settings app (K2): a separate, on-demand process; `qs -p settings`. A normal xdg toplevel, not a layer surface. Pages are
 // generated from the daemon's `schema.settings` document (rule 3); this file lays out the chrome. The process ends when the
-// window closes. `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start (the deep link
-// `kurashi settings <key>` uses it; a running window takes the same link through `qs -p settings ipc call settings jump <key>`).
+// window closes. `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start; a running window takes the
+// same link through `qs -p settings ipc call settings jump <key>`. (`kurashi settings <key>` is not built yet: CONTRACT-CHANGE 36.)
 ShellRoot {
     FloatingWindow {
         id: win
@@ -56,27 +56,31 @@ ShellRoot {
         }
         readonly property int changedCount: Store.changedEntries().length
 
-        // A search hit was chosen (Enter, or a click on its breadcrumb): leave the search, open the row's page (an advanced
-        // row needs the advanced view) and bring the row into view.
-        function jump(pageId: string, row: var): void {
+        // A search hit was chosen (Enter, or a breadcrumb): leave the search, open the row's page (an advanced row needs the
+        // advanced view) and bring the row into view. From the keyboard the focus goes to the row's control as well.
+        function jump(pageId: string, row: var, byKeyboard: bool): void {
             if (row.advanced) win.advanced = true
             win.query = ""
             win.page = pageId
-            settingsPages.reveal(row.key)
+            settingsPages.reveal(row.key, byKeyboard)
         }
         function jumpFirst(): void {
             if (!win.searching) return
             const h = settingsPages.firstHit()
-            if (h) win.jump(h.pageId, h.row)
+            if (h) win.jump(h.pageId, h.row, true)
         }
         // A deep link: the row, on its page, in view. Unknown keys open nothing.
         function openKey(key: string): void {
             const h = Store.rowOf(key)
-            if (h) win.jump(h.pageId, h.row)
+            if (h) win.jump(h.pageId, h.row, false)
         }
-        // Leaving a page, searching or closing ends a preview (Changes): it is put back.
+        // Leaving a page, searching or closing ends a preview (Changes): it is put back. A query the app cleared (a jump, a
+        // page change) clears the field too, even while the field has the focus (its text follows the query only then).
         onPageChanged: Changes.putBack()
-        onQueryChanged: if (query !== "") Changes.putBack()
+        onQueryChanged: {
+            if (query !== "") Changes.putBack()
+            else search.clear()
+        }
 
         // A deep link given at start is opened once the schema has arrived.
         property bool startKeyDone: false
@@ -145,6 +149,8 @@ ShellRoot {
             function putBack(): void { Changes.putBack() }
             // Changed view test: how many settings differ from the defaults.
             function changed(): string { return "" + win.changedCount }
+            // Invalid input (UX brief, States): the refusal a row shows under its control, "" when none.
+            function rowError(key: string): string { return Store.rowErrors[key] || "" }
         }
 
         Column {
@@ -379,13 +385,13 @@ ShellRoot {
                         query: win.query
                         showAdvanced: win.advanced
                         output: win.output
-                        onJumpRequested: (targetPage, row) => win.jump(targetPage, row)
+                        onJumpRequested: (targetPage, row, byKeyboard) => win.jump(targetPage, row, byKeyboard)
                         onPageRequested: id => win.page = id
                     }
                     ChangedPage {
                         anchors.fill: parent
                         visible: !win.searching && win.current === "@changed"
-                        onJumpRequested: (targetPage, row) => win.jump(targetPage, row)
+                        onJumpRequested: (targetPage, row) => win.jump(targetPage, row, false)
                     }
                     ModsPage {
                         id: modsPage

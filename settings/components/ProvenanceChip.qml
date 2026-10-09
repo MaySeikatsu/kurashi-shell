@@ -31,6 +31,7 @@ Item {
 
     implicitWidth: chip.implicitWidth
     implicitHeight: chip.implicitHeight
+    objectName: "chip:" + p.key + (p.output !== "" ? "@" + p.output : "")
     activeFocusOnTab: p.key !== ""
     Accessible.role: Accessible.StaticText
     Accessible.name: I18n.fmt("settings.ui.source_of", { name: p.label })
@@ -41,9 +42,27 @@ Item {
         id: hov
         onHoveredChanged: if (hovered) p.ask()
     }
-    ToolTip.visible: (hov.hovered || p.activeFocus) && p.stack !== ""
-    ToolTip.delay: 200
-    ToolTip.text: p.stack
+    // The stack in this window's own colours: the system tooltip is light, and would read as foreign to the settings.
+    ToolTip {
+        id: tip
+        parent: p
+        visible: (hov.hovered || p.activeFocus) && p.stack !== ""
+        delay: 200
+        text: p.stack
+        padding: Theme.gap
+        background: Rectangle {
+            color: Theme.containerHigh
+            border.width: 1
+            border.color: Theme.outline
+            radius: Theme.rSm
+        }
+        contentItem: Text {
+            text: tip.text
+            color: Theme.fg
+            font.pixelSize: Theme.fs - 1
+            font.family: Theme.fam(text, Theme.families)
+        }
+    }
 
     Chip {
         id: chip
