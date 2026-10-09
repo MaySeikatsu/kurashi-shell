@@ -309,6 +309,11 @@ impl ConfigStore {
         self.publish();
     }
 
+    /// Current file diagnostics (`kurashi doctor`).
+    pub fn diagnostics(&self) -> Vec<kurashi_config::Diagnostic> {
+        self.cfg.lock().expect("config lock").diagnostics()
+    }
+
     pub fn paths(&self) -> Paths {
         self.cfg.lock().expect("config lock").paths().clone()
     }
