@@ -33,6 +33,9 @@ fn copy_keys(text: &str) -> BTreeSet<String> {
         .skip(1)
         .step_by(2)
         .filter(|lit| PREFIXES.iter().any(|p| lit.starts_with(p)))
+        // A literal ending in "." is a prefix built into a key at run time ("sysmon.face.kind." + kind);
+        // the test names those keys itself.
+        .filter(|lit| !lit.ends_with('.'))
         .map(str::to_string)
         .collect()
 }
@@ -102,6 +105,10 @@ fn every_copy_key_exists_in_both_catalogues_with_the_same_placeholders() {
     let mut qml = String::new();
     scan(&repo().join("mods/sysmon/qml"), "qml", &mut qml);
     used.extend(copy_keys(&qml));
+    // The Island names each trouble kind through a run-time key; all three must exist.
+    for kind in ["cpu", "mem", "temp"] {
+        used.insert(format!("sysmon.face.kind.{kind}"));
+    }
     // A floor, so an empty scan cannot pass: the manifest and the crate alone have more than this.
     assert!(used.len() >= 25, "the scan found the copy: {}", used.len());
 
