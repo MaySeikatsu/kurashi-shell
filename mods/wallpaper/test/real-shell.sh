@@ -145,6 +145,7 @@ open_picker() {
 close_picker() { K act ui.close >/dev/null 2>&1 || true; sleep 0.5; }
 # A click on the card's title: the card is top-centre under the bar (physical px on the 2560 x 1440 sandbox output).
 focus_card() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click 1130 64 left || true; sleep 0.5; }
+click_at() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" left || true; }
 stop_keys() {
   exec 3>&- 2>/dev/null || true
   [ -n "$KEYPID" ] && kill "$KEYPID" 2>/dev/null || true
@@ -208,6 +209,12 @@ shot theme-off
 press t
 press f
 WAIT=2 shot kept-look
+# The one-click look: Apply look (shown for a saved look) applies its picture with its theme. Clicked at the button
+# (physical px on the 2560 x 1440 sandbox output, the row under the preview's actions).
+click_at 1157 634
+sleep 2
+echo "look applied: $(grep "awww img" "$WP_LOG" | tail -n 1)"
+echo "theme after the look: $(grep -o '"theme_image": *"[^"]*"' "$R/xdg/state/kurashi/wallpaper.json")"
 press r
 WAIT=2 shot shuffled
 press down down

@@ -123,6 +123,7 @@
 "mod-wallpaper.apply.all" = "Apply"
 "mod-wallpaper.favourite.add" = "★ Keep as look"
 "mod-wallpaper.favourite.remove" = "★ Remove look"
+"mod-wallpaper.look.apply" = "Apply look"
 "mod-wallpaper.empty.backend.title" = "No wallpaper backend installed"
 "mod-wallpaper.empty.backend.hint" = "Install awww, or pick swww in Settings › Mods › Wallpaper."
 "mod-wallpaper.empty.folder.none.title" = "Pick a folder of wallpapers"

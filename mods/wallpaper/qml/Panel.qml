@@ -293,7 +293,8 @@ Item {
         Store.act("wallpaper.set", args, function (done, err) {
             if (!g.open) return
             errorKey = err ? err.msg : ""
-            if (!err) followTheme(look.scheme === "light" ? "light" : "dark", look.variant || "wallpaper")
+            themeRequested = !err
+            if (themeRequested) followTheme(look.scheme === "light" ? "light" : "dark", look.variant || "wallpaper")
         })
     }
     // A deferred call that does nothing once the panel is gone (the closure holds the gate, not the panel).
@@ -313,6 +314,23 @@ Item {
         Store.act("wallpaper.cache.clear", {}, function () {
             if (g.open) picker.resetRows()
         })
+    }
+    // The saved look of a picture (its image, scheme and variant), or null: the picker's one-click look.
+    function lookOf(row) {
+        if (!row || !row.path) return null
+        for (var i = 0; i < looks.length; i++) {
+            if (looks[i].image === row.path) return looks[i]
+        }
+        return null
+    }
+    // Whether a picture is a saved look now: from the favourites document, not the row (a row keeps its flag until the
+    // page is fetched again, so F would leave a stale ★ and a stale label).
+    function isLook(row) {
+        return lookOf(row) !== null
+    }
+    function applyLookOf(row) {
+        var look = lookOf(row)
+        if (look && canUse(row)) applyLook(look)
     }
     function shuffle() {
         seed = Math.floor(Math.random() * 1000000) + 1
@@ -872,10 +890,18 @@ Item {
                 }
                 Button {
                     id: lookButton
-                    label: picker.selectedRow && picker.selectedRow.favourite === true
+                    label: picker.isLook(picker.selectedRow)
                         ? I18n.tr("mod-wallpaper.favourite.remove") : I18n.tr("mod-wallpaper.favourite.add")
                     enabled: picker.canUse(picker.selectedRow)
                     onClicked: picker.toggleLook(picker.selectedRow)
+                }
+                Button {
+                    id: applyLookButton
+                    // Shown for a saved look only: its stored image, scheme and variant go on together.
+                    visible: picker.lookOf(picker.selectedRow) !== null
+                    label: I18n.tr("mod-wallpaper.look.apply")
+                    enabled: picker.canUse(picker.selectedRow)
+                    onClicked: picker.applyLookOf(picker.selectedRow)
                 }
             }
         }
@@ -1030,7 +1056,7 @@ Item {
                     clip: true
                     Accessible.role: Accessible.ListItem
                     Accessible.name: cell.row
-                        ? cell.row.name + (cell.row.favourite === true ? ", " + I18n.tr("mod-wallpaper.favourite.mark") : "")
+                        ? cell.row.name + (picker.isLook(cell.row) ? ", " + I18n.tr("mod-wallpaper.favourite.mark") : "")
                             + (cell.row.on && cell.row.on.length > 0 ? ", " + I18n.tr("mod-wallpaper.on") + " " + cell.row.on.join(", ") : "")
                         : ""
                     Accessible.checkable: true
@@ -1089,7 +1115,7 @@ Item {
                         anchors.margins: 4
                         spacing: 3
                         Chip {
-                            visible: cell.row !== null && cell.row.favourite === true
+                            visible: cell.row !== null && picker.isLook(cell.row)
                             text: "★"
                             fg: Theme.accent
                             bg: Theme.surfaceAlpha
