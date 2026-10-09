@@ -1,12 +1,6 @@
 [workspace]
 resolver = "3"
-members = [
-    "crates/kurashi-core",
-    "crates/kurashi-ipc",
-    "crates/kurashid",
-    "crates/kurashi-mock",
-    "crates/kurashi",
-]
+members = ["crates/*"]   # glob: parallel task crates never conflict here
 
 [workspace.package]
 version = "0.0.1"
