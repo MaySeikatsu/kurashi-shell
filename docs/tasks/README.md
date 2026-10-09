@@ -63,6 +63,8 @@ merges, and records progress; agents only build what their card says.
 | [M7-nix-modules](M7-nix-modules.md) | `nix/hm-module.nix`, `nix/nixos-module.nix`, `nix/tests/` | sonnet |
 | [M5-notifications](M5-notifications.md) | `crates/kurashi-notify/` | sonnet |
 | [M5-launcher](M5-launcher.md) | `crates/kurashi-launcher/` | sonnet |
-Lead (in parallel): config/schema wiring into kurashid + CLI (M1.5).
+| [M1-cli](M1-cli.md) | `crates/kurashi/` | sonnet (wave 3b) |
+| [M5-settings](M5-settings.md) | `settings/`, `i18n/{en,ja}/settings.toml` | sonnet (wave 3b) |
+Lead (in parallel): config/schema wiring into kurashid (M1.5), theme + notify wiring.
 
 Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kurashi-mock` / CLI.
