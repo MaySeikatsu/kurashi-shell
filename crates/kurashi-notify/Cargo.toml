@@ -1,0 +1,24 @@
+[package]
+name = "kurashi-notify"
+description = "org.freedesktop.Notifications server (spec 1.2) + bounded history, exposed as the svc.notifications document"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+kurashi-services = { path = "../kurashi-services" }
+image = { version = "0.25", default-features = false, features = ["png"] }
+serde_json.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
+[dev-dependencies]
+futures-util = "0.3"
+serde.workspace = true
+tempfile = "3"
+
+[lints]
+workspace = true
