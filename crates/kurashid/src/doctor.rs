@@ -20,6 +20,8 @@ pub struct DoctorFacts {
     pub notification_name_owned: Option<bool>,
     pub fc_list_worked: Option<bool>,
     pub data_dir_found: Option<bool>,
+    /// The PAM service the lock screen unlocks through (`/etc/pam.d/kurashi`) exists.
+    pub pam_service: Option<bool>,
 }
 
 /// Facts shared between the doctor query and the tasks that learn them asynchronously (the
@@ -53,6 +55,8 @@ const KNOWN_DOCS: &[&str] = &[
     "svc.power",
     "svc.session",
     "svc.network",
+    "svc.tray",
+    "svc.bluetooth",
     "svc.notifications",
     "theme",
     "i18n",
@@ -93,8 +97,13 @@ pub fn register(daemon: &mut Daemon, facts: impl Into<SharedFacts>) {
     let hub = daemon.hub.clone();
     let config = daemon.config.clone();
     let instance = daemon.instance.clone();
+    let pam_path = format!("{}/{}", crate::wiring::PAM_DIR, crate::wiring::PAM_SERVICE);
     let f: crate::QueryFn = Arc::new(move |_q| {
         let facts = facts.get();
+        // Read live: the lock state decides how bad a missing PAM service is (see below).
+        let locked = hub
+            .snapshot("runtime.lock")
+            .is_ok_and(|(_, d)| d["locked"].as_bool() == Some(true));
         let mut rows = vec![
             row("protocol", "ok", format!("v{PROTOCOL_VERSION}"), false),
             row("instance", "ok", instance.clone(), false),
@@ -114,6 +123,14 @@ pub fn register(daemon: &mut Daemon, facts: impl Into<SharedFacts>) {
             ),
             probe("fonts", facts.fc_list_worked, "warn", "fc-list"),
             probe("data_dir", facts.data_dir_found, "fail", "data directory"),
+            // Missing while locked is the lockout case: nothing can unlock the screen. Missing
+            // while unlocked only makes locking unavailable (the lock action is refused).
+            probe(
+                "pam_service",
+                facts.pam_service,
+                if locked { "fail" } else { "warn" },
+                &pam_path,
+            ),
         ];
         rows.push(match &config {
             None => row("config", "n/a", "no config store", false),
@@ -201,5 +218,35 @@ mod tests {
         assert_eq!(status(&rows, "bus_session"), "ok");
         assert_eq!(status(&rows, "bus_system"), "warn");
         assert_eq!(status(&rows, "notifications"), "warn");
+    }
+
+    #[test]
+    fn pam_service_fails_only_when_a_locked_screen_cannot_be_unlocked() {
+        let hub = Hub::new();
+        let mut d = Daemon::new(hub.clone(), ActionRegistry::default(), Intents::default());
+        let facts = SharedFacts::default();
+        register(&mut d, facts.clone());
+        let q = d.queries.get("doctor").unwrap().clone();
+        assert_eq!(status(&q(""), "pam_service"), "n/a");
+
+        facts.update(|f| f.pam_service = Some(false));
+        assert_eq!(
+            status(&q(""), "pam_service"),
+            "warn",
+            "unlocked: locking unavailable"
+        );
+
+        hub.register("runtime.lock", json!({"locked": true}), None);
+        let rows = q("");
+        assert_eq!(
+            status(&rows, "pam_service"),
+            "fail",
+            "locked: nothing can unlock it"
+        );
+        let row = rows.iter().find(|r| r["id"] == "pam_service").unwrap();
+        assert_eq!(row["fix_key"], "doctor.pam_service.fix");
+
+        facts.update(|f| f.pam_service = Some(true));
+        assert_eq!(status(&q(""), "pam_service"), "ok");
     }
 }

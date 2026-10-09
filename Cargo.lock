@@ -943,6 +943,7 @@ dependencies = [
  "kurashi-schema",
  "kurashi-services",
  "kurashi-theme",
+ "kurashi-tray",
  "notify",
  "semver",
  "serde",

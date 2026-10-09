@@ -1,0 +1,1 @@
+{"t":"snap","doc":"svc.bluetooth","rev":5,"data":{"available":true,"powered":true,"discovering":false,"devices":[{"address":"AA:BB:CC:DD:EE:FF","name":"Keyboard","paired":true,"connected":true,"icon":"input-keyboard","battery":80},{"address":"11:22:33:44:55:66","name":"11:22:33:44:55:66","paired":false,"connected":false}]}}
