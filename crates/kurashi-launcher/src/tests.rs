@@ -364,6 +364,34 @@ fn watcher_drop_after_root_deleted_does_not_hang() {
 }
 
 #[test]
+fn debounce_fires_during_a_continuous_event_stream() {
+    // An event every 10 ms against a 50 ms debounce never goes quiet, so only the max wait can
+    // fire the callback while the stream is still running.
+    let t = tempfile::tempdir().unwrap();
+    let (tx, rx) = mpsc::channel();
+    let _w = Watcher::new(&[t.path().into()], Duration::from_millis(50), move || {
+        let _ = tx.send(Instant::now());
+    })
+    .unwrap();
+    let dir = t.path().to_path_buf();
+    let writer = std::thread::spawn(move || {
+        let end = Instant::now() + Duration::from_secs(1);
+        let mut n = 0;
+        while Instant::now() < end {
+            std::fs::write(dir.join(format!("burst-{n}.desktop")), "").unwrap();
+            n += 1;
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        Instant::now()
+    });
+    let first = rx
+        .recv_timeout(Duration::from_secs(5))
+        .expect("no callback at all during the event stream");
+    let stream_end = writer.join().unwrap();
+    assert!(first < stream_end, "callback waited for the stream to stop");
+}
+
+#[test]
 fn latency_bench_500_entries() {
     let t = tempfile::tempdir().unwrap();
     let words = [

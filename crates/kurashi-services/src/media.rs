@@ -146,16 +146,26 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
     let task = {
         let (conn, active) = (conn.clone(), active.clone());
         tokio::spawn(async move {
+            let mut commands_open = true;
             loop {
                 tokio::select! {
-                    ev = events.next() => if ev.is_none() { break },
-                    cmd = rx.recv() => match cmd {
+                    // zbus sends an `Err` when the socket dies and ends the stream right after it.
+                    ev = events.next() => match ev {
+                        Some(Ok(_)) => {}
+                        _ => break,
+                    },
+                    // Dropping every `Commands` must not stop the service: the ServiceHandle owns
+                    // its lifetime, so the command channel is simply no longer listened to.
+                    cmd = rx.recv(), if commands_open => match cmd {
                         Some(Cmd::Select(id)) => tracker.active = Some(id),
-                        None => break,
+                        None => commands_open = false,
                     },
                 }
                 refresh(&conn, &mut tracker, &active, &em).await;
             }
+            // No player can be followed any more, and commands must not target one that is gone.
+            *active.lock().unwrap() = None;
+            util::ended("media", &em, document(&[], None));
         })
     };
     Ok((ServiceHandle::new(task), Commands { conn, active, tx }))
