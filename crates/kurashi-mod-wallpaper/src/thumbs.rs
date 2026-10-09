@@ -6,6 +6,7 @@
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::UNIX_EPOCH;
 
 use material_colors::color::Argb;
@@ -99,13 +100,18 @@ fn read_side(file: &Path, side: &Path) -> Option<Thumb> {
     })
 }
 
-/// Writes through `tmp` then renames, so a reader never sees half a file.
+/// Writes through a temporary file, then renames it over `dest`, so a reader never sees half a file.
+/// The temporary name is unique per call: the picker asks for overlapping pages, so two calls can
+/// make the same thumbnail at once, and a shared name would let one rename take the other's file.
 fn write_atomic(dest: &Path, write: impl FnOnce(&Path) -> io::Result<()>) -> io::Result<()> {
-    let tmp = dest.with_extension(format!(
-        "{}.tmp",
-        dest.extension().and_then(|e| e.to_str()).unwrap_or("x")
-    ));
-    write(&tmp)?;
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let ext = dest.extension().and_then(|e| e.to_str()).unwrap_or("x");
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    let tmp = dest.with_extension(format!("{ext}.{}-{seq}.tmp", std::process::id()));
+    if let Err(e) = write(&tmp) {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
     fs::rename(&tmp, dest)
 }
 
@@ -272,6 +278,35 @@ mod tests {
         assert_eq!(
             ensure(&dir.join("cache"), &dir.join("gone.png")),
             Err(UNREADABLE)
+        );
+    }
+
+    #[test]
+    fn overlapping_requests_for_one_picture_all_get_its_thumbnail() {
+        // The picker asks for overlapping pages: two requests can make the same thumbnail at once.
+        let dir = scratch("overlap");
+        let img = dir.join("p.png");
+        write_png(&img, 300, 200, |x, y| {
+            [(x % 255) as u8, (y % 255) as u8, 90]
+        });
+        let cache = dir.join("cache");
+        std::thread::scope(|s| {
+            let handles: Vec<_> = (0..12).map(|_| s.spawn(|| ensure(&cache, &img))).collect();
+            for h in handles {
+                assert!(
+                    h.join().unwrap().is_ok(),
+                    "every overlapping request is served"
+                );
+            }
+        });
+        let left: Vec<String> = fs::read_dir(&cache)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(
+            left.len(),
+            2,
+            "one thumbnail and its palette, no temporary files: {left:?}"
         );
     }
 

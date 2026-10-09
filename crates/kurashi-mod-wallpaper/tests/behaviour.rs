@@ -279,7 +279,8 @@ async fn a_manual_set_and_a_picker_opening_do_not_move_the_per_output_timers() {
     let root = scratch("timers");
     let folder = library(&root, &["a.png", "b.png"]);
     let fake = Fake::new(&["awww"]);
-    fake.daemon_up.store(true, std::sync::atomic::Ordering::SeqCst);
+    fake.daemon_up
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     let mut vals = values(&folder);
     vals.insert("rotate".into(), json!(1));
     vals.insert("rotate_per_output".into(), json!(true));
@@ -291,9 +292,12 @@ async fn a_manual_set_and_a_picker_opening_do_not_move_the_per_output_timers() {
     // Half a minute in: a picker opens (a refresh) and DP-1 is set by hand.
     tokio::time::advance(Duration::from_secs(30)).await;
     m.subscribe();
-    m.act("wallpaper.set", json!({"path": folder.join("b.png"), "output": "DP-1"}))
-        .await
-        .unwrap();
+    m.act(
+        "wallpaper.set",
+        json!({"path": folder.join("b.png"), "output": "DP-1"}),
+    )
+    .await
+    .unwrap();
     let manual = fake.count("awww img");
     assert_eq!(manual, 1, "the manual set itself");
 
