@@ -11,3 +11,7 @@ power-use row (as a `quick.tiles` slot or panel row). Mods import `qs.core`/`qs.
 background-job API (W14-mod-runtime does; adopt it only if it is on main when you finish).
 **Acceptance:** crate tests for the new logic; screenshots through the real shell (`frontend/test-mods-live.sh` if on main, else
 the sandbox with `mod.enable sysmon` + `mod.panel.open`), every DoD item met / not met.
+
+**Since this card was written (lead):** sysmon: the watch is `job:watch` and `show` is a list setting (K33); remove the unused `show_*` i18n keys; make a paused watch not report running (I48 job `active` flag if you need it — coordinate via a CONTRACT-CHANGE row). Mods import `qs.core`/`qs.components` only. The live check is
+`just mods-live` (real shell, every mod, raw-key + QML-warning scan; ~10 min, `KURASHI_RENDER_NODE=/dev/dri/renderD129`,
+tool timeout ≥ 15 min) — it must be green for your mod; screenshots under `frontend/shots/modslive/`.
