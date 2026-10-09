@@ -4,7 +4,8 @@ import "../core"
 
 // One notification, shared by the toast stack and the center. Presentational: `item` is an entry
 // of svc.notifications.items; signals out. Body is the daemon-sanitised b/i/u/a subset, so
-// StyledText is safe. Swipe right (or the close glyph) dismisses; actions are the app's own.
+// StyledText is safe. Swipe right (or the close control) dismisses; actions are the app's own.
+// Keyboard: the close control and the actions take Tab focus; Return, Enter and Space press them.
 Rectangle {
     id: c
     property var item: ({})
@@ -26,8 +27,19 @@ Rectangle {
     color: Theme.container
     border.width: 1
     border.color: urgent ? Theme.accent : Theme.outline
-    // Only a dragged card has opacity < 1, so static cards never pay for group opacity (K16).
-    opacity: drag.active ? Math.max(0.3, 1 - Math.abs(x) / width) : 1
+    // Only a dragged or snapping card has opacity < 1, so static cards never pay for group opacity (K16).
+    opacity: drag.active || snap.running ? Math.max(0.3, 1 - Math.abs(x) / width) : 1
+
+    // A cancelled swipe slides back on the standard motion token (instant under motion none).
+    NumberAnimation {
+        id: snap
+        target: c
+        property: "x"
+        to: 0
+        duration: Theme.stdMs
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: Theme.enterCurve
+    }
 
     DragHandler {
         id: drag
@@ -38,7 +50,7 @@ Rectangle {
         onActiveChanged: {
             if (active) return
             if (c.x > c.width * 0.35) c.dismissed()
-            else c.x = 0
+            else snap.restart()
         }
     }
 
@@ -61,11 +73,11 @@ Rectangle {
         Column {
             id: col
             width: parent.width - (img.visible ? img.width + parent.spacing : 0) - closeBtn.width - parent.spacing
-            spacing: 4
+            spacing: Theme.xs
             Text {
                 width: parent.width
                 color: Theme.dim
-                font.pixelSize: Theme.fs - 2
+                font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
                 elide: Text.ElideRight
                 text: (c.item.app_name || "") + (c.item.time ? "  ·  " + Qt.formatTime(new Date(c.item.time), "hh:mm") : "")
@@ -107,6 +119,12 @@ Rectangle {
                         implicitHeight: 26
                         radius: Theme.rSm
                         color: Theme.containerHigh
+                        activeFocusOnTab: true
+                        Keys.onReturnPressed: c.invoked(modelData.key)
+                        Keys.onEnterPressed: c.invoked(modelData.key)
+                        Keys.onSpacePressed: c.invoked(modelData.key)
+                        Accessible.role: Accessible.Button
+                        Accessible.name: modelData.label
                         Text {
                             id: lbl
                             anchors.centerIn: parent
@@ -117,7 +135,15 @@ Rectangle {
                         }
                         MouseArea {
                             anchors.fill: parent
+                            // The hit area reaches the control height; the pill keeps its size.
+                            anchors.topMargin: -Math.max(0, (Theme.controlH - parent.height) / 2)
+                            anchors.bottomMargin: -Math.max(0, (Theme.controlH - parent.height) / 2)
                             onClicked: c.invoked(modelData.key)
+                        }
+                        FocusRing {
+                            anchors.fill: parent
+                            shown: parent.activeFocus
+                            corner: Theme.rSm
                         }
                     }
                 }
@@ -129,6 +155,12 @@ Rectangle {
             height: 24
             radius: Theme.rFull
             color: closeHover.hovered ? Theme.containerHigh : "transparent"
+            activeFocusOnTab: true
+            Keys.onReturnPressed: c.dismissed()
+            Keys.onEnterPressed: c.dismissed()
+            Keys.onSpacePressed: c.dismissed()
+            Accessible.role: Accessible.Button
+            Accessible.name: I18n.tr("frontend.notification.dismiss")
             Text {
                 anchors.centerIn: parent
                 color: Theme.dim
@@ -138,7 +170,14 @@ Rectangle {
             HoverHandler { id: closeHover }
             MouseArea {
                 anchors.fill: parent
+                // The hit area reaches the 32 px floor; the glyph square stays 24 px.
+                anchors.margins: -Math.max(0, (Theme.controlH - closeBtn.height) / 2)
                 onClicked: c.dismissed()
+            }
+            FocusRing {
+                anchors.fill: parent
+                shown: closeBtn.activeFocus
+                corner: Theme.rFull
             }
         }
     }

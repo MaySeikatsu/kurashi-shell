@@ -2,6 +2,7 @@
 "frontend.bar.disconnected" = "disconnected"
 "frontend.stage.title" = "Kurashi"
 "frontend.stage.close" = "Close"
+"frontend.notification.dismiss" = "Dismiss notification"
 "frontend.prov.forced_by" = "forced by"
 "frontend.brightness.unavailable" = "no backlight"
 "frontend.session.confirm.suspend" = "Press again to suspend"

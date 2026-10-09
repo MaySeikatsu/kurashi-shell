@@ -2,6 +2,7 @@
 "frontend.bar.disconnected" = "切断中"
 "frontend.stage.title" = "暮らし"
 "frontend.stage.close" = "閉じる"
+"frontend.notification.dismiss" = "通知を閉じる"
 "frontend.prov.forced_by" = "強制:"
 "frontend.brightness.unavailable" = "バックライトなし"
 "frontend.session.confirm.suspend" = "もう一度押すとサスペンド"

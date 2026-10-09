@@ -121,6 +121,20 @@ on_accent = "#f0e0e0"
 }
 
 #[test]
+fn outline_frames_containers_at_ui_contrast() {
+    // Cards, the lock box and the stage are outlined on surface_container (UX review R.2 item 5).
+    assert!(aa_pairs().contains(&("outline", "surface_container", stages::UI)));
+    for scheme in [Scheme::Dark, Scheme::Light] {
+        let p = resolve_palette(&input("wa-iro", scheme)).unwrap().0;
+        let r = contrast(p.get("outline"), p.get("surface_container"));
+        assert!(
+            r >= stages::UI,
+            "wa-iro {scheme:?}: outline on surface_container {r:.2}"
+        );
+    }
+}
+
+#[test]
 fn tokens_contain_every_mock_theme_doc_key() {
     let src = include_str!("../../kurashi-mock/src/documents.rs");
     let start = src
