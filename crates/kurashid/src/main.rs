@@ -68,9 +68,11 @@ async fn main() -> anyhow::Result<()> {
         kurashi_island::IslandConfig {
             faces: vec!["clock".into(), "media".into()],
             default: "clock".into(),
+            // The volume OSD may interrupt a manual face choice; it is transient-only.
+            interruptible_by: ["volume".to_string()].into(),
             ..Default::default()
         },
-        &["clock", "media"],
+        &["clock", "media", "volume"],
     );
     island.register_actions(&mut actions);
     register_services(&hub, &island, &mut actions);
@@ -131,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
         ],
     );
     let mut intents = Intents::default();
-    kurashid::wiring::audio(&hub, &mut actions, &mut intents);
+    kurashid::wiring::audio(&hub, &mut actions, &mut intents, Some(island.clone()));
     kurashid::wiring::lock(&hub, &mut actions, &mut intents);
     let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
