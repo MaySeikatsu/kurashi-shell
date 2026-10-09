@@ -41,5 +41,5 @@ nix-eval-test:
 
 # Budgets (docs/BENCH.md) on the real stack: kurashid + frontend in a headless sandbox (rule 9)
 bench-gate:
-    python3 tools/bench/measure.py --name frontend-real --daemon real -- qs -p frontend
+    python3 tools/bench/measure.py --name frontend-real --daemon real -- frontend/launch.sh
     python3 tools/bench/budget.py tools/bench/results/frontend-real.json
