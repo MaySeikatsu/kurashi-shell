@@ -62,6 +62,10 @@ pub enum ModError {
     /// The mod failed for its own reason.
     #[error("{0}")]
     Failed(String),
+    /// The manifest declares daemon code (a service, action, island face, choice source or job) and
+    /// this build links no code for the mod. Set by the daemon, not by the mod (B15).
+    #[error("the mod's daemon code is not linked into this build")]
+    NotBuilt,
 }
 
 impl ModError {
@@ -70,6 +74,7 @@ impl ModError {
             Self::NotDeclared(_) => "mods.error.not_declared",
             Self::Duplicate(_) => "mods.error.duplicate",
             Self::Failed(_) => "mods.error.enable_failed",
+            Self::NotBuilt => "mods.error.not_built",
         }
     }
 }

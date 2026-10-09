@@ -1101,3 +1101,48 @@ async fn a_list_setting_is_a_pick_list_of_its_choices() {
         "a refused value leaves the one in effect"
     );
 }
+
+/// B15: a mod whose manifest declares daemon code (a service, action, island face, choice source or
+/// job) is refused when this build links none for it; a frontend-only mod is switched on as before.
+/// The bundled `media` and `easter-eggs` (on by default) declare daemon code and no linked module.
+#[tokio::test]
+async fn an_unlinked_mod_with_daemon_provides_is_refused_and_a_frontend_only_one_is_on() {
+    let extra = scratch("unbuilt-mods");
+    write(
+        &extra.join("ghost/mod.toml"),
+        "id = \"ghost\"\nname = \"Ghost\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"action:ghost.*\"]\n",
+    );
+    write(
+        &extra.join("glass/mod.toml"),
+        "id = \"glass\"\nname = \"Glass\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+         kurashi = \">=0.0.1\"\nprovides = [\"widget:glass\", \"panel:glass\", \"slot:quick.tiles\"]\n",
+    );
+    let d = start(
+        &scratch("unbuilt"),
+        std::slice::from_ref(&extra),
+        Vec::new(),
+    );
+
+    // Switched on by the config default, the bundled easter-eggs has an action and no code: refused.
+    assert_eq!(d.state("easter-eggs"), "disabled");
+    assert_eq!(
+        d.entry("easter-eggs")["errors"][0]["key"],
+        "mods.error.not_built"
+    );
+
+    d.act("mod.enable", "ghost").await.unwrap();
+    assert_eq!(d.state("ghost"), "disabled");
+    assert_eq!(d.entry("ghost")["errors"][0]["key"], "mods.error.not_built");
+
+    // The bundled media declares a service, a face and actions: the same refusal, and nothing served.
+    d.act("mod.enable", "media").await.unwrap();
+    assert_eq!(d.state("media"), "disabled");
+    assert_eq!(d.entry("media")["errors"][0]["key"], "mods.error.not_built");
+    assert!(d.hub.snapshot("mod.media").is_err());
+
+    // Frontend-only provides need no code: on, with their components listed.
+    d.act("mod.enable", "glass").await.unwrap();
+    assert_eq!(d.state("glass"), "enabled");
+    assert_eq!(d.entry("glass")["errors"], json!([]));
+}
