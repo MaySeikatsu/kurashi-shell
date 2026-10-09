@@ -24,14 +24,17 @@ impl Drop for Mock {
     }
 }
 
-fn start() -> (Mock, PathBuf) {
-    let dir = std::env::temp_dir().join(format!("kurashi-mock-wire-{}", std::process::id()));
+/// Starts a mock with `extra` arguments on a socket of its own. `tag` keeps the directories of
+/// tests that run in parallel in this process apart.
+fn start_with(tag: &str, extra: &[&str]) -> (Mock, PathBuf) {
+    let dir = std::env::temp_dir().join(format!("kurashi-mock-wire-{}-{tag}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("socket dir");
     let sock = dir.join("ipc.sock");
     let child = Command::new(env!("CARGO_BIN_EXE_kurashi-mock"))
         .arg("--socket")
         .arg(&sock)
+        .args(extra)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
@@ -45,6 +48,10 @@ fn start() -> (Mock, PathBuf) {
     (mock, sock)
 }
 
+fn start() -> (Mock, PathBuf) {
+    start_with("parity", &[])
+}
+
 struct Client {
     tx: UnixStream,
     rx: BufReader<UnixStream>,
@@ -52,6 +59,11 @@ struct Client {
 
 impl Client {
     fn connect(sock: &Path) -> Self {
+        Self::connect_welcome(sock).0
+    }
+
+    /// Connects and says hello; returns the client and the `welcome` message.
+    fn connect_welcome(sock: &Path) -> (Self, Value) {
         let tx = UnixStream::connect(sock).expect("connect");
         tx.set_read_timeout(Some(Duration::from_secs(5)))
             .expect("read timeout");
@@ -60,8 +72,9 @@ impl Client {
         c.send(
             &json!({"t": "hello", "v": 1, "client": "wire-test", "caps": ["intents", "resync"]}),
         );
-        assert_eq!(c.recv()["t"], "welcome");
-        c
+        let welcome = c.recv();
+        assert_eq!(welcome["t"], "welcome");
+        (c, welcome)
     }
 
     fn send(&mut self, m: &Value) {
@@ -166,4 +179,124 @@ fn parity_set_over_the_wire() {
     c.send(&json!({"t": "mock.face", "face": "brightness"}));
     let isl = c.call(json!({"t": "sub", "id": "isl2", "doc": "runtime.island.main"}));
     assert_eq!(isl["data"]["face"], "brightness");
+}
+
+#[test]
+fn instance_is_stable_within_a_process_and_new_for_the_next_one() {
+    let (_mock, sock) = start_with("instance-a", &[]);
+    let (_first, welcome) = Client::connect_welcome(&sock);
+    let (_again, second) = Client::connect_welcome(&sock);
+    let id = welcome["instance"].as_str().expect("instance").to_owned();
+    assert!(!id.is_empty());
+    assert_eq!(second["instance"], id.as_str());
+
+    let (_other, sock_b) = start_with("instance-b", &[]);
+    let (_, welcome_b) = Client::connect_welcome(&sock_b);
+    assert_ne!(
+        welcome_b["instance"],
+        id.as_str(),
+        "a new process, a new id"
+    );
+}
+
+#[test]
+fn fixed_time_serves_the_pinned_clock_and_nothing_ticks() {
+    let (_mock, sock) = start_with("fixed", &["--fixed-time", "14:07"]);
+    let mut c = Client::connect(&sock);
+    let clock = c.call(json!({"t": "sub", "id": "clock", "doc": "svc.clock"}));
+    assert_eq!(
+        clock["data"],
+        json!({"hh": "14", "mm": "07", "date": "2026-10-09", "weekday": "Fri"})
+    );
+
+    // Subscribed to the clock, the next patch this client sees must be the brightness step, so
+    // no clock patch was queued behind it.
+    c.call(json!({"t": "sub", "id": "br", "doc": "svc.brightness"}));
+    c.send(&json!({"t": "act", "id": "b", "action": "brightness.up"}));
+    let next = c.until(|m| m["t"] == "patch");
+    assert_eq!(next["doc"], "svc.brightness");
+}
+
+#[test]
+fn bad_fixed_time_is_refused_at_startup() {
+    let sock = std::env::temp_dir().join(format!("kurashi-mock-badtime-{}", std::process::id()));
+    let mut child = Command::new(env!("CARGO_BIN_EXE_kurashi-mock"))
+        .arg("--socket")
+        .arg(sock.join("ipc.sock"))
+        .args(["--fixed-time", "25:00"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("spawn kurashi-mock");
+    // Bounded: a mock that accepted the flag would run forever, so poll rather than wait.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    let status = loop {
+        if let Some(status) = child.try_wait().expect("poll kurashi-mock") {
+            break status;
+        }
+        if Instant::now() > deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("kurashi-mock kept running with --fixed-time 25:00");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    assert!(!status.success(), "a bad --fixed-time exits non-zero");
+    let _ = std::fs::remove_dir_all(&sock);
+}
+
+#[test]
+fn launcher_query_and_launch_over_the_wire() {
+    let (_mock, sock) = start_with("launcher", &[]);
+    let mut c = Client::connect(&sock);
+
+    c.send(&json!({"t": "query", "id": "q1", "kind": "launcher", "q": "fire"}));
+    let r = c.until(|m| m["id"] == "q1");
+    assert_eq!(r["t"], "results");
+    assert_eq!(r["items"][0]["id"], "firefox.desktop");
+
+    let r = c.call(json!({"t": "query", "id": "q2", "kind": "nope", "q": ""}));
+    assert_eq!(r["t"], "err");
+    assert_eq!(r["kind"], "invalid");
+
+    let r = c.call(json!({
+        "t": "act", "id": "l1", "action": "launcher.launch", "args": {"id": "foot.desktop"}
+    }));
+    assert_eq!(r["t"], "done");
+    let r = c.call(json!({
+        "t": "act", "id": "l2", "action": "launcher.launch", "args": {"id": "nope.desktop"}
+    }));
+    assert_eq!(r["t"], "err");
+    assert_eq!(r["kind"], "unavailable");
+}
+
+#[test]
+fn notification_center_over_the_wire() {
+    let (_mock, sock) = start_with("notify", &[]);
+    // The watcher sees only what the document does, so its patch stream is easy to read.
+    let mut watcher = Client::connect(&sock);
+    let snap = watcher.call(json!({"t": "sub", "id": "n", "doc": "svc.notifications"}));
+    assert_eq!(snap["t"], "snap");
+    assert_eq!(snap["data"]["unread"], 2);
+
+    let mut c = Client::connect(&sock);
+    let r = c.call(json!({
+        "t": "act", "id": "a1", "action": "mock.notify", "args": {"summary": "hello"}
+    }));
+    assert_eq!(r["t"], "done");
+    assert_eq!(r["data"]["id"], 4);
+    let patch = watcher.until(|m| m["t"] == "patch" && m["doc"] == "svc.notifications");
+    assert_eq!(patch["ops"]["toasts"], json!([4]));
+
+    let r = c.call(json!({
+        "t": "act", "id": "a2", "action": "notify.dismiss", "args": {"id": 4}
+    }));
+    assert_eq!(r["t"], "done");
+    let patch = watcher.until(|m| m["t"] == "patch" && m["doc"] == "svc.notifications");
+    assert_eq!(patch["ops"]["toasts"], json!([]));
+    assert_eq!(patch["ops"]["items"].as_array().map(Vec::len), Some(3));
+
+    let r = c.call(json!({"t": "act", "id": "a3", "action": "notify.invoke", "args": {}}));
+    assert_eq!(r["kind"], "invalid");
+    assert_eq!(r["msg"], "notify.invoke needs id");
 }
