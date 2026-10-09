@@ -48,3 +48,8 @@
 "doctor.client_niri.ok" = "$NIRI_SOCKET is set"
 "doctor.client_niri.warn" = "$NIRI_SOCKET is not set"
 "doctor.client_niri.fix" = "Run from inside a niri session."
+"doctor.pam_service.ok" = "Lock screen PAM service is installed"
+"doctor.pam_service.fail" = "PAM service missing while locked: the lock screen cannot be unlocked"
+"doctor.pam_service.warn" = "PAM service missing: the lock screen is unavailable"
+"doctor.pam_service.na" = "PAM service not probed"
+"doctor.pam_service.fix" = "Enable programs.kurashi in the NixOS module, then restart kurashid."
