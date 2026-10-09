@@ -29,14 +29,14 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M3.1 | Stage sized to content, popup only on focused output (K16) | ✅ | popup 112 MiB (was 221); per-output OK under corrected method (K19) |
 | M1.10 | Frontend core: generic on-demand docs + query API, real daemon (i18n, config, lock, notifications) | 🟡 | card M1.5-frontend-core (wave 4) |
 | M6.1 | `kurashi-mods` manifest, discovery, lifecycle registry | ✅ | merged; not wired yet |
-| M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | 🟡 | card M4-audio (wave 3) |
+| M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | ✅ | merged + wired (refcounted, origin echo, audio.mute.toggle) |
 | M7.1 | HM/NixOS modules: user services, managed layer, eval test | ✅ | merged; `just nix-eval-test` (impure, CONTRACT #3) |
 | M5.2 | `kurashi-notify` notification server + history | ✅ | merged; 14 tests on private bus; not wired yet |
 | M5.3 | `kurashi-launcher` index, fuzzy+frecency, launch | ✅ | merged; 35 tests, p99 0.82 ms/500 apps (release); not wired yet |
 | M1.8 | CLI get/set/why/reset/undo/redo/profile | ✅ | merged; exit codes 0/1/2/3 |
 | M1.9 | **M1 exit: protocol v1 frozen** | ✅ | PROTOCOL.md status, K17 |
 | M5.4 | Settings app (schema-generated pages, provenance, profiles) | ✅ | merged; `settings/test.sh` + 4 shots; schema i18n en+ja |
-| M5.5 | `kurashi-auth` PAM + lock state machine | ✅ | merged; PAM feature needs native inputs (CONTRACT #4a); not wired yet |
+| M5.5 | `kurashi-auth` PAM + lock state machine | ✅ | merged + wired (`runtime.lock`, lock.submit/cancel, session.lock; PAM feature on) |
 | M7.3 | `kurashi doctor` | ✅ | merged + registered with startup facts (bus probes n/a for now) |
 | M7.2 | Budget gate: measure.py --daemon real + budget.py | ✅ | `just bench-gate` green: daemon 8.5 MiB, frontend ≤120 MiB, +0.8/output, 0 idle frames |
 | M5.1 | `kurashi-island` arbiter (K9) | ✅ | merged; wired in kurashid (`runtime.island.main`, island.next/prev/pin, one deadline timer) |
