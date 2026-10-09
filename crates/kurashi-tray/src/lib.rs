@@ -151,6 +151,9 @@ fn doc(st: &State) -> Value {
                     json!({"w": px.w, "h": px.h, "png_base64": px.png_base64}),
                 );
             }
+            if let Some(dir) = &v.icon_theme_path {
+                m.insert("icon_theme_path".into(), json!(dir));
+            }
             if let Some(t) = &v.tooltip {
                 m.insert("tooltip".into(), json!(t));
             }
@@ -791,6 +794,49 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Documents never carry null (PROTOCOL §3): absent optional fields are left out.
+    #[test]
+    fn item_document_omits_absent_fields() {
+        let view = |theme: Option<&str>| item::View {
+            title: "Sync".into(),
+            status: "Active".into(),
+            icon_name: "nextcloud".into(),
+            icon: None,
+            icon_theme_path: theme.map(String::from),
+            tooltip: None,
+            menu: None,
+        };
+        let entry = |id: &str, view| Item {
+            id: id.into(),
+            bus: ":1.4".into(),
+            unique: ":1.4".into(),
+            path: ITEM_PATH.into(),
+            view: Some(view),
+            busy: false,
+            dirty: false,
+        };
+        let st = State {
+            role: Role::Owner,
+            host: String::new(),
+            host_claimed: false,
+            watcher: None,
+            items: vec![
+                entry("a", view(Some("/usr/share/a"))),
+                entry("b", view(None)),
+            ],
+            last_doc: None,
+        };
+        let document = doc(&st);
+        let items = document["items"].as_array().unwrap();
+        assert_eq!(items[0]["icon_theme_path"], "/usr/share/a");
+        assert!(
+            items[1].get("icon_theme_path").is_none(),
+            "absent, not null"
+        );
+        assert!(items[1].get("tooltip").is_none());
+        assert!(items[1].get("icon_pixmap").is_none());
+    }
 
     #[test]
     fn service_forms_resolve_to_bus_and_path() {
