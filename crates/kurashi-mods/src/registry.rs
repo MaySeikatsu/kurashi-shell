@@ -91,9 +91,10 @@ pub struct ModEntry {
     pub dir: PathBuf,
     pub manifest: Option<Manifest>,
     pub state: ModState,
-    /// One of the mod's services has a subscriber right now (`mods` doc `running`, K25). The
-    /// daemon sets it through [`Registry::set_running`] once a mod registers services (K26).
-    pub running: bool,
+    /// Why the mod runs now, as i18n keys (`mods` doc `running_reasons`, K25 "Running now"): a
+    /// service has a subscriber, a background job is started (I23). The daemon sets it through
+    /// [`Registry::set_running_reasons`]; `running` in the document is "any reason".
+    pub running_reasons: Vec<String>,
 }
 
 /// Policy as data: bundled mods are off unless listed (MODS.md: only `easter-eggs`). Used when
@@ -298,11 +299,11 @@ impl Registry {
         refused
     }
 
-    /// The daemon reports whether one of a mod's services has a subscriber (K25 "Running now").
+    /// The daemon reports why a mod runs now (K25 "Running now", I23): empty when nothing runs.
     /// Unknown ids are ignored.
-    pub fn set_running(&mut self, id: &str, running: bool) {
+    pub fn set_running_reasons(&mut self, id: &str, reasons: Vec<String>) {
         if let Some(e) = self.mods.get_mut(id) {
-            e.running = running;
+            e.running_reasons = reasons;
         }
     }
 
@@ -343,7 +344,7 @@ fn load(id: &str, dir: &Path, daemon: &Version) -> ModEntry {
         dir: dir.into(),
         manifest: None,
         state: ModState::Invalid { errors },
-        running: false,
+        running_reasons: Vec::new(),
     };
     let text = match std::fs::read_to_string(dir.join("mod.toml")) {
         Ok(t) => t,
@@ -362,17 +363,18 @@ fn load(id: &str, dir: &Path, daemon: &Version) -> ModEntry {
             dir: dir.into(),
             manifest: Some(m),
             state: ModState::Available,
-            running: false,
+            running_reasons: Vec::new(),
         },
         Err(errors) => invalid(errors),
     }
 }
 
-/// `{mods: [{id, name, description?, version, tier, state, running, capabilities, cost, provides,
-/// errors: [{key, path, detail}], shadows_bundled}]}`; `state` is
-/// available|enabled|disabled|invalid (`disabled` = loaded, off). Documents carry no nulls
-/// (PROTOCOL): an invalid entry has no version/tier/cost and name = id, and `description` (i18n
-/// key or text) is present only when the manifest declares one.
+/// `{mods: [{id, name, description?, version, tier, state, running, running_reasons, capabilities,
+/// cost, provides, errors: [{key, path, detail}], shadows_bundled}]}`; `state` is
+/// available|enabled|disabled|invalid (`disabled` = loaded, off); `running` is true while
+/// `running_reasons` (i18n keys) is not empty. Documents carry no nulls (PROTOCOL): an invalid entry
+/// has no version/tier/cost and name = id, and `description` (i18n key or text) is present only when
+/// the manifest declares one.
 pub fn mods_doc(r: &Registry) -> Value {
     let mods: Vec<Value> = r
         .iter()
@@ -385,18 +387,19 @@ pub fn mods_doc(r: &Registry) -> Value {
                 _ => vec![],
             };
             let shadowed = r.shadows.iter().any(|s| s.id == e.id);
+            let running = !e.running_reasons.is_empty();
             let mut entry = match &e.manifest {
                 Some(m) => json!({
                     "id": e.id, "name": m.name, "version": m.version.to_string(), "tier": m.tier,
-                    "state": e.state.name(), "running": e.running,
+                    "state": e.state.name(), "running": running, "running_reasons": e.running_reasons,
                     "capabilities": m.capabilities, "cost": m.cost,
                     "provides": m.provides.iter().map(|p| p.to_string()).collect::<Vec<_>>(),
                     "errors": errors, "shadows_bundled": shadowed,
                 }),
                 None => json!({
-                    "id": e.id, "name": e.id, "state": "invalid", "running": e.running,
-                    "capabilities": [], "provides": [], "errors": errors,
-                    "shadows_bundled": shadowed,
+                    "id": e.id, "name": e.id, "state": "invalid", "running": running,
+                    "running_reasons": e.running_reasons, "capabilities": [], "provides": [],
+                    "errors": errors, "shadows_bundled": shadowed,
                 }),
             };
             if let Some(d) = e.manifest.as_ref().and_then(|m| m.description.as_ref()) {
