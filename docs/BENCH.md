@@ -10,7 +10,7 @@ Machine A: 12 cores, 31 GiB RAM, NVIDIA GTX 1060 6 GB (driver 580.178), NixOS, n
 |---|---|
 | Idle frames, all windows, 30 s | ≤ 1 fps total |
 | Idle CPU, daemon + frontend, 10 min | < 0.5 % |
-| PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +10 MiB per extra output (K16, K19; was ≤ 50 % of shellseikatsu) |
+| PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +6 MiB per extra output, measured vs. popup-closed (K16, K19; was ≤ 50 % of shellseikatsu) |
 | Popup input → first frame | ≤ 1 frame after map |
 | Mapped surfaces per output at idle | ≤ 4 |
 
@@ -45,4 +45,16 @@ One probe at a time, headless sway gles2, GTX 1060, `--warmup 10 --idle 30`. Ful
 | idle wakeups/s · syscalls/s · commits/s | 0 · 3.1 · 0.03 | 118 · 233 · 0 | 1.6 · 0 · 0 | 178 · 725 · 61.8 | 0 · 46 · 0.7 |
 | startup ms · popup ms | 143 · 2.0 | 356 · 2.2 | 54 · 1.8 | 339 · 22.8 | 489 · 1.9 |
 Quickshell probe vs budget: idle frames ✔, idle CPU ✔, popup ✔, PSS 144 ✔ under K16 (✘ under old 108).
+
+### 2026-10-09 — bench gate, real stack (M7.2, `just bench-gate`)
+Real `kurashid` (isolated dirs, sandbox bus) + `frontend/` (main 3f40f8b), headless sway gles2, 30 s idle.
+| Metric | Value | Budget |
+|---|---|---|
+| idle frames | 0 fps | ≤ 1 ✔ |
+| idle CPU daemon + frontend | 0 % | < 0.5 % ✔ (30 s window; `--idle 600` for 10 min) |
+| PSS frontend @1 output | 95.0–119.7 MiB | ≤ 150 ✔ |
+| PSS per extra output (vs popup-closed) | +0.8 MiB | ≤ +6 ✔ |
+| popup input → first frame | 7.3 ms | ≤ 16.7 ✔ |
+| mapped layer surfaces idle (1 output) | 1 | ≤ 4 ✔ |
+| daemon PSS / CPU / wakeups | 8.5 MiB / 0 % / 0 | — |
 
