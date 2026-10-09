@@ -1,2 +1,4 @@
 Bar 1.0 Bar.qml
 Stage 1.0 Stage.qml
+Toasts 1.0 Toasts.qml
+NotificationCenter 1.0 NotificationCenter.qml
