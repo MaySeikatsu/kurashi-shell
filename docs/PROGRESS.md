@@ -48,7 +48,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M4.3 | `svc.workspaces` provider from compositor (refcounted, `*` alias, workspace.focus) | ✅ | kurashid |
 | M4.1 | `kurashi-compositor` trait + niri adapter + fake | ✅ | merged; niri 26.04 fixtures (read-only) |
 | M4.2 | `kurashi-services` (MPRIS, UPower, logind, NM, brightness) | ✅ | merged + wired as refcounted providers; media → island signal |
-| M3.2 | Memory headroom Kaizen + leak-cycle gate | 🟡 | merged (launch.sh EGL pin, 122.6 MiB; 20-cycle growth budget); quiet `just bench-gate` re-run pending |
+| M3.2 | Memory headroom Kaizen + leak-cycle gate | ✅ | quiet gate 0470378: 104.3 MiB, +6.0/output (at limit), +0.63 MiB/20 cycles, 0 violations |
 | M2.3 | Blur capability probe → `forced:capability` | ✅ | `compositor.caps` doc; probed at startup |
 | M5.11 | Island from config, `bindings` doc, `input.dispatch` | ✅ | merged + wired; launcher watcher drop hang fixed (5e08eb5) |
 | M5.12 | Launcher watcher refcount, async doctor facts, session actions | ✅ | confirm-required session actions; doctor bus/name facts live |
@@ -76,5 +76,6 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M6.3 | Mod settings as config keys + pages (K22) | ✅ | merged + wired (a3a0443); profiles treat all mod keys as one `mods` section (per-mod sections = later) |
 | F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | ✅ | merged; placeholders unavailable; TODO: explicit logind session for systemd --user |
 | R.2 | UX/visual review | ✅ | 25 findings → `docs/reviews/2026-10-09-ux-review.md` |
-| U.1 | Components: AA contrast, focus/keys, hit targets, motion tokens, provenance chip | 🟡 | card U-components |
-| U.2 | Surfaces: bar.enabled/edge honoured, Stage scaffolding removed, launcher errors | 🟡 | card U-surfaces |
+| U.1 | Components: AA contrast, focus/keys, hit targets, motion tokens, provenance chip | ✅ | merged ed847b0; island hit target 26 px still open |
+| U.2 | Surfaces: bar.enabled/edge honoured, Stage scaffolding removed, launcher errors | ✅ | merged 0470378; golden refs re-recorded |
+| B.1 | Quiet re-measure: archived probes + frontend + bench gate (machine A) | ✅ | BAKEOFF "Quiet re-measure", BENCH 13:25 row; K3 unchanged |
