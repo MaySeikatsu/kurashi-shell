@@ -361,6 +361,22 @@ fn component_pairs_meet_aa() {
     }
 }
 
+/// K25: the mod state marks are graphics, so each reaches 3:1 on the surface, in every palette
+/// and scheme (the `color.status.*` tokens are derived, not palette roles).
+#[test]
+fn status_marks_reach_3_to_1_on_the_surface() {
+    for name in bundled_names() {
+        for scheme in [Scheme::Dark, Scheme::Light] {
+            let t = resolve(&input(name, scheme), &fonts()).unwrap().tokens;
+            let c = |k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+            for mark in ["color.status.on", "color.status.off"] {
+                let r = contrast(c(mark), c("color.surface"));
+                assert!(r >= 3.0, "{name} {scheme:?}: {mark} = {r:.2}");
+            }
+        }
+    }
+}
+
 #[test]
 fn fonts_resolve_first_installed() {
     let mut i = ThemeInput::default();
