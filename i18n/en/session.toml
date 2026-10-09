@@ -6,6 +6,7 @@
 "session.confirm_required" = "Confirm to continue"
 "action.input.dispatch" = "Run the bound action"
 "action.session.menu" = "Session menu"
+"action.quick.toggle" = "Quick settings"
 "action.brightness.up" = "Brightness up"
 "action.brightness.down" = "Brightness down"
 "action.audio.volume.up" = "Volume up"
