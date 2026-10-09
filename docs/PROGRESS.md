@@ -124,8 +124,13 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | B.3 | Per-output PSS (B7): lazy island faces, gate = mean of two hotplugs, sandbox boot_vga (B10) | 🔄 merged 673dca1; the +29.8 MiB cycle spike of one gate run still needs a quiet-machine repro | lead |
 | D.4 | UX bar: `docs/ux/` composition map + 6 researched briefs (quick settings, island, settings, wallpaper, sysmon, weather); CLAUDE.md rule; card rule 10 | ✅ | lead 5b1dd41, e120863 |
 | K28 | Contribution slots, mod Island faces, mod choice sources, `mod.panel.open` — contract + daemon | ✅ | lead 1068f6b; W12-mod-hooks 84bd67a (rows 30–33) |
-| W11.2 | Frontend mod loading: ModLoader, SlotHost, mod panels/widgets/faces | 🔄 | W11-mod-qml |
-| W12.3–5 | Mods: wallpaper, sysmon, weather (brief-governed) | 🔄 | W12-wallpaper, W12-sysmon, W12-weather |
+| W11.2 | Frontend mod loading: ModLoader, SlotHost, mod panels/widgets/faces; Store.unwatch deferred (binding-loop root cause) | ✅ | W11-mod-qml 86e35e5; mods import `qs.core` (B16/B17 fix 63893ad) |
+| W12.3–5 | Mods: weather, sysmon, wallpaper (brief-governed) | ✅ functional · UX ⏳ (W14-*-ux) | merged; live check through the real shell found B16–B19 |
 | W13.1–5 | UX passes: settings, quick daemon pages, island daemon (secondary/overflow/stale, core transient signals); quick UI + island views queued | 🔄 | W13-* |
 | F.5 | Nix build green again (config_doc test read the install prefix) | ✅ | 6754af0 |
+| W13.2 | Quick settings daemon pages (scan doc, connect/airplane, sources/streams, power profiles, DND until) | ✅ | 3699371 (K29) |
+| W13.3 | Island daemon: secondary/overflow/detail/stale_at, core transient signals | ✅ | K30 |
+| W13.4 | svc.media position/rate/can/players, seek/select | ✅ | K31 |
+| W13.5 | UX passes: settings, quick settings UI, island views | 🔄 | W13-settings-ux, W13-quick-ux, W13-island-views |
+| W14 | Mod runtime (jobs, list settings, capabilities, unlinked refusal), live all-mods test, mod UX passes | 🔄 | W14-* (sysmon/weather UX after mod-runtime) |
 
