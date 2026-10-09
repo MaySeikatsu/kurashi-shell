@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 kurashi-core.workspace = true
 kurashi-ipc.workspace = true
+kurashid = { path = "../kurashid" }   # i18n loader only
 anyhow.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
