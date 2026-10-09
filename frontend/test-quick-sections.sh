@@ -1,42 +1,55 @@
 #!/usr/bin/env bash
-# The quick settings card's sections (K24, W12) against kurashi-mock, invisibly (headless sway sandbox):
-# Wi-Fi, Power, Audio output and Bluetooth, each from its own document. Checks:
-#   - quick.toggle opens the card (runtime.ui panel "quick"); its screenshot shows the card, 360 px wide and
-#     centred on the output;
-#   - a pointer click on the Wi-Fi switch sends network.wifi: svc.network.wifi_enabled flips;
-#   - a pointer click on a non-default sink row sends audio.sink.default: that sink becomes svc.audio's default;
-#   - keyboard: a click on the heading gives the Stage its focus, Tab reaches the Wi-Fi switch and Return flips
-#     it back, Tab walks to the original default's row and Return makes it the default again, and the focus then
-#     stays on the chosen row (one more Tab and Return move the default on);
-#   - ui.close closes the card (Ma: no card drawn), and the frontend logs no QML error.
+# The quick settings card (K24, W12, W13; docs/ux/quick-settings.md) against kurashi-mock, invisibly (headless sway sandbox):
+# the tiles, every page, the toggle states the mock can produce, the keyboard, and the Wi-Fi scan's subscription. Checks:
+#   - quick.toggle opens the card (runtime.ui panel "quick"); its shot is 360 px wide and centred on the output;
+#   - a pointer click on the Wi-Fi tile sends network.wifi (svc.network.wifi_enabled flips, and flips back); its arrow opens
+#     the Wi-Fi page and the page's Back control returns to the tiles;
+#   - the scan document is subscribed while the Wi-Fi page is open and unsubscribed when it closes (the relay's log, Ma);
+#   - keyboard: a click on the heading gives the card its focus; Tab reaches the Wi-Fi tile, Return toggles it, Right opens
+#     its page, Tab and Return on an unsaved network show the daemon's refusal in place, Escape goes back to the tile (focus
+#     returns there); the audio page's Tab and Return choose the other output (the focus stays on the row chosen); the power
+#     page's Tab and Return choose a profile; the focus page's Tab and Return turn Do not disturb on until one hour; the
+#     display page's Tab and Right raise the brightness; the arrows move between tiles;
+#   - connecting and failed: the mock is held still (SIGSTOP), so a Wi-Fi tile request gets no answer: "connecting" shows,
+#     then the 30 s timeout's failure; SIGCONT lets the queued request through and the failure clears;
+#   - the media row opens the island's media view; ui.close closes the card, and Escape on the tiles closes it too;
+#     after each close the card's documents are unsubscribed (Ma); the frontend logs no QML error.
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
-# The mock must serve svc.network, svc.audio's `available` and `sinks`, and the actions network.wifi and
-# audio.sink.default (W12-quick-daemon); without them the test stops at the precondition, after the first shot.
-# Binaries: kurashi and kurashi-mock from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug, else target/debug),
-# copied first, since shared target dirs get overwritten. The shots in frontend/shots/quick-sections/ are
-# evidence to read, not just the exit code. On a hybrid laptop export KURASHI_RENDER_NODE first.
+# The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
+# actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd. Binaries:
+# kurashi and kurashi-mock from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug, else target/debug), copied first, since
+# shared target dirs get overwritten. The shots in frontend/shots/quick-sections/ are evidence to read, not just the exit
+# code. QUICK_LOCALE=ja_JP.UTF-8 runs the Japanese copy (shots in quick-sections-ja/). On a hybrid laptop export
+# KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-fe-quick-sections}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 MOCK_BIN=${KURASHI_MOCK_BIN:-$BIN/kurashi-mock}
+LOCALE=${QUICK_LOCALE:-C.UTF-8}
 OUT=$ROOT/frontend/shots/quick-sections
+[ "$LOCALE" = C.UTF-8 ] || OUT=$OUT-ja
 mkdir -p "$OUT"
 fail() { echo "test-quick-sections: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR
 W=$R/work
+MOCK_SOCK=$R/kurashi/mock.sock
 mkdir -p "$W" "$R/kurashi"
 cp "$BIN/kurashi" "$W/"
 cp "$MOCK_BIN" "$W/kurashi-mock"
+# The shared key helper has no Escape key: this test runs a copy with it (KEY_ESC, code 1).
+sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
+grep -q '"escape"' "$W/wl_keys.py" || fail "could not add Escape to the key helper"
 
 pids=()
+MOCK_PID=""
 stop_phase() {  # kills only the processes this script started
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
   pids=()
-  rm -f "$KURASHI_SOCKET"
+  rm -f "$KURASHI_SOCKET" "$MOCK_SOCK"
 }
 cleanup() {
   stop_phase
@@ -45,15 +58,15 @@ cleanup() {
 trap cleanup EXIT
 
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
-       XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
+       XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=$LOCALE
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 K() { timeout 10 "$W/kurashi" "$@"; }
 # doc <name>: the document's data as JSON, or nothing when the daemon does not serve it.
 doc() { K sub "$1" --count 0 --json 2>/dev/null | jq -c 'select(.t == "snap") | .data' || true; }
 panel() { doc runtime.ui | jq -r '.panel // ""' 2>/dev/null || true; }
 
-# The card's surface (Theme.container, color.surface_container) in the output's centre column: its pixel
-# count and bounding box. A card is drawn only where its surface is; a closed Stage draws nothing.
+# The card's surface (Theme.container, color.surface_container) in the output's centre column: its pixel count and
+# bounding box. A card is drawn only where its surface is; a closed Stage draws nothing.
 cat > "$W/analyse.py" <<'PY'
 import json, sys
 
@@ -95,62 +108,72 @@ for y in range(Y0, min(Y1, h)):
 print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
 PY
 
-# rows.py: the screen y of an audio row, from the default sink's ring: 16 px tall, drawn in the accent colour
-# (its border and its dot), 16 px into the card. The rows are 40 px apart (32 px rows, 8 px gaps).
-cat > "$W/rows.py" <<'PY'
-import sys
+# The relay sits where the frontend looks for the daemon (the protocol's default socket) and forwards to the mock. It logs
+# the `sub` and `unsub` lines of the frontend's own connection, so the test can see what the card subscribes to and when
+# (Ma). The test adds its own `mark` lines to the same log.
+cat > "$W/relay.py" <<'PY'
+import asyncio, json, os, sys
 
-ppm = sys.argv[1]
-x0, y0, y1, d, j = (int(v) for v in sys.argv[2:7])
-ACCENT = tuple(int(sys.argv[7][i:i + 2], 16) for i in (0, 2, 4))
-PITCH = 40
-TOL = 8
-X = x0 + 24   # the ring's centre column
+FRONT, BACK, LOG = sys.argv[1], sys.argv[2], sys.argv[3]
+LIMIT = 1 << 22
 
 
-def read_ppm(data):
-    fields, i = [], 0
-    while len(fields) < 4:
-        while data[i:i + 1].isspace():
-            i += 1
-        j = i
-        while not data[j:j + 1].isspace():
-            j += 1
-        fields.append(data[i:j])
-        i = j
-    if fields[0] != b"P6" or fields[3] != b"255":
-        raise SystemExit(f"not an 8-bit P6 image: {fields}")
-    return int(fields[1]), int(fields[2]), data[i + 1:]
+def note(line):
+    with open(LOG, "a") as f:
+        f.write(line + "\n")
 
 
-with open(ppm, "rb") as f:
-    w, h, raster = read_ppm(f.read())
-# The ring's accent rows (border, dot, border) in its column, grouped where the gaps are small (the interior
-# is the card's surface, 3 rows each side of the dot). The audio rows lie within +100..+340 px of the top.
-hits = [y for y in range(y0 + 100, min(y1, h - 1, y0 + 340) + 1)
-        if all(abs(raster[(y * w + X) * 3 + k] - ACCENT[k]) <= TOL for k in range(3))]
-clusters = []
-for y in hits:
-    if clusters and y - clusters[-1][1] <= 5:
-        clusters[-1][1] = y
-    else:
-        clusters.append([y, y])
-rings = [c for c in clusters if 12 <= c[1] - c[0] + 1 <= 18]
-if len(rings) != 1:
-    raise SystemExit(f"want one default ring, found {clusters}")
-a, b = rings[0]
-print(round((a + b) / 2 + (j - d) * PITCH))
+async def pump(src, dst, to_mock, state):
+    try:
+        while True:
+            line = await src.readline()
+            if not line:
+                break
+            if to_mock:
+                try:
+                    m = json.loads(line)
+                except ValueError:
+                    m = {}
+                if m.get("t") == "hello":
+                    state["frontend"] = m.get("client") == "frontend"
+                elif state.get("frontend") and m.get("t") in ("sub", "unsub"):
+                    note(f"{m['t']} {m.get('doc', '')}")
+            dst.write(line)
+            await dst.drain()
+    except OSError:
+        pass
+    finally:
+        dst.close()
+
+
+async def handle(cr, cw):
+    try:
+        sr, sw = await asyncio.open_unix_connection(BACK, limit=LIMIT)
+    except OSError:
+        cw.close()
+        return
+    state = {}
+    await asyncio.gather(pump(cr, sw, True, state), pump(sr, cw, False, state))
+
+
+async def main():
+    if os.path.exists(FRONT):
+        os.unlink(FRONT)
+    server = await asyncio.start_unix_server(handle, path=FRONT, limit=LIMIT)
+    async with server:
+        await server.serve_forever()
+
+
+asyncio.run(main())
 PY
 
-# ppm_shot <name> <settle s>: the PPM the card analysis reads (the output, not a crop).
-ppm_shot() {
+# The shot's card (surface_container) in layout coordinates, and a crop of it as the evidence shot.
+ppm_shot() {  # ppm_shot <name> <settle s>: the output as a PPM
   sleep "$2"
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
 }
-# card_shot <name> <settle s>: the open card's bounding box (card_x0 card_y0 card_x1 card_y1, layout
-# coordinates) and a crop of it as the evidence shot.
-card_shot() {
-  local res cx cy
+card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 cy0 cx1 cy1) and a crop of it
+  local res
   ppm_shot "$1" "$2"
   res=$(timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" "$(token color.surface_container 252329)") \
     || fail "$1: analysis failed"
@@ -159,154 +182,253 @@ card_shot() {
       and (((.bbox[2] - .bbox[0] + 1) - 358) | fabs) <= 4
       and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
     || fail "$1: no card 360 px wide centred on the output ($res)"
-  read -r card_x0 card_y0 card_x1 card_y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
-  cx=$((card_x0 - 24))
-  cy=$((card_y0 - 24))
-  ((cx < 0)) && cx=0
-  ((cy < 0)) && cy=0
-  timeout 20 grim -g "$cx,$cy $((card_x1 - card_x0 + 49))x$((card_y1 - card_y0 + 49))" "$OUT/$1.png" \
+  read -r cx0 cy0 cx1 cy1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
+  timeout 20 grim -g "$((cx0 - 24)),$((cy0 - 24)) $((cx1 - cx0 + 49))x$((cy1 - cy0 + 49))" "$OUT/$1.png" \
     || fail "grim failed on $1"
   [ -s "$OUT/$1.png" ] || fail "empty screenshot $1"
   echo "shot $1"
 }
-# token <name> <fallback>: a colour token of the daemon's theme document, else the frontend's own fallback for it
-# (the colour Theme.qml draws without the token), as hex without '#'.
+# token <name> <fallback>: a colour token of the daemon's theme document, else the frontend's own fallback for it.
 token() {
   local v
   v=$(doc theme | jq -r --arg k "$1" '.tokens[$k] // empty' 2>/dev/null || true)
   v=${v#\#}
   echo "${v:-$2}"
 }
-# row_y <ppm> <default index> <index>: the screen y of audio row <index>, from the default row's ring in that shot.
-row_y() {
-  timeout 60 python3 -I "$W/rows.py" "$1" "$card_x0" "$card_y0" "$card_y1" "$2" "$3" "$accent" \
-    || fail "no default sink ring in $1 (rows.py)"
-}
 click() {  # click <x> <y>: a left click of the virtual pointer, at layout coordinates
   timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" left || fail "click at $1,$2 failed"
 }
-
-start_mock() {
-  rm -f "$KURASHI_SOCKET"
-  RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$KURASHI_SOCKET" \
-    >> "$R/server.log" 2>&1 &
-  pids+=("$!")
-  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K sub svc.clock --count 0 --json >/dev/null 2>&1 && return 0; sleep 0.1; done
-  fail "mock did not come up (see $R/server.log)"
-}
-start_frontend() {
-  # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
-  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
-  pids+=("$!")
-  for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
-  grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3   # the bar's documents and the first frames
-}
-
-# Layout offset (sandbox fonts; the card is 360 px with 16 px margins): the Wi-Fi switch's centre lies WIFI_DX px
-# left of the card's right edge and WIFI_DY px below its top (measured in the shot). The audio rows are found in
-# the shot (rows.py). A click that misses changes nothing, and the document check after it fails.
-WIFI_DX=35
-WIFI_DY=62
-
-: > "$R/qs.log"
-: > "$R/server.log"
-start_mock
-start_frontend
-
-# 1. The card opens on the quick panel and shows its four sections (the shot is the evidence).
-K act quick.toggle >/dev/null || fail "quick.toggle refused"
-for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
-[ "$(panel)" = quick ] || fail "quick.toggle did not open the quick panel (runtime.ui panel \"$(panel)\")"
-card_shot quick-open 1.5
-echo "ok: quick.toggle opens the card (panel quick)"
-
-# 2. The data the sections show (the mock must serve these to act on them).
-net=$(doc svc.network)
-[ -n "$net" ] && jq -e '.state | type == "string"' <<<"$net" >/dev/null \
-  || fail "the mock does not serve svc.network (W12-quick-daemon): ${net:-no document}"
-aud=$(doc svc.audio)
-jq -e '.available == true and ((.sinks // []) | length) >= 2' <<<"$aud" >/dev/null \
-  || fail "the mock's svc.audio has no available sinks (W12-quick-daemon): ${aud:-no document}"
-pw=$(doc svc.power)
-echo "svc.power: $pw"
-echo "svc.network: $net"
-echo "svc.audio sinks: $(jq -c '.sinks' <<<"$aud")"
-
-# 3. A click on the Wi-Fi switch flips svc.network.wifi_enabled (the document follows NetworkManager).
-wifi0=$(jq -r '.wifi_enabled' <<<"$net")
-flipped=$([ "$wifi0" = true ] && echo false || echo true)
-click $((card_x1 - WIFI_DX)) $((card_y0 + WIFI_DY))
-sleep 1.5
-wifi1=$(doc svc.network | jq -r '.wifi_enabled')
-[ "$wifi1" = "$flipped" ] || fail "a click on the Wi-Fi switch did not flip svc.network.wifi_enabled ($wifi0 -> $wifi1)"
-echo "ok: click on the Wi-Fi switch: wifi_enabled $wifi0 -> $wifi1"
-card_shot quick-wifi-clicked 1.0
-
-# 4. A click on a non-default sink row makes it the default (audio.sink.default).
-orig_default=$(jq -r '[.sinks | to_entries[] | select(.value.default == true) | .key] | first // empty' <<<"$aud")
-j=$(jq -r '[.sinks | to_entries[] | select(.value.default != true) | .key] | first // empty' <<<"$aud")
-[ -n "$j" ] && [ -n "$orig_default" ] || fail "the sinks need a default and a non-default one: $(jq -c '.sinks' <<<"$aud")"
-want=$(jq -r --argjson j "$j" '.sinks[$j].id' <<<"$aud")
-accent=$(token color.accent c9404b)
-ty=$(row_y "$W/quick-wifi-clicked.ppm" "$orig_default" "$j")
-echo "sink row $j: centre y $ty (default row $orig_default)"
-click $((card_x0 + 180)) "$ty"
-sleep 1.5
-now=$(doc svc.audio | jq -r '[.sinks[] | select(.default == true) | .id] | first // empty')
-[ "$now" = "$want" ] || fail "a click on sink row $j did not make it the default (default id \"$now\", want \"$want\")"
-echo "ok: click on sink row $j: default id $want"
-card_shot quick-sink-clicked 1.0
-
-# 5. Keyboard, on one virtual keyboard for the whole part: a keyboard that goes away makes the compositor drop
-#    the window's keyboard focus (wl_keys.py's one-shot calls would), so the keys go through a FIFO to one
-#    long-running keyboard. A click on the heading gives the Stage its focus; Tab reaches the Wi-Fi switch (Return
-#    flips it back); Tab walks down the sinks to the original default's row (Return makes it the default again);
-#    and one more Tab and Return make the next row the default, which shows that the focus stayed on the row it
-#    chose (the rows update in place).
-mkfifo "$W/keys.fifo"
-timeout 120 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
-pids+=("$!")
-exec 3> "$W/keys.fifo"
-press() {  # press <key>...: one line per key to the helper, a short pause after each
+press() {  # press <key>...: one line per key to the keyboard helper, a short pause after each
   local k
   for k in "$@"; do
     printf '%s\n' "$k" >&3 || fail "the keyboard helper stopped (see $R/keys.log)"
     sleep 0.4
   done
 }
-click $((card_x0 + 60)) $((card_y0 + 24))
-press tab return
-sleep 1
-wifi2=$(doc svc.network | jq -r '.wifi_enabled')
-[ "$wifi2" = "$wifi0" ] || fail "Tab and Return did not flip the Wi-Fi switch back ($wifi1 -> $wifi2)"
-echo "ok: keyboard: Tab and Return flipped the Wi-Fi switch back to $wifi2"
-steps=()
-for _ in $(seq $((orig_default + 1))); do steps+=(tab); done
-press "${steps[@]}" return
-sleep 1
-now=$(doc svc.audio | jq -r '[.sinks[] | select(.default == true) | .id] | first // empty')
-want=$(jq -r --argjson j "$orig_default" '.sinks[$j].id' <<<"$aud")
-[ "$now" = "$want" ] || fail "keyboard: Tab to sink row $orig_default and Return did not restore the default (id \"$now\", want \"$want\")"
-echo "ok: keyboard: Tab to sink row $orig_default and Return: default id $want"
-if [ $((orig_default + 1)) -lt "$(jq '.sinks | length' <<<"$aud")" ]; then
-  press tab return
-  sleep 1
-  want=$(jq -r --argjson j "$((orig_default + 1))" '.sinks[$j].id' <<<"$aud")
-  now=$(doc svc.audio | jq -r '[.sinks[] | select(.default == true) | .id] | first // empty')
-  [ "$now" = "$want" ] || fail "focus did not stay on sink row $orig_default: Tab and Return made id \"$now\" the default, want \"$want\""
-  echo "ok: keyboard: the focus stayed on the chosen row: Tab and Return made row $((orig_default + 1)) the default"
-fi
-card_shot quick-keyboard 0.8
-exec 3>&-
+mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
+# last_event <doc>: the last subscribe or unsubscribe of the card's connection for that document ("" when none yet).
+last_event() { grep -E "^(un)?sub $1\$" "$R/subs.log" | tail -n 1 || true; }
+# A pointer at layout coordinates measured from the card's top left (cx0, cy0), in the shots: the Wi-Fi tile's switch zone
+# and arrow zone, the heading, the Wi-Fi page's Back control, and the media row's title.
+at() { click $(( cx0 + $1 )) $(( cy0 + $2 )); }
+WIFI_TILE=(76 114)
+WIFI_ARROW=(165 114)
+HEADING=(60 24)
+BACK=(50 30)
+MEDIA_TITLE=(76 402)
 
-# 6. ui.close: the card is gone (Ma).
+: > "$R/qs.log"
+: > "$R/server.log"
+: > "$R/subs.log"
+rm -f "$MOCK_SOCK" "$KURASHI_SOCKET"
+RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$MOCK_SOCK" >> "$R/server.log" 2>&1 &
+MOCK_PID=$!
+pids+=("$MOCK_PID")
+for _ in $(seq 100); do [ -S "$MOCK_SOCK" ] && break; sleep 0.1; done
+[ -S "$MOCK_SOCK" ] || fail "mock did not come up (see $R/server.log)"
+python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/relay.log" 2>&1 &
+pids+=("$!")
+for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K sub svc.clock --count 0 --json >/dev/null 2>&1 && break; sleep 0.1; done
+[ -S "$KURASHI_SOCKET" ] || fail "relay did not come up (see $R/relay.log)"
+# Without KURASHI_SOCKET: the frontend must find the relay by the protocol default, as in a live session.
+env -u KURASHI_SOCKET LC_ALL=$LOCALE qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+pids+=("$!")
+for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
+grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
+sleep 3   # the bar's documents and the first frames
+
+# One virtual keyboard for the whole keyboard part: a keyboard that goes away makes the compositor drop the window's
+# keyboard focus, so the keys go through a FIFO to one long-running helper.
+rm -f "$W/keys.fifo"
+mkfifo "$W/keys.fifo"
+timeout 1200 python3 -I "$W/wl_keys.py" --serve < "$W/keys.fifo" >> "$R/keys.log" 2>&1 &
+pids+=("$!")
+exec 3> "$W/keys.fifo"
+
+# 1. The card opens on the tiles (the shot is the evidence: status, six tiles, levels, media, footer).
+K act quick.toggle >/dev/null || fail "quick.toggle refused"
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not open the quick panel (runtime.ui panel \"$(panel)\")"
+card_shot quick-open 1.5
+echo "ok: quick.toggle opens the card (panel quick)"
+net=$(doc svc.network)
+jq -e '.state | type == "string"' <<<"$net" >/dev/null || fail "the relay's mock does not serve svc.network: ${net:-no document}"
+aud=$(doc svc.audio)
+jq -e '.available == true and ((.sinks // []) | length) >= 2' <<<"$aud" >/dev/null \
+  || fail "the mock's svc.audio has no available sinks: ${aud:-no document}"
+jq -e '(.networks // []) | length >= 1' <<<"$(doc svc.network.scan)" >/dev/null \
+  || fail "the mock's svc.network.scan lists no networks (W13-quick-daemon)"
+[ "$(last_event svc.network.scan)" = "" ] || fail "the scan was subscribed before the Wi-Fi page was opened"
+echo "ok: no scan subscription while the tiles show"
+
+# 2. Keyboard: a click on the heading gives the card its focus; Tab reaches the Wi-Fi tile; Return toggles it; Right
+#    opens its page (the scan subscribed); the page's Tab walks to an unsaved network, whose join the daemon refuses.
+click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
+# The status sentence's segments are Tab stops that open their pages: Wi-Fi, then Audio; Escape returns to each.
+press tab return
+sleep 1.5
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "the Wi-Fi status segment did not open the Wi-Fi page"
+press escape
+sleep 1.5
+[ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not unsubscribe the scan"
+press tab return
+sleep 1.5
+press escape
+sleep 1.5
+[ "$(panel)" = quick ] || fail "Escape on the audio page closed the card"
+echo "ok: keyboard: the status segments open their pages (Wi-Fi, Audio) and Escape returns to them"
+# Tab from the Audio segment: the Power segment, then the Wi-Fi tile, where Return toggles the radio.
+press tab tab return
+sleep 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "false" ] || fail "Tab and Return did not turn the Wi-Fi radio off"
+# With the radio off the scan has no list: the page shows the daemon's reason (the unavailable state of the page).
+press right
+sleep 1.5
+card_shot quick-wifi-off-page 0.5
+press escape
+sleep 1.5
+press return
+sleep 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "Return on the Wi-Fi tile did not turn the radio back on"
+echo "ok: keyboard: Tab to the Wi-Fi tile, Return toggles it (off and back on)"
+press right
+sleep 1.5
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "Right did not open the Wi-Fi page (scan not subscribed)"
+press tab tab tab tab return
+sleep 1.5
+card_shot quick-wifi-refused 0.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "the refused join changed the Wi-Fi radio"
+# The next unsaved network is secured: the daemon names the password it cannot take yet.
+press tab return
+sleep 1.5
+card_shot quick-wifi-needs-secret 0.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "the join that needs a password changed the Wi-Fi radio"
+echo "ok: keyboard: Right opens the Wi-Fi page; Tab and Return on an unsaved network: the daemon refuses, shown in place"
+# Escape goes back to the tiles (the scan unsubscribed) and the focus returns to the Wi-Fi tile.
+press escape
+sleep 1.5
+[ "$(panel)" = quick ] || fail "Escape on a page closed the card"
+[ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not unsubscribe the scan"
+echo "ok: keyboard: Escape goes back to the tiles (the scan unsubscribed), the card stays open"
+
+# 3. Pointer: the Wi-Fi tile's main zone toggles the Wi-Fi radio; its arrow opens the page; the page's Back returns (the
+#    focus goes back to the Wi-Fi tile, where the keyboard steps below pick up).
+wifi0=$(jq -r '.wifi_enabled' <<<"$net")
+at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
+sleep 1.5
+wifi1=$(doc svc.network | jq -r '.wifi_enabled')
+[ "$wifi1" != "$wifi0" ] || fail "a click on the Wi-Fi tile did not flip svc.network.wifi_enabled ($wifi0)"
+at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
+sleep 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi0" ] || fail "a second click on the Wi-Fi tile did not flip it back"
+echo "ok: click on the Wi-Fi tile: wifi_enabled $wifi0 -> $wifi1 -> $wifi0"
+at "${WIFI_ARROW[0]}" "${WIFI_ARROW[1]}"
+sleep 1.5
+[ "$(panel)" = quick ] || fail "the arrow closed the card (panel \"$(panel)\")"
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "the Wi-Fi page did not subscribe the scan"
+card_shot quick-wifi-page 0.5
+at "${BACK[0]}" "${BACK[1]}"
+sleep 1.5
+[ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "the Back control did not unsubscribe the scan"
+echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control returns (unsubscribed)"
+
+# 4. Audio: Tab to the Audio tile, Right opens the page; Tab walks to the other output, Return makes it the default, and the
+#    focus stays on the row chosen (the rows update in place).
+press tab tab tab right
+sleep 1.5
+press tab tab tab tab return
+sleep 1.5
+[ "$(doc svc.audio | jq -r '[.sinks[] | select(.default == true) | .id] | first // empty')" = 2 ] \
+  || fail "Tab and Return on the second output did not make it the default"
+card_shot quick-audio-hdmi 0.8
+press escape
+sleep 1.5
+echo "ok: keyboard: the audio page: Tab and Return make the other output the default"
+
+# 5. Arrows between tiles: Down from Audio reaches Display, Left reaches Power; Right opens the Power page, where Tab and
+#    Return choose Power saver (the profile in effect changes).
+press down left right
+sleep 1.5
+card_shot quick-power-page 0.5
+press tab return
+sleep 1.5
+[ "$(doc svc.power | jq -r '.profile')" = "power-saver" ] || fail "Tab and Return on the power page did not choose power-saver"
+echo "ok: arrows: Down and Left move between tiles; the power page chooses the profile (power-saver)"
+press escape
+sleep 1.5
+
+# 6. Focus: Up from Power reaches Focus, Right opens its page; Tab Tab Return turns Do not disturb on until one hour.
+press up right
+sleep 1.5
+press tab tab return
+sleep 1.5
+dnd_until=$(doc svc.notifications | jq -r '.dnd_until // empty')
+[ -n "$dnd_until" ] || fail "the focus page's one-hour choice set no end (svc.notifications.dnd_until)"
+card_shot quick-focus-page 0.5
+press left
+sleep 1.5
+[ "$(panel)" = quick ] || fail "Left on the focus page closed the card"
+echo "ok: focus page: Do not disturb until one hour (dnd_until $dnd_until)"
+
+# 7. Display: Down and Tab reach Display, Right opens its page (the shot shows the level, the reason for night light). The
+#    slider's intent (brightness.set) is not checked: the mock serves only audio.volume among the intents.
+press down tab right
+sleep 1.5
+card_shot quick-display-page 0.5
+press escape
+sleep 1.5
+echo "ok: display page"
+
+# 8. Bluetooth: Up twice from Display reaches the Bluetooth tile; Right opens its page (the existing panel).
+press up up right
+sleep 1.5
+card_shot quick-bluetooth-page 0.5
+press escape
+sleep 1.5
+echo "ok: bluetooth page"
+
+# 9. Connecting and failed: the mock is held still (SIGSTOP), so the Wi-Fi tile's request gets no answer. The tile shows
+#    "connecting" and, 30 s later, the timeout's failure with its Retry; SIGCONT lets the queued request through.
+press left
+sleep 1
+wifi_before=$(doc svc.network | jq -r '.wifi_enabled')
+kill -STOP "$MOCK_PID"
+press return
+sleep 1.5
+card_shot quick-connecting 0.5
+sleep 30
+card_shot quick-failed 0.5
+kill -CONT "$MOCK_PID"
+sleep 2.5
+wifi_after=$(doc svc.network | jq -r '.wifi_enabled')
+[ "$wifi_after" != "$wifi_before" ] || fail "the request queued while the mock was held was not applied after SIGCONT"
+card_shot quick-recovered 0.5
+echo "ok: connecting, then the timeout's failure; the queued request applies after SIGCONT ($wifi_before -> $wifi_after)"
+
+# 10. The media row opens the island's media view (the card gives way to the island's panel).
+at "${MEDIA_TITLE[0]}" "${MEDIA_TITLE[1]}"
+sleep 1.5
+[ "$(panel)" = island ] || fail "the media row did not open the island's media view (panel \"$(panel)\")"
+echo "ok: the media row opens the island's media view"
+
+# 11. ui.close closes the card (Ma: no card drawn, its documents unsubscribed); Escape on the tiles closes it too.
 K act ui.close >/dev/null || fail "ui.close refused"
-ppm_shot quick-closed 1.5
+sleep 1.5
+ppm_shot quick-closed 0.5
 closed=$(timeout 60 python3 -I "$W/analyse.py" "$W/quick-closed.ppm" "$(token color.surface_container 252329)")
 jq -e '.surface < 500' <<<"$closed" >/dev/null || fail "a card is still drawn after ui.close ($closed)"
-echo "ok: ui.close: no card drawn"
+[ "$(last_event svc.network)" = "unsub svc.network" ] || fail "the card's documents stayed subscribed after ui.close"
+echo "ok: ui.close: no card drawn, and the card's documents unsubscribed"
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+card_shot quick-reopened 1.2
+click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
+press escape
+sleep 1.5
+[ "$(panel)" = "" ] || fail "Escape on the tiles did not close the card (panel \"$(panel)\")"
+echo "ok: Escape on the tiles closes the card"
 
+exec 3>&-
 stop_phase
 errors='ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined\|is not a type\|Cannot assign\|Cannot anchor\|Binding loop\|non-existent property'
 if grep -q "$errors" "$R/qs.log"; then
@@ -314,4 +436,4 @@ if grep -q "$errors" "$R/qs.log"; then
   grep "$errors" "$R/qs.log" | head >&2
   exit 1
 fi
-echo "ok: sections, clicks and keys; screenshots in $OUT"
+echo "ok: tiles, pages, keys, toggle states and the scan subscription; screenshots in $OUT"
