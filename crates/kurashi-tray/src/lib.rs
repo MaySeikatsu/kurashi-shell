@@ -145,6 +145,10 @@ fn doc(st: &State) -> Value {
                 "has_menu": v.menu.is_some(),
             });
             let m = o.as_object_mut()?;
+            // SNI ItemIsMenu: present only when true, like every optional field (row 20, K27).
+            if v.item_is_menu {
+                m.insert("item_is_menu".into(), json!(true));
+            }
             if let Some(px) = &v.icon {
                 m.insert(
                     "icon_pixmap".into(),
@@ -813,6 +817,7 @@ mod tests {
             icon_theme_path: theme.map(String::from),
             tooltip: None,
             menu: None,
+            item_is_menu: false,
         };
         let entry = |id: &str, view| Item {
             id: id.into(),
@@ -860,5 +865,43 @@ mod tests {
             split_service(":1.9/StatusNotifierItem", None),
             Some((":1.9".into(), "/StatusNotifierItem".into()))
         );
+    }
+
+    /// Row 20 / K27: the fixture's second item (menu-only, no icon, no tooltip) serialises to
+    /// exactly the golden document.
+    #[test]
+    fn menu_only_item_matches_the_golden_fixture() {
+        let fixture: Value = serde_json::from_str(include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../fixtures/ipc/server/snap_tray.json"
+        )))
+        .unwrap();
+        let st = State {
+            role: Role::Owner,
+            host: String::new(),
+            host_claimed: false,
+            watcher: None,
+            items: vec![Item {
+                id: ":1.57/StatusNotifierItem".into(),
+                bus: ":1.57".into(),
+                unique: ":1.57".into(),
+                path: ITEM_PATH.into(),
+                view: Some(item::View {
+                    title: "Network".into(),
+                    status: "Active".into(),
+                    icon_name: "network-wired".into(),
+                    icon: None,
+                    icon_theme_path: None,
+                    tooltip: None,
+                    menu: Some("/MenuBar".into()),
+                    item_is_menu: true,
+                }),
+                busy: false,
+                dirty: false,
+            }],
+            last_doc: None,
+        };
+        let document = doc(&st);
+        assert_eq!(document["items"][0], fixture["data"]["items"][1]);
     }
 }
