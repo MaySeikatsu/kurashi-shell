@@ -238,3 +238,120 @@ pub fn mods(hub: &Arc<Hub>, actions: &mut ActionRegistry, roots: Vec<std::path::
         });
     }
 }
+
+/// `svc.audio` (refcounted: the pulse connection and its thread exist only while watched) +
+/// intent `audio.volume` (coalesced per frame by the daemon) + `audio.mute.toggle`.
+pub struct AudioProvider {
+    running: Mutex<Option<(kurashi_audio::AudioHandle, kurashi_audio::Commands)>>,
+    /// Origin of the latest `audio.volume` intent: the server's change event that follows is
+    /// patched with it, so the dragging slider recognises its own echo (PROTOCOL §4).
+    last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
+}
+
+/// Echo window: a server round-trip is a few ms; anything later is someone else's change.
+const ORIGIN_ECHO: std::time::Duration = std::time::Duration::from_millis(500);
+
+struct AudioSink {
+    hub: Arc<Hub>,
+    last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
+}
+
+impl kurashi_services::DocSink for AudioSink {
+    fn set(&self, doc: Value) {
+        let origin = self
+            .last_origin
+            .lock()
+            .expect("origin lock")
+            .as_ref()
+            .filter(|(_, at)| at.elapsed() < ORIGIN_ECHO)
+            .map(|(o, _)| o.clone());
+        let _ = self.hub.set("svc.audio", doc, origin);
+    }
+}
+
+impl crate::hub::Provider for AudioProvider {
+    fn start(&self, hub: Arc<Hub>) {
+        let (h, c) = kurashi_audio::start(Arc::new(AudioSink {
+            hub,
+            last_origin: self.last_origin.clone(),
+        }));
+        *self.running.lock().expect("audio lock") = Some((h, c));
+    }
+    fn stop(&self) {
+        // Dropping the handle joins the worker and closes the pulse connection.
+        self.running.lock().expect("audio lock").take();
+    }
+}
+
+impl AudioProvider {
+    fn commands(&self) -> Option<kurashi_audio::Commands> {
+        self.running
+            .lock()
+            .expect("audio lock")
+            .as_ref()
+            .map(|(_, c)| c.clone())
+    }
+}
+
+pub fn audio(hub: &Arc<Hub>, actions: &mut ActionRegistry, intents: &mut crate::Intents) {
+    let provider = Arc::new(AudioProvider {
+        running: Mutex::new(None),
+        last_origin: Arc::default(),
+    });
+    hub.register(
+        "svc.audio",
+        json!({"available": false, "volume": 0, "muted": false, "sinks": []}),
+        Some(provider.clone()),
+    );
+    let p = provider.clone();
+    intents.register("audio.volume", move |v, origin| {
+        if let (Some(c), Some(v)) = (p.commands(), v.as_f64()) {
+            *p.last_origin.lock().expect("origin lock") =
+                origin.map(|o| (o, std::time::Instant::now()));
+            c.set_volume(v);
+        }
+    });
+    actions.register("audio.mute.toggle", "action.audio.mute.toggle", move |_| {
+        let c = provider.commands();
+        async move {
+            c.ok_or_else(|| ActionError::Unavailable("audio service not running".into()))?
+                .toggle_mute();
+            Ok(None)
+        }
+    });
+}
+
+/// `runtime.lock` + intents `lock.submit` / `lock.cancel` + action `session.lock` (K2: the secret
+/// is handled only here and never logged; the frontend owns ext-session-lock).
+pub fn lock(hub: &Arc<Hub>, actions: &mut ActionRegistry, intents: &mut crate::Intents) {
+    use kurashi_auth::{LockConfig, LockSession, PamAuthenticator, SystemClock};
+    let user = std::env::var("USER").unwrap_or_default();
+    hub.register(
+        "runtime.lock",
+        json!({"locked": false, "busy": false, "failures": 0}),
+        None,
+    );
+    let session = LockSession::new(
+        user,
+        Arc::new(PamAuthenticator::new("kurashi")),
+        Arc::new(HubSink(hub.clone(), "runtime.lock")),
+        Arc::new(SystemClock::new()),
+        LockConfig::default(),
+    );
+    for name in ["lock.submit", "lock.cancel"] {
+        let s = session.clone();
+        intents.register(name, move |v, _| {
+            let s = s.clone();
+            tokio::spawn(async move {
+                let _ = s.handle_intent(name, &v).await;
+            });
+        });
+    }
+    actions.register("session.lock", "action.session.lock", move |_| {
+        let s = session.clone();
+        async move {
+            s.handle_action("session.lock");
+            Ok(None)
+        }
+    });
+}

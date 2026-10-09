@@ -130,7 +130,10 @@ async fn main() -> anyhow::Result<()> {
             kurashid::xdg_dir("data").join("mods"),
         ],
     );
-    let mut daemon = Daemon::new(hub, actions, Intents::default());
+    let mut intents = Intents::default();
+    kurashid::wiring::audio(&hub, &mut actions, &mut intents);
+    kurashid::wiring::lock(&hub, &mut actions, &mut intents);
+    let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     // Only facts we know synchronously; bus/notification probes stay n/a until they report
     // asynchronously (Shōjiki: n/a, never a guessed ok).
