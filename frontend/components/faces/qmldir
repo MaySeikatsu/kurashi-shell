@@ -4,3 +4,5 @@ MediaFace 1.0 MediaFace.qml
 VolumeFace 1.0 VolumeFace.qml
 BrightnessFace 1.0 BrightnessFace.qml
 NotificationsFace 1.0 NotificationsFace.qml
+PowerFace 1.0 PowerFace.qml
+BluetoothFace 1.0 BluetoothFace.qml

@@ -74,10 +74,14 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I41 | 2026-10-10 | W14-settings-daemon report | Profiles page UI for export/import (file picker or path field, review diff, apply) — daemon side exists (K32). | accepted |
 | I42 | 2026-10-10 | W14-settings-daemon report | A `path` type in the schema so profile export drops machine-local paths by type, not by value heuristics. | new |
 | I43 | 2026-10-10 | lead | Weather's "Set place" and inert rows' "Controlled by …" call `settings.open {key}` (K32). | accepted |
+| I44 | 2026-10-10 | W13-island-views report | Expanded views for the K30 faces: `power` → quick settings Power page, `bluetooth` → Bluetooth page (Stage maps them; today the generic card). | accepted |
+| I45 | 2026-10-10 | W13-island-views report | VolumeFace shows `detail.volume` ("Headphones · 40 %") when the daemon gives one — the OSD device-name DoD item. | accepted |
+| I46 | 2026-10-10 | W13-island-views report | Calendar: event dots per day (needs a per-day slot contract), optional week numbers, week start by locale (ja often Sunday). | accepted |
+| I47 | 2026-10-10 | W13-island-views report | Island peek as a Stage-hosted tooltip (B9) instead of the inline tail; screenshots for locked redaction, no-seek track, long titles, reduce-motion; ja shots for notifications/volume/brightness; idle-wakeup bench for the media 1 s timer. | accepted |
 | B16 | 2026-10-09 | lead (live mod check) | Mod strings showed as raw keys and mod data was empty: mod QML imported `frontend/core` by relative path from a `file://` URL, creating a second, disconnected Store/I18n/Theme (the shell runs under `qs:@/qs/`). | done (session 5): mods import `qs.core` / `qs.components` (MODS.md) |
 | B17 | 2026-10-09 | lead (live mod check) | ModLoader assigns `store/theme/i18n` to mod components that do not declare them (all three mods import the core singletons): QML warnings per load. | done (session 5): weather/wallpaper entry components declare the loader's required properties |
 | B18 | 2026-10-09 | lead (live mod check) | Sysmon panel overflows the Stage card on the right ("Force quit", "Swap" clipped). | accepted |
-| B19 | 2026-10-09 | lead (live mod check) | Dates follow the system locale (German "Freitag, 9 Oktober") while the UI is en/ja: format with kurashi's locale (`i18n.locale`). | accepted |
+| B19 | 2026-10-09 | lead (live mod check) | Dates follow the system locale (German "Freitag, 9 Oktober") while the UI is en/ja: format with kurashi's locale (`i18n.locale`). | done (W13-island-views: dates in kurashi's language) |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
