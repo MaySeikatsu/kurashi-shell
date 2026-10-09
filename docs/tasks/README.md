@@ -54,4 +54,5 @@ merges, and records progress; agents only build what their card says.
 | [M4-services](M4-services.md) | `crates/kurashi-services/` | sonnet (wave 2) |
 | [M5-island](M5-island.md) | `crates/kurashi-island/` | sonnet (wave 2) |
 | [M3-stage](M3-stage.md) | `frontend/` | sonnet (wave 2) |
+| [M6-mods](M6-mods.md) | `crates/kurashi-mods/`, `mods/` | sonnet (wave 2) |
 Lead (in parallel): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kurashi-mock` / CLI.
