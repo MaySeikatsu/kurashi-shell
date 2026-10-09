@@ -65,7 +65,7 @@
 # モッド画面。mods.error.* は、モッドの有効化・無効化が拒否されたときと、mod.toml が不正なときに
 # デーモンが返すキー (コードごと) です。
 "settings.ui.mods" = "モッド"
-"settings.ui.mods_help" = "モッドの有効化と無効化はすぐに反映されます。無効のモッドも設定は残ります。"
+"settings.ui.mods_help" = "読み込むとモッドの設定ページが加わり、設定から外すとページは消えます。有効・無効の切り替えはすぐに反映され、無効のモッドも設定は残ります。"
 "settings.ui.mods_empty" = "モッドが見つかりません。モッドは mod.toml を入れたフォルダで、暮らしのデータの中の mods フォルダに置きます。"
 "settings.ui.mods_failed" = "このモッドを変更できませんでした"
 "settings.ui.mod_state.available" = "利用可能"
@@ -115,3 +115,18 @@
 # モッドの設定ページ (K22): ページ名は「モッド › <名前>」、設定は「一般」にまとまります。
 "settings.ui.mod_page" = "モッド › {name}"
 "settings.section.general" = "一般"
+
+# ドロップダウンと並べ替えのリスト (I9): 追加の操作、移動、追加できるものが残っていないときの文言。
+"settings.ui.pick_add" = "追加…"
+"settings.ui.pick_none_left" = "すべての選択肢が並んでいます"
+"settings.ui.pick_up" = "{item} を上に移動"
+"settings.ui.pick_down" = "{item} を下に移動"
+
+# モッドのページと左の一覧 (K25): 状態の表示、スイッチ、稼働中の表示、読み込みと設定から外す操作。
+"settings.ui.mod_nav" = "{name} — {state}"
+"settings.mods.enabled" = "有効"
+"settings.mods.running_yes" = "稼働中: はい"
+"settings.mods.running_no" = "稼働中: いいえ"
+"settings.mods.load" = "読み込む"
+"settings.mods.unload" = "設定から外す"
+"settings.mods.no_settings" = "このモッドに設定項目はありません。"

@@ -91,8 +91,17 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 - **`mods` document** (K25, session 5 — implemented in wave 10): entries gain `running: bool` and, for
   enabled native mods, `qml: {"<provide>": "<file url>"}` (K26); `state` `disabled` means *loaded, off*.
   Loaded/on are config lists `mods.loaded` / `mods.enabled` (MODS.md "States"); actions `mod.load`,
-  `mod.unload`, `mod.enable`, `mod.disable` `{id}`. `schema.settings` mod pages carry `"mod": "<id>"`
+  `mod.unload`, `mod.enable`, `mod.disable` `{id}`. A refused native enable leaves the mod `disabled` with
+  `errors: [{key, path: "enable", detail}]` (`mods.error.not_declared|duplicate|enable_failed`). Disabling a native mod
+  sends each of its documents a last `snap` `{available:false}`, then the document is gone (`unknown_doc`): a client
+  must `unsub` it before subscribing again. `schema.settings` mod pages carry `"mod": "<id>"`
   and exist for every loaded mod. Pinned by `fixtures/ipc/server/snap_mods.json`.
+- **`runtime.slots` document** (K28): `{"<slot>": [{"mod": "weather", "qml": "file:///…/qml/slots/clock.expanded.aside.qml",
+  "ready": true}]}` — enabled mods' contributions per slot, ordered by mod id; `ready` = the mod's primary document is
+  `available`. Slots: `clock.expanded.aside|day|footer`, `media.expanded.below|backdrop`,
+  `notifications.expanded.header`, `quick.tiles`, `lock.aside`. A mod face (`island-face:<name>`) appears in
+  `runtime.island.main.faces` like a core face; the `mods` doc `qml` map names `island-face:<name>` →
+  `qml/Face.qml` and `island-face:<name>:expanded` → `qml/FaceExpanded.qml`.
 - **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
   `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
   `choices: [{value, label, enabled?, reason?}]` (`enabled:false` + `reason` (i18n key) for an option that

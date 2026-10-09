@@ -32,6 +32,10 @@ struct Doc {
 
 pub struct Hub {
     docs: Mutex<HashMap<String, Doc>>,
+    /// Last revision of each document removed at runtime (`unregister`), taken again by a
+    /// re-registration: clients that still hold the old revisions must not see them restart.
+    /// Taken while `docs` is held, never the other way round.
+    retired: Mutex<HashMap<String, Rev>>,
     tx: broadcast::Sender<Arc<ServerMsg>>,
     /// Lets `subscribe` hand providers an owning handle without callers passing one around.
     me: std::sync::Weak<Hub>,
@@ -46,6 +50,7 @@ impl Hub {
         let (tx, _) = broadcast::channel(1024);
         Arc::new_cyclic(|me| Hub {
             docs: Mutex::new(HashMap::new()),
+            retired: Mutex::new(HashMap::new()),
             tx,
             me: me.clone(),
         })
@@ -57,16 +62,63 @@ impl Hub {
     }
 
     pub fn register(&self, name: &str, initial: Value, provider: Option<Arc<dyn Provider>>) {
-        self.docs.lock().expect("hub lock").insert(
+        let mut docs = self.docs.lock().expect("hub lock");
+        let rev = self
+            .retired
+            .lock()
+            .expect("hub lock")
+            .remove(name)
+            .map_or(1, |last| last + 1);
+        docs.insert(
             name.to_string(),
             Doc {
-                rev: 1,
+                rev,
                 data: initial,
                 provider,
                 subs: 0,
                 lifecycle: Arc::default(),
             },
         );
+    }
+
+    /// Removes a document at runtime (K26: a disabled mod's documents). Its provider stops first if
+    /// it is running; subscribers get `last` as a snapshot (a disabled mod's `{available:false}`).
+    /// Afterwards subscribing answers `unknown_doc`, and a re-registration goes on with the next
+    /// revision. A connection still subscribed keeps that subscription in its own set: its later
+    /// unsubscribe finds no document and does nothing. False when there was no such document.
+    pub fn unregister(&self, name: &str, last: Value) -> bool {
+        let Ok(lifecycle) = self.lifecycle_of(name) else {
+            return false;
+        };
+        let _turn = lifecycle.lock().expect("lifecycle lock");
+        let running = {
+            let docs = self.docs.lock().expect("hub lock");
+            match docs.get(name) {
+                Some(d) if d.subs > 0 => d.provider.clone(),
+                _ => None,
+            }
+        };
+        // Outside `docs`: the provider may publish into the hub while it stops.
+        if let Some(p) = running {
+            p.stop();
+        }
+        let mut docs = self.docs.lock().expect("hub lock");
+        let Some(d) = docs.remove(name) else {
+            return false;
+        };
+        let rev = d.rev + 1;
+        self.retired
+            .lock()
+            .expect("hub lock")
+            .insert(name.to_string(), rev);
+        // Sent while `docs` is held: a publish of the stopped provider can no longer land after it.
+        let _ = self.tx.send(Arc::new(ServerMsg::Snap {
+            id: None,
+            doc: name.into(),
+            rev,
+            data: last,
+        }));
+        true
     }
 
     /// Current `(rev, data)` without subscribing.

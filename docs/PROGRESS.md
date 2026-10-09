@@ -97,7 +97,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 |---|---|---|---|
 | D.2 | Decisions with the user: K24 island model, K25 mods in Settings, K26 wallpaper (Wallhaven later); K27 contract rows 20–22 (fixtures, mock, PROTOCOL) | ✅ | lead, feat/m7-wave9-contracts |
 | B.3 | Per-output PSS (B7): attribution on machine B iGPU, lazy island faces, gate = mean of two hotplugged outputs, sandbox on the boot_vga GPU (B10) | 🔄 | lead, feat/m7-per-output-pss |
-| W9.1 | Bar volume slider honest when audio is unavailable/muted (B2) | ✅ | W9-bar-volume c80c399; `frontend/test-volume.sh` (pixel checks: no level without audio, dim when muted); golden refs machine B re-recorded (697 px: ⊘ instead of a 0 % knob) — machine A refs need `just golden --update` there |
+| W9.1 | Bar volume slider honest when audio is unavailable/muted (B2) | ✅ functional · UX ⏳ (`docs/ux/quick-settings.md`) | W9-bar-volume c80c399; `frontend/test-volume.sh` (pixel checks: no level without audio, dim when muted); golden refs machine B re-recorded (697 px: ⊘ instead of a 0 % knob) — machine A refs need `just golden --update` there |
 | W9.2 | Brightness writes on the resolved logind session (B3) | ✅ | W9-brightness-session fa478bc; resolver shared with svc.session, cached per bus GUID, one re-resolve when the session is gone; 3 fake-logind tests |
 | W9.3 | `item_is_menu` (row 20); B4 not reproducible | ✅ | W9-tray 5ad6f95; a foreign watcher is *hosted* since 361276b (no retry exists) — the agent's first "waiting" version would have dropped that, rejected by the lead |
 | W9.4 | `config.history` + `config.profiles` (rows 21–22), profile error keys (B5), Settings follows (B6, B8) | ✅ | W9-config-profiles 89702da; `tests/config_doc.rs`; settings/test.sh shows Undo on open and a profile file listed ~170 ms after it appears |
@@ -107,8 +107,10 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 ## Wave 10 (session 5, machine B; Haiku 5.5 agents at max effort)
 | Step | Description | Status | Branch / notes |
 |---|---|---|---|
-| W10.1 | Island click → expanded view of the shown face (clock calendar, media transport, notifications, volume, brightness; generic for others); quick settings card holds Bluetooth (K24, B1, I2) | ✅ | W10-stage-panels 2d82bc0; `frontend/test-stage.sh`; golden machine B re-recorded; multi-output re-pick for quick → BACKLOG B14 |
-| W10.2 | Quick-settings button in the bar (◐, bar-thick target) | ✅ | W10-bar-quick; lead: Theme roles instead of hex fallbacks; `frontend/test-quick.sh` |
+| W10.1 | Island click → expanded view of the shown face (clock calendar, media transport, notifications, volume, brightness; generic for others); quick settings card holds Bluetooth (K24, B1, I2) | ✅ functional · UX ⏳ (`docs/ux/island.md`, `quick-settings.md`) | W10-stage-panels 2d82bc0; `frontend/test-stage.sh`; golden machine B re-recorded; multi-output re-pick for quick → BACKLOG B14 |
+| W10.2 | Quick-settings button in the bar (◐, bar-thick target) | ✅ functional · UX ⏳ (`docs/ux/quick-settings.md`) | W10-bar-quick; lead: Theme roles instead of hex fallbacks; `frontend/test-quick.sh` |
 | W10.3 | Mods as config lists `mods.loaded`/`mods.enabled` (persisted, B11), page per loaded mod, `running` hook, `choices_from` resolved (palettes, island faces), `color.status.on/off` (K25, I9) | ✅ | W10-mods-daemon; `tests/mods_state.rs`; CONTRACT 23 deferred to K26, 24 decided (one transaction) |
 | W10.4 | Settings: mod pages in the sidebar with state marks, Load/Unload, Select + PickList | 🔄 | card W10-settings |
 
+Status key (from session 5, CLAUDE.md "UX bar"): user-facing steps are *functional* when they work and pass their
+tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against screenshots).

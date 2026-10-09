@@ -190,3 +190,18 @@ document carries `history {can_undo, can_redo}` and `profiles [{name, bundled}]`
 daemon (watcher for profile files); profile actions answer errors with i18n keys (`config.error.*`).
 Pinned by `fixtures/ipc/server/snap_{tray,config}.json`. *Why:* Settings derived undo state from replies
 and fetched profiles once per connection — client-side state the daemon already owns (rule 1, B6, row 21).
+
+**K28** 🟢 Modules combine through **contribution slots**, mod **Island faces** and mod **choice sources** (lead,
+session 5; user: "think what this can become", `docs/ux/COMPOSITION.md`). (1) Core views declare named slots
+(`clock.expanded.aside`, `clock.expanded.day`, `clock.expanded.footer`, `media.expanded.below`,
+`media.expanded.backdrop`, `notifications.expanded.header`, `quick.tiles`, `lock.aside`); a mod fills one by
+declaring `slot:<name>` in `provides` and shipping `qml/slots/<name>.qml`. The daemon publishes `runtime.slots`
+`{"<slot>": [{"mod", "qml", "ready"}]}` — enabled mods only, `ready` = the mod's primary document is `available`
+— and the frontend instantiates contributions only while the hosting view is shown; a not-ready or absent
+contribution takes no space. (2) A mod's `island-face:<name>` registers with the core arbiter through `ModCtx`
+(transient or relevance-driven, with TTL); its components are `qml/Face.qml` (compact) and `qml/FaceExpanded.qml`
+(the expanded view, K24). (3) `ModCtx::choices(source, fn)` offers a `choices_from` source (CONTRACT row 28).
+(4) `mod.panel.open {id, panel}` opens a mod panel as Stage panel `mod:<id>:<panel>`. The core never names a mod
+(rule 4); relevance stays in the core arbiter (K24). Per-slot user order/hide: later (BACKLOG).
+*Why:* related modules must meet in one view (clock + calendar + weather, media + lyrics) without the core knowing
+them, and mod features must reach the Island and dropdowns the same way core features do.

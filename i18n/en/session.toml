@@ -25,3 +25,8 @@
 "error.service.not_running" = "The service is not running. Subscribe to it first."
 "error.service.call_failed" = "The service could not complete the request."
 "error.args.invalid" = "The arguments are missing or invalid."
+"action.audio.sink.default" = "Audio output: make default"
+"action.network.wifi" = "Wi-Fi on or off"
+"error.audio.no_such_sink" = "No audio output has that id."
+"error.network.refused" = "NetworkManager refused the change (not authorized)."
+"error.network.unavailable" = "NetworkManager is not available."

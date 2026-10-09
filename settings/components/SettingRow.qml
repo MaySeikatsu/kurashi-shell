@@ -14,9 +14,15 @@ Item {
     readonly property var prov: Store.prov(row.key, out)
     readonly property var value: prov === undefined ? row.default : prov.value
     readonly property var reasons: { Store.config; return Store.inertReasons(row, out) }
-    // A pending restart is not inertness: the value can be changed and reset meanwhile.
-    readonly property bool inert: reasons.some(function (x) { return x.kind !== "pending" })
+    // A pending restart, an offer that is gone (I9) and a mod that is off (K22) are not inertness: the value
+    // can still be changed, and reset, meanwhile.
+    readonly property bool inert: reasons.some(function (x) {
+        return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off"
+    })
     readonly property bool editable: !inert && Store.live
+    // A select with offers from the daemon (or more than four fixed ones) is a dropdown; four or fewer fixed
+    // ones stay pills (BACKLOG I9).
+    readonly property bool dropdown: row.control === "select" && !!(row.choices_from || (row.choices ?? []).length > 4)
     readonly property string error: Store.rowErrors[row.key] || ""
     readonly property bool canReset: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
 
@@ -24,6 +30,8 @@ Item {
     implicitWidth: 600
 
     function commit(v) { Store.setValue(row.key, v, out) }
+    // Opens the row's dropdown (a select) without a pointer: the settings test hook uses it, as Enter does.
+    function openControl(): void { if (ctl.item && ctl.item.open) ctl.item.open() }
     // Search jump target: one short glow, then nothing runs. Only a jump calls this, and a hidden row
     // skips it (Ma: no timer, no animation while the row is not on screen).
     function flash() { if (r.visible) flashAnim.restart() }
@@ -97,13 +105,14 @@ Item {
                     id: ctl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    // Toggles keep their natural width; everything else fills the slot.
-                    width: r.row.control === "toggle" ? 40 : parent.width
+                    // Toggles keep their natural width, a dropdown reads best at 320 px, everything else fills the slot.
+                    width: r.row.control === "toggle" ? 40 : (r.dropdown ? Math.min(parent.width, 320) : parent.width)
                     sourceComponent: {
                         switch (r.row.control) {
                         case "toggle": return cToggle
                         case "slider": return cSlider
-                        case "select": return cSelect
+                        case "select": return r.dropdown ? cDropdown : cSegmented
+                        case "pick_list": return cPickList
                         case "list": return cList
                         default: return cText   // number, text, font, color, action_binding
                         }
@@ -185,13 +194,38 @@ Item {
             onCommitted: v => r.commit(v)
         }
     }
+    // Four or fewer fixed options: one pill each.
     Component {
-        id: cSelect
+        id: cSegmented
         Segmented {
             choices: r.row.choices ?? []
             current: r.value
             enabled: r.editable
             onPicked: v => r.commit(v)
+        }
+    }
+    // Offers from the daemon (or more than four): a dropdown.
+    Component {
+        id: cDropdown
+        Select {
+            objectName: "select:" + r.row.key
+            label: I18n.tr(r.row.label)
+            choices: r.row.choices ?? []
+            current: r.value
+            enabled: r.editable
+            onPicked: v => r.commit(v)
+        }
+    }
+    // An ordered subset of the offers (a string list with choices_from).
+    Component {
+        id: cPickList
+        PickList {
+            objectName: "pick:" + r.row.key
+            label: I18n.tr(r.row.label)
+            choices: r.row.choices ?? []
+            items: Array.isArray(r.value) ? r.value : []
+            enabled: r.editable
+            onEdited: v => r.commit(v)
         }
     }
     Component {
