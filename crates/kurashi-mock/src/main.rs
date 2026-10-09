@@ -1,9 +1,12 @@
 //! kurashi-mock — a fake daemon serving the probe subset (docs/PROTOCOL.md §8) and the parity set
 //! frontend work relies on: `runtime.ui` panels, `bindings` + `input.dispatch`, `svc.brightness`
-//! with `brightness.up/down`, and the session actions. Documents and actions live in `state.rs`.
+//! with `brightness.up/down`, the session actions, `svc.notifications` with the notify commands
+//! (plus `mock.notify` to add one), and the launcher `query`. Documents and actions live in
+//! `state.rs`.
 //!
 //! Ma: it only emits patches when something changes (user intents and actions), so idle benches
-//! stay idle. The clock (minute boundaries) and the mock.* controls emit whenever they fire.
+//! stay idle. The clock (minute boundaries) and the mock.* controls emit whenever they fire; under
+//! `--fixed-time` the clock never fires on its own.
 
 mod documents;
 mod state;
@@ -12,6 +15,7 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Context;
+use chrono::NaiveTime;
 use clap::Parser;
 use kurashi_ipc::{ClientMsg, LineReader, PROTOCOL_VERSION, ServerMsg, write_msg};
 use tokio::net::{UnixListener, UnixStream};
@@ -28,6 +32,15 @@ struct Args {
     /// Comma-separated output names that get their own workspace lists
     #[arg(long, default_value = "HEADLESS-1,HEADLESS-2")]
     outputs: String,
+    /// Report this local time (HH:MM, 24 h) on 2026-10-09 and never tick: deterministic
+    /// screenshots for golden tests
+    #[arg(long, value_parser = parse_hhmm)]
+    fixed_time: Option<NaiveTime>,
+}
+
+/// `--fixed-time`: strictly `HH:MM` in 24-hour form.
+fn parse_hhmm(s: &str) -> Result<NaiveTime, String> {
+    NaiveTime::parse_from_str(s, "%H:%M").map_err(|e| format!("expected HH:MM (24 h): {e}"))
 }
 
 #[tokio::main]
@@ -55,10 +68,11 @@ async fn main() -> anyhow::Result<()> {
         .filter(|s| !s.is_empty())
         .map(String::from)
         .collect();
-    let state = Arc::new(Mutex::new(State::new(&outputs)));
+    let state = Arc::new(Mutex::new(State::new(&outputs, args.fixed_time)));
 
-    // Clock: wake exactly at the next minute boundary, never more often.
-    {
+    // Clock: wake exactly at the next minute boundary, never more often. Not started under
+    // --fixed-time, where the clock only moves on an explicit mock.tick.
+    if state.lock().await.clock_ticks() {
         let state = state.clone();
         tokio::spawn(async move {
             loop {
@@ -127,7 +141,7 @@ async fn serve(stream: UnixStream, state: Arc<Mutex<State>>) -> anyhow::Result<(
                     v: PROTOCOL_VERSION,
                     server: format!("kurashi-mock {}", env!("CARGO_PKG_VERSION")),
                     caps: vec!["island".into(), "mock".into()],
-                    instance: String::new(),
+                    instance: state.lock().await.instance.clone(),
                 });
             }
             ClientMsg::Sub { id, doc } => snapshot(&state, &subscribed, &reply, id, doc).await,
@@ -168,12 +182,22 @@ async fn serve(stream: UnixStream, state: Arc<Mutex<State>>) -> anyhow::Result<(
             ClientMsg::MockFace { face } => state.lock().await.mock_face(&face),
             ClientMsg::MockWorkspace { idx } => state.lock().await.mock_workspace(idx),
             ClientMsg::Ping => reply(ServerMsg::Pong),
+            ClientMsg::Query { id, kind, q } => {
+                let res = state.lock().await.query(&kind, &q);
+                reply(match res {
+                    Ok(items) => ServerMsg::Results { id, items },
+                    Err(f) => ServerMsg::Err {
+                        id: Some(id),
+                        kind: f.kind.into(),
+                        msg: f.msg,
+                    },
+                });
+            }
             ClientMsg::CfgGet { id, .. }
             | ClientMsg::CfgExplain { id, .. }
             | ClientMsg::Apply { id, .. }
             | ClientMsg::Undo { id }
-            | ClientMsg::Redo { id }
-            | ClientMsg::Query { id, .. } => reply(ServerMsg::Err {
+            | ClientMsg::Redo { id } => reply(ServerMsg::Err {
                 id: Some(id),
                 kind: "unavailable".into(),
                 msg: "not part of the probe subset".into(),
@@ -211,5 +235,22 @@ async fn snapshot(
                 msg: format!("no document {doc}"),
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_time_is_24_hour_hh_mm_and_nothing_else() {
+        let t = |h, m| NaiveTime::from_hms_opt(h, m, 0).expect("time");
+        assert_eq!(parse_hhmm("14:07"), Ok(t(14, 7)));
+        assert_eq!(parse_hhmm("00:00"), Ok(t(0, 0)));
+        assert_eq!(parse_hhmm("23:59"), Ok(t(23, 59)));
+        assert!(parse_hhmm("24:00").is_err());
+        assert!(parse_hhmm("14:60").is_err());
+        assert!(parse_hhmm("2pm").is_err());
+        assert!(parse_hhmm("14:07:30").is_err());
     }
 }
