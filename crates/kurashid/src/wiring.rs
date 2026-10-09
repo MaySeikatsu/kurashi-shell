@@ -30,6 +30,7 @@ fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
 /// `popup` mirrors `panel != ""` for the probe-era frontend. Panels are exclusive; the launcher is
 /// its own surface. `tray` is the item whose menu the `tray` panel shows (`""` otherwise, K23).
 /// `face` is the island face whose expanded view the `island` panel shows (`""` otherwise, K24).
+/// A native mod's panel is `mod:<id>:<panel>`, opened by `mod.panel.open` (K26, K28).
 pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     hub.register("runtime.ui", ui_closed(), None);
     let toggle_panel = |hub: Arc<Hub>, name: &'static str| {

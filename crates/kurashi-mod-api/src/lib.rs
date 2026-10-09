@@ -32,7 +32,7 @@ pub type ActionFn =
     Arc<dyn Fn(Value) -> BoxFuture<Result<Option<Value>, ActionError>> + Send + Sync>;
 
 /// A choice source's function: the options it offers now (K28 (3), I9). The daemon calls it on
-/// enable and after [`ChoicesHandle::changed`]; it must not call `changed` itself.
+/// enable and after [`ChoicesHandle::choices_changed`]; it must not call that itself.
 pub type ChoicesFn = Arc<dyn Fn() -> Vec<Choice> + Send + Sync>;
 
 /// A first-party mod linked into the daemon. `id` is the `mod.toml` id and directory name.
@@ -179,7 +179,7 @@ pub struct ChoicesHandle {
 
 impl ChoicesHandle {
     /// The daemon asks the source's function again and republishes the settings that name it.
-    pub fn changed(&self) {
+    pub fn choices_changed(&self) {
         self.hooks.choices_changed(&self.source);
     }
 }
@@ -505,7 +505,7 @@ mod tests {
                 ]
             })
             .unwrap();
-        handle.changed();
+        handle.choices_changed();
         assert_eq!(rec.calls.lock().unwrap().as_slice(), ["choices demo.pick"]);
         let regs = c.finish().unwrap();
         let [Registration::Choices { options, .. }] = regs.as_slice() else {
