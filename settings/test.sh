@@ -149,10 +149,10 @@ shot 7b-mods-after-change
 #    shot shows the 1 px focus ring on that toggle. At most 60 Tabs; never a pointer event.
 Q goto bar
 Q focusList >/dev/null
-# One virtual keyboard for the whole step (settings/keys.py --serve, fed through a FIFO): a keyboard
+# One virtual keyboard for the whole step (tools/bench/wl_keys.py --serve, fed through a FIFO): a keyboard
 # that goes away makes the compositor drop the window's keyboard focus.
 mkfifo "$R/keys.fifo"
-python3 settings/keys.py --serve < "$R/keys.fifo" & pids+=($!)
+python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & pids+=($!)
 exec 3> "$R/keys.fifo"
 tabs=0
 for _ in $(seq 60); do
