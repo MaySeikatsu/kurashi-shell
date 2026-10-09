@@ -175,6 +175,28 @@ pub fn network(wifi_on: bool) -> Value {
     }
 }
 
+/// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves one fake contribution, the
+/// test mod `hello`'s footer row, when its file is in this checkout. Without the file it serves none,
+/// as kurashid does for a contribution whose file is missing.
+pub fn slots() -> Value {
+    match hello_footer_qml() {
+        Some(qml) => {
+            json!({"clock.expanded.footer": [{"mod": "hello", "qml": qml, "ready": true}]})
+        }
+        None => json!({}),
+    }
+}
+
+/// `file://` URL of the test mod's footer component (kurashid `tests/data/mods/hello`).
+fn hello_footer_qml() -> Option<String> {
+    let path = std::path::Path::new(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../kurashid/tests/data/mods/hello/qml/slots/clock.expanded.footer.qml"
+    ));
+    let path = path.canonicalize().ok()?;
+    Some(format!("file://{}", path.display()))
+}
+
 /// `tray.menu {id}` (K23): the tree kurashi-tray builds (`menu.rs`). The same small tree for every
 /// item: one separator, one checkmark, a submenu with radio entries, and a disabled entry.
 pub fn tray_menu() -> Value {

@@ -14,7 +14,8 @@ use crate::actions::{ActionError, ActionRegistry, ActionResult};
 use crate::config::ConfigStore;
 use crate::doctor::SharedFacts;
 use crate::hub::Hub;
-use crate::native::Native;
+use crate::island::IslandHost;
+use crate::native::{Native, SLOTS_DOC};
 use crate::services::{Bus, ConnectFn, ServiceProvider, ServiceTask};
 use crate::{Daemon, QueryFn};
 
@@ -29,6 +30,7 @@ fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
 /// `popup` mirrors `panel != ""` for the probe-era frontend. Panels are exclusive; the launcher is
 /// its own surface. `tray` is the item whose menu the `tray` panel shows (`""` otherwise, K23).
 /// `face` is the island face whose expanded view the `island` panel shows (`""` otherwise, K24).
+/// A native mod's panel is `mod:<id>:<panel>`, opened by `mod.panel.open` (K26, K28).
 pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     hub.register("runtime.ui", ui_closed(), None);
     let toggle_panel = |hub: Arc<Hub>, name: &'static str| {
@@ -94,6 +96,32 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         "action.quick.toggle",
         toggle_panel(hub.clone(), "quick"),
     );
+    // K26/K28: a mod's Stage panel `mod:<id>:<panel>`. Refused unless the mod is on and its manifest
+    // provides `panel:<panel>`; the `mods` document is the registry as the frontend reads it.
+    let h = hub.clone();
+    actions.register("mod.panel.open", "action.mod.panel.open", move |a| {
+        let hub = h.clone();
+        async move {
+            let id = str_arg(&a, "id")?;
+            let panel = str_arg(&a, "panel")?;
+            if id.is_empty() || panel.is_empty() {
+                return Err(ActionError::Invalid(ARGS_INVALID.into()));
+            }
+            if !mod_offers_panel(&hub, &id, &panel) {
+                return Err(ActionError::Invalid(PANEL_UNAVAILABLE.into()));
+            }
+            let name = format!("mod:{id}:{panel}");
+            hub.update("runtime.ui", None, |d| {
+                let open = d["panel"].as_str() == Some(name.as_str());
+                d["panel"] = json!(if open { "" } else { name.as_str() });
+                d["popup"] = json!(!open);
+                d["tray"] = json!("");
+                d["face"] = json!("");
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
     actions.register(
         "notifications.center",
         "action.notifications.center",
@@ -150,6 +178,25 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
 /// `runtime.ui` with nothing open.
 fn ui_closed() -> Value {
     json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
+}
+
+/// `mod.panel.open` of a panel the mod does not offer, or whose mod is off.
+const PANEL_UNAVAILABLE: &str = "mods.error.panel_unavailable";
+
+/// Whether the `mods` document lists mod `id` as enabled, providing `panel:<panel>`.
+fn mod_offers_panel(hub: &Hub, id: &str, panel: &str) -> bool {
+    let want = format!("panel:{panel}");
+    hub.snapshot("mods").is_ok_and(|(_, d)| {
+        d["mods"].as_array().is_some_and(|mods| {
+            mods.iter().any(|m| {
+                m["id"] == id
+                    && m["state"] == "enabled"
+                    && m["provides"]
+                        .as_array()
+                        .is_some_and(|p| p.iter().any(|x| x == want.as_str()))
+            })
+        })
+    })
 }
 
 /// Debounce for the applications-dir watcher; a package install touches many files in a burst.
@@ -492,8 +539,11 @@ fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
         // Again: a refused enable turned the mod off after the first adoption.
         s.adopt_mods(&st.reg);
         st.native.feed(s);
+        // K28 (3): the choice sources of the registry, with what the enabled mods offer now.
+        s.set_mod_sources(st.native.source_offers(&st.reg));
     }
     let _ = hub.update("mods", None, |d| *d = st.native.document(&mut st.reg));
+    let _ = hub.update(SLOTS_DOC, None, |d| *d = st.native.slots(&st.reg));
 }
 
 /// The mods registry, its `mods` document and the `mod.{load,unload,enable,disable}` actions
@@ -506,16 +556,18 @@ pub fn mods(
     roots: Vec<std::path::PathBuf>,
     config: Option<Arc<crate::config::ConfigStore>>,
 ) {
-    mods_native(hub, actions, roots, config, Vec::new());
+    mods_native(hub, actions, roots, config, Vec::new(), None);
 }
 
-/// [`mods`] with the native mods linked into this daemon (K26): `native::linked()` in `main`.
+/// [`mods`] with the native mods linked into this daemon (K26): `native::linked()` in `main`, and
+/// the island their faces join (K28).
 pub fn mods_native(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     roots: Vec<std::path::PathBuf>,
     config: Option<Arc<crate::config::ConfigStore>>,
     linked: Vec<Box<dyn kurashi_mod_api::NativeMod>>,
+    island: Option<Arc<IslandHost>>,
 ) {
     use kurashi_mods::{Policy, Registry};
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).expect("crate version");
@@ -525,10 +577,17 @@ pub fn mods_native(
     }
     let mut st = ModsState {
         reg,
-        native: Native::new(hub.clone(), actions.clone(), linked),
+        native: Native::new(
+            hub.clone(),
+            actions.clone(),
+            linked,
+            island,
+            config.as_ref().map(Arc::downgrade),
+        ),
     };
     // Registered before the first refresh, which fills it in; the document is never read empty.
     hub.register("mods", json!({"mods": []}), None);
+    hub.register(SLOTS_DOC, json!({}), None);
     match &config {
         Some(c) => {
             let (loaded, enabled) = lists_of(c);

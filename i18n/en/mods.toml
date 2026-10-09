@@ -19,3 +19,10 @@
 "mods.error.not_declared" = "this mod tried to register something its manifest does not declare"
 "mods.error.duplicate" = "this mod tried to register a name the shell or another mod already uses"
 "mods.error.enable_failed" = "this mod could not be turned on"
+
+# Mod panels and contributions (K28): refusals of mod.panel.open and of manifest entries.
+"mods.error.panel_unavailable" = "this mod has no such panel, or it is off"
+"mods.error.provide_unknown_slot" = "this mod fills a slot the shell does not have"
+"mods.error.setting_choices_from_type" = "only a text setting can take its choices from a source"
+"mods.error.setting_choices_and_from" = "a setting takes its choices from a list or a source, not both"
+"mods.error.setting_choices_from_invalid" = "the name of the choice source is not valid"
