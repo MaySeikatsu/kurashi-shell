@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use kurashi_config::{Options, Paths, Source};
 use kurashi_ipc::{ApplyOp, OpError};
 use kurashi_mods::Registry;
-use kurashid::Hub;
 use kurashid::config::ConfigStore;
+use kurashid::{ActionRegistry, Hub};
 use semver::Version;
 use serde_json::{Value, json};
 
@@ -236,4 +236,30 @@ fn settings_pages_exist_only_for_enabled_mods() {
     turn(&store, &mut reg, "media", false);
     assert!(page(&hub, "mods.media").is_none());
     assert!(page(&hub, "mods.easter-eggs").is_some());
+}
+
+/// Profiles snapshot mod values under the `mods` section (the first key segment, as for every key)
+/// and load them with their source, the same as core keys.
+#[tokio::test]
+async fn profiles_carry_mod_values_with_their_source() {
+    let (store, _hub, mut reg) = open(None);
+    turn(&store, &mut reg, "media", true);
+    assert!(set(&store, SEEK, json!(12)).is_ok());
+    let mut actions = ActionRegistry::default();
+    store.register_actions(&mut actions);
+    let saved = json!({"name": "mine", "sections": ["mods"]});
+    actions.invoke("profile.save", saved).await.unwrap();
+    let reset = ApplyOp::Reset {
+        reset: "mods".into(),
+        output: None,
+    };
+    assert!(store.apply(&[reset]).is_ok());
+    assert_eq!(store.get(SEEK, None).unwrap().value, json!(5));
+    let loaded = json!({"name": "mine", "sections": ["mods"]});
+    actions.invoke("profile.load", loaded).await.unwrap();
+    let p = store.get(SEEK, None).unwrap();
+    assert_eq!(
+        (p.value, p.source),
+        (json!(12), Source::Profile("mine".into()))
+    );
 }
