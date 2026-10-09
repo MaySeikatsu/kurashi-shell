@@ -1,0 +1,15 @@
+[package]
+name = "kurashi-mod-api"
+description = "API a first-party native mod codes against (K26): NativeMod, ModCtx, Settings; no daemon dependency"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true
