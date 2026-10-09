@@ -10,6 +10,7 @@
 
 mod doc;
 pub mod fake;
+pub mod globals;
 pub mod niri;
 mod types;
 
