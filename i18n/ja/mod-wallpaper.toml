@@ -123,6 +123,7 @@
 "mod-wallpaper.apply.all" = "適用"
 "mod-wallpaper.favourite.add" = "★ 見た目として保存"
 "mod-wallpaper.favourite.remove" = "★ 見た目から外す"
+"mod-wallpaper.look.apply" = "見た目を適用"
 "mod-wallpaper.empty.backend.title" = "壁紙のバックエンドがインストールされていません"
 "mod-wallpaper.empty.backend.hint" = "awww をインストールするか、設定 › モジュール › 壁紙 で swww を選んでください。"
 "mod-wallpaper.empty.folder.none.title" = "壁紙のフォルダーを選んでください"
