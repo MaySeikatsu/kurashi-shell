@@ -119,17 +119,27 @@ mod tests {
         let root = scratch("walk");
         std::fs::create_dir_all(root.join("sub/deeper")).unwrap();
         std::fs::create_dir_all(root.join(".hidden")).unwrap();
-        for f in ["b.PNG", "a.jpg", "notes.txt", "sub/c.webp", "sub/deeper/d.gif", ".hidden/e.png"] {
+        for f in [
+            "b.PNG",
+            "a.jpg",
+            "notes.txt",
+            "sub/c.webp",
+            "sub/deeper/d.gif",
+            ".hidden/e.png",
+        ] {
             std::fs::write(root.join(f), b"x").unwrap();
         }
         let scan = scan(std::slice::from_ref(&root));
         let names: Vec<_> = scan.entries.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, ["a.jpg", "b.PNG", "c.webp", "d.gif"]);
-        assert_eq!(scan.folders, [FolderStatus {
-            path: root.display().to_string(),
-            available: true,
-            reason: None,
-        }]);
+        assert_eq!(
+            scan.folders,
+            [FolderStatus {
+                path: root.display().to_string(),
+                available: true,
+                reason: None,
+            }]
+        );
     }
 
     #[test]

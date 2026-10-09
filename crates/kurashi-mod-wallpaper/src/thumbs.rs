@@ -193,7 +193,8 @@ mod tests {
     use super::*;
 
     fn scratch(tag: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kurashi-wp-thumb-{tag}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kurashi-wp-thumb-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
@@ -217,7 +218,12 @@ mod tests {
         let thumb = ensure(&dir.join("cache"), &img).unwrap();
         assert!(!thumb.mono);
         assert_eq!(thumb.palette.len(), CHIPS);
-        assert!(thumb.palette.iter().all(|c| c.len() == 7 && c.starts_with('#')));
+        assert!(
+            thumb
+                .palette
+                .iter()
+                .all(|c| c.len() == 7 && c.starts_with('#'))
+        );
         assert!(thumb.file.is_file());
         let (w, _) = image::image_dimensions(&thumb.file).unwrap();
         assert!(w <= THUMB_PX);
@@ -263,7 +269,10 @@ mod tests {
         let img = dir.join("broken.png");
         fs::write(&img, b"this is not a png").unwrap();
         assert_eq!(ensure(&dir.join("cache"), &img), Err(UNREADABLE));
-        assert_eq!(ensure(&dir.join("cache"), &dir.join("gone.png")), Err(UNREADABLE));
+        assert_eq!(
+            ensure(&dir.join("cache"), &dir.join("gone.png")),
+            Err(UNREADABLE)
+        );
     }
 
     #[test]

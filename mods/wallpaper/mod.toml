@@ -1,0 +1,100 @@
+# Wallpaper (K26, W12): awww or swww behind one document, `mod.wallpaper`. Images per output, a
+# library with thumbnails and palette chips, favourite looks, rotation. Its daemon runs while the mod is
+# enabled, not while the picker is open (crates/kurashi-mod-wallpaper, lib.rs).
+id = "wallpaper"
+name = "Wallpaper"
+description = "mods.wallpaper.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = [
+    "service:wallpaper",
+    "action:wallpaper.*",
+    "panel:wallpaper",
+    "choices:wallpaper.backends",
+    "slot:quick.tiles",
+]
+capabilities = ["exec", "fs:scoped"]
+cost = "low"
+
+[[setting]]
+key = "backend"
+type = "string"
+default = "awww"
+choices_from = "wallpaper.backends"
+label = "mods.wallpaper.backend"
+help = "mods.wallpaper.backend.help"
+
+[[setting]]
+key = "folders"
+type = "string"
+default = "~/Pictures/Wallpapers"
+label = "mods.wallpaper.folders"
+help = "mods.wallpaper.folders.help"
+
+[[setting]]
+key = "fit"
+type = "enum"
+default = "crop"
+choices = ["crop", "fit", "stretch", "no"]
+label = "mods.wallpaper.fit"
+
+[[setting]]
+key = "crop_anchor"
+type = "enum"
+default = "center"
+choices = ["center", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"]
+label = "mods.wallpaper.crop_anchor"
+help = "mods.wallpaper.crop_anchor.help"
+
+[[setting]]
+key = "transition"
+type = "enum"
+default = "fade"
+choices = ["none", "fade", "wipe", "wave", "grow", "random"]
+label = "mods.wallpaper.transition"
+
+[[setting]]
+key = "transition_duration"
+type = "float"
+default = 1.0
+range = [0.1, 10.0]
+unit = "s"
+label = "mods.wallpaper.transition_duration"
+
+[[setting]]
+key = "transition_angle"
+type = "int"
+default = 45
+range = [0, 360]
+unit = "deg"
+label = "mods.wallpaper.transition_angle"
+
+[[setting]]
+key = "rotate"
+type = "int"
+default = 0
+range = [0, 1440]
+unit = "min"
+label = "mods.wallpaper.rotate"
+help = "mods.wallpaper.rotate.help"
+
+[[setting]]
+key = "rotate_order"
+type = "enum"
+default = "alphabetical"
+choices = ["alphabetical", "shuffle"]
+label = "mods.wallpaper.rotate_order"
+
+[[setting]]
+key = "rotate_per_output"
+type = "bool"
+default = false
+label = "mods.wallpaper.rotate_per_output"
+
+[[setting]]
+key = "restore"
+type = "bool"
+default = true
+label = "mods.wallpaper.restore"
+help = "mods.wallpaper.restore.help"

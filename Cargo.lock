@@ -990,6 +990,7 @@ dependencies = [
  "kurashi-launcher",
  "kurashi-mod-api",
  "kurashi-mod-hello",
+ "kurashi-mod-wallpaper",
  "kurashi-mods",
  "kurashi-notify",
  "kurashi-schema",

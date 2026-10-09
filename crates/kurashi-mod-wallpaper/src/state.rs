@@ -101,7 +101,8 @@ mod tests {
     use super::*;
 
     fn scratch(tag: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("kurashi-wp-state-{tag}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kurashi-wp-state-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         dir
@@ -116,7 +117,12 @@ mod tests {
             paused: true,
             ..Persisted::default()
         };
-        state.outputs.insert("DP-1".into(), OutputState { path: "/w/b.png".into() });
+        state.outputs.insert(
+            "DP-1".into(),
+            OutputState {
+                path: "/w/b.png".into(),
+            },
+        );
         state.favourites.push(Favourite {
             path: "/w/b.png".into(),
             scheme: Some("dark".into()),
@@ -129,7 +135,10 @@ mod tests {
         assert_eq!(loaded.state.outputs, state.outputs);
         assert_eq!(loaded.state.favourites, state.favourites);
         assert!(loaded.state.paused);
-        assert!(!dir.join("wallpaper.json.tmp").exists(), "the rename consumed the temp file");
+        assert!(
+            !dir.join("wallpaper.json.tmp").exists(),
+            "the rename consumed the temp file"
+        );
     }
 
     #[test]
