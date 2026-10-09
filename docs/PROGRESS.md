@@ -66,13 +66,13 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M5.17 | Honesty test over all keys | ✅ | merged; found requires-inert gap → K21 (case ignored until M1.11) |
 | M1.11 | Daemon reports inert/pending-restart reasons (K21) | ✅ | merged; honesty test 7/7, none ignored; settings words daemon reasons |
 | R.1 | Daemon concurrency / Ma review | ✅ | 14 findings (1 high: island timer spawn off-runtime → fixed in M5.13 branch); fixes F-* below; 3/10/13/14 later |
-| F.1 | Hub lifecycle races, accept busy-loop, lag recovery, atomic update, bounded replies | 🟡 | card F-hub-server |
+| F.1 | Hub lifecycle races, accept busy-loop, lag recovery, atomic update, bounded replies | ✅ | merged; each with a regression test that failed first |
 | F.2 | Notify sanitiser linear + outside lock, body cap | ✅ | merged; 1 MiB hostile body 184 s → 0.1 s (debug); 2 more quadratic paths fixed |
 | F.3 | Watcher spawn leak + debounce max-wait; services emit unavailable on stream end | ✅ | merged; media no longer stops when Commands drop |
 | M6.2 | Mod descriptions; no nulls in `mods` doc (CONTRACT row 5 accepted) | ✅ | merged |
 | M0.9 | Mock: notifications, launcher query, instance, fixed clock | ✅ | merged; `kurashi act mock.notify '{"summary":…}'` adds one |
-| M3.3 | Golden screenshots (`just golden`) | 🟡 | card M3-golden |
-| M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | 🟡 | card M4-wire-tray-bt |
+| M3.3 | Golden screenshots (`just golden`) | ✅ | merged; 5 states incl. session menu, 0 px drift across runs; refs are per machine (fonts) |
+| M4.7 | Wire tray + Bluetooth; shutdown timeout; PAM lockout doctor check | ✅ | merged; no frontend for tray/BT yet |
 | M6.3 | Mod settings as config keys + pages (K22) | 🟡 | card M6-mod-settings |
 | F.4 | `available` on svc.session/svc.media; power no-UPower vs no-battery | 🟡 | card F-services-available |
 | R.2 | UX/visual review | 🟡 | card R-ux-review (read-only) |
