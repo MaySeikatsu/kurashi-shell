@@ -25,6 +25,8 @@ kurashi-mod-api = { path = "../kurashi-mod-api" }
 kurashi-mod-weather = { path = "../kurashi-mod-weather" }
 kurashi-mod-sysmon = { path = "../kurashi-mod-sysmon" }
 kurashi-mod-wallpaper = { path = "../kurashi-mod-wallpaper" }
+# The test mod, linked only by the `test-mods` feature (`just mods-live`); default builds do not carry it.
+kurashi-mod-hello = { path = "../kurashi-mod-hello", optional = true }
 semver = "1"
 kurashi-audio = { path = "../kurashi-audio" }
 kurashi-auth = { path = "../kurashi-auth", features = ["pam"] }
@@ -40,6 +42,10 @@ tracing-subscriber.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+# W14: every bundled mod and the test mod `hello` through the real daemon (`frontend/test-mods-live.sh`).
+test-mods = ["dep:kurashi-mod-hello"]
 
 [dev-dependencies]
 kurashi-config = { path = "../kurashi-config" }
