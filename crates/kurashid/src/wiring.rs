@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 
 use kurashi_ipc::ApplyOp;
 use kurashi_services::brightness::{self as backlight, Change};
-use kurashi_services::network::WifiError;
+use kurashi_services::network::{ConnectError, WifiError};
 use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry, ActionResult};
@@ -1265,11 +1265,17 @@ pub const ARGS_INVALID: &str = "error.args.invalid";
 const TRAY_DOC: &str = "svc.tray";
 const BLUETOOTH_DOC: &str = "svc.bluetooth";
 const NETWORK_DOC: &str = "svc.network";
+const NETWORK_SCAN_DOC: &str = "svc.network.scan";
 
-/// `network.wifi` keys (K24, quick settings): NetworkManager refused the change (polkit), or there
-/// is no NetworkManager to change it.
+/// `network.*` keys (K24, quick settings): NetworkManager refused the change (polkit), or there is
+/// no NetworkManager to change it.
 pub const NETWORK_REFUSED: &str = "error.network.refused";
 pub const NETWORK_UNAVAILABLE: &str = "error.network.unavailable";
+/// `network.connect` to a network that is not saved: a secured one needs a password (not asked for
+/// yet), an open one has no profile to join with yet, and one out of range cannot be joined.
+pub const NETWORK_NEEDS_SECRET: &str = "error.network.needs_secret";
+pub const NETWORK_NOT_SAVED: &str = "error.network.not_saved";
+pub const NETWORK_NOT_FOUND: &str = "error.network.not_found";
 
 /// The session bus, opened when a service starts (never at daemon startup).
 fn session_bus() -> ConnectFn {
@@ -1400,17 +1406,27 @@ pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Con
     });
 }
 
-/// `svc.network` (NetworkManager on the system bus, refcounted) and the `network.wifi {on}` action
-/// of the quick settings card (K24).
+/// `svc.network` and `svc.network.scan` (NetworkManager on the system bus, both refcounted), and the
+/// quick settings actions `network.{wifi,airplane,connect,disconnect}`.
 pub fn network(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     network_with(hub, actions, system_bus());
 }
 
 /// [`network`] with the bus injected (tests run it on a private bus with a fake NetworkManager).
 pub fn network_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    network_paced(hub, actions, connect, kurashi_services::network::SCAN_EVERY);
+}
+
+/// [`network_with`] with the scan cadence injected: tests count the rescans of a subscription.
+pub fn network_paced(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    scan_every: std::time::Duration,
+) {
     let service = Arc::new(ServiceProvider::with_connect(
         NETWORK_DOC,
-        connect,
+        connect.clone(),
         kurashi_services::network::start,
     ));
     hub.register(
@@ -1418,19 +1434,73 @@ pub fn network_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: Conne
         json!({"state": "unknown"}),
         Some(service.clone()),
     );
-    service_action(actions, "network.wifi", service, |c, a| async move {
-        let on = bool_arg(&a, "on")?;
-        c.set_wifi_enabled(on).await.map_err(|e| {
-            ActionError::Unavailable(
-                match e {
-                    WifiError::Refused => NETWORK_REFUSED,
-                    WifiError::Unavailable => NETWORK_UNAVAILABLE,
-                }
-                .into(),
-            )
-        })?;
+    // Nothing is known before the first scan: the document is empty until it answers (rule 2).
+    let scan = Arc::new(
+        ServiceProvider::with_connect(NETWORK_SCAN_DOC, connect, move |c, s| {
+            kurashi_services::network::start_scan_every(c, s, scan_every)
+        })
+        .unavailable(json!({"available": false, "reason": NETWORK_UNAVAILABLE})),
+    );
+    hub.register(NETWORK_SCAN_DOC, json!({}), Some(scan));
+    service_action(
+        actions,
+        "network.wifi",
+        service.clone(),
+        |c, a| async move {
+            let on = bool_arg(&a, "on")?;
+            c.set_wifi_enabled(on).await.map_err(wifi_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "network.airplane",
+        service.clone(),
+        |c, a| async move {
+            let on = bool_arg(&a, "on")?;
+            c.set_airplane(on).await.map_err(wifi_failed)?;
+            Ok(None)
+        },
+    );
+    service_action(
+        actions,
+        "network.connect",
+        service.clone(),
+        |c, a| async move {
+            let ssid = str_arg(&a, "ssid")?;
+            if ssid.is_empty() {
+                return Err(ActionError::Invalid(ARGS_INVALID.into()));
+            }
+            c.connect(&ssid).await.map_err(|e| {
+                ActionError::Unavailable(
+                    match e {
+                        ConnectError::Refused => NETWORK_REFUSED,
+                        ConnectError::Unavailable => NETWORK_UNAVAILABLE,
+                        ConnectError::NeedsSecret => NETWORK_NEEDS_SECRET,
+                        ConnectError::NotSaved => NETWORK_NOT_SAVED,
+                        ConnectError::NotFound => NETWORK_NOT_FOUND,
+                    }
+                    .into(),
+                )
+            })?;
+            Ok(None)
+        },
+    );
+    service_action(actions, "network.disconnect", service, |c, _a| async move {
+        c.disconnect().await.map_err(wifi_failed)?;
         Ok(None)
     });
+}
+
+/// A refused or failed radio or link change, as its key.
+fn wifi_failed(e: WifiError) -> ActionError {
+    ActionError::Unavailable(
+        match e {
+            WifiError::Refused => NETWORK_REFUSED,
+            WifiError::Unavailable => NETWORK_UNAVAILABLE,
+        }
+        .into(),
+    )
 }
 
 /// Registers `id` to run `run` on the service's commands. Not running is an error, never an
