@@ -29,10 +29,7 @@ Item {
     implicitWidth: 328
     implicitHeight: body.implicitHeight
 
-    onActiveChanged: {
-        if (active) Qt.callLater(function () { menu.forceActiveFocus() })
-        else { disarm(); errText = "" }
-    }
+    onActiveChanged: if (!active) { disarm(); errText = "" }
 
     // Runs only for the 3 s after a first press (Ma: nothing ticks while the menu is not armed).
     Timer {
@@ -64,15 +61,15 @@ Item {
         })
     }
 
-    focus: true
-    Keys.onPressed: event => {
+    // Keys come from the Stage card, the Stage's one keyboard focus holder: a second holder here
+    // would clear the card's focus flag for good. Returns false for keys the menu does not use.
+    function handleKey(key) {
         var n = entries.length
-        if (event.key === Qt.Key_Down || event.key === Qt.Key_Tab) cursor = (cursor + 1) % n
-        else if (event.key === Qt.Key_Up || event.key === Qt.Key_Backtab) cursor = (cursor + n - 1) % n
-        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) activate(cursor)
-        else if (event.key === Qt.Key_Escape) Store.act("ui.close")
-        else return
-        event.accepted = true
+        if (key === Qt.Key_Down || key === Qt.Key_Tab) cursor = (cursor + 1) % n
+        else if (key === Qt.Key_Up || key === Qt.Key_Backtab) cursor = (cursor + n - 1) % n
+        else if (key === Qt.Key_Return || key === Qt.Key_Enter) activate(cursor)
+        else return false
+        return true
     }
 
     Column {
