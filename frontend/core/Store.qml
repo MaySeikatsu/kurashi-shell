@@ -51,7 +51,10 @@ Singleton {
         delete wanted[doc]
         if (connected) send({ t: "unsub", doc: doc })
         delete revs[doc]
-        setDoc(doc, undefined)
+        // The value leaves `docs` on the next turn, not here: unwatch runs when a Watch is destroyed, which a Loader's
+        // active or sourceComponent change does inside the bindings that read `docs` (a view closing). Writing `docs`
+        // from there re-enters those bindings: "Binding loop detected" (Stage ui, wantedKind). A re-watch in between wins.
+        Qt.callLater(function () { if (!wanted[doc]) setDoc(doc, undefined) })
     }
     function setDoc(doc, v) {
         var d = Object.assign({}, docs)

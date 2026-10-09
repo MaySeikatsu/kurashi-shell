@@ -31,12 +31,9 @@ PanelWindow {
     // shell.qml's `want` does not cover the quick panel (K24), so the Stage follows runtime.ui for it.
     readonly property bool quickWanted: ui.panel === "quick"
     // A native mod's panel (K26): `mod:<id>:<panel>` shows its Panel.qml, for as long as the mods document names it.
-    // Always watched, not by a binding on runtime.ui: a Watch whose `active` depends on Store.docs writes Store.docs
-    // from inside that binding (unwatch), which QML reports as a binding loop. The documents start no service.
-    // runtime.slots is held here too: the last SlotHost of a closing view would otherwise unwatch it, and that
-    // deletion rewrites Store.docs while the card's bindings are still evaluating.
+    // Always watched, not by a binding on runtime.ui: the mods document is what says whether the panel exists, and
+    // it starts no service.
     Watch { doc: "mods" }
-    Watch { doc: "runtime.slots" }
     readonly property var modsDoc: Store.docs["mods"]
     readonly property var panelRef: Mods.panelOf(ui.panel)
     readonly property bool modWanted: panelRef !== null && Mods.qmlOf(modsDoc, "panel:" + panelRef.panel, panelRef.mod) !== ""
@@ -51,8 +48,11 @@ PanelWindow {
     property string shownPanelMod: ""
     property string shownPanel: ""
     property string shownFaceView: ""
+    // Read from `ui` itself: panelRef is a binding that may not have been re-evaluated yet when this handler runs,
+    // and a stale null there left the panel unlatched (the card opened empty).
     onUiChanged: {
-        if (panelRef !== null) { shownPanelMod = panelRef.mod; shownPanel = "panel:" + panelRef.panel }
+        var p = Mods.panelOf(ui.panel)
+        if (p !== null) { shownPanelMod = p.mod; shownPanel = "panel:" + p.panel }
         if (ui.face) shownFaceView = "island-face:" + ui.face + ":expanded"
     }
     // Content the card shows. Latched while the card slides out, so a closing menu does not flash other content.
