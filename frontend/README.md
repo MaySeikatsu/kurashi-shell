@@ -49,9 +49,12 @@ Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 3
 
 ## Memory (M3-memory, 2026-10-09)
 Launch through `frontend/launch.sh` (not bare `qs -p frontend`): with the NVIDIA driver active it
-pins glvnd to the NVIDIA EGL vendor, so Mesa's libgallium + libLLVM are not loaded for nothing
-(**-13 MiB**, 135.6 -> 122.9 MiB mean of 3). It does nothing without NVIDIA or when
-`__EGL_VENDOR_LIBRARY_FILENAMES` is already set. Tried with no effect: `MALLOC_ARENA_MAX=1`,
+pins glvnd to the EGL vendor of the GPU the session renders on, so the other vendor's stack is not
+loaded for nothing — one render node: NVIDIA (**-13 MiB**, 135.6 -> 122.9 MiB mean of 3); several
+(hybrid laptops): the driver of the compositor's dmabuf main device (`wayland-info`), else the
+`boot_vga` card (machine B, niri on the Radeon: Mesa, **~-10 MiB**). It does nothing without NVIDIA,
+when unsure, or when `__EGL_VENDOR_LIBRARY_FILENAMES` / `__NV_PRIME_RENDER_OFFLOAD` is set.
+Tests: `sh frontend/test-launch.sh` (part of `just check`). Tried with no effect: `MALLOC_ARENA_MAX=1`,
 `QSG_RENDER_LOOP=basic`.
 
 PSS @1 output, real daemon, headless sway gles2, GTX 1060, one surface removed per row, 3 runs
