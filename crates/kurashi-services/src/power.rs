@@ -1,4 +1,5 @@
-//! `svc.power` — UPower display device. No battery (or no UPower) → `present:false`.
+//! `svc.power` — UPower display device. No UPower (or one that does not answer) → `available:false`;
+//! UPower answers and there is no battery → `available:true, present:false`.
 
 use std::sync::Arc;
 
@@ -44,26 +45,28 @@ fn state_name(s: u32) -> &'static str {
     }
 }
 
-/// The document while UPower is not on the bus, or not answering.
+/// The document while UPower is not on the bus, does not answer, or its signal stream has ended.
+/// `present` and `on_battery` are fillers then: `available:false` says nothing is known about them.
 fn unavailable() -> Value {
-    json!({"present": false, "on_battery": false})
+    json!({"available": false, "present": false, "on_battery": false})
 }
 
 async fn read(conn: &Connection) -> Value {
     if !util::name_has_owner(conn, DEST).await {
         return unavailable();
     }
-    let on_battery = match util::get_all(conn, DEST, ROOT_PATH, DEST).await {
-        Some(p) => util::prop::<bool>(&p, "OnBattery").unwrap_or(false),
-        None => false,
+    // Both objects must answer: a silent UPower says nothing about whether there is a battery.
+    let root = util::get_all(conn, DEST, ROOT_PATH, DEST).await;
+    let display = util::get_all(conn, DEST, DISPLAY, "org.freedesktop.UPower.Device").await;
+    let (Some(root), Some(p)) = (root, display) else {
+        return unavailable();
     };
-    let Some(p) = util::get_all(conn, DEST, DISPLAY, "org.freedesktop.UPower.Device").await else {
-        return json!({"present": false, "on_battery": on_battery});
-    };
+    let on_battery = util::prop::<bool>(&root, "OnBattery").unwrap_or(false);
     if !util::prop::<bool>(&p, "IsPresent").unwrap_or(false) {
-        return json!({"present": false, "on_battery": on_battery});
+        return json!({"available": true, "present": false, "on_battery": on_battery});
     }
     let mut doc = json!({
+        "available": true,
         "present": true,
         "percent": util::prop::<f64>(&p, "Percentage").unwrap_or(0.0),
         "state": state_name(util::prop::<u32>(&p, "State").unwrap_or(0)),
