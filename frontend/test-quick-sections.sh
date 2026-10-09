@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The quick settings card (K24, W12, W13; docs/ux/quick-settings.md) against kurashi-mock, invisibly (headless sway sandbox):
 # the tiles, every page, the toggle states the mock can produce, the keyboard, and the Wi-Fi scan's subscription. Checks:
-#   - quick.toggle opens the card (runtime.ui panel "quick"); its shot is 360 px wide and centred on the output;
+#   - quick.toggle opens the card (runtime.ui panel "quick"); its shot is 400 px wide and centred on the output;
 #   - a pointer click on the Wi-Fi tile sends network.wifi (svc.network.wifi_enabled flips, and flips back); its arrow opens
 #     the Wi-Fi page and the page's Back control returns to the tiles;
 #   - the scan document is subscribed while the Wi-Fi page is open and unsubscribed when it closes (the relay's log, Ma);
@@ -179,9 +179,9 @@ card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 
     || fail "$1: analysis failed"
   echo "$1: $res"
   jq -e '.surface >= 15000 and .bbox != null
-      and (((.bbox[2] - .bbox[0] + 1) - 358) | fabs) <= 4
+      and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4
       and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
-    || fail "$1: no card 360 px wide centred on the output ($res)"
+    || fail "$1: no card 400 px wide centred on the output ($res)"
   read -r cx0 cy0 cx1 cy1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   timeout 20 grim -g "$((cx0 - 24)),$((cy0 - 24)) $((cx1 - cx0 + 49))x$((cy1 - cy0 + 49))" "$OUT/$1.png" \
     || fail "grim failed on $1"
@@ -212,7 +212,7 @@ last_event() { grep -E "^(un)?sub $1\$" "$R/subs.log" | tail -n 1 || true; }
 # and arrow zone, the heading, the Wi-Fi page's Back control, and the media row's title.
 at() { click $(( cx0 + $1 )) $(( cy0 + $2 )); }
 WIFI_TILE=(76 114)
-WIFI_ARROW=(165 114)
+WIFI_ARROW=(185 114)
 HEADING=(60 24)
 BACK=(50 30)
 MEDIA_TITLE=(76 402)
