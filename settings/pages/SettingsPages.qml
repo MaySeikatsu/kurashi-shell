@@ -41,7 +41,7 @@ Flickable {
                 })
                 if (rows.length) secs.push({ id: s.id, label: s.label, rows: rows.map(function (r) {
                     return { row: r, pageId: pages[i].id,
-                             crumb: I18n.tr(pages[i].label) + " › " + I18n.tr(s.label) + " › " + I18n.tr(r.label) }
+                             crumb: I18n.pageTitle(pages[i].id, pages[i].label) + " › " + I18n.tr(s.label) + " › " + I18n.tr(r.label) }
                 }) })
             }
             if (secs.length) out.push({ id: pages[i].id, label: pages[i].label, sections: secs })
