@@ -58,3 +58,11 @@ Real `kurashid` (isolated dirs, sandbox bus) + `frontend/` (main 3f40f8b), headl
 | mapped layer surfaces idle (1 output) | 1 | ≤ 4 ✔ |
 | daemon PSS / CPU / wakeups | 8.5 MiB / 0 % / 0 | — |
 
+### 2026-10-09 — bench gate after wave 5 (b39974d): full UI on the real stack
+Bar + Stage + island faces + toasts/center + launcher + lock, real `kurashid`, serial run.
+| idle fps | idle CPU | PSS @1 out | per extra output | popup → frame | mapped surfaces | result |
+|---|---|---|---|---|---|---|
+| 0.03 | 0 % | 137.9 MiB | +4.0 | 3.9 ms | 3 | **0 violations** (headroom 12 MiB) |
+Earlier "exited early / 6.4 fps" readings came from parallel agents sharing sandbox names — fixed
+(sandbox names carry the pid).
+

@@ -196,7 +196,7 @@ def stop(p: subprocess.Popen):
 
 
 def pass_a(name, cmd, warmup, idle):
-    sb = Sandbox(f"bench-{name}-a")
+    sb = Sandbox(f"bench-{name}-a-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     mock = start_daemon(sb.env)
     try:
         app = subprocess.Popen(cmd, env=sb.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -249,7 +249,7 @@ def pass_a(name, cmd, warmup, idle):
 
 
 def pass_b(name, cmd, warmup, idle):
-    sb = Sandbox(f"bench-{name}-b")
+    sb = Sandbox(f"bench-{name}-b-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     env = dict(sb.env, WAYLAND_DEBUG="client")
     mock = start_daemon(sb.env)
     events: list[tuple[float, int]] = []
@@ -344,7 +344,7 @@ def pass_b(name, cmd, warmup, idle):
 def pass_c(name, cmd, warmup, idle):
     if not shutil.which("strace"):
         return {"error": "strace missing"}
-    sb = Sandbox(f"bench-{name}-c")
+    sb = Sandbox(f"bench-{name}-c-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     mock = start_daemon(sb.env)
     log = Path(sb.env["XDG_RUNTIME_DIR"]) / "strace.log"
     try:
