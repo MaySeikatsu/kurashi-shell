@@ -10,6 +10,17 @@
 "config.error.unrepresentable" = "この値は TOML に保存できません"
 "config.error.user_file_unreadable" = "config.toml を読み込めません。設定を変更する前に修正してください"
 "config.forced.nix_enforced" = "Nix の設定で強制されています"
+# 固定された値への変更は断られます (K25: Nix で固定されたモッドの一覧)。
+"config.error.forced" = "システムの設定で決まっているため、ここでは変更できません"
+# I9・K21: 元のソースが選択肢に出していない値。残るが、今は効いていない。
+"settings.choice.unavailable" = "今は使えないため、この値は効いていません"
+# 選択肢 (I9): パレットと Island の面。デーモンが解決します。
+"config.choice.palette.wa-iro" = "和色"
+"config.choice.palette.kanso" = "簡素"
+"config.choice.palette.high-contrast" = "ハイコントラスト"
+"config.face.clock" = "時計"
+"config.face.media" = "メディア"
+"config.face.notifications" = "通知"
 # プロファイル操作 (profile.*)。拒否の理由はキーで示し、エンジンの英語は出しません (K27)。
 "config.error.profile_not_found" = "この名前のプロファイルはありません"
 "config.error.profile_invalid_name" = "プロファイル名が正しくありません"
