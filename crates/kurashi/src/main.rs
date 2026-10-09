@@ -42,7 +42,7 @@ enum Cmd {
     /// Mock control: `tick`, `face <name>`, `workspace <idx>`
     Mock { what: String, arg: Option<String> },
     /// Send one raw JSON message and print the first reply
-    Raw { json: String },
+    Raw { message: String },
     /// Handshake + ping round-trip
     Ping,
 }
@@ -137,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
             write_msg(&mut wr, &msg).await?;
             return Ok(());
         }
-        Cmd::Raw { json } => Some(serde_json::from_str::<ClientMsg>(json)?),
+        Cmd::Raw { message } => Some(serde_json::from_str::<ClientMsg>(message)?),
         Cmd::Ping => Some(ClientMsg::Ping),
         Cmd::Sub { doc, count } => {
             write_msg(
