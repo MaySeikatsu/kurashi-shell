@@ -32,3 +32,4 @@
 "frontend.bt.failed" = "Bluetooth の操作に失敗しました。"
 "frontend.volume.unavailable" = "音声なし"
 "frontend.volume.muted" = "ミュート"
+"frontend.quick.open" = "クイック設定"
