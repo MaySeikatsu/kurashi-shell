@@ -116,5 +116,9 @@ Probe actions: `island.next`, `island.prev`, `island.pin`, `probe.popup.toggle`,
 Mock parity (M0.8): also `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`,
 `ui.close`, `session.lock`, `session.{suspend,logout,reboot,poweroff}` (error msg
 `session.confirm_required` unless `{confirm:true}`). Unknown docs/actions log `unknown_doc`/`unknown_action`.
+M0.9: `svc.notifications` (seeded, kurashid shape) + `notify.{dismiss,invoke,mark_read,dnd}`, `query launcher`
+over a fake index + `launcher.launch` (logged, not spawned), random `welcome.instance`, and
+`kurashi-mock --fixed-time HH:MM` (clock pinned to 2026-10-09 at that time, never ticks).
+Action `mock.notify {summary, body?, app_name?, urgency?, actions?}` adds a notification.
 Mock control (bench/test only): `{"t":"mock.tick"}` advances the clock; `{"t":"mock.face","face":"media"}`
 forces an island switch; `{"t":"mock.workspace","idx":2}` moves focus.
