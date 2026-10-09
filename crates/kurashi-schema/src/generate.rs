@@ -18,8 +18,9 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() => "slider",
         Ty::Int | Ty::Float => "number",
         Ty::Choice => "select",
-        Ty::String if !c.choices.is_empty() => "select",
+        Ty::String if !c.choices.is_empty() || c.choices_from.is_some() => "select",
         Ty::String => "text",
+        Ty::StringList if c.choices_from.is_some() => "pick_list",
         Ty::StringList => "list",
         Ty::Color => "color",
         Ty::Font => "font",
@@ -55,7 +56,7 @@ fn pages(reg: &Registry, include_hidden: bool) -> Vec<Page<'_>> {
 /// ```text
 /// { schema_version, pages: [ { id, label, sections: [ { id, label, rows: [
 ///     { key, control, type, default, label, help?, min?, max?, step?, unit?,
-///       choices?: [{value, label}], per_output, restart, advanced, since,
+///       choices?: [{value, label}], choices_from?, per_output, restart, advanced, since,
 ///       couplings: [ {kind: requires|capability|overridden_by, reason, ...} ] } ] } ] } ] }
 /// ```
 /// `label`/`help`/`reason` are i18n keys. `couplings` lets the UI say *why* a control is inert.
@@ -100,6 +101,11 @@ fn row(m: &KeyMeta) -> Value {
     }
     if !c.choices.is_empty() {
         r.insert("choices".into(), json!(c.choices));
+    }
+    // Resolved into `choices` by the daemon (I9, PROTOCOL §5); an empty list until it does.
+    if let Some(src) = &c.choices_from {
+        r.insert("choices_from".into(), json!(src));
+        r.entry("choices").or_insert_with(|| json!([]));
     }
     r.insert("per_output".into(), json!(m.flags.per_output));
     r.insert("restart".into(), json!(m.flags.restart));
@@ -180,6 +186,9 @@ fn notes(m: &KeyMeta, code: fn(&str) -> String) -> Vec<String> {
             .map(|ch| code(&format!("{:?}", ch.value)))
             .collect();
         n.push(format!("choices: {}", list.join(" | ")));
+    }
+    if let Some(src) = &c.choices_from {
+        n.push(format!("choices: from `{src}` (resolved at runtime)"));
     }
     for cp in &m.couplings {
         n.push(match cp {

@@ -105,7 +105,7 @@ impl State {
             ),
             (
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false, "tray": ""}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
             ),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
@@ -213,9 +213,17 @@ impl State {
                     .unwrap_or(false);
                 self.patch("runtime.island.main", json!({"pinned": pinned}), None);
             }
-            "island.expand" | "probe.popup.toggle" => self.toggle_panel("island"),
+            // K24, as kurashid: the island panel latches the face shown when it opens.
+            "island.expand" | "probe.popup.toggle" => {
+                let face = self.data("runtime.island.main")["face"].clone();
+                self.toggle_panel("island");
+                if self.data("runtime.ui")["panel"] == "island" {
+                    self.patch("runtime.ui", json!({"face": face}), None);
+                }
+            }
             "notifications.center" => self.toggle_panel("notifications"),
             "session.menu" => self.toggle_panel("session"),
+            "quick.toggle" => self.toggle_panel("quick"),
             // K23, as kurashid: the same item closes its menu, another item switches to its menu.
             "tray.menu.open" => {
                 let id = args["id"]
@@ -227,7 +235,7 @@ impl State {
                 let (panel, tray) = if open { ("", "") } else { ("tray", id) };
                 self.patch(
                     "runtime.ui",
-                    json!({"panel": panel, "popup": !open, "tray": tray}),
+                    json!({"panel": panel, "popup": !open, "tray": tray, "face": ""}),
                     None,
                 );
             }
@@ -239,7 +247,7 @@ impl State {
             }
             "ui.close" => self.patch(
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false, "tray": ""}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
                 None,
             ),
             "audio.mute.toggle" => {
@@ -360,7 +368,7 @@ impl State {
         let panel = if open { "" } else { name };
         self.patch(
             "runtime.ui",
-            json!({"panel": panel, "popup": !open, "tray": ""}),
+            json!({"panel": panel, "popup": !open, "tray": "", "face": ""}),
             None,
         );
     }
@@ -623,24 +631,24 @@ mod tests {
         let mut st = state();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
         );
         st.act("island.expand", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "island", "launcher": false, "tray": ""})
+            &json!({"popup": true, "panel": "island", "launcher": false, "tray": "", "face": "clock"})
         );
         // A second panel switches; it does not stack.
         st.act("notifications.center", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "notifications", "launcher": false, "tray": ""})
+            &json!({"popup": true, "panel": "notifications", "launcher": false, "tray": "", "face": ""})
         );
         // The open panel's own toggle closes it.
         st.act("notifications.center", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
         );
         // The probe alias is the island panel; the session menu is its own panel.
         st.act("probe.popup.toggle", &none()).unwrap();
@@ -652,7 +660,7 @@ mod tests {
         st.act("tray.menu.open", &json!({"id": "a"})).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "tray", "launcher": false, "tray": "a"})
+            &json!({"popup": true, "panel": "tray", "launcher": false, "tray": "a", "face": ""})
         );
         st.act("tray.menu.open", &json!({"id": "b"})).unwrap();
         assert_eq!(st.data("runtime.ui")["tray"], "b");
@@ -663,6 +671,10 @@ mod tests {
         st.act("session.menu", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["tray"], "");
         assert!(st.act("tray.menu.open", &json!({"id": ""})).is_err());
+        // K24: quick settings are a panel of their own; a non-island panel has no face.
+        st.act("quick.toggle", &none()).unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "quick");
+        assert_eq!(st.data("runtime.ui")["face"], "");
     }
 
     #[test]
@@ -672,7 +684,7 @@ mod tests {
         st.act("launcher.toggle", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": true, "panel": "island", "launcher": true, "tray": ""})
+            &json!({"popup": true, "panel": "island", "launcher": true, "tray": "", "face": "clock"})
         );
         st.act("launcher.toggle", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["launcher"], false);
@@ -680,7 +692,7 @@ mod tests {
         st.act("ui.close", &none()).unwrap();
         assert_eq!(
             st.data("runtime.ui"),
-            &json!({"popup": false, "panel": "", "launcher": false, "tray": ""})
+            &json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
         );
     }
 

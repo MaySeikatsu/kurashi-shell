@@ -88,6 +88,18 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
   Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
   manifest name (i18n key or plain text); a disabled mod's keys carry `reason: "mods.disabled"`.
+- **`mods` document** (K25, session 5 — implemented in wave 10): entries gain `running: bool` and, for
+  enabled native mods, `qml: {"<provide>": "<file url>"}` (K26); `state` `disabled` means *loaded, off*.
+  Loaded/on are config lists `mods.loaded` / `mods.enabled` (MODS.md "States"); actions `mod.load`,
+  `mod.unload`, `mod.enable`, `mod.disable` `{id}`. `schema.settings` mod pages carry `"mod": "<id>"`
+  and exist for every loaded mod. Pinned by `fixtures/ipc/server/snap_mods.json`.
+- **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
+  `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
+  `choices: [{value, label, enabled?, reason?}]` (`enabled:false` + `reason` (i18n key) for an option that
+  cannot work now, e.g. a backend that is not installed). `control` is `select` for a string, `pick_list`
+  (ordered subset) for a string list. The daemon re-publishes `schema.settings` when a source changes.
+  A configured value outside the current set keeps its value and is reported inert (`reason`
+  `settings.choice.unavailable`, K21) instead of being rejected.
 - **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
   frontend never reads `i18n/*.toml` itself.
 
@@ -125,7 +137,7 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
-| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`/`"tray"`), `launcher` (bool) and `tray` (item id whose menu the `tray` panel shows, `""` otherwise, K23); actions `island.expand`, `notifications.center`, `session.menu`, `tray.menu.open {id}`, `launcher.toggle`, `ui.close` |
+| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`/`"tray"`/`"quick"`), `launcher` (bool), `tray` (item id whose menu the `tray` panel shows, `""` otherwise, K23) and `face` (the island face whose expanded view the `island` panel shows, latched when `island.expand {island?}` opened it — default instance `main`; `""` otherwise or when the island has no document, K24); actions `island.expand`, `notifications.center`, `session.menu`, `quick.toggle` (quick settings, K24), `tray.menu.open {id}`, `launcher.toggle`, `ui.close`. Pinned by `fixtures/ipc/server/snap_runtime_ui.json` |
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
 | `bindings` | `{"island.main":{"left":{"action":"island.expand","source":"default"},…}}` (unbound slots absent); action `input.dispatch {component, slot, args?}` |
 | `svc.brightness` | `{"present":true,"device":"…","value":500,"max":1000,"percent":50}`; actions `brightness.up`/`brightness.down` `{step?}` (fraction of full scale, default 0.05) |

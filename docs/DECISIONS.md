@@ -165,14 +165,23 @@ show a text line "Running now: …" (which of its services has a subscriber). Co
 gains the loaded/on split and a per-mod `running` flag; per-mod on/off is a config key under K22.
 *Why:* mods are first-class settings citizens (rule 3: same generated pages); cost transparency (Ma) where
 the user looks for it, without sidebar noise.
+*Addendum (lead, session 5):* loaded/on are config lists `mods.loaded` / `mods.enabled` (enabled ⊆ loaded)
+and the four `mod.*` actions are config writes; the daemon reconciles the registry to them. Found while
+designing: enablement was not persisted at all (only startup policy), so a mod switched on was off again
+after a restart (BACKLOG B11). As config it persists, has provenance, works with Nix/forced, undo and
+profiles. `state` keeps its values (protocol v1 frozen, K17): `disabled` = loaded, off. Details: MODS.md
+"States, persistence and Settings"; shapes: PROTOCOL §5, `fixtures/ipc/server/snap_mods.json`.
 
-**K26** 🟡 Wallpaper = the first native mod; drives the native-mod mechanism (MODS.md "Lifecycle").
+**K26** 🟢 Wallpaper = the first native mod; drives the native-mod mechanism (MODS.md "Lifecycle").
 Rendering by an **external daemon, awww / swww** (user, session 4), selected from a dropdown (BACKLOG I9:
 daemon-resolved choices; a backend that is not installed is shown disabled with its reason). v1 = local
 library folders, per-output state, `wallpaper.set/next/prev`, optional rotation timer (only while on),
 theme source `wallpaper` (DESIGN-SYSTEM §2), Stage picker panel. **Wallhaven later** (user, session 5).
-Mechanism design (how an enabled native mod registers Rust service/actions/settings and ships QML loaded
-on demand) is the lead's next design step. *Why:* zero frontend cost — a full-output texture would be
+Mechanism (lead, session 5; MODS.md "Native mods"): a native mod is a crate linked into kurashid
+implementing `NativeMod`; on enable it registers through a `ModCtx` exactly what its manifest `provides`
+(refcounted documents, `<id>.*` actions, faces, choice sources), and disable drops every registration;
+its QML ships in `mods/<id>/qml/`, announced as file URLs in the `mods` document and loaded by the
+frontend only where placed or opened. *Why:* zero frontend cost — a full-output texture would be
 ~14 MiB per 2560×1440 output, far over the per-output budget.
 
 **K27** 🟢 Small additive contract changes (session 5; CONTRACT rows 20–22, all optional/additive, K17):
