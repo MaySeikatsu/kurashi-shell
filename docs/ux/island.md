@@ -80,3 +80,9 @@ per bar — keep lazy faces (B7), the secondary glyph is one item.
 
 ## Later
 Live activity API for mods (progress, sticky) · DDC brightness · per-app stream routing · lock-screen activities.
+
+## Lead review 1 (2026-10-10, golden + `frontend/shots/island/`)
+Met: clock view (calendar in kurashi's language, Today, keyboard grid, agenda reason line, aside/footer slots), media with
+honest progress/seek gating/player switcher, grouped notifications with DND until, volume devices/mic/streams, secondary +
+overflow + stale in the pill, power/bluetooth faces. Open: event dots + week start by locale (I46), Stage-hosted peek (B9,
+I47), VolumeFace device name (I45), power/bluetooth expanded views (I44), idle-wakeup bench of the media 1 s timer (I47).
