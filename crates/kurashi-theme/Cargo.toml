@@ -12,7 +12,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 toml = "0.8"
 material-colors = "0.4"
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
 
 [lints]
 workspace = true

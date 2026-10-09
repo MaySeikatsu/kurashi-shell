@@ -19,14 +19,20 @@ motion tokens (`instant, quick 120, standard 220, emphasized 320, long 500` ms) 
 (`enter, exit, emphasized, continuous`) × `motion.speed`.
 
 ## 2. Palette pipeline (ordered pure `Palette → Palette` stages)
-1. **source** — `wallpaper` (in-process `material-colors`, image downscaled, blocking thread) |
-   `palette:<name>` (TOML in `palettes/`) | `manual` (user roles)
+1. **source** — `wallpaper` (in-process `material-colors`; a picture path is decoded at 128 px and extracted
+   once per path, mtime and size, `stages::wallpaper_file`; a monochrome picture, mean HSL saturation under
+   0.08, falls back to `wa-iro` and the provenance says so) | `palette:<name>` (TOML in `palettes/`) |
+   `manual` (user roles)
 2. **scheme** — light/dark: `portal` (`org.freedesktop.appearance color-scheme`) | `time` | `manual`
 3. **contrast** — `standard | medium | high`
 4. **season** — optional seasonal drift (旬; hue/temperature nudges by 二十四節気)
 5. **colorblind** — `none | protanopia | deuteranopia | tritanopia` (Machado matrices)
 6. **wcag** — enforce AA (4.5:1 body, 3:1 large/UI) by adjusting `on_*` roles; report fixes
 Each stage is toggleable and appears in provenance (`cfg.explain theme.color.accent`).
+
+Status marks (K25, I27) are derived tokens, not palette roles: `color.status.on` and `color.status.off` are
+graphics (3:1 on the surface); `color.status.warn` is text (4.5:1 on the surface) for activity levels and low
+battery. The wallpaper mod's picker previews the `wallpaper` source with its `wallpaper.preview` dry run.
 
 ## 3. Axes (orthogonal, all user-pinnable)
 | Axis | Values |
