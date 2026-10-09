@@ -178,7 +178,8 @@ Lead (before W11-mod-qml): PROTOCOL §8 `mod.panel.open {id, panel}` → `runtim
 ## Wave 12 (session 5; M6 native mods + M7 quick settings; Haiku 5.5, max effort) — after W11-native-mods
 | Card | Owner paths | Model |
 |---|---|---|
-| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, Stage `mod:*` loader, Bar mod widget slot | haiku |
+| [W11-mod-qml](W11-mod-qml.md) | `frontend/core/ModLoader.qml`, `SlotHost.qml`, Stage `mod:*` loader, slot hosts in expanded views, mod faces in Island, Bar mod widget slot | haiku |
+| [W12-mod-hooks](W12-mod-hooks.md) | `kurashi-mod-api`, kurashid `native.rs`/`island.rs`, manifest kinds, `runtime.slots`, `mod.panel.open`, mock parity (K28) | haiku |
 | [W12-wallpaper](W12-wallpaper.md) | `crates/kurashi-mod-wallpaper/**`, `mods/wallpaper/**`, `mod-wallpaper.toml` | haiku |
 | [W12-sysmon](W12-sysmon.md) | `crates/kurashi-mod-sysmon/**`, `mods/sysmon/**`, `mod-sysmon.toml` | haiku |
 | [W12-weather](W12-weather.md) | `crates/kurashi-mod-weather/**`, `mods/weather/**`, `mod-weather.toml` | haiku |

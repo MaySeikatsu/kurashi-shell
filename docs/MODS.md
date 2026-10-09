@@ -76,7 +76,11 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   them with `Loader { source }` only where they are placed or opened (bar widget slot, Stage panel
   `mod:<id>:<panel>`, island face) — never preloaded. Components see `Store`, `Theme`, `I18n`
   like core components and talk to the daemon only through their mod's documents/actions.
-- **i18n:** `mods/<id>/i18n/{en,ja}.toml`, merged into the `i18n` document while the mod is loaded.
+- **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
+  is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
+  relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
+  `choices:<source>` → `ModCtx::choices(source, fn)`. See `docs/ux/COMPOSITION.md` for the slot list.
+- **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
 
 ### First native mod: wallpaper (K26)
 Rendering by an external daemon — **awww** (or **swww**), chosen by `mods.wallpaper.backend`
