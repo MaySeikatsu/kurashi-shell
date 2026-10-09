@@ -1064,6 +1064,37 @@ async fn a_job_that_ends_by_itself_is_no_longer_reported() {
     assert_eq!(reasons(&d, "once"), json!([]));
 }
 
+/// Declares a job that waits for a setting its manifest does not have: the enable is refused.
+struct Misfit;
+
+impl NativeMod for Misfit {
+    fn id(&self) -> &'static str {
+        "misfit"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        ctx.background("misfit", "mods.running.misfit", "missing", |_job| async {})
+    }
+}
+
+#[tokio::test]
+async fn a_job_must_wait_for_a_bool_setting_of_its_own_mod() {
+    let extra = scratch("misfit-mods");
+    job_mod(&extra, "misfit", &["misfit"]);
+    let linked = vec![Box::new(Misfit) as Box<dyn NativeMod>];
+    let d = start(&scratch("misfit"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "misfit").await.unwrap();
+    assert_eq!(d.state("misfit"), "disabled");
+    assert_eq!(
+        d.entry("misfit")["errors"][0]["key"],
+        "mods.error.enable_failed"
+    );
+    assert_eq!(
+        d.entry("misfit")["errors"][0]["detail"],
+        "job misfit waits for missing, which is not a bool setting"
+    );
+}
+
 /// Declares a job whose body panics: a panic is the end of its run, so it is no longer reported.
 struct Boom;
 
