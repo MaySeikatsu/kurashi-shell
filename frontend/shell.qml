@@ -43,6 +43,7 @@ ShellRoot {
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
     Toasts { screen: root.focusedScreen() }
+    Launcher {}
     Stage {
         screen: root.stageScreen
         want: root.stageOpen

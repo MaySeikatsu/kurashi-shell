@@ -30,7 +30,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | M1.10 | Frontend core: generic on-demand docs + query API, real daemon (i18n, config, lock, notifications) | ✅ | `frontend/test-real.sh`; reconnect bug fixed |
 | M5.7 | UI: island faces | ✅ | clock/media/volume/notifications faces; notifications face via unread relevance |
 | M5.8 | UI: notification toasts + center | ✅ | toasts top-right (max 3 + N), center via `notifications.center`; windows unmapped when idle |
-| M5.9 | UI: launcher | 🟡 | wave 5 |
+| M5.9 | UI: launcher | ✅ | `launcher.toggle`; fuzzy results per keystroke; launch verified with fake entries |
 | M5.10 | UI: lock screen | ✅ | WlSessionLock per output, wrong-password + rate limit verified in sandbox; K20 lock survives restart |
 | M6.1 | `kurashi-mods` manifest, discovery, lifecycle registry | ✅ | merged; not wired yet |
 | M4.4 | `kurashi-audio` (svc.audio, PipeWire/Pulse) | ✅ | merged + wired (refcounted, origin echo, audio.mute.toggle) |

@@ -1,0 +1,3 @@
+# Launcher strings (en): frontend/surfaces/Launcher.qml
+"launcher.placeholder" = "Search apps…"
+"launcher.empty" = "No matches"
