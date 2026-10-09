@@ -825,6 +825,7 @@ dependencies = [
  "clap",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashi-schema",
  "kurashid",
  "serde_json",
  "tokio",
