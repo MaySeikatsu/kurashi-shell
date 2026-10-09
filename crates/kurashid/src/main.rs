@@ -223,7 +223,11 @@ fn register_services(
             });
         }),
     );
-    hub.register("svc.media", json!({"playing": false}), Some(media.clone()));
+    hub.register(
+        "svc.media",
+        json!({"available": false, "playing": false, "players": []}),
+        Some(media.clone()),
+    );
     for (id, which) in [
         ("media.play_pause", 0),
         ("media.next", 1),
@@ -253,13 +257,17 @@ fn register_services(
         Bus::System,
         |c, s| async move { power::start(c, s).await.map(|(h, _)| (h, ())) },
     ));
-    hub.register("svc.power", json!({"present": false}), Some(power));
+    hub.register(
+        "svc.power",
+        json!({"available": false, "present": false, "on_battery": false}),
+        Some(power),
+    );
     let session = Arc::new(ServiceProvider::new(
         "svc.session",
         Bus::System,
         session::start,
     ));
-    hub.register("svc.session", json!({}), Some(session));
+    hub.register("svc.session", json!({"available": false}), Some(session));
     let network = Arc::new(ServiceProvider::new(
         "svc.network",
         Bus::System,
