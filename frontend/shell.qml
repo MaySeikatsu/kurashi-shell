@@ -26,9 +26,22 @@ ShellRoot {
     // (The probe-era mock has no `panel`, only `popup`.)
     readonly property var ui: Store.docs["runtime.ui"]
     readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true
-        : ui.panel === "island" || ui.panel === "session")
+        : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray")
     property bool stageOpen: false      // follows want, but only after the screen is re-picked
-    onWantChanged: { if (want) stageScreen = focusedScreen(); stageOpen = want }
+
+    // The output whose tray item was clicked: its menu opens there, not on the focused output. Set
+    // before the daemon is asked, so the Stage has its screen when the panel comes up.
+    property var trayOrigin: null
+    function openTray(id, origin) {
+        trayOrigin = origin
+        stageScreen = origin
+        Store.act("tray.menu.open", {id: id})
+    }
+    onWantChanged: {
+        if (want) stageScreen = (ui && ui.panel === "tray" && trayOrigin) ? trayOrigin : focusedScreen()
+        else trayOrigin = null
+        stageOpen = want
+    }
 
     Watch { doc: "theme" }
     Watch { doc: "i18n" }
@@ -37,7 +50,9 @@ ShellRoot {
 
     Variants {
         model: Quickshell.screens
-        delegate: Bar {}
+        delegate: Bar {
+            onTrayMenuRequested: id => root.openTray(id, screen)
+        }
     }
     Lock {}
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
