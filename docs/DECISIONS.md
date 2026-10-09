@@ -213,3 +213,12 @@ open), not a field of `svc.network`; `network.connect` joins saved networks only
 sources/streams with their actions, `svc.power` the power-profiles-daemon profile (absent + `profile_reason` without
 it), `svc.notifications` `dnd_until` (a daemon timer only while set). *Why:* `docs/ux/quick-settings.md`; Ma (no scan
 while closed), Shōjiki (no claimed password need for open networks).
+
+**K30** 🟢 Island outputs and core transient signals (lead, session 5; CONTRACT row 35, W13-island-daemon,
+`docs/ux/island.md`). `runtime.island.main` adds `secondary?` (next live activity of another face), `overflow` (always
+present), `detail?` (per-face peek line) and `stale_at?`, decided deterministically by the arbiter. Core transients:
+charger in/out, battery low ≤ 10 % / critical ≤ 5 % (once per crossing), Bluetooth device connected, default output
+moved (OSD names a non-usual device) — each once per state change, TTL from `island.main.ttl`. **Ma exception:** the
+island keeps `svc.power` and `svc.bluetooth` subscribed for the daemon's lifetime (event-driven, no timers) — without
+it the shell could not announce a plugged charger; follow-ups: absent bus names wait for NameOwnerChanged instead of
+the ≤ 30 s retry, and a key to turn system transients off (BACKLOG I17, I18); measure laptop idle wakeups (bench).

@@ -46,6 +46,10 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I14 | 2026-10-09 | W9-brightness-session report | kurashid's BrightnessWriter opens a new system-bus connection per key press (hold one while keys repeat); `Commands::set_percent` has no daemon caller. | new |
 | I15 | 2026-10-09 | W9-niri-binds report | Unverified: `include "kurashi-binds.kdl"` relative to a `config.kdl` that is a store symlink (niri-flake / HM-managed niri config); the paste fallback for niri < 25.11. | new |
 | I16 | 2026-10-09 | W9-tray report | kurashi-tray's NameOwnerChanged match rule is bus-wide (it filters in code); narrow it (arg0) to cut wakeups on busy buses. | new |
+| I17 | 2026-10-09 | W13-island-daemon report | The service supervisor retries a start every ≤ 30 s while a bus name is absent (e.g. no BlueZ): for services the island keeps subscribed (K30) wait for NameOwnerChanged instead. | accepted |
+| I18 | 2026-10-09 | lead (K30) | A key to turn the island's system transients off (`island.main.system_events`), which also drops the permanent svc.power/svc.bluetooth subscriptions (Ma for users who never want them). | accepted |
+| I19 | 2026-10-09 | W13-island-daemon report | `svc.media` has no position/rate/timestamp, so the media peek and expanded view cannot show elapsed time or a live progress bar honestly. Add them (position read on change + rate, the view interpolates). | accepted (needed by W13-island-views) |
+| I20 | 2026-10-09 | W13-island-daemon report | "Usual output" for the OSD device name is the first default the daemon saw; make it a config key or learn it. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

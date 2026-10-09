@@ -8,7 +8,8 @@
 from W13-island-daemon), `frontend/test-stage.sh`.
 
 **Owned paths:** `frontend/components/expanded/**`, `frontend/components/Island.qml` (secondary activity + overflow +
-peek line), `i18n/{en,ja}/island.toml` (island keys), `frontend/test-stage.sh`.
+peek line + FaceSlots for the new core faces), `frontend/components/faces/{PowerFace,BluetoothFace}.qml` (new compact
+faces for the K30 transients `power`/`battery` and `bluetooth`; until they exist those faces fall back to the clock), `i18n/{en,ja}/island.toml` (island keys), `frontend/test-stage.sh`.
 
 **Do:** clock view (date header + Today, keyboard month grid with optional week numbers, selected-day section hosting
 `clock.expanded.day`, aside slot, footer slot); media view (art placeholder, album, player app + switcher when several,

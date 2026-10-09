@@ -368,13 +368,7 @@ struct NotifySink {
 impl kurashi_services::DocSink for NotifySink {
     fn set(&self, doc: Value) {
         if let Some(island) = &self.island {
-            let unread = doc["unread"].as_u64().unwrap_or(0);
-            island.signal(kurashi_island::FaceSignal {
-                face: "notifications".into(),
-                relevance: if unread > 0 { 40 } else { 0 },
-                condition: unread > 0,
-                transient: None,
-            });
+            island.observe_notifications(&doc);
         }
         let _ = self.hub.set("svc.notifications", doc, None);
     }
@@ -823,30 +817,13 @@ struct AudioSink {
     hub: Arc<Hub>,
     last_origin: Arc<Mutex<Option<(String, std::time::Instant)>>>,
     island: Option<Arc<crate::island::IslandHost>>,
-    /// (volume, muted) last seen; a change shows the island's transient `volume` face (OSD).
-    last: Mutex<Option<(f64, bool)>>,
 }
 
 impl kurashi_services::DocSink for AudioSink {
     fn set(&self, doc: Value) {
-        let now = (
-            doc["volume"].as_f64().unwrap_or(0.0),
-            doc["muted"].as_bool().unwrap_or(false),
-        );
-        let prev = self.last.lock().expect("audio last").replace(now);
-        if let (Some(island), Some(prev)) = (&self.island, prev)
-            && prev != now
-        {
-            island.signal(kurashi_island::FaceSignal {
-                face: "volume".into(),
-                relevance: 0,
-                condition: true,
-                transient: Some(kurashi_island::Transient {
-                    kind: "volume".into(),
-                    ttl_ms: 1500,
-                    may_interrupt: true,
-                }),
-            });
+        // The volume OSD and a moved default output are the island's edges (island.rs).
+        if let Some(island) = &self.island {
+            island.observe_audio(&doc);
         }
         let origin = self
             .last_origin
@@ -865,7 +842,6 @@ impl crate::hub::Provider for AudioProvider {
             hub,
             last_origin: self.last_origin.clone(),
             island: self.island.clone(),
-            last: Mutex::new(None),
         }));
         *self.running.lock().expect("audio lock") = Some((h, c));
     }
@@ -1531,18 +1507,33 @@ pub fn tray_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectF
     });
 }
 
-/// `svc.bluetooth` (BlueZ on the system bus) and the `bluetooth.*` actions.
-pub fn bluetooth(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    bluetooth_with(hub, actions, system_bus());
+/// `svc.bluetooth` (BlueZ on the system bus) and the `bluetooth.*` actions. The island reads its
+/// connection edges from the document (island.rs).
+pub fn bluetooth(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    bluetooth_observed(hub, actions, system_bus(), island);
 }
 
 /// [`bluetooth`] with the bus injected (tests).
 pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    let service = Arc::new(ServiceProvider::with_connect(
-        BLUETOOTH_DOC,
-        connect,
-        kurashi_services::bluetooth::start,
-    ));
+    bluetooth_observed(hub, actions, connect, None);
+}
+
+fn bluetooth_observed(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    let mut service =
+        ServiceProvider::with_connect(BLUETOOTH_DOC, connect, kurashi_services::bluetooth::start);
+    if let Some(island) = island {
+        service = service.observe(move |doc| island.observe_bluetooth(doc));
+    }
+    let service = Arc::new(service);
     hub.register(
         BLUETOOTH_DOC,
         json!({"available": false}),
@@ -1680,17 +1671,32 @@ pub fn network_paced(
 }
 
 /// `svc.power` (UPower and power-profiles-daemon on the system bus, refcounted) and `power.profile`.
-pub fn power(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    power_with(hub, actions, system_bus());
+/// The island reads its charger and battery edges from the document (island.rs).
+pub fn power(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    power_observed(hub, actions, system_bus(), island);
 }
 
 /// [`power`] with the bus injected (tests run it on a private bus with fake daemons).
 pub fn power_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    let service = Arc::new(ServiceProvider::with_connect(
-        POWER_DOC,
-        connect,
-        kurashi_services::power::start,
-    ));
+    power_observed(hub, actions, connect, None);
+}
+
+fn power_observed(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    island: Option<Arc<crate::island::IslandHost>>,
+) {
+    let mut service =
+        ServiceProvider::with_connect(POWER_DOC, connect, kurashi_services::power::start);
+    if let Some(island) = island {
+        service = service.observe(move |doc| island.observe_power(doc));
+    }
+    let service = Arc::new(service);
     hub.register(
         POWER_DOC,
         json!({
