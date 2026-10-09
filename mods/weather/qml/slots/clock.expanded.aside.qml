@@ -1,6 +1,6 @@
 import QtQuick
-import "../../../../frontend/core"
-import "../../../../frontend/components"
+import qs.core
+import qs.components
 import "../Weather.js" as W
 
 // Clock aside (K28 slot `clock.expanded.aside`, at most 140 × 120 px; docs/ux/weather.md, "Clock aside"):
@@ -8,6 +8,10 @@ import "../Weather.js" as W
 // host mounts it only while the mod is on and its document is available, so no gap is left when off.
 // Stale values are dimmed and named; with no data the daemon's reason is the text.
 Item {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: a
 
     width: 140

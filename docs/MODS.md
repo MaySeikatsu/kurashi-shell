@@ -80,8 +80,11 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   for the components its manifest lists (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`,
   `island-face:x` → `qml/Face.qml` with compact + expanded parts, K24). The frontend instantiates
   them with `Loader { source }` only where they are placed or opened (bar widget slot, Stage panel
-  `mod:<id>:<panel>`, island face) — never preloaded. Components see `Store`, `Theme`, `I18n`
-  like core components and talk to the daemon only through their mod's documents/actions.
+Components import the shell by module URI —
+  `import qs.core` (Store, Theme, I18n, Watch) and `import qs.components` (Button, Chip, …) — never by relative path
+  (a mod file loads from `file://`, the shell from `qs:@/qs/`, so a relative import would make a second, disconnected
+  Store/Theme/I18n; found in the session-5 live check). The loader also hands `store`, `theme`, `i18n` as required
+  properties. Mods talk to the daemon only through their own documents/actions.
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
