@@ -206,3 +206,23 @@ async fn media_lifecycle() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(rec.count(), n, "sink called after handle drop");
 }
+
+#[tokio::test]
+async fn dropped_commands_keep_following_players() {
+    // The ServiceHandle owns the service's lifetime; losing the command handle must not stop it.
+    let bus = TestBus::start();
+    let rec = Rec::new();
+    let (handle, cmds) = media::start(bus.conn().await, rec.clone()).await.unwrap();
+    drop(cmds);
+
+    let _a = serve(
+        &bus,
+        "org.mpris.MediaPlayer2.aaa",
+        "Playing",
+        "One",
+        Arc::default(),
+    )
+    .await;
+    rec.wait("player seen", |d| d["title"] == "One").await;
+    drop(handle);
+}

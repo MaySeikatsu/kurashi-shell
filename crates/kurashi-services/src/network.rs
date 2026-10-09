@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use futures_util::StreamExt;
 use serde_json::{Value, json};
 use zbus::Connection;
 use zbus::zvariant::OwnedObjectPath;
@@ -38,7 +37,7 @@ impl Commands {
 
 pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceHandle, Commands)> {
     // Namespace match so access-point strength changes (they live under the NM path) arrive too.
-    let mut events = util::watch(
+    let events = util::watch(
         &conn,
         vec![
             util::props_changed(NM_PATH)?,
@@ -51,9 +50,7 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
     let task = {
         let conn = conn.clone();
         tokio::spawn(async move {
-            while events.next().await.is_some() {
-                em.emit(read(&conn).await);
-            }
+            util::follow("network", &em, events, unavailable(), |_| read(&conn)).await;
         })
     };
     Ok((ServiceHandle::new(task), Commands { conn }))
@@ -82,12 +79,17 @@ fn kind_name(t: &str) -> &'static str {
     }
 }
 
+/// The document while NetworkManager is not on the bus, or not answering.
+fn unavailable() -> Value {
+    json!({"state": "unavailable", "wifi_enabled": false})
+}
+
 async fn read(conn: &Connection) -> Value {
     if !util::name_has_owner(conn, DEST).await {
-        return json!({"state": "unavailable", "wifi_enabled": false});
+        return unavailable();
     }
     let Some(nm) = util::get_all(conn, DEST, NM_PATH, DEST).await else {
-        return json!({"state": "unavailable", "wifi_enabled": false});
+        return unavailable();
     };
     let mut doc = json!({
         "state": state_name(util::prop::<u32>(&nm, "State").unwrap_or(0)),

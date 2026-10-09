@@ -172,3 +172,29 @@ async fn network_lifecycle() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert_eq!(rec.count(), n, "sink called after handle drop");
 }
+
+#[tokio::test]
+async fn bus_gone_marks_unavailable() {
+    // The daemon dies while NM is up: the signal streams end, and the document must not keep
+    // saying "connected" for a service nobody can reach any more.
+    let mut bus = TestBus::start();
+    let srv = bus.server("org.freedesktop.NetworkManager").await;
+    srv.object_server()
+        .at(
+            NM,
+            Nm {
+                state: 70,
+                wifi: true,
+                primary: "/".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let rec = Rec::new();
+    let (handle, _cmds) = network::start(bus.conn().await, rec.clone()).await.unwrap();
+    rec.wait("connected", |d| d["state"] == "connected").await;
+
+    bus.kill();
+    rec.wait("bus gone", |d| d["state"] == "unavailable").await;
+    drop(handle);
+}
