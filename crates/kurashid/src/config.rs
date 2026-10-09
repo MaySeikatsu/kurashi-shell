@@ -137,10 +137,17 @@ impl Offer {
 /// faces a mod provides, with the mod's name as their label (I37); a core face has its catalogue key.
 fn offers_now(hub: &Hub, mod_faces: &BTreeMap<String, String>) -> BTreeMap<String, Vec<Offer>> {
     let mut offers = BTreeMap::new();
-    let palettes = kurashi_theme::bundled_names()
+    let mut palettes: Vec<Offer> = kurashi_theme::bundled_names()
         .into_iter()
         .map(|name| Offer::on(name, format!("config.choice.palette.{name}")))
         .collect();
+    // K34: the wallpaper's own colours, offered while the wallpaper mod serves its document.
+    if hub.snapshot(crate::theme::WALLPAPER_DOC).is_ok() {
+        palettes.push(Offer::on(
+            crate::theme::WALLPAPER_PALETTE,
+            "config.choice.palette.wallpaper".into(),
+        ));
+    }
     offers.insert("palettes".to_string(), palettes);
     if let Ok((_, doc)) = hub.snapshot(ISLAND_DOC) {
         let faces = doc["faces"]
