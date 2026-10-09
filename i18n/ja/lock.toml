@@ -1,0 +1,5 @@
+# ロック画面の文言 (ja): crates/kurashi-auth の runtime.lock キー。
+"lock.error.wrong_password" = "パスワードが違います"
+"lock.error.rate_limited" = "試行回数が多すぎます。しばらくしてからお試しください"
+"lock.error.unavailable" = "認証を利用できません"
+"lock.prompt.password" = "パスワード"
