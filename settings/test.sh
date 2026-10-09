@@ -49,6 +49,19 @@ enforce = true
 blur = false
 T
 printf '[theme.shape]\nradius_scale = 1.5\n[a11y]\nlarge_text = true\n' > "$R/cfg/kurashi/profiles/roomy.toml"
+# Mods (docs/MODS.md): user mods live in $XDG_DATA_HOME/kurashi/mods/<id>/ (xdg_dir adds the app dir),
+# discovered at daemon start. A minimal mod, and a folder without mod.toml (shown as invalid).
+mkdir -p "$R/data/kurashi/mods/demo-blur" "$R/data/kurashi/mods/broken-demo"
+cat > "$R/data/kurashi/mods/demo-blur/mod.toml" <<'T'
+id = "demo-blur"
+name = "Demo blur"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["widget:demo-blur"]
+capabilities = []
+cost = "low"
+T
 # Data dir = the repo itself: i18n/ (incl. the generated schema catalog) and palettes/, exactly
 # what the package installs.
 export KURASHI_DATA_DIR=$ROOT
@@ -86,5 +99,16 @@ shot 3-rejected
 # 4. profiles: preview diff before loading
 Q preview roomy
 shot 4-profiles-preview
+
+# 5. search: "blur" matches keys, labels and help on every page; each hit shows page › section › label
+Q find blur
+shot 5-search
+
+# 6. Mods page: the demo mod turned on through the page's toggle path; the enable of the folder without
+#    mod.toml is refused by the daemon and its message shows under that entry
+Q goto @mods
+Q mod demo-blur true
+Q mod broken-demo true
+shot 6-mods
 
 echo "ok: settings/shots/"; ls settings/shots
