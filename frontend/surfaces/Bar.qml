@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../core/mods.js" as Mods
 import "../components"
 
 // One bar per output, on the edge that output's config names (bar.edge). bar.enabled false: no
@@ -26,7 +27,7 @@ PanelWindow {
     Watch { doc: "svc.workspaces"; active: bar.visible }
     Watch { doc: "runtime.island.main"; active: bar.visible }
     Watch { doc: "svc.audio"; active: bar.visible }
-    Watch { doc: "mods.probe"; active: bar.visible }
+    Watch { doc: "mods"; active: bar.visible }
     Watch { doc: "svc.tray"; active: bar.visible }
     // Input bindings (ARCHITECTURE §6): what each island slot runs. Only while this bar is shown.
     Watch { doc: "bindings"; active: bar.visible }
@@ -40,7 +41,16 @@ PanelWindow {
     readonly property var audio: audioDoc || ({})
     readonly property bool audioUsable: audioDoc !== undefined && audioDoc.available !== false
     readonly property bool audioMuted: audio.muted === true
-    readonly property var mods: Store.docs["mods.probe"] || ({})
+    // Mod widgets (K26): every enabled mod's `widget:*` component, in mod order, placed at the end of the right row.
+    // The list is rebuilt only when its content changes: a Repeater reset would reload every widget.
+    readonly property var modsDoc: Store.docs["mods"]
+    property var modWidgets: []
+    function refreshWidgets() {
+        var w = Mods.widgets(modsDoc)
+        if (JSON.stringify(w) !== JSON.stringify(modWidgets)) modWidgets = w
+    }
+    onModsDocChanged: refreshWidgets()
+    Component.onCompleted: refreshWidgets()
     readonly property var trayDoc: Store.docs["svc.tray"] || ({})
     readonly property var bindings: Store.docs["bindings"] || ({})
     // Items to draw: none while the tray service is unavailable, and Passive items stay hidden
@@ -215,15 +225,11 @@ PanelWindow {
                     WheelHandler { enabled: bar.audioUsable; onWheel: event => bar.volumeStep(event.angleDelta.y) }
                 }
                 Repeater {
-                    model: bar.mods.widgets || []
-                    delegate: ModNode {
+                    model: bar.modWidgets
+                    delegate: ModLoader {
                         required property var modelData
                         anchors.verticalCenter: parent.verticalCenter
-                        node: modelData.ui
-                        wstate: modelData.state || ({})
-                        fg: Theme.fg
-                        size: Theme.fs
-                        families: Theme.families
+                        url: modelData.url
                     }
                 }
                 Text {
@@ -322,18 +328,14 @@ PanelWindow {
                     }
                 }
                 Repeater {
-                    model: bar.mods.widgets || []
+                    model: bar.modWidgets
                     delegate: Item {
                         required property var modelData
                         width: Theme.barH
                         height: Theme.barH
-                        ModNode {
+                        ModLoader {
                             anchors.centerIn: parent
-                            node: modelData.ui
-                            wstate: modelData.state || ({})
-                            fg: Theme.fg
-                            size: Theme.fs
-                            families: Theme.families
+                            url: modelData.url
                         }
                     }
                 }

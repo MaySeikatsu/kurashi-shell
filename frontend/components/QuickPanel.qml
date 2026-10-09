@@ -18,6 +18,8 @@ Column {
         font.family: Theme.fam(text, Theme.families)
         text: I18n.tr("island.quick.heading")
     }
+    // K28: mod tiles (caffeine, wallpaper next, VPN) wrap above the sections; none takes no space.
+    SlotHost { slot: "quick.tiles"; layout: "flow"; width: quick.width }
     NetworkSection {}
     PowerSection {}
     AudioSection {}
