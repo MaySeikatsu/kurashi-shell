@@ -98,6 +98,7 @@
 "mod-wallpaper.cache.clear" = "Clear thumbnails"
 "mod-wallpaper.mono.warning" = "Monochrome: the theme from it falls back to wa-iro (basic colours)."
 "mod-wallpaper.theme.diff" = "Theme"
+"mod-wallpaper.theme.not_applied" = "Theme not applied yet (no source)."
 "mod-wallpaper.theme.previewing" = "Making the theme preview…"
 "mod-wallpaper.theme.axes" = "Default contrast; no colour-blind filter, season or OLED."
 "mod-wallpaper.theme.on" = "Theme: on"
