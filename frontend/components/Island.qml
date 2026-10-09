@@ -10,9 +10,6 @@ import "faces"
 Rectangle {
     id: isl
     property string face: "clock"
-    // Deprecated: faces read their own docs now; kept so existing callers keep assigning.
-    property string clockText: ""
-    property string mediaText: ""
     signal primary()                 // left click
     signal secondary()               // right click
     signal scrolled(int dir)         // +1 up, -1 down

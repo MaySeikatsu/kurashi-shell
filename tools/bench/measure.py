@@ -7,6 +7,7 @@ fresh headless-sway sandbox per pass and writes tools/bench/results/<name>.json 
 
 Pass A (clean)          : idle CPU %, wakeups/s (ctx switches), PSS @1 output, PSS popup open,
                           PSS @2 outputs (hotplug), GPU memory (nvidia-smi), surviving after hotplug
+                          (real daemon: + PSS growth over --cycles open/close cycles of each panel)
 Pass B (WAYLAND_DEBUG)  : startup ms (launch → first commit), idle commits/s per surface,
                           popup input→commit latency (median of 5), island morph frame pacing
 Pass C (strace -f -ttt) : idle syscalls/s + top syscalls
@@ -195,7 +196,38 @@ def stop(p: subprocess.Popen):
         p.kill()
 
 
-def pass_a(name, cmd, warmup, idle):
+# Panels the cycle test opens/closes. Only real-daemon actions exist for them (no mock.*).
+CYCLE_OPEN = [["act", "island.expand"], ["act", "notifications.center"], ["act", "launcher.toggle"]]
+CYCLE_CLOSE = ["act", "ui.close"]
+
+
+def cycle_test(env, app, n):
+    """Leak gate: n warm-up rounds, then n measured rounds of open/close for every panel; reports
+    the PSS growth over the measured rounds. Warm-up is as long as the measurement because
+    first-use allocations (glyph/texture/driver caches) keep landing for ~20 opens of a panel and
+    then saturate (measured: +5.8 MiB in rounds 1-20, +0.2 MiB per further 20), which is not a
+    leak; a real leak keeps growing and shows up in the measured window."""
+    def one_round():
+        for opener in CYCLE_OPEN:
+            kurashi(env, *opener)
+            time.sleep(0.25)
+            kurashi(env, *CYCLE_CLOSE)
+            time.sleep(0.25)
+
+    for _ in range(n):
+        one_round()
+    time.sleep(2)
+    before = pss_kib(tree(app.pid))
+    for _ in range(n):
+        one_round()
+    time.sleep(2)
+    after = pss_kib(tree(app.pid))
+    return {"cycle_count": n, "pss_mib_cycle_before": round(before / 1024, 2),
+            "pss_mib_cycle_after": round(after / 1024, 2),
+            "pss_mib_cycle_growth": round((after - before) / 1024, 2)}
+
+
+def pass_a(name, cmd, warmup, idle, cycles=20):
     sb = Sandbox(f"bench-{name}-a-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     mock = start_daemon(sb.env)
     try:
@@ -239,6 +271,8 @@ def pass_a(name, cmd, warmup, idle):
         time.sleep(4)
         r["pss_mib_2out"] = round(pss_kib(tree(app.pid)) / 1024, 1)
         r["survived_hotplug"] = app.poll() is None
+        if DAEMON == "real" and cycles > 0:
+            r.update(cycle_test(sb.env, app, cycles))
         if DAEMON == "real":
             r["daemon_pss_mib_end"] = round(pss_kib(tree(mock.pid)) / 1024, 1)
         stop(app)
@@ -384,6 +418,8 @@ def main():
     ap.add_argument("--warmup", type=float, default=10)
     ap.add_argument("--idle", type=float, default=30)
     ap.add_argument("--passes", default="abc")
+    ap.add_argument("--cycles", type=int, default=20,
+                    help="open/close cycles per panel for the leak row (real daemon, pass A; 0 = skip)")
     ap.add_argument("--daemon", choices=("mock", "real"), default="mock",
                     help="kurashi-mock (default) or the built kurashid")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
@@ -399,7 +435,8 @@ def main():
     for p, fn in (("a", pass_a), ("b", pass_b), ("c", pass_c)):
         if p in a.passes:
             print(f"[{a.name}] pass {p} …", file=sys.stderr)
-            result[f"pass_{p}"] = fn(a.name, cmd, a.warmup, a.idle)
+            result[f"pass_{p}"] = (fn(a.name, cmd, a.warmup, a.idle, a.cycles) if p == "a"
+                                   else fn(a.name, cmd, a.warmup, a.idle))
     out = RESULTS / f"{a.name}.json"
     out.write_text(json.dumps(result, indent=2, ensure_ascii=False))
     print(json.dumps(result, indent=2, ensure_ascii=False))

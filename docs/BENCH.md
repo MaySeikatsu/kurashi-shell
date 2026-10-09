@@ -19,6 +19,7 @@ baseline.
 | Idle CPU, daemon + frontend, 10 min | < 0.5 % |
 | PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +6 MiB per extra output, measured vs. popup-closed (K16, K19; was ≤ 50 % of shellseikatsu) |
 | Popup input → first frame | ≤ 1 frame after map |
+| PSS growth over 20 panel open/close cycles (island, notification center, launcher; after 20 warm-up rounds) | ≤ 2 MiB |
 | Mapped surfaces per output at idle | ≤ 4 |
 
 ## Baseline — shellseikatsu (2026-10-08, Quickshell 0.3.1, Qt 6.11.2, niri, 1 output)

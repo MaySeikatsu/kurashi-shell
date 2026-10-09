@@ -101,12 +101,13 @@ in
       };
       Service = {
         Type = "simple";
-        ExecStart = "${lib.getExe' cfg.frontend.package "qs"} -p ${cfg.package}/share/kurashi/frontend";
+        # launch.sh pins the EGL vendor on single-GPU NVIDIA machines (-13 MiB, K16).
+        ExecStart = "${cfg.package}/share/kurashi/frontend/launch.sh";
         Restart = "on-failure";
         RestartSec = 1;
         RestartSteps = 5;
         RestartMaxDelaySec = 30;
-        Environment = envList;
+        Environment = envList ++ [ "KURASHI_QS=${lib.getExe' cfg.frontend.package "qs"}" ];
       };
       Install.WantedBy = [ "graphical-session.target" ];
     };
