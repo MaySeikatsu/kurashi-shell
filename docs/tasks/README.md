@@ -198,3 +198,12 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W13-media-position](W13-media-position.md) | svc.media position/rate/can/players + seek/select actions, mock | haiku |
 | [W13-island-views](W13-island-views.md) (after W11-mod-qml + W13-island-daemon) | `components/expanded/**` to `docs/ux/island.md` | haiku |
 
+## Wave 14 (session 5; mod runtime follow-ups, mod UX passes, live all-mods test; Haiku 5.5, max effort)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W14-mod-runtime](W14-mod-runtime.md) | mod-api, kurashi-mods, native.rs, mods part of wiring.rs, adoption lines in the mods | haiku |
+| [W14-mods-live](W14-mods-live.md) | `frontend/test-mods-live.sh`, kurashid `test-mods` feature, hello test data | haiku |
+| [W14-sysmon-ux](W14-sysmon-ux.md) | sysmon crate + `mods/sysmon` | haiku |
+| [W14-wallpaper-ux](W14-wallpaper-ux.md) | wallpaper crate + `mods/wallpaper`, kurashi-theme (wallpaper source, warn role) | haiku |
+| [W14-weather-ux](W14-weather-ux.md) | weather crate + `mods/weather` | haiku |
+
