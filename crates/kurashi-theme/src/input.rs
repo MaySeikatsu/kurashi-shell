@@ -2,7 +2,7 @@
 //! nothing about the schema/config crates.
 
 use std::collections::BTreeMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
@@ -65,8 +65,11 @@ pub enum Source {
     PaletteToml(String),
     /// `manual`: user-pinned roles (applies to whichever scheme is selected).
     Manual(RawRoles),
-    /// `wallpaper`: material-colors extraction.
+    /// `wallpaper`: material-colors extraction from pixels the caller decoded.
     Wallpaper(Wallpaper),
+    /// `wallpaper` from the picture at this path. Decoded and extracted once per path, mtime and
+    /// size (`stages::wallpaper_file`), so a resolve on every config change costs no decode.
+    WallpaperFile(PathBuf),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
