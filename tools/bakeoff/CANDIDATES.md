@@ -1,7 +1,7 @@
 # Bake-off candidates — per-framework hints (append to the task card for each agent)
 
 ## quickshell
-- Quickshell 0.3.x from nixpkgs (`qs -p probes/quickshell`). QML only; no Rust in the probe.
+- Quickshell 0.3.x from nixpkgs (`qs -p archive/bakeoff-probes/quickshell`). QML only; no Rust in the probe.
 - IPC: `Socket` + `SplitParser { splitMarker: "\n" }`; write with `socket.write(JSON.stringify(m) + "\n")`.
 - Windows: `Variants { model: Quickshell.screens }` + `PanelWindow`; popup via `PopupWindow` with
   `anchor.window` + `anchor.rect` (**never** assign `anchor.item` dynamically — segfaults in 0.3).

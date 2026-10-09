@@ -27,7 +27,7 @@ gtk4 — no session-lock API, popups only as 2nd layer surface (+77 MiB), GskGLS
 *Re-evaluation clause (user, 2026-10-09):* reopen with a fresh bake-off if Quickshell restricts a
 feature, the feel goal (quick, smooth, polished, snappy) or quick iteration, or a native stack
 passes IME + blur + lock with hot reload. Mods stay renderer-independent (K1) and the probes stay in
-`probes/` as the re-run baseline. Known cost: memory over budget → K16.
+`archive/bakeoff-probes/` as the re-run baseline. Known cost: memory over budget → K16.
 
 **K4** 🟢 IPC framing is NDJSON (not length-prefixed).
 *Why:* trivially parsed by every candidate frontend (QML `SplitParser`, GLib, tokio
