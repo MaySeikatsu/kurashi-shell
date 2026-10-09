@@ -28,3 +28,8 @@
 with `--daemon real` — or, if a budget genuinely fails, `budget.py` exits non-zero and your report
 names the failing budget with numbers (that is a valid outcome; do not tune budgets). Plus a
 self-test: `python3 tools/bench/budget.py tools/bench/testdata/fail.json` exits 1.
+
+**Notes.** The real daemon has no `mock.*` controls: drive the morph with `act island.next` and the
+popup with `act island.expand` (both registered). Documents the daemon doesn't serve yet (e.g.
+`svc.audio` until the audio crate is wired) answer `unknown_doc` — the frontend must tolerate it;
+if it doesn't, report it rather than editing `frontend/`.
