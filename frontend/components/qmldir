@@ -10,7 +10,7 @@ NotificationCard 1.0 NotificationCard.qml
 FocusRing 1.0 FocusRing.qml
 TrayIcon 1.0 TrayIcon.qml
 TrayMenu 1.0 TrayMenu.qml
-BluetoothSwitch 1.0 BluetoothSwitch.qml
+ToggleSwitch 1.0 ToggleSwitch.qml
 BluetoothPanel 1.0 BluetoothPanel.qml
 QuickButton 1.0 QuickButton.qml
 QuickPanel 1.0 QuickPanel.qml

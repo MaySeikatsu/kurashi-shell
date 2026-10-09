@@ -77,7 +77,7 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("island.quick.network.heading")
             }
-            BluetoothSwitch {
+            ToggleSwitch {
                 id: wifiSwitch
                 checked: net.wifiOn
                 label: I18n.tr("island.quick.network.heading")

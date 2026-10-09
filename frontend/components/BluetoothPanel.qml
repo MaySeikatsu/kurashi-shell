@@ -17,6 +17,36 @@ Column {
     signal scanRequested(bool on)
     signal linkRequested(string address, bool connect)
 
+    // The device rows are ListModels updated in place. Every patch of svc.bluetooth brings new arrays, and a
+    // Repeater over them rebuilds each row, so a focused Connect or Disconnect button lost its focus after its
+    // own action. Rows keep their delegates by position, as the audio rows do, and carry plain values only.
+    ListModel { id: pairedRows }
+    ListModel { id: nearbyRows }
+    function rowOf(d) {
+        var parts = [d.connected === true ? I18n.tr("frontend.bt.connected")
+            : (d.paired === true ? I18n.tr("frontend.bt.paired") : I18n.tr("frontend.bt.new"))]
+        if (d.battery !== undefined) parts.push(I18n.tr("frontend.bt.battery") + " " + d.battery + "%")
+        return {address: String(d.address || ""), title: String(d.name || d.address || ""),
+                stateLine: parts.join(" · "), connected: d.connected === true}
+    }
+    function syncRows(model, list) {
+        for (var i = 0; i < list.length; i++) {
+            if (i < model.count) model.set(i, rowOf(list[i]))
+            else model.append(rowOf(list[i]))
+        }
+        while (model.count > list.length) model.remove(model.count - 1)
+    }
+    // Read from `doc` itself: on a change of `doc`, the derived bindings (powered, paired) may not have updated yet.
+    function syncAll() {
+        var devices = doc.devices || []
+        var on = doc.powered === true
+        syncRows(pairedRows, on ? devices.filter(function (d) { return d.paired === true }) : [])
+        syncRows(nearbyRows, on && doc.discovering === true
+                 ? devices.filter(function (d) { return d.paired !== true }) : [])
+    }
+    onDocChanged: syncAll()
+    Component.onCompleted: syncAll()
+
     spacing: Theme.gap
 
     Row {
@@ -31,7 +61,7 @@ Column {
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("frontend.bt.title")
         }
-        BluetoothSwitch {
+        ToggleSwitch {
             id: power
             checked: bt.powered
             label: I18n.tr("frontend.bt.title")
@@ -64,7 +94,7 @@ Column {
         text: I18n.tr("frontend.bt.devices")
     }
     Repeater {
-        model: bt.powered ? bt.paired : []
+        model: pairedRows
         delegate: deviceRow
     }
     Text {
@@ -85,7 +115,7 @@ Column {
         text: I18n.tr("frontend.bt.nearby")
     }
     Repeater {
-        model: bt.powered && bt.discovering ? bt.nearby : []
+        model: nearbyRows
         delegate: deviceRow
     }
 
@@ -104,13 +134,10 @@ Column {
         id: deviceRow
         Item {
             id: dev
-            required property var modelData
-            readonly property bool connected: modelData.connected === true
-            readonly property string stateLine: [
-                connected ? I18n.tr("frontend.bt.connected")
-                    : (modelData.paired === true ? I18n.tr("frontend.bt.paired") : I18n.tr("frontend.bt.new")),
-                modelData.battery !== undefined ? I18n.tr("frontend.bt.battery") + " " + modelData.battery + "%" : ""
-            ].filter(function (s) { return s !== "" }).join(" · ")
+            required property string address
+            required property string title
+            required property string stateLine
+            required property bool connected
 
             width: bt.width
             height: Math.max(Theme.controlH, labels.implicitHeight)
@@ -127,7 +154,7 @@ Column {
                     color: Theme.fg
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
-                    text: dev.modelData.name || dev.modelData.address
+                    text: dev.title
                 }
                 Text {
                     width: parent.width
@@ -143,7 +170,7 @@ Column {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 label: dev.connected ? I18n.tr("frontend.bt.disconnect") : I18n.tr("frontend.bt.connect")
-                onClicked: bt.linkRequested(dev.modelData.address, !dev.connected)
+                onClicked: bt.linkRequested(dev.address, !dev.connected)
             }
         }
     }
