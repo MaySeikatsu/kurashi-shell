@@ -953,6 +953,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-sysmon"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "kurashi-mods",
+ "rustix",
+ "semver",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "kurashi-mod-weather"
 version = "0.0.1"
 dependencies = [
@@ -1072,6 +1086,7 @@ dependencies = [
  "kurashi-launcher",
  "kurashi-mod-api",
  "kurashi-mod-hello",
+ "kurashi-mod-sysmon",
  "kurashi-mod-weather",
  "kurashi-mods",
  "kurashi-notify",
