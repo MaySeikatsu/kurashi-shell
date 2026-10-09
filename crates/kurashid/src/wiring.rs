@@ -56,6 +56,11 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         "action.notifications.center",
         toggle_panel(hub.clone(), "notifications"),
     );
+    actions.register(
+        "session.menu",
+        "action.session.menu",
+        toggle_panel(hub.clone(), "session"),
+    );
     let h = hub.clone();
     actions.register("launcher.toggle", "action.launcher.toggle", move |_| {
         let hub = h.clone();
