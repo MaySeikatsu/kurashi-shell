@@ -319,6 +319,8 @@ impl Shared {
                 units,
                 units_from,
                 template: &cfg.template,
+                saved: &st.places,
+                configured: &cfg.place,
             });
             let wake = place.and_then(|_| {
                 let fetch = fetch_due(data, failure, cfg.refresh_s).map(|t| t.max(now + 1));
