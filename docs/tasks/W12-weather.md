@@ -10,7 +10,7 @@ geocoding https://open-meteo.com/en/docs/geocoding-api). Check the workspace for
 before adding one (prefer a small rustls-based client; declare it in your crate only).
 
 **Owned paths:** `crates/kurashi-mod-weather/**` (new), `mods/weather/**` (manifest, `qml/Widget.qml`, `qml/Panel.qml`),
-`i18n/{en,ja}/mod-weather.toml` (new), one line each in `crates/kurashid/Cargo.toml` and `crates/kurashid/src/main.rs`.
+`i18n/{en,ja}/mod-weather.toml` (new), one line each in `crates/kurashid/Cargo.toml` and in `native::linked()` (`crates/kurashid/src/native.rs`: `Box::new(<your mod>)`) — expect trivial conflicts with sibling mod cards.
 
 **Do:** manifest `provides = ["service:weather", "widget:weather", "panel:weather"]`, `capabilities = ["network"]`;
 settings `location` (text: a place name, geocoded once and cached with its lat/lon in the state dir), `units`
@@ -27,3 +27,8 @@ failure → stale with reason and last data kept. clippy -D warnings, fmt. No re
 
 **Report:** list every Definition-of-done item of `docs/ux/weather.md` as met / not met (README rule 10), with the screenshot
 or test that shows it.
+
+**Mechanism notes (lead, after W12-mod-hooks):** use `kurashi_mod_api::ModCtx` as the hello test mod does
+(`crates/kurashi-mod-hello`, `crates/kurashid/tests/data/mods/hello`): services, actions, `ctx.face(...)` → `FaceHandle`
+(raise/clear), `ctx.choices(source, …)` with `Choice::new(..).unavailable(key)` (do not re-add it), slots by
+`qml/slots/<slot>.qml` + `slot:<slot>` in provides. Ship the mod's manifest + qml under `mods/<id>/`.
