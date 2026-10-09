@@ -110,7 +110,22 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | W10.1 | Island click → expanded view of the shown face (clock calendar, media transport, notifications, volume, brightness; generic for others); quick settings card holds Bluetooth (K24, B1, I2) | ✅ functional · UX ⏳ (`docs/ux/island.md`, `quick-settings.md`) | W10-stage-panels 2d82bc0; `frontend/test-stage.sh`; golden machine B re-recorded; multi-output re-pick for quick → BACKLOG B14 |
 | W10.2 | Quick-settings button in the bar (◐, bar-thick target) | ✅ functional · UX ⏳ (`docs/ux/quick-settings.md`) | W10-bar-quick; lead: Theme roles instead of hex fallbacks; `frontend/test-quick.sh` |
 | W10.3 | Mods as config lists `mods.loaded`/`mods.enabled` (persisted, B11), page per loaded mod, `running` hook, `choices_from` resolved (palettes, island faces), `color.status.on/off` (K25, I9) | ✅ | W10-mods-daemon; `tests/mods_state.rs`; CONTRACT 23 deferred to K26, 24 decided (one transaction) |
-| W10.4 | Settings: mod pages in the sidebar with state marks, Load/Unload, Select + PickList | 🔄 | card W10-settings |
+| W10.4 | Settings: mod pages in the sidebar with state marks, Load/Unload, Select + PickList | ✅ functional · UX ⏳ (`docs/ux/settings.md`, W13-settings-ux) | W10-settings 187de92; pick list horizontal (fixed in the UX pass) |
 
 Status key (from session 5, CLAUDE.md "UX bar"): user-facing steps are *functional* when they work and pass their
 tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against screenshots).
+
+## Wave 11–13 (session 5; native mods, K28, UX passes)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W11.1 | Native mod mechanism: `kurashi-mod-api` (NativeMod, ModCtx), ledger, runtime unregister of docs/actions, `running`, hello test mod (K26) | ✅ | W11-native-mods 9bda795; CONTRACT 27–29 |
+| W12.1 | Quick settings daemon: `audio.sink.default`, `network.wifi`, mock parity | ✅ | W12-quick-daemon 9a19dec |
+| W12.2 | Quick settings sections: Wi-Fi, power, audio output, Bluetooth; ToggleSwitch focus ring; Slider clamp (B12) | ✅ functional · UX ⏳ (W13-quick-ux) | W12-quick-ui |
+| B.3 | Per-output PSS (B7): lazy island faces, gate = mean of two hotplugs, sandbox boot_vga (B10) | 🔄 merged 673dca1; the +29.8 MiB cycle spike of one gate run still needs a quiet-machine repro | lead |
+| D.4 | UX bar: `docs/ux/` composition map + 6 researched briefs (quick settings, island, settings, wallpaper, sysmon, weather); CLAUDE.md rule; card rule 10 | ✅ | lead 5b1dd41, e120863 |
+| K28 | Contribution slots, mod Island faces, mod choice sources, `mod.panel.open` — contract + daemon | ✅ | lead 1068f6b; W12-mod-hooks 84bd67a (rows 30–33) |
+| W11.2 | Frontend mod loading: ModLoader, SlotHost, mod panels/widgets/faces | 🔄 | W11-mod-qml |
+| W12.3–5 | Mods: wallpaper, sysmon, weather (brief-governed) | 🔄 | W12-wallpaper, W12-sysmon, W12-weather |
+| W13.1–5 | UX passes: settings, quick daemon pages, island daemon (secondary/overflow/stale, core transient signals); quick UI + island views queued | 🔄 | W13-* |
+| F.5 | Nix build green again (config_doc test read the install prefix) | ✅ | 6754af0 |
+
