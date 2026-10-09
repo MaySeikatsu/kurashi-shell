@@ -157,7 +157,7 @@ fn good_manifest_and_float_default() {
         "{GOOD}\n[[setting]]\nkey = \"f\"\ntype = \"float\"\ndefault = 1\nrange = [0, 2.5]\n"
     );
     let m = manifest::parse("demo", &text, &daemon()).unwrap();
-    assert_eq!(m.config_key("f"), "mod.demo.f");
+    assert_eq!(m.config_key("f"), "mods.demo.f");
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn setting_contributions_use_mod_config_keys() {
             _ => None,
         })
         .collect();
-    assert_eq!(keys, ["mod.media.show_art", "mod.media.seek_step"]);
+    assert_eq!(keys, ["mods.media.show_art", "mods.media.seek_step"]);
 }
 
 #[test]
@@ -409,6 +409,36 @@ fn bundled_descriptions_resolve_in_both_locales() {
                 text.is_some_and(|s| !s.trim().is_empty()),
                 "{key} missing in i18n/{locale}/mods.toml"
             );
+        }
+    }
+}
+
+/// Every label, help and choice label a bundled setting shows (K22: `mods.<id>.<key>` when the
+/// manifest names no label) resolves in both catalogs.
+#[test]
+fn bundled_setting_strings_resolve_in_both_locales() {
+    let r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    for e in r.iter() {
+        let m = e.manifest.as_ref().unwrap();
+        for s in &m.settings {
+            let mut keys = vec![s.label.clone().unwrap_or_else(|| m.config_key(&s.key))];
+            keys.extend(s.help.clone());
+            keys.extend(
+                s.choices
+                    .iter()
+                    .map(|c| format!("{}.{c}", m.config_key(&s.key))),
+            );
+            for locale in ["en", "ja"] {
+                let path = manifest_dir(&format!("../../i18n/{locale}/mods.toml"));
+                let table: toml::Table = fs::read_to_string(path).unwrap().parse().unwrap();
+                for key in &keys {
+                    let text = table.get(key).and_then(|v| v.as_str());
+                    assert!(
+                        text.is_some_and(|t| !t.trim().is_empty()),
+                        "{key} missing in i18n/{locale}/mods.toml"
+                    );
+                }
+            }
         }
     }
 }
