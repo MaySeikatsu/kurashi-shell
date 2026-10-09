@@ -63,6 +63,8 @@ ShellRoot {
                 if (h) win.jump(h.pageId, h.row)
             }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
+            // Mods test (B8): the refusal line a row shows, empty when none is shown.
+            function modRefusal(id: string): string { return modsPage.failures[id] ? modsPage.failures[id].text : "" }
             // Keyboard test: the control that has keyboard focus: its objectName, else its accessible name.
             function focused(): string {
                 const f = keys.Window.activeFocusItem
@@ -71,6 +73,13 @@ ShellRoot {
             }
             // Keyboard test: put focus back on the list, where Tab starts walking the window.
             function focusList(): void { keys.forceActiveFocus() }
+            // History test (K27): the Undo/Redo state the header shows, and the same click as Undo's.
+            function undoState(): string {
+                return "undo=" + (Store.canUndo ? "on" : "off") + ",redo=" + (Store.canRedo ? "on" : "off")
+            }
+            function undo(): void { Store.undo() }
+            // Profiles test: the names the Profiles page lists now.
+            function profileNames(): string { return profiles.profiles.map(function (x) { return x.name }).join(",") }
         }
 
         Column {
@@ -115,7 +124,7 @@ ShellRoot {
                         onSubmitted: win.jumpFirst()
                         onEscaped: { win.query = ""; keys.forceActiveFocus() }
                     }
-                    // Undo and redo are on only while the daemon's replies say there is something to take back.
+                    // Undo and redo are on while the daemon's config.history says there is something to take back.
                     Button {
                         anchors.verticalCenter: parent.verticalCenter
                         label: I18n.tr("settings.ui.undo")
