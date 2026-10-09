@@ -10,7 +10,8 @@ rustPlatform.buildRustPackage {
   # Rust workspace + runtime data — probes/ and docs/ never invalidate the package build.
   src = fs.toSource {
     root = ../.;
-    fileset = fs.unions [
+    # Screenshots are review artefacts, not runtime data.
+    fileset = fs.difference (fs.unions [
       ../Cargo.toml
       ../Cargo.lock
       ../crates
@@ -20,7 +21,10 @@ rustPlatform.buildRustPackage {
       ../frontend
       ../settings
       ../mods
-    ];
+    ]) (fs.unions [
+      (fs.maybeMissing ../frontend/shots)
+      (fs.maybeMissing ../settings/shots)
+    ]);
   };
 
   cargoLock.lockFile = ../Cargo.lock;
