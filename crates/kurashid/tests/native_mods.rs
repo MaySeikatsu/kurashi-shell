@@ -804,7 +804,7 @@ async fn changed_choices_reach_the_settings_at_once() {
         .unwrap()
         .as_ref()
         .expect("the choices handle")
-        .changed();
+        .choices_changed();
     assert_eq!(offered(&setting_row(&d, "mods.shifty.pick")), ["a", "b"]);
 }
 
