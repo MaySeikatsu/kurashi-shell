@@ -55,4 +55,14 @@ merges, and records progress; agents only build what their card says.
 | [M5-island](M5-island.md) | `crates/kurashi-island/` | sonnet (wave 2) |
 | [M3-stage](M3-stage.md) | `frontend/` | sonnet (wave 2) |
 | [M6-mods](M6-mods.md) | `crates/kurashi-mods/`, `mods/` | sonnet (wave 2) |
-Lead (in parallel): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kurashi-mock` / CLI.
+
+## Wave 3 (2026-10-09, session 2)
+| Card | Owner paths | Model |
+|---|---|---|
+| [M4-audio](M4-audio.md) | `crates/kurashi-audio/`, `nix/package.nix` | sonnet |
+| [M7-nix-modules](M7-nix-modules.md) | `nix/hm-module.nix`, `nix/nixos-module.nix`, `nix/tests/` | sonnet |
+| [M5-notifications](M5-notifications.md) | `crates/kurashi-notify/` | sonnet |
+| [M5-launcher](M5-launcher.md) | `crates/kurashi-launcher/` | sonnet |
+Lead (in parallel): config/schema wiring into kurashid + CLI (M1.5).
+
+Lead (wave 1–2): protocol v1 completion in `kurashi-ipc` / `kurashid` / `kurashi-mock` / CLI.
