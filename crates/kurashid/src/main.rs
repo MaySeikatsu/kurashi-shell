@@ -232,42 +232,10 @@ fn register_services(
     island: &Arc<kurashid::island::IslandHost>,
     actions: &mut ActionRegistry,
 ) {
-    use kurashi_services::{media, session};
+    use kurashi_services::session;
     use kurashid::services::{Bus, ServiceProvider};
 
-    let isl = island.clone();
-    let media = Arc::new(
-        ServiceProvider::new("svc.media", Bus::Session, media::start)
-            .observe(move |doc| isl.observe_media(doc)),
-    );
-    hub.register(
-        "svc.media",
-        json!({"available": false, "playing": false, "players": []}),
-        Some(media.clone()),
-    );
-    for (id, which) in [
-        ("media.play_pause", 0),
-        ("media.next", 1),
-        ("media.prev", 2),
-    ] {
-        let media = media.clone();
-        actions.register(id, &format!("action.{id}"), move |_| {
-            let cmds = media.commands();
-            async move {
-                let cmds = cmds.ok_or_else(|| {
-                    kurashid::ActionError::Unavailable("media service not running".into())
-                })?;
-                match which {
-                    0 => cmds.play_pause().await,
-                    1 => cmds.next().await,
-                    _ => cmds.prev().await,
-                }
-                .map_err(|e| kurashid::ActionError::Unavailable(e.to_string()))?;
-                Ok(None)
-            }
-        });
-    }
-
+    kurashid::wiring::media(hub, actions, Some(island.clone()));
     kurashid::wiring::power(hub, actions, Some(island.clone()));
     let session = Arc::new(ServiceProvider::new(
         "svc.session",
