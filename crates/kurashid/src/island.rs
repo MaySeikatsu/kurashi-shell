@@ -60,8 +60,8 @@ impl IslandHost {
     }
 
     /// Map `island.main.{faces,default,ttl}` onto the arbiter and re-publish. Re-register on
-    /// every change with `ConfigStore::on_change`. `volume` is always transient-only, whatever
-    /// `faces` says, and `ttl` overrides the transient kinds the schema documents (K9).
+    /// every change with `ConfigStore::on_change`. The OSD faces (`volume`, `brightness`) are always
+    /// transient-only, whatever `faces` says, and `ttl` sets how long they stay (K9).
     pub fn apply_config(self: &Arc<Self>, cfg: &ConfigStore) {
         let faces = cfg
             .get("island.main.faces", None)
@@ -81,11 +81,13 @@ impl IslandHost {
                 c.default = d;
             }
             if let Some(s) = ttl {
-                for kind in ["volume", "notification"] {
+                for kind in ["volume", "brightness", "notification"] {
                     c.ttl_overrides.insert(kind.into(), s * 1000);
                 }
             }
-            c.transient_only.insert("volume".into());
+            for face in ["volume", "brightness"] {
+                c.transient_only.insert(face.into());
+            }
             arb.set_config(c);
         });
     }
@@ -275,5 +277,28 @@ mod tests {
         // The wall clock drives `now`; let it pass the deadline.
         tokio::time::sleep(std::time::Duration::from_millis(120)).await;
         assert_eq!(face(&hub)["face"], "clock");
+    }
+
+    #[tokio::test]
+    async fn osd_faces_are_transient_only_and_share_the_ttl() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "");
+        let h = IslandHost::new(
+            hub.clone(),
+            "main",
+            IslandConfig::default(),
+            &["clock", "media", "notifications", "volume", "brightness"],
+        );
+        h.apply_config(&cfg);
+        let c = h.arb.lock().unwrap().config().clone();
+        for kind in ["volume", "brightness"] {
+            assert!(c.transient_only.contains(kind), "{kind} is not cyclable");
+            // The default `island.main.ttl` is 5 s.
+            assert_eq!(
+                c.ttl_overrides[kind], 5000,
+                "{kind} follows island.main.ttl"
+            );
+        }
+        let _ = std::fs::remove_dir_all(root);
     }
 }
