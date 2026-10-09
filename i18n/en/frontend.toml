@@ -1,0 +1,5 @@
+# Frontend strings (en). Keys are looked up via I18n.tr(); the daemon will serve them.
+"frontend.bar.disconnected" = "disconnected"
+"frontend.stage.title" = "Kurashi"
+"frontend.stage.close" = "Close"
+"frontend.prov.forced_by" = "forced by"
