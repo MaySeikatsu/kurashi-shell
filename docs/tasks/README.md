@@ -19,6 +19,9 @@ merges, and records progress; agents only build what their card says.
    file lock" is expected, just wait). Never `cargo run` long-lived binaries (it can hold the
    lock): build, then run `$CARGO_TARGET_DIR/debug/<bin>` directly. Prefer `cargo test -p <crate>`
    and `cargo clippy -p <crate>` over workspace-wide commands. No `cargo clean`.
+   **Binaries in the shared dir are overwritten by other worktrees** (`debug/<bin>` is not
+   path-hashed): build and copy in one step (`cargo build -p x && cp $CARGO_TARGET_DIR/debug/x
+   <your-dir>/`) and run the copy.
 4. **Tools come from `nix develop`** (repo root). Run commands as `nix develop -c <cmd>` or inside
    one shell. Flakes only see git-tracked files: `git add` new files before any `nix` command.
 5. **Never touch the user's session.** No GUI on the real display; use `tools/bench/sandbox.sh`
