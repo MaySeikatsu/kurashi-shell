@@ -1,12 +1,16 @@
 import QtQuick
-import "../../../frontend/core"
-import "../../../frontend/components"
-import "../../../frontend/components/faces"
+import qs.core
+import qs.components
+import qs.components.faces
 import "Weather.js" as W
 
 // Expanded view of the rain-soon face: the same fact with the place and the time it starts, and one
 // action that opens the full panel (where the hourly strip and the seven days are).
 FaceBase {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: f
 
     readonly property var d: Store.docs["mod.weather"] || ({})

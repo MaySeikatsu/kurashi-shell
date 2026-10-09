@@ -1,12 +1,16 @@
 import QtQuick
-import "../../../frontend/core"
-import "../../../frontend/components"
+import qs.core
+import qs.components
 
 // The wallpaper picker (Stage panel `mod:wallpaper:wallpaper`, docs/ux/wallpaper.md). A view: it
 // subscribes to `mod.wallpaper`, pages the library with `wallpaper.thumbs` (thumbnails and palette chips
 // are the daemon's, made for the rows asked for), and sends `wallpaper.*` actions. No polling: the
 // picker's subscription is what keeps the document, and so the backend check, current.
 Item {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: picker
     implicitWidth: 720
     implicitHeight: 480

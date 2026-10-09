@@ -1,12 +1,16 @@
 import QtQuick
-import "../../../frontend/core"
-import "../../../frontend/components/faces"
+import qs.core
+import qs.components.faces
 import "Weather.js" as W
 
 // Island face of the weather mod: rain soon (docs/ux/weather.md, "Beyond the basic job" 1). The daemon
 // raises it once per onset and takes it back when the rain starts; this shows the daemon's fact: the
 // minutes until the rain and its strength. No fact, no words (Shōjiki: nothing is invented).
 FaceBase {
+    // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
+    required property var store
+    required property var theme
+    required property var i18n
     id: f
 
     readonly property var d: Store.docs["mod.weather"] || ({})
