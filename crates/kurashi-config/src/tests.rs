@@ -528,7 +528,7 @@ fn profile_section_load_is_one_undoable_tx() {
     ])
     .unwrap();
     let rev = cfg.rev();
-    let d = cfg.preview_profile("kanso", Some(&["theme"])).unwrap();
+    let d = cfg.preview_profile("kanso", Some(&["theme"])).unwrap().diff;
     assert_eq!(d.rev, rev);
     assert_eq!(d.entries.len(), 1);
     assert_eq!(d.entries[0].key, "theme.palette");
@@ -540,7 +540,7 @@ fn profile_section_load_is_one_undoable_tx() {
     assert_eq!(d.diagnostics.len(), 1); // theme.nope
     assert_eq!(cfg.rev(), rev, "preview changes nothing");
 
-    let (a, _) = cfg.load_profile("kanso", Some(&["theme"])).unwrap();
+    let a = cfg.load_profile("kanso", Some(&["theme"])).unwrap().applied;
     assert_eq!(a.rev, rev + 1);
     assert_eq!(a.changed, vec![slot("theme.palette", None)]);
     assert_eq!(val(&cfg, "bar.height", None), (json!(50), Source::User));
@@ -676,7 +676,10 @@ fn mod_section_load_changes_only_that_mod_as_one_undoable_tx() {
     ])
     .unwrap();
     let rev = cfg.rev();
-    let (a, _) = cfg.load_profile("night", Some(&["mods.media"])).unwrap();
+    let a = cfg
+        .load_profile("night", Some(&["mods.media"]))
+        .unwrap()
+        .applied;
     assert_eq!(a.rev, rev + 1);
     let mut changed = a.changed.clone();
     changed.sort();
@@ -723,7 +726,7 @@ fn mods_section_loads_every_mod() {
         Op::set("mods.clock.size", json!(5)),
     ])
     .unwrap();
-    let d = cfg.preview_profile("night", Some(&["mods"])).unwrap();
+    let d = cfg.preview_profile("night", Some(&["mods"])).unwrap().diff;
     assert_eq!(d.entries.len(), 3);
     cfg.load_profile("night", Some(&["mods"])).unwrap();
     assert_eq!(
@@ -745,9 +748,15 @@ fn mod_section_filter_matches_whole_segments_only() {
     ])
     .unwrap();
     // `mods.med` names no section: nothing is previewed, loaded or unpinned.
-    let d = cfg.preview_profile("night", Some(&["mods.med"])).unwrap();
+    let d = cfg
+        .preview_profile("night", Some(&["mods.med"]))
+        .unwrap()
+        .diff;
     assert!(d.entries.is_empty());
-    let (a, _) = cfg.load_profile("night", Some(&["mods.med"])).unwrap();
+    let a = cfg
+        .load_profile("night", Some(&["mods.med"]))
+        .unwrap()
+        .applied;
     assert_eq!(a.tx_id, None);
     assert_eq!(
         val(&cfg, "mods.media.seek_step", None),
@@ -1008,4 +1017,114 @@ proptest! {
         prop_assert_eq!(read_user(&dir), file);
         prop_assert_eq!(cfg.can_undo(), undo);
     }
+}
+
+// --- profile files: export, import review, held entries (I35) -----------------------------------
+
+#[test]
+fn export_leaves_out_per_output_and_places_then_import_reviews_first() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir,
+        "profiles/mine.toml",
+        "schema_version = 1\n[bar]\nheight = 40\n[theme]\npalette = \"sumi\"\n\
+         [island]\nfaces = [\"~/faces\", \"clock\"]\n[outputs.\"DP-1\".bar]\nheight = 50\n",
+    );
+    let cfg = open(&dir);
+    let out = dir.path().join("export").join("mine.toml");
+    let exported = cfg.export_profile("mine", &out).unwrap();
+    assert_eq!(exported.path, out);
+    let mut left: Vec<Skipped> = exported.left_out;
+    left.sort_by(|a, b| a.key.cmp(&b.key));
+    assert_eq!(
+        left,
+        vec![
+            Skipped {
+                key: "bar.height".into(),
+                output: Some("DP-1".into()),
+                reason: REASON_EXPORT_PER_OUTPUT.into(),
+                forced_by: None,
+            },
+            Skipped {
+                key: "island.faces".into(),
+                output: None,
+                reason: REASON_EXPORT_PATH.into(),
+                forced_by: None,
+            },
+        ]
+    );
+    let text = std::fs::read_to_string(&out).unwrap();
+    assert!(
+        text.contains("height = 40") && text.contains("palette = \"sumi\""),
+        "{text}"
+    );
+    assert!(!text.contains("DP-1") && !text.contains("faces"), "{text}");
+
+    // Another machine: the review changes nothing; the load is one undoable transaction.
+    let other = TempDir::new().unwrap();
+    let mut cfg = open(&other);
+    let rev = cfg.rev();
+    let review = cfg.review_profile_file(&out, None).unwrap();
+    assert_eq!(cfg.rev(), rev, "review changes nothing");
+    assert!(review.diff.entries.iter().any(|e| e.key == "theme.palette"));
+    assert!(review.not_applied.is_empty());
+    let loaded = cfg.load_profile_file(&out, None).unwrap();
+    assert_eq!(loaded.applied.rev, rev + 1);
+    assert_eq!(
+        val(&cfg, "theme.palette", None),
+        (json!("sumi"), Source::Profile("mine".into()))
+    );
+    cfg.undo().unwrap().unwrap();
+    assert_eq!(val(&cfg, "theme.palette", None).1, Source::Default);
+}
+
+#[test]
+fn profile_entries_a_forced_layer_holds_back_are_reported_not_applied() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir,
+        "managed.toml",
+        "theme.palette = \"sumi\"\n[_managed]\nenforce = true\n",
+    );
+    write(
+        &dir,
+        "profiles/mine.toml",
+        "[theme]\npalette = \"kanso\"\n[bar]\nheight = 44\n",
+    );
+    let mut cfg = open(&dir);
+    let review = cfg.preview_profile("mine", None).unwrap();
+    let held = Skipped {
+        key: "theme.palette".into(),
+        output: None,
+        reason: REASON_NIX_ENFORCED.into(),
+        forced_by: Some("nix".into()),
+    };
+    assert_eq!(review.not_applied, vec![held]);
+    let loaded = cfg.load_profile("mine", None).unwrap();
+    assert_eq!(loaded.not_applied, review.not_applied);
+    assert_eq!(
+        val(&cfg, "theme.palette", None),
+        (json!("sumi"), Source::Forced("nix".into()))
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(44), Source::Profile("mine".into()))
+    );
+}
+
+#[test]
+fn profile_file_refusals_name_the_problem() {
+    let dir = TempDir::new().unwrap();
+    let mut cfg = open(&dir);
+    let missing = dir.path().join("nope.toml");
+    assert!(matches!(
+        cfg.review_profile_file(&missing, None),
+        Err(ConfigError::Unreadable(_))
+    ));
+    let bad = dir.path().join(".hidden.toml");
+    std::fs::write(&bad, "[bar]\nheight = 40\n").unwrap();
+    assert!(matches!(
+        cfg.load_profile_file(&bad, None),
+        Err(ConfigError::InvalidProfileName(_))
+    ));
 }

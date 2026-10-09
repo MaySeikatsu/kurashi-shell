@@ -2,10 +2,11 @@ import QtQuick
 import QtQuick.Controls
 import "../core"
 
-// Dropdown for a `select` row whose offers come from the daemon (I9). The list opens over the whole window
-// (Overlay), so a scrolled page never clips it. Enter, Space, Up or Down opens it on the chosen offer; Up and
-// Down move the highlight over the offers that can be picked; Enter or Space picks, Escape closes. A greyed
-// offer stays in the list with its reason under it. The control keeps the 32 px hit floor (Theme.controlH).
+// Dropdown for a `select` row whose offers come from the daemon (I9) or are many. The list opens over the whole window
+// (Overlay), so a scrolled page never clips it. Enter, Space, Up, Down or a letter opens it; Up and Down move the
+// highlight over the offers that can be picked, and each new highlight is `previewed`; Enter or Space picks (`picked`);
+// Escape closes and is `cancelled`. Letters jump to the next offer that starts with them (type-ahead). A greyed offer
+// stays in the list with its reason under it. The control keeps the 32 px hit floor (Theme.controlH).
 Item {
     id: s
     // Offers {value, label (i18n key), enabled?, reason? (i18n key)}, in the order the daemon gives.
@@ -16,6 +17,8 @@ Item {
     property string label: ""
     property string placeholder: ""
     signal picked(var value)
+    signal previewed(var value)
+    signal cancelled()
 
     readonly property int chosenIndex: indexOfValue(current)
     readonly property var chosen: chosenIndex >= 0 ? choices[chosenIndex] : null
@@ -43,12 +46,30 @@ Item {
     function pick(i) {
         if (i < 0 || i >= s.choices.length || s.choices[i].enabled === false) return
         pop.close()
-        if (i !== s.chosenIndex) s.picked(s.choices[i].value)
+        s.picked(s.choices[i].value)
     }
+    // Moves the highlight by d over pickable offers; the offer it lands on is previewed (not chosen).
     function step(d) {
         var i = list.currentIndex + d
         while (i >= 0 && i < s.choices.length && s.choices[i].enabled === false) i += d
-        if (i >= 0 && i < s.choices.length) list.currentIndex = i
+        if (i >= 0 && i < s.choices.length) highlight(i)
+    }
+    function highlight(i) {
+        if (i === list.currentIndex) return
+        list.currentIndex = i
+        if (s.choices[i].enabled !== false && JSON.stringify(s.choices[i].value) !== JSON.stringify(s.current))
+            s.previewed(s.choices[i].value)
+    }
+    // Type-ahead: the next pickable offer, after the highlight, whose text starts with the typed character.
+    function typeAhead(ch) {
+        var c = ch.toLowerCase()
+        var n = s.choices.length
+        for (var k = 1; k <= n; k++) {
+            var i = (Math.max(0, list.currentIndex) + k) % n
+            var o = s.choices[i]
+            if (o.enabled !== false && I18n.tr(o.label).toLowerCase().indexOf(c) === 0) { highlight(i); return true }
+        }
+        return false
     }
     // Above the control when the window has no room below it, else below. Rows are sized by their
     // lines (one, or two with a reason), so the estimate uses one control height per offer.
@@ -73,6 +94,13 @@ Item {
     Keys.onSpacePressed: event => { s.open(); event.accepted = true }
     Keys.onDownPressed: event => { s.open(); event.accepted = true }
     Keys.onUpPressed: event => { s.open(); event.accepted = true }
+    Keys.onEscapePressed: event => { s.cancelled(); event.accepted = true }
+    Keys.onPressed: event => {
+        const printable = event.text.length === 1 && event.text >= " " && event.text !== "\x7f"
+        if (!printable || (event.modifiers & ~Qt.ShiftModifier) !== 0) return
+        if (!pop.visible) s.open()
+        if (s.typeAhead(event.text)) event.accepted = true
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -147,7 +175,12 @@ Item {
             Keys.onReturnPressed: event => { s.pick(list.currentIndex); event.accepted = true }
             Keys.onEnterPressed: event => { s.pick(list.currentIndex); event.accepted = true }
             Keys.onSpacePressed: event => { s.pick(list.currentIndex); event.accepted = true }
-            Keys.onEscapePressed: event => { pop.close(); event.accepted = true }
+            Keys.onEscapePressed: event => { pop.close(); s.cancelled(); event.accepted = true }
+            Keys.onPressed: event => {
+                const printable = event.text.length === 1 && event.text >= " " && event.text !== "\x7f"
+                if (printable && (event.modifiers & ~Qt.ShiftModifier) === 0 && s.typeAhead(event.text))
+                    event.accepted = true
+            }
 
             delegate: Rectangle {
                 id: opt
@@ -207,6 +240,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     enabled: opt.pickable
+                    // Hovering only moves the highlight; the shell changes when an offer is picked (or moved to by key).
                     onEntered: list.currentIndex = opt.index
                     onClicked: s.pick(opt.index)
                 }

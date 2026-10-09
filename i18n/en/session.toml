@@ -59,3 +59,6 @@
 "error.media.cannot_seek" = "The player does not allow seeking."
 "error.media.no_player" = "No media player is running."
 "error.media.no_such_player" = "No media player has that id."
+"action.settings.open" = "Open Settings"
+"error.settings.not_installed" = "Settings is not installed, so it cannot open."
+"error.settings.no_runtime" = "The Quickshell runtime (qs) is not available, so Settings cannot open."

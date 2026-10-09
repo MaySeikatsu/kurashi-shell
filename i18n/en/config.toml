@@ -27,3 +27,11 @@
 "config.error.profile_unreadable" = "the profile file cannot be read"
 "config.error.profile_parse" = "the profile file is not valid TOML"
 "config.error.profile_write" = "the profile could not be written"
+"config.face.bluetooth" = "Bluetooth"
+"config.face.power" = "Power"
+"config.face.volume" = "Volume"
+"config.face.brightness" = "Brightness"
+# profile.export: what an export leaves out, and why (K-export, I35).
+"config.export.per_output" = "This value is for one output, so it stays on this machine."
+"config.export.path" = "This value names a file or folder on this machine, so it stays here."
+"config.error.profile_path" = "The profile path must be an absolute path."

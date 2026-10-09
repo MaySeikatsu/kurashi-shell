@@ -181,6 +181,47 @@ impl Diff {
     }
 }
 
+/// An entry a profile operation did not carry out, with the i18n key of why (PROTOCOL §6):
+/// `not_applied` (a forced layer holds its key) or `left_out` (an export keeps it on this machine).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Skipped {
+    pub key: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output: Option<String>,
+    pub reason: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forced_by: Option<String>,
+}
+
+/// What loading a profile would do: the effective changes, and the entries a forced layer holds back.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfileReview {
+    pub diff: Diff,
+    pub not_applied: Vec<Skipped>,
+}
+
+/// A profile load: one undoable transaction, the file's diagnostics and what a forced layer holds back.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ProfileLoaded {
+    pub applied: Applied,
+    pub diagnostics: Vec<Diagnostic>,
+    pub not_applied: Vec<Skipped>,
+}
+
+/// A profile written by [`Config::export_profile`], and the entries it left out.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Exported {
+    pub path: std::path::PathBuf,
+    pub left_out: Vec<Skipped>,
+}
+
+/// Export leaves out a value for one output: it names that machine's output.
+pub const REASON_EXPORT_PER_OUTPUT: &str = "config.export.per_output";
+/// Export leaves out a value that names a file or folder: it names that machine's place.
+pub const REASON_EXPORT_PATH: &str = "config.export.path";
+/// Reason of a held entry whose forced layer gave none.
+pub const REASON_FORCED: &str = "config.error.forced";
+
 /// A problem in a file that was skipped instead of failing the whole load (Shōjiki).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Diagnostic {
