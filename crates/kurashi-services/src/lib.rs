@@ -10,6 +10,7 @@ pub mod brightness;
 pub mod media;
 pub mod network;
 pub mod power;
+pub mod power_profiles;
 pub mod session;
 mod util;
 

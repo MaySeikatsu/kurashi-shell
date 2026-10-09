@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use kurashi_ipc::ApplyOp;
 use kurashi_services::brightness::{self as backlight, Change};
 use kurashi_services::network::{ConnectError, WifiError};
+use kurashi_services::power_profiles::ProfileError;
 use serde_json::{Value, json};
 
 use crate::actions::{ActionError, ActionRegistry, ActionResult};
@@ -416,6 +417,22 @@ pub fn notifications_with_facts(
         });
     }
     let get = move || commands.lock().expect("notify lock").clone();
+    notify_actions(actions, get);
+}
+
+/// The current wall-clock time in ms since the epoch (the `until` of `notify.dnd` is compared with it).
+fn unix_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64)
+}
+
+/// The `notify.*` actions over the notification server's commands, which exist once it is up. Not
+/// running is an error, never a start: the server holds the bus name for the daemon's lifetime.
+pub fn notify_actions(
+    actions: &mut ActionRegistry,
+    get: impl Fn() -> Option<kurashi_notify::Commands> + Clone + Send + Sync + 'static,
+) {
     let id_of = |v: &Value| v["id"].as_u64().map(|n| n as u32);
     let g = get.clone();
     actions.register("notify.dismiss", "action.notify.dismiss", move |v| {
@@ -452,7 +469,18 @@ pub fn notifications_with_facts(
             let c = c.ok_or_else(|| {
                 ActionError::Unavailable("notification server not running".into())
             })?;
-            c.set_dnd(v["on"].as_bool().unwrap_or(true));
+            let on = v["on"].as_bool().unwrap_or(true);
+            match v.get("until") {
+                None => c.set_dnd(on),
+                Some(until) => {
+                    // `until` is ms since the epoch: a do-not-disturb that is on and ends later on.
+                    let until = until
+                        .as_u64()
+                        .filter(|u| on && *u > unix_ms())
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                    c.set_dnd_until(until);
+                }
+            }
             Ok(None)
         }
     });
@@ -1365,6 +1393,7 @@ const TRAY_DOC: &str = "svc.tray";
 const BLUETOOTH_DOC: &str = "svc.bluetooth";
 const NETWORK_DOC: &str = "svc.network";
 const NETWORK_SCAN_DOC: &str = "svc.network.scan";
+const POWER_DOC: &str = "svc.power";
 
 /// `network.*` keys (K24, quick settings): NetworkManager refused the change (polkit), or there is
 /// no NetworkManager to change it.
@@ -1590,6 +1619,45 @@ pub fn network_paced(
         Ok(None)
     });
 }
+
+/// `svc.power` (UPower and power-profiles-daemon on the system bus, refcounted) and `power.profile`.
+pub fn power(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
+    power_with(hub, actions, system_bus());
+}
+
+/// [`power`] with the bus injected (tests run it on a private bus with fake daemons).
+pub fn power_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    let service = Arc::new(ServiceProvider::with_connect(
+        POWER_DOC,
+        connect,
+        kurashi_services::power::start,
+    ));
+    hub.register(
+        POWER_DOC,
+        json!({
+            "available": false,
+            "present": false,
+            "on_battery": false,
+            "profile_reason": kurashi_services::power_profiles::UNAVAILABLE,
+        }),
+        Some(service.clone()),
+    );
+    service_action(actions, "power.profile", service, |c, a| async move {
+        let name = str_arg(&a, "name")?;
+        c.set_profile(&name).await.map_err(|e| match e {
+            ProfileError::Unknown => ActionError::Invalid(NO_SUCH_PROFILE.into()),
+            ProfileError::Refused => ActionError::Unavailable(POWER_REFUSED.into()),
+            ProfileError::Unavailable => ActionError::Unavailable(POWER_UNAVAILABLE.into()),
+        })?;
+        Ok(None)
+    });
+}
+
+/// `power.profile` with a name the profile daemon does not offer.
+pub const NO_SUCH_PROFILE: &str = "error.power.no_such_profile";
+/// The profile daemon refused the change (polkit), or is not there to make it.
+pub const POWER_REFUSED: &str = "error.power.refused";
+pub const POWER_UNAVAILABLE: &str = "error.power.unavailable";
 
 /// A refused or failed radio or link change, as its key.
 fn wifi_failed(e: WifiError) -> ActionError {
