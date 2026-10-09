@@ -29,7 +29,7 @@
 "mod-weather.loading" = "読み込み中…"
 
 # デーモン: 取得や操作の失敗（文書の reason と、操作のエラー）。
-"mod-weather.error.offline" = "オフラインです。前回のデータを表示しています。"
+"mod-weather.error.offline" = "オフラインです。"
 "mod-weather.error.rate_limited" = "リクエストが多すぎます。あとで再試行します。"
 "mod-weather.error.server" = "天気サービスが利用できません。"
 "mod-weather.error.bad_data" = "天気サービスの応答を読み取れませんでした。"
@@ -64,7 +64,6 @@
 "mod-weather.unit.wind.metric" = "km/h"
 "mod-weather.unit.wind.imperial" = "mph"
 "mod-weather.set_place" = "場所を設定"
-"mod-weather.open_settings" = "天気の設定を開く"
 "mod-weather.feels" = "体感 {temp}"
 "mod-weather.high_low" = "最高 {max}・最低 {min}"
 "mod-weather.rain_from" = "{time} から雨"
@@ -73,7 +72,6 @@
 "mod-weather.rain_intensity.moderate" = "並の"
 "mod-weather.rain_intensity.heavy" = "強い"
 "mod-weather.very_stale" = "{time} 時点の最終値"
-"mod-weather.stale" = "古い"
 "mod-weather.tier.fresh" = "最新"
 "mod-weather.tier.aging" = "少し前"
 "mod-weather.tier.stale" = "古い"
@@ -91,7 +89,7 @@
 
 # フロントエンド: パネル。
 "mod-weather.title" = "天気"
-"mod-weather.settings" = "天気の設定"
+"mod-weather.open_panel" = "天気予報を開く"
 "mod-weather.places" = "場所"
 "mod-weather.back" = "天気に戻る"
 "mod-weather.refresh" = "更新"

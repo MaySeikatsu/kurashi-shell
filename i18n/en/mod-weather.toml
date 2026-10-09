@@ -29,7 +29,7 @@
 "mod-weather.loading" = "Loading…"
 
 # Daemon: failures of a fetch or an action (the document's `reason` and an action's error).
-"mod-weather.error.offline" = "Offline. Showing the last data."
+"mod-weather.error.offline" = "Offline."
 "mod-weather.error.rate_limited" = "Too many requests. Trying again later."
 "mod-weather.error.server" = "The weather service is unavailable."
 "mod-weather.error.bad_data" = "The weather service sent an unreadable answer."
@@ -64,7 +64,6 @@
 "mod-weather.unit.wind.metric" = "km/h"
 "mod-weather.unit.wind.imperial" = "mph"
 "mod-weather.set_place" = "Set place"
-"mod-weather.open_settings" = "Open weather settings"
 "mod-weather.feels" = "Feels like {temp}"
 "mod-weather.high_low" = "High {max} · low {min}"
 "mod-weather.rain_from" = "Rain from {time}"
@@ -73,7 +72,6 @@
 "mod-weather.rain_intensity.moderate" = "moderate"
 "mod-weather.rain_intensity.heavy" = "heavy"
 "mod-weather.very_stale" = "Last known at {time}"
-"mod-weather.stale" = "Stale"
 "mod-weather.tier.fresh" = "Up to date"
 "mod-weather.tier.aging" = "Getting old"
 "mod-weather.tier.stale" = "Stale"
@@ -91,7 +89,7 @@
 
 # Frontend: the panel.
 "mod-weather.title" = "Weather"
-"mod-weather.settings" = "Weather settings"
+"mod-weather.open_panel" = "Open forecast"
 "mod-weather.places" = "Places"
 "mod-weather.back" = "Back to weather"
 "mod-weather.refresh" = "Refresh"
