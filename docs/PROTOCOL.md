@@ -88,6 +88,18 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
   Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
   manifest name (i18n key or plain text); a disabled mod's keys carry `reason: "mods.disabled"`.
+- **`mods` document** (K25, session 5 — implemented in wave 10): entries gain `running: bool` and, for
+  enabled native mods, `qml: {"<provide>": "<file url>"}` (K26); `state` `disabled` means *loaded, off*.
+  Loaded/on are config lists `mods.loaded` / `mods.enabled` (MODS.md "States"); actions `mod.load`,
+  `mod.unload`, `mod.enable`, `mod.disable` `{id}`. `schema.settings` mod pages carry `"mod": "<id>"`
+  and exist for every loaded mod. Pinned by `fixtures/ipc/server/snap_mods.json`.
+- **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
+  `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
+  `choices: [{value, label, enabled?, reason?}]` (`enabled:false` + `reason` (i18n key) for an option that
+  cannot work now, e.g. a backend that is not installed). `control` is `select` for a string, `pick_list`
+  (ordered subset) for a string list. The daemon re-publishes `schema.settings` when a source changes.
+  A configured value outside the current set keeps its value and is reported inert (`reason`
+  `settings.choice.unavailable`, K21) instead of being rejected.
 - **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
   frontend never reads `i18n/*.toml` itself.
 

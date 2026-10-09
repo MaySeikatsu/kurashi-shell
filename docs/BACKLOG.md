@@ -22,6 +22,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | B8 | 2026-10-09 | lead review | Settings: an invalid mod reads "mod.toml is missing (mod.toml)"; a row's "Rejected" line stays after unrelated changes. Copy/lifetime polish. | scheduled W9-config-profiles |
 | B9 | 2026-10-09 | B-tray report | Tray tooltips are not shown on hover (a tooltip needs a surface outside the bar; K16/K19 forbid per-hover windows). Needs a design (Stage-hosted tooltip?). | new |
 | B10 | 2026-10-09 | lead (machine B) | `sandbox.sh` defaults to the first render node, which is the dGPU on hybrids (runtime-PM stalls in tests). Default to the `boot_vga` GPU. | done (session 5, feat/m7-per-output-pss: sandbox.sh defaults to the boot_vga GPU) |
+| B11 | 2026-10-09 | lead (K25 design) | Mod enablement is not persisted: only the startup policy (`easter-eggs`) is applied, so a mod switched on in Settings is off again after a daemon restart. | accepted — K25 addendum (`mods.loaded`/`mods.enabled` config lists), wave 10 |
 
 ## Improvements
 | # | Date | Source | What | Status |
