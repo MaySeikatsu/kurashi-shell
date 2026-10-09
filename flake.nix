@@ -14,6 +14,15 @@
         default = kurashi;
       });
 
+      # `nix run .#<app>`: default (live session), settings, mock, sandbox. See nix/apps.nix.
+      apps = nixpkgs.lib.genAttrs systems (
+        system:
+        (import ./nix/apps.nix {
+          pkgs = nixpkgs.legacyPackages.${system};
+          kurashi = self.packages.${system}.kurashi;
+        }).apps
+      );
+
       devShells = forAll (pkgs: {
         default = pkgs.mkShell {
           name = "kurashi";
