@@ -79,6 +79,8 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   Patches carry only keys whose *effective* value or provenance changed.
 - **`schema.settings` document**: settings metadata generated from the schema (pages → sections →
   rows, control kinds, couplings). Shape owned by `kurashi-schema`, frozen with it.
+  Mod settings (K22) add one page per enabled mod with settings: id `mods.<id>`, `label` = the
+  manifest name (i18n key or plain text); a disabled mod's keys carry `reason: "mods.disabled"`.
 - **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
   frontend never reads `i18n/*.toml` itself.
 
@@ -115,7 +117,7 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume` |
 | `runtime.island.main` | `{"face":"clock","faces":["clock","media"],"reason":"default"}`; actions `island.next`, `island.prev`, `island.pin` |
 | `svc.media` | `{"title":"…","artist":"…","playing":true}` |
-| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`) and `launcher` (bool); actions `island.expand`, `notifications.center`, `session.menu`, `launcher.toggle`, `ui.close` |
+| `runtime.ui` | `{"popup":false}`; action `probe.popup.toggle` (daemon-owned "panel open" state). kurashid adds `panel` (`""`/`"island"`/`"notifications"`/`"session"`/`"tray"`), `launcher` (bool) and `tray` (item id whose menu the `tray` panel shows, `""` otherwise, K23); actions `island.expand`, `notifications.center`, `session.menu`, `tray.menu.open {id}`, `launcher.toggle`, `ui.close` |
 | `mods.probe` | `{"widgets":[{"id":"hello","ui":{"type":"row","children":[{"type":"icon","name":"leaf"},{"type":"text","bind":"text"}]},"state":{"text":"こんにちは"}}]}` |
 | `bindings` | `{"island.main":{"left":{"action":"island.expand","source":"default"},…}}` (unbound slots absent); action `input.dispatch {component, slot, args?}` |
 | `svc.brightness` | `{"present":true,"device":"…","value":500,"max":1000,"percent":50}`; actions `brightness.up`/`brightness.down` `{step?}` (fraction of full scale, default 0.05) |

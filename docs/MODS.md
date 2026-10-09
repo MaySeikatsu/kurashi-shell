@@ -29,8 +29,10 @@ default = 5
 range = [1, 60]
 unit = "s"
 ```
-Settings values live in the user config under `[mod.<id>]` and travel with provenance like core
-keys; profiles snapshot them in the `mod.<id>` section.
+Settings are ordinary config keys `mods.<id>.<key>` (K22): they live in the user config under
+`[mods.<id>]`, travel with provenance like core keys, get one settings page per enabled mod
+("Mods › <name>"), and profiles snapshot them in the `mods.<id>` section. A disabled mod keeps its
+values; they are reported inert with `reason: "mods.disabled"`.
 
 ## Lifecycle
 - **Enable/disable is live.** Enabling: daemon validates manifest → registers services

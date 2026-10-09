@@ -80,3 +80,7 @@ Step ids `M{n}.{step}`. Update in the same branch as the work.
 | U.2 | Surfaces: bar.enabled/edge honoured, Stage scaffolding removed, launcher errors | ✅ | merged 0470378; golden refs re-recorded |
 | B.1 | Quiet re-measure: archived probes + frontend + bench gate (machine A) | ✅ | BAKEOFF "Quiet re-measure", BENCH 13:25 row; K3 unchanged |
 | B.2 | Quiet baseline machine B | ✅ | e72690f; iGPU gate 0 violations (123.5–126.9 MiB, +4.5–5.6/output); dGPU idle CPU fails only on NVIDIA runtime-PM resume; probes recorded, K3 unchanged |
+## Wave 8 (session 4, machine B; Haiku agents; cards in `docs/tasks/README.md`)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| M4.8 | Tray menu as a Stage panel (K23): `tray.menu.open`, `runtime.ui.tray` (daemon + mock) | ✅ | lead; frontend in card B-tray-bluetooth |
