@@ -53,7 +53,9 @@ pub enum Cost {
     High,
 }
 
-/// Capabilities are declared and shown in Settings; unknown ones are an error, not ignored.
+/// Capabilities are declared and shown in Settings; unknown ones are an error, not ignored. A
+/// program a mod runs is declared as `exec:<binary>` (its name, not a path; see [`capability_known`]).
+/// `fs:read` reads system files for the figures, `proc:signal` signals a process of the user (I28).
 pub const KNOWN_CAPABILITIES: &[&str] = &[
     "dbus:session",
     "dbus:system",
@@ -61,9 +63,25 @@ pub const KNOWN_CAPABILITIES: &[&str] = &[
     "audio",
     "notifications",
     "fs:scoped",
+    "fs:read",
+    "proc:signal",
     "exec",
     "secrets",
 ];
+
+/// Whether `c` is a capability this daemon knows: one of [`KNOWN_CAPABILITIES`], or `exec:<binary>`
+/// for a program named by its file name (`exec:awww`). The bare `exec` predates the named form.
+pub fn capability_known(c: &str) -> bool {
+    if KNOWN_CAPABILITIES.contains(&c) {
+        return true;
+    }
+    c.strip_prefix("exec:").is_some_and(|binary| {
+        !binary.is_empty()
+            && binary
+                .chars()
+                .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || "-_.".contains(ch))
+    })
+}
 
 /// The contribution slots of the core views (K28, `docs/ux/COMPOSITION.md` §3). A mod's
 /// `slot:<name>` must name one of these; the core never names a mod, so the list is the contract.
@@ -397,7 +415,7 @@ pub fn parse(
         }
     }
     for (i, c) in raw.capabilities.iter().enumerate() {
-        if !KNOWN_CAPABILITIES.contains(&c.as_str()) {
+        if !capability_known(c) {
             err("capability_unknown", &format!("capabilities[{i}]"), c);
         }
     }
@@ -652,6 +670,33 @@ mod tests {
              choices_from = \"Demo Pick\"\n",
         );
         assert_eq!(codes(&bad), ["setting_choices_from_invalid"]);
+    }
+
+    #[test]
+    fn capabilities_name_what_a_mod_reads_signals_or_runs() {
+        for c in [
+            "fs:read",
+            "proc:signal",
+            "network",
+            "exec",
+            "exec:awww",
+            "exec:xdg-open",
+        ] {
+            assert!(capability_known(c), "{c} is known");
+        }
+        for c in [
+            "exec:",
+            "exec:/usr/bin/awww",
+            "exec:Awww",
+            "exec:a b",
+            "fs:write",
+            "teleport",
+        ] {
+            assert!(!capability_known(c), "{c} is not");
+        }
+        let t = "id = \"demo\"\nname = \"Demo\"\nversion = \"0.1.0\"\ntier = \"native\"\n\
+                 kurashi = \">=0.0.1\"\ncapabilities = [\"fs:read\", \"exec:/bin/sh\"]\n";
+        assert_eq!(codes(t), ["capability_unknown"]);
     }
 
     #[test]
