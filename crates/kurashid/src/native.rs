@@ -15,7 +15,9 @@ use kurashi_mod_api::{
     Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod, Publish,
     Registration, ServiceFn, Settings, Values,
 };
-use kurashi_mods::{ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier};
+use kurashi_mods::{
+    Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
+};
 use serde_json::{Map, Value, json};
 use tokio::runtime::Handle;
 use tokio::sync::watch;
@@ -395,9 +397,10 @@ impl Native {
     }
 
     /// Makes the native mods match the registry: an enabled mod is activated, one that is not
-    /// enabled is deactivated. A refused enable leaves the mod disabled in the registry.
+    /// enabled is deactivated. A refused enable leaves the mod disabled in the registry, and so does
+    /// an enabled mod whose daemon code is not linked (B15): switched on, it would do nothing.
     pub fn sync(&mut self, reg: &mut Registry, store: Option<&ConfigStore>) {
-        let ids: Vec<String> = self.linked.keys().cloned().collect();
+        let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
         for id in ids {
             let on = reg.get(&id).is_some_and(|e| e.state == ModState::Enabled);
             let active = self.active.contains_key(&id);
@@ -406,16 +409,29 @@ impl Native {
             }
             if !on {
                 self.refused.remove(&id);
-            } else if !active {
-                let module = self.linked[&id].clone();
-                match self.activate(module.as_ref(), reg, store) {
-                    Ok(()) => {
-                        self.refused.remove(&id);
-                    }
-                    Err(e) => {
-                        self.refused.insert(id.clone(), e);
-                        let _ = reg.disable(&id);
-                    }
+                continue;
+            }
+            if active {
+                continue;
+            }
+            let Some(module) = self.linked.get(&id).cloned() else {
+                let needs_code = reg
+                    .get(&id)
+                    .and_then(|e| e.manifest.as_ref())
+                    .is_some_and(needs_daemon_code);
+                if needs_code {
+                    self.refused.insert(id.clone(), ModError::NotBuilt);
+                    let _ = reg.disable(&id);
+                }
+                continue;
+            };
+            match self.activate(module.as_ref(), reg, store) {
+                Ok(()) => {
+                    self.refused.remove(&id);
+                }
+                Err(e) => {
+                    self.refused.insert(id.clone(), e);
+                    let _ = reg.disable(&id);
                 }
             }
         }
@@ -745,6 +761,22 @@ impl Native {
         }
         doc
     }
+}
+
+/// Whether a manifest declares something only linked daemon code can serve: a service, an action, an
+/// island face, a choice source or a background job (B15). Frontend-only provides (widgets, panels,
+/// slots, palettes…) need no code and stay enable-able.
+fn needs_daemon_code(m: &Manifest) -> bool {
+    m.provides.iter().any(|p| {
+        matches!(
+            p,
+            Provide::Service(_)
+                | Provide::Action(_)
+                | Provide::IslandFace(_)
+                | Provide::Choices(_)
+                | Provide::Job(_)
+        )
+    })
 }
 
 /// `setting_value`: the value in effect for a `mods.<id>.<key>`, or the manifest default when the

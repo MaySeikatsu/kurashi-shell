@@ -26,3 +26,8 @@
 "mods.error.setting_choices_from_type" = "選択肢を別の供給元から取れるのは文字列の設定だけです"
 "mods.error.setting_choices_and_from" = "設定の選択肢は一覧か供給元のどちらか一方です"
 "mods.error.setting_choices_from_invalid" = "選択肢の供給元の名前が正しくありません"
+"mods.error.setting_default_duplicate" = "既定値に同じ選択肢が二度あります"
+
+# デーモン側のコードを持たないネイティブモッド (B15): サービス、アクション、Island の顔、選択肢の供給元、
+# ジョブを宣言するマニフェストは、このビルドにそのコードがなければ断られます。フロントエンドだけのモッドは従来どおりオンにできます。
+"mods.error.not_built" = "このモッドにはこのビルドに含まれないデーモン側のコードが必要なため、オンにできません"

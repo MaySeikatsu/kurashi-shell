@@ -26,3 +26,8 @@
 "mods.error.setting_choices_from_type" = "only a text setting can take its choices from a source"
 "mods.error.setting_choices_and_from" = "a setting takes its choices from a list or a source, not both"
 "mods.error.setting_choices_from_invalid" = "the name of the choice source is not valid"
+"mods.error.setting_default_duplicate" = "a default lists the same choice twice"
+
+# Native mods without daemon code (B15): a manifest that declares a service, action, island face,
+# choice source or job is refused when this build links no code for it. Frontend-only mods stay on.
+"mods.error.not_built" = "this mod needs daemon code that this build does not include, so it cannot be turned on"
