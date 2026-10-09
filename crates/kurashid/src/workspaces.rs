@@ -111,7 +111,11 @@ impl<C: Compositor + 'static> Provider for WorkspacesProvider<C> {
                 let _ = hub.set(DOC, document(&state), None);
             }
         });
-        *self.task.lock().expect("task lock") = Some(task);
+        // An adapter left running after the replacement would keep forwarding events, unwatched.
+        let old = self.task.lock().expect("task lock").replace(task);
+        if let Some(old) = old {
+            old.abort();
+        }
     }
 
     fn stop(&self) {
@@ -206,5 +210,27 @@ mod tests {
         wait_for(3).await;
         hub.unsubscribe(DOC);
         assert!(provider.task.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn restart_and_stop_leave_no_compositor_task_behind() {
+        let fake = Arc::new(FakeCompositor::new(state(1)));
+        let hub = Hub::new();
+        hub.register(DOC, json!({"outputs": {}}), None);
+        let f = fake.clone();
+        let provider = WorkspacesProvider::new(move || Shared(f.clone()));
+        provider.start(hub.clone());
+        // A second start replaces the first adapter: the first must be aborted, not orphaned.
+        provider.start(hub.clone());
+        provider.stop();
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        let settled = hub.snapshot(DOC).unwrap().1;
+        fake.set_state(state(3));
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        assert_eq!(
+            hub.snapshot(DOC).unwrap().1,
+            settled,
+            "a compositor task outlived stop and kept forwarding events"
+        );
     }
 }

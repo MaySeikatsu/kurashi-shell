@@ -1,5 +1,8 @@
 //! Document hub: named state documents with monotonic revisions (PROTOCOL §3), patch
 //! broadcast, and refcounted backing providers (Ma, rule 5).
+//!
+//! Lock order: a document's `lifecycle` before `docs`. Providers run with `lifecycle` held, so their
+//! `start`/`stop` may `set`/`update` any document but must not subscribe or unsubscribe that same one.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -21,6 +24,10 @@ struct Doc {
     data: Value,
     provider: Option<Arc<dyn Provider>>,
     subs: usize,
+    /// Serialises subscriber-count changes with the provider's start and stop. Otherwise a stop
+    /// (1 -> 0) and a start (0 -> 1) can interleave and leave the provider off with a subscriber
+    /// attached (review finding 2). Kept apart from `docs` because providers call back into the hub.
+    lifecycle: Arc<Mutex<()>>,
 }
 
 pub struct Hub {
@@ -57,6 +64,7 @@ impl Hub {
                 data: initial,
                 provider,
                 subs: 0,
+                lifecycle: Arc::default(),
             },
         );
     }
@@ -72,8 +80,31 @@ impl Hub {
     pub fn set(&self, name: &str, new: Value, origin: Option<String>) -> Result<(), UnknownDoc> {
         let mut docs = self.docs.lock().expect("hub lock");
         let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
+        self.commit(name, d, new, origin);
+        Ok(())
+    }
+
+    /// Mutate a document in place; the resulting change is broadcast as one patch. The closure runs
+    /// under the hub lock, so no other write lands between the read and the write (review finding 8).
+    /// Keep it short, and don't call back into the hub from it.
+    pub fn update(
+        &self,
+        name: &str,
+        origin: Option<String>,
+        f: impl FnOnce(&mut Value),
+    ) -> Result<(), UnknownDoc> {
+        let mut docs = self.docs.lock().expect("hub lock");
+        let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
+        let mut new = d.data.clone();
+        f(&mut new);
+        self.commit(name, d, new, origin);
+        Ok(())
+    }
+
+    /// Store `new` as the document's data and broadcast the merge-patch from the old data.
+    fn commit(&self, name: &str, d: &mut Doc, new: Value, origin: Option<String>) {
         let Some(ops) = diff_patch(&d.data, &new) else {
-            return Ok(());
+            return;
         };
         d.data = new;
         d.rev += 1;
@@ -83,19 +114,6 @@ impl Hub {
             ops,
             origin,
         }));
-        Ok(())
-    }
-
-    /// Mutate a document in place; the resulting change is broadcast as one patch.
-    pub fn update(
-        &self,
-        name: &str,
-        origin: Option<String>,
-        f: impl FnOnce(&mut Value),
-    ) -> Result<(), UnknownDoc> {
-        let mut new = self.snapshot(name)?.1;
-        f(&mut new);
-        self.set(name, new, origin)
     }
 
     /// Rebuild a document from scratch (provider restart, compositor resync): clients get a
@@ -116,13 +134,15 @@ impl Hub {
 
     /// Count a subscriber; the first one starts the provider. Returns the snapshot to send.
     pub fn subscribe(&self, name: &str) -> Result<(Rev, Value), UnknownDoc> {
+        let lifecycle = self.lifecycle_of(name)?;
+        let _turn = lifecycle.lock().expect("lifecycle lock");
         let start = {
             let mut docs = self.docs.lock().expect("hub lock");
             let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
             d.subs += 1;
             (d.subs == 1).then(|| d.provider.clone()).flatten()
         };
-        // Outside the lock: providers usually call back into `set` right away.
+        // Outside `docs`: providers usually call back into `set` right away.
         if let (Some(p), Some(hub)) = (start, self.me.upgrade()) {
             p.start(hub);
         }
@@ -131,6 +151,10 @@ impl Hub {
 
     /// Drop a subscriber; the last one stops the provider.
     pub fn unsubscribe(&self, name: &str) {
+        let Ok(lifecycle) = self.lifecycle_of(name) else {
+            return;
+        };
+        let _turn = lifecycle.lock().expect("lifecycle lock");
         let stop = {
             let mut docs = self.docs.lock().expect("hub lock");
             let Some(d) = docs.get_mut(name) else { return };
@@ -151,5 +175,15 @@ impl Hub {
             .expect("hub lock")
             .get(name)
             .map_or(0, |d| d.subs)
+    }
+
+    /// The document's lifecycle lock, cloned out so it can be taken without holding `docs`.
+    fn lifecycle_of(&self, name: &str) -> Result<Arc<Mutex<()>>, UnknownDoc> {
+        self.docs
+            .lock()
+            .expect("hub lock")
+            .get(name)
+            .map(|d| d.lifecycle.clone())
+            .ok_or_else(|| UnknownDoc(name.into()))
     }
 }

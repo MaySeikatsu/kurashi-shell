@@ -39,7 +39,11 @@ impl Provider for ClockProvider {
                 let _ = hub.set(DOC, now_doc(), None);
             }
         });
-        *self.task.lock().expect("clock lock") = Some(task);
+        // A tick left running after the replacement would keep ticking with no subscriber.
+        let old = self.task.lock().expect("clock lock").replace(task);
+        if let Some(old) = old {
+            old.abort();
+        }
     }
 
     fn stop(&self) {
@@ -51,4 +55,28 @@ impl Provider for ClockProvider {
 
 pub fn register(hub: &Arc<Hub>) {
     hub.register(DOC, now_doc(), Some(Arc::new(ClockProvider::default())));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+
+    #[tokio::test]
+    async fn restart_and_stop_leave_no_tick_task_behind() {
+        let alive = || {
+            tokio::runtime::Handle::current()
+                .metrics()
+                .num_alive_tasks()
+        };
+        let baseline = alive();
+        let hub = Hub::new();
+        let p = ClockProvider::default();
+        p.start(hub.clone());
+        // A second start replaces the first tick: the first must be aborted, not orphaned.
+        p.start(hub.clone());
+        p.stop();
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert_eq!(alive(), baseline, "a tick task outlived stop");
+    }
 }
