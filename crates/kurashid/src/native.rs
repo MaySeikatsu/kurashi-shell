@@ -144,6 +144,19 @@ struct JobRun {
     task: Option<JoinHandle<()>>,
 }
 
+/// Reports the end of one run of a job when it is dropped: the body returned, panicked, or was
+/// cancelled with its task.
+struct RunEnd {
+    job: Arc<BackgroundJob>,
+    start: u64,
+}
+
+impl Drop for RunEnd {
+    fn drop(&mut self) {
+        self.job.ended(self.start);
+    }
+}
+
 impl BackgroundJob {
     /// Whether the setting in effect wants the job running.
     fn wants(&self, values: &Values) -> bool {
@@ -162,23 +175,28 @@ impl BackgroundJob {
             .set_job(&self.mod_id, &self.name, Some(&self.reason));
         let ctx = JobCtx::new(Settings::new(self.settings.subscribe()));
         let body = (self.body)(ctx);
-        let this = self.clone();
+        let end = RunEnd {
+            job: self.clone(),
+            start,
+        };
         run.task = Some(self.runtime.spawn(async move {
+            let _end = end;
             body.await;
-            this.ended(start);
         }));
     }
 
-    /// Cancels the job if it runs.
+    /// Cancels the job if it runs. The task leaves the lock first: dropping a cancelled run reports
+    /// its end, and that takes the lock.
     fn stop(&self) {
-        let mut run = self.run.lock().expect("job lock");
-        if let Some(task) = run.task.take() {
+        let task = self.run.lock().expect("job lock").task.take();
+        if let Some(task) = task {
             task.abort();
             self.running.set_job(&self.mod_id, &self.name, None);
         }
     }
 
-    /// The body returned: this run is over, unless a stop already ended it.
+    /// The run `start` ended: its body returned, panicked, or was cancelled. A run that a stop or a
+    /// later start has already superseded changes nothing.
     fn ended(&self, start: u64) {
         let mut run = self.run.lock().expect("job lock");
         if run.starts != start || run.task.take().is_none() {
