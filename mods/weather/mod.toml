@@ -5,12 +5,14 @@ version = "0.1.0"
 tier = "native"
 kurashi = ">=0.0.1"
 # Bar widget, panel, rain-soon face (Island), clock aside (K28 slot), saved-place choices, the
-# mod service and its actions (docs/ux/weather.md). Each must be registered by the Rust crate.
+# mod service and its actions (docs/ux/weather.md), the rain-alerts job (I23). Each must be registered
+# by the Rust crate.
 provides = [
     "service:weather",
     "action:weather.*",
     "island-face:weather",
     "choices:weather.places",
+    "job:rain",
     "widget:weather",
     "panel:weather",
     "slot:clock.expanded.aside",
