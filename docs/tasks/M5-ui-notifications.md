@@ -12,6 +12,5 @@ urgency, time, read, image?, expires_at?}]}`). Toasts: a content-sized top-right
 focused output, stacked cards (max 3 + "+N"), reveal on first presented frame, swipe/close →
 `act notify.dismiss {id}`, action buttons → `act notify.invoke {id,key}`, hover pauses nothing
 (expiry is daemon-side). Center: list grouped by app, dismiss all, DND toggle (`notify.dnd`), mark read
-on open (`notify.mark_read`), opened by the island `notifications` face (left click → `island.expand`
-shows it in the Stage — coordinate via `runtime.ui`: add a CONTRACT-CHANGE row if you need a field
-like `panel: "notifications"`). Test: send notifications with `gdbus call --session` on the **sandbox** bus.
+on open (`notify.mark_read`), opened by the island `notifications` face (`act notifications.center` sets `runtime.ui.panel = "notifications"`; the Stage shows the
+center while that holds — `panel` is exclusive with `"island"`). Test: send notifications with `gdbus call --session` on the **sandbox** bus.

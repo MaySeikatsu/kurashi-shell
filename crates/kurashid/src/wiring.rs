@@ -16,23 +16,69 @@ fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
         .unwrap_or(dflt)
 }
 
-/// `runtime.ui` — daemon-owned panel state (ARCHITECTURE §4); `island.expand` toggles the
-/// island's panel. `probe.popup.toggle` stays as an alias for the bake-off probes.
+/// `runtime.ui` — daemon-owned panel state (ARCHITECTURE §4):
+/// `{popup, panel, launcher}`. `panel` names what the Stage shows (`""` = nothing); `popup` mirrors
+/// `panel != ""` for the probe-era frontend. Panels are exclusive; the launcher is its own surface.
 pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    hub.register("runtime.ui", json!({"popup": false}), None);
-    for id in ["island.expand", "probe.popup.toggle"] {
-        let hub = hub.clone();
-        actions.register(id, &format!("action.{id}"), move |_| {
+    hub.register(
+        "runtime.ui",
+        json!({"popup": false, "panel": "", "launcher": false}),
+        None,
+    );
+    let toggle_panel = |hub: Arc<Hub>, name: &'static str| {
+        move |_| {
             let hub = hub.clone();
             async move {
                 hub.update("runtime.ui", None, |d| {
-                    d["popup"] = json!(!d["popup"].as_bool().unwrap_or(false))
+                    let open = d["panel"].as_str() == Some(name);
+                    d["panel"] = json!(if open { "" } else { name });
+                    d["popup"] = json!(!open);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
             }
-        });
-    }
+        }
+    };
+    actions.register(
+        "island.expand",
+        "action.island.expand",
+        toggle_panel(hub.clone(), "island"),
+    );
+    // Alias kept for the bake-off probes.
+    actions.register(
+        "probe.popup.toggle",
+        "action.island.expand",
+        toggle_panel(hub.clone(), "island"),
+    );
+    actions.register(
+        "notifications.center",
+        "action.notifications.center",
+        toggle_panel(hub.clone(), "notifications"),
+    );
+    let h = hub.clone();
+    actions.register("launcher.toggle", "action.launcher.toggle", move |_| {
+        let hub = h.clone();
+        async move {
+            hub.update("runtime.ui", None, |d| {
+                d["launcher"] = json!(!d["launcher"].as_bool().unwrap_or(false))
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
+    let h = hub.clone();
+    actions.register("ui.close", "action.ui.close", move |_| {
+        let hub = h.clone();
+        async move {
+            hub.set(
+                "runtime.ui",
+                json!({"popup": false, "panel": "", "launcher": false}),
+                None,
+            )
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
 }
 
 /// `query kind:"launcher"` + `launcher.launch {id, files?}`.
