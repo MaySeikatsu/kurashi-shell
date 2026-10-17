@@ -10,7 +10,7 @@ Rectangle {
     property string reason: ""
     signal activated()
 
-    width: parent ? parent.width : 328
+    width: parent ? parent.width : 0
     implicitHeight: caption.implicitHeight + row.theme.xs * 2 + (reasonText.visible ? reasonText.implicitHeight + row.theme.xs : 0)
     radius: row.theme.rSm
     color: hover.hovered && row.available ? row.theme.containerHigh : "transparent"

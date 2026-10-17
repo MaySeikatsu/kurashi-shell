@@ -748,7 +748,9 @@ async fn the_menu_opens_while_paused_and_reads_nothing() {
     let e = enable(&sys, Values::new());
     let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
     tokio::time::sleep(Duration::from_secs(1)).await;
-    act(&e, "sysmon.pause", json!({"paused": true})).await.unwrap();
+    act(&e, "sysmon.pause", json!({"paused": true}))
+        .await
+        .unwrap();
     tokio::time::sleep(Duration::from_millis(50)).await;
     let reads = stat_reads(&m.roots);
     // A right click while paused: the menu (with Resume in it) opens from the stale values, unsampled.
@@ -758,6 +760,10 @@ async fn the_menu_opens_while_paused_and_reads_nothing() {
     assert_eq!(last["menu"], json!(true));
     assert_eq!(last["paused"], json!(true));
     assert_eq!(last["paused_by"], json!("panel"));
-    assert_eq!(stat_reads(&m.roots), reads, "paused: the menu reads nothing");
+    assert_eq!(
+        stat_reads(&m.roots),
+        reads,
+        "paused: the menu reads nothing"
+    );
     task.abort();
 }

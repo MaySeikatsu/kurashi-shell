@@ -63,7 +63,9 @@
 "sysmon.bar.open" = "Open the system monitor"
 "sysmon.bar.wait" = "…"
 "sysmon.bar.none" = "no data"
+"sysmon.bar.no_sensor" = "no sensor"
 "sysmon.bar.peek.cores" = "cores: highest {max} %, average {avg} %"
+"sysmon.bar.peek.top" = "Most CPU: {name} {pct}"
 "sysmon.state.activity" = "activity"
 "sysmon.state.critical" = "critical"
 

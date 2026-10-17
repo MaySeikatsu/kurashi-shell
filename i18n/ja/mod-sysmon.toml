@@ -63,7 +63,9 @@
 "sysmon.bar.open" = "システムモニターを開く"
 "sysmon.bar.wait" = "…"
 "sysmon.bar.none" = "データなし"
+"sysmon.bar.no_sensor" = "センサーなし"
 "sysmon.bar.peek.cores" = "コア: 最大 {max} %、平均 {avg} %"
+"sysmon.bar.peek.top" = "最も CPU を使用: {name} {pct}"
 "sysmon.state.activity" = "注意"
 "sysmon.state.critical" = "危険"
 
