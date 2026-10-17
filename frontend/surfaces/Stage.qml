@@ -69,6 +69,14 @@ PanelWindow {
         volume: volumeView, brightness: brightnessView, quick: quickView, mod: modPanelView, modface: modFaceView
     })
     readonly property bool viewing: views[contentKind] !== undefined
+    // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
+    // takes it within 360..720 px and the output's width; the panel gets the card's content width.
+    readonly property var modPanel: contentKind === "mod" && view.item ? view.item.item : null
+    readonly property int modCardWidth: {
+        var want = modPanel && modPanel.cardWidth > 0 ? modPanel.cardWidth : 360
+        var room = screen ? screen.width - 2 * Theme.pad : 720
+        return Math.max(360, Math.min(want, 720, room))
+    }
     Component { id: genericView; GenericView {} }
     Component { id: mediaView; MediaView {} }
     Component { id: notificationsView; NotificationsView {} }
@@ -213,8 +221,10 @@ PanelWindow {
     Rectangle {
         id: card
         visible: stage.shown
-        // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; the rest keep 360 px.
-        width: stage.contentKind === "media" || stage.contentKind === "clock" || stage.contentKind === "quick" ? 400 : 360
+        // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel
+        // asks for its card width (contract row 66); the rest keep 360 px.
+        width: stage.contentKind === "media" || stage.contentKind === "clock" || stage.contentKind === "quick" ? 400
+            : (stage.contentKind === "mod" ? stage.modCardWidth : 360)
         height: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the first frame has
