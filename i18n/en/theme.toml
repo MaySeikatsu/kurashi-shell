@@ -1,0 +1,2 @@
+# Notes of the theme document (DESIGN-SYSTEM §2): why the theme in effect is what it is.
+"theme.note.wallpaper_waiting" = "The theme follows the wallpaper once the wallpaper mod has applied a picture with its theme; until then the default palette is in effect."

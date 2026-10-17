@@ -247,3 +247,15 @@ non-empty. Manifest `type = "list"` settings (string lists over fixed choices �
 job) but whose code is not linked is refused (`mods.error.not_built`); frontend-only mods enable as before. Consequence: no
 bundled mod is on by default (easter-eggs has no code yet). *Why:* honest "Running now" (weather rain alerts, sysmon watch),
 no "on" that does nothing (rule 2).
+
+**K34** 🟢 Theme source `wallpaper` in the shell (lead, session 6; CONTRACT rows 65, 67; W14-wallpaper-ux). Palette
+`wallpaper` takes the colours of `mod.wallpaper.theme.image` — the picture the mod last applied *with* its theme (the
+picker's theme switch), not merely the current wallpaper, so "wallpaper only" keeps the theme. Offered in `palettes`
+while the mod serves its document. The daemon holds a subscription to `mod.wallpaper` while the palette is chosen,
+because a native mod's service fills the hub only for subscribers: an unwatched snapshot may be stale, so it counts as
+no picture (Shōjiki). No picture → the default palette with the theme note `theme.note.wallpaper_waiting`, never a
+half-applied theme; extraction runs on a blocking thread and is cached by path + mtime + size. Event-driven (hub
+stream filtered to `mod.wallpaper`, `mods`, `config`): nothing runs while neither the picture nor the palette changes
+(Ma). *Why:* DESIGN-SYSTEM §2 (wallpaper as a source), `docs/ux/wallpaper.md` (Apply with theme, theme diff);
+matugen/DankMaterialShell/Caelestia derive the scheme from the wallpaper the same way, but on every wallpaper change —
+here the user decides per picture.

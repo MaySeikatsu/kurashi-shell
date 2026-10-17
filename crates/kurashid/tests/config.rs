@@ -277,3 +277,103 @@ async fn a11y_mode_forces_coupled_keys_and_theme_follows() {
         "forcing lifts when the mode is off"
     );
 }
+
+/// Polls `cond` for up to 5 s: the K34 listener runs on its own task.
+async fn eventually(what: &str, mut cond: impl FnMut() -> bool) {
+    for _ in 0..250 {
+        if cond() {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("timed out waiting for: {what}");
+}
+
+#[tokio::test]
+async fn palette_wallpaper_follows_the_wallpaper_mods_picture() {
+    // K34: palette `wallpaper` takes the colours of `mod.wallpaper`'s `theme.image`, holds the mod's
+    // document live while chosen, and says so while there is no picture yet.
+    let root = std::env::temp_dir().join(format!("kurashid-k34-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(&root).unwrap();
+    let pic = root.join("blue.png");
+    image::RgbImage::from_fn(48, 32, |x, _| {
+        if x < 40 {
+            image::Rgb([0x1f, 0x5f, 0xbf])
+        } else {
+            image::Rgb([0xe0, 0xa0, 0x30])
+        }
+    })
+    .save(&pic)
+    .unwrap();
+
+    let hub = Hub::new();
+    hub.register(
+        "mod.wallpaper",
+        json!({"available": true, "theme": {"image": null}}),
+        None,
+    );
+    let store = ConfigStore::open(
+        hub.clone(),
+        kurashi_schema::v1::registry(),
+        kurashi_config::Paths::rooted(&root),
+        kurashi_config::Options::default(),
+    );
+    let settings = hub.snapshot("schema.settings").unwrap().1.to_string();
+    assert!(
+        settings.contains("config.choice.palette.wallpaper"),
+        "offered while the mod serves its document"
+    );
+    let fonts: Arc<dyn kurashi_theme::FontProvider + Send + Sync> =
+        Arc::new(kurashi_theme::FakeFonts::new(&["Inter"]));
+    kurashid::theme::register(&hub, &store, fonts);
+    let tokens = |hub: &Hub| hub.snapshot("theme").unwrap().1["tokens"].clone();
+    let waiting = |hub: &Hub| {
+        hub.snapshot("theme").unwrap().1["notes"]
+            .to_string()
+            .contains("theme.note.wallpaper_waiting")
+    };
+    let default = tokens(&hub);
+    assert!(!waiting(&hub));
+    assert_eq!(hub.subscribers("mod.wallpaper"), 0, "not held for another palette");
+
+    store
+        .apply(&[set("theme.colors.palette", json!("wallpaper"))])
+        .unwrap();
+    eventually("the theme holds the mod's document", || {
+        hub.subscribers("mod.wallpaper") == 1
+    })
+    .await;
+    assert!(waiting(&hub), "no picture yet: the theme says so");
+    assert_eq!(tokens(&hub), default, "the default palette is in effect meanwhile");
+
+    hub.set(
+        "mod.wallpaper",
+        json!({"available": true, "theme": {"image": pic}}),
+        None,
+    )
+    .unwrap();
+    eventually("the theme takes the picture's colours", || {
+        !waiting(&hub) && tokens(&hub) != default
+    })
+    .await;
+
+    store
+        .apply(&[set("theme.colors.palette", json!("kanso"))])
+        .unwrap();
+    eventually("the hold is released", || hub.subscribers("mod.wallpaper") == 0).await;
+    assert!(!waiting(&hub));
+
+    // A disabled mod drops its document: the palette waits again, and the offer is gone.
+    store
+        .apply(&[set("theme.colors.palette", json!("wallpaper"))])
+        .unwrap();
+    eventually("held again", || hub.subscribers("mod.wallpaper") == 1).await;
+    eventually("the picture again", || !waiting(&hub)).await;
+    hub.unregister("mod.wallpaper", json!({"available": false}));
+    store.refresh_choices();
+    eventually("waiting once the mod is gone", || waiting(&hub)).await;
+    let settings = hub.snapshot("schema.settings").unwrap().1.to_string();
+    assert!(!settings.contains("config.choice.palette.wallpaper"));
+    let _ = std::fs::remove_dir_all(&root);
+}

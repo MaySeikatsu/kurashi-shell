@@ -18,6 +18,7 @@
 "config.choice.palette.wa-iro" = "Wa-iro"
 "config.choice.palette.kanso" = "Kanso"
 "config.choice.palette.high-contrast" = "High contrast"
+"config.choice.palette.wallpaper" = "From wallpaper"
 "config.face.clock" = "Clock"
 "config.face.media" = "Media"
 "config.face.notifications" = "Notifications"

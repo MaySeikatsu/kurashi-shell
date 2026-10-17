@@ -134,8 +134,23 @@ reason, I9). The mod's service (document `mod.wallpaper`: per output `{path, fit
 (`<backend> img <path> --outputs <name> --resize <fit> --transition-type …`), and owns
 `wallpaper.set {path, output?}`, `wallpaper.next/prev {output?}`. Settings: `folders` (list), `fit`,
 `transition`, `rotate` (minutes, 0 = off; the timer exists only while > 0 and the mod is on).
-Theme source `wallpaper` (DESIGN-SYSTEM §2) takes the current image's palette — a later card. Picker: a
-Stage panel with thumbnails decoded at thumbnail size. Wallhaven: later (BACKLOG D3).
+Capabilities `exec:awww`, `exec:swww`, `fs:scoped` (K33).
+
+Shapes (contract row 67): `mod.wallpaper` also carries `theme: {image}` (the picture last applied *with*
+its theme, or null) and `favourites: [{image, scheme?, variant?}]` (a saved look). `wallpaper.set` takes
+`{path, output?, origin?: {x, y}, theme?}` (`theme: true` makes the picture the theme's: the mod records
+it in `theme.image`); `wallpaper.favourite {image, scheme?, variant?}`; `wallpaper.thumbs` rows carry
+`pair: {role, partner}` (light/dark pairs) and a response names its `folder`, `root` and `children`;
+`wallpaper.preview {path, scheme?}` is a dry run of the theme source (palette roles, mono, seed, axes).
+
+**Theme source `wallpaper` (K34).** `theme.colors.palette = "wallpaper"` takes the colours of
+`mod.wallpaper.theme.image` (kurashi-theme `Source::WallpaperFile`, extracted on a blocking thread and
+cached by path + mtime + size). The choice is offered in `palettes` while the mod serves its document. While
+the palette is chosen the daemon holds a subscription to `mod.wallpaper` (its service fills the hub only for
+subscribers); without a picture — the mod off, or nothing applied with its theme yet — the default palette
+is in effect and the theme document says so (note `theme.note.wallpaper_waiting`; the key's reason is
+`settings.choice.unavailable` while the mod is off). Picker: a Stage panel (`cardWidth` up to 720 px,
+contract row 66). Wallhaven: later (BACKLOG D3).
 
 ## Lifecycle
 - **Enable/disable is live.** Enabling: daemon validates manifest → registers services
