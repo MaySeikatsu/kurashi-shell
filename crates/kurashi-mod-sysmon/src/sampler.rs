@@ -2,6 +2,7 @@
 //! this sample and the previous one, over the measured elapsed time. Nothing is recorded between samples
 //! (docs/ux/sysmon.md, "Ma": a sampler exists only while a view or a watch asks for it).
 
+use crate::battery::{self, Battery};
 use crate::cpu;
 use crate::gpu::{self, Gpu};
 use crate::io::{self, Totals};
@@ -43,6 +44,9 @@ pub struct Sample {
     pub mem: Option<Memory>,
     pub pressure: Pressure,
     pub temp: Option<Temp>,
+    /// The hwmon devices seen when no sensor matched: the paths searched, shown in the panel.
+    pub temp_found: Vec<String>,
+    pub battery: Option<Battery>,
     pub gpus: Vec<Gpu>,
     /// (read, written) bytes per second.
     pub disk: Option<(f64, f64)>,
@@ -94,6 +98,8 @@ impl Sampler {
             mem: None,
             pressure: Pressure::default(),
             temp: None,
+            temp_found: Vec::new(),
+            battery: None,
             gpus: Vec::new(),
             disk: None,
             net: None,
@@ -125,6 +131,10 @@ impl Sampler {
             io: pressure::read(&self.roots, "io"),
         };
         s.temp = thermal::read(&self.roots, &self.sensor);
+        if s.temp.is_none() {
+            s.temp_found = thermal::found(&self.roots);
+        }
+        s.battery = battery::read(&self.roots);
         s.gpus = gpu::read(&self.roots);
         s.load1 = self
             .roots
