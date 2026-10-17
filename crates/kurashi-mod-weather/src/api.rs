@@ -19,6 +19,27 @@ pub struct Endpoints {
     pub geocode: String,
 }
 
+impl Endpoints {
+    /// Both endpoints under one base URL, laid out as Open-Meteo lays them out.
+    pub fn at(base: &str) -> Self {
+        let base = base.trim_end_matches('/');
+        Self {
+            forecast: format!("{base}/v1/forecast"),
+            geocode: format!("{base}/v1/search"),
+        }
+    }
+
+    /// The endpoints the daemon uses. `KURASHI_WEATHER_API` (a base URL such as
+    /// `http://127.0.0.1:8099`) replaces Open-Meteo for both, so the live checks serve fixtures from
+    /// localhost and no sandbox run reaches the network. Nothing in the shell sets it.
+    pub fn from_env() -> Self {
+        match std::env::var("KURASHI_WEATHER_API") {
+            Ok(base) if !base.trim().is_empty() => Self::at(base.trim()),
+            _ => Self::default(),
+        }
+    }
+}
+
 impl Default for Endpoints {
     fn default() -> Self {
         Self {
