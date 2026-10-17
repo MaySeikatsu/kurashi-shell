@@ -43,19 +43,23 @@ fn today() -> kurashi_theme::season::Date {
     }
 }
 
-/// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
 /// The wallpaper mod's document (K26): its `theme.image` is the picture palette `wallpaper` uses (K34).
 pub const WALLPAPER_DOC: &str = "mod.wallpaper";
 /// The palette name that takes the colours of the wallpaper picture (K34).
 pub const WALLPAPER_PALETTE: &str = "wallpaper";
 
 /// The picture palette `wallpaper` takes its colours from: the wallpaper mod's `theme.image`, while
-/// the mod is on and has applied a picture with its theme.
+/// the mod is on and has applied a picture with its theme. Only a document with a subscriber counts:
+/// the mod's service fills the hub only then, so an unwatched snapshot may be stale (Shōjiki).
 pub fn wallpaper_picture(hub: &Hub) -> Option<std::path::PathBuf> {
+    if hub.subscribers(WALLPAPER_DOC) == 0 {
+        return None;
+    }
     let (_, doc) = hub.snapshot(WALLPAPER_DOC).ok()?;
     doc["theme"]["image"].as_str().filter(|s| !s.is_empty()).map(Into::into)
 }
 
+/// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
 pub fn input_from(store: &ConfigStore) -> ThemeInput {
     input_with(store, None)
 }
@@ -113,7 +117,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     let palette = s(store, "theme.colors.palette");
     let source = match (palette.as_str(), picture) {
         (WALLPAPER_PALETTE, Some(path)) => Source::WallpaperFile(path.to_path_buf()),
-        (WALLPAPER_PALETTE, None) => Source::Palette("wa-iro".into()),
+        (WALLPAPER_PALETTE, None) => ThemeInput::default().source,
         _ => Source::Palette(palette),
     };
     ThemeInput {
@@ -197,26 +201,30 @@ pub fn register(
         store.on_change(move |store| republish(&hub, store, fonts.as_ref()));
     }
     // K34: palette `wallpaper` follows the wallpaper mod's picture. Event-driven (the hub's change
-    // stream, filtered to the mod's document); nothing runs while the picture does not change (Ma).
-    // The picture is extracted on a blocking thread first, so the republish hits the cache.
+    // stream, filtered to the mod's document, `mods` and `config`); nothing runs while neither the
+    // picture nor the palette changes (Ma). The picture is extracted on a blocking thread first, so
+    // the republish hits the cache.
     let Ok(rt) = tokio::runtime::Handle::try_current() else {
         return;
     };
     let (hub, store) = (hub.clone(), store.clone());
     let mut events = hub.events();
     rt.spawn(async move {
+        let mut held = false;
+        hold_wallpaper(&hub, &store, &mut held);
         let mut last = wallpaper_picture(&hub);
         loop {
             match events.recv().await {
                 Ok(msg) => match msg.as_ref() {
                     kurashi_ipc::ServerMsg::Snap { doc, .. }
                     | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                        if doc == WALLPAPER_DOC => {}
+                        if [WALLPAPER_DOC, "mods", crate::config::DOC].contains(&doc.as_str()) => {}
                     _ => continue,
                 },
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             }
+            hold_wallpaper(&hub, &store, &mut held);
             let now = wallpaper_picture(&hub);
             if now == last {
                 continue;
@@ -226,11 +234,31 @@ pub fn register(
                 continue;
             }
             if let Some(path) = now {
-                let _ = tokio::task::spawn_blocking(move || kurashi_theme::stages::wallpaper_file(&path)).await;
+                let _ = tokio::task::spawn_blocking(move || {
+                    kurashi_theme::stages::wallpaper_file(&path)
+                })
+                .await;
             }
             republish(&hub, &store, fonts.as_ref());
         }
     });
+}
+
+/// Holds a subscription to the wallpaper mod's document while palette `wallpaper` is chosen and the
+/// mod serves it: its service fills the hub only for subscribers. A disable drops the document with
+/// its subscribers, so a hold whose document is gone (or registered again, unwatched) is renewed.
+fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
+    let exists = hub.snapshot(WALLPAPER_DOC).is_ok();
+    if *held && (!exists || hub.subscribers(WALLPAPER_DOC) == 0) {
+        *held = false;
+    }
+    let want = exists && s(store, "theme.colors.palette") == WALLPAPER_PALETTE;
+    if want && !*held {
+        *held = hub.subscribe(WALLPAPER_DOC).is_ok();
+    } else if !want && *held {
+        hub.unsubscribe(WALLPAPER_DOC);
+        *held = false;
+    }
 }
 
 fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
