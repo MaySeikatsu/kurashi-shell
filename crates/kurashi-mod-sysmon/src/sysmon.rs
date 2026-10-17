@@ -336,7 +336,14 @@ async fn summary(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
         let runtime = *pause.borrow_and_update();
         if let Some(by) = paused_by(runtime, &cfg) {
             shared.reset();
-            stale_doc(&mut shown, &publish, by, doc::loading);
+            // The stale values, marked paused, with the menu flag as it is: the menu opens while paused too
+            // (Resume is in it), so a flag change is published from these values without sampling.
+            let doc = shown.get_or_insert_with(doc::loading);
+            doc["paused"] = json!(true);
+            doc["stale"] = json!(true);
+            doc["paused_by"] = json!(by);
+            doc["menu"] = json!(*menu.borrow());
+            publish(doc.clone());
             tokio::select! {
                 changed = pause.changed() => {
                     if changed.is_err() {
@@ -347,6 +354,16 @@ async fn summary(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
                     if !changed {
                         return;
                     }
+                }
+                changed = menu.changed() => {
+                    if changed.is_err() {
+                        return;
+                    }
+                    if let Some(doc) = shown.as_mut() {
+                        doc["menu"] = json!(*menu.borrow());
+                        publish(doc.clone());
+                    }
+                    continue;
                 }
             }
             // A resumed sampler starts from a fresh baseline, not from the reads before the pause.
