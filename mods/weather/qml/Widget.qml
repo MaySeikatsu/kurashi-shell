@@ -6,8 +6,9 @@ import "Weather.js" as W
 // Bar widget of the weather mod (docs/ux/weather.md, Design): the glyph and temperature in the
 // template the user set. Stale data is dimmed and the peek names its age and tier, so the state is
 // never colour alone. No place, loading, offline and very stale are named in words, never shown as
-// 0 degrees (Shōjiki). Click opens the panel; middle click asks for a refresh (the daemon allows one
-// a minute); scroll moves to the next saved place. Visible = subscribed (Ma): hidden, it holds nothing.
+// 0 degrees (Shōjiki). With no place, a click opens the place setting (K32); otherwise a click opens
+// the panel, middle click asks for a refresh (the daemon allows one a minute) and scroll moves to the
+// next saved place. Visible = subscribed (Ma): hidden, it holds nothing.
 Item {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
@@ -29,8 +30,18 @@ Item {
     readonly property bool dim: tier === "stale" || veryStale
     readonly property string placeName: d.place ? d.place.name : ""
     readonly property int savedCount: (d.places || []).length
-    // Seconds the daemon asked us to wait before another manual refresh (middle click).
+    // Seconds the daemon asked us to wait before another manual refresh (middle click), counted down while visible.
     property int waitS: 0
+    Timer {
+        interval: 1000
+        repeat: true
+        running: w.live && w.waitS > 0
+        onTriggered: w.waitS = Math.max(0, w.waitS - 1)
+    }
+    // The state in words for the accessible name: the place's last value, its age, or why there is none.
+    readonly property string stateText: veryStale
+        ? W.fill(I18n.tr("mod-weather.very_stale"), { time: W.hm(d.updated_local) })
+        : I18n.tr(d.reason || "mod-weather.loading")
 
     readonly property string label: {
         if (!loaded) return "…"
@@ -79,6 +90,13 @@ Item {
         Store.act("mod.panel.open", { id: "weather", panel: "weather" })
     }
 
+    // The primary action: with no place there is nothing to show, so it opens the place setting (K32);
+    // otherwise the panel.
+    function primary() {
+        if (w.loaded && !w.hasPlace) Store.act("settings.open", { key: "mods.weather.place" })
+        else w.openPanel()
+    }
+
     function refresh() {
         Store.act("weather.refresh", {}, function (done, err) {
             if (done && done.data) w.waitS = done.data.started ? 0 : (done.data.retry_in_s || 0)
@@ -89,13 +107,15 @@ Item {
     implicitHeight: Theme.controlH
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
-    Accessible.name: hasNow
-        ? W.fill(I18n.tr("mod-weather.a11y.widget"), { place: placeName, temp: W.deg(now.temp), condition: I18n.tr("mod-weather.condition." + now.code), age: ageText })
-        : I18n.tr("mod-weather.a11y.widget_none")
+    Accessible.name: !loaded ? I18n.tr("mod-weather.loading")
+        : !hasPlace ? I18n.tr("mod-weather.a11y.widget_none")
+        : hasNow
+            ? W.fill(I18n.tr("mod-weather.a11y.widget"), { place: placeName, temp: W.deg(now.temp), condition: I18n.tr("mod-weather.condition." + now.code), age: ageText })
+            : W.fill(I18n.tr("mod-weather.a11y.widget_state"), { place: placeName, state: stateText })
 
-    Keys.onReturnPressed: w.openPanel()
-    Keys.onEnterPressed: w.openPanel()
-    Keys.onSpacePressed: w.openPanel()
+    Keys.onReturnPressed: w.primary()
+    Keys.onEnterPressed: w.primary()
+    Keys.onSpacePressed: w.primary()
 
     Text {
         id: label_t
@@ -117,7 +137,7 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onClicked: function (mouse) {
             if (mouse.button === Qt.MiddleButton) w.refresh()
-            else w.openPanel()
+            else w.primary()
         }
         onWheel: function (wheel) {
             // One saved place per wheel notch (120 units), not per pixel of a touchpad swipe.

@@ -12,6 +12,8 @@ FaceBase {
     required property var theme
     required property var i18n
     id: f
+    // Loaded only while the expanded view shows it (ModLoader): current from its first frame (see Face.qml).
+    current: true
 
     readonly property var d: Store.docs["mod.weather"] || ({})
     readonly property var rs: d.rain_soon || null
