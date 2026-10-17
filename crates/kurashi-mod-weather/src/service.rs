@@ -227,6 +227,10 @@ impl Shared {
         })
     }
 
+    fn has_data(&self, id: &str) -> bool {
+        self.with(|st| st.data.contains_key(id))
+    }
+
     fn due(&self, id: &str, refresh_s: i64, now: i64) -> bool {
         self.with(|st| {
             fetch_due(st.data.get(id), st.failure.get(id), refresh_s).is_none_or(|t| now >= t)
@@ -361,6 +365,14 @@ pub async fn run(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
     let _subscription = Subscription(&shared.subscribed);
     loop {
         let cfg = Config::read(&settings);
+        // A place without data is named as loading before its first answer: the fetch can hold for the whole
+        // timeout, and the document of the place shown before must not stand for it meanwhile (Shōjiki).
+        if let Some(place) = shared.resolve(&cfg) {
+            if !shared.has_data(&place.id) {
+                let (loading, _) = shared.document(Some(&place), &cfg, (shared.clock)());
+                publish(loading);
+            }
+        }
         let (value, wake) = shared.service_pass(&cfg).await;
         publish(value);
         let sleep = after((shared.clock)(), wake);
