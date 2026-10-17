@@ -495,3 +495,269 @@ fn the_kernels_refusals_map_to_the_reasons_the_list_shows() {
         Err(ActionError::Internal("sysmon.error.failed".into()))
     );
 }
+
+/// Records what the daemon would start, and answers PATH lookups from a fixed list: no terminal is started.
+#[derive(Default)]
+struct Launch {
+    path: Vec<&'static str>,
+    started: Mutex<Vec<(String, Vec<String>)>>,
+}
+
+impl crate::launch::Launcher for Launch {
+    fn on_path(&self, program: &str) -> bool {
+        self.path.contains(&program)
+    }
+
+    fn spawn(&self, program: &str, args: &[&str]) -> io::Result<()> {
+        let args = args.iter().map(|a| a.to_string()).collect();
+        self.started
+            .lock()
+            .unwrap()
+            .push((program.to_string(), args));
+        Ok(())
+    }
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_setting_pauses_and_only_the_setting_resumes() {
+    let m = machine();
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, values(&[("paused", json!(true))]));
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    assert_eq!(
+        stat_reads(&m.roots),
+        0,
+        "paused by the setting: nothing is read"
+    );
+    let first = e.summary_docs.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(first["paused"], json!(true));
+    assert_eq!(first["paused_by"], json!("settings"));
+    // The panel's Pause cannot resume a setting's pause; the refusal names the reason.
+    let refused = act(&e, "sysmon.pause", json!({"paused": false})).await;
+    assert!(
+        matches!(refused, Err(ActionError::Unavailable(ref k)) if k == "sysmon.error.paused_in_settings"),
+        "{refused:?}"
+    );
+    // Turning the setting off resumes sampling, from a fresh baseline.
+    e.settings.send_replace(values(&[("paused", json!(false))]));
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    assert!(stat_reads(&m.roots) > 0, "resumed: reads again");
+    assert_eq!(
+        e.summary_docs.lock().unwrap().last().unwrap()["paused"],
+        json!(false)
+    );
+    task.abort();
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_menu_flag_reaches_the_panel_at_once_not_at_the_next_sample() {
+    let m = machine();
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let reads = stat_reads(&m.roots);
+    assert_eq!(
+        e.summary_docs.lock().unwrap().last().unwrap()["menu"],
+        json!(false)
+    );
+    // A right click, half a second into a 2 s interval: the panel shows its menu before the next sample.
+    act(&e, "sysmon.menu", json!({"on": true})).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(
+        e.summary_docs.lock().unwrap().last().unwrap()["menu"],
+        json!(true)
+    );
+    assert_eq!(
+        stat_reads(&m.roots),
+        reads,
+        "the flag is published from the last values, not sampled"
+    );
+    act(&e, "sysmon.menu", json!({"on": false})).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert_eq!(
+        e.summary_docs.lock().unwrap().last().unwrap()["menu"],
+        json!(false)
+    );
+    assert!(
+        act(&e, "sysmon.menu", json!({})).await.is_err(),
+        "a click names on or off"
+    );
+    task.abort();
+}
+
+#[tokio::test(start_paused = true)]
+async fn open_btop_starts_the_setting_terminal_and_refuses_what_it_cannot_run() {
+    let m = machine();
+    let launch = Arc::new(Launch {
+        path: vec!["btop", "foot"],
+        ..Launch::default()
+    });
+    let sys = Sysmon::with_launcher(m.roots.clone(), Arc::new(Sent::default()), launch.clone());
+    let e = enable(&sys, Values::new());
+    // The default terminal is foot, and the run is `foot -e btop`.
+    act(&e, "sysmon.open_btop", json!({})).await.unwrap();
+    assert_eq!(
+        launch.started.lock().unwrap().clone(),
+        vec![(
+            "foot".to_string(),
+            vec!["-e".to_string(), "btop".to_string()]
+        )]
+    );
+    // A terminal the Settings list does not offer is refused, and nothing starts.
+    let e = enable(&sys, values(&[("terminal", json!("rxvt"))]));
+    assert!(matches!(
+        act(&e, "sysmon.open_btop", json!({})).await,
+        Err(ActionError::Invalid(ref k)) if k == "sysmon.error.terminal"
+    ));
+    // Offered, but not installed.
+    let e = enable(&sys, values(&[("terminal", json!("kitty"))]));
+    assert!(matches!(
+        act(&e, "sysmon.open_btop", json!({})).await,
+        Err(ActionError::Unavailable(ref k)) if k == "sysmon.error.no_terminal"
+    ));
+    assert_eq!(
+        launch.started.lock().unwrap().len(),
+        1,
+        "refused runs start nothing"
+    );
+    // A terminal is there, btop is not.
+    let bare = Arc::new(Launch {
+        path: vec!["foot"],
+        ..Launch::default()
+    });
+    let sys = Sysmon::with_launcher(m.roots.clone(), Arc::new(Sent::default()), bare.clone());
+    let e = enable(&sys, Values::new());
+    assert!(matches!(
+        act(&e, "sysmon.open_btop", json!({})).await,
+        Err(ActionError::Unavailable(ref k)) if k == "sysmon.error.no_btop"
+    ));
+    assert!(bare.started.lock().unwrap().is_empty());
+}
+
+#[test]
+fn a_control_value_is_judged_by_floors_and_a_disabled_level_stays_off() {
+    use crate::thermal::Kind;
+    let (_, rx) = watch::channel(values(&[
+        ("temp_activity", json!(60)),
+        ("temp_critical", json!(85)),
+    ]));
+    let c = Cfg::of(&Settings::new(rx));
+    assert_eq!(c.limits_for(Some(Kind::Die)).temp.critical, 85.0);
+    let ctl = c.limits_for(Some(Kind::Control));
+    assert_eq!(
+        ctl.temp.critical, 95.0,
+        "Tctl is never judged below its own 95 °C"
+    );
+    assert_eq!(ctl.temp.activity, 75.0);
+    assert_eq!(c.limits_for(None), c.limits, "no reading, no floor");
+
+    let (_, rx) = watch::channel(values(&[
+        ("temp_activity", json!(0)),
+        ("temp_critical", json!(0)),
+    ]));
+    let off = Cfg::of(&Settings::new(rx)).limits_for(Some(Kind::Control));
+    assert_eq!(
+        (off.temp.activity, off.temp.critical),
+        (0.0, 0.0),
+        "0 turns a level off"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_summary_names_the_battery_the_host_and_the_paths_searched() {
+    let m = machine();
+    let sys_dir = m._dir.path().join("sys");
+    write(&sys_dir.join("class/power_supply/BAT0/type"), "Battery\n");
+    write(
+        &sys_dir.join("class/power_supply/BAT0/status"),
+        "Discharging\n",
+    );
+    write(&sys_dir.join("class/power_supply/BAT0/capacity"), "64\n");
+    write(
+        &sys_dir.join("class/power_supply/BAT0/power_now"),
+        "12000000\n",
+    );
+    write(
+        &sys_dir.join("class/power_supply/BAT0/energy_now"),
+        "24000000\n",
+    );
+    write(&sys_dir.join("class/hwmon/hwmon0/name"), "nvme\n");
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_secs(3)).await;
+    task.abort();
+    let docs = e.summary_docs.lock().unwrap();
+    let last = docs.last().unwrap();
+    assert_eq!(last["battery"]["state"], json!("discharging"));
+    assert_eq!(last["battery"]["percent"], json!(64.0));
+    assert_eq!(last["battery"]["watts"], json!(12.0));
+    assert_eq!(last["battery"]["minutes_left"], json!(120));
+    assert!(last.get("temp").is_none(), "no sensor is omitted, never 0");
+    assert_eq!(last["temp_search"]["found"], json!(["nvme"]));
+    assert_eq!(last["temp_search"]["wanted"][0], json!("k10temp"));
+    assert_eq!(
+        last["host"],
+        Value::Null,
+        "a bare machine has no host label"
+    );
+    assert_eq!(last["menu"], json!(false));
+}
+
+#[test]
+fn the_process_document_carries_the_hottest_process_by_cpu_of_the_whole_scan() {
+    let row = |pid: i32, name: &str, cpu: Option<f64>| crate::procs::Row {
+        pid,
+        name: name.into(),
+        start: 1,
+        cpu,
+        mem_bytes: 1 << 20,
+        mem_pct: 0.1,
+        uid: Some(1000),
+    };
+    // Not among the shown rows (the list is cut to eight): the hottest is still named.
+    let mut rows: Vec<crate::procs::Row> = (1..=12).map(|i| row(i, "idle", Some(0.1))).collect();
+    rows.push(row(99, "firefox", Some(31.5)));
+    let hot = crate::procs::hottest(&rows, false);
+    let doc = crate::doc::procs(&rows[..8], false, rows.len(), false, 1000, 4242, hot);
+    assert_eq!(doc["hottest"]["name"], json!("firefox"));
+    assert_eq!(doc["hottest"]["cpu"], json!(31.5));
+    let unmeasured = [row(5, "x", None)];
+    let none = crate::doc::procs(
+        &unmeasured,
+        false,
+        1,
+        false,
+        1000,
+        4242,
+        crate::procs::hottest(&unmeasured, false),
+    );
+    assert_eq!(
+        none["hottest"],
+        Value::Null,
+        "no CPU share yet, so no top process"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_menu_opens_while_paused_and_reads_nothing() {
+    let m = machine();
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    act(&e, "sysmon.pause", json!({"paused": true})).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let reads = stat_reads(&m.roots);
+    // A right click while paused: the menu (with Resume in it) opens from the stale values, unsampled.
+    act(&e, "sysmon.menu", json!({"on": true})).await.unwrap();
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let last = e.summary_docs.lock().unwrap().last().cloned().unwrap();
+    assert_eq!(last["menu"], json!(true));
+    assert_eq!(last["paused"], json!(true));
+    assert_eq!(last["paused_by"], json!("panel"));
+    assert_eq!(stat_reads(&m.roots), reads, "paused: the menu reads nothing");
+    task.abort();
+}

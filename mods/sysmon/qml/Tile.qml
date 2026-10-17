@@ -1,7 +1,9 @@
 import QtQuick
 
-// One metric in the panel: label, value, a 60-sample sparkline and a line of detail (docs/ux/sysmon.md, "Panel").
-// The level comes from the daemon and is shown by a glyph as well as by colour (never colour alone).
+// One metric in the panel: label, value, a 60-sample sparkline and the lines of detail (docs/ux/sysmon.md, "Panel").
+// The width is the grid's cell (two cells fill the 328 px content); the detail wraps, so a long source or a list of
+// paths searched never pushes the tile past its cell. The level comes from the daemon and is shown by a glyph as
+// well as by colour (never colour alone).
 Rectangle {
     id: tile
     required property var theme
@@ -16,12 +18,13 @@ Rectangle {
     readonly property string glyph: level === "critical" ? "■ " : (level === "activity" ? "▲ " : "")
     readonly property color ink: level === "critical" ? tile.theme.error : tile.theme.fg
 
-    width: 210
+    implicitWidth: 160
     height: column.implicitHeight + tile.theme.pad * 2
     radius: tile.theme.rSm
     color: tile.theme.container
     border.width: level === "normal" ? 0 : 1
     border.color: level === "critical" ? tile.theme.error : tile.theme.outline
+    clip: true
     Accessible.role: Accessible.Pane
     Accessible.name: label + ", " + glyph + value + (detail !== "" ? ", " + detail : "")
 
@@ -47,6 +50,7 @@ Rectangle {
             elide: Text.ElideRight
             font.pixelSize: tile.theme.fsTitle
             font.family: tile.theme.fam(text, tile.theme.families)
+            font.features: ({"tnum": 1})
         }
         Spark {
             width: parent.width

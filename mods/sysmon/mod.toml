@@ -15,8 +15,9 @@ provides = [
     "action:sysmon.*",
     "job:watch",
 ]
-# Reads /proc and /sys for the figures; signals a process of the user after confirmation (I28).
-capabilities = ["fs:read", "proc:signal"]
+# Reads /proc and /sys for the figures; signals a process of the user after confirmation (I28); starts btop in
+# the terminal the setting names (one exec capability per terminal offered, and btop itself).
+capabilities = ["fs:read", "proc:signal", "exec:btop", "exec:foot", "exec:alacritty", "exec:kitty", "exec:xterm"]
 cost = "low"
 
 [[setting]]
@@ -29,6 +30,13 @@ label = "mods.sysmon.interval"
 help = "mods.sysmon.interval.help"
 
 [[setting]]
+key = "paused"
+type = "bool"
+default = false
+label = "mods.sysmon.paused"
+help = "mods.sysmon.paused.help"
+
+[[setting]]
 key = "show"
 type = "list"
 default = ["cpu", "mem"]
@@ -36,11 +44,26 @@ choices = ["cpu", "mem", "temp", "load"]
 label = "mods.sysmon.show"
 
 [[setting]]
+key = "bar_spark"
+type = "bool"
+default = false
+label = "mods.sysmon.bar_spark"
+help = "mods.sysmon.bar_spark.help"
+
+[[setting]]
 key = "temp_sensor"
 type = "string"
 default = "auto"
 label = "mods.sysmon.temp_sensor"
 help = "mods.sysmon.temp_sensor.help"
+
+[[setting]]
+key = "terminal"
+type = "enum"
+default = "foot"
+choices = ["foot", "alacritty", "kitty", "xterm"]
+label = "mods.sysmon.terminal"
+help = "mods.sysmon.terminal.help"
 
 [[setting]]
 key = "watch"

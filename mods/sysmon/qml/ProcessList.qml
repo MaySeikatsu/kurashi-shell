@@ -2,9 +2,10 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "format.js" as F
 
-// The top processes (docs/ux/sysmon.md, "The process that matters"): name, CPU and memory share, then End
-// (SIGTERM: the program may save first) and Force quit (SIGKILL: unsaved work is lost). Each signal is
-// confirmed in place and says which one it sends. Shared by the panel and the Island's expanded view.
+// The top processes (docs/ux/sysmon.md, "The process that matters"). One line per process: the name (elided; the full
+// name and the pid are what a screen reader hears), the CPU and memory share, then End (SIGTERM: the program may save
+// first) and Force quit (SIGKILL: unsaved work is lost). A process the mod may not end says why, in words under the
+// row. Each signal is confirmed in place and names the signal. Shared by the panel and the Island's expanded view.
 Column {
     id: list
     required property var store
@@ -49,10 +50,12 @@ Column {
     onDocChanged: sync()
     Component.onCompleted: sync()
 
+    width: parent ? parent.width : 328
     spacing: list.theme.xs
 
     Text {
         visible: rows.count === 0 && list.doc !== undefined
+        width: list.width
         text: list.tr("sysmon.panel.no_procs")
         color: list.theme.dim
         font.pixelSize: list.theme.fsCaption
@@ -70,12 +73,53 @@ Column {
             width: list.width
             spacing: list.theme.xs
 
-            Row {
+            // The one line: the name on the left (elided), the shares, then the two actions on the right.
+            Item {
                 width: row.width
-                spacing: list.theme.gap
+                height: Math.max(buttons.implicitHeight, nameText.implicitHeight)
 
+                Row {
+                    id: buttons
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: list.theme.xs
+                    PillButton {
+                        theme: list.theme
+                        label: list.tr("sysmon.panel.end")
+                        available: row.modelData.can_end
+                        reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
+                        onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
+                            name: row.modelData.name, kind: "term"}
+                    }
+                    PillButton {
+                        theme: list.theme
+                        label: list.tr("sysmon.panel.force")
+                        available: row.modelData.can_end
+                        reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
+                        onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
+                            name: row.modelData.name, kind: "kill"}
+                    }
+                }
                 Text {
-                    width: row.width * 0.36
+                    id: figures
+                    anchors.right: buttons.left
+                    anchors.rightMargin: list.theme.gap
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: (row.modelData.cpu >= 0 ? F.pct(row.modelData.cpu) : "…") + " · " + F.pct(row.modelData.mem)
+                    color: list.theme.dim
+                    font.pixelSize: list.theme.fsCaption
+                    font.family: list.theme.fam(text, list.theme.families)
+                    font.features: ({"tnum": 1})
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: list.tr("sysmon.panel.cpu") + " " + (row.modelData.cpu >= 0 ? F.pct(row.modelData.cpu) : "…")
+                        + ", " + list.tr("sysmon.panel.mem") + " " + F.pct(row.modelData.mem)
+                }
+                Text {
+                    id: nameText
+                    anchors.left: parent.left
+                    anchors.right: figures.left
+                    anchors.rightMargin: list.theme.gap
+                    anchors.verticalCenter: parent.verticalCenter
                     text: row.modelData.name
                     color: list.theme.fg
                     elide: Text.ElideRight
@@ -84,42 +128,17 @@ Column {
                     Accessible.role: Accessible.StaticText
                     Accessible.name: row.modelData.name + ", pid " + row.modelData.pid
                 }
-                Text {
-                    width: row.width * 0.16
-                    horizontalAlignment: Text.AlignRight
-                    text: row.modelData.cpu >= 0 ? F.pct(row.modelData.cpu) : "…"
-                    color: list.theme.dim
-                    font.pixelSize: list.theme.fsLabel
-                    font.family: list.theme.fam(text, list.theme.families)
-                    Accessible.role: Accessible.StaticText
-                    Accessible.name: list.tr("sysmon.panel.cpu") + " " + text
-                }
-                Text {
-                    width: row.width * 0.16
-                    horizontalAlignment: Text.AlignRight
-                    text: F.pct(row.modelData.mem)
-                    color: list.theme.dim
-                    font.pixelSize: list.theme.fsLabel
-                    font.family: list.theme.fam(text, list.theme.families)
-                    Accessible.role: Accessible.StaticText
-                    Accessible.name: list.tr("sysmon.panel.mem") + " " + text
-                }
-                PillButton {
-                    theme: list.theme
-                    label: list.tr("sysmon.panel.end")
-                    available: row.modelData.can_end
-                    reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
-                    onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
-                        name: row.modelData.name, kind: "term"}
-                }
-                PillButton {
-                    theme: list.theme
-                    label: list.tr("sysmon.panel.force")
-                    available: row.modelData.can_end
-                    reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
-                    onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
-                        name: row.modelData.name, kind: "kill"}
-                }
+            }
+
+            // Why an end is not offered, in words (EPERM and the protected processes), under the row.
+            Text {
+                visible: !row.modelData.can_end && row.modelData.end_reason !== ""
+                width: row.width
+                text: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
+                color: list.theme.dim
+                wrapMode: Text.WordWrap
+                font.pixelSize: list.theme.fsCaption
+                font.family: list.theme.fam(text, list.theme.families)
             }
 
             // The question first (it names the signal), then the two answers.
