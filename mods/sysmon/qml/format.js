@@ -1,4 +1,4 @@
-// Numbers and units for the system monitor views. Words come from the i18n catalogue (rule 8); the daemon
+// Numbers, units and names for the system monitor views. Words come from the i18n catalogue (rule 8); the daemon
 // has already computed every value and level, so nothing here decides anything.
 .pragma library
 
@@ -13,6 +13,11 @@ function temp(c) {
 
 function load(v) {
     return (v === undefined || v === null) ? "–" : v.toFixed(2)
+}
+
+// Watts with one decimal, as a battery's draw is shown.
+function watts(w) {
+    return (w === undefined || w === null) ? "–" : w.toFixed(1) + " W"
 }
 
 // Bytes in binary units, labelled as such (GiB is what the kernel counts in).
@@ -30,6 +35,12 @@ function bytes(n) {
 
 function rate(bps) {
     return bytes(bps) + "/s"
+}
+
+// A process name shortened to `max` characters with an ellipsis; the full name stays in the accessible name.
+function name(s, max) {
+    var t = String(s)
+    return t.length > max ? t.slice(0, max - 1) + "…" : t
 }
 
 // `{name}` placeholders of a catalogue string.
