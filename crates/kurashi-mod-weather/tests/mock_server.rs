@@ -134,6 +134,17 @@ async fn next_doc(rx: &mut mpsc::UnboundedReceiver<Value>) -> Value {
         .expect("the service is running")
 }
 
+/// The next document that answers: the loading state a fetch for a place without data is announced with
+/// is skipped (the tests that check an answer).
+async fn next_answer(rx: &mut mpsc::UnboundedReceiver<Value>) -> Value {
+    loop {
+        let doc = next_doc(rx).await;
+        if doc["reason"] != json!("mod-weather.loading") {
+            return doc;
+        }
+    }
+}
+
 fn values(units: &str) -> kurashi_mod_api::Values {
     settings(&[
         ("refresh", json!(30)),
@@ -252,6 +263,13 @@ async fn the_forecast_from_the_wire_becomes_the_document() {
     let (publish, mut out) = publisher();
     let task = tokio::spawn((on.service())(publish, on.feed()));
 
+    let loading = next_doc(&mut out).await;
+    assert_eq!(
+        loading["reason"],
+        json!("mod-weather.loading"),
+        "a place without data is named as loading before its answer"
+    );
+    assert_eq!(loading["place"]["name"], json!("東京"));
     let doc = next_doc(&mut out).await;
     assert_eq!(doc["available"], json!(true));
     assert_eq!(doc["place"]["name"], json!("東京"));
@@ -304,7 +322,7 @@ async fn imperial_units_convert_the_values_and_say_where_they_come_from() {
     let on = enable(&m, values("imperial"));
     let (publish, mut out) = publisher();
     let task = tokio::spawn((on.service())(publish, on.feed()));
-    let doc = next_doc(&mut out).await;
+    let doc = next_answer(&mut out).await;
     assert_eq!(doc["units"], json!("imperial"));
     assert_eq!(doc["units_from"], json!("setting"));
     let temp = doc["now"]["temp"].as_f64().expect("temp");
@@ -335,7 +353,7 @@ async fn a_failing_server_keeps_the_last_values_and_the_document_ages_them() {
     let on = enable(&m, values("auto"));
     let (publish, mut out) = publisher();
     let task = tokio::spawn((on.service())(publish, on.feed()));
-    let first = next_doc(&mut out).await;
+    let first = next_answer(&mut out).await;
     assert_eq!(first["tier"], json!("fresh"));
     assert!(first.get("reason").is_none());
 
@@ -387,7 +405,7 @@ async fn a_rate_limit_is_named_and_waits_a_full_refresh() {
     let on = enable(&m, values("auto"));
     let (publish, mut out) = publisher();
     let task = tokio::spawn((on.service())(publish, on.feed()));
-    let doc = next_doc(&mut out).await;
+    let doc = next_answer(&mut out).await;
     assert_eq!(doc["available"], json!(false), "no data was ever received");
     assert_eq!(doc["reason"], json!("mod-weather.error.rate_limited"));
     assert_eq!(
