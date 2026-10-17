@@ -56,7 +56,10 @@ pub fn wallpaper_picture(hub: &Hub) -> Option<std::path::PathBuf> {
         return None;
     }
     let (_, doc) = hub.snapshot(WALLPAPER_DOC).ok()?;
-    doc["theme"]["image"].as_str().filter(|s| !s.is_empty()).map(Into::into)
+    doc["theme"]["image"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(Into::into)
 }
 
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
@@ -195,7 +198,11 @@ pub fn register(
     fonts: Arc<dyn FontProvider + Send + Sync>,
 ) {
     let pic = wallpaper_picture(hub);
-    hub.register(DOC, document_with(store, fonts.as_ref(), None, pic.as_deref()), None);
+    hub.register(
+        DOC,
+        document_with(store, fonts.as_ref(), None, pic.as_deref()),
+        None,
+    );
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
         store.on_change(move |store| republish(&hub, store, fonts.as_ref()));

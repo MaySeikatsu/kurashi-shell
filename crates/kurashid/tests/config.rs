@@ -335,7 +335,11 @@ async fn palette_wallpaper_follows_the_wallpaper_mods_picture() {
     };
     let default = tokens(&hub);
     assert!(!waiting(&hub));
-    assert_eq!(hub.subscribers("mod.wallpaper"), 0, "not held for another palette");
+    assert_eq!(
+        hub.subscribers("mod.wallpaper"),
+        0,
+        "not held for another palette"
+    );
 
     store
         .apply(&[set("theme.colors.palette", json!("wallpaper"))])
@@ -345,7 +349,11 @@ async fn palette_wallpaper_follows_the_wallpaper_mods_picture() {
     })
     .await;
     assert!(waiting(&hub), "no picture yet: the theme says so");
-    assert_eq!(tokens(&hub), default, "the default palette is in effect meanwhile");
+    assert_eq!(
+        tokens(&hub),
+        default,
+        "the default palette is in effect meanwhile"
+    );
 
     hub.set(
         "mod.wallpaper",
@@ -361,7 +369,10 @@ async fn palette_wallpaper_follows_the_wallpaper_mods_picture() {
     store
         .apply(&[set("theme.colors.palette", json!("kanso"))])
         .unwrap();
-    eventually("the hold is released", || hub.subscribers("mod.wallpaper") == 0).await;
+    eventually("the hold is released", || {
+        hub.subscribers("mod.wallpaper") == 0
+    })
+    .await;
     assert!(!waiting(&hub));
 
     // A disabled mod drops its document: the palette waits again, and the offer is gone.
