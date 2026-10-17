@@ -20,9 +20,10 @@ Item {
     property bool live: visible
     Watch { doc: "mod.weather"; active: p.live }
 
-    // The inner width of a mod card in the Stage: 360 px less its margins (Stage.qml). The panel fills it.
-    readonly property int inner: 360 - 2 * (Theme.pad + 4)
-    width: inner
+    // The Stage card's outer width this panel asks for (contract row 66, I53: 360 to 720 px, and the output's
+    // width). The card gives the panel its content width (the card less its margins); the panel lays out to it.
+    property int cardWidth: 400
+    width: parent.width
     implicitHeight: body.implicitHeight
 
     readonly property var d: Store.docs["mod.weather"] || ({})
@@ -63,7 +64,6 @@ Item {
                 ? I18n.tr("mod-weather.tier.stale") + " · " + p.ageText
                 : W.fill(I18n.tr("mod-weather.updated"), { age: p.ageText }))
         }
-        if (d.refresh_min) parts.push(W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }))
         return parts.join(" · ")
     }
     readonly property string hiLo: days.length
@@ -106,6 +106,11 @@ Item {
     // A place as the user reads it: "Tokyo, JP".
     function labelOf(pl) {
         return pl.name + (pl.country_code ? ", " + pl.country_code : "")
+    }
+
+    // A search result as the list and its accessible name read it: "Tokyo · Tokyo · Japan".
+    function placeLine(pl) {
+        return pl.name + (pl.admin ? " · " + pl.admin : "") + (pl.country ? " · " + pl.country : "")
     }
 
     function refresh() {
@@ -375,7 +380,7 @@ Item {
                 visible: W.has(p.now.wind)
                 text: W.has(p.now.wind)
                     ? W.fill(I18n.tr("mod-weather.chip.wind"), { speed: W.num(p.now.wind), unit: p.unitWind })
-                        + (W.has(p.now.gust) ? " · " + W.fill(I18n.tr("mod-weather.chip.gust"), { gust: W.num(p.now.gust) }) : "")
+                        + (W.has(p.now.gust) ? " · " + W.fill(I18n.tr("mod-weather.chip.gust"), { gust: W.num(p.now.gust), unit: p.unitWind }) : "")
                     : ""
             }
             Chip {
@@ -673,9 +678,7 @@ Item {
                             width: parent.width - Theme.gap * 2
                             anchors.verticalCenter: parent.verticalCenter
                             elide: Text.ElideRight
-                            text: modelData.name
-                                + (modelData.admin ? " · " + modelData.admin : "")
-                                + (modelData.country ? " · " + modelData.country : "")
+                            text: p.placeLine(modelData)
                             color: Theme.fg
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
@@ -685,7 +688,7 @@ Item {
                             onClicked: p.choose(modelData)
                         }
                         Accessible.role: Accessible.ListItem
-                        Accessible.name: modelData.name
+                        Accessible.name: p.placeLine(modelData)
                     }
                 }
             }
@@ -803,11 +806,12 @@ Item {
             }
         }
 
-        // Footer: the credit the CC BY 4.0 licence asks for.
+        // Footer: the refresh cadence, then the credit the CC BY 4.0 licence asks for.
         Text {
             width: body.width
             wrapMode: Text.WordWrap
-            text: I18n.tr("mod-weather.credit")
+            text: (d.refresh_min ? W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }) + " · " : "")
+                + I18n.tr("mod-weather.credit")
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
