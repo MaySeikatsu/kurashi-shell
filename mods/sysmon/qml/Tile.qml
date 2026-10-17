@@ -1,8 +1,8 @@
 import QtQuick
 
 // One metric in the panel: label, value, a 60-sample sparkline and the lines of detail (docs/ux/sysmon.md, "Panel").
-// The width is the grid's cell (two cells fill the 328 px content); the detail wraps, so a long source or a list of
-// paths searched never pushes the tile past its cell. The level comes from the daemon and is shown by a glyph as
+// The width is the grid's cell (two cells fill the panel's content, 408 px at the default card); the detail wraps, so a
+// long source or a list of paths searched never pushes the tile past its cell. The level comes from the daemon and is shown by a glyph as
 // well as by colour (never colour alone).
 Rectangle {
     id: tile

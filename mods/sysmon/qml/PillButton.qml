@@ -1,8 +1,8 @@
 import QtQuick
 
-// A small text button for this mod's views, self-contained (mod components cannot import the shell's
-// components). Keyboard: Tab reaches it, Return or Space presses it; the focus ring is drawn outside the
-// control so it is visible on every surface. An unavailable button says why in its accessible name.
+// A small text pill for this mod's rows and menus. Keyboard: Tab reaches it, Return or Space presses it; the focus
+// ring is drawn outside the control so it is visible on every surface. An unavailable button says why in its
+// accessible name.
 Rectangle {
     id: btn
     required property var theme

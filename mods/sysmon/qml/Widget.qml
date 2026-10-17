@@ -1,12 +1,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import Quickshell
 import "format.js" as F
 
 // The bar widget (docs/ux/sysmon.md "Design"): the stats Settings chose, "CPU 12 % · RAM 41 %", with tabular
 // digits and a width per value that its widest figure needs, so a changing number never moves its neighbours.
 // The daemon's level picks the glyph and the tint (never colour alone, never blinking). Click opens the panel;
 // middle click cycles what the bar shows (all the chosen stats, then each alone); right click opens the panel
-// on its action menu (Pause, Settings, Open in btop). It watches the summary only while it is placed (Ma).
+// on its action menu (Pause, Settings, Open in btop). Hover or keyboard focus shows the peek, the facts behind
+// the figures, in a popup of its own. It watches the summary only while it is placed, and the process list only
+// while the peek shows (Ma).
 Item {
     id: widget
     required property var store
@@ -14,6 +17,7 @@ Item {
     required property var i18n
 
     readonly property var s: store.docs["mod.sysmon"]
+    readonly property var procs: store.docs["mod.sysmon.procs"]
     readonly property bool loaded: s !== undefined && s.loading !== true
     readonly property var stats: loaded && s.bar !== undefined ? s.bar : []
     // Middle click: 0 shows every chosen stat, n shows only the n-th one.
@@ -24,9 +28,13 @@ Item {
     readonly property string glyph: paused ? "‖ " : (level === "critical" ? "■ " : (level === "activity" ? "▲ " : ""))
     readonly property string caption: textOf()
     readonly property string sparkStat: firstWithHistory()
+    // A shown temperature with no sensor reads "–", never 0: the accessible name says why (the "no sensor" state).
+    readonly property bool noSensor: loaded && s.available === true && shown.indexOf("temp") >= 0 && s.temp === undefined
     // The activity tint: the theme's warn role when the theme has one, else the accent; critical is the error role.
     readonly property color activityInk: theme.tokens["color.status.warn"] !== undefined
         ? theme.tokens["color.status.warn"] : theme.accent
+    // The window this widget sits in (Quickshell's attached QsWindow): the peek's popup is anchored in it.
+    readonly property var bar: QsWindow.window
 
     function tr(key) {
         return widget.i18n.tr(key)
@@ -94,10 +102,13 @@ Item {
         return src.history.slice(-30)
     }
 
-    // Peek facts for the accessible description: the highest core and the average, and the load.
-    function peek() {
-        if (!loaded || !s.available) return ""
-        var parts = []
+    // The peek's lines: the state first when the figures are not live, then the cores (highest and average), the load,
+    // the memory pressure and the process that uses the most CPU (from the process document, read while the peek shows).
+    function peekFacts() {
+        var out = []
+        if (!loaded) return out
+        if (paused) out.push(tr("sysmon.panel.paused"))
+        if (!s.available) return out
         var per = s.cpu.per_core
         if (per !== undefined && per.length > 0) {
             var max = 0
@@ -106,15 +117,49 @@ Item {
                 max = Math.max(max, per[i])
                 sum += per[i]
             }
-            parts.push(F.fill(tr("sysmon.bar.peek.cores"), {max: Math.round(max), avg: Math.round(sum / per.length)}))
+            out.push(F.fill(tr("sysmon.bar.peek.cores"), {max: Math.round(max), avg: Math.round(sum / per.length)}))
         }
-        if (s.load1 !== undefined) parts.push(tr("sysmon.panel.load") + " " + F.load(s.load1))
-        return parts.join(" · ")
+        if (s.load1 !== undefined) out.push(tr("sysmon.panel.load") + " " + F.load(s.load1))
+        if (s.pressure !== undefined && s.pressure.memory !== undefined) {
+            out.push(tr("sysmon.panel.pressure") + ": " + tr("sysmon.panel.mem") + " "
+                + F.fill(tr("sysmon.panel.pressure.some"), {v: s.pressure.memory.some}))
+        }
+        if (procs !== undefined && procs.hottest !== undefined && procs.hottest !== null && procs.hottest.cpu !== undefined) {
+            out.push(F.fill(tr("sysmon.bar.peek.top"), {name: F.name(procs.hottest.name, 24), pct: F.pct(procs.hottest.cpu)}))
+        }
+        return out
+    }
+
+    // The peek shows while the pointer is on the widget or on the peek, or while the widget has keyboard focus. It stays
+    // for a moment after the pointer leaves, so the step from the widget onto the peek does not close it.
+    readonly property bool peekWanted: area.containsMouse || peekHover.hovered || widget.activeFocus
+    readonly property var peekLines: peekFacts()
+    property bool peekOpen: false
+    onPeekWantedChanged: {
+        if (peekWanted) {
+            peekHide.stop()
+            peekOpen = true
+        } else {
+            peekHide.restart()
+        }
+    }
+    Timer {
+        id: peekHide
+        interval: 250
+        onTriggered: widget.peekOpen = false
+    }
+    // The process list is read only while the peek shows (Ma).
+    onPeekOpenChanged: {
+        if (peekOpen) widget.store.watch("mod.sysmon.procs")
+        else widget.store.unwatch("mod.sysmon.procs")
     }
 
     // Keeps the summary subscribed while the widget is placed; released when it is removed.
     Component.onCompleted: widget.store.watch("mod.sysmon")
-    Component.onDestruction: widget.store.unwatch("mod.sysmon")
+    Component.onDestruction: {
+        widget.store.unwatch("mod.sysmon")
+        if (widget.peekOpen) widget.store.unwatch("mod.sysmon.procs")
+    }
 
     // Probes for the widths: hidden texts in the value font (tabular figures), measured by the layout.
     Text {
@@ -228,7 +273,9 @@ Item {
     // Left: the panel. Right: the panel on its menu. Middle: the next view of the stats. Each click that opens the
     // panel sets the menu flag it wants, so an earlier click's flag never opens the wrong view.
     MouseArea {
+        id: area
         anchors.fill: parent
+        hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
         cursorShape: Qt.PointingHandCursor
         onClicked: mouse => {
@@ -252,6 +299,54 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: tr("sysmon.bar.open") + ": " + caption
         + (paused ? ", " + tr("sysmon.panel.paused") : "")
+        + (noSensor ? ", " + tr("sysmon.bar.no_sensor") : "")
         + (level === "normal" ? "" : ", " + tr("sysmon.state." + level))
-    Accessible.description: peek()
+    Accessible.description: peekLines.join(" · ")
+
+    // The peek: a popup surface under the widget. The compositor flips it above the widget when the bar sits at the
+    // bottom of the screen, and slides it in from an edge; the bar's own height does not clip it.
+    PopupWindow {
+        id: peek
+        visible: widget.peekOpen && widget.peekLines.length > 0
+        color: "transparent"
+        anchor.window: widget.bar
+        anchor.item: widget
+        anchor.edges: Edges.Bottom
+        anchor.gravity: Edges.Bottom
+        anchor.adjustment: PopupAdjustment.FlipY | PopupAdjustment.SlideX
+        implicitWidth: box.implicitWidth
+        implicitHeight: box.implicitHeight
+
+        Rectangle {
+            id: box
+            anchors.fill: parent
+            implicitWidth: Math.max(180, facts.implicitWidth + widget.theme.pad * 2)
+            implicitHeight: facts.implicitHeight + widget.theme.pad * 2
+            radius: widget.theme.rSm
+            color: widget.theme.containerHigh
+            border.width: 1
+            border.color: widget.theme.outline
+
+            HoverHandler { id: peekHover }
+
+            Column {
+                id: facts
+                x: widget.theme.pad
+                y: widget.theme.pad
+                spacing: 2
+                Repeater {
+                    model: widget.peekLines
+                    delegate: Text {
+                        required property var modelData
+                        required property int index
+                        text: modelData
+                        color: index === 0 ? widget.theme.fg : widget.theme.dim
+                        font.pixelSize: widget.theme.fsCaption
+                        font.family: widget.theme.fam(text, widget.theme.families)
+                        font.features: ({"tnum": 1})
+                    }
+                }
+            }
+        }
+    }
 }

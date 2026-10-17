@@ -3,9 +3,10 @@ import QtQuick
 import "format.js" as F
 
 // The top processes (docs/ux/sysmon.md, "The process that matters"). One line per process: the name (elided; the full
-// name and the pid are what a screen reader hears), the CPU and memory share, then End (SIGTERM: the program may save
-// first) and Force quit (SIGKILL: unsaved work is lost). A process the mod may not end says why, in words under the
-// row. Each signal is confirmed in place and names the signal. Shared by the panel and the Island's expanded view.
+// name and the pid are what a screen reader hears), its CPU and memory share, then End (SIGTERM: the program may save
+// first) and Force quit (SIGKILL: unsaved work is lost). A process the mod may not end says why, in words under the row.
+// Each signal is confirmed in place and names the signal. Shared by the panel and the Island's expanded view. Nothing
+// here has a fixed width: the name takes the room that the figures and the actions leave, so a row fits any card (B18).
 Column {
     id: list
     required property var store
@@ -50,7 +51,7 @@ Column {
     onDocChanged: sync()
     Component.onCompleted: sync()
 
-    width: parent ? parent.width : 328
+    width: parent ? parent.width : 0
     spacing: list.theme.xs
 
     Text {
@@ -73,10 +74,10 @@ Column {
             width: list.width
             spacing: list.theme.xs
 
-            // The one line: the name on the left (elided), the shares, then the two actions on the right.
+            // The one line: the actions and the figures keep their own width, the name takes the rest.
             Item {
                 width: row.width
-                height: Math.max(buttons.implicitHeight, nameText.implicitHeight)
+                height: Math.max(nameText.implicitHeight, figures.implicitHeight, buttons.implicitHeight)
 
                 Row {
                     id: buttons

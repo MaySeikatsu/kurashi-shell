@@ -2,10 +2,11 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "format.js" as F
 
-// The system monitor panel (`panel:sysmon`, docs/ux/sysmon.md "Panel"). The Stage card is 360 px, so the content is
-// 328 px: two columns of tiles at 160 px, process rows of two lines, nothing wider (B18). The body is the figures,
-// or, after a right click on the bar, the action menu (Pause, Settings, Open in btop). It subscribes while it is open
-// (Ma); every number and level is the daemon's, this file only lays them out and says what state it is in.
+// The system monitor panel (`panel:sysmon`, docs/ux/sysmon.md "Panel"). It asks the Stage for a 440 px card (`cardWidth`,
+// the brief's "~440 px"), so its content is 408 px: two columns of tiles and one line per process (name, then the
+// figures and actions). Every width below is the panel's own `width`, never a constant, so the layout follows the card (B18). The
+// body is the figures, or, after a right click on the bar, the action menu (Pause, Settings, Open in btop). It
+// subscribes while it is open (Ma); every number and level is the daemon's, this file only lays them out.
 Item {
     id: panel
     required property var store
@@ -165,7 +166,10 @@ Item {
         })
     }
 
-    implicitWidth: 328
+    // The card's outer width this panel asks for (contract row 66; the Stage clamps it to 360..720 px). The content is
+    // the card less its margins, 2 × (Theme.pad + 4), the Stage's own rule, so the panel and its card agree.
+    property int cardWidth: 440
+    implicitWidth: cardWidth - 2 * (panel.theme.pad + 4)
     width: implicitWidth
     implicitHeight: column.implicitHeight
 
@@ -492,7 +496,8 @@ Item {
             spacing: panel.theme.gap
             opacity: panel.paused ? panel.theme.staleOpacity : 1
 
-            Row {
+            // The title and the two sort pills wrap rather than push past the card's edge.
+            Flow {
                 width: parent.width
                 spacing: panel.theme.gap
                 Text {
