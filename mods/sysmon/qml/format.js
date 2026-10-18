@@ -2,13 +2,14 @@
 // has already computed every value and level, so nothing here decides anything.
 .pragma library
 
+// A figure and its unit are joined by a no-break space (U+00A0): a narrow card wraps between figures, never inside one.
 // A percentage as the bar and the tiles show it; "–" while there is no value.
 function pct(v) {
-    return (v === undefined || v === null) ? "–" : Math.round(v) + " %"
+    return (v === undefined || v === null) ? "–" : Math.round(v) + " %"
 }
 
 function temp(c) {
-    return (c === undefined || c === null) ? "–" : Math.round(c) + " °C"
+    return (c === undefined || c === null) ? "–" : Math.round(c) + " °C"
 }
 
 function load(v) {
@@ -17,7 +18,7 @@ function load(v) {
 
 // Watts with one decimal, as a battery's draw is shown.
 function watts(w) {
-    return (w === undefined || w === null) ? "–" : w.toFixed(1) + " W"
+    return (w === undefined || w === null) ? "–" : w.toFixed(1) + " W"
 }
 
 // Bytes in binary units, labelled as such (GiB is what the kernel counts in).
@@ -30,7 +31,7 @@ function bytes(n) {
         v /= 1024
         i++
     }
-    return (v >= 10 || i === 0 ? Math.round(v) : v.toFixed(1)) + " " + units[i]
+    return (v >= 10 || i === 0 ? Math.round(v) : v.toFixed(1)) + " " + units[i]
 }
 
 function rate(bps) {
