@@ -43,10 +43,11 @@ Item {
         return i18n.tr(key)
     }
 
-    // The GPU the tile shows: the first awake one, else the first listed. The others get a line each.
+    // The GPU the tile shows is the one the daemon marks primary: the one that renders (I62), or the asleep one of a
+    // machine with no awake GPU. The others get a line each, asleep ones included (never sampled).
     function primaryGpu() {
         for (var i = 0; i < gpus.length; i++) {
-            if (gpus[i].state === "awake") return gpus[i]
+            if (gpus[i].primary === true) return gpus[i]
         }
         return gpus.length > 0 ? gpus[0] : undefined
     }

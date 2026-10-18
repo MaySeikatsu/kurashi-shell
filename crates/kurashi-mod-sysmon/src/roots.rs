@@ -1,6 +1,7 @@
-//! Where the readers look. The daemon reads `/proc` and `/sys`; tests point both at fixture trees.
-//! Every file read goes through [`Roots::read`], so tests can count reads (no sampling without a
-//! subscriber, no read of a suspended GPU) and the daemon never reads a file it did not mean to.
+//! Where the readers look. The daemon reads `/proc` and `/sys`; tests point both at fixture trees, and so does the
+//! live check of the states (`KURASHI_SYSMON_ROOT`, see `Sysmon::new`). Every file read goes through [`Roots::read`]
+//! (or its siblings), so tests can count reads (no sampling without a subscriber, no read of a suspended GPU) and the
+//! daemon never reads a file it did not mean to.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -10,6 +11,8 @@ use std::sync::{Arc, Mutex};
 pub struct Roots {
     pub proc: PathBuf,
     pub sys: PathBuf,
+    /// The desktop-entry directories names are read from (I61), in precedence order.
+    pub apps: Vec<PathBuf>,
     /// The daemon's real uid. Processes of other users are listed, but never signalled (EPERM, shown).
     pub uid: u32,
     reads: Arc<AtomicUsize>,
@@ -21,15 +24,26 @@ impl Roots {
         Self {
             proc: proc.into(),
             sys: sys.into(),
+            apps: Vec::new(),
             uid,
             reads: Arc::default(),
             trace: None,
         }
     }
 
-    /// The live system: `/proc`, `/sys` and this daemon's uid.
+    /// The live system: `/proc`, `/sys`, the XDG desktop-entry directories and this daemon's uid.
     pub fn system() -> Self {
-        Self::new("/proc", "/sys", rustix::process::getuid().as_raw())
+        let mut roots = Self::new("/proc", "/sys", rustix::process::getuid().as_raw());
+        roots.apps = xdg_application_dirs();
+        roots
+    }
+
+    /// A fixture tree in place of the live system: `proc/`, `sys/` and `share/applications/` under `root`, owned by
+    /// `uid`. The states check serves its processes and devices this way; nothing is read outside the tree.
+    pub fn fixture(root: &Path, uid: u32) -> Self {
+        let mut roots = Self::new(root.join("proc"), root.join("sys"), uid);
+        roots.apps = vec![root.join("share/applications")];
+        roots
     }
 
     /// Keeps the list of paths read from now on (tests).
@@ -41,11 +55,22 @@ impl Roots {
     /// Contents of a file, or None when it cannot be read (absent, vanished, not permitted).
     pub fn read(&self, path: impl AsRef<Path>) -> Option<String> {
         let path = path.as_ref();
-        self.reads.fetch_add(1, Ordering::SeqCst);
-        if let Some(trace) = &self.trace {
-            trace.lock().expect("trace lock").push(path.to_path_buf());
-        }
+        self.note(path);
         std::fs::read_to_string(path).ok()
+    }
+
+    /// The raw contents of a file (`cmdline` is NUL-separated and need not be UTF-8).
+    pub fn read_bytes(&self, path: impl AsRef<Path>) -> Option<Vec<u8>> {
+        let path = path.as_ref();
+        self.note(path);
+        std::fs::read(path).ok()
+    }
+
+    /// Where a symbolic link points (`exe`, `cwd`), or None when it is not readable.
+    pub fn link(&self, path: impl AsRef<Path>) -> Option<PathBuf> {
+        let path = path.as_ref();
+        self.note(path);
+        std::fs::read_link(path).ok()
     }
 
     /// Entries of a directory in name order (procfs and sysfs do not promise one). Empty when unreadable.
@@ -69,9 +94,31 @@ impl Roots {
             .map(|t| t.lock().expect("trace lock").clone())
             .unwrap_or_default()
     }
+
+    fn note(&self, path: &Path) {
+        self.reads.fetch_add(1, Ordering::SeqCst);
+        if let Some(trace) = &self.trace {
+            trace.lock().expect("trace lock").push(path.to_path_buf());
+        }
+    }
 }
 
 /// The name of a directory entry, or "" when it has none.
 pub fn name_of(path: &Path) -> &str {
     path.file_name().and_then(|n| n.to_str()).unwrap_or("")
+}
+
+/// `applications/` under the user's data home, then under each XDG data dir (the freedesktop lookup order).
+fn xdg_application_dirs() -> Vec<PathBuf> {
+    let non_empty = |name: &str| std::env::var_os(name).filter(|v| !v.is_empty());
+    let home = non_empty("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .or_else(|| non_empty("HOME").map(|h| PathBuf::from(h).join(".local/share")));
+    let dirs = non_empty("XDG_DATA_DIRS")
+        .map(|v| v.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+    home.into_iter()
+        .chain(dirs.split(':').filter(|d| !d.is_empty()).map(PathBuf::from))
+        .map(|d| d.join("applications"))
+        .collect()
 }

@@ -3,11 +3,12 @@
 //! computes every number and every level; the views only format them. Optional facts are absent when
 //! they are not measured, never 0 (Shōjiki).
 
-use crate::gpu::Gpu;
+use crate::gpu::{self, Gpu};
 use crate::host::Host;
 use crate::pressure::Psi;
 use crate::procs::Row;
 use crate::sampler::{Pressure, Sample};
+use crate::shell::Me;
 use crate::sysmon::Cfg;
 use crate::thermal;
 use crate::trouble::{Kind, Limit, Limits};
@@ -120,19 +121,23 @@ fn pressure(p: &Pressure) -> Option<Value> {
     (!m.is_empty()).then_some(Value::Object(m))
 }
 
-fn gpu(g: &Gpu) -> Value {
+/// One GPU. `primary` marks the one the tile shows (I62): the one that renders, or the asleep one of a machine with
+/// no awake GPU; the others are listed, asleep or awake, one line each.
+fn gpu(g: &Gpu, primary: bool) -> Value {
     match g {
-        Gpu::Asleep { id } => json!({"id": id, "state": "asleep"}),
+        Gpu::Asleep { id } => json!({"id": id, "state": "asleep", "primary": primary}),
         Gpu::Awake {
             id,
             vendor,
             util,
             vram,
             temp_c,
+            ..
         } => {
             let mut m = Map::new();
             m.insert("id".into(), json!(id));
             m.insert("state".into(), json!("awake"));
+            m.insert("primary".into(), json!(primary));
             if let Some(v) = vendor {
                 m.insert("vendor".into(), json!(v));
             }
@@ -175,9 +180,16 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
     out.insert("sensor".into(), json!(v.cfg.sensor));
     out.insert("host".into(), json!(v.host.name()));
     out.insert("menu".into(), json!(v.menu));
+    let shown = gpu::primary(&s.gpus);
     out.insert(
         "gpus".into(),
-        json!(s.gpus.iter().map(gpu).collect::<Vec<_>>()),
+        json!(
+            s.gpus
+                .iter()
+                .enumerate()
+                .map(|(i, g)| gpu(g, Some(i) == shown))
+                .collect::<Vec<_>>()
+        ),
     );
 
     let mut cpu = Map::new();
@@ -281,15 +293,30 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
     Value::Object(out)
 }
 
-/// `mod.sysmon.procs`: the rows shown, already sorted and cut. `can_end` is false with a reason for a
-/// process the mod may not signal (another user's, or pid 1 and the daemon itself).
+/// Why the list offers no End for a row, as a catalogue key; None when it offers one. Pid 1, the daemon itself and the
+/// shell's own processes are never ended from here (B24), and another user's process is listed, not signalled.
+/// The daemon's own pid is refused even on a row that was not named as the shell's (a fail-closed default).
+fn end_refusal(r: &Row, own: bool, me: Me) -> Option<&'static str> {
+    if r.pid <= 1 {
+        return Some("sysmon.error.protected");
+    }
+    if i64::from(r.pid) == i64::from(me.pid) {
+        return Some("sysmon.error.shell");
+    }
+    if let Some(part) = r.shell {
+        return Some(part.reason());
+    }
+    (!own).then_some("sysmon.error.not_yours")
+}
+
+/// `mod.sysmon.procs`: the rows shown, already sorted and cut and named (`names`), with the End refusals.
 pub fn procs(
     rows: &[Row],
     by_mem: bool,
     total: usize,
     paused: bool,
+    me: Me,
     own_uid: u32,
-    self_pid: u32,
     hottest: Option<&Row>,
 ) -> Value {
     // The process using the most CPU in the whole scan (not only the shown rows): the battery row's "most CPU"
@@ -305,7 +332,6 @@ pub fn procs(
         .iter()
         .map(|r| {
             let own = r.uid == Some(own_uid);
-            let protected = r.pid <= 1 || i64::from(r.pid) == i64::from(self_pid);
             let mut m = Map::new();
             m.insert("pid".into(), json!(r.pid));
             m.insert("name".into(), json!(r.name));
@@ -316,15 +342,18 @@ pub fn procs(
             m.insert("mem_bytes".into(), json!(r.mem_bytes));
             m.insert("start".into(), json!(r.start));
             m.insert("own".into(), json!(own));
-            let can_end = own && !protected;
-            m.insert("can_end".into(), json!(can_end));
-            if !can_end {
-                let reason = if protected {
-                    "sysmon.error.protected"
-                } else {
-                    "sysmon.error.not_yours"
-                };
-                m.insert("end_reason".into(), json!(reason));
+            // The full command line: the accessible description says what the name abbreviates (I61).
+            if let Some(cmd) = &r.cmd {
+                m.insert("cmd".into(), json!(cmd));
+            }
+            match end_refusal(r, own, me) {
+                None => {
+                    m.insert("can_end".into(), json!(true));
+                }
+                Some(reason) => {
+                    m.insert("can_end".into(), json!(false));
+                    m.insert("end_reason".into(), json!(reason));
+                }
             }
             Value::Object(m)
         })
