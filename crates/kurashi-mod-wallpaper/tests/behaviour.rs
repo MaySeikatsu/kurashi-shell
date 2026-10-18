@@ -46,10 +46,9 @@ async fn enable_starts_the_daemon_once_and_publishes_the_outputs() {
         "no reason when it works"
     );
     assert_eq!(doc["outputs"]["DP-1"]["width"], 2560);
-    assert_eq!(
-        doc["outputs"]["DP-2"]["path"],
-        Value::Null,
-        "nothing set there yet"
+    assert!(
+        doc["outputs"]["DP-2"].get("path").is_none(),
+        "nothing set there yet: the key is absent, not null (B25)"
     );
     assert_eq!(doc["library"]["count"], 0, "an empty folder");
     assert_eq!(
@@ -82,7 +81,7 @@ async fn set_runs_img_with_the_card_flags_and_stores_what_was_applied() {
         )]
     );
     eventually(|| m.doc()["outputs"]["DP-1"]["path"] == json!(path.display().to_string())).await;
-    assert_eq!(m.doc()["outputs"]["DP-2"]["path"], Value::Null);
+    assert!(m.doc()["outputs"]["DP-2"].get("path").is_none());
 
     // Every output at once: no --outputs flag, and every output reports it.
     m.act("wallpaper.set", json!({"path": path})).await.unwrap();
@@ -472,10 +471,9 @@ async fn a_failed_apply_is_not_recorded_as_applied() {
         .unwrap_err();
     assert_eq!(err.to_string(), "mod-wallpaper.error.apply");
     eventually(|| m.doc()["error"]["key"] == "mod-wallpaper.error.apply").await;
-    assert_eq!(
-        m.doc()["outputs"]["DP-1"]["path"],
-        Value::Null,
-        "nothing was stored"
+    assert!(
+        m.doc()["outputs"]["DP-1"].get("path").is_none(),
+        "nothing was stored: the key is absent, not null (B25)"
     );
     assert_eq!(
         m.doc()["backend"]["reason"],
@@ -708,5 +706,66 @@ async fn clearing_the_cache_removes_the_thumbnails_and_they_are_made_again() {
     assert!(
         again["rows"][0]["thumb"].is_string(),
         "made again on demand"
+    );
+}
+
+/// Every null in a document, by its path (B25: documents never contain null, PROTOCOL §3).
+fn nulls_in(v: &Value, at: &str, found: &mut Vec<String>) {
+    match v {
+        Value::Null => found.push(at.to_owned()),
+        Value::Object(map) => map
+            .iter()
+            .for_each(|(k, c)| nulls_in(c, &format!("{at}.{k}"), found)),
+        Value::Array(items) => items
+            .iter()
+            .enumerate()
+            .for_each(|(i, c)| nulls_in(c, &format!("{at}[{i}]"), found)),
+        _ => {}
+    }
+}
+
+#[tokio::test]
+async fn the_document_holds_no_null_at_any_depth_in_any_state() {
+    let root = scratch("nulls");
+    let folder = library(&root, &["a.png"]);
+    let fake = Fake::new(&["awww"]);
+    let mut m = Mod::enable(fake.clone(), Dirs::rooted(&root), values(&folder)).unwrap();
+    m.subscribe();
+    loaded(&m).await;
+
+    let mut found = Vec::new();
+    nulls_in(&m.doc(), "mod.wallpaper", &mut found);
+    assert_eq!(
+        found,
+        Vec::<String>::new(),
+        "idle: absent values are left out"
+    );
+
+    // A picture on one output with the theme following it, a favourite, and rotation on: the shapes
+    // with optional values (`path`, `theme.image`, `favourites[].scheme`, `rotation.next_at`).
+    let path = folder.join("a.png");
+    m.act(
+        "wallpaper.set",
+        json!({"path": path, "output": "DP-1", "theme": true}),
+    )
+    .await
+    .unwrap();
+    m.act(
+        "wallpaper.favourite",
+        json!({"path": path, "scheme": "dark", "palette": "autumn-1"}),
+    )
+    .await
+    .unwrap();
+    m.set("rotate", json!(1));
+    eventually(|| m.doc()["rotation"]["next_at"].is_number()).await;
+    eventually(|| m.doc()["theme"]["image"] == json!(path.display().to_string())).await;
+
+    let mut found = Vec::new();
+    let doc = m.doc();
+    nulls_in(&doc, "mod.wallpaper", &mut found);
+    assert_eq!(found, Vec::<String>::new(), "in use: still no null");
+    assert!(
+        doc["outputs"]["DP-2"].get("path").is_none(),
+        "an output with no picture has no path key"
     );
 }
