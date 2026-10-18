@@ -5,7 +5,7 @@
 # screenshot, `act ui.close`; then `act quick.toggle`, a screenshot, a click on its heading (keyboard focus),
 # Tab and Space on the Bluetooth switch (the mock's adapter goes off), `act ui.close`. Each open shot must
 # have runtime.ui with the expected panel and face, and a card of the width its view asks for (400 for
-# media and clock, 360 otherwise), centred on the output. Each closed shot must have no card (Ma). The
+# media, clock, quick, power and bluetooth; 360 otherwise), centred on the output. Each closed shot must have no card (Ma). The
 # frontend logs no QML error.
 #   nix develop -c frontend/test-stage.sh [sandbox-name]
 # Binaries: kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug), the mock from
@@ -189,8 +189,8 @@ start_mock
 start_frontend
 
 # Face (and the card width its expanded view asks for). `weather` is no island face: the generic card.
-# power and bluetooth open the quick card's Power and Bluetooth pages (I44); their card is the 360 px one their view asks for.
-for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:360 bluetooth:360 weather:360; do
+# power and bluetooth open the quick card's Power and Bluetooth pages (I44) in the quick card's 400 px width (row 79).
+for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:400 bluetooth:400 weather:360; do
   face=${spec%%:*}
   width=${spec##*:}
   K mock face "$face" >/dev/null
