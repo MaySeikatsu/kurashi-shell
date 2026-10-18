@@ -1,15 +1,15 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import "format.js" as F
 
 // The bar widget (docs/ux/sysmon.md "Design"): the stats Settings chose, "CPU 12 % · RAM 41 %", with tabular
 // digits and a width per value that its widest figure needs, so a changing number never moves its neighbours.
 // The daemon's level picks the glyph and the tint (never colour alone, never blinking). Click opens the panel;
 // middle click cycles what the bar shows (all the chosen stats, then each alone); right click opens the panel
-// on its action menu (Pause, Settings, Open in btop). Hover or keyboard focus shows the peek, the facts behind
-// the figures, in a popup of its own. It watches the summary only while it is placed, and the process list only
-// while the peek shows (Ma).
+// on its action menu (Pause, Settings, Open in btop). The peek's facts (the ones behind the figures) are the
+// accessible description for now; a visible peek waits for the Stage-hosted peek (K19 rules out a popup surface
+// per widget; BACKLOG B9/I47). It watches the summary only while it is placed, and the process list only while
+// the widget has keyboard focus (Ma).
 Item {
     id: widget
     required property var store
@@ -33,8 +33,6 @@ Item {
     // The activity tint: the theme's warn role when the theme has one, else the accent; critical is the error role.
     readonly property color activityInk: theme.tokens["color.status.warn"] !== undefined
         ? theme.tokens["color.status.warn"] : theme.accent
-    // The window this widget sits in (Quickshell's attached QsWindow): the peek's popup is anchored in it.
-    readonly property var bar: QsWindow.window
 
     function tr(key) {
         return widget.i18n.tr(key)
@@ -130,9 +128,9 @@ Item {
         return out
     }
 
-    // The peek shows while the pointer is on the widget or on the peek, or while the widget has keyboard focus. It stays
-    // for a moment after the pointer leaves, so the step from the widget onto the peek does not close it.
-    readonly property bool peekWanted: area.containsMouse || peekHover.hovered || widget.activeFocus
+    // The peek's facts are read while the widget has keyboard focus (they are its accessible description). It stays
+    // for a moment after focus leaves, so a quick round trip does not resubscribe.
+    readonly property bool peekWanted: widget.activeFocus
     readonly property var peekLines: peekFacts()
     property bool peekOpen: false
     onPeekWantedChanged: {
@@ -302,51 +300,4 @@ Item {
         + (noSensor ? ", " + tr("sysmon.bar.no_sensor") : "")
         + (level === "normal" ? "" : ", " + tr("sysmon.state." + level))
     Accessible.description: peekLines.join(" · ")
-
-    // The peek: a popup surface under the widget. The compositor flips it above the widget when the bar sits at the
-    // bottom of the screen, and slides it in from an edge; the bar's own height does not clip it.
-    PopupWindow {
-        id: peek
-        visible: widget.peekOpen && widget.peekLines.length > 0
-        color: "transparent"
-        anchor.window: widget.bar
-        anchor.item: widget
-        anchor.edges: Edges.Bottom
-        anchor.gravity: Edges.Bottom
-        anchor.adjustment: PopupAdjustment.FlipY | PopupAdjustment.SlideX
-        implicitWidth: box.implicitWidth
-        implicitHeight: box.implicitHeight
-
-        Rectangle {
-            id: box
-            anchors.fill: parent
-            implicitWidth: Math.max(180, facts.implicitWidth + widget.theme.pad * 2)
-            implicitHeight: facts.implicitHeight + widget.theme.pad * 2
-            radius: widget.theme.rSm
-            color: widget.theme.containerHigh
-            border.width: 1
-            border.color: widget.theme.outline
-
-            HoverHandler { id: peekHover }
-
-            Column {
-                id: facts
-                x: widget.theme.pad
-                y: widget.theme.pad
-                spacing: 2
-                Repeater {
-                    model: widget.peekLines
-                    delegate: Text {
-                        required property var modelData
-                        required property int index
-                        text: modelData
-                        color: index === 0 ? widget.theme.fg : widget.theme.dim
-                        font.pixelSize: widget.theme.fsCaption
-                        font.family: widget.theme.fam(text, widget.theme.families)
-                        font.features: ({"tnum": 1})
-                    }
-                }
-            }
-        }
-    }
 }
