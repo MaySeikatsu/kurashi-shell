@@ -12,8 +12,8 @@ use std::sync::{Arc, Mutex, Weak};
 
 use kurashi_island::{Face, FaceSignal, Source, Transient};
 use kurashi_mod_api::{
-    Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod, Publish,
-    Registration, ServiceFn, Settings, Values,
+    ActiveFn, Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod,
+    Publish, Registration, ServiceFn, Settings, Values,
 };
 use kurashi_mods::{
     Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
@@ -50,13 +50,23 @@ pub const SLOTS_DOC: &str = "runtime.slots";
 /// `running_reasons` of a mod whose document has a subscriber (K25 "Running now").
 const RUNNING_SUBSCRIBED: &str = "mods.running.subscribed";
 
-/// Why each mod runs now (K25, I23): a document with a subscriber, a background job that is started.
-/// The services and jobs keep it current; the `mods` document reads it as `running_reasons`.
+/// Why each mod runs now (K25, I23): a document with a subscriber, a background job that is started and
+/// has work (I48). The services and jobs keep it current; the `mods` document reads it as `running_reasons`.
 #[derive(Default)]
 pub struct Running {
     docs: Mutex<BTreeSet<(String, String)>>,
-    /// (mod, job) -> the job's reason, for the jobs that run now.
-    jobs: Mutex<BTreeMap<(String, String), String>>,
+    /// (mod, job) -> the run that runs now.
+    jobs: Mutex<BTreeMap<(String, String), RunningJob>>,
+}
+
+/// A started job, as [`Running`] keeps it. A later run replaces it, and an end of an earlier run leaves it
+/// alone (`end_job` checks the run), so the runs of one job can race without losing a live one.
+struct RunningJob {
+    run: u64,
+    reason: String,
+    /// False while the job says it has nothing to do (`JobCtx::set_active(false)`, I48): it runs on, but
+    /// its reason is not listed.
+    active: bool,
 }
 
 impl Running {
@@ -70,16 +80,39 @@ impl Running {
         }
     }
 
-    fn set_job(&self, mod_id: &str, job: &str, reason: Option<&str>) {
+    /// Run `run` of a job starts: its reason is listed until the run ends or says it has nothing to do.
+    fn start_job(&self, mod_id: &str, job: &str, run: u64, reason: &str) {
         let key = (mod_id.to_string(), job.to_string());
-        let mut jobs = self.jobs.lock().expect("running lock");
-        match reason {
-            Some(reason) => jobs.insert(key, reason.to_string()),
-            None => jobs.remove(&key),
+        let entry = RunningJob {
+            run,
+            reason: reason.to_string(),
+            active: true,
         };
+        self.jobs.lock().expect("running lock").insert(key, entry);
     }
 
-    /// The reasons the mod runs now: its subscribers first, then its jobs by name, each once.
+    /// Run `run` of a job ends: it is no longer listed. An entry of a later run is left alone.
+    fn end_job(&self, mod_id: &str, job: &str, run: u64) {
+        let key = (mod_id.to_string(), job.to_string());
+        let mut jobs = self.jobs.lock().expect("running lock");
+        if jobs.get(&key).is_some_and(|j| j.run == run) {
+            jobs.remove(&key);
+        }
+    }
+
+    /// Run `run` of a job says whether it has work (I48). True when that changed what the mod reports.
+    fn set_job_active(&self, mod_id: &str, job: &str, run: u64, active: bool) -> bool {
+        let mut jobs = self.jobs.lock().expect("running lock");
+        match jobs.get_mut(&(mod_id.to_string(), job.to_string())) {
+            Some(j) if j.run == run && j.active != active => {
+                j.active = active;
+                true
+            }
+            _ => false,
+        }
+    }
+
+    /// The reasons the mod runs now: its subscribers first, then its jobs that have work, by name, each once.
     pub fn reasons(&self, mod_id: &str) -> Vec<String> {
         let mut out = Vec::new();
         let subscribed = self
@@ -91,9 +124,9 @@ impl Running {
         if subscribed {
             out.push(RUNNING_SUBSCRIBED.to_string());
         }
-        for ((m, _), reason) in self.jobs.lock().expect("running lock").iter() {
-            if m == mod_id && !out.contains(reason) {
-                out.push(reason.clone());
+        for ((m, _), job) in self.jobs.lock().expect("running lock").iter() {
+            if m == mod_id && job.active && !out.contains(&job.reason) {
+                out.push(job.reason.clone());
             }
         }
         out
@@ -169,7 +202,8 @@ impl BackgroundJob {
         values.get(&self.wanted_by).and_then(Value::as_bool) == Some(true)
     }
 
-    /// Starts the job unless it runs. Its reason joins `running_reasons` until it stops.
+    /// Starts the job unless it runs. Its reason joins `running_reasons` until it stops, or until the run
+    /// says it has nothing to do (I48).
     fn start(self: &Arc<Self>) {
         let mut run = self.run.lock().expect("job lock");
         if run.task.is_some() {
@@ -178,8 +212,11 @@ impl BackgroundJob {
         run.starts += 1;
         let start = run.starts;
         self.running
-            .set_job(&self.mod_id, &self.name, Some(&self.reason));
-        let ctx = JobCtx::new(Settings::new(self.settings.subscribe()));
+            .start_job(&self.mod_id, &self.name, start, &self.reason);
+        let ctx = JobCtx::with_active(
+            Settings::new(self.settings.subscribe()),
+            self.active_sink(start),
+        );
         let body = (self.body)(ctx);
         let end = RunEnd {
             job: self.clone(),
@@ -194,10 +231,13 @@ impl BackgroundJob {
     /// Cancels the job if it runs. The task leaves the lock first: dropping a cancelled run reports
     /// its end, and that takes the lock.
     fn stop(&self) {
-        let task = self.run.lock().expect("job lock").task.take();
+        let (task, start) = {
+            let mut run = self.run.lock().expect("job lock");
+            (run.task.take(), run.starts)
+        };
         if let Some(task) = task {
             task.abort();
-            self.running.set_job(&self.mod_id, &self.name, None);
+            self.running.end_job(&self.mod_id, &self.name, start);
         }
     }
 
@@ -209,12 +249,29 @@ impl BackgroundJob {
             return;
         }
         drop(run);
-        self.running.set_job(&self.mod_id, &self.name, None);
+        self.running.end_job(&self.mod_id, &self.name, start);
         if let Some(hub) = self.hub.upgrade() {
             let _ = hub.update("mods", None, |d| {
                 set_running(d, &self.mod_id, self.running.reasons(&self.mod_id));
             });
         }
+    }
+
+    /// What `JobCtx::set_active` of run `start` reaches (I48): that run's entry in [`Running`], and the
+    /// `mods` document when it changed. It takes no run lock: a body may call it before `start` returns,
+    /// while `start` still holds that lock. It keeps no reference to the job, so it does not keep it alive.
+    fn active_sink(&self, start: u64) -> ActiveFn {
+        let (running, hub) = (self.running.clone(), self.hub.clone());
+        let (mod_id, job) = (self.mod_id.clone(), self.name.clone());
+        Arc::new(move |active| {
+            if running.set_job_active(&mod_id, &job, start, active)
+                && let Some(hub) = hub.upgrade()
+            {
+                let _ = hub.update("mods", None, |d| {
+                    set_running(d, &mod_id, running.reasons(&mod_id));
+                });
+            }
+        })
     }
 }
 
@@ -756,9 +813,9 @@ impl Native {
         Value::Object(out)
     }
 
-    /// The `mods` document (K25, K26, I23, PROTOCOL §5): the registry's entries, `running_reasons`
-    /// from the subscriptions and the started jobs, `qml` for enabled native mods whose component files exist, and the reason of
-    /// a refused enable in `errors`. Called under the hub's lock (`update`), so it reads the
+    /// The `mods` document (K25, K26, I23, I48, PROTOCOL §5): the registry's entries, `running_reasons`
+    /// from the subscriptions and the jobs that have work, `qml` for enabled native mods whose component
+    /// files exist, and the reason of a refused enable in `errors`. Called under the hub's lock (`update`), so it reads the
     /// subscriptions as they are at the write.
     pub fn document(&self, reg: &mut Registry) -> Value {
         let ids: Vec<String> = reg.iter().map(|e| e.id.clone()).collect();
