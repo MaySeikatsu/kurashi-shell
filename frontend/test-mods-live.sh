@@ -108,6 +108,8 @@ def expect(moddir, provides):
         kind, _, name = p.partition(":")
         if kind == "widget" and (qml / "Widget.qml").is_file():
             keys.append(p)
+        elif kind == "peek" and (qml / "Peek.qml").is_file():
+            keys.append(p)
         elif kind == "panel" and (qml / "Panel.qml").is_file():
             keys.append(p)
         elif kind == "island-face":
