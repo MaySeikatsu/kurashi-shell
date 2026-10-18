@@ -27,6 +27,7 @@
 
 # モッドのパネルと寄与 (K28): mod.panel.open と、マニフェストの項目が断られた理由。
 "mods.error.panel_unavailable" = "このモッドにはそのパネルがないか、モッドがオフです"
+"mods.error.peek_unavailable" = "このモッドにはそのピークがないか、モッドがオフです"
 "mods.error.provide_unknown_slot" = "このモッドは、シェルにないスロットを埋めようとしています"
 "mods.error.setting_choices_from_type" = "選択肢を別の供給元から取れるのは文字列の設定だけです"
 "mods.error.setting_choices_and_from" = "設定の選択肢は一覧か供給元のどちらか一方です"
