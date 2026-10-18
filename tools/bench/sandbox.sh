@@ -134,6 +134,9 @@ case $action in
     SWAYSOCK=$sock swaymsg output "${out:-HEADLESS-2}" resolution 2560x1440 >/dev/null || true
     ;;
   stop)
+    # This shell may have joined the sandbox's namespace; its children keep it alive by inheritance. Without the
+    # join env they don't re-check the holder, which this branch kills (else `rm` & co. refuse with netjoin 111).
+    unset LD_PRELOAD KURASHI_SANDBOX_NETNS_PID KURASHI_SANDBOX_NETNS_ID
     pids=()
     for p in $(pgrep -u "$(id -u)" . || true); do
       [ "$p" = $$ ] || [ "$p" = "$PPID" ] && continue   # never the caller's own shell
