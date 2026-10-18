@@ -60,6 +60,10 @@ impl Fail {
 pub struct State {
     pub docs: HashMap<String, Doc>,
     pub outputs: Vec<String>,
+    /// The output that holds the focus (row 80): only its workspace `focus_idx` is `focused` in
+    /// `svc.workspaces`, so the shell's `focusedScreen()` picks it. `mock.focus {output}` moves it.
+    focus: Option<String>,
+    focus_idx: u32,
     pub tx: broadcast::Sender<ServerMsg>,
     /// Changes every mock start (PROTOCOL §2), so a client that reconnects sees a new instance.
     pub instance: String,
@@ -77,6 +81,8 @@ impl State {
     pub fn new(outputs: &[String], fixed_time: Option<NaiveTime>) -> Self {
         let notes = documents::seed_notes(documents::now(fixed_time).timestamp_millis());
         let next_note_id = notes.iter().map(|n| n.id + 1).max().unwrap_or(1);
+        // The first output holds the focus at start (as the first screen does in a real session).
+        let focus = outputs.first().cloned();
         let seed = [
             ("theme", documents::theme()),
             (
@@ -91,7 +97,10 @@ impl State {
                 "svc.notifications",
                 documents::notes_doc(&notes, false, None),
             ),
-            ("svc.workspaces", documents::workspaces(outputs, 1)),
+            (
+                "svc.workspaces",
+                documents::workspaces(outputs, focus.as_deref(), 1),
+            ),
             ("svc.audio", documents::audio(0.5, false, 1)),
             (
                 "svc.media",
@@ -156,6 +165,8 @@ impl State {
                 .map(|(name, data)| (name.to_string(), Doc { rev: 1, data }))
                 .collect(),
             outputs: outputs.to_vec(),
+            focus,
+            focus_idx: 1,
             tx,
             instance: new_instance_id(),
             fixed_time,
@@ -375,6 +386,7 @@ impl State {
             "notify.dnd" => self.notify_dnd(args)?,
             "mock.notify" => return self.mock_notify(args),
             "mock.island" => return self.mock_island(args),
+            "mock.focus" => return self.mock_focus(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
             "launcher.launch" => {
                 let id = args["id"]
@@ -889,8 +901,26 @@ impl State {
         self.apply("svc.clock", clock, None, true);
     }
 
+    /// Mock control (`mock.workspace`): the focused output shows workspace `idx`.
     pub fn mock_workspace(&mut self, idx: u32) {
-        let ws = documents::workspaces(&self.outputs, idx);
+        self.focus_idx = idx;
+        self.publish_workspaces();
+    }
+
+    /// `mock.focus {output}` moves the focus to that output, whose focused workspace then holds the
+    /// focus in `svc.workspaces` (row 80). An output the mock does not serve is refused.
+    fn mock_focus(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        let output = str_arg(args, "output")?;
+        if !self.outputs.contains(&output) {
+            return Err(Fail::invalid(format!("mock.focus: no output {output}")));
+        }
+        self.focus = Some(output);
+        self.publish_workspaces();
+        Ok(None)
+    }
+
+    fn publish_workspaces(&mut self) {
+        let ws = documents::workspaces(&self.outputs, self.focus.as_deref(), self.focus_idx);
         self.apply("svc.workspaces", ws, None, true);
     }
 }
@@ -1986,5 +2016,88 @@ mod tests {
         assert_eq!(st.act("notify.dnd", &json!({"on": false})), Ok(None));
         assert_eq!(st.data("svc.notifications")["dnd"], false);
         assert!(st.data("svc.notifications").get("dnd_until").is_none());
+    }
+
+    /// The focused workspaces of each output's list in `svc.workspaces` (row 80: only the focused output's).
+    fn focused_by_output(st: &State) -> Vec<(String, Vec<u64>)> {
+        let outputs = &st.data("svc.workspaces")["outputs"];
+        outputs
+            .as_object()
+            .expect("outputs")
+            .iter()
+            .map(|(name, list)| {
+                let ids = list
+                    .as_array()
+                    .expect("list")
+                    .iter()
+                    .filter(|w| w["focused"] == true)
+                    .map(|w| w["id"].as_u64().expect("id"))
+                    .collect();
+                (name.clone(), ids)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn only_the_focused_output_holds_a_focused_workspace_and_mock_focus_moves_it() {
+        let outputs = ["HEADLESS-1".to_owned(), "HEADLESS-2".to_owned()];
+        let mut st = State::new(&outputs, None);
+        let held = |st: &State| -> Vec<(String, Vec<u64>)> {
+            focused_by_output(st)
+                .into_iter()
+                .filter(|(_, ids)| !ids.is_empty())
+                .collect()
+        };
+        assert_eq!(
+            held(&st),
+            [("HEADLESS-1".to_owned(), vec![1])],
+            "the first output holds the focus"
+        );
+
+        assert_eq!(
+            st.act("mock.focus", &json!({"output": "HEADLESS-2"})),
+            Ok(None)
+        );
+        assert_eq!(
+            held(&st),
+            [("HEADLESS-2".to_owned(), vec![1])],
+            "focus moved to the second output"
+        );
+
+        st.mock_workspace(3);
+        assert_eq!(
+            held(&st),
+            [("HEADLESS-2".to_owned(), vec![3])],
+            "the focused output shows workspace 3"
+        );
+        assert!(
+            focused_by_output(&st)
+                .iter()
+                .all(|(name, ids)| name != "*" || ids.is_empty()),
+            "the * list is never focused"
+        );
+    }
+
+    #[test]
+    fn mock_focus_refuses_an_output_the_mock_does_not_serve() {
+        let mut st = State::new(&["HEADLESS-1".to_owned()], None);
+        let refused = st
+            .act("mock.focus", &json!({"output": "DP-9"}))
+            .unwrap_err();
+        assert_eq!(refused.kind, "invalid");
+        assert_eq!(refused.msg, "mock.focus: no output DP-9");
+        assert_eq!(
+            st.act("mock.focus", &json!({})).unwrap_err().kind,
+            "invalid",
+            "output is required"
+        );
+        assert_eq!(held_ids(&st), vec![1], "a refused focus moves nothing");
+    }
+
+    fn held_ids(st: &State) -> Vec<u64> {
+        focused_by_output(st)
+            .into_iter()
+            .flat_map(|(_, ids)| ids)
+            .collect()
     }
 }
