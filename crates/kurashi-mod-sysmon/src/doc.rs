@@ -4,11 +4,13 @@
 //! they are not measured, never 0 (Shōjiki).
 
 use crate::gpu::Gpu;
+use crate::host::Host;
 use crate::pressure::Psi;
 use crate::procs::Row;
 use crate::sampler::{Pressure, Sample};
 use crate::sysmon::Cfg;
-use crate::trouble::Kind;
+use crate::thermal;
+use crate::trouble::{Kind, Limit, Limits};
 use serde_json::{Map, Value, json};
 use std::collections::VecDeque;
 use std::time::Duration;
@@ -54,12 +56,26 @@ pub struct TroubleDoc {
     pub culprit: Option<Culprit>,
 }
 
-/// What the summary says beyond the sample: the settings, the states and the trouble.
+/// What the summary says beyond the sample: the settings, the thresholds in effect for this sample, the
+/// states and the trouble.
 pub struct View<'a> {
     pub cfg: &'a Cfg,
+    /// The thresholds of this sample: the settings, with the control-value floors applied (I29).
+    pub limits: Limits,
     pub paused: bool,
     pub watching: bool,
     pub trouble: Option<TroubleDoc>,
+    pub host: Host,
+    /// The panel shows its action menu (set by the bar's right click, see `sysmon.menu`).
+    pub menu: bool,
+}
+
+/// The thresholds as the view shows them: "activity from", "critical from" (0 = off, shown as null).
+fn levels(l: Limit) -> Value {
+    json!({
+        "activity": (l.activity > 0.0).then_some(l.activity),
+        "critical": (l.critical > 0.0).then_some(l.critical),
+    })
 }
 
 pub fn r1(v: f64) -> f64 {
@@ -155,7 +171,10 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
     out.insert("watching".into(), json!(v.watching));
     out.insert("interval_s".into(), json!(v.cfg.interval.as_secs()));
     out.insert("bar".into(), json!(v.cfg.bar));
+    out.insert("bar_spark".into(), json!(v.cfg.bar_spark));
     out.insert("sensor".into(), json!(v.cfg.sensor));
+    out.insert("host".into(), json!(v.host.name()));
+    out.insert("menu".into(), json!(v.menu));
     out.insert(
         "gpus".into(),
         json!(s.gpus.iter().map(gpu).collect::<Vec<_>>()),
@@ -163,9 +182,10 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
 
     let mut cpu = Map::new();
     cpu.insert("cores".into(), json!(s.cores));
+    cpu.insert("levels".into(), levels(v.limits.cpu));
     if let Some(p) = s.cpu {
         cpu.insert("pct".into(), json!(r1(p)));
-        cpu.insert("level".into(), json!(v.cfg.limits.cpu.level(p)));
+        cpu.insert("level".into(), json!(v.limits.cpu.level(p)));
     }
     if let Some(per) = &s.per_core {
         cpu.insert(
@@ -182,7 +202,8 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
         mem.insert("used".into(), json!(m.used));
         mem.insert("total".into(), json!(m.total));
         mem.insert("pct".into(), json!(r1(pct)));
-        mem.insert("level".into(), json!(v.cfg.limits.mem.level(pct)));
+        mem.insert("level".into(), json!(v.limits.mem.level(pct)));
+        mem.insert("levels".into(), levels(v.limits.mem));
         mem.insert("history".into(), json!(hist.mem));
         if let Some((used, total)) = m.swap {
             mem.insert("swap".into(), json!({"used": used, "total": total}));
@@ -198,12 +219,40 @@ pub fn summary(s: &Sample, hist: &History, v: &View) -> Value {
     if let Some(p) = pressure(&s.pressure) {
         out.insert("pressure".into(), p);
     }
+    // The sensor is named (I29): what the number is, how many chiplets it is the hottest of, and the levels
+    // it is judged by (for a control value these are the floors, not the settings alone).
     if let Some(t) = &s.temp {
+        let mut temp = Map::new();
+        temp.insert("c".into(), json!(r1(t.c)));
+        temp.insert("source".into(), json!(t.source));
+        temp.insert("kind".into(), json!(t.kind.name()));
+        if t.of > 1 {
+            temp.insert("of".into(), json!(t.of));
+        }
+        temp.insert("history".into(), json!(hist.temp));
+        temp.insert("level".into(), json!(v.limits.temp.level(t.c)));
+        temp.insert("levels".into(), levels(v.limits.temp));
+        out.insert("temp".into(), Value::Object(temp));
+    } else {
+        // No sensor: the paths searched, so the panel says what was looked at (never a 0).
         out.insert(
-            "temp".into(),
-            json!({"c": r1(t.c), "source": t.source, "history": hist.temp,
-                "level": v.cfg.limits.temp.level(t.c)}),
+            "temp_search".into(),
+            json!({"wanted": thermal::wanted(&v.cfg.sensor), "found": s.temp_found}),
         );
+    }
+    if let Some(b) = &s.battery {
+        let mut bat = Map::new();
+        bat.insert("state".into(), json!(b.state.name()));
+        if let Some(p) = b.percent {
+            bat.insert("percent".into(), json!(r1(p)));
+        }
+        if let Some(w) = b.watts {
+            bat.insert("watts".into(), json!(r1(w)));
+        }
+        if let Some(m) = b.minutes_left {
+            bat.insert("minutes_left".into(), json!(m));
+        }
+        out.insert("battery".into(), Value::Object(bat));
     }
     if let Some((read, write)) = s.disk {
         out.insert(
@@ -241,7 +290,17 @@ pub fn procs(
     paused: bool,
     own_uid: u32,
     self_pid: u32,
+    hottest: Option<&Row>,
 ) -> Value {
+    // The process using the most CPU in the whole scan (not only the shown rows): the battery row's "most CPU"
+    // and the peek's top process. Absent until a CPU share exists.
+    let top = hottest.filter(|r| r.cpu.is_some()).map(|r| {
+        let mut m = Map::new();
+        m.insert("pid".into(), json!(r.pid));
+        m.insert("name".into(), json!(r.name));
+        m.insert("cpu".into(), json!(r1(r.cpu.unwrap_or(0.0))));
+        Value::Object(m)
+    });
     let list: Vec<Value> = rows
         .iter()
         .map(|r| {
@@ -278,5 +337,6 @@ pub fn procs(
         "sort": if by_mem { "mem" } else { "cpu" },
         "total": total,
         "procs": list,
+        "hottest": top,
     })
 }
