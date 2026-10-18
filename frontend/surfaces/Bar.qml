@@ -51,6 +51,11 @@ PanelWindow {
     }
     onModsDocChanged: refreshWidgets()
     Component.onCompleted: refreshWidgets()
+    // A mod widget's peek (K35): its `peek:<name>` component, named after the widget's `widget:<name>`; "" when the mod has none.
+    function modPeekOf(w) {
+        var name = String(w.provide).substring("widget:".length)
+        return Mods.qmlOf(modsDoc, "peek:" + name, w.mod) !== "" ? "mod:" + w.mod + ":" + name : ""
+    }
     readonly property var trayDoc: Store.docs["svc.tray"] || ({})
     readonly property var bindings: Store.docs["bindings"] || ({})
     // Items to draw: none while the tray service is unavailable, and Passive items stay hidden
@@ -102,6 +107,9 @@ PanelWindow {
             hasMenu: modelData.has_menu === true
             menuOnly: modelData.item_is_menu === true
             tip: modelData.tooltip ?? ""
+            // The hover peek names the item's title and tooltip (K35, B9); an item with neither has nothing to show.
+            peekSource: (modelData.title || modelData.tooltip) && !bar.vertical ? "tray:" + modelData.id : ""
+            peekOutput: bar.screen ? bar.screen.name : ""
             onRequested: (action, x, y) => bar.trayRequest(action, modelData.id, ticon, x, y)
             onScrolled: (delta, orientation) =>
                 Store.act("tray.scroll", {id: modelData.id, delta: delta, orientation: orientation})
@@ -208,6 +216,7 @@ PanelWindow {
                 face: bar.island.face || "clock"
                 reason: bar.island.reason || "default"
                 slots: bar.bindings["island.main"] || ({})
+                peekOutput: bar.screen ? bar.screen.name : ""
                 // The user's binding decides what a slot does; an absent slot never reaches here.
                 onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
             }
@@ -228,9 +237,19 @@ PanelWindow {
                 Repeater {
                     model: bar.modWidgets
                     delegate: ModLoader {
+                        id: modW
                         required property var modelData
                         anchors.verticalCenter: parent.verticalCenter
                         url: modelData.url
+                        // The hover or keyboard-focus peek (K35): the widget's `peek:<name>`, drawn by the Stage.
+                        HoverHandler { id: modHover }
+                        PeekSource {
+                            target: modW
+                            source: bar.modPeekOf(modW.modelData)
+                            output: bar.screen ? bar.screen.name : ""
+                            hovered: modHover.hovered
+                            focused: modW.item !== null && modW.item.activeFocus === true
+                        }
                     }
                 }
                 Text {
@@ -304,6 +323,7 @@ PanelWindow {
             Island {
                 anchors.centerIn: parent
                 rotation: cfg.edge === "left" ? -90 : 90
+                peekable: false
                 face: bar.island.face || "clock"
                 reason: bar.island.reason || "default"
                 slots: bar.bindings["island.main"] || ({})

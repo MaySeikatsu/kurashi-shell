@@ -6,10 +6,9 @@ import "format.js" as F
 // digits and a width per value that its widest figure needs, so a changing number never moves its neighbours.
 // The daemon's level picks the glyph and the tint (never colour alone, never blinking). Click opens the panel;
 // middle click cycles what the bar shows (all the chosen stats, then each alone); right click opens the panel
-// on its action menu (Pause, Settings, Open in btop). The peek's facts (the ones behind the figures) are the
-// accessible description for now; a visible peek waits for the Stage-hosted peek (K19 rules out a popup surface
-// per widget; BACKLOG B9/I47). It watches the summary only while it is placed, and the process list only while
-// the widget has keyboard focus (Ma).
+// on its action menu (Pause, Settings, Open in btop). The peek (Peek.qml, K35) is drawn by the Stage on hover or
+// keyboard focus; the facts behind the figures are this widget's accessible description. It watches the summary
+// only while it is placed (Ma); the peek subscribes to the process list while it shows.
 Item {
     id: widget
     required property var store
@@ -100,8 +99,8 @@ Item {
         return src.history.slice(-30)
     }
 
-    // The peek's lines: the state first when the figures are not live, then the cores (highest and average), the load,
-    // the memory pressure and the process that uses the most CPU (from the process document, read while the peek shows).
+    // The facts: the state first when the figures are not live, then the cores (highest and average), the load, the
+    // memory pressure and, while a peek holds the process document, the process that uses the most CPU.
     function peekFacts() {
         var out = []
         if (!loaded) return out
@@ -128,36 +127,12 @@ Item {
         return out
     }
 
-    // The peek's facts are read while the widget has keyboard focus (they are its accessible description). It stays
-    // for a moment after focus leaves, so a quick round trip does not resubscribe.
-    readonly property bool peekWanted: widget.activeFocus
+    // The accessible description (see the header). Read from the process document only while something watches it.
     readonly property var peekLines: peekFacts()
-    property bool peekOpen: false
-    onPeekWantedChanged: {
-        if (peekWanted) {
-            peekHide.stop()
-            peekOpen = true
-        } else {
-            peekHide.restart()
-        }
-    }
-    Timer {
-        id: peekHide
-        interval: 250
-        onTriggered: widget.peekOpen = false
-    }
-    // The process list is read only while the peek shows (Ma).
-    onPeekOpenChanged: {
-        if (peekOpen) widget.store.watch("mod.sysmon.procs")
-        else widget.store.unwatch("mod.sysmon.procs")
-    }
 
     // Keeps the summary subscribed while the widget is placed; released when it is removed.
     Component.onCompleted: widget.store.watch("mod.sysmon")
-    Component.onDestruction: {
-        widget.store.unwatch("mod.sysmon")
-        if (widget.peekOpen) widget.store.unwatch("mod.sysmon.procs")
-    }
+    Component.onDestruction: widget.store.unwatch("mod.sysmon")
 
     // Probes for the widths: hidden texts in the value font (tabular figures), measured by the layout.
     Text {

@@ -14,6 +14,7 @@ provides = [
     "choices:weather.places",
     "job:rain",
     "widget:weather",
+    "peek:weather",
     "panel:weather",
     "slot:clock.expanded.aside",
 ]
