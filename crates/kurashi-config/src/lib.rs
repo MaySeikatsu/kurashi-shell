@@ -193,19 +193,24 @@ pub struct Skipped {
     pub forced_by: Option<String>,
 }
 
-/// What loading a profile would do: the effective changes, and the entries a forced layer holds back.
+/// What loading a profile would do: the effective changes, the entries a forced layer holds back,
+/// and how many of your own changes would stay (`kept_user`): a load keeps every user change whose
+/// key the profile does not set (B13).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ProfileReview {
     pub diff: Diff,
     pub not_applied: Vec<Skipped>,
+    pub kept_user: usize,
 }
 
-/// A profile load: one undoable transaction, the file's diagnostics and what a forced layer holds back.
+/// A profile load: one undoable transaction, the file's diagnostics, what a forced layer holds back
+/// and how many of your changes stayed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ProfileLoaded {
     pub applied: Applied,
     pub diagnostics: Vec<Diagnostic>,
     pub not_applied: Vec<Skipped>,
+    pub kept_user: usize,
 }
 
 /// A profile written by [`Config::export_profile`], and the entries it left out.

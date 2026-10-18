@@ -127,7 +127,11 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   `{rev, undo}`, `not_applied: [{key, output?, reason, forced_by?}]`: the entries the profile sets that a
   forced layer holds back (`_managed.enforce` Nix values, capability and accessibility pins). `reason` is
   an i18n key (`config.forced.nix_enforced`, `settings.inert.overridden_by`, else `config.error.forced`);
-  `forced_by` names the pin when one is set. The value in effect stays the forced one.
+  `forced_by` names the pin when one is set. The value in effect stays the forced one. K36 (B13): a load is an
+  **overlay** — it replaces only the keys the profile sets (within `sections`): their user values on every output
+  and earlier profiles' entries for them; every other user change and profile entry stays. A key a forced layer
+  holds back keeps its user value. The preview, the load and both `profile.import` replies also carry
+  `kept_user` (how many user changes the load keeps).
 - `profile.export {name, path}`: writes profile `name` (user or bundled) to the absolute `path` as a profile
   file, without its machine-local entries: a per-output value (`config.export.per_output`) and a value that
   names a place (an absolute or `~` path, a `:`-joined list of them, or a list holding one:

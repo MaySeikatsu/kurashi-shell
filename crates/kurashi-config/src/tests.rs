@@ -797,6 +797,178 @@ fn old_layout_profile_state_loads_like_the_nested_one() {
     );
 }
 
+// --- overlay (B13): a load changes only the keys it sets -------------------------------------
+
+#[test]
+fn a_load_keeps_the_user_changes_the_profile_does_not_set() {
+    // The reported case: a user's History size survives a profile that does not name it.
+    let (_dir, mut cfg) = profile_setup();
+    cfg.apply(&[
+        Op::set("island.enabled", json!(false)),
+        Op::set_on("island.enabled", "DP-1", json!(true)),
+        Op::set("bar.main.edge", json!("bottom")),
+    ])
+    .unwrap();
+    assert_eq!(cfg.preview_profile("kanso", None).unwrap().kept_user, 3);
+    let loaded = cfg.load_profile("kanso", None).unwrap();
+    assert_eq!(loaded.kept_user, 3);
+    assert_eq!(
+        val(&cfg, "island.enabled", None),
+        (json!(false), Source::User)
+    );
+    assert_eq!(
+        val(&cfg, "island.enabled", Some("DP-1")),
+        (json!(true), Source::User)
+    );
+    assert_eq!(
+        val(&cfg, "bar.main.edge", None),
+        (json!("bottom"), Source::User)
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(40), Source::Profile("kanso".into()))
+    );
+}
+
+#[test]
+fn a_load_replaces_a_user_value_the_profile_sets_and_the_preview_says_so() {
+    let (_dir, mut cfg) = profile_setup();
+    cfg.apply(&[
+        Op::set("theme.palette", json!("x")),
+        Op::set("bar.main.autohide", json!(true)),
+    ])
+    .unwrap();
+    let rev = cfg.rev();
+    let review = cfg.preview_profile("kanso", None).unwrap();
+    assert_eq!(cfg.rev(), rev, "preview changes nothing");
+    let palette = review
+        .diff
+        .entries
+        .iter()
+        .find(|e| e.key == "theme.palette")
+        .unwrap();
+    assert_eq!(palette.before.as_ref().unwrap().source, Source::User);
+    assert_eq!(
+        palette.after.as_ref().unwrap().source,
+        Source::Profile("kanso".into())
+    );
+    assert_eq!(review.kept_user, 1, "autohide stays, palette is replaced");
+
+    let loaded = cfg.load_profile("kanso", None).unwrap();
+    assert_eq!(loaded.kept_user, 1);
+    assert_eq!(
+        val(&cfg, "theme.palette", None),
+        (json!("sumi"), Source::Profile("kanso".into()))
+    );
+    assert_eq!(
+        val(&cfg, "bar.main.autohide", None),
+        (json!(true), Source::User)
+    );
+    // One transaction: undo brings back the replaced value and keeps the rest.
+    cfg.undo().unwrap().unwrap();
+    assert_eq!(val(&cfg, "theme.palette", None), (json!("x"), Source::User));
+    assert_eq!(
+        val(&cfg, "bar.main.autohide", None),
+        (json!(true), Source::User)
+    );
+}
+
+#[test]
+fn a_load_replaces_every_output_override_of_a_key_it_sets() {
+    let (_dir, mut cfg) = profile_setup();
+    cfg.apply(&[
+        Op::set("bar.height", json!(50)),
+        Op::set_on("bar.height", "DP-1", json!(32)),
+    ])
+    .unwrap();
+    cfg.load_profile("kanso", None).unwrap();
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(40), Source::Profile("kanso".into()))
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", Some("DP-1")),
+        (json!(40), Source::Profile("kanso".into()))
+    );
+}
+
+#[test]
+fn a_user_value_of_a_key_a_forced_layer_holds_back_stays() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir,
+        "managed.toml",
+        "theme.palette = \"sumi\"\n[_managed]\nenforce = true\n",
+    );
+    write(
+        &dir,
+        "profiles/mine.toml",
+        "[theme]\npalette = \"kanso\"\n[bar]\nheight = 44\n",
+    );
+    let mut cfg = open(&dir);
+    cfg.apply(&[Op::set("theme.palette", json!("x"))]).unwrap();
+    let loaded = cfg.load_profile("mine", None).unwrap();
+    assert_eq!(loaded.not_applied.len(), 1, "{:?}", loaded.not_applied);
+    assert_eq!(loaded.kept_user, 1);
+    assert_eq!(
+        val(&cfg, "theme.palette", None),
+        (json!("sumi"), Source::Forced("nix".into()))
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(44), Source::Profile("mine".into()))
+    );
+    assert!(read_user(&dir).unwrap().contains("\"x\""));
+}
+
+#[test]
+fn a_section_load_keeps_the_other_keys_of_that_section() {
+    let (_dir, mut cfg) = profile_setup();
+    cfg.apply(&[
+        Op::set("bar.main.edge", json!("bottom")),
+        Op::set("bar.height", json!(50)),
+    ])
+    .unwrap();
+    let loaded = cfg.load_profile("kanso", Some(&["bar"])).unwrap();
+    assert_eq!(loaded.kept_user, 1);
+    assert_eq!(
+        val(&cfg, "bar.main.edge", None),
+        (json!("bottom"), Source::User)
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(40), Source::Profile("kanso".into()))
+    );
+}
+
+#[test]
+fn a_load_replaces_an_earlier_profiles_entries_only_for_the_keys_it_sets() {
+    let dir = TempDir::new().unwrap();
+    write(
+        &dir,
+        "profiles/a.toml",
+        "[bar]\nheight = 40\n[outputs.\"DP-1\".bar]\nheight = 30\n[theme]\npalette = \"sumi\"\n",
+    );
+    write(&dir, "profiles/b.toml", "[bar]\nheight = 44\n");
+    let mut cfg = open(&dir);
+    cfg.load_profile("a", None).unwrap();
+    cfg.load_profile("b", None).unwrap();
+    // B sets bar.height: A's values for it go, the output one included.
+    assert_eq!(
+        val(&cfg, "bar.height", None),
+        (json!(44), Source::Profile("b".into()))
+    );
+    assert_eq!(
+        val(&cfg, "bar.height", Some("DP-1")),
+        (json!(44), Source::Profile("b".into()))
+    );
+    // A's palette, which B does not set, stays and keeps naming A.
+    assert_eq!(
+        val(&cfg, "theme.palette", None),
+        (json!("sumi"), Source::Profile("a".into()))
+    );
+}
+
 // --- properties -----------------------------------------------------------------------------
 
 fn value_for(key: &str) -> BoxedStrategy<Json> {
