@@ -3,13 +3,13 @@ import qs.core
 import qs.components
 import "Weather.js" as W
 
-// Panel of the weather mod (docs/ux/weather.md, Design), a Stage card about 400 px wide: header (place,
-// age, refresh, places), hero (glyph, temperature, feels, high and low), chips with data only, the
-// hourly strip (temperature line and rain bars, scrolls by wheel and arrow keys), seven days on one
-// shared scale, the sun row (or the polar note), and the credit. The places mode searches the
-// geocoder in the UI language, previews a result and saves it; the saved list marks the default.
-// Every value is the daemon's; this file only maps and lays out.
-Rectangle {
+// Panel of the weather mod (docs/ux/weather.md, Design). The Stage card hosts it and draws the frame, so the
+// panel draws none of its own: the header (place, age, refresh, places, settings), the states when there is no
+// forecast to show, the hero, the chips with data only, the hourly strip, seven days on one shared scale, the sun
+// row and the credit. The places mode searches the geocoder in the UI language, previews a result before it is
+// saved, and moves and removes saved places; the top one is the default unless Settings names another. Every value
+// is the daemon's; this file only maps and lays out.
+Item {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
     required property var theme
@@ -19,6 +19,12 @@ Rectangle {
     // Visible = open: the document is subscribed only while the panel can be seen (Ma).
     property bool live: visible
     Watch { doc: "mod.weather"; active: p.live }
+
+    // The Stage card's outer width this panel asks for (contract row 66, I53: 360 to 720 px, and the output's
+    // width). The card gives the panel its content width (the card less its margins); the panel lays out to it.
+    property int cardWidth: 400
+    width: parent.width
+    implicitHeight: body.implicitHeight
 
     readonly property var d: Store.docs["mod.weather"] || ({})
     readonly property bool loaded: Store.docs["mod.weather"] !== undefined
@@ -38,6 +44,7 @@ Rectangle {
     readonly property string unitWind: I18n.tr("mod-weather.unit.wind." + (d.units || "metric"))
     readonly property real scaleLo: days.length ? Math.min.apply(null, days.map(function (x) { return x.min })) : 0
     readonly property real scaleHi: days.length ? Math.max.apply(null, days.map(function (x) { return x.max })) : 1
+    // The chance of rain in the next three hours: the highest of them, when the daemon sent any.
     readonly property var rain3: {
         var m = null
         for (var i = 0; i < Math.min(3, hours.length); i++) {
@@ -52,12 +59,15 @@ Rectangle {
     }
     readonly property string subText: {
         var parts = []
-        if (ok && d.updated_local) parts.push(W.fill(I18n.tr("mod-weather.updated"), { age: ageText }))
-        if (d.refresh_min) parts.push(W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }))
+        if (d.updated_local) {
+            parts.push(p.tier === "stale"
+                ? I18n.tr("mod-weather.tier.stale") + " · " + p.ageText
+                : W.fill(I18n.tr("mod-weather.updated"), { age: p.ageText }))
+        }
         return parts.join(" · ")
     }
     readonly property string hiLo: days.length
-        ? W.fill(I18n.tr("mod-weather.high_low"), { max: W.num(days[0].max) + "°", min: W.num(days[0].min) + "°" })
+        ? W.fill(I18n.tr("mod-weather.high_low"), { max: W.deg(days[0].max), min: W.deg(days[0].min) })
         : ""
     readonly property string sunText: {
         var s = d.sun
@@ -78,12 +88,6 @@ Rectangle {
     property string searchStatus: ""
     property string saveStatus: ""
 
-    width: 400
-    implicitHeight: body.implicitHeight + Theme.pad * 2
-    radius: Theme.rLg
-    color: Theme.container
-    border.width: 1
-    border.color: Theme.outline
     Accessible.role: Accessible.Pane
     Accessible.name: I18n.tr("mod-weather.title")
 
@@ -99,10 +103,24 @@ Rectangle {
         return Qt.locale(p.locale).dayName(dow === 0 ? 7 : dow, Locale.ShortFormat)
     }
 
+    // A place as the user reads it: "Tokyo, JP".
+    function labelOf(pl) {
+        return pl.name + (pl.country_code ? ", " + pl.country_code : "")
+    }
+
+    // A search result as the list and its accessible name read it: "Tokyo · Tokyo · Japan".
+    function placeLine(pl) {
+        return pl.name + (pl.admin ? " · " + pl.admin : "") + (pl.country ? " · " + pl.country : "")
+    }
+
     function refresh() {
         Store.act("weather.refresh", {}, function (done, err) {
             if (done && done.data) p.waitS = done.data.started ? 0 : (done.data.retry_in_s || 0)
         })
+    }
+
+    function openSettings() {
+        Store.act("settings.open", { key: "mods.weather.place" })
     }
 
     function runSearch() {
@@ -141,7 +159,15 @@ Rectangle {
     function save() {
         if (!p.selected) return
         Store.act("weather.place.add", { place: p.selected }, function (done, err) {
-            p.saveStatus = err ? I18n.tr(err.msg) : I18n.tr("mod-weather.search.saved")
+            if (err) p.saveStatus = I18n.tr(err.msg)
+            else p.saveStatus = I18n.tr(done && done.data && done.data.added === false
+                ? "mod-weather.search.already" : "mod-weather.search.saved")
+        })
+    }
+
+    function move(id, dir) {
+        Store.act("weather.place.move", { id: id, dir: dir }, function (done, err) {
+            if (err) p.saveStatus = I18n.tr(err.msg)
         })
     }
 
@@ -151,6 +177,14 @@ Rectangle {
         })
     }
 
+    // The manual refresh's wait counts down on screen; the timer runs only while the panel is open and waiting.
+    Timer {
+        interval: 1000
+        repeat: true
+        running: p.live && p.waitS > 0
+        onTriggered: p.waitS = Math.max(0, p.waitS - 1)
+    }
+
     Connections {
         target: p
         function onHoursChanged() { trend.requestPaint() }
@@ -158,18 +192,20 @@ Rectangle {
 
     Column {
         id: body
-        x: Theme.pad
-        y: Theme.pad
-        width: p.width - Theme.pad * 2
+        width: p.width
         spacing: Theme.gap
 
-        // Header: the place and its age, then refresh and the places toggle.
-        Row {
+        // Header: the place and its age, then refresh, the places toggle and settings.
+        Item {
             id: header
             width: body.width
-            spacing: Theme.gap
+            height: Math.max(titles.implicitHeight, buttons.height)
             Column {
-                width: header.width - buttons.width - Theme.gap
+                id: titles
+                anchors.left: parent.left
+                anchors.right: buttons.left
+                anchors.rightMargin: Theme.gap
+                anchors.top: parent.top
                 spacing: 2
                 Text {
                     width: parent.width
@@ -186,6 +222,7 @@ Rectangle {
                     elide: Text.ElideRight
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
                 }
                 Text {
                     width: parent.width
@@ -193,27 +230,49 @@ Rectangle {
                     text: W.fill(I18n.tr("mod-weather.refresh_wait"), { n: p.waitS })
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
                 }
             }
             Row {
                 id: buttons
-                spacing: Theme.xs
+                anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
+                spacing: Theme.xs
                 IconButton {
                     glyph: "↻"
                     a11y: I18n.tr("mod-weather.refresh")
                     onClicked: p.refresh()
                 }
-                IconButton {
-                    glyph: p.mode === "places" ? "←" : "⌖"
-                    a11y: p.mode === "places" ? I18n.tr("mod-weather.back") : I18n.tr("mod-weather.places")
+                Button {
+                    label: p.mode === "places" ? I18n.tr("mod-weather.forecast") : I18n.tr("mod-weather.places")
                     onClicked: p.mode = p.mode === "places" ? "weather" : "places"
+                }
+                IconButton {
+                    glyph: "⚙"
+                    a11y: I18n.tr("mod-weather.settings")
+                    onClicked: p.openSettings()
                 }
             }
         }
 
-        // Weather mode, the states first: no place, loading, no data, very stale.
+        // The failure of the last fetch, beside the data it did not replace (offline, rate limit, server).
+        Text {
+            width: body.width
+            wrapMode: Text.WordWrap
+            visible: p.mode === "weather" && p.ok && p.d.reason !== undefined
+            text: p.d.reason !== undefined
+                ? I18n.tr(p.d.reason) + (p.d.next_try_s !== undefined
+                    ? " · " + W.fill(I18n.tr("mod-weather.next_try"), { n: Math.max(1, Math.ceil(p.d.next_try_s / 60)) })
+                    : "")
+                : ""
+            color: Theme.dim
+            font.pixelSize: Theme.fsCaption
+            font.family: Theme.fam(text, Theme.families)
+        }
+
+        // No forecast to show: the state in words (Shōjiki), with the call to action where there is one.
         Column {
+            id: states
             width: body.width
             spacing: Theme.gap
             visible: p.mode === "weather" && !p.hasNow
@@ -221,21 +280,41 @@ Rectangle {
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
-                color: p.noPlace ? Theme.fg : Theme.dim
-                font.pixelSize: p.noPlace ? Theme.fsTitle : Theme.fs
-                font.family: Theme.fam(text, Theme.families)
                 text: !p.loaded ? I18n.tr("mod-weather.loading")
                     : p.noPlace ? I18n.tr("mod-weather.no_location")
                     : p.veryStale ? W.fill(I18n.tr("mod-weather.very_stale"), { time: W.hm(p.d.updated_local) })
-                    : p.ok ? I18n.tr("mod-weather.loading")
                     : I18n.tr(p.d.reason || "mod-weather.loading")
+                color: p.noPlace ? Theme.fg : Theme.dim
+                font.pixelSize: p.noPlace ? Theme.fsTitle : Theme.fs
+                font.family: Theme.fam(text, Theme.families)
             }
             Text {
                 width: parent.width
-                visible: !p.noPlace && !p.ok && p.d.next_try_s !== undefined
-                text: W.fill(I18n.tr("mod-weather.next_try"), { n: Math.max(1, Math.ceil(p.d.next_try_s / 60)) })
+                wrapMode: Text.WordWrap
+                visible: p.noPlace
+                text: I18n.tr("mod-weather.no_location.help")
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                visible: p.veryStale && p.d.reason !== undefined
+                text: p.d.reason !== undefined ? I18n.tr(p.d.reason) : ""
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Text {
+                width: parent.width
+                visible: p.d.next_try_s !== undefined && !p.noPlace
+                text: p.d.next_try_s !== undefined
+                    ? W.fill(I18n.tr("mod-weather.next_try"), { n: Math.max(1, Math.ceil(p.d.next_try_s / 60)) })
+                    : ""
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
             Button {
                 visible: p.noPlace
@@ -245,16 +324,15 @@ Rectangle {
             }
         }
 
-        // Hero: glyph, temperature, feels and the day's high and low. Stale values are dimmed.
+        // Hero: glyph, temperature, feels and the day's high and low. Stale values are dimmed (and the header says so).
         Row {
+            id: hero
             width: body.width
             spacing: Theme.pad
             visible: p.mode === "weather" && p.hasNow
             opacity: p.dim ? Theme.staleOpacity : 1
             Text {
-                id: heroGlyph
-                anchors.verticalCenter: parent.verticalCenter
-                text: W.glyph(p.now.code, p.now.is_day)
+                text: p.hasNow ? W.glyph(p.now.code, p.now.is_day) : ""
                 color: Theme.fg
                 font.pixelSize: 44
                 font.family: Theme.fam(text, Theme.families)
@@ -262,19 +340,19 @@ Rectangle {
             Column {
                 spacing: 2
                 Text {
-                    text: W.num(p.now.temp) + p.unitTemp
+                    text: p.hasNow ? W.num(p.now.temp) + p.unitTemp : ""
                     color: Theme.fg
                     font.pixelSize: 40
                     font.family: Theme.fam(text, Theme.families)
                 }
                 Text {
-                    text: I18n.tr("mod-weather.condition." + p.now.code)
+                    text: p.hasNow ? I18n.tr("mod-weather.condition." + p.now.code) : ""
                     color: Theme.fg
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
                 }
                 Text {
-                    text: W.fill(I18n.tr("mod-weather.feels"), { temp: W.num(p.now.feels) + p.unitTemp })
+                    text: p.hasNow ? W.fill(I18n.tr("mod-weather.feels"), { temp: W.num(p.now.feels) + p.unitTemp }) : ""
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.family: Theme.fam(text, Theme.families)
@@ -296,27 +374,31 @@ Rectangle {
             visible: p.mode === "weather" && p.hasNow
             Chip {
                 visible: p.rain3 !== null
-                text: W.fill(I18n.tr("mod-weather.chip.rain_3h"), { pop: W.num(p.rain3) })
+                text: p.rain3 !== null ? W.fill(I18n.tr("mod-weather.chip.rain_3h"), { pop: W.num(p.rain3) }) : ""
             }
             Chip {
                 visible: W.has(p.now.wind)
-                text: W.fill(I18n.tr("mod-weather.chip.wind"), { speed: W.num(p.now.wind), unit: p.unitWind })
-                    + (W.has(p.now.gust) ? " · " + W.fill(I18n.tr("mod-weather.chip.gust"), { gust: W.num(p.now.gust) }) : "")
+                text: W.has(p.now.wind)
+                    ? W.fill(I18n.tr("mod-weather.chip.wind"), { speed: W.num(p.now.wind), unit: p.unitWind })
+                        + (W.has(p.now.gust) ? " · " + W.fill(I18n.tr("mod-weather.chip.gust"), { gust: W.num(p.now.gust), unit: p.unitWind }) : "")
+                    : ""
             }
             Chip {
                 visible: W.has(p.now.humidity)
-                text: W.fill(I18n.tr("mod-weather.chip.humidity"), { pct: W.num(p.now.humidity) })
+                text: W.has(p.now.humidity) ? W.fill(I18n.tr("mod-weather.chip.humidity"), { pct: W.num(p.now.humidity) }) : ""
             }
             Chip {
                 visible: W.has(p.now.uv)
-                text: W.fill(I18n.tr("mod-weather.chip.uv"), {
-                    index: W.num(p.now.uv),
-                    level: I18n.tr("mod-weather.uv." + W.uvLevel(p.now.uv))
-                })
+                text: W.has(p.now.uv)
+                    ? W.fill(I18n.tr("mod-weather.chip.uv"), {
+                        index: W.num(p.now.uv),
+                        level: I18n.tr("mod-weather.uv." + W.uvLevel(p.now.uv))
+                    })
+                    : ""
             }
         }
 
-        // Hourly strip: the temperature as a line, the chance of rain as bars, one column per hour.
+        // Hourly strip: the temperature as a line, the chance of rain as bars, one column per hour, starting now.
         Flickable {
             id: strip
             width: body.width
@@ -382,9 +464,10 @@ Rectangle {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: 0
-                            text: W.hm(modelData.t)
-                            color: Theme.dim
+                            text: index === 0 ? I18n.tr("mod-weather.now") : W.hm(modelData.t)
+                            color: index === 0 ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
                         }
                         // Rows: time 0, glyph 12, temperature line 30–42, value 46, chance of rain 62,
                         // rain bar from the bottom (at most 22 px tall).
@@ -399,17 +482,19 @@ Rectangle {
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: 46
-                            text: W.num(modelData.temp) + "°"
+                            text: W.deg(modelData.temp)
                             color: Theme.fg
                             font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
                         }
                         Text {
                             visible: W.has(modelData.pop) && modelData.pop >= 30
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: 62
-                            text: W.num(modelData.pop) + "%"
+                            text: visible ? W.num(modelData.pop) + "%" : ""
                             color: Theme.dim
                             font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
                         }
                         Rectangle {
                             visible: W.has(modelData.pop)
@@ -450,7 +535,7 @@ Rectangle {
                         width: 36
                         height: parent.height
                         verticalAlignment: Text.AlignVCenter
-                        text: p.dayLabel(modelData.date)
+                        text: index === 0 ? I18n.tr("mod-weather.today") : p.dayLabel(modelData.date)
                         color: Theme.fg
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
@@ -469,7 +554,7 @@ Rectangle {
                         height: parent.height
                         verticalAlignment: Text.AlignVCenter
                         horizontalAlignment: Text.AlignRight
-                        text: W.num(modelData.min) + "°"
+                        text: W.deg(modelData.min)
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
                     }
@@ -496,7 +581,7 @@ Rectangle {
                         width: 34
                         height: parent.height
                         verticalAlignment: Text.AlignVCenter
-                        text: W.num(modelData.max) + "°"
+                        text: W.deg(modelData.max)
                         color: Theme.fg
                         font.pixelSize: Theme.fsCaption
                     }
@@ -514,7 +599,8 @@ Rectangle {
             font.family: Theme.fam(text, Theme.families)
         }
 
-        // Places mode: search, preview, save; then the saved list, the first being the default.
+        // Places mode: search, preview, save; then the saved list. The top place is the default unless Settings
+        // names another; the move buttons change the order and remove drops a place.
         Column {
             id: places
             width: body.width
@@ -526,6 +612,7 @@ Rectangle {
                 text: I18n.tr("mod-weather.search.label")
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
             Rectangle {
                 width: parent.width
@@ -553,6 +640,7 @@ Rectangle {
                         text: I18n.tr("mod-weather.search.placeholder")
                         color: Theme.dim
                         font.pixelSize: Theme.fs
+                        font.family: Theme.fam(text, Theme.families)
                     }
                 }
             }
@@ -568,6 +656,7 @@ Rectangle {
                 text: p.searchStatus
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
             Column {
                 width: parent.width
@@ -589,9 +678,7 @@ Rectangle {
                             width: parent.width - Theme.gap * 2
                             anchors.verticalCenter: parent.verticalCenter
                             elide: Text.ElideRight
-                            text: modelData.name
-                                + (modelData.admin ? " · " + modelData.admin : "")
-                                + (modelData.country ? " · " + modelData.country : "")
+                            text: p.placeLine(modelData)
                             color: Theme.fg
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
@@ -601,10 +688,11 @@ Rectangle {
                             onClicked: p.choose(modelData)
                         }
                         Accessible.role: Accessible.ListItem
-                        Accessible.name: modelData.name
+                        Accessible.name: p.placeLine(modelData)
                     }
                 }
             }
+            // The preview names the place as the list does, with its coordinates and zone, before it is saved.
             Text {
                 width: parent.width
                 visible: p.selected !== null
@@ -614,7 +702,7 @@ Rectangle {
                 font.family: Theme.fam(text, Theme.families)
                 text: p.selected
                     ? W.fill(I18n.tr("mod-weather.search.preview"), {
-                        name: p.selected.name,
+                        name: p.labelOf(p.selected),
                         lat: Number(p.selected.lat).toFixed(2),
                         lon: Number(p.selected.lon).toFixed(2),
                         tz: p.selected.tz
@@ -630,11 +718,11 @@ Rectangle {
                     onClicked: p.save()
                 }
                 Text {
-                    anchors.verticalCenter: parent.verticalCenter
                     visible: p.saveStatus !== ""
                     text: p.saveStatus
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
                 }
             }
 
@@ -643,6 +731,7 @@ Rectangle {
                 text: I18n.tr("mod-weather.places")
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
             Text {
                 width: parent.width
@@ -651,52 +740,78 @@ Rectangle {
                 text: I18n.tr("mod-weather.saved.none")
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Text {
+                width: parent.width
+                visible: p.saved.length > 1
+                wrapMode: Text.WordWrap
+                text: I18n.tr("mod-weather.saved.hint")
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
             Repeater {
                 model: p.saved
-                Row {
+                Item {
+                    id: savedRow
+                    required property var modelData
+                    required property int index
                     width: places.width
                     height: 28
-                    spacing: Theme.gap
+                    readonly property bool isDefault: modelData.id === p.d.default_id
+                    Row {
+                        id: rowButtons
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 2
+                        IconButton {
+                            glyph: "↑"
+                            enabled: savedRow.index > 0
+                            a11y: W.fill(I18n.tr("mod-weather.saved.up"), { name: savedRow.modelData.name })
+                            onClicked: p.move(savedRow.modelData.id, "up")
+                        }
+                        IconButton {
+                            glyph: "↓"
+                            enabled: savedRow.index < p.saved.length - 1
+                            a11y: W.fill(I18n.tr("mod-weather.saved.down"), { name: savedRow.modelData.name })
+                            onClicked: p.move(savedRow.modelData.id, "down")
+                        }
+                        IconButton {
+                            glyph: "✕"
+                            a11y: W.fill(I18n.tr("mod-weather.saved.remove"), { name: savedRow.modelData.name })
+                            onClicked: p.remove(savedRow.modelData.id)
+                        }
+                    }
+                    Chip {
+                        id: defaultChip
+                        anchors.right: rowButtons.left
+                        anchors.rightMargin: Theme.gap
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: savedRow.isDefault
+                        text: I18n.tr("mod-weather.saved.default")
+                    }
                     Text {
-                        width: places.width - 96 - Theme.gap * 2
-                        height: parent.height
-                        verticalAlignment: Text.AlignVCenter
+                        anchors.left: parent.left
+                        anchors.right: savedRow.isDefault ? defaultChip.left : rowButtons.left
+                        anchors.rightMargin: Theme.gap
+                        anchors.verticalCenter: parent.verticalCenter
                         elide: Text.ElideRight
-                        text: modelData.name + (modelData.country_code ? ", " + modelData.country_code : "")
+                        text: p.labelOf(savedRow.modelData)
                         color: Theme.fg
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
-                    }
-                    Chip {
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: modelData.id === p.d.default_id
-                        text: I18n.tr("mod-weather.saved.default")
-                    }
-                    IconButton {
-                        anchors.verticalCenter: parent.verticalCenter
-                        glyph: "✕"
-                        a11y: W.fill(I18n.tr("mod-weather.saved.remove"), { name: modelData.name })
-                        onClicked: p.remove(modelData.id)
                     }
                 }
             }
         }
 
-        // Footer: the credit the CC BY 4.0 licence asks for, and any failure in words.
+        // Footer: the refresh cadence, then the credit the CC BY 4.0 licence asks for.
         Text {
             width: body.width
             wrapMode: Text.WordWrap
-            text: I18n.tr("mod-weather.credit")
-            color: Theme.dim
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
-        }
-        Text {
-            width: body.width
-            visible: p.ok && p.d.reason !== undefined
-            wrapMode: Text.WordWrap
-            text: I18n.tr(p.d.reason || "")
+            text: (d.refresh_min ? W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }) + " · " : "")
+                + I18n.tr("mod-weather.credit")
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)

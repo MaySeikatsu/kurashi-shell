@@ -227,6 +227,10 @@ impl Shared {
         })
     }
 
+    fn has_data(&self, id: &str) -> bool {
+        self.with(|st| st.data.contains_key(id))
+    }
+
     fn due(&self, id: &str, refresh_s: i64, now: i64) -> bool {
         self.with(|st| {
             fetch_due(st.data.get(id), st.failure.get(id), refresh_s).is_none_or(|t| now >= t)
@@ -290,14 +294,20 @@ impl Shared {
         }
     }
 
-    /// One pass of the service: fetch if due or asked, then the document and when to look again.
-    async fn service_pass(&self, cfg: &Config) -> (Value, Option<i64>) {
+    /// One pass of the service: fetch if due or asked, then the document and when to look again. A fetch
+    /// for a place without data is announced first as its loading state: the fetch can hold for the whole
+    /// timeout, and the document shown before (another place's) must not stand for this one meanwhile.
+    async fn service_pass(&self, cfg: &Config, publish: &Publish) -> (Value, Option<i64>) {
         let Some(place) = self.resolve(cfg) else {
             return self.document(None, cfg, (self.clock)());
         };
         let now = (self.clock)();
         let forced = self.with(|st| std::mem::take(&mut st.force));
         if forced || self.due(&place.id, cfg.refresh_s, now) {
+            if !self.has_data(&place.id) {
+                let (loading, _) = self.document(Some(&place), cfg, now);
+                publish(loading);
+            }
             self.fetch(&place, cfg).await;
         }
         self.document(Some(&place), cfg, (self.clock)())
@@ -361,7 +371,7 @@ pub async fn run(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
     let _subscription = Subscription(&shared.subscribed);
     loop {
         let cfg = Config::read(&settings);
-        let (value, wake) = shared.service_pass(&cfg).await;
+        let (value, wake) = shared.service_pass(&cfg, &publish).await;
         publish(value);
         let sleep = after((shared.clock)(), wake);
         tokio::select! {
