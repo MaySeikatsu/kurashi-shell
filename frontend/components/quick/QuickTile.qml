@@ -2,18 +2,23 @@ import QtQuick
 import "../../core"
 import ".."
 
-// A quick-settings tile (W13, docs/ux/quick-settings.md): 160 x 56 px. The main zone toggles (or opens the page, when the
-// tile has no switch); the arrow zone opens the drill-down page in the same card. The subtitle is the value in effect.
-// States: off, on, connecting (glyph swap, "Connecting…"), failed (the reason in red; Enter or a click retries),
-// unavailable (dim, the reason), forced (inert, who sets the value). Keys: Enter and Space toggle or open, Right opens
-// the page; QuickPanel's grid moves the focus with the arrows.
+// A quick-settings tile (W13, docs/ux/quick-settings.md; the W15 size contract, CONTRACT-CHANGE row 76): the one tile of the
+// card, core or a mod's `quick.tiles` contribution. Its implicit size is 160 x 56 px, so a host lays it out at that size,
+// and its props are `glyph`, `label` and `subtitle` (the value in effect). The main zone toggles (or opens the page, when
+// the tile has no switch); the arrow zone opens the drill-down page in the same card.
+// States: off; on (a tonal container with an accent glyph); connecting (glyph swap, "Connecting…"); failed (the reason in
+// red and a solid badge, the one state that asks for attention; Enter or a click retries); unavailable (dim, the reason);
+// forced (inert, who sets the value). Keys: Enter and Space toggle or open, Right opens the page; QuickPanel's grid moves
+// the focus with the arrows.
 Item {
     id: tile
-    width: 160
-    height: 56
+    implicitWidth: 160
+    implicitHeight: 56
+    width: implicitWidth
+    height: implicitHeight
     property string glyph: ""
-    property string title: ""
-    property string value: ""        // the value in effect, as text
+    property string label: ""
+    property string subtitle: ""     // the value in effect, as text; a reason, forced-by, failure or "Connecting…" shows over it
     property bool on: false
     property bool toggles: true
     property string reason: ""       // unavailable: why, short ("" when available)
@@ -27,11 +32,11 @@ Item {
     readonly property bool connecting: req !== null && req.pending
     readonly property bool failed: req !== null && req.failure !== ""
     readonly property bool lit: on && reason === "" && !failed
-    readonly property string subtitle: reason !== "" ? reason
+    readonly property string shownSubtitle: reason !== "" ? reason
         : forcedBy !== "" ? I18n.tr("island.quick.forced").replace("{by}", forcedBy)
         : failed ? req.failure
         : connecting ? pendingText
-        : value
+        : subtitle
 
     function activate() {
         if (connecting) return
@@ -52,8 +57,8 @@ Item {
         }
     }
     Accessible.role: Accessible.Button
-    Accessible.name: tile.title
-    Accessible.description: tile.subtitle
+    Accessible.name: tile.label
+    Accessible.description: tile.shownSubtitle
     Accessible.checkable: toggles && !inert
     Accessible.checked: on
 
@@ -73,10 +78,11 @@ Item {
         width: 28
         height: 28
         radius: 14
-        color: tile.lit ? Theme.accent : Theme.surface
+        // Tonal when on (accent at low alpha, as the container), solid only for the failed state (I51).
+        color: tile.failed ? Theme.error : (tile.lit ? Qt.alpha(Theme.accent, 0.3) : Theme.surface)
         Text {
             anchors.centerIn: parent
-            color: tile.lit ? Theme.fgOnAccent : (tile.failed ? Theme.error : Theme.fg)
+            color: tile.failed ? Theme.surface : (tile.lit ? Theme.accent : Theme.fg)
             font.pixelSize: Theme.fs + 2
             font.family: Theme.fam(text, Theme.families)
             text: tile.failed ? "↻" : (tile.connecting ? "…" : tile.glyph)
@@ -92,7 +98,7 @@ Item {
             color: Theme.fg
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
-            text: tile.title
+            text: tile.label
         }
         Text {
             width: parent.width
@@ -102,7 +108,7 @@ Item {
             color: tile.failed ? Theme.error : Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
-            text: tile.subtitle
+            text: tile.shownSubtitle
         }
     }
     // The arrow zone: the drill-down. Its own hit area, so a click here never toggles.

@@ -198,6 +198,8 @@ Item {
     }
 
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
+    // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
+    property string startPage: ""
     property string page: ""           // the page asked for; "" shows the tiles
     property string shownPage: ""      // the page the pane holds; kept while it slides out
     property var returnTo: null        // the control that opened the page: focus goes back there
@@ -228,6 +230,12 @@ Item {
         easing.type: Easing.BezierSpline
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (quick.page === "") quick.shownPage = ""
+    }
+    Component.onCompleted: if (startPage !== "") {
+        page = startPage
+        shownPage = startPage
+        slideAnim.stop()    // it opens on the page: no slide in from the tiles
+        slide = 1
     }
     // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
     Keys.onPressed: event => {
@@ -285,8 +293,8 @@ Item {
                 id: tWifi
                 width: (grid.width - grid.spacing) / 2
                 glyph: "≋"
-                title: I18n.tr("island.quick.tile.wifi")
-                value: quick.wifiValue
+                label: I18n.tr("island.quick.tile.wifi")
+                subtitle: quick.wifiValue
                 reason: quick.netOk ? "" : I18n.tr("island.quick.tile.no_network")
                 on: quick.wifiOn
                 req: rqWifi
@@ -297,8 +305,8 @@ Item {
                 id: tBt
                 width: (grid.width - grid.spacing) / 2
                 glyph: "ᛒ"
-                title: I18n.tr("island.quick.tile.bluetooth")
-                value: quick.btValue
+                label: I18n.tr("island.quick.tile.bluetooth")
+                subtitle: quick.btValue
                 reason: quick.btOk ? "" : I18n.tr("island.quick.tile.no_bluetooth")
                 on: quick.btDoc.powered === true
                 req: rqBt
@@ -309,8 +317,8 @@ Item {
                 id: tFocus
                 width: (grid.width - grid.spacing) / 2
                 glyph: "☾"
-                title: I18n.tr("island.quick.tile.focus")
-                value: quick.focusValue
+                label: I18n.tr("island.quick.tile.focus")
+                subtitle: quick.focusValue
                 reason: quick.notifyOk ? "" : I18n.tr("island.quick.tile.no_notify")
                 on: quick.dnd
                 req: rqDnd
@@ -321,8 +329,8 @@ Item {
                 id: tAudio
                 width: (grid.width - grid.spacing) / 2
                 glyph: "♪"
-                title: I18n.tr("island.quick.tile.audio")
-                value: quick.audioValue
+                label: I18n.tr("island.quick.tile.audio")
+                subtitle: quick.audioValue
                 reason: quick.audioOk ? "" : I18n.tr("island.quick.tile.no_audio")
                 on: !quick.muted
                 req: rqMute
@@ -333,8 +341,8 @@ Item {
                 id: tPower
                 width: (grid.width - grid.spacing) / 2
                 glyph: "⚡"
-                title: I18n.tr("island.quick.tile.power")
-                value: quick.powerValue
+                label: I18n.tr("island.quick.tile.power")
+                subtitle: quick.powerValue
                 reason: quick.powerOk ? "" : I18n.tr("island.quick.tile.no_power")
                 on: quick.powerDoc.profile === "power-saver"
                 toggles: quick.saverOffered
@@ -346,8 +354,8 @@ Item {
                 id: tDisplay
                 width: (grid.width - grid.spacing) / 2
                 glyph: "☼"
-                title: I18n.tr("island.quick.tile.display")
-                value: quick.brOk ? quick.displayValue : ""
+                label: I18n.tr("island.quick.tile.display")
+                subtitle: quick.brOk ? quick.displayValue : ""
                 reason: quick.brOk ? "" : I18n.tr("island.quick.tile.no_backlight")
                 toggles: false
                 onPageRequested: quick.openPage("display", tDisplay)

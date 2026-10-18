@@ -12,6 +12,7 @@
 #     display page's Tab and Right raise the brightness; the arrows move between tiles;
 #   - connecting and failed: the mock is held still (SIGSTOP), so a Wi-Fi tile request gets no answer: "connecting" shows,
 #     then the 30 s timeout's failure; SIGCONT lets the queued request through and the failure clears;
+#   - the tile states (I51): shots with three, one and no tile on (tiles-3-on, tiles-1-on, tiles-0-on);
 #   - the media row opens the island's media view; ui.close closes the card, and Escape on the tiles closes it too;
 #     after each close the card's documents are unsubscribed (Ma); the frontend logs no QML error.
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
@@ -427,6 +428,32 @@ press escape
 sleep 1.5
 [ "$(panel)" = "" ] || fail "Escape on the tiles did not close the card (panel \"$(panel)\")"
 echo "ok: Escape on the tiles closes the card"
+
+# 12. Tile states (I51): an on tile is a tonal container with an accent glyph; a solid badge is for the failed state only.
+#     Shots of the card with three tiles on (Wi-Fi, Bluetooth, Audio), one (Wi-Fi) and none.
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the tile states"
+K act network.wifi '{"on":true}' >/dev/null
+K act bluetooth.power '{"on":true}' >/dev/null
+K act power.profile '{"name":"balanced"}' >/dev/null
+for _ in $(seq 25); do [ "$(doc svc.power | jq -r '.profile')" = balanced ] && break; sleep 0.2; done
+[ "$(doc svc.power | jq -r '.profile')" = balanced ] || fail "the tile states: the power profile is not balanced (power saver is a tile in its own right)"
+[ "$(doc svc.audio | jq -r '.muted')" = false ] || K act audio.mute.toggle >/dev/null
+K act notify.dnd '{"on":false}' >/dev/null
+sleep 1
+card_shot tiles-3-on 1
+K act bluetooth.power '{"on":false}' >/dev/null
+[ "$(doc svc.audio | jq -r '.muted')" = true ] || K act audio.mute.toggle >/dev/null
+sleep 1
+card_shot tiles-1-on 1
+K act network.wifi '{"on":false}' >/dev/null
+sleep 1
+card_shot tiles-0-on 1
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = false ] || fail "the tile states: Wi-Fi did not turn off"
+echo "ok: tile states: three, one and no tile on (tiles-*-on.png)"
+K act ui.close >/dev/null
+sleep 1
 
 exec 3>&-
 stop_phase

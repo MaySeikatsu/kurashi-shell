@@ -25,8 +25,9 @@ ShellRoot {
     // The Stage shows the island panel and the session menu; notifications have their own surface.
     // (The probe-era mock has no `panel`, only `popup`.)
     readonly property var ui: Store.docs["runtime.ui"]
+    // The quick card is wanted too (B14): a change of `want` re-picks the output, so the card opens on the focused one.
     readonly property bool want: !!ui && (ui.panel === undefined ? ui.popup === true
-        : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray")
+        : ui.panel === "island" || ui.panel === "session" || ui.panel === "tray" || ui.panel === "quick")
     property bool stageOpen: false      // follows want, but only after the screen is re-picked
 
     // The output whose tray item was clicked: its menu opens there, not on the focused output. Set
