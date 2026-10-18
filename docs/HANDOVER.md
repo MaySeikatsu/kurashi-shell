@@ -17,6 +17,44 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-18 — session 6 (machine B): wave 14 close, K34–K36, wave 15, K35 daemon
+**State:** `main` green and pushed (`just check` 682 tests, settings/test.sh, mods-live no QML warnings, stage/quick/volume tests, golden B ok). Wave 16 (W16-peek-frontend) is the next card; nothing half-done.
+
+**Merged:** session-5 leftovers resumed and finished — W14-weather-ux, W14-sysmon-ux (PopupWindow peek removed at merge:
+K19, row 75 rejected); lead: Stage `cardWidth` for mod panels (row 66, I53); **K34** palette `wallpaper` follows
+`mod.wallpaper.theme.image` (daemon holds the mod's document while chosen; waiting note); **K35** (user decision) the
+Stage hosts peeks — daemon/contract/mock side: `ui.peek`, `runtime.ui.peek`, `peek:<name>` → `qml/Peek.qml`;
+**K36** (user decision, B13) profile load is an overlay. Wave 15 (4 Haiku cards): W15-profiles (K36 + Profiles page
+review/export/import), W15-job-active (`JobCtx::set_active`, honest "Running now", I48), W15-quick-island-polish
+(I51/I52/I45/I44/B14), W15-sysmon-fixes (B24 shell processes protected by identity, I61 names, I62 GPU tile, I56
+`KURASHI_SYSMON_ROOT` + `mods/sysmon/test-states.sh`). Lead fixes: island secondary name, volume a11y (I12), 400 px
+card for power/bluetooth. BACKLOG: B22–B25, I55–I65 filed; contract rows 70–82 decided.
+
+**User decisions this session:** B13 → overlay (K36); K35 → Stage-hosted peeks. User added `INSPIRATION.md` (I60:
+Vitreus, Capsule, pleamar, a Project-Sekai Quickshell rice) — use it in the next design pass.
+
+**Next steps (ordered):**
+1. Spawn **W16-peek-frontend** (`docs/tasks/W16-peek-frontend.md`, card ready; push main first). It owns Stage.qml,
+   Bar.qml hover plumbing, tray/island peeks and the sysmon/weather/hello `Peek.qml`; it must report the K35
+   measurements (idle 0 fps, peek PSS, retarget to a second output, 20 hover cycles).
+2. Parallel cards with disjoint paths (write them): I52 host sizing of `quick.tiles` (SlotHost + wallpaper/hello tiles,
+   row 76); I64 profiles follow-ups; I65/B25 mod follow-ups (wallpaper `null`, sysmon main device); I58 network-less
+   sandboxes; row 80 mock focus model so B14 gets a two-output runtime check; I63 data colour roles (kurashi-theme).
+3. Lead UX review against the briefs with screenshots: wallpaper (I32 open items), weather (I57), settings profiles.
+   PROGRESS "UX ✅" only after that.
+4. B7 quiet-machine repro (no agents running) and I10 render-loop check on machine A.
+5. Design pass with the user using `INSPIRATION.md` (decor packs, motion; I60, I63).
+
+**Gotchas (new):** agents now get **one build dir per card** (`~/.cache/kurashi-agents-target/<card>`, README rule 3;
+B23) — the shared dir handed worktrees stale path crates and once let a sandbox daemon reach Open-Meteo. Delete a
+card's dir after merging it (disk: 365 GB, keep ≥ 40 GB free; `./target` is the lead's gate dir). Parallel cards
+still collide on CONTRACT-CHANGE row numbers and on the `i18n/*/settings.toml` tail — renumber/resolve at merge.
+`git merge` here uses diff3 markers: strip the `|||||||` base block when resolving. One agent's sandbox commands were
+refused by the permission guard (W15-job-active): the lead ran the UI checks. A finished agent's worktree stays
+locked by this session's own pid — `git worktree remove -f -f` once its branch is merged.
+
+---
+
 ## 2026-10-09 — session 5 (machine B): waves 9–13, native mods, K24–K28, UX bar
 **State:** `main` green and pushed (b53d79f: `just check` 384 tests, golden B ok, `nix build .#kurashi` ok). Usage limit hit
 mid-wave: agents were stopped; their **unmerged branches/worktrees remain** (see Half-done).
@@ -237,141 +275,3 @@ avoid compiling; prune `~/.cache/kurashi-agents-target/debug/incremental` betwee
 
 **Remote:** `origin = git@github.com:MaySeikatsu/kurashi-shell.git` (configured 2026-10-09; first push
 by the user). Local-only files stay untracked (`.claude/settings.local.json`, worktrees, results).
-
----
-
-## 2026-10-09 — session 3: wave 7 with Haiku agents (M3–M7 depth, review-driven fixes)
-**Update 13:30:** U-components and U-surfaces merged (ed847b0, 0470378), golden refs re-recorded; quiet
-benchmarks done (probes re-measured unchanged + real-stack gate: 104.3 MiB, +6.0/output at the limit,
-0 violations). No agents running. Next steps 1 → settings polish card; 2 → machine B baseline only.
-
-**State:** `main` green at handover (`just check` in a **private** target dir: fmt, clippy -D warnings,
-all workspace tests, **0 ignored**; `just golden` 5/5; `nix flake check --no-build` ✔). Lead = Opus,
-agents = Haiku at max effort, up to 10 in parallel, task cards in `docs/tasks/` (README = rules).
-**Two agents may still be running or have finished unmerged** (see "Half-done"). The user paused new
-work until 12:50.
-
-**Merged this session (all with tests; details in PROGRESS "Wave 7")**
-- Memory branch M3.2: `frontend/launch.sh` pins the NVIDIA EGL vendor only with exactly one render
-  node; HM frontend service runs it (`KURASHI_QS`); BENCH 20-cycle growth budget. Bench re-run pending.
-- Launcher watcher `Drop` hang fixed (a test hung 4.5 h; real daemon bug); bake-off probes moved to
-  `archive/bakeoff-probes/` (unused, K3 re-run baseline).
-- Features: `session.menu` + session menu UI (2-press destructive confirm); brightness/volume key
-  actions with island OSD faces; `session.lock` refuses without PAM service `kurashi`; input via
-  `bindings`/`input.dispatch`; settings search + Mods page + mod descriptions; **mod settings as config
-  keys** `mods.<id>.<key>` with pages (K22); tray (SNI) + BlueZ crates **wired** (`svc.tray`,
-  `svc.bluetooth`, refcounted, actions never auto-start); `nix run .#{default,settings,mock,sandbox}`
-  + README "Running"; mock parity (panels, bindings, brightness, session, notifications, launcher,
-  instance, `--fixed-time`); golden screenshots `just golden` (pixman, masks for clock/caret);
-  weekday localised (`i18n/*/clock.toml`); `available` flags on svc.session/media/power.
-- Honesty: test over all 39 keys (M5.17) → **K21**: daemon reports `reason` + `inert_by` for
-  requires-inert keys and `settings.pending.restart`; settings app stopped evaluating couplings.
-- Review R.1 (daemon concurrency) → fixed: island timer spawned off-runtime (HIGH: first volume
-  change killed the audio worker), hub subscribe/unsubscribe race + orphaned tasks, atomic
-  `Hub::update`, lag re-snapshot, bounded reply queue + `bye overflow`, accept backoff, quadratic
-  notify sanitiser (184 s → 0.1 s) + caps, watcher spawn/debounce, services report unavailable,
-  shutdown grace 2 s (PAM 2FA hang), PAM lockout doctor check.
-- Review R.2 (UX) → `docs/reviews/2026-10-09-ux-review.md` (25 findings); #14 fixed by the lead; the
-  rest is in cards U-components / U-surfaces (running) and the next steps below.
-- Decisions: K21 (inert/pending reasons), K22 (mod settings). CONTRACT-CHANGE rows 5–19 decided
-  (16 deferred: fold `RefcountedService` into `ServiceProvider`).
-
-**Half-done / where it lives**
-- `U-components` (theme tokens, AA contrast, focus/keys, hit targets, motion, provenance chip) and
-  `U-surfaces` (bar.enabled/edge honoured, Stage sample chips removed, launcher errors, sizing) ran as
-  Haiku agents in worktrees `.claude/worktrees/agent-*` on branches `worktree-agent-<id>`
-  (`git branch | grep worktree-agent`). If their reports were not merged: for each branch, check the
-  diff stays in the card's owned paths, run the gate (below) + `frontend/test-real.sh` + `just golden`,
-  Read the screenshots, then `git merge --no-ff`. If a branch has no commits, re-run the card.
-- Island hit target still 26 px (< 32): decide in Bar (U.1 note). Per-output PSS is at its limit.
-
-**Next steps (ordered)**
-1. (U-components / U-surfaces landed.) Settings polish from the UX review (#3 settings
-   focus/keys, #7, #8, #9, #11 settings, #13 error codes→keys, #17, #18, #23) as one card owning `settings/`.
-2. (Machine A quiet benchmarks done.) A first baseline on the user's second machine (Machine B, `docs/BENCH.md`), plus `just golden --update` there (refs are per machine).
-3. Frontend for tray + Bluetooth (bar widget + stage panel) against `fixtures/ipc/server/snap_{tray,bluetooth}.json`.
-4. logind session for a `systemd --user` daemon (resolve the user's graphical session explicitly;
-   today session hints may stay `available:false`).
-5. Fold `RefcountedService` into `ServiceProvider` (row 16); per-mod profile sections (K22 note);
-   connection-level reconnect for D-Bus services (they stay unavailable after a bus loss).
-6. M6 first native mods (media + lyrics, wallpaper, sysmon, weather), live niri test with the user present.
-
-**Process lessons (keep)**
-- **Gate every merge with `just check` in the repo's own target dir** (`unset CARGO_TARGET_DIR`,
-  `CARGO_INCREMENTAL=0`): the shared agent dir hands worktrees each other's path-crate artifacts and
-  embedded files (seen 5×: missing fields/modules, a test palette baked into a binary). Crate-only
-  checks let a cross-crate break through once (theme test read the mock's moved source).
-- Always `timeout` + `set -o pipefail` (a piped failure got committed once; a deadlock ran 4.5 h).
-- CONTRACT-CHANGE rows collide when agents append in parallel: renumber at merge.
-- Frontend agents can use prebuilt daemon binaries (`KURASHI_BIN_DIR`) to avoid compiling.
-
-**Risks / open**
-- Disk: the user cleaned up (138 GB free at 12:27). The shared agent dir grows ~1–2 GB per agent;
-  prune its stale `debug/incremental` dirs between waves (ask the user if the tool is denied).
-- 13 leaked bake-off `dbus-daemon`s (`/tmp/kurashi-sb-{slint,iced,gpui}`), harmless; user may
-  `pkill -f 'address=unix:path=/tmp/kurashi-sb-'`.
-- Volume keys need a standing `svc.audio` subscriber (the bar has one). Lock with stale marker but no
-  PAM service starts locked (doctor reports it).
-
----
-
-## 2026-10-09 — session 2: M0 decided, M1 complete, M2–M7 foundations + first full UI (parallel waves)
-**State:** everything is on `main`, green (`just check` ~200 tests; `just bench-gate` 0 violations on
-the real stack; `nix build .#kurashi` ✔). Work ran in waves of ≤5 subagents with task cards in
-`docs/tasks/` (README = common rules), each in its own worktree; builds serialised through one shared
-`CARGO_TARGET_DIR=~/.cache/kurashi-agents-target`. No agents running at handover.
-
-**Decided / merged this session**
-- K3 = Quickshell/QML (bake-off, `BAKEOFF.md`); K16 PSS budget ≤150 MiB @1 out, ≤+6/out (measured
-  vs popup-closed); K17 protocol v1 **frozen**; K18 profile loads clear section pins; K19 Stage =
-  one content-sized, permanently mapped, transparent surface on the focused output; K20 a locked
-  session survives daemon restarts.
-- Daemon `kurashid`: hub (revisions, merge-patch diffs, refcounted providers), actions, intent
-  coalescing, config store (`config`, `schema.settings`, cfg.*, apply/dry-run/undo/redo, profiles,
-  file watcher, a11y → `forced:accessibility`), `theme` (kurashi-theme), `i18n`, `svc.clock`,
-  `svc.workspaces` (niri), `svc.media/power/session/network/brightness` (D-Bus), `svc.audio`
-  (libpulse, origin echo), island arbiter (`runtime.island.main`: clock/media/notifications/volume
-  faces; volume = transient OSD; notifications = unread relevance), `runtime.ui` (panel/launcher),
-  launcher queries + launch, notification server (non-stealing), mods registry, `runtime.lock` (PAM),
-  `doctor` query.
-- CLI: get/set/why/reset/undo/redo/profile/doctor/act/sub/intent/raw.
-- Frontend (`frontend/`, real daemon or mock): Store core API (watch/unwatch refcounted, act, query),
-  Bar, Stage, Island faces, toasts + notification center, launcher, lock screen. Settings app
-  (`settings/`, schema-generated). i18n en+ja for every domain (schema catalog generated + test).
-- Nix: package ships data dirs, libpulse + PAM inputs; HM module runs kurashid + frontend
-  (`just nix-eval-test`); NixOS module installs PAM service `kurashi`.
-- Bench: `just bench-gate` (real stack) — 0.03 fps idle, 0 % CPU, 137.9 MiB, +4.0/output, popup 3.9 ms.
-
-### Next steps (in order)
-1. **Memory headroom (risk):** real stack 137.9 MiB, mock 150.5 with popup — each new surface costs
-   ~3–5 MiB. Kaizen task: lazy-create rarely used surfaces' *content* (Launcher list, Lock content,
-   NotificationCenter) via Loaders without unmapping (K19 leak), drop the unused probe props from Bar
-   (`clockText/mediaText`, `mods.probe` watch), find Quickshell's per-surface baseline.
-2. Blur honesty: report ext-background-effect availability (frontend sees the global) → daemon
-   `forced:capability` for `theme.material.blur` with reason (schema coupling already declared).
-3. Session menu (lock/suspend/reboot/poweroff via `svc.session` commands, confirm step) + OSD for
-   brightness (island transient like volume).
-4. Island config from schema (`island.main.faces/default/ttl` → IslandConfig), input-slot bindings
-   resolved by the daemon (schema `input_slots`) instead of hardcoded actions in the frontend.
-5. Mods: register contributions on enable (island faces, services, settings pages) — M6; first native
-   mods (media+lyrics, wallpaper, sysmon, weather, clipboard) as cards.
-6. Launcher watcher refcounted per launcher open; `doctor` async facts (buses, notification name).
-7. M7: live test on niri **with the user present** (never start the shell on their session unasked);
-   golden screenshots for the component kit; `--idle 600` CPU budget run.
-
-### Open decisions / risks
-- Memory headroom (above). Mod widget documents: real `mods` is a registry; the probe's `mods.probe`
-  widget-list shape needs a successor (M6).
-- Notification server owns the name for the daemon's lifetime (deliberate Ma exception).
-- `volume` face is cyclable via scroll (registered face, not in config order) — decide whether
-  transient-only faces should be excluded from cycling (arbiter change).
-
-### Gotchas learned this session
-- Subagent tools refuse report files → reports come back as text; the lead saves/acts on them.
-- `sandbox.sh start` once failed silently outside `nix develop` and two agents drew on the live
-  session — fixed (fails closed). Bench sandboxes now carry the pid (parallel runs killed each other).
-- Shared target dir: `debug/<bin>` is overwritten by other worktrees — copy right after building.
-- Never chain `merge` after a check with `;` — use `&&` (one broken merge, fixed in 186066d).
-- Exporting `XDG_CONFIG_HOME` for a smoke test in the same shell breaks `git commit`.
-- zsh: `"$B:path"` triggers a history modifier — write `"${B}:path"`.
-- PAM: without `/etc/pam.d/kurashi` PAM falls back to `other` (deny); tests never use real credentials.

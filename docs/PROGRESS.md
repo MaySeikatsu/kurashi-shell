@@ -143,3 +143,8 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W14.3 | K34: palette `wallpaper` follows `mod.wallpaper.theme.image`; daemon holds the mod's document while chosen; waiting note | ✅ | lead feat/k34-wallpaper-theme; kurashid test with a generated picture |
 | W14.4 | Weather to its brief (400 px panel, places move/remove, loading, copy pass, fixture-backed live shots) | ✅ functional · UX ⏳ (lead review; I57) | W14-weather-ux 6e913ae |
 | W14.5 | Sysmon to its brief (440 px panel, Tdie/Tctl honesty, paths searched, host values, battery, menu, btop, pause) | ✅ functional · UX ⏳ (peek I55, states I56, I48) | W14-sysmon-ux eeeb85e; PopupWindow peek removed at merge (K19, row 75) |
+| W15.1 | K36 profile overlay + Profiles page review/export/import (B13, I41) | ✅ functional · UX ⏳ (I64) | W15-profiles dddef95; settings/test.sh P1–P4 |
+| W15.2 | Honest "Running now": `JobCtx::set_active`, Settings shows reasons (I48) | ✅ | W15-job-active 4cfff62 |
+| W15.3 | Quick/island polish: tonal tiles, tile contract, OSD device, power/bluetooth views, quick output re-pick (I51, I52, I45, I44, B14) | ✅ functional · UX ⏳ (two-output check: row 80) | W15-quick-island-polish 269c5da + lead fixes 38ac21f |
+| W15.4 | Sysmon fixes: shell processes protected (B24), names (I61), GPU tile (I62), fixture states (I56) | ✅ functional · UX ⏳ (peek W16, I65) | W15-sysmon-fixes 188fc60 |
+| K35 | Stage-hosted peeks: daemon, contract, mock (frontend = W16) | 🔄 daemon ✅ | lead cf27536 |
