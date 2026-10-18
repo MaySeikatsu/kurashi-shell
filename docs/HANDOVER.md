@@ -18,7 +18,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-10-18 — session 6 (machine B): wave 14 close, K34–K36, wave 15, K35 daemon
-**State:** `main` green and pushed (`just check` 686 tests, settings/test.sh, mods-live no QML warnings, stage/quick/volume tests, golden B ok). Wave 16 (W16-peek-frontend) is the next card; nothing half-done.
+**State:** `main` green and pushed after W16 (`just check` 686 tests, test-peek/stage/real, settings/test.sh, mods-live no QML warnings, stage/quick/volume tests, golden B ok). Wave 16 (W16-peek-frontend) is the next card; nothing half-done.
 
 **Merged:** session-5 leftovers resumed and finished — W14-weather-ux, W14-sysmon-ux (PopupWindow peek removed at merge:
 K19, row 75 rejected); lead: Stage `cardWidth` for mod panels (row 66, I53); **K34** palette `wallpaper` follows
@@ -34,8 +34,9 @@ card for power/bluetooth. BACKLOG: B22–B25, I55–I65 filed; contract rows 70�
 Vitreus, Capsule, pleamar, a Project-Sekai Quickshell rice) — use it in the next design pass.
 
 **Next steps (ordered):**
-1. **W16-test-infra merged** (K37 no-network sandboxes, mock focus + B14 two-output step, B25). **W16-peek-frontend** was
-   spawned at the end of session 6 — if its branch exists unmerged, review/finish it; otherwise spawn (`docs/tasks/W16-peek-frontend.md`, card ready; push main first). It owns Stage.qml,
+1. **Wave 16 merged:** W16-test-infra (K37 no-network sandboxes, mock focus + B14 two-output step, B25) and
+   W16-peek-frontend (K35 frontend: Stage peeks for tray, island, sysmon, weather; measured). Follow-ups in I67
+   (side bars, keyboard path, fade-out, peek state shots, quiet re-measure). Original card for reference: (`docs/tasks/W16-peek-frontend.md`, card ready; push main first). It owns Stage.qml,
    Bar.qml hover plumbing, tray/island peeks and the sysmon/weather/hello `Peek.qml`; it must report the K35
    measurements (idle 0 fps, peek PSS, retarget to a second output, 20 hover cycles).
 2. Parallel cards with disjoint paths (write them): I52 host sizing of `quick.tiles` (SlotHost + wallpaper/hello tiles,
