@@ -134,3 +134,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W13.5 | UX passes: settings (849c0ea), quick settings (1e63bfd), island views (4f49b0b) | ✅ functional · UX review 1 done, polish open (I44–I47, I50–I52) | lead reviews in docs/ux/*.md |
 | W14 | Mod runtime (jobs, list settings, capabilities, unlinked refusal), live all-mods test, mod UX passes | 🔄 | W14-* (sysmon/weather UX after mod-runtime) |
 
+
+## Wave 14 close + session 6
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W14.1 | Wallpaper to its brief (picker, looks, theme diff, pairs, breadcrumb) | ✅ functional · UX ⏳ (lead review) | W14-wallpaper-ux 9c6f1b2; open in I32 |
+| W14.2 | Stage: a mod panel asks for its card width (`cardWidth`, 360..720 px) | ✅ | lead c511ac5 (row 66, I53) |
+| W14.3 | K34: palette `wallpaper` follows `mod.wallpaper.theme.image`; daemon holds the mod's document while chosen; waiting note | ✅ | lead feat/k34-wallpaper-theme; kurashid test with a generated picture |
+| W14.4 | Weather to its brief (400 px panel, places move/remove, loading, copy pass, fixture-backed live shots) | ✅ functional · UX ⏳ (lead review; I57) | W14-weather-ux 6e913ae |
+| W14.5 | Sysmon to its brief (440 px panel, Tdie/Tctl honesty, paths searched, host values, battery, menu, btop, pause) | ✅ functional · UX ⏳ (peek I55, states I56, I48) | W14-sysmon-ux eeeb85e; PopupWindow peek removed at merge (K19, row 75) |
