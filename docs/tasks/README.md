@@ -208,3 +208,4 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W15-profiles](W15-profiles.md) | `crates/kurashi-config/`, kurashid profile actions, `settings/pages/ProfilesPage.qml` | haiku (max) |
 | [W15-job-active](W15-job-active.md) | `crates/kurashi-mod-api/`, kurashid `native.rs`, settings mod head | haiku (max) |
 | [W15-quick-island-polish](W15-quick-island-polish.md) | quick settings components, VolumeFace, Stage views map, shell.qml `want` | haiku (max) |
+| [W15-sysmon-fixes](W15-sysmon-fixes.md) | `crates/kurashi-mod-sysmon/` (not `watch()`), `mods/sysmon/` | haiku (max) |
