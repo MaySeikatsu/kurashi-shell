@@ -19,6 +19,10 @@
 # all by keyboard to the empty state; the volume view muted. Shots: frontend/shots/island/ (read them, not just the exit code).
 # Not reachable here: locked redaction (runtime.lock is fixed in the mock), Home and PageUp/PageDown (no key names in
 # wl_keys.py), several-players progress with seek on a second track, and the other displays' reason (one output).
+# W16 (B14, row 80), last: two outputs, and the quick card opens on the focused one. The mock marks only the focused
+# output's workspace as focused (`mock.focus {output}` moves it), so the shell's focusedScreen() picks that output: the
+# card is drawn there, not on the other. Shots: frontend/shots/stage/b14-quick-out*.png. The sandbox's network is
+# probed again here (`sandbox.sh netcheck`): a connection from inside must fail (I58).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-fe-stage}
@@ -357,6 +361,81 @@ view_shot volume-muted 360
 K act audio.mute.toggle >/dev/null
 K act ui.close >/dev/null
 sleep 1.2
+
+# ---- W16, B14 (row 80): two outputs. The mock and the frontend restart with HEADLESS-2 in the list; the outputs are
+# sway's, so the card's pixels come from `grim -o` of each.
+# holder: the outputs whose workspace list holds the focus, as the shell reads it (`focusedScreen()`), comma-separated.
+holder() { jq -r '[.outputs | to_entries[] | select(.key != "*") | select(.value | any(.focused)) | .key] | join(",")' <<<"$(ipc svc.workspaces)"; }
+# focus_on <output>: mock.focus, then the document holds the focus on that output alone.
+focus_on() {
+  K act mock.focus "{\"output\":\"$1\"}" >/dev/null || fail "mock.focus $1 was refused"
+  for _ in $(seq 25); do [ "$(holder)" = "$1" ] && return 0; sleep 0.2; done
+  fail "svc.workspaces holds the focus on '$(holder)', not on $1"
+}
+# card_on <output> <name>: the quick card (400 px, centred) is drawn on that output; its crop is the evidence shot.
+card_on() {
+  local res x0 y0 x1 y1 off
+  timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
+  res=$(analyse "$2") || fail "$2: analysis failed"
+  echo "$2 on $1: $res"
+  jq -e '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4
+      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
+    || fail "$2: no quick card of width 400 centred on $1 ($res)"
+  read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
+  off=$(timeout 10 swaymsg -t get_outputs -r | jq -r --arg o "$1" '.[] | select(.name == $o) | .rect.x')
+  timeout 20 grim -g "$((off + x0 - 24)),$((y0 - 24)) $((x1 - x0 + 49))x$((y1 - y0 + 49))" "$OUT/$2.png" \
+    || fail "grim failed on $2"
+}
+# none_on <output> <name>: no card is drawn on that output.
+none_on() {
+  local res
+  timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
+  res=$(analyse "$2") || fail "$2: analysis failed"
+  jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$2: a card is drawn on $1 ($res)"
+}
+
+# The sandbox's network: a connection from inside it must fail (I58), logged with this step.
+"$ROOT/tools/bench/sandbox.sh" netcheck "$NAME" || fail "the sandbox reaches a network"
+
+stop_phase
+"$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "output-add failed"
+for _ in $(seq 50); do
+  [ "$(timeout 10 swaymsg -t get_outputs -r | jq '[.[] | select(.active)] | length')" -ge 2 ] && break
+  sleep 0.2
+done
+[ "$(timeout 10 swaymsg -t get_outputs -r | jq '[.[] | select(.active)] | length')" -ge 2 ] || fail "sway has no second output"
+rm -f "$KURASHI_SOCKET"
+RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1,HEADLESS-2 --fixed-time 12:34 --socket "$KURASHI_SOCKET" \
+  >> "$R/server.log" 2>&1 &
+pids+=("$!")
+for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && break; sleep 0.1; done
+ipc svc.clock >/dev/null 2>&1 || fail "mock did not come up with two outputs (see $R/server.log)"
+before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
+env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+pids+=("$!")
+for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
+[ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"
+sleep 3
+
+focus_on HEADLESS-2
+K act quick.toggle >/dev/null
+sleep 2.5
+jq -e '.panel == "quick"' <<<"$(ipc runtime.ui)" >/dev/null || fail "quick.toggle did not open the quick card"
+card_on HEADLESS-2 b14-quick-out2
+none_on HEADLESS-1 b14-quick-out2-other
+K act quick.toggle >/dev/null
+sleep 1.2
+none_on HEADLESS-2 b14-closed-out2
+
+focus_on HEADLESS-1
+K act quick.toggle >/dev/null
+sleep 2.5
+jq -e '.panel == "quick"' <<<"$(ipc runtime.ui)" >/dev/null || fail "quick.toggle did not open the quick card on the first output"
+card_on HEADLESS-1 b14-quick-out1
+none_on HEADLESS-2 b14-quick-out1-other
+K act ui.close >/dev/null
+sleep 1.2
+none_on HEADLESS-1 b14-closed-out1
 
 stop_phase
 if grep -q "ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined\|is not a type\|Cannot assign\|Cannot anchor\|Binding loop" "$R/qs.log"; then
