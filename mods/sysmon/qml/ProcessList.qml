@@ -36,6 +36,7 @@ Column {
             var row = {
                 pid: p.pid,
                 name: p.name,
+                cmd: p.cmd !== undefined ? p.cmd : "",
                 start: p.start,
                 cpu: p.cpu !== undefined ? p.cpu : -1,
                 mem: p.mem,
@@ -128,6 +129,9 @@ Column {
                     font.family: list.theme.fam(text, list.theme.families)
                     Accessible.role: Accessible.StaticText
                     Accessible.name: row.modelData.name + ", pid " + row.modelData.pid
+                    // The name is a short form (I61): the command line says what the program was started as.
+                    Accessible.description: row.modelData.cmd !== ""
+                        ? F.fill(list.tr("sysmon.panel.command"), {cmd: row.modelData.cmd}) : ""
                 }
             }
 
