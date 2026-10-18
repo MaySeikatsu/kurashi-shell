@@ -3,3 +3,6 @@
 "surfaces.launcher.error.unavailable" = "Not available right now."
 "surfaces.launcher.error.invalid" = "That request was not valid."
 "surfaces.launcher.error.internal" = "Something went wrong inside kurashi."
+
+# K35: ui.peek while a card is open.
+"ui.error.peek_under_card" = "a card is open; its peek is not shown"

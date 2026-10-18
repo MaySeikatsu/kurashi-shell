@@ -32,6 +32,8 @@ fn cfg_bool(cfg: Option<&ConfigStore>, key: &str, dflt: bool) -> bool {
 /// its own surface. `tray` is the item whose menu the `tray` panel shows (`""` otherwise, K23).
 /// `face` is the island face whose expanded view the `island` panel shows (`""` otherwise, K24).
 /// A native mod's panel is `mod:<id>:<panel>`, opened by `mod.panel.open` (K26, K28).
+/// `peek` is the hover/focus peek the Stage shows while no panel is open (K35): absent, or
+/// `{source, output, x, w}`; opening a panel removes it (documents carry no `null`, PROTOCOL §1).
 pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     hub.register("runtime.ui", ui_closed(), None);
     let toggle_panel = |hub: Arc<Hub>, name: &'static str| {
@@ -44,6 +46,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["popup"] = json!(!open);
                     d["tray"] = json!("");
                     d["face"] = json!("");
+                    clear_peek(d);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -77,6 +80,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["popup"] = json!(!open);
                     d["tray"] = json!("");
                     d["face"] = json!(if open { "" } else { face.as_str() });
+                    clear_peek(d);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -118,6 +122,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["popup"] = json!(!open);
                 d["tray"] = json!("");
                 d["face"] = json!("");
+                clear_peek(d);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -149,6 +154,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["popup"] = json!(!open);
                 d["tray"] = json!(if open { "" } else { id.as_str() });
                 d["face"] = json!("");
+                clear_peek(d);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -162,6 +168,33 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["launcher"] = json!(!d["launcher"].as_bool().unwrap_or(false))
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
+    // K35: a bar widget's (or the island's, or a tray item's) peek, shown by the Stage under the
+    // widget: `{source, output, x, w}` sets it (x and w in the output's logical px), `{}` clears it.
+    // Refused while a panel is open (the card is the bigger view) and for a mod source whose mod is
+    // off or does not provide `peek:<name>`.
+    let h = hub.clone();
+    actions.register("ui.peek", "action.ui.peek", move |a| {
+        let hub = h.clone();
+        async move {
+            let peek = peek_of(&hub, &a)?;
+            let mut refused = false;
+            hub.update("runtime.ui", None, |d| {
+                if peek.is_some() && d["panel"].as_str().is_some_and(|p| !p.is_empty()) {
+                    refused = true;
+                    return;
+                }
+                match &peek {
+                    Some(p) => d["peek"] = p.clone(),
+                    None => clear_peek(d),
+                }
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+            if refused {
+                return Err(ActionError::Invalid(PEEK_UNDER_CARD.into()));
+            }
             Ok(None)
         }
     });
@@ -181,12 +214,67 @@ fn ui_closed() -> Value {
     json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
 }
 
+/// Removes the peek from a `runtime.ui` value (K35); absence is "no peek".
+fn clear_peek(d: &mut Value) {
+    if let Some(o) = d.as_object_mut() {
+        o.remove("peek");
+    }
+}
+
+/// The peek `ui.peek` asks for (K35): `None` clears it (no `source`, or an empty one). A source is
+/// `mod:<id>:<name>` (the mod is on and provides `peek:<name>`), `tray:<item>` or `island:<instance>`.
+fn peek_of(hub: &Hub, a: &Value) -> Result<Option<Value>, ActionError> {
+    let source = a["source"].as_str().unwrap_or("");
+    if source.is_empty() {
+        return Ok(None);
+    }
+    let invalid = || ActionError::Invalid(ARGS_INVALID.into());
+    let output = a["output"]
+        .as_str()
+        .filter(|o| !o.is_empty())
+        .ok_or_else(invalid)?;
+    let px = |k: &str| {
+        a[k].as_f64()
+            .filter(|v| v.is_finite() && *v >= 0.0)
+            .ok_or_else(invalid)
+    };
+    let (x, w) = (px("x")?, px("w")?);
+    let ok = match source.split_once(':') {
+        Some(("mod", rest)) => match rest.split_once(':') {
+            Some((id, name)) if !id.is_empty() && !name.is_empty() => {
+                if !mod_provides(hub, id, &format!("peek:{name}")) {
+                    return Err(ActionError::Invalid(PEEK_UNAVAILABLE.into()));
+                }
+                true
+            }
+            _ => false,
+        },
+        Some(("tray" | "island", rest)) => !rest.is_empty(),
+        _ => false,
+    };
+    if !ok {
+        return Err(invalid());
+    }
+    Ok(Some(
+        json!({"source": source, "output": output, "x": x, "w": w}),
+    ))
+}
+
+/// `ui.peek` while a panel is open: the card is shown, a peek would sit on top of it.
+const PEEK_UNDER_CARD: &str = "ui.error.peek_under_card";
+/// `ui.peek` of a mod peek the mod does not offer, or whose mod is off.
+const PEEK_UNAVAILABLE: &str = "mods.error.peek_unavailable";
+
 /// `mod.panel.open` of a panel the mod does not offer, or whose mod is off.
 const PANEL_UNAVAILABLE: &str = "mods.error.panel_unavailable";
 
 /// Whether the `mods` document lists mod `id` as enabled, providing `panel:<panel>`.
 fn mod_offers_panel(hub: &Hub, id: &str, panel: &str) -> bool {
-    let want = format!("panel:{panel}");
+    mod_provides(hub, id, &format!("panel:{panel}"))
+}
+
+/// Whether mod `id` is on and its manifest provides `want` (e.g. `panel:x`, `peek:x`).
+fn mod_provides(hub: &Hub, id: &str, want: &str) -> bool {
     hub.snapshot("mods").is_ok_and(|(_, d)| {
         d["mods"].as_array().is_some_and(|mods| {
             mods.iter().any(|m| {
@@ -194,7 +282,7 @@ fn mod_offers_panel(hub: &Hub, id: &str, panel: &str) -> bool {
                     && m["state"] == "enabled"
                     && m["provides"]
                         .as_array()
-                        .is_some_and(|p| p.iter().any(|x| x == want.as_str()))
+                        .is_some_and(|p| p.iter().any(|x| x == want))
             })
         })
     })
@@ -582,6 +670,21 @@ fn refresh(hub: &Hub, st: &mut ModsState, store: Option<&ConfigStore>) {
             if !on {
                 d["panel"] = json!("");
                 d["popup"] = json!(false);
+            }
+        }
+        // K35: likewise a mod's peek.
+        let peek_mod = d["peek"]["source"]
+            .as_str()
+            .and_then(|p| p.strip_prefix("mod:"))
+            .and_then(|rest| rest.split(':').next())
+            .map(str::to_string);
+        if let Some(id) = peek_mod {
+            let on = st
+                .reg
+                .get(&id)
+                .is_some_and(|e| e.state == kurashi_mods::ModState::Enabled);
+            if !on {
+                clear_peek(d);
             }
         }
     });
@@ -2194,6 +2297,91 @@ mod tests {
                 Err(ActionError::Invalid(ARGS_INVALID.into()))
             );
         }
+    }
+
+    /// K35: `ui.peek` sets and clears the peek; it is refused under an open card and for a mod
+    /// that does not offer it; opening any panel clears it.
+    #[tokio::test]
+    async fn a_peek_shows_only_without_a_card_and_any_panel_clears_it() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        hub.register(
+            "mods",
+            json!({"mods": [
+                {"id": "sysmon", "state": "enabled", "provides": ["widget:sysmon", "peek:sysmon"]},
+                {"id": "weather", "state": "available", "provides": ["peek:weather"]},
+            ]}),
+            None,
+        );
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+        let peek = |source: &str| json!({"source": source, "output": "DP-1", "x": 1800, "w": 120});
+
+        actions
+            .invoke("ui.peek", peek("mod:sysmon:sysmon"))
+            .await
+            .unwrap();
+        assert_eq!(
+            ui_doc()["peek"],
+            json!({"source": "mod:sysmon:sysmon", "output": "DP-1", "x": 1800.0, "w": 120.0})
+        );
+        actions
+            .invoke("ui.peek", peek("tray:nm-applet"))
+            .await
+            .unwrap();
+        assert_eq!(
+            ui_doc()["peek"]["source"],
+            "tray:nm-applet",
+            "the latest wins"
+        );
+        actions.invoke("ui.peek", json!({})).await.unwrap();
+        assert_eq!(ui_doc(), ui_closed(), "an empty request clears it");
+
+        assert_eq!(
+            actions.invoke("ui.peek", peek("mod:weather:weather")).await,
+            Err(ActionError::Invalid(PEEK_UNAVAILABLE.into())),
+            "a mod that is off offers no peek"
+        );
+        assert_eq!(
+            actions.invoke("ui.peek", peek("mod:sysmon:other")).await,
+            Err(ActionError::Invalid(PEEK_UNAVAILABLE.into()))
+        );
+        for bad in [
+            json!({"source": "nope"}),
+            json!({"source": "mod:sysmon", "output": "DP-1", "x": 0, "w": 1}),
+            json!({"source": "tray:a", "x": 0, "w": 1}),
+            json!({"source": "tray:a", "output": "DP-1", "x": -1, "w": 1}),
+            json!({"source": "island:", "output": "DP-1", "x": 0, "w": 1}),
+        ] {
+            assert_eq!(
+                actions.invoke("ui.peek", bad).await,
+                Err(ActionError::Invalid(ARGS_INVALID.into()))
+            );
+        }
+
+        actions
+            .invoke("ui.peek", peek("island:main"))
+            .await
+            .unwrap();
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["peek"], Value::Null, "a panel clears the peek");
+        assert_eq!(
+            actions.invoke("ui.peek", peek("island:main")).await,
+            Err(ActionError::Invalid(PEEK_UNDER_CARD.into())),
+            "no peek over a card"
+        );
+        actions.invoke("ui.peek", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["panel"], "quick", "clearing never closes the card");
+        actions.invoke("ui.close", json!({})).await.unwrap();
+        actions
+            .invoke("ui.peek", peek("island:main"))
+            .await
+            .unwrap();
+        actions
+            .invoke("tray.menu.open", json!({"id": "a"}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["peek"], Value::Null);
     }
 
     /// K24: `island.expand` latches the face the island shows into `runtime.ui.face`; a face change
