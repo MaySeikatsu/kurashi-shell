@@ -214,3 +214,4 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | Card | Owner paths | Model |
 |---|---|---|
 | [W16-peek-frontend](W16-peek-frontend.md) | Stage.qml, Bar.qml hover plumbing, tray/island peeks, sysmon/weather/hello Peek.qml | haiku (max) |
+| [W16-test-infra](W16-test-infra.md) | `tools/bench/sandbox.sh`, `crates/kurashi-mock/`, `crates/kurashi-mod-wallpaper/`, test-stage B14 step | haiku (max) |
