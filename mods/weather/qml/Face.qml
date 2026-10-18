@@ -12,6 +12,9 @@ FaceBase {
     required property var theme
     required property var i18n
     id: f
+    // A mod's face is loaded only while it is the Island's face (ModLoader), so it is current from its first frame.
+    // FaceBase draws nothing while `current` is false, and the Island's mod loader does not set it.
+    current: true
 
     readonly property var d: Store.docs["mod.weather"] || ({})
     readonly property var rs: d.rain_soon || null
