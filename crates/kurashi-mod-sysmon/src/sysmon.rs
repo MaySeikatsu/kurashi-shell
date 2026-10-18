@@ -9,15 +9,18 @@
 use crate::doc::{self, History, TroubleDoc};
 use crate::host::{self, Host};
 use crate::launch::{self, Launcher, Spawn};
+use crate::names::{self, Apps};
 use crate::procs::{self, Row};
 use crate::roots::Roots;
 use crate::sampler::{Memory, Sample, Sampler};
+use crate::shell::{self, Me};
 use crate::thermal;
 use crate::trouble::{Kind, Limits, Readings, Transition, Trouble};
 use kurashi_mod_api::{
     ActionError, FaceHandle, FaceSpec, JobCtx, ModCtx, ModError, NativeMod, Publish, Settings,
 };
 use serde_json::{Value, json};
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -160,17 +163,36 @@ impl Signaller for Kernel {
     }
 }
 
+/// Replaces `/proc` and `/sys` with a fixture tree (I56). Nothing in the shell sets it; the states check does
+/// (`mods/sysmon/test-states.sh`), and then nothing is signalled or started: see [`Recorded`].
+pub const FIXTURE_ENV: &str = "KURASHI_SYSMON_ROOT";
+
 pub struct Sysmon {
     roots: Roots,
     signaller: Arc<dyn Signaller>,
     launcher: Arc<dyn Launcher>,
-    self_pid: u32,
+    /// The daemon itself: never ended from the list, and the reason its session words (B24).
+    me: Me,
 }
 
 impl Sysmon {
-    /// The live system, signalled through kill(2), terminals started from PATH.
+    /// The live system, signalled through kill(2), terminals started from PATH. `KURASHI_SYSMON_ROOT` (read here,
+    /// once) names a fixture tree instead.
     pub fn new() -> Self {
-        Self::with(Roots::system(), Arc::new(Kernel))
+        match std::env::var_os(FIXTURE_ENV).filter(|v| !v.is_empty()) {
+            Some(root) => Self::fixture(Path::new(&root)),
+            None => Self::with(Roots::system(), Arc::new(Kernel)),
+        }
+    }
+
+    /// A fixture tree in place of `/proc` and `/sys`, owned by this user. Signals and terminal starts are recorded in
+    /// the tree (`signals.log`, `launches.log`) and never made: a fixture pid may be a real process.
+    pub fn fixture(root: &Path) -> Self {
+        let roots = Roots::fixture(root, rustix::process::getuid().as_raw());
+        let recorded = Arc::new(Recorded {
+            dir: root.to_path_buf(),
+        });
+        Self::with_launcher(roots, recorded.clone(), recorded)
     }
 
     pub fn with(roots: Roots, signaller: Arc<dyn Signaller>) -> Self {
@@ -187,8 +209,41 @@ impl Sysmon {
             roots,
             signaller,
             launcher,
-            self_pid: std::process::id(),
+            me: Me::live(),
         }
+    }
+}
+
+/// The fixture tree's signaller and launcher: what it is asked to do is written to a log in the tree, and nothing is
+/// done. No PATH program is found, so "Open in btop" says btop is not installed rather than starting anything.
+struct Recorded {
+    dir: PathBuf,
+}
+
+impl Recorded {
+    fn log(&self, file: &str, line: &str) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut out = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.dir.join(file))?;
+        writeln!(out, "{line}")
+    }
+}
+
+impl Signaller for Recorded {
+    fn send(&self, pid: i32, sig: Sig) -> std::io::Result<()> {
+        self.log("signals.log", &format!("{pid} {}", sig.name()))
+    }
+}
+
+impl Launcher for Recorded {
+    fn on_path(&self, _program: &str) -> bool {
+        false
+    }
+
+    fn spawn(&self, program: &str, args: &[&str]) -> std::io::Result<()> {
+        self.log("launches.log", &format!("{program} {}", args.join(" ")))
     }
 }
 
@@ -213,7 +268,10 @@ struct Shared {
     /// The watch task samples now (reported in `mod.sysmon`).
     watching: AtomicBool,
     trouble: Mutex<Trouble>,
-    self_pid: u32,
+    /// The daemon itself and its session: the shell's own processes are never ended from the list (B24).
+    me: Me,
+    /// The application names of the desktop entries, read on the first name that needs one (I61).
+    apps: Apps,
 }
 
 /// The face is raised while any kind is sustained, and cleared when none is. Both calls happen under the
@@ -306,7 +364,7 @@ fn is_hot(cfg: &Cfg, s: &Sample) -> bool {
 
 /// The process the trouble names: the hottest by CPU or memory. None when the kind has no process (temperature),
 /// or when no CPU delta exists yet.
-fn culprit(kind: Kind, rows: &[Row]) -> Option<doc::Culprit> {
+fn culprit(shared: &Shared, kind: Kind, rows: &[Row]) -> Option<doc::Culprit> {
     if kind == Kind::Temp || rows.is_empty() {
         return None;
     }
@@ -314,12 +372,39 @@ fn culprit(kind: Kind, rows: &[Row]) -> Option<doc::Culprit> {
         return None;
     }
     let by_mem = kind == Kind::Mem;
-    procs::hottest(rows, by_mem).map(|r| doc::Culprit {
-        pid: r.pid,
-        name: r.name.clone(),
-        cpu: r.cpu,
-        mem_pct: r.mem_pct,
+    let mut row = procs::hottest(rows, by_mem)?.clone();
+    let exe = names::exe_base(&shared.roots, row.pid);
+    named(shared, &mut row, exe.as_deref());
+    Some(doc::Culprit {
+        pid: row.pid,
+        name: row.name,
+        cpu: row.cpu,
+        mem_pct: row.mem_pct,
     })
+}
+
+/// The row's name (I61): its program's, from the executable when that is readable.
+fn named(shared: &Shared, row: &mut Row, exe: Option<&str>) {
+    row.name = names::display(&shared.roots, &shared.apps, row.pid, &row.comm, exe);
+}
+
+/// What the list shows of a row beyond its figures: its name, its command line, its owner and whether it is the
+/// shell's own process (B24). Only the rows shown are annotated: each costs a few reads.
+fn annotate(shared: &Shared, row: &mut Row) {
+    let exe = names::exe_base(&shared.roots, row.pid);
+    named(shared, row, exe.as_deref());
+    row.cmd = names::command_line(&shared.roots, row.pid);
+    let uid = row.uid.or_else(|| procs::read_uid(&shared.roots, row.pid));
+    row.uid = uid;
+    row.shell = shell::of(
+        &shared.roots,
+        row.pid,
+        &row.comm,
+        exe.as_deref(),
+        row.session,
+        uid,
+        shared.me,
+    );
 }
 
 /// `mod.sysmon`: samples while subscribed, feeds the trouble, publishes the summary.
@@ -379,7 +464,10 @@ async fn summary(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
         let trouble = shared.active(now).map(|(kind, since)| TroubleDoc {
             kind,
             since,
-            culprit: s.procs.as_deref().and_then(|rows| culprit(kind, rows)),
+            culprit: s
+                .procs
+                .as_deref()
+                .and_then(|rows| culprit(&shared, kind, rows)),
         });
         hot = is_hot(&cfg, &s);
         hist.push(
@@ -438,15 +526,24 @@ async fn summary(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
 }
 
 fn publish_procs(shared: &Shared, publish: &Publish, scan: &[Row], by_mem: bool) -> Value {
-    let rows = procs::top(&shared.roots, scan.to_vec(), by_mem);
+    let mut rows = procs::top(&shared.roots, scan.to_vec(), by_mem);
+    for row in &mut rows {
+        annotate(shared, row);
+    }
+    let hottest = procs::hottest(scan, false).map(|r| {
+        let mut row = r.clone();
+        let exe = names::exe_base(&shared.roots, row.pid);
+        named(shared, &mut row, exe.as_deref());
+        row
+    });
     let value = doc::procs(
         &rows,
         by_mem,
         scan.len(),
         false,
+        shared.me,
         shared.roots.uid,
-        shared.self_pid,
-        procs::hottest(scan, false),
+        hottest.as_ref(),
     );
     publish(value.clone());
     value
@@ -626,13 +723,14 @@ pub(crate) fn open_btop(
 }
 
 /// End or Force quit. Refused unless the process is still the one the list showed (same pid and start
-/// time, so a reused pid is never signalled), belongs to the daemon's user, and is not pid 1 or the daemon.
+/// time, so a reused pid is never signalled), belongs to the daemon's user, is not pid 1, and is not part of the
+/// shell: this daemon, another kurashid of the user, the frontend or the Settings window (B24, `shell`).
 pub(crate) fn end_process(
     roots: &Roots,
     signaller: &dyn Signaller,
     args: &Value,
     sig: Sig,
-    self_pid: u32,
+    me: Me,
 ) -> Result<Option<Value>, ActionError> {
     let invalid = || ActionError::Invalid("sysmon.error.no_process".into());
     let pid = args
@@ -644,16 +742,33 @@ pub(crate) fn end_process(
         .get("start")
         .and_then(Value::as_u64)
         .ok_or_else(invalid)?;
-    if pid <= 1 || i64::from(pid) == i64::from(self_pid) {
+    if pid <= 1 {
         return Err(ActionError::Unavailable("sysmon.error.protected".into()));
+    }
+    // The daemon is refused before anything is read about it: its own pid is never signalled.
+    if i64::from(pid) == i64::from(me.pid) {
+        return Err(ActionError::Unavailable("sysmon.error.shell".into()));
     }
     let stat = procs::read_stat(roots, pid)
         .ok_or_else(|| ActionError::Unavailable("sysmon.error.gone".into()))?;
     if stat.start != start {
         return Err(ActionError::Unavailable("sysmon.error.changed".into()));
     }
-    if procs::read_uid(roots, pid) != Some(roots.uid) {
+    let uid = procs::read_uid(roots, pid);
+    if uid != Some(roots.uid) {
         return Err(ActionError::Unavailable("sysmon.error.not_yours".into()));
+    }
+    let exe = names::exe_base(roots, pid);
+    if let Some(own) = shell::of(
+        roots,
+        pid,
+        &stat.name,
+        exe.as_deref(),
+        stat.session,
+        uid,
+        me,
+    ) {
+        return Err(ActionError::Unavailable(own.reason().into()));
     }
     match signaller.send(pid, sig) {
         Ok(()) => Ok(Some(json!({"pid": pid, "signal": sig.name()}))),
@@ -689,7 +804,8 @@ impl NativeMod for Sysmon {
             menu: watch::channel(false).0,
             watching: AtomicBool::new(false),
             trouble: Mutex::default(),
-            self_pid: self.self_pid,
+            me: self.me,
+            apps: Apps::default(),
         });
         let s = shared.clone();
         ctx.service("sysmon", doc::loading(), move |publish, settings| {
@@ -729,10 +845,9 @@ impl NativeMod for Sysmon {
                 Sig::Kill,
             ),
         ] {
-            let (roots, signaller, self_pid) =
-                (self.roots.clone(), self.signaller.clone(), self.self_pid);
+            let (roots, signaller, me) = (self.roots.clone(), self.signaller.clone(), self.me);
             ctx.action(id, label, move |args| {
-                let r = end_process(&roots, signaller.as_ref(), &args, sig, self_pid);
+                let r = end_process(&roots, signaller.as_ref(), &args, sig, me);
                 async move { r }
             })?;
         }

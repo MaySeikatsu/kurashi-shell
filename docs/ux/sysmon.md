@@ -63,14 +63,21 @@ daemon computes deltas, thresholds, hysteresis; the view formats. Process action
 `mod.sysmon`: `{available, interval_s, paused, cpu:{pct, per_core?, history}, mem:{used, total, swap?, zram?,
 pressure?}, temp?:{c, source}, gpu?:{state:"awake"|"asleep", util?, vram?, temp?}, disk?:{read_bps, write_bps},
 net?:{rx_bps, tx_bps}, load1, procs?:[{pid, name, cpu, mem}], trouble?:{kind, since, culprit?}}`.
+Session 6 (rows 82, B24, I61, I62): `gpus[]` with `primary` (the GPU the tile shows: the only awake one, else the
+busiest, else the boot VGA; a runtime-suspended GPU is listed as asleep and only its `runtime_status` is read);
+`procs[]` rows carry `cmd` (full command line, the a11y description) and a `name` from the executable (Nix wrapper
+marks removed, desktop entry name when one matches); the shell's own processes (this daemon, another kurashid of
+the same user, the Quickshell frontend and Settings) carry the refusal reason `sysmon.error.shell` /
+`sysmon.error.shell_other`, and `sysmon.end` re-checks before any signal. `KURASHI_SYSMON_ROOT` (tests only) replaces
+`/proc`, `/sys` and the desktop entries and records signals instead of sending them.
 
 ## Definition of done
-- [ ] bar widget states: normal / activity / critical / paused / unavailable sensor
-- [ ] panel with tiles, sparklines, per-core, processes + End/Force quit (confirm)
-- [ ] trouble face after sustained load with culprit; no flapping (test with synthetic samples)
-- [ ] GPU asleep never sampled (test reads runtime_status first)
-- [ ] no sampling without subscriber / trouble watch (paused-clock test)
-- [ ] screenshots; a11y text for sparklines
+- [x] bar widget states: normal / activity / critical / paused / unavailable sensor (W15 state shots)
+- [x] panel with tiles, sparklines, per-core, processes + End/Force quit (confirm)
+- [x] trouble face after sustained load with culprit; no flapping (test with synthetic samples)
+- [x] GPU asleep never sampled (test reads runtime_status first)
+- [x] no sampling without subscriber / trouble watch (paused-clock test)
+- [~] screenshots (done); a11y text for sparklines exists, not verified with a screen reader; peek waits for K35 frontend (W16)
 
 ## Later
 Disk usage per mount · network per interface · history export · alerts as notifications.

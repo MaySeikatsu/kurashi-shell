@@ -3,6 +3,7 @@
 //! = 100 %), the same scale as the CPU tile. Kernel threads and zombies are not listed: nothing to end.
 
 use crate::roots::{Roots, name_of};
+use crate::shell::Own;
 use std::collections::HashMap;
 // tokio's Instant: the same clock in the daemon, and the paused clock in tests.
 use tokio::time::Instant;
@@ -16,9 +17,12 @@ pub const TOP: usize = 8;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stat {
     pub pid: i32,
+    /// The kernel's command name (15 bytes at most).
     pub name: String,
     pub state: char,
     pub ppid: i32,
+    /// The POSIX session the process is in (its login session for a desktop's processes).
+    pub session: u64,
     /// utime + stime, in ticks.
     pub ticks: u64,
     /// Start time since boot, in ticks: with the pid, the identity a signal must match.
@@ -33,7 +37,7 @@ pub fn parse_stat(text: &str) -> Option<Stat> {
     let close = text.rfind(')')?;
     let pid: i32 = text[..open].trim().parse().ok()?;
     let name = text[open + 1..close].to_string();
-    // After `)`: state(3) ppid(4) … utime(14) stime(15) … starttime(22) … rss(24).
+    // After `)`: state(3) ppid(4) pgrp(5) session(6) … utime(14) stime(15) … starttime(22) … rss(24).
     let f: Vec<&str> = text[close + 1..].split_ascii_whitespace().collect();
     let num = |i: usize| f.get(i)?.parse::<u64>().ok();
     Some(Stat {
@@ -41,6 +45,7 @@ pub fn parse_stat(text: &str) -> Option<Stat> {
         name,
         state: f.first()?.chars().next()?,
         ppid: f.get(1)?.parse().ok()?,
+        session: num(3)?,
         ticks: num(11)? + num(12)?,
         start: num(19)?,
         rss_pages: num(21)?,
@@ -61,7 +66,11 @@ pub fn read_uid(roots: &Roots, pid: i32) -> Option<u32> {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     pub pid: i32,
+    /// What the list shows: the command name until the row is named (`names`, for the rows shown and the culprit).
     pub name: String,
+    /// The kernel's command name, as scanned.
+    pub comm: String,
+    pub session: u64,
     pub start: u64,
     /// Share of the whole machine; None until a second scan gives a delta.
     pub cpu: Option<f64>,
@@ -70,6 +79,29 @@ pub struct Row {
     pub mem_pct: f64,
     /// Filled in for the rows shown.
     pub uid: Option<u32>,
+    /// The full command line, for the rows shown (the accessible description).
+    pub cmd: Option<String>,
+    /// Set for the rows shown: the shell's own process, which the list never ends (B24).
+    pub shell: Option<Own>,
+}
+
+impl Row {
+    /// A row as scanned: the name is the command name, and nothing is read beyond the stat file.
+    pub fn scanned(stat: &Stat, cpu: Option<f64>, mem_bytes: u64, mem_pct: f64) -> Self {
+        Self {
+            pid: stat.pid,
+            name: stat.name.clone(),
+            comm: stat.name.clone(),
+            session: stat.session,
+            start: stat.start,
+            cpu,
+            mem_bytes,
+            mem_pct,
+            uid: None,
+            cmd: None,
+            shell: None,
+        }
+    }
 }
 
 /// Remembers the previous scan's ticks, keyed by (pid, start) so a reused pid starts from zero.
@@ -116,19 +148,12 @@ impl Table {
             };
             next.insert((p.pid, p.start), p.ticks);
             let mem_bytes = p.rss_pages.saturating_mul(page);
-            rows.push(Row {
-                pid,
-                name: p.name,
-                start: p.start,
-                cpu,
-                mem_bytes,
-                mem_pct: if mem_total > 0 {
-                    100.0 * mem_bytes as f64 / mem_total as f64
-                } else {
-                    0.0
-                },
-                uid: None,
-            });
+            let mem_pct = if mem_total > 0 {
+                100.0 * mem_bytes as f64 / mem_total as f64
+            } else {
+                0.0
+            };
+            rows.push(Row::scanned(&p, cpu, mem_bytes, mem_pct));
         }
         self.prev = next;
         self.prev_at = Some(now);
@@ -209,6 +234,8 @@ mod tests {
             (50, 305, 4242, 2560)
         );
         assert_eq!(s.state, 'S');
+        // The fixture line puts the process in session 1 (fields 5 and 6 are "1 1").
+        assert_eq!(s.session, 1);
     }
 
     #[test]
@@ -296,20 +323,28 @@ mod tests {
             Row {
                 pid: 10,
                 name: "a".into(),
+                comm: "a".into(),
+                session: 1,
                 start: 1,
                 cpu: Some(5.0),
                 mem_bytes: 100,
                 mem_pct: 1.0,
                 uid: None,
+                cmd: None,
+                shell: None,
             },
             Row {
                 pid: 11,
                 name: "b".into(),
+                comm: "b".into(),
+                session: 1,
                 start: 1,
                 cpu: Some(9.0),
                 mem_bytes: 900,
                 mem_pct: 9.0,
                 uid: None,
+                cmd: None,
+                shell: None,
             },
         ];
         let by_cpu = top(&roots, rows.clone(), false);

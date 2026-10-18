@@ -3,7 +3,9 @@
 //! everything, and the process actions refuse what they must. Time is tokio's paused clock; the signaller
 //! records instead of signalling, so no real process is touched.
 
+use crate::procs::Row;
 use crate::roots::Roots;
+use crate::shell::Me;
 use crate::sysmon::{Cfg, Sig, Signaller, Sysmon, end_process};
 use kurashi_mod_api::{
     ActionError, ActionFn, FaceUpdate, Hooks, JobCtx, ModCtx, NativeMod, Publish, Registration,
@@ -388,7 +390,11 @@ impl Signaller for Refuse {
     }
 }
 
-const SELF: u32 = 9999;
+/// The daemon under test: pid 9999, in login session 77.
+const ME: Me = Me {
+    pid: 9999,
+    session: 77,
+};
 
 fn end_args(pid: i64, start: u64) -> Value {
     json!({"pid": pid, "start": start})
@@ -399,22 +405,22 @@ fn end_and_force_quit_signal_only_the_process_the_list_showed() {
     let m = machine();
     process(&m.roots, 4242, 777, 1000);
     let sent = Sent::default();
-    let term = end_process(&m.roots, &sent, &end_args(4242, 777), Sig::Term, SELF);
+    let term = end_process(&m.roots, &sent, &end_args(4242, 777), Sig::Term, ME);
     assert_eq!(term, Ok(Some(json!({"pid": 4242, "signal": "TERM"}))));
-    end_process(&m.roots, &sent, &end_args(4242, 777), Sig::Kill, SELF).unwrap();
+    end_process(&m.roots, &sent, &end_args(4242, 777), Sig::Kill, ME).unwrap();
     assert_eq!(
         *sent.0.lock().unwrap(),
         vec![(4242, Sig::Term), (4242, Sig::Kill)]
     );
 
     // A reused pid has another start time: nothing is sent.
-    let reused = end_process(&m.roots, &sent, &end_args(4242, 778), Sig::Term, SELF);
+    let reused = end_process(&m.roots, &sent, &end_args(4242, 778), Sig::Term, ME);
     assert_eq!(
         reused,
         Err(ActionError::Unavailable("sysmon.error.changed".into()))
     );
     // Pid 1 and the daemon itself are never offered.
-    let init = end_process(&m.roots, &sent, &end_args(1, 777), Sig::Kill, SELF);
+    let init = end_process(&m.roots, &sent, &end_args(1, 777), Sig::Kill, ME);
     assert_eq!(
         init,
         Err(ActionError::Unavailable("sysmon.error.protected".into()))
@@ -422,29 +428,30 @@ fn end_and_force_quit_signal_only_the_process_the_list_showed() {
     let itself = end_process(
         &m.roots,
         &sent,
-        &end_args(SELF as i64, 777),
+        &end_args(ME.pid as i64, 777),
         Sig::Term,
-        SELF,
+        ME,
     );
     assert_eq!(
         itself,
-        Err(ActionError::Unavailable("sysmon.error.protected".into()))
+        Err(ActionError::Unavailable("sysmon.error.shell".into())),
+        "the daemon is part of the shell: its reason says so"
     );
     // Gone since the list was read.
-    let gone = end_process(&m.roots, &sent, &end_args(5555, 1), Sig::Term, SELF);
+    let gone = end_process(&m.roots, &sent, &end_args(5555, 1), Sig::Term, ME);
     assert_eq!(
         gone,
         Err(ActionError::Unavailable("sysmon.error.gone".into()))
     );
     // Another user's process: listed, not signalled.
     process(&m.roots, 4343, 888, 0);
-    let theirs = end_process(&m.roots, &sent, &end_args(4343, 888), Sig::Kill, SELF);
+    let theirs = end_process(&m.roots, &sent, &end_args(4343, 888), Sig::Kill, ME);
     assert_eq!(
         theirs,
         Err(ActionError::Unavailable("sysmon.error.not_yours".into()))
     );
     // A request without a pid is invalid.
-    let bare = end_process(&m.roots, &sent, &json!({}), Sig::Term, SELF);
+    let bare = end_process(&m.roots, &sent, &json!({}), Sig::Term, ME);
     assert_eq!(
         bare,
         Err(ActionError::Invalid("sysmon.error.no_process".into()))
@@ -466,7 +473,7 @@ fn the_kernels_refusals_map_to_the_reasons_the_list_shows() {
         &Refuse(io::ErrorKind::PermissionDenied),
         &args,
         Sig::Term,
-        SELF,
+        ME,
     );
     assert_eq!(
         eperm,
@@ -477,7 +484,7 @@ fn the_kernels_refusals_map_to_the_reasons_the_list_shows() {
         &Refuse(io::ErrorKind::NotFound),
         &args,
         Sig::Term,
-        SELF,
+        ME,
     );
     assert_eq!(
         esrch,
@@ -488,7 +495,7 @@ fn the_kernels_refusals_map_to_the_reasons_the_list_shows() {
         &Refuse(io::ErrorKind::Other),
         &args,
         Sig::Kill,
-        SELF,
+        ME,
     );
     assert_eq!(
         other,
@@ -708,20 +715,30 @@ async fn the_summary_names_the_battery_the_host_and_the_paths_searched() {
 
 #[test]
 fn the_process_document_carries_the_hottest_process_by_cpu_of_the_whole_scan() {
-    let row = |pid: i32, name: &str, cpu: Option<f64>| crate::procs::Row {
-        pid,
-        name: name.into(),
-        start: 1,
-        cpu,
-        mem_bytes: 1 << 20,
-        mem_pct: 0.1,
-        uid: Some(1000),
+    let row = |pid: i32, name: &str, cpu: Option<f64>| {
+        let stat = crate::procs::Stat {
+            pid,
+            name: name.into(),
+            state: 'S',
+            ppid: 1,
+            session: 1,
+            ticks: 0,
+            start: 1,
+            rss_pages: 0,
+        };
+        let mut r = Row::scanned(&stat, cpu, 1 << 20, 0.1);
+        r.uid = Some(1000);
+        r
+    };
+    let me = Me {
+        pid: 4242,
+        session: 1,
     };
     // Not among the shown rows (the list is cut to eight): the hottest is still named.
-    let mut rows: Vec<crate::procs::Row> = (1..=12).map(|i| row(i, "idle", Some(0.1))).collect();
+    let mut rows: Vec<Row> = (1..=12).map(|i| row(i, "idle", Some(0.1))).collect();
     rows.push(row(99, "firefox", Some(31.5)));
     let hot = crate::procs::hottest(&rows, false);
-    let doc = crate::doc::procs(&rows[..8], false, rows.len(), false, 1000, 4242, hot);
+    let doc = crate::doc::procs(&rows[..8], false, rows.len(), false, me, 1000, hot);
     assert_eq!(doc["hottest"]["name"], json!("firefox"));
     assert_eq!(doc["hottest"]["cpu"], json!(31.5));
     let unmeasured = [row(5, "x", None)];
@@ -730,8 +747,8 @@ fn the_process_document_carries_the_hottest_process_by_cpu_of_the_whole_scan() {
         false,
         1,
         false,
+        me,
         1000,
-        4242,
         crate::procs::hottest(&unmeasured, false),
     );
     assert_eq!(
@@ -766,4 +783,261 @@ async fn the_menu_opens_while_paused_and_reads_nothing() {
         "paused: the menu reads nothing"
     );
     task.abort();
+}
+
+/// One process as the kernel shows it: its stat line (command name, session, start time), its owner, and when given
+/// the executable link and the command line.
+struct Proc<'a> {
+    pid: i32,
+    comm: &'a str,
+    start: u64,
+    uid: u32,
+    session: u64,
+    exe: Option<&'a str>,
+    cmd: Option<&'a str>,
+}
+
+fn write_process(roots: &Roots, p: Proc) {
+    let dir = roots.proc.join(p.pid.to_string());
+    // Fields after the name: state, ppid, pgrp, session, … utime (14), stime (15), … starttime (22), rss (24).
+    let stat = format!(
+        "{} ({}) S 1 {} {} 0 -1 4194560 0 0 0 0 10 5 0 0 20 0 1 0 {} 1000 50\n",
+        p.pid, p.comm, p.pid, p.session, p.start
+    );
+    write(&dir.join("stat"), &stat);
+    write(
+        &dir.join("status"),
+        &format!("Name:\tx\nUid:\t{0}\t{0}\t{0}\t{0}\n", p.uid),
+    );
+    if let Some(exe) = p.exe {
+        std::os::unix::fs::symlink(exe, dir.join("exe")).unwrap();
+    }
+    if let Some(cmd) = p.cmd {
+        write(&dir.join("cmdline"), &cmd.replace(' ', "\0"));
+    }
+}
+
+/// The login session of this test process: the daemon of these tests runs in it.
+fn this_session() -> u64 {
+    rustix::process::getsid(None).unwrap().as_raw_pid() as u64
+}
+
+/// The processes of the shell and two others, as a session shows them: this test process as the daemon, another
+/// kurashid of the same user (another session), this session's frontend, a Firefox content process, and a
+/// Quickshell of some other config. Returns the daemon's pid.
+fn shell_and_others(roots: &Roots) -> i32 {
+    let me = std::process::id() as i32;
+    let session = this_session();
+    let wrapped = "/nix/store/bbb-quickshell/bin/.quickshell-wrapped";
+    write_process(
+        roots,
+        Proc {
+            pid: me,
+            comm: "kurashi-mod-sy",
+            start: 100,
+            uid: 1000,
+            session,
+            exe: Some("/nix/store/aaa-kurashid/bin/kurashid"),
+            cmd: Some("kurashid"),
+        },
+    );
+    write_process(
+        roots,
+        Proc {
+            pid: 5001,
+            comm: "kurashid",
+            start: 101,
+            uid: 1000,
+            session: session + 1,
+            exe: Some("/nix/store/aaa-kurashid/bin/kurashid"),
+            cmd: Some("kurashid"),
+        },
+    );
+    write_process(
+        roots,
+        Proc {
+            pid: 6001,
+            comm: ".quickshell-wra",
+            start: 102,
+            uid: 1000,
+            session,
+            exe: Some(wrapped),
+            cmd: Some("qs -p /nix/store/ccc-kurashi/share/kurashi/frontend"),
+        },
+    );
+    write_process(
+        roots,
+        Proc {
+            pid: 7001,
+            comm: "Isolated Web Co",
+            start: 103,
+            uid: 1000,
+            session,
+            exe: Some("/nix/store/ddd-firefox/lib/firefox/.firefox-wrapped"),
+            cmd: Some("/nix/store/ddd-firefox/lib/firefox/firefox -contentproc"),
+        },
+    );
+    write_process(
+        roots,
+        Proc {
+            pid: 7002,
+            comm: "quickshell",
+            start: 104,
+            uid: 1000,
+            session,
+            exe: Some(wrapped),
+            cmd: Some("qs -p /home/maike/other-config"),
+        },
+    );
+    me
+}
+
+fn act_end(pid: i32, start: u64) -> Value {
+    json!({"pid": pid, "start": start})
+}
+
+#[test]
+fn end_refuses_every_part_of_the_shell_and_signals_only_the_rest() {
+    let m = machine();
+    let me_pid = shell_and_others(&m.roots);
+    let me = Me {
+        pid: me_pid as u32,
+        session: this_session(),
+    };
+    let sent = Sent::default();
+    assert_eq!(
+        end_process(&m.roots, &sent, &act_end(me_pid, 100), Sig::Kill, me),
+        Err(ActionError::Unavailable("sysmon.error.shell".into())),
+        "the daemon itself"
+    );
+    assert_eq!(
+        end_process(&m.roots, &sent, &act_end(5001, 101), Sig::Term, me),
+        Err(ActionError::Unavailable("sysmon.error.shell_other".into())),
+        "another kurashid of the same user"
+    );
+    assert_eq!(
+        end_process(&m.roots, &sent, &act_end(6001, 102), Sig::Kill, me),
+        Err(ActionError::Unavailable("sysmon.error.shell".into())),
+        "this session's frontend, even under its command name"
+    );
+    assert_eq!(
+        end_process(&m.roots, &sent, &act_end(7002, 104), Sig::Term, me),
+        Ok(Some(json!({"pid": 7002, "signal": "TERM"}))),
+        "a Quickshell of another config is not the shell"
+    );
+    assert_eq!(
+        end_process(&m.roots, &sent, &act_end(7001, 103), Sig::Kill, me),
+        Ok(Some(json!({"pid": 7001, "signal": "KILL"}))),
+        "a Firefox content process is the user's to end"
+    );
+    assert_eq!(
+        *sent.0.lock().unwrap(),
+        vec![(7002, Sig::Term), (7001, Sig::Kill)],
+        "no signal reached any part of the shell"
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_list_names_each_program_and_offers_no_end_for_the_shell() {
+    let m = machine();
+    let me_pid = shell_and_others(&m.roots);
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.procs, &e.procs_docs, &e.settings);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    task.abort();
+    let docs = e.procs_docs.lock().unwrap();
+    let rows = docs[0]["procs"].as_array().unwrap();
+    let row = |pid: i32| {
+        rows.iter()
+            .find(|r| r["pid"] == json!(pid))
+            .unwrap()
+            .clone()
+    };
+    let daemon = row(me_pid);
+    assert_eq!(daemon["name"], json!("kurashid"));
+    assert_eq!(daemon["can_end"], json!(false));
+    assert_eq!(daemon["end_reason"], json!("sysmon.error.shell"));
+    let other = row(5001);
+    assert_eq!(other["end_reason"], json!("sysmon.error.shell_other"));
+    let frontend = row(6001);
+    assert_eq!(
+        frontend["name"],
+        json!("quickshell"),
+        "the wrapper's marks are gone"
+    );
+    assert_eq!(frontend["end_reason"], json!("sysmon.error.shell"));
+    assert_eq!(
+        frontend["cmd"],
+        json!("qs -p /nix/store/ccc-kurashi/share/kurashi/frontend"),
+        "the full command line is there for the description"
+    );
+    let content = row(7001);
+    assert_eq!(
+        content["name"],
+        json!("firefox"),
+        "named by its executable, not `Isolated Web Co`"
+    );
+    assert_eq!(content["can_end"], json!(true));
+    assert!(content.get("end_reason").is_none());
+    assert_eq!(row(7002)["can_end"], json!(true));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_summary_marks_the_rendering_gpu_and_lists_the_sleeping_one() {
+    let m = machine();
+    let sys_dir = m._dir.path().join("sys/class/drm");
+    write(
+        &sys_dir.join("card1/device/power/runtime_status"),
+        "suspended\n",
+    );
+    write(&sys_dir.join("card1/device/vendor"), "0x10de\n");
+    let amd = sys_dir.join("card2/device");
+    write(&amd.join("power/runtime_status"), "active\n");
+    write(&amd.join("vendor"), "0x1002\n");
+    write(&amd.join("gpu_busy_percent"), "37\n");
+    write(&amd.join("boot_vga"), "1\n");
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    task.abort();
+    let docs = e.summary_docs.lock().unwrap();
+    let gpus = docs.last().unwrap()["gpus"].clone();
+    // A fact not measured is absent, never null: no VRAM or temperature was offered for card2 here.
+    assert_eq!(
+        gpus,
+        json!([
+            {"id": "card1", "state": "asleep", "primary": false},
+            {"id": "card2", "state": "awake", "primary": true, "vendor": "AMD", "util": 37}
+        ])
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_fixture_tree_records_a_signal_and_sends_none() {
+    let dir = tempfile::tempdir().unwrap();
+    let uid = rustix::process::getuid().as_raw();
+    write_process(
+        &Roots::fixture(dir.path(), uid),
+        Proc {
+            pid: 4242,
+            comm: "burner",
+            start: 777,
+            uid,
+            session: 1,
+            exe: None,
+            cmd: None,
+        },
+    );
+    let sys = Sysmon::fixture(dir.path());
+    let e = enable(&sys, Values::new());
+    act(&e, "sysmon.process.kill", act_end(4242, 777))
+        .await
+        .unwrap();
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("signals.log")).unwrap(),
+        "4242 KILL\n",
+        "the request is recorded in the tree, and no real signal is made"
+    );
 }
