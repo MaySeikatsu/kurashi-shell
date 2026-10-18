@@ -260,14 +260,14 @@ stream filtered to `mod.wallpaper`, `mods`, `config`): nothing runs while neithe
 matugen/DankMaterialShell/Caelestia derive the scheme from the wallpaper the same way, but on every wallpaper change —
 here the user decides per picture.
 
-**K35** 🟡 *Proposed* (lead, session 6; I55, B9, B22, I47): **the Stage hosts peeks.** A bar widget's or the island's peek
+**K35** 🟢 Accepted by the user (session 6; I55, B9, B22, I47): **the Stage hosts peeks.** A bar widget's or the island's peek
 (hover / keyboard focus) is drawn by the one Stage surface, never by a popup surface per widget (K19 measured
-PopupWindow worse; per-widget popups would multiply per output). Contract sketch: `runtime.ui.peek` =
-`{source, output, x, w, edge}` or `null`; intents `ui.peek {source, output, x, w}` / `ui.peek {}` from the frontend
+PopupWindow worse; per-widget popups would multiply per output). Contract (PROTOCOL §8): `runtime.ui.peek` =
+`{source, output, x, w}` or absent (no `null` in documents); action `ui.peek {source, output, x, w}` / `ui.peek {}` from the frontend
 (hover enter / leave with a 250 ms grace; latest wins); `source` = `mod:<id>:<name>` (manifest provides
 `peek:<name>`, a QML component) or a core source (`tray:<item>` tooltip, `island:<instance>`). A peek never shows while
 a card is open, and opening a card clears it. The Stage anchors left with a margin of `x` for a peek (centred for
-cards), sizes to the peek, and keeps 0 frames / no subscriptions while none shows (Ma). Open before acceptance:
+cards), sizes to the peek, and keeps 0 frames / no subscriptions while none shows (Ma). Open in the frontend step:
 measure the retarget cost of a hover on another output (B7 budget, quiet machine), and whether the daemon round trip
 (~ms) feels instant. *Why:* one surface for every transient (K19); honest, daemon-owned UI state (rule 1); four
 consumers waiting (sysmon, weather, tray tooltips, island peek).

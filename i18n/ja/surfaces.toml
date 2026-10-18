@@ -3,3 +3,6 @@
 "surfaces.launcher.error.unavailable" = "今は利用できません。"
 "surfaces.launcher.error.invalid" = "リクエストが正しくありません。"
 "surfaces.launcher.error.internal" = "暮らしの内部でエラーが起きました。"
+
+# K35: カードが開いている間の ui.peek。
+"ui.error.peek_under_card" = "カードが開いているため、ピークは表示されません"

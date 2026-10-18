@@ -269,7 +269,7 @@ impl State {
                 let (panel, tray) = if open { ("", "") } else { ("tray", id) };
                 self.patch(
                     "runtime.ui",
-                    json!({"panel": panel, "popup": !open, "tray": tray, "face": ""}),
+                    json!({"panel": panel, "popup": !open, "tray": tray, "face": "", "peek": null}),
                     None,
                 );
             }
@@ -281,9 +281,33 @@ impl State {
             }
             "ui.close" => self.patch(
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null}),
                 None,
             ),
+            // K35, as kurashid: `{}` clears the peek; none over an open card; mod peeks of `hello` only.
+            "ui.peek" => {
+                let source = args["source"].as_str().unwrap_or("");
+                if source.is_empty() {
+                    self.patch("runtime.ui", json!({"peek": null}), None);
+                } else {
+                    let output = args["output"].as_str().filter(|o| !o.is_empty());
+                    let (x, w) = (args["x"].as_f64(), args["w"].as_f64());
+                    let (Some(output), Some(x), Some(w)) = (output, x, w) else {
+                        return Err(Fail::invalid("ui.peek needs source, output, x, w"));
+                    };
+                    if source.starts_with("mod:") && source != "mod:hello:hello" {
+                        return Err(Fail::invalid("mods.error.peek_unavailable"));
+                    }
+                    if self.data("runtime.ui")["panel"].as_str().is_some_and(|p| !p.is_empty()) {
+                        return Err(Fail::invalid("ui.error.peek_under_card"));
+                    }
+                    self.patch(
+                        "runtime.ui",
+                        json!({"peek": {"source": source, "output": output, "x": x, "w": w}}),
+                        None,
+                    );
+                }
+            }
             "audio.mute.toggle" => {
                 let muted = !self.data("svc.audio")["muted"].as_bool().unwrap_or(false);
                 self.patch("svc.audio", json!({"muted": muted}), None);
@@ -418,7 +442,7 @@ impl State {
         let panel = if open { "" } else { name };
         self.patch(
             "runtime.ui",
-            json!({"panel": panel, "popup": !open, "tray": "", "face": ""}),
+            json!({"panel": panel, "popup": !open, "tray": "", "face": "", "peek": null}),
             None,
         );
     }
@@ -1040,6 +1064,31 @@ mod tests {
         st.act("quick.toggle", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["panel"], "quick");
         assert_eq!(st.data("runtime.ui")["face"], "");
+    }
+
+    /// K35 parity: a peek shows without a card, any panel removes it, none over a card.
+    #[test]
+    fn a_peek_is_removed_by_a_panel_and_refused_over_one() {
+        let mut st = state();
+        let peek = json!({"source": "tray:a", "output": "DP-1", "x": 10, "w": 20});
+        st.act("ui.peek", &peek).unwrap();
+        assert_eq!(st.data("runtime.ui")["peek"]["source"], "tray:a");
+        st.act("ui.peek", &none()).unwrap();
+        assert!(
+            st.data("runtime.ui").get("peek").is_none(),
+            "absent, never null"
+        );
+        st.act("ui.peek", &peek).unwrap();
+        st.act("quick.toggle", &none()).unwrap();
+        assert!(st.data("runtime.ui").get("peek").is_none());
+        assert!(st.act("ui.peek", &peek).is_err(), "no peek over a card");
+        assert!(
+            st.act(
+                "ui.peek",
+                &json!({"source": "mod:x:y", "output": "DP-1", "x": 0, "w": 1})
+            )
+            .is_err()
+        );
     }
 
     #[test]

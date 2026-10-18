@@ -102,6 +102,8 @@ pub enum Provide {
     Widget(String),
     IslandFace(String),
     Panel(String),
+    /// A hover/focus peek the Stage shows under the mod's widget (K35): `qml/Peek.qml`.
+    Peek(String),
     Service(String),
     /// Exact action id or a glob ending in `.*`.
     Action(String),
@@ -141,6 +143,7 @@ impl Provide {
             "widget" => Self::Widget(id),
             "island-face" => Self::IslandFace(id),
             "panel" => Self::Panel(id),
+            "peek" => Self::Peek(id),
             "service" => Self::Service(id),
             "action" => Self::Action(id),
             "palette" => Self::Palette(id),
@@ -179,6 +182,7 @@ impl fmt::Display for Provide {
             Self::Widget(i) => write!(f, "widget:{i}"),
             Self::IslandFace(i) => write!(f, "island-face:{i}"),
             Self::Panel(i) => write!(f, "panel:{i}"),
+            Self::Peek(i) => write!(f, "peek:{i}"),
             Self::Service(i) => write!(f, "service:{i}"),
             Self::Action(i) => write!(f, "action:{i}"),
             Self::Palette(i) => write!(f, "palette:{i}"),

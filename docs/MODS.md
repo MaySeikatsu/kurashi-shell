@@ -106,7 +106,7 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
 - **Refused without code (B15):** a native mod whose manifest declares daemon code (`service:`,
   `action:`, `island-face:`, `choices:`, `job:`) is refused with `mods.error.not_built` when this build
   links no `NativeMod` for it: it stays `disabled` with that reason in `errors`, and the config keeps
-  its list entry. Frontend-only provides (`widget:`, `panel:`, `slot:`, `palette:`, `decor:`, `i18n`)
+  its list entry. Frontend-only provides (`widget:`, `panel:`, `peek:`, `slot:`, `palette:`, `decor:`, `i18n`)
   need no code and switch on as before. In the shipped build the bundled `easter-eggs` (on by default,
   it declares `action:easter.*`) and `media` (`service:mpris`, `island-face:media`, `action:media.*`)
   are refused until their code is linked; the default `mods.enabled` list therefore shows
@@ -172,6 +172,7 @@ contract row 66). Wallhaven: later (BACKLOG D3).
   WASM only if demand appears.
 
 ## Contributions a mod can make
-widgets (bar placeable) · island faces · panels (stage) · settings · actions · launcher
+widgets (bar placeable) · peeks (`peek:<name>` → `qml/Peek.qml`, shown by the Stage under the widget on
+hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · island faces · panels (stage) · settings · actions · launcher
 providers · services · decor packs (slots + recipe) · lock scenes · palettes · app-theme
 templates · i18n strings.
