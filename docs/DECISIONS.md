@@ -269,7 +269,9 @@ PopupWindow worse; per-widget popups would multiply per output). Contract (PROTO
 a card is open, and opening a card clears it. The Stage anchors left with a margin of `x` for a peek (centred for
 cards), sizes to the peek, and keeps 0 frames / no subscriptions while none shows (Ma). Open in the frontend step:
 measure the retarget cost of a hover on another output (B7 budget, quiet machine), and whether the daemon round trip
-(~ms) feels instant. *Why:* one surface for every transient (K19); honest, daemon-owned UI state (rule 1); four
+(~ms) feels instant. **Measured (W16, machine B iGPU, two outputs, shared machine — re-measure quiet):** idle 0
+Wayland commits / 10 s; first peek +1.8 MiB PSS (fade 20 commits, then 0 while held); first use of the second output
++2.7 MiB more; 20 warmed hover cycles −2.2 MiB, 20 retarget cycles −0.3 MiB (no growth). *Why:* one surface for every transient (K19); honest, daemon-owned UI state (rule 1); four
 consumers waiting (sysmon, weather, tray tooltips, island peek).
 
 **K36** 🟢 Profile load is an overlay (user decision, session 6; B13, CONTRACT row 81; W15-profiles). Loading a profile
