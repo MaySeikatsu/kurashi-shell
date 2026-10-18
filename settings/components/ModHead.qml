@@ -91,13 +91,19 @@ Column {
     }
 
     // --- what it is, does and costs --------------------------------------------------------------------
+    // "Running now" names what it runs for (I48, docs/ux/settings.md): a job with nothing to do is not listed.
     Text {
         visible: h.entry !== null && h.entry.running !== undefined
         width: parent.width
+        wrapMode: Text.WordWrap
         color: h.entry && h.entry.running ? Theme.fg : Theme.dim
         font.pixelSize: Theme.fs - 1
         font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr(h.entry && h.entry.running ? "settings.mods.running_yes" : "settings.mods.running_no")
+        text: h.entry && (h.entry.running_reasons || []).length > 0
+            ? I18n.fmt("settings.mods.running_now", { reasons: Store.joinedWords(h.entry.running_reasons, "") })
+            : I18n.tr("settings.mods.not_running")
+        Accessible.role: Accessible.StaticText
+        Accessible.name: text
     }
     Text {
         visible: !!h.entry && !!h.entry.description

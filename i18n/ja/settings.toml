@@ -178,3 +178,7 @@
 "mods.error.setting_default_not_in_choices" = "default が choices にありません"
 "mods.error.setting_default_not_color" = "default は色ではありません"
 "mods.error.setting_default_out_of_range" = "default が範囲外です"
+
+# W15-job-active (I48, docs/ux/settings.md のモッド): 実行中は理由を示し、理由がなければ停止中と示す。
+"settings.mods.running_now" = "稼働中: {reasons}"
+"settings.mods.not_running" = "停止中"
