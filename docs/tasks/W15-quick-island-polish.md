@@ -7,7 +7,8 @@ proposal row in CONTRACT-CHANGE); I45 VolumeFace shows `detail.volume` ("Headpho
 I12 the volume slider's accessible name while audio is available; I44 expanded views for the `power` and `bluetooth`
 faces (Stage maps them to the quick settings Power and Bluetooth pages instead of the generic card); B14 quick settings
 open on the output of the current pointer/focus (re-pick `stageScreen` for quick too; the old binding loop's root cause
-was fixed in W11 — verify with `frontend/test-stage.sh`'s keyboard step, no loop warning).
+was fixed in W11 — verify with `frontend/test-stage.sh`'s keyboard step, no loop warning); and the live check's
+`I18N MISS island.face.` (a face label looked up with an empty face id — find it in the island/Stage components and guard it).
 
 **Read first:** `docs/tasks/README.md`, both briefs, `frontend/components/{QuickPanel,QuickButton,Slider}.qml`,
 `frontend/components/quick/**`, `frontend/components/faces/VolumeFace.qml`, `frontend/surfaces/Stage.qml` (views map),
