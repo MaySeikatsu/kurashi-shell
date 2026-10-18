@@ -474,10 +474,15 @@ const UNKNOWN_KEY: &str = "error.config.unknown_key";
 const SETTINGS_NOT_INSTALLED: &str = "error.settings.not_installed";
 const SETTINGS_NO_RUNTIME: &str = "error.settings.no_runtime";
 
-/// The profile review as the actions answer it: the effective changes and the entries a forced
-/// layer holds back (`not_applied`, PROTOCOL §6).
+/// The profile review as the actions answer it: the effective changes, the entries a forced layer
+/// holds back (`not_applied`, PROTOCOL §6), and how many of your changes a load keeps (B13,
+/// `kept_user`).
 fn review_json(r: &ProfileReview) -> Value {
-    json!({"diff": diff_entries(&r.diff), "not_applied": r.not_applied})
+    json!({
+        "diff": diff_entries(&r.diff),
+        "not_applied": r.not_applied,
+        "kept_user": r.kept_user,
+    })
 }
 
 /// A profile file path argument: absolute, or refused.
@@ -1035,6 +1040,7 @@ impl ConfigStore {
                     "rev": loaded.applied.rev,
                     "undo": loaded.applied.tx_id,
                     "not_applied": loaded.not_applied,
+                    "kept_user": loaded.kept_user,
                 })))
             }
         });
@@ -1115,6 +1121,7 @@ impl ConfigStore {
                     "rev": loaded.applied.rev,
                     "undo": loaded.applied.tx_id,
                     "not_applied": loaded.not_applied,
+                    "kept_user": loaded.kept_user,
                     "diagnostics": loaded.diagnostics,
                 })))
             }
