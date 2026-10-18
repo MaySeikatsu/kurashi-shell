@@ -13,20 +13,14 @@ merges, and records progress; agents only build what their card says.
    `crates/kurashi-core` are read-only. If you need a change there (or any doc/shape outside your
    paths), append a row to `docs/CONTRACT-CHANGE.md` (that file is the one shared exception) and
    code against a local stand-in until the lead decides.
-3. **Builds wait for each other (shared machine).** Before any cargo command:
-   `export CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target CARGO_BUILD_JOBS=8`.
-   All agents share this dir, so cargo's build lock makes builds take turns ("Blocking waiting for
-   file lock" is expected, just wait). Never `cargo run` long-lived binaries (it can hold the
-   lock): build, then run `$CARGO_TARGET_DIR/debug/<bin>` directly. Prefer `cargo test -p <crate>`
-   and `cargo clippy -p <crate>` over workspace-wide commands. No `cargo clean`.
-   **Binaries in the shared dir are overwritten by other worktrees** (`debug/<bin>` is not
-   path-hashed): build and copy in one step (`cargo build -p x && cp $CARGO_TARGET_DIR/debug/x
-   <your-dir>/`) and run the copy.
-   **Path crates can be picked up from another worktree too** (seen 4× in wave 7: an rlib without a
-   new field or module). If a build/test result contradicts your source, `touch` the changed
-   crates' sources and rebuild before trusting it; for binaries, grep them for a string you added.
-   The lead re-verifies every merge with a private target dir, so a false green is caught there,
-   but it costs you a round-trip.
+3. **One build dir per card (B23, session 6).** Before any cargo command:
+   `export CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target/<card-name> CARGO_BUILD_JOBS=8`.
+   A shared dir handed worktrees each other's builds of path crates (cargo's artifact names do not depend on
+   the checkout path): agents tested stale daemons, and one reached a real web service. Your own dir avoids
+   that; the lead deletes it after the merge (disk is limited — no `cargo clean`, no extra target dirs).
+   Never `cargo run` long-lived binaries: build, then run `$CARGO_TARGET_DIR/debug/<bin>` directly. Prefer
+   `cargo test -p <crate>` and `cargo clippy -p <crate>` over workspace-wide commands. If a result still
+   contradicts your source, grep the binary for a string you added before trusting it.
 4. **Tools come from `nix develop`** (repo root). Run commands as `nix develop -c <cmd>` or inside
    one shell. Flakes only see git-tracked files: `git add` new files before any `nix` command.
 5. **Never touch the user's session.** No GUI on the real display; use `tools/bench/sandbox.sh`
