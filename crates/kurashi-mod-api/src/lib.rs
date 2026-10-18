@@ -41,6 +41,9 @@ pub type ChoicesFn = Arc<dyn Fn() -> Vec<Choice> + Send + Sync>;
 /// it is a `Fn` and not an `FnOnce`.
 pub type JobFn = Arc<dyn Fn(JobCtx) -> BoxFuture<()> + Send + Sync>;
 
+/// Where a job's [`JobCtx::set_active`] goes: the daemon's end of it, made for one run of the job (I48).
+pub type ActiveFn = Arc<dyn Fn(bool) + Send + Sync>;
+
 /// A first-party mod linked into the daemon. `id` is the `mod.toml` id and directory name.
 pub trait NativeMod: Send + Sync + 'static {
     fn id(&self) -> &'static str;
@@ -215,26 +218,40 @@ pub enum Registration {
     Choices { source: String, options: ChoicesFn },
 }
 
-/// What a background job gets when the daemon starts it: its settings, live like a service's.
+/// What a background job gets when the daemon starts it: its settings, live like a service's, and the
+/// way to say whether it has work now ([`JobCtx::set_active`]).
 pub struct JobCtx {
     settings: Settings,
+    active: ActiveFn,
 }
 
 impl JobCtx {
-    /// For the daemon: the job's settings feed.
+    /// For the daemon: the job's settings feed, and the sink `set_active` reaches for this run.
+    pub fn with_active(settings: Settings, active: ActiveFn) -> Self {
+        Self { settings, active }
+    }
+
+    /// A job context with no daemon behind it, for a test that drives a job body: `set_active` does nothing.
     pub fn new(settings: Settings) -> Self {
-        Self { settings }
+        Self::with_active(settings, Arc::new(|_| {}))
     }
 
     pub fn settings(&self) -> &Settings {
         &self.settings
     }
+
+    /// Says whether the job has work now (I48). A job with nothing to do (a paused watch) keeps running and
+    /// its body stays alive, but its `reason` leaves the mod's `running_reasons` until it has work again, so
+    /// Settings never says "running" about a job that does nothing. A job starts out with work.
+    pub fn set_active(&self, active: bool) {
+        (self.active)(active);
+    }
 }
 
 /// A background job a mod declared (`job:<name>`, I23). The daemon takes it with
 /// [`ModCtx::take_jobs`] and runs it while the mod is enabled and the bool setting `wanted_by` is
-/// true; it is cancelled when either stops. While it runs, `reason` (an i18n key) is in the
-/// `mods` document's `running_reasons` (Settings: "Running now").
+/// true; it is cancelled when either stops. While it runs and has work ([`JobCtx::set_active`]),
+/// `reason` (an i18n key) is in the `mods` document's `running_reasons` (Settings: "Running now").
 pub struct Job {
     pub name: String,
     pub reason: String,
@@ -601,6 +618,23 @@ mod tests {
         assert_eq!(jobs[0].name, "tick");
         assert_eq!(jobs[0].wanted_by, "on");
         assert!(c.finish().unwrap().is_empty());
+    }
+
+    #[test]
+    fn set_active_reaches_the_sink_of_its_run() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = seen.clone();
+        let (_, rx) = watch::channel(Values::new());
+        let ctx = JobCtx::with_active(
+            Settings::new(rx),
+            Arc::new(move |active| sink.lock().unwrap().push(active)),
+        );
+        ctx.set_active(false);
+        ctx.set_active(true);
+        assert_eq!(*seen.lock().unwrap(), [false, true]);
+        // A context with no daemon behind it takes the call and does nothing with it.
+        let (_, rx) = watch::channel(Values::new());
+        JobCtx::new(Settings::new(rx)).set_active(false);
     }
 
     #[test]

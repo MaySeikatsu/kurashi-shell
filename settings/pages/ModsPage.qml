@@ -235,14 +235,19 @@ Flickable {
                             text: I18n.tr("settings.ui.mod_caps") + ": " + Store.joinedWords(entry.mod.capabilities, "settings.ui.cap.")
                                 + "    " + I18n.tr("settings.ui.mod_adds") + ": " + (p.adds(entry.mod) || I18n.tr("settings.ui.mod_none"))
                         }
-                        // "Running now" (K25): one of the mod's services has a subscriber. Not in the sidebar.
+                        // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
                         Text {
                             visible: entry.isLoaded
                             width: parent.width
+                            wrapMode: Text.WordWrap
                             color: entry.mod.running ? Theme.fg : Theme.dim
                             font.pixelSize: Theme.fs - 2
                             font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr(entry.mod.running ? "settings.mods.running_yes" : "settings.mods.running_no")
+                            text: (entry.mod.running_reasons || []).length > 0
+                                ? I18n.fmt("settings.mods.running_now", { reasons: Store.joinedWords(entry.mod.running_reasons, "") })
+                                : I18n.tr("settings.mods.not_running")
+                            Accessible.role: Accessible.StaticText
+                            Accessible.name: text
                         }
                     }
                 }
