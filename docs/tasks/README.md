@@ -209,3 +209,8 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W15-job-active](W15-job-active.md) | `crates/kurashi-mod-api/`, kurashid `native.rs`, settings mod head | haiku (max) |
 | [W15-quick-island-polish](W15-quick-island-polish.md) | quick settings components, VolumeFace, Stage views map, shell.qml `want` | haiku (max) |
 | [W15-sysmon-fixes](W15-sysmon-fixes.md) | `crates/kurashi-mod-sysmon/` (not `watch()`), `mods/sysmon/` | haiku (max) |
+
+## Wave 16 (session 6, after wave 15 merges)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W16-peek-frontend](W16-peek-frontend.md) | Stage.qml, Bar.qml hover plumbing, tray/island peeks, sysmon/weather/hello Peek.qml | haiku (max) |
