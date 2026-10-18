@@ -43,8 +43,33 @@ fn today() -> kurashi_theme::season::Date {
     }
 }
 
+/// The wallpaper mod's document (K26): its `theme.image` is the picture palette `wallpaper` uses (K34).
+pub const WALLPAPER_DOC: &str = "mod.wallpaper";
+/// The palette name that takes the colours of the wallpaper picture (K34).
+pub const WALLPAPER_PALETTE: &str = "wallpaper";
+
+/// The picture palette `wallpaper` takes its colours from: the wallpaper mod's `theme.image`, while
+/// the mod is on and has applied a picture with its theme. Only a document with a subscriber counts:
+/// the mod's service fills the hub only then, so an unwatched snapshot may be stale (Shōjiki).
+pub fn wallpaper_picture(hub: &Hub) -> Option<std::path::PathBuf> {
+    if hub.subscribers(WALLPAPER_DOC) == 0 {
+        return None;
+    }
+    let (_, doc) = hub.snapshot(WALLPAPER_DOC).ok()?;
+    doc["theme"]["image"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .map(Into::into)
+}
+
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
 pub fn input_from(store: &ConfigStore) -> ThemeInput {
+    input_with(store, None)
+}
+
+/// [`input_from`] with the wallpaper picture (K34): palette `wallpaper` reads the picture, or falls
+/// back to the default palette while there is none (the document says so in `notes`).
+pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> ThemeInput {
     let families = |key: &str| -> Vec<String> {
         store
             .get(key, None)
@@ -92,8 +117,14 @@ pub fn input_from(store: &ConfigStore) -> ThemeInput {
     if b(store, "a11y.large_text") {
         axes.type_scale = axes.type_scale.max(1.25);
     }
+    let palette = s(store, "theme.colors.palette");
+    let source = match (palette.as_str(), picture) {
+        (WALLPAPER_PALETTE, Some(path)) => Source::WallpaperFile(path.to_path_buf()),
+        (WALLPAPER_PALETTE, None) => ThemeInput::default().source,
+        _ => Source::Palette(palette),
+    };
     ThemeInput {
-        source: Source::Palette(s(store, "theme.colors.palette")),
+        source,
         scheme: if s(store, "theme.colors.scheme") == "light" {
             Scheme::Light
         } else {
@@ -120,7 +151,18 @@ pub fn input_from(store: &ConfigStore) -> ThemeInput {
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
-    let input = input_from(store);
+    document_with(store, fonts, previous, None)
+}
+
+/// [`document`] with the wallpaper picture for palette `wallpaper` (K34).
+pub fn document_with(
+    store: &ConfigStore,
+    fonts: &dyn FontProvider,
+    previous: Option<&Value>,
+    picture: Option<&std::path::Path>,
+) -> Value {
+    let input = input_with(store, picture);
+    let waiting = s(store, "theme.colors.palette") == WALLPAPER_PALETTE && picture.is_none();
     match kurashi_theme::resolve(&input, fonts) {
         Ok(out) => {
             let mut tokens = serde_json::Map::from_iter(out.tokens);
@@ -129,11 +171,15 @@ pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<
                 tokens.insert("bar.height".into(), h.value);
             }
             tokens.insert("blur".into(), json!(input.axes.blur));
-            let notes: Vec<Value> = out
+            let mut notes: Vec<Value> = out
                 .notes
                 .iter()
                 .map(|n| json!({"stage": n.stage, "text": n.text}))
                 .collect();
+            // Shōjiki: the theme says it is not the wallpaper's yet, instead of looking like it.
+            if waiting {
+                notes.push(json!({"stage": "source", "text": "theme.note.wallpaper_waiting"}));
+            }
             json!({"tokens": tokens, "notes": notes})
         }
         Err(e) => {
@@ -151,16 +197,85 @@ pub fn register(
     store: &Arc<ConfigStore>,
     fonts: Arc<dyn FontProvider + Send + Sync>,
 ) {
-    hub.register(DOC, document(store, fonts.as_ref(), None), None);
-    let hub = hub.clone();
-    store.on_change(move |store| {
-        let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
-        let mut next = document(store, fonts.as_ref(), prev.as_ref());
-        if next.get("error").is_none()
-            && let Some(o) = next.as_object_mut()
-        {
-            o.remove("error");
+    let pic = wallpaper_picture(hub);
+    hub.register(
+        DOC,
+        document_with(store, fonts.as_ref(), None, pic.as_deref()),
+        None,
+    );
+    {
+        let (hub, fonts) = (hub.clone(), fonts.clone());
+        store.on_change(move |store| republish(&hub, store, fonts.as_ref()));
+    }
+    // K34: palette `wallpaper` follows the wallpaper mod's picture. Event-driven (the hub's change
+    // stream, filtered to the mod's document, `mods` and `config`); nothing runs while neither the
+    // picture nor the palette changes (Ma). The picture is extracted on a blocking thread first, so
+    // the republish hits the cache.
+    let Ok(rt) = tokio::runtime::Handle::try_current() else {
+        return;
+    };
+    let (hub, store) = (hub.clone(), store.clone());
+    let mut events = hub.events();
+    rt.spawn(async move {
+        let mut held = false;
+        hold_wallpaper(&hub, &store, &mut held);
+        let mut last = wallpaper_picture(&hub);
+        loop {
+            match events.recv().await {
+                Ok(msg) => match msg.as_ref() {
+                    kurashi_ipc::ServerMsg::Snap { doc, .. }
+                    | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                        if [WALLPAPER_DOC, "mods", crate::config::DOC].contains(&doc.as_str()) => {}
+                    _ => continue,
+                },
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+            hold_wallpaper(&hub, &store, &mut held);
+            let now = wallpaper_picture(&hub);
+            if now == last {
+                continue;
+            }
+            last = now.clone();
+            if s(&store, "theme.colors.palette") != WALLPAPER_PALETTE {
+                continue;
+            }
+            if let Some(path) = now {
+                let _ = tokio::task::spawn_blocking(move || {
+                    kurashi_theme::stages::wallpaper_file(&path)
+                })
+                .await;
+            }
+            republish(&hub, &store, fonts.as_ref());
         }
-        let _ = hub.set(DOC, next, None);
     });
+}
+
+/// Holds a subscription to the wallpaper mod's document while palette `wallpaper` is chosen and the
+/// mod serves it: its service fills the hub only for subscribers. A disable drops the document with
+/// its subscribers, so a hold whose document is gone (or registered again, unwatched) is renewed.
+fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
+    let exists = hub.snapshot(WALLPAPER_DOC).is_ok();
+    if *held && (!exists || hub.subscribers(WALLPAPER_DOC) == 0) {
+        *held = false;
+    }
+    let want = exists && s(store, "theme.colors.palette") == WALLPAPER_PALETTE;
+    if want && !*held {
+        *held = hub.subscribe(WALLPAPER_DOC).is_ok();
+    } else if !want && *held {
+        hub.unsubscribe(WALLPAPER_DOC);
+        *held = false;
+    }
+}
+
+fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
+    let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
+    let pic = wallpaper_picture(hub);
+    let mut next = document_with(store, fonts, prev.as_ref(), pic.as_deref());
+    if next.get("error").is_none()
+        && let Some(o) = next.as_object_mut()
+    {
+        o.remove("error");
+    }
+    let _ = hub.set(DOC, next, None);
 }

@@ -51,5 +51,7 @@ test-mods = ["dep:kurashi-mod-hello"]
 kurashi-config = { path = "../kurashi-config" }
 kurashi-theme = { path = "../kurashi-theme" }
 kurashi-mod-hello = { path = "../kurashi-mod-hello" }
+# K34: a generated picture for palette `wallpaper` (theme.rs tests).
+image = { version = "0.25", default-features = false, features = ["png"] }
 # Paused clock for the background-job tests (native_mods.rs).
 tokio = { workspace = true, features = ["test-util"] }

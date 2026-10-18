@@ -1109,6 +1109,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
+ "image",
  "kurashi-audio",
  "kurashi-auth",
  "kurashi-compositor",
