@@ -39,15 +39,26 @@ pub fn clock(now: DateTime<Local>) -> Value {
     })
 }
 
-pub fn workspaces(outputs: &[String], focused_idx: u32) -> Value {
+/// `svc.workspaces`: five workspaces per output, the first three occupied. Only the workspace `focused_idx` of
+/// the focused output (`focus`) is `focused`: a compositor reports one focused workspace, and the shell picks the
+/// output that holds it (row 80). The `*` list is never focused.
+pub fn workspaces(outputs: &[String], focus: Option<&str>, focused_idx: u32) -> Value {
     let mut map = Map::new();
     for name in outputs
         .iter()
         .map(String::as_str)
         .chain(std::iter::once("*"))
     {
+        let holds_focus = focus == Some(name);
         let list: Vec<Value> = (1..=5)
-            .map(|i| json!({"id": i, "idx": i, "focused": i == focused_idx, "occupied": i <= 3}))
+            .map(|i| {
+                json!({
+                    "id": i,
+                    "idx": i,
+                    "focused": holds_focus && i == focused_idx,
+                    "occupied": i <= 3,
+                })
+            })
             .collect();
         map.insert(name.to_string(), Value::Array(list));
     }
