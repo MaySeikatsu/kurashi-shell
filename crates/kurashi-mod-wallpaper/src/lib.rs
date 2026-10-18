@@ -347,7 +347,8 @@ fn expand(path: &str) -> PathBuf {
 }
 
 /// What the document says before the supervisor has looked: the backend is `starting` when it is
-/// installed, `missing` when it is not. `loaded` stays false until the first look is done.
+/// installed, `missing` when it is not. `loaded` stays false until the first look is done. Absent
+/// values are left out, never null (PROTOCOL §3; B25): no `next_at` and no `theme.image` yet.
 fn initial_doc(cfg: &Config, installed: bool) -> Value {
     json!({
         "loaded": false,
@@ -365,10 +366,9 @@ fn initial_doc(cfg: &Config, installed: bool) -> Value {
             "paused": false,
             "order": cfg.order_name(),
             "per_output": cfg.per_output,
-            "next_at": null,
         },
         "favourites": [],
-        "theme": {"image": null},
+        "theme": {},
     })
 }
 
@@ -394,5 +394,33 @@ mod tests {
         let d = Dirs::rooted(Path::new("/r"));
         assert_eq!(d.state_file(), PathBuf::from("/r/state/wallpaper.json"));
         assert_eq!(d.thumbs(), PathBuf::from("/r/cache/wallpaper/thumbs"));
+    }
+
+    /// Every null in a document, by its path (B25: documents never contain null, PROTOCOL §3).
+    fn nulls_in(v: &Value, at: &str, found: &mut Vec<String>) {
+        match v {
+            Value::Null => found.push(at.to_owned()),
+            Value::Object(map) => map
+                .iter()
+                .for_each(|(k, c)| nulls_in(c, &format!("{at}.{k}"), found)),
+            Value::Array(items) => items
+                .iter()
+                .enumerate()
+                .for_each(|(i, c)| nulls_in(c, &format!("{at}[{i}]"), found)),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn the_initial_document_holds_no_null_whether_or_not_the_backend_is_installed() {
+        for installed in [false, true] {
+            let mut found = Vec::new();
+            nulls_in(
+                &initial_doc(&Config::default(), installed),
+                "mod.wallpaper",
+                &mut found,
+            );
+            assert_eq!(found, Vec::<String>::new(), "installed: {installed}");
+        }
     }
 }

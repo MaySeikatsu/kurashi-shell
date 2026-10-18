@@ -763,7 +763,10 @@ impl Supervisor {
     }
 
     /// `mod.wallpaper` (docs/ux/wallpaper.md, "Contract notes"). Every value is what is in effect:
-    /// an output's `path` is the image the mod stored after the backend accepted it.
+    /// an output's `path` is the image the mod stored after the backend accepted it. An absent value
+    /// is left out, never null (PROTOCOL §3; B25): no `path` on an output with no picture, no
+    /// `next_at` while no rotation is due, no `theme.image` while the theme follows no picture, no
+    /// `error.detail` without one.
     pub fn document(&self) -> Value {
         // Top-level `available`: the backend is installed, so the mod can work (the quick tile is
         // shown). Whether its daemon answers now is `backend.available`, with the reason.
@@ -778,16 +781,31 @@ impl Supervisor {
         let mut outputs = Map::new();
         let shown: &[Output] = if self.status.up() { &self.outputs } else { &[] };
         for o in shown {
-            outputs.insert(
-                o.name.clone(),
-                json!({
-                    "path": self.path_of(&o.name),
-                    "fit": self.cfg.fit,
-                    "width": o.width,
-                    "height": o.height,
-                    "scale": o.scale,
-                }),
-            );
+            let mut entry = json!({
+                "fit": self.cfg.fit,
+                "width": o.width,
+                "height": o.height,
+                "scale": o.scale,
+            });
+            if let Some(path) = self.path_of(&o.name) {
+                entry["path"] = json!(path);
+            }
+            outputs.insert(o.name.clone(), entry);
+        }
+        let mut rotation = json!({
+            "on": self.rotation_on(),
+            "interval_min": self.cfg.rotate_min,
+            "paused": self.state.paused,
+            "order": self.cfg.order_name(),
+            "per_output": self.cfg.per_output,
+        });
+        if let Some(at) = self.next_at_ms() {
+            rotation["next_at"] = json!(at);
+        }
+        // The picture the theme follows. The shell's theme source `wallpaper` reads it, and an absent one is no picture.
+        let mut theme = json!({});
+        if let Some(image) = &self.state.theme_image {
+            theme["image"] = json!(image);
         }
         let mut doc = json!({
             "loaded": self.loaded,
@@ -795,20 +813,16 @@ impl Supervisor {
             "backend": backend,
             "outputs": outputs,
             "library": {"count": self.lib_count, "folders": self.lib_folders},
-            "rotation": {
-                "on": self.rotation_on(),
-                "interval_min": self.cfg.rotate_min,
-                "paused": self.state.paused,
-                "order": self.cfg.order_name(),
-                "per_output": self.cfg.per_output,
-                "next_at": self.next_at_ms(),
-            },
+            "rotation": rotation,
             "favourites": self.state.favourites,
-            // The picture the theme follows (null: none). The shell's theme source `wallpaper` reads it.
-            "theme": {"image": self.state.theme_image},
+            "theme": theme,
         });
         if let Some((key, detail)) = &self.error {
-            doc["error"] = json!({"key": key, "detail": detail});
+            let mut error = json!({"key": key});
+            if let Some(detail) = detail {
+                error["detail"] = json!(detail);
+            }
+            doc["error"] = error;
         }
         doc
     }

@@ -98,10 +98,9 @@ async fn the_theme_follows_the_picture_set_with_theme_and_a_wallpaper_only_chang
     let folder = library_with_pictures(&root);
     let (_fake, m) = picker_mod(&root, &folder).await;
     let teal = folder.join("teal.png").display().to_string();
-    assert_eq!(
-        m.doc()["theme"]["image"],
-        Value::Null,
-        "no theme picture yet"
+    assert!(
+        m.doc()["theme"].get("image").is_none(),
+        "no theme picture yet: the key is absent, not null (B25)"
     );
 
     m.act(
@@ -167,7 +166,7 @@ async fn the_theme_diff_is_a_dry_run_of_the_wallpaper_source() {
     assert_eq!(grey["seed"], Value::Null);
 
     // A dry run: nothing is applied, nothing is stored.
-    assert_eq!(m.doc()["theme"]["image"], Value::Null);
+    assert!(m.doc()["theme"].get("image").is_none());
     let err = m
         .act(
             "wallpaper.preview",
