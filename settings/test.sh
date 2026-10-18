@@ -10,13 +10,15 @@
 # load), Nix-forced and its chip's stack (managed.toml), inert (requires, overridden, mods off, restart pending, choice
 # unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
 # empty search, search landing on a row (flashed), mod states (available, loaded-off, on, refused, invalid, removed while
-# on), the Changed view and its reset plan, profiles with their differ count, the Japanese copy of the main pages.
+# on), the Changed view and its reset plan, profiles with their differ count, the profile overlay (B13: your change
+# replaced, the changes kept, Nix holds back), export and import with their review and refusal (keyboard), the Japanese
+# copy of the main pages.
 # Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
 # font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row), the Changed view's
 # reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
-# Not key-tested: Alt+Up/Down on the pick list and Escape. tools/bench/wl_keys.py has neither modifiers nor Escape, so Esc
-# runs through the IPC hook `putBack` (the same path). Not shown: a mod's "running" line (no native mod with a service is
-# built in), greyed dropdown offers (no offer is unavailable in this sandbox), export and import (CONTRACT-CHANGE 35).
+# Not key-tested: Alt+Up/Down on the pick list. K4 puts a preview back through the IPC hook `putBack`; P3 presses Escape on
+# the import review. Not shown: a mod's "running" line (no native mod with a service is built in), greyed dropdown offers
+# (no offer is unavailable in this sandbox), the loading line of a profile read (too quick for a shot).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -438,8 +440,24 @@ shot 17-changed-view
 # 13c. a profile load: the profile names its settings (chip "roomy profile"), and Nix holds density
 K '{"t":"act","id":"pl","action":"profile.load","args":{"name":"roomy"}}' | grep -q '"done"' || fail "profile.load failed"
 for _ in $(seq 50); do [ "$(src a11y.large_text)" = "forced" ] || [ "$(src a11y.large_text)" = "profile" ] && break; sleep 0.2; done
+# The overlay (B13, UX brief settings 6): roomy does not name the history size, so the user's 210 survives the load.
+[ "$(val notifications.history_max)" = 210 ] || fail "overlay: the user's history size did not survive a profile that does not set it ($(val notifications.history_max))"
 Q goto @changed
 shot 17c-profile-source
+
+# 13d. the review of a load after the user changed a key the profile sets: the user's value is replaced ("your change
+#      replaced"), the changes the profile does not name stay (kept), and Nix holds density back (not applied).
+Q set theme.shape.radius_scale 0.8
+Q preview roomy
+pv=$(K '{"t":"act","id":"pv","action":"profile.preview","args":{"name":"roomy"}}')
+echo "$pv" | python3 -c 'import json,sys
+m = json.loads(sys.stdin.readline()); d = m["data"]
+r = [e for e in d["diff"] if e["key"] == "theme.shape.radius_scale"]
+assert r and r[0]["before"]["source"]["kind"] == "user", r
+assert d["kept_user"] >= 2, d
+assert any(h["key"] == "theme.density" for h in d["not_applied"]), d' || fail "overlay: the review does not replace the user value or keep the others: $pv"
+shot 4b-profile-overlay
+echo "overlay B13: the review replaces radius_scale (your change), keeps the other changes, and holds density back"
 
 # 14b. a value the daemon keeps but no offer names (I9, K21): the dropdown shows the value as it is, the row says it has
 #      no effect, and the row stays editable. Set through the same path as the controls.
@@ -489,6 +507,60 @@ rm -rf "$R/data/kurashi/mods/demo-blur"
 sleep 2
 shot 19b-mod-removed-while-on
 
+# P0. a profile of this machine to export: "mine" saves the current settings, so it holds this output's bar height, which
+#     export leaves out (per output, UX brief settings 6). Saved through the same action as the Save button.
+K '{"t":"act","id":"sv","action":"profile.save","args":{"name":"mine"}}' | grep -q '"done"' || fail "profile.save mine failed"
+for _ in $(seq 50); do [[ "$(Q profileNames)" == *mine* ]] && break; sleep 0.2; done
+[[ "$(Q profileNames)" == *mine* ]] || fail "profiles: mine is not listed ($(Q profileNames))"
+
+# P1. export, by keyboard: Tab to Export and Return writes mine.toml to the export folder, and the result lists what
+#     stayed on this machine and why.
+Q goto @profiles
+Q preview mine
+Q focusList >/dev/null
+tab_to "profile-export" 120
+kp return
+for _ in $(seq 50); do [ -s "$R/data/kurashi/exports/mine.toml" ] && break; sleep 0.2; done
+[ -s "$R/data/kurashi/exports/mine.toml" ] || fail "export: no mine.toml in the export folder"
+grep -q 'height' "$R/data/kurashi/exports/mine.toml" || fail "export: the file holds no settings"
+shot 24-export-result
+echo "keyboard P1: Tab to Export and Return wrote the export folder's mine.toml"
+
+# P2. import error (UX brief, settings: error states), by keyboard: from Export, Tab reaches the import field. A name the
+#     export folder does not hold is refused in place with its code; no review opens and the field keeps its text.
+kp tab
+kp n o p e
+kp return
+sleep 1
+[ "$(Q focused)" = "Import file" ] || fail "import: focus left the field after a refused name ($(Q focused))"
+shot 25-import-error
+echo "keyboard P2: a file name the export folder does not hold is refused in place"
+
+# P3. import review, by keyboard: a file name the folder holds opens the review with Apply focused; Esc cancels it, nothing
+#     changes, and the field takes the focus back.
+for _ in $(seq 8); do echo backspace >&3; sleep 0.1; done
+kp m i n e
+kp return
+sleep 1
+[ "$(Q focused)" = "profile-apply" ] || fail "import review: Apply does not hold the focus ($(Q focused))"
+shot 26-import-review
+kp escape
+sleep 0.5
+[ "$(Q focused)" = "Import file" ] || fail "import review: Esc did not cancel back to the field ($(Q focused))"
+echo "keyboard P3: Return reviewed mine.toml with Apply focused; Esc cancelled the review"
+
+# P4. Apply, by keyboard: Return on the field reviews again, Return on Apply loads the file as one undoable change. Its
+#     profile names history size, so the user's 210 is replaced by mine's value (source: profile).
+kp return
+sleep 1
+[ "$(Q focused)" = "profile-apply" ] || fail "import review: the second review does not hold Apply ($(Q focused))"
+kp return
+for _ in $(seq 30); do [ "$(Q focused)" = "Import file" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "Import file" ] || fail "import: focus did not return to the field after Apply ($(Q focused))"
+[ "$(src notifications.history_max)" = profile ] || fail "import: Apply did not load mine ($(src notifications.history_max))"
+shot 27-import-applied
+echo "keyboard P4: Apply loaded mine.toml as one change; the focus is back on the field"
+
 # 9. profiles (K27): a profile file that appears while the Profiles page is open is listed by the same Settings process,
 #    with no reconnect (the daemon pushes the list when the file appears).
 Q goto @profiles
@@ -501,8 +573,6 @@ while [[ "$(Q profileNames)" != *late* ]]; do
 done
 echo "profiles: late.toml listed after $(( ($(date +%s%N) - t0) / 1000000 )) ms (IPC round trips included)"
 shot 9-profiles-live
-exec 3>&-
-kbd_pid=""
 
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
@@ -518,6 +588,20 @@ shot ja-changed
 Q goto @profiles
 Q preview roomy
 shot ja-profiles
+# The export and the refused import, in Japanese (the virtual keyboard stayed open through the restart).
+Q focusList >/dev/null
+Q preview mine
+tab_to "profile-export" 120
+kp return
+sleep 1
+shot ja-profile-export
+kp tab
+kp n o p e
+kp return
+sleep 1
+shot ja-import-error
+exec 3>&-
+kbd_pid=""
 Q goto mods.media
 shot ja-mod-page
 Q goto @mods

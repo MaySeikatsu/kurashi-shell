@@ -15,3 +15,5 @@ LinkText 1.0 LinkText.qml
 FocusRing 1.0 FocusRing.qml
 PageHeader 1.0 PageHeader.qml
 ModHead 1.0 ModHead.qml
+ProfileDiffRow 1.0 ProfileDiffRow.qml
+ProfileReview 1.0 ProfileReview.qml
