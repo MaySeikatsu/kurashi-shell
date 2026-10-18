@@ -215,7 +215,7 @@ Item {
             border.width: 1
             border.color: Theme.outline
             Accessible.role: Accessible.StaticText
-            Accessible.name: I18n.tr("island.secondary").replace("{face}", I18n.tr("island.face." + isl.secondaryFace))
+            Accessible.name: isl.secondaryFace ? I18n.tr("island.secondary").replace("{face}", I18n.tr("island.face." + isl.secondaryFace)) : ""
             Text {
                 anchors.centerIn: parent
                 color: Theme.dim

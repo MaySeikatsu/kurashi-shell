@@ -61,7 +61,8 @@ PanelWindow {
     signal trayMenuRequested(string id)
     readonly property real daemonVolume: audio.volume ?? 0
     readonly property string volumeA11y: !audioUsable ? I18n.tr("frontend.volume.unavailable")
-        : (audioMuted ? I18n.tr("frontend.volume.muted") : "")
+        : (audioMuted ? I18n.tr("frontend.volume.muted")
+            : I18n.tr("frontend.volume.level").replace("{pct}", Math.round(daemonVolume * 100)))
     // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
     readonly property var pills: {
         var o = workspaces.outputs || {}
