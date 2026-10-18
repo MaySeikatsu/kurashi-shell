@@ -40,7 +40,8 @@ PanelWindow {
     readonly property bool open: want || quickWanted || modWanted
     // K24: the island card shows the expanded view of the face the daemon latched when it opened. A core face
     // without one gets the generic card; a mod face loads its `island-face:<name>:expanded` (K28), or the generic card.
-    readonly property var expandedFaces: ["media", "notifications", "clock", "volume", "brightness"]
+    // power and bluetooth open their quick settings pages, not the generic card (I44).
+    readonly property var expandedFaces: ["media", "notifications", "clock", "volume", "brightness", "power", "bluetooth"]
     readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : (ui.face ? "modface" : "island")
     readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray"
         : (quickWanted ? "quick" : (modWanted ? "mod" : (want ? islandKind : ""))))
@@ -66,7 +67,8 @@ PanelWindow {
     // while the card is on screen, so a view that is not shown holds no subscription (Ma).
     readonly property var views: ({
         island: genericView, media: mediaView, notifications: notificationsView, clock: clockView,
-        volume: volumeView, brightness: brightnessView, quick: quickView, mod: modPanelView, modface: modFaceView
+        volume: volumeView, brightness: brightnessView, quick: quickView, mod: modPanelView, modface: modFaceView,
+        power: powerView, bluetooth: bluetoothView
     })
     readonly property bool viewing: views[contentKind] !== undefined
     // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
@@ -84,6 +86,9 @@ PanelWindow {
     Component { id: volumeView; VolumeView {} }
     Component { id: brightnessView; BrightnessView {} }
     Component { id: quickView; QuickPanel {} }
+    // The power and bluetooth faces' expanded views are the quick settings pages (I44): the card opens on that page.
+    Component { id: powerView; QuickPanel { startPage: "power" } }
+    Component { id: bluetoothView; QuickPanel { startPage: "bluetooth" } }
     // A mod's Panel.qml (K26): the card's one Loader makes it, ModLoader destroys it when the mod is disabled.
     Component {
         id: modPanelView
