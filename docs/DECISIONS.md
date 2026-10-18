@@ -279,3 +279,14 @@ forced layer holds back keeps the user value (inert, shown as not applied). Prev
 replaced") and `kept_user`. *Why:* loading "roomy" wiped an unrelated History size (B13); KDE global themes and
 macOS focus profiles change only what they contain; a profile is a story about some settings, not a reset.
 
+**K37** 🟢 Test sandboxes have no network (lead, session 6; I58, B23, CONTRACT row 84; W16-test-infra). `tools/bench/sandbox.sh`
+holds a user + network namespace with loopback only (`netns-hold.py` execs sway inside it); every process started with
+the sandbox's env lines joins it before `main()` through `LD_PRELOAD=netjoin.so`, and **fails closed** (exit 111) when
+the holder is gone or the namespace is not the recorded one. `sandbox.sh start` runs `netcheck.py` (interfaces,
+connect, HTTPS must fail) and refuses a sandbox that reaches a network; `KURASHI_SANDBOX_NET=1` opts out (no test does).
+Known gaps: name lookups still go to the host nscd over its unix socket (no route exists); a shell that keeps the
+eval'd env after `sandbox.sh stop` cannot start processes — unset `LD_PRELOAD KURASHI_SANDBOX_NETNS_PID
+KURASHI_SANDBOX_NETNS_ID`. *Why:* a stale sandbox daemon fetched the real Open-Meteo forecast (B23); tests must be
+hermetic by construction, not by every test remembering a fixture hook. Evidence: the `netcheck` lines in
+`frontend/test-stage.sh` and `test-real.sh` logs.
+

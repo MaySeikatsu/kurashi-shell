@@ -136,8 +136,8 @@ reason, I9). The mod's service (document `mod.wallpaper`: per output `{path, fit
 `transition`, `rotate` (minutes, 0 = off; the timer exists only while > 0 and the mod is on).
 Capabilities `exec:awww`, `exec:swww`, `fs:scoped` (K33).
 
-Shapes (contract row 67): `mod.wallpaper` also carries `theme: {image}` (the picture last applied *with*
-its theme, or null) and `favourites: [{image, scheme?, variant?}]` (a saved look). `wallpaper.set` takes
+Shapes (contract row 67): `mod.wallpaper` also carries `theme: {image?}` (the picture last applied *with*
+its theme; `image` absent while there is none — documents carry no `null`, B25) and `favourites: [{image, scheme?, variant?}]` (a saved look). `wallpaper.set` takes
 `{path, output?, origin?: {x, y}, theme?}` (`theme: true` makes the picture the theme's: the mod records
 it in `theme.image`); `wallpaper.favourite {image, scheme?, variant?}`; `wallpaper.thumbs` rows carry
 `pair: {role, partner}` (light/dark pairs) and a response names its `folder`, `root` and `children`;
