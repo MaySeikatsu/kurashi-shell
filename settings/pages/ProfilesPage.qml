@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import "../core"
 import "../components"
+import "../components/ProfileDiff.js" as ProfileDiff
 
 // Profiles (UX brief, settings 6). A profile is a set of settings with an origin (bundled, or yours). Loading one is an
 // overlay (B13): it changes the settings the profile sets and keeps every other change of yours. The review shows what
@@ -42,7 +43,8 @@ Flickable {
     property bool importFailed: false
     property var importHeld: []
 
-    readonly property int differ: diff ? diff.length : 0
+    // The header counts the settings whose value changes; a line that only moves a setting to this profile is no difference.
+    readonly property int differ: diff ? ProfileDiff.valueChanges(diff) : 0
     readonly property bool exists: selected !== "" && profiles.some(function (x) { return x.name === selected })
 
     contentWidth: width
@@ -173,8 +175,16 @@ Flickable {
             var d = m.data || ({})
             p.review = { name: d.name || "", path: path, entries: d.diff || [], held: d.not_applied || [],
                          kept: d.kept_user || 0, diagnostics: d.diagnostics || [] }
-            Qt.callLater(function () { applyBtn.forceActiveFocus() })
+            // The review sits below a long load preview: the page scrolls to its buttons, which take the focus.
+            Qt.callLater(function () { applyBtn.forceActiveFocus(); p.reveal(reviewButtons) })
         })
+    }
+    // Scrolls the least that brings the item into view (the focus can sit below the fold otherwise).
+    function reveal(item) {
+        var top = item.mapToItem(p.contentItem, 0, 0).y
+        var bottom = top + item.height
+        if (top < p.contentY) p.contentY = Math.max(0, top - Theme.pad)
+        else if (bottom > p.contentY + p.height) p.contentY = Math.min(bottom - p.height + Theme.pad, p.contentHeight - p.height)
     }
     // Loads the reviewed file as one undoable change (profile.import with apply).
     function applyReview() {
@@ -189,17 +199,19 @@ Flickable {
                 p.importFailed = false
                 p.importMsg = I18n.fmt("settings.ui.import_done", { name: d.name || r.name, n: d.kept_user || 0 })
                 p.importHeld = d.not_applied || []
+                // The apply changed the settings: the selected profile's preview is read again.
+                if (p.selected !== "") p.preview(p.selected)
             } else {
                 p.importFailed = true
                 p.importMsg = p.failure(m, "settings.err.profile_import")
             }
-            Qt.callLater(function () { importField.focusInput() })
+            Qt.callLater(function () { importField.focusInput(); p.reveal(importField) })
         })
     }
     // Esc on the review, or Cancel: the review goes, nothing has changed, and the field takes the focus back.
     function cancelReview() {
         review = null
-        Qt.callLater(function () { importField.focusInput() })
+        Qt.callLater(function () { importField.focusInput(); p.reveal(importField) })
     }
     // Public so the test hook can drive the page like a click would.
     function select(name) { choose(name) }
@@ -310,7 +322,8 @@ Flickable {
                 font.pixelSize: Theme.fsTitle
                 font.family: Theme.fam(text, Theme.families)
                 text: p.diff === null ? p.selected
-                    : I18n.fmt(p.differ === 0 ? "settings.ui.profile_none_differ" : "settings.ui.profile_differ",
+                    : I18n.fmt(p.differ === 0 ? "settings.ui.profile_none_differ"
+                               : p.differ === 1 ? "settings.ui.profile_differ_one" : "settings.ui.profile_differ",
                                { name: p.selected, n: p.differ })
             }
             Row {
@@ -551,8 +564,9 @@ Flickable {
                 font.pixelSize: Theme.fs
                 font.bold: true
                 font.family: Theme.fam(text, Theme.families)
-                text: p.review ? I18n.fmt("settings.ui.import_title",
-                                          { name: p.review.name, n: p.review.entries.length }) : ""
+                text: p.review ? I18n.fmt(ProfileDiff.valueChanges(p.review.entries) === 1
+                                          ? "settings.ui.import_title_one" : "settings.ui.import_title",
+                                          { name: p.review.name, n: ProfileDiff.valueChanges(p.review.entries) }) : ""
             }
             ProfileReview {
                 width: reviewBox.width
@@ -570,6 +584,7 @@ Flickable {
                 text: I18n.tr("settings.ui.import_keys")
             }
             Row {
+                id: reviewButtons
                 spacing: Theme.gap
                 Button {
                     id: applyBtn
