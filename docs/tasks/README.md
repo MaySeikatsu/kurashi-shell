@@ -208,3 +208,9 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W14-settings-daemon](W14-settings-daemon.md) | profile export/import, `kurashi settings`, `settings.open`, face labels, wl_keys modifiers | haiku |
 | [W14-weather-ux](W14-weather-ux.md) | weather crate + `mods/weather` | haiku |
 
+## Wave 15 (2026-10-18, session 6)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W15-profiles](W15-profiles.md) | `crates/kurashi-config/`, kurashid profile actions, `settings/pages/ProfilesPage.qml` | haiku (max) |
+| [W15-job-active](W15-job-active.md) | `crates/kurashi-mod-api/`, kurashid `native.rs`, settings mod head | haiku (max) |
+| [W15-quick-island-polish](W15-quick-island-polish.md) | quick settings components, VolumeFace, Stage views map, shell.qml `want` | haiku (max) |
