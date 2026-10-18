@@ -148,3 +148,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W15.3 | Quick/island polish: tonal tiles, tile contract, OSD device, power/bluetooth views, quick output re-pick (I51, I52, I45, I44, B14) | ✅ functional · UX ⏳ (two-output check: row 80) | W15-quick-island-polish 269c5da + lead fixes 38ac21f |
 | W15.4 | Sysmon fixes: shell processes protected (B24), names (I61), GPU tile (I62), fixture states (I56) | ✅ functional · UX ⏳ (peek W16, I65) | W15-sysmon-fixes 188fc60 |
 | K35 | Stage-hosted peeks: daemon, contract, mock (frontend = W16) | 🔄 daemon ✅ | lead cf27536 |
+| W16.1 | K37 no-network sandboxes (I58), mock focus model + B14 two-output step (row 80), no nulls in mod.wallpaper (B25) | ✅ | W16-test-infra 31e7c74 |
