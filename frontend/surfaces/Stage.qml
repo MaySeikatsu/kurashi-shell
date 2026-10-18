@@ -228,7 +228,7 @@ PanelWindow {
         visible: stage.shown
         // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel
         // asks for its card width (contract row 66); the rest keep 360 px.
-        width: stage.contentKind === "media" || stage.contentKind === "clock" || stage.contentKind === "quick" ? 400
+        width: ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
             : (stage.contentKind === "mod" ? stage.modCardWidth : 360)
         height: (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)

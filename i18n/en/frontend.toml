@@ -32,4 +32,5 @@
 "frontend.bt.failed" = "The Bluetooth request failed."
 "frontend.volume.unavailable" = "no audio"
 "frontend.volume.muted" = "muted"
+"frontend.volume.level" = "volume {pct} %"
 "frontend.quick.open" = "Quick settings"
