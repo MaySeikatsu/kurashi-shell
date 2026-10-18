@@ -5,6 +5,7 @@
 #     vertical layout (unavailable-left.png);
 #   - the MOCK (volume 0.5, available): the accent fill and knob are drawn (available.png);
 #   - the mock, muted: the level is drawn in the dim token, no accent (muted.png);
+#   - the mock, unmuted, with the daemon's device line (detail.volume, I45): the volume face says that line (volume-device.png);
 #   - the frontend logs no QML error.
 #   nix develop -c frontend/test-volume.sh [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug),
@@ -240,6 +241,11 @@ ipc act audio.mute.toggle >/dev/null || fail "audio.mute.toggle failed on the mo
 shot muted 2
 check muted top '.accent == 0 and .dim >= 150 and (.ink_groups[0][1] - .ink_groups[0][0]) >= 100' \
   "the muted level is not drawn dim in the slider's run (or still accent)"
+# 3. The volume face names the output when the daemon does (I45): unmuted, the pill says the daemon's line, not the percent.
+ipc act audio.mute.toggle >/dev/null || fail "audio.mute.toggle (unmute) failed on the mock"
+ipc act mock.island '{"face":"volume","reason":"default","detail":{"volume":"Headphones · 40 %"}}' >/dev/null \
+  || fail "mock.island (the volume face with a device line) failed"
+shot volume-device 2.5
 stop_phase
 
 if grep -q "ERROR\|TypeError\|ReferenceError\|Unable to assign\|is not defined" "$R/qs.log"; then
