@@ -388,3 +388,79 @@ async fn palette_wallpaper_follows_the_wallpaper_mods_picture() {
     assert!(!settings.contains("config.choice.palette.wallpaper"));
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// B13 through the profile actions: a load keeps the user's changes to keys the profile does not
+/// set, and the review and the load both say how many of them stayed. An import review does the
+/// same.
+#[tokio::test]
+async fn profile_actions_overlay_and_count_the_kept_changes() {
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let root = std::env::temp_dir().join(format!(
+        "kurashid-cfg-overlay-{}-{}",
+        std::process::id(),
+        N.fetch_add(1, Ordering::SeqCst)
+    ));
+    let _ = std::fs::remove_dir_all(&root);
+    std::fs::create_dir_all(root.join("config/profiles")).unwrap();
+    std::fs::write(
+        root.join("config/profiles/kanso.toml"),
+        "schema_version = 1\n[theme.colors]\npalette = \"kanso\"\n",
+    )
+    .unwrap();
+    let hub = Hub::new();
+    let store = ConfigStore::open(
+        hub.clone(),
+        kurashi_schema::v1::registry(),
+        kurashi_config::Paths::rooted(&root),
+        kurashi_config::Options::default(),
+    );
+    let mut actions = ActionRegistry::default();
+    store.register_actions(&mut actions);
+    store
+        .apply(&[
+            set("bar.height", json!(50)),
+            set("theme.colors.palette", json!("wa-iro")),
+        ])
+        .unwrap();
+
+    let review = actions
+        .invoke("profile.preview", json!({"name": "kanso"}))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(review["kept_user"], 1, "{review}");
+    assert_eq!(review["diff"].as_array().unwrap().len(), 1, "{review}");
+    assert_eq!(review["diff"][0]["before"]["source"]["kind"], "user");
+    assert_eq!(
+        store.get("theme.colors.palette", None).unwrap().value,
+        json!("wa-iro")
+    );
+
+    let loaded = actions
+        .invoke("profile.load", json!({"name": "kanso"}))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(loaded["kept_user"], 1, "{loaded}");
+    assert_eq!(store.get("bar.height", None).unwrap().value, json!(50));
+    assert_eq!(
+        store.get("theme.colors.palette", None).unwrap().source,
+        Source::Profile("kanso".into())
+    );
+
+    // The same review for a file: the path must be absolute, and the answer counts the same way.
+    let file = root.join("share.toml");
+    std::fs::write(
+        &file,
+        "schema_version = 1\n[theme.colors]\npalette = \"high-contrast\"\n",
+    )
+    .unwrap();
+    let import = actions
+        .invoke("profile.import", json!({"path": file.to_str().unwrap()}))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(import["kept_user"], 1, "{import}");
+    assert_eq!(import["name"], "share");
+    let _ = std::fs::remove_dir_all(&root);
+}

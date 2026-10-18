@@ -34,7 +34,8 @@ pub struct Options {
 pub(crate) struct Layers {
     pub nix: BTreeMap<Slot, Json>,
     pub theme: Option<(String, BTreeMap<Slot, Json>)>,
-    /// Entries may come from different profiles after section-wise loads (K7).
+    /// Each entry names the profile that set it. Loads replace only the keys they set (B13), so
+    /// entries of several profiles can coexist (K7).
     pub profile: BTreeMap<Slot, (String, Json)>,
     pub user: BTreeMap<Slot, Json>,
     /// `forced:<name>` sub-layers; later entries win.
@@ -888,8 +889,12 @@ impl<S: SchemaView> Config<S> {
         Ok(stem.to_string())
     }
 
-    /// Loading replaces the profile layer for the chosen sections (all with `None`) and clears
-    /// user overrides there, so the profile actually takes effect; forced/nix/theme stay.
+    /// Loading `name` changes only the keys it sets, within `sections` (B13, overlay). For each
+    /// such key, the entries of earlier profiles and every user override (any output) are replaced
+    /// by the profile's own entries, so the profile takes effect there. Every other user change and
+    /// every other profile entry stays, and keeps naming its own profile (K7). A key that a forced
+    /// layer holds back keeps its user value: the profile does not take effect there, and
+    /// `not_applied` reports it.
     fn profile_candidate(
         &self,
         name: &str,
@@ -897,15 +902,25 @@ impl<S: SchemaView> Config<S> {
         sections: Option<&[&str]>,
     ) -> Layers {
         let mut next = self.layers.clone();
-        let inside = |k: &str| in_sections(sections, k);
-        next.profile.retain(|(k, _), _| !inside(k));
-        next.user.retain(|(k, _), _| !inside(k));
-        for (slot, v) in entries {
-            if inside(&slot.0) {
-                next.profile
-                    .insert(slot.clone(), (name.to_string(), v.clone()));
-            }
+        let sets = |slot: &Slot| in_sections(sections, &slot.0);
+        // A key takes effect unless every one of its slots is held back by a forced layer.
+        let mut takes_effect: BTreeMap<&str, bool> = BTreeMap::new();
+        for (slot, _) in entries.iter().filter(|(s, _)| sets(s)) {
+            let held = matches!(
+                self.resolve_in(&self.layers, &slot.0, slot.1.as_deref())
+                    .map(|p| p.source),
+                Some(Source::Forced(_))
+            );
+            *takes_effect.entry(slot.0.as_str()).or_insert(false) |= !held;
         }
+        next.profile
+            .retain(|(k, _), _| !takes_effect.contains_key(k.as_str()));
+        for (slot, v) in entries.iter().filter(|(s, _)| sets(s)) {
+            next.profile
+                .insert(slot.clone(), (name.to_string(), v.clone()));
+        }
+        next.user
+            .retain(|(k, _), _| !matches!(takes_effect.get(k.as_str()), Some(true)));
         next
     }
 
@@ -941,11 +956,13 @@ impl<S: SchemaView> Config<S> {
                 diagnostics: flat.diagnostics.clone(),
             },
             not_applied: self.held_back(&next, &flat.entries, sections),
+            kept_user: next.user.len(),
         }
     }
 
     /// Effective before/after of loading `name` (sections: top-level tables or `mods.<id>`;
-    /// `None` = all), and what a forced layer would hold back. Nothing changes.
+    /// `None` = all), what a forced layer would hold back, and how many of your changes would stay.
+    /// Nothing changes.
     pub fn preview_profile(
         &self,
         name: &str,
@@ -967,8 +984,8 @@ impl<S: SchemaView> Config<S> {
         Ok(self.review(&flat, &name, sections))
     }
 
-    /// Loads a profile as **one** undoable transaction; returns the file's diagnostics and what a
-    /// forced layer holds back.
+    /// Loads a profile as **one** undoable transaction; returns the file's diagnostics, what a
+    /// forced layer holds back and how many of your changes stayed.
     pub fn load_profile(
         &mut self,
         name: &str,
@@ -997,11 +1014,13 @@ impl<S: SchemaView> Config<S> {
     ) -> Result<ProfileLoaded, ConfigError> {
         let next = self.profile_candidate(name, &flat.entries, sections);
         let not_applied = self.held_back(&next, &flat.entries, sections);
+        let kept_user = next.user.len();
         let applied = self.commit(next).map_err(ConfigError::Refused)?;
         Ok(ProfileLoaded {
             applied,
             diagnostics: flat.diagnostics.clone(),
             not_applied,
+            kept_user,
         })
     }
 

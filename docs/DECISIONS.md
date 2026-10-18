@@ -271,3 +271,11 @@ cards), sizes to the peek, and keeps 0 frames / no subscriptions while none show
 measure the retarget cost of a hover on another output (B7 budget, quiet machine), and whether the daemon round trip
 (~ms) feels instant. *Why:* one surface for every transient (K19); honest, daemon-owned UI state (rule 1); four
 consumers waiting (sysmon, weather, tray tooltips, island peek).
+
+**K36** 🟢 Profile load is an overlay (user decision, session 6; B13, CONTRACT row 81; W15-profiles). Loading a profile
+replaces only the keys it sets (within its sections): the user's values for those keys on every output, and earlier
+profiles' entries for them. Every other user change stays; "Reset to defaults" is a separate, explicit action. A key a
+forced layer holds back keeps the user value (inert, shown as not applied). Previews list what changes ("your change
+replaced") and `kept_user`. *Why:* loading "roomy" wiped an unrelated History size (B13); KDE global themes and
+macOS focus profiles change only what they contain; a profile is a story about some settings, not a reset.
+
