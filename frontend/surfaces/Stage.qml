@@ -7,7 +7,7 @@ import "../components"
 import "../components/expanded"
 
 // Stage (ARCHITECTURE §4): overlay layer surface holding popups / OSD / island expansions, the
-// session menu, the tray item menus (K23) and the quick settings card (K24). Sized to its content
+// session menu, the tray item menus (K23), the quick settings card (K24) and the hover peeks of bar items (K35). Sized to its content
 // (K16: a full-output buffer cost ~80 MiB), top-centred under the Island, or hung from the bar's
 // tray end for a tray menu. One instance, retargeted by shell.qml to the output that asked for it.
 // Later OSD/toasts: grow the implicit size to the union of their cards, or add sibling content-sized
@@ -125,29 +125,31 @@ PanelWindow {
     property bool gate: false           // waiting for the first presented frame
     property bool shown: false          // card is on screen (opening, open or closing)
 
-    // Only one vertical edge anchored -> the compositor centres the surface horizontally.
+    // Only one vertical edge anchored -> the compositor centres the surface horizontally. A peek is anchored left
+    // instead, at its own x (K35), on the bar's side of the output.
     anchors {
-        top: !bars.atBottom && !menuBeside
-        bottom: bars.atBottom || menuBeside
-        left: menuBeside && bars.edge === "left"
-        right: aligned && (!bars.vertical || bars.edge === "right")
+        top: peekLayout ? !bars.atBottom : (!bars.atBottom && !menuBeside)
+        bottom: peekLayout ? bars.atBottom : (bars.atBottom || menuBeside)
+        left: peekLayout || (menuBeside && bars.edge === "left")
+        right: !peekLayout && aligned && (!bars.vertical || bars.edge === "right")
     }
     margins {
         top: bars.topInset
         bottom: menuBeside ? Theme.pad : bars.bottomInset
-        left: menuBeside ? Theme.barH + Theme.gap : 0
+        left: peekLayout ? peekLeft : (menuBeside ? Theme.barH + Theme.gap : 0)
         right: aligned ? (menuBeside ? Theme.barH + Theme.gap : Theme.pad) : 0
     }
-    implicitWidth: card.width
-    implicitHeight: card.height
+    implicitWidth: peekLayout ? peekCard.width : card.width
+    implicitHeight: peekLayout ? peekCard.height : card.height
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     WlrLayershell.namespace: "kurashi-stage"
     color: "transparent"
-    mask: shown ? cardRegion : emptyRegion
-    BackgroundEffect.blurRegion: shown ? cardRegion : emptyRegion
+    mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
+    BackgroundEffect.blurRegion: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
     Region { id: cardRegion; item: card }
+    Region { id: peekRegion; item: peekCard }
     Region { id: emptyRegion }
 
     onOpenChanged: {
@@ -174,6 +176,7 @@ PanelWindow {
         target: card.Window.window
         function onFrameSwapped() {
             if (stage.gate) { stage.gate = false; anim.from = stage.p; anim.to = 1; anim.start() }
+            if (stage.peekGate) { stage.peekGate = false; peekAnim.start() }
         }
     }
 
@@ -220,6 +223,116 @@ PanelWindow {
     function trayTipText(id) {
         var it = trayItem(id)
         return String(it.tooltip || "").split("\n").filter(function (l) { return l !== "" && l !== it.title }).join(" · ")
+    }
+
+    // ---- peeks (K35, I55): the hover or focus peek of a bar item, drawn under the top bar or above the bottom bar, at the
+    // item's x, on the output the daemon names. Only while no card is open (the daemon removes a peek when a panel opens).
+    // The peek is never focused: the keyboard stays where it was. Its content is the source's: a mod's Peek.qml (ModLoader
+    // hands in its store), or the lines read here for a tray item and for the island.
+    readonly property var peekReq: ui.peek || null
+    readonly property string peekSourceId: peekReq && peekReq.source ? String(peekReq.source) : ""
+    readonly property string peekOutput: peekReq && peekReq.output ? String(peekReq.output) : ""
+    readonly property real peekX: peekReq && peekReq.x !== undefined ? Number(peekReq.x) : 0
+    readonly property string peekKind: peekKindOf(peekSourceId)
+    readonly property var peekMod: peekKind === "mod" ? Mods.panelOf(peekSourceId) : null
+    // Live: the source is one this shell can draw now (its mod is on and has the component, a tray item has text, the
+    // island has a line for its face).
+    readonly property bool peekAvailable: peekMod !== null
+        ? Mods.qmlOf(modsDoc, "peek:" + peekMod.panel, peekMod.mod) !== "" : peekLinesOf(peekSourceId).length > 0
+    // Drawn here: available, on this Stage's output, and on an enabled top or bottom bar (a side bar's peeks are not offered).
+    readonly property bool peekWanted: peekAvailable && !open && bars.enabled && !bars.vertical && !!screen
+        && screen.name === peekOutput
+    readonly property bool peekLayout: peekWanted && !shown
+    readonly property int peekMaxW: screen ? Math.max(160, Math.min(400, screen.width - 2 * Theme.gap)) : 400
+    readonly property int peekLeft: Math.max(0, Math.min(peekX, (screen ? screen.width : 0) - peekCard.width))
+    readonly property int peekSlide: 6
+    property real peekP: 0          // the fade and slide in, 0..1
+    property bool peekGate: false   // waiting for the first presented frame of the peek
+    function peekKindOf(src) {
+        if (src.indexOf("tray:") === 0) return "tray"
+        if (src.indexOf("island:") === 0) return "island"
+        return Mods.panelOf(src) !== null ? "mod" : ""
+    }
+    // A tray item's lines: its title, then its tooltip lines (the title is not repeated).
+    function trayPeek(src) {
+        var it = trayItem(src.substring("tray:".length))
+        var title = String(it.title || "")
+        var out = title !== "" ? [title] : []
+        String(it.tooltip || "").split("\n").forEach(function (l) { if (l !== "" && l !== title) out.push(l) })
+        return out
+    }
+    // The island's line: the shown face's, as the daemon composed it. A transient face has none (as the Island).
+    function islandPeek() {
+        var doc = Store.docs["runtime.island.main"] || ({})
+        var f = doc.face || "clock"
+        if (["volume", "brightness", "power", "bluetooth"].indexOf(f) >= 0) return []
+        var t = (doc.detail || ({}))[f]
+        return t === undefined || t === null || String(t) === "" ? [] : [String(t)]
+    }
+    function peekLinesOf(src) {
+        var k = peekKindOf(src)
+        return k === "tray" ? trayPeek(src) : (k === "island" ? islandPeek() : [])
+    }
+    function screenNamed(name) {
+        var s = Quickshell.screens
+        for (var i = 0; i < s.length; i++) if (s[i].name === name) return s[i]
+        return null
+    }
+    // The Stage is on the peek's output while the peek is asked for, and back on shell.qml's output once it has gone:
+    // RestoreBinding hands the property back to shell.qml's binding. Not while a card is open: the card keeps its output.
+    Binding {
+        when: stage.peekAvailable && !stage.open && stage.screenNamed(stage.peekOutput) !== null
+        target: stage
+        property: "screen"
+        value: stage.screenNamed(stage.peekOutput)
+        restoreMode: Binding.RestoreBinding
+    }
+    // Watched only while a peek of that kind is asked for (Ma).
+    Watch { doc: "svc.tray"; active: stage.peekKind === "tray" }
+    Watch { doc: "runtime.island.main"; active: stage.peekKind === "island" }
+    // The fade and slide in (DESIGN-SYSTEM §9: quick, and none under reduced motion), starting on the first frame that shows it.
+    NumberAnimation {
+        id: peekAnim
+        target: stage; property: "peekP"; to: 1
+        duration: Theme.quickMs
+        easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve
+    }
+    onPeekWantedChanged: {
+        peekAnim.stop()
+        peekP = 0
+        peekGate = peekWanted
+    }
+    // The frame: the content and the card's padding, at most the output's width less a gap. The Stage anchors it (see
+    // anchors). The pointer on it keeps it (Peeks.hold); a click dismisses it. Its content is loaded only while it shows (Ma).
+    Rectangle {
+        id: peekCard
+        visible: stage.peekWanted
+        width: Math.max(160, Math.min(stage.peekMaxW, peekLoader.implicitWidth + 2 * Theme.pad))
+        height: peekLoader.implicitHeight + 2 * Theme.pad
+        radius: Theme.rSm
+        color: Theme.containerHigh
+        border.width: 1
+        border.color: Theme.outline
+        clip: true
+        opacity: stage.peekP
+        y: (bars.atBottom ? 1 : -1) * stage.peekSlide * (1 - stage.peekP)
+        HoverHandler { onHoveredChanged: hovered ? Peeks.hold() : Peeks.leave() }
+        TapHandler { onTapped: Peeks.dismiss() }
+        Loader {
+            id: peekLoader
+            x: Theme.pad
+            y: Theme.pad
+            active: stage.peekWanted
+            sourceComponent: stage.peekKind === "mod" ? peekModView : (stage.peekKind === "" ? null : peekLinesView)
+        }
+    }
+    Component {
+        id: peekModView
+        ModLoader { provide: stage.peekMod ? "peek:" + stage.peekMod.panel : ""; mod: stage.peekMod ? stage.peekMod.mod : "" }
+    }
+    Component {
+        id: peekLinesView
+        PeekLines { lines: stage.peekLinesOf(stage.peekSourceId); maxWidth: stage.peekMaxW - 2 * Theme.pad }
     }
 
     // ---- card under the Island: the island's view or the quick card, session menu, or tray menu

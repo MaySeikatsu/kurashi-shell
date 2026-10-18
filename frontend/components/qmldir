@@ -14,3 +14,4 @@ ToggleSwitch 1.0 ToggleSwitch.qml
 BluetoothPanel 1.0 BluetoothPanel.qml
 QuickButton 1.0 QuickButton.qml
 QuickPanel 1.0 QuickPanel.qml
+PeekLines 1.0 PeekLines.qml

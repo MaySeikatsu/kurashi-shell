@@ -17,6 +17,9 @@ Item {
     property bool hasMenu: false      // a right click can open the item's menu
     property bool menuOnly: false     // ItemIsMenu: the item only offers its menu, so left click opens it
     property string tip: ""           // tooltip; the accessible description (no hover popup, see Bar)
+    // The hover peek (K35, B9): the Stage draws the item's title and tooltip on the output named here. "" offers none.
+    property string peekSource: ""    // "tray:<item id>"
+    property string peekOutput: ""
 
     // action: "activate" (left), "secondary" (middle), "menu" (right, only with a menu); x and y are
     // in this item's coordinates.
@@ -40,6 +43,7 @@ Item {
     onCandsChanged: idx = 0
 
     HoverHandler { id: hover }
+    PeekSource { target: ti; source: ti.peekSource; output: ti.peekOutput; hovered: hover.hovered }
     Rectangle {
         anchors.centerIn: parent
         width: parent.width - 6

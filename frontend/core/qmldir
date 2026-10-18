@@ -3,3 +3,5 @@ singleton Theme 1.0 Theme.qml
 singleton I18n 1.0 I18n.qml
 Watch 1.0 Watch.qml
 ModLoader 1.0 ModLoader.qml
+singleton Peeks 1.0 Peeks.qml
+PeekSource 1.0 PeekSource.qml

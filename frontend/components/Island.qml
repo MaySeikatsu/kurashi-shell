@@ -4,8 +4,8 @@ import "../core/mods.js" as Mods
 import "faces"
 
 // Island (島): the daemon decides the face (runtime.island.*); this only morphs between faces, and shows what the
-// decision adds beside it: the secondary activity as a minimal glyph and "+N" for the rest (K30), the face's peek
-// line while the pointer is on it (island brief 4), and "as of" when the face's content is stale (Shōjiki).
+// decision adds beside it: the secondary activity as a minimal glyph and "+N" for the rest (K30), and "as of" when the
+// face's content is stale (Shōjiki). The face's peek line is the Stage's, shown while the pointer is on the island (K35).
 // One component per core face id (faces/); each watches only the docs it renders and only while it is
 // visible. Interruptible: width/opacity are Behaviors, so a new face retargets mid-flight.
 // Animations are gated on `visible` (Ma) and armed only after the first layout so startup does
@@ -62,14 +62,23 @@ Item {
     property bool armed: false
     Component.onCompleted: armed = true
 
-    // The peek (island brief 4): while the pointer is on the island, a face that stays and has a line from the daemon
-    // shows that line in the pill's tail. It is inline, so nothing overlays other content and it stays exactly as long
-    // as the pointer is on the island (hoverable and dismissible in the WCAG 1.4.13 sense: leaving or clicking hides it).
-    // Pointer-only by design: the Stage holds the keyboard, and the island's keys are its own bindings.
+    // The peek (island brief 4, K35): while the pointer is on the island, a face that stays and has a line from the daemon
+    // is offered to the Stage, which draws that line under the bar. Leaving or clicking ends it (WCAG 1.4.13: dismissible,
+    // hoverable). Pointer-only by design: the Stage holds the keyboard, and the island's keys are its own bindings.
     property bool pointerIn: false
     property bool peekDismissed: false
     readonly property string peekText: isTransient ? "" : detailOf(shown)
-    readonly property bool peekOpen: pointerIn && !peekDismissed && peekText !== ""
+    // Off in a vertical bar: the island is turned there, and the Stage anchors a peek on top and bottom bars only.
+    property bool peekable: true
+    // The output this island's bar is on: the Stage draws the peek there.
+    property string peekOutput: ""
+    PeekSource {
+        target: isl
+        source: "island:main"
+        output: isl.peekOutput
+        hovered: isl.pointerIn && !isl.peekDismissed
+        enabled: isl.peekable && isl.peekText !== ""
+    }
 
     readonly property real faceW: {
         var l = [clock, media, volume, bright, notifs, power, bluetooth]
@@ -78,24 +87,16 @@ Item {
         if (modFace.item) return modFace.item.wantW ?? modFace.item.implicitWidth
         return 0
     }
-    // The tail at the pill's right end: the peek line, then the "as of" label. Measured with TextMetrics, which is
+    // The tail at the pill's right end: the "as of" label while the face is stale. Measured with TextMetrics, which is
     // synchronous (a hidden Text is not laid out, so its implicit width is not there when the pill needs it).
-    TextMetrics {
-        id: peekM
-        font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
-        text: isl.peekOpen ? isl.peekText : ""
-    }
     TextMetrics {
         id: staleM
         font.pixelSize: Theme.fsCaption
         font.family: Theme.fam(text, Theme.families)
         text: isl.isStale ? I18n.tr("island.stale").replace("{t}", isl.timeOf(isl.staleOf(isl.shown))) : ""
     }
-    readonly property real peekW: peekOpen ? Math.min(peekM.advanceWidth, 240) : 0
     readonly property real staleW: isStale ? staleM.advanceWidth : 0
-    readonly property real tailContentW: peekW + (peekW > 0 && staleW > 0 ? Theme.gap : 0) + staleW
-    readonly property real tailW: tailContentW > 0 ? tailContentW + Theme.gap : 0
+    readonly property real tailW: staleW > 0 ? staleW + Theme.gap : 0
     readonly property real pillW: faceW + 2 * Theme.pad + tailW
     readonly property real extrasW: extras.visible ? Theme.xs + extras.width : 0
 
@@ -152,7 +153,7 @@ Item {
             }
         }
 
-        // The tail (see tailW): the "as of" label at the right end while the face is stale, the peek line before it.
+        // The tail (see tailW): the "as of" label at the right end while the face is stale.
         Text {
             id: staleLabel
             visible: isl.isStale
@@ -162,21 +163,6 @@ Item {
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
             text: staleM.text
-        }
-        Text {
-            id: peekLabel
-            visible: isl.peekOpen
-            anchors {
-                right: staleLabel.visible ? staleLabel.left : parent.right
-                rightMargin: staleLabel.visible ? Theme.gap : Theme.pad
-                verticalCenter: parent.verticalCenter
-            }
-            width: isl.peekW
-            elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
-            text: peekM.text
         }
     }
 
