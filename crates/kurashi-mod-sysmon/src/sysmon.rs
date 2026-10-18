@@ -15,7 +15,7 @@ use crate::sampler::{Memory, Sample, Sampler};
 use crate::thermal;
 use crate::trouble::{Kind, Limits, Readings, Transition, Trouble};
 use kurashi_mod_api::{
-    ActionError, FaceHandle, FaceSpec, ModCtx, ModError, NativeMod, Publish, Settings,
+    ActionError, FaceHandle, FaceSpec, JobCtx, ModCtx, ModError, NativeMod, Publish, Settings,
 };
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -519,8 +519,10 @@ async fn procs_service(shared: Arc<Shared>, publish: Publish, mut settings: Sett
 }
 
 /// The watch: the trouble is measured while the opt-in `watch` setting is on and sampling is not paused,
-/// every [`WATCH_EVERY`], with nothing published. Off, it waits on the settings and costs nothing.
-async fn watch(shared: Arc<Shared>, mut settings: Settings) {
+/// every [`WATCH_EVERY`], with nothing published. Off, it waits on the settings and costs nothing. Its job
+/// has work only while it measures, so a paused watch is not reported as running (I48).
+async fn watch(shared: Arc<Shared>, job: JobCtx) {
+    let mut settings = job.settings().clone();
     let mut pause = shared.pause.subscribe();
     let mut sampler = Sampler::new(shared.roots.clone(), "auto");
     loop {
@@ -529,6 +531,7 @@ async fn watch(shared: Arc<Shared>, mut settings: Settings) {
         let by = paused_by(runtime, &cfg);
         let on = cfg.watch && by.is_none();
         shared.watching.store(on, Ordering::SeqCst);
+        job.set_active(on);
         if !on {
             // A paused watch drops its trouble too: a face is never raised by a value no longer measured.
             if by.is_some() {
@@ -747,8 +750,8 @@ impl NativeMod for Sysmon {
         // disable. Pause stops it too, inside the task.
         let s = shared.clone();
         ctx.background("watch", "mods.running.watch", "watch", move |job| {
-            let (s, settings) = (s.clone(), job.settings().clone());
-            async move { watch(s, settings).await }
+            let s = s.clone();
+            async move { watch(s, job).await }
         })?;
         Ok(())
     }

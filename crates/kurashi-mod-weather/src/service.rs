@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
-use kurashi_mod_api::{Choice, ChoicesHandle, FaceHandle, Publish, Settings};
+use kurashi_mod_api::{Choice, ChoicesHandle, FaceHandle, JobCtx, Publish, Settings};
 use serde_json::Value;
 use tokio::sync::{Mutex as AsyncMutex, Notify};
 
@@ -214,6 +214,12 @@ impl Shared {
         self.bg_wake.notify_one();
     }
 
+    /// Whether a place is saved, so that the rain watch has one to watch (I48). The same choice as `resolve`,
+    /// without its effect on the place shown.
+    fn has_place(&self, cfg: &Config) -> bool {
+        self.with(|st| places::effective(&st.places, &cfg.place, st.scrolled.as_deref()).is_some())
+    }
+
     /// The place in effect now (also recorded as the one shown, for scrolling).
     fn resolve(&self, cfg: &Config) -> Option<Place> {
         self.with(|st| {
@@ -387,10 +393,13 @@ pub async fn run(shared: Arc<Shared>, publish: Publish, mut settings: Settings) 
 }
 
 /// The background job of rain alerts (docs/ux/weather.md, Fit): with alerts on and no subscriber,
-/// one forecast request per refresh feeds the rain-soon face. Ends when the mod is disabled.
-pub async fn rain_job(shared: Arc<Shared>, mut settings: Settings) {
+/// one forecast request per refresh feeds the rain-soon face. Ends when the mod is disabled. It has work
+/// only while a place is saved to watch: without one it says so, and Settings does not list it (I48).
+pub async fn rain_job(shared: Arc<Shared>, job: JobCtx) {
+    let mut settings = job.settings().clone();
     loop {
         let cfg = Config::read(&settings);
+        job.set_active(cfg.rain_alerts && shared.has_place(&cfg));
         let mut wake = None;
         if cfg.rain_alerts && !shared.subscribed.load(Ordering::SeqCst) {
             if let Some(place) = shared.resolve(&cfg) {
@@ -425,6 +434,39 @@ pub async fn rain_job(shared: Arc<Shared>, mut settings: Settings) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_rain_watch_has_work_only_with_a_saved_place() {
+        use crate::http::Ureq;
+        // No places file: nothing is saved, so there is nothing to watch, whatever the setting says (I48).
+        let shared = Shared::new(
+            Arc::new(Ureq::default()),
+            Endpoints::default(),
+            Arc::new(|| 0),
+            Path::new("/nonexistent/kurashi-weather-test"),
+            Units::Metric,
+        );
+        let (_, rx) = tokio::sync::watch::channel(BTreeMap::from([(
+            "rain_alerts".to_owned(),
+            serde_json::json!(true),
+        )]));
+        let cfg = Config::read(&Settings::new(rx));
+        assert!(cfg.rain_alerts);
+        assert!(!shared.has_place(&cfg));
+        shared.with(|st| {
+            st.places.push(Place {
+                id: "tokyo".into(),
+                name: "Tokyo".into(),
+                admin: None,
+                country: None,
+                country_code: None,
+                lat: 35.68,
+                lon: 139.69,
+                tz: "Asia/Tokyo".into(),
+            });
+        });
+        assert!(shared.has_place(&cfg));
+    }
 
     #[test]
     fn backoff_doubles_and_rate_limits_wait_a_refresh() {

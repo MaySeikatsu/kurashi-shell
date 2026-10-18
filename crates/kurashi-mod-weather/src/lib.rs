@@ -156,7 +156,8 @@ impl NativeMod for WeatherMod {
         shared.set_choices(choices);
 
         // Rain alerts need a job while nothing subscribes. The daemon runs it while `rain_alerts` is on
-        // and the mod is enabled, cancels it on disable, and reports it as running (I23).
+        // and the mod is enabled, cancels it on disable, and reports it as running while it has a place to
+        // watch (I23, I48).
         let s = shared.clone();
         ctx.background(
             "rain",
@@ -164,8 +165,7 @@ impl NativeMod for WeatherMod {
             "rain_alerts",
             move |job| {
                 let s = s.clone();
-                let settings = job.settings().clone();
-                async move { service::rain_job(s, settings).await }
+                async move { service::rain_job(s, job).await }
             },
         )?;
         Ok(())

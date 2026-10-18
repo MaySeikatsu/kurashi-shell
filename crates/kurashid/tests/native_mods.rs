@@ -23,7 +23,7 @@ use kurashid::{ActionError, ActionRegistry, Hub, wiring};
 use serde_json::{Value, json};
 use tokio::net::UnixStream;
 use tokio::net::unix::{OwnedReadHalf, OwnedWriteHalf};
-use tokio::sync::{broadcast, oneshot};
+use tokio::sync::{broadcast, oneshot, watch};
 
 /// Registers an action its manifest declares, then one it does not.
 struct Rogue;
@@ -989,13 +989,18 @@ fn job_mod(extra: &Path, id: &str, jobs: &[&str]) {
 }
 
 fn set_on(d: &Daemon, id: &str, on: bool) {
+    set_key(d, id, "on", json!(on));
+}
+
+/// Sets one setting of a mod (`mods.<id>.<key>`) through the config store, as Settings does.
+fn set_key(d: &Daemon, id: &str, key: &str, value: Value) {
     d.store
         .apply(&[ApplyOp::Set {
-            set: format!("mods.{id}.on"),
-            value: json!(on),
+            set: format!("mods.{id}.{key}"),
+            value,
             output: None,
         }])
-        .expect("a bool setting of the mod");
+        .expect("a setting of the mod");
 }
 
 /// The reasons a mod reports as running now (`running_reasons` of the `mods` document).
@@ -1077,6 +1082,151 @@ async fn a_job_that_ends_by_itself_is_no_longer_reported() {
     set_on(&d, "once", true);
     tokio::time::sleep(Duration::from_millis(10)).await;
     assert_eq!(reasons(&d, "once"), json!([]));
+}
+
+/// A job that says whether it has work, as the test tells it through `work`. Its body stays alive while it
+/// has none, so it resumes without a restart (I48).
+struct Idler {
+    work: Arc<watch::Sender<bool>>,
+    starts: Arc<AtomicUsize>,
+    alive: Arc<AtomicBool>,
+}
+
+impl NativeMod for Idler {
+    fn id(&self) -> &'static str {
+        "idler"
+    }
+
+    fn enable(&self, ctx: &mut ModCtx) -> Result<(), ModError> {
+        let (work, starts, alive) = (
+            self.work.subscribe(),
+            self.starts.clone(),
+            self.alive.clone(),
+        );
+        ctx.background("idle", "mods.running.idle", "on", move |job| {
+            let (mut work, starts, alive) = (work.clone(), starts.clone(), alive.clone());
+            async move {
+                starts.fetch_add(1, Ordering::SeqCst);
+                alive.store(true, Ordering::SeqCst);
+                let _alive = Alive(alive);
+                loop {
+                    let active = *work.borrow_and_update();
+                    job.set_active(active);
+                    if work.changed().await.is_err() {
+                        return;
+                    }
+                }
+            }
+        })
+    }
+}
+
+/// A job with nothing to do says so: its reason leaves `running_reasons` and `running` turns false, its body
+/// stays alive, and it resumes with work without a restart. A new run starts from the work it finds (I48).
+#[tokio::test(start_paused = true)]
+async fn an_idle_job_is_not_reported_as_running_and_resumes_without_a_restart() {
+    let extra = scratch("idler-mods");
+    job_mod(&extra, "idler", &["idle"]);
+    let work = Arc::new(watch::channel(true).0);
+    let (starts, alive) = (
+        Arc::new(AtomicUsize::new(0)),
+        Arc::new(AtomicBool::new(false)),
+    );
+    let linked = vec![Box::new(Idler {
+        work: work.clone(),
+        starts: starts.clone(),
+        alive: alive.clone(),
+    }) as Box<dyn NativeMod>];
+    let d = start(&scratch("idler"), std::slice::from_ref(&extra), linked);
+    d.act("mod.enable", "idler").await.unwrap();
+    set_on(&d, "idler", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "idler"), json!(["mods.running.idle"]));
+    assert!(d.running("idler"));
+
+    // Nothing to do: the reason leaves the document, `running` turns false, and the body stays alive.
+    work.send_replace(false);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "idler"), json!([]));
+    assert!(!d.running("idler"));
+    assert!(
+        alive.load(Ordering::SeqCst),
+        "an idle job keeps its body alive"
+    );
+
+    // Work again: the reason is back, and the body was not started again.
+    work.send_replace(true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "idler"), json!(["mods.running.idle"]));
+    assert!(d.running("idler"));
+    assert_eq!(
+        starts.load(Ordering::SeqCst),
+        1,
+        "resuming needs no restart"
+    );
+
+    // Idle again, then the setting lets go: the job is cancelled, and nothing is reported.
+    work.send_replace(false);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    set_on(&d, "idler", false);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert!(
+        !alive.load(Ordering::SeqCst),
+        "the cancelled run is dropped"
+    );
+    assert_eq!(reasons(&d, "idler"), json!([]));
+
+    // A new run with work is reported again: the idle state belonged to the run that ended.
+    work.send_replace(true);
+    set_on(&d, "idler", true);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(starts.load(Ordering::SeqCst), 2);
+    assert_eq!(reasons(&d, "idler"), json!(["mods.running.idle"]));
+}
+
+/// The real system monitor (I48, docs/ux/sysmon.md): its watch is not reported as running while paused, by the
+/// setting or by the panel, and is again once resumed.
+#[tokio::test(start_paused = true)]
+async fn the_sysmon_watch_is_not_running_while_paused() {
+    let linked = vec![Box::new(kurashi_mod_sysmon::Sysmon::new()) as Box<dyn NativeMod>];
+    let d = start(&scratch("sysmon"), &[], linked);
+    d.act("mod.enable", "sysmon").await.unwrap();
+    assert_eq!(d.state("sysmon"), "enabled");
+
+    set_key(&d, "sysmon", "watch", json!(true));
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!(["mods.running.watch"]));
+    assert!(d.running("sysmon"));
+
+    // The setting pauses the watch: it is not running.
+    set_key(&d, "sysmon", "paused", json!(true));
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!([]));
+    assert!(!d.running("sysmon"));
+
+    // The setting resumes it: the watch runs again, with no restart.
+    set_key(&d, "sysmon", "paused", json!(false));
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!(["mods.running.watch"]));
+
+    // The panel pauses it, through the action the panel's Pause sends: not running either.
+    d.actions
+        .invoke("sysmon.pause", json!({"paused": true}))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!([]));
+    d.actions
+        .invoke("sysmon.pause", json!({"paused": false}))
+        .await
+        .unwrap();
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!(["mods.running.watch"]));
+
+    // Unwatched: the job is cancelled, and nothing is running.
+    set_key(&d, "sysmon", "watch", json!(false));
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    assert_eq!(reasons(&d, "sysmon"), json!([]));
 }
 
 /// Declares a job that waits for a setting its manifest does not have: the enable is refused.
