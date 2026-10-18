@@ -149,3 +149,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W15.4 | Sysmon fixes: shell processes protected (B24), names (I61), GPU tile (I62), fixture states (I56) | ✅ functional · UX ⏳ (peek W16, I65) | W15-sysmon-fixes 188fc60 |
 | K35 | Stage-hosted peeks: daemon, contract, mock (frontend = W16) | 🔄 daemon ✅ | lead cf27536 |
 | W16.1 | K37 no-network sandboxes (I58), mock focus model + B14 two-output step (row 80), no nulls in mod.wallpaper (B25) | ✅ | W16-test-infra 31e7c74 |
+| W16.2 | K35 frontend: Stage-hosted peeks (tray tooltips, island line, sysmon, weather), two outputs, measured | ✅ functional · UX ⏳ (I67) | W16-peek-frontend e16d52e + lead edge gap, mods-live clause |
