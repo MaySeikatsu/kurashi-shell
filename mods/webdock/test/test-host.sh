@@ -21,7 +21,8 @@ SHOTS=$ROOT/mods/webdock/shots
 PORT=8765
 # The pragma's switches (mods/webdock/host/shell.qml); the camera switch is test-only: Chromium asks for a camera
 # only when one exists, and the sandbox has none.
-PRAGMA_FLAGS="--disable-background-networking --disable-component-update --disable-domain-reliability --no-pings"
+PRAGMA_FLAGS=$(sed -n 's/^\/\/@ pragma DefaultEnv QTWEBENGINE_CHROMIUM_FLAGS = //p' "$ROOT/mods/webdock/host/shell.qml")
+[ -n "$PRAGMA_FLAGS" ] || { echo "test-host: FAIL: no QTWEBENGINE_CHROMIUM_FLAGS pragma in host/shell.qml" >&2; exit 1; }
 CAMERA_FLAG="--use-fake-device-for-media-stream"
 R=/tmp/kurashi-sb-$NAME
 MOCK= HOST= HTTP=
@@ -218,11 +219,12 @@ wait_log "webdock-debug sign VISITS popup" 8 || fail "the popup did not open"
 shot sheet-popup
 ok "sheet: the popup opens inside the card"
 
-# Edges: the card at each edge (the strip's margin, the card centred along the edge).
+# Edges: the card at each edge (the strip's margin, the card centred along the edge). A healthy pin other than
+# `sign`: its sheet must not follow to another pin (it did, lead review W17).
 for edge in left top bottom right; do
   ipc act webdock.collapse '{}' >/dev/null
   ipc act mock.webdock "{\"edge\":\"$edge\"}" >/dev/null
-  ipc act webdock.open '{"pin":"mail"}' >/dev/null
+  ipc act webdock.open '{"pin":"typed"}' >/dev/null
   sleep 1
   [ "$edge" = right ] || shot "edge-$edge"
 done

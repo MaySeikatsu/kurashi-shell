@@ -41,3 +41,5 @@
 "mods.host.missing" = "そのプログラムがインストールされていません"
 "mods.host.failed" = "そのプログラムが続けて 2 回停止しました"
 "mods.running.host" = "そのプログラムが動作中です"
+# モッドの設定書き込み (MODS.md「Host processes」、SettingsWriter) で、デーモンに書き込める設定ストアがないとき。
+"mods.error.setting_unavailable" = "この設定は今は変更できません"

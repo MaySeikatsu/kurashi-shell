@@ -37,6 +37,13 @@ baseline.
 
 ## Results
 
+### 2026-10-19 — web dock host (W17, machine B iGPU, headless sway, shared machine; `mods/webdock/test/test-host.sh` phase 4)
+Total PSS of the web host's process tree (patched Quickshell + QtWebEngine 6.11 / Chromium 140: host, zygotes,
+renderers) with local fixture pages: **1 kept site 389–393 MiB, 5 kept sites 403–420 MiB** (two runs). The host is its
+own process (K38): it is not counted in the frontend budget (K16) and is gone after `unload_after` (0 MiB). Hidden: 0
+Wayland requests and commits in 10 s. Phase 0 for comparison: plain Quickshell window 97 MiB, WebKitGTK window 294 MiB
+(`archive/spikes/webengine-phase0/README.md`). Real web apps cost more; re-measure on a quiet machine.
+
 ### 2026-10-09 — harness self-test / Quickshell floor (commit eca978f)
 Trivial Quickshell bar (one `PanelWindow` per screen, one `Text`), headless sway gles2,
 NVIDIA GTX 1060. Not a probe — a lower bound for "anything on Quickshell".

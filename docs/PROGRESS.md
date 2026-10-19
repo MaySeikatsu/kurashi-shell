@@ -157,8 +157,8 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W17.0 | Phase 0: QtWebEngine in a Quickshell PanelWindow, typed input (headless sway) | ✅ with the Quickshell patch (K39); niri run open | `archive/spikes/webengine-phase0/` |
 | W17.1 | UX brief, K38/K39, contract rows 88–94, backlog I68–I76, B26–B27; scoped hello, `host:` provide, `qs-webengine`, netjoin (B26) | ✅ (hover/size details: user review open) | e077403 |
 | W17.2 | Records setting type + Settings editor + Nix pins (row 89) | 🔄 | W17-records |
-| W17.3 | Host processes + scoped connections + mod `webdock` (document, actions, lifecycle, unload; rows 90–93) | 🔄 | W17-webdock-daemon (hover state machine: with W17.4) |
+| W17.3 | Host processes + scoped connections + mod `webdock` (document, actions, lifecycle, unload; rows 90–93) | ✅ functional (pins wait for W17.2; scope table → Daemon: I77) | W17-webdock-daemon 2ce2e14 (hover state machine: with W17.4) |
 | W17.4 | Shell side: `surface:` provide, indicator, strip, card, view pins (row 88) | ⏳ | — |
-| W17.5 | Web host on patched Quickshell: profiles, mobile/desktop, privacy + net-log test, freeze, sheets, chips (B27) | 🔄 | W17-webdock-host |
+| W17.5 | Web host on patched Quickshell: profiles, mobile/desktop, privacy + net-log test, freeze, sheets, chips (B27) | ✅ functional · UX ⏳ (I78–I80; niri) | W17-webdock-host efd2e7d + lead fix B28 |
 | W17.6 | Nix: `kurashi-webdock` package apart from the base closure, HM/NixOS options | ⏳ | — |
 
