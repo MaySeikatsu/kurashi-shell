@@ -122,6 +122,13 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   (ordered subset) for a string list. The daemon re-publishes `schema.settings` when a source changes.
   A configured value outside the current set keeps its value and is reported inert (`reason`
   `settings.choice.unavailable`, K21) instead of being rejected.
+- **Records (K38, MODS.md "Records", rows 96–97)**: a `schema.settings` row with `type`/`control` `records` carries
+  `record: {fields: [{key, type, required, default?, label, pattern?, schemes?, choices?: [{value, label}],
+  range?}], unique?, item_label}`; its `default` and every value (`cfg.get`, `cfg.explain`, the `config` document)
+  are arrays of objects with every declared field present (absent optional fields take their defaults on read and
+  write). A refused records value keeps the `rejected` shape; its `key` names the row and field,
+  `mods.<id>.<key>[<n>].<field>` (`[<n>]` alone for a row that is not a table; a repeated `unique` value names the
+  later row), and `code` is `error.config.record_<problem>`. One error per op (the first problem).
 - **`i18n` document**: `{"locale":"ja","fallback":"en","strings":{"<key>":"<text>"}}` — the
   frontend never reads `i18n/*.toml` itself.
 
