@@ -153,7 +153,10 @@ async fn export_then_import_round_trip_drops_machine_local_keys() {
 
     // Row 101 (I64 (1)): on this machine "mine" is a saved profile, so a file named mine.toml is refused — its
     // values would carry the saved profile's name — in the review and in the apply, before anything is read.
-    for args in [json!({"path": file.to_str().unwrap()}), json!({"path": file.to_str().unwrap(), "apply": true})] {
+    for args in [
+        json!({"path": file.to_str().unwrap()}),
+        json!({"path": file.to_str().unwrap(), "apply": true}),
+    ] {
         assert_eq!(
             fx.call("profile.import", args).await.unwrap_err(),
             ActionError::Invalid("config.error.profile_name_taken".into())
