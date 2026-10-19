@@ -152,6 +152,8 @@ ShellRoot {
             function changed(): string { return "" + win.changedCount }
             // Invalid input (UX brief, States): the refusal a row shows under its control, "" when none.
             function rowError(key: string): string { return Store.rowErrors[key] || "" }
+            // Held-back values (I64 (3)): the user value a forced layer keeps out of effect, as JSON, or "none".
+            function held(key: string): string { const h = Store.heldUserOf(key, ""); return h ? JSON.stringify(h.value) : "none" }
         }
 
         Column {

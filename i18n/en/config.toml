@@ -36,3 +36,5 @@
 "config.export.per_output" = "This value is for one output, so it stays on this machine."
 "config.export.path" = "This value names a file or folder on this machine, so it stays here."
 "config.error.profile_path" = "The profile path must be an absolute path."
+# Row 101 (I64 (1)): an imported file named like a saved profile.
+"config.error.profile_name_taken" = "a saved profile already has this name; rename the file to import it"

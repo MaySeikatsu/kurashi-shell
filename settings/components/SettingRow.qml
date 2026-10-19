@@ -373,6 +373,7 @@ Item {
             enabled: r.editable
             refusal: Store.fieldErrors[r.row.key] ?? null
             onEdited: v => Store.setValue(r.row.key, v, r.out)
+            onCancelled: Store.clearRefusal(r.row.key)
         }
     }
     // A string list (chips), or the font chain (a list too; its edits are previews, UX brief settings 3).

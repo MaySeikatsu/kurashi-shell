@@ -26,7 +26,7 @@ Flickable {
                 byPage[e.pageId] = pg
                 groups.push(pg)
             }
-            byPage[e.pageId].entries.push({ key: e.row.key, output: e.output })
+            byPage[e.pageId].entries.push({ key: e.row.key, output: e.output, held: e.held === true })
         }
         var sig = JSON.stringify(groups)
         if (sig !== structureSig) {
@@ -42,6 +42,7 @@ Flickable {
         function onConfigChanged() { p.refreshStructure() }
         function onSchemaChanged() { p.refreshStructure() }
         function onI18nChanged() { p.refreshStructure() }
+        function onHeldUsersChanged() { p.refreshStructure() }
     }
 
     // The count of changed settings, and the ones the user set (the ones a reset can undo).
@@ -138,14 +139,18 @@ Flickable {
                     delegate: Item {
                         id: entry
                         required property var modelData
-                        // The value and the layer are read live: a change the daemon makes updates this row in place.
-                        readonly property var prov: Store.prov(entry.modelData.key, entry.modelData.output) || ({})
-                        readonly property bool userSet: !!entry.prov.source && entry.prov.source.kind === "user"
+                        // The value and the layer are read live: a change the daemon makes updates this row in place. A held-back
+                        // row shows the user's value, which a forced layer keeps out of effect (I64 (3)); the line under it says so.
+                        readonly property var effective: Store.prov(entry.modelData.key, entry.modelData.output) || ({})
+                        readonly property var prov: entry.modelData.held
+                            ? (Store.heldUserOf(entry.modelData.key, entry.modelData.output) || ({})) : entry.effective
+                        readonly property bool userSet: !entry.modelData.held && !!entry.prov.source && entry.prov.source.kind === "user"
                         readonly property var row: { Store.schema; var h = Store.rowOf(entry.modelData.key); return h ? h.row : ({}) }
                         readonly property real valueX: p.labelW + Theme.pad
                         width: group.width
                         height: Math.max(name.implicitHeight, line.height)
-                            + (entry.userSet ? resetBox.height + Theme.gap / 2 : 0) + Theme.gap
+                            + (entry.userSet ? resetBox.height + Theme.gap / 2 : 0)
+                            + (entry.modelData.held ? heldLine.height + Theme.gap / 2 : 0) + Theme.gap
 
                         Text {
                             id: name
@@ -193,6 +198,24 @@ Flickable {
                             enabled: Store.live
                             ops: [Store.resetOp(entry.modelData.key, entry.modelData.output)]
                             tag: entry.modelData.key + (entry.modelData.output ? "@" + entry.modelData.output : "")
+                        }
+                        // A held-back value: the layer that keeps it out of effect, and the value in effect (I64 (3)). No Reset
+                        // here: a forced value is read-only (UX brief, settings: nix-forced), and resetting the held one changes
+                        // nothing in effect.
+                        Text {
+                            id: heldLine
+                            x: entry.valueX
+                            y: line.height + Theme.gap / 2 + 4
+                            width: Math.min(entry.width - entry.valueX, 480)
+                            visible: entry.modelData.held === true
+                            wrapMode: Text.WordWrap
+                            color: Theme.dim
+                            font.pixelSize: Theme.fs - 1
+                            font.family: Theme.fam(text, Theme.families)
+                            text: entry.modelData.held === true
+                                ? I18n.fmt("settings.ui.held_back", { reason: Store.forcedText(entry.effective),
+                                                                       value: Store.displayValue(entry.effective.value) })
+                                : ""
                         }
                     }
                 }

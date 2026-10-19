@@ -157,7 +157,8 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   names a place (an absolute or `~` path, a `:`-joined list of them, or a list holding one:
   `config.export.path`). Answers `{path, left_out: [{key, output?, reason}]}`.
 - `profile.import {path, apply?}`: reads the profile file at the absolute `path` (its name is the file stem,
-  checked like a profile name). Without `apply` it changes nothing and answers the review
+  checked like a profile name; a stem that names a saved or bundled profile is refused, `invalid`
+  `config.error.profile_name_taken`, row 101). Without `apply` it changes nothing and answers the review
   `{name, diff, not_applied, diagnostics}` (`diagnostics`: the file's skipped entries, `file`, `key`, `reason`).
   `apply: true` loads it as one undoable transaction (`{name, rev, undo, not_applied, diagnostics}`); a file
   that is not there or not a file is `config.error.profile_unreadable`, a relative path `config.error.profile_path`.

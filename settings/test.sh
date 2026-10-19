@@ -11,16 +11,19 @@
 # unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
 # empty search, search landing on a row (flashed), mod states (available, loaded-off, on, refused, invalid, removed while
 # on), the Changed view and its reset plan, profiles with their differ count, the profile overlay (B13: your change
-# replaced, the changes kept, Nix holds back), export and import with their review and refusal (keyboard), the Japanese
-# copy of the main pages, and the records list of the test mod `records` (K38, W17): empty, two entries, the add form, a
-# refusal at its field (an empty id, sent by keyboard), a reorder and a removal with the row's buttons, the edit form opened
-# and closed by keyboard, a list pinned by Nix (read-only), and its Japanese page.
+# replaced, the changes kept, Nix holds back), a profile line whose value stays (I64: "Now from this profile"), a user value
+# that a forced layer holds back (I64: "Not in effect"), export and import with their review and refusal (keyboard), the
+# Japanese copy of the main pages, and the records list of the test mod `records` (K38, W17, I81): empty, two entries, the
+# add form, a refusal at its field (an empty id, sent by keyboard), the add form filled in by keyboard (an address with `:`
+# and `/`) and saved, a reorder by Alt+Down and Alt+Up and one with the row's buttons, Down and Up between the entries, Enter
+# to edit and Escape back to the entry, Delete, a removal with the row's buttons, the edit form opened and closed by keyboard,
+# a list pinned by Nix (read-only), and its Japanese page.
 # Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
-# font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row), the Changed view's
-# reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
-# Not key-tested: Alt+Up/Down on the pick list. K4 puts a preview back through the IPC hook `putBack`; P3 presses Escape on
-# the import review. Not shown: a mod's "running" line (no native mod with a service is built in), greyed dropdown offers
-# (no offer is unavailable in this sandbox), the loading line of a profile read (too quick for a shot).
+# font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row) and Alt+Down/Alt+Up,
+# the Changed view's reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
+# K4 puts a preview back through the IPC hook `putBack`; P3 presses Escape on the import review. Not shown: a mod's "running"
+# line (no native mod with a service is built in), greyed dropdown offers (no offer is unavailable in this sandbox), the
+# loading line of a profile read (too quick for a shot).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -219,6 +222,13 @@ tab_to() {
   done
   fail "keyboard: Tab never reached $want ($(Q focused))"
 }
+# Waits (up to 5 s) for the focus to land on the name given: a move or a save changes the rows first, and the focus follows
+# that change a moment later.
+focus_on() {
+  local want=$1
+  for _ in $(seq 25); do [ "$(Q focused)" = "$want" ] && return 0; sleep 0.2; done
+  return 1
+}
 
 # K1. Tab walks the window's focus order to the bar's "show bar" switch; Space flips it. The daemon confirms the flip,
 #     and the shot shows the focus ring on that switch (outside the track, not on the ON fill).
@@ -301,6 +311,20 @@ kp tab return
 [ "$(val island.main.faces)" = '["clock","media","notifications"]' ] || fail "pick list: moving back up did not reorder ($(val island.main.faces))"
 echo "keyboard K7: pick list moved a row down and back up with its buttons"
 shot 16-island-pick-list
+
+# K7b. the same pick list by the keyboard's move keys (W18, I81): Alt+Down moves the focused row below the next one, and
+#      Alt+Up moves it back. The focus stays on the row.
+Q goto island
+Q focusList >/dev/null
+tab_to "pickrow:clock"
+kp alt+down
+for _ in $(seq 20); do [ "$(val island.main.faces)" = '["media","clock","notifications"]' ] && break; sleep 0.2; done
+[ "$(val island.main.faces)" = '["media","clock","notifications"]' ] || fail "pick list: Alt+Down did not move the row ($(val island.main.faces))"
+focus_on "pickrow:clock" || fail "pick list: the focus did not follow the moved row ($(Q focused))"
+kp alt+up
+for _ in $(seq 20); do [ "$(val island.main.faces)" = '["clock","media","notifications"]' ] && break; sleep 0.2; done
+[ "$(val island.main.faces)" = '["clock","media","notifications"]' ] || fail "pick list: Alt+Up did not move the row back ($(val island.main.faces))"
+echo "keyboard K7b: Alt+Down and Alt+Up moved the first pick-list row down and back up"
 
 # K8. Reset with its diff (UX brief settings 2): on the palette row (kanso, set by K3), Reset plans the change and lists
 #     it; focus lands on Confirm reset; Return makes it one change.
@@ -445,11 +469,17 @@ shot 13-mods-page
 Q goto @changed
 shot 17-changed-view
 
-# 13c. a profile load: the profile names its settings (chip "roomy profile"), and Nix holds density
+# 13c. a profile load: the profile names its settings (chip "roomy profile"), and Nix holds density. Before the load the user
+#      sets density too: Nix enforces it, so the value is inert, and the load keeps it (K36); the Changed view lists it as held
+#      back, with "Not in effect" and the value in effect (I64 (3)).
+K '{"t":"apply","id":"hb1","ops":[{"set":"theme.density","value":"compact"}]}' | grep -q applied || fail "held: the user's density was refused"
 K '{"t":"act","id":"pl","action":"profile.load","args":{"name":"roomy"}}' | grep -q '"done"' || fail "profile.load failed"
 for _ in $(seq 50); do [ "$(src a11y.large_text)" = "forced" ] || [ "$(src a11y.large_text)" = "profile" ] && break; sleep 0.2; done
 # The overlay (B13, UX brief settings 6): roomy does not name the history size, so the user's 210 survives the load.
 [ "$(val notifications.history_max)" = 210 ] || fail "overlay: the user's history size did not survive a profile that does not set it ($(val notifications.history_max))"
+[ "$(src theme.density)" = forced ] || [ "$(src theme.density)" = nix ] || fail "held: Nix does not hold density ($(src theme.density))"
+for _ in $(seq 50); do [ "$(Q held theme.density)" = '"compact"' ] && break; sleep 0.2; done
+[ "$(Q held theme.density)" = '"compact"' ] || fail "held: the Changed view does not hold the user's compact back ($(Q held theme.density))"
 Q goto @changed
 shot 17c-profile-source
 
@@ -466,6 +496,20 @@ assert d["kept_user"] >= 2, d
 assert any(h["key"] == "theme.density" for h in d["not_applied"]), d' || fail "overlay: the review does not replace the user value or keep the others: $pv"
 shot 4b-profile-overlay
 echo "overlay B13: the review replaces radius_scale (your change), keeps the other changes, and holds density back"
+
+# 13d2. I64 (2): a value of yours that the profile sets to the same value (large_text: roomy turns it on). The review marks it
+#       as the same value, listed under "Same value, now set by this profile" with the neutral "Now from this profile" chip,
+#       and not as a change that replaces yours.
+K '{"t":"apply","id":"sv1","ops":[{"set":"a11y.large_text","value":true}]}' | grep -q applied || fail "same value: large_text was not set by the user"
+Q preview roomy
+pv2=$(K '{"t":"act","id":"pv2","action":"profile.preview","args":{"name":"roomy"}}')
+echo "$pv2" | python3 -c 'import json,sys
+m = json.loads(sys.stdin.readline()); d = m["data"]
+r = [e for e in d["diff"] if e["key"] == "a11y.large_text"]
+assert r and r[0].get("same_value") is True and r[0]["before"]["source"]["kind"] == "user", r' || fail "same value: the review does not mark large_text as the same value: $pv2"
+shot 4c-profile-same-value
+K '{"t":"apply","id":"sv2","ops":[{"reset":"a11y.large_text"}]}' | grep -q applied || fail "same value: the user's large_text was not removed"
+echo "I64 (2): the review marks the user's large_text as the same value, shown with Now from this profile"
 
 # 14b. a value the daemon keeps but no offer names (I9, K21): the dropdown shows the value as it is, the row says it has
 #      no effect, and the row stays editable. Set through the same path as the controls.
@@ -610,8 +654,60 @@ shot records-field-error
 echo "keyboard R1: Tab to Add entry, Return opened the form, the empty id was refused at its field"
 kp escape
 sleep 0.5
-# R3. reorder by keyboard, through the row's buttons (Alt+Up and Alt+Down are not key-tested in this run, as the header notes;
-#     a try at Alt+Down did not move the entry): Tab to the down button of the first entry and Return moves it below the second; the focus
+# R5. the add form, end to end by keyboard (I81): an id, a title and an address typed key by key (":" and "/" are keys of
+#     their own in wl_keys.py). Enter saves the form; the new entry is the last one, and the focus goes to it.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recordadd" 150
+kp return
+for _ in $(seq 20); do [ "$(Q focused)" = "Id" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "Id" ] || fail "records: Add entry did not open the form in its first field ($(Q focused))"
+kp e x a m p l e tab e x a m p l e tab h t t p s : / / e x a m p l e . o r g /
+kp return
+for _ in $(seq 30); do [[ "$(val mods.records.pins)" == *'"id":"example"'* ]] && break; sleep 0.2; done
+[ "$(python3 -I -c 'import json,sys; p=json.loads(sys.argv[1]); print(len(p), p[-1]["id"], p[-1]["target"])' "$(val mods.records.pins)")" = "3 example https://example.org/" ] || fail "records: the add form did not store the typed entry ($(val mods.records.pins))"
+for _ in $(seq 20); do [ "$(Q focused)" = "recordrow:2" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "recordrow:2" ] || fail "records: the focus did not go to the saved entry ($(Q focused))"
+shot records-added
+echo "keyboard R5: Add entry, the id, title and address typed by keyboard, Enter stored it as the last entry and focused it"
+# R6. reorder by the move keys (I81): Alt+Down moves the focused entry below the next one and the focus follows it; Alt+Up
+#     moves it back. Each move is one change of the list.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recordrow:0" 150
+kp alt+down
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == '[{"id":"docs"'* ]] && break; sleep 0.2; done
+[[ "$(val mods.records.pins)" == '[{"id":"docs"'* ]] || fail "records: Alt+Down did not move the focused entry down ($(val mods.records.pins))"
+focus_on "recordrow:1" || fail "records: the focus did not follow the entry moved down ($(Q focused))"
+shot records-reordered
+kp alt+up
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] && break; sleep 0.2; done
+[[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: Alt+Up did not move the entry back up ($(val mods.records.pins))"
+focus_on "recordrow:0" || fail "records: the focus did not follow the entry moved up ($(Q focused))"
+echo "keyboard R6: Alt+Down moved the first entry below the second and Alt+Up moved it back; the focus followed each"
+# R7. Down and Up move between the entries; Enter opens the focused entry's form, and Escape closes it: the focus goes back to
+#     that entry.
+kp down
+focus_on "recordrow:1" || fail "records: Down did not move to the next entry ($(Q focused))"
+kp up
+focus_on "recordrow:0" || fail "records: Up did not move back to the entry above ($(Q focused))"
+kp down return
+for _ in $(seq 20); do [ "$(Q focused)" = "Id" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "Id" ] || fail "records: Enter on an entry did not open its form ($(Q focused))"
+kp escape
+sleep 0.5
+focus_on "recordrow:1" || fail "records: Escape did not give the focus back to the entry it closed ($(Q focused))"
+[[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: Escape changed the list ($(val mods.records.pins))"
+echo "keyboard R7: Down and Up moved between the entries, Enter opened the second entry's form, Escape closed it and the focus went back"
+# R8. Delete removes the focused entry; the focus moves to the entry above it (the last one is removed here).
+kp down
+focus_on "recordrow:2" || fail "records: Down did not reach the last entry ($(Q focused))"
+kp delete
+for _ in $(seq 20); do [ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 2 ] && break; sleep 0.2; done
+[ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 2 ] || fail "records: Delete did not remove the focused entry ($(val mods.records.pins))"
+focus_on "recordrow:1" || fail "records: the focus did not move to the entry above the removed one ($(Q focused))"
+echo "keyboard R8: Delete removed the last entry, and the focus moved to the one above it"
+# R3. reorder by the row's buttons: Tab to the down button of the first entry and Return moves it below the second; the focus
 #     follows the moved entry, Tab reaches its up button, and Return moves it back. Each move is one change of the list.
 Q goto mods.records
 Q focusList >/dev/null
@@ -663,6 +759,12 @@ shot ja-changed
 Q goto @profiles
 Q preview roomy
 shot ja-profiles
+# The same-value line in Japanese (I64 (2)): the user's large_text is on, as roomy sets it.
+K '{"t":"apply","id":"sv3","ops":[{"set":"a11y.large_text","value":true}]}' | grep -q applied || fail "ja: same value was not set by the user"
+Q preview roomy
+shot ja-profiles-same
+K '{"t":"apply","id":"sv4","ops":[{"reset":"a11y.large_text"}]}' | grep -q applied || fail "ja: the user's large_text was not removed"
+Q preview roomy
 # The export and the refused import, in Japanese (the virtual keyboard stayed open through the restart).
 Q focusList >/dev/null
 Q preview mine

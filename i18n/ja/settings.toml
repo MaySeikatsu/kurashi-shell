@@ -239,3 +239,7 @@
 "settings.records.down" = "{item} を下へ"
 "settings.records.edit_for" = "{item} を編集"
 "settings.records.remove" = "{item} を削除"
+
+# W18-settings (I64, docs/ux/settings.md): プロファイルの差分で値が変わらない行と、変更一覧で有効化されない値。
+"settings.ui.profile_now_from" = "このプロファイルの値"
+"settings.ui.held_back" = "効力なし: {reason} · 適用中: {value}"
