@@ -5,6 +5,8 @@
 #   tools/bench/wl_keys.py tab space  → one keyboard for this call: press Tab, then Space
 #   tools/bench/wl_keys.py alt+up shift+tab escape → chords: Alt held while Up, Shift while Tab, then Escape
 #                                       (modifiers: shift, ctrl, alt; ctrl+shift+tab holds both)
+#   tools/bench/wl_keys.py colon slash period 0    → characters, one token each: `:` `/` `.` and the digits, and
+#                                       the other punctuation of CHAR_TOKENS (`-`, `_`, `+`, `?`, `&`, `#`, …)
 #   tools/bench/wl_keys.py --serve    → one keyboard for the whole run: every stdin line is keys to press
 #                                       ("tab", "space", "x", …); EOF ends it. A keyboard that goes away makes
 #                                       the compositor drop the window's keyboard focus, so a test that Tabs
@@ -26,15 +28,35 @@ SPECIAL = {"tab": (15, "Tab"), "return": (28, "Return"), "space": (57, "space"),
 # Modifiers: evdev code, keysym and the XKB real modifier they set (Alt is Mod1).
 MODIFIERS = {"shift": (42, "Shift_L", "Shift"), "ctrl": (29, "Control_L", "Control"),
              "alt": (56, "Alt_L", "Mod1")}
+# The bit each modifier is in the modifier state (xkb's real modifiers in order: Shift, Lock, Control, Mod1).
+MODIFIER_BITS = {"shift": 1 << 0, "ctrl": 1 << 2, "alt": 1 << 3}
 # Letters a-z (evdev codes in QWERTY order), for typing into text fields.
 LETTER_CODES = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 37, 38,
                 44, 45, 46, 47, 48, 49, 50]
 LETTERS = {letter: (code, letter) for letter, code in zip("qwertyuiopasdfghjklzxcvbnm", LETTER_CODES)}
+# Digits and the punctuation a URL or a path needs (W18-settings, I81): one key each, unshifted on this keymap, so
+# `:` is the key named colon. The evdev code is the US key's where there is one; the shifted ones get spare codes.
+CHARS = {str(d): (11 if d == 0 else d + 1, str(d)) for d in range(10)}
+CHARS.update({"minus": (12, "minus"), "equal": (13, "equal"), "bracketleft": (26, "bracketleft"),
+              "bracketright": (27, "bracketright"), "semicolon": (39, "semicolon"), "apostrophe": (40, "apostrophe"),
+              "grave": (41, "grave"), "backslash": (43, "backslash"), "comma": (51, "comma"),
+              "period": (52, "period"), "slash": (53, "slash")})
+CHARS.update({name: (200 + i, name) for i, name in enumerate(
+    ["colon", "underscore", "plus", "question", "percent", "ampersand", "asterisk", "at", "numbersign",
+     "asciitilde", "exclam", "quotedbl", "parenleft", "parenright", "less", "greater", "braceleft", "braceright"])})
+# The character a test may type as a token of its own (`:`, `/`, `.`), and the name of its key.
+CHAR_TOKENS = {"-": "minus", "=": "equal", "[": "bracketleft", "]": "bracketright", ";": "semicolon",
+               "'": "apostrophe", "`": "grave", "\\": "backslash", ",": "comma", ".": "period", "/": "slash",
+               ":": "colon", "_": "underscore", "+": "plus", "?": "question", "%": "percent", "&": "ampersand",
+               "*": "asterisk", "@": "at", "#": "numbersign", "~": "asciitilde", "!": "exclam", '"': "quotedbl",
+               "(": "parenleft", ")": "parenright", "<": "less", ">": "greater", "{": "braceleft", "}": "braceright"}
 KEYS = {name: code for name, (code, _) in SPECIAL.items()}
 KEYS.update({letter: code for letter, (code, _) in LETTERS.items()})
+KEYS.update({name: code for name, (code, _) in CHARS.items()})
 KEYS.update({name: code for name, (code, _, _) in MODIFIERS.items()})
-# Keycodes in table order: the named keys, the letters, then the modifiers.
-ENTRIES = (list(SPECIAL.values()) + list(LETTERS.values())
+# Keycodes in table order: the named keys, the letters, the characters, then the modifiers (keymap() counts the
+# modifiers from the end).
+ENTRIES = (list(SPECIAL.values()) + list(LETTERS.values()) + list(CHARS.values())
            + [(code, sym) for code, sym, _ in MODIFIERS.values()])
 
 # The only socket this helper opens is in a sandbox runtime dir; the user's /run/user/<uid> never matches.
@@ -183,19 +205,30 @@ class Keyboard:
         # key(time, key, state): pressed (1), then released (0).
         self.send(KBD, 1, struct.pack("<III", ms(), code, state))
 
+    def modifiers(self, depressed):
+        # zwp_virtual_keyboard_v1.modifiers(mods_depressed, mods_latched, mods_locked, group): the modifier state the
+        # keys that follow are sent with. The key event alone did not carry Alt to the clients (W18-settings).
+        self.send(KBD, 2, struct.pack("<IIII", depressed, 0, 0, 0))
+
     def chord(self, mods, name):
         # Modifiers go down first and up last; each change is confirmed by a roundtrip, so the
-        # compositor has it before the key that needs it.
-        held = [MODIFIERS[m][0] for m in mods]
-        for code in held:
-            self.key(code, 1)
+        # compositor has it before the key that needs it. The state the modifiers add up to is sent too.
+        depressed = 0
+        for mod in mods:
+            self.key(MODIFIERS[mod][0], 1)
+            self.roundtrip()
+            depressed |= MODIFIER_BITS[mod]
+            self.modifiers(depressed)
             self.roundtrip()
         self.key(KEYS[name], 1)
         time.sleep(0.05)
         self.key(KEYS[name], 0)
         self.roundtrip()
-        for code in reversed(held):
-            self.key(code, 0)
+        for mod in reversed(mods):
+            self.key(MODIFIERS[mod][0], 0)
+            self.roundtrip()
+            depressed &= ~MODIFIER_BITS[mod]
+            self.modifiers(depressed)
             self.roundtrip()
         time.sleep(0.1)
 
@@ -210,7 +243,10 @@ def string(text):
 
 
 def parse(token):
-    # `alt+up`: Alt held while Up is pressed; `ctrl+shift+tab` holds both; a bare name is pressed alone.
+    # `alt+up`: Alt held while Up is pressed; `ctrl+shift+tab` holds both; a bare name is pressed alone. A character
+    # is a token of its own (`:`, `/`, `+`), so `+` never reads as a chord.
+    if token in CHAR_TOKENS:
+        return [], CHAR_TOKENS[token]
     *mods, name = token.split("+")
     for mod in mods:
         if mod not in MODIFIERS:
