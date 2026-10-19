@@ -250,14 +250,29 @@ pub fn network(wifi_on: bool) -> Value {
     }
 }
 
-/// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves the contributions of the test mod
-/// `hello` (its footer row and its quick tile), the real wallpaper tile (`mods/wallpaper`) and one contribution
-/// that is not a tile (`qml/not-a-tile.qml`, W18: clipped to its cell). Within a slot they are ordered by mod id,
-/// as the daemon orders them. A file that is not in this checkout is left out, as kurashid leaves out a
-/// contribution whose file is missing.
+/// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves the contributions of the test mod `hello` (its
+/// footer row, its day mark and its quick tile), the real wallpaper tile (`mods/wallpaper`), the real weather clock aside
+/// and day mark (`mods/weather`, W19) and one contribution that is not a tile (`qml/not-a-tile.qml`, W18: clipped to its
+/// cell). Within a slot they are ordered by mod id, as the daemon orders them. A file that is not in this checkout is left
+/// out, as kurashid leaves out a contribution whose file is missing.
 pub fn slots() -> Value {
     // (slot, mod, file relative to this crate).
-    const CONTRIBUTIONS: [(&str, &str, &str); 4] = [
+    const CONTRIBUTIONS: [(&str, &str, &str); 7] = [
+        (
+            "clock.expanded.aside",
+            "weather",
+            "../../mods/weather/qml/slots/clock.expanded.aside.qml",
+        ),
+        (
+            "clock.expanded.daymark",
+            "hello",
+            "../kurashid/tests/data/mods/hello/qml/slots/clock.expanded.daymark.qml",
+        ),
+        (
+            "clock.expanded.daymark",
+            "weather",
+            "../../mods/weather/qml/slots/clock.expanded.daymark.qml",
+        ),
         (
             "clock.expanded.footer",
             "hello",
@@ -292,6 +307,67 @@ pub fn slots() -> Value {
         }
     }
     Value::Object(out)
+}
+
+/// The weather mod's document (`mod.weather`, docs/ux/weather.md "Contract notes"; the shape `crates/kurashi-mod-weather`
+/// serves): a place with a fresh forecast of seven days from the mock's date, which the clock view's aside and day marks
+/// read. The values are fixed, so a fixed run is the same everywhere.
+pub fn weather(now: DateTime<Local>) -> Value {
+    const CODES: [&str; 7] = [
+        "partly_cloudy",
+        "clear",
+        "rain",
+        "overcast",
+        "mainly_clear",
+        "showers",
+        "clear",
+    ];
+    const MAX: [f64; 7] = [24.0, 22.0, 18.0, 19.0, 21.0, 20.0, 23.0];
+    const MIN: [f64; 7] = [14.0, 13.0, 12.0, 11.0, 13.0, 14.0, 15.0];
+    const POP: [i64; 7] = [30, 10, 80, 40, 10, 60, 20];
+    let days: Vec<Value> = (0..7)
+        .map(|k| {
+            let day = now
+                .date_naive()
+                .checked_add_days(chrono::Days::new(k as u64))
+                .unwrap_or(now.date_naive());
+            json!({
+                "date": day.format("%Y-%m-%d").to_string(),
+                "min": MIN[k],
+                "max": MAX[k],
+                "code": CODES[k],
+                "pop": POP[k],
+            })
+        })
+        .collect();
+    json!({
+        "available": true,
+        "place": {"name": "Tokyo", "country": "JP", "lat": 35.68, "lon": 139.69, "tz": "Asia/Tokyo"},
+        "now": {"temp": 19.0, "feels": 18.0, "code": "partly_cloudy", "is_day": true, "wind": 9.0, "humidity": 55, "uv": 4.0},
+        "days": days,
+        "updated_local": now.format("%Y-%m-%dT%H:%M").to_string(),
+        "age_s": 30,
+        "tier": "fresh",
+        "units": "metric",
+    })
+}
+
+/// `config` (K21, PROTOCOL §6): every schema key at its default, as kurashid serves it with no layer written. The default of
+/// each key comes from the registry, so the mock cannot drift from the schema. The frontend reads the keys it shows
+/// (`clock.week_start`, `clock.week_numbers`, the bar's); a test sets them with `mock.doc`.
+pub fn config(registry: &Registry) -> Value {
+    let source = serde_json::to_value(Source::Default).expect("source serializes");
+    let values: Map<String, Value> = registry
+        .defaults()
+        .into_iter()
+        .map(|(key, value)| (key, json!({"value": value, "source": source.clone()})))
+        .collect();
+    json!({
+        "values": values,
+        "outputs": {},
+        "history": {"can_undo": false, "can_redo": false},
+        "profiles": [],
+    })
 }
 
 /// The wallpaper mod's document (`mod.wallpaper`, MODS.md; the shape `crates/kurashi-mod-wallpaper` serves once its
