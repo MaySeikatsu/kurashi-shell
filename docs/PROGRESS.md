@@ -178,6 +178,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W19.0 | Contract: `clock.expanded.daymark` slot (row 71), `runtime.slots` `reason` + `ModCtx::slot` (row 72), schema `clock.week_start`/`week_numbers` | ✅ | lead |
 | W19.1 | Bar widgets on side bars (I85) | 🔄 | W19-side-bars |
 | W19.2 | Weather polish without colour: hourly rain, seven days, places preview forecast, no-place reason (I82, I57) | 🔄 | W19-weather |
-| W19.3 | Wallpaper picker polish without colour: width, output chips, overflow menu, keys (I83, I32) | 🔄 | W19-wallpaper |
+| W19.3 | Wallpaper picker polish without colour: width, output chips, overflow menu, keys (I83, I32) | ✅ functional · UX ⏳ (colours, Stage Close: design pass, row 106) | W19-wallpaper 86c0518 |
 | W19.4 | Calendar: day marks, week start/numbers, slot setup states (I46, rows 71–72) | 🔄 | W19-calendar |
 
