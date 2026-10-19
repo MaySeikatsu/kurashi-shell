@@ -215,3 +215,10 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 |---|---|---|
 | [W16-peek-frontend](W16-peek-frontend.md) | Stage.qml, Bar.qml hover plumbing, tray/island peeks, sysmon/weather/hello Peek.qml | haiku (max) |
 | [W16-test-infra](W16-test-infra.md) | `tools/bench/sandbox.sh`, `crates/kurashi-mock/`, `crates/kurashi-mod-wallpaper/`, test-stage B14 step | haiku (max) |
+
+## Wave 17 (session 7; web dock, K38/K39; contract on main e077403)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W17-webdock-host](W17-webdock-host.md) | `mods/webdock/{host,test,shots}/`, `crates/kurashi-mock/`, `frontend/core/Store.qml` (scoped hello), `i18n/*/mod-webdock.toml` | haiku (max) |
+| [W17-webdock-daemon](W17-webdock-daemon.md) | `crates/kurashi-mod-api/`, kurashid `{native,server,main}.rs` + Cargo.toml, new `crates/kurashi-mod-webdock/`, `mods/webdock/mod.toml` | haiku (max) |
+| [W17-records](W17-records.md) | `crates/kurashi-mods/src/manifest.rs`, `crates/kurashi-schema/`, kurashid `config.rs` (mod settings), `settings/` | haiku (max) |
