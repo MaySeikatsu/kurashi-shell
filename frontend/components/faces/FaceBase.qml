@@ -11,8 +11,12 @@ Item {
     property bool current: false
     property bool animate: false
     readonly property bool live: visible
-    // Natural content width; the Island sizes itself from the current face.
+    // Natural content width (a row, on a top or bottom bar); the Island sizes itself from the current face.
     property real wantW: 0
+    // A side bar's pill is as wide as the bar is thick, so there the face is a column (its glyph over a short
+    // value) and `wantH` is its natural height. The Island sets `vertical`.
+    property bool vertical: false
+    property real wantH: 0
 
     property bool created: false
     Component.onCompleted: created = true

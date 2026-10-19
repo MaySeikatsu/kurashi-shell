@@ -1,7 +1,8 @@
 import QtQuick
 import "../../core"
 
-// media: [art] glyph title — artist, from svc.media. Art only loads while the face is live.
+// media: [art] glyph title — artist, from svc.media. Art only loads while the face is live. On a side bar the
+// play state alone: the title is the column's accessible name and the peek's line.
 FaceBase {
     id: f
     readonly property var raw: Store.docs["svc.media"] || ({})
@@ -11,12 +12,16 @@ FaceBase {
     readonly property string title: d.title ?? ""
     readonly property string artist: d.artist ?? ""
     readonly property string art: d.art_url ?? ""
+    readonly property string full: title === "" ? I18n.tr("island.media.idle")
+        : (artist === "" ? title : title + " — " + artist)
     readonly property int maxText: 320
     Watch { doc: "svc.media"; active: f.live }
 
     wantW: row.implicitWidth
+    wantH: col.implicitHeight
     Row {
         id: row
+        visible: !f.vertical
         anchors.centerIn: parent
         spacing: Theme.gap - 2
         Image {
@@ -46,8 +51,20 @@ FaceBase {
             font.family: Theme.fam(text, Theme.families)
             width: Math.min(implicitWidth, f.maxText)
             elide: Text.ElideRight
-            text: f.title === "" ? I18n.tr("island.media.idle")
-                  : (f.artist === "" ? f.title : f.title + " — " + f.artist)
+            text: f.full
+        }
+    }
+    Column {
+        id: col
+        visible: f.vertical
+        anchors.centerIn: parent
+        Accessible.role: Accessible.StaticText
+        Accessible.name: f.full
+        Text {
+            Accessible.ignored: true
+            color: f.title === "" ? Theme.dim : Theme.accent
+            font.pixelSize: Theme.fs
+            text: f.title === "" ? "♪" : (f.d.playing ? "▶" : "⏸")
         }
     }
 }

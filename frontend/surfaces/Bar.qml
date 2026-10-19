@@ -23,6 +23,8 @@ PanelWindow {
     readonly property string origin: "qs:" + (screen ? screen.name : "?") + ":" + Math.floor(Math.random() * 1e6)
     // Veil: daemon away (or not yet current) -> keep last state, dim it, show the glyph.
     readonly property bool stale: !Store.live
+    // Test only (frontend/test-sidebars.sh): the items' boxes are logged after each change. Off without the variable.
+    readonly property bool geometryLog: Quickshell.env("KURASHI_BAR_GEOMETRY") === "1"
 
     // What this bar renders; unwatched while the bar is hidden or gone so the daemon can stop
     // services nobody shows (Ma).
@@ -65,6 +67,9 @@ PanelWindow {
     // (status Passive says there is nothing to show). No delegates exist for the others.
     readonly property var trayItems: trayDoc.available === true
         ? (trayDoc.items || []).filter(function (it) { return it.status !== "Passive" }) : []
+    // A side bar's column holds this many tray icons (the vertical layout sets it, see there); a top or bottom bar holds all.
+    property int trayFit: 0
+    readonly property int trayVisible: vertical ? trayFit : 1000000
     // A tray menu is shown by the Stage on the output whose tray was clicked (shell.qml).
     signal trayMenuRequested(string id)
     readonly property real daemonVolume: audio.volume ?? 0
@@ -94,13 +99,30 @@ PanelWindow {
         var p = screenPoint(item, x, y)
         Store.act(action === "secondary" ? "tray.secondary" : "tray.activate", {id: id, x: p.x, y: p.y})
     }
+    // The leading items of a side bar's column that fit in `avail` px, `gap` apart (heights `hs`, top to bottom). When some
+    // do not, a marker of `markH` follows the last one that does, so the marker is in the fit too. The end of the list hides first.
+    function fitCount(hs, avail, gap, markH) {
+        var total = 0
+        for (var i = 0; i < hs.length; i++) total += hs[i] + (i > 0 ? gap : 0)
+        if (total <= avail) return hs.length
+        var used = 0
+        for (var k = 0; k < hs.length; k++) {
+            var next = used + (k > 0 ? gap : 0) + hs[k]
+            if (next + gap + markH > avail) return k
+            used = next
+        }
+        return hs.length
+    }
 
-    // One tray item, the same in both layouts. The bar's full thickness is its pointer target.
+    // One tray item, the same in both layouts. The bar's full thickness is its pointer target. A side bar hides the icons its
+    // column has no room for (they come last, so they hide first).
     Component {
         id: trayIconDelegate
         TrayIcon {
             id: ticon
             required property var modelData
+            required property int index
+            visible: index < bar.trayVisible
             title: modelData.title ?? ""
             iconName: modelData.icon_name ?? ""
             iconTheme: modelData.icon_theme_path ?? ""
@@ -277,16 +299,64 @@ PanelWindow {
         }
     }
 
-    // ---- left and right bars: the same items in one column. Wrapper items keep the column's
-    // positioner away from anchors; the Island and the slider are turned to run along the bar.
+    // ---- left and right bars: the same items in one column. Top to bottom: the workspaces, the Island at the centre (a
+    // column, see Island.qml), and below it the volume slider, the mod widgets, the clock, the quick settings and the tray,
+    // in the horizontal right row's order and spacing (I85). Each widget takes the bar's 36 px width: text is not turned,
+    // the values are shortened and their full text is the accessible name. The bottom column holds the leading items that
+    // fit between the island and the bar's end; the rest hide from the end, with the count "+N". Wrapper items keep the
+    // column's positioner away from anchors.
     Component {
         id: verticalLayout
         Item {
+            id: vlayout
             anchors.fill: parent
             opacity: bar.stale ? Theme.staleOpacity : 1
             Behavior on opacity {
                 enabled: bar.visible
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            }
+
+            // The bottom column's slots, top to bottom: the slider, each mod widget (its own height once measured, else a
+            // default; clipped to the slot at the bar's edge), the clock, the quick button, each tray icon.
+            readonly property int sliderH: 110
+            // A mod slot's height until its widget has been measured. Small on purpose: an unmeasured widget is then loaded
+            // and measured; a large default would keep a widget that does not fit unloaded, so it would never be measured.
+            readonly property int modSlotH: Theme.barH
+            readonly property int modN: bar.modWidgets.length
+            readonly property int trayN: bar.trayItems.length
+            // The mod slots' heights, by mod index, as each widget reports them (see setModSlot): a plain list, so the
+            // fit never reads the Repeater (a binding that creates delegates while it is read is a loop).
+            property var modSlotsH: []
+            function modSlotOf(i) { var h = modSlotsH[i]; return h > 0 ? h : modSlotH }
+            function setModSlot(i, h) {
+                if (modSlotsH[i] === h) return
+                var a = modSlotsH.slice()
+                a[i] = h
+                modSlotsH = a
+            }
+            // The clock's two lines, measured on a text that does not change: a hidden Text is not laid out, so its own
+            // implicit height would follow the fit it feeds (a binding loop).
+            TextMetrics { id: clockM; text: "00"; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families) }
+            readonly property real clockH: 2 * clockM.height
+            readonly property var slotH: {
+                var h = [sliderH]
+                for (var i = 0; i < modN; i++) h.push(modSlotOf(i))
+                h.push(clockH)
+                h.push(Theme.barH)
+                for (var j = 0; j < trayN; j++) h.push(Theme.barH)
+                return h
+            }
+            // The room between the island's lower edge (with a gap) and the bar's end (with the bottom margin).
+            readonly property real columnAvail: height / 2 - isl.height / 2 - Theme.gap - Theme.pad
+            // The marker's height is measured on a fixed text: the marker's own text depends on the fit (a loop otherwise).
+            TextMetrics { id: markM; text: "+0"; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(text, Theme.families) }
+            readonly property int fit: bar.fitCount(slotH, columnAvail, Theme.pad, markM.height)
+            readonly property int hiddenN: slotH.length - fit
+            // The tray icons this column holds: the slots after the slider, the mods, the clock and the quick button.
+            Binding {
+                target: bar
+                property: "trayFit"
+                value: Math.max(0, Math.min(vlayout.trayN, vlayout.fit - 3 - vlayout.modN))
             }
 
             Column {
@@ -324,9 +394,11 @@ PanelWindow {
             }
 
             Island {
+                id: isl
                 anchors.centerIn: parent
-                rotation: cfg.edge === "left" ? -90 : 90
-                // Its peek is a side bar's too (I67): the Stage draws it beside the bar, aligned to the island.
+                // A side bar's island is a column, not a turned row (I85); its peek is a side bar's too (I67): the Stage draws
+                // it beside the bar, aligned to the island.
+                vertical: true
                 peekOutput: bar.screen ? bar.screen.name : ""
                 face: bar.island.face || "clock"
                 reason: bar.island.reason || "default"
@@ -335,12 +407,15 @@ PanelWindow {
             }
 
             Column {
+                id: stack
                 anchors { bottom: parent.bottom; bottomMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
-                spacing: Theme.gap
+                spacing: Theme.pad
                 Item {
+                    visible: vlayout.fit >= 1
                     width: Theme.barH
-                    height: 110
+                    height: vlayout.sliderH
                     Slider {
+                        id: sliderV
                         anchors.centerIn: parent
                         width: 110
                         rotation: -90
@@ -353,17 +428,40 @@ PanelWindow {
                     }
                 }
                 Repeater {
+                    id: modRep
                     model: bar.modWidgets
                     delegate: Item {
                         id: vmod
                         required property var modelData
+                        required property int index
+                        // Past the column's end the widget is not loaded either (ModLoader's gate, Ma).
+                        visible: vlayout.fit > 1 + index
                         width: Theme.barH
-                        height: Theme.barH
+                        // The slot is the widget's own height once measured (kept while it is unloaded, so the fit does not flip).
+                        height: vlayout.modSlotOf(index)
+                        clip: true
+                        readonly property var widgetItem: vmodW.item
+                        function measure() {
+                            if (vmodW.item && ("vertical" in vmodW.item) && vmodW.item.implicitHeight > 0)
+                                vlayout.setModSlot(index, Math.ceil(vmodW.item.implicitHeight))
+                        }
                         HoverHandler { id: vmodHover }
                         ModLoader {
                             id: vmodW
                             anchors.centerIn: parent
                             url: vmod.modelData.url
+                            shown: vmod.visible
+                        }
+                        // Measured on the next turn: a widget loaded by the fit (its visibility) must not change the fit in the same pass.
+                        Connections { target: vmodW; function onItemChanged() { Qt.callLater(vmod.measure) } }
+                        Connections { target: vmodW.item; ignoreUnknownSignals: true; function onImplicitHeightChanged() { Qt.callLater(vmod.measure) } }
+                        // A widget that declares `vertical` is told that its bar is a side one; one that does not is drawn as it is
+                        // and clipped to the slot (ModLoader passes nothing else).
+                        Binding {
+                            target: vmodW.item
+                            property: "vertical"
+                            value: true
+                            when: vmodW.item !== null && vmodW.item !== undefined && ("vertical" in vmodW.item)
                         }
                         // The hover or keyboard-focus peek of a side bar's widget (K35, I67): drawn beside the bar.
                         PeekSource {
@@ -376,6 +474,8 @@ PanelWindow {
                     }
                 }
                 Text {
+                    id: clockT
+                    visible: vlayout.fit > 1 + vlayout.modN
                     width: Theme.barH
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.fg
@@ -384,13 +484,79 @@ PanelWindow {
                     text: (bar.clock.hh ?? "--") + "\n" + (bar.clock.mm ?? "--")
                 }
                 QuickButton {
+                    id: quickB
+                    visible: vlayout.fit > 2 + vlayout.modN
                     open: (Store.docs["runtime.ui"] || ({})).panel === "quick"
                     onClicked: Store.act("quick.toggle")
                 }
                 Repeater {
+                    id: trayRep
                     model: bar.trayItems
                     delegate: trayIconDelegate
                 }
+                // The count of the items the column has no room for (see fit); it follows the last item that is shown.
+                Text {
+                    id: hiddenT
+                    visible: vlayout.hiddenN > 0
+                    width: Theme.barH
+                    horizontalAlignment: Text.AlignHCenter
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: "+" + vlayout.hiddenN
+                    Accessible.role: Accessible.StaticText
+                    Accessible.name: I18n.tr("frontend.bar.hidden").replace("{n}", vlayout.hiddenN)
+                }
+            }
+
+            // Test only (KURASHI_BAR_GEOMETRY=1, frontend/test-sidebars.sh): the boxes of what this bar draws, logged a moment
+            // after each change, so the test asserts the layout from the items' geometry. Without the variable: no timer, no log.
+            Timer {
+                id: geoT
+                interval: 300
+                onTriggered: vlayout.logGeometry()
+            }
+            function requestGeometry() { if (bar.geometryLog) geoT.restart() }
+            onWidthChanged: requestGeometry()
+            onHeightChanged: requestGeometry()
+            onFitChanged: requestGeometry()
+            Component.onCompleted: requestGeometry()
+            Connections {
+                target: Store
+                enabled: bar.geometryLog
+                function onDocsChanged() { vlayout.requestGeometry() }
+            }
+            // A box in the bar's window: a rotated item (the slider) is measured by its four corners, as it is drawn.
+            function boxOf(it) {
+                var cs = bar.contentItem
+                var a = it.mapToItem(cs, 0, 0), b = it.mapToItem(cs, it.width, 0)
+                var c = it.mapToItem(cs, 0, it.height), d = it.mapToItem(cs, it.width, it.height)
+                return [Math.min(a.x, b.x, c.x, d.x), Math.min(a.y, b.y, c.y, d.y),
+                    Math.max(a.x, b.x, c.x, d.x), Math.max(a.y, b.y, c.y, d.y)].map(v => Math.round(v)).join(" ")
+            }
+            function shownOf(it) {
+                if (!it) return false
+                for (var p = it; p; p = p.parent) if (!p.visible) return false
+                return true
+            }
+            function logGeometry() {
+                var out = ["BARGEO bar 0 0 " + Math.round(bar.width) + " " + Math.round(bar.height)]
+                out.push("BARGEO fit " + fit + " hidden " + hiddenN + " trays " + trayN + " shown " + bar.trayFit)
+                function add(name, it) { if (shownOf(it)) out.push("BARGEO " + name + " " + boxOf(it)) }
+                add("workspaces", workspaceCol)
+                add("island", isl)
+                add("slider", sliderV)
+                add("clock", clockT)
+                add("quick", quickB)
+                add("more", hiddenT)
+                for (var i = 0; i < modRep.count; i++) {
+                    var d = modRep.itemAt(i)
+                    if (!d) continue
+                    add("slot-" + d.modelData.mod, d)
+                    add("widget-" + d.modelData.mod, d.widgetItem)
+                }
+                for (var j = 0; j < trayRep.count; j++) add("tray" + j, trayRep.itemAt(j))
+                for (var k = 0; k < out.length; k++) console.log(out[k])
             }
         }
     }
