@@ -127,6 +127,8 @@ impl State {
             ("svc.tray", documents::tray()),
             ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
+            // The wallpaper mod's document (W18: its quick tile is a contribution the mock serves).
+            ("mod.wallpaper", documents::wallpaper(outputs)),
             (
                 "runtime.island.main",
                 json!({"face": "clock", "faces": ["clock", "media"], "reason": "default", "pinned": false, "overflow": 0}),
@@ -135,7 +137,7 @@ impl State {
                 "runtime.ui",
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
             ),
-            // K28: one fake contribution, the test mod `hello`'s footer row.
+            // K28: the contributions of the test mod `hello`, the wallpaper tile and a plain one (see documents::slots).
             ("runtime.slots", documents::slots()),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
@@ -217,12 +219,22 @@ impl State {
         });
     }
 
-    /// Intents: fire-and-forget, coalesced by the client. `audio.volume` is the probe's only one.
+    /// Intents: fire-and-forget, coalesced by the client. `audio.volume` and `brightness.set` (W18, I50: the
+    /// quick card's Display slider; a fraction of full scale, PROTOCOL §7) are the ones the mock takes.
     pub fn intent(&mut self, key: &str, value: &Value, origin: Option<String>) -> Result<(), Fail> {
         match key {
             "audio.volume" => {
                 let volume = value.as_f64().unwrap_or(0.5).clamp(0.0, 1.0);
                 self.patch("svc.audio", json!({"volume": volume}), origin);
+                Ok(())
+            }
+            "brightness.set" => {
+                let fraction = value
+                    .as_f64()
+                    .ok_or_else(|| Fail::invalid("brightness.set needs a number (0..1)"))?
+                    .clamp(0.0, 1.0);
+                let raw = (fraction * f64::from(documents::BRIGHTNESS_MAX)).round() as u32;
+                self.patch("svc.brightness", documents::brightness(raw), origin);
                 Ok(())
             }
             _ => Err(Fail::invalid(format!("unknown intent {key}"))),
@@ -262,15 +274,19 @@ impl State {
             "notifications.center" => self.toggle_panel("notifications"),
             "session.menu" => self.toggle_panel("session"),
             "quick.toggle" => self.toggle_panel("quick"),
-            // K26/K28, as kurashid: a mod's Stage panel. The mock's one fake mod is `hello`, on, with
-            // `panel:hello`; any other panel is refused with the daemon's key.
+            // K26/K28, as kurashid: a mod's Stage panel. The mock's mods are `hello` (`panel:hello`) and
+            // `wallpaper` (its picker, `panel:wallpaper`, which the mock has no content for); any other panel is
+            // refused with the daemon's key.
             "mod.panel.open" => {
                 let id = str_arg(args, "id")?;
                 let panel = str_arg(args, "panel")?;
                 if id.is_empty() || panel.is_empty() {
                     return Err(Fail::invalid(ARGS_INVALID));
                 }
-                if (id.as_str(), panel.as_str()) != ("hello", "hello") {
+                if !matches!(
+                    (id.as_str(), panel.as_str()),
+                    ("hello", "hello") | ("wallpaper", "wallpaper")
+                ) {
                     return Err(Fail::invalid("mods.error.panel_unavailable"));
                 }
                 self.toggle_panel(&format!("mod:{id}:{panel}"));
@@ -362,6 +378,9 @@ impl State {
             "media.player.select" => self.media_select(args)?,
             "brightness.up" => self.brightness_step(args, 1),
             "brightness.down" => self.brightness_step(args, -1),
+            // The wallpaper mod's one-step actions, as the quick tile sends them (no output: every output moves).
+            "wallpaper.next" => self.wallpaper_step(1),
+            "wallpaper.prev" => self.wallpaper_step(-1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
             "session.lock" => tracing::info!("session.lock: no-op in the mock"),
             // Without a confirm the daemon refuses; with one it acts, and the mock does nothing.
@@ -405,6 +424,7 @@ impl State {
             "notify.dnd" => self.notify_dnd(args)?,
             "mock.notify" => return self.mock_notify(args),
             "mock.island" => return self.mock_island(args),
+            "mock.doc" => return self.mock_doc(args),
             "mock.focus" => return self.mock_focus(args),
             // The web dock (MODS.md "Web dock"): the rules are in webdock.rs; `mock.webdock` sets fields.
             "mock.webdock" => return self.mock_webdock(args),
@@ -869,6 +889,46 @@ impl State {
         }
         self.patch("runtime.island.main", args.clone(), None);
         Ok(None)
+    }
+
+    /// `mock.doc {doc, patch}` (mock-only, W18): merges `patch` into a served document, as the service's own change
+    /// would (RFC 7386: `null` removes a key). It is how a test makes a service unavailable (`available: false`),
+    /// forces a tile (`forced_by`) or sets the battery (`svc.power` `present`, `percent`, the time left). The frontend
+    /// reads the document, so the state shown is the one a real daemon would have sent.
+    fn mock_doc(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        let doc = str_arg(args, "doc")?;
+        let patch = args
+            .get("patch")
+            .filter(|p| p.is_object())
+            .ok_or_else(|| Fail::invalid("mock.doc needs doc and patch (an object)"))?;
+        if !self.docs.contains_key(&doc) {
+            return Err(Fail::invalid(format!("mock.doc: no document {doc}")));
+        }
+        self.patch(&doc, patch.clone(), None);
+        Ok(None)
+    }
+
+    /// `wallpaper.next|prev` (the wallpaper mod, as its quick tile calls them): every output moves to the next or the
+    /// previous of `documents::PICTURES`, wrapping round. The mock sets no image; the document names the picture.
+    fn wallpaper_step(&mut self, dir: i64) {
+        let n = documents::PICTURES.len() as i64;
+        let mut outputs = serde_json::Map::new();
+        for out in &self.outputs {
+            let current = self.data("mod.wallpaper")["outputs"][out.as_str()]["path"]
+                .as_str()
+                .and_then(|p| {
+                    documents::PICTURES
+                        .iter()
+                        .position(|name| p == documents::picture_path(name))
+                })
+                .unwrap_or(0) as i64;
+            let next = (current + dir).rem_euclid(n) as usize;
+            outputs.insert(
+                out.clone(),
+                json!({"path": documents::picture_path(documents::PICTURES[next]), "fit": "crop"}),
+            );
+        }
+        self.patch("mod.wallpaper", json!({"outputs": outputs}), None);
     }
 
     /// `mock.notify {summary, body?, app_name?, urgency?, actions?}` adds a notification the way
@@ -2063,6 +2123,107 @@ mod tests {
         assert_eq!(st.act("notify.dnd", &json!({"on": false})), Ok(None));
         assert_eq!(st.data("svc.notifications")["dnd"], false);
         assert!(st.data("svc.notifications").get("dnd_until").is_none());
+    }
+
+    /// I50 (W18): `brightness.set` is the Display slider's intent: a fraction of full scale, clamped, and refused when
+    /// it is not a number.
+    #[test]
+    fn brightness_set_intent_sets_the_fraction_of_full_scale() {
+        let mut st = state();
+        st.intent("brightness.set", &json!(0.25), None).unwrap();
+        assert_eq!(st.data("svc.brightness")["value"], 250);
+        assert_eq!(st.data("svc.brightness")["percent"], 25.0);
+        st.intent("brightness.set", &json!(1.7), Some("qs:quick".into()))
+            .unwrap();
+        assert_eq!(st.data("svc.brightness")["value"], 1000);
+        st.intent("brightness.set", &json!(-1.0), None).unwrap();
+        assert_eq!(st.data("svc.brightness")["value"], 0);
+        assert_eq!(
+            st.intent("brightness.set", &json!("half"), None),
+            Err(Fail::invalid("brightness.set needs a number (0..1)"))
+        );
+    }
+
+    /// W18 (I50): `mock.doc` merges a patch into a served document as a service's own change would; `null` removes a
+    /// key, the rest of the document stays, and an unknown document or a patch that is not an object is refused. It is
+    /// how a test makes a service unavailable, forces a tile or sets the battery.
+    #[test]
+    fn mock_doc_sets_the_states_a_tile_shows() {
+        let mut st = state();
+        assert_eq!(st.data("svc.power")["present"], false);
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.power", "patch": {"present": true, "percent": 64, "time_to_empty_s": 7800}}),
+        )
+        .unwrap();
+        assert_eq!(st.data("svc.power")["present"], true);
+        assert_eq!(st.data("svc.power")["percent"], 64);
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.power", "patch": {"time_to_empty_s": null}}),
+        )
+        .unwrap();
+        assert!(st.data("svc.power").get("time_to_empty_s").is_none());
+        assert_eq!(st.data("svc.power")["profile"], "balanced");
+
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.bluetooth", "patch": {"available": false}}),
+        )
+        .unwrap();
+        assert_eq!(st.data("svc.bluetooth")["available"], false);
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.network", "patch": {"forced_by": "nix"}}),
+        )
+        .unwrap();
+        assert_eq!(st.data("svc.network")["forced_by"], "nix");
+
+        assert_eq!(
+            st.act("mock.doc", &json!({"doc": "svc.nope", "patch": {}})),
+            Err(Fail::invalid("mock.doc: no document svc.nope"))
+        );
+        assert_eq!(
+            st.act("mock.doc", &json!({"doc": "svc.power", "patch": "present"})),
+            Err(Fail::invalid("mock.doc needs doc and patch (an object)"))
+        );
+    }
+
+    /// W18: the quick tiles the mock serves are the test mod's, the plain contribution and the wallpaper tile, in
+    /// mod-id order. The wallpaper's one-step actions move the picture of every output (and wrap), and its picker
+    /// panel opens as the mod's Stage panel.
+    #[test]
+    fn quick_tiles_and_the_wallpaper_tile_follow_the_daemon() {
+        let mut st = state();
+        let tiles = st.data("runtime.slots")["quick.tiles"]
+            .as_array()
+            .expect("quick.tiles")
+            .clone();
+        let mods: Vec<&str> = tiles.iter().map(|t| t["mod"].as_str().unwrap()).collect();
+        assert_eq!(mods, ["hello", "mock", "wallpaper"]);
+        assert!(
+            tiles.iter().all(|t| t["ready"] == true
+                && t["qml"].as_str().is_some_and(|q| q.starts_with("file://")))
+        );
+
+        let picture = |st: &State| {
+            st.data("mod.wallpaper")["outputs"]["HEADLESS-1"]["path"]
+                .as_str()
+                .map(str::to_owned)
+        };
+        assert_eq!(picture(&st), Some(documents::picture_path("dusk")));
+        st.act("wallpaper.next", &none()).unwrap();
+        assert_eq!(picture(&st), Some(documents::picture_path("forest")));
+        st.act("wallpaper.prev", &none()).unwrap();
+        st.act("wallpaper.prev", &none()).unwrap();
+        assert_eq!(picture(&st), Some(documents::picture_path("harbour")));
+
+        st.act(
+            "mod.panel.open",
+            &json!({"id": "wallpaper", "panel": "wallpaper"}),
+        )
+        .unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "mod:wallpaper:wallpaper");
     }
 
     /// The focused workspaces of each output's list in `svc.workspaces` (row 80: only the focused output's).
