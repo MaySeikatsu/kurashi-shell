@@ -16,6 +16,9 @@ PanelWindow {
     // This output's bar settings (config document, per-output entry wins).
     BarConfig { id: cfg; screen: bar.screen }
     readonly property bool vertical: cfg.vertical
+    // The bar's edge, kept by Peeks for this output: the items' peeks ask for it, and a side bar's peek sits beside the bar (I67).
+    readonly property string barEdge: cfg.edge
+    onBarEdgeChanged: Peeks.setEdge(screen ? screen.name : "", barEdge)
 
     readonly property string origin: "qs:" + (screen ? screen.name : "?") + ":" + Math.floor(Math.random() * 1e6)
     // Veil: daemon away (or not yet current) -> keep last state, dim it, show the glyph.
@@ -50,7 +53,7 @@ PanelWindow {
         if (JSON.stringify(w) !== JSON.stringify(modWidgets)) modWidgets = w
     }
     onModsDocChanged: refreshWidgets()
-    Component.onCompleted: refreshWidgets()
+    Component.onCompleted: { refreshWidgets(); Peeks.setEdge(screen ? screen.name : "", barEdge) }
     // A mod widget's peek (K35): its `peek:<name>` component, named after the widget's `widget:<name>`; "" when the mod has none.
     function modPeekOf(w) {
         var name = String(w.provide).substring("widget:".length)
@@ -108,7 +111,7 @@ PanelWindow {
             menuOnly: modelData.item_is_menu === true
             tip: modelData.tooltip ?? ""
             // The hover peek names the item's title and tooltip (K35, B9); an item with neither has nothing to show.
-            peekSource: (modelData.title || modelData.tooltip) && !bar.vertical ? "tray:" + modelData.id : ""
+            peekSource: (modelData.title || modelData.tooltip) ? "tray:" + modelData.id : ""
             peekOutput: bar.screen ? bar.screen.name : ""
             onRequested: (action, x, y) => bar.trayRequest(action, modelData.id, ticon, x, y)
             onScrolled: (delta, orientation) =>
@@ -323,7 +326,8 @@ PanelWindow {
             Island {
                 anchors.centerIn: parent
                 rotation: cfg.edge === "left" ? -90 : 90
-                peekable: false
+                // Its peek is a side bar's too (I67): the Stage draws it beside the bar, aligned to the island.
+                peekOutput: bar.screen ? bar.screen.name : ""
                 face: bar.island.face || "clock"
                 reason: bar.island.reason || "default"
                 slots: bar.bindings["island.main"] || ({})
@@ -351,12 +355,23 @@ PanelWindow {
                 Repeater {
                     model: bar.modWidgets
                     delegate: Item {
+                        id: vmod
                         required property var modelData
                         width: Theme.barH
                         height: Theme.barH
+                        HoverHandler { id: vmodHover }
                         ModLoader {
+                            id: vmodW
                             anchors.centerIn: parent
-                            url: modelData.url
+                            url: vmod.modelData.url
+                        }
+                        // The hover or keyboard-focus peek of a side bar's widget (K35, I67): drawn beside the bar.
+                        PeekSource {
+                            target: vmod
+                            source: bar.modPeekOf(vmod.modelData)
+                            output: bar.screen ? bar.screen.name : ""
+                            hovered: vmodHover.hovered
+                            focused: vmodW.item !== null && vmodW.item.activeFocus === true
                         }
                     }
                 }
