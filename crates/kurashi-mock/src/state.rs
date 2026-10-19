@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
 use crate::documents::{self, Note};
+use crate::webdock;
 
 /// The fake backlight starts at half scale (`svc.brightness` 0.5).
 const BRIGHTNESS_START: u32 = documents::BRIGHTNESS_MAX / 2;
@@ -42,7 +43,7 @@ pub struct Fail {
 }
 
 impl Fail {
-    fn invalid(msg: impl Into<String>) -> Self {
+    pub(crate) fn invalid(msg: impl Into<String>) -> Self {
         Fail {
             kind: "invalid",
             msg: msg.into(),
@@ -157,6 +158,11 @@ impl State {
                     "state": {"text": "こんにちは"}
                 }]}),
             ),
+            // The web dock's document (MODS.md "Web dock"): hidden, no pins, the host ready.
+            ("mod.webdock", {
+                let (profiles, icons) = webdock::dir_paths();
+                webdock::initial(&profiles, &icons)
+            }),
         ];
         let (tx, _) = broadcast::channel(256);
         State {
@@ -387,6 +393,8 @@ impl State {
             "mock.notify" => return self.mock_notify(args),
             "mock.island" => return self.mock_island(args),
             "mock.focus" => return self.mock_focus(args),
+            // The web dock (MODS.md "Web dock"): the rules are in webdock.rs; `mock.webdock` sets fields.
+            "mock.webdock" => return self.mock_webdock(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
             "launcher.launch" => {
                 let id = args["id"]
@@ -428,6 +436,7 @@ impl State {
             "bluetooth.disconnect" => self.bluetooth_link(&str_arg(args, "address")?, false)?,
             "bluetooth.scan" => self.bluetooth_scan(bool_arg(args, "on")?)?,
             "input.dispatch" => return self.dispatch(args),
+            _ if action.starts_with("webdock.") => return self.webdock(action, args),
             _ => {
                 return Err(Fail {
                     kind: "unknown_action",
@@ -809,6 +818,31 @@ impl State {
             Some(action) => self.act(&action, &args["args"]),
             None => Ok(None),
         }
+    }
+
+    /// `webdock.*` (MODS.md "Web dock"): the rules and the host reports are in webdock.rs; this applies the
+    /// patch they return and logs what leaves the document (the browser, which the mock does not start).
+    fn webdock(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        let out = webdock::act(self.data("mod.webdock"), action, args)?;
+        if let Some(ops) = out.ops {
+            self.patch("mod.webdock", ops, None);
+        }
+        if let Some(url) = out.external {
+            tracing::info!(%url, "webdock: open in the default browser (logged, not started)");
+        }
+        Ok(None)
+    }
+
+    /// `mock.webdock {…}` (mock-only): merges the fields into `mod.webdock`, so a test can set pins with
+    /// `file://` targets. `null` removes a field, as in any merge patch.
+    fn mock_webdock(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        if !args.is_object() {
+            return Err(Fail::invalid(
+                "mock.webdock needs an object of webdock fields",
+            ));
+        }
+        self.patch("mod.webdock", args.clone(), None);
+        Ok(None)
     }
 
     /// `mock.island {…}` merges the given fields into `runtime.island.main`, as a daemon decision
@@ -2019,6 +2053,33 @@ mod tests {
     }
 
     /// The focused workspaces of each output's list in `svc.workspaces` (row 80: only the focused output's).
+    /// The web dock is served, its actions patch the document, and `mock.webdock` sets fields (MODS.md "Web dock").
+    #[test]
+    fn the_web_dock_document_is_served_and_its_actions_patch_it() {
+        let mut st = state();
+        assert_eq!(st.data("mod.webdock")["mode"], "hidden");
+        assert_eq!(st.data("mod.webdock")["host"]["state"], "ready");
+        st.act(
+            "mock.webdock",
+            &json!({"pins": [{"id": "mail", "kind": "web", "title": "Mail", "target": "file:///m.html"}]}),
+        )
+        .unwrap();
+        st.act("webdock.open", &json!({"pin": "mail"})).unwrap();
+        assert_eq!(st.data("mod.webdock")["mode"], "extended");
+        assert_eq!(st.data("mod.webdock")["keep"], json!(["mail"]));
+        st.act("webdock.host.crashed", &json!({"pin": "mail"}))
+            .unwrap();
+        assert_eq!(
+            st.data("mod.webdock")["pins"][0]["error"],
+            "webdock.error.crashed"
+        );
+        let f = st.act("mock.webdock", &json!("nope")).unwrap_err();
+        assert_eq!(f.kind, "invalid");
+        // A webdock action the mock does not serve is refused as unknown, like any other.
+        let f = st.act("webdock.nope", &json!({})).unwrap_err();
+        assert_eq!(f.kind, "unknown_action");
+    }
+
     fn focused_by_output(st: &State) -> Vec<(String, Vec<u64>)> {
         let outputs = &st.data("svc.workspaces")["outputs"];
         outputs
