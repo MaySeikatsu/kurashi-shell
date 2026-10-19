@@ -54,7 +54,9 @@ Item {
     readonly property real labelW: Math.min(300, Math.max(180, width * 0.36))
     readonly property bool wide: row.control === "slider" || row.control === "pick_list" || row.control === "list"
         || row.control === "font" || row.control === "action_binding" || row.control === "text" || row.control === "number"
-        || row.control === "color" || row.control === "select" && !switchChoice
+        || row.control === "color" || row.control === "select" && !switchChoice || row.control === "records"
+    // A records row (K38) shows a refusal of one of its fields at that field; the row's own line keeps the rest.
+    readonly property bool fieldRefusal: row.control === "records" && Store.fieldErrors[row.key] !== undefined
 
     implicitHeight: body.implicitHeight + Theme.gap * 2
     implicitWidth: 600
@@ -160,6 +162,7 @@ Item {
                         case "slider": return cSlider
                         case "select": return r.dropdown ? cDropdown : (r.switchChoice ? cSwitch : cSegmented)
                         case "pick_list": return cPickList
+                        case "records": return cRecords
                         case "list": case "font": return cList
                         default: return cText   // number, text, color, action_binding
                         }
@@ -240,7 +243,7 @@ Item {
                 }
             }
             Text {
-                visible: r.error !== ""
+                visible: r.error !== "" && !r.fieldRefusal
                 width: ctlCol.width
                 wrapMode: Text.WordWrap
                 color: Theme.error
@@ -355,6 +358,20 @@ Item {
             items: Array.isArray(r.value) ? r.value : []
             enabled: r.editable
             refused: r.error !== ""
+            onEdited: v => Store.setValue(r.row.key, v, r.out)
+        }
+    }
+    // A list of records (K38): rows named by their item_label, a form with one control per declared field. Its changes are
+    // one value each, like a pick list's; a refused field shows at the field (fieldRefusal).
+    Component {
+        id: cRecords
+        RecordsEdit {
+            objectName: "records:" + r.row.key
+            label: I18n.tr(r.row.label)
+            spec: r.row.record ?? ({})
+            items: Array.isArray(r.value) ? r.value : []
+            enabled: r.editable
+            refusal: Store.fieldErrors[r.row.key] ?? null
             onEdited: v => Store.setValue(r.row.key, v, r.out)
         }
     }

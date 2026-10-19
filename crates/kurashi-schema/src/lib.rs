@@ -40,6 +40,7 @@ mod error;
 mod generate;
 mod leaf;
 mod meta;
+mod records;
 mod registry;
 pub mod v1;
 
@@ -51,6 +52,7 @@ pub use generate::{control_kind, docs_markdown, example_toml, i18n_en, settings_
 pub use kurashi_schema_derive::KurashiSchema;
 pub use leaf::{ActionId, Color, Ctx, FontFamilies, KurashiLeaf, KurashiNode, strings};
 pub use meta::{Choice, CmpOp, Constraints, Coupling, Flags, KeyMeta, Text, Ty};
+pub use records::{FieldType, RecordField, RecordProblem, RecordSpec, check_record_field};
 pub use registry::{Registry, validate_value};
 
 /// Current config schema version (written as `schema_version` in `config.toml`).

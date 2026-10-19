@@ -53,6 +53,37 @@ pub struct SchemaAdapter {
     offers: BTreeMap<String, Vec<Offer>>,
 }
 
+impl SchemaAdapter {
+    /// `v` as a `records` setting keeps it (K38): every row with every declared field, absent optional
+    /// fields filled from their defaults. `None` for any other key and for a value with problems:
+    /// kurashi-config rejects what is wrong, and [`SchemaAdapter::record_path`] names the field.
+    fn normalised(&self, key: &str, v: &Value) -> Option<Value> {
+        let (_, meta) = self.mods.find(key)?;
+        if meta.ty != Ty::Records {
+            return None;
+        }
+        meta.constraints
+            .record
+            .clone()
+            .unwrap_or_default()
+            .check(key, v)
+            .ok()
+    }
+
+    /// The path a records value is wrong at, `mods.<id>.<key>[<n>].<field>` (K38); `None` for any
+    /// other key, or a value that is fine.
+    fn record_path(&self, key: &str, v: &Value) -> Option<String> {
+        let (_, meta) = self.mods.find(key)?;
+        if meta.ty != Ty::Records {
+            return None;
+        }
+        match validate_value(meta, v) {
+            Err(kurashi_schema::ValidationError::Record { key, .. }) => Some(key),
+            _ => None,
+        }
+    }
+}
+
 impl SchemaView for SchemaAdapter {
     fn version(&self) -> u32 {
         self.core.version()
@@ -269,6 +300,8 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
         SettingType::Color => Ty::Color,
         // A `list` is a string list with fixed choices (I26): the schema's validator and `pick_list`.
         SettingType::List => Ty::StringList,
+        // A list of tables with declared fields (K38): the schema's validator and the records editor.
+        SettingType::Records => Ty::Records,
     };
     let default = match &s.default {
         SettingValue::Bool(b) => json!(b),
@@ -276,6 +309,7 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
         SettingValue::Float(f) => json!(f),
         SettingValue::Str(t) => json!(t),
         SettingValue::List(items) => json!(items),
+        SettingValue::Records(rows) => json!(rows),
     };
     let mut meta = KeyMeta::new(key.clone(), ty, default);
     // Labels are i18n keys like core keys; without one the derived key names the setting.
@@ -299,6 +333,8 @@ fn setting_meta(m: &Manifest, s: &Setting) -> KeyMeta {
         .collect();
     // I9: the options come from the source at publish time, not from the manifest.
     meta.constraints.choices_from = s.choices_from.clone();
+    // K38: a records setting's fields, checked by the schema like the manifest checked its default.
+    meta.constraints.record = m.record_spec(&s.key).cloned();
     meta
 }
 
@@ -384,7 +420,7 @@ pub struct Committed {
     pub undo: String,
 }
 
-fn op_error(e: kurashi_config::OpError) -> OpError {
+fn op_error(e: kurashi_config::OpError, schema: &SchemaAdapter, ops: &[Op]) -> OpError {
     use kurashi_config::OpError as E;
     let msg = e.to_string();
     match e {
@@ -400,13 +436,24 @@ fn op_error(e: kurashi_config::OpError) -> OpError {
             code: "config.diag.not_per_output".into(),
             msg,
         },
-        // `message` is already the schema's i18n key (SchemaAdapter::validate).
-        E::Invalid { key, message, .. } => OpError {
-            key: Some(key),
-            output: None,
-            code: message,
-            msg,
-        },
+        // `message` is already the schema's i18n key (SchemaAdapter::validate). A records value names
+        // the field it is wrong at (K38), so the Settings editor can show the error there.
+        E::Invalid {
+            index,
+            key,
+            message,
+        } => {
+            let named = match ops.get(index) {
+                Some(Op::Set { value, .. }) => schema.record_path(&key, value),
+                _ => None,
+            };
+            OpError {
+                key: Some(named.unwrap_or(key)),
+                output: None,
+                code: message,
+                msg,
+            }
+        }
         E::Persist { message } => OpError {
             key: None,
             output: None,
@@ -423,6 +470,21 @@ fn refused(code: &str, msg: impl Into<String>) -> Vec<OpError> {
         code: code.into(),
         msg: msg.into(),
     }]
+}
+
+/// The ops as kurashi-config applies them: a records value in its normalised form (K38), so what is
+/// checked and stored is what the schema describes.
+fn prepared(schema: &SchemaAdapter, ops: &[ApplyOp]) -> Vec<Op> {
+    to_ops(ops)
+        .into_iter()
+        .map(|op| match op {
+            Op::Set { key, output, value } => {
+                let value = schema.normalised(&key, &value).unwrap_or(value);
+                Op::Set { key, output, value }
+            }
+            other => other,
+        })
+        .collect()
 }
 
 fn to_ops(ops: &[ApplyOp]) -> Vec<Op> {
@@ -689,6 +751,11 @@ impl ConfigStore {
         output: Option<&str>,
         mut p: Provenanced,
     ) -> Provenanced {
+        // K38: a records value is read with every declared field present, whichever layer it came
+        // from (a Nix or hand-written row may leave the optional fields out).
+        if let Some(v) = cfg.schema().normalised(key, &p.value) {
+            p.value = v;
+        }
         if p.reason.is_some() {
             return p;
         }
@@ -891,9 +958,11 @@ impl ConfigStore {
                     (true, Some(p)) => p.reason.clone().or_else(|| p.forced_by.clone()),
                     _ => l.reason.or(l.forced_by),
                 };
+                // K38: a records layer shows its rows with every field present, as `cfg.get` does.
+                let value = cfg.schema().normalised(key, &l.value).unwrap_or(l.value);
                 LayerValue {
                     source: l.source,
-                    value: l.value,
+                    value,
                     active,
                     reason,
                 }
@@ -904,8 +973,13 @@ impl ConfigStore {
     pub fn apply(&self, ops: &[ApplyOp]) -> Result<Committed, Vec<OpError>> {
         let applied = {
             let mut cfg = self.cfg.lock().expect("config lock");
-            cfg.apply(&to_ops(ops))
-                .map_err(|errs| errs.into_iter().map(op_error).collect::<Vec<_>>())?
+            let wire = prepared(cfg.schema(), ops);
+            let result = cfg.apply(&wire);
+            result.map_err(|errs| {
+                errs.into_iter()
+                    .map(|e| op_error(e, cfg.schema(), &wire))
+                    .collect::<Vec<_>>()
+            })?
         };
         self.publish();
         Ok(Committed {
@@ -916,12 +990,13 @@ impl ConfigStore {
 
     /// Effective changes a batch would cause, without committing (PROTOCOL §5 `dry_run`).
     pub fn preview(&self, ops: &[ApplyOp]) -> Result<Vec<DiffEntry>, Vec<OpError>> {
-        let diff = self
-            .cfg
-            .lock()
-            .expect("config lock")
-            .preview(&to_ops(ops))
-            .map_err(|errs| errs.into_iter().map(op_error).collect::<Vec<_>>())?;
+        let cfg = self.cfg.lock().expect("config lock");
+        let wire = prepared(cfg.schema(), ops);
+        let diff = cfg.preview(&wire).map_err(|errs| {
+            errs.into_iter()
+                .map(|e| op_error(e, cfg.schema(), &wire))
+                .collect::<Vec<_>>()
+        })?;
         Ok(diff_entries(&diff))
     }
 

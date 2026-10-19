@@ -1,0 +1,80 @@
+# Test mod for the `records` setting type (K38, MODS.md "Records", W17): one list of rows with every field
+# type. Data only (no provides, so enabling it needs no daemon code). tests/records.rs and the Settings
+# screenshots (settings/test.sh) use it.
+id = "records"
+name = "Records"
+description = "Test mod: a list of records with one field of every type."
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = []
+capabilities = []
+cost = "low"
+
+[[setting]]
+key = "pins"
+type = "records"
+default = []
+unique = "id"
+item_label = "title"
+label = "mods.records.pins"
+  [[setting.field]]
+  key = "id"
+  type = "string"
+  required = true
+  pattern = "slug"
+  label = "mods.records.pins.id"
+  [[setting.field]]
+  key = "title"
+  type = "string"
+  required = true
+  label = "mods.records.pins.title"
+  [[setting.field]]
+  key = "target"
+  type = "url"
+  required = true
+  schemes = ["https", "http", "file", "mod"]
+  label = "mods.records.pins.target"
+  [[setting.field]]
+  key = "view"
+  type = "enum"
+  choices = ["default", "mobile", "desktop"]
+  default = "default"
+  label = "mods.records.pins.view"
+  [[setting.field]]
+  key = "keep"
+  type = "bool"
+  default = false
+  label = "mods.records.pins.keep"
+  [[setting.field]]
+  key = "size"
+  type = "int"
+  range = [1, 9]
+  default = 3
+  label = "mods.records.pins.size"
+
+# A second list, pinned by Nix in the Settings test (settings/test.sh writes it to managed.toml): forced, read-only.
+[[setting]]
+key = "locked"
+type = "records"
+default = []
+unique = "id"
+item_label = "title"
+label = "mods.records.locked"
+  [[setting.field]]
+  key = "id"
+  type = "string"
+  required = true
+  pattern = "slug"
+  label = "mods.records.pins.id"
+  [[setting.field]]
+  key = "title"
+  type = "string"
+  required = true
+  label = "mods.records.pins.title"
+  [[setting.field]]
+  key = "target"
+  type = "url"
+  required = true
+  schemes = ["https", "http", "file", "mod"]
+  label = "mods.records.pins.target"

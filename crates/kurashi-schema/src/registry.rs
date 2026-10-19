@@ -254,6 +254,14 @@ pub fn validate_value(m: &KeyMeta, v: &Value) -> Result<(), ValidationError> {
                 })
             }
         }
+        // The one validator for records (K38): the same check the manifest's default goes through.
+        Ty::Records => c
+            .record
+            .clone()
+            .unwrap_or_default()
+            .check(&m.key, v)
+            .map(drop)
+            .map_err(|mut errs| errs.swap_remove(0)),
     }
 }
 

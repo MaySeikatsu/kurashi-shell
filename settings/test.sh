@@ -12,7 +12,9 @@
 # empty search, search landing on a row (flashed), mod states (available, loaded-off, on, refused, invalid, removed while
 # on), the Changed view and its reset plan, profiles with their differ count, the profile overlay (B13: your change
 # replaced, the changes kept, Nix holds back), export and import with their review and refusal (keyboard), the Japanese
-# copy of the main pages.
+# copy of the main pages, and the records list of the test mod `records` (K38, W17): empty, two entries, the add form, a
+# refusal at its field (an empty id, sent by keyboard), a reorder and a removal with the row's buttons, the edit form opened
+# and closed by keyboard, a list pinned by Nix (read-only), and its Japanese page.
 # Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
 # font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row), the Changed view's
 # reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
@@ -45,9 +47,9 @@ R=$XDG_RUNTIME_DIR                      # /tmp/kurashi-sb-<name>, the sandbox's 
 pids=()
 kbd_pid=""
 cleanup() {
+  rm -rf "$BIN"   # before the sandbox stops: its netjoin preload refuses every later external command (exit 111)
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done   # only PIDs started here
   tools/bench/sandbox.sh stop "$NAME" >/dev/null || true
-  rm -rf "$BIN"
 }
 trap cleanup EXIT
 fail() { echo "FAIL: $*"; exit 1; }
@@ -71,6 +73,9 @@ enforce = true
 density = "airy"
 [theme.material]
 blur = false
+# A records list pinned by Nix (K38, W17): forced, read-only, its chip names this layer; the test mod `records` shows it.
+[mods.records]
+locked = [{ id = "nix", title = "Set by Nix", target = "https://nix.example" }]
 T
 # A profile that sets density too: loading it shows "not applied: set by Nix" for density.
 cat > "$R/cfg/kurashi/profiles/roomy.toml" <<'T'
@@ -94,6 +99,9 @@ provides = ["widget:demo-blur"]
 capabilities = []
 cost = "low"
 T
+# The records test mod (K38, W17): the repo's test data, copied in so the daemon discovers it like a user mod.
+mkdir -p "$R/data/kurashi/mods/records"
+cp "$ROOT/crates/kurashid/tests/data/mods/records/mod.toml" "$R/data/kurashi/mods/records/mod.toml"
 # Data dir = the repo itself: i18n/ (incl. the generated schema catalog) and palettes/, exactly what the package installs.
 export KURASHI_DATA_DIR=$ROOT
 
@@ -574,6 +582,73 @@ done
 echo "profiles: late.toml listed after $(( ($(date +%s%N) - t0) / 1000000 )) ms (IPC round trips included)"
 shot 9-profiles-live
 
+# 10. records (K38, W17): a list of records, one row each, named by its title. The test mod `records` has `pins` (the user's
+#     list: the rows are set here, the add form is typed into by keyboard) and `locked` (pinned by Nix, forced). It is turned
+#     on as any mod is (Mods page, K15).
+Q modLoad records
+for _ in $(seq 20); do [ "$(Q navOrder | tr ',' '\n' | grep -c records)" -ge 1 ] && break; sleep 0.2; done
+Q mod records true
+Q goto mods.records
+shot records-empty
+"$BIN/kurashi" set mods.records.pins '[{"id":"home","title":"Home","target":"https://example.org"},{"id":"docs","title":"Docs","target":"mod:webdock:docs","view":"mobile"}]' | grep '^applied' >/dev/null || fail "records: the two entries were not applied"
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == *Docs* ]] && break; sleep 0.2; done
+[[ "$(val mods.records.pins)" == *'"keep":false'* ]] || fail "records: the absent fields were not filled in ($(val mods.records.pins))"
+shot records-two
+echo "records: two entries in effect, every declared field present (absent ones took their defaults)"
+# R1. the add form by keyboard: Tab to "Add entry" (the pins list's), Return opens it with the focus in its first field.
+#     Return with the id empty is refused at that field (the first problem of the new entry); the form stays open.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recordadd" 150
+kp return
+sleep 1
+shot records-add
+kp return
+sleep 1
+shot records-field-error
+[ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 2 ] || fail "records: a refused entry was stored"
+echo "keyboard R1: Tab to Add entry, Return opened the form, the empty id was refused at its field"
+kp escape
+sleep 0.5
+# R3. reorder by keyboard, through the row's buttons (Alt+Up and Alt+Down are not key-tested in this run, as the header notes;
+#     a try at Alt+Down did not move the entry): Tab to the down button of the first entry and Return moves it below the second; the focus
+#     follows the moved entry, Tab reaches its up button, and Return moves it back. Each move is one change of the list.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recorddown:0" 150
+kp return
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == '[{"id":"docs"'* ]] && break; sleep 0.2; done
+[[ "$(val mods.records.pins)" == '[{"id":"docs"'* ]] || fail "records: the down button did not move the first entry ($(val mods.records.pins))"
+tab_to "recordup:1" 20
+kp return
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] && break; sleep 0.2; done
+[[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: the up button did not move the entry back ($(val mods.records.pins))"
+echo "keyboard R3: the down button moved the first entry, the focus followed it to its up button, and Return moved it back"
+# R2. the Nix list: forced and read-only; its chip names the managed layer, and its value is the pinned one.
+Q goto mods.records
+shot records-forced
+[[ "$(val mods.records.locked)" == *'"nix"'* ]] || fail "records: the Nix list is not in effect ($(val mods.records.locked))"
+echo "records: the Nix-pinned list is in effect"
+# R4. remove and edit by keyboard: Tab to the remove button of the second entry and Return removes it (one change of the list);
+#     the list is then set back as it was, for the Japanese page. Tab to the edit button of the first entry and Return opens
+#     its form with the entry's id in the first field; Escape closes it and changes nothing.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recordremove:1" 150
+kp return
+for _ in $(seq 20); do [ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 1 ] && break; sleep 0.2; done
+[ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 1 ] || fail "records: the remove button did not remove the second entry ($(val mods.records.pins))"
+"$BIN/kurashi" set mods.records.pins '[{"id":"home","title":"Home","target":"https://example.org"},{"id":"docs","title":"Docs","target":"mod:webdock:docs","view":"mobile"}]' | grep '^applied' >/dev/null || fail "records: the two entries were not set back"
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == *Docs* ]] && break; sleep 0.2; done
+tab_to "recordedit:0" 150
+kp return
+for _ in $(seq 20); do [ "$(Q focused)" = "Id" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "Id" ] || fail "records: the edit button did not open the form with the focus in its first field ($(Q focused))"
+kp escape
+sleep 0.5
+[[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: the edit form changed the list on Escape ($(val mods.records.pins))"
+echo "keyboard R4: the remove button removed the second entry and was set back; the edit button opened the form, Escape closed it"
+
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
@@ -609,6 +684,9 @@ shot ja-mods
 Q find zzzz
 shot ja-empty-search
 Q find ""
+# The records page in Japanese: the two entries and the Nix-pinned list (K38, W17).
+Q goto mods.records
+shot ja-records
 
 # The QML log: no errors and no warnings from the settings process (the compositor's own notes are not ours).
 if grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to assign|SyntaxError|Expected token|anchors' \
