@@ -53,10 +53,7 @@ Item {
         }
         return m
     }
-    readonly property string ageText: {
-        var a = W.ageParts(d.age_s)
-        return a.n > 0 ? W.fill(I18n.tr(a.key), { n: a.n }) : I18n.tr(a.key)
-    }
+    readonly property string ageText: p.ageOf(d.age_s)
     readonly property string subText: {
         var parts = []
         if (d.updated_local) {
@@ -87,6 +84,9 @@ Item {
     property var selected: null
     property string searchStatus: ""
     property string saveStatus: ""
+    // The daemon's forecast of the chosen result (null while it is asked for, or when it refused: previewStatus says why).
+    property var preview: null
+    property string previewStatus: ""
 
     Accessible.role: Accessible.Pane
     Accessible.name: I18n.tr("mod-weather.title")
@@ -113,6 +113,25 @@ Item {
         return pl.name + (pl.admin ? " · " + pl.admin : "") + (pl.country ? " · " + pl.country : "")
     }
 
+    // The candidate's forecast as one line: "Tokyo, JP · ⛅ 21°C · Partly cloudy · High 24° · low 14°". Until the daemon
+    // answers, or when it refuses, the place and the state say so.
+    function previewLine(pl) {
+        var parts = [p.labelOf(pl)]
+        if (!p.preview) return p.previewStatus !== "" ? parts[0] + " · " + p.previewStatus : parts[0]
+        var n = p.preview.now || ({})
+        if (W.has(n.temp)) parts.push(W.glyph(n.code, n.is_day) + " " + W.num(n.temp) + I18n.tr("mod-weather.unit.temp." + (p.preview.units || "metric")))
+        if (n.code) parts.push(I18n.tr("mod-weather.condition." + n.code))
+        var t = p.preview.today
+        if (t) parts.push(W.fill(I18n.tr("mod-weather.high_low"), { max: W.deg(t.max), min: W.deg(t.min) }))
+        return parts.join(" · ")
+    }
+
+    // An age in seconds as its words ("just now", "5 min ago").
+    function ageOf(sec) {
+        var a = W.ageParts(sec)
+        return a.n > 0 ? W.fill(I18n.tr(a.key), { n: a.n }) : I18n.tr(a.key)
+    }
+
     function refresh() {
         Store.act("weather.refresh", {}, function (done, err) {
             if (done && done.data) p.waitS = done.data.started ? 0 : (done.data.retry_in_s || 0)
@@ -127,6 +146,8 @@ Item {
         var q = searchField.text.trim()
         p.selected = null
         p.saveStatus = ""
+        p.preview = null
+        p.previewStatus = ""
         if (q.length === 0) {
             p.results = []
             p.searchStatus = ""
@@ -150,10 +171,23 @@ Item {
         })
     }
 
-    // A search result is chosen for the preview; saving is a second, explicit step.
+    // A search result is chosen for the preview; saving is a second, explicit step. The preview is the daemon's
+    // forecast for the result's coordinates; an answer that arrives for a result no longer chosen is dropped.
     function choose(place) {
         p.selected = place
         p.saveStatus = ""
+        p.preview = null
+        p.previewStatus = I18n.tr("mod-weather.preview.loading")
+        Store.act("weather.place.preview", { lat: place.lat, lon: place.lon }, function (done, err) {
+            if (!p.selected || p.selected.id !== place.id) return
+            if (err) {
+                p.preview = null
+                p.previewStatus = I18n.tr(err.msg)
+                return
+            }
+            p.preview = (done && done.data) || null
+            p.previewStatus = ""
+        })
     }
 
     function save() {
@@ -297,18 +331,10 @@ Item {
                 font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
             }
+            // While data is shown, the failure and its next try are the header's line; without data they are here, once.
             Text {
                 width: parent.width
-                wrapMode: Text.WordWrap
-                visible: p.veryStale && p.d.reason !== undefined
-                text: p.d.reason !== undefined ? I18n.tr(p.d.reason) : ""
-                color: Theme.dim
-                font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
-            }
-            Text {
-                width: parent.width
-                visible: p.d.next_try_s !== undefined && !p.noPlace
+                visible: !p.ok && p.d.next_try_s !== undefined && !p.noPlace
                 text: p.d.next_try_s !== undefined
                     ? W.fill(I18n.tr("mod-weather.next_try"), { n: Math.max(1, Math.ceil(p.d.next_try_s / 60)) })
                     : ""
@@ -398,128 +424,176 @@ Item {
             }
         }
 
-        // Hourly strip: the temperature as a line, the chance of rain as bars, one column per hour, starting now.
-        Flickable {
-            id: strip
+        // Hourly strip: the temperature as a line, one column per hour, starting now. The chance of rain is a labelled
+        // row under it: a value for every hour the daemon sent one for, and a bar on a track of 100 %. The row's label
+        // stays in place while the hours scroll.
+        Item {
+            id: hourly
             width: body.width
             height: 100
             visible: p.mode === "weather" && p.ok && p.hours.length > 0 && !p.veryStale
-            clip: true
-            activeFocusOnTab: true
-            flickableDirection: Flickable.HorizontalFlick
-            contentWidth: hourRow.width
-            contentHeight: height
-            boundsBehavior: Flickable.StopAtBounds
-            Accessible.role: Accessible.List
-            Accessible.name: I18n.tr("mod-weather.hours")
-            Keys.onLeftPressed: contentX = Math.max(0, contentX - 52)
-            Keys.onRightPressed: contentX = Math.min(Math.max(0, contentWidth - width), contentX + 52)
-            WheelHandler {
-                acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                onWheel: function (event) {
-                    var step = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
-                    strip.contentX = Math.max(0, Math.min(Math.max(0, strip.contentWidth - strip.width), strip.contentX - step / 2))
-                }
+            Text {
+                id: rainLabel
+                x: 0
+                y: 62
+                width: 40
+                elide: Text.ElideRight
+                text: I18n.tr("mod-weather.hours.rain")
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
             }
-            Item {
-                id: hourRow
-                width: p.hours.length * 52
-                height: strip.height
-                Canvas {
-                    id: trend
-                    width: hourRow.width
-                    height: 100
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset()
-                        var n = p.hours.length
-                        if (n < 2) return
-                        var lo = Infinity
-                        var hi = -Infinity
-                        for (var i = 0; i < n; i++) {
-                            var t = p.hours[i].temp
-                            if (t < lo) lo = t
-                            if (t > hi) hi = t
-                        }
-                        var span = Math.max(1, hi - lo)
-                        ctx.strokeStyle = p.css(Theme.fg)
-                        ctx.lineWidth = 1.5
-                        ctx.beginPath()
-                        for (var j = 0; j < n; j++) {
-                            // The line lives in its own band (y 30 to 42), between the glyph and the value.
-                            var x = j * 52 + 26
-                            var y = 42 - (p.hours[j].temp - lo) / span * 12
-                            if (j === 0) ctx.moveTo(x, y)
-                            else ctx.lineTo(x, y)
-                        }
-                        ctx.stroke()
+            Flickable {
+                id: strip
+                x: rainLabel.width
+                width: hourly.width - rainLabel.width
+                height: 100
+                clip: true
+                activeFocusOnTab: true
+                flickableDirection: Flickable.HorizontalFlick
+                contentWidth: hourRow.width
+                contentHeight: height
+                boundsBehavior: Flickable.StopAtBounds
+                Accessible.role: Accessible.List
+                Accessible.name: I18n.tr("mod-weather.hours")
+                Keys.onLeftPressed: contentX = Math.max(0, contentX - 52)
+                Keys.onRightPressed: contentX = Math.min(Math.max(0, contentWidth - width), contentX + 52)
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: function (event) {
+                        var step = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                        strip.contentX = Math.max(0, Math.min(Math.max(0, strip.contentWidth - strip.width), strip.contentX - step / 2))
                     }
                 }
-                Repeater {
-                    model: p.hours
-                    Item {
-                        x: index * 52
-                        width: 52
-                        height: strip.height
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: 0
-                            text: index === 0 ? I18n.tr("mod-weather.now") : W.hm(modelData.t)
-                            color: index === 0 ? Theme.fg : Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
+                Item {
+                    id: hourRow
+                    width: p.hours.length * 52
+                    height: strip.height
+                    Canvas {
+                        id: trend
+                        width: hourRow.width
+                        height: 100
+                        onPaint: {
+                            var ctx = getContext("2d")
+                            ctx.reset()
+                            var n = p.hours.length
+                            if (n < 2) return
+                            var lo = Infinity
+                            var hi = -Infinity
+                            for (var i = 0; i < n; i++) {
+                                var t = p.hours[i].temp
+                                if (t < lo) lo = t
+                                if (t > hi) hi = t
+                            }
+                            var span = Math.max(1, hi - lo)
+                            ctx.strokeStyle = p.css(Theme.fg)
+                            ctx.lineWidth = 1.5
+                            ctx.beginPath()
+                            for (var j = 0; j < n; j++) {
+                                // The line lives in its own band (y 30 to 42), between the glyph and the value.
+                                var x = j * 52 + 26
+                                var y = 42 - (p.hours[j].temp - lo) / span * 12
+                                if (j === 0) ctx.moveTo(x, y)
+                                else ctx.lineTo(x, y)
+                            }
+                            ctx.stroke()
                         }
-                        // Rows: time 0, glyph 12, temperature line 30–42, value 46, chance of rain 62,
-                        // rain bar from the bottom (at most 22 px tall).
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: 12
-                            text: W.glyph(modelData.code, modelData.is_day)
-                            color: Theme.fg
-                            font.pixelSize: Theme.fs
-                            font.family: Theme.fam(text, Theme.families)
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: 46
-                            text: W.deg(modelData.temp)
-                            color: Theme.fg
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                        }
-                        Text {
-                            visible: W.has(modelData.pop) && modelData.pop >= 30
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            y: 62
-                            text: visible ? W.num(modelData.pop) + "%" : ""
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                        }
-                        Rectangle {
-                            visible: W.has(modelData.pop)
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            width: 12
-                            height: W.has(modelData.pop) ? Math.max(2, modelData.pop / 100 * 22) : 0
-                            radius: 2
-                            color: Theme.accent
-                            opacity: W.has(modelData.pop) ? 0.35 + 0.65 * modelData.pop / 100 : 0
+                    }
+                    Repeater {
+                        model: p.hours
+                        Item {
+                            x: index * 52
+                            width: 52
+                            height: strip.height
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 0
+                                text: index === 0 ? I18n.tr("mod-weather.now") : W.hm(modelData.t)
+                                color: index === 0 ? Theme.fg : Theme.dim
+                                font.pixelSize: Theme.fsCaption
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+                            // Rows: time 0, glyph 12, temperature line 30–42, value 46, chance of rain 62, and the rain
+                            // track from 78 to 100 (22 px = 100 %), filled from the bottom to the chance.
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 12
+                                text: W.glyph(modelData.code, modelData.is_day)
+                                color: Theme.fg
+                                font.pixelSize: Theme.fs
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 46
+                                text: W.deg(modelData.temp)
+                                color: Theme.fg
+                                font.pixelSize: Theme.fsCaption
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+                            Text {
+                                visible: W.has(modelData.pop)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 62
+                                text: W.has(modelData.pop) ? W.num(modelData.pop) + "%" : ""
+                                color: Theme.dim
+                                font.pixelSize: Theme.fsCaption
+                                font.family: Theme.fam(text, Theme.families)
+                            }
+                            Rectangle {
+                                visible: W.has(modelData.pop)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                width: 12
+                                height: 22
+                                radius: 2
+                                color: "transparent"
+                                border.width: 1
+                                border.color: Theme.outline
+                            }
+                            Rectangle {
+                                visible: W.has(modelData.pop) && modelData.pop > 0
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.bottom: parent.bottom
+                                width: 12
+                                height: W.has(modelData.pop) ? modelData.pop / 100 * 22 : 0
+                                radius: 2
+                                color: Theme.accent
+                                opacity: W.has(modelData.pop) ? 0.35 + 0.65 * modelData.pop / 100 : 0
+                            }
                         }
                     }
                 }
+                FocusRing { anchors.fill: parent; shown: strip.activeFocus; corner: Theme.rSm }
             }
-            FocusRing { anchors.fill: parent; shown: strip.activeFocus; corner: Theme.rSm }
         }
 
-        // Seven days on one shared scale: each bar spans the day's low to its high.
-        Text {
+        // Seven days on one shared scale: each bar spans the day's low to its high, on the week's range that the
+        // header names (the scale the bars are read against). Today's label is bold.
+        Item {
+            id: daysHead
             width: body.width
+            height: heading.implicitHeight
             visible: p.mode === "weather" && p.ok && p.days.length > 0 && !p.veryStale
-            text: I18n.tr("mod-weather.days")
-            color: Theme.dim
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
+            Text {
+                id: heading
+                anchors.left: parent.left
+                anchors.right: span.left
+                anchors.rightMargin: Theme.gap
+                elide: Text.ElideRight
+                text: I18n.tr("mod-weather.days")
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Text {
+                id: span
+                anchors.right: parent.right
+                text: W.fill(I18n.tr("mod-weather.days.span"), { min: W.deg(p.scaleLo), max: W.deg(p.scaleHi) })
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
         }
         Column {
             width: body.width
@@ -537,6 +611,7 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                         text: index === 0 ? I18n.tr("mod-weather.today") : p.dayLabel(modelData.date)
                         color: Theme.fg
+                        font.bold: index === 0
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
                     }
@@ -692,21 +767,25 @@ Item {
                     }
                 }
             }
-            // The preview names the place as the list does, with its coordinates and zone, before it is saved.
+            // The preview is the forecast of the chosen result, one line, before it is saved. Its coordinates and zone
+            // are the accessible description (the list and the line name the place).
             Text {
                 width: parent.width
                 visible: p.selected !== null
                 wrapMode: Text.WordWrap
-                color: Theme.fg
-                font.pixelSize: Theme.fsCaption
+                color: p.preview ? Theme.fg : Theme.dim
+                font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
-                text: p.selected
+                text: p.selected ? p.previewLine(p.selected) : ""
+                Accessible.role: Accessible.StaticText
+                Accessible.name: text
+                Accessible.description: p.selected
                     ? W.fill(I18n.tr("mod-weather.search.preview"), {
                         name: p.labelOf(p.selected),
                         lat: Number(p.selected.lat).toFixed(2),
                         lon: Number(p.selected.lon).toFixed(2),
                         tz: p.selected.tz
-                    })
+                    }) + (p.preview ? " · " + p.ageOf(p.preview.age_s) : "")
                     : ""
             }
             Row {
@@ -806,15 +885,28 @@ Item {
             }
         }
 
-        // Footer: the refresh cadence, then the credit the CC BY 4.0 licence asks for.
-        Text {
+        // Footer: the refresh cadence on one line, then the credit the CC BY 4.0 licence asks for on its own line, so
+        // that neither wraps in the middle of a phrase at the card's width.
+        Column {
             width: body.width
-            wrapMode: Text.WordWrap
-            text: (d.refresh_min ? W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }) + " · " : "")
-                + I18n.tr("mod-weather.credit")
-            color: Theme.dim
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
+            spacing: 2
+            Text {
+                width: body.width
+                visible: !!d.refresh_min
+                wrapMode: Text.WordWrap
+                text: d.refresh_min ? W.fill(I18n.tr("mod-weather.refresh_every"), { n: d.refresh_min }) : ""
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Text {
+                width: body.width
+                wrapMode: Text.WordWrap
+                text: I18n.tr("mod-weather.credit")
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+            }
         }
     }
 }
