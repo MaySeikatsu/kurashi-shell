@@ -1,27 +1,35 @@
 #!/usr/bin/env bash
-# The bar's hover peeks (K35, I55), drawn by the Stage, invisibly (headless sway sandbox): the tray tooltip (B9), the
-# weather (B22), the island's line (I47) and sysmon's facts (docs/ux/sysmon.md). Four phases, each with a fresh frontend:
-#   kurashi-mock, one output    tray tooltips (hover; the frame is clamped at the right edge), the island's line (hover,
-#                               held while the pointer is on it, gone after it leaves), no peek while a card is open;
-#   kurashid (real), one output sysmon and weather on the top bar (a localhost weather fixture, KURASHI_WEATHER_API), the
-#                               island's line from a notification on the top bar, then the bar on the bottom edge:
-#                               sysmon and the island again;
-#   kurashi-mock, two outputs   a tray peek on HEADLESS-2 lands there (the Stage retargets); the next card opens on
-#                               HEADLESS-1 (the Stage hands its output back);
-#   measurement                 PSS of the frontend and Wayland commits (WAYLAND_DEBUG) per window: idle, a peek held, the
-#                               fade in, a retarget, and 20 hover cycles (on output 1, and 20 retarget cycles on output 2).
+# The bar's hover peeks (K35, I55, I67), drawn by the Stage, invisibly (headless sway sandbox): the tray tooltip (B9), the
+# weather (B22), the island's line (I47) and sysmon's facts (docs/ux/sysmon.md), on every edge of the bar. Each phase has a
+# fresh frontend and daemon; PEEK_PHASES="sides weather" runs only the named phases (the default runs them all):
+#   mock-one    kurashi-mock, one output: tray tooltips (hover; the frame is clamped at the right edge), the island's line
+#               (hover, held while the pointer is on it, gone after it leaves), no peek while a card is open;
+#   real-top    kurashid (real), one output: sysmon and weather on the top bar (a localhost weather fixture, KURASHI_WEATHER_API),
+#               the island's line from a notification on the top bar, then the bar on the bottom edge: sysmon and the island again;
+#   sides       the bar on the left edge: sysmon and the island beside it; on the right edge: sysmon beside it;
+#   weather     the weather peek in its states: no place, loading (a fetch that never answers), offline (the connection is
+#               refused), stale (the data is three hours old, by a clock shim, and the fixture is gone so the refresh fails);
+#   sysmon      the sysmon peek in its states: paused, unavailable (KURASHI_SYSMON_ROOT names a folder with no /proc), the
+#               top-process line;
+#   motion      reduced motion (theme profile none): the peek comes and goes at once, with no fade;
+#   mock-two    kurashi-mock, two outputs: a tray peek on HEADLESS-2 lands there (the Stage retargets); the next card opens on
+#               HEADLESS-1 (the Stage hands its output back);
+#   measure     PSS of the frontend and Wayland commits (WAYLAND_DEBUG) per window: idle (no commits in 10 s), a peek held, the
+#               fade in and the fade out (frames), a retarget, and 20 hover cycles (on output 1, and 20 retarget cycles on output 2).
 # A peek is found by what changed against a baseline screenshot taken with nothing shown (so no colour is assumed), and by
-# runtime.ui.peek (the source and output asked for). No QML error in qs.log. Screenshots: frontend/shots/peek/ (read them).
+# runtime.ui.peek (the source and output asked for) and by the state of the mod's document. No QML error in qs.log.
+# Screenshots: frontend/shots/peek/ (read them).
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid, kurashi, kurashi-mock> \
-#     timeout 900 nix develop -c frontend/test-peek.sh [sandbox-name]
+#     timeout 1200 nix develop -c frontend/test-peek.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-peek}
+NAME=${1:-peek-$$}   # unique per run: other agents' runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/peek
 FX=$ROOT/crates/kurashi-mod-weather/tests/fixtures
 mkdir -p "$OUT"
 fail() { echo "test-peek: $*" >&2; exit 1; }
+want() { [ -z "${PEEK_PHASES:-}" ] || [[ " $PEEK_PHASES " == *" $1 "* ]]; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR
@@ -99,10 +107,46 @@ for y in range(y0, y1):
             n += 1
 print(n)
 PY
+# The clock shim (test only): CLOCK_REALTIME plus the offset, in seconds, that $KURASHI_TEST_TIME_FILE holds (read on each
+# call; 0 without the file). The weather data ages past its tiers without a wait of twenty minutes. Preloaded into kurashid
+# alone, in the states phase.
+cat > "$W/timeshift.c" <<'C'
+#define _GNU_SOURCE
+#include <dlfcn.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+int clock_gettime(clockid_t clk, struct timespec *ts) {
+  static int (*real)(clockid_t, struct timespec *);
+  if (!real) real = (int (*)(clockid_t, struct timespec *))dlsym(RTLD_NEXT, "clock_gettime");
+  int r = real(clk, ts);
+  if (r == 0 && clk == CLOCK_REALTIME) {
+    const char *path = getenv("KURASHI_TEST_TIME_FILE");
+    FILE *f = path ? fopen(path, "r") : NULL;
+    long long off = 0;
+    if (f) {
+      if (fscanf(f, "%lld", &off) != 1) off = 0;
+      fclose(f);
+    }
+    ts->tv_sec += off;
+  }
+  return r;
+}
+C
+cc -shared -fPIC -O2 -o "$W/timeshift.so" "$W/timeshift.c" -ldl || fail "the clock shim did not build"
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 peek_src() { ipc runtime.ui | python3 -c 'import json,sys; d=json.load(sys.stdin) or {}; p=d.get("peek"); print(p["source"] if p else "")'; }
 peek_out() { ipc runtime.ui | python3 -c 'import json,sys; d=json.load(sys.stdin) or {}; p=d.get("peek"); print(p["output"] if p else "")'; }
+# doc_is <document> <python condition on d>: 0 when the condition holds for the document now (no check is recorded).
+doc_is() {
+  ipc "$1" | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($2) else 1)" 2>/dev/null
+}
+# doc_check <document> <python condition on d> <label>: the state the mod's document is in, so a shot shows the state it names.
+doc_check() {
+  if doc_is "$1" "$2"; then check 1 "$3"; else check 0 "$3"; fi
+}
 changed() { timeout 30 python3 -I "$W/diff.py" "$@"; }   # changed <ppm> <baseline ppm> x0 y0 x1 y1
 drawn() { [ "$(changed "$@")" -gt 1500 ] && echo 1 || echo 0; }
 undrawn() { [ "$(changed "$@")" -lt 300 ] && echo 1 || echo 0; }
@@ -114,11 +158,25 @@ FAILS=0
 check() { # check <0|1> <label>
   if [ "$1" = 1 ]; then echo "ok: $2"; else echo "FAIL: $2"; FAILS=$((FAILS + 1)); fi
 }
+pss_mib() { awk '/^Pss:/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_rollup"; }
+size() { stat -c %s "$R/qs.log"; }
+commits() { # commits <start byte>: Wayland surface commits (both bars and the Stage) logged since that offset
+  tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -c 'wl_surface#[0-9]*\.commit(' || true
+}
+# stage_commits <start byte>: commits of the Stage alone, the surfaces of the layer surfaces named kurashi-stage (a bar's
+# own redraws are not the peek's frames)
+stage_commits() {
+  local ids
+  ids=$(grep -o 'wl_surface#[0-9]*, wl_output#[0-9]*, [0-9]*, "kurashi-stage"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
+    | grep -oE '[0-9]+$' | paste -sd'|' - || true)
+  [ -n "$ids" ] || { echo 0; return 0; }
+  tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -cE "wl_surface#($ids)\.commit\(" || true
+}
 
 pids=()
 QS_PID=""
 stop_phase() {
-  exec 3>&- 2>/dev/null || true
+  { exec 3>&-; } 2>/dev/null || true   # the pointer's fifo; a bare `exec 2>/dev/null` would silence every later message
   for p in ${pids[@]+"${pids[@]}"}; do kill "$p" 2>/dev/null || true; done
   for p in ${pids[@]+"${pids[@]}"}; do wait "$p" 2>/dev/null || true; done
   pids=()
@@ -137,11 +195,23 @@ start_mock() { # the mock serves the socket; its first output is HEADLESS-1
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && return 0; sleep 0.1; done
   fail "mock did not come up (see $R/server.log)"
 }
-start_real() { # the real daemon: the weather fixture server, then kurashid with the fixture as its weather API
-  rm -f "$KURASHI_SOCKET"
+start_fixture() { # the weather fixture (Tokyo's forecast and search) on 8099; FIX_PID is its pid
   python3 -I -m http.server 8099 --bind 127.0.0.1 --directory "$R/weather" > "$R/fixture.log" 2>&1 &
+  FIX_PID=$!
+  pids+=("$FIX_PID")
+  sleep 1
+}
+start_hang() { # a listener that accepts and never answers: a weather fetch stays in flight (the loading state)
+  python3 -I -c 'import socket,time; s=socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); s.bind(("127.0.0.1", 8097)); s.listen(8); time.sleep(3600)' &
   pids+=("$!")
-  KURASHI_WEATHER_API=http://127.0.0.1:8099 DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" "$W/kurashid" \
+  sleep 0.5
+}
+start_real() { # start_real [VAR=value ...]: the real daemon with the given environment (the fixture's API unless one is named)
+  # Every daemon starts from defaults: the config, the saved weather places and the mods' state of an earlier phase are gone.
+  rm -rf "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+  mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
+  rm -f "$KURASHI_SOCKET"
+  env KURASHI_WEATHER_API=http://127.0.0.1:8099 DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" "$@" "$W/kurashid" \
     >> "$R/kurashid.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && return 0; sleep 0.1; done
@@ -163,6 +233,27 @@ start_pointer() {
   sleep 1
 }
 move() { echo "move $1 $2" >&3; }
+# hover_top_for <source> <x>: the pointer on the top bar at x, or up to 30 px on, until the source's peek is asked for. A
+# scan's first hit can sit on the boundary between two widgets, so the box is probed, not assumed. Returns 1 when none asks.
+hover_top_for() {
+  local d
+  for d in 0 10 20 30; do
+    move "$(( $2 + d ))" 17; sleep 0.9
+    [ "$(peek_src)" = "$1" ] && return 0
+  done
+  return 1
+}
+# scan <x|y> <fixed> <from> <to> <step> <source>: the pointer moves along the axis (the other coordinate fixed) until the
+# source's peek is asked for; prints that coordinate, or -1. Each step rests 0.6 s: the pointer's settle, then the 300 ms intent.
+scan() {
+  local axis=$1 fixed=$2 from=$3 to=$4 step=$5 src=$6 c
+  for c in $(seq "$from" "$step" "$to"); do
+    if [ "$axis" = x ]; then move "$c" "$fixed"; else move "$fixed" "$c"; fi
+    sleep 0.6
+    if [ "$(peek_src)" = "$src" ]; then echo "$c"; return 0; fi
+  done
+  echo -1
+}
 qs_errors() {
   local bad
   bad=$(grep -i "typeerror\|referenceerror\|not a type\|binding loop\|unable to assign\|is not defined\|cannot assign" "$R/qs.log" \
@@ -181,10 +272,12 @@ two_outputs() { # adds HEADLESS-2 to this sandbox's sway session, once
   fi
 }
 output_x() { timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; print([o['rect']['x'] for o in json.load(sys.stdin) if o['name']=='$1'][0])"; }
+output_w() { timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; print([o['rect']['width'] for o in json.load(sys.stdin) if o['name']=='$1'][0])"; }
+WEATHER_TOKYO='{"place":{"id":"1850147","name":"Tokyo","country_code":"JP","lat":35.6895,"lon":139.69171,"tz":"Asia/Tokyo"}}'
 
-# ---- phase 1: kurashi-mock, one output: tray tooltips and the island's line
+# ---- phase mock-one: kurashi-mock, one output: tray tooltips and the island's line
 phase_mock_one() {
-  echo "== phase 1: mock, one output"
+  echo "== phase mock-one: mock, one output"
   : > "$R/server.log"; : > "$R/qs.log"
   start_mock
   start_frontend
@@ -216,17 +309,17 @@ phase_mock_one() {
   stop_phase
 }
 
-# ---- phase 2: the real kurashid, one output, then the bottom edge
+# ---- phase real-top: the real kurashid, one output, then the bottom edge
 phase_real() {
-  echo "== phase 2: kurashid, sysmon and weather, the island's line, the bottom edge"
+  echo "== phase real-top: kurashid, sysmon and weather, the island's line, the bottom edge"
   : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_fixture
   start_real
   start_frontend
   start_pointer
   K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
   K act mod.enable '{"id":"weather"}' >/dev/null || fail "mod.enable weather failed"
-  K act weather.place.add '{"place":{"id":"1850147","name":"Tokyo","country_code":"JP","lat":35.6895,"lon":139.69171,"tz":"Asia/Tokyo"}}' >/dev/null \
-    || fail "weather.place.add failed"
+  K act weather.place.add "$WEATHER_TOKYO" >/dev/null || fail "weather.place.add failed"
   sleep 4
   # The widgets' x: the sweep moves the pointer in steps, and a peek asks after 300 ms on each widget it rests on.
   sx=""; wx=""
@@ -247,7 +340,7 @@ phase_real() {
   shot sysmon-peek-top HEADLESS-1
   check "$(drawn "$W/sysmon-peek-top.ppm" "$W/base-r-top.ppm" "$((sx - 4))" 40 "$((sx + 200))" 200)" \
     "the sysmon peek is drawn under the top bar at its widget"
-  move "$((wx + 20))" 17; sleep 0.9
+  hover_top_for mod:weather:weather "$wx" || true
   check "$([ "$(peek_src)" = "mod:weather:weather" ] && echo 1 || echo 0)" "weather asks for its peek on hover (mod:weather:weather)"
   shot weather-peek-top HEADLESS-1
   check "$(drawn "$W/weather-peek-top.ppm" "$W/base-r-top.ppm" "$((wx - 4))" 40 2560 200)" \
@@ -290,9 +383,241 @@ phase_real() {
   stop_phase
 }
 
-# ---- phase 3: kurashi-mock, two outputs: the Stage retargets to the peek's output and gives its output back
+# ---- phase sides: the bar on the left edge, then on the right: the peek beside the bar, aligned to its widget
+phase_sides() {
+  echo "== phase sides: kurashid, the bar on the left edge, then on the right"
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_fixture
+  start_real
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
+  K set bar.edge left >/dev/null || fail "bar.edge left was refused"
+  sleep 3
+  # The sysmon widget on the left bar: the first y (top down, the pointer on the bar's middle) where its peek is asked for.
+  sy=$(scan y 18 100 1400 30 mod:sysmon:sysmon)
+  [ "$sy" -ge 0 ] || fail "no sysmon widget on the left bar"
+  move 1280 600; sleep 1
+  grab base-l HEADLESS-1
+  move 18 "$((sy + 6))"; sleep 0.9
+  check "$([ "$(peek_src)" = "mod:sysmon:sysmon" ] && echo 1 || echo 0)" "sysmon asks for its peek on the left bar"
+  shot sysmon-peek-left HEADLESS-1
+  check "$(drawn "$W/sysmon-peek-left.ppm" "$W/base-l.ppm" 44 "$((sy - 10))" 460 "$((sy + 150))")" \
+    "the sysmon peek is drawn beside the left bar, at its widget"
+  move 1280 600; sleep 0.9
+  notify-send -t 20000 "Standup" "14:00 room 3" >/dev/null 2>&1 || fail "notify-send failed"
+  sleep 2
+  move 1280 600; sleep 0.5
+  grab base-l2 HEADLESS-1
+  move 18 720; sleep 0.9
+  check "$([ "$(peek_src)" = "island:main" ] && echo 1 || echo 0)" "the island asks for its line on the left bar"
+  shot island-peek-left HEADLESS-1
+  check "$(drawn "$W/island-peek-left.ppm" "$W/base-l2.ppm" 44 570 460 870)" "the island's peek is drawn beside the left bar"
+  move 1280 600; sleep 0.9
+  K set bar.edge right >/dev/null || fail "bar.edge right was refused"
+  sleep 3
+  W1=$(output_w HEADLESS-1)
+  rx=$((W1 - 18))
+  sy2=$(scan y "$rx" 100 1400 30 mod:sysmon:sysmon)
+  [ "$sy2" -ge 0 ] || fail "no sysmon widget on the right bar"
+  move 1280 600; sleep 1
+  grab base-r HEADLESS-1
+  move "$rx" "$((sy2 + 6))"; sleep 0.9
+  check "$([ "$(peek_src)" = "mod:sysmon:sysmon" ] && echo 1 || echo 0)" "sysmon asks for its peek on the right bar"
+  shot sysmon-peek-right HEADLESS-1
+  check "$(drawn "$W/sysmon-peek-right.ppm" "$W/base-r.ppm" "$((W1 - 44 - 400))" "$((sy2 - 10))" "$((W1 - 44))" "$((sy2 + 150))")" \
+    "the sysmon peek is drawn beside the right bar, at its widget"
+  move 1280 600; sleep 0.9
+  check "$([ -z "$(peek_src)" ] && echo 1 || echo 0)" "the peek goes when the pointer leaves the right bar"
+  K set bar.edge top >/dev/null
+  sleep 1
+  qs_errors
+  stop_phase
+}
+
+# ---- phase weather: the weather peek in its states, each with its own daemon (the environment and the place make the state)
+phase_weather() {
+  echo "== phase weather: kurashid, the weather peek: no place, loading, offline, stale"
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_fixture
+  start_real
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"weather"}' >/dev/null || fail "mod.enable weather failed"
+  sleep 3
+  doc_check mod.weather "d.get('reason') == 'mod-weather.no_location'" "weather with no place says so (no_location)"
+  wx=$(scan x 17 1800 2480 20 mod:weather:weather)
+  [ "$wx" -ge 0 ] || fail "no weather widget on the top bar (no place)"
+  move 1280 600; sleep 1
+  grab base-w0 HEADLESS-1
+  hover_top_for mod:weather:weather "$wx" || true
+  check "$([ "$(peek_src)" = "mod:weather:weather" ] && echo 1 || echo 0)" "weather asks for its peek with no place"
+  shot weather-peek-noplace HEADLESS-1
+  check "$(drawn "$W/weather-peek-noplace.ppm" "$W/base-w0.ppm" "$((wx - 4))" 40 2560 200)" "the no-place peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  stop_phase
+
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_hang
+  start_real KURASHI_WEATHER_API=http://127.0.0.1:8097
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"weather"}' >/dev/null || fail "mod.enable weather failed"
+  K act weather.place.add "$WEATHER_TOKYO" >/dev/null || fail "weather.place.add failed"
+  sleep 2
+  doc_check mod.weather "d.get('reason') == 'mod-weather.loading'" "weather with a place and no answer yet is loading"
+  wx=$(scan x 17 1800 2480 20 mod:weather:weather)
+  [ "$wx" -ge 0 ] || fail "no weather widget on the top bar (loading)"
+  move 1280 600; sleep 1
+  grab base-w1 HEADLESS-1
+  hover_top_for mod:weather:weather "$wx" || true
+  check "$([ "$(peek_src)" = "mod:weather:weather" ] && echo 1 || echo 0)" "weather asks for its peek while loading"
+  shot weather-peek-loading HEADLESS-1
+  check "$(drawn "$W/weather-peek-loading.ppm" "$W/base-w1.ppm" "$((wx - 4))" 40 2560 200)" "the loading peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  stop_phase
+
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_real KURASHI_WEATHER_API=http://127.0.0.1:8096
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"weather"}' >/dev/null || fail "mod.enable weather failed"
+  K act weather.place.add "$WEATHER_TOKYO" >/dev/null || fail "weather.place.add failed"
+  sleep 3
+  doc_check mod.weather "d.get('reason') == 'mod-weather.error.offline'" "weather with the connection refused is offline"
+  wx=$(scan x 17 1800 2480 20 mod:weather:weather)
+  [ "$wx" -ge 0 ] || fail "no weather widget on the top bar (offline)"
+  move 1280 600; sleep 1
+  grab base-w2 HEADLESS-1
+  hover_top_for mod:weather:weather "$wx" || true
+  check "$([ "$(peek_src)" = "mod:weather:weather" ] && echo 1 || echo 0)" "weather asks for its peek while offline"
+  shot weather-peek-offline HEADLESS-1
+  check "$(drawn "$W/weather-peek-offline.ppm" "$W/base-w2.ppm" "$((wx - 4))" 40 2560 200)" "the offline peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  stop_phase
+
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_fixture
+  echo 0 > "$R/timeoffset"
+  start_real KURASHI_TEST_TIME_FILE="$R/timeoffset" LD_PRELOAD="$W/timeshift.so${LD_PRELOAD:+:$LD_PRELOAD}"
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"weather"}' >/dev/null || fail "mod.enable weather failed"
+  K act weather.place.add "$WEATHER_TOKYO" >/dev/null || fail "weather.place.add failed"
+  sleep 3
+  doc_check mod.weather "d.get('tier') == 'fresh'" "weather data is fresh when it arrives"
+  echo 10800 > "$R/timeoffset"         # three hours on: past two refreshes (30 min), so the data is stale
+  kill "$FIX_PID" 2>/dev/null || true  # the fixture is gone: the refresh fails and the data is kept
+  K act weather.refresh '{}' >/dev/null || fail "weather.refresh failed"
+  sleep 3
+  doc_check mod.weather "d.get('tier') == 'stale'" "weather data three hours old is stale"
+  wx=$(scan x 17 1800 2480 20 mod:weather:weather)
+  [ "$wx" -ge 0 ] || fail "no weather widget on the top bar (stale)"
+  move 1280 600; sleep 1
+  grab base-w3 HEADLESS-1
+  hover_top_for mod:weather:weather "$wx" || true
+  check "$([ "$(peek_src)" = "mod:weather:weather" ] && echo 1 || echo 0)" "weather asks for its peek while stale"
+  shot weather-peek-stale HEADLESS-1
+  check "$(drawn "$W/weather-peek-stale.ppm" "$W/base-w3.ppm" "$((wx - 4))" 40 2560 200)" "the stale peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  qs_errors
+  stop_phase
+}
+
+# ---- phase sysmon: the sysmon peek in its states
+phase_sysmon() {
+  echo "== phase sysmon: kurashid, the sysmon peek: paused, unavailable, the top-process line"
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_real
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
+  K act sysmon.pause '{"paused": true}' >/dev/null || fail "sysmon.pause failed"
+  sleep 3
+  doc_check mod.sysmon "d.get('paused') is True" "sysmon is paused"
+  sx=$(scan x 17 1800 2480 20 mod:sysmon:sysmon)
+  [ "$sx" -ge 0 ] || fail "no sysmon widget on the top bar (paused)"
+  move 1280 600; sleep 1
+  grab base-s0 HEADLESS-1
+  hover_top_for mod:sysmon:sysmon "$sx" || true
+  check "$([ "$(peek_src)" = "mod:sysmon:sysmon" ] && echo 1 || echo 0)" "sysmon asks for its peek while paused"
+  shot sysmon-peek-paused HEADLESS-1
+  check "$(drawn "$W/sysmon-peek-paused.ppm" "$W/base-s0.ppm" "$((sx - 4))" 40 "$((sx + 200))" 200)" "the paused peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  qs_errors
+  stop_phase
+
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  mkdir -p "$R/no-sysmon"   # a folder with no /proc under it: the sampler reads nothing (unavailable)
+  start_real KURASHI_SYSMON_ROOT="$R/no-sysmon"
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
+  sleep 3
+  doc_check mod.sysmon "d.get('available') is False" "sysmon with no /proc is unavailable"
+  sx=$(scan x 17 1800 2480 20 mod:sysmon:sysmon)
+  [ "$sx" -ge 0 ] || fail "no sysmon widget on the top bar (unavailable)"
+  move 1280 600; sleep 1
+  grab base-s1 HEADLESS-1
+  hover_top_for mod:sysmon:sysmon "$sx" || true
+  check "$([ "$(peek_src)" = "mod:sysmon:sysmon" ] && echo 1 || echo 0)" "sysmon asks for its peek while unavailable"
+  shot sysmon-peek-unavailable HEADLESS-1
+  check "$(drawn "$W/sysmon-peek-unavailable.ppm" "$W/base-s1.ppm" "$((sx - 4))" 40 "$((sx + 200))" 200)" "the unavailable peek is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  qs_errors
+  stop_phase
+
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_real
+  start_frontend
+  start_pointer
+  K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
+  sleep 3
+  # The top-process line is the peek's last line, from the process list the peek subscribes to while it shows. That list
+  # exists only under a subscriber, so the shot is the evidence here (read it), not a one-shot document read.
+  sx=$(scan x 17 1800 2480 20 mod:sysmon:sysmon)
+  [ "$sx" -ge 0 ] || fail "no sysmon widget on the top bar (top process)"
+  move 1280 600; sleep 1
+  grab base-s2 HEADLESS-1
+  hover_top_for mod:sysmon:sysmon "$sx" || true
+  check "$([ "$(peek_src)" = "mod:sysmon:sysmon" ] && echo 1 || echo 0)" "sysmon asks for its peek with a top process"
+  shot sysmon-peek-top-process HEADLESS-1
+  check "$(drawn "$W/sysmon-peek-top-process.ppm" "$W/base-s2.ppm" "$((sx - 4))" 40 "$((sx + 200))" 240)" \
+    "the peek with the top-process line is drawn under the top bar"
+  move 1280 600; sleep 0.9
+  qs_errors
+  stop_phase
+}
+
+# ---- phase motion: reduced motion (theme profile none): the island's line comes and goes at once. No sysmon here: its widget
+# commits by itself every second, and the count would then be the bar's, not the peek's.
+phase_motion() {
+  echo "== phase motion: kurashid, reduced motion (theme profile none)"
+  : > "$R/kurashid.log"; : > "$R/qs.log"
+  start_real
+  start_frontend "WAYLAND_DEBUG=1"
+  start_pointer
+  K set theme.motion.profile none >/dev/null || fail "theme.motion.profile none was refused"
+  notify-send -t 20000 "Standup" "14:00 room 3" >/dev/null 2>&1 || fail "notify-send failed"
+  sleep 3
+  move 1280 600; sleep 1
+  grab base-m HEADLESS-1
+  s=$(size); move 1280 17; sleep 0.6; in_c=$(stage_commits "$s")
+  check "$([ "$(peek_src)" = "island:main" ] && echo 1 || echo 0)" "the island asks for its line with reduced motion"
+  shot island-peek-reduced-motion HEADLESS-1
+  check "$(drawn "$W/island-peek-reduced-motion.ppm" "$W/base-m.ppm" 1100 40 1460 200)" \
+    "the reduced-motion peek is drawn under the top bar"
+  s=$(size); move 1280 600; sleep 0.6; out_c=$(stage_commits "$s")
+  echo "measure reduced motion: the Stage's commits: the peek came in $in_c, and went after its grace in $out_c"
+  check "$([ "$in_c" -le 4 ] && [ "$out_c" -le 4 ] && echo 1 || echo 0)" \
+    "reduced motion: the peek comes and goes in at most 4 frames, with no fade"
+  qs_errors
+  stop_phase
+}
+
+# ---- phase mock-two: kurashi-mock, two outputs: the Stage retargets to the peek's output and gives its output back
 phase_two_outputs() {
-  echo "== phase 3: mock, two outputs"
+  echo "== phase mock-two: mock, two outputs"
   : > "$R/server.log"; : > "$R/qs.log"
   start_mock
   start_frontend
@@ -324,14 +649,9 @@ phase_two_outputs() {
   stop_phase
 }
 
-# ---- phase 4: measurement (PSS of the frontend, Wayland commits from WAYLAND_DEBUG): printed; the growth is checked
-pss_mib() { awk '/^Pss:/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_rollup"; }
-size() { stat -c %s "$R/qs.log"; }
-commits() { # commits <start byte>: Wayland surface commits (both bars and the Stage) logged since that offset
-  tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -c 'wl_surface#[0-9]*\.commit(' || true
-}
+# ---- phase measure: measurement (PSS of the frontend, Wayland commits from WAYLAND_DEBUG): printed; the growth is checked
 phase_measure() {
-  echo "== phase 4: measurement (two outputs)"
+  echo "== phase measure: measurement (two outputs)"
   : > "$R/server.log"; : > "$R/qs.log"
   start_mock
   start_frontend "WAYLAND_DEBUG=1"
@@ -342,12 +662,17 @@ phase_measure() {
   sleep 6
   s=$(size); sleep 10; idle_c=$(commits "$s"); idle_pss=$(pss_mib "$QS_PID")
   echo "measure idle, no peek (10 s): commits=$idle_c pss=${idle_pss} MiB"
-  s=$(size); move 2482 17; sleep 0.9; fade_c=$(commits "$s")
+  check "$([ "$idle_c" = 0 ] && echo 1 || echo 0)" "idle with no peek: no Wayland commits in 10 s"
+  s=$(size); move 2482 17; sleep 0.9; fade_c=$(stage_commits "$s")
   s=$(size); sleep 5; held_c=$(commits "$s"); shown_pss=$(pss_mib "$QS_PID")
-  echo "measure peek on HEADLESS-1: fade-in (0.9 s) commits=$fade_c, held (5 s) commits=$held_c pss=${shown_pss} MiB"
-  s=$(size); move 1280 600; sleep 0.9; move "$((X2 + 2482))" 17; sleep 0.9; retarget_c=$(commits "$s")
+  echo "measure peek on HEADLESS-1: fade-in (0.9 s) Stage commits=$fade_c, held (5 s) commits=$held_c pss=${shown_pss} MiB"
+  s=$(size); move 1280 600; sleep 0.9; fadeout_c=$(stage_commits "$s")
+  sleep 1; s=$(size); sleep 1; gone_c=$(commits "$s")
+  echo "measure peek gone: fade-out (the 250 ms grace and the 120 ms fade, 0.9 s) Stage commits=$fadeout_c, every surface idle after it (1 s) commits=$gone_c"
+  check "$([ "$gone_c" = 0 ] && echo 1 || echo 0)" "the Stage is idle again after the fade out (no commits in 1 s)"
+  s=$(size); move "$((X2 + 2482))" 17; sleep 0.9; retarget_c=$(commits "$s")
   s=$(size); sleep 5; out2_c=$(commits "$s"); out2_pss=$(pss_mib "$QS_PID")
-  echo "measure peek on HEADLESS-2: retarget (1.8 s) commits=$retarget_c, held (5 s) commits=$out2_c pss=${out2_pss} MiB"
+  echo "measure peek on HEADLESS-2: retarget (0.9 s) commits=$retarget_c, held (5 s) commits=$out2_c pss=${out2_pss} MiB"
   move 1280 600; sleep 1
   # Warm-up, as bench's cycle test: the first peeks allocate their caches once; the measured window is after them.
   for _ in $(seq 20); do move 2482 17; sleep 0.6; move 1280 600; sleep 0.6; done
@@ -371,10 +696,14 @@ phase_measure() {
   stop_phase
 }
 
-phase_mock_one
-phase_real
-phase_two_outputs
-phase_measure
+want mock-one && phase_mock_one
+want real-top && phase_real
+want sides && phase_sides
+want weather && phase_weather
+want sysmon && phase_sysmon
+want motion && phase_motion
+want mock-two && phase_two_outputs
+want measure && phase_measure
 echo "test-peek: $FAILS failed"
 [ "$FAILS" -eq 0 ] || exit 1
 echo "ok: screenshots in $OUT"

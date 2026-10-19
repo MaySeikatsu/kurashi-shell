@@ -67,6 +67,7 @@ import os
 import pathlib
 import re
 import sys
+import tomllib
 
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 MOD_LOG = re.compile(r"MOD(LOAD|UNLOAD) (file://\S+)")
@@ -100,25 +101,45 @@ def guard(mods_root, hello_dir):
     return 0
 
 
-def expect(moddir, provides):
-    """The `qml` keys the daemon must list for these provides, and the slots the mod contributes."""
+# The provide kinds that become `qml` keys (the daemon's qml_of, native.rs): each kind's component files under the mod's
+# qml/, the key taking the suffix. Every other kind is no component: a service, an action, a palette, a decor, a launcher,
+# choices, a job, a host, the i18n block. The kinds the daemon parses are read from its source (kurashi-mods manifest.rs),
+# so a kind it gains fails this run until it is classified here (I67).
+QML_FILES = {
+    "widget": [("", "Widget.qml")],
+    "panel": [("", "Panel.qml")],
+    "peek": [("", "Peek.qml")],
+    "island-face": [("", "Face.qml"), (":expanded", "FaceExpanded.qml")],
+    "slot": [("", "slots/{name}.qml")],
+}
+NO_QML = {"service", "action", "palette", "decor", "launcher", "choices", "job", "host", "i18n"}
+
+
+def daemon_kinds(manifest_rs):
+    """The kinds `Provide::parse` maps in the daemon's source."""
+    text = pathlib.Path(manifest_rs).read_text(encoding="utf-8")
+    return set(re.findall(r'"([a-z-]+)" => Self::', text)) | {"i18n"}
+
+
+def expect(moddir, manifest, manifest_rs):
+    """The `qml` keys the daemon must list, from the mod's manifest (its provides, read from mod.toml rather than from the
+    daemon's document), and the slots the mod contributes."""
+    unclassified = daemon_kinds(manifest_rs) - set(QML_FILES) - NO_QML
+    if unclassified:
+        raise SystemExit(f"the daemon maps provide kinds this test does not classify: {sorted(unclassified)}")
     qml = pathlib.Path(moddir) / "qml"
+    provides = tomllib.loads(pathlib.Path(manifest).read_text(encoding="utf-8")).get("provides", [])
     keys, slots = [], []
-    for p in json.loads(provides):
+    for p in provides:
         kind, _, name = p.partition(":")
-        if kind == "widget" and (qml / "Widget.qml").is_file():
-            keys.append(p)
-        elif kind == "peek" and (qml / "Peek.qml").is_file():
-            keys.append(p)
-        elif kind == "panel" and (qml / "Panel.qml").is_file():
-            keys.append(p)
-        elif kind == "island-face":
-            if (qml / "Face.qml").is_file():
-                keys.append(p)
-            if (qml / "FaceExpanded.qml").is_file():
-                keys.append(p + ":expanded")
-        elif kind == "slot" and (qml / "slots" / f"{name}.qml").is_file():
-            keys.append(p)
+        if kind in NO_QML:
+            continue
+        if kind not in QML_FILES:
+            raise SystemExit(f"provide {p!r} is of a kind this test does not classify")
+        for suffix, rel in QML_FILES[kind]:
+            if (qml / rel.format(name=name)).is_file():
+                keys.append(p + suffix)
+        if kind == "slot" and (qml / "slots" / f"{name}.qml").is_file():
             slots.append(name)
     print(json.dumps({"keys": sorted(keys), "slots": slots}))
     return 0
@@ -432,12 +453,14 @@ disable_mod() {  # disable_mod <id>: off, nothing of it in the daemon's document
 
 # mod_block <id> <mod dir> [raise clear]: enable, exercise every provide, disable.
 mod_block() {
-  local id=$1 dir=$2 entry provides exp got panel m n
+  local id=$1 dir=$2 entry provides exp got panel m n manifest
   echo "== $id"
   entry=$(mod_entry "$id")
   [ "$(jq -r .state <<<"$entry")" != enabled ] || fail "$id: on before the test ($(jq -c '{state,errors}' <<<"$entry"))"
   provides=$(jq -c .provides <<<"$entry")
-  exp=$(python3 -I "$W/tool.py" expect "$dir" "$provides")
+  # The expected keys come from the manifest the daemon reads (the test mod's live one), not from the daemon's document.
+  if [ -f "$dir/live.mod.toml" ]; then manifest=$dir/live.mod.toml; else manifest=$dir/mod.toml; fi
+  exp=$(python3 -I "$W/tool.py" expect "$dir" "$manifest" "$ROOT/crates/kurashi-mods/src/manifest.rs")
   m=$(mark)
   act mod.enable "{\"id\":\"$id\"}"
   settle 2
@@ -501,6 +524,8 @@ unlinked_block() {
   check_frontend "$id"
 }
 
+# The mods with a native crate linked into this build (the test-mods feature); phases 1 and 3 use the list.
+LINKED="weather sysmon wallpaper hello"
 # Phase 1: each linked mod, one at a time.
 echo "--- phase 1: the linked mods, one at a time"
 shot_full start
@@ -514,14 +539,14 @@ unlinked_block media
 unlinked_block easter-eggs
 # Phase 3: every linked mod on at once: the views with several contributions.
 echo "--- phase 3: all linked mods on"
-for id in weather sysmon wallpaper hello; do act mod.enable "{\"id\":\"$id\"}"; done
+for id in $LINKED; do act mod.enable "{\"id\":\"$id\"}"; done
 settle 3
 island_face clock; act island.expand '{}'; settle 2; shot_full all-clock; close_host
 act quick.toggle '{}'; settle 2; shot_full all-quick; close_host
 island_face notifications; act island.expand '{}'; settle 2; shot_full all-notifications; close_host
 island_face media; act island.expand '{}'; settle 2; shot_full all-media; close_host
 island_face clock
-for id in weather sysmon wallpaper hello; do disable_mod "$id"; done
+for id in $LINKED; do disable_mod "$id"; done
 check_frontend "all linked mods"
 
 # The whole run: no panic in the daemon, and the i18n misses for the record (a missing key is not always drawn).
