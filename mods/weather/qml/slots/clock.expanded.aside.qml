@@ -7,11 +7,16 @@ import "../Weather.js" as W
 // glyph and temperature, the high and low, the chance of rain, and the age of the value. A click opens the panel.
 // The host mounts it only while the mod is on and its document is available, so no gap is left when it is off.
 // A stale value is dimmed and says "Stale"; a value too old to show gives only the time it was last known.
+// W19 (row 72): while no place is saved the host hands `reason`. The aside then says "No place set" and offers
+// "Set place", which opens Settings on the place key, instead of an empty box.
 Item {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
     required property var theme
     required property var i18n
+    // The daemon's reason while this contribution needs setup (an i18n key); "" otherwise.
+    property string reason: ""
+    readonly property bool needsSetup: reason !== ""
     id: a
 
     // The host sizes its loader from the implicit size: an explicit width and height alone collapse it to 0.
@@ -36,16 +41,18 @@ Item {
     }
 
     Accessible.role: Accessible.Button
-    Accessible.name: hasNow
-        ? W.fill(I18n.tr("mod-weather.a11y.widget"), {
-            place: d.place ? d.place.name : "",
-            temp: W.num(now.temp) + unitTemp,
-            condition: I18n.tr("mod-weather.condition." + now.code),
-            age: a.ageText
-        })
-        : veryStale
-            ? W.fill(I18n.tr("mod-weather.very_stale"), { time: W.hm(d.updated_local) })
-            : I18n.tr(d.reason || "mod-weather.loading")
+    Accessible.name: needsSetup
+        ? I18n.tr("frontend.clock.aside.no_place")
+        : hasNow
+            ? W.fill(I18n.tr("mod-weather.a11y.widget"), {
+                place: d.place ? d.place.name : "",
+                temp: W.num(now.temp) + unitTemp,
+                condition: I18n.tr("mod-weather.condition." + now.code),
+                age: a.ageText
+            })
+            : veryStale
+                ? W.fill(I18n.tr("mod-weather.very_stale"), { time: W.hm(d.updated_local) })
+                : I18n.tr(d.reason || "mod-weather.loading")
     activeFocusOnTab: true
     Keys.onReturnPressed: Store.act("mod.panel.open", { id: "weather", panel: "weather" })
     Keys.onEnterPressed: Store.act("mod.panel.open", { id: "weather", panel: "weather" })
@@ -57,11 +64,19 @@ Item {
         color: Theme.containerHigh
     }
 
+    // The whole aside opens the panel. It sits under the content, so the setup button takes its own clicks.
+    MouseArea {
+        anchors.fill: parent
+        cursorShape: Qt.PointingHandCursor
+        onClicked: Store.act("mod.panel.open", { id: "weather", panel: "weather" })
+    }
+
     Column {
         id: col
         anchors.centerIn: parent
         width: parent.width - Theme.gap * 2
         spacing: 2
+        visible: !a.needsSetup
         opacity: a.stale ? Theme.staleOpacity : 1
 
         Text {
@@ -69,7 +84,7 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             text: a.hasNow ? W.glyph(a.now.code, a.now.is_day) : "—"
             color: Theme.fg
-            font.pixelSize: 24
+            font.pixelSize: 22
             font.family: Theme.fam(text, Theme.families)
         }
         Text {
@@ -99,9 +114,12 @@ Item {
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
         }
+        // The last line may take two lines (a long age, a long time); it never runs past the box's bottom edge (I82).
         Text {
             width: parent.width
             wrapMode: Text.WordWrap
+            maximumLineCount: 2
+            elide: Text.ElideRight
             horizontalAlignment: Text.AlignHCenter
             text: a.veryStale
                 ? W.fill(I18n.tr("mod-weather.very_stale"), { time: W.hm(d.updated_local) })
@@ -116,11 +134,36 @@ Item {
         }
     }
 
-    FocusRing { anchors.fill: parent; shown: a.activeFocus; corner: Theme.rSm }
-
-    MouseArea {
-        anchors.fill: parent
-        cursorShape: Qt.PointingHandCursor
-        onClicked: Store.act("mod.panel.open", { id: "weather", panel: "weather" })
+    // Needs setup (row 72): the words and the one step that fixes them. The button opens Settings on the place key.
+    Column {
+        id: setup
+        anchors.centerIn: parent
+        width: parent.width - Theme.gap * 2
+        spacing: Theme.gap
+        visible: a.needsSetup
+        Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
+            text: I18n.tr("frontend.clock.aside.no_place")
+            color: Theme.fg
+            font.pixelSize: Theme.fsLabel
+            font.family: Theme.fam(text, Theme.families)
+        }
+        // A Column places its children itself, so the button sits in a full-width item to be centred there.
+        Item {
+            width: setup.width
+            height: place.height
+            // The accent fill: the aside's own box is the container colour, which a plain button would not stand out on.
+            Button {
+                id: place
+                anchors.horizontalCenter: parent.horizontalCenter
+                primary: true
+                label: I18n.tr("mod-weather.set_place")
+                onClicked: Store.act("settings.open", { key: "mods.weather.place" })
+            }
+        }
     }
+
+    FocusRing { anchors.fill: parent; shown: a.activeFocus; corner: Theme.rSm }
 }

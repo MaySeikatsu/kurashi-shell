@@ -29,6 +29,7 @@ Item {
                 id: loader
                 anchors.fill: parent
                 url: cellItem.modelData.qml
+                extra: ({ reason: cellItem.modelData.reason })
             }
         }
     }
@@ -96,6 +97,7 @@ Item {
                     required property var modelData
                     anchors.fill: parent
                     url: modelData.qml
+                    extra: ({ reason: modelData.reason })
                 }
             }
         }
@@ -106,6 +108,8 @@ Item {
         ModLoader {
             required property var modelData
             url: modelData.qml
+            // W19 (row 72): the daemon's reason, for a contribution that declares `reason` (QuickTile does, the aside does).
+            extra: ({ reason: modelData.reason })
             width: host.layout === "column" ? host.width : implicitWidth
             height: implicitHeight
         }

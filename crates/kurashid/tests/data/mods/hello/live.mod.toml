@@ -13,6 +13,7 @@ provides = [
     "panel:hello",
     "widget:hello",
     "slot:clock.expanded.aside",
+    "slot:clock.expanded.daymark",
     "slot:clock.expanded.footer",
     "slot:media.expanded.backdrop",
     "slot:media.expanded.below",
