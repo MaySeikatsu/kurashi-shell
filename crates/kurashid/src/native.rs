@@ -373,6 +373,22 @@ fn set_ready(doc: &mut Value, mod_id: &str, ready: bool) {
     }
 }
 
+/// Sets or removes `reason` on `mod_id`'s entry in slot `slot` of `runtime.slots` (row 72).
+fn set_reason(doc: &mut Value, slot: &str, mod_id: &str, reason: Option<&str>) {
+    for entry in doc[slot].as_array_mut().into_iter().flatten() {
+        if entry["mod"] == mod_id {
+            match reason {
+                Some(r) => entry["reason"] = json!(r),
+                None => {
+                    if let Some(o) = entry.as_object_mut() {
+                        o.remove("reason");
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// What a mod's face and choice handles reach (K28). One per enable: `live` goes false on disable,
 /// so a handle the mod kept does nothing afterwards, and the mod's offers leave with the enable.
 struct Link {
@@ -382,6 +398,8 @@ struct Link {
     /// The mod, and the keys of its own settings: a `SettingsWriter` writes only these (K38).
     mod_id: String,
     keys: BTreeSet<String>,
+    /// For `runtime.slots` reasons (row 72).
+    hub: Weak<Hub>,
     state: Mutex<LinkState>,
 }
 
@@ -394,6 +412,8 @@ struct LinkState {
     offers: BTreeMap<String, Vec<Offer>>,
     /// The host processes of this enable (K38), by name.
     hosts: BTreeMap<String, Arc<HostCore>>,
+    /// Slot contributions that need setup, with their reason (row 72).
+    slot_reasons: BTreeMap<String, String>,
 }
 
 impl Hooks for Link {
@@ -438,6 +458,24 @@ impl Hooks for Link {
         state.offers.insert(source.into(), offers.clone());
         if let Some(store) = self.config.as_ref().and_then(Weak::upgrade) {
             store.set_mod_source(source, offers);
+        }
+    }
+
+    fn slot_reason(&self, slot: &str, reason: Option<&str>) {
+        {
+            let mut state = self.state.lock().expect("link lock");
+            if !state.live {
+                return;
+            }
+            match reason {
+                Some(r) => state.slot_reasons.insert(slot.into(), r.into()),
+                None => state.slot_reasons.remove(slot),
+            };
+        }
+        if let Some(hub) = self.hub.upgrade() {
+            let _ = hub.update(SLOTS_DOC, None, |d| {
+                set_reason(d, slot, &self.mod_id, reason)
+            });
         }
     }
 
@@ -644,6 +682,7 @@ impl Native {
             config: self.config.clone(),
             mod_id: module.id().to_string(),
             keys: manifest.settings.iter().map(|s| s.key.clone()).collect(),
+            hub: Arc::downgrade(&self.hub),
             state: Mutex::default(),
         });
         let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone())
@@ -912,7 +951,8 @@ impl Native {
     }
 
     /// `runtime.slots` (K28, PROTOCOL §5): each contribution of an enabled mod whose slot file
-    /// exists, by slot and in mod id order. `ready` is the mod's primary document's `available`.
+    /// exists, by slot and in mod id order. `ready` is the mod's primary document's `available`;
+    /// `reason` is there while the mod says the contribution needs setup (row 72).
     /// Called under the slots document's lock, so it reads nothing from the hub.
     pub fn slots(&self, reg: &Registry) -> Value {
         let mut out: Map<String, Value> = Map::new();
@@ -929,7 +969,18 @@ impl Native {
                 if !file.is_file() {
                     continue;
                 }
-                let entry = json!({"mod": e.id, "qml": file_url(&file), "ready": ready});
+                let mut entry = json!({"mod": e.id, "qml": file_url(&file), "ready": ready});
+                let reason = ledger
+                    .link
+                    .state
+                    .lock()
+                    .expect("link lock")
+                    .slot_reasons
+                    .get(name)
+                    .cloned();
+                if let Some(reason) = reason {
+                    entry["reason"] = json!(reason);
+                }
                 let list = out.entry(name.clone()).or_insert_with(|| json!([]));
                 if let Some(items) = list.as_array_mut() {
                     items.push(entry);
@@ -1051,5 +1102,33 @@ fn action_error(e: kurashi_mod_api::ActionError) -> ActionError {
         M::Invalid(m) => ActionError::Invalid(m),
         M::Unavailable(m) => ActionError::Unavailable(m),
         M::Internal(m) => ActionError::Internal(m),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Row 72: a reason lands on the mod's entry in that slot only, and `None` takes it back.
+    #[test]
+    fn a_slot_reason_marks_only_its_mod_and_slot() {
+        let mut doc = json!({
+            "clock.expanded.aside": [{"mod": "weather", "ready": true}, {"mod": "other", "ready": true}],
+            "quick.tiles": [{"mod": "weather", "ready": true}],
+        });
+        set_reason(
+            &mut doc,
+            "clock.expanded.aside",
+            "weather",
+            Some("mod-weather.no_location"),
+        );
+        assert_eq!(
+            doc["clock.expanded.aside"][0]["reason"],
+            "mod-weather.no_location"
+        );
+        assert!(doc["clock.expanded.aside"][1].get("reason").is_none());
+        assert!(doc["quick.tiles"][0].get("reason").is_none());
+        set_reason(&mut doc, "clock.expanded.aside", "weather", None);
+        assert!(doc["clock.expanded.aside"][0].get("reason").is_none());
     }
 }

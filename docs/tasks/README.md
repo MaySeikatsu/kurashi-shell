@@ -230,3 +230,12 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W18-peeks](W18-peeks.md) | Stage.qml, Bar.qml (peeks), Peeks/PeekSource, test-peek, test-mods-live, `justfile`, weather Peek.qml | haiku (max) |
 | [W18-sysmon](W18-sysmon.md) | `crates/kurashi-mod-sysmon/`, `mods/sysmon/`, `mod-sysmon.toml` | haiku (max) |
 | [W18-settings](W18-settings.md) | `settings/`, `tools/bench/wl_keys.py` (additive) | haiku (max) |
+
+## Wave 19 (session 7; rows 71–72 and the clock schema keys on main)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W19-side-bars](W19-side-bars.md) | Bar.qml, Island/TrayIcon, faces, sysmon/weather/hello `Widget.qml`, test-sidebars | haiku (max) |
+| [W19-weather](W19-weather.md) | `crates/kurashi-mod-weather/`, weather Panel/Face/Peek/Weather.js, weather shots | haiku (max) |
+| [W19-wallpaper](W19-wallpaper.md) | wallpaper Panel + components, `crates/kurashi-mod-wallpaper/`, wallpaper test/shots | haiku (max) |
+| [W19-calendar](W19-calendar.md) | ClockView, SlotHost, ModLoader (props), `crates/kurashi-mock/`, weather `slots/` + mod.toml, hello slots, test-stage | haiku (max) |
+Sandbox names: each card uses names prefixed with its card id (`w19-side-…`, `w19-weather-…`, `w19-wall-…`, `w19-cal-…`).

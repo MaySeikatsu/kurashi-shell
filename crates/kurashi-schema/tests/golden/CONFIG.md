@@ -264,6 +264,21 @@ How long a transient face (volume, brightness, notification) stays before fallin
 - type: `action` · default: `""`
 - advanced
 
+### Clock
+
+#### `clock.week_start` — First day of the week
+
+The calendar's first column; automatic follows the language (Sunday for Japanese, Monday otherwise).
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"monday"` | `"sunday"` | `"saturday"`
+
+#### `clock.week_numbers` — Week numbers
+
+Show ISO week numbers beside the calendar's rows.
+
+- type: `bool` · default: `false`
+
 ## Notifications
 
 ### Server
