@@ -25,6 +25,7 @@ kurashi-mod-api = { path = "../kurashi-mod-api" }
 kurashi-mod-weather = { path = "../kurashi-mod-weather" }
 kurashi-mod-sysmon = { path = "../kurashi-mod-sysmon" }
 kurashi-mod-wallpaper = { path = "../kurashi-mod-wallpaper" }
+kurashi-mod-webdock = { path = "../kurashi-mod-webdock" }
 # The test mod, linked only by the `test-mods` feature (`just mods-live`); default builds do not carry it.
 kurashi-mod-hello = { path = "../kurashi-mod-hello", optional = true }
 semver = "1"
@@ -36,7 +37,9 @@ serde_json.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 toml = "0.8"
-tokio.workspace = true
+# `process`: host processes (K38, native/hosts.rs); `rustix`: their process groups (SIGTERM, SIGKILL).
+tokio = { workspace = true, features = ["process"] }
+rustix = { version = "1", features = ["process"] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
 

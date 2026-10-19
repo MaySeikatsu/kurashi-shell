@@ -219,6 +219,8 @@ async fn run() -> anyhow::Result<()> {
         }
     };
     kurashid::server::serve(listener, daemon, shutdown).await;
+    // K38: the mods' host processes end with the daemon (MODS.md "Host processes").
+    kurashid::native::hosts::shutdown_all().await;
     // A conversation still waiting for a prompt would otherwise pin its blocking thread.
     lock.cancel();
     let _ = std::fs::remove_file(&path);
