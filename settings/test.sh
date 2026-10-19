@@ -13,7 +13,8 @@
 # on), the Changed view and its reset plan, profiles with their differ count, the profile overlay (B13: your change
 # replaced, the changes kept, Nix holds back), export and import with their review and refusal (keyboard), the Japanese
 # copy of the main pages, and the records list of the test mod `records` (K38, W17): empty, two entries, the add form, a
-# refusal at its field (typed by keyboard), a list pinned by Nix (read-only), and its Japanese page.
+# refusal at its field (an empty id, sent by keyboard), a reorder and a removal with the row's buttons, the edit form opened
+# and closed by keyboard, a list pinned by Nix (read-only), and its Japanese page.
 # Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
 # font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row), the Changed view's
 # reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
@@ -628,6 +629,25 @@ Q goto mods.records
 shot records-forced
 [[ "$(val mods.records.locked)" == *'"nix"'* ]] || fail "records: the Nix list is not in effect ($(val mods.records.locked))"
 echo "records: the Nix-pinned list is in effect"
+# R4. remove and edit by keyboard: Tab to the remove button of the second entry and Return removes it (one change of the list);
+#     the list is then set back as it was, for the Japanese page. Tab to the edit button of the first entry and Return opens
+#     its form with the entry's id in the first field; Escape closes it and changes nothing.
+Q goto mods.records
+Q focusList >/dev/null
+tab_to "recordremove:1" 150
+kp return
+for _ in $(seq 20); do [ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 1 ] && break; sleep 0.2; done
+[ "$(python3 -I -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$(val mods.records.pins)")" = 1 ] || fail "records: the remove button did not remove the second entry ($(val mods.records.pins))"
+"$BIN/kurashi" set mods.records.pins '[{"id":"home","title":"Home","target":"https://example.org"},{"id":"docs","title":"Docs","target":"mod:webdock:docs","view":"mobile"}]' | grep '^applied' >/dev/null || fail "records: the two entries were not set back"
+for _ in $(seq 20); do [[ "$(val mods.records.pins)" == *Docs* ]] && break; sleep 0.2; done
+tab_to "recordedit:0" 150
+kp return
+for _ in $(seq 20); do [ "$(Q focused)" = "Id" ] && break; sleep 0.2; done
+[ "$(Q focused)" = "Id" ] || fail "records: the edit button did not open the form with the focus in its first field ($(Q focused))"
+kp escape
+sleep 0.5
+[[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: the edit form changed the list on Escape ($(val mods.records.pins))"
+echo "keyboard R4: the remove button removed the second entry and was set back; the edit button opened the form, Escape closed it"
 
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
