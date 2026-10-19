@@ -9,6 +9,7 @@ Select 1.0 Select.qml
 PickList 1.0 PickList.qml
 TextField 1.0 TextField.qml
 ListEdit 1.0 ListEdit.qml
+RecordsEdit 1.0 RecordsEdit.qml
 SettingRow 1.0 SettingRow.qml
 ResetFlow 1.0 ResetFlow.qml
 LinkText 1.0 LinkText.qml
