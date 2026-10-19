@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
-use kurashi_mod_api::{Choice, ChoicesHandle, FaceHandle, JobCtx, Publish, Settings};
+use kurashi_mod_api::{Choice, ChoicesHandle, FaceHandle, JobCtx, Publish, Settings, SlotHandle};
 use serde_json::Value;
 use tokio::sync::{Mutex as AsyncMutex, Notify};
 
@@ -33,6 +33,10 @@ const AGE_TICK_S: i64 = 60;
 pub const MIN_REFRESH_MIN: i64 = 10;
 pub const MAX_REFRESH_MIN: i64 = 180;
 pub const DEFAULT_REFRESH_MIN: i64 = 30;
+/// A candidate place's forecast is kept this long: a search result is previewed, not watched (`weather.place.preview`).
+pub const PREVIEW_TTL_S: i64 = 10 * 60;
+/// Candidates kept at once; the oldest goes first.
+const PREVIEWS_KEPT: usize = 32;
 
 /// The settings in effect, read on every pass (a change of one wakes the loops).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,7 +83,7 @@ impl Config {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Kind {
+pub(crate) enum Kind {
     Offline,
     RateLimited,
     Server,
@@ -87,7 +91,7 @@ enum Kind {
 }
 
 impl Kind {
-    fn key(self) -> &'static str {
+    pub(crate) fn key(self) -> &'static str {
         match self {
             Self::Offline => "mod-weather.error.offline",
             Self::RateLimited => "mod-weather.error.rate_limited",
@@ -130,6 +134,8 @@ pub struct Shared {
     pub subscribed: AtomicBool,
     face: OnceLock<FaceHandle>,
     choices: OnceLock<ChoicesHandle>,
+    /// The clock aside's slot (row 72): its reason names the call to action while no place is saved.
+    slot: OnceLock<SlotHandle>,
 }
 
 #[derive(Default)]
@@ -146,6 +152,10 @@ pub struct State {
     pub force: bool,
     pub last_manual: Option<i64>,
     pub watch: Watch,
+    /// The forecasts of candidate places by coordinates (`weather.place.preview`): the young ones only.
+    pub previews: BTreeMap<String, Data>,
+    /// Whether the clock aside's slot says "no place" now (row 72); kept so the reason is sent only when it changes.
+    slot_no_place: bool,
 }
 
 impl Shared {
@@ -174,6 +184,7 @@ impl Shared {
             subscribed: AtomicBool::new(false),
             face: OnceLock::new(),
             choices: OnceLock::new(),
+            slot: OnceLock::new(),
         }
     }
 
@@ -188,6 +199,29 @@ impl Shared {
 
     pub fn set_choices(&self, choices: ChoicesHandle) {
         let _ = self.choices.set(choices);
+    }
+
+    /// The slot's handle. The reason is sent at once when no place is saved yet.
+    pub fn set_slot(&self, slot: SlotHandle) {
+        let _ = self.slot.set(slot);
+        self.sync_slot();
+    }
+
+    /// The clock aside names the call to action while no place is saved (row 72). The reason is sent only when
+    /// it changes, so the daemon hears about a change and not about every pass.
+    fn sync_slot(&self) {
+        let Some(slot) = self.slot.get() else {
+            return;
+        };
+        let (no_place, changed) = self.with(|st| {
+            let no_place = st.places.is_empty();
+            let changed = st.slot_no_place != no_place;
+            st.slot_no_place = no_place;
+            (no_place, changed)
+        });
+        if changed {
+            slot.set_reason(no_place.then_some("mod-weather.no_location"));
+        }
     }
 
     /// The options of `weather.places`: the first saved place (the default) and each saved place.
@@ -205,6 +239,7 @@ impl Shared {
         if let Some(c) = self.choices.get() {
             c.choices_changed();
         }
+        self.sync_slot();
         self.poke();
     }
 
@@ -243,17 +278,69 @@ impl Shared {
         })
     }
 
-    /// One forecast request for `place`: the data on success, the failure and its backoff otherwise.
-    /// The rain watch observes each successful forecast; its face change happens after the lock.
-    pub async fn fetch(&self, place: &Place, cfg: &Config) {
-        let _gate = self.gate.lock().await;
-        let url = api::forecast_url(&self.endpoints.forecast, place.lat, place.lon);
-        let outcome = match self.http.get(url).await {
+    /// One forecast request for a point, with the failure kind the document and the actions name.
+    async fn request(&self, lat: f64, lon: f64) -> Result<api::Forecast, Kind> {
+        let url = api::forecast_url(&self.endpoints.forecast, lat, lon);
+        match self.http.get(url).await {
             Ok(body) => api::parse_forecast(&body).map_err(|_| Kind::BadData),
             Err(HttpError::Status(429)) => Err(Kind::RateLimited),
             Err(HttpError::Status(_)) => Err(Kind::Server),
             Err(HttpError::Offline(_) | HttpError::Body(_)) => Err(Kind::Offline),
+        }
+    }
+
+    /// The forecast of a candidate place (`weather.place.preview`): the cached one while it is younger than
+    /// `PREVIEW_TTL_S`, else one request through the gate the service uses, so the two never race. A failure is
+    /// not cached: the next preview asks again.
+    pub(crate) async fn preview_data(&self, lat: f64, lon: f64) -> Result<Data, Kind> {
+        let key = format!("{lat:.4},{lon:.4}");
+        if let Some(data) = self.cached_preview(&key) {
+            return Ok(data);
+        }
+        let _gate = self.gate.lock().await;
+        // A request that held the gate before this one may have fetched the same point.
+        if let Some(data) = self.cached_preview(&key) {
+            return Ok(data);
+        }
+        let forecast = self.request(lat, lon).await?;
+        let data = Data {
+            forecast,
+            fetched_at: (self.clock)(),
         };
+        let now = data.fetched_at;
+        self.with(|st| {
+            st.previews
+                .retain(|_, d| now < d.fetched_at + PREVIEW_TTL_S);
+            if st.previews.len() >= PREVIEWS_KEPT {
+                let oldest = st
+                    .previews
+                    .iter()
+                    .min_by_key(|(_, d)| d.fetched_at)
+                    .map(|(k, _)| k.clone());
+                if let Some(k) = oldest {
+                    st.previews.remove(&k);
+                }
+            }
+            st.previews.insert(key, data.clone());
+        });
+        Ok(data)
+    }
+
+    fn cached_preview(&self, key: &str) -> Option<Data> {
+        let now = (self.clock)();
+        self.with(|st| {
+            st.previews
+                .get(key)
+                .filter(|d| now < d.fetched_at + PREVIEW_TTL_S)
+                .cloned()
+        })
+    }
+
+    /// One forecast request for `place`: the data on success, the failure and its backoff otherwise.
+    /// The rain watch observes each successful forecast; its face change happens after the lock.
+    pub async fn fetch(&self, place: &Place, cfg: &Config) {
+        let _gate = self.gate.lock().await;
+        let outcome = self.request(place.lat, place.lon).await;
         let now = (self.clock)();
         let edge = self.with(|st| match outcome {
             Ok(forecast) => {

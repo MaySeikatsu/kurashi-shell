@@ -1,8 +1,9 @@
 //! Weather native mod (K26, K28; docs/ux/weather.md; card W12-weather). Linked into kurashid by
 //! `native::linked()`; its manifest and QML live in `mods/weather/`. What it registers is exactly
 //! what that manifest's `provides` lists: the service `mod.weather`, the actions `weather.*`, the
-//! island face `weather` (rain soon), the choice source `weather.places`. The bar widget, the panel
-//! and the clock aside are QML; they talk to the daemon only through the document and the actions.
+//! island face `weather` (rain soon), the choice source `weather.places`, and the clock aside's slot
+//! (`clock.expanded.aside`, whose reason says that no place is saved). The bar widget, the panel and
+//! the clock aside are QML; they talk to the daemon only through the document and the actions.
 
 pub mod actions;
 pub mod api;
@@ -84,6 +85,9 @@ impl NativeMod for WeatherMod {
             self.locale,
         ));
 
+        // The clock aside's slot: its reason names the call to action while no place is saved (row 72).
+        shared.set_slot(ctx.slot("clock.expanded.aside")?);
+
         let s = shared.clone();
         ctx.service(
             "weather",
@@ -108,6 +112,13 @@ impl NativeMod for WeatherMod {
             "weather.place.search",
             "mod-weather.action.search",
             move |args| actions::search(s.clone(), args),
+        )?;
+        let s = shared.clone();
+        let settings = ctx.settings().clone();
+        ctx.action(
+            "weather.place.preview",
+            "mod-weather.action.preview",
+            move |args| actions::preview(s.clone(), settings.clone(), args),
         )?;
         let s = shared.clone();
         ctx.action("weather.place.add", "mod-weather.action.add", move |args| {
