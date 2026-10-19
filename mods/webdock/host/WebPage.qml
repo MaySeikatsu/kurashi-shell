@@ -22,6 +22,8 @@ Item {
     readonly property var engine: web
 
     anchors.fill: parent
+    // Only the shown pin's page is drawn — its sign-in sheet included (a sheet stayed over the next pin otherwise).
+    visible: active
 
     onModeChanged: {
         if (lastMode !== "" && mode !== lastMode)
@@ -76,6 +78,8 @@ Item {
         PrivateView {
             anchors.fill: parent
             z: 1
+            lifecycleState: (page.active || recentlyAudible) ? WebEngineView.LifecycleState.Active
+                : WebEngineView.LifecycleState.Frozen
         }
     }
 

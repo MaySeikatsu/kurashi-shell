@@ -41,3 +41,5 @@
 "mods.host.missing" = "its program is not installed"
 "mods.host.failed" = "its program stopped twice in a row"
 "mods.running.host" = "its program is running"
+# A mod's settings write (MODS.md "Host processes", SettingsWriter) when the daemon has no config store to write to.
+"mods.error.setting_unavailable" = "this setting cannot be changed right now"

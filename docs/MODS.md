@@ -243,7 +243,9 @@ loaded, most recently shown first: the shown pin, then up to `max_loaded` in all
 idle clock runs while no web pin is shown and none is audible; after `unload_after` minutes (0 = never while the mod is
 on) the daemon stops the host, empties `keep` and every `loaded`. A view pin never starts the host.
 
-**Host (QML, `mods/webdock/host/`):** one layer-shell card on `output` (else the first screen) at `edge`, margin
+**Host (QML, `mods/webdock/host/`; row 95):** it imports the shell's core through a link in its own folder,
+`host/core` → `../../../frontend/core` (Quickshell refuses imports that leave a config root; the link keeps one copy of
+Store/Theme/I18n), and draws its own small controls (`frontend/components` would load a second set of singletons). One layer-shell card on `output` (else the first screen) at `edge`, margin
 `geometry.strip`, while `mode` is `extended` and `shown` is a web pin: phone = `width` × min(2 × `width`, output height
 − 2 gaps), large = `large` % of the output's width × the full height − 2 gaps. One `WebEngineView` per pin in `keep`,
 created when first shown, destroyed when it leaves `keep` (→ `unloaded`); views not shown are hidden and `Frozen` unless
