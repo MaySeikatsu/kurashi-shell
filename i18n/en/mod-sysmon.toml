@@ -51,6 +51,7 @@
 "sysmon.error.gone" = "The process has already ended."
 "sysmon.error.changed" = "Another process has that id now. Nothing was sent."
 "sysmon.error.not_yours" = "This process belongs to another user."
+"sysmon.error.refused" = "The system refused the signal (not permitted), so the process is still running."
 "sysmon.error.failed" = "The signal could not be sent."
 "sysmon.error.paused_in_settings" = "Sampling is paused in Settings. Resume it there."
 "sysmon.error.terminal" = "That terminal is not one Settings offers."

@@ -231,8 +231,23 @@ impl Recorded {
     }
 }
 
+impl Recorded {
+    /// The pids listed in `refuse` (one per line) are refused the way the kernel refuses a process it will not signal
+    /// (EPERM): the states check puts a fixture process there to show the row's refusal.
+    fn refuses(&self, pid: i32) -> bool {
+        std::fs::read_to_string(self.dir.join("refuse")).is_ok_and(|text| {
+            text.lines()
+                .any(|line| line.trim().parse::<i32>() == Ok(pid))
+        })
+    }
+}
+
 impl Signaller for Recorded {
     fn send(&self, pid: i32, sig: Sig) -> std::io::Result<()> {
+        if self.refuses(pid) {
+            self.log("signals.log", &format!("{pid} {} refused", sig.name()))?;
+            return Err(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
+        }
         self.log("signals.log", &format!("{pid} {}", sig.name()))
     }
 }
@@ -577,6 +592,8 @@ async fn procs_service(shared: Arc<Shared>, publish: Publish, mut settings: Sett
             continue;
         }
         let s = sampler.sample(Instant::now(), true);
+        // The desktop entries are read again only here, so only while this list is subscribed (Ma).
+        shared.apps.refresh(&shared.roots);
         if let Some(rows) = s.procs {
             scan = rows;
         }
@@ -773,8 +790,9 @@ pub(crate) fn end_process(
     match signaller.send(pid, sig) {
         Ok(()) => Ok(Some(json!({"pid": pid, "signal": sig.name()}))),
         Err(e) => Err(match e.kind() {
+            // The kernel's own refusal (EPERM), past the owner check above: the row says the system refused it.
             std::io::ErrorKind::PermissionDenied => {
-                ActionError::Unavailable("sysmon.error.not_yours".into())
+                ActionError::Unavailable("sysmon.error.refused".into())
             }
             std::io::ErrorKind::NotFound => ActionError::Unavailable("sysmon.error.gone".into()),
             _ => ActionError::Internal("sysmon.error.failed".into()),
@@ -805,7 +823,7 @@ impl NativeMod for Sysmon {
             watching: AtomicBool::new(false),
             trouble: Mutex::default(),
             me: self.me,
-            apps: Apps::default(),
+            apps: Apps::new(&self.roots.lang),
         });
         let s = shared.clone();
         ctx.service("sysmon", doc::loading(), move |publish, settings| {

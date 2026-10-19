@@ -477,7 +477,8 @@ fn the_kernels_refusals_map_to_the_reasons_the_list_shows() {
     );
     assert_eq!(
         eperm,
-        Err(ActionError::Unavailable("sysmon.error.not_yours".into()))
+        Err(ActionError::Unavailable("sysmon.error.refused".into())),
+        "the kernel refused it past the owner check: the row says so, not that it is another user's"
     );
     let esrch = end_process(
         &m.roots,
@@ -1011,6 +1012,118 @@ async fn the_summary_marks_the_rendering_gpu_and_lists_the_sleeping_one() {
             {"id": "card1", "state": "asleep", "primary": false},
             {"id": "card2", "state": "awake", "primary": true, "vendor": "AMD", "util": 37}
         ])
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_summary_shows_the_gpu_that_drives_a_lit_output_when_two_are_awake() {
+    // The NVIDIA dGPU is awake and busy with a game; the panel is lit from the AMD iGPU. The tile shows the iGPU.
+    let m = machine();
+    let drm = m._dir.path().join("sys/class/drm");
+    let nv = drm.join("card1/device");
+    write(&nv.join("power/runtime_status"), "active\n");
+    write(&nv.join("vendor"), "0x10de\n");
+    write(&drm.join("card1-DP-1/status"), "disconnected\n");
+    let amd = drm.join("card2/device");
+    write(&amd.join("power/runtime_status"), "active\n");
+    write(&amd.join("vendor"), "0x1002\n");
+    write(&amd.join("gpu_busy_percent"), "12\n");
+    write(&amd.join("boot_vga"), "1\n");
+    write(&drm.join("card2-eDP-1/status"), "connected\n");
+    let sys = Sysmon::with(m.roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.summary, &e.summary_docs, &e.settings);
+    tokio::time::sleep(Duration::from_secs(1)).await;
+    task.abort();
+    let docs = e.summary_docs.lock().unwrap();
+    assert_eq!(
+        docs.last().unwrap()["gpus"],
+        json!([
+            {"id": "card1", "state": "awake", "primary": false, "vendor": "NVIDIA"},
+            {"id": "card2", "state": "awake", "primary": true, "vendor": "AMD", "util": 12}
+        ])
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_list_names_programs_in_the_session_language_and_a_version_by_its_program() {
+    let m = machine();
+    let apps = m._dir.path().join("share/applications");
+    write(
+        &apps.join("firefox.desktop"),
+        "[Desktop Entry]\nName=Firefox\nName[ja]=Firefox ウェブブラウザー\nExec=/usr/lib/firefox/firefox %u\n",
+    );
+    let mut roots = m.roots.clone();
+    roots.apps = vec![apps];
+    roots.lang = "ja".into();
+    write_process(
+        &roots,
+        Proc {
+            pid: 7001,
+            comm: ".firefox-wra",
+            start: 10,
+            uid: 1000,
+            session: 1,
+            exe: Some("/usr/lib/firefox/.firefox-wrapped"),
+            cmd: Some("/usr/lib/firefox/firefox -contentproc"),
+        },
+    );
+    // Claude Code's layout: the kernel's name is the version, the program is `claude`.
+    write_process(
+        &roots,
+        Proc {
+            pid: 7002,
+            comm: "2.1.302",
+            start: 20,
+            uid: 1000,
+            session: 1,
+            exe: Some("/home/u/.local/share/claude/versions/2.1.302"),
+            cmd: Some("claude --resume"),
+        },
+    );
+    let sys = Sysmon::with(roots.clone(), Arc::new(Sent::default()));
+    let e = enable(&sys, Values::new());
+    let task = subscribe(&e.procs, &e.procs_docs, &e.settings);
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    task.abort();
+    let docs = e.procs_docs.lock().unwrap();
+    let rows = docs[0]["procs"].as_array().unwrap();
+    let name = |pid: i64| {
+        rows.iter()
+            .find(|r| r["pid"] == json!(pid))
+            .map(|r| r["name"].clone())
+    };
+    assert_eq!(name(7001), Some(json!("Firefox ウェブブラウザー")));
+    assert_eq!(name(7002), Some(json!("claude")));
+}
+
+#[tokio::test(start_paused = true)]
+async fn the_fixture_tree_refuses_the_pids_it_is_told_to_as_the_kernel_would() {
+    let dir = tempfile::tempdir().unwrap();
+    let uid = rustix::process::getuid().as_raw();
+    write_process(
+        &Roots::fixture(dir.path(), uid),
+        Proc {
+            pid: 4343,
+            comm: "burner",
+            start: 777,
+            uid,
+            session: 1,
+            exe: None,
+            cmd: None,
+        },
+    );
+    write(&dir.path().join("refuse"), "4343\n");
+    let sys = Sysmon::fixture(dir.path());
+    let e = enable(&sys, Values::new());
+    assert_eq!(
+        act(&e, "sysmon.process.term", act_end(4343, 777)).await,
+        Err(ActionError::Unavailable("sysmon.error.refused".into())),
+    );
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("signals.log")).unwrap(),
+        "4343 TERM refused\n",
+        "the refusal is recorded, and nothing was signalled"
     );
 }
 
