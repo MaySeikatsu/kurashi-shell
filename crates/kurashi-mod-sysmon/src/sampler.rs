@@ -238,4 +238,63 @@ mod tests {
         assert!(s.mem.is_none());
         assert!(s.temp.is_none());
     }
+
+    #[test]
+    fn counters_that_went_backwards_after_a_suspend_drop_their_sample_and_reset_the_baseline() {
+        // After a suspend the counters start again from lower values. That sample has no percentage and no rate (no
+        // spike, no negative figure), and the next one is measured from the reset values, not from the old ones.
+        let dir = tempfile::tempdir().unwrap();
+        let roots = Roots::new(dir.path().join("proc"), dir.path().join("sys"), 1000);
+        let mut s = Sampler::new(roots, "auto");
+        let t0 = Instant::now();
+        machine(dir.path(), 100, 300, 1000, 0);
+        s.sample(t0, false);
+        machine(dir.path(), 200, 400, 5000, 4096);
+        let second = s.sample(t0 + Duration::from_secs(2), false);
+        assert_eq!(second.cpu, Some(50.0));
+
+        machine(dir.path(), 10, 90, 0, 8);
+        let reset = s.sample(t0 + Duration::from_secs(4), false);
+        assert_eq!(reset.cpu, None, "dropped, not shown as 0 % or 100 %");
+        assert_eq!(reset.per_core, None);
+        assert_eq!(reset.net, None);
+        assert_eq!(reset.disk, None);
+
+        // 20 busy of 100 ticks two seconds later: 20 %, and 2 KiB of disk and 2000 bytes of network in 2 s.
+        machine(dir.path(), 30, 170, 2000, 8 + 2048);
+        let after = s.sample(t0 + Duration::from_secs(6), false);
+        assert_eq!(after.cpu, Some(20.0));
+        assert_eq!(after.net, Some((1000.0, 0.0)));
+        assert_eq!(after.disk, Some((512.0 * 2048.0 / 2.0, 0.0)));
+    }
+
+    #[test]
+    fn a_machine_of_many_cores_keeps_every_core_and_the_average() {
+        let dir = tempfile::tempdir().unwrap();
+        let roots = Roots::new(dir.path().join("proc"), dir.path().join("sys"), 1000);
+        let mut s = Sampler::new(roots, "auto");
+        let t0 = Instant::now();
+        // 24 CPUs, each busy as the machine is: 240 busy and 240 idle ticks at first, then 240 more of each.
+        let cores = |busy: u64, idle: u64| {
+            let mut text = format!("cpu {busy} 0 0 {idle} 0 0 0 0\n");
+            for c in 0..24 {
+                text.push_str(&format!("cpu{c} {} 0 0 {} 0 0 0 0\n", busy / 24, idle / 24));
+            }
+            text
+        };
+        write(dir.path(), "proc/stat", &cores(240, 240));
+        s.sample(t0, false);
+        write(dir.path(), "proc/stat", &cores(480, 480));
+        let second = s.sample(t0 + Duration::from_secs(2), false);
+        assert_eq!(second.cores, 24);
+        assert_eq!(second.per_core.as_ref().map(Vec::len), Some(24));
+        assert_eq!(second.cpu, Some(50.0));
+        assert!(
+            second
+                .per_core
+                .unwrap()
+                .iter()
+                .all(|p| (p - 50.0).abs() < 1e-9)
+        );
+    }
 }
