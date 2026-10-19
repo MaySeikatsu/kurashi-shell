@@ -1,79 +1,39 @@
 import QtQuick
 import qs.core
-import qs.components
+import qs.components.quick
 
-// The wallpaper tile in quick settings (K28 slot `quick.tiles`): what the rotation is doing, and its
-// three one-step actions. The slot shows it only while the daemon says the mod is available; the tile
-// subscribes to `mod.wallpaper` for its own line, and that subscription is all it does.
-Item {
+// The wallpaper tile in quick settings (K28 slot `quick.tiles`, W18): a QuickTile, so it has the core tiles' size and look.
+// Its subtitle is the picture on the output (by name); its main zone moves every output to the next picture
+// (`wallpaper.next`); its arrow, or Right, opens the picker panel. The slot shows it only while the daemon says the mod is
+// available; the tile subscribes to `mod.wallpaper` for its own line, and that subscription is all it does.
+QuickTile {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
     required property var theme
     required property var i18n
-    id: tile
-    implicitWidth: 240
-    implicitHeight: 88
 
     Watch { doc: "mod.wallpaper" }
     readonly property var doc: Store.docs["mod.wallpaper"] || ({})
-    readonly property var rotationState: doc.rotation || ({})
-    readonly property bool paused: rotationState.paused === true
     readonly property bool up: doc.available === true && (doc.backend || ({})).available === true
-
-    function act(action, args) {
-        Store.act(action, args || {}, function () {})
-    }
-
-    Rectangle {
-        anchors.fill: parent
-        radius: Theme.rLg
-        color: Theme.container
-        border.width: 1
-        border.color: Theme.outline
-
-        Column {
-            anchors.fill: parent
-            anchors.margins: Theme.pad
-            spacing: Theme.xs
-            Text {
-                width: parent.width
-                elide: Text.ElideRight
-                color: Theme.fg
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
-                text: I18n.tr("mod-wallpaper.tile.title")
-            }
-            Text {
-                width: parent.width
-                elide: Text.ElideRight
-                color: tile.up ? Theme.dim : Theme.error
-                font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
-                text: {
-                    if (!tile.up) return I18n.tr((tile.doc.backend || ({})).reason || "mod-wallpaper.backend.down")
-                    if (tile.rotationState.on === true)
-                        return I18n.tr("mod-wallpaper.tile.rotating").split("{min}").join(String(tile.rotationState.interval_min))
-                    return I18n.tr(tile.paused ? "mod-wallpaper.rotation.paused" : "mod-wallpaper.rotation.off")
-                }
-            }
-            Row {
-                spacing: Theme.xs
-                Button {
-                    label: I18n.tr("mod-wallpaper.tile.next")
-                    enabled: tile.up
-                    onClicked: tile.act("wallpaper.next")
-                }
-                Button {
-                    label: I18n.tr("mod-wallpaper.tile.random")
-                    enabled: tile.up
-                    onClicked: tile.act("wallpaper.random")
-                }
-                Button {
-                    label: I18n.tr(tile.paused ? "mod-wallpaper.tile.resume" : "mod-wallpaper.tile.pause")
-                    enabled: tile.up && (tile.rotationState.interval_min || 0) > 0
-                    onClicked: tile.act("wallpaper.rotation.pause", { on: !tile.paused })
-                }
-            }
+    // The picture of the first output (by name) that has one; "" while none is applied.
+    readonly property string picture: {
+        var outs = doc.outputs || ({})
+        var names = Object.keys(outs).sort()
+        for (var i = 0; i < names.length; i++) {
+            var path = String((outs[names[i]] || ({})).path || "")
+            if (path !== "") return path.split("/").pop().replace(/\.[^.]*$/, "")
         }
+        return ""
     }
+
+    glyph: "▣"
+    label: I18n.tr("mod-wallpaper.tile.title")
+    subtitle: picture !== "" ? picture : I18n.tr("mod-wallpaper.tile.next")
+    // Unavailable: why, as the backend says it (the tile dims). Nothing is said before the document arrives.
+    reason: doc.available === undefined || up ? "" : I18n.tr((doc.backend || ({})).reason || "mod-wallpaper.backend.down")
+    toggles: false
+    acts: true
+    hasPage: true
+    onActivated: Store.act("wallpaper.next", {}, function () {})
+    onPageRequested: Store.act("mod.panel.open", {id: "wallpaper", panel: "wallpaper"}, function () {})
 }
