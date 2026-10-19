@@ -61,6 +61,14 @@ mods-live:
     bash frontend/test-mods-live.sh || status=1
     exit "$status"
 
+# The bar's peeks (K35, I67) in the headless sandbox: every bar edge, the weather and sysmon states, reduced motion, the fade,
+# the idle Stage (frontend/test-peek.sh; PEEK_PHASES selects phases). Machine B: KURASHI_RENDER_NODE=/dev/dri/renderD129.
+peek:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    cargo build -p kurashid -p kurashi -p kurashi-mock || exit 1
+    bash frontend/test-peek.sh
+
 # Web dock (K38): the web host against the mock (pages, profiles, privacy net log, memory), then the real daemon end
 # to end (pins in the config, host start/scope/stop). Machine B: KURASHI_RENDER_NODE=/dev/dri/renderD129.
 webdock:
