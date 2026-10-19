@@ -76,3 +76,11 @@
 "action.webdock.host.blocked" = "サイトがブロックされた権限を求めた"
 "action.webdock.host.new_window" = "サイトが新しいウィンドウを求めた"
 "action.webdock.host.crashed" = "サイトが停止した"
+
+# 列挙型の設定の選択肢 (mods/webdock/mod.toml)。
+"mods.webdock.default_view.mobile" = "モバイル"
+"mods.webdock.default_view.desktop" = "デスクトップ"
+"mods.webdock.edge.right" = "右"
+"mods.webdock.edge.left" = "左"
+"mods.webdock.edge.top" = "上"
+"mods.webdock.edge.bottom" = "下"
