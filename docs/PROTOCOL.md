@@ -111,7 +111,9 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   and exist for every loaded mod. Pinned by `fixtures/ipc/server/snap_mods.json`.
 - **`runtime.slots` document** (K28): `{"<slot>": [{"mod": "weather", "qml": "file:///…/qml/slots/clock.expanded.aside.qml",
   "ready": true}]}` — enabled mods' contributions per slot, ordered by mod id; `ready` = the mod's primary document (its first registered service, `mod.<id>`) is
-  `available === true`; an entry is listed only while its `qml/slots/<slot>.qml` file exists. Slots: `clock.expanded.aside|day|footer`, `media.expanded.below|backdrop`,
+  `available === true`; an entry is listed only while its `qml/slots/<slot>.qml` file exists; `reason?` (i18n key, row 72) while the mod says
+  the contribution needs setup (`ModCtx::slot(name).set_reason`). Slots: `clock.expanded.aside|day|daymark|footer` (`daymark`: one
+  instance per day cell with `date`, row 71), `media.expanded.below|backdrop`,
   `notifications.expanded.header`, `quick.tiles`, `lock.aside`. A mod face (`island-face:<name>`) appears in
   `runtime.island.main.faces` like a core face; the `mods` doc `qml` map names `island-face:<name>` →
   `qml/Face.qml` and `island-face:<name>:expanded` → `qml/FaceExpanded.qml`.

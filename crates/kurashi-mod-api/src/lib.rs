@@ -295,6 +295,23 @@ pub trait Hooks: Send + Sync {
     fn set_setting(&self, _key: &str, _value: Value) -> Result<(), SettingsError> {
         Err(SettingsError::Unavailable)
     }
+    /// The mod's contribution to slot `slot` needs setup (`reason`, an i18n key) or not (`None`) (K28, row 72).
+    fn slot_reason(&self, _slot: &str, _reason: Option<&str>) {}
+}
+
+/// The mod's contribution to one core view slot (K28, row 72). A contribution that needs setup before it has
+/// content — weather without a saved place — stays in the view and shows its call to action: `set_reason` puts
+/// the reason (an i18n key) into `runtime.slots`, `None` takes it back. Cheap to clone.
+#[derive(Clone)]
+pub struct SlotHandle {
+    hooks: Arc<dyn Hooks>,
+    slot: String,
+}
+
+impl SlotHandle {
+    pub fn set_reason(&self, reason: Option<&str>) {
+        self.hooks.slot_reason(&self.slot, reason);
+    }
 }
 
 /// Raises and clears one island face of a mod (K24). Cheap to clone, so an action or a service can
@@ -604,6 +621,15 @@ impl ModCtx {
         })
     }
 
+    /// A handle on the mod's contribution to slot `name` (manifest `slot:<name>`; K28, row 72).
+    pub fn slot(&mut self, name: &str) -> Result<SlotHandle, ModError> {
+        self.claim("slot", name)?;
+        Ok(SlotHandle {
+            hooks: self.hooks.clone(),
+            slot: name.into(),
+        })
+    }
+
     /// The registrations for the daemon to apply, or the first refused one. Jobs not taken with
     /// [`ModCtx::take_jobs`] refuse the enable: they would never run.
     pub fn finish(self) -> Result<Vec<Registration>, ModError> {
@@ -677,6 +703,13 @@ mod tests {
 
         fn choices_changed(&self, source: &str) {
             self.calls.lock().unwrap().push(format!("choices {source}"));
+        }
+
+        fn slot_reason(&self, slot: &str, reason: Option<&str>) {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("slot {slot} {reason:?}"));
         }
     }
 
@@ -864,6 +897,26 @@ mod tests {
         assert!(offered[0].enabled);
         assert_eq!(offered[1].reason.as_deref(), Some("demo.missing"));
         assert!(!offered[1].enabled);
+    }
+
+    /// Row 72: a declared slot gives a handle whose reasons reach the hooks; an undeclared one is refused.
+    #[test]
+    fn a_slot_handle_reports_its_reason() {
+        let rec = Arc::new(Record::default());
+        let provides = ["slot:clock.expanded.aside".to_string()];
+        let (_, rx) = watch::channel(Values::new());
+        let mut c = ModCtx::new(&provides, Settings::new(rx), rec.clone());
+        let slot = c.slot("clock.expanded.aside").unwrap();
+        slot.set_reason(Some("demo.no_place"));
+        slot.set_reason(None);
+        assert_eq!(
+            rec.calls.lock().unwrap().as_slice(),
+            [
+                "slot clock.expanded.aside Some(\"demo.no_place\")",
+                "slot clock.expanded.aside None"
+            ]
+        );
+        assert!(c.slot("quick.tiles").is_err(), "not declared");
     }
 
     /// Records what a host handle and a settings writer ask of the daemon.
