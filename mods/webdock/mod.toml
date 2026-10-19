@@ -3,7 +3,7 @@
 # QML: mods/webdock/host/ (W17-webdock-host). The `pins` records setting (K38, W17-records) is added with that merge.
 id = "webdock"
 name = "Web dock"
-description = "webdock.description"
+description = "mods.webdock.description"
 version = "0.1.0"
 tier = "native"
 kurashi = ">=0.0.1"
@@ -21,8 +21,8 @@ key = "default_view"
 type = "enum"
 default = "mobile"
 choices = ["mobile", "desktop"]
-label = "webdock.setting.default_view"
-help = "webdock.setting.default_view.help"
+label = "mods.webdock.default_view"
+help = "mods.webdock.default_view.help"
 
 [[setting]]
 key = "width"
@@ -30,7 +30,7 @@ type = "int"
 default = 412
 range = [360, 720]
 unit = "px"
-label = "webdock.setting.width"
+label = "mods.webdock.width"
 
 [[setting]]
 key = "large"
@@ -38,14 +38,14 @@ type = "int"
 default = 90
 range = [50, 95]
 unit = "%"
-label = "webdock.setting.large"
+label = "mods.webdock.large"
 
 [[setting]]
 key = "edge"
 type = "enum"
 default = "right"
 choices = ["right", "left", "top", "bottom"]
-label = "webdock.setting.edge"
+label = "mods.webdock.edge"
 
 [[setting]]
 key = "unload_after"
@@ -53,12 +53,12 @@ type = "int"
 default = 60
 range = [0, 1440]
 unit = "min"
-label = "webdock.setting.unload_after"
-help = "webdock.setting.unload_after.help"
+label = "mods.webdock.unload_after"
+help = "mods.webdock.unload_after.help"
 
 [[setting]]
 key = "max_loaded"
 type = "int"
 default = 4
 range = [1, 12]
-label = "webdock.setting.max_loaded"
+label = "mods.webdock.max_loaded"

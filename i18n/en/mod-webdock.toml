@@ -76,3 +76,11 @@
 "action.webdock.host.blocked" = "A site asked for a blocked permission"
 "action.webdock.host.new_window" = "A site asked for a new window"
 "action.webdock.host.crashed" = "A site stopped"
+
+# Choice labels of the enum settings (mods/webdock/mod.toml).
+"mods.webdock.default_view.mobile" = "Mobile"
+"mods.webdock.default_view.desktop" = "Desktop"
+"mods.webdock.edge.right" = "Right"
+"mods.webdock.edge.left" = "Left"
+"mods.webdock.edge.top" = "Top"
+"mods.webdock.edge.bottom" = "Bottom"
