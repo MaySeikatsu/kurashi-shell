@@ -47,6 +47,10 @@ Singleton {
     property int seq: 0
     // cfg.why answers by "key|output" (PROTOCOL §5): the daemon's layers, kept until the config changes.
     property var explained: ({})
+    // The user value a forced layer holds back, by "key|output" (I64 (3)): {value}, or null when the key has none. Asked
+    // for every forced key on each config and schema change. Kept apart from `explained`, which a config change clears:
+    // the Changed view's rows must not come and go with every change.
+    property var heldUsers: ({})
 
     function send(m) {
         if (!sock.connected) return false
@@ -244,18 +248,71 @@ Singleton {
         }
         return out
     }
-    // Every changed setting across pages and outputs: [{pageId, row, output, prov}] (the Changed view).
-    function changedEntries() {
+    // --- held-back user values (I64 (3)) -------------------------------------------------------------
+    // A forced layer can hold a user value back. The config document shows only the value in effect, so the user's layer
+    // comes from cfg.why (PROTOCOL §5), asked for each forced key and each output it is forced on.
+    function forcedEntries() {
         var out = []
         var rows = allRows()
         for (var i = 0; i < rows.length; i++) {
             var r = rows[i]
             var p = config.values ? config.values[r.row.key] : undefined
-            if (isChangedSource(p)) out.push({ pageId: r.pageId, row: r.row, output: "", prov: p })
+            if (p && p.source && p.source.kind === "forced") out.push({ key: r.row.key, output: "" })
             if (r.row.per_output && config.outputs)
                 for (var name in config.outputs) {
                     var q = config.outputs[name][r.row.key]
-                    if (isChangedSource(q)) out.push({ pageId: r.pageId, row: r.row, output: name, prov: q })
+                    if (q && q.source && q.source.kind === "forced") out.push({ key: r.row.key, output: name })
+                }
+        }
+        return out
+    }
+    function refreshHeld() {
+        var list = forcedEntries()
+        for (var i = 0; i < list.length; i++) askHeld(list[i].key, list[i].output)
+    }
+    function askHeld(key, output) {
+        var m = { t: "cfg.explain", key: key }
+        if (output) m.output = output
+        var k = key + "|" + (output || "")
+        request(m, function (r) {
+            if (r.t !== "cfg.why") return
+            // The user's layer; with an output, its own user entry comes after the global one, so the last one is in effect.
+            var user = null
+            for (var i = 0; i < r.layers.length; i++)
+                if (r.layers[i].source && r.layers[i].source.kind === "user") user = { value: r.layers[i].value }
+            var h = Object.assign({}, heldUsers)
+            h[k] = user
+            heldUsers = h
+        })
+    }
+    // The provenance of the user value that a forced layer holds back for this key and output: {value, source}, or null.
+    function heldUserOf(key, output) {
+        var h = heldUsers[key + "|" + (output || "")]
+        return h ? { value: h.value, source: { kind: "user" } } : null
+    }
+    // The Changed view's entry for one key on one output, or null: {prov, held}. A user value that a forced layer holds
+    // back is listed as held (prov is the user's value); anything else changes the view when the user, a profile or Nix
+    // sets the value in effect.
+    function changedOf(key, output, p) {
+        if (!p || !p.source) return null
+        if (p.source.kind === "forced") {
+            var h = heldUserOf(key, output)
+            if (h) return { prov: h, held: true }
+        }
+        return isChangedSource(p) ? { prov: p, held: false } : null
+    }
+    // Every changed setting across pages and outputs: [{pageId, row, output, prov, held}] (the Changed view).
+    function changedEntries() {
+        var out = []
+        var rows = allRows()
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i]
+            var c = changedOf(r.row.key, "", config.values ? config.values[r.row.key] : undefined)
+            if (c) out.push({ pageId: r.pageId, row: r.row, output: "", prov: c.prov, held: c.held })
+            if (r.row.per_output && config.outputs)
+                for (var name in config.outputs) {
+                    var d = changedOf(r.row.key, name, config.outputs[name][r.row.key])
+                    if (d) out.push({ pageId: r.pageId, row: r.row, output: name, prov: d.prov, held: d.held })
                 }
         }
         return out
@@ -397,6 +454,8 @@ Singleton {
         case "svc.workspaces": workspaces = v; break
         case "mods": mods = v; break
         }
+        // The user values that forced layers hold back follow the config and the schema (I64 (3)).
+        if (doc === "config" || doc === "schema.settings") refreshHeld()
     }
 
     function handle(line) {

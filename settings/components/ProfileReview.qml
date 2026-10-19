@@ -13,8 +13,8 @@ Column {
     property int kept: 0
     property var diagnostics: []
     spacing: Theme.gap / 2
-    readonly property var valueLines: entries.filter(ProfileDiff.valueDiffers)
-    readonly property var sameLines: entries.filter(function (e) { return !ProfileDiff.valueDiffers(e) })
+    readonly property var valueLines: entries.filter(ProfileDiff.changesValue)
+    readonly property var sameLines: entries.filter(ProfileDiff.sameValue)
 
     // "config.diag.<kind>" names what the file skipped. A message is shown only as a catalog key: the parser's own
     // English (a syntax error) never reaches the page (K27).

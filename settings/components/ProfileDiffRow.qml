@@ -2,14 +2,16 @@ import QtQuick
 import "../core"
 
 // One changed setting of a profile review (UX brief, settings 6): what it is now and the layer that sets it, what the
-// profile sets it to, and "your change replaced" where a value of yours is what the profile overrides. The values and
-// the layers are the daemon's answer (profile.preview, profile.import); this row only lays them out.
+// profile sets it to, and "your change replaced" where a value of yours is what the profile overrides. A line whose value
+// stays (same_value, I64) says "Now from this profile" instead, in a neutral chip. The values and the layers are the
+// daemon's answer (profile.preview, profile.import); this row only lays them out.
 Flow {
     id: r
     property var entry: ({})
     readonly property var before: entry.before ?? null
     readonly property var after: entry.after ?? null
-    readonly property bool replacesUser: !!before && !!before.source && before.source.kind === "user"
+    readonly property bool same: entry.same_value === true
+    readonly property bool replacesUser: !same && !!before && !!before.source && before.source.kind === "user"
     readonly property string name: {
         var k = entry.key || ""
         var label = Store.labelOf(k)
@@ -63,5 +65,13 @@ Flow {
         fg: Theme.fg
         bg: Theme.surface
         edge: Theme.accent
+    }
+    // Neutral: nothing is replaced, the setting is the same and now comes from the profile (I64 (2)).
+    Chip {
+        visible: r.same
+        text: I18n.tr("settings.ui.profile_now_from")
+        fg: Theme.dim
+        bg: Theme.surface
+        edge: Theme.outline
     }
 }
