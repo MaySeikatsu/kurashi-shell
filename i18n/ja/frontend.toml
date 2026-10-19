@@ -34,3 +34,9 @@
 "frontend.volume.muted" = "ミュート"
 "frontend.volume.level" = "音量 {pct} %"
 "frontend.quick.open" = "クイック設定"
+# W19-side-bars
+"frontend.bar.hidden" = "ほか {n} 件は非表示"
+"frontend.bar.short.cpu" = "CPU"
+"frontend.bar.short.mem" = "RAM"
+"frontend.bar.short.temp" = "温度"
+"frontend.bar.short.load" = "負荷"

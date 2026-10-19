@@ -86,3 +86,11 @@ Met: clock view (calendar in kurashi's language, Today, keyboard grid, agenda re
 honest progress/seek gating/player switcher, grouped notifications with DND until, volume devices/mic/streams, secondary +
 overflow + stale in the pill, power/bluetooth faces. Open: event dots + week start by locale (I46), Stage-hosted peek (B9,
 I47), VolumeFace device name (I45), power/bluetooth expanded views (I44), idle-wakeup bench of the media 1 s timer (I47).
+
+## Side bars (W19, row 107, I85)
+On a left or right bar the pill is a column: the face's glyph over a short value (volume, brightness, notifications,
+power) or the glyph alone (clock, media, bluetooth: no room for their value; the peek and the accessible name carry it);
+a stale hour, the secondary glyph and the "+N" overflow stack under it. Text never rotates. The bar holds the leading
+widgets that fit and hides the rest from the end with a count; on a 720 px tall output with mods on, the clock and the
+quick-settings button hide before the mod widgets (list order is hide order — a priority is a design call).
+

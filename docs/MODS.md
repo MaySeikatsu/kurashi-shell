@@ -278,7 +278,9 @@ engine's user agent with an Android platform and `Mobile`, client hints `mobile`
   WASM only if demand appears.
 
 ## Contributions a mod can make
-widgets (bar placeable) · peeks (`peek:<name>` → `qml/Peek.qml`, shown by the Stage under the widget on
+widgets (bar placeable; a widget or island face may declare `property bool vertical`, which the bar sets on a left
+or right edge — the component then draws its vertical form within its own `implicitHeight`, never rotated text; one
+that does not declare it is clipped to its slot, row 107) · peeks (`peek:<name>` → `qml/Peek.qml`, shown by the Stage under the widget on
 hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · island faces · panels (stage) · settings · actions · launcher
 providers · services · decor packs (slots + recipe) · lock scenes · palettes · app-theme
 templates · i18n strings.
