@@ -1,0 +1,36 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>site</title>
+<style>body{background:#2b3a55;color:#f0e6d2;font:18px sans-serif;margin:16px}input{font:20px sans-serif;width:90%}</style>
+</head>
+<body>
+<h1 id="h">Site</h1>
+<input id="i" autofocus placeholder="type here">
+<p id="o">nothing typed</p>
+<p id="v"></p>
+<button id="p" style="font:18px sans-serif">Open sign-in</button>
+<script>
+// The pin is the URL's hash (site.html#mail): the page names itself, so one file serves every pin of the test.
+const name = location.hash.slice(1) || 'site';
+document.title = name;
+document.getElementById('h').textContent = name;
+const i = document.getElementById('i');
+i.addEventListener('input', () => {
+  document.getElementById('o').textContent = 'typed: ' + i.value;
+  console.log('INPUT ' + i.value);
+});
+// The visits of this profile's localStorage: pins on one profile count together, pins on two profiles do not.
+const n = Number(localStorage.getItem('visits') || 0) + 1;
+localStorage.setItem('visits', n);
+document.getElementById('v').textContent = 'visits in this profile: ' + n;
+console.log('VISITS ' + name + ' ' + n);
+// What the page sees of the user agent and the viewport.
+const uad = navigator.userAgentData;
+console.log('UA ' + name + ' mobile=' + (uad ? uad.mobile : 'none') + ' platform=' + (uad ? uad.platform : 'none')
+  + ' inner=' + innerWidth + ' ua=' + navigator.userAgent);
+// F2 or the button opens a sign-in popup (a window with an opener); both are user gestures, so no popup blocker.
+const popup = () => window.open('site.html#popup', 'sign', 'width=400,height=500');
+document.addEventListener('keydown', e => { if (e.key === 'F2') popup(); });
+document.getElementById('p').addEventListener('click', popup);
+</script>
+</body></html>
