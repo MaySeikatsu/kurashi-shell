@@ -24,3 +24,11 @@ Total PSS of the client's whole process tree after load + typing "hello kurashi"
 | Python + GTK 4 + WebKitGTK 2.54 (bwrap sandbox on) | 294 MiB (UI 140, web 116, network 36) | ≈ 180 MiB | all keys |
 
 One tiny local page on machine B's iGPU, headless sway, a shared machine: real web apps cost much more in both.
+
+## Privacy check (K38 "ungoogled by configuration")
+`QTWEBENGINE_CHROMIUM_FLAGS="--log-net-log=<file> --net-log-capture-mode=Everything" SPIKE_IDLE=45 MODE=qtwe
+measure.sh`: with the local page open and typed into for 45 s the net log has **0 events** (no request of the engine's
+own, no Google endpoint). Positive control, `SPIKE_URL_OVERRIDE=http://example.com/`: the log records the page's
+request (`http://example.com/`, host `example.com`). The library still contains Google URLs as strings (component
+updater, FCM push, account endpoints); they are code paths the host keeps off, not traffic. Flags need `argc > 0`,
+which the Quickshell patch provides (QTBUG-110157: ignored with `argc = 0`).

@@ -4,15 +4,19 @@ the user's review, then the contract freezes (CONTRACT-CHANGE rows 88–94) and 
 
 ## Job
 Keep a few web apps and kurashi views one hover away at a screen edge: a click opens one in a phone-sized panel,
-another click puts it away, and nothing costs anything while the dock is unused. It is not a browser — Zen stays the
-browser, and the dock hands pages to it. Lives at one screen edge (right by default), driven by hover, a keybind and
+another click puts it away, and nothing costs anything while the dock is unused. It is not a browser — the user's browser stays
+the browser, and the dock hands pages to it. Lives at one screen edge (right by default), driven by hover, a keybind and
 a bar widget; configured in Settings › Web dock.
 
 ## User decisions (session 7)
-- **Engine:** Chromium (QtWebEngine) in its own on-demand process on a patched Quickshell (K38, K39). Gecko cannot be
-  embedded, so **Zen joins as a bridge**: its bookmarks as a pin source, "open in browser", clipboard, drag and drop.
-- **Pins:** kurashi's own pins first (Settings, Nix); Zen bookmarks reachable; a pin is a **site** or a **kurashi
-  view** (a mod panel). Like Zen's Essentials or Edge's sidebar apps.
+- **Engine:** Chromium (QtWebEngine) in its own on-demand process on a patched Quickshell (K38, K39), **ungoogled by
+  configuration** (see "Privacy"): ungoogled-chromium itself cannot be dropped in, and an ungoogled QtWebEngine build is
+  not worth its cost while the engine provably sends nothing on its own. Gecko cannot be embedded.
+- **Browser bridge:** the user's **default browser** (whatever `xdg-open` opens — Zen on the user's machine, never
+  hard-coded): "open in browser", links for a new tab, clipboard, drag and drop. Browser bookmarks as a pin source and a
+  per-pin hybrid (a pin that opens in the browser's own window) are later (I70, I75).
+- **Pins:** kurashi's own pins (Settings, Nix); a pin is a **site** or a **kurashi view** (a mod panel). Like Zen's
+  Essentials or Edge's sidebar apps.
 - **Modes:** hidden (a small indicator) → compact (the icon strip) → extended (the pin, phone format by default, can
   grow to almost the whole screen). **Mobile/desktop view** toggle per site.
 - **Edge:** right by default; left, right, top or bottom. Hover reveals; the dock can be **pinned open** and unpinned.
@@ -49,9 +53,10 @@ a bar widget; configured in Settings › Web dock.
 ## Beyond the basic job
 - **Kurashi views as pins:** any enabled mod panel (`mod:<id>:<panel>`: weather, sysmon, wallpaper picker, later
   notes/tasks/LLM chat from ROADMAP v0.3) opens in the same card, drawn by the shell, no web engine involved.
-- **Zen bridge:** Zen bookmarks as an "add pin" source; "open in browser" for the current page; links that want a new
-  tab go to the browser; drag a link from Zen onto the strip to pin it (v1.x). Later a Zen extension + native
-  messaging: two-way bookmarks, "send this tab to the dock" (BACKLOG I70).
+- **Browser bridge:** "open in browser" for the current page; links that want a new tab go to the default browser;
+  drag a link from the browser onto the strip to pin it (v1.x). Later: bookmarks from the user's browser as an "add
+  pin" source, a browser extension + native messaging for "send this tab to the dock" (I70), and the hybrid pin that
+  opens in the browser's own window, docked by the compositor (I75).
 - **Composition:** pins as a launcher provider ("WhatsApp → open in dock"); an unread count from a page title
   ("(3) Inbox") as a badge on the icon and an Island signal; web notifications into kurashi notifications; a web
   player's media into the media face — all later (I71, I73), each behind a per-pin allowlist.
@@ -103,6 +108,17 @@ the focused output) and stays there while open (latched, like the Stage).
 - **Permissions** (camera, microphone, location, notifications, screen, clipboard read, downloads): refused in v1; the
   header shows a chip "Blocked: camera" with the reason (I71).
 
+### Privacy (ungoogled by configuration, K38)
+QtWebEngine is Chromium's content layer with Google's services stripped (Safe Browsing, sync, translation, Google
+geolocation: https://wiki.qt.io/QtWebEngine). The host turns off what is left and adopts the ungoogled-chromium
+defaults that apply to an embedded engine: push service off (it would use Google's FCM), DNS prefetch off, hyperlink
+auditing (`<a ping>`) off, WebRTC on public interfaces only, spell check from local dictionaries only, no Chrome
+extensions in v1, Chromium switches `--disable-background-networking --disable-component-update
+--disable-domain-reliability --no-pings`. **Proof, not promise:** the host test records Chromium's net log while local
+fixture pages are open and fails on any request the pages did not make (Phase 0: 45 s, zero requests; the same log
+records a page's own request). If that test ever sees engine traffic, an ungoogled QtWebEngine build is back on the
+table (I76).
+
 ### Keyboard and a11y
 Keybind `webdock.toggle` (HM default `Mod+B`; editable keybinds in Settings: I72). On reveal by key the strip takes
 focus: arrows move between pins, Enter opens, Space toggles pin-dock, Escape steps back, Tab enters the card. Focus
@@ -115,22 +131,22 @@ white flash.
 
 ### Copy (i18n `mod-webdock`)
 `mods.webdock.*` setting labels; `webdock.empty` "Pin a site or a view to keep it one hover away", `webdock.add.url`,
-`webdock.add.zen`, `webdock.view.mobile` / `.desktop`, `webdock.size.phone` / `.large`, `webdock.open_browser`,
+`webdock.view.mobile` / `.desktop`, `webdock.size.phone` / `.large`, `webdock.open_browser`,
 `webdock.loading`, `webdock.host.starting` "Starting the web engine…", `webdock.host.missing` "The web engine is not
 installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.crashed`, `webdock.signin_refused`,
 `webdock.blocked.<permission>`, `webdock.pin.dock` / `.undock`. ja: 「モバイル表示」「デスクトップ表示」「ブラウザで開く」.
 
 ## States
 - **Empty** (no pins): the strip shows only + and settings; the card shows `webdock.empty` with "Add a site" (URL +
-  name) and "Add from Zen bookmarks" (only when a Zen profile is found).
+  name).
 - **Cold engine:** the first web open shows the card frame with "Starting the web engine…" (drawn by the shell) until
   the host's surface maps; a site loading: skeleton + thin progress line in the header.
 - **Unloaded pin** (discarded or engine unloaded): icon without the loaded dot; opening reloads it; sign-in kept.
 - **Error:** load failed (name, code, retry, open in browser); renderer crashed ("The page stopped", reload); host
   crashed (restart once, then "The web engine stopped" with the log path).
 - **Offline:** the page's own offline state; the header shows a no-network chip from `svc.network`.
-- **Unavailable:** host not installed (mod page says why, sites inert, view pins still work); Zen not found (Zen rows
-  hidden; the setting says "no Zen profile found").
+- **Unavailable:** host not installed (mod page says why, sites inert, view pins still work); no default browser
+  ("open in browser" disabled with the reason).
 - **Forced/inert** (Nix-set pins or edge): provenance chips; the strip's pin toggle disabled with the reason.
 - **Many pins:** strip scrolls; 30 pins tested. **Tiny output** (≤ 768 px high): phone height clamps, large = 95 %.
 - **Several outputs:** reveal per output edge, shared edges need the longer dwell; the card never spans outputs.
@@ -139,12 +155,11 @@ installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.cras
 ## Fit and constraints
 - **Ma:** mod off → nothing. Mod on, never used → one transparent edge surface per output (input strip + indicator,
   0 frames idle) and no daemon task; no engine process. Hidden pages are frozen (Chromium lifecycle `Frozen`) unless
-  audible; the unload timer exists only while the host runs; Zen's bookmarks are read on demand, never watched.
+  audible; the unload timer exists only while the host runs.
 - **Budgets:** the shell side counts against K16/K19 (edge surface ≤ +1 MiB per output, 0 commits idle — measured).
   The web host is its own process: measured with 0, 1 and 5 sites shown (BENCH), reported, and gone after unload.
-- **Daemon vs view:** the daemon owns the mode/shown/pinned state machine, pins (config), the host's lifecycle, Zen
-  reading and "open in browser"; the shell and the host render `mod.webdock` and send intents; the host never decides
-  modes.
+- **Daemon vs view:** the daemon owns the mode/shown/pinned state machine, pins (config), the host's lifecycle and
+  "open in browser"; the shell and the host render `mod.webdock` and send intents; the host never decides modes.
 - **Security:** web content is untrusted: no bridge into the shell (QWebChannel not loaded), Chromium sandbox on, the
   host's daemon connection restricted to `mod.webdock`, `theme`, `i18n` and `webdock.host.*` intents (row 92).
 - **Contracts touched:** rows 88 (mod `surface:` provide), 89 (`records` setting type), 90 (`mod.webdock`), 91
@@ -160,23 +175,26 @@ installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.cras
 - [ ] Unload: the host exits after `unload_after` (test with seconds), the icons stay, reopening reloads.
 - [ ] Idle: 0 commits with the mod on and the dock hidden; host memory for 0/1/5 shown sites in BENCH.
 - [ ] niri: verified in a nested niri (layer surfaces, on-demand keyboard focus) before "UX ✅".
-- [ ] Zen: bookmarks list from a fixture `places.sqlite`; "open in browser" runs the configured command.
+- [ ] "Open in browser" runs the configured command (default: the system's default browser via `xdg-open`).
+- [ ] Privacy: the net-log test sees no request the fixture pages did not make; push service off.
 
 ## Implementation steps (each step's report carries a Learn block: concept, minimal example, one exercise)
 1. **Contract + records setting** (rows 88–93): `records` type in kurashi-mods/config, Settings records editor, Nix
    pins. *Accept:* a bad URL in `mods.webdock.pins` is refused with its field path; Settings adds, edits, reorders,
    removes a pin; a Nix-set list shows as forced.
 2. **Daemon mod** `crates/kurashi-mod-webdock`: state machine, `mod.webdock`, actions, host supervisor (start, restricted
-   hello, unload, restart once), Zen reader. *Accept:* transition tests; fake host started/stopped; 0 tasks while hidden.
+   hello, unload, restart once). *Accept:* transition tests; fake host started/stopped; 0 tasks while hidden.
 3. **Shell side** `mods/webdock/qml`: edge surface, indicator, strip, card frame, view pins, keyboard. *Accept:* the
    screenshot list above for views; idle 0 commits; PSS per output.
 4. **Web host** `webdock-host/` + `nix/patches/quickshell-webengine.patch`: views per pin, profiles, user agents,
-   freeze, sheets, permission chips, new tabs → browser. *Accept:* fixture sites, typing, storage separation, memory.
+   freeze, sheets, permission chips, new tabs → browser, privacy settings. *Accept:* fixture sites, typing, storage
+   separation, net-log privacy test, memory.
 5. **Nix:** `packages.kurashi-webdock` (patched Quickshell + QtWebEngine) apart from `kurashi` (no QtWebEngine in the
    base closure), HM/NixOS `programs.kurashi.webdock.{enable,pins}`. *Accept:* closure check, module eval.
 6. **Docs + UX review:** MODS.md, PROTOCOL, BENCH, this brief → "done (UX)".
 
 ## Later
-Browse/search section and "pin this page" (I69); Zen extension (I70); permissions allowlist, web notifications,
-downloads (I71); editable keybinds (I72); badges, launcher provider, web media (I73); drag-resize and per-pin width
-(I74); several docks (ROADMAP "multi-instance").
+Browse/search section and "pin this page" (I69); browser bookmarks + extension bridge (I70); permissions allowlist,
+web notifications, downloads (I71); editable keybinds (I72); badges, launcher provider, web media (I73); drag-resize
+and per-pin width (I74); hybrid pins in the browser's own window (I75); an ungoogled QtWebEngine build only if the
+privacy test finds traffic (I76); several docks (ROADMAP "multi-instance").

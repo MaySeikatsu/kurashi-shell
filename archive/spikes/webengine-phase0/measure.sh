@@ -8,7 +8,7 @@ WTYPE=/nix/store/1npk1bl9fsmmx8nfr474f5n68wixw31w-wtype-0.4/bin/wtype
 OUT=$D/cmp-$MODE; rm -rf "$OUT" "$D/store"; mkdir -p "$OUT" "$D/store"
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME" 2>/dev/null)"
 trap '"$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null 2>&1 || true' EXIT
-export SPIKE_URL=file://$D/page.html SPIKE_STORE=$D/store
+export SPIKE_URL=${SPIKE_URL_OVERRIDE:-file://$D/page.html} SPIKE_STORE=$D/store
 case $MODE in
   qtwe)   export NIXPKGS_QT6_QML_IMPORT_PATH=$W/lib/qt-6/qml:$WC/lib/qt-6/qml:$WP/lib/qt-6/qml
           "$D/qs-patched/bin/quickshell" -p "$D/qs-share/shell.qml" >"$OUT/log" 2>&1 & ;;
@@ -19,7 +19,7 @@ case $MODE in
 esac
 C=$!
 for _ in $(seq 1 60); do grep -q "SPIKE LOAD 2" "$OUT/log" && break; sleep 0.5; done
-sleep 2; "$WTYPE" "hello kurashi"; sleep 3
+sleep 2; "$WTYPE" "hello kurashi"; sleep "${SPIKE_IDLE:-3}"
 grim -o HEADLESS-1 "$OUT/shot.png" 2>/dev/null
 total=0; : > "$OUT/procs"
 # The client and every descendant (Chromium's sandboxed children live in their own namespaces: walk the ppid tree).

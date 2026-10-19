@@ -301,9 +301,17 @@ and stops after `unload_after` minutes (default 60) without a shown site; the in
 by the shell (a mod surface), so a hover reveals at once while the engine is cold. The daemon owns the mode state
 machine, the pins (config) and the host's lifecycle. **Engine = Chromium (QtWebEngine 6.11):** Gecko has no embedding
 API on desktop Linux (Mozilla dropped embedding in 2011, GeckoView is Android-only:
-[LWN](https://lwn.net/Articles/436456/)) and Zen removed its own web panels (April 2025), so **Zen is a bridge, not the
-engine**: its bookmarks as a pin source (read from a copy of `places.sqlite`, on demand), "open in browser", clipboard,
-drag and drop. Logins cannot cross engines: one profile per pin, or a named profile shared by pins. **Mobile view** =
+[LWN](https://lwn.net/Articles/436456/)) and Zen removed its own web panels (April 2025), and ungoogled-chromium is a patch set for the
+full browser, not for QtWebEngine. The engine is **ungoogled by configuration**: Qt strips Google's services (Safe
+Browsing, sync, translation, Google geolocation: [wiki.qt.io](https://wiki.qt.io/QtWebEngine)), the host turns off
+the rest (push service — it would use FCM —, DNS prefetch, `<a ping>`, WebRTC on public interfaces only, background
+networking), and a test proves it: with local pages open for 45 s Chromium's net log recorded **zero requests** of the
+engine's own (the same log records a page's request, so the method sees traffic). A QtWebEngine build with
+ungoogled-chromium's patches would cost a multi-hour source build per Qt update and a rebase per release; only if the
+test finds traffic (BACKLOG I76). **Browser bridge** = the user's default browser (`xdg-open`; Zen on the user's
+machine, never hard-coded): "open in browser", new-tab links, clipboard, drag and drop; browser bookmarks and hybrid
+pins (a pin in the browser's own window) later (I70, I75). Logins cannot cross engines: one profile per pin, or a named
+profile shared by pins. **Mobile view** =
 mobile user agent + phone width, a per-pin view the user flips — never a per-site workaround for sign-in checks;
 Google may refuse sign-in in an embedded engine (documented, no spoofing). *Why:* Phase 0 (headless sway, machine B,
 2026-10-19): one WebEngineView in a Quickshell PanelWindow costs **255–262 MiB PSS in the hosting process** plus two
