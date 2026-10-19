@@ -6,6 +6,9 @@
 //! keeps raises or clears through [`Hooks`], and the daemon ignores it once the enable is over.
 //! Background jobs (I23) are not registrations: [`ModCtx::background`] declares one, and the daemon
 //! takes it with [`ModCtx::take_jobs`] and runs it while the mod is on and its setting wants it.
+//! Host processes (K38, MODS.md "Host processes") are declared with [`ModCtx::host`]: the daemon starts
+//! and supervises the program, and the mod starts and stops it through a [`HostHandle`]. A mod writes its
+//! own settings through a [`SettingsWriter`] (K38: the web dock's view toggle).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
@@ -44,6 +47,134 @@ pub type JobFn = Arc<dyn Fn(JobCtx) -> BoxFuture<()> + Send + Sync>;
 /// Where a job's [`JobCtx::set_active`] goes: the daemon's end of it, made for one run of the job (I48).
 pub type ActiveFn = Arc<dyn Fn(bool) + Send + Sync>;
 
+/// A program a native mod runs next to the daemon (K38, MODS.md "Host processes"). `binary` is a file name
+/// looked up in the daemon's `PATH` and must be declared as `exec:<binary>`. `args` and the values of `env`
+/// may name `{mod_dir}`, `{data_dir}`, `{cache_dir}` and `{state_dir}`; the daemon expands them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct HostSpec {
+    pub binary: String,
+    pub args: Vec<String>,
+    pub env: BTreeMap<String, String>,
+}
+
+/// What a host process is doing (MODS.md "Host processes"). The reasons of `Missing` and `Failed` are i18n keys.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HostState {
+    /// Not running: never started, stopped, or its mod is off.
+    Off,
+    /// Running, and no scoped connection has said hello with its token yet.
+    Starting,
+    /// Running and connected with its scope.
+    Ready,
+    /// It stopped twice within ten minutes; `detail` names the exit status and the log file.
+    Failed { reason: String, detail: String },
+    /// Its program is not on `PATH`.
+    Missing,
+}
+
+impl HostState {
+    /// The state's name in documents: `off`, `starting`, `ready`, `failed` or `missing`.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Off => "off",
+            Self::Starting => "starting",
+            Self::Ready => "ready",
+            Self::Failed { .. } => "failed",
+            Self::Missing => "missing",
+        }
+    }
+
+    /// The i18n key that says why the host is in this state, for the states that have one.
+    pub fn reason(&self) -> Option<&str> {
+        match self {
+            Self::Failed { reason, .. } => Some(reason),
+            Self::Missing => Some("mods.host.missing"),
+            _ => None,
+        }
+    }
+
+    /// The detail of a `Failed` state (its exit status and log file), if there is one.
+    pub fn detail(&self) -> Option<&str> {
+        match self {
+            Self::Failed { detail, .. } => Some(detail),
+            _ => None,
+        }
+    }
+
+    /// Whether a process of the host runs now (starting or ready).
+    pub fn is_running(&self) -> bool {
+        matches!(self, Self::Starting | Self::Ready)
+    }
+}
+
+/// Starts and stops one host process of a mod, and reads its state. Cheap to clone. Calls after the mod is
+/// off do nothing; the state reads `Off` then.
+#[derive(Clone)]
+pub struct HostHandle {
+    hooks: Arc<dyn Hooks>,
+    name: String,
+    state: Arc<watch::Sender<HostState>>,
+}
+
+impl HostHandle {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Starts the process unless it runs (idempotent). A `Missing` or `Failed` host is tried again.
+    pub fn start(&self) {
+        self.hooks.host_start(&self.name);
+    }
+
+    /// Stops the process: SIGTERM to its group, SIGKILL after 3 s; the state is `Off` at once.
+    pub fn stop(&self) {
+        self.hooks.host_stop(&self.name);
+    }
+
+    /// The host's state, from now on.
+    pub fn state(&self) -> watch::Receiver<HostState> {
+        self.state.subscribe()
+    }
+}
+
+/// Why a setting write was refused.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum SettingsError {
+    /// The key is not a setting of this mod in its manifest.
+    #[error("{0} is not a setting of this mod")]
+    Unknown(String),
+    /// The config refused the write (forced, or an invalid value); the config's error code.
+    #[error("{0}")]
+    Rejected(String),
+    /// No config store is running, or the mod is off.
+    #[error("the settings are not available")]
+    Unavailable,
+}
+
+impl SettingsError {
+    /// The i18n key (or the config's own key) that says why the write was refused.
+    pub fn i18n_key(&self) -> &str {
+        match self {
+            Self::Unknown(_) => "mods.error.not_declared",
+            Self::Rejected(key) => key,
+            Self::Unavailable => "mods.error.setting_unavailable",
+        }
+    }
+}
+
+/// Writes the mod's own settings (`mods.<id>.<key>`) in the user layer, one undoable transaction each
+/// (K38, MODS.md "Host processes"). Cheap to clone.
+#[derive(Clone)]
+pub struct SettingsWriter {
+    hooks: Arc<dyn Hooks>,
+}
+
+impl SettingsWriter {
+    pub async fn set(&self, key: &str, value: Value) -> Result<(), SettingsError> {
+        self.hooks.set_setting(key, value)
+    }
+}
+
 /// A first-party mod linked into the daemon. `id` is the `mod.toml` id and directory name.
 pub trait NativeMod: Send + Sync + 'static {
     fn id(&self) -> &'static str;
@@ -62,10 +193,13 @@ pub enum ModError {
     /// The id is already registered: twice in one enable, or held by the daemon or another mod.
     #[error("{0} is already registered")]
     Duplicate(String),
+    /// A host process runs a program the manifest does not declare as `exec:<binary>` (K38).
+    #[error("{0} is not declared in capabilities")]
+    NotGranted(String),
     /// The mod failed for its own reason.
     #[error("{0}")]
     Failed(String),
-    /// The manifest declares daemon code (a service, action, island face, choice source or job) and
+    /// The manifest declares daemon code (a service, action, island face, choice source, job or host) and
     /// this build links no code for the mod. Set by the daemon, not by the mod (B15).
     #[error("the mod's daemon code is not linked into this build")]
     NotBuilt,
@@ -74,7 +208,7 @@ pub enum ModError {
 impl ModError {
     pub fn i18n_key(&self) -> &'static str {
         match self {
-            Self::NotDeclared(_) => "mods.error.not_declared",
+            Self::NotDeclared(_) | Self::NotGranted(_) => "mods.error.not_declared",
             Self::Duplicate(_) => "mods.error.duplicate",
             Self::Failed(_) => "mods.error.enable_failed",
             Self::NotBuilt => "mods.error.not_built",
@@ -152,6 +286,15 @@ pub trait Hooks: Send + Sync {
     fn face(&self, face: &str, update: FaceUpdate);
     /// Choice source `source` offers different options now: ask its function again.
     fn choices_changed(&self, source: &str);
+    /// Host process `host` of the mod is to start (idempotent; K38). Nothing when the mod is off.
+    fn host_start(&self, _host: &str) {}
+    /// Host process `host` of the mod is to stop (K38). Nothing when the mod is off.
+    fn host_stop(&self, _host: &str) {}
+    /// The mod's own setting `key` (without `mods.<id>.`) takes `value` in the user layer (K38). The daemon
+    /// refuses keys the manifest does not declare; a `Hooks` without a config behind it refuses everything.
+    fn set_setting(&self, _key: &str, _value: Value) -> Result<(), SettingsError> {
+        Err(SettingsError::Unavailable)
+    }
 }
 
 /// Raises and clears one island face of a mod (K24). Cheap to clone, so an action or a service can
@@ -216,6 +359,14 @@ pub enum Registration {
     Face { name: String },
     /// Choice source `source`, offered to the settings that name it.
     Choices { source: String, options: ChoicesFn },
+}
+
+/// A host process a mod declared (K38): taken with [`ModCtx::take_hosts`], like a background job. The daemon runs
+/// `spec` when the mod starts it, and writes the state to `state`, which the mod's handle reads.
+pub struct HostDecl {
+    pub name: String,
+    pub spec: HostSpec,
+    pub state: Arc<watch::Sender<HostState>>,
 }
 
 /// What a background job gets when the daemon starts it: its settings, live like a service's, and the
@@ -286,10 +437,12 @@ impl Settings {
 /// even when the mod ignored the error.
 pub struct ModCtx {
     provides: Vec<String>,
+    capabilities: Vec<String>,
     settings: Settings,
     hooks: Arc<dyn Hooks>,
     regs: Vec<Registration>,
     jobs: Vec<Job>,
+    hosts: Vec<HostDecl>,
     seen: BTreeSet<String>,
     refused: Vec<ModError>,
 }
@@ -300,12 +453,56 @@ impl ModCtx {
     pub fn new(provides: &[String], settings: Settings, hooks: Arc<dyn Hooks>) -> Self {
         Self {
             provides: provides.to_vec(),
+            capabilities: Vec::new(),
             settings,
             hooks,
             regs: Vec::new(),
             jobs: Vec::new(),
+            hosts: Vec::new(),
             seen: BTreeSet::new(),
             refused: Vec::new(),
+        }
+    }
+
+    /// The manifest's capabilities, which a host process checks its `exec:<binary>` against (K38).
+    pub fn with_capabilities(mut self, capabilities: &[String]) -> Self {
+        self.capabilities = capabilities.to_vec();
+        self
+    }
+
+    /// Host process `name` (declared as `host:<name>`, K38, MODS.md "Host processes"): the program `spec`
+    /// names, which must be declared as `exec:<binary>`. The daemon registers it when the enable succeeds;
+    /// nothing runs until the mod calls [`HostHandle::start`].
+    pub fn host(&mut self, name: &str, spec: HostSpec) -> Result<HostHandle, ModError> {
+        self.claim("host", name)?;
+        let granted = format!("exec:{}", spec.binary);
+        let is_file_name = !spec.binary.is_empty() && !spec.binary.contains('/');
+        if !is_file_name || !self.capabilities.contains(&granted) {
+            return Err(self.refuse(ModError::NotGranted(granted)));
+        }
+        let state = Arc::new(watch::channel(HostState::Off).0);
+        self.hosts.push(HostDecl {
+            name: name.into(),
+            spec,
+            state: state.clone(),
+        });
+        Ok(HostHandle {
+            hooks: self.hooks.clone(),
+            name: name.into(),
+            state,
+        })
+    }
+
+    /// The host processes of this enable, for the daemon to run. Taken before [`ModCtx::finish`]: a host left
+    /// behind would never run, so `finish` refuses it (as it does a job).
+    pub fn take_hosts(&mut self) -> Vec<HostDecl> {
+        std::mem::take(&mut self.hosts)
+    }
+
+    /// Writes this mod's settings (K38). Each write is one undoable transaction of the user layer.
+    pub fn settings_writer(&self) -> SettingsWriter {
+        SettingsWriter {
+            hooks: self.hooks.clone(),
         }
     }
 
@@ -418,6 +615,11 @@ impl ModCtx {
                 "background jobs are taken with take_jobs before finish".into(),
             ));
         }
+        if !self.hosts.is_empty() {
+            return Err(ModError::Failed(
+                "host processes are taken with take_hosts before finish".into(),
+            ));
+        }
         Ok(self.regs)
     }
 
@@ -456,6 +658,7 @@ impl ModCtx {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
     use std::sync::Mutex;
 
     /// Records what the handles tell the daemon.
@@ -661,6 +864,145 @@ mod tests {
         assert!(offered[0].enabled);
         assert_eq!(offered[1].reason.as_deref(), Some("demo.missing"));
         assert!(!offered[1].enabled);
+    }
+
+    /// Records what a host handle and a settings writer ask of the daemon.
+    #[derive(Default)]
+    struct HostRecord {
+        calls: Mutex<Vec<String>>,
+    }
+
+    impl Hooks for HostRecord {
+        fn face(&self, _: &str, _: FaceUpdate) {}
+
+        fn choices_changed(&self, _: &str) {}
+
+        fn host_start(&self, host: &str) {
+            self.calls.lock().unwrap().push(format!("start {host}"));
+        }
+
+        fn host_stop(&self, host: &str) {
+            self.calls.lock().unwrap().push(format!("stop {host}"));
+        }
+
+        fn set_setting(&self, key: &str, value: Value) -> Result<(), SettingsError> {
+            self.calls
+                .lock()
+                .unwrap()
+                .push(format!("set {key} {value}"));
+            Ok(())
+        }
+    }
+
+    fn host_spec(binary: &str) -> HostSpec {
+        HostSpec {
+            binary: binary.into(),
+            args: vec!["-p".into(), "{mod_dir}/host.qml".into()],
+            env: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn a_host_needs_its_provide_and_its_exec_capability() {
+        let (_, rx) = watch::channel(Values::new());
+        let provides = ["host:web".to_string()];
+        let caps = ["exec:qs-webengine".to_string()];
+        let mut c = ModCtx::new(
+            &provides,
+            Settings::new(rx),
+            Arc::new(HostRecord::default()),
+        )
+        .with_capabilities(&caps);
+        assert!(c.host("web", host_spec("qs-webengine")).is_ok());
+        assert_eq!(
+            c.host("web", host_spec("qs-webengine")).err(),
+            Some(ModError::Duplicate("host:web".into()))
+        );
+        assert_eq!(
+            c.host("other", host_spec("qs-webengine")).err(),
+            Some(ModError::NotDeclared("host:other".into()))
+        );
+        assert!(c.finish().is_err(), "a refused host fails the enable");
+
+        // Declared, but the program is not granted by a capability: refused, and so is a path.
+        for (binary, refused) in [
+            ("xdg-open", "exec:xdg-open"),
+            ("/usr/bin/qs-webengine", "exec:/usr/bin/qs-webengine"),
+        ] {
+            let (_, rx) = watch::channel(Values::new());
+            let mut c = ModCtx::new(
+                &provides,
+                Settings::new(rx),
+                Arc::new(HostRecord::default()),
+            )
+            .with_capabilities(&caps);
+            assert_eq!(
+                c.host("web", host_spec(binary)).err(),
+                Some(ModError::NotGranted(refused.into()))
+            );
+        }
+    }
+
+    #[test]
+    fn host_handles_reach_the_hooks_and_the_state_follows_the_daemon() {
+        let rec = Arc::new(HostRecord::default());
+        let provides = ["host:web".to_string()];
+        let caps = ["exec:qs-webengine".to_string()];
+        let (_, rx) = watch::channel(Values::new());
+        let mut c = ModCtx::new(&provides, Settings::new(rx), rec.clone()).with_capabilities(&caps);
+        let handle = c.host("web", host_spec("qs-webengine")).unwrap();
+        assert_eq!(handle.name(), "web");
+        assert_eq!(*handle.state().borrow(), HostState::Off);
+        handle.start();
+        handle.stop();
+
+        let decls = c.take_hosts();
+        let [decl] = decls.as_slice() else {
+            panic!("one host is declared");
+        };
+        assert_eq!(decl.spec.args[1], "{mod_dir}/host.qml");
+        assert!(
+            c.finish().is_ok(),
+            "a taken host does not refuse the enable"
+        );
+        // The daemon's end: the state it writes is what the handle's receiver sees.
+        decl.state.send_replace(HostState::Ready);
+        assert_eq!(*handle.state().borrow(), HostState::Ready);
+        assert!(HostState::Ready.is_running());
+        assert_eq!(HostState::Missing.reason(), Some("mods.host.missing"));
+        assert_eq!(HostState::Ready.name(), "ready");
+
+        assert_eq!(
+            rec.calls.lock().unwrap().as_slice(),
+            ["start web", "stop web"]
+        );
+    }
+
+    #[tokio::test]
+    async fn the_settings_writer_hands_the_key_to_the_hooks() {
+        let rec = Arc::new(HostRecord::default());
+        let (_, rx) = watch::channel(Values::new());
+        let c = ModCtx::new(&[], Settings::new(rx), rec.clone());
+        c.settings_writer()
+            .set("view", json!("mobile"))
+            .await
+            .unwrap();
+        assert_eq!(
+            rec.calls.lock().unwrap().as_slice(),
+            ["set view \"mobile\""]
+        );
+
+        // A `Hooks` with no config behind it refuses the write.
+        let (_, rx) = watch::channel(Values::new());
+        let silent = ModCtx::new(&[], Settings::new(rx), Arc::new(Record::default()));
+        assert_eq!(
+            silent.settings_writer().set("view", json!("mobile")).await,
+            Err(SettingsError::Unavailable)
+        );
+        assert_eq!(
+            SettingsError::Unknown("x".into()).i18n_key(),
+            "mods.error.not_declared"
+        );
     }
 
     async fn noop_action(_: Value) -> Result<Option<Value>, ActionError> {
