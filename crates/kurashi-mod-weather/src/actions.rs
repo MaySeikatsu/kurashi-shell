@@ -1,16 +1,17 @@
 //! The mod's actions (`weather.*`, docs/ux/weather.md "Design"): manual refresh (middle click),
-//! place search and saving (the panel's place mode), removing a saved place, and scrolling to the
-//! next one. Errors are i18n keys (`mod-weather.error.*`), never prose.
+//! place search and saving (the panel's place mode), the preview of a search result, removing a saved
+//! place, and scrolling to the next one. Errors are i18n keys (`mod-weather.error.*`), never prose.
 
 use std::sync::Arc;
 
-use kurashi_mod_api::ActionError;
+use kurashi_mod_api::{ActionError, Settings};
 use serde_json::{Value, json};
 
 use crate::api;
+use crate::doc;
 use crate::http::HttpError;
 use crate::places::{self, MAX_PLACES, Place};
-use crate::service::{MANUAL_COOLDOWN_S, Shared};
+use crate::service::{Config, Kind, MANUAL_COOLDOWN_S, Shared};
 
 /// Results shown per search (the geocoder returns up to 10).
 const RESULTS: usize = 10;
@@ -75,6 +76,34 @@ pub async fn search(s: Arc<Shared>, args: Value) -> Result<Option<Value>, Action
         .filter_map(|p| serde_json::to_value(p).ok())
         .collect();
     Ok(Some(json!({"results": results})))
+}
+
+/// `weather.place.preview {lat, lon}`: the forecast of a search result before it is saved (the panel's one-line
+/// preview). The answer is in the mod's unit system (the `units` setting, as on the widget and the panel) and carries
+/// its age; a refusal names why: offline, rate limited, server, or an unreadable answer.
+pub async fn preview(
+    s: Arc<Shared>,
+    settings: Settings,
+    args: Value,
+) -> Result<Option<Value>, ActionError> {
+    let (Some(lat), Some(lon)) = (args["lat"].as_f64(), args["lon"].as_f64()) else {
+        return Err(invalid("mod-weather.error.bad_place"));
+    };
+    if !(-90.0..=90.0).contains(&lat) || !(-180.0..=180.0).contains(&lon) {
+        return Err(invalid("mod-weather.error.bad_place"));
+    }
+    let data = s.preview_data(lat, lon).await.map_err(preview_error)?;
+    let (units, _) = Config::read(&settings).units(s.locale);
+    Ok(Some(doc::preview(&data, (s.clock)(), units)))
+}
+
+fn preview_error(k: Kind) -> ActionError {
+    match k {
+        Kind::BadData => internal(k.key()),
+        Kind::Offline | Kind::RateLimited | Kind::Server => {
+            ActionError::Unavailable(k.key().into())
+        }
+    }
 }
 
 /// `weather.place.add {place}`: saves a search result after the user previewed it. Adding a place
