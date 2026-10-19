@@ -200,7 +200,7 @@ Shapes (contract row 67): `mod.wallpaper` also carries `theme: {image?}` (the pi
 its theme; `image` absent while there is none — documents carry no `null`, B25) and `favourites: [{image, scheme?, variant?}]` (a saved look). `wallpaper.set` takes
 `{path, output?, origin?: {x, y}, theme?}` (`theme: true` makes the picture the theme's: the mod records
 it in `theme.image`); `wallpaper.favourite {image, scheme?, variant?}`; `wallpaper.thumbs` rows carry
-`pair: {role, partner}` (light/dark pairs) and a response names its `folder`, `root` and `children`;
+`pair: {role, partner}` (light/dark pairs) and a response names its `folder`, `root` and `children`; the first page (offset 0) also carries `cache: {bytes}` (the thumbnail cache's size; absent when unreadable, row 105);
 `wallpaper.preview {path, scheme?}` is a dry run of the theme source (palette roles, mono, seed, axes).
 
 **Theme source `wallpaper` (K34).** `theme.colors.palette = "wallpaper"` takes the colours of
