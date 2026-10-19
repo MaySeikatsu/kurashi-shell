@@ -84,3 +84,14 @@
 "mods.webdock.edge.left" = "左"
 "mods.webdock.edge.top" = "上"
 "mods.webdock.edge.bottom" = "下"
+
+# ピンの項目 (レコード設定 `pins`)。
+"mods.webdock.pins.id" = "ID"
+"mods.webdock.pins.title" = "名前"
+"mods.webdock.pins.target" = "アドレス"
+"mods.webdock.pins.view" = "表示"
+"mods.webdock.pins.view.default" = "既定"
+"mods.webdock.pins.view.mobile" = "モバイル"
+"mods.webdock.pins.view.desktop" = "デスクトップ"
+"mods.webdock.pins.profile" = "プロファイル (共有するサインイン)"
+"mods.webdock.pins.icon" = "アイコン"

@@ -60,3 +60,14 @@ mods-live:
     bash frontend/test-modqml.sh || status=1
     bash frontend/test-mods-live.sh || status=1
     exit "$status"
+
+# Web dock (K38): the web host against the mock (pages, profiles, privacy net log, memory), then the real daemon end
+# to end (pins in the config, host start/scope/stop). Machine B: KURASHI_RENDER_NODE=/dev/dri/renderD129.
+webdock:
+    #!/usr/bin/env bash
+    set -uo pipefail
+    cargo build -p kurashi-mock -p kurashid -p kurashi || exit 1
+    status=0
+    timeout 1200 bash mods/webdock/test/test-host.sh || status=1
+    timeout 600 bash mods/webdock/test/test-real.sh || status=1
+    exit "$status"

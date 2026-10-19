@@ -1,6 +1,6 @@
 # Web dock (K38, W17): pins at a screen edge, each a site in the web host (`host:web`, the patched qs-webengine,
 # K39) or a view of a mod. Off by default. Daemon code: crates/kurashi-mod-webdock (linked in native.rs); the host's
-# QML: mods/webdock/host/ (W17-webdock-host). The `pins` records setting (K38, W17-records) is added with that merge.
+# QML: mods/webdock/host/ (W17-webdock-host). Pins are a records setting (K38, MODS.md "Records").
 id = "webdock"
 name = "Web dock"
 description = "mods.webdock.description"
@@ -15,6 +15,49 @@ provides = [
 ]
 capabilities = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]
 cost = "high"
+
+# The pins (MODS.md "Web dock"): a site (`https`, `http`, `file`) or a mod's view (`mod:<id>:<panel>`). `view` and
+# `profile` empty or `default` take `default_view` and the pin's own profile (its id).
+[[setting]]
+key = "pins"
+type = "records"
+default = []
+unique = "id"
+item_label = "title"
+label = "mods.webdock.pins"
+  [[setting.field]]
+  key = "id"
+  type = "string"
+  required = true
+  pattern = "slug"
+  label = "mods.webdock.pins.id"
+  [[setting.field]]
+  key = "title"
+  type = "string"
+  required = true
+  label = "mods.webdock.pins.title"
+  [[setting.field]]
+  key = "target"
+  type = "url"
+  required = true
+  schemes = ["https", "http", "file", "mod"]
+  label = "mods.webdock.pins.target"
+  [[setting.field]]
+  key = "view"
+  type = "enum"
+  choices = ["default", "mobile", "desktop"]
+  default = "default"
+  label = "mods.webdock.pins.view"
+  [[setting.field]]
+  key = "profile"
+  type = "string"
+  default = ""
+  label = "mods.webdock.pins.profile"
+  [[setting.field]]
+  key = "icon"
+  type = "string"
+  default = ""
+  label = "mods.webdock.pins.icon"
 
 [[setting]]
 key = "default_view"

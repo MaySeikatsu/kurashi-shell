@@ -84,3 +84,14 @@
 "mods.webdock.edge.left" = "Left"
 "mods.webdock.edge.top" = "Top"
 "mods.webdock.edge.bottom" = "Bottom"
+
+# Fields of a pin (the records setting `pins`).
+"mods.webdock.pins.id" = "Id"
+"mods.webdock.pins.title" = "Name"
+"mods.webdock.pins.target" = "Address"
+"mods.webdock.pins.view" = "View"
+"mods.webdock.pins.view.default" = "Default"
+"mods.webdock.pins.view.mobile" = "Mobile"
+"mods.webdock.pins.view.desktop" = "Desktop"
+"mods.webdock.pins.profile" = "Profile (shared sign-in)"
+"mods.webdock.pins.icon" = "Icon"
