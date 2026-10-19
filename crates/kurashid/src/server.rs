@@ -10,6 +10,9 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::{broadcast, mpsc, watch};
 
 use crate::Daemon;
+use crate::native::hosts::{
+    ScopeHold, ScopeRefused, connect_scope, scope_allows_action, scope_allows_doc,
+};
 
 /// Replies queued per connection before the client is dropped (review finding 11). The hub's own
 /// patches go through its broadcast ring, so this bounds what one client's requests can pile up.
@@ -77,6 +80,34 @@ fn err(id: Option<String>, kind: &str, msg: impl Into<String>) -> ServerMsg {
         id,
         kind: kind.into(),
         msg: msg.into(),
+    }
+}
+
+/// What a scoped connection of `mod_id` may send (PROTOCOL §2): `ping`, its own documents (`sub`, `unsub`,
+/// `resync`, with `theme` and `i18n`) and its own actions (`act`). Everything else is `forbidden`.
+fn scoped_allows(mod_id: &str, msg: &ClientMsg) -> bool {
+    match msg {
+        ClientMsg::Ping => true,
+        ClientMsg::Sub { doc, .. } | ClientMsg::Unsub { doc } | ClientMsg::Resync { doc } => {
+            scope_allows_doc(mod_id, doc)
+        }
+        ClientMsg::Act { action, .. } => scope_allows_action(mod_id, action),
+        _ => false,
+    }
+}
+
+/// The `id` a request carries, so that its refusal reaches the right request.
+fn request_id(msg: &ClientMsg) -> Option<String> {
+    match msg {
+        ClientMsg::Sub { id, .. }
+        | ClientMsg::CfgGet { id, .. }
+        | ClientMsg::CfgExplain { id, .. }
+        | ClientMsg::Apply { id, .. }
+        | ClientMsg::Undo { id }
+        | ClientMsg::Redo { id }
+        | ClientMsg::Act { id, .. }
+        | ClientMsg::Query { id, .. } => Some(id.clone()),
+        _ => None,
     }
 }
 
@@ -198,19 +229,50 @@ async fn connection(
     let session = async {
         let reply = |m: ServerMsg| out.push(m);
         let mut greeted = false;
+        // A host process's connection (K38, PROTOCOL §2): the mod it speaks for, and the hold on its token.
+        let mut host_scope: Option<(String, ScopeHold)> = None;
         while let Some(msg) = reader.next_value::<ClientMsg>().await? {
             if !greeted && !matches!(msg, ClientMsg::Hello { .. } | ClientMsg::Ping) {
                 reply(err(None, "invalid", "hello first"));
                 continue;
             }
+            if let Some((mod_id, _)) = &host_scope
+                && !scoped_allows(mod_id, &msg)
+            {
+                reply(err(
+                    request_id(&msg),
+                    "forbidden",
+                    "outside the host's scope",
+                ));
+                continue;
+            }
             match msg {
-                ClientMsg::Hello { v, client, .. } => {
+                ClientMsg::Hello {
+                    v, client, scope, ..
+                } => {
                     if v != PROTOCOL_VERSION {
                         reply(ServerMsg::Goodbye {
                             reason: "version".into(),
                             supported: vec![PROTOCOL_VERSION],
                         });
                         break;
+                    }
+                    if let Some(scope) = scope {
+                        // Only the first hello of a connection can scope it.
+                        if greeted {
+                            reply(err(None, "forbidden", "a scope comes with the first hello"));
+                            continue;
+                        }
+                        match connect_scope(&scope) {
+                            Ok(hold) => host_scope = Some((scope.mod_id, hold)),
+                            Err(ScopeRefused) => {
+                                reply(ServerMsg::Goodbye {
+                                    reason: "scope".into(),
+                                    supported: vec![PROTOCOL_VERSION],
+                                });
+                                break;
+                            }
+                        }
                     }
                     tracing::info!(%client, "hello");
                     greeted = true;

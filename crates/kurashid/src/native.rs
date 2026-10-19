@@ -3,17 +3,21 @@
 //! mod: disabling drops exactly those (documents get a final `{available:false}` snapshot first,
 //! actions go, faces leave the arbiter, the settings feed ends), so nothing of a mod runs while it is
 //! off. K28 adds what a mod contributes to the core views: `runtime.slots`, island faces and choice
-//! sources.
+//! sources. K38 adds host processes (`hosts`): a mod's own program, started and supervised here.
+
+pub mod hosts;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
+use hosts::{HostCore, HostParams};
+use kurashi_ipc::ApplyOp;
 use kurashi_island::{Face, FaceSignal, Source, Transient};
 use kurashi_mod_api::{
     ActiveFn, Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod,
-    Publish, Registration, ServiceFn, Settings, Values,
+    Publish, Registration, ServiceFn, Settings, SettingsError, Values,
 };
 use kurashi_mods::{
     Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
@@ -35,6 +39,7 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
         Box::new(kurashi_mod_weather::WeatherMod::new()) as Box<dyn NativeMod>,
         Box::new(kurashi_mod_sysmon::Sysmon::new()),
         Box::new(kurashi_mod_wallpaper::Wallpaper::new()),
+        Box::new(kurashi_mod_webdock::Webdock::new()),
     ];
     #[cfg(feature = "test-mods")]
     let mods = mods
@@ -49,14 +54,19 @@ pub const SLOTS_DOC: &str = "runtime.slots";
 
 /// `running_reasons` of a mod whose document has a subscriber (K25 "Running now").
 const RUNNING_SUBSCRIBED: &str = "mods.running.subscribed";
+/// `running_reasons` of a mod whose host process runs (K38, K33: starting or ready).
+const RUNNING_HOST: &str = "mods.running.host";
 
 /// Why each mod runs now (K25, I23): a document with a subscriber, a background job that is started and
-/// has work (I48). The services and jobs keep it current; the `mods` document reads it as `running_reasons`.
+/// has work (I48), a host process that runs (K38). The services and jobs keep it current; the `mods`
+/// document reads it as `running_reasons`.
 #[derive(Default)]
 pub struct Running {
     docs: Mutex<BTreeSet<(String, String)>>,
     /// (mod, job) -> the run that runs now.
     jobs: Mutex<BTreeMap<(String, String), RunningJob>>,
+    /// (mod, host) of the hosts that are starting or ready.
+    hosts: Mutex<BTreeSet<(String, String)>>,
 }
 
 /// A started job, as [`Running`] keeps it. A later run replaces it, and an end of an earlier run leaves it
@@ -112,7 +122,19 @@ impl Running {
         }
     }
 
-    /// The reasons the mod runs now: its subscribers first, then its jobs that have work, by name, each once.
+    /// A host of the mod starts or stops running (`active`). True when that changed the set.
+    fn set_host(&self, mod_id: &str, host: &str, active: bool) -> bool {
+        let key = (mod_id.to_string(), host.to_string());
+        let mut hosts = self.hosts.lock().expect("running lock");
+        if active {
+            hosts.insert(key)
+        } else {
+            hosts.remove(&key)
+        }
+    }
+
+    /// The reasons the mod runs now: its subscribers first, then a host that runs, then its jobs that have
+    /// work, by name, each once.
     pub fn reasons(&self, mod_id: &str) -> Vec<String> {
         let mut out = Vec::new();
         let subscribed = self
@@ -123,6 +145,15 @@ impl Running {
             .any(|(m, _)| m == mod_id);
         if subscribed {
             out.push(RUNNING_SUBSCRIBED.to_string());
+        }
+        let hosted = self
+            .hosts
+            .lock()
+            .expect("running lock")
+            .iter()
+            .any(|(m, _)| m == mod_id);
+        if hosted {
+            out.push(RUNNING_HOST.to_string());
         }
         for ((m, _), job) in self.jobs.lock().expect("running lock").iter() {
             if m == mod_id && job.active && !out.contains(&job.reason) {
@@ -348,6 +379,9 @@ struct Link {
     island: Option<Arc<IslandHost>>,
     /// Weak: the store's listener is what reconciles the mods, so the store must not own the mods.
     config: Option<Weak<ConfigStore>>,
+    /// The mod, and the keys of its own settings: a `SettingsWriter` writes only these (K38).
+    mod_id: String,
+    keys: BTreeSet<String>,
     state: Mutex<LinkState>,
 }
 
@@ -358,6 +392,8 @@ struct LinkState {
     choices: BTreeMap<String, ChoicesFn>,
     /// The options each of those sources offers now.
     offers: BTreeMap<String, Vec<Offer>>,
+    /// The host processes of this enable (K38), by name.
+    hosts: BTreeMap<String, Arc<HostCore>>,
 }
 
 impl Hooks for Link {
@@ -404,6 +440,58 @@ impl Hooks for Link {
             store.set_mod_source(source, offers);
         }
     }
+
+    fn host_start(&self, host: &str) {
+        if let Some(core) = self.host(host) {
+            core.start();
+        }
+    }
+
+    fn host_stop(&self, host: &str) {
+        if let Some(core) = self.host(host) {
+            core.stop();
+        }
+    }
+
+    /// `mods.<id>.<key>` in the user layer, through the config's own apply path (K38): one undoable transaction.
+    fn set_setting(&self, key: &str, value: Value) -> Result<(), SettingsError> {
+        if !self.state.lock().expect("link lock").live {
+            return Err(SettingsError::Unavailable);
+        }
+        if !self.keys.contains(key) {
+            return Err(SettingsError::Unknown(key.into()));
+        }
+        let store = self
+            .config
+            .as_ref()
+            .and_then(Weak::upgrade)
+            .ok_or(SettingsError::Unavailable)?;
+        let op = ApplyOp::Set {
+            set: format!("mods.{}.{key}", self.mod_id),
+            value,
+            output: None,
+        };
+        // The lock is not held: the apply reaches the mods' own listeners (`feed`) synchronously.
+        store.apply(&[op]).map(|_| ()).map_err(|errors| {
+            let code = errors
+                .into_iter()
+                .next()
+                .map(|e| e.code)
+                .unwrap_or_default();
+            SettingsError::Rejected(code)
+        })
+    }
+}
+
+impl Link {
+    /// The host `name` of this enable, while the enable is live: a handle the mod kept after a disable does nothing.
+    fn host(&self, name: &str) -> Option<Arc<HostCore>> {
+        let state = self.state.lock().expect("link lock");
+        if !state.live {
+            return None;
+        }
+        state.hosts.get(name).cloned()
+    }
 }
 
 /// What a choice function offers, as the config store keeps it.
@@ -426,6 +514,8 @@ struct Ledger {
     faces: Vec<String>,
     /// The background jobs; `feed` starts and stops them, `deactivate` cancels them.
     jobs: Vec<Arc<BackgroundJob>>,
+    /// The host processes (K38); `deactivate` stops them.
+    hosts: Vec<Arc<HostCore>>,
     /// The settings feed; the services hold receivers of it.
     settings: Arc<watch::Sender<Values>>,
     /// (key, config key, default) of each setting the manifest declares.
@@ -552,12 +642,20 @@ impl Native {
         let link = Arc::new(Link {
             island: self.island.clone(),
             config: self.config.clone(),
+            mod_id: module.id().to_string(),
+            keys: manifest.settings.iter().map(|s| s.key.clone()).collect(),
             state: Mutex::default(),
         });
-        let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone());
+        let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone())
+            .with_capabilities(&manifest.capabilities);
         module.enable(&mut ctx)?;
         let declared_jobs = ctx.take_jobs();
+        let declared_hosts = ctx.take_hosts();
         let registrations = ctx.finish()?;
+        let mod_dir = reg
+            .get(module.id())
+            .map(|e| e.dir.clone())
+            .unwrap_or_default();
         // A job waits for a bool setting of its own mod (I23); without a runtime it could never run.
         for job in &declared_jobs {
             let bool_setting = manifest
@@ -571,7 +669,7 @@ impl Native {
                 )));
             }
         }
-        if !declared_jobs.is_empty() && self.runtime.is_none() {
+        if (!declared_jobs.is_empty() || !declared_hosts.is_empty()) && self.runtime.is_none() {
             return Err(ModError::Failed("the daemon runtime is not running".into()));
         }
         // Nothing may take an id the daemon or another mod holds: disabling would remove it again.
@@ -635,6 +733,7 @@ impl Native {
             actions: Vec::new(),
             faces: Vec::new(),
             jobs,
+            hosts: Vec::new(),
             settings: settings.clone(),
             keys,
             link: link.clone(),
@@ -689,6 +788,29 @@ impl Native {
                 }
             }
         }
+        // K38: the mod's host processes, made once its registrations are in effect. A host belongs to its mod
+        // alone; its name is unique within the enable (`ModCtx::claim`).
+        for decl in declared_hosts {
+            let core = HostCore::new(HostParams {
+                mod_id: module.id().to_string(),
+                name: decl.name.clone(),
+                spec: decl.spec,
+                mod_dir: mod_dir.clone(),
+                state: decl.state,
+                running: self.running.clone(),
+                hub: Arc::downgrade(&self.hub),
+                runtime: self
+                    .runtime
+                    .clone()
+                    .expect("checked above: hosts need a runtime"),
+            });
+            link.state
+                .lock()
+                .expect("link lock")
+                .hosts
+                .insert(decl.name, core.clone());
+            ledger.hosts.push(core);
+        }
         // A job whose setting wants it runs from the enable on (I23).
         for job in &ledger.jobs {
             let wanted = job.wants(&settings.borrow());
@@ -709,6 +831,10 @@ impl Native {
         ledger.link.state.lock().expect("link lock").live = false;
         for job in &ledger.jobs {
             job.stop();
+        }
+        // K38: a disabled mod's host processes end with it (MODS.md "Host processes").
+        for host in &ledger.hosts {
+            host.stop();
         }
         for doc in ledger.documents {
             self.hub.unregister(&doc, json!({"available": false}));

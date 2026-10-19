@@ -1,0 +1,19 @@
+[package]
+name = "kurashi-mod-webdock"
+description = "Web dock native mod (K38, W17): pins at a screen edge, sites in the web host, the daemon's mode and the host's lifecycle"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+serde_json.workspace = true
+tokio = { workspace = true, features = ["process", "time"] }
+
+[dev-dependencies]
+# Paused clock for the idle-clock tests (tests/behaviour.rs).
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true
