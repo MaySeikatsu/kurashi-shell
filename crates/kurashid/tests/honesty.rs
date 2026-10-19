@@ -10,7 +10,7 @@ use std::time::Duration;
 use kurashi_config::{FORCED_NIX, Options, Paths, REASON_NIX_ENFORCED};
 use kurashi_core::{Provenanced, Source};
 use kurashi_ipc::{ApplyOp, ClientMsg, LayerValue, LineReader, ServerMsg, write_msg};
-use kurashi_schema::{Coupling, KeyMeta, Registry, Ty};
+use kurashi_schema::{Coupling, FieldType, KeyMeta, RecordField, Registry, Ty};
 use kurashid::config::ConfigStore;
 use kurashid::{ActionRegistry, Daemon, Hub, Intents};
 use serde_json::{Value, json};
@@ -98,6 +98,11 @@ impl Client {
 /// A daemon over a fresh config dir on its own socket (the setup of `tests/config.rs`).
 /// `managed` is written to `managed.toml` before the store opens: the Home-Manager layer.
 async fn start(managed: Option<String>) -> Client {
+    start_with(managed, None).await
+}
+
+/// [`start`], with the mods of `mods` discovered and synced into the store (K22).
+async fn start_with(managed: Option<String>, mods: Option<&kurashi_mods::Registry>) -> Client {
     static N: AtomicUsize = AtomicUsize::new(0);
     let n = N.fetch_add(1, Ordering::SeqCst);
     let root = std::env::temp_dir().join(format!("kurashid-honesty-{}-{n}", std::process::id()));
@@ -113,6 +118,9 @@ async fn start(managed: Option<String>) -> Client {
     let hub = Hub::new();
     let mut actions = ActionRegistry::default();
     let store = ConfigStore::open(hub.clone(), registry(), paths, Options::default());
+    if let Some(reg) = mods {
+        store.sync_mods(reg);
+    }
     store.register_actions(&mut actions);
     let mut daemon = Daemon::new(hub, actions, Intents::default());
     daemon.config = Some(store);
@@ -175,6 +183,30 @@ fn non_default(m: &KeyMeta) -> Value {
         Ty::Font => json!(["Probe Sans"]),
         Ty::Action => json!("honesty.probe"),
         Ty::Color => json!("#123456"),
+        // One row of probe values, one per declared field (K38): the default is an empty list.
+        Ty::Records => {
+            let spec = c.record.clone().unwrap_or_default();
+            let row: serde_json::Map<String, Value> = spec
+                .fields
+                .iter()
+                .map(|f| (f.key.clone(), probe_field(f)))
+                .collect();
+            json!([row])
+        }
+    }
+}
+
+/// A valid probe value for one declared field of a records key (K38).
+fn probe_field(f: &RecordField) -> Value {
+    match f.ty {
+        FieldType::String => json!("probe"),
+        FieldType::Url => json!(format!(
+            "{}://probe",
+            f.schemes.first().map_or("https", String::as_str)
+        )),
+        FieldType::Enum => json!(f.choices.first().cloned().unwrap_or_default()),
+        FieldType::Bool => json!(true),
+        FieldType::Int => json!(f.range.map_or(1, |(lo, _)| lo)),
     }
 }
 
@@ -201,9 +233,15 @@ fn overrides_by_mode() -> BTreeMap<String, Vec<(String, Value)>> {
 /// The Shōjiki invariant for every key, right now: `cfg.get` is the one active layer of
 /// `cfg.explain` (value, source, reason), and the `config` document carries the same provenance.
 async fn audit(client: &mut Client, scenario: &str, bad: &mut Vec<String>) {
+    let keys: Vec<String> = registry().iter().map(|m| m.key.clone()).collect();
+    audit_keys(client, &keys, scenario, bad).await;
+}
+
+/// [`audit`] for the named keys (a mod's setting is not in the core registry, K22).
+async fn audit_keys(client: &mut Client, keys: &[String], scenario: &str, bad: &mut Vec<String>) {
     let doc = client.config_doc().await;
-    for m in registry().iter() {
-        let key = m.key.as_str();
+    for key in keys {
+        let key = key.as_str();
         let p = client.get(key, None).await;
         let layers = client.explain(key).await;
         let active: Vec<&LayerValue> = layers.iter().filter(|l| l.active).collect();
@@ -607,6 +645,43 @@ async fn inert_controls_report_why_they_are_inert() {
                 _ => {}
             }
         }
+    }
+    assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// The test data's `records` mod (K38), on, as the daemon discovers it.
+fn records_mods() -> kurashi_mods::Registry {
+    let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+    let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/mods");
+    let mut reg = kurashi_mods::Registry::discover(&[dir], &version);
+    reg.enable("records").unwrap();
+    reg
+}
+
+/// A records key (K38) is honest like any key: the list in effect, its provenance and its reason agree
+/// in `cfg.get`, `cfg.explain` and the config document, whether the user set it or Nix pinned it.
+#[tokio::test]
+async fn a_records_key_is_honest_when_set_and_when_pinned_by_nix() {
+    const PINS: &str = "mods.records.pins";
+    let keys = [PINS.to_string()];
+    let mut bad = Vec::new();
+
+    let mut client = start_with(None, Some(&records_mods())).await;
+    let row = json!([{"id": "home", "title": "Home", "target": "https://example.org"}]);
+    if !matches!(
+        client.apply(vec![set(PINS, row)]).await,
+        ServerMsg::Applied { .. }
+    ) {
+        bad.push("user: the list was refused".to_string());
+    }
+    audit_keys(&mut client, &keys, "user", &mut bad).await;
+
+    let managed = "mods.records.pins = [{ id = \"nix\", title = \"Nix\", target = \"https://nix.example\" }]\n\n[_managed]\nenforce = true\n";
+    let mut client = start_with(Some(managed.into()), Some(&records_mods())).await;
+    audit_keys(&mut client, &keys, "nix", &mut bad).await;
+    let p = client.get(PINS, None).await;
+    if p.source != Source::Forced(FORCED_NIX.into()) || p.value[0]["id"] != "nix" {
+        bad.push(format!("nix: the pinned list is not in effect: {p:?}"));
     }
     assert!(bad.is_empty(), "{bad:#?}");
 }

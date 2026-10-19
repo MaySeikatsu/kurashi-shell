@@ -1,8 +1,10 @@
 //! `mod.toml` parsing and validation. Errors carry a stable code (`mods.error.<code>`, i18n key)
 //! and the offending field path so Settings can say exactly why a mod is inert (Shōjiki).
 
+use kurashi_schema::{FieldType, RecordField, RecordProblem, RecordSpec, check_record_field};
 use semver::{Version, VersionReq};
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value as Json};
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -212,6 +214,8 @@ pub enum SettingValue {
     Str(String),
     /// A `list` setting: members of its `choices`, in the order the user picked them (I26).
     List(Vec<String>),
+    /// A `records` setting: rows of the declared fields, every field present (K38, MODS.md "Records").
+    Records(Vec<Map<String, Json>>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -225,6 +229,8 @@ pub enum SettingType {
     Color,
     /// An ordered subset of fixed `choices` (I26, CONTRACT 41): the Settings page shows a pick list.
     List,
+    /// A list of tables whose fields the manifest declares (K38, CONTRACT 89): the records editor.
+    Records,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -257,12 +263,21 @@ pub struct Manifest {
     pub capabilities: Vec<String>,
     pub cost: Cost,
     pub settings: Vec<Setting>,
+    /// The fields of each `records` setting (K38), by the setting's key. They sit beside the settings, not in
+    /// them: `Setting` is inline in `registry::Contribution`, and clippy's large_enum_variant limits its size.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub records: Vec<(String, RecordSpec)>,
 }
 
 impl Manifest {
     /// Config key for one of this mod's settings: `mods.<id>.<key>` (K22).
     pub fn config_key(&self, key: &str) -> String {
         format!("mods.{}.{key}", self.id)
+    }
+
+    /// The fields of the `records` setting `key` of this mod (K38), if it is one.
+    pub fn record_spec(&self, key: &str) -> Option<&RecordSpec> {
+        self.records.iter().find(|(k, _)| k == key).map(|(_, spec)| spec)
     }
 }
 
@@ -303,6 +318,30 @@ struct RawSetting {
     unit: Option<String>,
     label: Option<String>,
     help: Option<String>,
+    /// `[[setting.field]]` of a `records` setting (K38).
+    #[serde(default, rename = "field")]
+    fields: Vec<RawField>,
+    unique: Option<String>,
+    item_label: Option<String>,
+}
+
+/// One `[[setting.field]]` (MODS.md "Records").
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawField {
+    key: String,
+    #[serde(rename = "type")]
+    ty: String,
+    #[serde(default)]
+    required: bool,
+    default: Option<toml::Value>,
+    label: Option<String>,
+    pattern: Option<String>,
+    #[serde(default)]
+    schemes: Vec<String>,
+    #[serde(default)]
+    choices: Vec<String>,
+    range: Option<Vec<toml::Value>>,
 }
 
 /// Ids a mod may not take: `mods.loaded` and `mods.enabled` are config keys (K25), and a mod
@@ -339,6 +378,290 @@ fn is_source_id(s: &str) -> bool {
 fn is_color(s: &str) -> bool {
     s.strip_prefix('#')
         .is_some_and(|h| matches!(h.len(), 6 | 8) && h.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+fn fail(
+    errs: &mut Vec<ValidationError>,
+    code: &'static str,
+    path: String,
+    detail: impl Into<String>,
+) {
+    errs.push(ValidationError::new(code, path, detail));
+}
+
+/// The scheme of a url field: a lowercase letter, then lowercase letters, digits, `+`, `.` or `-`.
+fn scheme_ok(s: &str) -> bool {
+    s.bytes().next().is_some_and(|c| c.is_ascii_lowercase())
+        && s.bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b"+.-".contains(&b))
+}
+
+/// `[[setting.field]]`, `unique` and `item_label` are options of a `records` setting only.
+fn records_options_on_other_type(i: usize, s: &RawSetting, errs: &mut Vec<ValidationError>) {
+    let at = |f: &str| format!("setting[{i}].{f}");
+    if !s.fields.is_empty() {
+        fail(errs, "setting_fields_not_records", at("field"), &s.ty);
+    }
+    for (name, given) in [
+        ("unique", s.unique.is_some()),
+        ("item_label", s.item_label.is_some()),
+    ] {
+        if given {
+            fail(errs, "setting_option_not_records", at(name), &s.ty);
+        }
+    }
+}
+
+/// One `[[setting.field]]` (K38, MODS.md "Records"): its declaration is checked the way a setting's
+/// is, and its default as a value of the field. `None` when the field cannot be used.
+fn record_field(
+    i: usize,
+    j: usize,
+    f: &RawField,
+    seen: &mut Vec<String>,
+    errs: &mut Vec<ValidationError>,
+) -> Option<RecordField> {
+    let at = |x: &str| format!("setting[{i}].field[{j}].{x}");
+    let before = errs.len();
+    if !key_ok(&f.key) {
+        fail(errs, "setting_field_key_invalid", at("key"), &f.key);
+    } else if seen.contains(&f.key) {
+        fail(errs, "setting_field_key_duplicate", at("key"), &f.key);
+    }
+    seen.push(f.key.clone());
+    let ty = match f.ty.as_str() {
+        "string" => FieldType::String,
+        "url" => FieldType::Url,
+        "enum" => FieldType::Enum,
+        "bool" => FieldType::Bool,
+        "int" => FieldType::Int,
+        t => {
+            fail(errs, "setting_field_type_invalid", at("type"), t);
+            return None;
+        }
+    };
+    // Each option belongs to one type; naming it on another is a mistake, not a no-op.
+    for (name, given, takes) in [
+        ("pattern", f.pattern.is_some(), ty == FieldType::String),
+        ("schemes", !f.schemes.is_empty(), ty == FieldType::Url),
+        ("choices", !f.choices.is_empty(), ty == FieldType::Enum),
+        ("range", f.range.is_some(), ty == FieldType::Int),
+    ] {
+        if given && !takes {
+            fail(
+                errs,
+                "setting_field_option_not_for_type",
+                at(name),
+                f.ty.as_str(),
+            );
+        }
+    }
+    let pattern = match f.pattern.as_deref() {
+        None => None,
+        Some("slug") => Some("slug".to_string()),
+        Some(p) => {
+            fail(errs, "setting_field_pattern_invalid", at("pattern"), p);
+            None
+        }
+    };
+    let schemes = if ty == FieldType::Url {
+        if f.schemes.is_empty() {
+            fail(errs, "setting_field_schemes_missing", at("schemes"), "");
+        }
+        for s in f.schemes.iter().filter(|s| !scheme_ok(s.as_str())) {
+            fail(
+                errs,
+                "setting_field_scheme_invalid",
+                at("schemes"),
+                s.as_str(),
+            );
+        }
+        f.schemes.clone()
+    } else {
+        Vec::new()
+    };
+    let choices = if ty == FieldType::Enum {
+        if f.choices.is_empty() {
+            fail(errs, "setting_field_choices_missing", at("choices"), "");
+        }
+        let mut seen_choice: Vec<&String> = Vec::new();
+        for c in &f.choices {
+            if seen_choice.contains(&c) {
+                fail(
+                    errs,
+                    "setting_field_choices_duplicate",
+                    at("choices"),
+                    c.as_str(),
+                );
+            }
+            seen_choice.push(c);
+        }
+        f.choices.clone()
+    } else {
+        Vec::new()
+    };
+    let range = match f.range.as_deref() {
+        None => None,
+        Some(_) if ty != FieldType::Int => None,
+        Some([toml::Value::Integer(lo), toml::Value::Integer(hi)]) if lo <= hi => Some((*lo, *hi)),
+        Some(_) => {
+            fail(
+                errs,
+                "setting_field_range_invalid",
+                at("range"),
+                "expected [min, max] whole numbers with min <= max",
+            );
+            None
+        }
+    };
+    let mut field = RecordField {
+        key: f.key.clone(),
+        ty,
+        required: f.required,
+        default: None,
+        label: f.label.clone(),
+        pattern,
+        schemes,
+        choices,
+        range,
+    };
+    // Required unless the field is required: what a row without the field takes.
+    match &f.default {
+        None if !f.required => fail(errs, "setting_field_default_missing", at("default"), ""),
+        None => {}
+        Some(d) => match serde_json::to_value(d) {
+            Ok(v) => match check_record_field(&field, &v) {
+                None => field.default = Some(v),
+                Some(RecordProblem::WrongType { .. }) => {
+                    fail(
+                        errs,
+                        "setting_field_default_type",
+                        at("default"),
+                        d.to_string(),
+                    );
+                }
+                Some(p) => fail(
+                    errs,
+                    "setting_field_default_invalid",
+                    at("default"),
+                    p.to_string(),
+                ),
+            },
+            Err(_) => fail(
+                errs,
+                "setting_field_default_type",
+                at("default"),
+                d.to_string(),
+            ),
+        },
+    }
+    (errs.len() == before).then_some(field)
+}
+
+/// A `records` setting (K38): its fields, `unique` and `item_label`, and its default's rows checked
+/// against the fields and normalised (every field present). `None` when a problem was reported.
+fn records_setting(
+    i: usize,
+    s: &RawSetting,
+    errs: &mut Vec<ValidationError>,
+) -> Option<(RecordSpec, Vec<Map<String, Json>>)> {
+    let at = |x: &str| format!("setting[{i}].{x}");
+    let before = errs.len();
+    let mut seen = Vec::new();
+    let mut fields = Vec::new();
+    for (j, f) in s.fields.iter().enumerate() {
+        fields.extend(record_field(i, j, f, &mut seen, errs));
+    }
+    if s.fields.is_empty() {
+        fail(errs, "setting_fields_missing", at("field"), "");
+    }
+    let unique = match &s.unique {
+        None => None,
+        Some(u) if s.fields.iter().any(|f| &f.key == u) => Some(u.clone()),
+        Some(u) => {
+            fail(
+                errs,
+                "setting_unique_unknown_field",
+                at("unique"),
+                u.as_str(),
+            );
+            None
+        }
+    };
+    let item_label = match &s.item_label {
+        None => None,
+        Some(l) if s.fields.iter().any(|f| &f.key == l) => Some(l.clone()),
+        Some(l) => {
+            fail(
+                errs,
+                "setting_item_label_unknown_field",
+                at("item_label"),
+                l.as_str(),
+            );
+            None
+        }
+    };
+    if errs.len() != before {
+        // The declaration is wrong; checking the default against it would only repeat the trouble.
+        return None;
+    }
+    let spec = RecordSpec {
+        fields,
+        unique,
+        item_label,
+    };
+    let items = match &s.default {
+        toml::Value::Array(items) => items,
+        other => {
+            fail(
+                errs,
+                "setting_default_type",
+                at("default"),
+                format!("{other} is not a list of records"),
+            );
+            return None;
+        }
+    };
+    let json = Json::Array(
+        items
+            .iter()
+            .map(|v| serde_json::to_value(v).unwrap_or(Json::Null))
+            .collect(),
+    );
+    match spec.check(&at("default"), &json) {
+        Ok(rows) => {
+            let rows = rows
+                .as_array()
+                .map(|a| a.iter().filter_map(|r| r.as_object().cloned()).collect())
+                .unwrap_or_default();
+            Some((spec, rows))
+        }
+        Err(found) => {
+            for e in found {
+                match e {
+                    kurashi_schema::ValidationError::Record { key, problem } => {
+                        let code = match problem {
+                            RecordProblem::NotARecord | RecordProblem::WrongType { .. } => {
+                                "setting_default_type"
+                            }
+                            RecordProblem::UnknownField => "setting_default_field_unknown",
+                            RecordProblem::MissingField => "setting_default_field_missing",
+                            RecordProblem::Duplicate => "setting_default_duplicate",
+                            _ => "setting_default_field_invalid",
+                        };
+                        fail(errs, code, key, problem.to_string());
+                    }
+                    other => fail(
+                        errs,
+                        "setting_default_type",
+                        at("default"),
+                        other.to_string(),
+                    ),
+                }
+            }
+            None
+        }
+    }
 }
 
 /// Parse and validate `text`. `dir_name` is the mod's directory (id must match it);
@@ -432,6 +755,7 @@ pub fn parse(
     }
 
     let mut settings = Vec::new();
+    let mut record_specs: Vec<(String, RecordSpec)> = Vec::new();
     let mut seen = Vec::<&str>::new();
     for (i, s) in raw.settings.iter().enumerate() {
         let at = |f: &str| format!("setting[{i}].{f}");
@@ -449,6 +773,7 @@ pub fn parse(
             "enum" => SettingType::Enum,
             "color" => SettingType::Color,
             "list" => SettingType::List,
+            "records" => SettingType::Records,
             t => {
                 err("setting_type_invalid", &at("type"), t);
                 continue;
@@ -495,7 +820,22 @@ pub fn parse(
                 Some(src.clone())
             }
         });
+        // Records (K38): the fields, `unique`, `item_label` and the default's rows; the other types
+        // take none of those options.
+        let mut rec_errs = Vec::new();
+        let records = if ty == SettingType::Records {
+            records_setting(i, s, &mut rec_errs)
+        } else {
+            records_options_on_other_type(i, s, &mut rec_errs);
+            None
+        };
+        for e in &rec_errs {
+            err(e.code, &e.path, &e.detail);
+        }
         let default = match (ty, &s.default) {
+            (SettingType::Records, _) => records
+                .as_ref()
+                .map(|(_, rows)| SettingValue::Records(rows.clone())),
             (SettingType::Bool, toml::Value::Boolean(b)) => Some(SettingValue::Bool(*b)),
             (SettingType::Int, toml::Value::Integer(n)) => Some(SettingValue::Int(*n)),
             (SettingType::Float, v @ (toml::Value::Float(_) | toml::Value::Integer(_))) => {
@@ -576,6 +916,9 @@ pub fn parse(
                 label: s.label.clone(),
                 help: s.help.clone(),
             });
+            if let Some((spec, _)) = records {
+                record_specs.push((s.key.clone(), spec));
+            }
         }
     }
 
@@ -592,6 +935,7 @@ pub fn parse(
             capabilities: raw.capabilities,
             cost,
             settings,
+            records: record_specs,
         }),
         _ => Err(errs),
     }
@@ -758,6 +1102,203 @@ mod tests {
         assert_eq!(
             codes(&list("[]", "choices_from = \"demo.pick\"")),
             ["setting_choices_missing", "setting_choices_from_type"]
+        );
+    }
+
+    /// A `records` setting: `default` (TOML), its own keys (`unique = …`), and its `[[setting.field]]`s.
+    fn records_text(default: &str, keys: &str, fields: &str) -> String {
+        text(
+            "",
+            &format!(
+                "[[setting]]\nkey = \"pins\"\ntype = \"records\"\ndefault = {default}\n{keys}\n{fields}"
+            ),
+        )
+    }
+
+    /// `[[setting.field]]` tables, each required so that one mistake is one problem.
+    fn field(key: &str, ty: &str, extra: &str) -> String {
+        format!(
+            "  [[setting.field]]\n  key = \"{key}\"\n  type = \"{ty}\"\n  required = true\n{extra}\n"
+        )
+    }
+
+    fn problems(t: &str) -> Vec<(&'static str, String)> {
+        match parse("demo", t, &Version::new(0, 1, 0)) {
+            Ok(_) => vec![],
+            Err(errs) => errs.into_iter().map(|e| (e.code, e.path)).collect(),
+        }
+    }
+
+    #[test]
+    fn records_take_declared_fields_and_refuse_each_mistake_by_code() {
+        let id = field("id", "string", "  pattern = \"slug\"");
+        let target = field("target", "url", "  schemes = [\"https\", \"mod\"]");
+        let both = format!("{id}{target}");
+
+        // The shape of the web dock's pins: fields, `unique`, `item_label`, a default of rows.
+        let ok = records_text(
+            "[{id = \"a\", target = \"https://x\"}]",
+            "unique = \"id\"\nitem_label = \"target\"",
+            &format!(
+                "{both}  [[setting.field]]\n  key = \"view\"\n  type = \"enum\"\n  \
+                 choices = [\"default\", \"mobile\"]\n  default = \"default\"\n"
+            ),
+        );
+        let m = parse("demo", &ok, &Version::new(0, 1, 0)).unwrap();
+        let spec = m.record_spec("pins").unwrap();
+        assert_eq!(spec.fields.len(), 3);
+        assert_eq!(spec.unique.as_deref(), Some("id"));
+        assert_eq!(spec.label_field().unwrap().key, "target");
+        // The default's row is normalised: the absent optional field takes its default.
+        let SettingValue::Records(rows) = &m.settings[0].default else {
+            panic!("a records default")
+        };
+        assert_eq!(rows[0]["view"], "default");
+        assert!(problems(&records_text("[]", "", &both)).is_empty());
+
+        // Each refusal names one code, and the path that says where.
+        let refused: Vec<(String, &str)> = vec![
+            (records_text("[]", "", ""), "setting_fields_missing"),
+            (
+                records_text("[]", "unique = \"nope\"", &both),
+                "setting_unique_unknown_field",
+            ),
+            (
+                records_text("[]", "item_label = \"nope\"", &both),
+                "setting_item_label_unknown_field",
+            ),
+            (records_text("\"x\"", "", &both), "setting_default_type"),
+            (records_text("[1]", "", &both), "setting_default_type"),
+            (
+                records_text(
+                    "[{id = \"a\", target = \"https://x\", extra = 1}]",
+                    "",
+                    &both,
+                ),
+                "setting_default_field_unknown",
+            ),
+            (
+                records_text("[{id = \"a\"}]", "", &both),
+                "setting_default_field_missing",
+            ),
+            (
+                records_text("[{id = \"Bad Id\", target = \"https://x\"}]", "", &both),
+                "setting_default_field_invalid",
+            ),
+            (
+                records_text(
+                    "[{id = \"a\", target = \"https://x\"}, {id = \"a\", target = \"https://y\"}]",
+                    "unique = \"id\"",
+                    &both,
+                ),
+                "setting_default_duplicate",
+            ),
+            (
+                records_text("[]", "", &field("Bad Key", "string", "")),
+                "setting_field_key_invalid",
+            ),
+            (
+                records_text("[]", "", &format!("{id}{}", field("id", "string", ""))),
+                "setting_field_key_duplicate",
+            ),
+            (
+                records_text("[]", "", &field("when", "date", "")),
+                "setting_field_type_invalid",
+            ),
+            (
+                records_text("[]", "", &field("n", "int", "  pattern = \"slug\"")),
+                "setting_field_option_not_for_type",
+            ),
+            (
+                records_text("[]", "", &field("s", "string", "  schemes = [\"https\"]")),
+                "setting_field_option_not_for_type",
+            ),
+            (
+                records_text("[]", "", &field("b", "bool", "  choices = [\"a\"]")),
+                "setting_field_option_not_for_type",
+            ),
+            (
+                records_text("[]", "", &field("s", "string", "  range = [1, 2]")),
+                "setting_field_option_not_for_type",
+            ),
+            (
+                records_text("[]", "", &field("s", "string", "  pattern = \"email\"")),
+                "setting_field_pattern_invalid",
+            ),
+            (
+                records_text("[]", "", &field("u", "url", "")),
+                "setting_field_schemes_missing",
+            ),
+            (
+                records_text("[]", "", &field("u", "url", "  schemes = [\"HTTPS\"]")),
+                "setting_field_scheme_invalid",
+            ),
+            (
+                records_text("[]", "", &field("e", "enum", "")),
+                "setting_field_choices_missing",
+            ),
+            (
+                records_text("[]", "", &field("e", "enum", "  choices = [\"a\", \"a\"]")),
+                "setting_field_choices_duplicate",
+            ),
+            (
+                records_text("[]", "", &field("n", "int", "  range = [5, 1]")),
+                "setting_field_range_invalid",
+            ),
+            (
+                records_text(
+                    "[]",
+                    "",
+                    "  [[setting.field]]\n  key = \"n\"\n  type = \"int\"\n",
+                ),
+                "setting_field_default_missing",
+            ),
+            (
+                records_text("[]", "", &field("on", "bool", "  default = \"yes\"")),
+                "setting_field_default_type",
+            ),
+            (
+                records_text(
+                    "[]",
+                    "",
+                    &field("e", "enum", "  choices = [\"a\"]\n  default = \"nope\""),
+                ),
+                "setting_field_default_invalid",
+            ),
+        ];
+        for (t, code) in &refused {
+            assert_eq!(
+                problems(t).iter().map(|p| p.0).collect::<Vec<_>>(),
+                [*code],
+                "for:\n{t}"
+            );
+        }
+        // Paths name the field and the option: `setting[0].field[1].schemes`.
+        let at = records_text("[]", "", &format!("{id}{}", field("u", "url", "")));
+        assert_eq!(
+            problems(&at),
+            [(
+                "setting_field_schemes_missing",
+                "setting[0].field[1].schemes".to_string()
+            )]
+        );
+        let row = records_text("[{id = \"a\"}]", "", &both);
+        assert_eq!(
+            problems(&row),
+            [(
+                "setting_default_field_missing",
+                "setting[0].default[0].target".to_string()
+            )]
+        );
+        // Options that only a records setting takes, on the other types.
+        let on_bool = text(
+            "",
+            "[[setting]]\nkey = \"on\"\ntype = \"bool\"\ndefault = true\nunique = \"id\"\n\
+             [[setting.field]]\n  key = \"id\"\n  type = \"string\"\n  required = true\n",
+        );
+        assert_eq!(
+            problems(&on_bool).iter().map(|p| p.0).collect::<Vec<_>>(),
+            ["setting_fields_not_records", "setting_option_not_records"]
         );
     }
 }

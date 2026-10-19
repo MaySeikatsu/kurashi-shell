@@ -5,6 +5,8 @@
 use serde::Serialize;
 use serde_json::Value;
 
+use crate::records::RecordSpec;
+
 /// Value type of a key. Everything in memory is `serde_json::Value`; TOML only at file
 /// boundaries (M1-config), so every type here must be representable in TOML (no null).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -23,6 +25,9 @@ pub enum Ty {
     Font,
     /// Action id for an input slot; `""` means unbound (ARCHITECTURE §6).
     Action,
+    /// A list of tables whose fields a mod declares (K38, MODS.md "Records"); the fields are in
+    /// [`Constraints::record`], so `Ty` stays `Copy` and its wire name stays `records`.
+    Records,
 }
 
 impl Ty {
@@ -37,6 +42,7 @@ impl Ty {
             Ty::Color => "color",
             Ty::Font => "font",
             Ty::Action => "action",
+            Ty::Records => "records",
         }
     }
 }
@@ -72,6 +78,8 @@ pub struct Constraints {
     pub choices_from: Option<String>,
     /// Implicit bounds of the Rust type (e.g. `0..=255` for `u8`); validated but not shown.
     pub type_bounds: Option<(Value, Value)>,
+    /// The fields of a [`Ty::Records`] key (K38): what a row holds and how each value is checked.
+    pub record: Option<RecordSpec>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

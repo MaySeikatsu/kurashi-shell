@@ -8,6 +8,7 @@ use std::fmt::Write as _;
 use serde_json::{Map, Value, json};
 
 use crate::meta::{Coupling, KeyMeta, Ty};
+use crate::records::RecordSpec;
 use crate::registry::Registry;
 
 /// Settings control a row renders with.
@@ -26,6 +27,8 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Color => "color",
         Ty::Font => "font",
         Ty::Action => "action_binding",
+        // A list of tables with declared fields (K38): the generic records editor.
+        Ty::Records => "records",
     }
 }
 
@@ -108,6 +111,9 @@ fn row(m: &KeyMeta) -> Value {
         r.insert("choices_from".into(), json!(src));
         r.entry("choices").or_insert_with(|| json!([]));
     }
+    if let Some(spec) = &c.record {
+        r.insert("record".into(), record_json(&m.key, spec));
+    }
     r.insert("per_output".into(), json!(m.flags.per_output));
     r.insert("restart".into(), json!(m.flags.restart));
     r.insert("advanced".into(), json!(m.flags.advanced));
@@ -124,6 +130,57 @@ fn row(m: &KeyMeta) -> Value {
         })
         .collect();
     r.insert("couplings".into(), Value::Array(couplings));
+    Value::Object(r)
+}
+
+/// The records editor's description of a `records` key (K38): its fields with their controls, the
+/// `unique` field and the field a row is named by. Choice labels are i18n keys
+/// `<key>.<field>.<choice>`, as a mod's enum choices are (K22); a field's label is its declared key
+/// or, without one, its name.
+fn record_json(key: &str, spec: &RecordSpec) -> Value {
+    let fields: Vec<Value> = spec
+        .fields
+        .iter()
+        .map(|f| {
+            let mut j = Map::new();
+            j.insert("key".into(), json!(f.key));
+            j.insert("type".into(), json!(f.ty.name()));
+            j.insert("required".into(), json!(f.required));
+            if let Some(d) = &f.default {
+                j.insert("default".into(), d.clone());
+            }
+            j.insert(
+                "label".into(),
+                json!(f.label.clone().unwrap_or_else(|| f.key.clone())),
+            );
+            if let Some(p) = &f.pattern {
+                j.insert("pattern".into(), json!(p));
+            }
+            if !f.schemes.is_empty() {
+                j.insert("schemes".into(), json!(f.schemes));
+            }
+            if !f.choices.is_empty() {
+                let choices: Vec<Value> = f
+                    .choices
+                    .iter()
+                    .map(|c| json!({"value": c, "label": format!("{key}.{}.{c}", f.key)}))
+                    .collect();
+                j.insert("choices".into(), Value::Array(choices));
+            }
+            if let Some((lo, hi)) = f.range {
+                j.insert("range".into(), json!([lo, hi]));
+            }
+            Value::Object(j)
+        })
+        .collect();
+    let mut r = Map::new();
+    if let Some(unique) = &spec.unique {
+        r.insert("unique".into(), json!(unique));
+    }
+    if let Some(label) = spec.label_field() {
+        r.insert("item_label".into(), json!(label.key));
+    }
+    r.insert("fields".into(), Value::Array(fields));
     Value::Object(r)
 }
 
