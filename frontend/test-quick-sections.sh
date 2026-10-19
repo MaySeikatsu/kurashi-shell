@@ -14,10 +14,16 @@
 #     then the 30 s timeout's failure; SIGCONT lets the queued request through and the failure clears;
 #   - the tile states (I51): shots with three, one and no tile on (tiles-3-on, tiles-1-on, tiles-0-on);
 #   - the media row opens the island's media view; ui.close closes the card, and Escape on the tiles closes it too;
-#     after each close the card's documents are unsubscribed (Ma); the frontend logs no QML error.
+#     after each close the card's documents are unsubscribed (Ma); the frontend logs no QML error;
+#   - W18 (quick.tiles): the mod tiles take cells after the core tiles (tiles-mods); Tab reaches the test mod's tile, Down
+#     the wallpaper tile, Return moves its picture on, Right opens its picker panel; the mock's battery, unavailable and
+#     forced tiles (tiles-battery, tiles-unavailable, tiles-forced), the wallpaper tile with its backend down
+#     (tiles-wallpaper-down), brightness.set moves the Display level; no contribution is the six core tiles (tiles-no-mods);
+#     the wallpaper tile's document is subscribed while the card shows it and unsubscribed after it closes (Ma).
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
 # The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
-# actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd. Binaries:
+# actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd, and (W18)
+# mod.wallpaper with wallpaper.next, the mock controls mock.doc, and the intent brightness.set. Binaries:
 # kurashi and kurashi-mock from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug, else target/debug), copied first, since
 # shared target dirs get overwritten. The shots in frontend/shots/quick-sections/ are evidence to read, not just the exit
 # code. QUICK_LOCALE=ja_JP.UTF-8 runs the Japanese copy (shots in quick-sections-ja/). On a hybrid laptop export
@@ -216,7 +222,8 @@ WIFI_TILE=(76 114)
 WIFI_ARROW=(185 114)
 HEADING=(60 24)
 BACK=(50 30)
-MEDIA_TITLE=(76 402)
+MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
+MEDIA_FROM_BOTTOM=112   # and 112 px above the card's bottom edge: the rows above it differ by locale (the status line wraps), the footer does not
 
 : > "$R/qs.log"
 : > "$R/server.log"
@@ -407,7 +414,7 @@ card_shot quick-recovered 0.5
 echo "ok: connecting, then the timeout's failure; the queued request applies after SIGCONT ($wifi_before -> $wifi_after)"
 
 # 10. The media row opens the island's media view (the card gives way to the island's panel).
-at "${MEDIA_TITLE[0]}" "${MEDIA_TITLE[1]}"
+at "$MEDIA_TITLE_X" "$(( cy1 - cy0 - MEDIA_FROM_BOTTOM ))"
 sleep 1.5
 [ "$(panel)" = island ] || fail "the media row did not open the island's media view (panel \"$(panel)\")"
 echo "ok: the media row opens the island's media view"
@@ -452,8 +459,78 @@ sleep 1
 card_shot tiles-0-on 1
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = false ] || fail "the tile states: Wi-Fi did not turn off"
 echo "ok: tile states: three, one and no tile on (tiles-*-on.png)"
+
+# 13. Contributions (W18, K28 `quick.tiles`): the test mod's tile and the wallpaper tile take the core tiles' flow in cells of
+#     their own size; the plain contribution (not a tile) is clipped to its cell, and the grid does not grow for it. From the
+#     heading, Tab walks the status segments and the core tiles to the test mod's tile; Down reaches the wallpaper tile; Return
+#     moves its picture on (the subtitle changes); Right opens its picker panel (the card gives way to the panel).
+card_shot tiles-mods 1
+[ "$(last_event mod.wallpaper)" = "sub mod.wallpaper" ] || fail "the wallpaper tile did not subscribe its document while the card shows it"
+click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
+press tab tab tab tab tab tab tab tab tab tab
+press down
+pic0=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
+press return
+sleep 1.5
+pic1=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
+[ -n "$pic0" ] && [ "$pic1" != "$pic0" ] || fail "Return on the wallpaper tile did not move its picture ($pic0 -> $pic1)"
+card_shot tiles-mods-next 0.5
+echo "ok: keyboard: Tab reaches the mod tiles, Down reaches the wallpaper tile, Return moves its picture ($pic0 -> $pic1)"
+
+# 14. States the mock makes on demand (W18, I50): a battery, a tile unavailable, a tile forced; and the Display slider's
+#     intent (brightness.set, a fraction of full scale). The states are the documents' own, as a daemon would send them.
+K act mock.doc '{"doc":"svc.power","patch":{"present":true,"on_battery":true,"percent":64,"state":"discharging","time_to_empty_s":7800}}' >/dev/null || fail "mock.doc refused the battery"
+sleep 1
+card_shot tiles-battery 0.8
+K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the unavailable tile"
+sleep 1
+card_shot tiles-unavailable 0.8
+K act mock.doc '{"doc":"svc.network","patch":{"forced_by":"nix"}}' >/dev/null || fail "mock.doc refused the forced tile"
+sleep 1
+card_shot tiles-forced 0.8
+K act mock.doc '{"doc":"svc.network","patch":{"forced_by":null}}' >/dev/null
+# The mod's own tile unavailable: its backend is down, so the tile says why (the mod's i18n key) and dims.
+K act mock.doc '{"doc":"mod.wallpaper","patch":{"backend":{"available":false,"reason":"mod-wallpaper.backend.down"}}}' >/dev/null || fail "mock.doc refused the wallpaper backend"
+sleep 1
+card_shot tiles-wallpaper-down 0.8
+K act mock.doc '{"doc":"mod.wallpaper","patch":{"backend":{"available":true,"reason":null}}}' >/dev/null
+K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":true}}' >/dev/null
+K act mock.doc '{"doc":"svc.power","patch":{"present":false,"on_battery":false,"percent":null,"state":null,"time_to_empty_s":null}}' >/dev/null
+K intent brightness.set 0.3 >/dev/null || fail "brightness.set refused"
+sleep 1
+[ "$(doc svc.brightness | jq -r '.percent == 30')" = true ] || fail "brightness.set 0.3 did not set 30 % ($(doc svc.brightness))"
+echo "ok: states: a battery, an unavailable tile, a forced tile; brightness.set 0.3 makes 30 %"
+
+# 15. The picker: Right on the wallpaper tile opens its panel (the mod's Stage panel; the card gives way to it). The card is
+#     reopened, so the keyboard starts where it starts for a user: on the card, with nothing focused.
 K act ui.close >/dev/null
 sleep 1
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the picker check"
+sleep 1
+click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
+press tab tab tab tab tab tab tab tab tab tab
+press down right
+sleep 1.5
+[ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "Right on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
+echo "ok: Right on the wallpaper tile opens its picker panel (mod:wallpaper:wallpaper)"
+
+# 16. No contribution (the empty state, W18): with no `quick.tiles` entry the grid is the six core tiles and no cell is drawn.
+K act ui.close >/dev/null
+sleep 1
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the empty state"
+K act mock.doc '{"doc":"runtime.slots","patch":{"quick.tiles":null}}' >/dev/null || fail "mock.doc refused the empty slot"
+sleep 1
+card_shot tiles-no-mods 0.8
+echo "ok: no contribution: the six core tiles only (tiles-no-mods.png)"
+
+K act ui.close >/dev/null
+sleep 1
+[ "$(last_event mod.wallpaper)" = "unsub mod.wallpaper" ] || fail "the wallpaper tile's document stayed subscribed after the card closed"
+echo "ok: the wallpaper tile subscribes its document while the card shows it, and unsubscribes it when the card is gone (Ma)"
 
 exec 3>&-
 stop_phase
