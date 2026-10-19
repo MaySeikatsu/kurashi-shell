@@ -569,6 +569,9 @@ fn apply_flag(v: &Value) -> Result<bool, ActionError> {
 
 /// A refused profile action as its i18n key (K27, B5). The engine's text is English detail and
 /// never goes on the wire: the key says what is wrong, the catalog says what to do about it.
+/// `profile.import` of a file named like a saved profile (row 101).
+const PROFILE_NAME_TAKEN: &str = "config.error.profile_name_taken";
+
 fn profile_refusal(e: ConfigError) -> ActionError {
     let key = match &e {
         ConfigError::ProfileNotFound(_) => "config.error.profile_not_found",
@@ -1173,6 +1176,17 @@ impl ConfigStore {
                     .and_then(|s| s.to_str())
                     .unwrap_or_default()
                     .to_string();
+                // Row 101 (I64 (1)): the imported values would carry the name of a saved profile they are not.
+                let taken = me
+                    .cfg
+                    .lock()
+                    .expect("config lock")
+                    .list_profiles()
+                    .iter()
+                    .any(|(saved, _, _)| *saved == name);
+                if taken {
+                    return Err(ActionError::Invalid(PROFILE_NAME_TAKEN.into()));
+                }
                 if !apply {
                     let review = me
                         .cfg

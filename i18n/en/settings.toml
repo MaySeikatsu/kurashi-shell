@@ -240,3 +240,7 @@
 "settings.records.down" = "Move {item} down"
 "settings.records.edit_for" = "Edit {item}"
 "settings.records.remove" = "Remove {item}"
+
+# W18-settings (I64, docs/ux/settings.md): a profile line whose value stays, and a Changed row whose user value a forced layer holds back.
+"settings.ui.profile_now_from" = "Now from this profile"
+"settings.ui.held_back" = "Not in effect: {reason} · In effect: {value}"
