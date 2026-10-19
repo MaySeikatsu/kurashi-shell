@@ -318,11 +318,24 @@ impl State {
                     if self.data("runtime.ui")["panel"].as_str().is_some_and(|p| !p.is_empty()) {
                         return Err(Fail::invalid("ui.error.peek_under_card"));
                     }
-                    self.patch(
-                        "runtime.ui",
-                        json!({"peek": {"source": source, "output": output, "x": x, "w": w}}),
-                        None,
-                    );
+                    let mut peek = json!({"source": source, "output": output, "x": x, "w": w});
+                    // As kurashid (I67): `edge`, and for a side bar the widget's `y` and `h`.
+                    match args.get("edge").map(|e| e.as_str()) {
+                        None => {}
+                        Some(Some(e @ ("top" | "bottom"))) => peek["edge"] = json!(e),
+                        Some(Some(e @ ("left" | "right"))) => {
+                            let (Some(y), Some(h)) = (args["y"].as_f64(), args["h"].as_f64()) else {
+                                return Err(Fail::invalid("ui.peek on a side bar needs y and h"));
+                            };
+                            peek["edge"] = json!(e);
+                            peek["y"] = json!(y);
+                            peek["h"] = json!(h);
+                        }
+                        Some(_) => return Err(Fail::invalid("ui.peek: edge is top, bottom, left or right")),
+                    }
+                    // Replace, not merge: a side peek's y and h must not outlive it.
+                    self.patch("runtime.ui", json!({"peek": null}), None);
+                    self.patch("runtime.ui", json!({"peek": peek}), None);
                 }
             }
             "audio.mute.toggle" => {

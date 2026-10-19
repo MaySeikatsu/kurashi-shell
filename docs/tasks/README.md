@@ -222,3 +222,11 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W17-webdock-host](W17-webdock-host.md) | `mods/webdock/{host,test,shots}/`, `crates/kurashi-mock/`, `frontend/core/Store.qml` (scoped hello), `i18n/*/mod-webdock.toml` | haiku (max) |
 | [W17-webdock-daemon](W17-webdock-daemon.md) | `crates/kurashi-mod-api/`, kurashid `{native,server,main}.rs` + Cargo.toml, new `crates/kurashi-mod-webdock/`, `mods/webdock/mod.toml` | haiku (max) |
 | [W17-records](W17-records.md) | `crates/kurashi-mods/src/manifest.rs`, `crates/kurashi-schema/`, kurashid `config.rs` (mod settings), `settings/` | haiku (max) |
+
+## Wave 18 (session 7; contract rows 98–99 on main)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W18-quick-tiles](W18-quick-tiles.md) | SlotHost, QuickPanel, `components/quick/`, wallpaper + hello tiles, `crates/kurashi-mock/`, quick tests | haiku (max) |
+| [W18-peeks](W18-peeks.md) | Stage.qml, Bar.qml (peeks), Peeks/PeekSource, test-peek, test-mods-live, `justfile`, weather Peek.qml | haiku (max) |
+| [W18-sysmon](W18-sysmon.md) | `crates/kurashi-mod-sysmon/`, `mods/sysmon/`, `mod-sysmon.toml` | haiku (max) |
+| [W18-settings](W18-settings.md) | `settings/`, `tools/bench/wl_keys.py` (additive) | haiku (max) |
