@@ -17,9 +17,18 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, wave 17
-**State:** `main` green (`just check` 746 tests; `just webdock` = web host test against the mock + end-to-end against
-the real daemon; test-stage, test-peek, settings/test.sh). Wave 17 merged; nothing half-done.
+## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, waves 17 and 18
+**State:** `main` green (`just check` 763 tests; `just webdock`, `just peek`, `just mods-live`, test-stage,
+test-quick, test-quick-sections, settings/test.sh). Waves 17 and 18 merged; no agents, no extra worktrees; nothing
+half-done. Disk: 87 GB free after clearing `target/debug` (60 GB) and stale sandboxes.
+
+**Wave 18 (after the web dock, user: "continue with other parts of the shell"):** contract rows 98 (peek `edge`/`y`/`h`)
+and 99 (diff `same_value`) by the lead; W18-quick-tiles (160×56 cells for `quick.tiles`, wallpaper/hello as
+`QuickTile`, `mock.doc`; I52, I50), W18-peeks (peeks on every bar edge, fade-out, weather/sysmon peek states, `just
+peek`, mods-live kinds from manifests; I67), W18-sysmon (GPU by connected output, names in the session language,
+refusals on the row, counter reset, states; I65), W18-settings (same-value lines, held-back values in Changed,
+records keyboard paths, `wl_keys` modifiers + URL characters; I64, I81). Lead: row 101 (an import named like a saved
+profile is refused), two Settings editor fixes, the island peek crop. UX reviews filed: weather I82, wallpaper I83.
 
 **Merged:** session-6 wave 16 (peeks, no-network sandboxes). Session 7 — the user's **web dock** request (an Edge/Floorp-
 style edge dock with pinned sites, from a WormShell prompt adapted to kurashi): Phase 0 spike
@@ -47,18 +56,25 @@ strip 56 px, phone 412 × ≤ 2× width, large 90 %; reveal 250 ms (500 ms on a 
 hysteresis; pinned overlays (reserve space optional, strip only); keybind `Mod+B` via HM; sign-in popups as sheets,
 new tabs to the browser, permissions/downloads refused with a chip; kurashi views = mod panels in v1.
 
+**Design pass with the user (ask):** the accent colour (crimson in wa-iro) is used for selected states, data and
+every primary button, so panels read as alarms — I51, I63, I78, I82, I83, I86 (row 104 tile tokens). Proposal: tonal
+selected states, `color.data.*` roles, one primary action per panel; use `INSPIRATION.md` (I60).
+
 **Next steps (ordered):**
-1. Ask the user the open decision above; then wave 18: **W17.4 shell side** (row 88 `surface:` provide: indicator,
+1. Ask the user the open web-dock decision above and the design pass; then: **W17.4 shell side** (row 88 `surface:` provide: indicator,
    strip, card frame for view pins, `webdock.hover` state machine in the daemon, pin/unpin, add/remove/move, keyboard,
    bar widget, empty/cold/offline states), **I78** card polish (title first, quieter toggles, rounded bottom, keyboard
    path into the header, reduced motion), **I77** scope table and host registry into `Daemon`, **W17.6** Nix (a
    `kurashi-webdock` package apart from the base closure, HM/NixOS options, closure check).
 2. **I80** web host on niri (nested niri in the sandbox; reveal by click).
-3. Still open from session 6: cards for I52, I64, I65, I63, I67; UX review (wallpaper I32, weather I57, settings
-   profiles); B7 quiet repro + quiet re-measure of K35 and the web host numbers (BENCH); design pass with
-   `INSPIRATION.md` (I60, I63).
+3. Cards without a user decision: I85 (bar widgets on side bars), I86 (`forced_by` on service documents), I82/I83
+   polish that does not depend on colour (labels, card width, copy), I84 sysmon leftovers, I46 + rows 71/72 (calendar
+   per-day slot, `ready`+`reason`), the keyboard path into bar widgets (I67), I77 (scope table into `Daemon`), W17.6.
+4. B7 quiet repro + quiet re-measure of K35, W18 peeks (second output +3…+34 MiB under load) and the web host (BENCH);
+   no agents running. I10 on machine A.
 
-**Gotchas (new):** `wtype` drops the first key of every call (looked like B27) — type with `tools/bench/wl_keys.py`,
+**Gotchas (new):** parallel cards keep colliding on CONTRACT-CHANGE row numbers (renumber at merge) and on sandbox
+names (give each card unique names, I84). `wtype` drops the first key of every call (looked like B27) — type with `tools/bench/wl_keys.py`,
 which cannot type `:` (I81). `qs-webengine` (dev shell) is the patched Quickshell; Chromium needs `argc > 0` for
 `QTWEBENGINE_CHROMIUM_FLAGS`. The host imports `frontend/core` through the link `mods/webdock/host/core` (Quickshell
 refuses imports outside a config root). Card cross-talk: give the host card the daemon's i18n key list early (done by
