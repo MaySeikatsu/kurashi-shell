@@ -1,0 +1,78 @@
+# Web dock (en): the mod's catalogue entry and settings (mods/webdock/mod.toml), the daemon's error keys, and the
+# copy of the web host's card (mods/webdock/host). Placeholders in braces are filled by the frontend.
+
+# The mod in the catalogue and its settings.
+"mods.webdock.name" = "Web dock"
+"mods.webdock.description" = "Keep a few sites and kurashi views one hover away at a screen edge. The web engine runs only while a site is open."
+"mods.webdock.pins" = "Pins"
+"mods.webdock.default_view" = "Default view"
+"mods.webdock.width" = "Phone width (px)"
+"mods.webdock.large" = "Large size (%)"
+"mods.webdock.edge" = "Edge"
+"mods.webdock.unload_after" = "Unload after unused (minutes)"
+"mods.webdock.max_loaded" = "Sites kept loaded"
+
+# The pins and the dock.
+"webdock.empty" = "Pin a site or a view to keep it one hover away"
+"webdock.add.url" = "Site address"
+"webdock.pin.dock" = "Keep the dock open"
+"webdock.pin.undock" = "Let the dock hide"
+"webdock.view.mobile" = "Mobile"
+"webdock.view.desktop" = "Desktop"
+"webdock.size.phone" = "Phone"
+"webdock.size.large" = "Large"
+"webdock.open_browser" = "Open in browser"
+"webdock.hint.desktop_large" = "Desktop pages may need the large size"
+
+# The card's own controls.
+"webdock.nav.back" = "Back"
+"webdock.nav.reload" = "Reload"
+"webdock.nav.collapse" = "Collapse"
+"webdock.sheet.close" = "Close"
+
+# States.
+"webdock.loading" = "Loading…"
+"webdock.host.starting" = "Starting the web engine…"
+"webdock.host.missing" = "The web engine is not installed (programs.kurashi.webdock)"
+"webdock.error.load" = "The page did not load"
+"webdock.error.code" = "Error {code}"
+"webdock.error.retry" = "Try again"
+"webdock.error.crashed" = "The page stopped"
+"webdock.error.unknown_pin" = "No such pin"
+"webdock.error.not_a_site" = "Only a site has a view"
+"webdock.signin_refused" = "This site refuses sign-in in an embedded browser. Open it in your browser."
+
+# Permissions the page asked for and was refused (one chip each).
+"webdock.blocked.camera" = "Blocked: camera"
+"webdock.blocked.microphone" = "Blocked: microphone"
+"webdock.blocked.location" = "Blocked: location"
+"webdock.blocked.notifications" = "Blocked: notifications"
+"webdock.blocked.screen" = "Blocked: screen"
+"webdock.blocked.clipboard" = "Blocked: clipboard"
+"webdock.blocked.download" = "Blocked: download"
+"webdock.blocked.other" = "Blocked: other"
+
+# Settings help, errors and the action labels the daemon's catalogue shows (the daemon card uses these).
+"mods.webdock.default_view.help" = "The view a new pin opens in: mobile (phone width, mobile user agent) or desktop."
+"mods.webdock.unload_after.help" = "Minutes without a shown site before the web engine stops (0 keeps it running while the dock is on)."
+"webdock.error.runtime" = "The web dock stopped unexpectedly"
+"webdock.error.argument" = "That request has an argument the dock does not take"
+"webdock.error.size" = "The card size must be phone or large"
+"webdock.error.view" = "The view must be mobile or desktop"
+"webdock.error.permission" = "That permission is not one the dock reports"
+"webdock.error.icon" = "The site's icon could not be saved"
+"webdock.error.url" = "Only http and https addresses open in the browser"
+"webdock.error.no_browser" = "No default browser is set (xdg-open is missing)"
+"action.webdock.open" = "Open a site or view in the dock"
+"action.webdock.collapse" = "Collapse the dock to its strip"
+"action.webdock.hide" = "Hide the dock"
+"action.webdock.toggle" = "Show or hide the dock"
+"action.webdock.size" = "Change the card size"
+"action.webdock.view" = "Change a site's mobile or desktop view"
+"action.webdock.open_external" = "Open a page in the default browser"
+"action.webdock.host.loaded" = "A site finished loading"
+"action.webdock.host.unloaded" = "A site was unloaded"
+"action.webdock.host.audible" = "A site started or stopped playing sound"
+"action.webdock.host.blocked" = "A site asked for a blocked permission"
+"action.webdock.host.new_window" = "A site asked for a new window"
+"action.webdock.host.crashed" = "A site stopped"
