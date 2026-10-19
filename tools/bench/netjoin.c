@@ -4,6 +4,8 @@
  * sandbox's sway) and KURASHI_SANDBOX_NETNS_ID the namespace id the holder recorded ("net:[inode]"). Fail closed: when
  * the holder is gone, or its namespace is not the recorded one (a reused pid), the process stops with status 111
  * instead of running on the host network. Joining needs no privilege: the holder's user namespace is owned by our uid.
+ * A process that already sits in a network namespace with loopback only runs as it is (row 94, B26): Chromium's
+ * sandboxed zygote and renderers start in an empty namespace of their own and cannot open the holder's.
  *   cc -shared -fPIC -O2 -Wall -Werror -o netjoin.so netjoin.c
  */
 #define _GNU_SOURCE
@@ -25,6 +27,24 @@ static int same_ns(const struct stat *a, const struct stat *b) {
     return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
 }
 
+/* True when this process's network namespace has no interface but loopback (/proc/self/net/dev follows the caller's
+ * namespace). Unreadable counts as not isolated. */
+static int loopback_only(void) {
+    char line[256];
+    int n = 0, others = 0;
+    FILE *f = fopen("/proc/self/net/dev", "re");
+    if (!f) return 0;
+    while (fgets(line, sizeof line, f)) {
+        char *colon = strchr(line, ':'), *name = line;
+        if (++n <= 2 || !colon) continue; /* two header lines */
+        *colon = 0;
+        while (*name == ' ') name++;
+        if (strcmp(name, "lo") != 0) others++;
+    }
+    fclose(f);
+    return n > 2 && others == 0;
+}
+
 __attribute__((constructor))
 static void join_sandbox_netns(void) {
     const char *pid = getenv("KURASHI_SANDBOX_NETNS_PID");
@@ -35,6 +55,7 @@ static void join_sandbox_netns(void) {
     int nfd, ufd;
 
     if (!pid || !id) return;
+    if (loopback_only()) return; /* no network to leave: the sandbox's own namespace, or one inside it */
     if (sscanf(id, "net:[%lu]", &want) != 1) {
         errno = EINVAL;
         refuse("KURASHI_SANDBOX_NETNS_ID is not net:[inode]");

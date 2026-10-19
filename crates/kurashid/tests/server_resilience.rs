@@ -33,6 +33,7 @@ impl Client {
             v: 1,
             client: "test".into(),
             caps: vec![],
+            scope: None,
         })
         .await;
         assert!(matches!(c.recv().await, ServerMsg::Welcome { .. }));

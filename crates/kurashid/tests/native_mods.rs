@@ -358,6 +358,7 @@ impl Wire {
             v: 1,
             client: "test".into(),
             caps: vec![],
+            scope: None,
         })
         .await;
         assert!(matches!(w.recv().await, ServerMsg::Welcome { .. }));
