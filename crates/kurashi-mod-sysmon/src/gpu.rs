@@ -2,11 +2,12 @@
 //! `asleep` and nothing else of it is read: "asleep, not sampled" is the honest state of a suspended dGPU
 //! (docs/ux/sysmon.md, "GPU honestly"). Metrics exist only where the kernel exposes them: AMD's sysfs
 //! attributes. NVIDIA's sysfs has no utilisation, so an awake NVIDIA GPU shows no `util` rather than a guess.
-//! The tile shows the GPU that renders (I62): [`primary`] picks it among the awake ones.
+//! The tile shows the GPU that renders (I62): the one that drives a connected output, see [`primary`]. The outputs
+//! are read only when two or more GPUs are awake, the one case where the choice needs them.
 
 use crate::power::{self, Power};
 use crate::roots::{Roots, name_of};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Gpu {
@@ -21,6 +22,9 @@ pub enum Gpu {
         temp_c: Option<f64>,
         /// The firmware's display GPU (`boot_vga`): the usual renderer of a hybrid laptop's panel.
         boot_vga: bool,
+        /// One of its outputs (`card1-eDP-1`) reports `connected`. False when no output was read: the outputs are read
+        /// only while two or more GPUs are awake.
+        drives: bool,
     },
 }
 
@@ -48,9 +52,10 @@ fn vendor_name(id: &str) -> Option<&'static str> {
 }
 
 pub fn read(roots: &Roots) -> Vec<Gpu> {
+    let entries = roots.list(roots.sys.join("class/drm"));
     let mut out = Vec::new();
-    for card in roots.list(roots.sys.join("class/drm")) {
-        let id = name_of(&card);
+    for card in &entries {
+        let id = name_of(card);
         if !is_card(id) {
             continue;
         }
@@ -61,7 +66,34 @@ pub fn read(roots: &Roots) -> Vec<Gpu> {
             Power::Awake => out.push(read_awake(roots, id, &device)),
         }
     }
+    // The outputs decide only between awake GPUs: with two or more, each awake one's outputs are read. A single GPU
+    // renders whatever its outputs say, and a suspended GPU's outputs are never read (their status can wake it).
+    if out
+        .iter()
+        .filter(|g| matches!(g, Gpu::Awake { .. }))
+        .count()
+        > 1
+    {
+        for g in &mut out {
+            if let Gpu::Awake { id, drives, .. } = g {
+                *drives = drives_output(roots, &entries, id);
+            }
+        }
+    }
     out
+}
+
+/// Whether one of the card's outputs (`card1-DP-1`, `card1-eDP-1`) reports `connected`.
+fn drives_output(roots: &Roots, entries: &[PathBuf], id: &str) -> bool {
+    let prefix = format!("{id}-");
+    entries
+        .iter()
+        .filter(|e| name_of(e).starts_with(&prefix))
+        .any(|e| {
+            roots
+                .read(e.join("status"))
+                .is_some_and(|s| s.trim() == "connected")
+        })
 }
 
 fn read_awake(roots: &Roots, id: &str, device: &Path) -> Gpu {
@@ -92,42 +124,31 @@ fn read_awake(roots: &Roots, id: &str, device: &Path) -> Gpu {
         vram,
         temp_c,
         boot_vga,
+        drives: false,
     }
 }
 
-/// The GPU the tile shows (I62): the one that renders. Only an awake GPU renders, so among the awake ones it is the
-/// only one; else the busiest, when every one reports its utilisation; else the firmware's display GPU, when exactly
-/// one is; else the first. With every GPU asleep the tile shows the first, as asleep. None without GPUs.
+/// The GPU the tile shows (I62): the one that renders, which is the one driving a connected output (the desktop is
+/// composed where the panel is lit, whatever another GPU is busy with). Among the awake GPUs the candidates are those
+/// that drive an output, or every awake one when none does; a tie goes to the firmware's display GPU (`boot_vga`), and
+/// a tie that remains to the first card. A suspended GPU is never chosen over an awake one, and none is woken to decide.
+/// With every GPU asleep the tile shows the first, as asleep. None without GPUs.
 /// (The compositor's own main device is not read: that takes a Wayland query or the compositor's file descriptors.)
 pub fn primary(gpus: &[Gpu]) -> Option<usize> {
     let awake: Vec<usize> = (0..gpus.len())
         .filter(|&i| matches!(gpus[i], Gpu::Awake { .. }))
         .collect();
-    let Some(&first) = awake.first() else {
+    if awake.is_empty() {
         return (!gpus.is_empty()).then_some(0);
-    };
-    if let [only] = awake[..] {
-        return Some(only);
     }
-    let util = |i: usize| match &gpus[i] {
-        Gpu::Awake { util, .. } => *util,
-        Gpu::Asleep { .. } => None,
-    };
-    let boot = |i: usize| matches!(&gpus[i], Gpu::Awake { boot_vga: true, .. });
-    if awake.iter().all(|&i| util(i).is_some()) {
-        // The busiest; a tie goes to the display GPU, then to the earlier card.
-        return awake.iter().copied().min_by_key(|&i| {
-            (
-                std::cmp::Reverse(util(i).unwrap_or(0)),
-                std::cmp::Reverse(boot(i)),
-                i,
-            )
-        });
-    }
-    let booted: Vec<usize> = awake.iter().copied().filter(|&i| boot(i)).collect();
+    let drives = |i: usize| matches!(gpus[i], Gpu::Awake { drives: true, .. });
+    let boot = |i: usize| matches!(gpus[i], Gpu::Awake { boot_vga: true, .. });
+    let driving: Vec<usize> = awake.iter().copied().filter(|&i| drives(i)).collect();
+    let candidates = if driving.is_empty() { awake } else { driving };
+    let booted: Vec<usize> = candidates.iter().copied().filter(|&i| boot(i)).collect();
     match booted[..] {
         [only] => Some(only),
-        _ => Some(first),
+        _ => candidates.first().copied(),
     }
 }
 
@@ -135,7 +156,9 @@ pub fn primary(gpus: &[Gpu]) -> Option<usize> {
 mod tests {
     use super::*;
 
-    /// card1: an NVIDIA dGPU, runtime-suspended. card2: an AMD iGPU, active. card1-DP-1 is a connector.
+    /// card1: an NVIDIA dGPU, runtime-suspended, with a connector that reads `connected` (its outputs are never read).
+    /// card2: an AMD iGPU, active, driving the panel (`card2-eDP-1`) and the firmware's display GPU. card1-DP-1 is a
+    /// connector too.
     fn fixture() -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
         let drm = dir.path().join("sys/class/drm");
@@ -144,6 +167,7 @@ mod tests {
         std::fs::write(nv.join("power/runtime_status"), "suspended\n").unwrap();
         std::fs::write(nv.join("vendor"), "0x10de\n").unwrap();
         std::fs::create_dir_all(drm.join("card1-DP-1")).unwrap();
+        std::fs::write(drm.join("card1-DP-1/status"), "connected\n").unwrap();
         let amd = drm.join("card2/device");
         std::fs::create_dir_all(amd.join("power")).unwrap();
         std::fs::write(amd.join("power/runtime_status"), "active\n").unwrap();
@@ -155,18 +179,21 @@ mod tests {
         let hw = amd.join("hwmon/hwmon10");
         std::fs::create_dir_all(&hw).unwrap();
         std::fs::write(hw.join("temp1_input"), "54000\n").unwrap();
+        std::fs::create_dir_all(drm.join("card2-eDP-1")).unwrap();
+        std::fs::write(drm.join("card2-eDP-1/status"), "connected\n").unwrap();
         dir
     }
 
-    /// An awake GPU with the given utilisation and display flag (only what `primary` looks at matters).
-    fn awake(id: &str, util: Option<u8>, boot_vga: bool) -> Gpu {
+    /// An awake GPU with its display flag and whether it drives an output (only what `primary` looks at matters).
+    fn awake(id: &str, boot_vga: bool, drives: bool) -> Gpu {
         Gpu::Awake {
             id: id.into(),
             vendor: None,
-            util,
+            util: None,
             vram: None,
             temp_c: None,
             boot_vga,
+            drives,
         }
     }
 
@@ -180,7 +207,7 @@ mod tests {
         let touched_nvidia: Vec<_> = roots
             .trace()
             .into_iter()
-            .filter(|p| p.to_string_lossy().contains("card1/"))
+            .filter(|p| p.to_string_lossy().contains("card1"))
             .collect();
         assert_eq!(
             touched_nvidia,
@@ -188,7 +215,7 @@ mod tests {
                 dir.path()
                     .join("sys/class/drm/card1/device/power/runtime_status")
             ],
-            "a suspended GPU is never read beyond its runtime status"
+            "a suspended GPU is never read beyond its runtime status, and its outputs are not read"
         );
     }
 
@@ -206,7 +233,9 @@ mod tests {
                 vram: Some((1000, 4000)),
                 temp_c: Some(54.0),
                 boot_vga: true,
-            }
+                drives: false,
+            },
+            "one awake GPU: its outputs are not read to decide"
         );
     }
 
@@ -226,32 +255,71 @@ mod tests {
     }
 
     #[test]
-    fn the_busiest_awake_gpu_renders_when_every_one_reports_utilisation() {
-        let gpus = [
-            awake("card1", Some(3), true),
-            awake("card2", Some(41), false),
-        ];
-        assert_eq!(primary(&gpus), Some(1));
-        let tie = [
-            awake("card1", Some(9), false),
-            awake("card2", Some(9), true),
-        ];
-        assert_eq!(primary(&tie), Some(1), "a tie goes to the display GPU");
+    fn with_two_awake_gpus_the_one_driving_a_connected_output_renders() {
+        // The dGPU is awake and busy (a game offloaded to it); the panel is lit from the iGPU. The tile shows the iGPU.
+        let dir = fixture();
+        let drm = dir.path().join("sys/class/drm");
+        std::fs::write(drm.join("card1/device/power/runtime_status"), "active\n").unwrap();
+        std::fs::write(drm.join("card1/device/gpu_busy_percent"), "91\n").unwrap();
+        std::fs::write(drm.join("card1-DP-1/status"), "disconnected\n").unwrap();
+        let roots = Roots::new(dir.path().join("proc"), dir.path().join("sys"), 1000).traced();
+        let gpus = read(&roots);
+        assert_eq!(
+            primary(&gpus),
+            Some(1),
+            "the iGPU drives eDP-1; the busy dGPU drives nothing"
+        );
+        assert!(
+            roots
+                .trace()
+                .iter()
+                .any(|p| p.ends_with("card1-DP-1/status")),
+            "with two awake GPUs their outputs are read"
+        );
     }
 
     #[test]
-    fn without_a_utilisation_figure_the_display_gpu_renders() {
-        // NVIDIA reports no utilisation in sysfs: the AMD card with its figure is not a guess either way, so the
-        // display GPU (boot_vga) is taken.
-        let nv_displays = [awake("card1", None, true), awake("card2", Some(2), false)];
-        assert_eq!(primary(&nv_displays), Some(0));
-        let amd_displays = [awake("card1", None, false), awake("card2", Some(2), true)];
-        assert_eq!(primary(&amd_displays), Some(1));
-        let neither = [awake("card1", None, false), awake("card2", Some(2), false)];
+    fn the_driving_gpu_renders_and_the_display_gpu_breaks_a_tie() {
+        // The connected output decides even when the other GPU is the firmware's display GPU.
+        let gpus = [awake("card1", true, false), awake("card2", false, true)];
+        assert_eq!(primary(&gpus), Some(1));
+        // Both drive an output: the display GPU is the tie-breaker, whichever card it is.
+        let tie = [awake("card1", false, true), awake("card2", true, true)];
+        assert_eq!(primary(&tie), Some(1));
+        // Both drive and neither is the display GPU, or both are: the first card, deterministically.
+        let no_display = [awake("card1", false, true), awake("card2", false, true)];
+        assert_eq!(primary(&no_display), Some(0));
+        let both_display = [awake("card1", true, true), awake("card2", true, true)];
+        assert_eq!(primary(&both_display), Some(0));
+    }
+
+    #[test]
+    fn without_a_connected_output_the_display_gpu_renders() {
+        let display_second = [awake("card1", false, false), awake("card2", true, false)];
+        assert_eq!(primary(&display_second), Some(1));
+        let neither = [awake("card1", false, false), awake("card2", false, false)];
         assert_eq!(
             primary(&neither),
             Some(0),
-            "no display flag: the first card"
+            "no display flag and no output: the first card"
+        );
+    }
+
+    #[test]
+    fn a_suspended_gpu_is_never_chosen_over_an_awake_one() {
+        let gpus = [
+            Gpu::Asleep { id: "card1".into() },
+            awake("card2", false, false),
+        ];
+        assert_eq!(primary(&gpus), Some(1));
+        let all_asleep = [
+            Gpu::Asleep { id: "card1".into() },
+            Gpu::Asleep { id: "card2".into() },
+        ];
+        assert_eq!(
+            primary(&all_asleep),
+            Some(0),
+            "every GPU asleep: the first, as asleep"
         );
     }
 
@@ -266,7 +334,7 @@ mod tests {
             .trace()
             .into_iter()
             .filter(|p| {
-                p.to_string_lossy().contains("card1/")
+                p.to_string_lossy().contains("card1")
                     && !p.to_string_lossy().ends_with("runtime_status")
             })
             .count();

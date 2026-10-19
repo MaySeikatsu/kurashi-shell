@@ -51,6 +51,7 @@
 "sysmon.error.gone" = "プロセスは既に終了しています。"
 "sysmon.error.changed" = "同じ ID の別のプロセスがあります。何も送っていません。"
 "sysmon.error.not_yours" = "このプロセスは別のユーザーのものです。"
+"sysmon.error.refused" = "システムがシグナルを拒否しました（許可されていません）。プロセスは実行中のままです。"
 "sysmon.error.failed" = "シグナルを送れませんでした。"
 "sysmon.error.paused_in_settings" = "設定で一時停止されています。再開も設定で行います。"
 "sysmon.error.terminal" = "設定に無い端末です。"

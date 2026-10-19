@@ -14,8 +14,9 @@ Column {
     required property var i18n
     // mod.sysmon.procs, as the daemon publishes it (undefined until the first scan)
     property var doc: undefined
-    // The last refusal or failure, translated; empty when the last action worked.
-    property string notice: ""
+    // The last signal that failed, on the row it was sent to: {pid, start, msg} (msg an i18n key). null when the last
+    // request worked or none was sent. The row says why, under its buttons, until the next request.
+    property var refusal: null
     // The confirmation open now: {pid, start, name, kind: "term" | "kill"}.
     property var pending: null
 
@@ -72,6 +73,8 @@ Column {
             required property var modelData
             readonly property bool confirming: list.pending !== null && list.pending.pid === modelData.pid
                 && list.pending.start === modelData.start
+            readonly property bool refused: list.refusal !== null && list.refusal.pid === modelData.pid
+                && list.refusal.start === modelData.start
             width: list.width
             spacing: list.theme.xs
 
@@ -90,16 +93,22 @@ Column {
                         label: list.tr("sysmon.panel.end")
                         available: row.modelData.can_end
                         reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
-                        onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
-                            name: row.modelData.name, kind: "term"}
+                        onActivated: {
+                            list.refusal = null
+                            list.pending = {pid: row.modelData.pid, start: row.modelData.start,
+                                name: row.modelData.name, kind: "term"}
+                        }
                     }
                     PillButton {
                         theme: list.theme
                         label: list.tr("sysmon.panel.force")
                         available: row.modelData.can_end
                         reason: row.modelData.end_reason !== "" ? list.tr(row.modelData.end_reason) : ""
-                        onActivated: list.pending = {pid: row.modelData.pid, start: row.modelData.start,
-                            name: row.modelData.name, kind: "kill"}
+                        onActivated: {
+                            list.refusal = null
+                            list.pending = {pid: row.modelData.pid, start: row.modelData.start,
+                                name: row.modelData.name, kind: "kill"}
+                        }
                     }
                 }
                 Text {
@@ -146,6 +155,20 @@ Column {
                 font.family: list.theme.fam(text, list.theme.families)
             }
 
+            // A signal that failed on this row: the system refused it (EPERM), or it was gone. Said under the row, and
+            // announced when it appears, so a screen reader hears why nothing ended.
+            Text {
+                visible: row.refused
+                width: row.width
+                text: row.refused ? list.tr(list.refusal.msg) : ""
+                color: list.theme.error
+                wrapMode: Text.WordWrap
+                font.pixelSize: list.theme.fsCaption
+                font.family: list.theme.fam(text, list.theme.families)
+                Accessible.role: Accessible.AlertMessage
+                Accessible.name: text
+            }
+
             // The question first (it names the signal), then the two answers.
             Column {
                 visible: row.confirming
@@ -179,24 +202,14 @@ Column {
         }
     }
 
-    Text {
-        visible: list.notice !== ""
-        width: list.width
-        text: list.notice
-        color: list.theme.error
-        wrapMode: Text.WordWrap
-        font.pixelSize: list.theme.fsCaption
-        font.family: list.theme.fam(text, list.theme.families)
-    }
-
     // The daemon checks pid and start time again before it signals, so a process that changed since the
-    // list was drawn is refused, never signalled.
+    // list was drawn is refused, never signalled. Its refusal is shown on the row that asked.
     function send(p) {
         if (p === null) return
         var action = p.kind === "kill" ? "sysmon.process.kill" : "sysmon.process.term"
         list.store.act(action, {pid: p.pid, start: p.start}, function (done, err) {
             list.pending = null
-            list.notice = err ? list.tr(err.msg) : ""
+            list.refusal = err ? {pid: p.pid, start: p.start, msg: err.msg} : null
         })
     }
 }
