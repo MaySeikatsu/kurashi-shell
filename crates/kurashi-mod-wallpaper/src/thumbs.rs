@@ -236,6 +236,22 @@ pub fn clear(cache: &Path) -> io::Result<()> {
     }
 }
 
+/// The bytes the cache holds now: `wallpaper.thumbs` reports them on the first page, so the picker can say what
+/// a clear frees. A missing cache holds nothing.
+pub fn size(cache: &Path) -> io::Result<u64> {
+    let read = match fs::read_dir(cache) {
+        Ok(read) => read,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
+        Err(e) => return Err(e),
+    };
+    Ok(read
+        .flatten()
+        .filter_map(|item| item.metadata().ok())
+        .filter(|meta| meta.is_file())
+        .map(|meta| meta.len())
+        .sum())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -407,6 +423,24 @@ mod tests {
         assert_eq!(trim(&cache, total - 1).unwrap(), 1, "one group goes");
         assert!(ta.file.is_file(), "the used one stays");
         assert!(!tb.file.exists(), "the one not used since goes");
+    }
+
+    #[test]
+    fn the_cache_reports_the_bytes_it_holds_and_none_when_missing() {
+        let dir = scratch("size");
+        let cache = dir.join("cache");
+        assert_eq!(size(&cache).unwrap(), 0, "a missing cache holds nothing");
+        let img = dir.join("sized.png");
+        write_png(&img, 64, 64, |_, _| [90, 90, 200]);
+        ensure(&cache, &img).unwrap();
+        let total: u64 = fs::read_dir(&cache)
+            .unwrap()
+            .map(|e| e.unwrap().metadata().unwrap().len())
+            .sum();
+        assert!(total > 0, "a thumbnail and its palette are on disk");
+        assert_eq!(size(&cache).unwrap(), total);
+        clear(&cache).unwrap();
+        assert_eq!(size(&cache).unwrap(), 0, "a clear frees all of it");
     }
 
     #[test]

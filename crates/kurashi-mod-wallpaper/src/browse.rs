@@ -99,7 +99,8 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
         .collect();
 
     let cache = shared.dirs.thumbs();
-    let made = tokio::task::spawn_blocking(move || {
+    let first_page = offset == 0;
+    let (made, cache_bytes) = tokio::task::spawn_blocking(move || {
         let made: Vec<_> = page
             .into_iter()
             .map(|e| {
@@ -108,7 +109,13 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
             })
             .collect();
         trim_throttled(&cache);
-        made
+        // The first page says how much the cache holds, so the picker's "Clear thumbnails" can say what it frees.
+        let bytes = if first_page {
+            thumbs::size(&cache).ok()
+        } else {
+            None
+        };
+        (made, bytes)
     })
     .await
     .map_err(|e| ActionError::Internal(e.to_string()))?;
@@ -147,7 +154,7 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
             row
         })
         .collect();
-    Ok(Some(json!({
+    let mut reply = json!({
         "total": total,
         "offset": offset,
         "rows": rows,
@@ -155,7 +162,12 @@ pub async fn thumbs(shared: &Arc<Shared>, args: Value) -> Result<Option<Value>, 
         "folder": folder.as_ref().map(|(f, _)| f.display().to_string()),
         "root": folder.as_ref().map(|(_, r)| r.display().to_string()),
         "children": children,
-    })))
+    });
+    // `cache.bytes` on the first page only, and absent (never null) when the cache cannot be read (PROTOCOL B25).
+    if let Some(bytes) = cache_bytes {
+        reply["cache"] = json!({"bytes": bytes});
+    }
+    Ok(Some(reply))
 }
 
 /// `wallpaper.cache.clear`: removes the thumbnails and palettes; they are made again on demand.

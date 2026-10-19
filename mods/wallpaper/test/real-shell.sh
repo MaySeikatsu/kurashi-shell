@@ -4,8 +4,9 @@
 # own root resolves. Steps: a library of real pictures (a subfolder, a light/dark pair, a monochrome picture, a broken
 # file); a FAKE awww / awww-daemon first on PATH, logging its argv (the real backend is never run); `mod.enable
 # wallpaper`; `mod.panel.open` shows the picker in the Stage card; screenshots of each state and the keyboard run
-# (tools/bench/wl_keys.py). Screenshots: mods/wallpaper/shots/real-<state>.png. Shift and Ctrl variants of the keys
-# are not drivable by wl_keys.py (no modifiers); they are covered by reading the code, and reported as such.
+# (tools/bench/wl_keys.py, with its modifiers: Shift+Return, Ctrl+Return). Each keyboard path is also a
+# check (ok / FAIL on the fake backend's log and the state file); a FAIL makes the run exit 1.
+# Screenshots: mods/wallpaper/shots/real-<state>.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid, kurashi>  \
 #     nix develop -c mods/wallpaper/test/real-shell.sh [sandbox-name]
 # Binaries are copied first (shared target dirs are overwritten by other builds).
@@ -122,7 +123,7 @@ start_keys() {
   KEYPID=$!
   exec 3> "$R/keys.fifo"
 }
-press() {  # one key per argument, with a short pause so each lands before the next
+press() {  # one key per argument (chords as shift+return), with a short pause so each lands before the next
   local k
   for k in "$@"; do
     printf '%s\n' "$k" >&3
@@ -136,6 +137,20 @@ shot() {  # name: give the picker time to page its thumbnails, then grab the out
   [ -s "$OUT/real-$1.png" ] || { echo "empty screenshot $1" >&2; exit 1; }
   echo "shot real-$1"
 }
+
+# The checks: each prints ok or FAIL; a FAIL makes the run exit 1 (the acceptance is a green run).
+FAILS=0
+expect() {  # description command...: the check passes when the command succeeds
+  local what=$1; shift
+  if "$@"; then echo "ok: $what"; else echo "FAIL: $what"; FAILS=$((FAILS + 1)); fi
+}
+# What the backend was last asked for: the fake logs `awww img <path> [--outputs <name>] …` (no --outputs = every output).
+backend_last() { grep "awww img" "$WP_LOG" | tail -n 1; }
+backend_last_is() { backend_last | grep -q "/$1 "; }
+backend_last_has() { backend_last | grep -q -- "--outputs $1"; }
+backend_last_no_output() { backend_last | grep -q "awww img" && ! backend_last | grep -q -- "--outputs"; }
+# The theme follows this picture: the state file's theme_image ends with it.
+state_theme_is() { grep -q "\"theme_image\": *\"[^\"]*/$1\"" "$R/xdg/state/kurashi/wallpaper.json" 2>/dev/null; }
 
 open_picker() {
   K act mod.enable '{"id": "wallpaper"}' >/dev/null
@@ -183,8 +198,6 @@ scenario() {  # name folders backend [WP_NODAEMON]
 }
 
 # ---- scenarios ---------------------------------------------------------------------------------------
-# The picker's normal state, then the keyboard run: the grid, the preview with its theme, the theme switch, a look,
-# the shuffle, the apply, and the folder row (Up from the first row, Left/Right, Return, Backspace).
 # Memory: a fresh shell with the picker closed, then the picker open on the same library (the difference is the
 # picker's own cost while it is open; the shell's PSS is sampled three times each).
 write_config "$R/pics" awww
@@ -200,50 +213,76 @@ close_picker
 stop_shell
 stop_daemon
 
+# The keyboard run, in the order the picker's focus moves. Coordinates are physical px on the 2560 x 1440 output:
+# the HEADLESS-1 chip (1082, 97), All outputs (975, 97), the row-2 tile of the first column (1021, 362), Apply look
+# (1466, 634), the header's overflow (1609, 65).
 scenario grid "$R/pics" awww
 start_keys
-press down right
+press down right                        # 06-wall-light
 shot preview
 press t
 shot theme-off
 press t
-press f
+press f                                 # keep it as a look
 WAIT=2 shot kept-look
-# The one-click look: Apply look (shown for a saved look) applies its picture with its theme. Clicked at the button
-# (physical px on the 2560 x 1440 sandbox output, the row under the preview's actions).
-click_at 1157 634
+# Apply look (the preview's row, its last button): the look's picture with its theme. Clicked: the grid keeps the focus.
+click_at 1466 634
 sleep 2
-echo "look applied: $(grep "awww img" "$WP_LOG" | tail -n 1)"
-echo "theme after the look: $(grep -o '"theme_image": *"[^"]*"' "$R/xdg/state/kurashi/wallpaper.json")"
-press r
-WAIT=2 shot shuffled
-press down down
-WAIT=2 shot grid-moved
-
-# Return applies the selected picture with the theme, from its tile (the origin is the tile's centre).
+expect "Apply look puts its picture in effect" backend_last_is 06-wall-light.png
+expect "Apply look makes the theme follow its picture" state_theme_is 06-wall-light.png
+click_at 1021 362                       # 05-wall-dark: the grid takes the focus and the selection
+# Tab from the grid goes to the preview's actions (the theme switch first), not out of the picker (I32).
+press tab                               # the theme switch takes the focus
+press space                             # Space presses it: the switch reads Theme: off in the shot
+WAIT=1 shot tab-from-grid
+press space                             # on again
+click_at 1021 362                       # the grid again; 05 stays selected
+# Ctrl+Return: the picture alone; the theme keeps the picture it had.
+press ctrl+return
+sleep 2
+expect "Ctrl+Return sets the picture" backend_last_is 05-wall-dark.png
+expect "Ctrl+Return keeps the theme's picture" state_theme_is 06-wall-light.png
+# Return: the picture with its theme.
 press return
 sleep 2
-echo "the backend was asked (the fake logs its argv):"
-grep "awww img" "$WP_LOG" | tail -n 1 || echo "NO awww img line"
-echo "the state file (the theme follows the picture, the look is kept):"
-grep -o '"theme_image": *"[^"]*"' "$R/xdg/state/kurashi/wallpaper.json" 2>/dev/null || echo "no theme_image in state"
-sed -n '/"favourites"/,/]/p' "$R/xdg/state/kurashi/wallpaper.json" 2>/dev/null || echo "no favourites in state"
-
-# The folder row: from the first grid row, Up goes to the chips; Right moves to the library's folder, Return opens it;
-# Up again lands on its crumb, Right reaches its subfolder, Return opens that; Backspace goes back up.
+expect "Return sets the picture and its theme" state_theme_is 05-wall-dark.png
+# One output chosen: Return sets that output; Shift+Return sets every output (the call names no output).
+click_at 1082 97                        # HEADLESS-1
+click_at 1021 362                       # 05-wall-dark: the grid takes the focus and the selection
+press return
+sleep 2
+expect "Return with one output chosen sets that output" backend_last_has HEADLESS-1
+press shift+return
+sleep 2
+expect "Shift+Return sets every output" backend_last_no_output
+click_at 975 97                         # All outputs again
+click_at 1021 362                       # the grid again
+press r                                 # shuffle
+WAIT=2 shot shuffled
+press down
+WAIT=2 shot grid-moved
+press up                                # back to the first row (the folder row is reached from it)
+# `/` from the grid focuses the search field; typing filters the library (07-sunset, in the sub folder); Escape clears it.
+# It runs before the folder row, while the library is unfiltered.
+press slash s u n
+WAIT=2 shot search
+press escape
+sleep 1
+# The folder row, from the keyboard: from the first grid row Up goes to the chips; Right moves to the library's folder and
+# Return opens it. The subfolder's chip is opened by a click (its place in the row is the chips' order, not a key walk).
 press left left left left left left left left left left up
 press right
 press return
-press up right
 WAIT=2 shot folder-root
-press up right return
+click_at 1056 127                       # sub 1
 WAIT=2 shot folder-sub
-press backspace
+press backspace                         # Backspace goes back up to the library's folder
 WAIT=2 shot after-backspace
-# Search through the keyboard: from the folder row, Right to the looks chip, Tab to the search field, then type.
-press up right right right tab s u n
-WAIT=2 shot search
-press return
+# The overflow in the header: the thumbnail cache and what a clear frees. Escape closes it.
+click_at 1609 65
+WAIT=2 shot cache-menu
+press escape
+WAIT=1 shot menu-closed
 stop_keys
 close_picker
 # The quick-settings tile the mod contributes (slot quick.tiles), with the picker closed.
@@ -261,3 +300,4 @@ scenario backend-down "$R/pics" awww
 stop_shell
 [ -n "$DPID" ] && stop_daemon
 echo "done: $OUT"
+[ "$FAILS" -eq 0 ] || { echo "$FAILS check(s) failed"; exit 1; }
