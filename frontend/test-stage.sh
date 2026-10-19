@@ -261,7 +261,8 @@ isl_shot pill-secondary
 { echo "move 1280 16"; sleep 3; } | timeout 20 python3 -I "$PTR" --serve &
 hover_pid=$!
 sleep 1.2
-isl_shot pill-peek
+# The peek is the Stage's now (K35), under the bar: a taller crop than the pill's.
+timeout 20 grim -g "900,0 760x160" "$ISL/pill-peek.png" || fail "grim failed on pill-peek"; echo "shot island/pill-peek"
 wait "$hover_pid" || true
 K act mock.island "{\"secondary\":null,\"overflow\":0,\"stale_at\":{\"clock\":$(( $(date +%s) * 1000 - 3600000 ))}}" >/dev/null
 sleep 1
