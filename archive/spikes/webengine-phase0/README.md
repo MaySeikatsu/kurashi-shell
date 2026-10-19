@@ -12,3 +12,15 @@ Evidence for K39, kept as it ran (store paths of that day; not part of any test)
 
 Results: stock Quickshell 0.3.1 aborts ("Argument list is empty"); patched: page loads, typed text arrives (the first
 key was lost both times), `VISITS 1` stored; Quickshell PSS 255–262 MiB with one view; two zygotes ~79 MB RSS each.
+
+## Engine comparison (same day, same sandbox, same page; `measure.sh`, `webkit-spike.py`, `webkit-shell.nix`)
+Total PSS of the client's whole process tree after load + typing "hello kurashi":
+
+| Client | Total PSS | Engine's share | Typed text |
+|---|---|---|---|
+| Quickshell, plain PanelWindow (`baseline-shell.qml`) | 97 MiB | — | — |
+| Patched Quickshell + QtWebEngine 6.11 (Chromium 140) | 390 MiB (host 256, renderer 74, zygotes 60) | ≈ 293 MiB | first key lost |
+| Python + GTK 4 layer-shell window, plain label | 114 MiB | — | — |
+| Python + GTK 4 + WebKitGTK 2.54 (bwrap sandbox on) | 294 MiB (UI 140, web 116, network 36) | ≈ 180 MiB | all keys |
+
+One tiny local page on machine B's iGPU, headless sway, a shared machine: real web apps cost much more in both.
