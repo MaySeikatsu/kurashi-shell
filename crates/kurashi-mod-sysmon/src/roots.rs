@@ -6,6 +6,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 #[derive(Clone, Debug)]
 pub struct Roots {
@@ -13,6 +14,8 @@ pub struct Roots {
     pub sys: PathBuf,
     /// The desktop-entry directories names are read from (I61), in precedence order.
     pub apps: Vec<PathBuf>,
+    /// The language the names are read in: the daemon's (`LC_ALL`, `LC_MESSAGES`, `LANG`), so `Name[ja]` wins in ja.
+    pub lang: String,
     /// The daemon's real uid. Processes of other users are listed, but never signalled (EPERM, shown).
     pub uid: u32,
     reads: Arc<AtomicUsize>,
@@ -25,24 +28,28 @@ impl Roots {
             proc: proc.into(),
             sys: sys.into(),
             apps: Vec::new(),
+            lang: "en".into(),
             uid,
             reads: Arc::default(),
             trace: None,
         }
     }
 
-    /// The live system: `/proc`, `/sys`, the XDG desktop-entry directories and this daemon's uid.
+    /// The live system: `/proc`, `/sys`, the XDG desktop-entry directories, the session's language and this daemon's uid.
     pub fn system() -> Self {
         let mut roots = Self::new("/proc", "/sys", rustix::process::getuid().as_raw());
         roots.apps = xdg_application_dirs();
+        roots.lang = language_from_env();
         roots
     }
 
     /// A fixture tree in place of the live system: `proc/`, `sys/` and `share/applications/` under `root`, owned by
-    /// `uid`. The states check serves its processes and devices this way; nothing is read outside the tree.
+    /// `uid`, named in the session's language. The states check serves its processes and devices this way; nothing
+    /// is read outside the tree.
     pub fn fixture(root: &Path, uid: u32) -> Self {
         let mut roots = Self::new(root.join("proc"), root.join("sys"), uid);
         roots.apps = vec![root.join("share/applications")];
+        roots.lang = language_from_env();
         roots
     }
 
@@ -71,6 +78,13 @@ impl Roots {
         let path = path.as_ref();
         self.note(path);
         std::fs::read_link(path).ok()
+    }
+
+    /// When a directory's entries last changed (added, removed or renamed), or None when it cannot be seen.
+    pub fn modified(&self, dir: impl AsRef<Path>) -> Option<SystemTime> {
+        let dir = dir.as_ref();
+        self.note(dir);
+        std::fs::metadata(dir).and_then(|m| m.modified()).ok()
     }
 
     /// Entries of a directory in name order (procfs and sysfs do not promise one). Empty when unreadable.
@@ -106,6 +120,22 @@ impl Roots {
 /// The name of a directory entry, or "" when it has none.
 pub fn name_of(path: &Path) -> &str {
     path.file_name().and_then(|n| n.to_str()).unwrap_or("")
+}
+
+/// The language of the session, as the daemon's i18n reads it (`kurashid::i18n::locale_from_env`): the first of
+/// `LC_ALL`, `LC_MESSAGES`, `LANG` that is set, cut at `_`, `.` or `@`; `C` and `POSIX` are English.
+pub fn language_from_env() -> String {
+    let raw = ["LC_ALL", "LC_MESSAGES", "LANG"]
+        .iter()
+        .filter_map(|k| std::env::var(k).ok())
+        .find(|v| !v.is_empty())
+        .unwrap_or_default();
+    let lang = raw.split(['_', '.', '@']).next().unwrap_or("");
+    if lang.is_empty() || lang == "C" || lang == "POSIX" {
+        "en".into()
+    } else {
+        lang.to_ascii_lowercase()
+    }
 }
 
 /// `applications/` under the user's data home, then under each XDG data dir (the freedesktop lookup order).

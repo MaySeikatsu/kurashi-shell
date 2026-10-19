@@ -265,6 +265,41 @@ mod tests {
     }
 
     #[test]
+    fn a_process_whose_ticks_went_backwards_has_no_share_for_that_scan() {
+        // A suspend, or counters that started again: no share for that scan (never a spike, never negative), and the
+        // next scan is measured from the reset ticks.
+        let dir = tempfile::tempdir().unwrap();
+        let roots = Roots::new(dir.path(), dir.path(), 1000);
+        let t0 = Instant::now();
+        let mut table = Table::default();
+        write_proc(
+            dir.path(),
+            900,
+            &stat_line(900, "burner", 'R', 1, 1000, 500, 1000),
+            Some(1000),
+        );
+        table.scan(&roots, t0, 4, 1 << 30, 4096);
+        write_proc(
+            dir.path(),
+            900,
+            &stat_line(900, "burner", 'R', 1, 40, 500, 1000),
+            Some(1000),
+        );
+        let reset = table.scan(&roots, t0 + Duration::from_secs(2), 4, 1 << 30, 4096);
+        assert_eq!(reset[0].cpu, None);
+        // 200 ticks (2 s of one core) in the 2 s since the reset: 25 % of the 4-core machine.
+        write_proc(
+            dir.path(),
+            900,
+            &stat_line(900, "burner", 'R', 1, 240, 500, 1000),
+            Some(1000),
+        );
+        let after = table.scan(&roots, t0 + Duration::from_secs(4), 4, 1 << 30, 4096);
+        let cpu = after[0].cpu.unwrap();
+        assert!((cpu - 25.0).abs() < 1e-9, "{cpu}");
+    }
+
+    #[test]
     fn kernel_threads_zombies_and_pids_one_and_two_are_not_listed() {
         let dir = tempfile::tempdir().unwrap();
         let roots = Roots::new(dir.path(), dir.path(), 1000);
