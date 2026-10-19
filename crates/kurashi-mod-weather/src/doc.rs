@@ -224,6 +224,37 @@ fn fill(doc: &mut Map<String, Value>, d: &Data, i: &Input, place: &Place) {
     }
 }
 
+/// The answer of `weather.place.preview`: a candidate place's forecast as the panel's one line needs it, in the unit
+/// system of the document (converted here; the frontend only formats). Now: the condition, the temperature and whether
+/// it is day. Today is the place's own date, so a zone ahead of this machine does not show yesterday's range; without
+/// that date in the forecast there is no `today`. `age_s` says how old the forecast is (Shōjiki).
+pub fn preview(data: &Data, now: i64, u: Units) -> Value {
+    let f = &data.forecast;
+    let today = local_at(now, f.utc_offset_s).date();
+    let mut m = Map::new();
+    m.insert("units".into(), json!(u.key()));
+    m.insert(
+        "now".into(),
+        json!({
+            "temp": u.temp(f.now.temp),
+            "code": api::condition(f.now.wmo).key(),
+            "is_day": f.now.is_day,
+        }),
+    );
+    if let Some(day) = f.days.iter().find(|d| d.date == today) {
+        m.insert(
+            "today".into(),
+            json!({
+                "min": u.temp(day.min),
+                "max": u.temp(day.max),
+                "code": api::condition(day.wmo).key(),
+            }),
+        );
+    }
+    m.insert("age_s".into(), json!((now - data.fetched_at).max(0)));
+    Value::Object(m)
+}
+
 fn hour_json(h: &Hour, u: Units) -> Value {
     let mut m = Map::new();
     m.insert("t".into(), json!(fmt(h.time)));
@@ -411,5 +442,30 @@ mod tests {
             .unwrap()
             .timestamp();
         assert_eq!(fmt(local_at(unix, 32_400)), "2026-10-09T14:00");
+    }
+
+    #[test]
+    fn a_preview_names_today_by_the_places_clock_and_converts_the_units() {
+        let forecast = api::parse_forecast(include_str!("../tests/fixtures/forecast_tokyo.json"))
+            .expect("fixture");
+        // 2026-10-09 14:00 in Tokyo, the fixture's `current` time.
+        let data = Data {
+            forecast,
+            fetched_at: 1_791_522_000,
+        };
+        let metric = preview(&data, 1_791_522_000 + 120, Units::Metric);
+        assert_eq!(metric["now"]["code"], json!("partly_cloudy"));
+        assert_eq!(metric["now"]["temp"], json!(21.4));
+        assert_eq!(metric["now"]["is_day"], json!(true));
+        assert_eq!(metric["today"]["min"], json!(13.8));
+        assert_eq!(metric["today"]["max"], json!(23.1));
+        assert_eq!(metric["age_s"], json!(120));
+        let imperial = preview(&data, 1_791_522_000, Units::Imperial);
+        assert_eq!(imperial["units"], json!("imperial"));
+        assert!((imperial["now"]["temp"].as_f64().unwrap() - 70.52).abs() < 1e-9);
+        assert!((imperial["today"]["max"].as_f64().unwrap() - 73.58).abs() < 1e-9);
+        // Thirty days on, the place's day is not in the forecast: no `today`, rather than another day's range.
+        let later = preview(&data, 1_791_522_000 + 30 * 86_400, Units::Metric);
+        assert!(later.get("today").is_none());
     }
 }

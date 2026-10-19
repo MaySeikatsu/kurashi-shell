@@ -22,10 +22,18 @@ pub const GEOCODE_JA: &str = include_str!("../fixtures/geocode_tokyo_ja.json");
 /// 2026-10-09 14:00 in Tokyo (UTC+9): the fixture's `current` time.
 pub const TOKYO_1400: i64 = 1_791_522_000;
 
-/// Records what the mod asks of the island: one line per raise or clear.
+/// Records what the mod asks of the island and of its clock slot: one line per raise, clear or slot reason.
 #[derive(Default)]
 pub struct Recorder {
     pub faces: Mutex<Vec<String>>,
+    pub slots: Mutex<Vec<String>>,
+}
+
+impl Recorder {
+    /// The slot reasons asked so far, oldest first (`clock.expanded.aside Some("…")` or `… None`).
+    pub fn slot_calls(&self) -> Vec<String> {
+        self.slots.lock().expect("slots").clone()
+    }
 }
 
 impl Hooks for Recorder {
@@ -41,6 +49,13 @@ impl Hooks for Recorder {
     }
 
     fn choices_changed(&self, _source: &str) {}
+
+    fn slot_reason(&self, slot: &str, reason: Option<&str>) {
+        self.slots
+            .lock()
+            .expect("slots")
+            .push(format!("{slot} {reason:?}"));
+    }
 }
 
 /// One enable of the mod. `tx` is the settings feed: dropping it ends the mod's settings feed
@@ -65,6 +80,7 @@ pub fn enable(m: &WeatherMod, values: Values) -> Enabled {
         "island-face:weather",
         "choices:weather.places",
         "job:rain",
+        "slot:clock.expanded.aside",
     ]
     .iter()
     .map(|s| (*s).to_owned())
