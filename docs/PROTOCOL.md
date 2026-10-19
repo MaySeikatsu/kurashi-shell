@@ -21,6 +21,18 @@ The M0 bake-off uses the **probe subset** (§8), served by `kurashi-mock`.
 cached revisions and re-subscribes everything.
 Version mismatch → `{"t":"goodbye","reason":"version","supported":[1]}`.
 
+**Scoped connections (K38, MODS.md "Host processes").** A mod's host process says who it is with the token the daemon
+handed it when it started the process (`KURASHI_SCOPE_MOD`, `KURASHI_SCOPE_TOKEN`):
+```json
+→ {"t":"hello","v":1,"client":"webdock-host","caps":["intents"],"scope":{"mod":"webdock","token":"6f1c2a9e4b7d0835"}}
+```
+A token the daemon did not issue for that mod's running host (or one already used by another live connection) →
+`{"t":"goodbye","reason":"scope","supported":[1]}`. A scoped connection may `sub`/`unsub`/`resync` the mod's own
+documents (`mod.<id>` and `mod.<id>.*`), `theme` and `i18n`, and `act` the mod's own actions (`<id>.*`); `ping`
+as usual. Everything else (other documents and actions, `cfg.*`, `apply`, `undo`, `intent`, `query`) answers
+`{"t":"err","id"?, "kind":"forbidden","msg":"…"}` and the connection stays open. The daemon counts the host as
+running from this hello until the connection closes. Pinned by `fixtures/ipc/client/hello_scope.json`.
+
 ## 3. State documents (subscribe / snapshot / patch)
 State is exposed as named **documents** (`config`, `theme`, `runtime.island.main`,
 `svc.audio`, `svc.workspaces`, …).
@@ -152,7 +164,8 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   catalogue key `config.face.<id>` for a core face and the providing mod's name for a mod's face (I37).
 
 ## 7. Errors & lifecycle
-`{"t":"err","id"?, "kind":"invalid|unknown_doc|unknown_action|unavailable|internal","msg":"…"}`
+`{"t":"err","id"?, "kind":"invalid|unknown_doc|unknown_action|unavailable|forbidden|internal","msg":"…"}`
+(`forbidden`: outside a scoped connection's scope, §2).
 Keepalive: `ping`/`pong`. Shutdown: `{"t":"bye","reason":"shutdown"}`; clients reconnect with
 backoff (250 ms → 4 s) and show a veil after 2 s disconnected.
 A client that stops reading lets its reply queue fill (1024 messages): the daemon sends

@@ -27,6 +27,7 @@ impl Client {
             v: 1,
             client: "test".into(),
             caps: vec![],
+            scope: None,
         })
         .await;
         assert!(matches!(c.recv().await, ServerMsg::Welcome { .. }));
@@ -163,6 +164,7 @@ async fn hello_required_and_version_checked() {
         v: 99,
         client: "old".into(),
         caps: vec![],
+        scope: None,
     })
     .await;
     assert!(matches!(c.recv().await, ServerMsg::Goodbye { supported, .. } if supported == vec![1]));

@@ -845,7 +845,7 @@ impl Native {
 }
 
 /// Whether a manifest declares something only linked daemon code can serve: a service, an action, an
-/// island face, a choice source or a background job (B15). Frontend-only provides (widgets, panels,
+/// island face, a choice source, a background job or a host process (B15, K38). Frontend-only provides (widgets, panels,
 /// slots, palettes…) need no code and stay enable-able.
 fn needs_daemon_code(m: &Manifest) -> bool {
     m.provides.iter().any(|p| {
@@ -856,6 +856,7 @@ fn needs_daemon_code(m: &Manifest) -> bool {
                 | Provide::IslandFace(_)
                 | Provide::Choices(_)
                 | Provide::Job(_)
+                | Provide::Host(_)
         )
     })
 }
