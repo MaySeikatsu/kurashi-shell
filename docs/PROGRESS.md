@@ -169,6 +169,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W18.0 | Contract: peek `edge`/`y`/`h` (row 98), diff `same_value` (row 99) | ✅ | lead |
 | W18.1 | Quick tiles: 160×56 contributions, wallpaper/hello as QuickTile, mock parity (I52, I50) | 🔄 | W18-quick-tiles |
 | W18.2 | Peeks on every bar edge, fade-out, state shots, `just peek`, mods-live kinds from manifests (I67) | 🔄 | W18-peeks |
-| W18.3 | Sysmon: main GPU, localized/version-like names, undrawn states (I65) | 🔄 | W18-sysmon |
-| W18.4 | Profiles page follow-ups, records editor keyboard paths, wl_keys URL characters (I64, I81) | 🔄 | W18-settings |
+| W18.3 | Sysmon: main GPU, localized/version-like names, undrawn states (I65) | ✅ functional · UX ⏳ (screen reader, cgroup limits: I84) | W18-sysmon e0879c5 |
+| W18.4 | Profiles page follow-ups, records editor keyboard paths, wl_keys URL characters (I64, I81) | ✅ | W18-settings 584265b + lead row 101, two editor fixes |
 
