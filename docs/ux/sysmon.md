@@ -70,6 +70,12 @@ marks removed, desktop entry name when one matches); the shell's own processes (
 the same user, the Quickshell frontend and Settings) carry the refusal reason `sysmon.error.shell` /
 `sysmon.error.shell_other`, and `sysmon.end` re-checks before any signal. `KURASHI_SYSMON_ROOT` (tests only) replaces
 `/proc`, `/sys` and the desktop entries and records signals instead of sending them.
+Session 7 (row 100, I65): `primary` is the awake GPU that drives a connected output (connector `status`, read only while
+two or more GPUs are awake; `boot_vga` breaks a tie; "the busiest" no longer decides). `name` is the desktop entry's
+`Name[<session language>]`, else `Name`; the index is re-read when an applications directory changes, checked only
+while `mod.sysmon.procs` is subscribed; a version- or hash-named executable takes the next meaningful directory above
+it, else argv[0]. A kernel refusal (EPERM) after the owner check is `sysmon.error.refused`, shown on the row. A counter
+that goes backwards (after a suspend) drops that sample and resets the baseline.
 
 ## Definition of done
 - [x] bar widget states: normal / activity / critical / paused / unavailable sensor (W15 state shots)
