@@ -150,3 +150,15 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | K35 | Stage-hosted peeks: daemon, contract, mock (frontend = W16) | 🔄 daemon ✅ | lead cf27536 |
 | W16.1 | K37 no-network sandboxes (I58), mock focus model + B14 two-output step (row 80), no nulls in mod.wallpaper (B25) | ✅ | W16-test-infra 31e7c74 |
 | W16.2 | K35 frontend: Stage-hosted peeks (tray tooltips, island line, sysmon, weather), two outputs, measured | ✅ functional · UX ⏳ (I67) | W16-peek-frontend e16d52e + lead edge gap, mods-live clause |
+
+## v0.2 — Web dock (session 7; K38, K39, `docs/ux/webdock.md`)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W17.0 | Phase 0: QtWebEngine in a Quickshell PanelWindow, typed input (headless sway) | ✅ with the Quickshell patch (K39); niri run open | `archive/spikes/webengine-phase0/` |
+| W17.1 | UX brief, K38/K39, contract rows 88–94, backlog I68–I74, B26–B27 | 🔄 draft — user review of the state machine | feat/v02-webdock-brief |
+| W17.2 | Records setting type + Settings editor + Nix pins (rows 89) | ⏳ | — |
+| W17.3 | Daemon mod `kurashi-mod-webdock`: state machine, document, actions, host supervisor, Zen reader (rows 90–93) | ⏳ | — |
+| W17.4 | Shell side: `surface:` provide, indicator, strip, card, view pins (row 88) | ⏳ | — |
+| W17.5 | Web host on patched Quickshell: profiles, mobile/desktop, freeze, sheets, chips (B26, B27, row 94) | ⏳ | — |
+| W17.6 | Nix: `kurashi-webdock` package apart from the base closure, HM/NixOS options | ⏳ | — |
+
