@@ -292,3 +292,35 @@ KURASHI_SANDBOX_NETNS_ID`. *Why:* a stale sandbox daemon fetched the real Open-M
 hermetic by construction, not by every test remembering a fixture hook. Evidence: the `netcheck` lines in
 `frontend/test-stage.sh` and `test-real.sh` logs.
 
+
+**K38** 🟢 Web dock (user decisions, session 7; BACKLOG I68; `docs/ux/webdock.md`). A native mod `webdock` ("Web dock", off
+by default): a dock at one screen edge (right by default; left/right/top/bottom) with hidden / compact / extended modes,
+pinned open or hover-driven, whose pins are sites or kurashi views (mod panels). **Web content runs in its own
+on-demand process** — the web host, a Quickshell config with QtWebEngine — that the daemon starts on the first web open
+and stops after `unload_after` minutes (default 60) without a shown site; the indicator and the icon strip are drawn
+by the shell (a mod surface), so a hover reveals at once while the engine is cold. The daemon owns the mode state
+machine, the pins (config) and the host's lifecycle. **Engine = Chromium (QtWebEngine 6.11):** Gecko has no embedding
+API on desktop Linux (Mozilla dropped embedding in 2011, GeckoView is Android-only:
+[LWN](https://lwn.net/Articles/436456/)) and Zen removed its own web panels (April 2025), so **Zen is a bridge, not the
+engine**: its bookmarks as a pin source (read from a copy of `places.sqlite`, on demand), "open in browser", clipboard,
+drag and drop. Logins cannot cross engines: one profile per pin, or a named profile shared by pins. **Mobile view** =
+mobile user agent + phone width, a per-pin view the user flips — never a per-site workaround for sign-in checks;
+Google may refuse sign-in in an embedded engine (documented, no spoofing). *Why:* Phase 0 (headless sway, machine B,
+2026-10-19): one WebEngineView in a Quickshell PanelWindow costs **255–262 MiB PSS in the hosting process** plus two
+zygotes (~79 MB RSS each) and the page and GPU processes — more than the whole frontend budget (K16, 150 MiB) — and
+Chromium's browser process must not share a process with the lock screen (K20); in-process WebEngine cannot be
+unloaded, a process can. Settings is such a process already (K2). Floorp's panel sidebar (container per panel, mobile
+user agent option, open on hover, click to keep) is the closest model; Edge is removing its sidebar apps (Edge 149).
+
+**K39** 🟢 The web host runs on a **patched Quickshell**; the shell keeps stock Quickshell (K3; user decision, session 7).
+Stock 0.3.1 and upstream master create the application with `argc = 0`, and QtWebEngine aborts ("Argument list is
+empty, the program name is not passed to QCoreApplication"). `nix/patches/quickshell-webengine.patch` passes `argv[0]`
+and adds `//@ pragma ShareOpenGLContexts` (sets `Qt::AA_ShareOpenGLContexts` before the application exists, Qt's
+documented requirement for QtWebEngine in QML). Phase 0 with the patch, with and without the pragma: the view renders in
+a layer-shell PanelWindow (`keyboardFocus: OnDemand`), takes typed text (wtype), keeps a disk profile, and Chromium's
+sandbox stays on (zygote in its own namespaces). The patch goes upstream; the override goes when a release carries it.
+Open (host card): a nested-niri run, the first keystroke was lost, and the test sandbox's `netjoin.so` refuses
+Chromium's sandboxed zygote (it runs in its own empty network namespace) — the spike cleared `LD_PRELOAD` for the host's
+children (they inherit the namespace); the host card amends K37 instead (row 94). Spike files:
+`archive/spikes/webengine-phase0/`. *Why:* the host reuses kurashi's QML kit, Store/Theme/I18n and IPC client; the
+alternative (a C++ host) duplicates them for a two-line patch.

@@ -14,7 +14,7 @@
 | M7 | Hardening → v0.1 (budgets green, `kurashi doctor`, NixOS/HM modules, docs) | Opus | BENCH budgets met; user switches from shellseikatsu |
 
 ## v0.2 — productivity & media mods
-dock/sidebar (multi-instance, pin/hover/compact), media + lyrics (bar/wallpaper), visualizer +
+dock/sidebar (multi-instance, pin/hover/compact; first: the web dock, K38 and `docs/ux/webdock.md`), media + lyrics (bar/wallpaper), visualizer +
 audio ripple, wallpaper (+Wallhaven, video), clipboard, sysmon, weather, calendar, notes, tasks
 (internal/obsidian/todoist/ticktick), emoji, pass, PWA, radio, news, links; Luau host API spec.
 
