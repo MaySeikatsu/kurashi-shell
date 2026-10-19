@@ -24,6 +24,8 @@ Singleton {
     // key -> error text of the last rejected apply touching it (cleared by the next apply of it, and by any change
     // that goes through: a refusal is stale once something else succeeded, B8)
     property var rowErrors: ({})
+    // A records row (K38): the refusal of one of its fields, {index, field, text}, shown by the editor at that field.
+    property var fieldErrors: ({})
     // Undo/redo/profile failures that belong to no row.
     property string notice: ""
     // Undo and redo availability is the daemon's `config.history` (K27): current after every change, undo, redo and
@@ -65,7 +67,7 @@ Singleton {
         })
     }
     // A change went through: refusal lines still shown by rows are stale now (B8), and Redo is the daemon's again.
-    function noteApplied() { rowErrors = ({}); redoHidden = false; changeApplied() }
+    function noteApplied() { rowErrors = ({}); fieldErrors = ({}); redoHidden = false; changeApplied() }
 
     // --- config helpers ------------------------------------------------------------------------
     // Provenanced {value, source, forced_by?, reason?}; the output entry wins when present.
@@ -305,17 +307,30 @@ Singleton {
         var errs = Object.assign({}, rowErrors)
         keys.forEach(function (k) { delete errs[k] })
         rowErrors = errs
+        var fe = Object.assign({}, fieldErrors)
+        keys.forEach(function (k) { delete fe[k] })
+        fieldErrors = fe
         notice = ""
         return request({ t: "apply", ops: ops }, function (m) {
             if (m.t === "applied") noteApplied()
             if (m.t === "rejected") {
                 var e = Object.assign({}, rowErrors)
+                var f = Object.assign({}, fieldErrors)
                 var attempted = {}
                 ops.forEach(function (o) { if (o.set) attempted[o.set] = o.value })
                 m.errors.forEach(function (er) {
+                    // A records value names the row and field it is wrong at (K38): `<key>[<n>].<field>`. The editor shows
+                    // it at that field; a row-level one (`<key>[<n>]`) stays on the row's line.
+                    var path = /^(.*?)\[(\d+)\](?:\.([a-z0-9_]+))?$/.exec(er.key || "")
+                    if (path) {
+                        e[path[1]] = errorText(er)
+                        if (path[3]) f[path[1]] = { index: Number(path[2]), field: path[3], text: errorText(er) }
+                        return
+                    }
                     e[er.key] = errorText(er) + (attempted[er.key] !== undefined ? " (" + displayValue(attempted[er.key]) + ")" : "")
                 })
                 rowErrors = e
+                fieldErrors = f
             }
             if (cb) cb(m)
         })
