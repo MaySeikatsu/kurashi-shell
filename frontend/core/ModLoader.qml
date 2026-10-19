@@ -15,6 +15,10 @@ Loader {
     property string mod: ""         // optional: the entry that must provide `provide`
     property string url: ""         // a file URL the caller holds (runtime.slots); wins over `provide`
     property bool shown: true       // the placing view's visibility gate (Ma): nothing is loaded while false
+    // Values for the loaded component's own properties (W19: `date` of a day mark, row 71; `reason` of a contribution
+    // that needs setup, row 72). They are set on each load and whenever they change, and only on a property the
+    // component declares: a name it does not declare reads undefined and is skipped, so nothing warns.
+    property var extra: ({})
 
     // Store.docs changes on every document update; this value changes only when `mods` does.
     readonly property var modsDoc: Store.docs["mods"]
@@ -31,5 +35,16 @@ Loader {
         if (want === "") { source = ""; return }
         setSource(want, { store: Store, theme: Theme, i18n: I18n })
     }
+    // W19: the `extra` values on the component now loaded. An undefined value is not set (it would undo a binding the
+    // component keeps on that property).
+    function applyExtra() {
+        var it = ml.item
+        if (!it) return
+        for (var k in ml.extra) {
+            if (it[k] !== undefined && ml.extra[k] !== undefined) it[k] = ml.extra[k]
+        }
+    }
+    onExtraChanged: applyExtra()
+    onItemChanged: applyExtra()
     onStatusChanged: if (status === Loader.Error) console.warn("ModLoader: cannot load " + source)
 }

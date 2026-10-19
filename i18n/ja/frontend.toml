@@ -34,3 +34,7 @@
 "frontend.volume.muted" = "ミュート"
 "frontend.volume.level" = "音量 {pct} %"
 "frontend.quick.open" = "クイック設定"
+
+# W19-calendar (clock view: week numbers, the weather aside's setup state)
+"frontend.clock.week_n" = "{n}週"
+"frontend.clock.aside.no_place" = "場所が未設定"

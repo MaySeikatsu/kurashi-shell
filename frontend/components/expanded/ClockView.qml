@@ -6,21 +6,42 @@ import ".."
 // accent, the selected day's agenda (the clock.expanded.day slot, with its reason while no calendar contributes), the
 // weather aside (clock.expanded.aside) and the footer slot (clock.expanded.footer). Keyboard on the grid: the arrows move
 // the selected day (Up and Down a week), PageUp and PageDown a month, Home goes to today. Dates are written in kurashi's
-// language, the i18n document's locale (ja, else English, the daemon's fallback), not the system's (B19). Weeks start on
-// Monday. The grid is built from svc.clock.date, the day the daemon means. Watches svc.clock only while on screen (Ma).
-// Event dots need a per-day contract that the slots do not give yet, so none are drawn.
+// language, the i18n document's locale (ja, else English, the daemon's fallback), not the system's (B19).
+// W19 (rows 71, 72; I46): the weeks start on `clock.week_start` (auto: Sunday for ja, Monday otherwise), and the grid shows
+// ISO week numbers when `clock.week_numbers` is on. Each day cell hosts the `clock.expanded.daymark` contributions (three
+// at most, side by side under the number, each given the cell's `date`); with none, no object is made.
+// The grid is built from svc.clock.date, the day the daemon means. Watches svc.clock and config only while on screen (Ma).
 Column {
     id: view
     width: parent.width
     spacing: Theme.gap
 
     Watch { doc: "svc.clock" }
+    Watch { doc: "config" }
     readonly property var d: Store.docs["svc.clock"] || ({})
     readonly property string lang: (Store.docs["i18n"] || ({})).locale === "ja" ? "ja" : "en"
     readonly property var loc: Qt.locale(lang)
     readonly property string headerFmt: lang === "ja" ? "yyyy年M月d日（dddd）" : "dddd, d MMMM yyyy"
     readonly property string monthFmt: lang === "ja" ? "yyyy年M月" : "MMMM yyyy"
     readonly property string agendaFmt: lang === "ja" ? "M月d日（ddd）" : "ddd d MMM"
+
+    // A value the daemon serves in `config` (`values[key].value`, with its provenance beside it); undefined until it does.
+    function configValue(key) {
+        var c = Store.docs["config"]
+        var p = c && c.values ? c.values[key] : undefined
+        return p ? p.value : undefined
+    }
+    // The first day of the week, as JS numbers it (0 Sunday .. 6 Saturday). auto, or a value this build does not know:
+    // Sunday for Japanese, Monday otherwise (the schema's own text for the key).
+    readonly property int firstDow: {
+        var w = configValue("clock.week_start")
+        if (w === "sunday") return 0
+        if (w === "monday") return 1
+        if (w === "saturday") return 6
+        return lang === "ja" ? 0 : 1
+    }
+    readonly property bool weekNumbers: configValue("clock.week_numbers") === true
+    readonly property int weekW: weekNumbers ? 26 : 0      // the week-number column and its gap, left of the grid
 
     // YYYY-MM-DD in the local zone. Anything else shows no grid rather than a guessed one.
     readonly property var ymd: /^\d{4}-\d{2}-\d{2}$/.test(d.date ?? "") ? String(d.date).split("-").map(Number) : []
@@ -31,11 +52,13 @@ Column {
     readonly property int year: sel.getFullYear()
     readonly property int month: sel.getMonth()             // 0..11
     readonly property date first: new Date(year, month, 1)
-    readonly property int lead: (first.getDay() + 6) % 7     // cells before day 1, Monday first
+    readonly property int lead: (first.getDay() - firstDow + 7) % 7     // cells before day 1, counted from the week's first day
     readonly property int count: new Date(year, month + 1, 0).getDate()
     readonly property bool todayInView: valid && today.getFullYear() === year && today.getMonth() === month
     readonly property int todayDay: today.getDate()
     readonly property int cell: 36
+    // Some contribution marks a day (row 71): the numbers move up to leave the marks their place under them.
+    readonly property bool marked: marks.entries.length > 0
 
     function select(date) { sel = new Date(date.getFullYear(), date.getMonth(), date.getDate()) }
     function shiftDays(n) { select(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + n)) }
@@ -46,6 +69,19 @@ Column {
         select(new Date(y, m, Math.min(sel.getDate(), last)))
     }
     function goToday() { if (valid) select(today) }
+    // YYYY-MM-DD of a day: the `date` a day mark is given.
+    function isoDate(y, m, d) {
+        return y + "-" + (m < 9 ? "0" : "") + (m + 1) + "-" + (d < 10 ? "0" : "") + d
+    }
+    // ISO 8601 week number of grid row `row` (0..5): the week of the row's Thursday, which lies in the row whatever day
+    // the weeks start on, so a Sunday-first row and a Monday-first row number alike.
+    function isoWeekOfRow(row) {
+        var start = new Date(year, month, 1 - lead + row * 7)
+        var thu = new Date(start.getFullYear(), start.getMonth(), start.getDate() + (4 - start.getDay() + 7) % 7)
+        var y = thu.getFullYear()
+        var days = Math.round((Date.UTC(y, thu.getMonth(), thu.getDate()) - Date.UTC(y, 0, 1)) / 86400000)
+        return Math.floor(days / 7) + 1
+    }
 
     Row {
         width: view.width
@@ -125,9 +161,12 @@ Column {
             event.accepted = true
         }
         FocusRing { anchors.fill: grid; shown: cal.activeFocus; corner: Theme.rSm }
+        // The day marks' contributions (row 71). The host draws none itself: each day cell below places one ModLoader
+        // per contribution, so this host only lists them.
+        SlotHost { id: marks; slot: "clock.expanded.daymark"; layout: "cells" }
         Grid {
             id: grid
-            anchors.horizontalCenter: parent.horizontalCenter
+            x: Math.round((cal.width - view.weekW - width) / 2 + view.weekW)
             columns: 7
             Repeater {
                 model: 7
@@ -140,18 +179,24 @@ Column {
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.family: Theme.fam(text, Theme.families)
-                    // Qt.DayOfWeek: Monday is 1.
-                    text: view.loc.standaloneDayName(index + 1, Locale.ShortFormat)
+                    // Column 0 is the week's first day. Qt numbers Monday 1 to Sunday 7, JS numbers Sunday 0.
+                    text: {
+                        var dow = (view.firstDow + index) % 7
+                        return view.loc.standaloneDayName(dow === 0 ? 7 : dow, Locale.ShortFormat)
+                    }
                 }
             }
             Repeater {
                 model: view.valid ? 42 : 0
                 delegate: Rectangle {
+                    id: dayCell
                     required property int index
                     readonly property int day: index - view.lead + 1
                     readonly property bool inMonth: day >= 1 && day <= view.count
                     readonly property bool isToday: inMonth && view.todayInView && day === view.todayDay
                     readonly property bool isSel: inMonth && day === view.sel.getDate()
+                    // The cell's date (yyyy-mm-dd) for the day marks; empty outside the month.
+                    readonly property string iso: inMonth ? view.isoDate(view.year, view.month, day) : ""
                     width: view.cell
                     height: view.cell
                     radius: Theme.rFull
@@ -162,11 +207,28 @@ Column {
                     Accessible.name: inMonth ? view.loc.toString(new Date(view.year, view.month, day), view.headerFmt) : ""
                     Text {
                         anchors.centerIn: parent
+                        anchors.verticalCenterOffset: view.marked ? -7 : 0
                         visible: parent.inMonth
                         color: parent.isToday ? Theme.fgOnAccent : Theme.fg
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
                         text: parent.day
+                    }
+                    // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number.
+                    // Each gets the cell's date; a cell outside the month gets none.
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 1
+                        spacing: 2
+                        Repeater {
+                            model: dayCell.inMonth ? marks.entries.slice(0, 3) : []
+                            delegate: ModLoader {
+                                required property var modelData
+                                url: modelData.qml
+                                extra: ({ date: dayCell.iso })
+                            }
+                        }
                     }
                     MouseArea {
                         anchors.fill: parent
@@ -177,6 +239,26 @@ Column {
                         }
                     }
                 }
+            }
+        }
+        // ISO week numbers beside the rows (W19, I46), when clock.week_numbers is on. Not focus stops: the grid's keys do it.
+        Repeater {
+            model: view.weekNumbers && view.valid ? 6 : 0
+            delegate: Text {
+                required property int index
+                readonly property string week: String(view.isoWeekOfRow(index))
+                x: grid.x - view.weekW
+                y: grid.y + view.cell / 2 + index * view.cell
+                width: view.weekW - Theme.xs
+                height: view.cell
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: week
+                Accessible.role: Accessible.StaticText
+                Accessible.name: I18n.tr("frontend.clock.week_n").replace("{n}", week)
             }
         }
     }
