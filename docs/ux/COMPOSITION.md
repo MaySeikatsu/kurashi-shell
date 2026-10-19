@@ -73,6 +73,27 @@ with `choices_from = "slot:<name>"`).
 - Relevance for mod faces goes through the core arbiter (K24), with the mod declaring its signals.
 - Cross-module data stays in each module's document; views subscribe to the ones they show (Ma).
 
+### The `quick.tiles` tile contract (W18, CONTRACT-CHANGE row 76)
+A `quick.tiles` contribution is a tile of the quick settings card (`docs/ux/quick-settings.md`), so it looks and behaves
+as the core tiles do.
+- **Form**: the contribution's root object is `QuickTile` from `qs.components.quick` (`import qs.components.quick`), the
+  component the core tiles use. Its implicit size is 160 × 56 px; the grid gives it a cell of half the card less the gap
+  × 56 px (196 × 56 px on the 400 px card), and the tile fills the cell.
+- **Props**: `glyph`, `label` (also its accessible name), `subtitle` (the value in effect; a reason, a forced-by note, a
+  failure or "Connecting…" shows over it), `reason` (unavailable: the tile dims and says why), `forcedBy` (inert, "Set by
+  …"), a switch (`toggles`, `req`: a `Request` with pending and failure), a one-step action on the main zone (`acts`, then
+  `activated`: e.g. the wallpaper tile's "next picture"), and a page (`hasPage`, `pageRequested`: the arrow zone and Right;
+  a mod opens its own Stage panel with `mod.panel.open`).
+- **Keys**: Tab reaches the tile; Enter and Space act; Right opens the page; the arrows move between cells, and a cell
+  that is not a tile is never focused (the arrows keep their places).
+- **Layout**: the core tiles come first, then the contributions in mod-id order, in the same two columns. A
+  contribution that is not a tile is clipped to its cell, so the grid never grows for it. A not-ready contribution takes
+  no cell (K28).
+- **Honesty and Ma**: the subtitle is the value in effect (Shōjiki). The contributions load only while the card is open
+  (the card's `runtime.slots` watch, `SlotHost` layout `cells`); a tile has no timer of its own.
+- **Tokens**: the on state reads `quick.tile.on.bg`, `quick.tile.on.badge` and `quick.tile.on.fg` from the theme document
+  when it has them (I51); without them the tonal look of the core tiles is drawn.
+
 ## Open
 - K28 contract: `runtime.slots` shape, manifest `slot:` provides, per-slot order keys.
 - Per-view size limits per output scale; how a card grows when a slot fills (animation, no jump).
