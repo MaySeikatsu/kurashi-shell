@@ -129,3 +129,9 @@
 "mod-weather.saved.down" = "{name}を下へ移す"
 "mod-weather.saved.hint" = "一番上の場所が既定です（設定で別の場所を選んでいる場合を除く）。"
 "mod-weather.aside.rain" = "降水確率 {pop}%"
+
+# W19-weather: 場所のプレビュー（予報を1行。操作の名前も）、時間ごとの降水の行、週の範囲。
+"mod-weather.action.preview" = "場所をプレビュー"
+"mod-weather.preview.loading" = "予報を取得しています…"
+"mod-weather.hours.rain" = "降水"
+"mod-weather.days.span" = "範囲 {min}〜{max}"

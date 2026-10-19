@@ -82,7 +82,7 @@
 "mod-weather.age.hours" = "{n} h ago"
 "mod-weather.next_try" = "Next try in {n} min"
 "mod-weather.refresh_wait" = "Refresh again in {n} s"
-"mod-weather.refresh_every" = "auto-refresh every {n} min"
+"mod-weather.refresh_every" = "Auto-refresh every {n} min"
 "mod-weather.scroll_hint" = "Scroll for the next saved place"
 "mod-weather.a11y.widget" = "Weather for {place}: {temp}, {condition}. Updated {age}."
 "mod-weather.a11y.widget_none" = "Weather: no place set. Activate to choose one in Settings."
@@ -129,3 +129,10 @@
 "mod-weather.saved.down" = "Move {name} down"
 "mod-weather.saved.hint" = "The top place is the default unless Settings names another."
 "mod-weather.aside.rain" = "Rain {pop}%"
+
+# W19-weather: the place preview (one line of its forecast, and the action's name), the rain row of the hourly strip,
+# the week's range in the seven-day header.
+"mod-weather.action.preview" = "Preview place"
+"mod-weather.preview.loading" = "Fetching the forecast…"
+"mod-weather.hours.rain" = "Rain"
+"mod-weather.days.span" = "Range {min} to {max}"
