@@ -235,6 +235,10 @@ pub struct DiffEntry {
     pub before: Option<Provenanced>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub after: Option<Provenanced>,
+    /// The value stays; only who sets it changes (a profile now sets what the user had set, I64). Absent when
+    /// the value changes.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub same_value: bool,
 }
 
 /// Why one op of a transaction was rejected. `code` is an i18n key (rule 8).

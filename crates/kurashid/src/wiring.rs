@@ -239,6 +239,20 @@ fn peek_of(hub: &Hub, a: &Value) -> Result<Option<Value>, ActionError> {
             .ok_or_else(invalid)
     };
     let (x, w) = (px("x")?, px("w")?);
+    // The bar's edge (I67): a side bar's peek also needs the widget's y and height; absent = a top bar.
+    let edge = match a.get("edge") {
+        None => None,
+        Some(Value::String(e)) if matches!(e.as_str(), "top" | "bottom" | "left" | "right") => {
+            Some(e.as_str())
+        }
+        Some(_) => return Err(invalid()),
+    };
+    let side = matches!(edge, Some("left" | "right"));
+    let span = if side {
+        Some((px("y")?, px("h")?))
+    } else {
+        None
+    };
     let ok = match source.split_once(':') {
         Some(("mod", rest)) => match rest.split_once(':') {
             Some((id, name)) if !id.is_empty() && !name.is_empty() => {
@@ -255,9 +269,15 @@ fn peek_of(hub: &Hub, a: &Value) -> Result<Option<Value>, ActionError> {
     if !ok {
         return Err(invalid());
     }
-    Ok(Some(
-        json!({"source": source, "output": output, "x": x, "w": w}),
-    ))
+    let mut peek = json!({"source": source, "output": output, "x": x, "w": w});
+    if let Some(edge) = edge {
+        peek["edge"] = json!(edge);
+    }
+    if let Some((y, h)) = span {
+        peek["y"] = json!(y);
+        peek["h"] = json!(h);
+    }
+    Ok(Some(peek))
 }
 
 /// `ui.peek` while a panel is open: the card is shown, a peek would sit on top of it.
@@ -2296,6 +2316,35 @@ mod tests {
                 actions.invoke("tray.menu.open", bad).await,
                 Err(ActionError::Invalid(ARGS_INVALID.into()))
             );
+        }
+    }
+
+    /// I67: a peek names its bar's edge; a side bar's peek carries the widget's y and height.
+    #[tokio::test]
+    async fn a_side_bar_peek_carries_its_edge_and_span() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+        let side = json!({"source": "tray:nm", "output": "DP-1", "x": 0, "w": 40, "edge": "left", "y": 300, "h": 32});
+        actions.invoke("ui.peek", side).await.unwrap();
+        assert_eq!(
+            ui_doc()["peek"],
+            json!({"source": "tray:nm", "output": "DP-1", "x": 0.0, "w": 40.0, "edge": "left", "y": 300.0, "h": 32.0})
+        );
+        let bottom =
+            json!({"source": "tray:nm", "output": "DP-1", "x": 10, "w": 40, "edge": "bottom"});
+        actions.invoke("ui.peek", bottom).await.unwrap();
+        assert_eq!(ui_doc()["peek"]["edge"], "bottom");
+        assert!(
+            ui_doc()["peek"].get("y").is_none(),
+            "a top or bottom bar needs no span"
+        );
+        for bad in [
+            json!({"source": "tray:nm", "output": "DP-1", "x": 0, "w": 40, "edge": "right"}),
+            json!({"source": "tray:nm", "output": "DP-1", "x": 0, "w": 40, "edge": "middle"}),
+        ] {
+            assert!(actions.invoke("ui.peek", bad).await.is_err());
         }
     }
 

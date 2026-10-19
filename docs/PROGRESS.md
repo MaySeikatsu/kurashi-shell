@@ -163,3 +163,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W17.E2E | Pins in the config → `webdock.open` → the daemon starts the host → scoped hello → page loaded; view toggle via the settings writer (undo); forged scope refused; disable stops the host | ✅ | lead `mods/webdock/test/test-real.sh`, `just webdock` |
 | W17.6 | Nix: `kurashi-webdock` package apart from the base closure, HM/NixOS options | ⏳ | — |
 
+## Wave 18 (session 7; contract rows 98–99)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W18.0 | Contract: peek `edge`/`y`/`h` (row 98), diff `same_value` (row 99) | ✅ | lead |
+| W18.1 | Quick tiles: 160×56 contributions, wallpaper/hello as QuickTile, mock parity (I52, I50) | 🔄 | W18-quick-tiles |
+| W18.2 | Peeks on every bar edge, fade-out, state shots, `just peek`, mods-live kinds from manifests (I67) | 🔄 | W18-peeks |
+| W18.3 | Sysmon: main GPU, localized/version-like names, undrawn states (I65) | 🔄 | W18-sysmon |
+| W18.4 | Profiles page follow-ups, records editor keyboard paths, wl_keys URL characters (I64, I81) | 🔄 | W18-settings |
+
