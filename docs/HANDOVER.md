@@ -17,6 +17,56 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, wave 17
+**State:** `main` green (`just check` 746 tests; `just webdock` = web host test against the mock + end-to-end against
+the real daemon; test-stage, test-peek, settings/test.sh). Wave 17 merged; nothing half-done.
+
+**Merged:** session-6 wave 16 (peeks, no-network sandboxes). Session 7 — the user's **web dock** request (an Edge/Floorp-
+style edge dock with pinned sites, from a WormShell prompt adapted to kurashi): Phase 0 spike
+(`archive/spikes/webengine-phase0/`: stock Quickshell aborts with QtWebEngine — `argc = 0`; a 2-line patch works;
+engine comparison QtWebEngine 390 MiB vs WebKitGTK 294 MiB for one page; net log shows zero engine requests); UX brief
+`docs/ux/webdock.md`; **K38** (web dock: own lazy host process, Chromium ungoogled by configuration, default browser as
+the bridge), **K39** (patched Quickshell `qs-webengine` for the host only; the shell keeps stock Quickshell); contract
+(scoped hello + `forbidden`, `host:` provide + `ModCtx::host`, `mod.webdock`, records type; rows 88–97); netjoin accepts
+loopback-only namespaces (K37 amended, B26). Wave 17 (3 Haiku cards): W17-webdock-host (QML host: profiles per pin,
+mobile/desktop UA + client hints, privacy switches, card states, sheets, blocked chips, freeze, mock parity),
+W17-webdock-daemon (host facility: start/scoped token/one restart/Failed/stop, scope enforcement, settings writer, mod
+`webdock`: actions, keep/max_loaded, idle unload), W17-records (records setting type: manifest, schema, kurashid,
+Settings editor). Lead: pins setting, `mods/webdock/test/test-real.sh`, B28 sheet fix, `just webdock`.
+
+**User decisions this session:** web dock = mod `webdock` "Web dock"; modes hidden/compact/extended (extended phone
+format by default, up to ~full screen); edge configurable (default right), hover reveal, pin/unpin, keybind + bar
+widget; kurashi pins first (sites and kurashi views); mobile/desktop toggle; lazy engine that unloads after 1 h;
+Chromium via QtWebEngine on a patched Quickshell (Gecko is not embeddable); "ungoogled" by configuration + net-log test
+(no ungoogled build, I76); the browser bridge is the **default browser**, never Zen by name; hybrid pins (I75) and
+browser bookmarks (I70) later; a browse/search section later (I69).
+
+**Open decision (ask before W17.4):** the eight interpretations in `docs/ux/webdock.md` "Modes and transitions" and
+sizes — hover re-opens the last app and a click on its icon clears it; a click into the dock keeps it until focus leaves;
+strip 56 px, phone 412 × ≤ 2× width, large 90 %; reveal 250 ms (500 ms on a shared edge), hide 400 ms + 24 px
+hysteresis; pinned overlays (reserve space optional, strip only); keybind `Mod+B` via HM; sign-in popups as sheets,
+new tabs to the browser, permissions/downloads refused with a chip; kurashi views = mod panels in v1.
+
+**Next steps (ordered):**
+1. Ask the user the open decision above; then wave 18: **W17.4 shell side** (row 88 `surface:` provide: indicator,
+   strip, card frame for view pins, `webdock.hover` state machine in the daemon, pin/unpin, add/remove/move, keyboard,
+   bar widget, empty/cold/offline states), **I78** card polish (title first, quieter toggles, rounded bottom, keyboard
+   path into the header, reduced motion), **I77** scope table and host registry into `Daemon`, **W17.6** Nix (a
+   `kurashi-webdock` package apart from the base closure, HM/NixOS options, closure check).
+2. **I80** web host on niri (nested niri in the sandbox; reveal by click).
+3. Still open from session 6: cards for I52, I64, I65, I63, I67; UX review (wallpaper I32, weather I57, settings
+   profiles); B7 quiet repro + quiet re-measure of K35 and the web host numbers (BENCH); design pass with
+   `INSPIRATION.md` (I60, I63).
+
+**Gotchas (new):** `wtype` drops the first key of every call (looked like B27) — type with `tools/bench/wl_keys.py`,
+which cannot type `:` (I81). `qs-webengine` (dev shell) is the patched Quickshell; Chromium needs `argc > 0` for
+`QTWEBENGINE_CHROMIUM_FLAGS`. The host imports `frontend/core` through the link `mods/webdock/host/core` (Quickshell
+refuses imports outside a config root). Card cross-talk: give the host card the daemon's i18n key list early (done by
+SendMessage this time). The permission guard refused decompressing the user's Zen session file (it holds open tabs) —
+don't read browser profiles without asking. Disk is at 90 % (38 GB free): clean caches before the next wave.
+
+---
+
 ## 2026-10-18 — session 6 (machine B): wave 14 close, K34–K36, wave 15, K35 daemon
 **State:** `main` green and pushed after W16 (`just check` 686 tests, test-peek/stage/real, settings/test.sh, mods-live no QML warnings, stage/quick/volume tests, golden B ok). Wave 16 (W16-peek-frontend) is the next card; nothing half-done.
 
@@ -212,68 +262,3 @@ cycles ≤ +1.3 MiB — but **per extra output +4.7…+6.7 (mean ≈ 5.95, 2 of 
 
 **Half-done / risks:** none half-done; no agents running, no extra worktrees. Per-output PSS (step 1) is the
 open risk. `frontend/shots/tray-bt/` is generated, untracked.
-
----
-
-## 2026-10-09 — session 3 close: handover for any machine (no prior context assumed)
-**Read this whole entry; it does not assume you remember anything.** The repo is the only memory:
-`CLAUDE.md` (rules), `docs/VISION.md` (why), `docs/ARCHITECTURE.md` (what talks to what),
-`docs/PROTOCOL.md` (IPC v1, frozen + additive), `docs/DECISIONS.md` (K1–K22), `docs/PROGRESS.md`
-(every step), `docs/tasks/` (agent cards + README rules), `docs/reviews/` (review findings).
-
-**What exists (main, green):** Rust daemon `kurashid` owns all state and serves NDJSON over a unix
-socket; the Quickshell frontend (`frontend/`) and the settings app (`settings/`) are thin views;
-`kurashi` CLI; `kurashi-mock` fake daemon. Features: bar (per-output, any edge), Island with faces
-(clock, media, notifications, volume/brightness OSD), notification server + toasts + centre, launcher,
-session menu, lock screen (PAM; refuses without the `kurashi` PAM service), settings app with
-provenance, search, profiles, Mods page and per-mod settings pages, theming (palettes, a11y
-couplings), input bindings, tray + Bluetooth services (no UI yet), `nix run` apps, NixOS +
-Home-Manager modules. Run/test instructions: `README.md` "Running".
-
-**How to verify anything** (inside `nix develop`):
-- `just check` — fmt + clippy -D warnings + all tests. For merges use a private target dir:
-  `unset CARGO_TARGET_DIR; CARGO_INCREMENTAL=0 just check`.
-- `frontend/test-real.sh`, `settings/test.sh`, `frontend/test-bindings.sh` — headless sandbox smoke
-  tests with screenshots (Read them). `just golden` — visual regression (per-machine refs via
-  `KURASHI_GOLDEN_REF`). `just bench-gate` — budgets on the real stack (quiet machine only).
-- Never run the shell on the user's display; never kill processes you didn't start.
-
-**How the work is organised (if you use subagents):** you are the lead (review, verify, merge,
-decide); agents get one card each in `docs/tasks/` (goal, owned paths, frozen contracts, one
-acceptance test) and work in isolated git worktrees. This session used Haiku agents at max effort,
-up to ~10 in parallel — that worked well when each card owned disjoint files; the user may set a
-different limit. Agents share `CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target` (builds take
-turns via cargo's lock). Lead checklist per returned branch: (1) diff only touches the card's owned
-paths, (2) merge with `--no-ff --no-commit`, (3) full gate with a private target dir, (4) for UI:
-run the sandbox test and Read screenshots, (5) renumber `docs/CONTRACT-CHANGE.md` rows if two
-agents appended the same number, (6) commit, remove the worktree, update `docs/PROGRESS.md`.
-
-**Next steps (ordered, each a card-sized task):**
-1. Machine B baseline if not done (`docs/RUNBOOK-MACHINE-B.md`).
-2. Settings polish from `docs/reviews/2026-10-09-ux-review.md`: #3 (settings focus/keys, focus ring),
-   #4/#5 (use `Theme.fgOnAccent`, titles in `Theme.fg`), #7, #8, #9, #11 (settings hit targets ≥ 32 px),
-   #13 (daemon error codes → catalog keys), #17, #18, #23. Owns `settings/` + `i18n/*/settings.toml`.
-3. Island hit target is 26 px (< 32, review #11): enlarge the bar's island hit area without changing
-   visuals (`frontend/surfaces/Bar.qml` + `components/Island.qml`); decide with the golden refs.
-4. Tray + Bluetooth UI: a bar tray widget and a Stage panel, against the shapes in
-   `fixtures/ipc/server/snap_{tray,bluetooth}.json` and the actions in `docs/PROTOCOL.md` §7.
-   Mind the per-output PSS budget (+6.0 of +6 used on machine A): measure with `just bench-gate`.
-5. logind session for a `systemd --user` daemon: resolve the user's graphical session explicitly
-   (session hints may report `available:false` today) — `crates/kurashi-services/src/session.rs`.
-6. Cleanups: fold `RefcountedService` into `ServiceProvider` (CONTRACT-CHANGE row 16); per-mod profile
-   sections (K22 note: all mod keys share the `mods` section); D-Bus connection-level reconnect
-   (services stay unavailable after a bus loss); mock `available` fields.
-7. M6 first native mods (media + lyrics, wallpaper, sysmon, weather) per `docs/MODS.md`; then M7
-   hardening towards v0.1 (`docs/ROADMAP.md`), including a live niri test **with the user present**.
-
-**Known numbers (machine A, quiet, 2026-10-09):** real stack 104.3 MiB @1 output, +6.0/output,
-popup 2.6 ms, 0.03 idle fps, 0 % CPU, +0.63 MiB over 20 panel cycles — 0 violations. Archived probes:
-`docs/BAKEOFF.md` "Quiet re-measure".
-
-**Gotchas learned (keep):** shared target dirs hand worktrees each other's crates/embedded files —
-gate merges with a private target dir; always `timeout` + `set -o pipefail`; never name a QML
-property `on<Capital>…`; frontend agents can use prebuilt daemon binaries (`KURASHI_BIN_DIR`) to
-avoid compiling; prune `~/.cache/kurashi-agents-target/debug/incremental` between waves (disk).
-
-**Remote:** `origin = git@github.com:MaySeikatsu/kurashi-shell.git` (configured 2026-10-09; first push
-by the user). Local-only files stay untracked (`.claude/settings.local.json`, worktrees, results).
