@@ -400,6 +400,10 @@ struct Link {
     keys: BTreeSet<String>,
     /// For `runtime.slots` reasons (row 72).
     hub: Weak<Hub>,
+    /// Slot contributions that need setup, with their reason (row 72). A lock of their own, never held while the
+    /// hub is touched: `slots()` reads it under the slots document's lock, and `state` is held across hub calls
+    /// (a choice source's change), so sharing `state` here deadlocked (found by the live all-mods test).
+    slot_reasons: Mutex<BTreeMap<String, String>>,
     state: Mutex<LinkState>,
 }
 
@@ -412,8 +416,6 @@ struct LinkState {
     offers: BTreeMap<String, Vec<Offer>>,
     /// The host processes of this enable (K38), by name.
     hosts: BTreeMap<String, Arc<HostCore>>,
-    /// Slot contributions that need setup, with their reason (row 72).
-    slot_reasons: BTreeMap<String, String>,
 }
 
 impl Hooks for Link {
@@ -462,14 +464,14 @@ impl Hooks for Link {
     }
 
     fn slot_reason(&self, slot: &str, reason: Option<&str>) {
+        if !self.state.lock().expect("link lock").live {
+            return;
+        }
         {
-            let mut state = self.state.lock().expect("link lock");
-            if !state.live {
-                return;
-            }
+            let mut reasons = self.slot_reasons.lock().expect("slot reasons lock");
             match reason {
-                Some(r) => state.slot_reasons.insert(slot.into(), r.into()),
-                None => state.slot_reasons.remove(slot),
+                Some(r) => reasons.insert(slot.into(), r.into()),
+                None => reasons.remove(slot),
             };
         }
         if let Some(hub) = self.hub.upgrade() {
@@ -683,6 +685,7 @@ impl Native {
             mod_id: module.id().to_string(),
             keys: manifest.settings.iter().map(|s| s.key.clone()).collect(),
             hub: Arc::downgrade(&self.hub),
+            slot_reasons: Mutex::default(),
             state: Mutex::default(),
         });
         let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone())
@@ -972,10 +975,9 @@ impl Native {
                 let mut entry = json!({"mod": e.id, "qml": file_url(&file), "ready": ready});
                 let reason = ledger
                     .link
-                    .state
-                    .lock()
-                    .expect("link lock")
                     .slot_reasons
+                    .lock()
+                    .expect("slot reasons lock")
                     .get(name)
                     .cloned();
                 if let Some(reason) = reason {
