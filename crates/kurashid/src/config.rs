@@ -511,6 +511,7 @@ fn diff_entries(d: &kurashi_config::Diff) -> Vec<DiffEntry> {
             output: e.output.clone(),
             before: e.before.clone(),
             after: e.after.clone(),
+            same_value: matches!((&e.before, &e.after), (Some(b), Some(a)) if b.value == a.value),
         })
         .collect()
 }
