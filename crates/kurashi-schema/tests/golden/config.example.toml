@@ -187,3 +187,13 @@
 # Separate app scopes — Start apps in their own systemd scope so they outlive the shell.
 #   restart required · advanced
 # systemd_scope = true
+
+# [clock]
+#
+# First day of the week — The calendar's first column; automatic follows the language
+# (Sunday for Japanese, Monday otherwise).
+#   choices: "auto" | "monday" | "sunday" | "saturday"
+# week_start = "auto"
+#
+# Week numbers — Show ISO week numbers beside the calendar's rows.
+# week_numbers = false

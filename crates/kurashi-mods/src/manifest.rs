@@ -90,6 +90,8 @@ pub fn capability_known(c: &str) -> bool {
 pub const SLOTS: &[&str] = &[
     "clock.expanded.aside",
     "clock.expanded.day",
+    // One mark per date in the clock view's month grid (row 71, I46): instantiated per visible day cell.
+    "clock.expanded.daymark",
     "clock.expanded.footer",
     "media.expanded.below",
     "media.expanded.backdrop",

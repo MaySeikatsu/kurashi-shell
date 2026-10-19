@@ -41,6 +41,7 @@ Core expanded views declare **named slots**; a mod fills a slot by declaring it 
 |---|---|---|
 | `clock.expanded.aside` | ≤ 140 × 120 px | weather today, moon phase |
 | `clock.expanded.day` | list rows | agenda events, tasks due |
+| `clock.expanded.daymark` | ≤ 14 × 14 px per day cell | weather glyph per forecast day, event dots (row 71) |
 | `clock.expanded.footer` | one row | timers, world clocks |
 | `media.expanded.below` | ≤ 3 lines | lyrics (synced) |
 | `media.expanded.backdrop` | behind the card, gated | visualizer (decorative motion → mods only, visibility-gated) |
@@ -52,7 +53,13 @@ Core expanded views declare **named slots**; a mod fills a slot by declaring it 
 The daemon resolves which contributions are live (mod enabled, its document `available`, user order) and
 publishes them (`runtime.slots`: `{"clock.expanded.aside": [{"mod": "weather", "qml": "file://…"}]}`); the
 frontend instantiates them with `ModLoader` only while the hosting view is shown. An empty slot takes no space
-(no placeholder). Users can order or hide contributions per slot in Settings (one schema key per slot, `pick_list`
+(no placeholder). **Day marks (row 71, I46):** the month grid instantiates each `clock.expanded.daymark`
+contribution once per visible day cell, with the required property `date` (`yyyy-mm-dd`, the cell's local date); a
+contribution draws at most 14 × 14 px under the day number and draws nothing for a date it has no mark for; up to three
+contributions sit side by side in contribution order, more are dropped. **Needs setup (row 72):** a contribution whose
+mod says it needs setup has `reason` (an i18n key) in its `runtime.slots` entry while `ready` stays as it is; the host
+hands the reason to the contribution (property `reason`), which shows its call to action instead of an empty box — the
+clock aside of weather without a saved place says so and offers "Set place". Users can order or hide contributions per slot in Settings (one schema key per slot, `pick_list`
 with `choices_from = "slot:<name>"`).
 
 ## 4. Cross-module behaviours worth having
