@@ -288,7 +288,9 @@ the holder is gone or the namespace is not the recorded one. `sandbox.sh start` 
 connect, HTTPS must fail) and refuses a sandbox that reaches a network; `KURASHI_SANDBOX_NET=1` opts out (no test does).
 Known gaps: name lookups still go to the host nscd over its unix socket (no route exists); a shell that keeps the
 eval'd env after `sandbox.sh stop` cannot start processes — unset `LD_PRELOAD KURASHI_SANDBOX_NETNS_PID
-KURASHI_SANDBOX_NETNS_ID`. *Why:* a stale sandbox daemon fetched the real Open-Meteo forecast (B23); tests must be
+KURASHI_SANDBOX_NETNS_ID`. **Amended (session 7, row 94, B26):** a process already in a network namespace with loopback
+only runs as it is — Chromium's sandboxed zygote and renderers start in an empty namespace of their own and cannot open
+the holder's; the host namespace still fails closed. *Why:* a stale sandbox daemon fetched the real Open-Meteo forecast (B23); tests must be
 hermetic by construction, not by every test remembering a fixture hook. Evidence: the `netcheck` lines in
 `frontend/test-stage.sh` and `test-real.sh` logs.
 

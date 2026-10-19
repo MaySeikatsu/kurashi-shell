@@ -81,6 +81,7 @@ async fn start() -> Fx {
             v: 1,
             client: "t".into(),
             caps: vec![],
+            scope: None,
         })
         .await;
     client.recv().await;

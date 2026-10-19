@@ -49,7 +49,41 @@ values; they are reported inert with `reason: "mods.disabled"`.
 **Setting types:** `bool`, `int` (`range`, `unit`), `float` (`range`), `string` (`choices_from` for a
 dropdown from a source), `enum` (`choices`, one of them), `color` (`#rrggbb[aa]`), `list` (a string list
 of `choices`, in the order picked; a default lists members once each, and a member outside the choices
-is refused by the validator).
+is refused by the validator), `records` (row 89, K38: a list of tables whose fields the manifest declares, below).
+
+**Records** (`type = "records"`): `default` is an array of tables (usually `[]`); optional `unique = "<field>"` (no two
+rows share that field's value) and `item_label = "<field>"` (what a row shows in Settings; the first string field
+otherwise). Each `[[setting.field]]` has `key`, `type` (`string` · `url` · `enum` · `bool` · `int`), optional `label`
+(i18n key), `required` (default false), `default` (required unless `required = true`), and per type: `pattern = "slug"`
+(string: `[a-z0-9-]`, 1..32), `schemes = [...]` (url: absolute, one of these schemes), `choices` (enum), `range` (int).
+The value is a TOML array of tables in the config and a JSON array of objects in documents and `cfg.*`, every field
+present (absent optional fields take their defaults; unknown fields are refused). Errors name the row and field:
+`mods.<id>.<key>[<n>].<field>`. Settings shows a records editor (rows with `item_label`; add, edit in a form of the
+fields' controls, move up/down, remove), and every change is one `apply set` of the whole list. Nix sets the list like
+any key (the `nix` layer, K15). Example (the web dock's pins):
+```toml
+[[setting]]
+key = "pins"
+type = "records"
+default = []
+unique = "id"
+item_label = "title"
+  [[setting.field]]
+  key = "id"
+  type = "string"
+  required = true
+  pattern = "slug"
+  [[setting.field]]
+  key = "target"
+  type = "url"
+  required = true
+  schemes = ["https", "http", "file", "mod"]
+  [[setting.field]]
+  key = "view"
+  type = "enum"
+  choices = ["default", "mobile", "desktop"]
+  default = "default"
+```
 
 **Capabilities** (declared, shown in Settings, checked by the validator): `dbus:session`, `dbus:system`,
 `network`, `audio`, `notifications`, `fs:scoped` (the mod's own state folders), `fs:read` (system files,
@@ -126,6 +160,31 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   `choices:<source>` → `ModCtx::choices(source, fn)`. See `docs/ux/COMPOSITION.md` for the slot list.
 - **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
 
+### Host processes (K38)
+A native mod can run a process of its own — the web dock's web engine — that the daemon starts, stops and supervises,
+and that talks to the daemon over a **scoped connection** (PROTOCOL §2): only the mod's documents and actions, plus
+`theme` and `i18n`. Nothing runs until the mod starts it.
+- **Manifest:** `provides = ["host:<name>"]` and the program as a capability, `exec:<binary>` (a file name, looked up in
+  the daemon's `PATH`). `host:` is daemon code (B15): an unlinked mod that declares one is refused.
+- **API** (`kurashi-mod-api`): `ctx.host(name, HostSpec { binary, args, env }) -> HostHandle` (refused unless the
+  manifest provides `host:<name>` and declares `exec:<binary>`). `args` and env values may name `{mod_dir}` (the mod's
+  folder), `{data_dir}` (`$XDG_DATA_HOME/kurashi/<id>`), `{cache_dir}` (`$XDG_CACHE_HOME/kurashi/<id>`) and `{state_dir}`
+  (`$XDG_STATE_HOME/kurashi/<id>`); the daemon expands them and creates the three directories. `HostHandle` is `Clone`:
+  `start()` (idempotent), `stop()`, `state() -> watch::Receiver<HostState>`; `HostState` = `Off` · `Starting` · `Ready`
+  · `Failed { reason, detail }` · `Missing` (reasons are i18n keys: `mods.host.missing`, `mods.host.failed`).
+- **Start:** a binary not on `PATH` → `Missing`. Otherwise the daemon spawns it as a program (no shell) in its own process
+  group, outside the daemon's, stdin closed, stdout and stderr appended to `{state_dir}/host-<name>.log` (cut to its last
+  1 MiB at each start), with `KURASHI_SOCKET`, `KURASHI_SCOPE_MOD=<id>` and a fresh `KURASHI_SCOPE_TOKEN` (128 bits, hex)
+  added to the spec's env. `Starting` until a scoped hello with that token arrives, then `Ready`; the connection closing
+  while the process lives returns to `Starting` (the host reconnects with the same token).
+- **Exit:** an exit the mod did not ask for restarts the host once; a second one within 10 minutes is `Failed` (`detail`:
+  the exit status and the log path). `stop()` sends SIGTERM to the group and SIGKILL after 3 s, revokes the token and is
+  `Off`. Disabling the mod and shutting the daemon down stop every host.
+- **Settings writes:** `ctx.settings_writer() -> SettingsWriter` (`Clone`); `writer.set(key, value).await` writes
+  `mods.<id>.<key>` to the user layer as one undoable transaction (the same path as `apply set`), refused with the
+  config's error key when the key is forced or the value invalid. For a mod action that changes its own setting (the
+  web dock's mobile/desktop toggle).
+
 ### First native mod: wallpaper (K26)
 Rendering by an external daemon — **awww** (or **swww**), chosen by `mods.wallpaper.backend`
 (`choices_from = "wallpaper.backends"`: each installed backend enabled, a missing one disabled with its
@@ -151,6 +210,50 @@ subscribers); without a picture — the mod off, or nothing applied with its the
 is in effect and the theme document says so (note `theme.note.wallpaper_waiting`; the key's reason is
 `settings.choice.unavailable` while the mod is off). Picker: a Stage panel (`cardWidth` up to 720 px,
 contract row 66). Wallhaven: later (BACKLOG D3).
+
+### Web dock (K38, `docs/ux/webdock.md`)
+Mod `webdock` (native, off by default): pins at a screen edge, sites shown by the **web host** (`host:web`: the patched
+Quickshell `qs-webengine` running `{mod_dir}/host/shell.qml`, K39), kurashi views drawn by the shell (later wave).
+Capabilities `network`, `exec:qs-webengine`, `exec:xdg-open`, `fs:scoped`.
+
+**Document `mod.webdock`** (fixture `fixtures/ipc/server/snap_mod_webdock.json`; absent keys, no `null`):
+`{available, mode: hidden|compact|extended, shown?, size: phone|large, edge: right|left|top|bottom, output?,
+geometry {strip, width, large}, keep: [pin id], pins: [pin], host {state: off|starting|ready|failed|missing, reason?,
+detail?}, dirs {profiles, icons}}`. A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
+audible?, blocked?: [permission], error?}`: `kind` follows `target` (`mod:<id>:<panel>` → view, `https`, `http`,
+`file` → web); for web pins `view` is the effective view (the pin's, or `default_view` when it says `default`) and
+`profile` the effective profile (the pin's, or its id); `loaded`, `icon`, `audible`, `blocked`, `error` come from the
+host's reports. QtWebEngine sets the user agent per profile, so **pins that share a profile share its view**: the first
+of them in the list decides, and `webdock.view` writes the view to all of them. `geometry.strip` is the strip's width (56
+until the shell's strip exists), `width` the phone width in px, `large` a percentage of the output.
+
+**Actions:** `webdock.open {pin, output?}` (extended, `shown` = pin; starts the host for a web pin) ·
+`webdock.collapse {}` (compact, `shown` cleared) · `webdock.hide {}` (hidden, `shown` kept) · `webdock.toggle
+{output?}` (hidden → extended(`shown`) or compact; else hidden) · `webdock.size {size?}` (phone|large; no argument
+toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable) · `webdock.open_external {url}`
+(`xdg-open`; http, https only). An unknown pin is `invalid` with `webdock.error.unknown_pin`. **Host reports**
+(the host's scoped connection): `webdock.host.loaded {pin, icon?}` (icon: a file under `dirs.icons`) ·
+`webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on}` · `webdock.host.blocked {pin, permission}`
+(`camera|microphone|location|notifications|screen|clipboard|download|other`; cleared by the next `loaded`) ·
+`webdock.host.new_window {pin, url}` (→ `open_external`) · `webdock.host.crashed {pin}` (`error` =
+`webdock.error.crashed` until the next `loaded`).
+
+**Lifecycle (daemon):** the host starts when a web pin becomes `shown`. `keep` lists the web pins the host keeps
+loaded, most recently shown first: the shown pin, then up to `max_loaded` in all; an audible pin is never dropped. The
+idle clock runs while no web pin is shown and none is audible; after `unload_after` minutes (0 = never while the mod is
+on) the daemon stops the host, empties `keep` and every `loaded`. A view pin never starts the host.
+
+**Host (QML, `mods/webdock/host/`):** one layer-shell card on `output` (else the first screen) at `edge`, margin
+`geometry.strip`, while `mode` is `extended` and `shown` is a web pin: phone = `width` × min(2 × `width`, output height
+− 2 gaps), large = `large` % of the output's width × the full height − 2 gaps. One `WebEngineView` per pin in `keep`,
+created when first shown, destroyed when it leaves `keep` (→ `unloaded`); views not shown are hidden and `Frozen` unless
+`recentlyAudible`. One profile per effective profile name (storage `dirs.profiles/<profile>`); mobile view = the
+engine's user agent with an Android platform and `Mobile`, client hints `mobile` on; privacy settings per
+`docs/ux/webdock.md` "Privacy" (Chromium switches via `//@ pragma DefaultEnv QTWEBENGINE_CHROMIUM_FLAGS = …`).
+
+**Settings:** `pins` (records, W17-records: `id` slug unique, `title`, `target` url with schemes https, http, file, mod,
+`view` default|mobile|desktop, `profile`, `icon`), `default_view` (mobile|desktop, mobile), `width` (360..720 px, 412),
+`large` (50..95 %, 90), `edge` (right|left|top|bottom, right), `unload_after` (0..1440 min, 60), `max_loaded` (1..12, 4).
 
 ## Lifecycle
 - **Enable/disable is live.** Enabling: daemon validates manifest → registers services

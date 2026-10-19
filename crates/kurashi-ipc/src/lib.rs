@@ -20,6 +20,10 @@ pub enum ClientMsg {
         client: String,
         #[serde(default)]
         caps: Vec<String>,
+        /// A mod's host process (MODS.md "Host processes", K38): the connection is limited to that
+        /// mod's documents and actions plus `theme` and `i18n`. Absent for every other client.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        scope: Option<Scope>,
     },
     Sub {
         id: String,
@@ -90,6 +94,15 @@ pub enum ClientMsg {
     MockWorkspace {
         idx: u32,
     },
+}
+
+/// The scope a mod's host process connects with: the mod's id and the one-time token the daemon
+/// handed it in `KURASHI_SCOPE_TOKEN` when it started the process.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Scope {
+    #[serde(rename = "mod")]
+    pub mod_id: String,
+    pub token: String,
 }
 
 /// Server → client.

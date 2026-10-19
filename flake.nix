@@ -11,6 +11,8 @@
     {
       packages = forAll (pkgs: rec {
         kurashi = pkgs.callPackage ./nix/package.nix { };
+        # The web dock's host process (K38, K39); not part of the base closure.
+        quickshell-webengine = pkgs.callPackage ./nix/quickshell-webengine.nix { };
         default = kurashi;
       });
 
@@ -34,6 +36,8 @@
             just jq python3 git
             # Frontend default (K3 candidate 1) + headless test compositor
             quickshell sway grim wayland-utils
+            # Web dock host (K39) + typing into it in sandbox tests
+            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine wtype
             # Bench harness
             strace (pkgs.perf or linuxPackages.perf) procps dbus hyperfine
           ];

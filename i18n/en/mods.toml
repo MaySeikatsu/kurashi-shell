@@ -37,3 +37,7 @@
 # Native mods without daemon code (B15): a manifest that declares a service, action, island face,
 # choice source or job is refused when this build links no code for it. Frontend-only mods stay on.
 "mods.error.not_built" = "this mod needs daemon code that this build does not include, so it cannot be turned on"
+# Host processes (K38, MODS.md "Host processes"): a mod's own program the daemon starts.
+"mods.host.missing" = "its program is not installed"
+"mods.host.failed" = "its program stopped twice in a row"
+"mods.running.host" = "its program is running"

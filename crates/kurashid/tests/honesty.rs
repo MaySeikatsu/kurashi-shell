@@ -133,6 +133,7 @@ async fn start(managed: Option<String>) -> Client {
             v: 1,
             client: "honesty".into(),
             caps: vec![],
+            scope: None,
         })
         .await;
     assert!(matches!(welcome, ServerMsg::Welcome { .. }), "{welcome:?}");
