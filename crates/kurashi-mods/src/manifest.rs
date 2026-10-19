@@ -277,7 +277,10 @@ impl Manifest {
 
     /// The fields of the `records` setting `key` of this mod (K38), if it is one.
     pub fn record_spec(&self, key: &str) -> Option<&RecordSpec> {
-        self.records.iter().find(|(k, _)| k == key).map(|(_, spec)| spec)
+        self.records
+            .iter()
+            .find(|(k, _)| k == key)
+            .map(|(_, spec)| spec)
     }
 }
 
