@@ -300,3 +300,83 @@ fn notification_center_over_the_wire() {
     assert_eq!(r["kind"], "invalid");
     assert_eq!(r["msg"], "notify.invoke needs id");
 }
+
+/// A host connection (MODS.md "Host processes", PROTOCOL §2): a token the daemon did not issue is
+/// refused with `goodbye scope`; with a token it is limited to its mod, `theme` and `i18n`.
+#[test]
+fn a_host_connection_is_scoped_to_its_mod_over_the_wire() {
+    let (_mock, sock) = start_with("scoped", &[]);
+    let connect = |token: &str| {
+        let tx = UnixStream::connect(&sock).expect("connect");
+        tx.set_read_timeout(Some(Duration::from_secs(5)))
+            .expect("read timeout");
+        let rx = BufReader::new(tx.try_clone().expect("clone socket"));
+        let mut c = Client { tx, rx };
+        c.send(&json!({
+            "t": "hello", "v": 1, "client": "webdock-host", "caps": ["intents"],
+            "scope": {"mod": "webdock", "token": token}
+        }));
+        c
+    };
+
+    let mut refused = connect("bad");
+    assert_eq!(
+        refused.recv(),
+        json!({"t": "goodbye", "reason": "scope", "supported": [1]})
+    );
+
+    let mut host = connect("6f1c2a9e4b7d0835");
+    assert_eq!(host.recv()["t"], "welcome");
+    assert_eq!(
+        host.call(json!({"t": "sub", "id": "m", "doc": "mod.webdock"}))["t"],
+        "snap"
+    );
+    assert_eq!(
+        host.call(json!({"t": "sub", "id": "t", "doc": "theme"}))["t"],
+        "snap"
+    );
+    let r = host.call(json!({"t": "sub", "id": "ui", "doc": "runtime.ui"}));
+    assert_eq!(
+        (r["t"].as_str(), r["kind"].as_str()),
+        (Some("err"), Some("forbidden"))
+    );
+    let r = host.call(json!({"t": "act", "id": "a1", "action": "mock.webdock", "args": {}}));
+    assert_eq!(r["kind"], "forbidden");
+    let r = host.call(json!({"t": "act", "id": "a2", "action": "webdock.collapse", "args": {}}));
+    assert_eq!(r["t"], "done", "its own actions pass");
+    let snap = host.call(json!({"t": "sub", "id": "m2", "doc": "mod.webdock"}));
+    assert_eq!(snap["data"]["mode"], "compact");
+}
+
+/// The web dock's document over the socket: a test sets pins (`mock.webdock`), the host's reports and
+/// the shell's actions change it, and a bad target is refused with its key.
+#[test]
+fn the_web_dock_document_follows_the_actions_and_the_host_reports() {
+    let (_mock, sock) = start_with("webdock", &[]);
+    let mut c = Client::connect(&sock);
+    let r = c.call(json!({"t": "act", "id": "a1", "action": "mock.webdock", "args": {
+        "pins": [
+            {"id": "mail", "kind": "web", "title": "Mail", "target": "file:///mail.html", "view": "mobile", "profile": "mail"},
+            {"id": "weather", "kind": "view", "title": "Weather", "target": "mod:weather:weather"}
+        ]
+    }}));
+    assert_eq!(r["t"], "done");
+    let r =
+        c.call(json!({"t": "act", "id": "a2", "action": "webdock.open", "args": {"pin": "mail"}}));
+    assert_eq!(r["t"], "done");
+    assert_eq!(
+        c.call(json!({"t": "act", "id": "a3", "action": "webdock.host.loaded", "args": {"pin": "mail"}}))["t"],
+        "done"
+    );
+    let snap = c.call(json!({"t": "sub", "id": "m", "doc": "mod.webdock"}));
+    assert_eq!(snap["data"]["mode"], "extended");
+    assert_eq!(snap["data"]["shown"], "mail");
+    assert_eq!(snap["data"]["keep"], json!(["mail"]));
+    assert_eq!(snap["data"]["pins"][0]["loaded"], true);
+    let r =
+        c.call(json!({"t": "act", "id": "a4", "action": "webdock.open", "args": {"pin": "nope"}}));
+    assert_eq!(
+        (r["kind"].as_str(), r["msg"].as_str()),
+        (Some("invalid"), Some("webdock.error.unknown_pin"))
+    );
+}
