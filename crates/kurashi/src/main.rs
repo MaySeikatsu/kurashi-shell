@@ -71,6 +71,7 @@ async fn connect(
             v: PROTOCOL_VERSION,
             client: "cli".into(),
             caps: vec![],
+            scope: None,
         },
     )
     .await?;

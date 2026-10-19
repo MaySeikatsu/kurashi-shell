@@ -116,6 +116,9 @@ pub enum Provide {
     Choices(String),
     /// A background job (I23, `ModCtx::background`): a poll or watch the daemon runs while it is wanted.
     Job(String),
+    /// A process of the mod's own that the daemon starts and stops (K38, `ModCtx::host`): it connects back
+    /// with a scoped hello and sees only the mod's documents and actions.
+    Host(String),
     I18n,
 }
 
@@ -152,6 +155,7 @@ impl Provide {
             "slot" => Self::Slot(id),
             "choices" => Self::Choices(id),
             "job" => Self::Job(id),
+            "host" => Self::Host(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -170,7 +174,9 @@ impl Provide {
                 }
             }
             // Several mods fill one slot; that is what slots are for (K28). Job names belong to their mod.
-            (Self::Slot(_), Self::Slot(_)) | (Self::Job(_), Self::Job(_)) => false,
+            (Self::Slot(_), Self::Slot(_))
+            | (Self::Job(_), Self::Job(_))
+            | (Self::Host(_), Self::Host(_)) => false,
             _ => self == other,
         }
     }
@@ -191,6 +197,7 @@ impl fmt::Display for Provide {
             Self::Slot(i) => write!(f, "slot:{i}"),
             Self::Choices(i) => write!(f, "choices:{i}"),
             Self::Job(i) => write!(f, "job:{i}"),
+            Self::Host(i) => write!(f, "host:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }
