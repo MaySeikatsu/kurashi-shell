@@ -223,6 +223,29 @@ async fn the_folder_is_a_breadcrumb_with_its_subfolders_and_nothing_outside_the_
 }
 
 #[tokio::test]
+async fn the_first_page_says_how_much_the_thumbnail_cache_holds() {
+    let root = scratch("cache-bytes");
+    let folder = library_with_pictures(&root);
+    let (_fake, m) = picker_mod(&root, &folder).await;
+    // The first page makes its thumbnails and palettes, so the cache holds bytes and the page says so.
+    let first = m.act("wallpaper.thumbs", json!({})).await.unwrap().unwrap();
+    let held = first["cache"]["bytes"]
+        .as_u64()
+        .expect("the first page reports the cache");
+    assert!(held > 0, "thumbnails are on disk after the first page");
+    // Later pages do not walk the cache again: the picker reads the size once per open or filter change.
+    let later = m
+        .act("wallpaper.thumbs", json!({"offset": 2}))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        later.get("cache").is_none(),
+        "only the first page reports it"
+    );
+}
+
+#[tokio::test]
 async fn a_light_and_a_dark_picture_of_one_name_are_badged_as_a_pair() {
     let root = scratch("pairs");
     let folder = library_with_pictures(&root);
