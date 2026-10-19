@@ -5,7 +5,8 @@ import ".."
 // A quick-settings tile (W13, docs/ux/quick-settings.md; the W15 size contract, CONTRACT-CHANGE row 76): the one tile of the
 // card, core or a mod's `quick.tiles` contribution. Its implicit size is 160 x 56 px, so a host lays it out at that size,
 // and its props are `glyph`, `label` and `subtitle` (the value in effect). The main zone toggles (or opens the page, when
-// the tile has no switch); the arrow zone opens the drill-down page in the same card.
+// the tile has no switch); a tile with `acts` runs its one-step action instead (`activated`, e.g. wallpaper next); the arrow
+// zone opens the drill-down page in the same card. The grid sizes a contribution to its cell (W18, docs/ux/COMPOSITION.md §5).
 // States: off; on (a tonal container with an accent glyph); connecting (glyph swap, "Connecting…"); failed (the reason in
 // red and a solid badge, the one state that asks for attention; Enter or a click retries); unavailable (dim, the reason);
 // forced (inert, who sets the value). Keys: Enter and Space toggle or open, Right opens the page; QuickPanel's grid moves
@@ -26,7 +27,10 @@ Item {
     property var req: null           // the Request that changes `on`; null when the tile has no switch
     property string pendingText: ""
     property bool hasPage: true
+    property bool acts: false        // the main zone runs a one-step action (`activated`) when the tile has no switch
     signal pageRequested()
+    signal activated()
+    readonly property bool isTile: true   // the grid's arrows move between tiles only (a plain contribution is no tile)
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
     readonly property bool connecting: req !== null && req.pending
@@ -38,11 +42,18 @@ Item {
         : connecting ? pendingText
         : subtitle
 
+    // The on state's colours are component tokens (quick.tile.on.*, I51) when the theme document has them; without them
+    // the tonal look below is what the tile has always drawn.
+    readonly property color onBg: Theme.color("quick.tile.on.bg", Qt.alpha(Theme.accent, 0.22))
+    readonly property color onBadge: Theme.color("quick.tile.on.badge", Qt.alpha(Theme.accent, 0.3))
+    readonly property color onFg: Theme.color("quick.tile.on.fg", Theme.accent)
+
     function activate() {
         if (connecting) return
         if (inert) { if (hasPage) pageRequested(); return }
         if (failed) req.retry()
         else if (toggles && req !== null) req.begin(!on)
+        else if (acts) activated()
         else if (hasPage) pageRequested()
     }
 
@@ -66,7 +77,7 @@ Item {
         id: face
         anchors.fill: parent
         radius: Theme.rSm + 2
-        color: tile.lit ? Qt.alpha(Theme.accent, 0.22) : Theme.containerHigh
+        color: tile.lit ? tile.onBg : Theme.containerHigh
         border.width: tile.failed ? 1 : 0
         border.color: Theme.error
         opacity: tile.reason !== "" ? 0.5 : 1
@@ -79,10 +90,10 @@ Item {
         height: 28
         radius: 14
         // Tonal when on (accent at low alpha, as the container), solid only for the failed state (I51).
-        color: tile.failed ? Theme.error : (tile.lit ? Qt.alpha(Theme.accent, 0.3) : Theme.surface)
+        color: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.surface)
         Text {
             anchors.centerIn: parent
-            color: tile.failed ? Theme.surface : (tile.lit ? Theme.accent : Theme.fg)
+            color: tile.failed ? Theme.surface : (tile.lit ? tile.onFg : Theme.fg)
             font.pixelSize: Theme.fs + 2
             font.family: Theme.fam(text, Theme.families)
             text: tile.failed ? "↻" : (tile.connecting ? "…" : tile.glyph)

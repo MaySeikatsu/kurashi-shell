@@ -246,6 +246,27 @@ Item {
         }
     }
 
+    // The `quick.tiles` contributions (K28, W18). The host lays nothing out: the grid places one cell per entry (above), so
+    // the mod tiles take the core tiles' flow and no space of their own. Watches runtime.slots while the card is up (Ma).
+    SlotHost {
+        id: tileSlot
+        slot: "quick.tiles"
+        layout: "cells"
+        cellWidth: (quick.width - Theme.gap) / 2
+        cellHeight: 56
+    }
+    // The grid's cells in visual order: the six core tiles, then one per contribution. A cell that is not a tile (a plain
+    // contribution) is null, so the arrows keep their places and never land on it.
+    function tileCells() {
+        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay]
+        for (var i = 0; i < modCells.count; i++) {
+            var cell = modCells.itemAt(i)
+            var t = cell !== null ? cell.tile : null
+            out.push(t !== null && t !== undefined && t.isTile === true ? t : null)
+        }
+        return out
+    }
+
     Column {
         id: tilesPane
         width: quick.width
@@ -271,21 +292,22 @@ Item {
             width: quick.width
             columns: 2
             spacing: Theme.gap
-            readonly property var cells: [tWifi, tBt, tFocus, tAudio, tPower, tDisplay]
             // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
+            // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
             Keys.onPressed: event => {
+                var cells = quick.tileCells()
                 var i = -1
-                for (var k = 0; k < grid.cells.length; k++) if (grid.cells[k].activeFocus) i = k
+                for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
                 if (i < 0) return
                 var to = -1
                 switch (event.key) {
                 case Qt.Key_Up: to = i >= 2 ? i - 2 : -1; break
-                case Qt.Key_Down: to = i + 2 < grid.cells.length ? i + 2 : -1; break
+                case Qt.Key_Down: to = i + 2 < cells.length ? i + 2 : -1; break
                 case Qt.Key_Left: to = i % 2 === 1 ? i - 1 : -1; break
                 case Qt.Key_Right: to = i % 2 === 0 ? i + 1 : -1; break
                 default: return
                 }
-                if (to >= 0) grid.cells[to].forceActiveFocus()
+                if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
                 event.accepted = true
             }
 
@@ -296,6 +318,7 @@ Item {
                 label: I18n.tr("island.quick.tile.wifi")
                 subtitle: quick.wifiValue
                 reason: quick.netOk ? "" : I18n.tr("island.quick.tile.no_network")
+                forcedBy: String(quick.netDoc.forced_by || "")
                 on: quick.wifiOn
                 req: rqWifi
                 pendingText: I18n.tr("island.quick.connecting")
@@ -308,6 +331,7 @@ Item {
                 label: I18n.tr("island.quick.tile.bluetooth")
                 subtitle: quick.btValue
                 reason: quick.btOk ? "" : I18n.tr("island.quick.tile.no_bluetooth")
+                forcedBy: String(quick.btDoc.forced_by || "")
                 on: quick.btDoc.powered === true
                 req: rqBt
                 pendingText: I18n.tr("island.quick.connecting")
@@ -320,6 +344,7 @@ Item {
                 label: I18n.tr("island.quick.tile.focus")
                 subtitle: quick.focusValue
                 reason: quick.notifyOk ? "" : I18n.tr("island.quick.tile.no_notify")
+                forcedBy: String(quick.notesDoc.forced_by || "")
                 on: quick.dnd
                 req: rqDnd
                 pendingText: I18n.tr("island.quick.changing")
@@ -332,6 +357,7 @@ Item {
                 label: I18n.tr("island.quick.tile.audio")
                 subtitle: quick.audioValue
                 reason: quick.audioOk ? "" : I18n.tr("island.quick.tile.no_audio")
+                forcedBy: String(quick.audioDoc.forced_by || "")
                 on: !quick.muted
                 req: rqMute
                 pendingText: I18n.tr("island.quick.changing")
@@ -344,6 +370,7 @@ Item {
                 label: I18n.tr("island.quick.tile.power")
                 subtitle: quick.powerValue
                 reason: quick.powerOk ? "" : I18n.tr("island.quick.tile.no_power")
+                forcedBy: String(quick.powerDoc.forced_by || "")
                 on: quick.powerDoc.profile === "power-saver"
                 toggles: quick.saverOffered
                 req: rqSaver
@@ -357,12 +384,18 @@ Item {
                 label: I18n.tr("island.quick.tile.display")
                 subtitle: quick.brOk ? quick.displayValue : ""
                 reason: quick.brOk ? "" : I18n.tr("island.quick.tile.no_backlight")
+                forcedBy: String(quick.brDoc.forced_by || "")
                 toggles: false
                 onPageRequested: quick.openPage("display", tDisplay)
             }
+            // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
+            // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
+            Repeater {
+                id: modCells
+                model: tileSlot.entries
+                delegate: tileSlot.cell
+            }
         }
-        // K28: mod tiles (caffeine, wallpaper next, VPN) wrap below the tiles; none takes no space.
-        SlotHost { slot: "quick.tiles"; layout: "flow"; width: quick.width }
 
         LevelRow {
             width: quick.width
