@@ -5,6 +5,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::meta::Ty;
+use crate::records::RecordProblem;
 
 /// A value was rejected for a key. Serializes as `{"code": "...", "key": ..., ...}` so it can
 /// travel in a `rejected` reply unchanged.
@@ -45,11 +46,53 @@ pub enum ValidationError {
     InvalidAction { key: String, got: String },
     #[error("`{key}` must not be empty")]
     EmptyList { key: String },
+    /// A row or field of a `records` value is wrong (K38, MODS.md "Records"). `key` is the path
+    /// `mods.<id>.<key>[<n>].<field>` (`…[<n>]` for a row that is not a table), so a rejection names
+    /// the field it is about.
+    #[error("`{key}` {problem}")]
+    Record { key: String, problem: RecordProblem },
 }
 
 impl ValidationError {
     /// Every variant with its i18n key and English template, in one place (feeds `i18n_en`).
     pub const CATALOG: &[(&str, &str)] = &[
+        (
+            "error.config.record_not_a_record",
+            "“{key}” must be a table of fields.",
+        ),
+        (
+            "error.config.record_unknown_field",
+            "“{key}” is not a field of this list.",
+        ),
+        ("error.config.record_missing_field", "“{key}” is required."),
+        (
+            "error.config.record_wrong_type",
+            "“{key}” has the wrong type.",
+        ),
+        (
+            "error.config.record_slug",
+            "“{key}” must be a slug: a-z, 0-9 and hyphens, 1 to 32 characters.",
+        ),
+        (
+            "error.config.record_url",
+            "“{key}” must be an absolute URL.",
+        ),
+        (
+            "error.config.record_scheme",
+            "“{key}” uses a scheme that is not allowed here.",
+        ),
+        (
+            "error.config.record_choice",
+            "“{key}” must be one of the choices.",
+        ),
+        (
+            "error.config.record_out_of_range",
+            "“{key}” is outside the allowed range.",
+        ),
+        (
+            "error.config.record_duplicate",
+            "“{key}” repeats another row’s value.",
+        ),
         ("error.config.unknown_key", "Unknown setting “{key}”."),
         (
             "error.config.wrong_type",
@@ -88,6 +131,7 @@ impl ValidationError {
             Self::InvalidColor { .. } => "error.config.invalid_color",
             Self::InvalidAction { .. } => "error.config.invalid_action",
             Self::EmptyList { .. } => "error.config.empty_list",
+            Self::Record { problem, .. } => problem.i18n_key(),
         }
     }
 
@@ -100,7 +144,8 @@ impl ValidationError {
             | Self::UnknownChoice { key, .. }
             | Self::InvalidColor { key, .. }
             | Self::InvalidAction { key, .. }
-            | Self::EmptyList { key } => key,
+            | Self::EmptyList { key }
+            | Self::Record { key, .. } => key,
         }
     }
 }
