@@ -1,0 +1,9 @@
+# The test mod of tests/hosts.rs (K38): one host, `fake`, whose program is the fake host script. Test data only.
+id = "probe"
+name = "Probe"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["host:fake", "service:probe", "action:probe.*"]
+capabilities = ["exec:fake-host", "exec:absent-host"]
+cost = "low"
