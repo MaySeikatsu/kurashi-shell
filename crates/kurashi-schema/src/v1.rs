@@ -32,6 +32,8 @@ pub struct Config {
     pub notifications: Notifications,
     #[kurashi(nested)]
     pub launcher: Launcher,
+    #[kurashi(nested)]
+    pub clock: Clock,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -303,6 +305,29 @@ pub struct Notifications {
     /// How many notifications are kept.
     #[kurashi(default = 200, range = 10..=2000, step = 10, advanced, restart)]
     pub history_max: u32,
+}
+
+// --- clock ------------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum WeekStart {
+    Auto,
+    Monday,
+    Sunday,
+    Saturday,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "island", section = "clock")]
+pub struct Clock {
+    /// First day of the week
+    /// The calendar's first column; automatic follows the language (Sunday for Japanese, Monday otherwise).
+    #[kurashi(default = WeekStart::Auto)]
+    pub week_start: WeekStart,
+    /// Week numbers
+    /// Show ISO week numbers beside the calendar's rows.
+    #[kurashi(default = false)]
+    pub week_numbers: bool,
 }
 
 // --- launcher --------------------------------------------------------------------------------

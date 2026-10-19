@@ -765,6 +765,56 @@
               "type": "action"
             }
           ]
+        },
+        {
+          "id": "clock",
+          "label": "settings.section.clock",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.week_start.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.week_start.monday",
+                  "value": "monday"
+                },
+                {
+                  "label": "config.choice.week_start.sunday",
+                  "value": "sunday"
+                },
+                {
+                  "label": "config.choice.week_start.saturday",
+                  "value": "saturday"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.clock.week_start.help",
+              "key": "clock.week_start",
+              "label": "config.clock.week_start.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.clock.week_numbers.help",
+              "key": "clock.week_numbers",
+              "label": "config.clock.week_numbers.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
         }
       ]
     },

@@ -157,7 +157,8 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
-  `choices:<source>` → `ModCtx::choices(source, fn)`. See `docs/ux/COMPOSITION.md` for the slot list.
+  `choices:<source>` → `ModCtx::choices(source, fn)`; `ModCtx::slot(name)` → a `SlotHandle` whose `set_reason(Some(key))`
+  marks the contribution as needing setup (row 72; `runtime.slots` `reason`). See `docs/ux/COMPOSITION.md` for the slot list.
 - **i18n:** `i18n/{en,ja}/mod-<id>.toml` (one domain file per mod, so parallel work never conflicts).
 
 ### Host processes (K38)

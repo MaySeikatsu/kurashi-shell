@@ -172,3 +172,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W18.3 | Sysmon: main GPU, localized/version-like names, undrawn states (I65) | ✅ functional · UX ⏳ (screen reader, cgroup limits: I84) | W18-sysmon e0879c5 |
 | W18.4 | Profiles page follow-ups, records editor keyboard paths, wl_keys URL characters (I64, I81) | ✅ | W18-settings 584265b + lead row 101, two editor fixes |
 
+## Wave 19 (session 7; rows 71–72, clock schema keys)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| W19.0 | Contract: `clock.expanded.daymark` slot (row 71), `runtime.slots` `reason` + `ModCtx::slot` (row 72), schema `clock.week_start`/`week_numbers` | ✅ | lead |
+| W19.1 | Bar widgets on side bars (I85) | 🔄 | W19-side-bars |
+| W19.2 | Weather polish without colour: hourly rain, seven days, places preview forecast, no-place reason (I82, I57) | 🔄 | W19-weather |
+| W19.3 | Wallpaper picker polish without colour: width, output chips, overflow menu, keys (I83, I32) | 🔄 | W19-wallpaper |
+| W19.4 | Calendar: day marks, week start/numbers, slot setup states (I46, rows 71–72) | 🔄 | W19-calendar |
+
