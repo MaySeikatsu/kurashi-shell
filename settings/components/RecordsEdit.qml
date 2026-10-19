@@ -92,6 +92,13 @@ Column {
         rec.draft = ({})
         rec.pending = false
     }
+    // Escape and Cancel: the form closes and the focus goes back to the row it opened from (the add button for an add).
+    // The field that had the focus leaves the window with the form, and then the focus is nowhere (I81).
+    function cancelForm() {
+        var at = rec.formRow
+        rec.closeForm()
+        Qt.callLater(function () { rec.focusRow(at) })
+    }
     // Every change goes to the daemon as the whole list; the rows follow its answer.
     function submit() {
         if (!rec.enabled || rec.formRow < 0) return
@@ -136,7 +143,8 @@ Column {
         const sig = JSON.stringify(rec.items)
         if (sig === rec.seen) return
         rec.seen = sig
-        if (rec.pending) rec.closeForm()
+        // A saved form closes, and the focus goes to the entry it saved (a new entry is the last one).
+        if (rec.pending) { rec.focusIndex = rec.formRow; rec.closeForm() }
         if (rec.focusIndex >= 0) {
             var f = rec.focusIndex
             rec.focusIndex = -1
@@ -340,7 +348,7 @@ Column {
                         invalid: fieldBox.err !== ""
                         onTyping: t => rec.setDraft(fieldBox.key, rec.typed(fieldBox.kind, t))
                         onSubmitted: rec.submit()
-                        onEscaped: rec.closeForm()
+                        onEscaped: rec.cancelForm()
                     }
                     Select {
                         id: pick
@@ -352,7 +360,7 @@ Column {
                         current: rec.draft[fieldBox.key]
                         placeholder: I18n.tr("settings.records.choose")
                         onPicked: v => rec.setDraft(fieldBox.key, v)
-                        onCancelled: rec.closeForm()
+                        onCancelled: rec.cancelForm()
                     }
                     Toggle {
                         id: toggle
@@ -385,7 +393,7 @@ Column {
                 Button {
                     objectName: "recordcancel"
                     label: I18n.tr("settings.records.cancel")
-                    onClicked: rec.closeForm()
+                    onClicked: rec.cancelForm()
                 }
             }
             Text {
