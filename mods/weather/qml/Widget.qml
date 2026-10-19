@@ -15,6 +15,8 @@ Item {
     required property var theme
     required property var i18n
     id: w
+    // A side bar hands this over (the bar's Binding): the widget is then the glyph over the temperature, in the bar's 36 px.
+    property bool vertical: false
 
     property bool live: visible
     Watch { doc: "mod.weather"; active: w.live }
@@ -47,6 +49,13 @@ Item {
         })
     }
 
+    // A side bar: the glyph over the temperature. The template's full text is the accessible name's and the peek's; these
+    // are the short marks of the same states: "+" for no place (the click opens its setting), "…" loading, "—" no value.
+    readonly property string vGlyph: !loaded ? "…" : !hasPlace ? "+"
+        : !ok ? (d.reason === "mod-weather.loading" ? "…" : "—")
+        : !hasNow ? "—" : W.glyph(now.code, now.is_day)
+    readonly property string vTemp: hasNow ? W.deg(now.temp) : ""
+
     readonly property string ageText: {
         var p = W.ageParts(d.age_s)
         return p.n > 0 ? W.fill(I18n.tr(p.key), { n: p.n }) : I18n.tr(p.key)
@@ -68,8 +77,8 @@ Item {
         Store.act("weather.refresh", {})
     }
 
-    implicitWidth: label_t.implicitWidth + Theme.gap * 2
-    implicitHeight: Theme.controlH
+    implicitWidth: w.vertical ? Theme.barH : label_t.implicitWidth + Theme.gap * 2
+    implicitHeight: w.vertical ? col.implicitHeight : Theme.controlH
     activeFocusOnTab: true
     Accessible.role: Accessible.Button
     Accessible.name: !loaded ? I18n.tr("mod-weather.loading")
@@ -84,12 +93,37 @@ Item {
 
     Text {
         id: label_t
+        visible: !w.vertical
         anchors.centerIn: parent
         text: w.label
         color: Theme.fg
         opacity: w.dim ? Theme.staleOpacity : 1
         font.pixelSize: Theme.fs
         font.family: Theme.fam(text, Theme.families)
+    }
+    Column {
+        id: col
+        visible: w.vertical
+        anchors.centerIn: parent
+        opacity: w.dim ? Theme.staleOpacity : 1
+        Text {
+            width: Theme.barH
+            horizontalAlignment: Text.AlignHCenter
+            text: w.vGlyph
+            color: Theme.fg
+            font.pixelSize: Theme.fs
+            font.family: Theme.fam(text, Theme.families)
+        }
+        Text {
+            visible: w.vTemp !== ""
+            width: Theme.barH
+            horizontalAlignment: Text.AlignHCenter
+            text: w.vTemp
+            color: Theme.fg
+            font.pixelSize: Theme.fs
+            font.family: Theme.fam(text, Theme.families)
+            font.features: ({"tnum": 1})
+        }
     }
 
     FocusRing { anchors.fill: parent; shown: w.activeFocus; corner: Theme.rSm }

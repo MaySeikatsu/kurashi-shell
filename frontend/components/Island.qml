@@ -13,6 +13,10 @@ import "faces"
 // `mods` document names no file for (mod off, or not yet loaded) falls back to the clock, not to nothing.
 // Input is presentational: the surface passes island.main's resolved bindings in `slots` and gets
 // `activated(slot)` for a bound slot only. What a slot does is the daemon's call (input.dispatch).
+// On a side bar (`vertical`, set by the bar) the pill is a column as wide as the bar is thick: the face's glyph over a
+// short value, the stale time stacked at its foot, and the secondary glyph and "+N" stacked under the pill. Nothing
+// crosses the bar's width and no text is turned (I85). A mod's face gets `vertical` when it declares it, else the pill
+// shows the face's glyph.
 Item {
     id: isl
     property string face: "clock"
@@ -26,6 +30,8 @@ Item {
     property string reason: "default"   // why the daemon picked this face
     // `manual` (island.next/prev/pin via the arbiter) is a deliberate user choice, like `user`.
     readonly property bool byUser: reason === "user" || reason === "manual"
+    // The bar's edge is a side one: the pill is a column (see the header).
+    property bool vertical: false
 
     // The arbiter's document beyond the face (K30): the secondary face, the overflow count, and per face its peek line
     // and stale time. The island reads it itself, so the bars keep their one `face` and `reason` binding.
@@ -68,7 +74,7 @@ Item {
     property bool pointerIn: false
     property bool peekDismissed: false
     readonly property string peekText: isTransient ? "" : detailOf(shown)
-    // Off in a vertical bar: the island is turned there, and the Stage anchors a peek on top and bottom bars only.
+    // The Stage draws a side bar's peek beside the bar, aligned to the island (I67), so it is offered on every edge.
     property bool peekable: true
     // The output this island's bar is on: the Stage draws the peek there.
     property string peekOutput: ""
@@ -87,6 +93,14 @@ Item {
         if (modFace.item) return modFace.item.wantW ?? modFace.item.implicitWidth
         return 0
     }
+    // A side bar's pill: the current face's natural height (a mod's face when it declares `vertical`, else the glyph).
+    readonly property real faceH: {
+        var l = [clock, media, volume, bright, notifs, power, bluetooth]
+        for (var i = 0; i < l.length; i++)
+            if (l[i].current && l[i].item) return l[i].item.wantH
+        if (isModFace) return modVertical ? (modFace.item ? (modFace.item.wantH ?? modFace.item.implicitHeight) : 0) : modGlyph.implicitHeight
+        return 0
+    }
     // The tail at the pill's right end: the "as of" label while the face is stale. Measured with TextMetrics, which is
     // synchronous (a hidden Text is not laid out, so its implicit width is not there when the pill needs it).
     TextMetrics {
@@ -99,11 +113,20 @@ Item {
     readonly property real tailW: staleW > 0 ? staleW + Theme.gap : 0
     readonly property real pillW: faceW + 2 * Theme.pad + tailW
     readonly property real extrasW: extras.visible ? Theme.xs + extras.width : 0
+    // A side bar's pill: the faces' column with a little air above and below, and the stale time stacked at the foot.
+    readonly property int vpad: Theme.xs + 2
+    readonly property real tailH: vertical && isStale ? staleCol.implicitHeight + Theme.xs : 0
+    readonly property real pillH: vertical ? vpad + faceH + tailH + vpad : Theme.barH - 10
+    readonly property real extrasH: extras.visible ? Theme.xs + extras.height : 0
 
-    height: Theme.barH - 10
-    width: pillW + extrasW
+    height: vertical ? pillH + extrasH : Theme.barH - 10
+    width: vertical ? Theme.barH - 8 : pillW + extrasW
     Behavior on width {
         enabled: isl.animate
+        NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+    }
+    Behavior on height {
+        enabled: isl.animate && isl.vertical
         NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
     }
 
@@ -111,8 +134,10 @@ Item {
     // tween as the island's, so the morph is one motion.
     Rectangle {
         id: pill
-        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
-        width: isl.pillW
+        x: 0
+        y: 0
+        width: isl.vertical ? isl.width : isl.pillW
+        height: isl.vertical ? isl.pillH : isl.height
         radius: Theme.rFull
         color: Theme.containerHigh
         clip: true
@@ -120,27 +145,34 @@ Item {
             enabled: isl.animate
             NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
         }
+        Behavior on height {
+            enabled: isl.animate && isl.vertical
+            NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+        }
 
         Item {
             id: faces
-            anchors { left: parent.left; top: parent.top; bottom: parent.bottom; right: parent.right; rightMargin: isl.tailW }
+            x: 0
+            y: isl.vertical ? isl.vpad : 0
+            width: isl.vertical ? pill.width : pill.width - isl.tailW
+            height: isl.vertical ? isl.faceH : pill.height
 
             // A face exists only while it is current or still fading out: the idle faces cost
             // ~1 MiB per bar, i.e. per output (B7, docs/BENCH.md).
-            FaceSlot { id: clock; face: "clock"; sourceComponent: ClockFace { current: clock.current; animate: isl.animate } }
-            FaceSlot { id: media; face: "media"; sourceComponent: MediaFace { current: media.current; animate: isl.animate } }
-            FaceSlot { id: volume; face: "volume"; sourceComponent: VolumeFace { current: volume.current; animate: isl.animate } }
-            FaceSlot { id: bright; face: "brightness"; sourceComponent: BrightnessFace { current: bright.current; animate: isl.animate } }
-            FaceSlot { id: notifs; face: "notifications"; sourceComponent: NotificationsFace { current: notifs.current; animate: isl.animate } }
+            FaceSlot { id: clock; face: "clock"; sourceComponent: ClockFace { current: clock.current; animate: isl.animate; vertical: isl.vertical } }
+            FaceSlot { id: media; face: "media"; sourceComponent: MediaFace { current: media.current; animate: isl.animate; vertical: isl.vertical } }
+            FaceSlot { id: volume; face: "volume"; sourceComponent: VolumeFace { current: volume.current; animate: isl.animate; vertical: isl.vertical } }
+            FaceSlot { id: bright; face: "brightness"; sourceComponent: BrightnessFace { current: bright.current; animate: isl.animate; vertical: isl.vertical } }
+            FaceSlot { id: notifs; face: "notifications"; sourceComponent: NotificationsFace { current: notifs.current; animate: isl.animate; vertical: isl.vertical } }
             FaceSlot {
                 id: power
                 face: "power"
-                sourceComponent: PowerFace { current: power.current; animate: isl.animate; line: isl.detailOf("power") }
+                sourceComponent: PowerFace { current: power.current; animate: isl.animate; vertical: isl.vertical; line: isl.detailOf("power") }
             }
             FaceSlot {
                 id: bluetooth
                 face: "bluetooth"
-                sourceComponent: BluetoothFace { current: bluetooth.current; animate: isl.animate; line: isl.detailOf("bluetooth") }
+                sourceComponent: BluetoothFace { current: bluetooth.current; animate: isl.animate; vertical: isl.vertical; line: isl.detailOf("bluetooth") }
             }
 
             // A mod's compact face (K28): its Face.qml, instantiated only while it is the face. It is not faded:
@@ -151,12 +183,21 @@ Item {
                 shown: isl.isModFace
                 anchors.centerIn: parent
             }
+            // A mod's face on a side bar that does not declare `vertical`: its glyph, the face's full text is the peek's.
+            Text {
+                id: modGlyph
+                visible: isl.vertical && isl.isModFace && !isl.modVertical
+                anchors.centerIn: parent
+                color: Theme.dim
+                font.pixelSize: Theme.fs
+                text: isl.glyphOf(isl.face)
+            }
         }
 
-        // The tail (see tailW): the "as of" label at the right end while the face is stale.
+        // The tail of a top or bottom bar (see tailW): the "as of" label at the right end while the face is stale.
         Text {
             id: staleLabel
-            visible: isl.isStale
+            visible: isl.isStale && !isl.vertical
             anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             width: isl.staleW
             color: Theme.dim
@@ -164,6 +205,37 @@ Item {
             font.family: Theme.fam(text, Theme.families)
             text: staleM.text
         }
+        // A side bar's tail: the stale hour over the minute (the words are the accessible name).
+        Column {
+            id: staleCol
+            visible: isl.isStale && isl.vertical
+            anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.bottom; bottomMargin: isl.vpad }
+            Accessible.role: Accessible.StaticText
+            Accessible.name: isl.isStale ? I18n.tr("island.stale").replace("{t}", isl.timeOf(isl.staleOf(isl.shown))) : ""
+            Text {
+                Accessible.ignored: true
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: isl.isStale ? Qt.formatTime(new Date(isl.staleOf(isl.shown)), "hh") : ""
+            }
+            Text {
+                Accessible.ignored: true
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: isl.isStale ? Qt.formatTime(new Date(isl.staleOf(isl.shown)), "mm") : ""
+            }
+        }
+    }
+
+    // A mod's face gets `vertical` when its QML declares it (ModLoader is not involved: the binding is here).
+    readonly property bool modVertical: modFace.item !== null && modFace.item !== undefined && ("vertical" in modFace.item)
+    Binding {
+        target: modFace.item
+        property: "vertical"
+        value: isl.vertical
+        when: isl.modVertical
     }
 
     // Keeps its face while current and, after that, until the face has faded out.
@@ -182,18 +254,25 @@ Item {
     }
 
     // Beside the pill: the next live activity of another face, minimal (20 px), then "+N" for the rest (K30).
-    // It is one target with the island: a pointer on it is a pointer on the island.
+    // It is one target with the island: a pointer on it is a pointer on the island. A side bar stacks them under the
+    // pill: the secondary glyph, then "+N".
     Item {
         id: extras
-        anchors { left: pill.right; leftMargin: Theme.xs; verticalCenter: parent.verticalCenter }
+        x: isl.vertical ? (isl.width - width) / 2 : pill.width + Theme.xs
+        y: isl.vertical ? pill.height + Theme.xs : (isl.height - height) / 2
         visible: isl.secondaryFace !== "" || isl.overflowN > 0
-        height: 20
-        width: (second.visible ? second.width : 0) + (over.visible ? (second.visible ? Theme.xs : 0) + over.implicitWidth : 0)
+        height: isl.vertical
+            ? (second.visible ? second.height : 0) + (over.visible ? (second.visible ? Theme.xs : 0) + over.implicitHeight : 0)
+            : 20
+        width: isl.vertical
+            ? Math.max(second.visible ? second.width : 0, over.visible ? over.implicitWidth : 0)
+            : (second.visible ? second.width : 0) + (over.visible ? (second.visible ? Theme.xs : 0) + over.implicitWidth : 0)
 
         Rectangle {
             id: second
             visible: isl.secondaryFace !== ""
-            anchors.verticalCenter: parent.verticalCenter
+            x: isl.vertical ? (extras.width - width) / 2 : 0
+            y: isl.vertical ? 0 : (extras.height - height) / 2
             width: 20
             height: 20
             radius: 10
@@ -212,8 +291,8 @@ Item {
         Text {
             id: over
             visible: isl.overflowN > 0
-            x: second.visible ? second.width + Theme.xs : 0
-            anchors.verticalCenter: parent.verticalCenter
+            x: isl.vertical ? (extras.width - width) / 2 : (second.visible ? second.width + Theme.xs : 0)
+            y: isl.vertical ? (second.visible ? second.height + Theme.xs : 0) : (extras.height - height) / 2
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
@@ -223,13 +302,14 @@ Item {
         }
     }
 
-    // The pointer target is the bar's full thickness (review #11: at least 32 px), centred on the pill.
-    // It is a sibling of the pill, not a child: a clipping parent does not deliver pointer events to
-    // children outside it, and the pill keeps its clip.
+    // The pointer target is the bar's full thickness (review #11: at least 32 px), centred on the pill; on a side bar it
+    // runs the length of the island with its marks. It is a sibling of the pill, not a child: a clipping parent does not
+    // deliver pointer events to children outside it, and the pill keeps its clip.
     MouseArea {
-        anchors.centerIn: parent
-        width: parent.width
-        height: Theme.barH
+        x: (isl.width - width) / 2
+        y: (isl.height - height) / 2
+        width: isl.vertical ? Theme.barH : isl.width
+        height: isl.vertical ? isl.height : Theme.barH
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
         // A pointer only promises a click when the left click does something (unbound = no pointer).
