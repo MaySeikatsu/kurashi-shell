@@ -12,6 +12,14 @@ Singleton {
     // as kurashid and the CLI. (Reading only the override left every live start disconnected.)
     readonly property string socketPath: Quickshell.env("KURASHI_SOCKET")
         || ((Quickshell.env("XDG_RUNTIME_DIR") || "") + "/kurashi/ipc.sock")
+    // A mod's host process (MODS.md "Host processes", K38) connects with the scope the daemon handed it;
+    // the shell has none, and its hello stays as it was.
+    readonly property string scopeMod: Quickshell.env("KURASHI_SCOPE_MOD") || ""
+    readonly property string scopeToken: Quickshell.env("KURASHI_SCOPE_TOKEN") || ""
+    readonly property string clientName: Quickshell.env("KURASHI_CLIENT") || "frontend"
+    // Set by `goodbye` with reason `scope` (PROTOCOL §2): the daemon did not issue this token, so
+    // retrying cannot succeed and the reconnect loop stops.
+    property string refused: ""
 
     // Reactive document map: Store.docs["svc.media"]. Reassigned (shallow copy) on every change so
     // bindings re-evaluate; a doc that is not watched, or that the daemon does not serve, is absent.
@@ -157,6 +165,10 @@ Singleton {
             }
         } else if (m.t === "ping") {
             send({ t: "pong" })
+        } else if (m.t === "goodbye" && m.reason === "scope") {
+            retry.stop()
+            refused = "scope"
+            console.warn("Store: the daemon refused this scope (goodbye scope); not retrying")
         }
     }
 
@@ -176,14 +188,17 @@ Singleton {
             onConnectedChanged: {
                 if (root.cur !== s) return   // a replaced instance dying must not touch state
                 if (connected) {
-                    root.send({ t: "hello", v: 1, client: "frontend", caps: ["intents", "resync"] })
+                    var hello = { t: "hello", v: 1, client: root.clientName, caps: ["intents", "resync"] }
+                    if (root.scopeMod !== "" && root.scopeToken !== "")
+                        hello.scope = { mod: root.scopeMod, token: root.scopeToken }
+                    root.send(hello)
                 } else {
                     // Keep the last state (the veil marks it stale).
                     root.connected = false
                     root.live = false
                     root.revs = ({})
                     root.failAll({ kind: "unavailable", msg: "disconnected" })
-                    if (!retry.running) retry.start()
+                    if (!retry.running && root.refused === "") retry.start()
                 }
             }
         }
@@ -198,7 +213,7 @@ Singleton {
         repeat: false
         onTriggered: {
             interval = Math.min(interval * 2, 4000)
-            if (root.connected) return
+            if (root.connected || root.refused !== "") return
             ld.active = false
             ld.active = true
             start()

@@ -1,0 +1,78 @@
+# ウェブドック (ja): モードのカタログ項目と設定 (mods/webdock/mod.toml)、デーモンのエラーキー、
+# ウェブホストのカード (mods/webdock/host) の文言。波括弧のプレースホルダはフロントエンドが埋める。
+
+# カタログ項目と設定。
+"mods.webdock.name" = "ウェブドック"
+"mods.webdock.description" = "よく使うサイトや画面を、画面の端からホバーひとつで開けます。ウェブエンジンはサイトを開いている間だけ動きます。"
+"mods.webdock.pins" = "ピン"
+"mods.webdock.default_view" = "既定の表示"
+"mods.webdock.width" = "スマホ幅 (px)"
+"mods.webdock.large" = "大きい表示 (%)"
+"mods.webdock.edge" = "画面の端"
+"mods.webdock.unload_after" = "未使用で解放するまで (分)"
+"mods.webdock.max_loaded" = "読み込んでおくサイト数"
+
+# ピンとドック。
+"webdock.empty" = "サイトか画面をピン留めすると、ホバーひとつで開けます"
+"webdock.add.url" = "サイトのアドレス"
+"webdock.pin.dock" = "ドックを開いたままにする"
+"webdock.pin.undock" = "ドックを自動で隠す"
+"webdock.view.mobile" = "モバイル表示"
+"webdock.view.desktop" = "デスクトップ表示"
+"webdock.size.phone" = "スマホ"
+"webdock.size.large" = "大きく"
+"webdock.open_browser" = "ブラウザで開く"
+"webdock.hint.desktop_large" = "デスクトップ表示のページは「大きく」で見やすくなります"
+
+# カード自身の操作。
+"webdock.nav.back" = "戻る"
+"webdock.nav.reload" = "再読み込み"
+"webdock.nav.collapse" = "閉じる"
+"webdock.sheet.close" = "閉じる"
+
+# 状態。
+"webdock.loading" = "読み込み中…"
+"webdock.host.starting" = "ウェブエンジンを起動しています…"
+"webdock.host.missing" = "ウェブエンジンがインストールされていません (programs.kurashi.webdock)"
+"webdock.error.load" = "ページを読み込めませんでした"
+"webdock.error.code" = "エラー {code}"
+"webdock.error.retry" = "再試行"
+"webdock.error.crashed" = "ページが停止しました"
+"webdock.error.unknown_pin" = "そのピンはありません"
+"webdock.error.not_a_site" = "表示を持てるのはサイトだけです"
+"webdock.signin_refused" = "このサイトは埋め込みブラウザでのサインインを拒否しています。ブラウザで開いてください。"
+
+# ページが求めて拒否された権限 (1 つにつきチップ 1 つ)。
+"webdock.blocked.camera" = "ブロック: カメラ"
+"webdock.blocked.microphone" = "ブロック: マイク"
+"webdock.blocked.location" = "ブロック: 位置情報"
+"webdock.blocked.notifications" = "ブロック: 通知"
+"webdock.blocked.screen" = "ブロック: 画面共有"
+"webdock.blocked.clipboard" = "ブロック: クリップボード"
+"webdock.blocked.download" = "ブロック: ダウンロード"
+"webdock.blocked.other" = "ブロック: その他"
+
+# 設定の補足、エラー、デーモンのカタログが出すアクションの名前 (デーモンのカードが使う)。
+"mods.webdock.default_view.help" = "新しいピンを開くときの表示: モバイル (スマホ幅、モバイル用の UA) またはデスクトップ。"
+"mods.webdock.unload_after.help" = "表示中のサイトがなくなってからウェブエンジンを止めるまでの分数 (0 はドックが有効な間ずっと動かす)。"
+"webdock.error.runtime" = "ウェブドックが予期せず止まりました"
+"webdock.error.argument" = "ドックが受け付けない引数です"
+"webdock.error.size" = "カードの大きさは「スマホ」か「大きく」にしてください"
+"webdock.error.view" = "表示は「モバイル」か「デスクトップ」にしてください"
+"webdock.error.permission" = "ドックが報告しない権限です"
+"webdock.error.icon" = "サイトのアイコンを保存できませんでした"
+"webdock.error.url" = "ブラウザで開けるのは http と https のアドレスだけです"
+"webdock.error.no_browser" = "既定のブラウザが設定されていません (xdg-open がありません)"
+"action.webdock.open" = "ドックでサイトか表示を開く"
+"action.webdock.collapse" = "ドックを細いストリップに畳む"
+"action.webdock.hide" = "ドックを隠す"
+"action.webdock.toggle" = "ドックを表示または隠す"
+"action.webdock.size" = "カードの大きさを変える"
+"action.webdock.view" = "サイトのモバイルまたはデスクトップ表示を変える"
+"action.webdock.open_external" = "既定のブラウザでページを開く"
+"action.webdock.host.loaded" = "サイトの読み込みが終わった"
+"action.webdock.host.unloaded" = "サイトを解放した"
+"action.webdock.host.audible" = "サイトが音を出し始めた、または止めた"
+"action.webdock.host.blocked" = "サイトがブロックされた権限を求めた"
+"action.webdock.host.new_window" = "サイトが新しいウィンドウを求めた"
+"action.webdock.host.crashed" = "サイトが停止した"

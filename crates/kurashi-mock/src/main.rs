@@ -10,6 +10,7 @@
 
 mod documents;
 mod state;
+mod webdock;
 
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -68,6 +69,11 @@ async fn main() -> anyhow::Result<()> {
         .filter(|s| !s.is_empty())
         .map(String::from)
         .collect();
+    // The web dock's `dirs` exist before a host can use them, as the daemon creates them (MODS.md "Host processes").
+    let (profiles, icons) = webdock::dir_paths();
+    for dir in [&profiles, &icons] {
+        std::fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
+    }
     let state = Arc::new(Mutex::new(State::new(&outputs, args.fixed_time)));
 
     // Clock: wake exactly at the next minute boundary, never more often. Not started under
@@ -100,6 +106,8 @@ async fn serve(stream: UnixStream, state: Arc<Mutex<State>>) -> anyhow::Result<(
     let (out_tx, mut out_rx) = mpsc::unbounded_channel::<ServerMsg>();
     let mut patches = state.lock().await.tx.subscribe();
     let subscribed: Arc<Mutex<HashSet<String>>> = Default::default();
+    // The mod of a host connection (PROTOCOL §2, MODS.md "Host processes"); `None` for every other client.
+    let mut scope: Option<String> = None;
 
     // Writer: direct replies + patches for subscribed documents.
     let subs = subscribed.clone();
@@ -127,14 +135,40 @@ async fn serve(stream: UnixStream, state: Arc<Mutex<State>>) -> anyhow::Result<(
         let reply = |m: ServerMsg| {
             let _ = out_tx.send(m);
         };
+        if let Some(mod_id) = &scope
+            && let Some(echo) = scoped_refusal(mod_id, &msg)
+        {
+            reply(ServerMsg::Err {
+                id: echo,
+                kind: "forbidden".into(),
+                msg: "a host connection may not ask this (PROTOCOL §2)".into(),
+            });
+            continue;
+        }
         match msg {
-            ClientMsg::Hello { v, client, .. } => {
+            ClientMsg::Hello {
+                v,
+                client,
+                scope: hello_scope,
+                ..
+            } => {
                 if v != PROTOCOL_VERSION {
                     reply(ServerMsg::Goodbye {
                         reason: "version".into(),
                         supported: vec![PROTOCOL_VERSION],
                     });
                     break;
+                }
+                if let Some(s) = hello_scope {
+                    // The mock issues no tokens: `bad` stands for one the daemon did not issue (PROTOCOL §2).
+                    if s.token == "bad" {
+                        reply(ServerMsg::Goodbye {
+                            reason: "scope".into(),
+                            supported: vec![PROTOCOL_VERSION],
+                        });
+                        break;
+                    }
+                    scope = Some(s.mod_id);
                 }
                 tracing::info!(%client, "hello");
                 reply(ServerMsg::Welcome {
@@ -238,9 +272,82 @@ async fn snapshot(
     }
 }
 
+/// What a host connection of mod `mod_id` may ask (PROTOCOL §2): its own documents (`mod.<id>` and
+/// `mod.<id>.*`), `theme` and `i18n`, its own actions (`<id>.*`), and `ping`. `Some(echo)` refuses the
+/// message as `forbidden` with `echo` as its id; the connection stays open. Nothing else is refused here.
+fn scoped_refusal(mod_id: &str, msg: &ClientMsg) -> Option<Option<String>> {
+    let doc_ok = |doc: &str| {
+        doc == "theme"
+            || doc == "i18n"
+            || doc == format!("mod.{mod_id}")
+            || doc.starts_with(&format!("mod.{mod_id}."))
+    };
+    let act_ok = |action: &str| action.starts_with(&format!("{mod_id}."));
+    match msg {
+        ClientMsg::Hello { .. } | ClientMsg::Unsub { .. } | ClientMsg::Ping => None,
+        ClientMsg::Sub { id, doc, .. } => (!doc_ok(doc.as_str())).then(|| Some(id.clone())),
+        ClientMsg::Resync { doc } => (!doc_ok(doc.as_str())).then(|| Some(format!("resync:{doc}"))),
+        ClientMsg::Act { id, action, .. } => (!act_ok(action.as_str())).then(|| Some(id.clone())),
+        ClientMsg::Intent { .. }
+        | ClientMsg::MockTick
+        | ClientMsg::MockFace { .. }
+        | ClientMsg::MockWorkspace { .. } => Some(None),
+        ClientMsg::Query { id, .. }
+        | ClientMsg::CfgGet { id, .. }
+        | ClientMsg::CfgExplain { id, .. }
+        | ClientMsg::Apply { id, .. }
+        | ClientMsg::Undo { id }
+        | ClientMsg::Redo { id } => Some(Some(id.clone())),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_host_connection_may_only_ask_for_its_mod_theme_and_i18n_and_act_on_its_mod() {
+        let sub = |doc: &str| ClientMsg::Sub {
+            id: "s1".into(),
+            doc: doc.into(),
+        };
+        let act = |action: &str| ClientMsg::Act {
+            id: "a1".into(),
+            action: action.into(),
+            args: serde_json::json!({}),
+        };
+        assert_eq!(scoped_refusal("webdock", &sub("mod.webdock")), None);
+        assert_eq!(scoped_refusal("webdock", &sub("mod.webdock.pins")), None);
+        assert_eq!(scoped_refusal("webdock", &sub("theme")), None);
+        assert_eq!(scoped_refusal("webdock", &sub("i18n")), None);
+        assert_eq!(
+            scoped_refusal("webdock", &sub("svc.clock")),
+            Some(Some("s1".into()))
+        );
+        assert_eq!(
+            scoped_refusal("webdock", &sub("mod.webdockx")),
+            Some(Some("s1".into())),
+            "a prefix of the id is not the mod"
+        );
+        assert_eq!(scoped_refusal("webdock", &act("webdock.open")), None);
+        assert_eq!(
+            scoped_refusal("webdock", &act("mock.webdock")),
+            Some(Some("a1".into()))
+        );
+        assert_eq!(
+            scoped_refusal(
+                "webdock",
+                &ClientMsg::Intent {
+                    key: "audio.volume".into(),
+                    value: serde_json::json!(0.5),
+                    origin: None,
+                    coalesce: false,
+                }
+            ),
+            Some(None)
+        );
+        assert_eq!(scoped_refusal("webdock", &ClientMsg::Ping), None);
+    }
 
     #[test]
     fn fixed_time_is_24_hour_hh_mm_and_nothing_else() {
