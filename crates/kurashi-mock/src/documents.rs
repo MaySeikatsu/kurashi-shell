@@ -250,26 +250,78 @@ pub fn network(wifi_on: bool) -> Value {
     }
 }
 
-/// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves one fake contribution, the
-/// test mod `hello`'s footer row, when its file is in this checkout. Without the file it serves none,
-/// as kurashid does for a contribution whose file is missing.
+/// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves the contributions of the test mod
+/// `hello` (its footer row and its quick tile), the real wallpaper tile (`mods/wallpaper`) and one contribution
+/// that is not a tile (`qml/not-a-tile.qml`, W18: clipped to its cell). Within a slot they are ordered by mod id,
+/// as the daemon orders them. A file that is not in this checkout is left out, as kurashid leaves out a
+/// contribution whose file is missing.
 pub fn slots() -> Value {
-    match hello_footer_qml() {
-        Some(qml) => {
-            json!({"clock.expanded.footer": [{"mod": "hello", "qml": qml, "ready": true}]})
+    // (slot, mod, file relative to this crate).
+    const CONTRIBUTIONS: [(&str, &str, &str); 4] = [
+        (
+            "clock.expanded.footer",
+            "hello",
+            "../kurashid/tests/data/mods/hello/qml/slots/clock.expanded.footer.qml",
+        ),
+        (
+            "quick.tiles",
+            "hello",
+            "../kurashid/tests/data/mods/hello/qml/slots/quick.tiles.qml",
+        ),
+        ("quick.tiles", "mock", "qml/not-a-tile.qml"),
+        (
+            "quick.tiles",
+            "wallpaper",
+            "../../mods/wallpaper/qml/slots/quick.tiles.qml",
+        ),
+    ];
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut out = Map::new();
+    for (slot, mod_id, rel) in CONTRIBUTIONS {
+        let Ok(path) = root.join(rel).canonicalize() else {
+            continue;
+        };
+        let entry =
+            json!({"mod": mod_id, "qml": format!("file://{}", path.display()), "ready": true});
+        if let Some(list) = out
+            .entry(slot)
+            .or_insert_with(|| Value::Array(Vec::new()))
+            .as_array_mut()
+        {
+            list.push(entry);
         }
-        None => json!({}),
     }
+    Value::Object(out)
 }
 
-/// `file://` URL of the test mod's footer component (kurashid `tests/data/mods/hello`).
-fn hello_footer_qml() -> Option<String> {
-    let path = std::path::Path::new(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../kurashid/tests/data/mods/hello/qml/slots/clock.expanded.footer.qml"
-    ));
-    let path = path.canonicalize().ok()?;
-    Some(format!("file://{}", path.display()))
+/// The wallpaper mod's document (`mod.wallpaper`, MODS.md; the shape `crates/kurashi-mod-wallpaper` serves once its
+/// backend is up): one picture on every output, rotation off. The pictures are names only: the mock sets no image.
+pub fn wallpaper(outputs: &[String]) -> Value {
+    let per_output: Map<String, Value> = outputs
+        .iter()
+        .map(|o| {
+            (
+                o.clone(),
+                json!({"path": picture_path(PICTURES[0]), "fit": "crop"}),
+            )
+        })
+        .collect();
+    json!({
+        "loaded": true,
+        "available": true,
+        "backend": {"id": "awww", "available": true},
+        "outputs": per_output,
+        "library": {"count": PICTURES.len(), "folders": ["/mock/Pictures/Wallpapers"]},
+        "rotation": {"on": false, "interval_min": 30, "paused": false, "order": "alphabetical", "per_output": false},
+    })
+}
+
+/// The pictures `wallpaper.next|prev` step through, in order (names; the files are not there).
+pub const PICTURES: [&str; 3] = ["dusk", "forest", "harbour"];
+
+/// The path of one of `PICTURES`, as the wallpaper document names it.
+pub fn picture_path(name: &str) -> String {
+    format!("/mock/Pictures/Wallpapers/{name}.png")
 }
 
 /// The networks in range: (SSID, strength, secured, saved). The mock's one saved network is the one
