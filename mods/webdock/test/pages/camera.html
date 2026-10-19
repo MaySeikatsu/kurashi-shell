@@ -1,0 +1,12 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>camera</title></head>
+<body style="background:#2b3a55;color:#f0e6d2;font:18px sans-serif;margin:16px">
+<h1>Camera</h1>
+<p id="s">asking for the camera…</p>
+<script>
+// A page asks for the camera: the host refuses the request and reports it (the chip "Blocked: camera").
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(() => { document.getElementById('s').textContent = 'camera: granted'; console.log('GUM granted'); })
+  .catch(e => { document.getElementById('s').textContent = 'camera: ' + e.name; console.log('GUM ' + e.name); });
+</script>
+</body></html>
