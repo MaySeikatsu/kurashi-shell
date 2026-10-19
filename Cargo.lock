@@ -1013,6 +1013,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-webdock"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "kurashi-mods"
 version = "0.0.1"
 dependencies = [
@@ -1123,6 +1132,7 @@ dependencies = [
  "kurashi-mod-sysmon",
  "kurashi-mod-wallpaper",
  "kurashi-mod-weather",
+ "kurashi-mod-webdock",
  "kurashi-mods",
  "kurashi-notify",
  "kurashi-schema",
@@ -1130,6 +1140,7 @@ dependencies = [
  "kurashi-theme",
  "kurashi-tray",
  "notify",
+ "rustix",
  "semver",
  "serde",
  "serde_json",
