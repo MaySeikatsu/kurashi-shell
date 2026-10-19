@@ -34,3 +34,9 @@
 "frontend.volume.muted" = "muted"
 "frontend.volume.level" = "volume {pct} %"
 "frontend.quick.open" = "Quick settings"
+# W19-side-bars
+"frontend.bar.hidden" = "{n} more hidden"
+"frontend.bar.short.cpu" = "CPU"
+"frontend.bar.short.mem" = "RAM"
+"frontend.bar.short.temp" = "Temp"
+"frontend.bar.short.load" = "Load"

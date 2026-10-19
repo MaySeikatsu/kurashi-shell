@@ -9,11 +9,15 @@ import "format.js" as F
 // on its action menu (Pause, Settings, Open in btop). The peek (Peek.qml, K35) is drawn by the Stage on hover or
 // keyboard focus; the facts behind the figures are this widget's accessible description. It watches the summary
 // only while it is placed (Ma); the peek subscribes to the process list while it shows.
+// On a side bar the bar hands `vertical` over, and the widget is a column in 36 px: the glyph on top, then each shown
+// stat's short caption over its figure ("CPU" "12%"). The sparkline is not drawn there (no room); the peek and the
+// accessible name carry the same facts.
 Item {
     id: widget
     required property var store
     required property var theme
     required property var i18n
+    property bool vertical: false
 
     readonly property var s: store.docs["mod.sysmon"]
     readonly property var procs: store.docs["mod.sysmon.procs"]
@@ -49,6 +53,21 @@ Item {
         if (stat === "temp") return s.temp !== undefined ? F.temp(s.temp.c) : "–"
         if (stat === "load") return F.load(s.load1)
         return ""
+    }
+
+    // A side bar's column: the figure alone, with its unit short ("12%", "71°"); a dash is the no-value mark.
+    function shortOf(stat) {
+        if (!loaded) return "…"
+        if (!s.available) return "–"
+        if (stat === "cpu") return s.cpu.pct !== undefined ? Math.round(s.cpu.pct) + "%" : "…"
+        if (stat === "mem") return s.mem !== undefined && s.mem.pct !== undefined ? Math.round(s.mem.pct) + "%" : "–"
+        if (stat === "temp") return s.temp !== undefined ? Math.round(s.temp.c) + "°" : "–"
+        if (stat === "load") return F.load(s.load1)
+        return ""
+    }
+    // The caption of a cell in that column (the full label is in the accessible name).
+    function captionOf(stat) {
+        return tr("frontend.bar.short." + stat)
     }
 
     // Every value gets the width of the widest figure its stat can show (the probes below).
@@ -160,8 +179,8 @@ Item {
         font.features: ({"tnum": 1})
     }
 
-    implicitWidth: row.implicitWidth + widget.theme.gap * 2
-    implicitHeight: widget.theme.barH
+    implicitWidth: widget.vertical ? widget.theme.barH : row.implicitWidth + widget.theme.gap * 2
+    implicitHeight: widget.vertical ? vcol.implicitHeight : widget.theme.barH
     // Paused: the figures are from before the pause, dimmed as the panel dims them.
     opacity: widget.paused ? widget.theme.staleOpacity : 1
 
@@ -178,6 +197,7 @@ Item {
     // Children of the Row take no anchors (the Row positions them); the sparkline's box is the one anchored child.
     Row {
         id: row
+        visible: !widget.vertical
         anchors.centerIn: parent
         spacing: widget.theme.gap
 
@@ -239,6 +259,49 @@ Item {
                 stroke: widget.theme.dim
                 description: widget.sparkStat !== "" ? F.fill(widget.tr("sysmon.panel.history"),
                     {what: widget.labelOf(widget.sparkStat), n: 30}) : ""
+            }
+        }
+    }
+
+    // A side bar: the glyph (when there is one) and a cell per shown stat, its caption over its figure. The sizes fit a
+    // slot of 36 x 72 px (the bar's), so the column holds two stats with a glyph.
+    Column {
+        id: vcol
+        visible: widget.vertical
+        anchors.centerIn: parent
+        Text {
+            visible: widget.glyph !== ""
+            width: widget.theme.barH
+            horizontalAlignment: Text.AlignHCenter
+            text: widget.glyph.trim()
+            color: widget.level === "critical" ? widget.theme.error : widget.activityInk
+            font.pixelSize: widget.theme.fsLabel
+            font.family: widget.theme.fam(text, widget.theme.families)
+        }
+        Repeater {
+            model: widget.vertical ? widget.shown : []
+            delegate: Column {
+                id: vcell
+                required property var modelData
+                width: widget.theme.barH
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    text: widget.captionOf(vcell.modelData)
+                    color: widget.theme.dim
+                    font.pixelSize: widget.theme.fsCaption
+                    font.family: widget.theme.fam(text, widget.theme.families)
+                }
+                Text {
+                    width: parent.width
+                    horizontalAlignment: Text.AlignHCenter
+                    text: widget.shortOf(vcell.modelData)
+                    color: widget.levelOf(vcell.modelData) === "critical" ? widget.theme.error
+                        : (widget.levelOf(vcell.modelData) === "activity" ? widget.activityInk : widget.theme.fg)
+                    font.pixelSize: widget.theme.fsLabel
+                    font.family: widget.theme.fam(text, widget.theme.families)
+                    font.features: ({"tnum": 1})
+                }
             }
         }
     }
