@@ -115,7 +115,9 @@
 "mod-wallpaper.pair.dark" = "Dark version"
 "mod-wallpaper.on" = "on"
 "mod-wallpaper.favourite.mark" = "favourite look"
-"mod-wallpaper.target.span.short" = "not yet"
+"mod-wallpaper.target.span.short" = "not available yet"
+"mod-wallpaper.more" = "More"
+"mod-wallpaper.cache.size" = "Cache: {size}"
 "mod-wallpaper.empty.looks.title" = "No looks yet"
 "mod-wallpaper.empty.looks.hint" = "Press F on a picture, or ★ Keep as look, to save its wallpaper and theme together."
 "mod-wallpaper.favourites.all" = "All pictures"
@@ -137,9 +139,5 @@
 
 # Quick settings tile (mods/wallpaper/qml/slots/quick.tiles.qml)
 "mod-wallpaper.tile.title" = "Wallpaper"
-"mod-wallpaper.tile.rotating" = "Rotating every {min} min"
 "mod-wallpaper.tile.next" = "Next"
-"mod-wallpaper.tile.random" = "Random"
-"mod-wallpaper.tile.pause" = "Pause"
-"mod-wallpaper.tile.resume" = "Resume"
 "mod-wallpaper.backend.restart" = "Restart backend"

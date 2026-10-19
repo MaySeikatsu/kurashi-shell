@@ -15,8 +15,10 @@ Item {
     required property var theme
     required property var i18n
     id: picker
-    // The Stage card's content width (360 minus 2 x 16 px); a host that gives a width wins.
-    implicitWidth: 328
+    // The card asks for the widest card (contract row 66, `cardWidth`, 360..720 px): 3-4 thumbnail columns at 640-720.
+    // The Stage gives the content width (the card minus 2 x 16 px), so this is the width the picker lays out for.
+    property int cardWidth: 720
+    implicitWidth: cardWidth - 2 * (Theme.pad + 4)
     implicitHeight: 640
 
     // ---- documents (the daemon's state; nothing is inferred here) ----------------------------
@@ -56,6 +58,8 @@ Item {
     property bool themeRequested: false
     property string errorKey: ""        // the last refused request, translated when shown
     property var subfolders: []         // folders under `folder`, from the last page (name, path, count)
+    property real cacheBytes: -1        // the thumbnail cache's size from the first page; -1 while not known
+    property bool menuOpen: false       // the header's overflow (the cache), open
 
     readonly property int pageSize: 48
     readonly property int columns: Math.max(2, Math.floor(grid.width / 160))
@@ -91,6 +95,10 @@ Item {
         var parts = String(p).split("/")
         return parts[parts.length - 1]
     }
+    // The cache's size for the overflow menu: KiB below a MiB, then MiB (the unit is the same in every language).
+    function sizeText(bytes) {
+        return bytes < 1048576 ? Math.round(bytes / 1024) + " KiB" : (bytes / 1048576).toFixed(1) + " MiB"
+    }
     function rowAt(i) {
         picker.rowsRev   // read, so a delegate's binding follows the pages as they arrive
         return (i >= 0 && rowCache[i] !== undefined) ? rowCache[i] : null
@@ -118,11 +126,14 @@ Item {
         var root = rootOf(folder)
         if (root === "") return out
         out.push({ kind: "crumb", label: baseName(root), path: root, here: folder === root })
-        var rest = folder.substring(root.length + 1).split("/")
-        var acc = root
-        for (var j = 0; j < rest.length; j++) {
-            acc = acc + "/" + rest[j]
-            out.push({ kind: "crumb", label: rest[j], path: acc, here: acc === folder })
+        // The crumbs below the root: none while the folder is the root itself (no empty crumb).
+        if (folder !== root) {
+            var rest = folder.substring(root.length + 1).split("/")
+            var acc = root
+            for (var j = 0; j < rest.length; j++) {
+                acc = acc + "/" + rest[j]
+                out.push({ kind: "crumb", label: rest[j], path: acc, here: acc === folder })
+            }
         }
         for (var k = 0; k < subfolders.length; k++) {
             out.push({ kind: "sub", label: subfolders[k].name + "  " + subfolders[k].count,
@@ -192,7 +203,11 @@ Item {
             var rows = data.rows || []
             for (var i = 0; i < rows.length; i++) rowCache[offset + i] = rows[i]
             total = data.total || 0
-            if (offset === 0) subfolders = data.children || []
+            if (offset === 0) {
+                subfolders = data.children || []
+                // The first page carries the cache's size; a page without it leaves the size not known.
+                cacheBytes = data.cache && data.cache.bytes !== undefined ? Number(data.cache.bytes) : -1
+            }
             rowsRev++
         })
     }
@@ -309,11 +324,24 @@ Item {
             picker.errorKey = err ? err.msg : ""
         })
     }
+    // Clearing the cache closes the overflow first; the grid pages again, and the first page says what is left.
     function clearCache() {
+        closeMenu()
         var g = gate
         Store.act("wallpaper.cache.clear", {}, function () {
             if (g.open) picker.resetRows()
         })
+    }
+    // The overflow menu: opened from its button (focus goes to its one item), closed by Escape, a click outside, or
+    // the item; closing returns the focus to the button.
+    function toggleMenu() { if (menuOpen) closeMenu(); else openMenu() }
+    function openMenu() {
+        menuOpen = true
+        later(function () { clearItem.forceActiveFocus() })
+    }
+    function closeMenu() {
+        menuOpen = false
+        moreButton.forceActiveFocus()
     }
     // The saved look of a picture (its image, scheme and variant), or null: the picker's one-click look.
     function lookOf(row) {
@@ -337,7 +365,7 @@ Item {
         sort = "random"
     }
 
-    // ---- header: the backend and the rotation, in one line -------------------------------------
+    // ---- header: the backend and the rotation in one line; the overflow (the cache) at its end --------
     Text {
         id: title
         anchors.top: parent.top
@@ -351,8 +379,9 @@ Item {
         id: status
         anchors.baseline: title.baseline
         anchors.left: title.right
-        anchors.right: parent.right
+        anchors.right: moreButton.left
         anchors.leftMargin: Theme.gap
+        anchors.rightMargin: Theme.gap
         elide: Text.ElideRight
         color: picker.backendUp ? Theme.dim : Theme.error
         font.pixelSize: Theme.fsCaption
@@ -369,8 +398,62 @@ Item {
             return parts.join(" · ")
         }
     }
+    // Maintenance is not in the main view (I83): the thumbnail cache, and what clearing it frees, sit in this menu.
+    IconButton {
+        id: moreButton
+        anchors.top: parent.top
+        anchors.right: parent.right
+        glyph: "…"
+        a11y: I18n.tr("mod-wallpaper.more")
+        onClicked: picker.toggleMenu()
+    }
+    // Clicks outside the open menu close it (the menu sits above this catcher).
+    MouseArea {
+        anchors.fill: parent
+        z: 10
+        visible: picker.menuOpen
+        onClicked: picker.closeMenu()
+    }
+    Rectangle {
+        id: cacheMenu
+        z: 11
+        visible: picker.menuOpen
+        anchors.top: moreButton.bottom
+        anchors.right: parent.right
+        anchors.topMargin: Theme.xs
+        width: Math.min(parent.width, 240)
+        height: menuCol.implicitHeight + 2 * Theme.gap
+        radius: Theme.rSm
+        color: Theme.containerHigh
+        border.width: 1
+        border.color: Theme.outline
+        Keys.onEscapePressed: picker.closeMenu()
+        Column {
+            id: menuCol
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.margins: Theme.gap
+            spacing: Theme.xs
+            Button {
+                id: clearItem
+                width: parent.width
+                label: I18n.tr("mod-wallpaper.cache.clear")
+                onClicked: picker.clearCache()
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                visible: picker.cacheBytes >= 0
+                text: picker.tr2("mod-wallpaper.cache.size", { size: picker.sizeText(picker.cacheBytes) })
+            }
+        }
+    }
 
-    // ---- targets: every output, one output, and span greyed with its reason ---------------------
+    // ---- targets: every output, one output, and span greyed with its reason --------------------
     Flow {
         id: targets
         anchors.top: title.bottom
@@ -378,97 +461,30 @@ Item {
         anchors.right: parent.right
         anchors.topMargin: Theme.gap
         spacing: Theme.xs
-        Chip {
+        PickButton {
             id: allChip
-            text: I18n.tr("mod-wallpaper.target.all")
-            fg: picker.target === "" ? Theme.fgOnAccent : Theme.fg
-            bg: picker.target === "" ? Theme.accent : Theme.containerHigh
-            edge: picker.target === "" ? Theme.accent : Theme.outline
-            activeFocusOnTab: true
-            Keys.onReturnPressed: picker.target = ""
-            Keys.onEnterPressed: picker.target = ""
-            Accessible.role: Accessible.Button
-            Accessible.name: text
-            Accessible.checkable: true
-            Accessible.checked: picker.target === ""
-            MouseArea { anchors.fill: parent; onClicked: picker.target = "" }
-            FocusRing { anchors.fill: parent; corner: height / 2; shown: allChip.activeFocus }
+            label: I18n.tr("mod-wallpaper.target.all")
+            selected: picker.target === ""
+            onActivated: picker.target = ""
         }
         Repeater {
             model: picker.outputNames
-            // An output's chip shows the image it has now (its current thumbnail), and its name.
-            delegate: Rectangle {
-                id: outChip
+            // An output's choice shows the image it has now (a thumbnail, once decoded), and its name.
+            delegate: PickButton {
                 required property string modelData
                 readonly property var out: picker.outputs[modelData] || ({})
-                readonly property bool chosen: picker.target === modelData
-                width: chipRow.width + Theme.gap * 2
-                height: Math.max(Theme.controlH - 4, 24)
-                radius: height / 2
-                color: chosen ? Theme.accent : Theme.containerHigh
-                border.width: 1
-                border.color: chosen ? Theme.accent : Theme.outline
-                activeFocusOnTab: true
-                Keys.onReturnPressed: picker.target = modelData
-                Keys.onEnterPressed: picker.target = modelData
-                Accessible.role: Accessible.Button
-                Accessible.name: modelData
-                Accessible.checkable: true
-                Accessible.checked: chosen
-                FocusRing {
-                    anchors.fill: parent
-                    corner: outChip.radius
-                    shown: outChip.activeFocus
-                }
-                Row {
-                    id: chipRow
-                    x: Theme.gap
-                    y: (outChip.height - height) / 2
-                    spacing: Theme.xs
-                    Image {
-                        width: 24
-                        height: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: outChip.out.path ? picker.fileUrl(outChip.out.path) : ""
-                        sourceSize.width: 48
-                        sourceSize.height: 28
-                        asynchronous: true
-                        fillMode: Image.PreserveAspectCrop
-                        visible: source !== ""
-                    }
-                    Text {
-                        height: outChip.height - 4
-                        verticalAlignment: Text.AlignVCenter
-                        color: outChip.chosen ? Theme.fgOnAccent : Theme.fg
-                        font.pixelSize: Theme.fsLabel
-                        font.family: Theme.fam(text, Theme.families)
-                        text: outChip.modelData
-                    }
-                }
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        picker.target = outChip.modelData
-                        outChip.forceActiveFocus()
-                    }
-                }
+                label: modelData
+                selected: picker.target === modelData
+                thumb: out.path ? picker.fileUrl(out.path) : ""
+                onActivated: picker.target = modelData
             }
         }
-        Chip {
+        // Span is not available: the choice is greyed and says so in plain words; the reason is for assistive tech.
+        PickButton {
             id: spanChip
-            text: I18n.tr("mod-wallpaper.target.span")
-            fg: Theme.outline
-            edge: Theme.outline
-            Accessible.role: Accessible.Button
-            Accessible.name: text
+            label: I18n.tr("mod-wallpaper.target.span") + " · " + I18n.tr("mod-wallpaper.target.span.short")
+            enabled: false
             Accessible.description: I18n.tr("mod-wallpaper.target.span.reason")
-        }
-        // Why Span is greyed: the reason the backend gives (docs/ux/wallpaper.md, "Per output").
-        Text {
-            color: Theme.dim
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr("mod-wallpaper.target.span.short")
         }
     }
 
@@ -525,7 +541,7 @@ Item {
         }
     }
 
-    // ---- toolbar: search, sort, looks, shuffle --------------------------------------------------
+    // ---- toolbar: search, sort, shuffle --------------------------------------------------------
     Row {
         id: toolbar
         anchors.top: crumbRow.bottom
@@ -576,28 +592,28 @@ Item {
             interval: 250
             onTriggered: picker.query = search.text
         }
-        Button {
+        PickButton {
             id: sortName
             label: I18n.tr("mod-wallpaper.sort.name")
-            primary: picker.sort === "name"
-            onClicked: picker.sort = "name"
+            selected: picker.sort === "name"
+            onActivated: picker.sort = "name"
         }
-        Button {
+        PickButton {
             id: sortNewest
             label: I18n.tr("mod-wallpaper.sort.newest")
-            primary: picker.sort === "newest"
-            onClicked: picker.sort = "newest"
+            selected: picker.sort === "newest"
+            onActivated: picker.sort = "newest"
         }
-        Button {
+        PickButton {
             id: sortRandom
             label: I18n.tr("mod-wallpaper.random")
-            primary: picker.sort === "random"
+            selected: picker.sort === "random"
             enabled: picker.showGrid
-            onClicked: picker.shuffle()
+            onActivated: picker.shuffle()
         }
     }
 
-    // ---- footer: the error in effect, or the counts; cache and restart -------------------------
+    // ---- footer: the error in effect, or the counts; a restart when the backend is down ------------
     Item {
         id: footer
         anchors.bottom: parent.bottom
@@ -637,12 +653,6 @@ Item {
                 visible: picker.installed && picker.loaded && !picker.backendUp
                 onClicked: picker.restartBackend()
             }
-            Button {
-                id: cacheButton
-                label: I18n.tr("mod-wallpaper.cache.clear")
-                enabled: picker.installed
-                onClicked: picker.clearCache()
-            }
         }
     }
 
@@ -661,7 +671,7 @@ Item {
         return e.key ? I18n.tr(e.key) : ""
     }
 
-    // ---- preview: the selected picture, the theme it would give, and the one-step actions --------
+    // ---- preview: the selected picture beside the theme it would give, then the one-step actions ----
     Item {
         id: preview
         anchors.bottom: footer.top
@@ -687,15 +697,17 @@ Item {
             anchors.right: parent.right
             spacing: Theme.gap
             Row {
-                spacing: Theme.gap
+                id: previewRow
                 width: parent.width
+                spacing: Theme.gap
                 Image {
                     id: previewImage
-                    width: 104
-                    height: 58
+                    // A third of the card at most (16:9): the theme beside it keeps the rest of the width.
+                    width: Math.min(208, Math.round(previewRow.width * 0.34))
+                    height: Math.round(width * 9 / 16)
                     source: picker.selectedRow && picker.selectedRow.thumb ? picker.fileUrl(picker.selectedRow.thumb) : ""
-                    sourceSize.width: 208
-                    sourceSize.height: 116
+                    sourceSize.width: 256
+                    sourceSize.height: 256
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                     Rectangle {
@@ -707,8 +719,8 @@ Item {
                     }
                 }
                 Column {
-                    width: parent.width - previewImage.width - Theme.gap
-                    spacing: 3
+                    width: previewRow.width - previewImage.width - previewRow.spacing
+                    spacing: 4
                     Text {
                         width: parent.width
                         elide: Text.ElideMiddle
@@ -716,21 +728,6 @@ Item {
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
                         text: picker.selectedRow ? picker.selectedRow.name : ""
-                    }
-                    Row {
-                        spacing: Theme.xs
-                        Repeater {
-                            model: picker.selectedRow && picker.selectedRow.palette ? picker.selectedRow.palette : []
-                            delegate: Rectangle {
-                                required property string modelData
-                                width: 14
-                                height: 14
-                                radius: 3
-                                color: modelData
-                                border.width: 1
-                                border.color: Theme.outline
-                            }
-                        }
                     }
                     Text {
                         width: parent.width
@@ -749,132 +746,123 @@ Item {
                             return bits.join(" · ")
                         }
                     }
-                }
-            }
-
-            // The theme diff: each role now (left) and as this picture would make it (right), in the chosen scheme.
-            Row {
-                id: diffRow
-                width: parent.width
-                spacing: Theme.gap
-                Text {
-                    id: diffHead
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
-                    text: I18n.tr("mod-wallpaper.theme.diff")
-                    width: 58
-                    elide: Text.ElideRight
-                }
-                Repeater {
-                    model: [
-                        { role: "accent", label: "mod-wallpaper.role.accent", now: "color.accent" },
-                        { role: "surface", label: "mod-wallpaper.role.surface", now: "color.surface" },
-                        { role: "on_surface", label: "mod-wallpaper.role.text", now: "color.on_surface" },
-                        { role: "secondary", label: "mod-wallpaper.role.secondary", now: "color.secondary" }
-                    ]
-                    delegate: Column {
-                        id: pair
-                        required property var modelData
-                        readonly property string nowHex: String(picker.theme.tok(pair.modelData.now, "#777777"))
-                        readonly property string nextHex: picker.themePreview && picker.themePreview.roles
-                            ? String(picker.themePreview.roles[pair.modelData.role] || "") : ""
-                        spacing: 2
-                        Row {
-                            spacing: 2
-                            Rectangle {
-                                width: 14; height: 14; radius: 3
-                                color: pair.nowHex
-                                border.width: 1; border.color: Theme.outline
+                    Row {
+                        spacing: Theme.xs
+                        Repeater {
+                            model: picker.selectedRow && picker.selectedRow.palette ? picker.selectedRow.palette : []
+                            delegate: Rectangle {
+                                required property string modelData
+                                width: 14
+                                height: 14
+                                radius: 3
+                                color: modelData
+                                border.width: 1
+                                border.color: Theme.outline
                             }
+                        }
+                    }
+
+                    // The theme diff: each role now (left) and as this picture would make it (right), in the chosen
+                    // scheme. Swatches are 18 px with their role under them; the row wraps when the card is narrow.
+                    Flow {
+                        id: diffRow
+                        width: parent.width
+                        spacing: Theme.gap
+                        Item {
+                            id: diffHead
+                            width: headText.implicitWidth
+                            height: 34
                             Text {
+                                id: headText
                                 anchors.verticalCenter: parent.verticalCenter
                                 color: Theme.dim
                                 font.pixelSize: Theme.fsCaption
-                                text: "→"
-                            }
-                            Rectangle {
-                                width: 14; height: 14; radius: 3
-                                color: pair.nextHex !== "" ? pair.nextHex : "transparent"
-                                border.width: 1; border.color: Theme.outline
-                                opacity: picker.previewBusy ? 0.4 : 1
+                                font.family: Theme.fam(text, Theme.families)
+                                text: I18n.tr("mod-wallpaper.theme.diff")
                             }
                         }
-                        Text {
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr(pair.modelData.label)
+                        Repeater {
+                            model: [
+                                { role: "accent", label: "mod-wallpaper.role.accent", now: "color.accent" },
+                                { role: "surface", label: "mod-wallpaper.role.surface", now: "color.surface" },
+                                { role: "on_surface", label: "mod-wallpaper.role.text", now: "color.on_surface" },
+                                { role: "secondary", label: "mod-wallpaper.role.secondary", now: "color.secondary" }
+                            ]
+                            delegate: Column {
+                                id: pair
+                                required property var modelData
+                                readonly property string nowHex: String(picker.theme.tok(pair.modelData.now, "#777777"))
+                                readonly property string nextHex: picker.themePreview && picker.themePreview.roles
+                                    ? String(picker.themePreview.roles[pair.modelData.role] || "") : ""
+                                spacing: 2
+                                Row {
+                                    spacing: 3
+                                    Rectangle {
+                                        width: 18; height: 18; radius: 4
+                                        color: pair.nowHex
+                                        border.width: 1; border.color: Theme.outline
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: Theme.dim
+                                        font.pixelSize: Theme.fsCaption
+                                        text: "→"
+                                    }
+                                    Rectangle {
+                                        width: 18; height: 18; radius: 4
+                                        color: pair.nextHex !== "" ? pair.nextHex : "transparent"
+                                        border.width: 1; border.color: Theme.outline
+                                        opacity: picker.previewBusy ? 0.4 : 1
+                                    }
+                                }
+                                Text {
+                                    color: Theme.dim
+                                    font.pixelSize: Theme.fsCaption
+                                    font.family: Theme.fam(text, Theme.families)
+                                    text: I18n.tr(pair.modelData.label)
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: picker.previewError !== "" ? Theme.error : Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: {
+                            if (picker.previewError !== "") return I18n.tr(picker.previewError)
+                            if (picker.previewBusy || !picker.previewCurrent) return I18n.tr("mod-wallpaper.theme.previewing")
+                            return I18n.tr("mod-wallpaper.theme.axes")
                         }
                     }
                 }
             }
-            Text {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                color: picker.previewError !== "" ? Theme.error : Theme.dim
-                font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
-                text: {
-                    if (picker.previewError !== "") return I18n.tr(picker.previewError)
-                    if (picker.previewBusy || !picker.previewCurrent) return I18n.tr("mod-wallpaper.theme.previewing")
-                    return I18n.tr("mod-wallpaper.theme.axes")
-                }
-            }
 
-            // The actions: the theme switch and the scheme, then Apply, Wallpaper only, and the look (★).
+            // The actions, one row where the card allows: the quiet choices (theme, scheme), then Apply, the one accent
+            // fill, Wallpaper only, and the look (★). A saved look is applied with its own scheme and variant.
             Flow {
                 width: parent.width
                 spacing: Theme.xs
-                Chip {
+                PickButton {
                     id: themeSwitch
-                    text: picker.withTheme ? I18n.tr("mod-wallpaper.theme.on") : I18n.tr("mod-wallpaper.theme.off")
-                    fg: picker.withTheme ? Theme.fgOnAccent : Theme.dim
-                    bg: picker.withTheme ? Theme.accent : Theme.surface
-                    edge: picker.withTheme ? Theme.accent : Theme.outline
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: picker.withTheme = !picker.withTheme
-                    Keys.onEnterPressed: picker.withTheme = !picker.withTheme
-                    Keys.onSpacePressed: picker.withTheme = !picker.withTheme
-                    Accessible.role: Accessible.CheckBox
-                    Accessible.name: I18n.tr("mod-wallpaper.theme.switch")
-                    Accessible.checked: picker.withTheme
-                    MouseArea { anchors.fill: parent; onClicked: { picker.withTheme = !picker.withTheme; themeSwitch.forceActiveFocus() } }
-                    FocusRing { anchors.fill: parent; corner: height / 2; shown: themeSwitch.activeFocus }
+                    label: picker.withTheme ? I18n.tr("mod-wallpaper.theme.on") : I18n.tr("mod-wallpaper.theme.off")
+                    selected: picker.withTheme
+                    onActivated: picker.withTheme = !picker.withTheme
+                    Accessible.description: I18n.tr("mod-wallpaper.theme.switch")
                 }
-                Chip {
+                PickButton {
                     id: schemeDark
-                    text: I18n.tr("mod-wallpaper.scheme.dark")
-                    fg: picker.previewScheme === "dark" ? Theme.fgOnAccent : Theme.dim
-                    bg: picker.previewScheme === "dark" ? Theme.accent : Theme.surface
-                    edge: picker.previewScheme === "dark" ? Theme.accent : Theme.outline
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: picker.schemeChoice = "dark"
-                    Keys.onEnterPressed: picker.schemeChoice = "dark"
-                    Accessible.role: Accessible.Button
-                    Accessible.name: text
-                    MouseArea { anchors.fill: parent; onClicked: picker.schemeChoice = "dark" }
-                    FocusRing { anchors.fill: parent; corner: height / 2; shown: schemeDark.activeFocus }
+                    label: I18n.tr("mod-wallpaper.scheme.dark")
+                    selected: picker.previewScheme === "dark"
+                    onActivated: picker.schemeChoice = "dark"
                 }
-                Chip {
+                PickButton {
                     id: schemeLight
-                    text: I18n.tr("mod-wallpaper.scheme.light")
-                    fg: picker.previewScheme === "light" ? Theme.fgOnAccent : Theme.dim
-                    bg: picker.previewScheme === "light" ? Theme.accent : Theme.surface
-                    edge: picker.previewScheme === "light" ? Theme.accent : Theme.outline
-                    activeFocusOnTab: true
-                    Keys.onReturnPressed: picker.schemeChoice = "light"
-                    Keys.onEnterPressed: picker.schemeChoice = "light"
-                    Accessible.role: Accessible.Button
-                    Accessible.name: text
-                    MouseArea { anchors.fill: parent; onClicked: picker.schemeChoice = "light" }
-                    FocusRing { anchors.fill: parent; corner: height / 2; shown: schemeLight.activeFocus }
+                    label: I18n.tr("mod-wallpaper.scheme.light")
+                    selected: picker.previewScheme === "light"
+                    onActivated: picker.schemeChoice = "light"
                 }
-            }
-            Flow {
-                width: parent.width
-                spacing: Theme.xs
                 Button {
                     id: applyButton
                     label: picker.target === "" ? I18n.tr("mod-wallpaper.apply.all") : I18n.tr("mod-wallpaper.apply")
@@ -984,6 +972,10 @@ Item {
             clip: true
             focus: true
             keyNavigationEnabled: true
+            // Tab from the grid goes to the preview's actions (the theme switch first); Shift+Tab goes back to the search
+            // field. Without these the focus order leaves the picker from the grid, to the Stage's Close (I32).
+            KeyNavigation.tab: themeSwitch
+            KeyNavigation.backtab: search
             highlightMoveDuration: Theme.quickMs
             model: picker.total
             cellWidth: Math.floor(width / picker.columns)

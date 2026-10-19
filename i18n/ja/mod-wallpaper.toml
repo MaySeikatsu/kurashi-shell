@@ -115,7 +115,9 @@
 "mod-wallpaper.pair.dark" = "ダーク版"
 "mod-wallpaper.on" = "表示中"
 "mod-wallpaper.favourite.mark" = "お気に入りの見た目"
-"mod-wallpaper.target.span.short" = "未対応"
+"mod-wallpaper.target.span.short" = "まだ使えません"
+"mod-wallpaper.more" = "その他"
+"mod-wallpaper.cache.size" = "キャッシュ: {size}"
 "mod-wallpaper.empty.looks.title" = "まだ見た目がありません"
 "mod-wallpaper.empty.looks.hint" = "画像で F を押すか「★ 見た目として保存」を押すと、壁紙とテーマを一緒に保存できます。"
 "mod-wallpaper.favourites.all" = "すべての画像"
@@ -137,9 +139,5 @@
 
 # クイック設定のタイル（mods/wallpaper/qml/slots/quick.tiles.qml）
 "mod-wallpaper.tile.title" = "壁紙"
-"mod-wallpaper.tile.rotating" = "{min} 分ごとに切り替え"
 "mod-wallpaper.tile.next" = "次へ"
-"mod-wallpaper.tile.random" = "ランダム"
-"mod-wallpaper.tile.pause" = "一時停止"
-"mod-wallpaper.tile.resume" = "再開"
 "mod-wallpaper.backend.restart" = "バックエンドを再起動"
