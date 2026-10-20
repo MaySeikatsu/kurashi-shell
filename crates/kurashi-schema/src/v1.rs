@@ -36,6 +36,12 @@ pub struct Config {
     pub clock: Clock,
     #[kurashi(nested)]
     pub desktop: Desktop,
+    #[kurashi(nested)]
+    pub idle: Idle,
+    #[kurashi(nested)]
+    pub night_light: NightLight,
+    #[kurashi(nested)]
+    pub recorder: Recorder,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -188,6 +194,10 @@ pub struct Shape {
     /// Corner style of bars, popups and the island.
     #[kurashi(default = Corners::Rounded)]
     pub corners: Corners,
+    /// Screen corners
+    /// Rounds the corners of every screen by this many pixels (0 = square, as the panel is).
+    #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px")]
+    pub screen_corners: u32,
     /// Corner radius scale
     /// Multiplies every corner radius token.
     #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, advanced,
@@ -420,3 +430,102 @@ pub struct Launcher {
     #[kurashi(default = true, advanced, restart)]
     pub systemd_scope: bool,
 }
+
+// --- idle (K47) ------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "power", section = "idle")]
+pub struct Idle {
+    /// Idle actions
+    /// Dim, lock, turn the screens off and suspend after a time without input. Apps that play video
+    /// or calls that are on keep the screen awake (they inhibit idle).
+    #[kurashi(default = true)]
+    pub enabled: bool,
+    /// Dim after
+    /// Lowers the brightness a little before locking. 0 = never.
+    #[kurashi(default = 240, range = 0..=7200, step = 30, unit = "s", requires = "idle.enabled == true")]
+    pub dim_after: u32,
+    /// Lock after
+    /// 0 = never.
+    #[kurashi(default = 300, range = 0..=7200, step = 30, unit = "s", requires = "idle.enabled == true")]
+    pub lock_after: u32,
+    /// Screens off after
+    /// 0 = never.
+    #[kurashi(default = 600, range = 0..=7200, step = 30, unit = "s", requires = "idle.enabled == true")]
+    pub screen_off_after: u32,
+    /// Suspend after
+    /// 0 = never.
+    #[kurashi(default = 0, range = 0..=14400, step = 60, unit = "s", requires = "idle.enabled == true")]
+    pub suspend_after: u32,
+    /// Stay awake while media plays
+    /// Music or video that plays keeps the screen on.
+    #[kurashi(default = true, requires = "idle.enabled == true")]
+    pub inhibit_while_media: bool,
+}
+
+// --- night light (K47) -----------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum NightSchedule {
+    /// Always on
+    Always,
+    /// Between two times
+    Manual,
+    /// Sunset to sunrise
+    Sun,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "power", section = "night_light")]
+pub struct NightLight {
+    /// Night light
+    /// Warmer colours in the evening (wlsunset). Off by default.
+    #[kurashi(default = false)]
+    pub enabled: bool,
+    /// Warmth
+    /// Colour temperature at night; lower is warmer.
+    #[kurashi(default = 4000, range = 1500..=6500, step = 100, unit = "K", requires = "night_light.enabled == true")]
+    pub temperature: u32,
+    /// Schedule
+    /// When the night colours are on. Sunset to sunrise needs the weather mod's place.
+    #[kurashi(default = NightSchedule::Manual, requires = "night_light.enabled == true")]
+    pub schedule: NightSchedule,
+    /// From
+    /// Start of the night colours, as HH:MM.
+    #[kurashi(default = "20:00".to_owned(), requires = "night_light.schedule == manual")]
+    pub start: String,
+    /// Until
+    /// End of the night colours, as HH:MM.
+    #[kurashi(default = "07:00".to_owned(), requires = "night_light.schedule == manual")]
+    pub end: String,
+}
+
+// --- screen recorder (K47) -------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum RecorderBackend {
+    /// Automatic
+    Auto,
+    /// gpu-screen-recorder
+    GpuScreenRecorder,
+    /// wf-recorder
+    WfRecorder,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "power", section = "recorder")]
+pub struct Recorder {
+    /// Folder
+    /// Where recordings are saved; empty = your Videos folder.
+    #[kurashi(default = String::new())]
+    pub directory: String,
+    /// Record sound
+    /// The desktop's sound goes into the recording.
+    #[kurashi(default = true)]
+    pub audio: bool,
+    /// Recorder
+    /// The program that records; automatic takes the first one installed.
+    #[kurashi(default = RecorderBackend::Auto, advanced)]
+    pub backend: RecorderBackend,
+}
+
