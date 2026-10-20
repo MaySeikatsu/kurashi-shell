@@ -439,3 +439,14 @@ in the wallpaper mod (shellseikatsu `WallhavenService`): search, preview, set; n
 (SekaiPop "Edit Desktop"): reorder by drag or keys, then save. (5) Settings rows grouped as section cards (DMS/Noctalia
 settings) with icons per section (I104 rest).
 
+**K49** 🟢 App theme export (VISION "app theme export", roadmap M2 "exporter"; user, session 10: "theme integrations"
+from shellseikatsu). The daemon renders the final palette through templates in **matugen's syntax**
+(`{{colors.<role>.<mode>.<format>}}`) into files under `$XDG_CONFIG_HOME` for the targets in `theme.export`
+(gtk3, gtk4, qt/qt5 via qt6ct/qt5ct, foot, kitty, alacritty, ghostty, niri), only when the content changes.
+Templates: DankMaterialShell's GTK, qtct and niri ones (MIT), shellseikatsu's terminal ones; matugen role names map
+onto ours (`primary` = `accent`, `background` = `surface`, containers derived), so users' matugen templates work too
+(`~/.config/kurashi/templates/<name>` overrides). kurashid never edits an app's own config: `svc.theme_export`
+reports the include line each app needs and whether it is there. *Why:* one theme for the whole desktop is what
+matugen setups (DMS, Caelestia, ii, Noctalia) give; writing our own files and leaving the user's config alone keeps
+it honest and reversible.
+

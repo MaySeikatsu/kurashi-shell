@@ -30,6 +30,12 @@ keeping it a separate `component`), `settings/**` (pages, components, shell, tes
    knowledge). Keep `settings/test.sh` green (update object names/expectations only where the layout moved, never drop
    a check).
 
+3. Under the `theme.export` row (Appearance): each chosen app from `svc.theme_export` — where its file went, and
+   when `include.present` is false the line to add with a Copy key (wl-copy via the launcher's `launcher.launch
+   {id: "calc:<text>"}` copies text) and the config file it goes in; errors by their i18n key. This is the one place
+   Settings shows a document beside a row: a small per-key extra component map in the page (key → component), not
+   logic in SettingRow.
+
 **Acceptance:** `settings/test.sh` green end to end; a sandbox script (or test-look step) that turns the desk on,
 enters edit mode, reorders by keys, saves, and asserts `desktop.order` and a shot of edit mode under `sekai` and
 `none`; Settings shots of two pages as section cards. Report (terse).

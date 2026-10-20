@@ -8,6 +8,7 @@
 //! callers run it on a blocking thread (`tokio::task::spawn_blocking`).
 
 pub mod color;
+pub mod export;
 pub mod fonts;
 pub mod input;
 pub mod palette;
