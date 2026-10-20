@@ -62,3 +62,5 @@
 "action.settings.open" = "設定を開く"
 "error.settings.not_installed" = "設定が見つからないため、開けません。"
 "error.settings.no_runtime" = "Quickshell（qs）が使えないため、設定を開けません。"
+"action.workspace.focus" = "ワークスペースへ移動"
+"action.window.focus" = "ウィンドウへ移動"

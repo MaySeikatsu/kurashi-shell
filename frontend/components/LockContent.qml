@@ -32,6 +32,31 @@ Rectangle {
 
     color: Theme.surface
 
+    // Keycap chrome (K42): SekaiPop's dot field — dots that grow toward the top-right and bottom-left corners, drawn
+    // once per size (the lock surface exists only while locked).
+    Canvas {
+        anchors.fill: parent
+        visible: Theme.keycap
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            var g = getContext("2d")
+            g.reset()
+            g.fillStyle = Qt.alpha(Theme.line, 0.14)
+            var step = 26, reach = Math.min(width, height) * 0.9
+            for (var y = step / 2; y < height; y += step) {
+                for (var x = step / 2; x < width; x += step) {
+                    var d1 = Math.hypot(width - x, y), d2 = Math.hypot(x, height - y)
+                    var t = Math.max(0, 1 - Math.min(d1, d2) / reach)
+                    if (t <= 0.02) continue
+                    g.beginPath()
+                    g.arc(x, y, 1 + 4 * t, 0, 2 * Math.PI)
+                    g.fill()
+                }
+            }
+        }
+    }
+
     function refocus() { field.forceActiveFocus() }
     onFollowUpChanged: { field.text = ""; refocus() }
     onBusyChanged: if (!busy) refocus()
@@ -40,33 +65,50 @@ Rectangle {
         id: col
         anchors.centerIn: parent
         spacing: Theme.pad * 2
-        width: 340
+        width: 380
 
-        Text {
+        // The time as keys (keycap chrome) or plain tiles (flat), SekaiPop's lock clock.
+        KeyClock {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: (c.clock.hh ?? "--") + ":" + (c.clock.mm ?? "--")
-            color: Theme.fg
-            font.pixelSize: Theme.fsTitle * 4
-            font.family: Theme.families[0]
-            font.weight: Font.Light
+            hh: c.clock.hh ?? "--"
+            mm: c.clock.mm ?? "--"
+            keyW: 76
+            keyH: 104
+            digitSize: 72
+            animate: c.visible
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: (c.clock.date ?? "") + "  " + (c.clock.weekday ?? "")
-            color: Theme.dim
-            font.pixelSize: Theme.fsTitle
-            font.family: Theme.families[0]
+            text: {
+                var d = c.clock.date ? new Date(c.clock.date + "T12:00:00") : null
+                return d ? d.toLocaleDateString(Qt.locale((Store.docs["i18n"] || {}).locale || "en"), "dddd, d MMMM")
+                         : (c.clock.weekday ?? "")
+            }
+            color: Theme.fg
+            font.pixelSize: Theme.fsTitle + 2
+            font.weight: Theme.wBold
+            font.family: Theme.fam(text, Theme.families)
         }
 
         // ---- password field -----------------------------------------------------------------
         Rectangle {
             id: box
             width: parent.width
-            height: 44
-            radius: Theme.rLg
+            height: 48
+            radius: Theme.keycap ? height / 2 : Theme.rLg
             color: Theme.container
-            border.width: 1
-            border.color: c.isError ? Theme.error : (field.activeFocus ? Theme.fg : Theme.outline)
+            border.width: Theme.keycap ? Theme.outlineW + 1 : 1
+            border.color: c.isError ? Theme.error : (Theme.keycap ? Theme.line : (field.activeFocus ? Theme.fg : Theme.outline))
+            // Keycap chrome: the field's hard shadow (a child below the field, drawn behind it).
+            Rectangle {
+                z: -1
+                visible: Theme.shadowDy > 0
+                y: Theme.shadowDy
+                width: box.width
+                height: box.height
+                radius: box.radius
+                color: c.isError ? Theme.error : Theme.line
+            }
             opacity: c.busy ? 0.6 : 1
 
             // Step lengths are shares of the quick motion token (120 ms calm), so the motion profile

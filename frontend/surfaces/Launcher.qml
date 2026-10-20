@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../components"
 
 // Launcher (M5): centred overlay with exclusive keyboard focus while open. The daemon owns the
 // open state (runtime.ui.launcher), the index, ranking and launching; this only renders results
@@ -15,7 +16,7 @@ PanelWindow {
 
     readonly property bool want: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].launcher) === true
     readonly property int slide: 12
-    readonly property int rowH: 44
+    readonly property int rowH: 48
     readonly property int maxRows: 7
     readonly property int minRows: 1      // the empty state keeps one row of height
     // The list follows its results: as many rows as there are, within [minRows, maxRows].
@@ -54,7 +55,7 @@ PanelWindow {
         })
     }
     function launch() {
-        if (sel < 0 || sel >= results.length) return
+        if (sel < 0 || sel >= results.length || !results[sel].id) return
         Store.act("launcher.launch", { id: results[sel].id }, function (done, e) {
             // Close only once the app is up: a failure stays open with its reason.
             if (e) { lp.err = lp.errorText(e); return }
@@ -105,30 +106,48 @@ PanelWindow {
         }
     }
 
-    Rectangle {
+    // The card is a Block (K42): a flat panel with a hairline, or a keycap panel with an ink outline and hard shadow.
+    Item {
         id: card
         visible: lp.shown
-        width: 560
-        height: 2 * Theme.pad + 40 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
+        width: 600
+        readonly property real inset: Theme.keycap ? Theme.outlineW + Theme.ringW : 0
+        height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH + Theme.shadowDy
         y: -lp.slide * (1 - lp.p)
-        radius: Theme.rLg
-        color: Theme.container
-        border.width: 1
-        border.color: Theme.outline
+        opacity: Math.min(1, lp.p * 1.6)
+        scale: 0.96 + 0.04 * lp.p
+        Block {
+            anchors.fill: parent
+            radius: Theme.rLg + 4
+            fill: Theme.container
+            flatBorder: Theme.outline
+        }
 
-        Rectangle {
+        Block {
             id: box
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad }
-            height: 40
-            radius: Theme.rSm
-            color: Theme.surface
-            border.width: 1
-            border.color: field.activeFocus ? Theme.accent : Theme.outline
+            x: Theme.pad + card.inset
+            y: Theme.pad + card.inset
+            width: card.width - 2 * x
+            height: 44
+            radius: Theme.rFull
+            ringScale: 0
+            fill: Theme.surface
+            flatBorder: field.activeFocus ? Theme.accent : Theme.outline
+            Icon {
+                id: searchIcon
+                x: 14
+                anchors.verticalCenter: parent.verticalCenter
+                name: "search"
+                glyph: "⌕"
+                color: Theme.dim
+                size: Theme.fsTitle + 4
+            }
             TextInput {
                 id: field
-                anchors { fill: parent; leftMargin: 10; rightMargin: 10 }
+                anchors { fill: parent; leftMargin: searchIcon.x + searchIcon.width + 8; rightMargin: 14 }
                 color: Theme.fg
                 font.pixelSize: Theme.fsTitle
+                font.weight: Theme.wMedium
                 font.family: Theme.fam(text, Theme.families)
                 verticalAlignment: TextInput.AlignVCenter
                 selectByMouse: true
@@ -147,6 +166,15 @@ PanelWindow {
                     font: field.font
                     text: I18n.tr("launcher.placeholder")
                 }
+                // The prefix modes, named while the field is empty.
+                Text {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    visible: field.text === "" && field.preeditText === ""
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("launcher.modes")
+                }
             }
         }
 
@@ -154,9 +182,9 @@ PanelWindow {
         Text {
             id: errRow
             visible: lp.err !== ""
-            x: Theme.pad
+            x: Theme.pad + card.inset
             y: box.y + box.height + Theme.gap
-            width: card.width - 2 * Theme.pad
+            width: card.width - 2 * x
             wrapMode: Text.WordWrap
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -166,63 +194,100 @@ PanelWindow {
 
         ListView {
             id: list
-            x: Theme.pad
+            x: Theme.pad + card.inset
             y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
-            width: card.width - 2 * Theme.pad
+            width: card.width - 2 * x
             height: lp.listH
             clip: true
             interactive: false
             model: lp.results
             currentIndex: lp.sel
             highlightMoveDuration: 0
-            delegate: Rectangle {
+            // The selected row's highlight is one tonal block that springs to the row (keycap: outlined).
+            highlight: Block {
+                width: list.width
+                height: lp.rowH - 2
+                radius: Theme.rLg
+                ringScale: 0
+                fill: Theme.selected
+                Behavior on y {
+                    enabled: lp.shown && Theme.springOn
+                    NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot * 0.6 }
+                }
+            }
+            highlightFollowsCurrentItem: true
+            delegate: Item {
                 id: row
                 required property var modelData
                 required property int index
+                readonly property bool isCalc: modelData.kind === "calc"
+                // Prefix modes (daemon): `:` emoji, `;` clipboard; a `note` row only explains (an i18n key, no id).
+                readonly property bool isEmoji: modelData.kind === "emoji"
+                readonly property bool isClip: modelData.kind === "clip"
+                readonly property bool isNote: modelData.kind === "note"
+                readonly property bool copies: isCalc || isEmoji || isClip
+                readonly property bool selected: index === lp.sel
                 width: list.width
                 height: lp.rowH
-                radius: Theme.rSm
-                // One emphasis for the selected row: its fill.
-                color: index === lp.sel ? Theme.containerHigh : "transparent"
 
                 Item {
                     id: ico
-                    x: 8; anchors.verticalCenter: parent.verticalCenter
-                    width: 28; height: 28
-                    property string src: modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
+                    x: 10; anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                    width: 30; height: 30
+                    property string src: modelData.kind === "app" && modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
                     Image {
                         id: img
                         anchors.fill: parent
                         source: ico.src
-                        sourceSize: Qt.size(56, 56)
+                        sourceSize: Qt.size(60, 60)
                         asynchronous: true
                         visible: ico.src !== "" && status === Image.Ready
                     }
-                    // Text fallback: initial of the name.
+                    // Text fallback: initial of the name; a calculation shows its icon.
                     Rectangle {
                         anchors.fill: parent
                         visible: !img.visible
                         radius: Theme.rSm
-                        color: Theme.surface
+                        color: row.isCalc ? Theme.accent : (row.isEmoji ? "transparent" : Theme.surface)
+                        border.width: Theme.keycap && !row.isEmoji ? Theme.outlineW : 0
+                        border.color: Theme.line
+                        Icon {
+                            anchors.centerIn: parent
+                            visible: row.isCalc || row.isClip || row.isNote
+                            name: row.isCalc ? "calculate" : (row.isClip ? "content_paste" : "info")
+                            glyph: row.isCalc ? "=" : (row.isClip ? "⎘" : "i")
+                            filled: true
+                            color: row.isCalc ? Theme.fgOnAccent : Theme.dim
+                        }
                         Text {
                             anchors.centerIn: parent
+                            visible: row.isEmoji
+                            font.pixelSize: 24
+                            text: modelData.glyph || ""
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: modelData.kind === "app" || modelData.kind === "action"
                             color: Theme.dim
                             font.pixelSize: Theme.fs
+                            font.weight: Theme.wBold
                             font.family: Theme.fam(text, Theme.families)
                             text: (modelData.name || "?").charAt(0).toUpperCase()
                         }
                     }
                 }
                 Column {
-                    anchors { left: ico.right; leftMargin: Theme.gap; right: parent.right; rightMargin: 8
-                              verticalCenter: parent.verticalCenter }
+                    anchors { left: ico.right; leftMargin: Theme.gap + 2; right: hint.left; rightMargin: 8
+                              verticalCenter: ico.verticalCenter }
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        color: Theme.fg
-                        font.pixelSize: Theme.fs
+                        color: row.selected ? Theme.fgOnSelected : Theme.fg
+                        font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : Theme.fs
+                        font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                         font.family: Theme.fam(text, Theme.families)
-                        text: modelData.name
+                        text: row.isNote ? I18n.tr(modelData.name) : modelData.name
                     }
                     Text {
                         width: parent.width
@@ -233,6 +298,16 @@ PanelWindow {
                         font.family: Theme.fam(text, Theme.families)
                         text: modelData.generic || ""
                     }
+                }
+                // What Enter does on the selected row: launch, or copy a calculation.
+                Text {
+                    id: hint
+                    anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
+                    visible: row.selected && !row.isNote
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: "↵ " + I18n.tr(row.copies ? "launcher.copy" : "launcher.open")
                 }
                 MouseArea {
                     anchors.fill: parent

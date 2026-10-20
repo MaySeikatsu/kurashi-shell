@@ -1,26 +1,27 @@
 import QtQuick
 import "../core"
 
-// Small pill label. Purely presentational.
+// Small pill label. Purely presentational. Keycap chrome (K42): an ink outline on the ring colour.
 Rectangle {
     id: c
     property string text: ""
     property color fg: Theme.dim
-    property color bg: Theme.surface
-    property color edge: Theme.outline
+    property color bg: Theme.keycap ? Theme.ring : Theme.surface
+    property color edge: Theme.keycap ? Theme.line : Theme.outline
 
-    implicitWidth: t.implicitWidth + Theme.gap * 1.5
-    implicitHeight: t.implicitHeight + Theme.xs
+    implicitWidth: t.implicitWidth + Theme.gap * 1.5 + (Theme.keycap ? 4 : 0)
+    implicitHeight: t.implicitHeight + Theme.xs + (Theme.keycap ? 2 : 0)
     radius: Theme.rFull
     color: bg
-    border.width: 1
+    border.width: Theme.keycap ? Math.max(1, Theme.outlineW - 0.5) : 1
     border.color: edge
 
     Text {
         id: t
         anchors.centerIn: parent
-        color: c.fg
+        color: Theme.keycap && c.fg === Theme.dim ? Theme.line : c.fg
         font.pixelSize: Theme.fsCaption
+        font.weight: Theme.wMedium
         font.family: Theme.fam(text, Theme.families)
         text: c.text
     }

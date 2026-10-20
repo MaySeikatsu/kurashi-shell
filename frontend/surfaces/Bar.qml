@@ -77,6 +77,12 @@ PanelWindow {
         : (audioMuted ? I18n.tr("frontend.volume.muted")
             : I18n.tr("frontend.volume.level").replace("{pct}", Math.round(daemonVolume * 100)))
     // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
+    // The windows of this output's active workspace (svc.workspaces `tasks`, session 9): one icon each, click focuses.
+    readonly property var tasks: {
+        var t = workspaces.tasks || {}
+        var n = screen ? screen.name : ""
+        return t[n] || t["*"] || []
+    }
     readonly property var pills: {
         var o = workspaces.outputs || {}
         var n = screen ? screen.name : ""
@@ -172,11 +178,29 @@ PanelWindow {
     // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol)
     BackgroundEffect.blurRegion: Region { item: bg }
 
+    // Keycap chrome (K42) floats the bar's groups as blocks on the desk: the strip itself is clear. Flat chrome keeps
+    // the solid strip.
     Rectangle {
         id: bg
         anchors.fill: parent
-        color: Theme.surfaceAlpha
+        color: Theme.keycap ? "transparent" : Theme.surfaceAlpha
     }
+    // A group's block behind a row of the bar (keycap chrome only): the row's box plus `Theme.gap` around it, the face
+    // centred on the bar. Under flat chrome nothing is drawn and nothing moves (the rows keep their places).
+    component Group: Block {
+        required property Item around
+        readonly property real padX: Theme.gap + 2
+        visible: Theme.keycap && around.visible && around.width > 0
+        x: around.x - padX
+        y: (parent.height - Theme.shadowDy - (Theme.barH - 8)) / 2
+        width: around.width + 2 * padX
+        height: Theme.barH - 8 + Theme.shadowDy
+        radius: Theme.rFull
+        ringScale: 0.5
+        fill: Theme.surface
+    }
+    // How far a keycap group's row sits in from the bar's end (the group's padding); 0 under flat chrome.
+    readonly property real groupInset: Theme.keycap ? Theme.gap + 2 + Theme.xs : 0
 
     // One layout is active at a time: a row on top and bottom bars, a column on left and right.
     // Nothing is instantiated while the bar is hidden, so its faces hold no subscriptions (Ma).
@@ -191,6 +215,55 @@ PanelWindow {
         sourceComponent: verticalLayout
     }
 
+    // A workspace in a top or bottom bar. Flat chrome: a dot, the focused one a wider accent bar. Keycap chrome: a small
+    // numbered key — focused lit in the accent, occupied on the container, empty on the ring — that sinks while pressed.
+    // A click focuses the workspace (niri's own action through the daemon).
+    Component {
+        id: dotPill
+        Rectangle {
+            required property var modelData
+            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            height: modelData.focused ? 10 : 8
+            width: modelData.focused ? 24 : 8
+            radius: height / 2
+            color: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.fg : "transparent")
+            border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
+            border.color: Theme.dim
+            Behavior on width {
+                enabled: bar.visible
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
+            }
+        }
+    }
+    Component {
+        id: keyPill
+        Block {
+            id: kp
+            required property var modelData
+            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            anchors.verticalCenterOffset: Theme.shadowDy / 2
+            width: modelData.focused ? 34 : 22
+            height: 20 + Theme.shadowDy
+            radius: Theme.rFull
+            ringScale: 0
+            pressed: wsTap.pressed
+            fill: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.containerHigh : Theme.ring)
+            Behavior on width {
+                enabled: bar.visible && Theme.springOn
+                NumberAnimation { duration: Theme.stdMs + 80; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
+            }
+            Text {
+                anchors.centerIn: parent
+                color: kp.modelData.focused ? Theme.fgOnAccent : (kp.modelData.occupied ? Theme.fg : Theme.dim)
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: kp.modelData.idx ?? ""
+            }
+            TapHandler { id: wsTap; onTapped: Store.act("workspace.focus", {id: kp.modelData.id}) }
+        }
+    }
+
     // ---- top and bottom bars: workspaces left, Island centre, the rest right --------------------
     Component {
         id: horizontalLayout
@@ -202,31 +275,75 @@ PanelWindow {
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
 
+            Group { around: workspaceRow }
             Row {
                 id: workspaceRow
-                anchors { left: parent.left; leftMargin: Theme.pad; verticalCenter: parent.verticalCenter }
-                spacing: Theme.gap
+                anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
+                anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                spacing: Theme.keycap ? Theme.xs + 1 : Theme.gap
                 Repeater {
                     model: bar.pills
+                    delegate: Theme.keycap ? keyPill : dotPill
+                }
+            }
+            // The window list: after the workspaces, in a group of its own (keycap) — the focused window lit.
+            Group { around: taskRow }
+            Row {
+                id: taskRow
+                visible: bar.tasks.length > 0
+                anchors { left: workspaceRow.right; leftMargin: Theme.pad + 2 * bar.groupInset; verticalCenter: parent.verticalCenter }
+                anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                spacing: Theme.xs
+                Repeater {
+                    model: bar.tasks.slice(0, 12)
                     delegate: Rectangle {
+                        id: task
                         required property var modelData
+                        readonly property var entry: DesktopEntries.heuristicLookup(modelData.app_id)
+                        readonly property string src: entry && entry.icon ? Quickshell.iconPath(entry.icon, true) : ""
                         anchors.verticalCenter: parent.verticalCenter
-                        height: modelData.focused ? 10 : 8
-                        width: modelData.focused ? 24 : 8
-                        radius: height / 2
-                        color: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.fg : "transparent")
-                        border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
-                        border.color: Theme.dim
-                        Behavior on width {
-                            enabled: bar.visible
-                            NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+                        width: Theme.barH - 12
+                        height: width
+                        radius: Theme.keycap ? width / 2 : Theme.rSm
+                        color: modelData.focused ? Theme.selected : (taskHover.hovered ? Theme.containerHigh : "transparent")
+                        border.width: modelData.focused && Theme.keycap ? Theme.outlineW : 0
+                        border.color: Theme.line
+                        Accessible.role: Accessible.Button
+                        Accessible.name: entry ? entry.name : modelData.app_id
+                        Image {
+                            id: taskImg
+                            anchors.centerIn: parent
+                            width: parent.width - 8
+                            height: width
+                            source: task.src
+                            sourceSize: Qt.size(48, 48)
+                            asynchronous: true
+                            visible: task.src !== "" && status === Image.Ready
                         }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !taskImg.visible
+                            color: Theme.fg
+                            font.pixelSize: Theme.fsCaption
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: (task.modelData.app_id || "?").charAt(0).toUpperCase()
+                        }
+                        // The focused window's mark under its icon, so focus is not colour alone.
+                        Rectangle {
+                            visible: task.modelData.focused
+                            anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 1 }
+                            width: 10; height: 3; radius: 1.5
+                            color: Theme.accent
+                        }
+                        HoverHandler { id: taskHover }
+                        TapHandler { onTapped: Store.act("window.focus", {id: task.modelData.id}) }
                     }
                 }
             }
             // Disconnected glyph: instantiated only while stale (nothing at idle), after the workspaces.
             Loader {
-                anchors { left: workspaceRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
+                anchors { left: taskRow.visible ? taskRow.right : workspaceRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
                 active: bar.stale
                 sourceComponent: Text {
                     color: Theme.accent
@@ -246,9 +363,22 @@ PanelWindow {
                 onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
             }
 
+            Group { around: rightRow }
             Row {
-                anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+                id: rightRow
+                anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
+                anchors.verticalCenterOffset: -Theme.shadowDy / 2
                 spacing: Theme.pad
+                // The volume's icon (keycap chrome): a click mutes, as the media key does.
+                Icon {
+                    visible: Theme.keycap && bar.audioUsable
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: bar.audioMuted ? "volume_off" : "volume_up"
+                    glyph: bar.audioMuted ? "🔇" : "🔊"
+                    filled: true
+                    color: Theme.fg
+                    TapHandler { onTapped: Store.act("audio.mute.toggle") }
+                }
                 Slider {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 110
@@ -281,6 +411,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
                     font.pixelSize: Theme.fs
+                    font.weight: Theme.wBold
                     font.family: Theme.fam(text, Theme.families)
                     text: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--")
                 }

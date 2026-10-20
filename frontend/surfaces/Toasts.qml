@@ -52,8 +52,8 @@ Scope {
         BarConfig { id: bars; screen: win.screen }
         anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
         margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
-        implicitWidth: stack.width
-        implicitHeight: Math.max(1, stack.height)
+        implicitWidth: stack.width + Theme.shadowDy
+        implicitHeight: Math.max(1, stack.height + Theme.shadowDy)
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None

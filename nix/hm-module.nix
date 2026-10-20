@@ -85,6 +85,12 @@ in
       '';
     };
 
+    clipboardHistory = lib.mkOption {
+      type = lib.types.bool;
+      default = true;
+      description = "Keep a clipboard history with cliphist (Home-Manager's services.cliphist), which the launcher shows after `;`.";
+    };
+
     settings = lib.mkOption {
       inherit (toml) type;
       default = { };
@@ -235,8 +241,10 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
-      home.packages = [ cfg.package ] ++ cfg.fonts;
+      # wl-copy: the launcher copies a calculation (K42 session).
+      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts;
       fonts.fontconfig.enable = lib.mkIf (cfg.fonts != [ ]) (lib.mkDefault true);
+      services.cliphist.enable = lib.mkIf cfg.clipboardHistory (lib.mkDefault true);
 
       # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.
       programs.kurashi.niri.binds.keys = lib.mapAttrs (_: lib.mkDefault) niriDefaultKeys;

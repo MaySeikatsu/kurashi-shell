@@ -1,3 +1,8 @@
 # ランチャーの文字列 (ja): frontend/surfaces/Launcher.qml
-"launcher.placeholder" = "アプリを検索…"
+"launcher.placeholder" = "アプリを検索・計算…"
+"launcher.copy" = "コピー"
+"launcher.open" = "開く"
 "launcher.empty" = "一致なし"
+"launcher.modes" = ": 絵文字  ・  ; クリップボード"
+"launcher.clip.unavailable" = "クリップボード履歴には cliphist が必要です（wl-paste --watch cliphist store）"
+"launcher.clip.empty" = "クリップボード履歴は空です"
