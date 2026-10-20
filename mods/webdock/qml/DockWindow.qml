@@ -127,11 +127,17 @@ PanelWindow {
     // (profile none) fades instead of sliding. The window keeps its size until both have finished.
     property real reveal: open ? 1 : 0
     Behavior on reveal { NumberAnimation { duration: dock.reduced ? Theme.quickMs : 180; easing.type: Easing.OutCubic } }
+    // The card rises on a spring (K42: the theme's overshoot) and leaves without one.
     property real cardReveal: panelUp ? 1 : 0
+    readonly property bool springs: !reduced && Theme.springOn
     Behavior on cardReveal {
         SequentialAnimation {
             PauseAnimation { duration: dock.reduced ? 0 : 40 }
-            NumberAnimation { duration: dock.reduced ? Theme.quickMs : 180; easing.type: Easing.OutCubic }
+            NumberAnimation {
+                duration: dock.reduced ? Theme.quickMs : (dock.panelUp && dock.springs ? 240 : 180)
+                easing.type: dock.panelUp && dock.springs ? Easing.OutBack : Easing.OutCubic
+                easing.overshoot: Theme.overshoot
+            }
         }
     }
     readonly property bool surfaceUp: open || reveal > 0.001 || cardReveal > 0.001
@@ -214,6 +220,9 @@ PanelWindow {
                 anchors.fill: parent
                 radius: Theme.rLg
                 color: Theme.surfaceAlpha
+                // Keycap chrome outlines the strip like every block (K42); flat has none.
+                border.width: Theme.keycap ? Theme.outlineW : 0
+                border.color: Theme.line
             }
 
             Strip {

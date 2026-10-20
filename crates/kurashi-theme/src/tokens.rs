@@ -260,7 +260,8 @@ pub fn build(
     }
     // Selected states are tonal, not the accent itself, so a panel full of selections does not
     // read as an alarm (I51); data marks get their own roles apart from the accent (I63).
-    let sel = g("accent").mix(g("surface_container_high"), 0.72);
+    // Deeper on dark grounds, so the text on it stays the light on_surface.
+    let sel = g("accent").mix(g("surface_container_high"), if p.dark { 0.8 } else { 0.72 });
     col(&mut t, "color.selected", sel);
     col(
         &mut t,

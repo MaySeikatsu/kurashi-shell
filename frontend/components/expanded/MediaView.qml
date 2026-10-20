@@ -133,7 +133,7 @@ Item {
                     glyph: "♪"
                     filled: true
                     size: 44
-                    color: Theme.color("color.on_selected", "#e9e4d8")
+                    color: Theme.fgOnSelected
                 }
             }
             Column {
@@ -206,7 +206,7 @@ Item {
                     Text {
                         id: label
                         anchors.centerIn: parent
-                        color: chip.active ? Theme.color("color.on_selected", "#e9e4d8") : Theme.dim
+                        color: chip.active ? Theme.fgOnSelected : Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.weight: chip.active ? Theme.wMedium : Theme.wRegular
                         font.family: Theme.fam(text, Theme.families)

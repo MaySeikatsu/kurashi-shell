@@ -3,22 +3,23 @@ import "../core"
 
 // Text button. `label` is already translated by the caller (I18n.tr). Emits `clicked`; the caller
 // decides which action/intent that means. Reachable by Tab; Return, Enter and Space press it.
-Rectangle {
+// Drawn as a Block (K42): a flat fill, or a keycap that sinks while pressed. `icon` (a Material Symbols
+// name) puts an icon before the label.
+Item {
     id: b
     property string label: ""
+    property string icon: ""
     property bool primary: false
     property bool enabled: true
+    property real radius: Theme.keycap ? Theme.rFull : Theme.rSm
     signal clicked()
 
     function press() { if (b.enabled) b.clicked() }
 
-    implicitWidth: txt.implicitWidth + 2 * Theme.pad
-    implicitHeight: 28
-    radius: Theme.rSm
-    color: primary ? Theme.accent : Theme.containerHigh
+    readonly property color base: primary ? Theme.accent : (Theme.keycap ? Theme.container : Theme.containerHigh)
+    implicitWidth: row.implicitWidth + 2 * Theme.pad + 2 * blk.inset
+    implicitHeight: (Theme.keycap ? 34 : 28) + Theme.shadowDy
     opacity: enabled ? 1 : 0.5
-    border.width: hover.hovered && enabled ? 1 : 0
-    border.color: Theme.fg
 
     activeFocusOnTab: b.enabled
     Keys.onReturnPressed: b.press()
@@ -27,17 +28,39 @@ Rectangle {
     Accessible.role: Accessible.Button
     Accessible.name: b.label
 
-    Text {
-        id: txt
-        anchors.centerIn: parent
-        // On the accent fill the text takes on_accent (4.5:1); on the container, the normal foreground.
-        color: b.primary ? Theme.fgOnAccent : Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
-        text: b.label
+    Block {
+        id: blk
+        anchors.fill: parent
+        radius: b.radius
+        pressed: area.pressed && b.enabled
+        fill: hover.hovered && b.enabled && Theme.keycap ? Qt.tint(b.base, Qt.alpha(Theme.fg, 0.08)) : b.base
+        flatBorder: hover.hovered && b.enabled ? Theme.fg : "transparent"
+        Row {
+            id: row
+            anchors.centerIn: parent
+            spacing: Theme.xs + 2
+            Icon {
+                visible: b.icon !== "" && Theme.iconFamily !== ""
+                name: b.icon
+                size: Theme.fs + 3
+                color: txt.color
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                id: txt
+                anchors.verticalCenter: parent.verticalCenter
+                // On the accent fill the text takes on_accent (4.5:1); on the container, the normal foreground.
+                color: b.primary ? Theme.fgOnAccent : Theme.fg
+                font.pixelSize: Theme.fs
+                font.weight: Theme.wMedium
+                font.family: Theme.fam(text, Theme.families)
+                text: b.label
+            }
+        }
     }
     HoverHandler { id: hover }
     MouseArea {
+        id: area
         anchors.fill: parent
         // The hit area grows to the control height (32 px floor); the drawn button keeps its size.
         anchors.margins: -Math.max(0, (Theme.controlH - b.height) / 2)
@@ -45,9 +68,11 @@ Rectangle {
         onClicked: b.clicked()
     }
     FocusRing {
-        anchors.fill: parent
+        width: blk.face.width
+        height: blk.face.height
+        y: blk.face.y
         shown: b.activeFocus
-        corner: b.radius
-        stroke: b.primary ? Theme.fgOnAccent : Theme.focusRing
+        corner: Math.min(b.radius, height / 2)
+        stroke: b.primary && !Theme.keycap ? Theme.fgOnAccent : Theme.focusRing
     }
 }

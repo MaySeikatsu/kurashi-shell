@@ -7,7 +7,7 @@ import ".."
 // and its props are `glyph`, `label` and `subtitle` (the value in effect). The main zone toggles (or opens the page, when
 // the tile has no switch); a tile with `acts` runs its one-step action instead (`activated`, e.g. wallpaper next); the arrow
 // zone opens the drill-down page in the same card. The grid sizes a contribution to its cell (W18, docs/ux/COMPOSITION.md §5).
-// States: off; on (a tonal container with an accent glyph); connecting (glyph swap, "Connecting…"); failed (the reason in
+// States: off; on (the tonal selected pill, its icon filled on an accent badge); connecting (glyph swap, "Connecting…"); failed (the reason in
 // red and a solid badge, the one state that asks for attention; Enter or a click retries); unavailable (dim, the reason);
 // forced (inert, who sets the value). Keys: Enter and Space toggle or open, Right opens the page; QuickPanel's grid moves
 // the focus with the arrows.
@@ -42,11 +42,13 @@ Item {
         : connecting ? pendingText
         : subtitle
 
-    // The on state's colours are component tokens (quick.tile.on.*, I51) when the theme document has them; without them
-    // the tonal look below is what the tile has always drawn.
-    readonly property color onBg: Theme.color("quick.tile.on.bg", Qt.alpha(Theme.accent, 0.22))
-    readonly property color onBadge: Theme.color("quick.tile.on.badge", Qt.alpha(Theme.accent, 0.3))
-    readonly property color onFg: Theme.color("quick.tile.on.fg", Theme.accent)
+    // The on state (K42, I51): the tonal `color.selected` and its ink, the icon filled; component tokens quick.tile.on.*
+    // win when a theme document has them. (`Theme.onSelected` reads back as black, like onAccent: the token is read here.)
+    readonly property color onBg: Theme.color("quick.tile.on.bg", Theme.selected)
+    readonly property color onBadge: Theme.color("quick.tile.on.badge", Theme.accent)
+    readonly property color onFg: Theme.color("quick.tile.on.fg", Theme.color("color.on_selected", Theme.fg))
+    // A Material Symbols name (Icon.qml); `glyph` is the text drawn without the font (and a mod tile's only mark).
+    property string icon: ""
 
     function activate() {
         if (connecting) return
@@ -73,53 +75,67 @@ Item {
     Accessible.checkable: toggles && !inert
     Accessible.checked: on
 
-    Rectangle {
+    // A keycap pill (Block, K42): it sinks while pressed; flat chrome draws the same pill as a plain fill.
+    Block {
         id: face
         anchors.fill: parent
-        radius: Theme.rSm + 2
-        color: tile.lit ? tile.onBg : Theme.containerHigh
-        border.width: tile.failed ? 1 : 0
-        border.color: Theme.error
+        radius: Theme.rFull
+        fill: tile.lit ? tile.onBg : Theme.containerHigh
+        pressed: (mainArea.pressed || arrowArea.pressed) && !tile.connecting
         opacity: tile.reason !== "" ? 0.5 : 1
-    }
-    Rectangle {
-        id: badge
-        x: 8
-        y: (tile.height - height) / 2
-        width: 28
-        height: 28
-        radius: 14
-        // Tonal when on (accent at low alpha, as the container), solid only for the failed state (I51).
-        color: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.surface)
-        Text {
-            anchors.centerIn: parent
-            color: tile.failed ? Theme.surface : (tile.lit ? tile.onFg : Theme.fg)
-            font.pixelSize: Theme.fs + 2
-            font.family: Theme.fam(text, Theme.families)
-            text: tile.failed ? "↻" : (tile.connecting ? "…" : tile.glyph)
+        // The failed state: a ring in the error colour over the face, the one state that asks for attention.
+        Rectangle {
+            visible: tile.failed
+            anchors.fill: parent
+            radius: height / 2
+            color: "transparent"
+            border.width: 2
+            border.color: Theme.error
         }
-    }
-    Column {
-        x: badge.x + badge.width + 8
-        width: arrow.x - x - 4
-        anchors.verticalCenter: parent.verticalCenter
-        Text {
-            width: parent.width
-            elide: Text.ElideRight
-            color: Theme.fg
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
-            text: tile.label
+        Block {
+            id: badge
+            x: 5
+            y: Math.round((face.faceH - 2 * face.inset - height) / 2)
+            width: 30
+            height: 30
+            radius: Theme.rFull
+            ringScale: 0
+            animate: face.animate
+            fill: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.container)
+            Icon {
+                anchors.centerIn: parent
+                name: tile.failed ? "refresh" : (tile.connecting ? "more_horiz" : tile.icon)
+                glyph: tile.failed ? "↻" : (tile.connecting ? "…" : tile.glyph)
+                filled: tile.lit
+                size: 18
+                color: tile.failed ? Theme.surface : (tile.lit ? Theme.fgOnAccent : Theme.fg)
+            }
         }
-        Text {
-            width: parent.width
-            wrapMode: Text.WordWrap
-            maximumLineCount: 2
-            elide: Text.ElideRight
-            color: tile.failed ? Theme.error : Theme.dim
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
-            text: tile.shownSubtitle
+        Column {
+            x: badge.x + badge.width + 6
+            width: face.width - 2 * face.inset - x - arrow.width
+            anchors.verticalCenter: parent.verticalCenter
+            Text {
+                width: parent.width
+                elide: Text.ElideRight
+                color: tile.lit ? tile.onFg : Theme.fg
+                font.pixelSize: Theme.fs
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: tile.label
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                lineHeight: 0.85
+                elide: Text.ElideRight
+                color: tile.failed ? Theme.error : (tile.lit ? tile.onFg : Theme.dim)
+                opacity: tile.lit && !tile.failed ? 0.8 : 1
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: tile.shownSubtitle
+            }
         }
     }
     // The arrow zone: the drill-down. Its own hit area, so a click here never toggles.
@@ -130,19 +146,22 @@ Item {
         anchors.bottom: parent.bottom
         anchors.right: parent.right
         visible: tile.hasPage
-        Text {
+        Icon {
             anchors.centerIn: parent
-            color: Theme.dim
-            font.pixelSize: Theme.fs + 4
-            font.family: Theme.fam(text, Theme.families)
-            text: "›"
+            anchors.verticalCenterOffset: -Theme.shadowDy / 2
+            name: "chevron_right"
+            glyph: "›"
+            size: 18
+            color: tile.lit ? tile.onFg : Theme.dim
         }
         MouseArea {
+            id: arrowArea
             anchors.fill: parent
             onClicked: tile.pageRequested()
         }
     }
     MouseArea {
+        id: mainArea
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -150,8 +169,9 @@ Item {
         onClicked: tile.activate()
     }
     FocusRing {
-        anchors.fill: parent
+        width: parent.width
+        height: face.faceH
         shown: tile.activeFocus
-        corner: face.radius
+        corner: height / 2
     }
 }

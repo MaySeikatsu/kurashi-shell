@@ -33,11 +33,12 @@ Flow {
             required property int index
             readonly property bool on: JSON.stringify(modelData.value) === JSON.stringify(s.current)
             implicitWidth: lbl.implicitWidth + 2 * Theme.pad
-            implicitHeight: 26
-            radius: Theme.rSm
-            color: on ? Theme.accent : Theme.containerHigh
-            border.width: 1
-            border.color: Theme.outline
+            implicitHeight: 28
+            radius: Theme.keycap ? height / 2 : Theme.rSm
+            // Tonal selection (I51) with a bold label, so the choice is not colour alone.
+            color: on ? Theme.selected : Theme.containerHigh
+            border.width: Theme.keycap ? Theme.outlineW : 1
+            border.color: Theme.keycap ? Theme.line : (on ? Theme.selected : Theme.outline)
             opacity: s.enabled ? 1 : 0.5
             activeFocusOnTab: s.enabled
             Keys.onSpacePressed: event => { s.picked(modelData.value); event.accepted = true }
@@ -57,8 +58,9 @@ Flow {
                 id: lbl
                 anchors.centerIn: parent
                 // Text on the accent fill takes on_accent (4.5:1).
-                color: pill.on ? Theme.fgOnAccent : Theme.fg
+                color: pill.on ? Theme.fgOnSelected : Theme.fg
                 font.pixelSize: Theme.fs
+                font.weight: pill.on ? Theme.wBold : Theme.wMedium
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr(modelData.label)
             }

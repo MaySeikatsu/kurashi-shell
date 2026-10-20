@@ -25,6 +25,8 @@ Singleton {
     readonly property color surface: color("color.surface", "#1b1a1e")
     readonly property color surfaceAlpha: Qt.alpha(surface, tok("color.surface_alpha", 0.82))
     readonly property color container: color("color.surface_container", "#252329")
+    // A panel's fill: the container at the material's opacity (solid = opaque, translucent and glass see through).
+    readonly property color panel: Qt.alpha(container, tok("color.surface_alpha", 0.82))
     readonly property color containerHigh: color("color.surface_container_high", "#2f2c33")
     readonly property int barH: tok("bar.height", 36)
     // Control height. Visuals of buttons take it; smaller visuals enlarge their hit area to it (32 px floor).
@@ -53,7 +55,8 @@ Singleton {
     readonly property color line: color("chrome.line", "#121120")
     readonly property color ring: color("chrome.ring_color", "#e4e4ec")
     readonly property color selected: color("color.selected", "#4a3138")
-    readonly property color onSelected: color("color.on_selected", "#e9e4d8")
+    // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
+    readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")
     readonly property color secondary: color("color.secondary", "#5b7fa6")
     readonly property color tertiary: color("color.tertiary", "#8fa868")
     readonly property color warning: color("color.warning", "#e0a33b")

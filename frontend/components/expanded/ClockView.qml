@@ -238,7 +238,7 @@ Column {
                         anchors.verticalCenterOffset: (view.marked ? -7 : 0) - Theme.shadowDy / 2 + (dayTap.pressed ? Theme.shadowDy : 0)
                         visible: parent.inMonth
                         color: parent.isToday ? Theme.fgOnAccent
-                            : (parent.isSel ? Theme.color("color.on_selected", "#e9e4d8") : Theme.fg)
+                            : (parent.isSel ? Theme.fgOnSelected : Theme.fg)
                         font.pixelSize: Theme.fs
                         font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
                         font.family: Theme.fam(text, Theme.families)

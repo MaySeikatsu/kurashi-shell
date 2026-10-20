@@ -217,6 +217,8 @@ pub fn connect_scope(scope: &Scope) -> Result<ScopeHold, ScopeRefused> {
 pub fn scope_allows_doc(mod_id: &str, doc: &str) -> bool {
     doc == "theme"
         || doc == "i18n"
+        // Row 118: the time for a host's own chrome (the web dock's phone status row).
+        || doc == "svc.clock"
         || doc == format!("mod.{mod_id}")
         || doc.starts_with(&format!("mod.{mod_id}."))
 }
@@ -507,6 +509,7 @@ mod tests {
         assert!(scope_allows_doc("webdock", "mod.webdock.pins"));
         assert!(scope_allows_doc("webdock", "theme"));
         assert!(scope_allows_doc("webdock", "i18n"));
+        assert!(scope_allows_doc("webdock", "svc.clock"));
         assert!(!scope_allows_doc("webdock", "mod.webdockx"));
         assert!(!scope_allows_doc("webdock", "mod.weather"));
         assert!(!scope_allows_doc("webdock", "mods"));
