@@ -56,7 +56,13 @@ PanelWindow {
     }
     function launch() {
         if (sel < 0 || sel >= results.length || !results[sel].id) return
-        Store.act("launcher.launch", { id: results[sel].id }, function (done, e) {
+        var id = results[sel].id
+        // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first.
+        if (id.indexOf("cmd:") === 0) {
+            Store.act("ui.close", {}, function () { Store.act("launcher.launch", { id: id }) })
+            return
+        }
+        Store.act("launcher.launch", { id: id }, function (done, e) {
             // Close only once the app is up: a failure stays open with its reason.
             if (e) { lp.err = lp.errorText(e); return }
             Store.act("ui.close")
@@ -231,6 +237,9 @@ PanelWindow {
                 readonly property bool isEmoji: modelData.kind === "emoji"
                 readonly property bool isClip: modelData.kind === "clip"
                 readonly property bool isNote: modelData.kind === "note"
+                // `>` commands (I126) carry their Material icon; the web row searches the query.
+                readonly property bool isCommand: modelData.kind === "command"
+                readonly property bool isWeb: modelData.kind === "web"
                 readonly property bool copies: isCalc || isEmoji || isClip
                 readonly property bool selected: index === lp.sel
                 width: list.width
@@ -260,9 +269,10 @@ PanelWindow {
                         border.color: Theme.outlineColor
                         Icon {
                             anchors.centerIn: parent
-                            visible: row.isCalc || row.isClip || row.isNote
-                            name: row.isCalc ? "calculate" : (row.isClip ? "content_paste" : "info")
-                            glyph: row.isCalc ? "=" : (row.isClip ? "⎘" : "i")
+                            visible: row.isCalc || row.isClip || row.isNote || row.isCommand || row.isWeb
+                            name: row.isCalc ? "calculate" : (row.isClip ? "content_paste"
+                                : ((row.isCommand || row.isWeb) ? (modelData.icon || "bolt") : "info"))
+                            glyph: row.isCalc ? "=" : (row.isClip ? "⎘" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i")))
                             filled: true
                             color: row.isCalc ? Theme.fgOnAccent : Theme.dim
                         }
@@ -293,7 +303,8 @@ PanelWindow {
                         font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : Theme.fs
                         font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                         font.family: Theme.fam(text, Theme.families)
-                        text: row.isNote ? I18n.tr(modelData.name) : modelData.name
+                        text: row.isNote ? I18n.tr(modelData.name)
+                            : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", modelData.name) : modelData.name)
                     }
                     Text {
                         width: parent.width
@@ -313,7 +324,8 @@ PanelWindow {
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.family: Theme.fam(text, Theme.families)
-                    text: "↵ " + I18n.tr(row.copies ? "launcher.copy" : "launcher.open")
+                    text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
+                        : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open")))
                 }
                 MouseArea {
                     anchors.fill: parent

@@ -998,6 +998,19 @@
               "restart": true,
               "since": 1,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [],
+              "default": "https://duckduckgo.com/?q={}",
+              "help": "config.launcher.web_search.help",
+              "key": "launcher.web_search",
+              "label": "config.launcher.web_search.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
             }
           ]
         }
