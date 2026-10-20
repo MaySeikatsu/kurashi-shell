@@ -190,5 +190,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | S9.2 | Desktop widgets: keycap clock, month, now playing, weather (K43, `docs/ux/desktop.md`) | ✅ functional · UX first pass (I101) | feat/m8-sekai-surfaces |
 | S9.3 | Launcher calculator, `:` emoji, `;` clipboard (cliphist); bar window list + `window.focus` (K44) | ✅ functional · UX first pass (I102, I105) | feat/m8-sekai-surfaces |
 | S9.4 | Settings app: tonal selection, keycap controls, sidebar pills with icons (I51 leftovers, I104) | ✅ functional · UX first pass | feat/m8-sekai-surfaces |
-| W21.1 | Island morph: one shape pill → card, liquid neck, live faces, expanded views (card `W21-island-morph`) | ⏳ agent | feat/w21-island-morph |
-| W21.2 | Phone: web dock phone frame, quick settings as a phone (card `W21-phone`) | ⏳ agent | feat/w21-phone |
+| W21.1 | Island morph: one shape pill → card (Capsule springs), liquid neck (flat chrome), keycap pill, flip clock, media level bars, OSD level meter, KeyButton views, ownChrome for the phone (card `W21-island-morph`) | ✅ functional · UX ✅ first pass (morph frames `frontend/shots/island/morph-*`; I111–I115, B32) | merged 6b749d6 |
+| W21.2 | Phone: `PhoneFrame`, web dock phone card + keycap strip, quick settings as a SekaiPop phone (card `W21-phone`); row 118 `svc.clock` in host scopes (lead) | ✅ functional · UX ✅ first pass (I106–I110) | merged 22967bd |
+| S9.5 | Glass decor (Vitreus/pleamar), `Theme.panel` | ✅ functional · UX first pass (I114) | main |
