@@ -40,6 +40,7 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
         Box::new(kurashi_mod_sysmon::Sysmon::new()),
         Box::new(kurashi_mod_wallpaper::Wallpaper::new()),
         Box::new(kurashi_mod_webdock::Webdock::new()),
+        Box::new(kurashi_mod_tasks::TasksMod::new()),
     ];
     #[cfg(feature = "test-mods")]
     let mods = mods

@@ -165,6 +165,10 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | B32 | 2026-10-20 | W21-island-morph report | Once (early, not reproduced in 12 later runs) test-stage caught the morph stuck at ~55 % height with no content; suspect a SpringAnimation stopping while the Stage resizes. Watch `KURASHI_STAGE_DEBUG=1`. | new |
 | I116 | 2026-10-20 | user (session 10) | Sidebar details to be discussed with the user (web dock / side bars) before more sidebar work. | new — ask |
 | I117 | 2026-10-20 | user (session 10) | Decor "isekai": a cyberpunk feel (neon on deep night, glitch/scanline accents, angular cuts). Do not implement yet — the user will send inspiration first. | new — wait for inspiration |
+| I118 | 2026-10-20 | W22-tasks report (row 121) | A capability for files the user names in a setting (`fs:user`), shown on the Mods page; `tasks` declares `fs:scoped` meanwhile. | new |
+| I119 | 2026-10-20 | W22-tasks report (row 123) | Desk cards in the manifest's `provides` order (the `qml` map sorts keys, so the note sits above the list); per-card show/hide settings for mod desk cards. | new |
+| I120 | 2026-10-20 | W22-tasks report (row 124) | `tasks.notes.set {base}` refuses when the note changed on disk meanwhile (today last write wins). | new |
+| I121 | 2026-10-20 | W22-tasks report | Tasks: Todoist/TickTick backends, several lists and notes, reminders at a due time, a Japanese-locale run of `test-tasks.sh`; add `tasks` and `webdock` to `LINKED` in `frontend/test-mods-live.sh`. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

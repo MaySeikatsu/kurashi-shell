@@ -1,0 +1,21 @@
+[package]
+name = "kurashi-mod-tasks"
+description = "Tasks and notes native mod (K46): a Markdown checklist and a note in files the user owns (Obsidian Tasks markers kept), watched only while subscribed (docs/ux/tasks.md)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kurashi-mod-api = { path = "../kurashi-mod-api" }
+chrono.workspace = true
+notify = "8"
+serde_json.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true
