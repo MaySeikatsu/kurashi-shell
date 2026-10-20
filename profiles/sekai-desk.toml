@@ -1,0 +1,12 @@
+# SekaiPop's desktop: pop keycaps, a taller bar for the keys, the desk widgets on the right.
+schema_version = 1
+
+[theme]
+decor = "sekai"
+
+[bar]
+height = 40
+
+[desktop]
+enabled = true
+side = "right"
