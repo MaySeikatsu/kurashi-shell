@@ -1151,6 +1151,32 @@
               "restart": false,
               "since": 1,
               "type": "bool"
+            },
+            {
+              "advanced": true,
+              "control": "list",
+              "couplings": [
+                {
+                  "key": "desktop.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": [
+                "clock",
+                "calendar",
+                "media",
+                "weather"
+              ],
+              "help": "config.desktop.order.help",
+              "key": "desktop.order",
+              "label": "config.desktop.order.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
             }
           ]
         }

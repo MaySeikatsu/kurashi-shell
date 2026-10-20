@@ -158,6 +158,8 @@
 "config.desktop.media.help" = "The song that plays, with its controls; hidden while nothing plays."
 "config.desktop.weather.label" = "Weather"
 "config.desktop.weather.help" = "Today's weather, while the weather mod is on and has a place."
+"config.desktop.order.label" = "Order"
+"config.desktop.order.help" = "The cards from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`. A card that is not listed comes after the listed ones. The desk's edit mode writes it (K48)."
 "config.idle.enabled.label" = "Idle actions"
 "config.idle.enabled.help" = "Dim, lock, turn the screens off and suspend after a time without input. Apps that play video or calls that are on keep the screen awake (they inhibit idle)."
 "config.idle.dim_after.label" = "Dim after"
