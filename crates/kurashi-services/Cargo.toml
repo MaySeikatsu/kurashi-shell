@@ -4,19 +4,24 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Refcount-friendly D-Bus services (MPRIS, UPower, logind, NetworkManager, backlight)"
+description = "Refcount-friendly D-Bus services (MPRIS, UPower, logind, NetworkManager, backlight) and the cava spectrum"
 
 [dependencies]
 anyhow.workspace = true
 futures-util = "0.3"
 serde.workspace = true
 serde_json.workspace = true
-tokio.workspace = true
+# K48: cava runs as a child process; cover colours come from the theme crate, http covers through ureq.
+tokio = { workspace = true, features = ["process"] }
+kurashi-theme = { path = "../kurashi-theme" }
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
 tracing.workspace = true
 zbus = { version = "5", default-features = false, features = ["tokio"] }
 
 [dev-dependencies]
 tempfile = "3"
+# Fixture covers (media.rs art tests).
+image = { version = "0.25", default-features = false, features = ["png"] }
 # Paused-clock tests of the scan cadence (network.rs).
 tokio = { workspace = true, features = ["test-util"] }
 

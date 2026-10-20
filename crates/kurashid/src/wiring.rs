@@ -4244,6 +4244,143 @@ pub fn recorder(
     });
 }
 
+// ---- svc.audio.spectrum (K48, W24-media) -----------------------------------------------------------------------
+
+pub const SPECTRUM_DOC: &str = "svc.audio.spectrum";
+
+/// Finds the cava program at each start (it may be installed while the daemon runs).
+pub type SpectrumProgram = Arc<dyn Fn() -> Option<std::path::PathBuf> + Send + Sync>;
+
+struct SpectrumSink(Arc<Hub>);
+
+impl kurashi_services::DocSink for SpectrumSink {
+    fn set(&self, doc: Value) {
+        let _ = self.0.set(SPECTRUM_DOC, doc, None);
+    }
+}
+
+/// `svc.audio.spectrum` while subscribed: cava runs from the first subscriber to the last (Ma), see
+/// `kurashi_services::spectrum`.
+struct SpectrumProvider {
+    program: SpectrumProgram,
+    running: Mutex<Option<kurashi_services::ServiceHandle>>,
+}
+
+impl crate::hub::Provider for SpectrumProvider {
+    fn start(&self, hub: Arc<Hub>) {
+        let h = kurashi_services::spectrum::start((self.program)(), Arc::new(SpectrumSink(hub)));
+        *self.running.lock().expect("spectrum lock") = Some(h);
+    }
+    fn stop(&self) {
+        // Dropping the handle aborts the reader and kills cava.
+        self.running.lock().expect("spectrum lock").take();
+    }
+}
+
+/// `svc.audio.spectrum` (K48): live audio levels from `cava` on the daemon's PATH, refcounted.
+pub fn spectrum(hub: &Arc<Hub>) {
+    spectrum_with(
+        hub,
+        Arc::new(|| kurashi_services::spectrum::which(&std::env::var("PATH").unwrap_or_default())),
+    );
+}
+
+/// [`spectrum`] with the program lookup injected (tests run a fake cava).
+pub fn spectrum_with(hub: &Arc<Hub>, program: SpectrumProgram) {
+    use kurashi_services::spectrum as sp;
+    // Before anything watches it: whether there is a cava to run, and no level yet.
+    let initial = if program().is_some() {
+        sp::doc_waiting()
+    } else {
+        sp::doc_unavailable(sp::REASON_MISSING)
+    };
+    hub.register(
+        SPECTRUM_DOC,
+        initial,
+        Some(Arc::new(SpectrumProvider {
+            program,
+            running: Mutex::new(None),
+        })),
+    );
+}
+
+#[cfg(test)]
+mod spectrum_tests {
+    use super::*;
+
+    /// A fake cava that prints one loud frame, then stays (as cava does while the audio is silent).
+    fn fake_cava(dir: &std::path::Path) -> std::path::PathBuf {
+        use std::os::unix::fs::PermissionsExt;
+        let p = dir.join("cava");
+        std::fs::write(
+            &p,
+            format!(
+                "#!/bin/sh\necho $$ >> {}/pids\ncat >/dev/null\n\
+                 echo '100;80;60;40;20;0;0;0;0;0;0;0;0;0;0;0;'\nexec sleep 30\n",
+                dir.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
+        p
+    }
+
+    #[tokio::test]
+    async fn cava_runs_only_while_the_document_is_watched() {
+        let dir = std::env::temp_dir().join(format!("kurashi-spectrum-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let cava = fake_cava(&dir);
+        let hub = Hub::new();
+        spectrum_with(&hub, Arc::new(move || Some(cava.clone())));
+        assert_eq!(hub.snapshot(SPECTRUM_DOC).unwrap().1["available"], true);
+        assert!(
+            !dir.join("pids").exists(),
+            "nothing runs before a subscriber"
+        );
+        hub.subscribe(SPECTRUM_DOC).unwrap();
+        let mut bars = Value::Null;
+        for _ in 0..200 {
+            bars = hub.snapshot(SPECTRUM_DOC).unwrap().1["bars"].clone();
+            if bars[0] == 1.0 {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        assert_eq!(bars[0], 1.0);
+        assert_eq!(bars[1], 0.8);
+        assert_eq!(bars.as_array().unwrap().len(), 16);
+        let pid: i32 = std::fs::read_to_string(dir.join("pids"))
+            .unwrap()
+            .trim()
+            .parse()
+            .unwrap();
+        hub.unsubscribe(SPECTRUM_DOC);
+        let mut gone = false;
+        for _ in 0..200 {
+            let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).unwrap_or_default();
+            if stat.is_empty() || stat.split_whitespace().nth(2) == Some("Z") {
+                gone = true;
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(gone, "cava still runs after the last subscriber left");
+    }
+
+    #[tokio::test]
+    async fn without_cava_the_document_says_why() {
+        let hub = Hub::new();
+        spectrum_with(&hub, Arc::new(|| None));
+        let d = hub.snapshot(SPECTRUM_DOC).unwrap().1;
+        assert_eq!(d["available"], false);
+        assert_eq!(d["reason"], kurashi_services::spectrum::REASON_MISSING);
+        hub.subscribe(SPECTRUM_DOC).unwrap();
+        assert_eq!(hub.snapshot(SPECTRUM_DOC).unwrap().1["available"], false);
+    }
+}
+
 #[cfg(test)]
 mod power_tests {
     use super::*;

@@ -9,6 +9,8 @@ import qs.components
 // frame of its own, the card is the frame. Keys: arrows move, Enter applies (with theme when the theme switch is
 // on), Ctrl+Enter wallpaper only, Shift+Enter to every output, F keeps the look, R shuffles, T the theme switch,
 // Backspace goes up a folder, / searches.
+// Two tabs (K48 (3)): the library, and Wallhaven (Wallhaven.qml, made only while its tab is shown; it fetches nothing
+// before that). The targets, the theme switch and Apply's `wallpaper.set` are shared by both.
 Item {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
@@ -60,6 +62,8 @@ Item {
     property var subfolders: []         // folders under `folder`, from the last page (name, path, count)
     property real cacheBytes: -1        // the thumbnail cache's size from the first page; -1 while not known
     property bool menuOpen: false       // the header's overflow (the cache), open
+    property string tab: "library"      // library | wallhaven
+    readonly property bool onLibrary: tab === "library"
 
     readonly property int pageSize: 48
     readonly property int columns: Math.max(2, Math.floor(grid.width / 160))
@@ -453,10 +457,34 @@ Item {
         }
     }
 
+    // ---- tabs: the library, Wallhaven ----------------------------------------------------------
+    Row {
+        id: tabs
+        anchors.top: title.bottom
+        anchors.left: parent.left
+        anchors.topMargin: Theme.gap
+        spacing: Theme.xs
+        Accessible.role: Accessible.PageTabList
+        PickButton {
+            id: libraryTab
+            label: I18n.tr("mod-wallpaper.tab.library")
+            selected: picker.onLibrary
+            Accessible.role: Accessible.PageTab
+            onActivated: { picker.tab = "library"; picker.later(picker.focusGrid) }
+        }
+        PickButton {
+            id: wallhavenTab
+            label: I18n.tr("mod-wallpaper.tab.wallhaven")
+            selected: picker.tab === "wallhaven"
+            Accessible.role: Accessible.PageTab
+            onActivated: picker.tab = "wallhaven"
+        }
+    }
+
     // ---- targets: every output, one output, and span greyed with its reason --------------------
     Flow {
         id: targets
-        anchors.top: title.bottom
+        anchors.top: tabs.bottom
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.topMargin: Theme.gap
@@ -493,6 +521,7 @@ Item {
     // Right move along the row, Return opens a folder, Down goes back to the grid.
     Flow {
         id: crumbRow
+        visible: picker.onLibrary
         anchors.top: targets.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -544,6 +573,7 @@ Item {
     // ---- toolbar: search, sort, shuffle --------------------------------------------------------
     Row {
         id: toolbar
+        visible: picker.onLibrary
         anchors.top: crumbRow.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -678,7 +708,7 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottomMargin: Theme.gap
-        height: picker.showGrid && picker.selectedRow !== null ? previewCol.implicitHeight + Theme.gap : 0
+        height: picker.onLibrary && picker.showGrid && picker.selectedRow !== null ? previewCol.implicitHeight + Theme.gap : 0
         visible: height > 0
         Rectangle {
             // A hairline between the grid and the preview; the card stays the only frame.
@@ -896,8 +926,23 @@ Item {
     }
 
     // ---- body: the grid, or the state that replaces it ------------------------------------------
+    // ---- the Wallhaven tab: between the targets and the footer, made only while shown --------------
+    Loader {
+        id: wallhaven
+        active: picker.tab === "wallhaven"
+        visible: active
+        anchors.top: targets.bottom
+        anchors.bottom: footer.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.topMargin: Theme.gap
+        anchors.bottomMargin: Theme.gap
+        sourceComponent: Component { Wallhaven { host: picker } }
+    }
+
     Item {
         id: body
+        visible: picker.onLibrary
         anchors.top: toolbar.bottom
         anchors.bottom: preview.visible ? preview.top : footer.top
         anchors.left: parent.left

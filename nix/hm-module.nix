@@ -90,11 +90,12 @@ in
 
     tools = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = with pkgs; [ wlsunset wf-recorder ];
-      defaultText = lib.literalExpression "with pkgs; [ wlsunset wf-recorder ]";
+      default = with pkgs; [ wlsunset wf-recorder cava ];
+      defaultText = lib.literalExpression "with pkgs; [ wlsunset wf-recorder cava ]";
       description = ''
         Programs kurashid runs (K47), installed with the user's packages (NixOS puts the per-user profile on the
-        user manager's PATH): wlsunset for night light, wf-recorder for the screen recorder. gpu-screen-recorder is preferred when it is installed (it needs the NixOS module's
+        user manager's PATH): wlsunset for night light, wf-recorder for the screen recorder, cava for the media level bars
+        (K48; it runs only while a media view with bars is on screen, and without it the bars are a still mark). gpu-screen-recorder is preferred when it is installed (it needs the NixOS module's
         {option}`programs.kurashi.gpuScreenRecorder.enable` for its capability wrapper). Without a program, the
         quick settings tile says why instead of acting. Idle (dim, lock, screens off, suspend) is the daemon's own:
         no swayidle or hypridle is needed — turn those off, or set `idle.enabled = false`.

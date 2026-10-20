@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/island"
 import "../core/mods.js" as Mods
 
 // Desktop widgets (K43; SekaiPop's desk): cards on the bottom layer, under the windows, on one side of each output —
@@ -215,8 +216,14 @@ PanelWindow {
         }
 
         // ---- now playing: shown while a player plays or is paused on a track ----
+        // W24 (K48): on the cover's colours when the daemon has them (`art_colors`: data colours, checked for contrast),
+        // with the live level bars (LevelBars watches `svc.audio.spectrum` only while they show and the track plays).
         Card {
+            id: mediaCard
             visible: desk.want("media") && desk.media.available === true && (desk.media.title || "") !== ""
+            readonly property var cover: desk.media.art_colors && typeof desk.media.art_colors.bg === "string" ? desk.media.art_colors : null
+            readonly property color ink: cover ? cover.fg : Theme.fg
+            fill: cover ? cover.bg : Theme.surfaceAlpha
             Row {
                 width: parent.width
                 spacing: Theme.pad
@@ -229,6 +236,7 @@ PanelWindow {
                     border.color: Theme.line
                     clip: true
                     Image {
+                        id: coverImg
                         anchors.fill: parent
                         anchors.margins: parent.border.width
                         source: desk.visible ? (desk.media.art_url || "") : ""
@@ -239,6 +247,7 @@ PanelWindow {
                     }
                     Icon {
                         anchors.centerIn: parent
+                        visible: !coverImg.visible
                         name: "music_note"
                         glyph: "♪"
                         filled: true
@@ -249,11 +258,25 @@ PanelWindow {
                 Column {
                     width: parent.width - art.width - parent.spacing
                     spacing: 2
-                    Caption { text: I18n.tr("frontend.desktop.now_playing") }
+                    Row {
+                        width: parent.width
+                        spacing: Theme.gap
+                        Caption {
+                            color: mediaCard.cover ? mediaCard.ink : Theme.dim
+                            text: I18n.tr("frontend.desktop.now_playing")
+                        }
+                        LevelBars {
+                            anchors.verticalCenter: parent.verticalCenter
+                            running: desk.visible && mediaCard.visible && desk.media.playing === true
+                            color: mediaCard.cover ? mediaCard.cover.accent : Theme.accent
+                            bars: 6
+                            maxH: Theme.fsCaption
+                        }
+                    }
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        color: Theme.fg
+                        color: mediaCard.ink
                         font.pixelSize: Theme.fs + 1
                         font.weight: Theme.wBold
                         font.family: Theme.fam(text, Theme.families)
@@ -262,7 +285,7 @@ PanelWindow {
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        color: Theme.dim
+                        color: mediaCard.cover ? mediaCard.ink : Theme.dim
                         font.pixelSize: Theme.fs - 1
                         font.family: Theme.fam(text, Theme.families)
                         text: desk.media.artist || ""

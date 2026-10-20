@@ -14,6 +14,8 @@ import "../island"
 // while something plays and the view is shown.
 // W21 look: big rounded art beside the titles, the progress as a thick pill (a seek target only where seek is allowed),
 // keycap transport keys with the play key tonal and larger, the output as a chip with its speaker icon.
+// W24 (K48): the level bars are the live audio levels (`svc.audio.spectrum`, LevelBars watches it only while they show),
+// and the hero sits on the cover's colours when the daemon has them.
 Item {
     id: view
     width: parent.width
@@ -27,6 +29,10 @@ Item {
     readonly property bool idle: unavailable || (d.title ?? "") === ""
     readonly property bool playing: !idle && d.playing === true
     readonly property var players: d.players || []
+    // The cover's colours, once the daemon extracted them for the shown track (K48 `art_colors`: bg, fg, accent).
+    readonly property var artColors: !idle && d.art_colors && typeof d.art_colors.bg === "string" ? d.art_colors : null
+    readonly property bool tinted: artColors !== null
+    readonly property color heroFg: tinted ? artColors.fg : Theme.fg
     property string errText: ""
     Refusal { id: refusal }
 
@@ -104,75 +110,92 @@ Item {
             text: I18n.tr("island.media.heading")
         }
         StaleNote { face: "media" }
-        Row {
+        // The hero: the art beside the titles and the level bars. With the cover's colours (`art_colors`, K48) it sits on
+        // the cover's own tone, its text and bars in the colours the daemon checked for contrast (data colours, not
+        // tokens); without them it is plain, on the card.
+        Rectangle {
+            id: hero
             width: view.width
-            spacing: Theme.pad
-            // The art, big and rounded; a tonal tile with the note when there is none.
-            ClippingRectangle {
-                id: artBox
-                width: 96
-                height: 96
-                radius: Theme.rLg
-                color: Theme.selected
-                Accessible.role: Accessible.Graphic
-                Accessible.name: I18n.tr("island.media.art")
-                Image {
-                    id: art
-                    anchors.fill: parent
-                    visible: status === Image.Ready
-                    // Decoded at display size (2x for a sharp edge), not at the cover's own size.
-                    sourceSize: Qt.size(192, 192)
-                    source: view.idle ? "" : (view.d.art_url ?? "")
-                    asynchronous: true
-                    fillMode: Image.PreserveAspectCrop
+            height: heroRow.implicitHeight + 2 * inset
+            readonly property real inset: view.tinted ? Theme.pad : 0
+            radius: Theme.rLg + 4
+            color: view.tinted ? view.artColors.bg : "transparent"
+            Behavior on color { enabled: Theme.springOn && view.visible; ColorAnimation { duration: 320 } }
+            Row {
+                id: heroRow
+                x: hero.inset
+                y: hero.inset
+                width: view.width - 2 * hero.inset
+                spacing: Theme.pad
+                // The art, big and rounded; a tonal tile with the note when there is none.
+                ClippingRectangle {
+                    id: artBox
+                    width: 96
+                    height: 96
+                    radius: Theme.rLg
+                    color: Theme.selected
+                    Accessible.role: Accessible.Graphic
+                    Accessible.name: I18n.tr("island.media.art")
+                    Image {
+                        id: art
+                        anchors.fill: parent
+                        visible: status === Image.Ready
+                        // Decoded at display size (2x for a sharp edge), not at the cover's own size.
+                        sourceSize: Qt.size(192, 192)
+                        source: view.idle ? "" : (view.d.art_url ?? "")
+                        asynchronous: true
+                        fillMode: Image.PreserveAspectCrop
+                    }
+                    Icon {
+                        anchors.centerIn: parent
+                        visible: art.status !== Image.Ready
+                        name: "music_note"
+                        glyph: "♪"
+                        filled: true
+                        size: 44
+                        color: Theme.fgOnSelected
+                    }
                 }
-                Icon {
-                    anchors.centerIn: parent
-                    visible: art.status !== Image.Ready
-                    name: "music_note"
-                    glyph: "♪"
-                    filled: true
-                    size: 44
-                    color: Theme.fgOnSelected
-                }
-            }
-            Column {
-                width: view.width - artBox.width - Theme.pad
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: Theme.xs
-                Text {
-                    width: parent.width
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 2
-                    elide: Text.ElideRight
-                    color: view.idle ? Theme.dim : Theme.fg
-                    font.pixelSize: Theme.fsTitle
-                    font.weight: view.idle ? Theme.wRegular : Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
-                    text: view.idle ? (view.unavailable ? "" : I18n.tr("island.media.idle")) : (view.d.title ?? "")
-                }
-                Text {
-                    visible: !view.idle && (view.d.artist ?? "") !== ""
-                    width: parent.width
-                    elide: Text.ElideRight
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
-                    text: view.d.artist ?? ""
-                }
-                Text {
-                    visible: !view.idle && (view.d.album ?? "") !== ""
-                    width: parent.width
-                    elide: Text.ElideRight
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
-                    text: view.d.album ?? ""
-                }
-                LevelBars {
-                    visible: !view.idle
-                    running: view.playing && view.visible
-                    maxH: 12
+                Column {
+                    width: heroRow.width - artBox.width - Theme.pad
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: Theme.xs
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                        color: view.idle ? Theme.dim : view.heroFg
+                        font.pixelSize: Theme.fsTitle
+                        font.weight: view.idle ? Theme.wRegular : Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        text: view.idle ? (view.unavailable ? "" : I18n.tr("island.media.idle")) : (view.d.title ?? "")
+                    }
+                    Text {
+                        visible: !view.idle && (view.d.artist ?? "") !== ""
+                        width: parent.width
+                        elide: Text.ElideRight
+                        color: view.heroFg
+                        font.pixelSize: Theme.fs
+                        font.family: Theme.fam(text, Theme.families)
+                        text: view.d.artist ?? ""
+                    }
+                    Text {
+                        visible: !view.idle && (view.d.album ?? "") !== ""
+                        width: parent.width
+                        elide: Text.ElideRight
+                        color: view.tinted ? view.heroFg : Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: view.d.album ?? ""
+                    }
+                    LevelBars {
+                        visible: !view.idle
+                        running: view.playing && view.visible
+                        color: view.tinted ? view.artColors.accent : Theme.accent
+                        bars: 8
+                        maxH: 14
+                    }
                 }
             }
         }

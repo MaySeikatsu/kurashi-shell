@@ -214,7 +214,7 @@ stop_shell
 stop_daemon
 
 # The keyboard run, in the order the picker's focus moves. Coordinates are physical px on the 2560 x 1440 output:
-# the HEADLESS-1 chip (1082, 97), All outputs (975, 97), the row-2 tile of the first column (1021, 362), Apply look
+# the HEADLESS-1 chip (1082, 131), All outputs (975, 131), the row-2 tile of the first column (1021, 396), Apply look
 # (1466, 634), the header's overflow (1609, 65).
 scenario grid "$R/pics" awww
 start_keys
@@ -230,13 +230,13 @@ click_at 1466 634
 sleep 2
 expect "Apply look puts its picture in effect" backend_last_is 06-wall-light.png
 expect "Apply look makes the theme follow its picture" state_theme_is 06-wall-light.png
-click_at 1021 362                       # 05-wall-dark: the grid takes the focus and the selection
+click_at 1021 396                       # 05-wall-dark: the grid takes the focus and the selection
 # Tab from the grid goes to the preview's actions (the theme switch first), not out of the picker (I32).
 press tab                               # the theme switch takes the focus
 press space                             # Space presses it: the switch reads Theme: off in the shot
 WAIT=1 shot tab-from-grid
 press space                             # on again
-click_at 1021 362                       # the grid again; 05 stays selected
+click_at 1021 396                       # the grid again; 05 stays selected
 # Ctrl+Return: the picture alone; the theme keeps the picture it had.
 press ctrl+return
 sleep 2
@@ -247,16 +247,16 @@ press return
 sleep 2
 expect "Return sets the picture and its theme" state_theme_is 05-wall-dark.png
 # One output chosen: Return sets that output; Shift+Return sets every output (the call names no output).
-click_at 1082 97                        # HEADLESS-1
-click_at 1021 362                       # 05-wall-dark: the grid takes the focus and the selection
+click_at 1082 131                        # HEADLESS-1
+click_at 1021 396                       # 05-wall-dark: the grid takes the focus and the selection
 press return
 sleep 2
 expect "Return with one output chosen sets that output" backend_last_has HEADLESS-1
 press shift+return
 sleep 2
 expect "Shift+Return sets every output" backend_last_no_output
-click_at 975 97                         # All outputs again
-click_at 1021 362                       # the grid again
+click_at 975 131                         # All outputs again
+click_at 1021 396                       # the grid again
 press r                                 # shuffle
 WAIT=2 shot shuffled
 press down
@@ -274,7 +274,7 @@ press left left left left left left left left left left up
 press right
 press return
 WAIT=2 shot folder-root
-click_at 1056 127                       # sub 1
+click_at 1056 161                       # sub 1
 WAIT=2 shot folder-sub
 press backspace                         # Backspace goes back up to the library's folder
 WAIT=2 shot after-backspace

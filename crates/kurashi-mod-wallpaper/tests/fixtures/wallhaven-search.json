@@ -1,0 +1,101 @@
+{
+ "data": [
+  {
+   "id": "94x38z",
+   "url": "https://wallhaven.cc/w/94x38z",
+   "short_url": "https://whvn.cc/94x38z",
+   "views": 6,
+   "favorites": 0,
+   "source": "",
+   "purity": "sfw",
+   "category": "anime",
+   "dimension_x": 6742,
+   "dimension_y": 3534,
+   "resolution": "6742x3534",
+   "ratio": "1.91",
+   "file_size": 5070446,
+   "file_type": "image/jpeg",
+   "created_at": "2018-10-31 01:23:10",
+   "colors": [
+    "#000000",
+    "#abbcda",
+    "#424153"
+   ],
+   "path": "https://w.wallhaven.cc/full/94/wallhaven-94x38z.jpg",
+   "thumbs": {
+    "large": "https://th.wallhaven.cc/lg/94/94x38z.jpg",
+    "original": "https://th.wallhaven.cc/orig/94/94x38z.jpg",
+    "small": "https://th.wallhaven.cc/small/94/94x38z.jpg"
+   }
+  },
+  {
+   "id": "zyxvqy",
+   "url": "https://wallhaven.cc/w/zyxvqy",
+   "short_url": "https://whvn.cc/zyxvqy",
+   "views": 1200,
+   "favorites": 40,
+   "source": "",
+   "purity": "sketchy",
+   "category": "general",
+   "dimension_x": 2560,
+   "dimension_y": 1440,
+   "resolution": "2560x1440",
+   "ratio": "1.78",
+   "file_size": 812345,
+   "file_type": "image/jpeg",
+   "created_at": "2024-02-01 10:00:00",
+   "colors": [
+    "#66cccc",
+    "not-a-colour"
+   ],
+   "path": "https://w.wallhaven.cc/full/zy/wallhaven-zyxvqy.jpg",
+   "thumbs": {
+    "large": "https://th.wallhaven.cc/lg/zy/zyxvqy.jpg",
+    "original": "https://th.wallhaven.cc/orig/zy/zyxvqy.jpg",
+    "small": "https://th.wallhaven.cc/small/zy/zyxvqy.jpg"
+   }
+  },
+  {
+   "id": "broken",
+   "url": "https://wallhaven.cc/w/broken",
+   "purity": "sfw",
+   "category": "general",
+   "resolution": "1920x1080",
+   "thumbs": {}
+  },
+  {
+   "id": "6d71l7",
+   "url": "https://wallhaven.cc/w/6d71l7",
+   "short_url": "https://whvn.cc/6d71l7",
+   "views": 88,
+   "favorites": 3,
+   "source": "",
+   "purity": "sfw",
+   "category": "people",
+   "dimension_x": 3840,
+   "dimension_y": 2160,
+   "resolution": "3840x2160",
+   "ratio": "1.78",
+   "file_size": 2345678,
+   "file_type": "image/png",
+   "created_at": "2025-05-05 05:05:05",
+   "colors": [
+    "#e7d8b1"
+   ],
+   "path": "https://w.wallhaven.cc/full/6d/wallhaven-6d71l7.png",
+   "thumbs": {
+    "large": "https://th.wallhaven.cc/lg/6d/6d71l7.jpg",
+    "original": "https://th.wallhaven.cc/orig/6d/6d71l7.jpg",
+    "small": "https://th.wallhaven.cc/small/6d/6d71l7.jpg"
+   }
+  }
+ ],
+ "meta": {
+  "current_page": 1,
+  "last_page": 3,
+  "per_page": 24,
+  "total": 7,
+  "query": "sky",
+  "seed": "aB3dE6"
+ }
+}
