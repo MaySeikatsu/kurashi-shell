@@ -1,0 +1,30 @@
+# 歌詞 mod（ja）：mods/lyrics の設定、デーモンの状態・理由・アクションのキー、メディアカードの歌詞スロット・バーの
+# ウィジェット・デスクのカードの文言（docs/ux/lyrics.md）。波かっこのプレースホルダーはフロントエンドが埋める。
+
+# カタログでの mod と設定（mods/lyrics/mod.toml）。
+"mods.lyrics.description" = "再生中の曲の歌詞を、メディアカード・バー・デスクに同期して表示します。歌詞は LRCLIB（lrclib.net）から取得し、一度見つかればこのコンピューターに保存します。"
+"mods.lyrics.online" = "歌詞をオンラインで探す"
+"mods.lyrics.online.help" = "新しい曲ごとに lrclib.net に歌詞を問い合わせます（アーティスト・曲名・アルバム・長さを送ります）。オフにすると、見つかっている歌詞だけを表示します。"
+"mods.lyrics.offset_ms" = "タイミングの調整"
+"mods.lyrics.offset_ms.help" = "すべての行をずらします。正の値で早く、負の値で遅く表示します。"
+"mods.lyrics.bar_line" = "バーに今の行"
+"mods.lyrics.bar_line.help" = "バーのウィジェットに歌われている行を表示します。オフにすると音符のアイコンだけです。"
+
+# デーモン：アクション・状態・理由。
+"mod-lyrics.action.track" = "再生中の曲の歌詞を表示"
+"mod-lyrics.action.retry" = "歌詞をもう一度探す"
+"mod-lyrics.none" = "この曲の歌詞はありません"
+"mod-lyrics.online_off" = "オンライン検索はオフです"
+"mod-lyrics.offline" = "接続がありません。オンラインになったらもう一度お試しください。"
+"mod-lyrics.error.server" = "歌詞のサーバーから正しい応答がありません。"
+"mod-lyrics.error.rate_limited" = "歌詞のサーバーが混み合っています。少し待ってからもう一度お試しください。"
+"mod-lyrics.error.answer" = "歌詞のサーバーから予期しない応答がありました。"
+
+# 表示。
+"mod-lyrics.title" = "歌詞"
+"mod-lyrics.searching" = "歌詞を探しています…"
+"mod-lyrics.instrumental" = "インストゥルメンタル"
+"mod-lyrics.retry" = "もう一度"
+"mod-lyrics.a11y.line" = "歌詞：{line}"
+"mod-lyrics.a11y.widget" = "歌詞：{line}。メディアカードを開きます。"
+"mod-lyrics.a11y.pause" = "間奏"
