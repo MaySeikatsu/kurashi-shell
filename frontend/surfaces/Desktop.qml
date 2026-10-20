@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../core/mods.js" as Mods
 
 // Desktop widgets (K43; SekaiPop's desk): cards on the bottom layer, under the windows, on one side of each output —
 // the time as four keys with the date and the day's progress, this month with today marked, what is playing (hidden
@@ -11,6 +12,8 @@ import "../components"
 // an action.
 // Ma: no surface while off; the documents are watched only while the surface is shown; nothing animates on its own —
 // the clock changes when svc.clock's minute patch arrives. Content-sized (K16): the window is the column of cards.
+// Mods add cards after the core ones (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only
+// while the desk is shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say).
 PanelWindow {
     id: desk
     required property var modelData
@@ -50,6 +53,15 @@ PanelWindow {
         for (var i = 0; i < m.length; i++) if (m[i].id === "weather" && m[i].qml !== undefined) return true
         return false
     }
+
+    // The desk cards of enabled mods as their file URLs. The list is rebuilt only when the URLs change: the `mods`
+    // document also changes when a mod starts or stops running (a card's own subscription does that), and a new model
+    // array would remake every card, which would unsubscribe and resubscribe it, without end.
+    readonly property var modsDoc: Store.docs["mods"]
+    readonly property string deskKey: desk.visible
+        ? JSON.stringify(Mods.deskCards(desk.modsDoc).map(function (c) { return c.url })) : "[]"
+    property var deskUrls: []
+    onDeskKeyChanged: deskUrls = JSON.parse(deskKey)
 
     readonly property int cardW: 300
     // A card: a Block with the panel's padding; keycap chrome outlines it and drops its hard shadow.
@@ -315,6 +327,20 @@ PanelWindow {
                         text: I18n.tr("mod-weather.condition." + (wcard.now.code || "unknown"))
                     }
                 }
+            }
+        }
+
+        // ---- cards of enabled mods (K46): any mod's `desk:<name>`, in mod order ----
+        Repeater {
+            model: desk.deskUrls
+            delegate: ModLoader {
+                required property var modelData
+                width: desk.cardW
+                url: modelData
+                shown: desk.visible
+                // Height follows the card's implicitHeight; a card with nothing to say takes no room and no gap.
+                height: item ? item.implicitHeight : 0
+                visible: height > 0
             }
         }
     }
