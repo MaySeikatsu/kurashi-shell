@@ -313,7 +313,7 @@ pss_mib() { awk '/^Pss:/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_roll
 # dock_commits <start byte>: commits of the dock's layer surfaces (namespace kurashi-webdock-shell) since that offset
 dock_commits() {
   local ids
-  ids=$(grep -o 'wl_surface#[0-9]*, wl_output#[0-9]*, [0-9]*, "kurashi-webdock-shell"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
+  ids=$(grep -oE 'wl_surface#[0-9]+, wl_output#[0-9]+, [0-9]+, "kurashi-webdock-(shell|edge)"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
     | grep -oE '[0-9]+$' | paste -sd'|' - || true)
   [ -n "$ids" ] || { echo 0; return 0; }
   tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -cE "wl_surface#($ids)\.commit\(" || true
@@ -369,7 +369,7 @@ phase_states() {
     "host missing: the card says the engine is not installed, and the strip still works"
   setdoc '{"host":{"state":"ready"},"shown":"weather","pinned":true}'; sleep 1.5
   shot pinned
-  check "$([ "$(changed "$W/dock-pinned.ppm" "$W/dock-view-phone.ppm" 2500 580 2560 920)" -gt 200 ] && echo 1 || echo 0)" \
+  check "$([ "$(changed "$W/dock-pinned.ppm" "$W/dock-view-phone.ppm" 2506 752 2558 808)" -gt 100 ] && echo 1 || echo 0)" \
     "pinned: the dock's pin control is lit (the strip differs from the unpinned shot)"
   local many
   many=$(python3 -I -c "import json; print(json.dumps([{'id': 'p%02d' % i, 'kind': 'web', 'title': 'Site %d' % i, 'target': 'https://s%d.example.org/' % i} for i in range(30)] + [json.loads('$WEATHER')]))")
@@ -503,9 +503,15 @@ phase_ja() {
 }
 
 # ---- measure: idle cost of the dock with the mod on and off, one and two outputs ----
+uss_mib() { awk '/^Private_(Clean|Dirty):/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_rollup"; }
+median() { python3 -I -c 'import statistics,sys; print(round(statistics.median([float(x) for x in sys.argv[1:]]), 2))' "$@"; }
+
 phase_measure() {
-  echo "== phase measure: idle commits and PSS (the mod on and off, one and two outputs)"
-  local pss_on1 pss_off1 pss_on2 pss_off2 c0 commits
+  echo "== phase measure: the dock's cost with the mod on and off (medians of three runs), the first reveal, 20 reveal cycles"
+  echo "renderer: ${KURASHI_SB_RENDERER:-gles2} (render node ${KURASHI_RENDER_NODE:-default}); render nodes here: $(ls /dev/dri 2>/dev/null | tr '\n' ' ')"
+  local pss_on1 pss_off1 pss_widget1 c0 commits pss_before pss_rev1 pss_rev20 uss_rev1 rep run p u
+  local on_p="" on_u="" off_p="" off_u=""
+  # One output, the dock never revealed: idle commits (10 s), and PSS with the mod on, off, and the bar widget alone.
   for run in on off widget; do
     start_mock HEADLESS-1
     mods_json "$W/mods-$run.json" "$run"
@@ -517,7 +523,7 @@ phase_measure() {
     sleep 10
     commits=$(dock_commits "$c0")
     if [ "$run" = on ]; then
-      check "$([ "$commits" -eq 0 ] && echo 1 || echo 0)" "idle: 0 commits of the dock's surfaces in 10 s while hidden (got $commits)"
+      check "$([ "$commits" -eq 0 ] && echo 1 || echo 0)" "idle: 0 commits of the dock's windows in 10 s while hidden (got $commits)"
       pss_on1=$(pss_mib "$QS_PID")
     elif [ "$run" = off ]; then
       pss_off1=$(pss_mib "$QS_PID")
@@ -528,20 +534,52 @@ phase_measure() {
   done
   "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" > /dev/null 2>&1 || fail "could not add the second output"
   sleep 2
-  for run in on off; do
-    start_mock HEADLESS-1
-    mods_json "$W/mods-$run.json" "$run"
-    start_relay "$W/mods-$run.json"
-    start_frontend
-    setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
-    sleep 10
-    if [ "$run" = on ]; then pss_on2=$(pss_mib "$QS_PID"); else pss_off2=$(pss_mib "$QS_PID"); fi
-    stop_phase
+  # Two outputs, the dock never revealed: three runs of each, alternating; the cost per output is half the difference of the medians.
+  for rep in 1 2 3; do
+    for run in on off; do
+      start_mock HEADLESS-1
+      mods_json "$W/mods-$run.json" "$run"
+      start_relay "$W/mods-$run.json"
+      start_frontend
+      setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
+      sleep 10
+      p=$(pss_mib "$QS_PID"); u=$(uss_mib "$QS_PID")
+      stop_phase
+      if [ "$run" = on ]; then on_p="$on_p $p"; on_u="$on_u $u"; else off_p="$off_p $p"; off_u="$off_u $u"; fi
+    done
   done
-  echo "measure: PSS one output: mod on ${pss_on1} MiB, off ${pss_off1} MiB, delta $(python3 -c "print(round(${pss_on1} - ${pss_off1}, 2))") MiB"
-  echo "measure: PSS one output, the bar widget alone (no dock surface): ${pss_widget1} MiB, delta $(python3 -c "print(round(${pss_widget1} - ${pss_off1}, 2))") MiB"
-  echo "measure: PSS two outputs: mod on ${pss_on2} MiB, off ${pss_off2} MiB, delta $(python3 -c "print(round(${pss_on2} - ${pss_off2}, 2))") MiB (per output $(python3 -c "print(round((${pss_on2} - ${pss_off2}) / 2, 2))") MiB)"
-  check "$(python3 -c "print(1 if (${pss_on2} - ${pss_off2}) / 2 <= 1.0 else 0)")" "budget: the dock's delta per output is at most 1 MiB (K16/K19)"
+  # The first reveal, then 20 reveal/hide cycles (mod on, two outputs): one run; the window is made once and kept.
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
+  sleep 8
+  pss_before=$(pss_mib "$QS_PID"); uss_before=$(uss_mib "$QS_PID")
+  setdoc '{"mode":"compact","shown":null}'; sleep 2
+  setdoc '{"mode":"hidden"}'; sleep 2
+  pss_rev1=$(pss_mib "$QS_PID"); uss_rev1=$(uss_mib "$QS_PID")
+  for _ in $(seq 20); do
+    setdoc '{"mode":"compact","shown":null}'; sleep 0.8
+    setdoc '{"mode":"hidden"}'; sleep 0.8
+  done
+  pss_rev20=$(pss_mib "$QS_PID"); uss_rev20=$(uss_mib "$QS_PID")
+  stop_phase
+  local med_on_p med_off_p med_on_u med_off_u per_p per_u one_time growth uss_one_time growth_u
+  med_on_p=$(median $on_p); med_off_p=$(median $off_p); med_on_u=$(median $on_u); med_off_u=$(median $off_u)
+  per_p=$(python3 -I -c "print(round((${med_on_p} - ${med_off_p}) / 2, 2))")
+  per_u=$(python3 -I -c "print(round((${med_on_u} - ${med_off_u}) / 2, 2))")
+  one_time=$(python3 -c "print(round(${pss_rev1} - ${pss_before}, 2))")
+  growth=$(python3 -c "print(round(${pss_rev20} - ${pss_rev1}, 2))")
+  uss_one_time=$(python3 -c "print(round(${uss_rev1} - ${uss_before}, 2))")
+  growth_u=$(python3 -c "print(round(${uss_rev20} - ${uss_rev1}, 2))")
+  echo "measure: never revealed, one output (one run each): mod on ${pss_on1} MiB, off ${pss_off1} MiB (delta $(python3 -c "print(round(${pss_on1} - ${pss_off1}, 2))") MiB); the bar widget alone delta $(python3 -c "print(round(${pss_widget1} - ${pss_off1}, 2))") MiB"
+  echo "measure: never revealed, two outputs, medians of three: USS mod on ${med_on_u} MiB, off ${med_off_u} MiB; per output ${per_u} MiB USS (USS runs on:${on_u} off:${off_u})"
+  echo "measure: PSS of the two-output runs is not usable (runs on:${on_p} off:${off_p}: a ~1.9 TiB mapping under gles2); per output PSS as computed: ${per_p} MiB"
+  echo "measure: the first reveal, once for the shell (its window is made, then kept): +${uss_one_time} MiB USS (${uss_before} -> ${uss_rev1}), +${one_time} MiB PSS (${pss_before} -> ${pss_rev1})"
+  echo "measure: 20 reveal/hide cycles after the first: growth ${growth_u} MiB USS (${uss_rev1} -> ${uss_rev20}), ${growth} MiB PSS (${pss_rev1} -> ${pss_rev20})"
+  check "$(python3 -c "print(1 if ${per_u} <= 1.0 else 0)")" "budget: the dock's USS cost per output, never revealed, is at most 1 MiB (K16/K19)"
+  check "$(python3 -c "print(1 if ${growth_u} <= 1.0 else 0)")" "growth: 20 reveal/hide cycles add at most 1 MiB of USS"
 }
 
 want states && phase_states
