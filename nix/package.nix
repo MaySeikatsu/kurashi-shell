@@ -1,4 +1,4 @@
-{ lib, rustPlatform, dbus, pkg-config, libpulseaudio, linux-pam }:
+{ lib, rustPlatform, dbus, python3, pkg-config, libpulseaudio, linux-pam }:
 
 let
   fs = lib.fileset;
@@ -32,8 +32,19 @@ rustPlatform.buildRustPackage {
   # kurashi-auth's `pam` feature binds libpam via bindgen (CONTRACT #4a).
   nativeBuildInputs = [ pkg-config rustPlatform.bindgenHook ];
   buildInputs = [ libpulseaudio linux-pam ];
-  # kurashi-services tests run fake D-Bus objects on a private dbus-daemon.
-  nativeCheckInputs = [ dbus ];
+  # kurashi-services tests run fake D-Bus objects on a private dbus-daemon; kurashid's host tests
+  # run a Python fake host.
+  nativeCheckInputs = [
+    dbus
+    python3
+  ];
+  # The build sandbox has no /usr/bin/env, so the fake host's `#!/usr/bin/env python3` must point at
+  # the store's python3 before the tests start it. patchShebangs only touches executable files, and
+  # the tracked script is 0644 (the test makes its copy executable).
+  preCheck = ''
+    chmod +x crates/kurashid/tests/data/hosts/fake-host.py
+    patchShebangs crates/kurashid/tests/data/hosts
+  '';
 
   # kurashid finds i18n/, palettes/ and the frontend here (crates/kurashid/src/i18n.rs).
   env.KURASHI_DATA_DIR = "${placeholder "out"}/share/kurashi";
