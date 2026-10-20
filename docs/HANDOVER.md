@@ -17,6 +17,55 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-20 — session 10 (machine B): every decor a whole look, tasks and notes — K45, K46, wave 22
+**State:** `main` green: `just check` (fmt, clippy -D warnings, all tests), `settings/test.sh` end to end (B31 fixed: the
+test imported its own export under a saved profile's name), test-real, test-stage, test-peek, test-quick, test-volume,
+test-sidebars, test-island-morph, test-look for all five decors, `mods/tasks/test-tasks.sh`, `just webdock`, `just
+mods-live` (now loads `tasks`). `frontend/test-quick-sections.sh` fails at the pointer re-click of the Wi-Fi tile — the
+same at e4833f9, before this session's frontend work (B33). Two Opus agents (W22-styles, W22-tasks), both merged; the
+styles worktree under `.claude/worktrees/` was still locked by its agent process at the end (remove it with
+`git worktree remove --force --force` once the process is gone). Nothing is half-done.
+
+**User decisions (session 10, answers to session 9):** `sekai` stays an option; **every decor is a whole, distinct look
+and never changes layout** — layout lives in profiles, which may pair a look with a layout (K45); the keycap island card
+**joins** its bar group (I115, done); sidebar details to be discussed later (I116); idea **"isekai"** (cyberpunk) noted,
+not to be built before the user sends inspiration (I117). Committed the other session's Nix-check fix; `main` pushed.
+
+**Built and merged:**
+- **K45 (lead contract):** chrome `soft` (light rim, soft drop shadow, press shrink) and `line` (ink outlines), tokens
+  `chrome.soft/soft_dy/soft_color/outline_color/press_scale/groups`, `icon.fill/weight`, Sharp icons under line chrome;
+  decors `terminal` and `washi` beside `sekai`/`glass`; recipes name `theme.*` keys only (test). HM installs the decor
+  fonts; the dev shell exposes them. `theme.decors` in the theme document (each pack's own look, resolved once).
+- **W22-styles:** `Block` draws all four chromes from tokens; every surface per decor; keycap/soft island card joined to
+  its bar group with one outline/shadow (I115), translucent island (I114), I109, I110; Theme `lifted`/`boxed` (row 125),
+  `Theme.keycap` derives from `ringW` (no name compare anywhere). Shots `frontend/shots/look/<decor>/`.
+- **W22-tasks (K46):** native mod `tasks` over Markdown files (Obsidian Tasks syntax, atomic writes, watch only while
+  subscribed): desk cards (tasks, note), Stage panel (Tasks/Note), bar widget, mock parity; provide kind `desk:` (row
+  120) so any mod can add desk cards. `docs/ux/tasks.md`, shots `mods/tasks/shots/`.
+- **Lead:** Settings decor preview cards drawn from `theme.decors` (I104), launcher unit conversions (I105), bundled
+  starter profiles `profiles/` (sekai-desk, glass-float, terminal-dense, washi-calm: look + layout), `docs/ux/looks.md`.
+
+**Next steps (ordered):**
+1. Show the user the five looks (`theme.decor`, or load a bundled profile in Settings › Profiles) and the tasks desk
+   (`kurashi set mods.enabled` + `desktop.enabled = true`; point `mods.tasks.file` into the Obsidian vault); collect taste
+   feedback. Review sets: `frontend/shots/look/*`, `mods/tasks/shots/*`, `settings/shots/14-palette-keyboard.png`.
+2. Sidebar discussion with the user (I116) before more side-bar/web-dock work; then I80 (web dock on niri).
+3. B33 (quick-sections Wi-Fi re-click), B32, B30.
+4. Follow-ups: I122–I125 (soft shadows on slide-ins, glass shadow under fills, lock repaint, mod cards on `lifted`/
+   `boxed`), I118–I121 (tasks: `fs:user` capability, card order, note conflict, backends), I126 (launcher `>` commands,
+   web search), I101 (desk drag/resize), I102, I104 rest (section cards), I106–I113.
+5. Bench the desk with mod cards and the translucent island (Stage while the card is out).
+
+**Open decisions (ask):** default look for new installs (`none` = wa-iro flat today)? Should a bundled profile be offered
+on first run? Isekai inspiration (I117).
+
+**Gotchas (new):** decors must never set layout keys (a test in `crates/kurashi-theme/tests/theme.rs`). Tests that find
+cards by exact colour must also accept the container blended at the panel's opacity (island at `Theme.panel`, I114).
+A `cd` into an agent worktree moves the lead's cwd (use `git -C`). `git commit -am` while a suite runs sweeps
+regenerated shots in.
+
+---
+
 ## 2026-10-20 — session 9 (machine B): the sekai look, morphing island, phone, desk — K42–K44, wave 21
 **State:** `main` at 781045a (not pushed). Green: cargo clippy -D warnings + cargo test --workspace, test-real, test-stage, test-peek, test-quick, test-quick-sections, test-volume (made hermetic), test-island-morph, test-look sekai/wa-iro, `just webdock`, test-sidebars, `just mods-live` (now classifies `surface:`). `just check` stops only at `cargo fmt --check` on the other session's uncommitted `crates/kurashid/tests/hosts.rs`. `settings/test.sh` stops at P3 (B31, pre-existing at 80640d6). Two Opus agents (W21-island-morph, W21-phone), both merged; their worktrees
 are removed. Nothing is half-done.
@@ -225,41 +274,3 @@ still collide on CONTRACT-CHANGE row numbers and on the `i18n/*/settings.toml` t
 `git merge` here uses diff3 markers: strip the `|||||||` base block when resolving. One agent's sandbox commands were
 refused by the permission guard (W15-job-active): the lead ran the UI checks. A finished agent's worktree stays
 locked by this session's own pid — `git worktree remove -f -f` once its branch is merged.
-
----
-
-## 2026-10-09 — session 5 (machine B): waves 9–13, native mods, K24–K28, UX bar
-**State:** `main` green and pushed (b53d79f: `just check` 384 tests, golden B ok, `nix build .#kurashi` ok). Usage limit hit
-mid-wave: agents were stopped; their **unmerged branches/worktrees remain** (see Half-done).
-
-**Merged:** wave 9 fixes (B2 volume honesty, B3 brightness session, row 20 `item_is_menu`, rows 21–22 config history +
-live profiles, B5/B6/B8, I6 test helpers, I8 niri binds); wave 10 (K24 island expanded views + quick settings card +
-◐ bar button; K25 mods as config lists `mods.loaded/enabled` — persisted, B11; Settings mod pages, dropdown, pick list;
-I9 `choices_from`); K26 native mods (`kurashi-mod-api`, ledger); K28 slots/mod faces/choice sources/`mod.panel.open`
-(daemon); quick settings sections (Wi-Fi, power, audio out, BT); B7 lazy island faces + bench mean-of-two-hotplugs.
-Decisions K24–K28 in DECISIONS.md (user answered K24/K25/K26 this session).
-
-**User rules added this session (keep):** (1) implementation by parallel Haiku max-effort agents, lead reviews/merges;
-(2) **UX bar** (CLAUDE.md): every user-facing feature gets a researched brief in `docs/ux/` and is "done" only against
-it; think what a feature *can become* and what it combines with (`docs/ux/COMPOSITION.md`), not the minimum.
-
-**Half-done (end of session 5, usage limit):** main is green and pushed (622 tests; `just mods-live` green).
-Merged since the reset: quick daemon (K29), island daemon (K30), mod loading, weather/sysmon/wallpaper mods, media position (K31),
-settings UX + settings daemon (K32), mod runtime (K33), live all-mods test, island views, quick settings UX, wallpaper UX.
-Open branches: `feat/k34-wallpaper-theme` (lead WIP: palette `wallpaper` → `Source::WallpaperFile(mod.wallpaper.theme.image)`,
-hub-event listener, "From wallpaper" offer — NOT compiled yet; finish: build, add i18n `config.choice.palette.wallpaper` +
-`theme.note.wallpaper_waiting` (en/ja), a kurashid test with a generated picture, DECISIONS K34, then merge). Agents stopped
-at the limit: W14-sysmon-ux and W14-weather-ux — `git branch | grep worktree-agent`, review their commits, re-spawn with
-"merge branch X first". The wallpaper-ux worktree is locked by a stale agent pid: `git worktree remove -f -f` it.
-
-**Next steps (ordered):** 1. (done) 2. For each running/stopped card: review, finish (SendMessage
-won't resume across sessions — re-spawn the card with "continue from branch X"), merge with the gate. 3. W13-quick-ux and
-W13-island-views (cards ready; need W11-mod-qml merged). 4. Lead UX review of every merged user-facing feature against
-its brief; PROGRESS "UX ✅" only then. 5. B7: quiet-machine repro of the +29.8 MiB cycle spike (main vs lazy faces, 3
-outputs); I10 basic render loop on machine A. 6. BACKLOG B13 (profile load clears user keys — ask the user), B14 (quick
-settings multi-output re-pick binding loop).
-
-**Gotchas:** shared CARGO_TARGET_DIR hands worktrees stale path-crate rlibs (agents: touch + rebuild; lead: always gate
-in the private target dir). Test runs regenerate tracked shots (`frontend/shots/*`, `settings/shots`) — restore them
-unless the UI changed. Machine A golden refs need `just golden --update` there (bar changed). The user's live kurashi
-qs shares Qt pages, so absolute @1-out PSS is lower than baseline (per-output deltas unaffected).
