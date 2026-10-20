@@ -318,3 +318,31 @@
 # Recorder — The program that records; automatic takes the first one installed.
 #   choices: "auto" | "gpu_screen_recorder" | "wf_recorder" · advanced
 # backend = "auto"
+
+# [dock]
+#
+# App dock — Your pinned apps and the running ones, at a screen edge.
+#   per-output
+# enabled = false
+#
+# Edge
+#   choices: "bottom" | "left" | "right" · only while dock.enabled == true · per-output
+# edge = "bottom"
+#
+# Hide automatically — The dock slides away and comes back when the pointer touches the
+# edge.
+#   only while dock.enabled == true
+# autohide = true
+#
+# Pinned apps — Desktop entry ids (e.g. firefox, org.gnome.Nautilus), in order.
+# Right-click an app in the dock to pin it.
+#   only while dock.enabled == true
+# pinned = []
+#
+# Icon size
+#   range: 24..=96, step 2 (px) · only while dock.enabled == true
+# icon_size = 44
+#
+# Running apps — Apps with windows that are not pinned show after the pinned ones.
+#   only while dock.enabled == true
+# show_running = true
