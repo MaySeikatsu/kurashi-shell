@@ -303,6 +303,23 @@
               "type": "choice"
             },
             {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 0,
+              "help": "config.theme.shape.screen_corners.help",
+              "key": "theme.shape.screen_corners",
+              "label": "config.theme.shape.screen_corners.label",
+              "max": 48,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 2,
+              "type": "int",
+              "unit": "px"
+            },
+            {
               "advanced": true,
               "control": "slider",
               "couplings": [
@@ -1121,6 +1138,332 @@
               "restart": false,
               "since": 1,
               "type": "bool"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "power",
+      "label": "settings.page.power",
+      "sections": [
+        {
+          "id": "idle",
+          "label": "settings.section.idle",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.idle.enabled.help",
+              "key": "idle.enabled",
+              "label": "config.idle.enabled.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "idle.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 240,
+              "help": "config.idle.dim_after.help",
+              "key": "idle.dim_after",
+              "label": "config.idle.dim_after.label",
+              "max": 7200,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 30,
+              "type": "int",
+              "unit": "s"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "idle.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 300,
+              "help": "config.idle.lock_after.help",
+              "key": "idle.lock_after",
+              "label": "config.idle.lock_after.label",
+              "max": 7200,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 30,
+              "type": "int",
+              "unit": "s"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "idle.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 600,
+              "help": "config.idle.screen_off_after.help",
+              "key": "idle.screen_off_after",
+              "label": "config.idle.screen_off_after.label",
+              "max": 7200,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 30,
+              "type": "int",
+              "unit": "s"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "idle.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 0,
+              "help": "config.idle.suspend_after.help",
+              "key": "idle.suspend_after",
+              "label": "config.idle.suspend_after.label",
+              "max": 14400,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 60,
+              "type": "int",
+              "unit": "s"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "idle.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.idle.inhibit_while_media.help",
+              "key": "idle.inhibit_while_media",
+              "label": "config.idle.inhibit_while_media.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        },
+        {
+          "id": "night_light",
+          "label": "settings.section.night_light",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.night_light.enabled.help",
+              "key": "night_light.enabled",
+              "label": "config.night_light.enabled.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "night_light.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 4000,
+              "help": "config.night_light.temperature.help",
+              "key": "night_light.temperature",
+              "label": "config.night_light.temperature.label",
+              "max": 6500,
+              "min": 1500,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 100,
+              "type": "int",
+              "unit": "K"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.night_schedule.always",
+                  "value": "always"
+                },
+                {
+                  "label": "config.choice.night_schedule.manual",
+                  "value": "manual"
+                },
+                {
+                  "label": "config.choice.night_schedule.sun",
+                  "value": "sun"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "night_light.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "manual",
+              "help": "config.night_light.schedule.help",
+              "key": "night_light.schedule",
+              "label": "config.night_light.schedule.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "night_light.schedule",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "manual"
+                }
+              ],
+              "default": "20:00",
+              "help": "config.night_light.start.help",
+              "key": "night_light.start",
+              "label": "config.night_light.start.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "night_light.schedule",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "manual"
+                }
+              ],
+              "default": "07:00",
+              "help": "config.night_light.end.help",
+              "key": "night_light.end",
+              "label": "config.night_light.end.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "recorder",
+          "label": "settings.section.recorder",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [],
+              "default": "",
+              "help": "config.recorder.directory.help",
+              "key": "recorder.directory",
+              "label": "config.recorder.directory.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.recorder.audio.help",
+              "key": "recorder.audio",
+              "label": "config.recorder.audio.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": true,
+              "choices": [
+                {
+                  "label": "config.choice.recorder_backend.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.recorder_backend.gpu_screen_recorder",
+                  "value": "gpu_screen_recorder"
+                },
+                {
+                  "label": "config.choice.recorder_backend.wf_recorder",
+                  "value": "wf_recorder"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.recorder.backend.help",
+              "key": "recorder.backend",
+              "label": "config.recorder.backend.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
             }
           ]
         }
