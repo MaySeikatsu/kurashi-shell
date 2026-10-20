@@ -132,6 +132,8 @@
 "config.launcher.terminal.help" = "Prefix for apps that need a terminal, e.g. foot -e."
 "config.launcher.systemd_scope.label" = "Separate app scopes"
 "config.launcher.systemd_scope.help" = "Start apps in their own systemd scope so they outlive the shell."
+"config.launcher.web_search.label" = "Web search"
+"config.launcher.web_search.help" = "The address a query is searched at, `{}` standing for the query; empty = no web search row."
 "config.clock.week_start.label" = "First day of the week"
 "config.clock.week_start.help" = "The calendar's first column; automatic follows the language (Sunday for Japanese, Monday otherwise)."
 "config.choice.week_start.auto" = "Auto"

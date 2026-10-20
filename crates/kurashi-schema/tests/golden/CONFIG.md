@@ -346,6 +346,12 @@ Start apps in their own systemd scope so they outlive the shell.
 - restart required
 - advanced
 
+#### `launcher.web_search` — Web search
+
+The address a query is searched at, `{}` standing for the query; empty = no web search row.
+
+- type: `string` · default: `"https://duckduckgo.com/?q={}"`
+
 ## Desktop
 
 ### Widgets

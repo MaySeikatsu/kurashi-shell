@@ -209,3 +209,5 @@
 "config.choice.recorder_backend.auto" = "自動"
 "config.choice.recorder_backend.gpu_screen_recorder" = "gpu-screen-recorder"
 "config.choice.recorder_backend.wf_recorder" = "wf-recorder"
+"config.launcher.web_search.label" = "ウェブ検索"
+"config.launcher.web_search.help" = "検索に使うアドレス。{} が検索語になります。空欄 = ウェブ検索の行を出さない。"
