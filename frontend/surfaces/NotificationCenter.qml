@@ -37,10 +37,18 @@ PanelWindow {
     // Clears this output's bar, as Toasts does.
     BarConfig { id: bars; screen: win.screen }
     anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
-    margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
+    // Room for the soft chrome's shadow round the card (K45; 0 under every other chrome), taken out of the margins so the
+    // card stays where it was. Floating chromes (bar groups) keep a gap from the bar.
+    readonly property int shade: Theme.softR
+    readonly property int padL: shade
+    readonly property int padR: Math.min(shade, bars.rightInset)
+    readonly property int padT: bars.atBottom ? shade : Math.min(shade, bars.topInset)
+    readonly property int padB: bars.atBottom ? Math.min(shade, bars.bottomInset) : shade
+    readonly property int lead: Theme.groups ? Theme.gap : 0
+    margins { top: bars.topInset - padT; bottom: bars.bottomInset - padB; right: bars.rightInset - padR }
     // Room for the card's hard shadow (keycap chrome) and a gap from the screen edge.
-    implicitWidth: card.width + Theme.shadowDy + (Theme.keycap ? Theme.gap : 0)
-    implicitHeight: card.height + Theme.shadowDy + (Theme.keycap ? Theme.gap : 0)
+    implicitWidth: padL + card.width + Theme.shadowDy + padR
+    implicitHeight: padT + lead + card.height + Theme.shadowDy + padB
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -81,13 +89,16 @@ PanelWindow {
     Rectangle {
         id: card
         visible: win.shown
-        width: 400
+        // 400 px, wider (up to 480) when the title and its two buttons need it (a monospaced or wide face).
+        width: Math.min(480, Math.max(400, titleText.implicitWidth + dnd.width + clear.width + 2 * Theme.gap + 2 * Theme.pad + 2))
         height: Math.min(win.maxH, head.height + (win.items.length > 0 ? list.contentHeight : empty.height) + 3 * Theme.pad)
-        y: (Theme.keycap ? Theme.gap : 0) - win.slide * (1 - win.p)
+        x: win.padL
+        y: win.padT + win.lead - win.slide * (1 - win.p)
         radius: Theme.rLg + 4
         color: Theme.panel
-        border.width: Theme.keycap ? Theme.outlineW : 1
-        border.color: Theme.keycap ? Theme.line : Theme.outline
+        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        SoftShadow { anchors.fill: parent; radius: card.radius }
         Rectangle {
             z: -1
             visible: Theme.shadowDy > 0
@@ -108,6 +119,7 @@ PanelWindow {
             height: 32
             spacing: Theme.gap
             Text {
+                id: titleText
                 width: parent.width - dnd.width - clear.width - 2 * parent.spacing
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg

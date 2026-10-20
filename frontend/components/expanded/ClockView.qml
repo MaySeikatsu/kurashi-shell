@@ -215,6 +215,8 @@ Column {
                     Block {
                         id: dayBlock
                         visible: dayCell.inMonth
+                        // A grid of 31 keys: no soft shadow each (the card has one).
+                        softScale: 0
                         x: 2
                         y: 2 - Math.round(Theme.shadowDy / 2)
                         width: parent.width - 4

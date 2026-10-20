@@ -20,8 +20,8 @@ Rectangle {
     color: primary ? Theme.accent : Theme.containerHigh
     opacity: enabled ? 1 : 0.5
     // Keycap chrome (K42): ink outline and a hard shadow below (a child behind the button).
-    border.width: Theme.keycap ? Theme.outlineW : (hover.hovered && enabled ? 1 : 0)
-    border.color: Theme.keycap ? Theme.line : Theme.fg
+    border.width: Theme.outlineW > 0 ? Theme.outlineW : (hover.hovered && enabled ? 1 : 0)
+    border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.fg
     Rectangle {
         z: -1
         visible: Theme.shadowDy > 0

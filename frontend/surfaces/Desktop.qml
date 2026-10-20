@@ -124,7 +124,7 @@ PanelWindow {
                     height: Theme.keycap ? 12 : 6
                     radius: height / 2
                     color: Theme.keycap ? Theme.ring : Theme.containerHigh
-                    border.width: Theme.keycap ? Theme.outlineW : 0
+                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
                     border.color: Theme.line
                     readonly property real day: ((parseInt(desk.clock.hh) || 0) * 60 + (parseInt(desk.clock.mm) || 0)) / 1440
                     Rectangle {
@@ -196,7 +196,7 @@ PanelWindow {
                                 width: 28; height: 24
                                 radius: 12
                                 color: Theme.accent
-                                border.width: Theme.keycap ? Theme.outlineW : 0
+                                border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
                                 border.color: Theme.line
                             }
                             Text {
@@ -225,7 +225,7 @@ PanelWindow {
                     width: 72; height: 72
                     radius: Theme.rLg
                     color: Theme.selected
-                    border.width: Theme.keycap ? Theme.outlineW : 0
+                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
                     border.color: Theme.line
                     clip: true
                     Image {

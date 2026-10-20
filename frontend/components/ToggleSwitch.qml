@@ -26,25 +26,25 @@ Item {
     Rectangle {
         id: track
         anchors.centerIn: parent
-        width: Theme.keycap ? 46 : 40
-        height: Theme.keycap ? 26 : 22
-        radius: height / 2
+        width: Theme.ringW > 0 ? 46 : 40
+        height: Theme.ringW > 0 ? 26 : 22
+        radius: Math.min(height / 2, Theme.rFull)
         color: sw.checked ? Theme.accent : Theme.containerHigh
         // Keycap chrome (K42): the track keeps its ink outline in both states.
-        border.width: Theme.keycap ? Theme.outlineW : 1
-        border.color: Theme.keycap ? Theme.line : (sw.checked ? Theme.accent : Theme.outline)
+        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : (sw.checked ? Theme.accent : Theme.outline)
         opacity: sw.enabled ? 1 : 0.5
 
         Rectangle {
             id: knob
-            width: Theme.keycap ? 18 : 16
+            width: Theme.ringW > 0 ? 18 : 16
             height: width
-            radius: width / 2
+            radius: Math.min(width / 2, Theme.rFull)
             y: (track.height - height) / 2
             x: sw.checked ? track.width - width - y : y
-            color: Theme.keycap ? Theme.ring : (sw.checked ? Theme.fgOnAccent : Theme.dim)
-            border.width: Theme.keycap ? Theme.outlineW : 0
-            border.color: Theme.line
+            color: Theme.ringW > 0 ? Theme.ring : (sw.checked ? Theme.fgOnAccent : Theme.dim)
+            border.width: Theme.ringW > 0 ? Theme.outlineW : 0
+            border.color: Theme.outlineColor
             Behavior on x {
                 enabled: knob.visible && Theme.springOn
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
@@ -56,7 +56,7 @@ Item {
         anchors.fill: track
         anchors.margins: -3
         shown: sw.activeFocus
-        corner: track.radius + 3
+        corner: track.radius > 0 ? track.radius + 3 : 0
     }
     TapHandler {
         enabled: sw.enabled

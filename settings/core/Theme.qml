@@ -38,8 +38,10 @@ Singleton {
     readonly property int rLg: tok("radius.lg", 18)
     readonly property int rFull: tok("radius.full", 999)
     // Chrome (K42), as the shell's Theme: keycap = ink outline, ring and hard shadow; flat = all widths 0.
-    readonly property bool keycap: tok("chrome.style", "flat") === "keycap"
     readonly property int outlineW: tok("chrome.outline", 0)
+    readonly property int ringW: tok("chrome.ring", 0)
+    // Keycap-only details (ring, sink), from the ring width — never the chrome's name (rule 4).
+    readonly property bool keycap: ringW > 0
     readonly property int shadowDy: tok("chrome.shadow", 0)
     readonly property color line: color("chrome.line", "#121120")
     readonly property color ring: color("chrome.ring_color", "#e4e4ec")

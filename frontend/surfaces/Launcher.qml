@@ -65,8 +65,10 @@ PanelWindow {
 
     screen: scr
     // No anchors: the compositor centres the surface.
-    implicitWidth: card.width
-    implicitHeight: card.height
+    // Room round the card for the soft chrome's shadow (K45; 0 under every other chrome): the surface stays centred.
+    readonly property int shade: Theme.softR
+    implicitWidth: card.width + 2 * shade
+    implicitHeight: card.height + 2 * shade
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: want ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -106,14 +108,16 @@ PanelWindow {
         }
     }
 
-    // The card is a Block (K42): a flat panel with a hairline, or a keycap panel with an ink outline and hard shadow.
+    // The card is a Block (K42, K45): a flat panel with a hairline, a keycap panel with an ink outline and hard shadow, a
+    // soft glass panel with a rim and a drop shadow, or a panel outlined in ink (line).
     Item {
         id: card
         visible: lp.shown
         width: 600
-        readonly property real inset: Theme.keycap ? Theme.outlineW + Theme.ringW : 0
+        readonly property real inset: Theme.outlineW + Theme.ringW
         height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH + Theme.shadowDy
-        y: -lp.slide * (1 - lp.p)
+        x: lp.shade
+        y: lp.shade - lp.slide * (1 - lp.p)
         opacity: Math.min(1, lp.p * 1.6)
         scale: 0.96 + 0.04 * lp.p
         Block {
@@ -131,6 +135,7 @@ PanelWindow {
             height: 44
             radius: Theme.rFull
             ringScale: 0
+            softScale: 0
             fill: Theme.surface
             flatBorder: field.activeFocus ? Theme.accent : Theme.outline
             Icon {
@@ -209,6 +214,7 @@ PanelWindow {
                 height: lp.rowH - 2
                 radius: Theme.rLg
                 ringScale: 0
+                softScale: 0
                 fill: Theme.selected
                 Behavior on y {
                     enabled: lp.shown && Theme.springOn
@@ -250,8 +256,8 @@ PanelWindow {
                         visible: !img.visible
                         radius: Theme.rSm
                         color: row.isCalc ? Theme.accent : (row.isEmoji ? "transparent" : Theme.surface)
-                        border.width: Theme.keycap && !row.isEmoji ? Theme.outlineW : 0
-                        border.color: Theme.line
+                        border.width: !row.isEmoji ? Theme.outlineW : 0
+                        border.color: Theme.outlineColor
                         Icon {
                             anchors.centerIn: parent
                             visible: row.isCalc || row.isClip || row.isNote

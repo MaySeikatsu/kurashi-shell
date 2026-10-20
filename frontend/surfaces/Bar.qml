@@ -178,29 +178,47 @@ PanelWindow {
     // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol)
     BackgroundEffect.blurRegion: Region { item: bg }
 
-    // Keycap chrome (K42) floats the bar's groups as blocks on the desk: the strip itself is clear. Flat chrome keeps
-    // the solid strip.
+    // The chrome decides how the bar's groups stand (K42, K45), from tokens only (rule 4):
+    // - flat (`chrome.groups` false): one solid strip, the rows on it;
+    // - groups with a shadow of either kind (keycap, soft): the groups float as blocks on the desk, the strip is clear;
+    // - groups without a shadow (line): a terminal's status line — the strip, its inner edge ruled in the outline, and each
+    //   group an outlined box with no fill behind its text.
+    // Side bars keep their strip: their items are not grouped.
+    readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
+    readonly property bool floating: Theme.groups && lifted && !vertical
     Rectangle {
         id: bg
         anchors.fill: parent
-        color: Theme.keycap ? "transparent" : Theme.surfaceAlpha
+        color: bar.floating ? "transparent" : Theme.surfaceAlpha
+        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat).
+        Rectangle {
+            visible: !bar.floating && Theme.outlineW > 0
+            color: Theme.outlineColor
+            x: cfg.edge === "left" ? parent.width - width : 0
+            y: cfg.edge === "top" ? parent.height - height : 0
+            width: bar.vertical ? Theme.outlineW : parent.width
+            height: bar.vertical ? parent.height : Theme.outlineW
+        }
     }
-    // A group's block behind a row of the bar (keycap chrome only): the row's box plus `Theme.gap` around it, the face
-    // centred on the bar. Under flat chrome nothing is drawn and nothing moves (the rows keep their places).
+    // A group's block behind a row of the bar (chromes with groups): the row's box plus `Theme.gap` around it, the face
+    // centred on the bar. Under flat chrome nothing is drawn and nothing moves (the rows keep their places). The soft
+    // shadow is a short one: the bar's window ends a few px under the block.
     component Group: Block {
         required property Item around
         readonly property real padX: Theme.gap + 2
-        visible: Theme.keycap && around.visible && around.width > 0
+        visible: Theme.groups && around.visible && around.width > 0
         x: around.x - padX
         y: (parent.height - Theme.shadowDy - (Theme.barH - 8)) / 2
         width: around.width + 2 * padX
         height: Theme.barH - 8 + Theme.shadowDy
         radius: Theme.rFull
         ringScale: 0.5
-        fill: Theme.surface
+        softScale: 0.3
+        // (An inline component does not see the bar's ids: `lifted` again, from the tokens.)
+        fill: Theme.shadowDy > 0 || Theme.softR > 0 ? Theme.surfaceAlpha : "transparent"
     }
-    // How far a keycap group's row sits in from the bar's end (the group's padding); 0 under flat chrome.
-    readonly property real groupInset: Theme.keycap ? Theme.gap + 2 + Theme.xs : 0
+    // How far a group's row sits in from the bar's end (the group's padding); 0 under flat chrome.
+    readonly property real groupInset: Theme.groups ? Theme.gap + 2 + Theme.xs : 0
 
     // One layout is active at a time: a row on top and bottom bars, a column on left and right.
     // Nothing is instantiated while the bar is hidden, so its faces hold no subscriptions (Ma).
@@ -215,8 +233,9 @@ PanelWindow {
         sourceComponent: verticalLayout
     }
 
-    // A workspace in a top or bottom bar. Flat chrome: a dot, the focused one a wider accent bar. Keycap chrome: a small
-    // numbered key — focused lit in the accent, occupied on the container, empty on the ring — that sinks while pressed.
+    // A workspace in a top or bottom bar. Flat chrome: a dot, the focused one a wider accent bar. Chromes with groups: a
+    // small numbered key — focused lit in the accent, occupied on the container (an outlined box under line chrome),
+    // empty on the ring (keycap) or bare — that sinks, shrinks or flashes while pressed.
     // A click focuses the workspace (niri's own action through the daemon).
     Component {
         id: dotPill
@@ -246,8 +265,12 @@ PanelWindow {
             height: 20 + Theme.shadowDy
             radius: Theme.rFull
             ringScale: 0
+            softScale: 0
             pressed: wsTap.pressed
-            fill: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.containerHigh : Theme.ring)
+            fill: modelData.focused ? Theme.accent
+                : (modelData.occupied ? (bar.lifted ? Theme.containerHigh : "transparent")
+                    : (Theme.ringW > 0 ? Theme.ring : "transparent"))
+            opacity: modelData.focused || modelData.occupied ? 1 : 0.7
             Behavior on width {
                 enabled: bar.visible && Theme.springOn
                 NumberAnimation { duration: Theme.stdMs + 80; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
@@ -280,10 +303,10 @@ PanelWindow {
                 id: workspaceRow
                 anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
                 anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                spacing: Theme.keycap ? Theme.xs + 1 : Theme.gap
+                spacing: Theme.groups ? Theme.xs + 1 : Theme.gap
                 Repeater {
                     model: bar.pills
-                    delegate: Theme.keycap ? keyPill : dotPill
+                    delegate: Theme.groups ? keyPill : dotPill
                 }
             }
             // The window list: after the workspaces, in a group of its own (keycap) — the focused window lit.
@@ -304,10 +327,10 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         width: Theme.barH - 12
                         height: width
-                        radius: Theme.keycap ? width / 2 : Theme.rSm
+                        radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
                         color: modelData.focused ? Theme.selected : (taskHover.hovered ? Theme.containerHigh : "transparent")
-                        border.width: modelData.focused && Theme.keycap ? Theme.outlineW : 0
-                        border.color: Theme.line
+                        border.width: modelData.focused ? Theme.outlineW : 0
+                        border.color: Theme.outlineColor
                         Accessible.role: Accessible.Button
                         Accessible.name: entry ? entry.name : modelData.app_id
                         Image {
@@ -369,9 +392,9 @@ PanelWindow {
                 anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
                 anchors.verticalCenterOffset: -Theme.shadowDy / 2
                 spacing: Theme.pad
-                // The volume's icon (keycap chrome): a click mutes, as the media key does.
+                // The volume's icon (chromes with groups): a click mutes, as the media key does.
                 Icon {
-                    visible: Theme.keycap && bar.audioUsable
+                    visible: Theme.groups && bar.audioUsable
                     anchors.verticalCenter: parent.verticalCenter
                     name: bar.audioMuted ? "volume_off" : "volume_up"
                     glyph: bar.audioMuted ? "🔇" : "🔊"

@@ -31,8 +31,8 @@ Item {
         height: Theme.keycap ? 26 : 22
         radius: height / 2
         color: t.checked ? Theme.accent : Theme.containerHigh
-        border.width: Theme.keycap ? Theme.outlineW : 1
-        border.color: Theme.keycap ? Theme.line : (t.checked ? Theme.accent : Theme.outline)
+        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : (t.checked ? Theme.accent : Theme.outline)
 
         Rectangle {
             width: Theme.keycap ? 18 : 16
@@ -41,7 +41,7 @@ Item {
             y: (track.height - height) / 2
             x: t.checked ? track.width - width - y : y
             color: Theme.keycap ? Theme.ring : (t.checked ? Theme.fgOnAccent : Theme.fg)
-            border.width: Theme.keycap ? Theme.outlineW : 0
+            border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
             border.color: Theme.line
             Behavior on x {
                 enabled: Theme.springOn

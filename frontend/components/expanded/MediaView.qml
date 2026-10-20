@@ -192,6 +192,7 @@ Item {
                     implicitHeight: Theme.controlH - 6 + Theme.shadowDy
                     radius: Theme.rFull
                     ringScale: 0.5
+                    softScale: 0.4
                     fill: active ? Theme.selected : Theme.container
                     flatBorder: active ? "transparent" : Theme.outline
                     pressed: chipTap.pressed
