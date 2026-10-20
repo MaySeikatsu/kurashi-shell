@@ -458,3 +458,10 @@ of `theme.*` values (anything else is dropped and reported). Bundled packs are c
 your own). *Why:* identity packs (v0.3) and the user's own looks without a Rust change; the K45 rule (looks, never
 layout) is enforced by the loader, not by review.
 
+**K51** 🟢 An app dock (roadmap v0.2 "dock/sidebar"; DMS `Modules/Dock`, Noctalia `Modules/Dock`, ii `modules/dock`).
+`dock.*` is layout (the user's and profiles', never a decor's): per-output on/off and edge, autohide (a thin edge
+window reveals it, as the web dock's strip, K40), pinned desktop-entry ids, icon size, running apps. Running windows
+come from `svc.workspaces.windows` (every window: `{id, app_id, workspace, output, focused}`), grouped by app id;
+click = focus (cycle on repeat) or launch, middle = new window, right = a menu (pin/unpin, close). Off by default:
+its per-output cost is opt-in (K41).
+

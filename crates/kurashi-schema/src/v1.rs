@@ -42,6 +42,8 @@ pub struct Config {
     pub night_light: NightLight,
     #[kurashi(nested)]
     pub recorder: Recorder,
+    #[kurashi(nested)]
+    pub dock: Dock,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -529,3 +531,40 @@ pub struct Recorder {
     #[kurashi(default = RecorderBackend::Auto, advanced)]
     pub backend: RecorderBackend,
 }
+
+// --- app dock (K51) --------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum DockEdge {
+    Bottom,
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "dock", section = "dock")]
+pub struct Dock {
+    /// App dock
+    /// Your pinned apps and the running ones, at a screen edge.
+    #[kurashi(default = false, per_output)]
+    pub enabled: bool,
+    /// Edge
+    #[kurashi(default = DockEdge::Bottom, per_output, requires = "dock.enabled == true")]
+    pub edge: DockEdge,
+    /// Hide automatically
+    /// The dock slides away and comes back when the pointer touches the edge.
+    #[kurashi(default = true, requires = "dock.enabled == true")]
+    pub autohide: bool,
+    /// Pinned apps
+    /// Desktop entry ids (e.g. firefox, org.gnome.Nautilus), in order. Right-click an app in the dock to pin it.
+    #[kurashi(default = strings(&[]), requires = "dock.enabled == true")]
+    pub pinned: Vec<String>,
+    /// Icon size
+    #[kurashi(default = 44, range = 24..=96, step = 2, unit = "px", requires = "dock.enabled == true")]
+    pub icon_size: u32,
+    /// Running apps
+    /// Apps with windows that are not pinned show after the pinned ones.
+    #[kurashi(default = true, requires = "dock.enabled == true")]
+    pub show_running: bool,
+}
+
