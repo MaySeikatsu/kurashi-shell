@@ -1,24 +1,28 @@
 //! The web dock: pins at a screen edge, each a site shown by the web host or a view of a mod (K38, MODS.md
-//! "Web dock", docs/ux/webdock.md). The daemon owns the mode, the shown pin, the pins (settings) and the host's
-//! lifecycle; the shell and the host render `mod.webdock` and send these actions. The state lives here, not in
-//! the service, so the actions work without a subscriber. Nothing runs while the dock is hidden and the host is
-//! off (rule 5): the supervisor sleeps until an action, a settings change, a host change or the idle deadline.
+//! "Web dock", docs/ux/webdock.md). The daemon owns the mode, the shown pin, the hover and focus state with its
+//! deadlines (K40), the pins (settings) and the host's lifecycle; the shell and the host render `mod.webdock` and
+//! send these actions. The state lives here, not in the service, so the actions work without a subscriber. Nothing
+//! runs while the dock is hidden and the host is off (rule 5): the supervisor sleeps until an action, a settings
+//! change, a host change, a hover deadline or the idle deadline.
 
 mod dock;
 mod open;
 
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use dock::{Dock, DockError, View};
+use dock::{
+    Dock, DockError, Part, View, add_row, move_row, remove_row, retarget_row, rows_of, view_rows,
+};
 pub use open::{Opener, SystemOpener};
 
 use kurashi_mod_api::{
     ActionError, HostHandle, HostSpec, HostState, ModCtx, ModError, NativeMod, Publish, Settings,
     SettingsError, SettingsWriter,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 use tokio::runtime::Handle;
 use tokio::sync::{Notify, watch};
 use tokio::time::Instant;
@@ -125,6 +129,7 @@ impl NativeMod for Webdock {
             host,
             opener: self.opener.clone(),
             writer,
+            settings: settings.clone(),
         });
 
         let serve = shared.clone();
@@ -152,12 +157,14 @@ impl NativeMod for Webdock {
 /// What the actions, the host's reports and the supervisor share.
 struct Shared {
     dock: Mutex<Dock>,
-    /// Woken by every action, so the idle clock is taken again.
+    /// Woken by every action, so the idle clock and the hover deadline are taken again.
     notify: Notify,
     doc: watch::Sender<Value>,
     host: HostHandle,
     opener: Arc<dyn Opener>,
     writer: SettingsWriter,
+    /// The mod's settings feed: the `pins` and `pinned` a write reads back at once (the feed is synchronous).
+    settings: Settings,
 }
 
 impl Shared {
@@ -198,7 +205,7 @@ impl Shared {
 
     fn reload(&self, settings: &Settings) {
         let mut dock = self.dock.lock().expect("dock lock");
-        dock.apply_settings(settings);
+        dock.apply_settings(settings, Instant::now());
         self.refresh(&mut dock);
     }
 
@@ -222,6 +229,12 @@ impl Shared {
             self.host.stop();
         }
         idle
+    }
+
+    /// A reveal or a hide is due (K40). True when a reveal opens a site, which starts the host.
+    fn fire_hover(&self) -> bool {
+        let now = Instant::now();
+        self.with_dock(|d| Ok(d.tick(now))).unwrap_or(false)
     }
 
     fn open(&self, args: &Value) -> Result<Option<Value>, ActionError> {
@@ -263,8 +276,59 @@ impl Shared {
         Ok(None)
     }
 
-    /// `webdock.view`: every pin of the profile takes the view, through the settings (undoable, K38). The dock
-    /// shows it once the settings feed brings the rows back.
+    /// `webdock.hover {part, inside, output, shared?}` (K40): a pointer report from the shell or the host.
+    fn hover(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let part = str_arg(args, "part")
+            .and_then(Part::parse)
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let inside = args["inside"]
+            .as_bool()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let output = str_arg(args, "output").ok_or_else(|| dock_error(DockError::Argument))?;
+        let shared = opt_bool(args, "shared")?.unwrap_or(false);
+        let now = Instant::now();
+        self.with_dock(|d| {
+            d.hover(part, inside, output, shared, now);
+            Ok(())
+        })?;
+        Ok(None)
+    }
+
+    /// `webdock.engage {on}`: a part took or lost keyboard focus (K40).
+    fn engage(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let on = args["on"]
+            .as_bool()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let now = Instant::now();
+        self.with_dock(|d| {
+            d.engage(on, now);
+            Ok(())
+        })?;
+        Ok(None)
+    }
+
+    /// `webdock.select {pin, output?}`: a click on a pin on the strip (K40). A site starts the host.
+    fn select(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let starts =
+            self.with_dock(|d| d.select(pin, str_arg(args, "output")).map_err(dock_error))?;
+        if starts {
+            self.host.start();
+        }
+        Ok(None)
+    }
+
+    /// `webdock.back {}`: Escape on the dock's chrome (K40).
+    fn back(&self) -> Result<Option<Value>, ActionError> {
+        self.with_dock(|d| {
+            d.back();
+            Ok(())
+        })?;
+        Ok(None)
+    }
+
+    /// `webdock.view {pin, view}`: every pin of the profile takes the view, through the settings (undoable, K38).
+    /// The dock shows it once the settings feed brings the rows back.
     async fn view(&self, args: &Value) -> Result<Option<Value>, ActionError> {
         let pin = pin_arg(args)?;
         let view = match args["view"].as_str() {
@@ -272,12 +336,71 @@ impl Shared {
             Some("desktop") => View::Desktop,
             _ => return Err(dock_error(DockError::View)),
         };
-        let rows = self
-            .dock
-            .lock()
-            .expect("dock lock")
-            .view_rows(pin, view)
-            .map_err(dock_error)?;
+        let rows = view_rows(&rows_of(&self.settings), pin, view).map_err(dock_error)?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.pin {on?}`: the `pinned` setting; without an argument the value in effect flips (K40).
+    async fn pin(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let on = opt_bool(args, "on")?;
+        let current = self
+            .settings
+            .get("pinned")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false);
+        self.writer
+            .set("pinned", json!(on.unwrap_or(!current)))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.add {url, title?}` → `{pin}`: a new web pin at the end of the list (K40).
+    async fn add(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
+        let (rows, id) =
+            add_row(&rows_of(&self.settings), url, str_arg(args, "title")).map_err(dock_error)?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(Some(json!({"pin": id})))
+    }
+
+    /// `webdock.remove {pin}`: the pin's row goes; the card closes with it (the settings feed does that).
+    async fn remove(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let rows = remove_row(&rows_of(&self.settings), pin).map_err(dock_error)?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.move {pin, to}`: the pin to index `to` (0-based, clamped to the list).
+    async fn move_pin(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let to = args["to"]
+            .as_i64()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let rows = move_row(&rows_of(&self.settings), pin, to).map_err(dock_error)?;
+        self.writer
+            .set("pins", Value::Array(rows))
+            .await
+            .map_err(settings_error)?;
+        Ok(None)
+    }
+
+    /// `webdock.retarget {pin, url}`: "replace the pin with this page" (a web pin's address; K40).
+    async fn retarget(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        let url = str_arg(args, "url").ok_or_else(|| dock_error(DockError::Argument))?;
+        let rows = retarget_row(&rows_of(&self.settings), pin, url).map_err(dock_error)?;
         self.writer
             .set("pins", Value::Array(rows))
             .await
@@ -364,6 +487,17 @@ fn str_arg<'a>(args: &'a Value, key: &str) -> Option<&'a str> {
     args[key].as_str().filter(|s| !s.is_empty())
 }
 
+/// An optional boolean argument: absent or null is `None`; anything else that is not a boolean is refused.
+fn opt_bool(args: &Value, key: &str) -> Result<Option<bool>, ActionError> {
+    match args.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(v) => v
+            .as_bool()
+            .map(Some)
+            .ok_or_else(|| dock_error(DockError::Argument)),
+    }
+}
+
 fn pin_arg(args: &Value) -> Result<&str, ActionError> {
     str_arg(args, "pin").ok_or_else(|| dock_error(DockError::UnknownPin))
 }
@@ -380,12 +514,26 @@ where
     })
 }
 
+/// An action that writes the settings (the pins, `pinned`) and so awaits the settings writer.
+fn write_action<F, Fut>(ctx: &mut ModCtx, s: &Arc<Shared>, id: &str, f: F) -> Result<(), ModError>
+where
+    F: Fn(Arc<Shared>, Value) -> Fut + Send + Sync + 'static,
+    Fut: Future<Output = Result<Option<Value>, ActionError>> + Send + 'static,
+{
+    let s = s.clone();
+    ctx.action(id, &format!("action.{id}"), move |args| f(s.clone(), args))
+}
+
 fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.open", |s, a| s.open(&a))?;
     sync_action(ctx, s, "webdock.collapse", |s, _| s.collapse())?;
     sync_action(ctx, s, "webdock.hide", |s, _| s.hide())?;
     sync_action(ctx, s, "webdock.toggle", |s, a| s.toggle(&a))?;
     sync_action(ctx, s, "webdock.size", |s, a| s.size(&a))?;
+    sync_action(ctx, s, "webdock.hover", |s, a| s.hover(&a))?;
+    sync_action(ctx, s, "webdock.engage", |s, a| s.engage(&a))?;
+    sync_action(ctx, s, "webdock.select", |s, a| s.select(&a))?;
+    sync_action(ctx, s, "webdock.back", |s, _| s.back())?;
     sync_action(ctx, s, "webdock.open_external", |s, a| {
         s.open_external_action(&a)
     })?;
@@ -398,10 +546,22 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     })?;
     sync_action(ctx, s, "webdock.host.crashed", |s, a| s.host_crashed(&a))?;
 
-    let s1 = s.clone();
-    ctx.action("webdock.view", "action.webdock.view", move |args| {
-        let s = s1.clone();
-        async move { s.view(&args).await }
+    write_action(
+        ctx,
+        s,
+        "webdock.view",
+        |s, a| async move { s.view(&a).await },
+    )?;
+    write_action(ctx, s, "webdock.pin", |s, a| async move { s.pin(&a).await })?;
+    write_action(ctx, s, "webdock.add", |s, a| async move { s.add(&a).await })?;
+    write_action(ctx, s, "webdock.remove", |s, a| async move {
+        s.remove(&a).await
+    })?;
+    write_action(ctx, s, "webdock.move", |s, a| async move {
+        s.move_pin(&a).await
+    })?;
+    write_action(ctx, s, "webdock.retarget", |s, a| async move {
+        s.retarget(&a).await
     })?;
     Ok(())
 }
@@ -415,6 +575,8 @@ async fn supervise(
     let mut idle_since: Option<Instant> = None;
     loop {
         let deadline = shared.idle_deadline(&mut idle_since);
+        // The hover deadline exists only while a reveal or a hide is pending (K40, rule 5).
+        let due = shared.dock.lock().expect("dock lock").due_at();
         tokio::select! {
             changed = settings.changed() => {
                 if !changed {
@@ -429,6 +591,11 @@ async fn supervise(
                 // deadline in the past (a tight loop of stops).
                 if shared.unload_when_idle() {
                     idle_since = None;
+                }
+            }
+            () = sleep_until_or_pending(due) => {
+                if shared.fire_hover() {
+                    shared.host.start();
                 }
             }
         }
