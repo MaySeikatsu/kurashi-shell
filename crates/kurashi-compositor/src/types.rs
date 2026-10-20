@@ -45,6 +45,16 @@ pub struct CompositorState {
     pub workspaces: Vec<Workspace>,
     pub windows: Vec<Window>,
     pub overview_open: bool,
+    /// The configured keyboard layouts (K47 `svc.keyboard`); `None` until the compositor names them.
+    #[serde(default)]
+    pub keyboard: Option<KeyboardLayouts>,
+}
+
+/// The compositor's keyboard layouts: XKB names (`English (US)`) and the active one's index.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KeyboardLayouts {
+    pub names: Vec<String>,
+    pub current: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,6 +63,8 @@ pub enum Event {
     Workspaces(Vec<Workspace>),
     Windows(Vec<Window>),
     Overview(bool),
+    /// The keyboard layouts or the active layout changed (K47).
+    Keyboard(Option<KeyboardLayouts>),
     /// Drop all held state and fetch a fresh snapshot.
     Resync,
 }
@@ -71,6 +83,9 @@ pub fn diff(old: &CompositorState, new: &CompositorState) -> Vec<Event> {
     }
     if old.overview_open != new.overview_open {
         out.push(Event::Overview(new.overview_open));
+    }
+    if old.keyboard != new.keyboard {
+        out.push(Event::Keyboard(new.keyboard.clone()));
     }
     out
 }
@@ -98,6 +113,23 @@ pub enum Action {
     },
     /// Scroll the tiling view one column.
     ScrollColumn(Direction),
+    /// Turn every output off until the next input (K47 idle stage `screen_off`; niri turns them on itself).
+    PowerOffMonitors,
+    /// Switch the keyboard layout (K47 `keyboard.next`, `keyboard.set`).
+    SwitchLayout(LayoutTarget),
+    /// The compositor's own screenshot UI: pick a region (niri `screenshot`).
+    ScreenshotRegion,
+    /// The focused output, to the clipboard and the screenshot folder.
+    ScreenshotScreen,
+    /// The focused window, to the clipboard and the screenshot folder.
+    ScreenshotWindow,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LayoutTarget {
+    Next,
+    Prev,
+    Index(u8),
 }
 
 /// Optional features an adapter may offer; the UI hides what is `false` instead of faking it.

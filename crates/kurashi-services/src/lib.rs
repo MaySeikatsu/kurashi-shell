@@ -7,10 +7,13 @@
 
 pub mod bluetooth;
 pub mod brightness;
+pub mod idle;
 pub mod media;
 pub mod network;
+pub mod nightlight;
 pub mod power;
 pub mod power_profiles;
+pub mod recorder;
 pub mod session;
 mod util;
 
