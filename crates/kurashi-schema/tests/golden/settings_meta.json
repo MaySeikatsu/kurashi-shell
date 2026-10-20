@@ -107,6 +107,10 @@
                 {
                   "label": "config.choice.decor.sekai",
                   "value": "sekai"
+                },
+                {
+                  "label": "config.choice.decor.glass",
+                  "value": "glass"
                 }
               ],
               "control": "select",

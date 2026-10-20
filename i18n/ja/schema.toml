@@ -164,3 +164,4 @@
 "config.desktop.media.help" = "再生中の曲と操作。何も再生していない間は隠れます。"
 "config.desktop.weather.label" = "天気"
 "config.desktop.weather.help" = "今日の天気。天気 mod がオンで場所があるとき。"
+"config.choice.decor.glass" = "グラス（すりガラス）"

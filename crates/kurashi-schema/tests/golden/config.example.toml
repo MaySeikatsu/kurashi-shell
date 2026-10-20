@@ -26,7 +26,7 @@
 #
 # Look — A decor pack: recommends colours, chrome, motion, corners and fonts in one
 # choice. Your own settings still win over what it recommends (K42).
-#   choices: "none" | "sekai"
+#   choices: "none" | "sekai" | "glass"
 # decor = "none"
 #
 # Chrome — How blocks are drawn: flat fills, or keycaps with an ink outline, a light ring

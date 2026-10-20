@@ -104,6 +104,8 @@ pub enum Decor {
     None,
     /// Sekai (pop keycaps)
     Sekai,
+    /// Glass (frosted)
+    Glass,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

@@ -119,6 +119,17 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
                 ]),
             ),
         ]),
+        // After Vitreus/pleamar: frosted glass over the desk, soft squircles, springs that settle.
+        "glass" => Some(vec![
+            ("theme.colors.palette", json!("kanso")),
+            ("theme.chrome", json!("flat")),
+            ("theme.motion.profile", json!("lively")),
+            ("theme.material.kind", json!("glass")),
+            ("theme.material.opacity", json!(0.62)),
+            ("theme.shape.corners", json!("squircle")),
+            ("theme.shape.radius_scale", json!(1.4)),
+            ("bar.height", json!(38)),
+        ]),
         _ => None,
     }
 }

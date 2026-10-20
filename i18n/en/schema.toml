@@ -34,6 +34,7 @@
 "config.theme.decor.help" = "A decor pack: recommends colours, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42)."
 "config.choice.decor.none" = "Your own"
 "config.choice.decor.sekai" = "Sekai (pop keycaps)"
+"config.choice.decor.glass" = "Glass (frosted)"
 "config.theme.colors.palette.label" = "Palette"
 "config.theme.colors.palette.help" = "Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more)."
 "config.theme.colors.scheme.label" = "Scheme"
