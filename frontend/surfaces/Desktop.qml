@@ -89,54 +89,11 @@ PanelWindow {
             Column {
                 width: parent.width
                 spacing: Theme.gap
-                Row {
+                KeyClock {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 6
-                    Repeater {
-                        model: [0, 1, -1, 2, 3]
-                        delegate: Item {
-                            id: keyItem
-                            required property int modelData
-                            readonly property string digits: (desk.clock.hh ?? "--") + (desk.clock.mm ?? "--")
-                            width: modelData < 0 ? 14 : 54
-                            height: 72 + Theme.shadowDy
-                            Text {
-                                visible: parent.modelData < 0
-                                anchors.centerIn: parent
-                                anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                                color: Theme.accent
-                                font.pixelSize: 40
-                                font.weight: Font.Black
-                                font.family: Theme.fam(text, Theme.families)
-                                text: ":"
-                            }
-                            Block {
-                                visible: keyItem.modelData >= 0
-                                anchors.fill: parent
-                                radius: Theme.rLg
-                                ringScale: 0.67
-                                fill: keyItem.modelData < 2 ? Theme.container : Theme.selected
-                                Text {
-                                    id: dig
-                                    anchors.centerIn: parent
-                                    color: Theme.fg
-                                    font.pixelSize: 48
-                                    font.weight: Font.Black
-                                    font.family: Theme.fam(text, Theme.families)
-                                    text: keyItem.digits.charAt(Math.max(0, keyItem.modelData))
-                                    // A changed digit drops in from above (one spring per minute, on the patch).
-                                    onTextChanged: if (desk.visible && Theme.springOn) drop.restart()
-                                    NumberAnimation on anchors.verticalCenterOffset {
-                                        id: drop
-                                        running: false
-                                        from: -14; to: 0
-                                        duration: Theme.stdMs + 120
-                                        easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    hh: desk.clock.hh ?? "--"
+                    mm: desk.clock.mm ?? "--"
+                    animate: desk.visible
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
