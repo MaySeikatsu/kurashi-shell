@@ -28,7 +28,7 @@ handed it when it started the process (`KURASHI_SCOPE_MOD`, `KURASHI_SCOPE_TOKEN
 ```
 A token the daemon did not issue for that mod's running host (or one already used by another live connection) →
 `{"t":"goodbye","reason":"scope","supported":[1]}`. A scoped connection may `sub`/`unsub`/`resync` the mod's own
-documents (`mod.<id>` and `mod.<id>.*`), `theme` and `i18n`, and `act` the mod's own actions (`<id>.*`); `ping`
+documents (`mod.<id>` and `mod.<id>.*`), `theme`, `i18n` and `svc.clock` (row 118), and `act` the mod's own actions (`<id>.*`); `ping`
 as usual. Everything else (other documents and actions, `cfg.*`, `apply`, `undo`, `intent`, `query`) answers
 `{"t":"err","id"?, "kind":"forbidden","msg":"…"}` and the connection stays open. The daemon counts the host as
 running from this hello until the connection closes. Pinned by `fixtures/ipc/client/hello_scope.json`.

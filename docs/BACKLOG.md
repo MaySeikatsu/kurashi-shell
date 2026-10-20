@@ -150,6 +150,12 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I103 | 2026-10-20 | lead (session 9) | More decor packs as recipes (`kurashi_theme::decor_recipe`): a glass pack after Vitreus/pleamar (material glass, calm springs), and recipes from mods (a `decor:` provide with a recipe table) — DESIGN-SYSTEM §4. | new |
 | I104 | 2026-10-20 | lead (session 9) | Settings app: section cards (rows grouped in blocks), a live preview of the chrome/decor choice, icons per row type; `theme.decor` as cards with a thumbnail instead of a segmented control. | new |
 | I105 | 2026-10-20 | lead (session 9) | Launcher: unit conversions (Capsule), web search row, `>` commands (actions registry), an emoji grid view instead of a list, recent emoji first. | new |
+| I106 | 2026-10-20 | W21-phone report | Web dock phone status row: battery (svc.power) and network marks once the host scope allows them (row 116/118: only svc.clock so far). | new |
+| I107 | 2026-10-20 | W21-phone report | `host-tooltip` shot shows no tooltip: the sandbox pointer never triggers hover on the host's buttons (already so at 034e70a). | new |
+| I108 | 2026-10-20 | W21-phone report | Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService icon). | new |
+| I109 | 2026-10-20 | W21-phone report | Keycap styling for the web dock phone's bottom-bar buttons (flat while everything around is keycap). | new |
+| I110 | 2026-10-20 | W21-phone report | A mod's quick tile that is not a `QuickTile` still draws as a plain cell in the keycap pill grid. | new |
+| B30 | 2026-10-20 | lead (session 9) | `kurashid --test hosts` `a_scoped_connection_reaches_its_own_mod_and_nothing_else` failed once under heavy parallel load (no reply to p1 in time); passes alone. Timing margin in the fake host test. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
