@@ -1,0 +1,67 @@
+# Tasks mod (en): the settings of mods/tasks, the daemon's state, reason and action keys, and the copy of the desk cards,
+# the panel and the bar widget (docs/ux/tasks.md). Placeholders in braces are filled by the frontend.
+
+# The mod in the catalogue and its settings (mods/tasks/mod.toml).
+"mods.tasks.description" = "A to-do list and a note on the desk and in a panel, kept in plain Markdown files you can also edit elsewhere, for example in your Obsidian vault."
+"mods.tasks.file" = "Tasks file"
+"mods.tasks.file.help" = "A Markdown file with - [ ] items. Empty uses tasks.md in the shell's data folder. ~/ means your home folder. Obsidian Tasks dates (📅) and priorities (⏫ 🔼 🔽) are read and kept."
+"mods.tasks.notes_file" = "Note file"
+"mods.tasks.notes_file.help" = "The Markdown file the note is kept in. Empty uses notes.md in the shell's data folder."
+"mods.tasks.show_done" = "Keep today's done tasks"
+"mods.tasks.show_done.help" = "Tasks you tick today stay in the list, struck through, until tomorrow."
+"mods.tasks.bar_count" = "Open count in the bar"
+"mods.tasks.bar_count.help" = "The bar widget shows how many tasks are open."
+
+# Daemon: actions.
+"mod-tasks.action.add" = "Add task"
+"mod-tasks.action.toggle" = "Tick or untick task"
+"mod-tasks.action.edit" = "Edit task"
+"mod-tasks.action.remove" = "Remove task"
+"mod-tasks.action.clear_done" = "Clear done tasks"
+"mod-tasks.action.notes_set" = "Save note"
+
+# Daemon: the document's reasons.
+"mod-tasks.missing" = "No tasks file yet"
+"mod-tasks.read_only" = "The tasks file is read-only, so it can only be viewed here."
+"mod-tasks.notes.missing" = "No note yet"
+"mod-tasks.error.read" = "The file cannot be read."
+"mod-tasks.error.encoding" = "The file is not UTF-8 text."
+"mod-tasks.error.too_large" = "The file is larger than 1 MB."
+"mod-tasks.error.not_a_file" = "The path is a folder, not a file."
+
+# Daemon: why an action was refused.
+"mod-tasks.error.text" = "Type a task of up to 500 characters."
+"mod-tasks.error.id" = "No task was named."
+"mod-tasks.error.gone" = "This task changed elsewhere. The list now shows the file as it is."
+"mod-tasks.error.write" = "The file could not be saved."
+"mod-tasks.error.read_only" = "The file is read-only."
+
+# Desk cards, panel, widget.
+"mod-tasks.title" = "Tasks"
+"mod-tasks.panel.title" = "Tasks"
+"mod-tasks.loading" = "Loading…"
+"mod-tasks.open_count" = "{n} open"
+"mod-tasks.empty" = "Nothing to do"
+"mod-tasks.missing.hint" = "Adding a task creates the file."
+"mod-tasks.more" = "+ {n} more"
+"mod-tasks.add" = "Add"
+"mod-tasks.add.hint" = "Add a task"
+"mod-tasks.edit.hint" = "Task text"
+"mod-tasks.due.today" = "Today"
+"mod-tasks.due.tomorrow" = "Tomorrow"
+"mod-tasks.due.yesterday" = "Yesterday"
+"mod-tasks.tab.tasks" = "Tasks"
+"mod-tasks.tab.notes" = "Note"
+"mod-tasks.counts" = "{open} open · {done} done"
+"mod-tasks.clear_done" = "Clear done"
+"mod-tasks.file" = "File: {path}"
+"mod-tasks.notes.title" = "Note"
+"mod-tasks.notes.open" = "Open the note"
+"mod-tasks.notes.hint" = "Write anything. It is saved as you type."
+"mod-tasks.notes.saving" = "Saving…"
+"mod-tasks.notes.saved" = "Saved"
+"mod-tasks.a11y.done" = "Mark “{text}” done"
+"mod-tasks.a11y.undone" = "Mark “{text}” not done"
+"mod-tasks.a11y.is_done" = "done"
+"mod-tasks.a11y.remove" = "Remove “{text}”"
+"mod-tasks.a11y.widget" = "Tasks, {n} open"

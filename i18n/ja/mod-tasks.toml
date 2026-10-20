@@ -1,0 +1,67 @@
+# タスク mod（ja）：mods/tasks の設定、デーモンの状態・理由・アクションのキー、デスクのカード・パネル・バーのウィジェットの文言
+# （docs/ux/tasks.md）。波かっこのプレースホルダーはフロントエンドが埋める。
+
+# カタログでの mod と設定（mods/tasks/mod.toml）。
+"mods.tasks.description" = "やることリストとメモをデスクとパネルに。中身はただの Markdown ファイルなので、Obsidian の保管庫など、ほかのアプリでも編集できます。"
+"mods.tasks.file" = "タスクのファイル"
+"mods.tasks.file.help" = "- [ ] の項目がある Markdown ファイル。空ならシェルのデータフォルダーの tasks.md。~/ はホームフォルダー。Obsidian Tasks の日付（📅）と優先度（⏫ 🔼 🔽）は読み取り、そのまま残します。"
+"mods.tasks.notes_file" = "メモのファイル"
+"mods.tasks.notes_file.help" = "メモを保存する Markdown ファイル。空ならシェルのデータフォルダーの notes.md。"
+"mods.tasks.show_done" = "今日済んだタスクを残す"
+"mods.tasks.show_done.help" = "今日チェックしたタスクは取り消し線つきで明日までリストに残ります。"
+"mods.tasks.bar_count" = "バーに未完了の数"
+"mods.tasks.bar_count.help" = "バーのウィジェットに未完了のタスクの数を表示します。"
+
+# デーモン：アクション。
+"mod-tasks.action.add" = "タスクを追加"
+"mod-tasks.action.toggle" = "タスクのチェックを切り替え"
+"mod-tasks.action.edit" = "タスクを編集"
+"mod-tasks.action.remove" = "タスクを削除"
+"mod-tasks.action.clear_done" = "済んだタスクを消す"
+"mod-tasks.action.notes_set" = "メモを保存"
+
+# デーモン：ドキュメントの理由。
+"mod-tasks.missing" = "タスクのファイルはまだありません"
+"mod-tasks.read_only" = "タスクのファイルは読み取り専用なので、ここでは見るだけです。"
+"mod-tasks.notes.missing" = "メモはまだありません"
+"mod-tasks.error.read" = "ファイルを読み込めません。"
+"mod-tasks.error.encoding" = "ファイルが UTF-8 のテキストではありません。"
+"mod-tasks.error.too_large" = "ファイルが 1 MB を超えています。"
+"mod-tasks.error.not_a_file" = "このパスはファイルではなくフォルダーです。"
+
+# デーモン：アクションが断られた理由。
+"mod-tasks.error.text" = "タスクを 500 文字以内で入力してください。"
+"mod-tasks.error.id" = "タスクが指定されていません。"
+"mod-tasks.error.gone" = "このタスクはほかの場所で変更されました。リストは今のファイルの内容を表示しています。"
+"mod-tasks.error.write" = "ファイルを保存できませんでした。"
+"mod-tasks.error.read_only" = "ファイルは読み取り専用です。"
+
+# デスクのカード、パネル、ウィジェット。
+"mod-tasks.title" = "タスク"
+"mod-tasks.panel.title" = "タスク"
+"mod-tasks.loading" = "読み込み中…"
+"mod-tasks.open_count" = "未完了 {n}"
+"mod-tasks.empty" = "やることはありません"
+"mod-tasks.missing.hint" = "タスクを追加するとファイルが作られます。"
+"mod-tasks.more" = "ほか {n} 件"
+"mod-tasks.add" = "追加"
+"mod-tasks.add.hint" = "タスクを追加"
+"mod-tasks.edit.hint" = "タスクの内容"
+"mod-tasks.due.today" = "今日"
+"mod-tasks.due.tomorrow" = "明日"
+"mod-tasks.due.yesterday" = "昨日"
+"mod-tasks.tab.tasks" = "タスク"
+"mod-tasks.tab.notes" = "メモ"
+"mod-tasks.counts" = "未完了 {open} · 済み {done}"
+"mod-tasks.clear_done" = "済みを消す"
+"mod-tasks.file" = "ファイル：{path}"
+"mod-tasks.notes.title" = "メモ"
+"mod-tasks.notes.open" = "メモを開く"
+"mod-tasks.notes.hint" = "なんでも書けます。入力すると保存されます。"
+"mod-tasks.notes.saving" = "保存中…"
+"mod-tasks.notes.saved" = "保存しました"
+"mod-tasks.a11y.done" = "「{text}」を済みにする"
+"mod-tasks.a11y.undone" = "「{text}」を未完了に戻す"
+"mod-tasks.a11y.is_done" = "済み"
+"mod-tasks.a11y.remove" = "「{text}」を削除"
+"mod-tasks.a11y.widget" = "タスク、未完了 {n}"
