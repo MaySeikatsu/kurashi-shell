@@ -161,8 +161,10 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I112 | 2026-10-20 | W21-island-morph report | Satellites: OSD bubbles beside the island (Capsule `satellite/`) instead of widening the pill. | new |
 | I113 | 2026-10-20 | W21-island-morph report | Squash and stretch mid-morph (Capsule option), behind `springOn`; a rounded mini-art crop in the media pill. | new |
 | I114 | 2026-10-20 | W21-island-morph report | Glass decor: the island shape is opaque; draw it at `Theme.panel` once the path layers merge without showing through each other. | new |
-| I115 | 2026-10-20 | W21-island-morph report | Keycap chrome: a neck that joins the island's card to its own bar group block (today the keycap card floats free, no neck). | new |
+| I115 | 2026-10-20 | W21-island-morph report | Keycap chrome: a neck that joins the island's card to its own bar group block (today the keycap card floats free, no neck). | accepted (user, session 10: "yes it should join") — scheduled W22-styles |
 | B32 | 2026-10-20 | W21-island-morph report | Once (early, not reproduced in 12 later runs) test-stage caught the morph stuck at ~55 % height with no content; suspect a SpringAnimation stopping while the Stage resizes. Watch `KURASHI_STAGE_DEBUG=1`. | new |
+| I116 | 2026-10-20 | user (session 10) | Sidebar details to be discussed with the user (web dock / side bars) before more sidebar work. | new — ask |
+| I117 | 2026-10-20 | user (session 10) | Decor "isekai": a cyberpunk feel (neon on deep night, glitch/scanline accents, angular cuts). Do not implement yet — the user will send inspiration first. | new — wait for inspiration |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

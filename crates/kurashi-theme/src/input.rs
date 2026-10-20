@@ -94,13 +94,16 @@ pub enum MotionProfile {
     None,
 }
 
-/// How a block of chrome is drawn (K42): flat fills, or keycaps — outline, light ring, fill and a
-/// hard shadow straight down that the block sinks into when pressed.
+/// How a block of chrome is drawn (K42, K45): flat fills; keycaps — outline, light ring, fill and a
+/// hard shadow straight down that the block sinks into when pressed; soft — a hairline rim and a
+/// soft drop shadow, pressed blocks shrink a little; line — ink outlines, no shadow, crisp.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Chrome {
     #[default]
     Flat,
     Keycap,
+    Soft,
+    Line,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

@@ -12,6 +12,8 @@ use crate::palette::{Palette, ROLES};
 
 /// The icon font components draw glyphs with (ligatures by name), when installed.
 pub const ICON_FAMILY: &str = "Material Symbols Rounded";
+/// Line chrome's icons (K45): the square-cornered cut of the same set, when installed.
+pub const ICON_FAMILY_SHARP: &str = "Material Symbols Sharp";
 
 /// Flat dotted-key map; the `theme` document's `tokens` object.
 pub type TokenMap = BTreeMap<String, Value>;
@@ -175,12 +177,23 @@ pub fn build(
     t.insert("font.family_jp".into(), json!(fam_jp));
     // Icons (K42): Material Symbols Rounded when installed, else "" and components draw their
     // text glyph instead (Shōjiki: no tofu boxes for a font that is not there).
-    let icons = if fonts.is_installed(ICON_FAMILY) {
+    let icons = if axes.chrome == Chrome::Line && fonts.is_installed(ICON_FAMILY_SHARP) {
+        ICON_FAMILY_SHARP
+    } else if fonts.is_installed(ICON_FAMILY) {
         ICON_FAMILY
     } else {
         ""
     };
     t.insert("font.icons".into(), json!(icons));
+    // Icon cut per chrome (K45): keycaps take filled, heavier symbols; line chrome hairline ones.
+    let (icon_fill, icon_weight) = match axes.chrome {
+        Chrome::Keycap => (1, 600),
+        Chrome::Soft => (0, 400),
+        Chrome::Line => (0, 300),
+        Chrome::Flat => (0, 400),
+    };
+    t.insert("icon.fill".into(), json!(icon_fill));
+    t.insert("icon.weight".into(), json!(icon_weight));
 
     for (n, base) in DURATIONS {
         t.insert(
@@ -208,6 +221,8 @@ pub fn build(
         (MotionProfile::Calm, _) => 0.6,
         (MotionProfile::Lively, Chrome::Flat) => 1.4,
         (MotionProfile::Lively, Chrome::Keycap) => 2.2,
+        (MotionProfile::Lively, Chrome::Soft) => 1.0,
+        (MotionProfile::Lively, Chrome::Line) => 0.4,
     };
     t.insert("motion.spring.overshoot".into(), json!(overshoot));
     let (spring, damping) = match axes.motion {
@@ -239,19 +254,57 @@ pub fn build(
     // --- component tokens (renderers bind only to these) ---
     let g = |r: &str| p.get(r);
 
-    // Chrome (K42): what a block is made of. Flat: a fill, nothing round it. Keycap: an outline in
-    // `color.line`, a ring in `color.ring` between outline and fill, and a hard shadow in the line
-    // colour straight down, which the block sinks into while pressed.
+    // Chrome (K42, K45): what a block is made of. Every chrome is a set of widths and colours, so a
+    // renderer draws all four from the same tokens (rule 4).
+    //   flat   — a fill, nothing round it.
+    //   keycap — an outline in `chrome.line`, a ring between outline and fill, a hard shadow in
+    //            the line colour straight down that the block sinks into while pressed.
+    //   soft   — a hairline rim (`chrome.outline_color`, faint), a soft drop shadow below; pressed
+    //            blocks shrink to `chrome.press_scale`.
+    //   line   — an ink outline in the palette's outline role, no shadow, no ring.
+    // `chrome.groups`: bar groups stand as blocks of their own instead of sitting on one strip.
+    struct Ch {
+        style: &'static str,
+        outline: f64,
+        ring: f64,
+        shadow: f64,
+        soft: f64,
+        soft_dy: f64,
+        press_scale: f64,
+        groups: bool,
+    }
+    let ch = match axes.chrome {
+        Chrome::Flat => Ch { style: "flat", outline: 0.0, ring: 0.0, shadow: 0.0, soft: 0.0, soft_dy: 0.0, press_scale: 0.97, groups: false },
+        Chrome::Keycap => Ch { style: "keycap", outline: 2.0, ring: 3.0, shadow: 4.0, soft: 0.0, soft_dy: 0.0, press_scale: 1.0, groups: true },
+        Chrome::Soft => Ch { style: "soft", outline: 1.0, ring: 0.0, shadow: 0.0, soft: 18.0, soft_dy: 6.0, press_scale: 0.96, groups: true },
+        Chrome::Line => Ch { style: "line", outline: 1.0, ring: 0.0, shadow: 0.0, soft: 0.0, soft_dy: 0.0, press_scale: 1.0, groups: true },
+    };
     let keycap = axes.chrome == Chrome::Keycap;
-    t.insert(
-        "chrome.style".into(),
-        json!(if keycap { "keycap" } else { "flat" }),
-    );
-    px(&mut t, "chrome.outline", if keycap { 2.0 } else { 0.0 });
-    px(&mut t, "chrome.ring", if keycap { 3.0 } else { 0.0 });
-    px(&mut t, "chrome.shadow", if keycap { 4.0 } else { 0.0 });
+    t.insert("chrome.style".into(), json!(ch.style));
+    px(&mut t, "chrome.outline", ch.outline);
+    px(&mut t, "chrome.ring", ch.ring);
+    px(&mut t, "chrome.shadow", ch.shadow);
+    px(&mut t, "chrome.soft", ch.soft);
+    px(&mut t, "chrome.soft_dy", ch.soft_dy);
+    t.insert("chrome.press_scale".into(), json!(ch.press_scale));
+    t.insert("chrome.groups".into(), json!(ch.groups));
     col(&mut t, "chrome.line", g("line"));
     col(&mut t, "chrome.ring_color", g("ring"));
+    // The outline's colour and opacity: ink for keycaps, the outline role for line chrome, a faint
+    // light rim for soft chrome (glass edges catch the light), nothing for flat.
+    let (oc, oa) = match axes.chrome {
+        Chrome::Keycap => (g("line"), 1.0),
+        Chrome::Line => (g("outline"), 1.0),
+        Chrome::Soft => (if p.dark { WHITE } else { g("on_surface") }, if p.dark { 0.16 } else { 0.10 }),
+        Chrome::Flat => (g("outline_variant"), 0.0),
+    };
+    col(&mut t, "chrome.outline_color", oc);
+    t.insert("chrome.outline_alpha".into(), json!(oa));
+    col(&mut t, "chrome.soft_color", g("shadow"));
+    t.insert(
+        "chrome.soft_alpha".into(),
+        json!(if p.dark { 0.45 } else { 0.18 }),
+    );
     // Keycap type is heavier: the rounded families it is paired with read thin at 500.
     if keycap {
         for (n, w) in [("regular", 500), ("medium", 700), ("bold", 800)] {
