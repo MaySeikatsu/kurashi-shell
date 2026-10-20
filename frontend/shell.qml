@@ -84,6 +84,11 @@ ShellRoot {
             }
         }
     }
+    // Desktop widgets (K43): one per output, on the bottom layer; no surface while desktop.enabled is off.
+    Variants {
+        model: Quickshell.screens
+        delegate: Desktop {}
+    }
     Lock {}
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped

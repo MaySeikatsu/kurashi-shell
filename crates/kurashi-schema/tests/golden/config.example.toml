@@ -207,3 +207,30 @@
 #
 # Week numbers — Show ISO week numbers beside the calendar's rows.
 # week_numbers = false
+
+# [desktop]
+#
+# Desktop widgets — Cards on the desktop under your windows: the clock, the month, what is
+# playing, the weather.
+#   per-output
+# enabled = false
+#
+# Side — The screen side the cards stand on.
+#   choices: "left" | "right" · only while desktop.enabled == true · per-output
+# side = "right"
+#
+# Clock — The time in big keys, with the date.
+#   only while desktop.enabled == true
+# clock = true
+#
+# Calendar — This month, today marked.
+#   only while desktop.enabled == true
+# calendar = true
+#
+# Now playing — The song that plays, with its controls; hidden while nothing plays.
+#   only while desktop.enabled == true
+# media = true
+#
+# Weather — Today's weather, while the weather mod is on and has a place.
+#   only while desktop.enabled == true
+# weather = true
