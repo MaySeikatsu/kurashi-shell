@@ -121,16 +121,18 @@ Scope {
             // Several identities may answer: the current user first (DMS `selectCurrentUserIdentity`). Choosing one
             // restarts polkit's request; that restart is not a failure.
             property bool switching: false
+            // Identities compare by what they name (a list read back through a property may hand out new wrappers).
+            function same(a, b) { return !!a && !!b && a.string === b.string && !!a.isGroup === !!b.isGroup }
             function pickCurrentUser() {
                 if (!flow || identities.length < 2) return
                 var me = Quickshell.env("USER") || ""
                 for (var i = 0; i < identities.length; i++) {
                     var it = identities[i]
-                    if (!it.isGroup && it.string === me && it !== flow.selectedIdentity) { choose(it); return }
+                    if (!it.isGroup && it.string === me && !same(it, flow.selectedIdentity)) { choose(it); return }
                 }
             }
             function choose(it) {
-                if (!flow || it === flow.selectedIdentity) return
+                if (!flow || same(it, flow.selectedIdentity)) return
                 switching = true
                 flow.selectedIdentity = it
                 switching = false
@@ -259,7 +261,7 @@ Scope {
                                 delegate: Button {
                                     required property var modelData
                                     label: win.idName(modelData)
-                                    primary: win.flow && modelData === win.flow.selectedIdentity
+                                    primary: win.flow && win.same(modelData, win.flow.selectedIdentity)
                                     onClicked: win.choose(modelData)
                                 }
                             }

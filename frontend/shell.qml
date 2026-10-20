@@ -89,12 +89,19 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Desktop {}
     }
+    // Rounded screen corners (K47 (6)): per output, only while theme.shape.screen_corners > 0.
+    Variants {
+        model: Quickshell.screens
+        delegate: ScreenCorners {}
+    }
     Lock {}
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
     Toasts { screen: root.focusedScreen() }
     Launcher {}
+    // The polkit agent (K47 (5)): its dialog exists only while a request is up.
+    PolkitDialog {}
     Stage {
         screen: root.stageScreen
         want: root.stageOpen
