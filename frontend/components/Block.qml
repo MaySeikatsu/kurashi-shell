@@ -105,5 +105,12 @@ Item {
             antialiasing: true
             Behavior on color { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
         }
+        // The decor pack's frame over the face's edge (W25): nothing is made while the pack has none.
+        FrameHost {
+            anchors.fill: parent
+            radius: Math.min(blk.radius, rim.height / 2)
+            pressed: blk.pressed
+            animate: blk.animate
+        }
     }
 }

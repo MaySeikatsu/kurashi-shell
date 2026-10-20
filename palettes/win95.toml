@@ -1,0 +1,26 @@
+# Win95 — silver controls, navy title bars, the 3D bevel era. Light only. Roles after shellseikatsu
+# `_win95Palette()` (W25, K50). Meant for decor `win95` (frame `bevel`).
+name = "win95"
+kind = "light"
+description = "Silver, navy and teal (decor win95)"
+
+[light]
+surface = "#c0c0c0"
+surface_container_lowest = "#dfdfdf"
+surface_container_low = "#c8c8c8"
+surface_container = "#c0c0c0"
+surface_container_high = "#c0c0c0"
+surface_container_highest = "#d0d0d0"
+on_surface = "#000000"
+on_surface_variant = "#222222"
+outline = "#808080"
+outline_variant = "#a0a0a0"
+accent = "#000080"                    # title bar navy
+accent_container = "#000080"
+on_accent_container = "#ffffff"
+secondary = "#006a6a"                 # desktop teal
+tertiary = "#5e5e00"
+warning = "#6e5200"
+error = "#aa0000"
+line = "#000000"
+ring = "#ffffff"

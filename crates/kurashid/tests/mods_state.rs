@@ -259,8 +259,10 @@ async fn choices_come_from_the_daemon_and_a_value_outside_them_is_inert() {
     };
     let palette = row("theme.colors.palette");
     assert_eq!(palette["choices_from"], "palettes");
+    // Every bundled palette, in bundle order (W25 added the identity packs' palettes).
+    assert_eq!(values(&palette), kurashi_theme::bundled_names());
     assert_eq!(
-        values(&palette),
+        values(&palette)[..5],
         ["wa-iro", "kanso", "high-contrast", "sekai", "sekai-night"]
     );
 

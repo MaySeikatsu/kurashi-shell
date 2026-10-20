@@ -81,6 +81,31 @@ K45 adds two chromes and makes every decor a whole look that never touches layou
 
 Recipes name `theme.*` keys only. Layout (bar edge/height, desk, island placement) belongs to the user and profiles.
 
+**Frames (W25, K50).** A pack's `[slots]` may name `frame = "<name>"`: art drawn over every block's edge. The daemon
+reads it from the active `theme.decor` (`kurashi_theme::decor::find`) and publishes token `decor.frame` (`""` for none);
+`Theme.frame` carries it and `FrameHost.qml` (one optional child of `Block.qml`, and the lock's ground) loads
+`components/frames/<Name>.qml` (kebab-case → PascalCase). The name is data; no renderer compares it (rule 4). A frame
+paints from palette roles, so a pinned palette still fits; it is static (one paint per size and colour) and runs at
+most a one-shot motion while visible with springs on (Ma). Kinds: `card` (≥ 120×64: the full frame), `small` (keys,
+tiles, bar groups: a restrained edge or nothing), `ground` (the lock's backdrop, replacing the chrome-derived one).
+
+| pack (W25, after shellseikatsu `Services/Modes/*.qml`) | palette | chrome | corners | motion | type chain (free fallback) | frame |
+|---|---|---|---|---|---|---|
+| catppuccin | catppuccin mocha | soft, translucent 0.92 | rounded ×1.3 | lively | Inter | — |
+| tokyo-night | tokyo-night night | flat, translucent 0.88, compact | rounded ×0.85 | calm ×1.25 | JetBrains Mono | — |
+| rose-pine | rose-pine main | soft, translucent 0.9 | rounded ×1.15 | calm | Nunito | — |
+| material | material (M3 baseline) dark | flat, solid | rounded ×1 | calm | Roboto | — |
+| aqua | aqua dark, glass 0.6 | soft | squircle ×1.35 | calm | SF Pro → Inter | sheen |
+| yorha | yorha light | flat, solid | none | calm | Noto Serif | yorha |
+| kawaii | kawaii light | soft, solid | rounded ×0.9 | lively | Quicksand → Comic Neue → Nunito | kawaii |
+| win95 | win95 light | line, solid, compact | none | none | W95FA/MS Sans Serif/Tahoma → DejaVu Sans | bevel |
+| luna | luna light | soft, solid | rounded ×0.6 | calm | Tahoma/Verdana → DejaVu Sans | luna |
+| aero | aero light, glass 0.78 | soft | rounded ×1 | calm | Segoe UI → Noto Sans | aero |
+| ps2 | ps2 dark | soft, translucent 0.92 | rounded ×0.5 | calm | SST/Zrnic → Inter | ps2 |
+| snes | snes light | keycap, solid, compact | none | calm ×1.6 | Press Start 2P → JetBrains Mono | snes |
+| hallownest | hallownest dark | line, translucent 0.94 | rounded ×0.6 | calm ×0.85 | Trajan Pro → Cinzel → Noto Serif | hollow |
+| souls | souls dark | line, solid | none | calm ×0.8 | OptimusPrinceps → EB Garamond → Noto Serif | ornate |
+
 ## 5. Accessibility modes
 `reduce_motion`, `reduce_transparency`, `high_contrast`, `large_text` force axes with
 `forced_by: accessibility` (visible in Settings). Defaults follow the system portal where

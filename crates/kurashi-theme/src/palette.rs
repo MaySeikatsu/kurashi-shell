@@ -275,6 +275,33 @@ const BUNDLED: &[(&str, &str)] = &[
         "sekai-night",
         include_str!("../../../palettes/sekai-night.toml"),
     ),
+    // W25 identity packs' palettes (after shellseikatsu `Services/Appearance.qml` `_<name>Palette()`).
+    (
+        "catppuccin",
+        include_str!("../../../palettes/catppuccin.toml"),
+    ),
+    (
+        "tokyo-night",
+        include_str!("../../../palettes/tokyo-night.toml"),
+    ),
+    (
+        "rose-pine",
+        include_str!("../../../palettes/rose-pine.toml"),
+    ),
+    ("material", include_str!("../../../palettes/material.toml")),
+    ("aqua", include_str!("../../../palettes/aqua.toml")),
+    ("yorha", include_str!("../../../palettes/yorha.toml")),
+    ("kawaii", include_str!("../../../palettes/kawaii.toml")),
+    ("win95", include_str!("../../../palettes/win95.toml")),
+    ("luna", include_str!("../../../palettes/luna.toml")),
+    ("aero", include_str!("../../../palettes/aero.toml")),
+    ("ps2", include_str!("../../../palettes/ps2.toml")),
+    ("snes", include_str!("../../../palettes/snes.toml")),
+    (
+        "hallownest",
+        include_str!("../../../palettes/hallownest.toml"),
+    ),
+    ("souls", include_str!("../../../palettes/souls.toml")),
 ];
 
 pub fn bundled_names() -> Vec<&'static str> {

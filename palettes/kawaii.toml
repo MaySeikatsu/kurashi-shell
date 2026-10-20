@@ -1,0 +1,25 @@
+# Kawaii — Needy Streamer Overload's pastel desktop: pink ground, lavender window chrome, mint bubbles, plum ink.
+# Light only. Roles after shellseikatsu `_kawaiiPalette()` (W25, K50). Meant for decor `kawaii` (frame `kawaii`).
+name = "kawaii"
+kind = "light"
+description = "Pastel pink, lavender and mint (decor kawaii)"
+
+[light]
+surface = "#fbe4f0"
+surface_container_lowest = "#fff3f9"
+surface_container_low = "#fdebf4"
+surface_container = "#fff3f9"
+surface_container_high = "#f5d9e9"
+surface_container_highest = "#eecbdf"
+on_surface = "#5c3a4c"
+on_surface_variant = "#7d5670"
+outline = "#ce9bb8"
+outline_variant = "#e5c2d6"
+accent = "#d4568e"                    # pink, deepened from #f48fb8 for text-grade contrast
+accent_container = "#fad1e3"
+secondary = "#8a6cc4"                 # lavender
+tertiary = "#3f8f5a"                  # mint bubble
+warning = "#9a5a00"
+error = "#c23a55"
+line = "#c9b4e8"                      # lavender window chrome
+ring = "#fff3f9"

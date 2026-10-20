@@ -1,0 +1,15 @@
+name = "souls"
+label = "config.choice.decor.souls"
+# After shellseikatsu `Services/Modes/DarkSouls.qml` and `Widgets/ThemeDecor/OrnateFrame.qml` (W25): leather black,
+# antique-gold hairlines with corner flourishes, ember accents, an engraved serif, solemn slow motion.
+[recipe]
+"theme.colors.palette" = "souls"
+"theme.colors.scheme" = "dark"
+"theme.chrome" = "line"
+"theme.motion.profile" = "calm"
+"theme.motion.speed" = 0.8
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["OptimusPrinceps", "EB Garamond", "Noto Serif", "Noto Serif CJK JP", "serif"]
+[slots]
+frame = "ornate"

@@ -1,0 +1,25 @@
+# Luna — Windows XP: beige control chrome (#ECE9D8), Luna-blue accent, the green "start" highlight. Light only.
+# Roles after shellseikatsu `_winxpPalette()` (W25, K50). Meant for decor `luna` (frame `luna`).
+name = "luna"
+kind = "light"
+description = "XP beige with Luna blue (decor luna)"
+
+[light]
+surface = "#ece9d8"
+surface_container_lowest = "#ffffff"
+surface_container_low = "#f4f2e9"
+surface_container = "#f4f2e9"
+surface_container_high = "#ddd9c3"
+surface_container_highest = "#cfc9ae"
+on_surface = "#1a1a1a"
+on_surface_variant = "#4a4636"
+outline = "#8a8674"
+outline_variant = "#b8b49e"
+accent = "#245edc"
+accent_container = "#c2d9f7"
+on_accent_container = "#0a246a"
+secondary = "#2f8a2b"                 # start-button green
+tertiary = "#b5650e"
+warning = "#9a5b00"
+error = "#c42b1c"
+success = "#2f8a2b"
