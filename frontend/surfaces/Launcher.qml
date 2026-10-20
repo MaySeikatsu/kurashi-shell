@@ -119,7 +119,7 @@ PanelWindow {
         Block {
             anchors.fill: parent
             radius: Theme.rLg + 4
-            fill: Theme.container
+            fill: Theme.panel
             flatBorder: Theme.outline
         }
 

@@ -85,7 +85,7 @@ PanelWindow {
         height: Math.min(win.maxH, head.height + (win.items.length > 0 ? list.contentHeight : empty.height) + 3 * Theme.pad)
         y: (Theme.keycap ? Theme.gap : 0) - win.slide * (1 - win.p)
         radius: Theme.rLg + 4
-        color: Theme.container
+        color: Theme.panel
         border.width: Theme.keycap ? Theme.outlineW : 1
         border.color: Theme.keycap ? Theme.line : Theme.outline
         Rectangle {

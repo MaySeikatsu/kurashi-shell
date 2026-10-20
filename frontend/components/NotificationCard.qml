@@ -24,7 +24,7 @@ Rectangle {
     width: 340
     implicitHeight: row.height + 2 * Theme.pad
     radius: Theme.rLg
-    color: Theme.container
+    color: Theme.panel
     // Keycap chrome (K42): an ink outline (accent when urgent) and a hard shadow; flat: a hairline.
     border.width: Theme.keycap ? Theme.outlineW : 1
     border.color: urgent ? Theme.accent : (Theme.keycap ? Theme.line : Theme.outline)
