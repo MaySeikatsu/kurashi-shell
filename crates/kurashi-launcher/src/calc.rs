@@ -176,7 +176,11 @@ enum Dim {
 /// Unit names (lower case; the first name is how a result is shown) and their factor to the base unit
 /// of their kind. Temperatures convert through `temp_*` instead.
 const UNITS: &[(&[&str], Dim, f64)] = &[
-    (&["m", "meter", "meters", "metre", "metres"], Dim::Length, 1.0),
+    (
+        &["m", "meter", "meters", "metre", "metres"],
+        Dim::Length,
+        1.0,
+    ),
     (&["km", "kilometer", "kilometers"], Dim::Length, 1000.0),
     (&["cm"], Dim::Length, 0.01),
     (&["mm"], Dim::Length, 0.001),
@@ -191,7 +195,11 @@ const UNITS: &[(&[&str], Dim, f64)] = &[
     (&["t", "tonne", "tonnes"], Dim::Mass, 1000.0),
     (&["lb", "lbs", "pound", "pounds"], Dim::Mass, 0.453_592_37),
     (&["oz", "ounce", "ounces"], Dim::Mass, 0.028_349_523_125),
-    (&["l", "liter", "liters", "litre", "litres"], Dim::Volume, 1.0),
+    (
+        &["l", "liter", "liters", "litre", "litres"],
+        Dim::Volume,
+        1.0,
+    ),
     (&["ml"], Dim::Volume, 0.001),
     (&["gal", "gallon", "gallons"], Dim::Volume, 3.785_411_784),
     (&["cup", "cups"], Dim::Volume, 0.236_588_236_5),
@@ -262,10 +270,7 @@ pub fn convert(q: &str) -> Option<(f64, String)> {
         .map(|(i, _)| i)?;
     let (amount, from) = lhs.split_at(cut);
     let amount = amount.trim();
-    let v = amount
-        .parse::<f64>()
-        .ok()
-        .or_else(|| eval_expr(amount))?;
+    let v = amount.parse::<f64>().ok().or_else(|| eval_expr(amount))?;
     let (_, fd, ff) = unit(from)?;
     let (tname, td, tf) = unit(target)?;
     if fd != td {

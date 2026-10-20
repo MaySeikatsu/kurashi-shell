@@ -274,10 +274,46 @@ pub fn build(
         groups: bool,
     }
     let ch = match axes.chrome {
-        Chrome::Flat => Ch { style: "flat", outline: 0.0, ring: 0.0, shadow: 0.0, soft: 0.0, soft_dy: 0.0, press_scale: 0.97, groups: false },
-        Chrome::Keycap => Ch { style: "keycap", outline: 2.0, ring: 3.0, shadow: 4.0, soft: 0.0, soft_dy: 0.0, press_scale: 1.0, groups: true },
-        Chrome::Soft => Ch { style: "soft", outline: 1.0, ring: 0.0, shadow: 0.0, soft: 18.0, soft_dy: 6.0, press_scale: 0.96, groups: true },
-        Chrome::Line => Ch { style: "line", outline: 1.0, ring: 0.0, shadow: 0.0, soft: 0.0, soft_dy: 0.0, press_scale: 1.0, groups: true },
+        Chrome::Flat => Ch {
+            style: "flat",
+            outline: 0.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 0.0,
+            soft_dy: 0.0,
+            press_scale: 0.97,
+            groups: false,
+        },
+        Chrome::Keycap => Ch {
+            style: "keycap",
+            outline: 2.0,
+            ring: 3.0,
+            shadow: 4.0,
+            soft: 0.0,
+            soft_dy: 0.0,
+            press_scale: 1.0,
+            groups: true,
+        },
+        Chrome::Soft => Ch {
+            style: "soft",
+            outline: 1.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 18.0,
+            soft_dy: 6.0,
+            press_scale: 0.96,
+            groups: true,
+        },
+        Chrome::Line => Ch {
+            style: "line",
+            outline: 1.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 0.0,
+            soft_dy: 0.0,
+            press_scale: 1.0,
+            groups: true,
+        },
     };
     let keycap = axes.chrome == Chrome::Keycap;
     t.insert("chrome.style".into(), json!(ch.style));
@@ -295,7 +331,10 @@ pub fn build(
     let (oc, oa) = match axes.chrome {
         Chrome::Keycap => (g("line"), 1.0),
         Chrome::Line => (g("outline"), 1.0),
-        Chrome::Soft => (if p.dark { WHITE } else { g("on_surface") }, if p.dark { 0.16 } else { 0.10 }),
+        Chrome::Soft => (
+            if p.dark { WHITE } else { g("on_surface") },
+            if p.dark { 0.16 } else { 0.10 },
+        ),
         Chrome::Flat => (g("outline_variant"), 0.0),
     };
     col(&mut t, "chrome.outline_color", oc);

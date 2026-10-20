@@ -147,11 +147,7 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
             ("theme.shape.corners", json!("none")),
             (
                 "theme.typography.family",
-                json!([
-                    "JetBrains Mono",
-                    "Noto Sans Mono CJK JP",
-                    "monospace"
-                ]),
+                json!(["JetBrains Mono", "Noto Sans Mono CJK JP", "monospace"]),
             ),
         ]),
         // Paper and ink: wa-iro on a light ground, fine ink lines, small corners, a serif hand.
@@ -165,11 +161,7 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
             ("theme.shape.radius_scale", json!(0.5)),
             (
                 "theme.typography.family",
-                json!([
-                    "Noto Serif",
-                    "Noto Serif CJK JP",
-                    "serif"
-                ]),
+                json!(["Noto Serif", "Noto Serif CJK JP", "serif"]),
             ),
         ]),
         _ => None,
@@ -271,4 +263,3 @@ pub fn decor_preview(name: &str, fonts: &dyn FontProvider) -> Option<serde_json:
         .collect();
     Some(json!({ "name": name, "tokens": tokens }))
 }
-

@@ -487,8 +487,10 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 // A unit conversion (I105): the row shows value and unit; launching copies the value.
                 let (v, unit) = kurashi_launcher::calc::convert(q)?;
                 let shown = kurashi_launcher::calc::format_unit(v);
-                Some(json!({"id": format!("calc:{shown}"), "name": format!("{shown} {unit}"),
-                            "generic": q.trim(), "icon": null, "kind": "calc", "score": 1.0}))
+                Some(
+                    json!({"id": format!("calc:{shown}"), "name": format!("{shown} {unit}"),
+                            "generic": q.trim(), "icon": null, "kind": "calc", "score": 1.0}),
+                )
             });
         calc.into_iter()
             .chain(
