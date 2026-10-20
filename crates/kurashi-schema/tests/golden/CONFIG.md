@@ -41,8 +41,8 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 
 A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one choice. It changes how things look, never where they are. Your own settings still win (K42, K45).
 
-- type: `choice` · default: `"none"`
-- choices: `"none"` | `"sekai"` | `"glass"` | `"terminal"` | `"washi"`
+- type: `string` · default: `"none"`
+- choices: from `decors` (resolved at runtime)
 
 #### `theme.colors.palette` — Palette
 
