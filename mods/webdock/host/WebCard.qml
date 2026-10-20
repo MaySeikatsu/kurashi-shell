@@ -439,9 +439,9 @@ PanelWindow {
 
             Item {
                 id: header
-                anchors.top: card.phoneLook ? undefined : parent.top
-                anchors.bottom: card.phoneLook ? parent.bottom : undefined
-                anchors.bottomMargin: card.phoneLook ? phone.homeH : 0
+                // A y, not switching anchors: a top anchor and a bottom anchor swapped in one change stretched the bar
+                // (both held for a moment) after a large-to-phone switch.
+                y: card.phoneLook ? parent.height - phone.homeH - height : 0
                 anchors.left: parent.left
                 anchors.right: parent.right
                 height: card.phoneLook ? 40 : 36
@@ -722,12 +722,9 @@ PanelWindow {
                 id: menu
                 z: 8
                 visible: card.menuOpen
-                // Large: under the header; phone: over the bottom bar.
-                anchors.top: card.phoneLook ? undefined : header.bottom
-                anchors.bottom: card.phoneLook ? header.top : undefined
+                // Large: under the header; phone: over the bottom bar (a y, as the header's).
+                y: card.phoneLook ? header.y - height - 4 : header.y + header.height + 4
                 anchors.right: parent.right
-                anchors.topMargin: 4
-                anchors.bottomMargin: 4
                 anchors.rightMargin: card.phoneLook ? 10 : 4
                 width: Math.min(frame.width - 8, 240)
                 height: menuCol.implicitHeight + 2 * Theme.xs
