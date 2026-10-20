@@ -18,9 +18,18 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, waves 17 and 18
-**State:** `main` green (`just check` 763 tests; `just webdock`, `just peek`, `just mods-live`, test-stage,
-test-quick, test-quick-sections, settings/test.sh). Waves 17 and 18 merged; no agents, no extra worktrees; nothing
-half-done. Disk: 87 GB free after clearing `target/debug` (60 GB) and stale sandboxes.
+**State:** `main` green (`just check` 779 tests; `just webdock`, `just peek`, `just mods-live` 5/5 after the B29 fix,
+test-stage, test-sidebars, test-quick(-sections), settings/test.sh, weather and wallpaper state tests). Waves 17–19
+merged; no agents, no extra worktrees; nothing half-done.
+
+**Wave 19 (user: "start the next wave, we handle the open decisions afterwards"):** lead contract — slot
+`clock.expanded.daymark` (row 71), `runtime.slots` `reason` + `ModCtx::slot().set_reason` (row 72), schema
+`clock.week_start`/`week_numbers`. Cards: W19-side-bars (vertical widget forms, hidden count; row 107, I85),
+W19-weather (labelled hourly rain, week range, place preview forecast, no-place reason; I82), W19-wallpaper (720 px
+picker, quiet choices, overflow menu, keyboard paths; rows 105–106, I83, I32), W19-calendar (day marks, week start and
+numbers, the aside's "Set place"; row 108, I46). **B29:** my row-72 prep caused a lock-order deadlock in kurashid
+(`slots()` under the hub's lock took a mod's state lock that a choice-source change holds across hub calls) — found by
+the calendar agent's mods-live runs, fixed (own lock), 5/5. New rows I87–I89.
 
 **Wave 18 (after the web dock, user: "continue with other parts of the shell"):** contract rows 98 (peek `edge`/`y`/`h`)
 and 99 (diff `same_value`) by the lead; W18-quick-tiles (160×56 cells for `quick.tiles`, wallpaper/hello as
@@ -67,9 +76,9 @@ selected states, `color.data.*` roles, one primary action per panel; use `INSPIR
    path into the header, reduced motion), **I77** scope table and host registry into `Daemon`, **W17.6** Nix (a
    `kurashi-webdock` package apart from the base closure, HM/NixOS options, closure check).
 2. **I80** web host on niri (nested niri in the sandbox; reveal by click).
-3. Cards without a user decision: I85 (bar widgets on side bars), I86 (`forced_by` on service documents), I82/I83
-   polish that does not depend on colour (labels, card width, copy), I84 sysmon leftovers, I46 + rows 71/72 (calendar
-   per-day slot, `ready`+`reason`), the keyboard path into bar widgets (I67), I77 (scope table into `Daemon`), W17.6.
+3. Cards without a user decision: I86 (`forced_by` on service documents), I88 (weather: preview verification path,
+   hourly overflow, ja review), I89 (calendar polish), I84 sysmon leftovers, the keyboard path into bar widgets (I67),
+   I77 (scope table into `Daemon`), W17.6 (web dock Nix packaging), I87 (peek PSS check robust under load).
 4. B7 quiet repro + quiet re-measure of K35, W18 peeks (second output +3…+34 MiB under load) and the web host (BENCH);
    no agents running. I10 on machine A.
 
