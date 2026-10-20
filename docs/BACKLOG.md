@@ -148,20 +148,20 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I101 | 2026-10-20 | lead (session 9) | Desktop widgets v2: drag to place and resize (SekaiPop "Edit Desktop"), to-do and notes cards (needs a daemon notes/todo service), lyrics card, dim while a window is focused, keyboard path. `docs/ux/desktop.md` "Later". | new |
 | I102 | 2026-10-20 | lead (session 9) | Window list: on side bars (vertical layout), middle-click closes, drag to another workspace (`MoveWindowToWorkspace`), a peek with the title (titles stay out of the document: fetch on hover?), icon lookup fallback for app ids without a desktop entry. | new |
 | I103 | 2026-10-20 | lead (session 9) | More decor packs as recipes (`kurashi_theme::decor_recipe`): a glass pack after Vitreus/pleamar (material glass, calm springs), and recipes from mods (a `decor:` provide with a recipe table) — DESIGN-SYSTEM §4. | new |
-| I104 | 2026-10-20 | lead (session 9) | Settings app: section cards (rows grouped in blocks), a live preview of the chrome/decor choice, icons per row type; `theme.decor` as cards with a thumbnail instead of a segmented control. | new |
+| I104 | 2026-10-20 | lead (session 9) | Settings app: section cards (rows grouped in blocks), a live preview of the chrome/decor choice, icons per row type; `theme.decor` as cards with a thumbnail instead of a segmented control. | partly done (session 10: decor preview cards); section cards and per-row icons remain |
 | I105 | 2026-10-20 | lead (session 9) | Launcher: unit conversions (Capsule), web search row, `>` commands (actions registry), an emoji grid view instead of a list, recent emoji first. | new |
 | I106 | 2026-10-20 | W21-phone report | Web dock phone status row: battery (svc.power) and network marks once the host scope allows them (row 116/118: only svc.clock so far). | new |
 | I107 | 2026-10-20 | W21-phone report | `host-tooltip` shot shows no tooltip: the sandbox pointer never triggers hover on the host's buttons (already so at 034e70a). | new |
 | I108 | 2026-10-20 | W21-phone report | Quick settings greeting row: a user-name source (only `$USER`'s first letter today) and an avatar (AccountsService icon). | new |
-| I109 | 2026-10-20 | W21-phone report | Keycap styling for the web dock phone's bottom-bar buttons (flat while everything around is keycap). | new |
-| I110 | 2026-10-20 | W21-phone report | A mod's quick tile that is not a `QuickTile` still draws as a plain cell in the keycap pill grid. | new |
+| I109 | 2026-10-20 | W21-phone report | Keycap styling for the web dock phone's bottom-bar buttons (flat while everything around is keycap). | done (W22-styles) |
+| I110 | 2026-10-20 | W21-phone report | A mod's quick tile that is not a `QuickTile` still draws as a plain cell in the keycap pill grid. | done (W22-styles) |
 | B30 | 2026-10-20 | lead (session 9) | `kurashid --test hosts` `a_scoped_connection_reaches_its_own_mod_and_nothing_else` failed once under heavy parallel load (no reply to p1 in time); passes alone. Timing margin in the fake host test. | new |
 | B31 | 2026-10-20 | lead (session 9) | `settings/test.sh` fails at P3 "import review: Apply does not hold the focus (Import file)" — also on the pre-session baseline 80640d6, so not a session-9 regression. `profile.import` itself answers its review (checked by CLI); the review's `applyBtn.forceActiveFocus()` does not take. Checks after P3 are not running. | done (session 10: the test imported its own export under a saved profile's name, refused since row 101; test fixed) |
 | I111 | 2026-10-20 | W21-island-morph report | Media face level bars are decorative: drive them from a real audio level (PipeWire peak, refcounted) and bench the 10 Hz bars while music plays. | new |
 | I112 | 2026-10-20 | W21-island-morph report | Satellites: OSD bubbles beside the island (Capsule `satellite/`) instead of widening the pill. | new |
 | I113 | 2026-10-20 | W21-island-morph report | Squash and stretch mid-morph (Capsule option), behind `springOn`; a rounded mini-art crop in the media pill. | new |
-| I114 | 2026-10-20 | W21-island-morph report | Glass decor: the island shape is opaque; draw it at `Theme.panel` once the path layers merge without showing through each other. | new |
-| I115 | 2026-10-20 | W21-island-morph report | Keycap chrome: a neck that joins the island's card to its own bar group block (today the keycap card floats free, no neck). | accepted (user, session 10: "yes it should join") — scheduled W22-styles |
+| I114 | 2026-10-20 | W21-island-morph report | Glass decor: the island shape is opaque; draw it at `Theme.panel` once the path layers merge without showing through each other. | done (W22-styles, session 10) |
+| I115 | 2026-10-20 | W21-island-morph report | Keycap chrome: a neck that joins the island's card to its own bar group block (today the keycap card floats free, no neck). | done (W22-styles: keycap and soft cards join their bar group) |
 | B32 | 2026-10-20 | W21-island-morph report | Once (early, not reproduced in 12 later runs) test-stage caught the morph stuck at ~55 % height with no content; suspect a SpringAnimation stopping while the Stage resizes. Watch `KURASHI_STAGE_DEBUG=1`. | new |
 | I116 | 2026-10-20 | user (session 10) | Sidebar details to be discussed with the user (web dock / side bars) before more sidebar work. | new — ask |
 | I117 | 2026-10-20 | user (session 10) | Decor "isekai": a cyberpunk feel (neon on deep night, glitch/scanline accents, angular cuts). Do not implement yet — the user will send inspiration first. | new — wait for inspiration |
@@ -169,6 +169,11 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I119 | 2026-10-20 | W22-tasks report (row 123) | Desk cards in the manifest's `provides` order (the `qml` map sorts keys, so the note sits above the list); per-card show/hide settings for mod desk cards. | new |
 | I120 | 2026-10-20 | W22-tasks report (row 124) | `tasks.notes.set {base}` refuses when the note changed on disk meanwhile (today last write wins). | new |
 | I121 | 2026-10-20 | W22-tasks report | Tasks: Todoist/TickTick backends, several lists and notes, reminders at a due time, a Japanese-locale run of `test-tasks.sh`; add `tasks` and `webdock` to `LINKED` in `frontend/test-mods-live.sh`. | new |
+| I122 | 2026-10-20 | W22-styles report | Soft chrome: the session menu, tray menu and peek cards (slide-ins, not morphs) cast no soft shadow — the Stage window leaves no room for it; bar group shadows are clipped short by the bar window's height. | new |
+| I123 | 2026-10-20 | W22-styles report | Glass: soft shadows show through translucent fills and darken them (draw the shadow outside the shape only, or mask it). | new |
+| I124 | 2026-10-20 | W22-styles report | Lock backgrounds (dot field, graph paper, glows) are not repainted when the theme changes while locked. | new |
+| I125 | 2026-10-20 | lead (session 10) | Mods' desk cards and the tasks panel use a few `Theme.keycap` (now `ringW > 0`) checks; move them to `lifted`/`boxed`/`outlineColor` so line and soft looks style them too. | new |
+| I126 | 2026-10-20 | lead (session 10) | Launcher `>` commands (actions registry) and a web search row (rest of I105). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

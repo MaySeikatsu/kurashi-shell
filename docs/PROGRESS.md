@@ -198,7 +198,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | Step | Description | Status | Branch / notes |
 |---|---|---|---|
 | S10.0 | Contracts: chrome `soft`/`line` + tokens, decors `terminal`/`washi`, recipes look-only (no layout keys, test), `desk:` provide (row 120), fonts in HM + dev shell | ✅ | lead, feat/s10-contracts |
-| W22.1 | Styles: Block draws four chromes, every surface per decor, keycap island card joins its bar group (I115), glass island (I114), I109, I110 (card `W22-styles`) | 🟡 | agent |
-| W22.2 | Tasks + notes mod over Markdown (Obsidian Tasks syntax), desk cards, panel, bar widget, mock parity (card `W22-tasks`) | 🟡 | agent |
-| S10.1 | Settings: decor cards with previews (I104) | 🟡 | lead |
+| W22.1 | Styles: Block draws four chromes, every surface per decor, keycap island card joins its bar group (I115), glass island (I114), I109, I110 (card `W22-styles`) | ✅ functional · UX ✅ first pass (`frontend/shots/look/<decor>/`; I122–I125) | merged 5b9f66b |
+| W22.2 | Tasks + notes mod over Markdown (Obsidian Tasks syntax), desk cards, panel, bar widget, mock parity (card `W22-tasks`) | ✅ functional · UX ✅ first pass (`mods/tasks/shots/`; I118–I121) | merged 27afd21 |
+| S10.1 | Settings: decor cards drawn from `theme.decors` (I104); launcher unit conversions (I105); bundled look+layout profiles (`profiles/`); B31 fixed (stale test) | ✅ functional · UX ✅ first pass (`settings/shots/14-palette-keyboard.png`) | merged 7efd324 |
 
