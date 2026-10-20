@@ -198,11 +198,34 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             Ok(None)
         }
     });
+    // K47 (5): the frontend's polkit agent says a dialog is up (`{active: true}`) or gone (`{active: false}`), so the
+    // island and the Stage can stay out of its way. UI state only: the flow itself is Quickshell's. Absent = false.
+    let h = hub.clone();
+    actions.register("ui.polkit", "action.ui.polkit", move |a| {
+        let hub = h.clone();
+        async move {
+            let active = a["active"]
+                .as_bool()
+                .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+            hub.update("runtime.ui", None, |d| d["polkit"] = json!(active))
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
     let h = hub.clone();
     actions.register("ui.close", "action.ui.close", move |_| {
         let hub = h.clone();
         async move {
-            hub.set("runtime.ui", ui_closed(), None)
+            // Closing the panels does not close a polkit dialog: its flag stays as the agent last said.
+            let polkit = hub
+                .snapshot("runtime.ui")
+                .ok()
+                .and_then(|(_, d)| d.get("polkit").cloned());
+            let mut closed = ui_closed();
+            if let Some(p) = polkit {
+                closed["polkit"] = p;
+            }
+            hub.set("runtime.ui", closed, None)
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
         }

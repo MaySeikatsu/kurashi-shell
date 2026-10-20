@@ -159,36 +159,9 @@ start_harness() {
   sleep "${SHELL_WAIT:-4}"
 }
 
-for DECOR in $DECORS; do
-  echo "== $DECOR: polkit dialog"
-  start_daemon "$DECOR"
-  start_harness 1
-  wait_ui 'd.get("polkit") is True' 20
-  check "$(ui_is 'd.get("polkit") is True' && echo 1 || echo 0)" "$DECOR the dialog tells the daemon it is up"
-  shot "polkit-prompt-$DECOR" "$CARD_GEOM"
-  keys w r o n g return
-  shot "polkit-wrong-$DECOR" "$CARD_GEOM"
-  keys escape
-  wait_ui 'd.get("polkit") is False' 20
-  check "$(ui_is 'd.get("polkit") is False' && echo 1 || echo 0)" "$DECOR Escape cancels; the daemon hears the dialog is gone"
-  check "$(swaymsg -t get_tree 2>/dev/null | grep -q kurashi-polkit && echo 0 || echo 1)" "$DECOR no polkit surface once cancelled"
-done
-
-echo "== sekai: two identities"
-start_daemon sekai
-start_harness 2
-wait_ui 'd.get("polkit") is True' 20
-shot "polkit-identities-sekai" "$CARD_GEOM"
-stop_shell
-
-echo "== the real shell: agent registration and screen corners at 24 px"
-start_daemon sekai "theme.shape.screen_corners = 24"
-env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" KURASHI_POLKIT_AGENT=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
-SHPID=$!
-sleep 6
-check "$(grep -q 'polkit: agent \(registered\|not registered\)' "$R/qs.log" && echo 1 || echo 0)" "the agent's registration result is logged"
-grep -m1 'polkit: agent' "$R/qs.log" || true
-grim -t ppm "$R/full.ppm"
+# `px.py <ppm> x,y,want ...`: each pixel of a full-output grab is `black`, `bg` (the sandbox's background #8fb8c8) or
+# `dim` (the background under the dialog's scrim: darker, not black). Layer surfaces are not in sway's tree, so the
+# pixels are the evidence that a surface is there or gone.
 cat > "$W/px.py" <<'PY'
 import sys
 data = open(sys.argv[1], "rb").read()
@@ -201,29 +174,67 @@ while len(fields) < 4:
         j += 1
     fields.append(data[i:j]); i = j
 w, h, raster = int(fields[1]), int(fields[2]), data[i + 1:]
-def px(x, y):
-    o = (y * w + x) * 3
-    return tuple(raster[o:o + 3])
-# (x, y, want): "black" or "bg" (not black)
+BG = (0x8f, 0xb8, 0xc8)
 ok = True
-for x, y, want in [(1, 1439 - 1, "black"), (2559 - 1, 1439 - 1, "black"), (14, 1439 - 14, "bg"), (2559 - 14, 1439 - 14, "bg"),
-                   (2, 2, "black"), (2559 - 2, 2, "black")]:
-    p = px(x, y)
+for arg in sys.argv[2:]:
+    x, y, want = arg.split(",")
+    x, y = int(x), int(y)
+    o = (y * w + x) * 3
+    p = tuple(raster[o:o + 3])
     black = max(p) < 16
-    good = black if want == "black" else not black
-    print(f"({x},{y}) {p} want {want}: {'ok' if good else 'FAIL'}")
+    bg = all(abs(a - b) <= 8 for a, b in zip(p, BG))
+    good = {"black": black, "bg": bg, "dim": not black and not bg and all(a < b for a, b in zip(p, BG))}[want]
+    print(f"({x},{y}) {p} {want}: {'ok' if good else 'FAIL'}")
     ok &= good
 sys.exit(0 if ok else 1)
 PY
-check "$(python3 -I "$W/px.py" "$R/full.ppm" > "$R/px.log" 2>&1 && echo 1 || echo 0)" "corners: black at the output's corners, the background 14 px in ($(tr '\n' ' ' < "$R/px.log"))"
+pixels() { # pixels <label> x,y,want ...: one check
+  local label=$1; shift
+  grim -t ppm "$R/full.ppm"
+  check "$(python3 -I "$W/px.py" "$R/full.ppm" "$@" > "$R/px.log" 2>&1 && echo 1 || echo 0)" "$label ($(tr '\n' ' ' < "$R/px.log"))"
+}
+
+for DECOR in $DECORS; do
+  echo "== $DECOR: polkit dialog"
+  start_daemon "$DECOR"
+  start_harness 1
+  wait_ui 'd.get("polkit") is True' 20
+  check "$(ui_is 'd.get("polkit") is True' && echo 1 || echo 0)" "$DECOR the dialog tells the daemon it is up"
+  shot "polkit-prompt-$DECOR" "$CARD_GEOM"
+  pixels "$DECOR the scrim covers the output" 100,1300,dim 2400,200,dim
+  keys w r o n g return
+  shot "polkit-wrong-$DECOR" "$CARD_GEOM"
+  keys escape
+  wait_ui 'd.get("polkit") is False' 20
+  check "$(ui_is 'd.get("polkit") is False' && echo 1 || echo 0)" "$DECOR Escape cancels; the daemon hears the dialog is gone"
+  sleep 0.5
+  pixels "$DECOR no dialog once cancelled" 100,1300,bg 2400,200,bg
+done
+
+echo "== sekai: two identities"
+start_daemon sekai
+start_harness 2
+wait_ui 'd.get("polkit") is True' 20
+shot "polkit-identities-sekai" "$CARD_GEOM"
+stop_shell
+
+echo "== the real shell: agent registration and screen corners at 24 px"
+start_daemon sekai "theme.shape.screen_corners = 24"
+env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" KURASHI_POLKIT_AGENT=1 qs -p "$ROOT/frontend" >> "$R/qs-real.log" 2>&1 &
+SHPID=$!
+sleep 6
+check "$(grep -q 'polkit: agent \(registered\|not registered\)' "$R/qs-real.log" && echo 1 || echo 0)" "the agent's registration result is logged: $(grep -m1 -o 'polkit: agent.*' "$R/qs-real.log" || echo none)"
+pixels "corners at 24: black at the output's corners, the background 14 px in" \
+  1,1438,black 2558,1438,black 2,2,black 2557,2,black 14,1425,bg 2545,1425,bg
 grim -g "0,0 120x120" "$OUT/corners-24-tl.png"
 grim -g "2440,1320 120x120" "$OUT/corners-24-br.png"
-check "$(swaymsg -t get_tree 2>/dev/null | grep -c '"kurashi-corners"' | grep -qx 4 && echo 1 || echo 0)" "corners: four surfaces on the one output"
 K set theme.shape.screen_corners=0 >/dev/null || fail "set screen_corners failed"
 sleep 1.5
-check "$(swaymsg -t get_tree 2>/dev/null | grep -q '"kurashi-corners"' && echo 0 || echo 1)" "corners: no surface at 0"
+pixels "corners at 0: the background at the output's corners" 1,1438,bg 2558,1438,bg
 stop_shell
 stop_daemon
+cat "$R/qs-real.log" >> "$R/qs.log"
+
 
 if grep -Eq 'ReferenceError|TypeError|binding loop|is not a function|is not defined|is not a type' "$R/qs.log" 2>/dev/null; then
   echo "QML errors in qs.log: $(grep -E 'ReferenceError|TypeError|binding loop|is not a function|is not defined|is not a type' "$R/qs.log" | head -5)" >&2
