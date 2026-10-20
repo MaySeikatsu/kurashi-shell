@@ -1,0 +1,42 @@
+# Tokyo Night — "night" (dark) and "day" (light) (github.com/folke/tokyonight.nvim, Apache-2.0).
+# Roles after shellseikatsu `_tokyonightPalette()` (W25, K50): blue accent, magenta secondary, cyan tertiary.
+# Meant for decor `tokyo-night`.
+name = "tokyo-night"
+kind = "pair"
+description = "Tokyo Night indigo with neon accents"
+
+[dark]
+surface = "#1a1b26"                   # bg
+surface_container_lowest = "#16161e"  # bg_dark
+surface_container_low = "#1e202e"
+surface_container = "#24283b"
+surface_container_high = "#292e42"    # bg_highlight
+surface_container_highest = "#343a52"
+on_surface = "#c0caf5"                # fg
+on_surface_variant = "#a9b1d6"        # fg_dark
+outline = "#565f89"                   # comment
+outline_variant = "#414868"
+accent = "#7aa2f7"                    # blue
+secondary = "#bb9af7"                 # magenta
+tertiary = "#7dcfff"                  # cyan
+warning = "#e0af68"                   # yellow
+error = "#f7768e"                     # red
+success = "#9ece6a"                   # green
+
+[light]
+surface = "#e1e2e7"
+surface_container_lowest = "#f0f0f4"
+surface_container_low = "#d9dae2"
+surface_container = "#d0d5e3"
+surface_container_high = "#c4c8da"
+surface_container_highest = "#b7bcd2"
+on_surface = "#3760bf"
+on_surface_variant = "#6172b0"
+outline = "#848cb5"
+outline_variant = "#a8aecb"
+accent = "#2e7de9"
+secondary = "#9854f1"
+tertiary = "#007197"
+warning = "#8c6c3e"
+error = "#f52a65"
+success = "#587539"

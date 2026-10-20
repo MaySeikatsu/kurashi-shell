@@ -36,7 +36,7 @@ Rectangle {
     // bottom-left corners, drawn once per size (the lock surface exists only while locked).
     Canvas {
         anchors.fill: parent
-        visible: Theme.ringW > 0
+        visible: Theme.ringW > 0 && !groundFrame.grounds
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onPaint: {
@@ -63,7 +63,7 @@ Rectangle {
     readonly property bool ruled: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0
     Canvas {
         anchors.fill: parent
-        visible: c.ruled || Theme.softR > 0
+        visible: (c.ruled || Theme.softR > 0) && !groundFrame.grounds
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onVisibleChanged: if (visible) requestPaint()
@@ -90,6 +90,15 @@ Rectangle {
                 g.fillRect(0, 0, width, height)
             }
         }
+    }
+
+    // The decor pack's ground (W25, K50): the frame's backdrop for the whole surface (shellseikatsu's lockscreen
+    // styles, looks only: the column stays where it is). It replaces the chrome-derived grounds above while it draws.
+    FrameHost {
+        id: groundFrame
+        anchors.fill: parent
+        kind: "ground"
+        animate: c.visible
     }
 
     function refocus() { field.forceActiveFocus() }

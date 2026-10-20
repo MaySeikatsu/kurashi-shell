@@ -1,5 +1,9 @@
 //! The `theme` document (DESIGN-SYSTEM §1–§3): resolved config → `kurashi-theme` pipeline → flat
 //! token map. Recomputed on config changes only; renderers never compute colours (rule 4).
+//!
+//! Token `decor.frame` (W25, K50): the active decor pack's `[slots] frame` — read from `theme.decor` through
+//! `kurashi_theme::decor::find`, `""` for `none` or a pack without one. The frontend loads the frame component of that
+//! name (`frontend/components/frames/`); it is data, no renderer compares it (rule 4).
 
 use std::sync::Arc;
 
@@ -170,6 +174,13 @@ fn decor_previews(fonts: &dyn FontProvider) -> Value {
         .clone()
 }
 
+/// The active decor pack's frame (`[slots] frame`), `""` when there is none (W25).
+fn decor_frame(store: &ConfigStore) -> String {
+    kurashi_theme::decor::find(&s(store, "theme.decor"))
+        .map(|d| d.frame)
+        .unwrap_or_default()
+}
+
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
@@ -193,6 +204,7 @@ pub fn document_with(
                 tokens.insert("bar.height".into(), h.value);
             }
             tokens.insert("blur".into(), json!(input.axes.blur));
+            tokens.insert("decor.frame".into(), json!(decor_frame(store)));
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
@@ -302,4 +314,41 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
         o.remove("error");
     }
     let _ = hub.set(DOC, next, None);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn store_with(root: &std::path::Path, decor: &str) -> std::sync::Arc<ConfigStore> {
+        std::fs::create_dir_all(root.join("config")).unwrap();
+        std::fs::write(
+            root.join("config/config.toml"),
+            format!("[theme]\ndecor = \"{decor}\"\n"),
+        )
+        .unwrap();
+        ConfigStore::open(
+            Hub::new(),
+            kurashi_schema::v1::registry(),
+            kurashi_config::Paths::rooted(root),
+            kurashi_config::Options::default(),
+        )
+    }
+
+    /// W25: the active pack's frame travels as `decor.frame`; a pack without one (or none) is `""`.
+    #[test]
+    fn decor_frame_token_follows_the_active_pack() {
+        let root = std::env::temp_dir().join(format!("kurashid-frame-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let fonts = kurashi_theme::FakeFonts::new(&["Inter"]);
+        let doc = document(&store_with(&root, "yorha"), &fonts, None);
+        assert_eq!(doc["tokens"]["decor.frame"], "yorha", "{}", doc["error"]);
+        // The pack's own palette is in effect, at the decor's layer.
+        assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
+        let doc = document(&store_with(&root, "sekai"), &fonts, None);
+        assert_eq!(doc["tokens"]["decor.frame"], "");
+        let doc = document(&store_with(&root, "none"), &fonts, None);
+        assert_eq!(doc["tokens"]["decor.frame"], "");
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

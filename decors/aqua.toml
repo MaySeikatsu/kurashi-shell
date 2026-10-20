@@ -1,0 +1,16 @@
+name = "aqua"
+label = "config.choice.decor.aqua"
+# After shellseikatsu `Services/Modes/Macos.qml` and `Widgets/GlassSheen.qml` (W25): frosted, soft, deferential —
+# graphite glass with a specular rim, squircles, smooth and never bouncy; SF Pro when installed, Inter otherwise.
+[recipe]
+"theme.colors.palette" = "aqua"
+"theme.colors.scheme" = "dark"
+"theme.chrome" = "soft"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "glass"
+"theme.material.opacity" = 0.6
+"theme.shape.corners" = "squircle"
+"theme.shape.radius_scale" = 1.35
+"theme.typography.family" = ["SF Pro Display", "SF Pro Text", "Helvetica Neue", "Inter", "Noto Sans CJK JP", "sans-serif"]
+[slots]
+frame = "sheen"

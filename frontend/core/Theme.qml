@@ -65,6 +65,8 @@ Singleton {
     readonly property real pressScale: tok("chrome.press_scale", 1)
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)
+    // W25: the decor pack's frame (`decor.frame`), a name FrameHost loads as data ("" = none; rule 4).
+    readonly property string frame: tok("decor.frame", "")
     readonly property int iconFill: tok("icon.fill", 0)
     readonly property int iconWeight: tok("icon.weight", 400)
     // Row 125: a block casts a shadow of either kind (bar groups float), or is an outlined box with no fill (line).

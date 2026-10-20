@@ -1,0 +1,16 @@
+name = "tokyo-night"
+label = "config.choice.decor.tokyo-night"
+# After shellseikatsu `Services/Modes/Tokyonight.qml` (W25): the editor theme as a shell — deep indigo, neon
+# accents, compact mono type, small corners, quick calm motion.
+[recipe]
+"theme.colors.palette" = "tokyo-night"
+"theme.colors.scheme" = "dark"
+"theme.chrome" = "flat"
+"theme.density" = "compact"
+"theme.motion.profile" = "calm"
+"theme.motion.speed" = 1.25
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.88
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 0.85
+"theme.typography.family" = ["JetBrainsMono Nerd Font", "JetBrains Mono", "Noto Sans Mono CJK JP", "monospace"]

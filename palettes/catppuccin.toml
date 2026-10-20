@@ -1,0 +1,42 @@
+# Catppuccin — Mocha (dark) and Latte (light), the soothing pastel classic (catppuccin.com/palette, MIT).
+# Roles after shellseikatsu `Services/Appearance.qml` `_catppuccinPalette()` (W25, K50): mauve accent, blue
+# secondary, pink tertiary, the surface0..2 ladder as containers. Meant for decor `catppuccin`.
+name = "catppuccin"
+kind = "pair"
+description = "Catppuccin Mocha / Latte pastels"
+
+[dark]
+surface = "#1e1e2e"                   # base
+surface_container_lowest = "#11111b"  # crust
+surface_container_low = "#181825"     # mantle
+surface_container = "#313244"         # surface0
+surface_container_high = "#45475a"    # surface1
+surface_container_highest = "#585b70" # surface2
+on_surface = "#cdd6f4"                # text
+on_surface_variant = "#a6adc8"        # subtext0
+outline = "#7f849c"                   # overlay1
+outline_variant = "#585b70"
+accent = "#cba6f7"                    # mauve
+secondary = "#89b4fa"                 # blue
+tertiary = "#f5c2e7"                  # pink
+warning = "#f9e2af"                   # yellow
+error = "#f38ba8"                     # red
+success = "#a6e3a1"                   # green
+
+[light]
+surface = "#eff1f5"
+surface_container_lowest = "#ffffff"
+surface_container_low = "#e6e9ef"
+surface_container = "#dce0e8"
+surface_container_high = "#ccd0da"
+surface_container_highest = "#bcc0cc"
+on_surface = "#4c4f69"
+on_surface_variant = "#5c5f77"        # subtext1
+outline = "#8c8fa1"
+outline_variant = "#acb0be"
+accent = "#8839ef"
+secondary = "#1e66f5"
+tertiary = "#ea76cb"
+warning = "#df8e1d"
+error = "#d20f39"
+success = "#40a02b"

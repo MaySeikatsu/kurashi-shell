@@ -1,0 +1,14 @@
+name = "catppuccin"
+label = "config.choice.decor.catppuccin"
+# After shellseikatsu `Services/Modes/Catppuccin.qml` (W25): cozy pastels on warm dark, extra-round corners, a soft
+# shadow, springy motion.
+[recipe]
+"theme.colors.palette" = "catppuccin"
+"theme.colors.scheme" = "dark"
+"theme.chrome" = "soft"
+"theme.motion.profile" = "lively"
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.92
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 1.3
+"theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]
