@@ -112,7 +112,7 @@ The user: "ours is kinda stiff and non functional". What the references solved, 
 - **Liquid neck (Vitreus)**: where the shape's sides cross the bar's edge, concave fillets of up to `Theme.rLg`, in the
   shape's own colours, join it to the bar; under keycap chrome the outline and ring follow the fillets and melt into
   the bar's edge, the hard shadow is the body's only (it never runs along the bar). Only where the bar draws a strip:
-  keycap chrome floats the bar's groups on a clear strip (Bar.qml), so there the card is a free keycap with no neck.
+  keycap chrome floats the bar's groups on a clear strip (Bar.qml), so there the card was a free keycap with no neck (session 10: it joins its group, see below).
 - **Views with their own chrome** (`ownChrome`, the quick settings phone, also the power and bluetooth faces' pages): no
   card fill, padding or Close row; the shape grows to the phone's rect, dissolves into it, and the bar gets its pill back
   while the phone stands; closing brings the shape back to fold into the pill.
@@ -134,3 +134,18 @@ The user: "ours is kinda stiff and non functional". What the references solved, 
   otherwise, K16); one extra face instance in the shape's head while it is out.
 Evidence: `frontend/test-island-morph.sh` (frames 40/120/250 ms after `island.expand` and `ui.close`, sekai, wa-iro and a
 bottom bar) → `frontend/shots/island/morph-*.png`.
+
+## Session 10 looks: the joined island (W22-styles, K45, I114, I115)
+The user on I115: "Yes it should join". The shape picks its topology from tokens (rule 4), never from a chrome's name:
+- **Joined** (`chrome.groups` and a shadow of either kind — keycap, soft: the bar's groups float as blocks, no strip):
+  the shape's head *is* the island's bar block (the pill's rest rect from `IslandGeom`, its corners, its half ring); the
+  body grows out from under the head (its top from the pill's foot to the card's top, its width on the width spring) and a
+  neck with concave fillets (up to `radius.lg / 2`, clamped by the gap) joins them. One closed outline round head, neck
+  and body, so the keycap's outline, ring and hard shadow follow the joined shape; the soft chrome lays its shadow
+  (RectangularShadow, static) under the head and the body. The face stays in the head, where the pill was.
+- **Strip** (flat, line: the bar is one strip): as in session 9 — the liquid neck into the strip's edge. Line chrome
+  rules the strip's inner edge in the outline colour, so the card's outline runs on into the bar's.
+- **Glass (I114)**: every layer is one closed path and the outline and ring are bands (the path less its inset,
+  odd-even), so no layer lies under another and the fill is the panel's (`Theme.panel`: translucent under glass).
+- Evidence: `frontend/test-island-morph.sh` with `theme.decor = "sekai"` (joined keycap), `"glass"` (joined soft),
+  `"terminal"` (strip, square) → `frontend/shots/island/morph-{sekai,glass,terminal}-*.png`.
