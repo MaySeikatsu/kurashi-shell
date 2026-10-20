@@ -21,6 +21,13 @@ ShellRoot {
     readonly property var shownPin: pinById(shownId)
     readonly property bool cardOpen: doc.mode === "extended" && !!shownPin && shownPin.kind === "web"
     readonly property var keepWeb: keepList()
+    // `new_tabs` (K40): dock loads a link for a new tab or window in the pin's view; browser sends it out.
+    readonly property string newTabs: doc.new_tabs === "browser" ? "browser" : "dock"
+    // geometry.grace (24): the hover margin on the card's sides away from the strip; the mock's document has none.
+    readonly property int grace: geo.grace !== undefined ? geo.grace : 24
+    readonly property bool engaged: doc.engaged === true
+    // Test-only switch (test-host.sh): the intents and the card's state are logged.
+    readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
 
     function pinById(id) {
         for (var i = 0; i < pins.length; i++)
@@ -39,6 +46,7 @@ ShellRoot {
     }
     // Reports and actions go to the daemon over the scoped connection. A refusal is logged; the document is the truth.
     function report(action, args) {
+        if (debugLog) console.log("webdock-debug sent " + action + " " + JSON.stringify(args))
         Store.act(action, args, function (done, err) {
             if (err) console.warn("webdock: " + action + " refused: " + err.kind + " " + err.msg)
         })
@@ -79,6 +87,9 @@ ShellRoot {
         phoneWidth: root.geo.width || 412
         largePct: root.geo.large || 90
         output: root.doc.output || ""
+        grace: root.grace
+        newTabs: root.newTabs
+        engaged: root.engaged
         profiles: profiles
         report: root.report
     }
