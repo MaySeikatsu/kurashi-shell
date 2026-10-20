@@ -589,9 +589,11 @@ shot 25-import-error
 echo "keyboard P2: a file name the export folder does not hold is refused in place"
 
 # P3. import review, by keyboard: a file name the folder holds opens the review with Apply focused; Esc cancels it, nothing
-#     changes, and the field takes the focus back.
+#     changes, and the field takes the focus back. The export is imported under another name: a file named like a saved
+#     profile is refused (row 101, `profile_name_taken`) — B31 was this test importing mine.toml back as "mine".
+cp "$R/data/kurashi/exports/mine.toml" "$R/data/kurashi/exports/theirs.toml"
 for _ in $(seq 8); do echo backspace >&3; sleep 0.1; done
-kp m i n e
+kp t h e i r s
 kp return
 sleep 1
 [ "$(Q focused)" = "profile-apply" ] || fail "import review: Apply does not hold the focus ($(Q focused))"
@@ -599,19 +601,19 @@ shot 26-import-review
 kp escape
 sleep 0.5
 [ "$(Q focused)" = "Import file" ] || fail "import review: Esc did not cancel back to the field ($(Q focused))"
-echo "keyboard P3: Return reviewed mine.toml with Apply focused; Esc cancelled the review"
+echo "keyboard P3: Return reviewed theirs.toml with Apply focused; Esc cancelled the review"
 
 # P4. Apply, by keyboard: Return on the field reviews again, Return on Apply loads the file as one undoable change. Its
-#     profile names history size, so the user's 210 is replaced by mine's value (source: profile).
+#     profile names history size, so the user's 210 is replaced by its value (source: profile).
 kp return
 sleep 1
 [ "$(Q focused)" = "profile-apply" ] || fail "import review: the second review does not hold Apply ($(Q focused))"
 kp return
 for _ in $(seq 30); do [ "$(Q focused)" = "Import file" ] && break; sleep 0.2; done
 [ "$(Q focused)" = "Import file" ] || fail "import: focus did not return to the field after Apply ($(Q focused))"
-[ "$(src notifications.history_max)" = profile ] || fail "import: Apply did not load mine ($(src notifications.history_max))"
+[ "$(src notifications.history_max)" = profile ] || fail "import: Apply did not load theirs ($(src notifications.history_max))"
 shot 27-import-applied
-echo "keyboard P4: Apply loaded mine.toml as one change; the focus is back on the field"
+echo "keyboard P4: Apply loaded theirs.toml as one change; the focus is back on the field"
 
 # 9. profiles (K27): a profile file that appears while the Profiles page is open is listed by the same Settings process,
 #    with no reconnect (the daemon pushes the list when the file appears).
