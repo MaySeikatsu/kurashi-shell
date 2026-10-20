@@ -28,6 +28,19 @@ function widgets(doc) {
     return out
 }
 
+// Every `surface:*` component of every enabled mod, in mod order: [{ mod, provide, url }] (K38, row 88). The frontend
+// creates one instance per output of each (shell.qml), with the output as its `screen`.
+function surfaces(doc) {
+    var out = []
+    var list = (doc && doc.mods) || []
+    for (var i = 0; i < list.length; i++) {
+        var q = list[i].qml || ({})
+        for (var key in q)
+            if (key.indexOf("surface:") === 0) out.push({ mod: list[i].id, provide: key, url: q[key] })
+    }
+    return out
+}
+
 // `mod:<id>:<panel>` (runtime.ui.panel of a mod panel, K26) as { mod, panel }; null for any other panel.
 function panelOf(panel) {
     var s = String(panel || "")
