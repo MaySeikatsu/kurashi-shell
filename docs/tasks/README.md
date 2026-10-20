@@ -239,3 +239,12 @@ Lead (before): `mod.panel.open` in kurashid + mock; PROTOCOL §8 `audio.sink.def
 | [W19-wallpaper](W19-wallpaper.md) | wallpaper Panel + components, `crates/kurashi-mod-wallpaper/`, wallpaper test/shots | haiku (max) |
 | [W19-calendar](W19-calendar.md) | ClockView, SlotHost, ModLoader (props), `crates/kurashi-mock/`, weather `slots/` + mod.toml, hello slots, test-stage | haiku (max) |
 Sandbox names: each card uses names prefixed with its card id (`w19-side-…`, `w19-weather-…`, `w19-wall-…`, `w19-cal-…`).
+
+## Wave 20 (session 8; web dock shell side, K40; contract rows 88, 109–111 on main)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W20-webdock-daemon](W20-webdock-daemon.md) | `crates/kurashi-mod-webdock/`, mock `webdock.rs`, kurashid `tests/webdock.rs`, `i18n/*/mod-webdock.toml` (append) | haiku (max) |
+| [W20-webdock-shell](W20-webdock-shell.md) | `frontend/shell.qml` (surfaces), `core/mods.js`, `mods/webdock/qml/`, `test-dock.sh`, `i18n/*/mod-webdock-dock.toml` | haiku (max) |
+| [W20-webdock-host](W20-webdock-host.md) | `mods/webdock/host/`, host tests + pages, `i18n/*/mod-webdock-host.toml` | haiku (max) |
+| [W20-webdock-nix](W20-webdock-nix.md) | `nix/webdock.nix`, flake entries, HM/NixOS modules, `nix/tests/`, niri binds doc (not `nix/package.nix`) | haiku (max) |
+Sandbox names: `w20-dmn-…`, `w20-shell-…`, `w20-host-…`, `w20-nix-…`.
