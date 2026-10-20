@@ -13,6 +13,8 @@
         kurashi = pkgs.callPackage ./nix/package.nix { };
         # The web dock's host process (K38, K39); not part of the base closure.
         quickshell-webengine = pkgs.callPackage ./nix/quickshell-webengine.nix { };
+        # The web dock's package (K38): the host plus xdg-open. Home-Manager and NixOS install it with the dock on.
+        kurashi-webdock = pkgs.callPackage ./nix/webdock.nix { inherit quickshell-webengine; };
         default = kurashi;
       });
 
@@ -53,6 +55,12 @@
 
       checks = forAll (pkgs: {
         build = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi;
+        # K39: the base closure has no QtWebEngine, the web dock's closure has one (nix/tests/closure.nix).
+        webdock-closure = import ./nix/tests/closure.nix {
+          inherit pkgs;
+          base = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi;
+          webdock = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi-webdock;
+        };
       });
 
       formatter = forAll (pkgs: pkgs.nixfmt-rfc-style);
