@@ -123,6 +123,9 @@ pub enum Provide {
     /// A process of the mod's own that the daemon starts and stops (K38, `ModCtx::host`): it connects back
     /// with a scoped hello and sees only the mod's documents and actions.
     Host(String),
+    /// A layer-shell surface of the mod's own that the frontend creates once per output while the mod is enabled
+    /// (K38, row 88): `qml/surfaces/<name>.qml`, required property `screen`, 0 frames while it shows nothing.
+    Surface(String),
     I18n,
 }
 
@@ -160,6 +163,7 @@ impl Provide {
             "choices" => Self::Choices(id),
             "job" => Self::Job(id),
             "host" => Self::Host(id),
+            "surface" => Self::Surface(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -202,6 +206,7 @@ impl fmt::Display for Provide {
             Self::Choices(i) => write!(f, "choices:{i}"),
             Self::Job(i) => write!(f, "job:{i}"),
             Self::Host(i) => write!(f, "host:{i}"),
+            Self::Surface(i) => write!(f, "surface:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }

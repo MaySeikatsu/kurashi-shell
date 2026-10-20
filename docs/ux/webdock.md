@@ -1,6 +1,6 @@
 # Web dock (mod `webdock`) — UX brief
-Status: draft (lead, session 7, 2026-10-19) — the user's decisions are in; the state machine and sizes below wait for
-the user's review, then the contract freezes (CONTRACT-CHANGE rows 88–94) and cards follow. K38, K39.
+Status: decided (user review, session 8, 2026-10-20; K38, K39, K40) — the state machine, sizes and web rules below
+are the user's; contract rows 88–94 and 109–111; cards W20-*.
 
 ## Job
 Keep a few web apps and kurashi views one hover away at a screen edge: a click opens one in a phone-sized panel,
@@ -24,6 +24,19 @@ a bar widget; configured in Settings › Web dock.
   unused (setting).
 - **Later, designed now:** a browse/search section and "pin this page".
 - **Name:** `webdock` · "Web dock" / 「ウェブドック」.
+
+## User decisions (session 8, review of the interpretations; K40)
+- **Hover:** a rest on the edge shows the strip **and re-opens the last page**; a click on that page's icon puts it
+  away and the next reveal shows only the strip; a click into the dock keeps it until focus leaves (Floorp).
+- **Timing and sizes as proposed:** reveal 250 ms (500 ms on a shared edge), hide 400 ms + 24 px grace; strip 56 px,
+  phone 412 × ≤ 2× width, large 90 % — all settings.
+- **Pinned** overlays; *reserve space* is an option (off) and reserves only the strip.
+- **Keybind** `Mod+B` (Home-Manager default). **Kurashi views** = mod panels in v1.
+- **New tabs stay in the dock** by default (the link replaces the page, Back returns); a setting sends them to the
+  default browser instead. Sign-in popups stay sheets; permissions and downloads stay refused with a chip.
+- **Home and history:** the header has back and forward; once the page has left the pin's address a **home** button
+  returns to it, and **"Replace pin with this page"** makes the current page the pin's address (undoable).
+- The accent-colour design pass stays separate (later); the dock is built on today's tokens.
 
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
@@ -71,11 +84,13 @@ State: `mode` (hidden | compact | extended), `shown` (the pin the extended card 
 |---|---|---|
 | hidden | pointer rests on the edge zone ≥ reveal delay (250 ms; 500 ms on an edge shared with another output) | compact; extended(`shown`) as well when `shown` is set and *reopen last* is on (default) |
 | hidden | keybind / bar widget | as above, with keyboard focus on the strip (or the page) |
-| compact | click a pin P | extended(P), `shown` = P |
+| compact / extended | click a pin P (`webdock.select`) | extended(P), `shown` = P |
 | extended(P) | click P again | compact, `shown` cleared (P stays loaded) |
 | extended(P) | click Q | extended(Q), `shown` = Q |
 | compact / extended | pointer leaves strip + card (24 px hysteresis) ≥ hide delay (400 ms), not pinned, not engaged | hidden (`shown` kept) |
-| engaged | keyboard focus leaves (click elsewhere), keybind, Escape on the dock's chrome | hidden (pinned: stays) |
+| engaged | keyboard focus leaves (click elsewhere) | as a pointer leave: hide after 400 ms unless pinned or hovered |
+| shown | keybind / bar widget | hidden |
+| extended / compact | Escape on the dock's chrome (`webdock.back`) | compact / hidden (pinned: stays compact) |
 | any | pin toggle | `pinned` flips; pinned ignores leave; unpinned returns to the rules above |
 | extended | size toggle | phone ↔ large |
 
@@ -91,9 +106,10 @@ the focused output) and stays there while open (latched, like the Stage).
   view pins, then at the end: **pin-dock toggle**, **+ add**, **settings**. Overflow scrolls (wheel), never shrinks icons.
 - **Card** (extended): next to the strip, `Theme` card style. Phone: `width` 412 px (setting 360..720) × min(2 ×
   width, output − 2 gaps), centred on the strip (left/right) or under the clicked icon (top/bottom, clamped). Large:
-  `large` 90 % of the output (setting 50..95 %), full available height. **Header** (36 px): back, title (page title or
-  pin name), reload, **mobile/desktop** segmented toggle (sites only), phone/large, open in browser, collapse. Body:
-  the page or the view.
+  `large` 90 % of the output (setting 50..95 %), full available height. **Header** (36 px): back, forward, title
+  (page title or pin name), **home** (only once the page left the pin's address), reload, **mobile/desktop** segmented
+  toggle (sites only), phone/large, overflow menu (open in browser, **replace pin with this page** — shown with home),
+  collapse. Body: the page or the view.
 - Pinned + *reserve space* (setting, off): the strip claims its width as an exclusive zone; the card always overlays.
 
 ### Sites
@@ -102,8 +118,8 @@ the focused output) and stays there while open (latched, like the Stage).
   shows a hint chip "Desktop pages may need the large size". Some sites ignore the user agent — the toggle says
   "view: mobile" (what was sent), not "the site is mobile".
 - **Sign-in:** each pin has its own profile (cookies, storage) unless pins share a named profile ("google" for Mail +
-  Calendar). Popups with an opener (sign-in windows) open as a sheet inside the card; links for a new tab or window go
-  to the browser. If a site refuses sign-in in an embedded engine, the card says so and offers "open in browser" — no
+  Calendar). Popups with an opener (sign-in windows) open as a sheet inside the card; links for a new tab or window load
+  in the pin's own view (`new_tabs = dock`, default; Back returns) or go to the browser (`new_tabs = browser`). If a site refuses sign-in in an embedded engine, the card says so and offers "open in browser" — no
   user-agent tricks (K38).
 - **Permissions** (camera, microphone, location, notifications, screen, clipboard read, downloads): refused in v1; the
   header shows a chip "Blocked: camera" with the reason (I71).
