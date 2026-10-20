@@ -55,7 +55,7 @@ PanelWindow {
         })
     }
     function launch() {
-        if (sel < 0 || sel >= results.length) return
+        if (sel < 0 || sel >= results.length || !results[sel].id) return
         Store.act("launcher.launch", { id: results[sel].id }, function (done, e) {
             // Close only once the app is up: a failure stays open with its reason.
             if (e) { lp.err = lp.errorText(e); return }
@@ -166,6 +166,15 @@ PanelWindow {
                     font: field.font
                     text: I18n.tr("launcher.placeholder")
                 }
+                // The prefix modes, named while the field is empty.
+                Text {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    visible: field.text === "" && field.preeditText === ""
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("launcher.modes")
+                }
             }
         }
 
@@ -212,6 +221,11 @@ PanelWindow {
                 required property var modelData
                 required property int index
                 readonly property bool isCalc: modelData.kind === "calc"
+                // Prefix modes (daemon): `:` emoji, `;` clipboard; a `note` row only explains (an i18n key, no id).
+                readonly property bool isEmoji: modelData.kind === "emoji"
+                readonly property bool isClip: modelData.kind === "clip"
+                readonly property bool isNote: modelData.kind === "note"
+                readonly property bool copies: isCalc || isEmoji || isClip
                 readonly property bool selected: index === lp.sel
                 width: list.width
                 height: lp.rowH
@@ -221,7 +235,7 @@ PanelWindow {
                     x: 10; anchors.verticalCenter: parent.verticalCenter
                     anchors.verticalCenterOffset: -Theme.shadowDy / 2
                     width: 30; height: 30
-                    property string src: !row.isCalc && modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
+                    property string src: modelData.kind === "app" && modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
                     Image {
                         id: img
                         anchors.fill: parent
@@ -235,20 +249,26 @@ PanelWindow {
                         anchors.fill: parent
                         visible: !img.visible
                         radius: Theme.rSm
-                        color: row.isCalc ? Theme.accent : Theme.surface
-                        border.width: Theme.keycap ? Theme.outlineW : 0
+                        color: row.isCalc ? Theme.accent : (row.isEmoji ? "transparent" : Theme.surface)
+                        border.width: Theme.keycap && !row.isEmoji ? Theme.outlineW : 0
                         border.color: Theme.line
                         Icon {
                             anchors.centerIn: parent
-                            visible: row.isCalc
-                            name: "calculate"
-                            glyph: "="
+                            visible: row.isCalc || row.isClip || row.isNote
+                            name: row.isCalc ? "calculate" : (row.isClip ? "content_paste" : "info")
+                            glyph: row.isCalc ? "=" : (row.isClip ? "⎘" : "i")
                             filled: true
-                            color: Theme.fgOnAccent
+                            color: row.isCalc ? Theme.fgOnAccent : Theme.dim
                         }
                         Text {
                             anchors.centerIn: parent
-                            visible: !row.isCalc
+                            visible: row.isEmoji
+                            font.pixelSize: 24
+                            text: modelData.glyph || ""
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: modelData.kind === "app" || modelData.kind === "action"
                             color: Theme.dim
                             font.pixelSize: Theme.fs
                             font.weight: Theme.wBold
@@ -267,7 +287,7 @@ PanelWindow {
                         font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : Theme.fs
                         font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                         font.family: Theme.fam(text, Theme.families)
-                        text: modelData.name
+                        text: row.isNote ? I18n.tr(modelData.name) : modelData.name
                     }
                     Text {
                         width: parent.width
@@ -283,11 +303,11 @@ PanelWindow {
                 Text {
                     id: hint
                     anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
-                    visible: row.selected
+                    visible: row.selected && !row.isNote
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.family: Theme.fam(text, Theme.families)
-                    text: "↵ " + I18n.tr(row.isCalc ? "launcher.copy" : "launcher.open")
+                    text: "↵ " + I18n.tr(row.copies ? "launcher.copy" : "launcher.open")
                 }
                 MouseArea {
                     anchors.fill: parent

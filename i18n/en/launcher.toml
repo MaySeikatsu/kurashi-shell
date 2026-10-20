@@ -3,3 +3,6 @@
 "launcher.copy" = "Copy"
 "launcher.open" = "Open"
 "launcher.empty" = "No matches"
+"launcher.modes" = ": emoji  ·  ; clipboard"
+"launcher.clip.unavailable" = "Clipboard history needs cliphist (wl-paste --watch cliphist store)"
+"launcher.clip.empty" = "The clipboard history is empty"

@@ -72,7 +72,7 @@ pub struct Bar {
 #[kurashi(page = "appearance")]
 pub struct Theme {
     /// Look
-    /// A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own
+    /// A decor pack: recommends colours, chrome, motion, corners and fonts in one choice. Your own
     /// settings still win over what it recommends (K42).
     #[kurashi(default = Decor::None, section = "colors")]
     pub decor: Decor,

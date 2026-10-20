@@ -141,7 +141,7 @@
 "config.clock.week_numbers.label" = "週番号"
 "config.clock.week_numbers.help" = "カレンダーの各行の横に ISO 週番号を表示します。"
 "config.theme.decor.label" = "スタイル"
-"config.theme.decor.help" = "デコールパック：パレット・クローム・動き・角・フォントをまとめて推奨します。自分で決めた設定はそのまま優先されます（K42）。"
+"config.theme.decor.help" = "デコールパック：配色・クローム・動き・角・フォントをまとめて推奨します。自分で決めた設定はそのまま優先されます（K42）。"
 "config.choice.decor.none" = "自分で設定"
 "config.choice.decor.sekai" = "セカイ（ポップなキーキャップ）"
 "config.theme.chrome.label" = "クローム"
