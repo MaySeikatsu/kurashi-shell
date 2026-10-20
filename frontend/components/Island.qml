@@ -129,8 +129,8 @@ Item {
     }
     readonly property real staleW: isStale ? staleM.advanceWidth : 0
     readonly property real tailW: staleW > 0 ? staleW + Theme.gap : 0
-    // The keycap's outline and (half) ring sit inside the pill: the faces keep their padding inside them.
-    readonly property real chromeIn: Theme.keycap ? Theme.outlineW + Theme.ringW * 0.5 : 0
+    // The chrome's outline and (half) ring sit inside the pill: the faces keep their padding inside them.
+    readonly property real chromeIn: Theme.outlineW + Theme.ringW * 0.5
     // While the pointer is on the island the pill grows a few px (with the peek), on a spring.
     readonly property real grow: pointerIn && !vertical ? 1 : 0
     readonly property real pillW: faceW + 2 * Theme.pad + tailW + 2 * chromeIn + grow * 2 * Theme.xs
@@ -172,7 +172,12 @@ Item {
         height: isl.pillH
         radius: Theme.rFull
         ringScale: 0.5
-        fill: Theme.containerHigh
+        // A short soft shadow: the bar's window ends a few px under the pill.
+        softScale: 0.3
+        // The panel's opacity (glass sees through); an outlined chrome with no shadow (line) draws a box on the strip,
+        // no fill behind the face (Bar.qml).
+        fill: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 ? "transparent"
+            : Qt.alpha(Theme.containerHigh, Theme.panel.a)
         animate: isl.animate
         opacity: isl.taken ? 0 : 1
         Behavior on width {
@@ -312,6 +317,7 @@ Item {
             height: 20 + Theme.shadowDy
             radius: Theme.rFull
             ringScale: 0
+            softScale: 0
             fill: Theme.containerHigh
             flatBorder: Theme.outline
             animate: isl.animate

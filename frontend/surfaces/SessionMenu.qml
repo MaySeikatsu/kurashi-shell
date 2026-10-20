@@ -101,7 +101,9 @@ Item {
                     height: 96 + Theme.shadowDy
                     radius: Theme.rLg
                     pressed: tap.pressed
-                    fill: isArmed ? Theme.accent : (lit ? Theme.selected : Theme.containerHigh)
+                    // An outlined chrome with no shadow (line): the keys are outlined boxes, no fill until lit.
+                    fill: isArmed ? Theme.accent : (lit ? Theme.selected
+                        : (Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 ? "transparent" : Theme.containerHigh))
                     flatBorder: lit && !isArmed ? Theme.outline : "transparent"
                     Column {
                         anchors.centerIn: parent

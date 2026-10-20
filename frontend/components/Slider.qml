@@ -56,28 +56,29 @@ Item {
     Accessible.role: Accessible.Slider
     Accessible.name: s.a11y
 
-    // Keycap chrome (K42): a thick outlined pill whose fill carries the level, and a ring-coloured knob.
-    readonly property int trackH: Theme.keycap ? 12 : 6
+    // Keycap chrome (K42): a thick outlined pill whose fill carries the level, and a ring-coloured knob. Square corners
+    // (radius.full 0) square the track and the knob.
+    readonly property int trackH: Theme.ringW > 0 ? 12 : 6
     Rectangle {
         id: trackRect
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width; height: s.trackH; radius: height / 2
-        color: Theme.keycap ? Theme.ring : s.track
-        border.width: Theme.keycap ? Theme.outlineW : 0
-        border.color: Theme.line
+        width: parent.width; height: s.trackH; radius: Math.min(height / 2, Theme.rFull)
+        color: Theme.ringW > 0 ? Theme.ring : s.track
+        border.width: Theme.ringW > 0 ? Theme.outlineW : 0
+        border.color: Theme.outlineColor
         visible: !s.unavailable
         Rectangle {
             x: trackRect.border.width; y: trackRect.border.width
             width: Math.max(height, (parent.width - 2 * x) * s.shown); height: parent.height - 2 * y
-            radius: height / 2; color: s.fill
+            radius: Math.min(height / 2, Theme.rFull); color: s.fill
             visible: s.shown > 0
         }
     }
     Rectangle {
-        width: Theme.keycap ? 18 : 12; height: width; radius: width / 2
-        color: Theme.keycap ? Theme.ring : s.fill
-        border.width: Theme.keycap ? Theme.outlineW : 0
-        border.color: Theme.line
+        width: Theme.ringW > 0 ? 18 : 12; height: width; radius: Math.min(width / 2, Theme.rFull)
+        color: Theme.ringW > 0 ? Theme.ring : s.fill
+        border.width: Theme.ringW > 0 ? Theme.outlineW : 0
+        border.color: Theme.outlineColor
         anchors.verticalCenter: parent.verticalCenter
         x: (s.width - width) * s.shown
         visible: !s.unavailable

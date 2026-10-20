@@ -52,6 +52,7 @@ Item {
         width: tile.tileSize - Theme.shadowDy
         height: tile.tileSize
         radius: Math.round(width * 0.3)
+        softScale: 0.4
         fill: tile.shown ? Theme.selected : (hover.hovered ? Qt.lighter(Theme.containerHigh, 1.04) : Theme.containerHigh)
         pressed: tap.pressed
         readonly property real innerW: width - 2 * inset

@@ -16,7 +16,7 @@ TAG=${1:-sekai}
 shift || true
 LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.decor = "sekai"')
-NAME=w21-isl-morph-$TAG
+NAME=${MORPH_SANDBOX:-w21-isl-morph}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/island
 AT=${MORPH_AT:-40 120 250}

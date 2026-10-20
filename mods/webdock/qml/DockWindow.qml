@@ -220,9 +220,9 @@ PanelWindow {
                 anchors.fill: parent
                 radius: Theme.rLg
                 color: Theme.surfaceAlpha
-                // Keycap chrome outlines the strip like every block (K42); flat has none.
-                border.width: Theme.keycap ? Theme.outlineW : 0
-                border.color: Theme.line
+                // The chrome outlines the strip like every block (K42, K45: ink, rim or line); flat has none.
+                border.width: Theme.outlineW
+                border.color: Theme.outlineColor
             }
 
             Strip {
