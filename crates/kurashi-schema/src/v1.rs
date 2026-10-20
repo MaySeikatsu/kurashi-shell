@@ -103,6 +103,11 @@ pub struct Theme {
     pub density: Density,
     #[kurashi(nested, section = "typography")]
     pub typography: Typography,
+    /// Apps that follow
+    /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one
+    /// needs one line in its own config to read the file; Settings shows it.
+    #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
+    pub export: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

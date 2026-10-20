@@ -1,0 +1,39 @@
+# matugen-generated Alacritty color scheme
+# Import this file from your alacritty.toml:
+#   import = ["~/.config/alacritty/colors.toml"]
+
+[colors.primary]
+background = "{{colors.surface.default.hex}}"
+foreground = "{{colors.on_surface.default.hex}}"
+
+[colors.cursor]
+text   = "{{colors.surface.default.hex}}"
+cursor = "{{colors.primary.default.hex}}"
+
+[colors.vi_mode_cursor]
+text   = "{{colors.surface.default.hex}}"
+cursor = "{{colors.secondary.default.hex}}"
+
+[colors.selection]
+background = "{{colors.primary_container.default.hex}}"
+text       = "{{colors.on_primary_container.default.hex}}"
+
+[colors.normal]
+black   = "{{colors.surface.default.hex}}"
+red     = "{{colors.error.default.hex}}"
+green   = "{{colors.tertiary.default.hex}}"
+yellow  = "{{colors.secondary.default.hex}}"
+blue    = "{{colors.primary.default.hex}}"
+magenta = "{{colors.tertiary.default.hex}}"
+cyan    = "{{colors.secondary.default.hex}}"
+white   = "{{colors.on_surface.default.hex}}"
+
+[colors.bright]
+black   = "{{colors.surface_container_high.default.hex}}"
+red     = "{{colors.error_container.default.hex}}"
+green   = "{{colors.tertiary_container.default.hex}}"
+yellow  = "{{colors.secondary_container.default.hex}}"
+blue    = "{{colors.primary_container.default.hex}}"
+magenta = "{{colors.on_tertiary_container.default.hex}}"
+cyan    = "{{colors.on_secondary_container.default.hex}}"
+white   = "{{colors.on_surface_variant.default.hex}}"
