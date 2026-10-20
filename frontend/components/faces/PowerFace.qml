@@ -1,5 +1,6 @@
 import QtQuick
 import "../../core"
+import ".."
 
 // power (K30): the charger in or out, and the battery low or critical (the same face, kind `battery`). The pill
 // says the percent svc.power reports and the source (▮ on battery, ⚡ on AC). The daemon's line with the time left
@@ -13,6 +14,11 @@ FaceBase {
     readonly property bool onBattery: d.on_battery === true
     readonly property bool hasPct: typeof d.percent === "number"
     readonly property string full: f.hasPct ? Math.round(f.d.percent) + " %" : (f.line !== "" ? f.line : I18n.tr("island.face.power"))
+    readonly property bool low: f.onBattery && f.hasPct && f.d.percent <= 15
+    // W21: a battery that shows its charge in steps, or the bolt while on AC.
+    readonly property string icon: !f.onBattery ? "bolt"
+        : (!f.hasPct ? "battery_full" : (f.d.percent <= 15 ? "battery_alert"
+        : "battery_" + Math.max(1, Math.min(6, Math.round(f.d.percent / 100 * 6))) + "_bar"))
     Watch { doc: "svc.power"; active: f.live }
 
     wantW: row.implicitWidth
@@ -22,12 +28,14 @@ FaceBase {
         visible: !f.vertical
         anchors.centerIn: parent
         spacing: Theme.gap - 2
-        Text {
+        Icon {
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.accent
-            font.pixelSize: Theme.fs
+            name: f.icon
             // U+FE0E: text presentation, so the glyph does not turn into a coloured emoji.
-            text: f.onBattery ? "▮" : "⚡︎"
+            glyph: f.onBattery ? "▮" : "⚡︎"
+            filled: true
+            size: Theme.fs + 5
+            color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -43,11 +51,14 @@ FaceBase {
         anchors.centerIn: parent
         Accessible.role: Accessible.StaticText
         Accessible.name: f.full
-        Text {
+        Icon {
             Accessible.ignored: true
-            color: Theme.accent
-            font.pixelSize: Theme.fs
-            text: f.onBattery ? "▮" : "⚡︎"
+            anchors.horizontalCenter: parent.horizontalCenter
+            name: f.icon
+            glyph: f.onBattery ? "▮" : "⚡︎"
+            filled: true
+            size: Theme.fs + 3
+            color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
             Accessible.ignored: true

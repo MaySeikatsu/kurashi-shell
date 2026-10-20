@@ -2,6 +2,7 @@ import QtQuick
 import "../core"
 import "../core/mods.js" as Mods
 import "faces"
+import "island"
 
 // Island (島): the daemon decides the face (runtime.island.*); this only morphs between faces, and shows what the
 // decision adds beside it: the secondary activity as a minimal glyph and "+N" for the rest (K30), and "as of" when the
@@ -17,6 +18,10 @@ import "faces"
 // short value, the stale time stacked at its foot, and the secondary glyph and "+N" stacked under the pill. Nothing
 // crosses the bar's width and no text is turned (I85). A mod's face gets `vertical` when it declares it, else the pill
 // shows the face's glyph.
+// W21 (docs/ux/island.md "Session 9 morph"): the pill is a Block (keycap chrome under the sekai decor) whose size follows a
+// spring (Theme.spring/damping; snaps when Theme.springOn is false) and grows a few px while the pointer is on it. On a top
+// or bottom bar it reports its rect to IslandGeom; while the Stage's shape has taken it (the island's card is out on this
+// output) the pill is not drawn, so the shape that grew out of it is the only island on screen.
 Item {
     id: isl
     property string face: "clock"
@@ -43,6 +48,19 @@ Item {
     // Wall-clock ms the face's content is "as of", or -1 when the face is not stale.
     function staleOf(f) { var s = (island.stale_at || ({}))[f]; return s === undefined || s === null ? -1 : s }
     function timeOf(ms) { return Qt.formatTime(new Date(ms), "hh:mm") }
+    // The minimal icon of a face beside the pill (Material Symbols name; glyphOf is its text fallback).
+    function iconOf(f) {
+        switch (f) {
+        case "clock": return "schedule"
+        case "media": return "music_note"
+        case "volume": return "volume_up"
+        case "brightness": return "brightness_6"
+        case "notifications": return "notifications"
+        case "power": return "bolt"
+        case "bluetooth": return "bluetooth"
+        default: return "circle"
+        }
+    }
     // The minimal glyph of a face beside the pill; a mod's face has none, so it gets a dot.
     function glyphOf(f) {
         switch (f) {
@@ -111,51 +129,68 @@ Item {
     }
     readonly property real staleW: isStale ? staleM.advanceWidth : 0
     readonly property real tailW: staleW > 0 ? staleW + Theme.gap : 0
-    readonly property real pillW: faceW + 2 * Theme.pad + tailW
+    // The keycap's outline and (half) ring sit inside the pill: the faces keep their padding inside them.
+    readonly property real chromeIn: Theme.keycap ? Theme.outlineW + Theme.ringW * 0.5 : 0
+    // While the pointer is on the island the pill grows a few px (with the peek), on a spring.
+    readonly property real grow: pointerIn && !vertical ? 1 : 0
+    readonly property real pillW: faceW + 2 * Theme.pad + tailW + 2 * chromeIn + grow * 2 * Theme.xs
     readonly property real extrasW: extras.visible ? Theme.xs + extras.width : 0
     // A side bar's pill: the faces' column with a little air above and below, and the stale time stacked at the foot.
     readonly property int vpad: Theme.xs + 2
     readonly property real tailH: vertical && isStale ? staleCol.implicitHeight + Theme.xs : 0
-    readonly property real pillH: vertical ? vpad + faceH + tailH + vpad : Theme.barH - 10
+    // The pill's face (the keycap's shadow comes on top, below it).
+    readonly property real pillFaceH: vertical ? vpad + faceH + tailH + vpad + 2 * chromeIn : Theme.barH - 10 + grow * 2
+    readonly property real pillH: pillFaceH + Theme.shadowDy
     readonly property real extrasH: extras.visible ? Theme.xs + extras.height : 0
 
-    height: vertical ? pillH + extrasH : Theme.barH - 10
+    height: vertical ? pillH + extrasH : pillH
     width: vertical ? Theme.barH - 8 : pillW + extrasW
+    readonly property bool springy: isl.animate && Theme.springOn
     Behavior on width {
-        enabled: isl.animate
-        NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+        enabled: isl.springy
+        SpringAnimation { spring: Theme.spring; damping: Theme.damping; epsilon: 0.25 }
     }
     Behavior on height {
-        enabled: isl.animate && isl.vertical
-        NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+        enabled: isl.springy
+        SpringAnimation { spring: Theme.spring; damping: Theme.damping; epsilon: 0.25 }
     }
 
-    // The pill is what is drawn: the faces paint inside it and nothing outside it. Its width follows the same
-    // tween as the island's, so the morph is one motion.
-    Rectangle {
+    // The Stage's shape has this output's pill (W21): the pill is not drawn while it is out.
+    readonly property bool taken: peekOutput !== "" && IslandGeom.takenOn === peekOutput
+    // The rest rect the Stage's shape starts from and folds back into: the pill's target size and its centre's offset
+    // from the bar's centre (the bar centres the whole island, extras included). Top and bottom bars only.
+    readonly property var geom: [peekOutput, pillW, pillFaceH, -extrasW / 2, shown, vertical]
+    onGeomChanged: if (!vertical) IslandGeom.report(peekOutput, pillW, pillFaceH, -extrasW / 2, shown)
+
+    // The pill is what is drawn: a Block (flat fill, or a keycap with a thin ring so it fits the bar); the faces paint
+    // inside it and nothing outside it. Its size follows the same spring as the island's, so the morph is one motion.
+    Block {
         id: pill
         x: 0
         y: 0
         width: isl.vertical ? isl.width : isl.pillW
-        height: isl.vertical ? isl.pillH : isl.height
+        height: isl.pillH
         radius: Theme.rFull
-        color: Theme.containerHigh
-        clip: true
+        ringScale: 0.5
+        fill: Theme.containerHigh
+        animate: isl.animate
+        opacity: isl.taken ? 0 : 1
         Behavior on width {
-            enabled: isl.animate
-            NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            enabled: isl.springy
+            SpringAnimation { spring: Theme.spring; damping: Theme.damping; epsilon: 0.25 }
         }
         Behavior on height {
-            enabled: isl.animate && isl.vertical
-            NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            enabled: isl.springy
+            SpringAnimation { spring: Theme.spring; damping: Theme.damping; epsilon: 0.25 }
         }
 
         Item {
             id: faces
-            x: 0
+            x: isl.vertical ? 0 : 0
             y: isl.vertical ? isl.vpad : 0
-            width: isl.vertical ? pill.width : pill.width - isl.tailW
-            height: isl.vertical ? isl.faceH : pill.height
+            width: isl.vertical ? parent.width : parent.width - isl.tailW
+            height: isl.vertical ? isl.faceH : parent.height
+            clip: true
 
             // A face exists only while it is current or still fading out: the idle faces cost
             // ~1 MiB per bar, i.e. per output (B7, docs/BENCH.md).
@@ -268,24 +303,27 @@ Item {
             ? Math.max(second.visible ? second.width : 0, over.visible ? over.implicitWidth : 0)
             : (second.visible ? second.width : 0) + (over.visible ? (second.visible ? Theme.xs : 0) + over.implicitWidth : 0)
 
-        Rectangle {
+        Block {
             id: second
             visible: isl.secondaryFace !== ""
             x: isl.vertical ? (extras.width - width) / 2 : 0
             y: isl.vertical ? 0 : (extras.height - height) / 2
-            width: 20
-            height: 20
-            radius: 10
-            color: Theme.containerHigh
-            border.width: 1
-            border.color: Theme.outline
+            width: 20 + Theme.shadowDy
+            height: 20 + Theme.shadowDy
+            radius: Theme.rFull
+            ringScale: 0
+            fill: Theme.containerHigh
+            flatBorder: Theme.outline
+            animate: isl.animate
             Accessible.role: Accessible.StaticText
             Accessible.name: isl.secondaryFace ? I18n.tr("island.secondary").replace("{face}", I18n.tr("island.face." + isl.secondaryFace)) : ""
-            Text {
+            Icon {
                 anchors.centerIn: parent
+                name: isl.iconOf(isl.secondaryFace)
+                glyph: isl.glyphOf(isl.secondaryFace)
+                filled: true
+                size: Theme.fsCaption + 2
                 color: Theme.dim
-                font.pixelSize: Theme.fsCaption
-                text: isl.glyphOf(isl.secondaryFace)
             }
         }
         Text {

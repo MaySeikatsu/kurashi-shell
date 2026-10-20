@@ -1,10 +1,14 @@
 import QtQuick
 import "../../core"
+import ".."
+import "../island"
 
 // volume: transient OSD from svc.audio (icon + level bar + percent; muted and unavailable are
 // shown as such, never as a stale level: Shōjiki). When the daemon names the output ("Headphones · 40 %",
 // runtime.island.main detail.volume, I45), that line replaces the percent; the island does not pass it in.
 // On a side bar: the icon over the bare figure (the pill is 28 px wide, so no sign); the full line is the accessible name.
+// W21: the level is a thick bar that fills from empty when the face appears and springs to each new level (Apple's and
+// Capsule's OSD); the pill widens for it and swallows it back when the face goes.
 FaceBase {
     id: f
     readonly property var d: Store.docs["svc.audio"] || ({})
@@ -16,6 +20,8 @@ FaceBase {
         : (f.muted ? I18n.tr("island.volume.muted")
         : (f.line !== "" ? f.line : Math.round(f.level * 100) + "%"))
     readonly property string glyph: !f.avail || f.muted ? "⊘" : (f.level < 0.34 ? "♩" : "♪")
+    readonly property string icon: !f.avail || f.muted ? "volume_off"
+        : (f.level < 0.34 ? "volume_mute" : (f.level < 0.67 ? "volume_down" : "volume_up"))
     Watch { doc: "svc.audio"; active: f.live }
     Watch { doc: "runtime.island.main"; active: f.live }
 
@@ -26,33 +32,29 @@ FaceBase {
         visible: !f.vertical
         anchors.centerIn: parent
         spacing: Theme.gap
-        Text {
+        Icon {
             anchors.verticalCenter: parent.verticalCenter
+            name: f.icon
+            glyph: f.glyph
+            filled: true
+            size: Theme.fs + 5
             color: f.avail && !f.muted ? Theme.accent : Theme.dim
-            font.pixelSize: Theme.fs
-            text: f.glyph
         }
-        Rectangle {
+        LevelMeter {
             visible: f.avail
             anchors.verticalCenter: parent.verticalCenter
-            width: 90; height: 4; radius: 2
-            color: Theme.outline
-            Rectangle {
-                width: parent.width * f.level
-                height: parent.height; radius: 2
-                color: f.muted ? Theme.dim : Theme.accent
-                // Short; runs only while the level changes under a live face.
-                Behavior on width {
-                    enabled: f.animate && f.live
-                    NumberAnimation { duration: Theme.stdMs / 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
-                }
-            }
+            width: 96
+            level: f.level
+            color: f.muted ? Theme.dim : Theme.accent
+            animate: f.animate && f.live
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
+            font.weight: Theme.wMedium
             font.family: Theme.fam(text, Theme.families)
+            font.features: { "tnum": 1 }
             width: Math.min(implicitWidth, 200)
             elide: Text.ElideRight
             text: f.full
@@ -64,14 +66,18 @@ FaceBase {
         anchors.centerIn: parent
         Accessible.role: Accessible.StaticText
         Accessible.name: f.full
-        Text {
+        Icon {
             Accessible.ignored: true
+            anchors.horizontalCenter: parent.horizontalCenter
             color: f.avail && !f.muted ? Theme.accent : Theme.dim
-            font.pixelSize: Theme.fs
-            text: f.glyph
+            name: f.icon
+            glyph: f.glyph
+            filled: true
+            size: Theme.fs + 3
         }
         Text {
             Accessible.ignored: true
+            anchors.horizontalCenter: parent.horizontalCenter
             visible: f.avail && !f.muted
             color: Theme.fg
             font.pixelSize: Theme.fsCaption

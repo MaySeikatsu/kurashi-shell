@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import ".."
+import "../island"
 
 // The expanded view of the clock face (K24; island brief 5): the selected day's date, the month grid with today in the
 // accent, the selected day's agenda (the clock.expanded.day slot, with its reason while no calendar contributes), the
@@ -107,8 +108,11 @@ Column {
         id: nav
         width: view.width
         spacing: Theme.gap
-        IconButton {
+        KeyButton {
             id: prevMonth
+            side: 28
+            iconSize: Theme.fs + 6
+            icon: "chevron_left"
             glyph: "‹"
             a11y: I18n.tr("island.clock.prev_month")
             enabled: view.valid
@@ -116,7 +120,8 @@ Column {
         }
         Text {
             width: view.width - prevMonth.width - nextMonth.width - todayBtn.width - 3 * Theme.gap
-            height: Theme.controlH
+            height: prevMonth.height
+            font.weight: Theme.wMedium
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
             color: Theme.fg
@@ -124,15 +129,20 @@ Column {
             font.family: Theme.fam(text, Theme.families)
             text: view.valid ? view.loc.toString(view.first, view.monthFmt) : ""
         }
-        IconButton {
+        KeyButton {
             id: nextMonth
+            side: 28
+            iconSize: Theme.fs + 6
+            icon: "chevron_right"
             glyph: "›"
             a11y: I18n.tr("island.clock.next_month")
             enabled: view.valid
             onClicked: view.shiftMonths(1)
         }
-        Button {
+        KeyButton {
             id: todayBtn
+            side: 28
+            primary: true
             label: I18n.tr("island.clock.today")
             enabled: view.valid
             onClicked: view.goToday()
@@ -160,7 +170,6 @@ Column {
             }
             event.accepted = true
         }
-        FocusRing { anchors.fill: grid; shown: cal.activeFocus; corner: Theme.rSm }
         // The day marks' contributions (row 71). The host draws none itself: each day cell below places one ModLoader
         // per contribution, so this host only lists them.
         SlotHost { id: marks; slot: "clock.expanded.daymark"; layout: "cells" }
@@ -188,7 +197,9 @@ Column {
             }
             Repeater {
                 model: view.valid ? 42 : 0
-                delegate: Rectangle {
+                // W21: each day is a small block (a keycap under keycap chrome); today is lit in the accent, the selected
+                // day is tonal (Theme.selected) and ringed while the grid has the keyboard.
+                delegate: Item {
                     id: dayCell
                     required property int index
                     readonly property int day: index - view.lead + 1
@@ -199,19 +210,39 @@ Column {
                     readonly property string iso: inMonth ? view.isoDate(view.year, view.month, day) : ""
                     width: view.cell
                     height: view.cell
-                    radius: Theme.rFull
-                    color: isToday ? Theme.accent : "transparent"
-                    border.width: isSel ? 2 : 0
-                    border.color: cal.activeFocus ? Theme.focusRing : Theme.dim
                     Accessible.role: Accessible.Cell
                     Accessible.name: inMonth ? view.loc.toString(new Date(view.year, view.month, day), view.headerFmt) : ""
+                    Block {
+                        id: dayBlock
+                        visible: dayCell.inMonth
+                        x: 2
+                        y: 2 - Math.round(Theme.shadowDy / 2)
+                        width: parent.width - 4
+                        height: parent.height - 4
+                        radius: Theme.rSm + 2
+                        ringScale: 0
+                        animate: view.visible
+                        fill: dayCell.isToday ? Theme.accent : (dayCell.isSel ? Theme.selected : Theme.containerHigh)
+                        flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
+                        pressed: dayTap.pressed
+                    }
+                    FocusRing {
+                        anchors.fill: dayBlock
+                        anchors.bottomMargin: Theme.shadowDy
+                        anchors.margins: -1
+                        shown: dayCell.isSel && cal.activeFocus
+                        corner: Theme.rSm + 3
+                    }
                     Text {
-                        anchors.centerIn: parent
-                        anchors.verticalCenterOffset: view.marked ? -7 : 0
+                        anchors.centerIn: dayBlock
+                        anchors.verticalCenterOffset: (view.marked ? -7 : 0) - Theme.shadowDy / 2 + (dayTap.pressed ? Theme.shadowDy : 0)
                         visible: parent.inMonth
-                        color: parent.isToday ? Theme.fgOnAccent : Theme.fg
+                        color: parent.isToday ? Theme.fgOnAccent
+                            : (parent.isSel ? Theme.color("color.on_selected", "#e9e4d8") : Theme.fg)
                         font.pixelSize: Theme.fs
+                        font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
                         font.family: Theme.fam(text, Theme.families)
+                        font.features: { "tnum": 1 }
                         text: parent.day
                     }
                     // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number.
@@ -231,6 +262,7 @@ Column {
                         }
                     }
                     MouseArea {
+                        id: dayTap
                         anchors.fill: parent
                         enabled: parent.inMonth
                         onClicked: {

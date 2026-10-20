@@ -45,19 +45,20 @@ Column {
         visible: view.loaded
         width: view.width
         spacing: Theme.gap
-        Text {
-            width: 20
+        Icon {
+            id: sun
+            width: 24
             height: Theme.controlH
-            horizontalAlignment: Text.AlignHCenter
-            verticalAlignment: Text.AlignVCenter
-            color: view.present ? Theme.accent : Theme.dim
-            font.pixelSize: Theme.fs + 2
-            font.family: Theme.fam(text, Theme.families)
-            text: "☼"
+            name: view.level < 0.5 ? "brightness_5" : "brightness_7"
+            glyph: "☼"
+            filled: true
+            size: Theme.fs + 6
+            color: view.present ? Theme.warning : Theme.dim
         }
         Slider {
             height: Theme.controlH
-            width: view.width - 20 - readout.width - 2 * Theme.gap
+            width: view.width - sun.width - readout.width - 2 * Theme.gap
+            fill: Theme.warning
             value: view.level
             unavailable: !view.present
             a11y: I18n.tr("island.brightness.builtin")
@@ -71,6 +72,8 @@ Column {
             verticalAlignment: Text.AlignVCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
+            font.weight: Theme.wMedium
+            font.features: { "tnum": 1 }
             font.family: Theme.fam(text, Theme.families)
             text: view.present ? Math.round(view.level * 100) + "%" : ""
         }
@@ -95,19 +98,39 @@ Column {
     }
 
     // Night light: no service on this machine serves it, so the row says so instead of a switch.
-    Text {
+    // W21: on a plate with its icon, inert (no switch) while nothing serves it.
+    Rectangle {
         width: view.width
-        color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr("island.brightness.night")
-    }
-    Text {
-        width: view.width
-        wrapMode: Text.WordWrap
-        color: Theme.dim
-        font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr("island.brightness.night.none")
+        height: nightCol.implicitHeight + 2 * Theme.gap
+        radius: Theme.rLg
+        color: Theme.containerHigh
+        Icon {
+            id: moon
+            x: Theme.pad
+            anchors.verticalCenter: parent.verticalCenter
+            name: "nightlight"
+            glyph: "☾"
+            size: Theme.fs + 6
+            color: Theme.dim
+        }
+        Column {
+            id: nightCol
+            anchors { left: moon.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+            Text {
+                width: parent.width
+                color: Theme.fg
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("island.brightness.night")
+            }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("island.brightness.night.none")
+            }
+        }
     }
 }

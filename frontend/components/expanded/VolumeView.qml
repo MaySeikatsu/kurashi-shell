@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import ".."
+import "../island"
 
 // The expanded view of the volume face (K24; island brief 5): the master level with its read-back and mute; the output
 // devices (a list when several, the default marked in text, a click makes one the default); the microphone (its mute, and
@@ -25,6 +26,7 @@ Column {
     readonly property var streams: avail && d.streams ? d.streams : []
     property string errText: ""
     Refusal { id: refusal }
+    readonly property color onSel: Theme.color("color.on_selected", "#e9e4d8")
 
     function act(action, args, msg) {
         view.errText = ""
@@ -34,6 +36,7 @@ Column {
     function nameOf(o) { return String(o.description || o.name || "") }
 
     // One device of a list: a radio-like row. The current one carries its "Default" in text, not in colour alone.
+    // W21: the current device is a tonal row (Theme.selected) with a check, the others are plain until hovered.
     component DeviceRow: Rectangle {
         id: row
         required property string label
@@ -41,8 +44,8 @@ Column {
         signal chosen()
         width: view.width
         height: Theme.controlH
-        radius: Theme.rSm
-        color: !row.current && hover.hovered ? Theme.containerHigh : "transparent"
+        radius: Theme.rFull
+        color: row.current ? Theme.selected : (hover.hovered ? Theme.containerHigh : "transparent")
         activeFocusOnTab: true
         Keys.onReturnPressed: { if (!row.current) row.chosen() }
         Keys.onEnterPressed: { if (!row.current) row.chosen() }
@@ -50,26 +53,44 @@ Column {
         Accessible.role: Accessible.RadioButton
         Accessible.name: row.label
         Accessible.checked: row.current
+        Icon {
+            id: check
+            anchors { left: parent.left; leftMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+            name: row.current ? "check_circle" : "radio_button_unchecked"
+            glyph: row.current ? "●" : "○"
+            filled: row.current
+            size: Theme.fs + 4
+            color: row.current ? view.onSel : Theme.dim
+        }
         Text {
-            anchors { left: parent.left; right: tag.left; leftMargin: Theme.gap; rightMargin: Theme.gap; verticalCenter: parent.verticalCenter }
+            anchors { left: check.right; right: tag.left; leftMargin: Theme.gap; rightMargin: Theme.gap; verticalCenter: parent.verticalCenter }
             elide: Text.ElideRight
-            color: row.current ? Theme.fg : Theme.dim
+            color: row.current ? view.onSel : Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
             text: row.label
         }
         Text {
             id: tag
-            anchors { right: parent.right; rightMargin: Theme.gap; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             visible: row.current
-            color: Theme.dim
+            color: view.onSel
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.quick.audio.default")
         }
         HoverHandler { id: hover }
         TapHandler { enabled: !row.current; onTapped: row.chosen() }
-        FocusRing { anchors.fill: parent; shown: row.activeFocus; corner: Theme.rSm }
+        FocusRing { anchors.fill: parent; shown: row.activeFocus; corner: Theme.rFull }
+    }
+    // A section's label (Output, Microphone, Applications).
+    component Section: Text {
+        width: view.width
+        topPadding: Theme.xs
+        color: Theme.dim
+        font.pixelSize: Theme.fsLabel
+        font.weight: Theme.wMedium
+        font.family: Theme.fam(text, Theme.families)
     }
 
     Text {
@@ -83,8 +104,11 @@ Column {
     Row {
         width: view.width
         spacing: Theme.gap
-        IconButton {
+        KeyButton {
             id: mute
+            side: 32
+            primary: !view.muted && view.avail
+            icon: view.muted ? "volume_off" : "volume_up"
             glyph: view.muted ? "⊘" : "♪"
             a11y: I18n.tr(view.muted ? "island.volume.unmute" : "island.volume.mute")
             enabled: view.avail
@@ -122,14 +146,7 @@ Column {
     }
 
     // Output: several devices are a list; one is named; none says so.
-    Text {
-        visible: view.avail
-        width: view.width
-        color: Theme.dim
-        font.pixelSize: Theme.fsLabel
-        font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr("island.volume.output")
-    }
+    Section { visible: view.avail; text: I18n.tr("island.volume.output") }
     Repeater {
         model: view.sinks.length > 1 ? view.sinks : []
         delegate: DeviceRow {
@@ -158,20 +175,15 @@ Column {
     }
 
     // Microphone: its mute (the daemon has no level for it to set), and the input list when several.
-    Text {
-        visible: view.avail
-        width: view.width
-        color: Theme.dim
-        font.pixelSize: Theme.fsLabel
-        font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr("island.volume.input")
-    }
+    Section { visible: view.avail; text: I18n.tr("island.volume.input") }
     Row {
         visible: view.avail && view.source !== null
         width: view.width
         spacing: Theme.gap
-        IconButton {
+        KeyButton {
             id: micMute
+            side: 32
+            icon: view.source && view.source.muted === true ? "mic_off" : "mic"
             glyph: view.source && view.source.muted === true ? "⊘" : "●"
             a11y: I18n.tr(view.source && view.source.muted === true ? "island.volume.input.unmute" : "island.volume.input.mute")
             onClicked: view.act("audio.mic.mute.toggle", {}, "island.volume.input.failed")
@@ -217,14 +229,7 @@ Column {
     }
 
     // Applications that play sound: each with its mute and its level (0 to 150 %, the daemon's range; the knob spans it).
-    Text {
-        visible: view.avail
-        width: view.width
-        color: Theme.dim
-        font.pixelSize: Theme.fsLabel
-        font.family: Theme.fam(text, Theme.families)
-        text: I18n.tr("island.volume.apps")
-    }
+    Section { visible: view.avail; text: I18n.tr("island.volume.apps") }
     Repeater {
         model: view.streams
         delegate: Row {
@@ -244,14 +249,19 @@ Column {
                 font.family: Theme.fam(text, Theme.families)
                 text: stream.modelData.app ?? ""
             }
-            IconButton {
+            KeyButton {
+                id: streamMute
+                anchors.verticalCenter: parent.verticalCenter
+                side: 28
+                iconSize: Theme.fs + 4
+                icon: stream.silent ? "volume_off" : "volume_up"
                 glyph: stream.silent ? "⊘" : "♪"
                 a11y: I18n.tr(stream.silent ? "island.volume.app.unmute" : "island.volume.app.mute").replace("{app}", stream.modelData.app ?? "")
                 onClicked: view.act("audio.stream.mute", {id: stream.modelData.id}, "island.volume.app.failed")
             }
             Slider {
                 id: streamSlider
-                width: view.width - 96 - 28 - streamReadout.width - 3 * Theme.gap
+                width: view.width - 96 - streamMute.width - streamReadout.width - 3 * Theme.gap
                 height: Theme.controlH
                 value: Math.min(1, stream.vol / 1.5)
                 fill: stream.silent ? Theme.dim : Theme.accent

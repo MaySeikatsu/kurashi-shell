@@ -132,6 +132,20 @@ for y in range(Y0, min(Y1, h)):
             n += 1
             x0, x1 = min(x0, x), max(x1, x)
             y0, y1 = min(y0, y), max(y1, y)
+# The card's width is the most common extent of its rows (W21): an island card grown out of the bar is joined to it by a
+# neck whose fillets widen the surface's top rows, so the full bounding box is wider than the card; rows that cross
+# content (a notification, a slider) are rarer than the rows of the card's own padding.
+if n:
+    seen = {}
+    for y in range(y0, y1 + 1, 2):
+        row = y * w * 3
+        xs = [x for x in range(X0, min(X1, w))
+              if abs(raster[row + x * 3] - SURFACE[0]) <= TOL and abs(raster[row + x * 3 + 1] - SURFACE[1]) <= TOL
+              and abs(raster[row + x * 3 + 2] - SURFACE[2]) <= TOL]
+        if xs:
+            seen[(xs[0], xs[-1])] = seen.get((xs[0], xs[-1]), 0) + 1
+    if seen:
+        x0, x1 = max(seen, key=seen.get)
 print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
 PY
 analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
