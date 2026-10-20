@@ -477,11 +477,19 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         if let Some(rest) = q.strip_prefix(';') {
             return kurashi_launcher::extras::clip_rows(rest.trim(), 40);
         }
-        let calc = kurashi_launcher::calc::eval(q).map(|v| {
-            let shown = kurashi_launcher::calc::format(v);
-            json!({"id": format!("calc:{shown}"), "name": shown, "generic": q.trim(),
-                   "icon": null, "kind": "calc", "score": 1.0})
-        });
+        let calc = kurashi_launcher::calc::eval(q)
+            .map(|v| {
+                let shown = kurashi_launcher::calc::format(v);
+                json!({"id": format!("calc:{shown}"), "name": shown, "generic": q.trim(),
+                       "icon": null, "kind": "calc", "score": 1.0})
+            })
+            .or_else(|| {
+                // A unit conversion (I105): the row shows value and unit; launching copies the value.
+                let (v, unit) = kurashi_launcher::calc::convert(q)?;
+                let shown = kurashi_launcher::calc::format_unit(v);
+                Some(json!({"id": format!("calc:{shown}"), "name": format!("{shown} {unit}"),
+                            "generic": q.trim(), "icon": null, "kind": "calc", "score": 1.0}))
+            });
         calc.into_iter()
             .chain(
                 l.query(q, 30)

@@ -47,7 +47,16 @@ Item {
     readonly property bool editable: !inert && Store.live
     // A select with offers from the daemon (or more than four fixed ones) is a dropdown; two fixed ones are a switch;
     // three to four stay pills (BACKLOG I9, UX brief "Controls").
-    readonly property bool dropdown: row.control === "select" && !!(row.choices_from || (row.choices ?? []).length > 4)
+    // Offers with a look of their own in `theme.decors` (K45, I104) are preview cards: name -> tokens.
+    readonly property var looks: {
+        var m = {}, list = (Store.theme && Store.theme.decors) || []
+        for (var i = 0; i < list.length; i++) m[list[i].name] = list[i].tokens
+        return m
+    }
+    readonly property bool cards: row.control === "select" && (row.choices ?? []).filter(function (c) {
+        return r.looks[c.value] !== undefined
+    }).length >= 2
+    readonly property bool dropdown: !cards && row.control === "select" && !!(row.choices_from || (row.choices ?? []).length > 4)
     readonly property bool switchChoice: row.control === "select" && !dropdown && (row.choices ?? []).length === 2
     readonly property string error: Store.rowErrors[row.key] || ""
     readonly property bool canReset: prov !== undefined && prov.source && prov.source.kind === "user" && !inert
@@ -155,12 +164,12 @@ Item {
                     id: ctl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    width: r.row.control === "toggle" ? 40 : (r.wide ? Math.min(slot.width, 360) : ctl.implicitWidth)
+                    width: r.row.control === "toggle" ? 40 : (r.cards ? slot.width : (r.wide ? Math.min(slot.width, 360) : ctl.implicitWidth))
                     sourceComponent: {
                         switch (r.row.control) {
                         case "toggle": return cToggle
                         case "slider": return cSlider
-                        case "select": return r.dropdown ? cDropdown : (r.switchChoice ? cSwitch : cSegmented)
+                        case "select": return r.cards ? cCards : (r.dropdown ? cDropdown : (r.switchChoice ? cSwitch : cSegmented))
                         case "pick_list": return cPickList
                         case "records": return cRecords
                         case "list": case "font": return cList
@@ -312,6 +321,20 @@ Item {
         Segmented {
             objectName: "segment:" + r.row.key
             choices: r.offers
+            current: r.value
+            enabled: r.editable
+            onPicked: v => r.setValue(v)
+            onPreviewed: v => r.moveTo(v)
+            onCancelled: r.cancel()
+        }
+    }
+    // Offers with looks of their own: preview cards (K45, I104).
+    Component {
+        id: cCards
+        DecorCards {
+            objectName: "cards:" + r.row.key
+            choices: r.offers
+            looks: r.looks
             current: r.value
             enabled: r.editable
             onPicked: v => r.setValue(v)
