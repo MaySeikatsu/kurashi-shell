@@ -34,6 +34,8 @@ pub struct Config {
     pub launcher: Launcher,
     #[kurashi(nested)]
     pub clock: Clock,
+    #[kurashi(nested)]
+    pub desktop: Desktop,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -70,7 +72,7 @@ pub struct Bar {
 #[kurashi(page = "appearance")]
 pub struct Theme {
     /// Look
-    /// A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own
+    /// A decor pack: recommends colours, chrome, motion, corners and fonts in one choice. Your own
     /// settings still win over what it recommends (K42).
     #[kurashi(default = Decor::None, section = "colors")]
     pub decor: Decor,
@@ -354,6 +356,43 @@ pub struct Clock {
     /// Show ISO week numbers beside the calendar's rows.
     #[kurashi(default = false)]
     pub week_numbers: bool,
+}
+
+// --- desktop widgets (K43) --------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Side {
+    Left,
+    Right,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "desktop", section = "widgets")]
+pub struct Desktop {
+    /// Desktop widgets
+    /// Cards on the desktop under your windows: the clock, the month, what is playing, the weather.
+    #[kurashi(default = false, per_output)]
+    pub enabled: bool,
+    /// Side
+    /// The screen side the cards stand on.
+    #[kurashi(default = Side::Right, per_output, requires = "desktop.enabled == true")]
+    pub side: Side,
+    /// Clock
+    /// The time in big keys, with the date.
+    #[kurashi(default = true, requires = "desktop.enabled == true")]
+    pub clock: bool,
+    /// Calendar
+    /// This month, today marked.
+    #[kurashi(default = true, requires = "desktop.enabled == true")]
+    pub calendar: bool,
+    /// Now playing
+    /// The song that plays, with its controls; hidden while nothing plays.
+    #[kurashi(default = true, requires = "desktop.enabled == true")]
+    pub media: bool,
+    /// Weather
+    /// Today's weather, while the weather mod is on and has a place.
+    #[kurashi(default = true, requires = "desktop.enabled == true")]
+    pub weather: bool,
 }
 
 // --- launcher --------------------------------------------------------------------------------

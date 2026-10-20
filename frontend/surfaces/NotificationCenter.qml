@@ -38,8 +38,9 @@ PanelWindow {
     BarConfig { id: bars; screen: win.screen }
     anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
     margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
-    implicitWidth: card.width
-    implicitHeight: card.height
+    // Room for the card's hard shadow (keycap chrome) and a gap from the screen edge.
+    implicitWidth: card.width + Theme.shadowDy + (Theme.keycap ? Theme.gap : 0)
+    implicitHeight: card.height + Theme.shadowDy + (Theme.keycap ? Theme.gap : 0)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -80,13 +81,22 @@ PanelWindow {
     Rectangle {
         id: card
         visible: win.shown
-        width: 372
+        width: 400
         height: Math.min(win.maxH, head.height + (win.items.length > 0 ? list.contentHeight : empty.height) + 3 * Theme.pad)
-        y: -win.slide * (1 - win.p)
-        radius: Theme.rLg
+        y: (Theme.keycap ? Theme.gap : 0) - win.slide * (1 - win.p)
+        radius: Theme.rLg + 4
         color: Theme.container
-        border.width: 1
-        border.color: Theme.outline
+        border.width: Theme.keycap ? Theme.outlineW : 1
+        border.color: Theme.keycap ? Theme.line : Theme.outline
+        Rectangle {
+            z: -1
+            visible: Theme.shadowDy > 0
+            y: Theme.shadowDy
+            width: card.width
+            height: card.height
+            radius: card.radius
+            color: Theme.line
+        }
         focus: true
         Keys.onEscapePressed: Store.act("ui.close")
 
@@ -102,6 +112,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 color: Theme.fg
                 font.pixelSize: Theme.fsTitle
+                font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
                 elide: Text.ElideRight
                 text: I18n.tr("notifications.center.title")
@@ -110,6 +121,7 @@ PanelWindow {
                 id: dnd
                 anchors.verticalCenter: parent.verticalCenter
                 label: I18n.tr("notifications.dnd")
+                icon: win.doc.dnd === true ? "do_not_disturb_on" : "do_not_disturb_off"
                 primary: win.doc.dnd === true
                 onClicked: Store.act("notify.dnd", { on: !(win.doc.dnd === true) })
             }
@@ -117,22 +129,34 @@ PanelWindow {
                 id: clear
                 anchors.verticalCenter: parent.verticalCenter
                 label: I18n.tr("notifications.center.clear_all")
+                icon: "clear_all"
                 enabled: win.items.length > 0
                 onClicked: Store.act("notify.dismiss", {})
             }
         }
 
-        Text {
+        Column {
             id: empty
             visible: win.items.length === 0
             x: Theme.pad
             y: head.y + head.height + Theme.pad
             width: parent.width - 2 * Theme.pad
-            horizontalAlignment: Text.AlignHCenter
-            color: Theme.dim
-            font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr("notifications.center.empty")
+            spacing: Theme.xs
+            Icon {
+                anchors.horizontalCenter: parent.horizontalCenter
+                name: "notifications_paused"
+                glyph: ""
+                size: 40
+                color: Theme.dim
+            }
+            Text {
+                width: parent.width
+                horizontalAlignment: Text.AlignHCenter
+                color: Theme.dim
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("notifications.center.empty")
+            }
         }
 
         // Scroll cue: a fade over the bottom of the list while more notifications lie below it.
