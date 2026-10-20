@@ -18,6 +18,7 @@ use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
 use crate::documents::{self, Note};
+use crate::tasks;
 use crate::webdock;
 
 /// The fake backlight starts at half scale (`svc.brightness` 0.5).
@@ -50,7 +51,7 @@ impl Fail {
         }
     }
 
-    fn unavailable(msg: impl Into<String>) -> Self {
+    pub(crate) fn unavailable(msg: impl Into<String>) -> Self {
         Fail {
             kind: "unavailable",
             msg: msg.into(),
@@ -168,6 +169,8 @@ impl State {
                     "state": {"text": "こんにちは"}
                 }]}),
             ),
+            // The tasks mod's document (K46): a few items and a note, the actions answered in memory (tasks.rs).
+            ("mod.tasks", tasks::initial()),
             // The web dock's document (MODS.md "Web dock"): hidden, no pins, the host ready.
             ("mod.webdock", {
                 let (profiles, icons) = webdock::dir_paths();
@@ -478,6 +481,7 @@ impl State {
             "bluetooth.scan" => self.bluetooth_scan(bool_arg(args, "on")?)?,
             "input.dispatch" => return self.dispatch(args),
             _ if action.starts_with("webdock.") => return self.webdock(action, args),
+            _ if action.starts_with("tasks.") => return self.tasks(action, args),
             _ => {
                 return Err(Fail {
                     kind: "unknown_action",
@@ -870,6 +874,15 @@ impl State {
         }
         if let Some(url) = out.external {
             tracing::info!(%url, "webdock: open in the default browser (logged, not started)");
+        }
+        Ok(out.reply)
+    }
+
+    /// `tasks.*` (K46): answered in memory by tasks.rs, which returns the patch of `mod.tasks` and the reply.
+    fn tasks(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        let out = tasks::act(self.data("mod.tasks"), action, args)?;
+        if let Some(ops) = out.ops {
+            self.patch("mod.tasks", ops, None);
         }
         Ok(out.reply)
     }

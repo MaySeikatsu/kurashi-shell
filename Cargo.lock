@@ -985,6 +985,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-tasks"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "kurashi-mod-api",
+ "notify",
+ "serde_json",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
 name = "kurashi-mod-wallpaper"
 version = "0.0.1"
 dependencies = [
@@ -1131,6 +1143,7 @@ dependencies = [
  "kurashi-mod-api",
  "kurashi-mod-hello",
  "kurashi-mod-sysmon",
+ "kurashi-mod-tasks",
  "kurashi-mod-wallpaper",
  "kurashi-mod-weather",
  "kurashi-mod-webdock",
