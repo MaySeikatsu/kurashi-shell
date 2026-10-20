@@ -120,6 +120,7 @@ COLOURS = [SURFACE] + [tuple(round(SURFACE[k] * a + raster[_b + k] * (1 - a)) fo
 n = 0
 x0 = y0 = 1 << 30
 x1 = y1 = -1
+rows = {}
 for y in range(Y0, min(Y1, h)):
     row = y * w * 3
     for x in range(X0, min(X1, w)):
@@ -129,7 +130,13 @@ for y in range(Y0, min(Y1, h)):
             n += 1
             x0, x1 = min(x0, x), max(x1, x)
             y0, y1 = min(y0, y), max(y1, y)
-print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
+            r = rows.setdefault(y, [x, x])
+            r[0], r[1] = min(r[0], x), max(r[1], x)
+# The card's own width is read on its middle row: the liquid neck's fillets (W21/W22) widen the shape where it meets the
+# bar, so the bounding box is a few pixels wider than the card.
+mid = rows.get((y0 + y1) // 2) if n else None
+print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None,
+                  "mid": [mid[0], y0, mid[1], y1] if mid else None}))
 PY
 analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
 
@@ -143,9 +150,10 @@ card() {
   ppm_shot "$1" 2.5
   res=$(analyse "$1") || fail "$1: analysis failed"
   echo "$1: $res"
-  jq -e --argjson w "$2" '.surface >= 15000 and .bbox != null
-      and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
-      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
+  # The whole shape's box (the phone: its body) or its middle row (a card under a liquid neck) has the view's width.
+  jq -e --argjson w "$2" 'def fits(b): b != null and (((b[2] - b[0] + 1) - ($w - 2)) | fabs) <= 4
+      and (((b[0] + b[2]) / 2 - 1280) | fabs) <= 4;
+      .surface >= 15000 and (fits(.bbox) or fits(.mid))' <<<"$res" >/dev/null \
     || fail "$1: no card of width $2 centred on the output ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   cx=$((x0 - 24)); cy=$((y0 - 24))
