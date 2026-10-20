@@ -200,6 +200,71 @@ PanelWindow {
             height: bar.vertical ? parent.height : Theme.outlineW
         }
     }
+    // K47 (W23-system, docs/ux/power.md): the keyboard layout's short name (svc.keyboard), shown only while the compositor
+    // names more than one layout; a click switches to the next (`keyboard.next`). Its document is watched
+    // while the chip exists, i.e. while the bar is shown (the compositor stream behind it is refcounted, Ma).
+    component KeyboardChip: Item {
+        id: kb
+        Watch { doc: "svc.keyboard" }
+        readonly property var d: Store.docs["svc.keyboard"] || ({})
+        readonly property var layouts: d.layouts || []
+        readonly property var cur: layouts.length > 0 ? layouts[Math.max(0, Math.min(layouts.length - 1, Number(d.current || 0)))] : null
+        visible: layouts.length > 1
+        width: visible ? kbText.implicitWidth + 2 * Theme.xs : 0
+        height: Theme.barH - 12
+        Accessible.role: Accessible.Button
+        Accessible.name: I18n.tr("power.bar.layout").replace("{name}", kb.cur ? String(kb.cur.name) : "")
+        Rectangle {
+            anchors.fill: parent
+            radius: Theme.rSm
+            color: kbHover.hovered ? Theme.containerHigh : "transparent"
+        }
+        Text {
+            id: kbText
+            anchors.centerIn: parent
+            color: Theme.fg
+            font.pixelSize: Theme.fsCaption
+            font.weight: Theme.wBold
+            font.family: Theme.fam(text, Theme.families)
+            text: kb.cur ? String(kb.cur.short).toUpperCase() : ""
+        }
+        HoverHandler { id: kbHover }
+        TapHandler { onTapped: Store.act("keyboard.next") }
+    }
+    // K47: a recording runs (svc.recorder) — a red dot and its label; a click stops it (`recorder.stop`). Nothing at all while
+    // nothing records; the dot does not blink (no animation, Ma).
+    component RecordDot: Item {
+        id: rd
+        Watch { doc: "svc.recorder" }
+        readonly property bool recording: (Store.docs["svc.recorder"] || ({})).recording === true
+        visible: recording
+        width: visible ? dotRow.implicitWidth + 2 * Theme.xs : 0
+        height: Theme.barH - 12
+        Accessible.role: Accessible.Button
+        Accessible.name: I18n.tr("power.bar.recording")
+        Row {
+            id: dotRow
+            anchors.centerIn: parent
+            spacing: Theme.xs
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 10
+                height: 10
+                radius: 5
+                color: Theme.error
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.error
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("power.bar.rec")
+            }
+        }
+        TapHandler { onTapped: Store.act("recorder.stop") }
+    }
+
     // A group's block behind a row of the bar (chromes with groups): the row's box plus `Theme.gap` around it, the face
     // centred on the bar. Under flat chrome nothing is drawn and nothing moves (the rows keep their places). The soft
     // shadow is a short one: the bar's window ends a few px under the block.
@@ -430,6 +495,8 @@ PanelWindow {
                         }
                     }
                 }
+                RecordDot { anchors.verticalCenter: parent.verticalCenter }
+                KeyboardChip { anchors.verticalCenter: parent.verticalCenter }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
