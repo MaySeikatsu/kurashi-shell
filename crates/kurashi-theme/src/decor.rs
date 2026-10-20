@@ -167,7 +167,7 @@ mod tests {
             "label = \"Zen\"\n[recipe]\n\"theme.chrome\" = \"line\"\n",
         )
         .unwrap();
-        let all = all_in(&[dir.clone()]);
+        let all = all_in(std::slice::from_ref(&dir));
         let sekai = all.iter().find(|d| d.name == "sekai").unwrap();
         assert!(!sekai.bundled && sekai.recipe.len() == 1);
         assert_eq!(all.last().unwrap().label, "Zen");
