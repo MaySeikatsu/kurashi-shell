@@ -7,8 +7,13 @@
 - **Mods** — every feature beyond the core is a mod you can switch on live; it appears natively in Settings.
 - **Profiles** — save the whole shell, load it back fully or section by section.
 - **Island (島)** — a dynamic component that shows what matters now, and what you choose.
+- **Looks** — one switch (`theme.decor`): `sekai` (pop keycaps: ink outlines, hard shadows, springy presses), `glass`
+  (frosted, soft), or your own palette, chrome and motion; your own settings always win over a look's recommendations.
+- **Desk, launcher, phone** — desktop widgets (keycap clock, month, now playing, weather); a launcher that also
+  calculates (`2^8`, `15% of 2500`), finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
+  web dock drawn as a phone.
 
-Status: **pre-alpha (M0)**. See `docs/ROADMAP.md` and `docs/PROGRESS.md`.
+Status: **pre-alpha**. See `docs/ROADMAP.md` and `docs/PROGRESS.md`.
 
 ```sh
 nix develop      # toolchain, quickshell, sway (headless tests), bench tools
