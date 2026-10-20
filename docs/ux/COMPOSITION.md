@@ -101,6 +101,23 @@ as the core tiles do.
 - **Tokens**: the on state reads `quick.tile.on.bg`, `quick.tile.on.badge` and `quick.tile.on.fg` from the theme document
   when it has them (I51); without them the tonal look of the core tiles is drawn.
 
+## 6. Looks (K45, W22-styles)
+A decor is a whole look and never a layout: the bar's edge, height and widget order, the desk and the island's place are
+the user's (profiles). Every view draws its blocks through `Block.qml` (and `SoftShadow.qml` under a rectangle that is
+not a Block), which reads the chrome's widths and colours only:
+
+| chrome | blocks | bar | island card | press | ground (lock) |
+|---|---|---|---|---|---|
+| flat (none) | fills, hairlines | one strip | grows out of the strip | shrink 0.97 | plain |
+| keycap (sekai) | ink outline, ring, hard shadow | groups float as keys | joins its group (neck) | sinks onto the shadow | dot field |
+| soft (glass) | light rim, soft drop shadow, panel alpha | groups float as glass pills | joins its group, soft shadow | shrink 0.96 | two glows |
+| line (terminal, washi) | outline only; keys are boxes with no fill | strip ruled at its edge, groups as boxes | grows out of the strip, outlined | fill flash | graph paper |
+
+Corners (`radius.full` 0 squares pills, switches, sliders, the phone's corners scale with `radius.lg`), type, icons
+(`icon.fill`/`icon.weight`, Sharp under line chrome) and motion come with the decor too. Small blocks inside other
+blocks cast less or no soft shadow (`softScale`), and windows that clip keep room for it (toasts, centre, launcher,
+phone). Evidence: `frontend/test-look.sh <decor> 'theme.decor = "<decor>"'` → `frontend/shots/look/<decor>/`.
+
 ## Open
 - K28 contract: `runtime.slots` shape, manifest `slot:` provides, per-slot order keys.
 - Per-view size limits per output scale; how a card grows when a slot fills (animation, no jump).

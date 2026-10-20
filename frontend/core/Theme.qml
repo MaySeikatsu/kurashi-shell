@@ -48,7 +48,8 @@ Singleton {
     readonly property var continuousCurve: bezier("motion.easing.continuous", [0.4, 0.0, 0.2, 1.0])
     // Chrome (K42): a block is a flat fill, or a keycap — outline in `line`, a `ring` between outline and fill, and
     // a hard shadow straight down that it sinks into while pressed. All widths are 0 under flat chrome.
-    readonly property bool keycap: tok("chrome.style", "flat") === "keycap"
+    // Keycap-only details (the ring, the sink): derived from the ring width, never from the chrome's name (rule 4).
+    readonly property bool keycap: ringW > 0
     readonly property int outlineW: tok("chrome.outline", 0)
     readonly property int ringW: tok("chrome.ring", 0)
     readonly property int shadowDy: tok("chrome.shadow", 0)
@@ -66,6 +67,9 @@ Singleton {
     readonly property bool groups: tok("chrome.groups", false)
     readonly property int iconFill: tok("icon.fill", 0)
     readonly property int iconWeight: tok("icon.weight", 400)
+    // Row 125: a block casts a shadow of either kind (bar groups float), or is an outlined box with no fill (line).
+    readonly property bool lifted: shadowDy > 0 || softR > 0
+    readonly property bool boxed: outlineW > 0 && !lifted
     readonly property color selected: color("color.selected", "#4a3138")
     // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
     readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")

@@ -100,6 +100,7 @@ Item {
             height: 30
             radius: Theme.rFull
             ringScale: 0
+            softScale: 0
             animate: face.animate
             fill: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.container)
             Icon {

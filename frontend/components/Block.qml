@@ -1,28 +1,37 @@
 import QtQuick
 import "../core"
 
-// Block (K42): the one shape chrome is made of. Flat chrome: a rounded fill (and an optional hairline). Keycap
-// chrome (SekaiPop's "one block, everywhere"): an outline in Theme.line, a ring in Theme.ring between outline and
-// fill, and a hard shadow straight down in the line colour; while `pressed` the face sinks onto its shadow and
-// springs back with Theme.overshoot. Children land on the fill. Widths come from tokens, so no renderer here or in
-// a caller branches on the theme's name (rule 4).
-// The block's size includes the shadow: the face is `height - Theme.shadowDy` tall (`faceH`); centre content on
-// `face` (anchors.centerIn: blk.face), not on the block.
+// Block (K42, K45): the one shape every chrome is made of, drawn from tokens only (rule 4: nothing here or in a caller
+// compares the chrome's name). The four chromes are four sets of widths and colours:
+//   outline  `Theme.outlineW` px in `Theme.outlineColor` (keycap ink, line chrome's outline role, soft chrome's faint
+//            light rim; 0 under flat chrome, where `flatBorder` may still draw a hairline);
+//   ring     `Theme.ringW` px in `Theme.ring` between outline and fill (keycap only), `ringScale` of it;
+//   shadow   a hard one `Theme.shadowDy` px straight down in `Theme.line` (keycap), or a soft one — `Theme.softR` blur,
+//            `Theme.softDy` down, `Theme.softColor` — under the face (soft chrome; `softScale` of it, 0 for none). The soft
+//            shadow is one RectangularShadow, made only while the chrome has one: static, nothing runs per frame;
+//   press    the face sinks onto its hard shadow and springs back with Theme.overshoot; or it shrinks to
+//            `Theme.pressScale`; a chrome with neither (line) flashes its fill instead.
+// Children land on the fill. The block's size includes the hard shadow: the face is `height - Theme.shadowDy` tall
+// (`faceH`); centre content on `face` (anchors.centerIn: blk.face), not on the block.
 Item {
     id: blk
     property color fill: Theme.containerHigh
     property real radius: Theme.rLg
     property bool pressed: false
-    // A hairline in flat chrome (cards, popups); keycap always outlines.
+    // A hairline when the chrome has no outline of its own (flat cards, popups).
     property color flatBorder: "transparent"
     property bool animate: visible
     // Thinner keycap ring for small things (chips, bar pills): 0..1 of the token ring.
     property real ringScale: 1
+    // How much of the soft shadow this block casts: 1 for a card or a key, less for small things inside other blocks.
+    property real softScale: 1
     readonly property real ringW: Theme.ringW * ringScale
     readonly property real inset: Theme.outlineW + ringW
     readonly property real faceH: height - Theme.shadowDy
     readonly property alias face: face
     default property alias content: fillRect.data
+    // The press a chrome has: a sink (hard shadow), a shrink (press scale), else a flash of the fill.
+    readonly property bool flashes: Theme.shadowDy <= 0 && Theme.pressScale >= 1
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 
@@ -40,6 +49,7 @@ Item {
         width: blk.width
         height: blk.faceH
         y: blk.pressed ? Theme.shadowDy : 0
+        scale: blk.pressed ? Theme.pressScale : 1
         Behavior on y {
             enabled: blk.animate && Theme.springOn
             NumberAnimation {
@@ -48,21 +58,50 @@ Item {
                 easing.overshoot: Theme.overshoot
             }
         }
+        Behavior on scale {
+            enabled: blk.animate && Theme.springOn
+            NumberAnimation {
+                duration: blk.pressed ? 80 : Theme.stdMs
+                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
+                easing.overshoot: Theme.overshoot
+            }
+        }
+        // The soft shadow (soft chrome): made only while the theme has one and this block casts it.
+        SoftShadow {
+            anchors.fill: parent
+            radius: blk.radius
+            amount: blk.softScale
+        }
         Rectangle {
             id: rim
             anchors.fill: parent
             radius: Math.min(blk.radius, height / 2)
-            color: Theme.keycap ? Theme.ring : blk.fill
-            border.width: Theme.keycap ? Theme.outlineW : (blk.flatBorder.a > 0 ? 1 : 0)
-            border.color: Theme.keycap ? Theme.line : blk.flatBorder
+            color: blk.ringW > 0 ? Theme.ring : blk.fill
+            border.width: Theme.outlineW > 0 ? Theme.outlineW : (blk.flatBorder.a > 0 ? 1 : 0)
+            border.color: Theme.outlineW > 0 ? Theme.outlineColor : blk.flatBorder
             antialiasing: true
+            Behavior on color { enabled: blk.animate && blk.ringW <= 0; ColorAnimation { duration: Theme.quickMs } }
+        }
+        // The press of a chrome without sink or shrink (line): the face lights at once and fades back on release (under
+        // the content).
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            radius: Math.max(0, Math.min(blk.radius, rim.height / 2) - Theme.outlineW)
+            color: Theme.fg
+            visible: blk.flashes && opacity > 0
+            opacity: blk.pressed && blk.flashes ? 0.16 : 0
+            Behavior on opacity {
+                enabled: blk.animate && !blk.pressed
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutQuad }
+            }
         }
         Rectangle {
             id: fillRect
             anchors.fill: parent
-            anchors.margins: Theme.keycap ? blk.inset : 0
-            radius: Math.max(0, Math.min(blk.radius, rim.height / 2) - (Theme.keycap ? blk.inset : 0))
-            color: Theme.keycap ? blk.fill : "transparent"
+            anchors.margins: blk.inset
+            radius: Math.max(0, Math.min(blk.radius, rim.height / 2) - blk.inset)
+            color: blk.ringW > 0 ? blk.fill : "transparent"
             antialiasing: true
             Behavior on color { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
         }

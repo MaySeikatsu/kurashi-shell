@@ -401,8 +401,8 @@ PanelWindow {
                     height: 32
                     radius: height / 2
                     color: Theme.containerHigh
-                    border.width: Theme.keycap ? Theme.outlineW : 0
-                    border.color: Theme.line
+                    border.width: Theme.outlineW
+                    border.color: Theme.outlineColor
                     clip: true
                     Text {
                         id: phoneTitle
@@ -422,7 +422,7 @@ PanelWindow {
                     }
                     Rectangle {
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: Theme.keycap ? Theme.outlineW : 0
+                        anchors.bottomMargin: Theme.outlineW
                         x: pill.height / 2
                         height: 2
                         radius: 1
@@ -464,6 +464,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: header.spread
                     HostButton {
+                        keyed: card.phoneLook
                         id: back
                         glyph: "‹"
                         icon: "arrow_back_ios_new"
@@ -473,6 +474,7 @@ PanelWindow {
                         onClicked: header.page.engine.goBack()
                     }
                     HostButton {
+                        keyed: card.phoneLook
                         id: forward
                         glyph: "›"
                         icon: "arrow_forward_ios"
@@ -506,6 +508,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: header.spread
                     HostButton {
+                        keyed: card.phoneLook
                         id: home
                         visible: card.homeShown
                         glyph: "⌂"
@@ -515,6 +518,7 @@ PanelWindow {
                         onClicked: card.goHome()
                     }
                     HostButton {
+                        keyed: card.phoneLook
                         id: reloadButton
                         glyph: "↻"
                         icon: "refresh"
@@ -525,6 +529,7 @@ PanelWindow {
                     }
                     // The view and the size show the state they are in; a press switches it (the tooltip names it).
                     HostButton {
+                        keyed: card.phoneLook
                         id: viewToggle
                         shape: card.shownView === "mobile" ? "phone" : "desktop"
                         a11y: I18n.tr(card.shownView === "mobile" ? "webdock.host.view.mobile" : "webdock.host.view.desktop")
@@ -533,6 +538,7 @@ PanelWindow {
                         onClicked: card.toggleView()
                     }
                     HostButton {
+                        keyed: card.phoneLook
                         id: sizeToggle
                         shape: card.isLarge ? "wide" : "narrow"
                         a11y: I18n.tr(card.isLarge ? "webdock.host.size.large" : "webdock.host.size.phone")
@@ -540,6 +546,7 @@ PanelWindow {
                         onClicked: card.report("webdock.size", { size: card.isLarge ? "phone" : "large" })
                     }
                     HostButton {
+                        keyed: card.phoneLook
                         id: more
                         glyph: "…"
                         icon: "more_horiz"
@@ -548,6 +555,7 @@ PanelWindow {
                         onClicked: card.menuOpen = !card.menuOpen
                     }
                     HostButton {
+                        keyed: card.phoneLook
                         glyph: "×"
                         icon: "close"
                         a11y: I18n.tr("webdock.nav.collapse")

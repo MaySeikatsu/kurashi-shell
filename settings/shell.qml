@@ -323,7 +323,7 @@ ShellRoot {
                                     radius: height / 2
                                     // Tonal pill for the open page (I51); keycap chrome outlines it.
                                     color: on ? Theme.selected : (navHover.hovered ? Theme.containerHigh : "transparent")
-                                    border.width: on && Theme.keycap ? Theme.outlineW : 0
+                                    border.width: on && Theme.outlineW > 0 ? Theme.outlineW : 0
                                     border.color: Theme.line
                                     HoverHandler { id: navHover }
                                     // A Material Symbols icon per core page (none for mods and the views without one).

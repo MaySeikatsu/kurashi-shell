@@ -4,7 +4,8 @@ import "../core"
 // Glyph-only button, 28 px square; its hit area is the control height (32 px floor). `a11y` is the
 // translated accessible name. Reachable by Tab; Return, Enter and Space press it. `icon` is a Material
 // Symbols name drawn when the font is there; `glyph` is the text fallback (and the only mark without `icon`).
-// Keycap chrome (K42): always a small round block that sinks while pressed; flat: a hover disc.
+// Block chromes (K42, K45): a small round block — a keycap that sinks, a soft disc that shrinks, an outlined box (line
+// chrome); flat chrome: a hover disc.
 Item {
     id: b
     property string glyph: ""
@@ -18,8 +19,11 @@ Item {
 
     function press() { if (b.enabled) b.clicked() }
 
-    implicitWidth: Theme.keycap ? 32 : 28
-    implicitHeight: (Theme.keycap ? 32 : 28) + Theme.shadowDy
+    readonly property int side: Theme.ringW > 0 ? 32 : 28
+    // A block with a shadow of either kind stands as a filled key; an outline alone is a box with no fill.
+    readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
+    implicitWidth: side
+    implicitHeight: side + Theme.shadowDy
     opacity: enabled ? 1 : 0.5
 
     activeFocusOnTab: b.enabled
@@ -34,10 +38,11 @@ Item {
         anchors.fill: parent
         radius: b.radius
         ringScale: 0.34
+        softScale: 0.4
         pressed: area.pressed && b.enabled
         fill: b.lit ? Theme.selected
-            : (Theme.keycap ? (hover.hovered && b.enabled ? Theme.containerHigh : Theme.container)
-                            : (hover.hovered && b.enabled ? Theme.containerHigh : "transparent"))
+            : (Theme.groups && b.lifted ? (hover.hovered && b.enabled ? Theme.containerHigh : Theme.container)
+                                        : (hover.hovered && b.enabled ? Theme.containerHigh : "transparent"))
         Icon {
             anchors.centerIn: parent
             name: b.icon

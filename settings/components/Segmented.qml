@@ -37,8 +37,8 @@ Flow {
             radius: Theme.keycap ? height / 2 : Theme.rSm
             // Tonal selection (I51) with a bold label, so the choice is not colour alone.
             color: on ? Theme.selected : Theme.containerHigh
-            border.width: Theme.keycap ? Theme.outlineW : 1
-            border.color: Theme.keycap ? Theme.line : (on ? Theme.selected : Theme.outline)
+            border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+            border.color: Theme.outlineW > 0 ? Theme.outlineColor : (on ? Theme.selected : Theme.outline)
             opacity: s.enabled ? 1 : 0.5
             activeFocusOnTab: s.enabled
             Keys.onSpacePressed: event => { s.picked(modelData.value); event.accepted = true }

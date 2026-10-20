@@ -26,6 +26,10 @@ import "../components/island"
 // bar, where it was; the view fades in once the shape has nearly grown, and fades out first when it folds back. While the
 // shape is out the bar's pill is not drawn (IslandGeom.takenOn), so there is one island. Retargets keep the springs'
 // velocity (interruptible); Theme.springOn false snaps. Side bars keep the slide.
+// K45/I115: where the bar's groups float as blocks of their own (keycap and soft chrome: no strip to grow out of), the
+// shape keeps the island's bar block as its head and the card grows out from under it, joined by a neck: one outline
+// round both, which the keycap's ring and hard shadow and the soft shadow follow. Its fill is the panel's (I114:
+// translucent under glass), its layers never lie under one another.
 PanelWindow {
     id: stage
 
@@ -384,8 +388,8 @@ PanelWindow {
         height: peekLoader.implicitHeight + 2 * Theme.pad
         radius: Theme.rSm
         color: Theme.containerHigh
-        border.width: 1
-        border.color: Theme.outline
+        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         clip: true
         opacity: stage.peekP
         // It slides in from its bar: down from a top bar, up from a bottom bar, out from a side bar.
@@ -437,11 +441,15 @@ PanelWindow {
     readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
     // The card's content sits where it always did: past the bar and 4 px (BarConfig's inset); the shape ends at its foot.
     readonly property real cardTop: Theme.barH + 4
-    // The neck joins the card to the bar's strip; keycap chrome floats the bar's groups with no strip (Bar.qml), so there
-    // the card is a free keycap and has no neck to grow from.
-    readonly property real neckR: Theme.keycap ? 0 : Theme.rLg
-    // Room round the card for the springs' overshoot (soft-limited to 8 %, see soft()).
-    readonly property int slackX: 16
+    // The bar's groups float as blocks (a chrome with groups and a shadow of either kind: no strip under them, Bar.qml):
+    // the card joins the island's own block (I115). Else the neck joins the card to the bar's strip.
+    readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
+    readonly property bool joined: Theme.groups && lifted
+    // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
+    readonly property bool boxed: Theme.outlineW > 0 && !lifted
+    readonly property real neckR: joined ? 0 : Theme.rLg
+    // Room round the card for the springs' overshoot (soft-limited to 8 %, see soft()) and for a soft shadow.
+    readonly property int slackX: 16 + Theme.softR
     readonly property int slackY: 40
     readonly property real morphW: 2 * Math.ceil(Math.max(card.width / 2 + neckR + slackX,
         Math.abs(pillGeom ? pillGeom.dx : 0) + pillW / 2 + 8))
@@ -519,6 +527,19 @@ PanelWindow {
     readonly property real shapeW: lerp(pillW, card.width, ew)
     readonly property real shapeH: lerp(pillH, cardTop + card.height - pillTop, eh)
     readonly property real shapeCx: morphW / 2 + lerp(pillGeom ? pillGeom.dx : 0, 0, tw)
+    // The pill's corners (square corners: radius.full 0) and its centre at rest.
+    readonly property real pillR: Math.min(Theme.rFull, pillH / 2)
+    readonly property real pillCx: morphW / 2 + (pillGeom ? pillGeom.dx : 0)
+    // The body: the whole shape on a strip; in the joined topology what grows out from under the head (the pill), from
+    // its foot to the card's rect. The view is cut to it.
+    readonly property real bodyTop: joined ? lerp(pillTop + pillH, cardTop, eh) : pillTop
+    readonly property real bodyH: joined ? Math.max(0, lerp(0, card.height, eh)) : shapeH
+    // The shape's fill: the pill's at first, the card's once grown, at the panel's opacity (I114); a boxed pill has the
+    // strip under it.
+    readonly property color shapeFill: {
+        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tw))
+        return Qt.alpha(c, Theme.panel.a)
+    }
     // The view comes in once the shape has nearly grown (fade + 0.98 -> 1, <= 160 ms) and leaves first (90 ms).
     readonly property bool contentWanted: open && shown && !gate && mw > 0.72 && mh > 0.6
     property real contentP: 0
@@ -528,24 +549,55 @@ PanelWindow {
         NumberAnimation { duration: stage.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
 
-    MorphShape {
-        id: shape
+    Item {
+        id: shapeBox
         visible: stage.shown && stage.morphMode && opacity > 0
         opacity: stage.ownChrome ? 1 - stage.contentP : 1
         width: stage.morphW
         height: stage.morphH
-        x0: stage.shapeCx - stage.shapeW / 2
-        y0: stage.pillTop
-        w: stage.shapeW
-        h: stage.shapeH
-        rTop: stage.lerp(stage.pillH / 2, Theme.rLg, stage.th)
-        rBot: stage.lerp(stage.pillH / 2, Theme.rLg, stage.th)
-        edgeY: Theme.barH
-        neck: stage.neckR
-        fill: Qt.tint(Theme.containerHigh, Qt.alpha(Theme.container, stage.tw))
-        ringScale: 0.5 + 0.5 * stage.tw
-        flip: stage.flip
         transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
+        // The soft chrome's shadow under the head and the body (static RectangularShadows that follow the springs).
+        SoftShadow {
+            visible: stage.joined
+            x: stage.pillCx - stage.pillW / 2
+            y: stage.pillTop
+            width: stage.pillW
+            height: stage.pillH
+            radius: stage.pillR
+            direction: stage.flip ? -1 : 1
+        }
+        SoftShadow {
+            visible: shape.h > 1
+            x: shape.x0
+            y: shape.y0
+            width: shape.w
+            height: shape.h
+            radius: Math.min(shape.rTop, shape.rBot)
+            direction: stage.flip ? -1 : 1
+        }
+        MorphShape {
+            id: shape
+            visible: shapeBox.visible
+            anchors.fill: parent
+            joined: stage.joined
+            hx0: stage.pillCx - stage.pillW / 2
+            hy0: stage.pillTop
+            hw: stage.pillW
+            hh: stage.pillH
+            hr: stage.pillR
+            neckF: Theme.rLg / 2
+            x0: stage.shapeCx - stage.shapeW / 2
+            y0: stage.bodyTop
+            w: stage.shapeW
+            h: stage.bodyH
+            rTop: stage.joined ? Theme.rLg : stage.lerp(stage.pillR, Theme.rLg, stage.th)
+            rBot: stage.lerp(stage.pillR, Theme.rLg, stage.th)
+            edgeY: Theme.barH
+            neck: stage.neckR
+            fill: stage.shapeFill
+            ringScale: 0.5 + 0.5 * stage.tw
+            flip: stage.flip
+        }
     }
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).
     CompactFace {
@@ -555,8 +607,9 @@ PanelWindow {
         visible: active
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
         animate: stage.shown
-        opacity: shape.opacity
-        x: Math.round(stage.shapeCx - width / 2)
+        opacity: shapeBox.opacity
+        // Joined: the face stays in the head, the island's block; on a strip it rides the shape's centre.
+        x: Math.round((stage.joined ? stage.pillCx : stage.shapeCx) - width / 2)
         y: stage.flip ? stage.morphH - stage.pillTop - stage.pillH : stage.pillTop
         width: Math.max(stage.pillW, wantW + 2 * Theme.pad)
         height: stage.pillH
@@ -590,9 +643,9 @@ PanelWindow {
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
         radius: Theme.rLg
-        color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.container
-        border.width: stage.morphMode || stage.ownChrome ? 0 : 1
-        border.color: Theme.outline
+        color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.panel
+        border.width: stage.morphMode || stage.ownChrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         // The Stage's one keyboard focus holder. The menus are driven from here and never take
         // focus themselves (a second holder would clear this flag for good). Esc closes whichever panel.
         focus: true
@@ -606,10 +659,10 @@ PanelWindow {
         // away, so the view never spills out of the island.
         Item {
             id: reveal
-            readonly property real shapeTop: stage.flip ? stage.morphH - stage.pillTop - stage.shapeH : stage.pillTop
+            readonly property real shapeTop: stage.flip ? stage.morphH - stage.bodyTop - stage.bodyH : stage.bodyTop
             readonly property real cutTop: stage.morphMode ? Math.max(0, Math.min(card.height, shapeTop - card.y)) : 0
             readonly property real cutBottom: stage.morphMode
-                ? Math.max(cutTop, Math.min(card.height, shapeTop + stage.shapeH - card.y)) : card.height
+                ? Math.max(cutTop, Math.min(card.height, shapeTop + stage.bodyH - card.y)) : card.height
             readonly property real cutLeft: stage.morphMode
                 ? Math.max(0, Math.min(card.width, stage.shapeCx - stage.shapeW / 2 - card.x)) : 0
             readonly property real cutRight: stage.morphMode

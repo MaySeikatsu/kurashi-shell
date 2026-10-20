@@ -25,9 +25,11 @@ Rectangle {
     implicitHeight: row.height + 2 * Theme.pad
     radius: Theme.rLg
     color: Theme.panel
-    // Keycap chrome (K42): an ink outline (accent when urgent) and a hard shadow; flat: a hairline.
-    border.width: Theme.keycap ? Theme.outlineW : 1
-    border.color: urgent ? Theme.accent : (Theme.keycap ? Theme.line : Theme.outline)
+    // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
+    // flat: a hairline.
+    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+    border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+    SoftShadow { anchors.fill: parent; radius: c.radius }
     Rectangle {
         z: -1
         visible: Theme.shadowDy > 0
@@ -75,10 +77,10 @@ Rectangle {
             visible: !img.visible
             width: 32
             height: 32
-            radius: 16
+            radius: Math.min(16, Theme.rFull)
             color: c.urgent ? Theme.accent : Theme.selected
-            border.width: Theme.keycap ? Theme.outlineW : 0
-            border.color: Theme.line
+            border.width: Theme.ringW > 0 ? Theme.outlineW : 0
+            border.color: Theme.outlineColor
             Icon {
                 anchors.centerIn: parent
                 name: c.urgent ? "priority_high" : "notifications"
@@ -145,10 +147,11 @@ Rectangle {
                         required property var modelData
                         implicitWidth: lbl.implicitWidth + 2 * Theme.pad
                         implicitHeight: 26
-                        radius: Theme.keycap ? height / 2 : Theme.rSm
-                        color: Theme.containerHigh
-                        border.width: Theme.keycap ? Theme.outlineW : 0
-                        border.color: Theme.line
+                        radius: Theme.groups ? Math.min(height / 2, Theme.rFull) : Theme.rSm
+                        // Outlined chrome without a shadow: an outlined box, no fill behind the label.
+                        color: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 ? "transparent" : Theme.containerHigh
+                        border.width: Theme.outlineW
+                        border.color: Theme.outlineColor
                         activeFocusOnTab: true
                         Keys.onReturnPressed: c.invoked(modelData.key)
                         Keys.onEnterPressed: c.invoked(modelData.key)

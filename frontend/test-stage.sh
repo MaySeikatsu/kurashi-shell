@@ -93,11 +93,13 @@ ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # The card's surface (Theme.container, color.surface_container) in the output's centre column: its
-# pixel count and bounding box. A card is drawn only where its surface is; a closed Stage draws nothing.
+# pixel count and bounding box. The island's shape is drawn at the panel's opacity (W22, I114: Theme.panel, the mock's
+# surface_alpha 0.82), so a pixel of the container blended over the desk's own colour counts too. A card is drawn only where its surface is; a closed Stage draws nothing.
 cat > "$W/analyse.py" <<'PY'
 import json, sys
 
 SURFACE = (0x25, 0x23, 0x29)   # color.surface_container in the mock's theme
+ALPHA = 0.82                   # color.surface_alpha in the mock's theme
 TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 720   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
 
@@ -120,6 +122,15 @@ def read_ppm(data):
 
 with open(sys.argv[1], "rb") as f:
     w, h, raster = read_ppm(f.read())
+# The desk's colour, from the output's bottom-right corner (no surface there), and the panel blended over it.
+_b = ((h - 3) * w + (w - 3)) * 3
+BLEND = tuple(round(SURFACE[k] * ALPHA + raster[_b + k] * (1 - ALPHA)) for k in range(3))
+
+
+def hit(o):
+    return any(abs(raster[o] - c[0]) <= TOL and abs(raster[o + 1] - c[1]) <= TOL and abs(raster[o + 2] - c[2]) <= TOL
+               for c in (SURFACE, BLEND))
+
 n = 0
 x0 = y0 = 1 << 30
 x1 = y1 = -1
@@ -127,8 +138,7 @@ for y in range(Y0, min(Y1, h)):
     row = y * w * 3
     for x in range(X0, min(X1, w)):
         o = row + x * 3
-        if (abs(raster[o] - SURFACE[0]) <= TOL and abs(raster[o + 1] - SURFACE[1]) <= TOL
-                and abs(raster[o + 2] - SURFACE[2]) <= TOL):
+        if hit(o):
             n += 1
             x0, x1 = min(x0, x), max(x1, x)
             y0, y1 = min(y0, y), max(y1, y)
@@ -139,9 +149,7 @@ if n:
     seen = {}
     for y in range(y0, y1 + 1, 2):
         row = y * w * 3
-        xs = [x for x in range(X0, min(X1, w))
-              if abs(raster[row + x * 3] - SURFACE[0]) <= TOL and abs(raster[row + x * 3 + 1] - SURFACE[1]) <= TOL
-              and abs(raster[row + x * 3 + 2] - SURFACE[2]) <= TOL]
+        xs = [x for x in range(X0, min(X1, w)) if hit(row + x * 3)]
         if xs:
             seen[(xs[0], xs[-1])] = seen.get((xs[0], xs[-1]), 0) + 1
     if seen:

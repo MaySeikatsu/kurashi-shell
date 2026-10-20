@@ -162,6 +162,7 @@ Flickable {
                             height: ctl.width - 12 + Theme.shadowDy
                             radius: Theme.rFull
                             ringScale: 0.5
+                            softScale: 0.4
                             fill: ctl.lit ? Theme.selected : (hov.hovered ? Theme.containerHigh : Theme.container)
                             pressed: ctlTap.pressed && ctl.live
                             opacity: ctl.live ? 1 : 0.5
