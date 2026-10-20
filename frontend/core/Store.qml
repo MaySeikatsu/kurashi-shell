@@ -73,6 +73,14 @@ Singleton {
 
     // Actions: cb(done, err). `done` is the daemon's reply (done.data may carry a result), `err`
     // the {kind, msg} of a failure; exactly one is non-null. cb is optional.
+    // Config writes from a view (row 134): one atomic `apply`; cb(null) when applied, cb(errors) when rejected — the
+    // errors are `[{key, code, msg}]`, `code` an i18n key — and cb([{code:"disconnected"}]) without a daemon.
+    function apply(ops, cb) {
+        var id = "c" + (++seq)
+        if (cb) pending[id] = { apply: cb }
+        if (!connected) { if (cb) { delete pending[id]; cb([{ code: "disconnected" }]) } return }
+        send({ t: "apply", id: id, ops: ops })
+    }
     function act(action, args, cb) {
         var id = "a" + (++seq)
         if (cb) pending[id] = cb
@@ -144,6 +152,10 @@ Singleton {
             }
             revs[m.doc] = m.rev
             setDoc(m.doc, merge(JSON.parse(JSON.stringify(docs[m.doc])), m.ops))
+        } else if (m.t === "applied" || m.t === "rejected") {
+            var ap = pending[m.id]
+            delete pending[m.id]
+            if (ap && ap.apply) ap.apply(m.t === "applied" ? null : (m.errors || []))
         } else if (m.t === "done") {
             var cb = pending[m.id]
             delete pending[m.id]

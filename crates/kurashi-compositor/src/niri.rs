@@ -21,8 +21,8 @@ use tokio::{
 use tokio_stream::{Stream, StreamExt, wrappers::BroadcastStream};
 
 use crate::{
-    Action, Capabilities, Compositor, CompositorState, Direction, Error, Event, Output, Result,
-    Window, Workspace, WorkspaceRef, diff,
+    Action, Capabilities, Compositor, CompositorState, Direction, Error, Event, LayoutTarget,
+    Output, Result, Window, Workspace, WorkspaceRef, diff,
 };
 
 const BACKOFF_START: Duration = Duration::from_millis(250);
@@ -39,6 +39,7 @@ pub struct NiriState {
     windows: HashMap<u64, niri_ipc::Window>,
     outputs: HashMap<String, niri_ipc::Output>,
     overview: bool,
+    keyboard: Option<niri_ipc::KeyboardLayouts>,
     got_workspaces: bool,
     got_windows: bool,
     /// Workspace output names at the time outputs were last read (`None`: never).
@@ -127,7 +128,16 @@ impl NiriState {
                 }
             }
             N::OverviewOpenedOrClosed { is_open } => self.overview = is_open,
-            // Layouts, timestamps, keyboard, casts, config, screenshots: not in our state, and
+            // K47 `svc.keyboard`: the configured layouts, then each switch.
+            N::KeyboardLayoutsChanged { keyboard_layouts } => {
+                self.keyboard = Some(keyboard_layouts)
+            }
+            N::KeyboardLayoutSwitched { idx } => {
+                if let Some(k) = self.keyboard.as_mut() {
+                    k.current_idx = idx;
+                }
+            }
+            // Layouts, timestamps, casts, config, screenshots: not in our state, and
             // ignoring them is what keeps an idle shell silent.
             _ => return Vec::new(),
         }
@@ -206,6 +216,10 @@ impl NiriState {
             workspaces,
             windows,
             overview_open: self.overview,
+            keyboard: self.keyboard.as_ref().map(|k| crate::KeyboardLayouts {
+                names: k.names.clone(),
+                current: usize::from(k.current_idx),
+            }),
         }
     }
 }
@@ -232,7 +246,48 @@ pub fn to_request(action: &Action) -> Request {
         },
         Action::ScrollColumn(Direction::Left) => N::FocusColumnLeft {},
         Action::ScrollColumn(Direction::Right) => N::FocusColumnRight {},
+        Action::PowerOffMonitors => N::PowerOffMonitors {},
+        Action::SwitchLayout(t) => N::SwitchLayout {
+            layout: match t {
+                LayoutTarget::Next => niri_ipc::LayoutSwitchTarget::Next,
+                LayoutTarget::Prev => niri_ipc::LayoutSwitchTarget::Prev,
+                LayoutTarget::Index(i) => niri_ipc::LayoutSwitchTarget::Index(*i),
+            },
+        },
+        // niri's own UI and clipboard (K47); the files go where niri's `screenshot-path` says.
+        Action::ScreenshotRegion => N::Screenshot {
+            show_pointer: false,
+            path: None,
+        },
+        Action::ScreenshotScreen => N::ScreenshotScreen {
+            write_to_disk: true,
+            show_pointer: false,
+            path: None,
+        },
+        Action::ScreenshotWindow => N::ScreenshotWindow {
+            id: None,
+            write_to_disk: true,
+            show_pointer: false,
+            path: None,
+        },
     })
+}
+
+/// One action on its own request connection, without the event stream a [`NiriCompositor`] keeps:
+/// what the daemon's one-shot actions (idle, screenshots, layouts) use.
+pub async fn act_at(path: &Path, action: &Action) -> Result<()> {
+    match request(path, to_request(action)).await? {
+        Response::Handled => Ok(()),
+        other => Err(Error::Protocol(format!("unexpected reply {other:?}"))),
+    }
+}
+
+/// The focused output's name (the recorder's default output), on its own request connection.
+pub async fn focused_output_at(path: &Path) -> Result<Option<String>> {
+    match request(path, Request::FocusedOutput).await? {
+        Response::FocusedOutput(o) => Ok(o.map(|o| o.name)),
+        other => Err(Error::Protocol(format!("unexpected reply {other:?}"))),
+    }
 }
 
 struct Inner {
@@ -290,10 +345,7 @@ impl Compositor for NiriCompositor {
     }
 
     async fn act(&self, action: Action) -> Result<()> {
-        match request(&self.inner.path, to_request(&action)).await? {
-            Response::Handled => Ok(()),
-            other => Err(Error::Protocol(format!("unexpected reply {other:?}"))),
-        }
+        act_at(&self.inner.path, &action).await
     }
 
     fn capabilities(&self) -> Capabilities {

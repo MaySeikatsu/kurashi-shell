@@ -109,6 +109,7 @@ fn incremental_events_emit_only_real_changes() {
                     Event::Workspaces(_) => "workspaces",
                     Event::Windows(_) => "windows",
                     Event::Overview(_) => "overview",
+                    Event::Keyboard(_) => "keyboard",
                     Event::Resync => "resync",
                 })
                 .collect()
@@ -136,6 +137,56 @@ fn incremental_events_emit_only_real_changes() {
     );
     assert!(s.workspaces.iter().find(|w| w.id == 5).unwrap().urgent);
     assert_eq!(s.windows.iter().filter(|w| w.focused).count(), 1);
+}
+
+#[test]
+fn keyboard_layouts_follow_the_stream() {
+    let mut st = replayed_head();
+    let k = st
+        .state()
+        .keyboard
+        .clone()
+        .expect("the live head names the layouts");
+    assert_eq!(k.names, ["English (intl., with AltGr dead keys)", "German"]);
+    assert_eq!(k.current, 0);
+    let ev = st.apply(niri_ipc::Event::KeyboardLayoutSwitched { idx: 1 });
+    assert_eq!(ev.len(), 1);
+    assert!(matches!(&ev[0], Event::Keyboard(Some(k)) if k.current == 1));
+    assert!(
+        st.apply(niri_ipc::Event::KeyboardLayoutSwitched { idx: 1 })
+            .is_empty(),
+        "no change, no event"
+    );
+}
+
+#[test]
+fn k47_actions_serialize_as_niri_ipc_json() {
+    use kurashi_compositor::LayoutTarget;
+    let j = |a: Action| serde_json::to_value(to_request(&a)).unwrap();
+    assert_eq!(
+        j(Action::PowerOffMonitors),
+        json!({"Action": {"PowerOffMonitors": {}}})
+    );
+    assert_eq!(
+        j(Action::SwitchLayout(LayoutTarget::Next)),
+        json!({"Action": {"SwitchLayout": {"layout": "Next"}}})
+    );
+    assert_eq!(
+        j(Action::SwitchLayout(LayoutTarget::Index(1))),
+        json!({"Action": {"SwitchLayout": {"layout": {"Index": 1}}}})
+    );
+    assert_eq!(
+        j(Action::ScreenshotRegion),
+        json!({"Action": {"Screenshot": {"show_pointer": false, "path": null}}})
+    );
+    assert_eq!(
+        j(Action::ScreenshotScreen),
+        json!({"Action": {"ScreenshotScreen": {"write_to_disk": true, "show_pointer": false, "path": null}}})
+    );
+    assert_eq!(
+        j(Action::ScreenshotWindow),
+        json!({"Action": {"ScreenshotWindow": {"id": null, "write_to_disk": true, "show_pointer": false, "path": null}}})
+    );
 }
 
 #[test]

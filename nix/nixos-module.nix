@@ -15,6 +15,9 @@ in
       description = "Kurashi package.";
     };
 
+    # K47: the screen recorder prefers gpu-screen-recorder, which needs NixOS's capability wrapper (KMS capture).
+    gpuScreenRecorder.enable = lib.mkEnableOption "gpu-screen-recorder for the screen recorder (K47), with its capability wrapper";
+
     # The web dock (K38) is set up in Home-Manager (programs.kurashi.webdock); this installs its host
     # package system-wide, as Home-Manager does for the user. The base closure never carries it.
     webdock = {
@@ -39,6 +42,10 @@ in
 
       # Brightness needs no extra rule: logind's SetBrightness D-Bus call is permitted for the
       # active local session, which is what kurashid uses (no udev/video-group hacks).
+    })
+
+    (lib.mkIf (cfg.enable && cfg.gpuScreenRecorder.enable) {
+      programs.gpu-screen-recorder.enable = true;
     })
 
     (lib.mkIf cfg.webdock.enable {

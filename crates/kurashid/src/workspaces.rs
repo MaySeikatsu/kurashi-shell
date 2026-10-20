@@ -139,6 +139,8 @@ impl<C: Compositor + 'static> Provider for WorkspacesProvider<C> {
                     Event::Workspaces(w) => state.workspaces = w,
                     Event::Windows(w) => state.windows = w,
                     Event::Overview(open) => state.overview_open = open,
+                    // svc.keyboard has its own provider (K47); this document does not show layouts.
+                    Event::Keyboard(_) => continue,
                     Event::Resync => {
                         // Waits until the adapter is back in sync (never stale, Shōjiki).
                         if let Ok(s) = compositor.snapshot().await {

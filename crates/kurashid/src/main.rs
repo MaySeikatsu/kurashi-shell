@@ -73,6 +73,23 @@ async fn run() -> anyhow::Result<()> {
             hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
         }
     }
+    // K47 (W23-system): keyboard layouts from the compositor's stream, its one-shot actions (screenshots, screens off)
+    // and the focused output for the recorder.
+    let niri_sock = std::env::var_os("NIRI_SOCKET").map(std::path::PathBuf::from);
+    let compositor_act = niri_sock.clone().map(kurashid::wiring::niri_act);
+    let keyboard_provider = niri_sock.clone().map(|sock| {
+        let p: Arc<dyn kurashid::Provider> = kurashid::wiring::KeyboardProvider::new(move || {
+            kurashi_compositor::niri::NiriCompositor::spawn(sock.clone())
+        });
+        p
+    });
+    kurashid::wiring::keyboard(
+        &hub,
+        &mut actions,
+        keyboard_provider,
+        compositor_act.clone(),
+    );
+    kurashid::wiring::screenshots(&mut actions, compositor_act.clone());
     // Island faces come from config once M1.5 wires it; core faces for now (K9). The charger and
     // Bluetooth faces are core transients too (island.rs); their peek lines come from the copy.
     let island = kurashid::island::IslandHost::new(
@@ -191,6 +208,24 @@ async fn run() -> anyhow::Result<()> {
     kurashid::wiring::brightness(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
     let lock = kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker, facts.clone());
+    // K47 (W23-system): idle policy, night light, screen recorder.
+    kurashid::wiring::idle(
+        &hub,
+        &mut actions,
+        config.clone(),
+        kurashid::wiring::IdleDeps {
+            act: compositor_act.clone(),
+            backlight_dir: kurashi_services::brightness::DEFAULT_DIR.into(),
+            system: kurashid::services::Bus::System.connect(),
+        },
+    );
+    kurashid::wiring::nightlight(&hub, &mut actions, config.clone());
+    kurashid::wiring::recorder(
+        &hub,
+        &mut actions,
+        config.clone(),
+        niri_sock.clone().map(kurashid::wiring::niri_focused_output),
+    );
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
     let bindings = config.clone().map(|store| {
         let h = island.clone();
