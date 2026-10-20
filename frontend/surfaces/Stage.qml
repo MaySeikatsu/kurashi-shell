@@ -82,6 +82,10 @@ PanelWindow {
         power: powerView, bluetooth: bluetoothView
     })
     readonly property bool viewing: views[contentKind] !== undefined
+    // A view that draws its own chrome (`ownChrome`, the quick settings phone): no card fill, border, padding or Close row
+    // around it; the island's shape (or the slide) still brings it in.
+    readonly property bool ownChrome: viewing && view.item !== null && view.item.ownChrome === true
+    readonly property int cardPad: ownChrome ? 0 : Theme.pad + 4
     // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
     // takes it within 360..720 px and the output's width; the panel gets the card's content width.
     readonly property var modPanel: contentKind === "mod" && view.item ? view.item.item : null
@@ -420,7 +424,9 @@ PanelWindow {
     readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
     // The card's content sits where it always did: past the bar and 4 px (BarConfig's inset); the shape ends at its foot.
     readonly property real cardTop: Theme.barH + 4
-    readonly property real neckR: Theme.rLg
+    // The neck joins the card to the bar's strip; keycap chrome floats the bar's groups with no strip (Bar.qml), so there
+    // the card is a free keycap and has no neck to grow from.
+    readonly property real neckR: Theme.keycap ? 0 : Theme.rLg
     // Room round the card for the springs' overshoot (soft-limited to 8 %, see soft()).
     readonly property int slackX: 16
     readonly property int slackY: 40
@@ -546,7 +552,7 @@ PanelWindow {
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
         height: (stage.viewing ? col.implicitHeight
-            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * (Theme.pad + 4)
+            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the first frame has
         // shown (the reveal is the slide), so opening the card does not animate its height from the closed size.
         // Clipped, so a grown row is revealed by the card's edge rather than drawn over its margin.
@@ -564,8 +570,8 @@ PanelWindow {
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
         radius: Theme.rLg
-        color: stage.morphMode ? "transparent" : Theme.container
-        border.width: stage.morphMode ? 0 : 1
+        color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.container
+        border.width: stage.morphMode || stage.ownChrome ? 0 : 1
         border.color: Theme.outline
         // The Stage's one keyboard focus holder. The menus are driven from here and never take
         // focus themselves (a second holder would clear this flag for good). Esc closes whichever panel.
@@ -603,7 +609,7 @@ PanelWindow {
         Column {
             id: col
             visible: stage.viewing
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.cardPad }
             spacing: Theme.pad
             // Its height is the view's implicit one (an explicit binding to it loops in Qt).
             Loader {
@@ -613,7 +619,13 @@ PanelWindow {
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
             // The one close action of the island and quick cards (Esc closes them too).
-            KeyButton { label: I18n.tr("frontend.stage.close"); primary: true; side: 28; onClicked: Store.act("ui.close") }
+            KeyButton {
+                visible: !stage.ownChrome
+                label: I18n.tr("frontend.stage.close")
+                primary: true
+                side: 28
+                onClicked: Store.act("ui.close")
+            }
         }
 
         SessionMenu {
