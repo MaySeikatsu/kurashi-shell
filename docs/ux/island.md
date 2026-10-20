@@ -111,7 +111,11 @@ The user: "ours is kinda stiff and non functional". What the references solved, 
   the view is cut to the shape while it moves, never spilling out.
 - **Liquid neck (Vitreus)**: where the shape's sides cross the bar's edge, concave fillets of up to `Theme.rLg`, in the
   shape's own colours, join it to the bar; under keycap chrome the outline and ring follow the fillets and melt into
-  the bar's edge, the hard shadow is the body's only (it never runs along the bar).
+  the bar's edge, the hard shadow is the body's only (it never runs along the bar). Only where the bar draws a strip:
+  keycap chrome floats the bar's groups on a clear strip (Bar.qml), so there the card is a free keycap with no neck.
+- **Views with their own chrome** (`ownChrome`, the quick settings phone, also the power and bluetooth faces' pages): no
+  card fill, padding or Close row; the shape grows to the phone's rect, dissolves into it, and the bar gets its pill back
+  while the phone stands; closing brings the shape back to fold into the pill.
 - **Chrome**: flat = fill + `Theme.outline` hairline; keycap = Block's outline, ring (from half the token ring at pill size
   to full at card size) and hard shadow. The pill itself is a `Block` (`ringScale` 0.5) whose size follows a spring, and
   grows a few px under the pointer with the peek.

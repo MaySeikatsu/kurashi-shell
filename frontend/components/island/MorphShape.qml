@@ -57,24 +57,24 @@ Shape {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: Theme.shadowDy > 0 ? Theme.line : "transparent"
-        PathSvg { path: Theme.shadowDy > 0 ? sh.path(0, false, sh.sd) : "" }
+        PathSvg { path: sh.visible && Theme.shadowDy > 0 ? sh.path(0, false, sh.sd) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: Theme.keycap ? Theme.line : Theme.outline
-        PathSvg { path: sh.path(0, true, 0) }
+        PathSvg { path: sh.visible ? sh.path(0, true, 0) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: Theme.keycap ? Theme.ring : sh.fill
-        PathSvg { path: sh.path(sh.ow, true, 0) }
+        PathSvg { path: sh.visible ? sh.path(sh.ow, true, 0) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: Theme.keycap ? sh.fill : "transparent"
-        PathSvg { path: Theme.keycap ? sh.path(sh.ow + sh.gw, true, 0) : "" }
+        PathSvg { path: sh.visible && Theme.keycap ? sh.path(sh.ow + sh.gw, true, 0) : "" }
     }
 }
