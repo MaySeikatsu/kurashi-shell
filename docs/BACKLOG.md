@@ -141,6 +141,10 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I94 | 2026-10-20 | W20-webdock-daemon report | Web dock: `webdock.open`/`select`/`back` from the CLI show the dock with no pointer or focus report, so it stays until the next report; decide whether an action-driven reveal should arm the hide (it holds like pinned today). | new |
 | I95 | 2026-10-20 | W20-webdock-nix report (row 114) | `_managed.enforce` is all-or-nothing: Nix-set dock pins show as Nix-layer values but as forced only with `programs.kurashi.enforce = true`; per-key enforce (`enforce = ["mods.webdock"]`) would match K40. | new |
 | I96 | 2026-10-20 | W20-webdock-shell report (row 115) | The mock serves no `mods` document; test-dock.sh relays one. Serve it from kurashi-mock so shell tests drop the relay. | new |
+| I97 | 2026-10-20 | W20-webdock-host report (row 116) | Web card offline chip: the host scope cannot read `svc.network`; serve a daemon-owned `online` on `mod.webdock` instead. | new |
+| I98 | 2026-10-20 | W20-webdock-host report | Web dock: on a keybind reveal the first keystrokes are lost until the card's window holds keyboard focus ("ello kurashi"); verify on niri (I80) and with wl_keys (wtype drops a first key too), then request focus earlier or buffer. | new |
+| I99 | 2026-10-20 | W20-webdock-host report | Web card reduced motion: the fade runs over `motion.quick_ms`, which is 0 under profile `none`, so the card cuts instead of fading; header buttons are 26 px (< the 32 px control rule) to keep a 120 px title at 360 px — revisit with the design pass. | new |
+| I100 | 2026-10-20 | W20-webdock-host + shell reports | Web dock on the top and bottom edges: the card's length uses the output's size, so a bar on the same axis is not kept clear (left/right edges use the usable area). Shell DockWindow and host WebCard both. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

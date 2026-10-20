@@ -1,0 +1,14 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>opener</title>
+<style>body{background:#2b3a55;color:#f0e6d2;font:18px sans-serif;margin:16px}button{font:18px sans-serif}</style>
+</head>
+<body>
+<h1>Opener</h1>
+<!-- The window.open case (W20 host test): no window features, so a new tab or window, not a dialog sheet. -->
+<p><button id="wo">Open a window</button></p>
+<script>
+console.log('PAGE opener');
+document.getElementById('wo').addEventListener('click', () => { window.open('other.html#opened'); });
+</script>
+</body></html>

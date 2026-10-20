@@ -14,16 +14,34 @@ Item {
     // The profile's view: "mobile" or "desktop". A change reloads the page (the user agent is sent with a request).
     property string mode: ""
     property bool active: false
+    // new_tabs (K40): a link for a new tab or window loads in this page (true) or goes to the browser (false).
+    property bool newTabsInDock: true
 
     // What the card draws: the first paint (the skeleton goes), a failed load (code and text), a popup sheet.
     property bool painted: false
     property var loadError: null
     property var sheet: null
     readonly property var engine: web
+    // The page is at the pin's address, the fragment and a trailing slash aside: the header's home button is off then.
+    readonly property bool atTarget: bare(web.url) === bare(target)
 
     anchors.fill: parent
     // Only the shown pin's page is drawn — its sign-in sheet included (a sheet stayed over the next pin otherwise).
     visible: active
+
+    // The address without its fragment and its trailing slash (docs/ux/webdock.md "Layout per edge", the home rule).
+    function bare(u) {
+        var s = String(u)
+        var h = s.indexOf("#")
+        if (h >= 0) s = s.substring(0, h)
+        while (s.length > 0 && s.charAt(s.length - 1) === "/") s = s.substring(0, s.length - 1)
+        return s
+    }
+
+    // The pin's address loads when the page is made, and again when the pin's target moves to another address (a
+    // settings edit). The view's `url` is not bound: the header navigates it, which would drop a binding.
+    Component.onCompleted: if (target !== "") web.url = target
+    onTargetChanged: if (target !== "" && !atTarget) web.url = target
 
     onModeChanged: {
         if (lastMode !== "" && mode !== lastMode)
@@ -38,7 +56,7 @@ Item {
         pinId: page.pinId
         report: page.report
         profile: page.profile
-        url: page.target
+        newTabsInDock: page.newTabsInDock
         visible: page.active
         focus: page.active
         // Hidden pages are Frozen (no timers, no painting) unless they play audio (brief "Fit and constraints").

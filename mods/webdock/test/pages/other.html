@@ -1,0 +1,15 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>other</title>
+<style>body{background:#3a2b45;color:#f0e6d2;font:18px sans-serif;margin:16px}</style>
+</head>
+<body>
+<h1 id="h">Other</h1>
+<p>A page the links of the test open: the pin's view shows it, and Back returns to the pin's page.</p>
+<script>
+// The fragment names the link or the window that opened the page (blank, opened).
+const name = location.hash.slice(1) || 'none';
+document.getElementById('h').textContent = 'Other ' + name;
+console.log('PAGE other ' + name);
+</script>
+</body></html>

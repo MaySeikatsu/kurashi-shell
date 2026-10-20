@@ -1,12 +1,15 @@
 import QtQuick
+import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
 import "core"
 
-// The web dock's card (docs/ux/webdock.md "Card"; MODS.md "Web dock", Host): one layer-shell surface at the dock's
-// edge, mapped only while the shown pin is a web pin in extended mode, so hidden it draws nothing. The header holds
-// the page's navigation and the dock's controls; the body holds one WebPage per pin in `keep`. The card sends
-// `webdock.*` actions and draws what `mod.webdock` says; it never decides a mode or a pin (the daemon does).
+// The web dock's card (docs/ux/webdock.md "Layout per edge", "Sites", "Motion", "Keyboard and a11y"; MODS.md "Web dock",
+// "Host"; K40): one layer-shell surface at the dock's edge, mapped only while the shown pin is a web pin in extended
+// mode, so hidden it draws nothing. The surface is the card plus `grace` px on every side but the strip's: the pointer's
+// enter and leave of that margin are the card's `webdock.hover` reports, and the window's keyboard focus gained or lost
+// its `webdock.engage`. The header holds the page's navigation and the dock's controls; the body holds one WebPage per
+// pin in `keep`. The card sends `webdock.*` actions and draws what `mod.webdock` says; it never decides a mode or a pin.
 PanelWindow {
     id: card
 
@@ -20,22 +23,78 @@ PanelWindow {
     property int strip: 56             // geometry.strip: the dock's strip, the card's margin from the edge
     property int phoneWidth: 412       // geometry.width
     property int largePct: 90          // geometry.large
+    property int grace: 24             // geometry.grace: the hover margin on the sides away from the strip
+    property string newTabs: "dock"    // new_tabs: dock (a link loads in the pin's view) | browser (the default browser)
+    property bool engaged: false       // `engaged`: the dock holds the keyboard, so the page takes the first keystroke
     property string output: ""
-    property var profiles: null        // Profiles (WebPage profiles and the mobile/desktop view of each)
+    property var profiles: null        // Profiles (the view of each profile, the storage of each pin)
     property var report: null          // function(action, args): the reports and actions the card sends
 
     readonly property int gap: Theme.gap
     readonly property bool sideways: edge === "left" || edge === "right"
     readonly property bool isLarge: size === "large"
     readonly property var screenObj: screenFor(output)
-    readonly property real outW: screenObj ? screenObj.width : 1920
-    readonly property real outH: screenObj ? screenObj.height : 1080
-    // Phone: `width` wide, as tall as twice that or the output allows; large: `large` % of the output's width, full height.
-    readonly property int cardW: isLarge ? Math.round(outW * largePct / 100) : phoneWidth
-    readonly property int cardH: isLarge ? Math.round(outH - 2 * gap) : Math.min(2 * phoneWidth, Math.round(outH - 2 * gap))
-    readonly property int away: edge === "right" ? cardW : edge === "left" ? -cardW : edge === "bottom" ? cardH : -cardH
+    readonly property real screenW: screenObj ? screenObj.width : 1920
+    readonly property real screenH: screenObj ? screenObj.height : 1080
+    // The window's size as the compositor configured it. The window is stretched across the usable area of the output
+    // along the edge (exclusiveZone 0 keeps clear of a top bar and reserves nothing): its height, for a card on a side.
+    // Quickshell does not carry a stretched configure into `height` (probe: 100, then 0); the item's attached Window does.
+    property int availW: 0
+    property int availH: 0
+    Connections {
+        target: area.Window
+        function onWidthChanged() { card.availW = Math.round(area.Window.width) }
+        function onHeightChanged() { card.availH = Math.round(area.Window.height) }
+    }
+    // The height the card is sized by: the usable height (the window, on a side). On a top or bottom edge the window has
+    // the card's height, so the output's height stands in for it (a top bar there is not seen: a known gap).
+    readonly property real basisH: sideways ? availH : screenH
+    // Phone: `width` wide, as tall as twice that or the usable height allows, less a gap at each end (the lead's rule);
+    // large: `large` % of the output's width, the usable height less a gap at each end.
+    readonly property int cardW: isLarge ? Math.round(screenW * largePct / 100) : phoneWidth
+    readonly property int cardH: Math.max(0, Math.round(isLarge ? basisH - 2 * gap : Math.min(2 * phoneWidth, basisH - 2 * gap)))
+    // Where the card is in the window: a card on the right has its margin on its left (the window is card + margin wide),
+    // one on the left on its right; a card on a top or bottom edge is centred across the usable width.
+    readonly property int cardX: sideways ? (edge === "right" ? grace : 0) : Math.max(0, Math.round((availW - cardW) / 2))
+    readonly property int cardY: edge === "top" ? 0 : edge === "bottom" ? grace
+        : (isLarge ? gap : Math.max(0, Math.round((availH - cardH) / 2)))
+    // The input: the card plus `grace` on each side but the strip's (a margin over the strip would take its clicks). The
+    // window's mask takes input here only; the rest of the usable area is the desktop's.
+    readonly property int padL: edge === "left" ? 0 : grace
+    readonly property int padR: edge === "right" ? 0 : grace
+    readonly property int padT: edge === "top" ? 0 : grace
+    readonly property int padB: edge === "bottom" ? 0 : grace
+    readonly property int inX: Math.max(0, cardX - padL)
+    readonly property int inY: Math.max(0, cardY - padT)
+    readonly property int inW: Math.min(availW, cardX + cardW + padR) - inX
+    readonly property int inH: Math.min(availH, cardY + cardH + padB) - inY
+
+    // The card's place in the usable area, for the test (KURASHI_WEBDOCK_DEBUG=1): x y width height, then the area.
+    function geometryLog() {
+        if (debugLog) console.log("webdock-debug card", cardX, cardY, cardW, cardH, availW, availH)
+    }
+    onCardXChanged: geometryLog()
+    onCardYChanged: geometryLog()
+    onCardWChanged: geometryLog()
+    onCardHChanged: geometryLog()
+    onAvailHChanged: geometryLog()
+
     readonly property var activePage: pageFor(shownId, rep.count)
     readonly property var shownPin: pinById(shownId)
+    readonly property string shownTarget: targetOf(shownId)
+    readonly property string shownView: modeOf(shownId)
+    // The home button shows once the page has left the pin's address (docs/ux/webdock.md "Layout per edge").
+    readonly property bool homeShown: !!activePage && shownTarget !== "" && !activePage.atTarget
+    // The theme's motion profile: `none` (reduced motion, the accessibility axis) fades instead of sliding.
+    readonly property bool moves: (Theme.tokens["motion.profile"] || "calm") !== "none"
+    readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : Theme.quickMs
+    // The distance the body slides out by, toward its edge; none when the motion is reduced.
+    readonly property int away: !moves ? 0 : edge === "right" ? cardW : edge === "left" ? -cardW
+        : edge === "bottom" ? cardH : -cardH
+
+    property bool menuOpen: false      // the overflow menu of the header
+    property bool hoverInside: false   // the last `inside` reported for the card's margin
+    readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"   // test-only (test-host.sh)
 
     function screenFor(name) {
         var all = Quickshell.screens
@@ -63,8 +122,60 @@ PanelWindow {
         var p = pinById(id)
         return p && profiles ? profiles.viewOf(p.profile || p.id) : "desktop"
     }
+    function currentUrl() {
+        return activePage ? String(activePage.engine.url) : ""
+    }
     function openBrowser() {
-        if (activePage && report) report("webdock.open_external", { url: String(activePage.engine.url) })
+        if (activePage && report) report("webdock.open_external", { url: currentUrl() })
+    }
+    // Home: the pin's address again (a new history entry, so Back returns to the page the reader left).
+    function goHome() {
+        if (activePage && shownTarget !== "") activePage.engine.url = shownTarget
+    }
+    function toggleView() {
+        if (shownPin && report) report("webdock.view", { pin: shownId, view: shownView === "mobile" ? "desktop" : "mobile" })
+    }
+    function focusPage() {
+        if (activePage) activePage.engine.forceActiveFocus()
+    }
+    // Ctrl+L: the keyboard path into the header (I78). Back takes it, or Reload when Back is off; Tab walks on.
+    function focusHeader() {
+        if (!activePage) return
+        var first = back.enabled ? back : reloadButton
+        first.forceActiveFocus()
+    }
+    function focusMenu() {
+        openItem.forceActiveFocus()
+    }
+    // The window's keyboard focus (K40): a report when it is gained and when it is lost. A loss without a gain before it
+    // (the window's first activation state, as Qt reports it on a new surface) is no change of the focus, so none is sent:
+    // the daemon would read it as a leave and hide the dock.
+    property bool engageSent: false
+    function reportEngage(on) {
+        if (on === engageSent) return
+        engageSent = on
+        if (report) report("webdock.engage", { on: on })
+    }
+    // The card's margin, the whole surface: its enter and leave are one report each (the daemon's hysteresis, K40).
+    function reportHover(inside) {
+        if (inside === hoverInside) return
+        hoverInside = inside
+        if (report) report("webdock.hover", { part: "card", inside: inside, output: screenObj ? screenObj.name : output })
+    }
+    // Tooltips (docs/ux/webdock.md "Keyboard and a11y"): the name of the control under the pointer or the keyboard,
+    // after a short rest. One at a time, and only while a control is held (a timer exists only while armed, Ma).
+    property var tipItem: null
+    property string tipText: ""
+    property real tipX: 0
+    function tipFor(item, on) {
+        if (on && item && item.tip !== "") {
+            tipItem = item
+            tipTimer.restart()
+        } else if (!on && tipItem === item) {
+            tipTimer.stop()
+            tipItem = null
+            tipText = ""
+        }
     }
     function syncViews() {
         for (var i = viewModel.count - 1; i >= 0; i--)
@@ -87,36 +198,55 @@ PanelWindow {
     }
     onOpenChanged: {
         if (open) mapped = true
+        else {
+            reportHover(false)
+            menuOpen = false
+        }
         slideAnim.to = open ? 0 : 1
         slideAnim.restart()
-        if (open) Qt.callLater(function () { if (card.activePage) card.activePage.engine.forceActiveFocus() })
+        if (open) Qt.callLater(card.focusPage)
     }
+    // The dock asks for the keyboard (`engaged`) while the card is the front part: the page takes the first keystroke.
+    onEngagedChanged: if (engaged && open) Qt.callLater(card.focusPage)
+    onShownIdChanged: menuOpen = false
+    onMenuOpenChanged: if (menuOpen && more.activeFocus) Qt.callLater(card.focusMenu)
 
     screen: screenObj
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
-    exclusionMode: ExclusionMode.Ignore
+    // The window spans the card and its margin along the edge, and the usable area of the output across it: anchored to
+    // the edge's two ends (the compositor stretches it), with exclusiveZone 0 (kept clear of a top bar, reserving nothing;
+    // the default reserved the implicit size, 300 px, on the edge in the probe). A window of zero size is dropped by
+    // Quickshell, so the other axis is the card's size, not 0.
+    exclusiveZone: 0
     color: "transparent"
-    implicitWidth: cardW
-    implicitHeight: cardH
     anchors.top: edge !== "bottom"
-    anchors.bottom: edge === "bottom"
-    anchors.left: edge !== "right"
-    anchors.right: edge === "right"
-    margins.top: edge === "top" ? strip : sideways ? (isLarge ? gap : Math.round((outH - cardH) / 2)) : 0
+    anchors.bottom: edge === "bottom" || sideways
+    anchors.left: edge === "left" || !sideways
+    anchors.right: edge === "right" || !sideways
+    margins.top: edge === "top" ? strip : 0
     margins.bottom: edge === "bottom" ? strip : 0
-    margins.left: edge === "left" ? strip : (edge === "right" ? 0 : Math.max(0, Math.round((outW - cardW) / 2)))
+    margins.left: edge === "left" ? strip : 0
     margins.right: edge === "right" ? strip : 0
+    implicitWidth: sideways ? cardW + grace : 0
+    implicitHeight: sideways ? 0 : cardH + grace
+    // The input: the card and its margin only (the rest of the window is the desktop's, and it is transparent).
+    mask: Region {
+        x: card.inX
+        y: card.inY
+        width: card.mapped ? card.inW : 0
+        height: card.mapped ? card.inH : 0
+    }
 
     // Mapped (a layer surface) only while it shows: an unmapped card draws nothing (0 frames, Ma). The slide runs on
-    // Theme.stdMs (180 ms), instantly under the motion profile none; a card that slid out is unmapped at its end.
+    // Theme.stdMs (180 ms) under the calm and lively profiles; under none it is the theme's quick duration (0: a cut).
     property real slide: 1
     property bool mapped: false
     visible: mapped
-    readonly property int slideMs: Theme.stdMs > 0 ? 180 : 0
     Component.onCompleted: {
         syncViews()
+        geometryLog()
         if (open) {
             mapped = true
             slide = 0
@@ -130,16 +260,47 @@ PanelWindow {
         easing.type: Easing.OutCubic
         onStopped: if (!card.open) card.mapped = false
     }
+    Timer {
+        id: tipTimer
+        interval: 400
+        onTriggered: {
+            if (!card.tipItem) return
+            card.tipX = card.tipItem.mapToItem(frame, card.tipItem.width / 2, 0).x
+            card.tipText = card.tipItem.tip
+        }
+    }
+
+    // The whole surface, the margin included: its pointer enter and leave are the card's hover reports. The window's
+    // keyboard focus (the attached Window.active: Quickshell's window type has no `active`) is the engage report (K40).
+    // On top of the card: the page takes the hover of the card below it, and a passive handler at the bottom never sees it.
+    Item {
+        id: area
+        anchors.fill: parent
+        z: 100
+        HoverHandler {
+            onHoveredChanged: card.reportHover(hovered)
+        }
+        Window.onActiveChanged: card.reportEngage(Window.active)
+    }
+    // Ctrl+L enters the header; the page is not told (it may take Ctrl+L for itself, but the card is the chrome's key).
+    Shortcut {
+        sequence: "Ctrl+L"
+        enabled: card.open
+        onActivated: card.focusHeader()
+    }
 
     // The pages, one per web pin in `keep`: created when a pin is first kept, destroyed when it leaves `keep`.
     ListModel { id: viewModel }
 
     Item {
         id: body
+        // Drawn once the window has its configured size (the first frame after a map has none, and no card then).
+        visible: card.mapped && card.availW > 0 && card.availH > 0
+        x: card.cardX + (card.sideways ? card.slide * card.away : 0)
+        y: card.cardY + (card.sideways ? 0 : card.slide * card.away)
         width: card.cardW
         height: card.cardH
-        x: card.sideways ? card.slide * card.away : 0
-        y: card.sideways ? 0 : card.slide * card.away
+        opacity: card.moves ? 1 : 1 - card.slide
 
         Rectangle {
             id: frame
@@ -147,6 +308,24 @@ PanelWindow {
             radius: Theme.rLg
             color: Theme.container
             clip: true
+            // The page's corners follow the card's radius (I78): the layer is masked by the card's own rounded shape.
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                maskEnabled: true
+                maskSource: frameMask
+                maskThresholdMin: 0.5
+                maskSpreadAtMin: 1
+            }
+            // The mask is hidden, but its texture is the mask: it needs its own layer (a hidden item without one is
+            // empty, and the whole card went blank in the first run).
+            Rectangle {
+                id: frameMask
+                visible: false
+                anchors.fill: parent
+                radius: Theme.rLg
+                color: "white"
+                layer.enabled: true
+            }
 
             Item {
                 id: header
@@ -159,21 +338,41 @@ PanelWindow {
                 readonly property string title: (page && page.engine.title) ? page.engine.title
                     : (card.shownPin ? card.shownPin.title : "")
 
-                HostButton {
-                    id: back
+                // Escape steps back on the chrome (MODS.md "Shell side"): extended to compact, compact to hidden.
+                Keys.onEscapePressed: (event) => {
+                    if (card.report) card.report("webdock.back", {})
+                    event.accepted = true
+                }
+
+                // Navigation: back and forward follow the engine's history.
+                Row {
+                    id: nav
                     anchors.left: parent.left
                     anchors.leftMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    glyph: "‹"
-                    a11y: I18n.tr("webdock.nav.back")
-                    enabled: !!(header.page && header.page.engine.canGoBack)
-                    onClicked: header.page.engine.goBack()
+                    HostButton {
+                        id: back
+                        glyph: "‹"
+                        a11y: I18n.tr("webdock.nav.back")
+                        enabled: !!(header.page && header.page.engine.canGoBack)
+                        tipFn: card.tipFor
+                        onClicked: header.page.engine.goBack()
+                    }
+                    HostButton {
+                        id: forward
+                        glyph: "›"
+                        a11y: I18n.tr("webdock.nav.forward")
+                        enabled: !!(header.page && header.page.engine.canGoForward)
+                        tipFn: card.tipFor
+                        onClicked: header.page.engine.goForward()
+                    }
                 }
+                // The title comes first: it keeps what the controls leave (at 360 px, 120 px at least; I78).
                 Text {
                     id: titleText
-                    anchors.left: back.right
+                    anchors.left: nav.right
                     anchors.leftMargin: 6
-                    anchors.right: controls.left
+                    anchors.right: tools.left
                     anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
@@ -181,48 +380,62 @@ PanelWindow {
                     color: Theme.fg
                     font.pixelSize: Theme.fsLabel
                     font.family: Theme.fam(text, Theme.families)
+                    onWidthChanged: if (card.report && card.debugLog) console.log("webdock-debug title width", Math.round(width))
                 }
                 Row {
-                    id: controls
+                    id: tools
                     anchors.right: parent.right
                     anchors.rightMargin: 4
                     anchors.verticalCenter: parent.verticalCenter
-                    spacing: 2
-
                     HostButton {
+                        id: home
+                        visible: card.homeShown
+                        glyph: "⌂"
+                        a11y: I18n.tr("webdock.nav.home")
+                        tipFn: card.tipFor
+                        onClicked: card.goHome()
+                    }
+                    HostButton {
+                        id: reloadButton
                         glyph: "↻"
                         a11y: I18n.tr("webdock.nav.reload")
                         enabled: !!header.page
+                        tipFn: card.tipFor
                         onClicked: header.page.engine.reload()
                     }
-                    WebSegment {
-                        anchors.verticalCenter: parent.verticalCenter
-                        keyA: "mobile"
-                        labelA: I18n.tr("webdock.view.mobile")
-                        keyB: "desktop"
-                        labelB: I18n.tr("webdock.view.desktop")
-                        current: card.shownPin && card.shownPin.view === "mobile" ? "mobile" : "desktop"
-                        onPicked: key => card.report("webdock.view", { pin: card.shownId, view: key })
-                    }
-                    WebSegment {
-                        anchors.verticalCenter: parent.verticalCenter
-                        keyA: "phone"
-                        labelA: I18n.tr("webdock.size.phone")
-                        keyB: "large"
-                        labelB: I18n.tr("webdock.size.large")
-                        current: card.size
-                        onPicked: key => card.report("webdock.size", { size: key })
+                    // The view and the size show the state they are in; a press switches it (the tooltip names it).
+                    HostButton {
+                        id: viewToggle
+                        shape: card.shownView === "mobile" ? "phone" : "desktop"
+                        a11y: I18n.tr(card.shownView === "mobile" ? "webdock.host.view.mobile" : "webdock.host.view.desktop")
+                        enabled: !!card.shownPin
+                        tipFn: card.tipFor
+                        onClicked: card.toggleView()
                     }
                     HostButton {
-                        glyph: "↗"
-                        a11y: I18n.tr("webdock.open_browser")
-                        enabled: !!header.page
-                        onClicked: card.openBrowser()
+                        id: sizeToggle
+                        shape: card.isLarge ? "wide" : "narrow"
+                        a11y: I18n.tr(card.isLarge ? "webdock.host.size.large" : "webdock.host.size.phone")
+                        tipFn: card.tipFor
+                        onClicked: card.report("webdock.size", { size: card.isLarge ? "phone" : "large" })
+                    }
+                    HostButton {
+                        id: more
+                        glyph: "…"
+                        a11y: I18n.tr("webdock.nav.more")
+                        tipFn: card.tipFor
+                        onClicked: card.menuOpen = !card.menuOpen
                     }
                     HostButton {
                         glyph: "×"
                         a11y: I18n.tr("webdock.nav.collapse")
+                        tipFn: card.tipFor
                         onClicked: card.report("webdock.collapse", {})
+                        // Tab from the header's last control goes back into the page (Ctrl+L brought the focus in).
+                        Keys.onTabPressed: (event) => {
+                            card.focusPage()
+                            event.accepted = true
+                        }
                     }
                 }
             }
@@ -276,6 +489,7 @@ PanelWindow {
                         report: card.report
                         mode: card.modeOf(pid)
                         active: card.open && pid === card.shownId
+                        newTabsInDock: card.newTabs !== "browser"
                     }
                 }
 
@@ -367,6 +581,87 @@ PanelWindow {
                     glyph: "×"
                     a11y: I18n.tr("webdock.sheet.close")
                     onClicked: card.activePage.closeSheet()
+                }
+            }
+
+            // The overflow menu (brief "Layout per edge"): a press outside it closes it, so the page under it gets no press.
+            MouseArea {
+                anchors.fill: parent
+                z: 7
+                visible: card.menuOpen
+                onPressed: card.menuOpen = false
+            }
+            Rectangle {
+                id: menu
+                z: 8
+                visible: card.menuOpen
+                anchors.top: header.bottom
+                anchors.right: parent.right
+                anchors.topMargin: 4
+                anchors.rightMargin: 4
+                width: Math.min(frame.width - 8, 240)
+                height: menuCol.implicitHeight + 2 * Theme.xs
+                radius: Theme.rSm
+                color: Theme.containerHigh
+                border.width: 1
+                border.color: Theme.outline
+                // Escape closes the menu and gives the focus back to its button.
+                Keys.onEscapePressed: (event) => {
+                    card.menuOpen = false
+                    more.forceActiveFocus()
+                    event.accepted = true
+                }
+                Column {
+                    id: menuCol
+                    x: Theme.xs
+                    y: Theme.xs
+                    width: menu.width - 2 * Theme.xs
+                    HostButton {
+                        id: openItem
+                        width: menuCol.width
+                        flat: true
+                        start: true
+                        label: I18n.tr("webdock.open_browser")
+                        onClicked: {
+                            card.menuOpen = false
+                            card.openBrowser()
+                        }
+                    }
+                    HostButton {
+                        id: replaceItem
+                        width: menuCol.width
+                        flat: true
+                        start: true
+                        visible: card.homeShown
+                        label: I18n.tr("webdock.nav.replace")
+                        onClicked: {
+                            card.menuOpen = false
+                            card.report("webdock.retarget", { pin: card.shownId, url: card.currentUrl() })
+                        }
+                    }
+                }
+            }
+
+            // The tooltip of the control under the pointer or the keyboard: under the header, kept inside the card.
+            Rectangle {
+                id: tipBox
+                z: 9
+                visible: card.tipText !== ""
+                y: header.height + Theme.xs
+                width: tipLabel.implicitWidth + 2 * Theme.gap
+                height: tipLabel.implicitHeight + 2 * Theme.xs
+                x: Math.max(Theme.xs, Math.min(card.tipX - width / 2, frame.width - width - Theme.xs))
+                radius: Theme.rSm
+                color: Theme.containerHigh
+                border.width: 1
+                border.color: Theme.outline
+                Text {
+                    id: tipLabel
+                    anchors.centerIn: parent
+                    text: card.tipText
+                    color: Theme.fg
+                    font.pixelSize: Theme.fsCaption
+                    font.family: Theme.fam(text, Theme.families)
                 }
             }
         }

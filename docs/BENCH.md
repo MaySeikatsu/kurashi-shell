@@ -136,3 +136,4 @@ Earlier "exited early / 6.4 fps" readings came from parallel agents sharing sand
 | Mod | Machine / renderer | Idle frames | Per output | Once | 20-cycle growth | Note |
 |---|---|---|---|---|---|---|
 | webdock (shell side, W20) | B, gles2 renderD129 | 0 commits / 10 s hidden | +6.2 MiB USS (median of 3; runs swing ~40 MiB) | +3.8 MiB USS (shared dock window, first reveal) | −0.9 MiB | PSS unusable on 2 outputs under gles2 (a ~1.9 TiB mapping, I93); bar widget +0.8 MiB PSS. Web host process: not yet measured (I79/BENCH) |
+| webdock (web host process tree, W20) | B, sandbox | 0 commits / 10 s | — | 405–417 MiB PSS with 1 site kept; 409–434 MiB with 5 (two runs each); 0 sites: not measured | — | Own process (K38), gone after `unload_after`; Phase 0 was 255–262 MiB for one view in the hosting process alone |
