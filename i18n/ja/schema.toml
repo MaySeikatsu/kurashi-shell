@@ -213,3 +213,5 @@
 "config.launcher.web_search.help" = "検索に使うアドレス。{} が検索語になります。空欄 = ウェブ検索の行を出さない。"
 "config.desktop.order.label" = "並び順"
 "config.desktop.order.help" = "上から下へのカードの順：`clock`、`calendar`、`media`、`weather`、modのカードは `mod:<id>:<name>`。載っていないカードは後ろに並びます。デスクの編集モードがこれを書きます（K48）。"
+"config.theme.export.label" = "色を合わせるアプリ"
+"config.theme.export.help" = "テーマが変わるたびに、これらのアプリ用にシェルの色を書き出します：GTK、Qt、ターミナル、niri（K49）。各アプリの設定に読み込みの1行が必要です。設定画面にその行が表示されます。"

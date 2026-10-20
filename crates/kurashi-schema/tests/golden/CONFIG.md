@@ -87,6 +87,13 @@ Pure-black grounds on dark schemes.
 - type: `bool` · default: `false`
 - only while `theme.colors.scheme == "dark"`
 
+#### `theme.export` — Apps that follow
+
+Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the file; Settings shows it.
+
+- type: `string_list` · default: `[]`
+- choices: from `theme.export` (resolved at runtime)
+
 ### Shape
 
 #### `theme.shape.corners` — Corners
