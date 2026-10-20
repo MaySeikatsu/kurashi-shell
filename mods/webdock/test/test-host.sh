@@ -68,13 +68,21 @@ card_region() {
   y=$(( (1440 - h) / 2 - 8 ))
   echo "$x,$y $((w + 16))x$((h + 16))"
 }
-# The card's header (36 px) with a 4 px margin, for a phone width $1.
+# The phone's chrome for a phone width $1 (W21), with a 4 px margin: its top (the status row and the title, 96 px) and
+# its bottom (the header's controls over the home indicator, 72 px).
 header_region() {
   local w=$1 h x y
   h=$(( 2 * w < 1424 ? 2 * w : 1424 ))
   x=$(( 2560 - 56 - w - 4 ))
   y=$(( (1440 - h) / 2 - 4 ))
-  echo "$x,$y $((w + 8))x44"
+  echo "$x,$y $((w + 8))x96"
+}
+footer_region() {
+  local w=$1 h x y
+  h=$(( 2 * w < 1424 ? 2 * w : 1424 ))
+  x=$(( 2560 - 56 - w - 4 ))
+  y=$(( (1440 - h) / 2 + h - 68 ))
+  echo "$x,$y $((w + 8))x72"
 }
 # The address the pin's view logged last ("webdock-debug url <pin> <url>", KURASHI_WEBDOCK_DEBUG=1).
 last_url() {
@@ -286,7 +294,8 @@ shot phone-right
 
 # Mobile and desktop views: the page reports its own user agent and viewport.
 ipc act webdock.open '{"pin":"mail"}' >/dev/null || fail "webdock.open mail refused"
-wait_log "webdock-debug mail UA mail mobile=true platform=Android inner=412" 8 || fail "mobile view not sent"
+# The page is the phone's screen (W21): 412 less the phone's frame, 8 px a side in the mock's flat chrome.
+wait_log "webdock-debug mail UA mail mobile=true platform=Android inner=396" 8 || fail "mobile view not sent"
 shot mobile-phone
 ipc act webdock.open '{"pin":"chat"}' >/dev/null || fail "webdock.open chat refused"
 wait_log "webdock-debug chat UA chat mobile=false platform=Linux" 8 || fail "desktop view not sent"
@@ -373,8 +382,10 @@ open_pin opener
 wait_log "webdock-debug opener PAGE opener" 8 || fail "the opener page did not load"
 sleep 1
 shot_region host-phone-header "$(header_region 360)"
-# The tooltip of the view toggle (the pointer rests on it for 400 ms): "View: mobile" under the header.
-pointer move 2409 378
+shot_region host-phone-footer "$(footer_region 360)"
+# The tooltip of the view toggle (the pointer rests on it for 400 ms): "View: mobile" over the bottom bar (W21: the
+# phone's controls spread across its bottom; the view toggle is the fourth of seven, 172 px into a 344 px screen).
+pointer move 2324 1036
 sleep 1
 shot_region host-tooltip "$(card_region 360)"
 pointer move 1000 700
