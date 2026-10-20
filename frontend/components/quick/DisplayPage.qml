@@ -3,8 +3,8 @@ import "../../core"
 import ".."
 
 // The display page (docs/ux/quick-settings.md, Design 2): the backlight's level (svc.brightness; the daemon serves one
-// device, so there is one level, not one per output). Night light is listed with its reason: the daemon serves no
-// night-light document or action, so there is no switch to show.
+// device, so there is one level, not one per output). Night light has its own tile and page since K47 (W23-system):
+// this page points there.
 Column {
     id: dp
     width: parent.width
@@ -62,7 +62,7 @@ Column {
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr("island.quick.display.night_light_unavailable")
+            text: I18n.tr("power.display.night_light_tile")
         }
     }
 }

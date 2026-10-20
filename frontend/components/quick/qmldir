@@ -13,3 +13,4 @@ AudioPage 1.0 AudioPage.qml
 PowerPage 1.0 PowerPage.qml
 DisplayPage 1.0 DisplayPage.qml
 FocusPage 1.0 FocusPage.qml
+NightPage 1.0 NightPage.qml
