@@ -111,6 +111,8 @@ QML_FILES = {
     "peek": [("", "Peek.qml")],
     "island-face": [("", "Face.qml"), (":expanded", "FaceExpanded.qml")],
     "slot": [("", "slots/{name}.qml")],
+    # K38 row 88: a mod's own per-output surface (the web dock).
+    "surface": [("", "surfaces/{name}.qml")],
 }
 NO_QML = {"service", "action", "palette", "decor", "launcher", "choices", "job", "host", "i18n"}
 
