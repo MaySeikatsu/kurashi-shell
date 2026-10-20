@@ -174,7 +174,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I123 | 2026-10-20 | W22-styles report | Glass: soft shadows show through translucent fills and darken them (draw the shadow outside the shape only, or mask it). | new |
 | I124 | 2026-10-20 | W22-styles report | Lock backgrounds (dot field, graph paper, glows) are not repainted when the theme changes while locked. | new |
 | I125 | 2026-10-20 | lead (session 10) | Mods' desk cards and the tasks panel use a few `Theme.keycap` (now `ringW > 0`) checks; move them to `lifted`/`boxed`/`outlineColor` so line and soft looks style them too. | new |
-| I126 | 2026-10-20 | lead (session 10) | Launcher `>` commands (actions registry) and a web search row (rest of I105). | new |
+| I126 | 2026-10-20 | lead (session 10) | Launcher `>` commands (actions registry) and a web search row (rest of I105). | done (session 10: `>` commands from registered actions, web search row `launcher.web_search`) |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

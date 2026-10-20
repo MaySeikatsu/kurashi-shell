@@ -205,6 +205,10 @@
 # Separate app scopes — Start apps in their own systemd scope so they outlive the shell.
 #   restart required · advanced
 # systemd_scope = true
+#
+# Web search — The address a query is searched at, `{}` standing for the query; empty = no
+# web search row.
+# web_search = "https://duckduckgo.com/?q={}"
 
 # [clock]
 #

@@ -12,7 +12,7 @@
   `washi` (paper and ink, serif), or your own palette, chrome and motion. A look never moves anything — layout stays
   yours (profiles keep a look and a layout together) — and your own settings always win over a look's recommendations.
 - **Desk, launcher, phone** — desktop widgets (keycap clock, month, now playing, weather); a launcher that also
-  calculates (`2^8`, `15% of 2500`) and converts (`10 km to mi`, `72 f in c`), finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
+  calculates (`2^8`, `15% of 2500`) and converts (`10 km to mi`, `72 f in c`), runs commands (`>lock`), searches the web, finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
   web dock drawn as a phone.
 
 Status: **pre-alpha**. See `docs/ROADMAP.md` and `docs/PROGRESS.md`.
