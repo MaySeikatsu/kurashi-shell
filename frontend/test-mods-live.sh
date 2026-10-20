@@ -113,6 +113,8 @@ QML_FILES = {
     "slot": [("", "slots/{name}.qml")],
     # K38 row 88: a mod's own per-output surface (the web dock).
     "surface": [("", "surfaces/{name}.qml")],
+    # K46 row 120: a card on the desktop widget column.
+    "desk": [("", "desk/{name}.qml")],
 }
 NO_QML = {"service", "action", "palette", "decor", "launcher", "choices", "job", "host", "i18n"}
 

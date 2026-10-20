@@ -573,3 +573,40 @@ fn bad_palettes_are_rejected() {
         Err(ThemeError::UnknownPalette(_))
     ));
 }
+
+#[test]
+fn decor_recipes_change_looks_never_layout() {
+    // K45: a decor names theme keys only; bar edge/height, desk cards and the island stay the user's.
+    for name in ["sekai", "glass", "terminal", "washi"] {
+        let recipe = decor_recipe(name).unwrap_or_else(|| panic!("{name} has a recipe"));
+        for (key, _) in recipe {
+            assert!(key.starts_with("theme."), "{name} sets {key}");
+        }
+    }
+    assert!(decor_recipe("none").is_none());
+}
+
+#[test]
+fn every_chrome_has_its_own_token_set() {
+    let mut seen = std::collections::BTreeSet::new();
+    for chrome in [Chrome::Flat, Chrome::Keycap, Chrome::Soft, Chrome::Line] {
+        let mut i = input("wa-iro", Scheme::Dark);
+        i.axes.chrome = chrome;
+        let t = resolve(&i, &fonts()).unwrap().tokens;
+        for k in [
+            "chrome.outline",
+            "chrome.ring",
+            "chrome.shadow",
+            "chrome.soft",
+            "chrome.press_scale",
+            "chrome.groups",
+            "chrome.outline_color",
+            "icon.fill",
+            "icon.weight",
+        ] {
+            assert!(t.contains_key(k), "{chrome:?} lacks {k}");
+        }
+        seen.insert(t["chrome.style"].as_str().unwrap().to_owned());
+    }
+    assert_eq!(seen.len(), 4);
+}

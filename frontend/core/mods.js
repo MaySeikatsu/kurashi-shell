@@ -30,13 +30,18 @@ function widgets(doc) {
 
 // Every `surface:*` component of every enabled mod, in mod order: [{ mod, provide, url }] (K38, row 88). The frontend
 // creates one instance per output of each (shell.qml), with the output as its `screen`.
-function surfaces(doc) {
+function surfaces(doc) { return provided(doc, "surface:") }
+
+// Desk cards of enabled mods (K46, row 120): [{ mod, provide, url }] for every `desk:x` with a file.
+function deskCards(doc) { return provided(doc, "desk:") }
+
+function provided(doc, prefix) {
     var out = []
     var list = (doc && doc.mods) || []
     for (var i = 0; i < list.length; i++) {
         var q = list[i].qml || ({})
         for (var key in q)
-            if (key.indexOf("surface:") === 0) out.push({ mod: list[i].id, provide: key, url: q[key] })
+            if (key.indexOf(prefix) === 0) out.push({ mod: list[i].id, provide: key, url: q[key] })
     }
     return out
 }

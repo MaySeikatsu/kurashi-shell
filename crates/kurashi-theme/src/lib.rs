@@ -94,11 +94,14 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
     })
 }
 
-/// Decor packs' recipes (K42, DESIGN-SYSTEM §4): the axis values a pack recommends, applied by
-/// the daemon at the `theme:<pack>` layer, under everything the user sets. `None` for no pack.
+/// Decor packs' recipes (K42, K45, DESIGN-SYSTEM §4): the axis values a pack recommends, applied
+/// by the daemon at the `theme:<pack>` layer, under everything the user sets. `None` for no pack.
+/// A recipe names `theme.*` keys only: a decor changes how things look, never where they are —
+/// layout (bar edge and height, desk cards, island placement) belongs to the user and to profiles.
 pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>> {
     use serde_json::json;
     match name {
+        // After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type.
         "sekai" => Some(vec![
             ("theme.colors.palette", json!("sekai")),
             ("theme.colors.scheme", json!("light")),
@@ -107,8 +110,6 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
             ("theme.material.kind", json!("solid")),
             ("theme.shape.corners", json!("rounded")),
             ("theme.shape.radius_scale", json!(1.25)),
-            ("bar.height", json!(40)),
-            ("desktop.enabled", json!(true)),
             (
                 "theme.typography.family",
                 json!([
@@ -119,16 +120,57 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
                 ]),
             ),
         ]),
-        // After Vitreus/pleamar: frosted glass over the desk, soft squircles, springs that settle.
+        // After Vitreus/pleamar: frosted glass, soft squircles with a light rim and a soft shadow,
+        // springs that settle.
         "glass" => Some(vec![
             ("theme.colors.palette", json!("kanso")),
-            ("theme.chrome", json!("flat")),
+            ("theme.colors.scheme", json!("dark")),
+            ("theme.chrome", json!("soft")),
             ("theme.motion.profile", json!("lively")),
             ("theme.material.kind", json!("glass")),
             ("theme.material.opacity", json!(0.62)),
             ("theme.shape.corners", json!("squircle")),
             ("theme.shape.radius_scale", json!(1.4)),
-            ("bar.height", json!(38)),
+            (
+                "theme.typography.family",
+                json!(["Inter", "Noto Sans CJK JP", "sans-serif"]),
+            ),
+        ]),
+        // A terminal's honesty: ink outlines on mono, square corners, sharp icons, quick and calm.
+        "terminal" => Some(vec![
+            ("theme.colors.palette", json!("kanso")),
+            ("theme.colors.scheme", json!("dark")),
+            ("theme.chrome", json!("line")),
+            ("theme.motion.profile", json!("calm")),
+            ("theme.motion.speed", json!(1.6)),
+            ("theme.material.kind", json!("solid")),
+            ("theme.shape.corners", json!("none")),
+            (
+                "theme.typography.family",
+                json!([
+                    "JetBrains Mono",
+                    "Noto Sans Mono CJK JP",
+                    "monospace"
+                ]),
+            ),
+        ]),
+        // Paper and ink: wa-iro on a light ground, fine ink lines, small corners, a serif hand.
+        "washi" => Some(vec![
+            ("theme.colors.palette", json!("wa-iro")),
+            ("theme.colors.scheme", json!("light")),
+            ("theme.chrome", json!("line")),
+            ("theme.motion.profile", json!("calm")),
+            ("theme.material.kind", json!("solid")),
+            ("theme.shape.corners", json!("rounded")),
+            ("theme.shape.radius_scale", json!(0.5)),
+            (
+                "theme.typography.family",
+                json!([
+                    "Noto Serif",
+                    "Noto Serif CJK JP",
+                    "serif"
+                ]),
+            ),
         ]),
         _ => None,
     }

@@ -389,3 +389,27 @@ such a row copies it (`wl-copy`). A `note` row explains an empty or missing sour
 `svc.workspaces` gains `tasks` (per output, the active workspace's windows, no titles) and `window.focus {id}`; the
 top/bottom bar draws them as icons after the workspaces. *Why:* the user asked for "almost feature complete" and to
 copy what works elsewhere; all of it is daemon data, the views stay thin (rule 1).
+
+**K45** 🟢 A decor is a whole look, never a layout (user, session 10: "other styles should have/keep their distinct
+look, just as sekai has its own"; "everything layout related should stay the same and looks/style wise should be able
+to change with the themes"; WormShell `docs/05-surface-style.md`: a SurfaceStyle is not a palette and not a layout).
+(1) Recipes name `theme.*` keys only (a test holds it): the K42 recipes lose `bar.height` and `desktop.enabled`. Layout
+— bar edge and height, desk cards, island placement — is the user's and travels in profiles, which already store a
+look and a layout together. (2) Chrome gains `soft` (Vitreus/pleamar: a faint light rim, a soft drop shadow, pressed
+blocks shrink to `chrome.press_scale`) and `line` (ink outlines in the outline role, no shadow). New tokens
+`chrome.soft/soft_dy/soft_color/soft_alpha/outline_color/outline_alpha/press_scale/groups`, `icon.fill/weight`, and
+`font.icons` = Material Symbols Sharp under line chrome when installed. (3) Decors: `sekai` (keycap pop), `glass`
+(soft, frosted, squircle, Inter), `terminal` (line, square, mono, quick calm motion), `washi` (line on wa-iro light,
+small corners, Noto Serif). `none` keeps the user's own axes (the kurashi default: wa-iro, flat). HM installs the
+families. *Why:* four distinct identities from one set of renderers, each a recipe (rule 4); the user's settings
+still win (K42).
+
+**K46** 🟢 Tasks and notes as a native mod over plain Markdown files, and desk cards from mods (v0.2 "notes, tasks";
+I101). Mod `tasks`: a Markdown checklist (`- [ ] …`, Obsidian Tasks' `📅 YYYY-MM-DD` due dates and `⏫🔼🔽` priority
+marks read and kept) and a Markdown note, both files the user may point into an Obsidian vault; default under
+`$XDG_DATA_HOME/kurashi/`. The daemon reads and writes them (rule 1), watches them only while `mod.tasks` has a
+subscriber (Ma), keeps every line it does not own untouched, and writes atomically. A new provide kind
+`desk:<name>` → `qml/desk/<name>.qml` (row 120) puts a mod's card on the desk column after the core cards.
+Todoist/TickTick are later backends of the same document. *Why:* a file is the most honest store — the user can read
+it, sync it and edit it with any tool, and the vault already holds their notes.
+

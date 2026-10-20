@@ -305,7 +305,10 @@ exclusive zone; the card always overlays), `indicator` (true), `strip` (40..64 p
 
 ## Contributions a mod can make
 surfaces (`surface:<name>` → `qml/surfaces/<name>.qml`: a layer-shell window of the mod's own, created once per
-output while the mod is enabled, required property `screen`, 0 frames while it shows nothing; row 88) · widgets (bar placeable; a widget or island face may declare `property bool vertical`, which the bar sets on a left
+output while the mod is enabled, required property `screen`, 0 frames while it shows nothing; row 88) · desk cards
+(`desk:<name>` → `qml/desk/<name>.qml`: a card on the desktop widget column after the core cards while
+`desktop.enabled`; it takes the column's width as `width` and sets its own `implicitHeight`, draws itself with
+`Block`, and shows nothing (height 0) when it has nothing to say; K46, row 120) · widgets (bar placeable; a widget or island face may declare `property bool vertical`, which the bar sets on a left
 or right edge — the component then draws its vertical form within its own `implicitHeight`, never rotated text; one
 that does not declare it is clipped to its slot, row 107) · peeks (`peek:<name>` → `qml/Peek.qml`, shown by the Stage under the widget on
 hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · island faces · panels (stage) · settings · actions · launcher
