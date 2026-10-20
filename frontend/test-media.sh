@@ -366,21 +366,21 @@ for DECOR in $DECORS; do
   sleep 2
   check "$([ "$(grep -c '^/api/v1/search' "$R/wallhaven.log" || true)" = 0 ] && echo 1 || echo 0)" "$DECOR nothing is fetched while the library tab is shown"
   WAIT=1 shot "picker-library-$DECOR" "$PICK_GEOM"
-  click_at "${TAB_X:-1046}" "${TAB_Y:-112}"
+  click_at "${TAB_X:-1043}" "${TAB_Y:-95}"
   sleep 3
   check "$([ "$(grep -c '^/api/v1/search' "$R/wallhaven.log" || true)" = 1 ] && echo 1 || echo 0)" "$DECOR opening the tab runs one search (SFW: $(grep -o 'purity=[0-9]*' "$R/wallhaven.log" | head -1))"
   check "$(grep -q 'purity=100' "$R/wallhaven.log" && echo 1 || echo 0)" "$DECOR the search is SFW only by default"
   check "$(ls "$XDG_CACHE_HOME/kurashi/wallpaper/wallhaven/"*.jpg >/dev/null 2>&1 && echo 1 || echo 0)" "$DECOR the page's thumbnails are in the cache"
   shot "wallhaven-$DECOR" "$PICK_GEOM"
   # The first tile, then Download and set.
-  click_at "${TILE_X:-1010}" "${TILE_Y:-260}"
-  click_at "${SET_X:-1600}" "${SET_Y:-760}"
+  click_at "${TILE_X:-1020}" "${TILE_Y:-288}"
+  click_at "${SET_X:-1515}" "${SET_Y:-625}"
   sleep 3
-  check "$([ -f "$XDG_DATA_HOME/kurashi/wallpaper/wallhaven/wallhaven-94x38z.jpg" ] && echo 1 || echo 0)" "$DECOR the picture is saved in the mod's data folder"
-  check "$(grep -q 'awww img .*wallhaven-94x38z.jpg' "$R/awww.log" && echo 1 || echo 0)" "$DECOR the backend was asked to show it"
+  check "$(ls "$XDG_DATA_HOME/kurashi/wallpaper/wallhaven/wallhaven-94x38z."* >/dev/null 2>&1 && echo 1 || echo 0)" "$DECOR the picture is saved in the mod's data folder"
+  check "$(grep -q 'awww img .*wallhaven-94x38z\.' "$R/awww.log" && echo 1 || echo 0)" "$DECOR the backend was asked to show it"
   shot "wallhaven-set-$DECOR" "$PICK_GEOM"
   stop_server
-  click_at "${TOP_X:-1460}" "${TOP_Y:-150}"
+  click_at "${TOP_X:-1467}" "${TOP_Y:-167}"
   sleep 3
   shot "wallhaven-offline-$DECOR" "$PICK_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true

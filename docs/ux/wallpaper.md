@@ -85,3 +85,30 @@ choice source `wallpaper.backends`; panel `wallpaper`; slot `quick.tiles`.
 
 ## Later
 Day/night schedule · Wallhaven (D3) · video wallpapers · span · per-workspace.
+
+## Wallhaven (K48 (3), card W24-media; D3)
+**Others.** shellseikatsu `Services/WallhavenService.qml` (search via the public API, SFW keyless, `toplist` default,
+categories `111`, download to `<wallpaper dir>/wallhaven/wallhaven-<id>.<ext>`, then apply); Caelestia and DMS have
+no browser; Wallhaven's own site: Top / Latest / Random, General / Anime / People, SFW / Sketchy / NSFW (NSFW needs an
+account key), 24 per page.
+
+**Ours.** A second tab in the picker (*Library* · *Wallhaven*), sharing the targets, the theme switch and Apply.
+- The tab is made only while shown; opening it runs one search (Top, all categories, **SFW only**); nothing is
+  fetched before (Ma, sandbox check). Search on Return; Top / Latest / Random (a second press refreshes; Random keeps
+  the daemon's seed while paging); General / Anime / People toggles (one stays on); SFW is fixed on, Sketchy opt-in,
+  NSFW not offered in the picker (the action takes it only with an API key).
+- The daemon (`wallpaper.wallhaven.search`) fetches the page's small thumbnails into
+  `$XDG_CACHE_HOME/kurashi/wallpaper/wallhaven/` (6 at a time, trimmed at 600), so the picker shows local files; a
+  missing thumbnail shows the picture's main colour and a mark.
+- *Download and set* (or *… with theme* when the theme switch is on; Return in the grid) asks
+  `wallpaper.wallhaven.download {id}` (the picture into `$XDG_DATA_HOME/kurashi/wallpaper/wallhaven/`, named after
+  its real format; once), then the picker's own `wallpaper.set`. A saved picture carries ✓ and *saved*.
+- Settings: `wallhaven` (on/off) and `wallhaven_api_key` (optional; sent as `X-API-Key`, never in a URL; stored as a
+  plain setting until the manifest has a secret type, row 152).
+- States: searching · results · nothing found · offline (*Try again*; the library still works) · refused: bad key,
+  rate limited (45/min), Wallhaven off, a reply we cannot read · thumbnail missing · downloading · saved · backend
+  down (Set disabled). A failed search clears the page (its results are not this search's).
+- Keys: Tab to the field; Return searches; Down to the grid; arrows move; Return sets; PageUp / PageDown page; `/`
+  back to the field.
+- Shots: `frontend/shots/media/{picker-library,wallhaven,wallhaven-set,wallhaven-offline}-{sekai,none}.png`
+  (`frontend/test-media.sh`, a fixture API on loopback via `KURASHI_WALLHAVEN_API`).
