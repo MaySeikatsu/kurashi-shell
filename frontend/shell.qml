@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "core"
+import "core/mods.js" as Mods
 import "surfaces"
 
 // Thin view (CLAUDE.md rule 1): one Bar per output; Quickshell.screens follows hotplug.
@@ -53,6 +54,34 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Bar {
             onTrayMenuRequested: id => root.openTray(id, screen)
+        }
+    }
+    // The mods' own surfaces (K38, row 88): every enabled mod's `surface:<name>`, once per output, with that output as its
+    // `screen` (a required property at creation, so ModLoader, which hands in only the core singletons, does not fit).
+    // They live as long as their mod: the list changes only when its content does (a Repeater would rebuild them all).
+    Watch { doc: "mods" }
+    readonly property var modsDoc: Store.docs["mods"]
+    property var surfaceList: []
+    function refreshSurfaces() {
+        var s = Mods.surfaces(modsDoc)
+        if (JSON.stringify(s) !== JSON.stringify(surfaceList)) surfaceList = s
+    }
+    onModsDocChanged: refreshSurfaces()
+    Component.onCompleted: refreshSurfaces()
+    Variants {
+        model: Quickshell.screens
+        // An Item holds the Repeater (a Repeater under a non-visual parent makes no delegates).
+        delegate: Item {
+            id: perScreen
+            required property var modelData
+            Repeater {
+                model: root.surfaceList
+                delegate: Loader {
+                    required property var modelData
+                    Component.onCompleted: setSource(modelData.url, { screen: perScreen.modelData })
+                    onStatusChanged: if (status === Loader.Error) console.warn("shell: cannot load " + modelData.url)
+                }
+            }
         }
     }
     Lock {}
