@@ -51,9 +51,17 @@ Scope {
         // Clears this output's bar: below a top bar, above a bottom one, left of a right one.
         BarConfig { id: bars; screen: win.screen }
         anchors { top: !bars.atBottom; bottom: bars.atBottom; right: true }
-        margins { top: bars.topInset; bottom: bars.bottomInset; right: bars.rightInset }
-        implicitWidth: stack.width + Theme.shadowDy
-        implicitHeight: Math.max(1, stack.height + Theme.shadowDy)
+        // Room for the soft chrome's shadow round the cardss (K45; 0 under every other chrome), taken out of the margins so the
+        // card stays where it was. Floating chromes (bar groups) keep a gap from the bar.
+        readonly property int shade: Theme.softR
+        readonly property int padL: shade
+        readonly property int padR: Math.min(shade, bars.rightInset)
+        readonly property int padT: bars.atBottom ? shade : Math.min(shade, bars.topInset)
+        readonly property int padB: bars.atBottom ? Math.min(shade, bars.bottomInset) : shade
+        readonly property int lead: Theme.groups ? Theme.gap : 0
+        margins { top: bars.topInset - padT; bottom: bars.bottomInset - padB; right: bars.rightInset - padR }
+        implicitWidth: padL + stack.width + Theme.shadowDy + padR
+        implicitHeight: Math.max(1, padT + lead + stack.height + Theme.shadowDy + padB)
         exclusionMode: ExclusionMode.Ignore
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
@@ -99,7 +107,8 @@ Scope {
             visible: win.shown
             spacing: Theme.gap
             // Slide in from the right edge; no group opacity (K16).
-            x: win.slide * (1 - win.p)
+            x: win.padL + win.slide * (1 - win.p)
+            y: win.padT + win.lead
             width: 340
             Repeater {
                 model: root.visibleItems

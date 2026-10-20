@@ -2,13 +2,13 @@
 # The look of the shell, invisibly (headless sway sandbox), against the REAL kurashid (K42 design pass):
 # starts kurashid with a theme (default: decor `sekai`), the frontend, then opens each surface by its action and
 # takes a screenshot of it — bar, island card, quick settings, notification centre, launcher, session menu — into
-# frontend/shots/look/<tag>/. Evidence to look at, not a pass/fail test; it fails only on a QML error or a server
+# frontend/shots/look/<tag>/ (LOOK_SANDBOX names the sandbox prefix, default fe-look). Evidence to look at, not a pass/fail test; it fails only on a QML error or a server
 # that does not come up.
 #   nix develop -c frontend/test-look.sh [tag] [config-toml-line ...]
 #   e.g. frontend/test-look.sh wa-iro 'theme.decor = "none"'
 #        frontend/test-look.sh sekai-dark 'theme.decor = "sekai"' 'theme.colors.scheme = "dark"'
 # LOOK_MOCK=1 adds mock-bar.png (fake windows in the bar's window list, the mock wearing the daemon's theme).
-# LOOK_STEPS="bar island quick notif launcher session" picks steps; LOOK_LOCK=1 adds lock.png (the real daemon refuses
+# LOOK_STEPS="bar island quick toast notif launcher session" picks steps (toast sends two notifications); LOOK_LOCK=1 adds lock.png (the real daemon refuses
 # to lock without its PAM service, so the lock is shown by kurashi-mock wearing the real daemon's theme tokens); LOOK_EXTRA="<cmd>" runs a command (e.g.
 # `kurashi act webdock.open`) before a last screenshot named extra.png. Machine B: KURASHI_RENDER_NODE first.
 set -euo pipefail
@@ -17,10 +17,10 @@ TAG=${1:-sekai}
 shift || true
 LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.decor = "sekai"')
-NAME=fe-look-$TAG
+NAME=${LOOK_SANDBOX:-fe-look}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/look/$TAG
-STEPS=${LOOK_STEPS:-bar island quick notif launcher session}
+STEPS=${LOOK_STEPS:-bar island quick toast notif launcher session}
 mkdir -p "$OUT"
 fail() { echo "test-look: $*" >&2; exit 1; }
 
@@ -67,6 +67,10 @@ for s in $STEPS; do
     bar) shot bar 0.2 ;;
     island) K act island.expand >/dev/null; shot island; close island.expand ;;
     quick) K act quick.toggle >/dev/null; shot quick; close quick.toggle ;;
+    # Two notifications: the toasts while they stand, then the centre (the next step) has cards to show.
+    toast) notify-send -t 20000 "Standup" "14:00 room 3" >/dev/null 2>&1 || true
+           notify-send -u critical -t 20000 "Battery low" "12 % left" >/dev/null 2>&1 || true
+           shot toast 1.5 ;;
     notif) K act notifications.center >/dev/null; shot notif; close notifications.center ;;
     launcher) K act launcher.toggle >/dev/null; shot launcher; close launcher.toggle ;;
     session) K act session.menu >/dev/null; shot session; close session.menu ;;

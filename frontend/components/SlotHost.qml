@@ -17,6 +17,8 @@ Item {
 
     // One grid cell per contribution (layout "cells"): a ModLoader in an Item of the cell's size, clipped to it, so a
     // contribution that is not a tile is drawn inside its cell and never grows the grid. `tile` is the loaded root.
+    // I110: such a plain contribution sits on a Block of the cell's size (the tiles' pill, in the theme's chrome), inset
+    // by the block's chrome, so it reads as one of the grid's cells; a tile draws its own.
     readonly property Component cell: Component {
         Item {
             id: cellItem
@@ -25,9 +27,19 @@ Item {
             height: host.cellHeight
             clip: true
             readonly property var tile: loader.item
+            readonly property bool plain: loader.item !== null && loader.item !== undefined && loader.item.isTile !== true
+            Block {
+                visible: cellItem.plain
+                anchors.fill: parent
+                radius: Theme.rFull
+                softScale: 0
+                fill: Theme.containerHigh
+            }
             ModLoader {
                 id: loader
                 anchors.fill: parent
+                anchors.margins: cellItem.plain ? Theme.outlineW + Theme.ringW + Theme.xs : 0
+                anchors.bottomMargin: cellItem.plain ? Theme.outlineW + Theme.ringW + Theme.xs + Theme.shadowDy : 0
                 url: cellItem.modelData.qml
                 extra: ({ reason: cellItem.modelData.reason })
             }

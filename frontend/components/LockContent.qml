@@ -32,11 +32,11 @@ Rectangle {
 
     color: Theme.surface
 
-    // Keycap chrome (K42): SekaiPop's dot field — dots that grow toward the top-right and bottom-left corners, drawn
-    // once per size (the lock surface exists only while locked).
+    // Keycap chrome (K42; the ring is keycap-only): SekaiPop's dot field — dots that grow toward the top-right and
+    // bottom-left corners, drawn once per size (the lock surface exists only while locked).
     Canvas {
         anchors.fill: parent
-        visible: Theme.keycap
+        visible: Theme.ringW > 0
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onPaint: {
@@ -53,6 +53,41 @@ Rectangle {
                     g.arc(x, y, 1 + 4 * t, 0, 2 * Math.PI)
                     g.fill()
                 }
+            }
+        }
+    }
+
+    // The other chromes' grounds (K45), drawn once per size like the dot field, from tokens only (rule 4):
+    // an outline with no shadow (line chrome) rules the ground like graph paper in the outline colour; a soft shadow (soft
+    // chrome) lays two wide glows of the accent and the secondary under the glass.
+    readonly property bool ruled: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0
+    Canvas {
+        anchors.fill: parent
+        visible: c.ruled || Theme.softR > 0
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onVisibleChanged: if (visible) requestPaint()
+        onPaint: {
+            var g = getContext("2d")
+            g.reset()
+            if (c.ruled) {
+                var step = 28
+                g.strokeStyle = Qt.alpha(Theme.outlineColor, 0.16)
+                g.lineWidth = 1
+                g.beginPath()
+                for (var x = 0.5; x < width; x += step) { g.moveTo(x, 0); g.lineTo(x, height) }
+                for (var y = 0.5; y < height; y += step) { g.moveTo(0, y); g.lineTo(width, y) }
+                g.stroke()
+                return
+            }
+            var spots = [[0.2, 0.25, Theme.accent], [0.8, 0.8, Theme.secondary]]
+            for (var i = 0; i < spots.length; i++) {
+                var cx = width * spots[i][0], cy = height * spots[i][1], r = Math.max(width, height) * 0.45
+                var gr = g.createRadialGradient(cx, cy, 0, cx, cy, r)
+                gr.addColorStop(0, Qt.alpha(spots[i][2], 0.22))
+                gr.addColorStop(1, Qt.alpha(spots[i][2], 0))
+                g.fillStyle = gr
+                g.fillRect(0, 0, width, height)
             }
         }
     }
@@ -95,10 +130,12 @@ Rectangle {
             id: box
             width: parent.width
             height: 48
-            radius: Theme.keycap ? height / 2 : Theme.rLg
+            radius: Theme.groups ? Math.min(height / 2, Theme.rFull) : Theme.rLg
             color: Theme.container
-            border.width: Theme.keycap ? Theme.outlineW + 1 : 1
-            border.color: c.isError ? Theme.error : (Theme.keycap ? Theme.line : (field.activeFocus ? Theme.fg : Theme.outline))
+            border.width: Theme.outlineW > 0 ? Theme.outlineW + (Theme.ringW > 0 ? 1 : 0) : 1
+            border.color: c.isError ? Theme.error : (Theme.ringW > 0 ? Theme.line
+                : (field.activeFocus ? Theme.fg : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)))
+            SoftShadow { anchors.fill: parent; radius: box.radius }
             // Keycap chrome: the field's hard shadow (a child below the field, drawn behind it).
             Rectangle {
                 z: -1
