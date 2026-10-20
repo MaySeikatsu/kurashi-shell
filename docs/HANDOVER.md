@@ -17,6 +17,55 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-20 — session 8 (machine B): web dock shell side — K40, K41, wave 20
+**State:** `main` green and pushed (80640d6): `just check`, `just webdock` (test-host incl. net-log privacy, test-real against
+kurashid, test-dock all four phases), `nix build .#kurashi` + `checks.webdock-closure` (with the uncommitted fix below),
+`nix flake check --no-build`. No agents, no extra worktrees; `w20-*` build dirs deleted.
+
+**User decisions this session (K40):** the eight interpretations of `docs/ux/webdock.md` as proposed — hover reveals
+the strip **and** re-opens the last page, a click on its icon puts it away, click-in keeps it until focus leaves;
+250/500 ms reveal, 400 ms hide, 24 px grace; 56 px strip, 412 phone, 90 % large; pinned overlays, reserve optional;
+`Mod+B`; kurashi views = mod panels. **Change:** new tabs stay in the dock (setting `new_tabs`, browser optional); the
+header has back/forward, **home** once the page left the pin's address, and **"Replace pin with this page"**
+(`webdock.retarget`). **K41:** opt-in mods carry their own measured cost (BENCH "Mods"), outside the core K16/K19 budget —
+the dock's per-output edge window is ~6.2 MiB USS per output (+3.8 MiB once for the shared dock window). Accent design
+pass: later, separately.
+
+**Merged (wave 20, 4 Haiku cards):** lead contract (`surface:` provide row 88, `mod.webdock` fields row 109, seven
+settings row 110, actions + hover machine row 111; mock `add` reply row 113); W20-webdock-daemon (pure hover/focus state
+machine with deadlines in the supervisor, select/back/pin/add/remove/move/retarget as settings writes, mock parity —
+the mock has no timers); W20-webdock-shell (per-output thin edge window + **one** shared dock window retargeted like the
+Stage after a first design used one full window per output at 20–35 MiB each; strip panel, view card, add form, pin
+menu, empty/cold/missing states, keyboard, bar widget `widget:webdock`); W20-webdock-host (new tabs in the dock,
+home/forward, overflow menu, retarget, I78 polish, hover/engage reports, card centred in the usable area);
+W20-webdock-nix (W17.6: `packages.kurashi-webdock` 1.7 GB apart from `kurashi` 160 MB, closure check,
+`programs.kurashi.webdock.{enable,pins,keybind,…}`, NixOS parity, `Mod+B` bind). Rows 112–117 decided/deferred; new
+backlog I90–I100.
+
+**Not mine, left alone — ask the user:** uncommitted changes in `nix/package.nix`, `crates/kurashid/tests/hosts.rs`,
+`crates/kurashi-mock/tests/wire.rs` (another session's: python3 + patchShebangs for the fake host, XDG dirs for the mock
+under Nix). Verified: with them `nix build .#kurashi` passes; without them it fails in checkPhase. `hosts.rs` needs
+`cargo fmt` before commit.
+
+**Next steps (ordered):**
+1. Commit the Nix-build fix above (user's OK), then `nix build .#checks.x86_64-linux.webdock-closure` on main.
+2. **I80** the web dock on niri (nested niri in the sandbox, then the user's session on request): reveal by hover and
+   by `Mod+B`, keyboard focus (I98 first keystroke), layer surfaces at each edge; then PROGRESS W17 "UX ✅".
+3. Web dock follow-ups: I90 (view card Tab path + padding), I91 (provenance on `pinned`), I94 (CLI reveal and the hide),
+   I97 (`online` on `mod.webdock`), I99/I100 (reduced motion, 26 px buttons, top/bottom edges), I92 (browser command),
+   I95 (per-key enforce), I96 (mock `mods` document).
+4. Earlier queue (session 7 step 3–4): I86, I88, I89, I84, I67 keyboard path, I77, I87; B7 quiet re-measure; I93 (PSS
+   reader on two outputs under gles2) before trusting two-output PSS; I10 on machine A.
+5. Design pass with the user (accent colour: I51, I63, I78 leftovers, I82, I83, I86; `INSPIRATION.md`).
+
+**Gotchas (new):** a `cd` into an agent worktree moves the lead's session cwd — use `git -C`. `git commit -am` sweeps the
+other session's dirty files into your commit (happened once, undone before push) — stage paths explicitly while that
+diff exists. Parallel cards still collide on CONTRACT-CHANGE row numbers (renumbered 112→114, 114→115 at merge). The
+zsh tool shell has no `PIPESTATUS` (use `$pipestatus` or `set -o pipefail`). PSS on two outputs under gles2 shows a
+~1.9 TiB mapping: measure USS (I93).
+
+---
+
 ## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, waves 17 and 18
 **State:** `main` green (`just check` 779 tests; `just webdock`, `just peek`, `just mods-live` 5/5 after the B29 fix,
 test-stage, test-sidebars, test-quick(-sections), settings/test.sh, weather and wallpaper state tests). Waves 17–19
@@ -226,64 +275,3 @@ connects), `just golden` (`KURASHI_GOLDEN_REF=tools/golden/ref-machine-b` on mac
 On machine B export `KURASHI_RENDER_NODE=/dev/dri/renderD129` for every sandbox run.
 
 ---
-
-## 2026-10-09 — session 4 (machine B): baseline, wave 8 merged
-**Machine B** = hybrid laptop (Ryzen 7 6800H, Radeon 680M iGPU — niri renders on it — + RTX 3070 Laptop
-dGPU with runtime PM). Its baseline is in `docs/BENCH.md`; the runbook is done (don't repeat it).
-Everything below is on `main` and pushed to origin; `just check` green (330 tests, 0 ignored,
-+ `frontend/test-launch.sh`), `just golden` 5/5 unchanged, `nix flake check --no-build` ✔.
-
-**Merged this session**
-- B.2 machine-B baseline: iGPU gate 0 violations; dGPU idle-CPU "failures" = NVIDIA runtime-PM resume
-  (~1.7 s driver CPU on qs's main thread, UI blocked ~2 s) — never render the shell on a hybrid's dGPU.
-  Probes re-measured (K3 unchanged). Raw JSON in `tools/bench/baselines/` — **`archive/` stays untouched**
-  (user rule; the runbook now says so). Golden refs `tools/golden/ref-machine-b` = pixel-identical to A's.
-  `tools/bench/sandbox.sh`: `KURASHI_RENDER_NODE` picks the GPU.
-- K23 (lead): tray menus are a Stage panel (`tray.menu.open`, `runtime.ui.tray`), daemon + mock.
-- Wave 8 (6 Haiku agents, all merged after review + private-dir gate + sandbox/golden + screenshots):
-  S-settings-polish (keyboard/focus ring, AA, 32 px hits, translated errors, headers), B-tray-bluetooth
-  (tray widget, tray menu, Bluetooth in the island panel, island hit area = bar thickness, mock docs),
-  C-services (one `ServiceProvider<C,H>`, restart with backoff after bus loss), L-logind (explicit
-  graphical session: XDG_SESSION_ID → user Display → Sessions → auto), C-mod-sections (`mods.<id>`
-  profile sections, K22 addendum), K-hybrid-egl (`launch.sh` pins the EGL vendor of the compositor's
-  dmabuf main device; −10 MiB here; HM + `nix run` pass `KURASHI_WAYLAND_INFO`).
-- Lead fixes: `frontend/test-real.sh` and golden point kurashid at a missing system bus (no host BlueZ
-  from tests); CONTRACT-CHANGE deduped/renumbered (rows 19–21 decided); MODS.md/PROTOCOL §5 K22 text.
-
-**Numbers (machine B iGPU, after wave 8):** 114.3–115.5 MiB @1 out, idle 0 fps / 0 % CPU, popup 3.3–3.6 ms,
-cycles ≤ +1.3 MiB — but **per extra output +4.7…+6.7 (mean ≈ 5.95, 2 of 4 runs over ≤ +6)**.
-
-**Next steps (ordered)**
-1. **Per-output PSS headroom (budget at its limit on A and B).** A/B on machine B iGPU: 6b13d56 vs 451347d,
-   ≥ 3 quiet runs each (`KURASHI_RENDER_NODE=/dev/dri/renderD129 just bench-gate`), to attribute wave 8;
-   then cut per-bar cost (candidates: per-bar Watches/Loaders, Island wrapper, tray Repeater, the unused
-   `mods.probe` watch + ModNode repeater in Bar). Don't change the budget without the user.
-2. Contract rows 20 + 21 (accepted, lead): `item_is_menu` in kurashi-tray (SNI `ItemIsMenu`; frontend reads
-   it), and `config.history {can_undo, can_redo}` in kurashid + fixture + PROTOCOL §5; then settings
-   `Store.qml` drops its reply-derived `canUndo/canRedo`.
-3. Small fixes from reviews: brightness `SetBrightness` still on `session/auto` (same systemd --user gap as
-   L-logind — reuse its resolver); tray start failure (watcher name taken by another shell) retries every
-   30 s while a bar is visible → wait for NameOwnerChanged instead; profile actions should send error codes
-   (settings shows "(code: invalid)"); move `settings/keys.py` + test-bindings' virtual pointer into
-   `tools/bench/` (CONTRACT #6); profile list refresh when files appear.
-4. **Live test with the user** (M7): `nix run .#` on niri was never run on a real display before this
-   session — collect the user's findings, then fix (tray with real SNI items, menu-only items, scroll
-   sign, side bars, keyboard paths are untested against real apps).
-5. M6 first native mods (media + lyrics, wallpaper, sysmon, weather): needs a lead design first — how a
-   native mod contributes QML components + Rust services when enabled (`docs/MODS.md` "Lifecycle").
-6. Idea (user, not planned): Bevy as a candidate in the next framework re-test (`docs/BAKEOFF.md`).
-
-**Process lessons (keep)**
-- Tests must not hand clients what a live session doesn't: the frontend read only `KURASHI_SOCKET`, every
-  sandbox test exported it, and `test-real.sh` passed with a disconnected bar (it took screenshots,
-  asserted nothing). Found in the user's first live run; fixed (M7.5) + a hello assertion.
-- Agent worktrees may be created from `origin/main`, not local `main`: **push (or fast-forward) before
-  spawning**, or tell agents to `git merge --ff-only main` first (4 of 6 started on a stale base).
-- A restarted Claude process restarts its background agents; check `ListAgents` before touching worktrees
-  (the classifier rightly blocked removing live ones).
-- Agents running in parallel append the same CONTRACT-CHANGE row number — renumber at merge (again).
-- zsh: `git show $B:crates/...` breaks (`:c` modifier) — quote as `"$B:path"`.
-- Hybrid GPUs: export `KURASHI_RENDER_NODE=/dev/dri/renderD129` for every sandbox test on machine B.
-
-**Half-done / risks:** none half-done; no agents running, no extra worktrees. Per-output PSS (step 1) is the
-open risk. `frontend/shots/tray-bt/` is generated, untracked.
