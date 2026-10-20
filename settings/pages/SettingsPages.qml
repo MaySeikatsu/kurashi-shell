@@ -76,6 +76,22 @@ Flickable {
         return Store.userSetEntries(p.pageId).map(function (e) { return Store.resetOp(e.key, e.output) })
     }
 
+    // Each section is a card with its icon (K48 (5), I104): by section id, or `page.section` where a page's section
+    // needs its own; a mod's section gets the puzzle piece, any other the sliders. Display only: no key is named here.
+    readonly property var sectionIcons: ({
+        layout: "view_quilt", colors: "palette", shape: "rounded_corner", material: "blur_on", motion: "animation",
+        typography: "text_fields", modes: "accessibility_new", main: "toggle_on", clock: "schedule",
+        server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
+        recorder: "screen_record", dock: "dock_to_bottom"
+    })
+    function sectionIcon(pageId, id) {
+        return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
+    }
+    // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
+    // each app's file went and what the app still needs (K49).
+    readonly property var extras: ({ "theme.export": cThemeExport })
+    Component { id: cThemeExport; ThemeExportStatus {} }
+
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
     clip: true
@@ -149,6 +165,31 @@ Flickable {
         var hit = findRow(col, key)
         if (hit) hit.openControl()
     }
+    // The settings test: the section cards on screen ("page.section"), and a theme export copy's result by app.
+    function cardNames() {
+        var out = []
+        var walk = function (item) {
+            if (item.objectName && item.objectName.indexOf("section:") === 0) { if (item.visible) out.push(item.objectName.substring(8)); return }
+            var kids = item.children || []
+            for (var i = 0; i < kids.length; i++) walk(kids[i])
+        }
+        walk(col)
+        return out
+    }
+    function copyState(name) {
+        var found = "none"
+        var walk = function (item) {
+            if (item.copied !== undefined && item.targets !== undefined) {
+                var c = item.copied[name]
+                found = c ? (c.error ? "error: " + c.error : "copied") : "none"
+                return
+            }
+            var kids = item.children || []
+            for (var i = 0; i < kids.length; i++) walk(kids[i])
+        }
+        walk(col)
+        return found
+    }
     // A reason's link: the setting that controls this row, wherever it is.
     function openKey(key) {
         var h = Store.rowOf(key)
@@ -203,28 +244,26 @@ Flickable {
             delegate: Column {
                 required property var modelData
                 width: col.width
-                spacing: Theme.gap
+                spacing: Theme.pad
                 Repeater {
                     model: modelData.sections
-                    delegate: Column {
+                    delegate: SectionCard {
+                        id: sec
                         required property var modelData
+                        readonly property string pageOf: modelData.rows.length ? modelData.rows[0].pageId : ""
+                        objectName: "section:" + pageOf + "." + modelData.id
                         width: col.width
-                        spacing: 0
-                        Text {
-                            visible: !p.searching
-                            bottomPadding: Theme.gap
-                            topPadding: Theme.gap
-                            color: Theme.dim
-                            font.pixelSize: Theme.fs
-                            font.bold: true
-                            font.family: Theme.fam(text, Theme.families)
-                            text: I18n.tr(modelData.label)
-                        }
+                        header: !p.searching
+                        title: I18n.tr(modelData.label)
+                        icon: p.sectionIcon(pageOf, modelData.id)
                         Repeater {
-                            model: modelData.rows
+                            model: sec.modelData.rows
                             delegate: Column {
                                 required property var modelData
-                                width: col.width
+                                required property int index
+                                readonly property bool last: index === sec.modelData.rows.length - 1
+                                readonly property var extra: p.extras[modelData.row.key]
+                                width: sec.width - 2 * Theme.pad
                                 spacing: 2
                                 // The breadcrumb of a search hit: a link to the row, reachable by Tab.
                                 Item {
@@ -263,7 +302,30 @@ Flickable {
                                     width: parent.width
                                     rowKey: modelData.row.key
                                     output: p.output
+                                    divider: !parent.last && parent.extra === undefined
                                     onOpenKey: key => p.openKey(key)
+                                }
+                                // A row's document beside it (the per-key map `extras`), under the control column.
+                                Item {
+                                    visible: parent.extra !== undefined
+                                    width: parent.width
+                                    height: visible ? extraLoader.height + Theme.gap * 2 : 0
+                                    Loader {
+                                        id: extraLoader
+                                        readonly property real labelW: Math.min(300, Math.max(180, parent.width * 0.36))
+                                        x: labelW + Theme.pad
+                                        y: Theme.gap / 2
+                                        width: parent.width - x
+                                        active: parent.visible
+                                        sourceComponent: parent.parent.extra ?? null
+                                    }
+                                    Rectangle {
+                                        visible: !parent.parent.last
+                                        anchors.bottom: parent.bottom
+                                        width: parent.width
+                                        height: 1
+                                        color: Theme.containerHigh
+                                    }
                                 }
                             }
                         }
