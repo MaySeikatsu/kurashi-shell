@@ -149,16 +149,16 @@ PanelWindow {
         right: peekLayout ? shownEdge === "right" : (aligned && (!bars.vertical || bars.edge === "right"))
     }
     margins {
-        top: peekLayout ? (shownEdge === "top" ? peekInset : (peekSide ? peekTop : 0)) : (morphMode ? 0 : bars.topInset)
+        top: peekLayout ? (shownEdge === "top" ? peekInset : (peekSide ? peekTop : 0)) : (morphLayout ? 0 : bars.topInset)
         bottom: peekLayout ? (shownEdge === "bottom" ? peekInset : 0)
-            : (morphMode ? 0 : (menuBeside ? Theme.pad : bars.bottomInset))
+            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset))
         left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : peekLeft))
             : (menuBeside ? Theme.barH + Theme.gap : 0)
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
             : (aligned ? (menuBeside ? Theme.barH + Theme.gap : Theme.pad) : 0)
     }
-    implicitWidth: peekLayout ? peekCard.width : (morphMode ? morphW : card.width)
-    implicitHeight: peekLayout ? peekCard.height : (morphMode ? morphH : card.height)
+    implicitWidth: peekLayout ? peekCard.width : (morphLayout ? morphW : card.width)
+    implicitHeight: peekLayout ? peekCard.height : (morphLayout ? morphH : card.height)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -175,6 +175,7 @@ PanelWindow {
         if (open) {
             // Content first: a menu closed a moment ago must not show for a frame.
             contentKind = wantedKind === "" ? "island" : wantedKind
+            pillGeom = IslandGeom.pillOf(outName)
             Qt.callLater(function () { card.forceActiveFocus() })
             anim.stop()
             handBack.stop()
@@ -414,10 +415,22 @@ PanelWindow {
     readonly property var islandKinds: ["island", "modface", "media", "notifications", "clock", "volume", "brightness",
         "power", "bluetooth"]
     readonly property string outName: screen ? screen.name : ""
-    readonly property var pillGeom: IslandGeom.pillOf(outName)
+    // The pill's rect, read when the card opens and followed only while the shape is out: idle, a pill that grows under the
+    // pointer must not touch the Stage at all (Ma; test-peek counts the Stage's commits per peek).
+    property var pillGeom: null
+    Binding {
+        target: stage
+        property: "pillGeom"
+        value: IslandGeom.pillOf(stage.outName)
+        when: stage.shown
+        restoreMode: Binding.RestoreNone
+    }
     readonly property bool morphMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null
         && (bars.atTop || bars.atBottom)
     readonly property bool flip: bars.atBottom
+    // The window takes the morph's geometry (the bar's strip and the slack) only while the shape is out; idle, it keeps the
+    // card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
+    readonly property bool morphLayout: morphMode && shown
     // The pill at rest: its face's top from the screen edge (a bottom bar's face ends a keycap shadow above the edge).
     readonly property real pillW: pillGeom ? pillGeom.w : 120
     readonly property real pillH: pillGeom ? pillGeom.h : Theme.barH - 10
@@ -538,6 +551,8 @@ PanelWindow {
     CompactFace {
         id: headFace
         active: stage.shown && stage.morphMode
+        // Not visible while idle: its geometry follows the pill (hover), and a visible item that moves costs a frame (Ma).
+        visible: active
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
         animate: stage.shown
         opacity: shape.opacity
