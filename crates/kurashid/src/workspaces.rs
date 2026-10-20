@@ -33,7 +33,32 @@ pub fn document(state: &CompositorState) -> Value {
             .unwrap_or_else(|| json!([]));
         outputs.insert("*".into(), alias);
     }
+    doc["tasks"] = tasks(state);
     doc
+}
+
+/// `tasks`: per output, the windows of its active workspace in id order, as `{id, app_id, focused}` (session 9: the
+/// bar's window list). Titles stay out on purpose: a browser retitles on every page, and a title is not drawn.
+fn tasks(state: &CompositorState) -> Value {
+    let mut map = serde_json::Map::new();
+    for o in &state.outputs {
+        let active = state
+            .workspaces
+            .iter()
+            .find(|w| w.active && w.output.as_deref() == Some(o.name.as_str()))
+            .map(|w| w.id);
+        let list: Vec<Value> = state
+            .windows
+            .iter()
+            .filter(|w| active.is_some() && w.workspace_id == active)
+            .map(|w| json!({"id": w.id, "app_id": w.app_id.clone().unwrap_or_default(), "focused": w.focused}))
+            .collect();
+        if o.focused {
+            map.insert("*".into(), Value::Array(list.clone()));
+        }
+        map.insert(o.name.clone(), Value::Array(list));
+    }
+    Value::Object(map)
 }
 
 pub struct WorkspacesProvider<C> {
@@ -49,8 +74,23 @@ impl<C: Compositor + 'static> WorkspacesProvider<C> {
         })
     }
 
-    /// `workspace.focus {idx}` / `{id}`.
+    /// `workspace.focus {idx}` / `{id}`, `window.focus {id}`.
     pub fn register_actions(self: &Arc<Self>, actions: &mut ActionRegistry) {
+        let wf = self.factory.clone();
+        actions.register("window.focus", "action.window.focus", move |args: Value| {
+            let factory = wf.clone();
+            async move {
+                let id = args
+                    .get("id")
+                    .and_then(Value::as_u64)
+                    .ok_or_else(|| ActionError::Invalid("window.focus needs id".into()))?;
+                factory()
+                    .act(Action::FocusWindow(id))
+                    .await
+                    .map_err(|e| ActionError::Unavailable(e.to_string()))?;
+                Ok(None)
+            }
+        });
         let factory = self.factory.clone();
         actions.register(
             "workspace.focus",

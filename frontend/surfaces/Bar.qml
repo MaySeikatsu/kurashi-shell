@@ -77,6 +77,12 @@ PanelWindow {
         : (audioMuted ? I18n.tr("frontend.volume.muted")
             : I18n.tr("frontend.volume.level").replace("{pct}", Math.round(daemonVolume * 100)))
     // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
+    // The windows of this output's active workspace (svc.workspaces `tasks`, session 9): one icon each, click focuses.
+    readonly property var tasks: {
+        var t = workspaces.tasks || {}
+        var n = screen ? screen.name : ""
+        return t[n] || t["*"] || []
+    }
     readonly property var pills: {
         var o = workspaces.outputs || {}
         var n = screen ? screen.name : ""
@@ -280,9 +286,64 @@ PanelWindow {
                     delegate: Theme.keycap ? keyPill : dotPill
                 }
             }
+            // The window list: after the workspaces, in a group of its own (keycap) — the focused window lit.
+            Group { around: taskRow }
+            Row {
+                id: taskRow
+                visible: bar.tasks.length > 0
+                anchors { left: workspaceRow.right; leftMargin: Theme.pad + 2 * bar.groupInset; verticalCenter: parent.verticalCenter }
+                anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                spacing: Theme.xs
+                Repeater {
+                    model: bar.tasks.slice(0, 12)
+                    delegate: Rectangle {
+                        id: task
+                        required property var modelData
+                        readonly property var entry: DesktopEntries.heuristicLookup(modelData.app_id)
+                        readonly property string src: entry && entry.icon ? Quickshell.iconPath(entry.icon, true) : ""
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: Theme.barH - 12
+                        height: width
+                        radius: Theme.keycap ? width / 2 : Theme.rSm
+                        color: modelData.focused ? Theme.selected : (taskHover.hovered ? Theme.containerHigh : "transparent")
+                        border.width: modelData.focused && Theme.keycap ? Theme.outlineW : 0
+                        border.color: Theme.line
+                        Accessible.role: Accessible.Button
+                        Accessible.name: entry ? entry.name : modelData.app_id
+                        Image {
+                            id: taskImg
+                            anchors.centerIn: parent
+                            width: parent.width - 8
+                            height: width
+                            source: task.src
+                            sourceSize: Qt.size(48, 48)
+                            asynchronous: true
+                            visible: task.src !== "" && status === Image.Ready
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: !taskImg.visible
+                            color: Theme.fg
+                            font.pixelSize: Theme.fsCaption
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: (task.modelData.app_id || "?").charAt(0).toUpperCase()
+                        }
+                        // The focused window's mark under its icon, so focus is not colour alone.
+                        Rectangle {
+                            visible: task.modelData.focused
+                            anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 1 }
+                            width: 10; height: 3; radius: 1.5
+                            color: Theme.accent
+                        }
+                        HoverHandler { id: taskHover }
+                        TapHandler { onTapped: Store.act("window.focus", {id: task.modelData.id}) }
+                    }
+                }
+            }
             // Disconnected glyph: instantiated only while stale (nothing at idle), after the workspaces.
             Loader {
-                anchors { left: workspaceRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
+                anchors { left: taskRow.visible ? taskRow.right : workspaceRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
                 active: bar.stale
                 sourceComponent: Text {
                     color: Theme.accent

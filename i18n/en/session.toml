@@ -62,3 +62,5 @@
 "action.settings.open" = "Open Settings"
 "error.settings.not_installed" = "Settings is not installed, so it cannot open."
 "error.settings.no_runtime" = "The Quickshell runtime (qs) is not available, so Settings cannot open."
+"action.workspace.focus" = "Focus workspace"
+"action.window.focus" = "Focus window"
