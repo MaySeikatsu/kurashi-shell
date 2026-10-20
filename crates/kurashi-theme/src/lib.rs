@@ -93,3 +93,30 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
         notes,
     })
 }
+
+/// Decor packs' recipes (K42, DESIGN-SYSTEM §4): the axis values a pack recommends, applied by
+/// the daemon at the `theme:<pack>` layer, under everything the user sets. `None` for no pack.
+pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>> {
+    use serde_json::json;
+    match name {
+        "sekai" => Some(vec![
+            ("theme.colors.palette", json!("sekai")),
+            ("theme.colors.scheme", json!("light")),
+            ("theme.chrome", json!("keycap")),
+            ("theme.motion.profile", json!("lively")),
+            ("theme.material.kind", json!("solid")),
+            ("theme.shape.corners", json!("rounded")),
+            ("theme.shape.radius_scale", json!(1.25)),
+            (
+                "theme.typography.family",
+                json!([
+                    "Nunito",
+                    "M PLUS Rounded 1c",
+                    "Noto Sans CJK JP",
+                    "sans-serif"
+                ]),
+            ),
+        ]),
+        _ => None,
+    }
+}

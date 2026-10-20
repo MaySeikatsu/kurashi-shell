@@ -37,6 +37,13 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 
 ### Colors
 
+#### `theme.decor` — Look
+
+A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42).
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"sekai"`
+
 #### `theme.colors.palette` — Palette
 
 Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
@@ -97,6 +104,14 @@ Multiplies every corner radius token.
 - range: `0.0..=2.0`, step `0.05`
 - only while `theme.shape.corners != "none"`
 - advanced
+
+#### `theme.chrome` — Chrome
+
+How blocks are drawn: flat fills, or keycaps with an ink outline, a light ring and a hard shadow they sink into when pressed (K42).
+
+- type: `choice` · default: `"flat"`
+- choices: `"flat"` | `"keycap"`
+- forced to `"flat"` while `a11y.high_contrast` is on
 
 ### Material
 

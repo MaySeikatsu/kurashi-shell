@@ -99,6 +99,29 @@
           "rows": [
             {
               "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.decor.none",
+                  "value": "none"
+                },
+                {
+                  "label": "config.choice.decor.sekai",
+                  "value": "sekai"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "none",
+              "help": "config.theme.decor.help",
+              "key": "theme.decor",
+              "label": "config.theme.decor.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
               "choices": [],
               "choices_from": "palettes",
               "control": "select",
@@ -290,6 +313,36 @@
               "since": 1,
               "step": 0.05,
               "type": "float"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.chrome.flat",
+                  "value": "flat"
+                },
+                {
+                  "label": "config.choice.chrome.keycap",
+                  "value": "keycap"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "flat",
+                  "key": "a11y.high_contrast",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "flat",
+              "help": "config.theme.chrome.help",
+              "key": "theme.chrome",
+              "label": "config.theme.chrome.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
             }
           ]
         },

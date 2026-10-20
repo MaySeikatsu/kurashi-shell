@@ -53,6 +53,15 @@ A decor pack = **typed slots + recipe**:
   (below user pins). Example: `edo` recommends `palette:wa-iro`, `shape.none`, `motion.calm`,
   `typography: Noto Serif JP`; the user can still pin `shape.rounded`.
 
+### Chrome and the `sekai` decor (K42)
+`theme.chrome = keycap` draws every block (bar pills, tiles, buttons, cards, the island) as a keycap: outline
+(`chrome.outline` px, colour `chrome.line`), ring (`chrome.ring` px, `chrome.ring_color`), fill, and a hard shadow
+(`chrome.shadow` px down, `chrome.line`). Pressed = the face sinks by the shadow and springs back
+(`motion.spring.overshoot`). Flat chrome sets every width to 0. Components draw blocks through `Block.qml` only.
+`theme.decor = sekai` recommends palette `sekai` (light), keycap chrome, lively motion, solid material, radius ×1.25
+and Nunito, at the `theme:sekai` layer. Icons come from `Icon.qml` (Material Symbols Rounded ligatures, text-glyph
+fallback).
+
 ## 5. Accessibility modes
 `reduce_motion`, `reduce_transparency`, `high_contrast`, `large_text` force axes with
 `forced_by: accessibility` (visible in Settings). Defaults follow the system portal where
