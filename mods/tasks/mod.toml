@@ -1,0 +1,48 @@
+id = "tasks"
+name = "Tasks"
+description = "mods.tasks.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# A Markdown checklist and a note in files the user owns (K46, docs/ux/tasks.md): the service and its actions (the Rust
+# crate registers them), two desk cards, the bar widget and the panel (QML).
+provides = [
+    "service:tasks",
+    "action:tasks.*",
+    "desk:tasks",
+    "desk:notes",
+    "widget:tasks",
+    "panel:tasks",
+]
+# The two files may be anywhere the settings point (a vault); `fs:scoped` is the nearest capability the daemon knows
+# (CONTRACT-CHANGE row: a capability for user-named files).
+capabilities = ["fs:scoped"]
+cost = "low"
+
+[[setting]]
+key = "file"
+type = "string"
+default = ""
+label = "mods.tasks.file"
+help = "mods.tasks.file.help"
+
+[[setting]]
+key = "notes_file"
+type = "string"
+default = ""
+label = "mods.tasks.notes_file"
+help = "mods.tasks.notes_file.help"
+
+[[setting]]
+key = "show_done"
+type = "bool"
+default = true
+label = "mods.tasks.show_done"
+help = "mods.tasks.show_done.help"
+
+[[setting]]
+key = "bar_count"
+type = "bool"
+default = false
+label = "mods.tasks.bar_count"
+help = "mods.tasks.bar_count.help"

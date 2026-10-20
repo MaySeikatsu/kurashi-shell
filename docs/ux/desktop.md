@@ -27,3 +27,15 @@ and never steal input from apps.
 ## Later (backlog)
 Drag to place and resize (SekaiPop "Edit Desktop"), to-do and notes cards (need a daemon notes/todo service), lyrics,
 dim while a window is focused (macOS), multi-output placement presets, keyboard path (a desktop focus key).
+
+## v2 — cards from mods (K46, row 120; W22-tasks)
+- Any enabled mod may add cards with `desk:<name>` (`qml/desk/<name>.qml`). Desktop.qml lists them after the core cards
+  (`Mods.deskCards`), one ModLoader each at the column's width, loaded only while the desk is shown (Ma). A card sets
+  its own `implicitHeight`; one of height 0 takes no room and no gap (it is hidden by the column, so it watches its
+  document for its lifetime rather than while visible).
+- The list is rebuilt only when the card URLs change: the `mods` document also changes when a mod starts or stops running,
+  and a new model would remake every card (and re-subscribe it) on each such change.
+- First users: the tasks mod (docs/ux/tasks.md) — `tasks` (open count, up to seven items, tick by click, "+ Add" opens
+  the panel) and `notes` (the note's first lines; hidden while empty). Shots: `mods/tasks/shots/{missing,desk,empty}-{sekai,none}.png`.
+- Still keyboard-less (K43): a card ticks and opens the Stage; editing lives in the panel.
+- Open: cards follow the `qml` map's key order (row 123); per-card show/hide like `desktop.<card>` for mod cards.
