@@ -9,6 +9,7 @@
 //! `--fixed-time` the clock never fires on its own.
 
 mod documents;
+mod power;
 mod state;
 mod tasks;
 mod webdock;
