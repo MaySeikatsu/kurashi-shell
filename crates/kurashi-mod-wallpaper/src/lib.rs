@@ -14,6 +14,8 @@
 //!
 //! Shōjiki: nothing is reported as applied before the backend accepted it; a missing binary, a
 //! daemon that does not answer and a failed call are states of `mod.wallpaper`, with reasons.
+//!
+//! Wallhaven (K48 (3), [`wallhaven`]): search and download on request, from the picker's Wallhaven tab.
 
 mod backend;
 mod browse;
@@ -25,6 +27,7 @@ mod rotate;
 mod state;
 mod supervisor;
 mod thumbs;
+pub mod wallhaven;
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -39,12 +42,13 @@ pub use exec::{Exec, ExecError, ExecFuture, ExecOutput, SystemExec};
 use config::Config;
 use supervisor::{Cmd, Reply, Shared, Supervisor};
 
-/// Where the mod keeps its files: the state file and the thumbnail cache, both under kurashi's own
-/// XDG directories (`$XDG_STATE_HOME/kurashi`, `$XDG_CACHE_HOME/kurashi`).
+/// Where the mod keeps its files: the state file, the thumbnail cache and the Wallhaven downloads, under kurashi's
+/// own XDG directories (`$XDG_STATE_HOME/kurashi`, `$XDG_CACHE_HOME/kurashi`, `$XDG_DATA_HOME/kurashi`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Dirs {
     pub state: PathBuf,
     pub cache: PathBuf,
+    pub data: PathBuf,
 }
 
 impl Dirs {
@@ -52,6 +56,7 @@ impl Dirs {
         Self {
             state: xdg("XDG_STATE_HOME", ".local/state"),
             cache: xdg("XDG_CACHE_HOME", ".cache"),
+            data: xdg("XDG_DATA_HOME", ".local/share"),
         }
     }
 
@@ -60,6 +65,7 @@ impl Dirs {
         Self {
             state: root.join("state"),
             cache: root.join("cache"),
+            data: root.join("data"),
         }
     }
 
@@ -292,6 +298,27 @@ fn register_actions(ctx: &mut ModCtx, shared: &Arc<Shared>) -> Result<(), ModErr
         async move { browse::thumbs(&s, args).await }
     })?;
 
+    // Wallhaven (K48): on request only; the API base can point at a fixture server (KURASHI_WALLHAVEN_API).
+    let base = Arc::new(wallhaven::base_from_env());
+    let (s, b) = (shared.clone(), base.clone());
+    ctx.action(
+        "wallpaper.wallhaven.search",
+        "action.wallpaper.wallhaven.search",
+        move |args| {
+            let (s, b) = (s.clone(), b.clone());
+            async move { wallhaven::search(&s.settings, &s.dirs, &b, args).await }
+        },
+    )?;
+    let s = shared.clone();
+    ctx.action(
+        "wallpaper.wallhaven.download",
+        "action.wallpaper.wallhaven.download",
+        move |args| {
+            let (s, b) = (s.clone(), base.clone());
+            async move { wallhaven::download(&s.settings, &s.dirs, &b, args).await }
+        },
+    )?;
+
     let s = shared.clone();
     ctx.action(
         "wallpaper.cache.clear",
@@ -394,6 +421,11 @@ mod tests {
         let d = Dirs::rooted(Path::new("/r"));
         assert_eq!(d.state_file(), PathBuf::from("/r/state/wallpaper.json"));
         assert_eq!(d.thumbs(), PathBuf::from("/r/cache/wallpaper/thumbs"));
+        assert_eq!(d.wallhaven(), PathBuf::from("/r/data/wallpaper/wallhaven"));
+        assert_eq!(
+            d.wallhaven_thumbs(),
+            PathBuf::from("/r/cache/wallpaper/wallhaven")
+        );
     }
 
     /// Every null in a document, by its path (B25: documents never contain null, PROTOCOL §3).

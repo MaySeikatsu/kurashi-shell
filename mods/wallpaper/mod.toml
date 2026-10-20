@@ -1,6 +1,7 @@
 # Wallpaper (K26, W12): awww or swww behind one document, `mod.wallpaper`. Images per output, a
 # library with thumbnails and palette chips, favourite looks, rotation. Its daemon runs while the mod is
-# enabled, not while the picker is open (crates/kurashi-mod-wallpaper, lib.rs).
+# enabled, not while the picker is open (crates/kurashi-mod-wallpaper, lib.rs). Wallhaven (K48): search and download
+# from the picker's Wallhaven tab, on request only (`network`).
 id = "wallpaper"
 name = "Wallpaper"
 description = "mods.wallpaper.description"
@@ -14,7 +15,7 @@ provides = [
     "choices:wallpaper.backends",
     "slot:quick.tiles",
 ]
-capabilities = ["exec:awww", "exec:swww", "fs:scoped"]
+capabilities = ["exec:awww", "exec:swww", "fs:scoped", "network"]
 cost = "low"
 
 [[setting]]
@@ -98,3 +99,18 @@ type = "bool"
 default = true
 label = "mods.wallpaper.restore"
 help = "mods.wallpaper.restore.help"
+
+[[setting]]
+key = "wallhaven"
+type = "bool"
+default = true
+label = "mods.wallpaper.wallhaven"
+help = "mods.wallpaper.wallhaven.help"
+
+# Stored as a plain setting: the manifest has no secret type yet (CONTRACT-CHANGE row 152, BACKLOG D3).
+[[setting]]
+key = "wallhaven_api_key"
+type = "string"
+default = ""
+label = "mods.wallpaper.wallhaven_api_key"
+help = "mods.wallpaper.wallhaven_api_key.help"

@@ -1,6 +1,6 @@
 [package]
 name = "kurashi-mod-wallpaper"
-description = "Wallpaper native mod (K26, W12): awww/swww adapters, library, thumbnails and palette chips, rotation, favourites"
+description = "Wallpaper native mod (K26, W12): awww/swww adapters, library, thumbnails and palette chips, rotation, favourites, Wallhaven"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -15,6 +15,8 @@ serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["process"] }
 tracing.workspace = true
+# Wallhaven (K48): the search API, thumbnails and downloads.
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
 
 [dev-dependencies]
 # The daemon's own wiring is the test subject of `tests/kurashid_wiring.rs` (a dev-dependency cycle
