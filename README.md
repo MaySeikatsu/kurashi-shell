@@ -93,4 +93,11 @@ path of `kurashi`. Add or change keys in `programs.kurashi.niri.binds.keys` (nir
 id, e.g. `"Mod+L" = "session.lock";`); `null` removes a default. The file does nothing until the
 include line is there.
 
+`Mod+B` toggles the web dock (`webdock.toggle`; the mod `webdock`, see `docs/MODS.md` "Web dock"). Its bind
+goes into the same file, so it needs the include above too. With Home-Manager, `programs.kurashi.webdock.enable = true;`
+turns the dock on and installs its host package, `kurashi-webdock`, which carries QtWebEngine (the base
+package does not). `programs.kurashi.webdock.pins` lists the pins, the other `programs.kurashi.webdock.*`
+options set the mod's settings, and `programs.kurashi.webdock.keybind` changes the key (`null` writes none).
+The bind is written only with `programs.kurashi.niri.binds.enable = true;`; Home-Manager warns when it is not.
+
 License: GPL-3.0-or-later.
