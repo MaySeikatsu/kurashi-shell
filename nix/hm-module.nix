@@ -3,6 +3,7 @@ self:
 
 let
   cfg = config.programs.kurashi;
+  wd = cfg.webdock;
   toml = pkgs.formats.toml { };
   envList = lib.mapAttrsToList (k: v: "${k}=${v}") cfg.extraEnvironment;
 
@@ -34,6 +35,34 @@ let
       lhs = lib.concatStringsSep " " ([ key ] ++ niriBindProps action);
     in
     "    ${lhs} { spawn \"${cfg.package}/bin/kurashi\" \"act\" \"${action}\"; }";
+
+  # The web dock's settings are the mod's own keys (K38, K40; mods/webdock/mod.toml), written as `mods.webdock.<key>`
+  # into the Nix layer. A null option writes nothing and leaves the mod's default in place.
+  webdockSettingKeys = [
+    "default_view" "width" "large" "edge" "unload_after" "max_loaded" "hover" "reopen_last"
+    "pinned" "reserve" "indicator" "strip" "new_tabs"
+  ];
+  webdockSetting = type: description: lib.mkOption {
+    type = lib.types.nullOr type;
+    default = null;
+    inherit description;
+  };
+  webdockPinToml = pin: lib.filterAttrs (_: v: v != null) { inherit (pin) id title target view profile icon; };
+  webdockToml =
+    lib.filterAttrs (_: v: v != null) (lib.genAttrs webdockSettingKeys (key: wd.${key}))
+    // lib.optionalAttrs (wd.pins != [ ]) { pins = map webdockPinToml wd.pins; };
+
+  # kurashid starts the web host and opens links by name (K38: `exec:qs-webengine` and `exec:xdg-open` are looked up
+  # in its PATH, which a user manager may not carry). With the dock on, the daemon's PATH starts with the dock
+  # package's commands, by store path, as the other units name their tools (KURASHI_QS).
+  daemonPackage =
+    if wd.enable then
+      pkgs.runCommand "kurashid-webdock" { nativeBuildInputs = [ pkgs.makeWrapper ]; } ''
+        mkdir -p $out/bin
+        makeWrapper ${cfg.package}/bin/kurashid $out/bin/kurashid --prefix PATH : ${lib.makeBinPath [ wd.package ]}
+      ''
+    else
+      cfg.package;
 in
 {
   options.programs.kurashi = {
@@ -116,85 +145,191 @@ in
           audio.volume.up and audio.volume.down, `XF86AudioMute` audio.mute.toggle,
           `XF86MonBrightnessUp` and `XF86MonBrightnessDown` brightness.up and brightness.down.
           The niri defaults for the same keys are replaced (see docs/niri-binds.kdl).
+          The web dock adds its own key, {option}`programs.kurashi.webdock.keybind`.
         '';
       };
     };
+
+    webdock = {
+      enable = lib.mkEnableOption "the web dock (K38): its host package, the mod turned on, and the pins and settings below";
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi-webdock;
+        description = ''
+          The web dock's package: `qs-webengine` (the patched Quickshell with QtWebEngine, K39) and `xdg-open`.
+          It is installed only while {option}`programs.kurashi.webdock.enable` is set, so the base closure
+          stays free of QtWebEngine.
+        '';
+      };
+
+      pins = lib.mkOption {
+        type = lib.types.listOf (lib.types.submodule {
+          options = {
+            id = lib.mkOption {
+              type = lib.types.strMatching "[a-z0-9-]{1,32}";
+              description = "Slug, unique among the pins.";
+            };
+            title = lib.mkOption {
+              type = lib.types.str;
+              description = "The pin's name in the dock.";
+            };
+            target = lib.mkOption {
+              type = lib.types.strMatching "(https?|file)://.+|mod:.+";
+              description = "A site (`https://`, `http://` or `file://`), or a view of a mod (`mod:<id>:<panel>`).";
+            };
+            view = webdockSetting (lib.types.enum [ "default" "mobile" "desktop" ]) "The site's view; `default` (or null) takes {option}`programs.kurashi.webdock.default_view`.";
+            profile = webdockSetting lib.types.str "The storage profile: pins with one profile share its logins and view; null takes the pin's id.";
+            icon = webdockSetting lib.types.str "The pin's icon; null leaves it empty (the site's favicon, else a letter tile).";
+          };
+        });
+        default = [ ];
+        example = lib.literalExpression ''
+          [
+            { id = "news"; title = "News"; target = "https://example.org/news"; view = "mobile"; }
+            { id = "sysmon"; title = "System"; target = "mod:sysmon:panel"; }
+          ]
+        '';
+        description = ''
+          The pins, in order (the mod's `pins` records, K38). Settings shows them as set by Home-Manager;
+          {option}`programs.kurashi.enforce` makes them forced. Ids must be unique.
+        '';
+      };
+
+      keybind = lib.mkOption {
+        type = lib.types.nullOr (lib.types.strMatching "[A-Za-z0-9_+-]+");
+        default = "Mod+B";
+        description = ''
+          Niri key that toggles the dock (`webdock.toggle`, run through `kurashi act`). It is one of the
+          {option}`programs.kurashi.niri.binds.keys`, so it is written only while
+          {option}`programs.kurashi.niri.binds.enable` is set. `null` adds no bind.
+        '';
+      };
+
+      default_view = webdockSetting (lib.types.enum [ "mobile" "desktop" ]) "The view of a pin that says `default`: mobile (phone width, mobile user agent) or desktop (mod default: mobile).";
+      width = webdockSetting (lib.types.ints.between 360 720) "Phone width in pixels (mod default: 412).";
+      large = webdockSetting (lib.types.ints.between 50 95) "The large size, as a percentage of the output's width (mod default: 90).";
+      edge = webdockSetting (lib.types.enum [ "right" "left" "top" "bottom" ]) "The screen edge the dock sits at (mod default: right).";
+      unload_after = webdockSetting (lib.types.ints.between 0 1440) "Minutes without a shown site before the web engine stops; 0 keeps it running while the dock is on (mod default: 60).";
+      max_loaded = webdockSetting (lib.types.ints.between 1 12) "Sites kept loaded at once, the shown one included (mod default: 4).";
+      hover = webdockSetting lib.types.bool "Reveal the dock when the pointer rests on its edge; off, only the keybind and the bar button show it (mod default: true).";
+      reopen_last = webdockSetting lib.types.bool "A reveal opens the page that was open; clicking its icon puts it away (mod default: true).";
+      pinned = webdockSetting lib.types.bool "The strip stays while the pointer is elsewhere (mod default: false).";
+      reserve = webdockSetting lib.types.bool "Windows make room for the strip while the dock is kept open; the page card always floats over them (mod default: false).";
+      indicator = webdockSetting lib.types.bool "The edge indicator, drawn while the dock is hidden (mod default: true).";
+      strip = webdockSetting (lib.types.ints.between 40 64) "Width of the icon strip in pixels (mod default: 56).";
+      new_tabs = webdockSetting (lib.types.enum [ "dock" "browser" ]) "Links that open a new tab: into the dock (the link replaces the page, Back returns), or into the default browser (mod default: dock).";
+    };
   };
 
-  config = lib.mkIf cfg.enable {
-    home.packages = [ cfg.package ];
+  config = lib.mkMerge [
+    (lib.mkIf cfg.enable {
+      home.packages = [ cfg.package ];
 
-    # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.
-    programs.kurashi.niri.binds.keys = lib.mapAttrs (_: lib.mkDefault) niriDefaultKeys;
+      # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.
+      programs.kurashi.niri.binds.keys = lib.mapAttrs (_: lib.mkDefault) niriDefaultKeys;
 
-    assertions = [
-      {
-        assertion = lib.all (key: builtins.match "[A-Za-z0-9_+-]+" key != null) (lib.attrNames cfg.niri.binds.keys);
-        message = "programs.kurashi.niri.binds.keys: niri key names may use letters, digits, _, + and - only.";
-      }
-    ];
-
-    # `settings` may be empty while `enforce` is set; the file is still written then so the
-    # flag is never silently dropped.
-    xdg.configFile."kurashi/managed.toml" = lib.mkIf (cfg.settings != { } || cfg.enforce) {
-      source = toml.generate "kurashi-managed.toml" (cfg.settings // { _managed.enforce = cfg.enforce; });
-    };
-
-    # niri reads this only when its config includes it (see programs.kurashi.niri.binds.enable).
-    xdg.configFile."niri/kurashi-binds.kdl" = lib.mkIf cfg.niri.binds.enable {
-      text = ''
-        // Generated by Home-Manager from programs.kurashi.niri.binds: change the options, not this file.
-        // Include it after your own binds {} block in ~/.config/niri/config.kdl (niri 25.11 or later).
-        binds {
-        ${lib.concatStringsSep "\n" (
-          lib.mapAttrsToList niriBindLine (lib.filterAttrs (_: action: action != null) cfg.niri.binds.keys)
-        )}
+      assertions = [
+        {
+          assertion = lib.all (key: builtins.match "[A-Za-z0-9_+-]+" key != null) (lib.attrNames cfg.niri.binds.keys);
+          message = "programs.kurashi.niri.binds.keys: niri key names may use letters, digits, _, + and - only.";
         }
+      ];
+
+      # `settings` may be empty while `enforce` is set; the file is still written then so the
+      # flag is never silently dropped.
+      xdg.configFile."kurashi/managed.toml" = lib.mkIf (cfg.settings != { } || cfg.enforce) {
+        source = toml.generate "kurashi-managed.toml" (cfg.settings // { _managed.enforce = cfg.enforce; });
+      };
+
+      # niri reads this only when its config includes it (see programs.kurashi.niri.binds.enable).
+      xdg.configFile."niri/kurashi-binds.kdl" = lib.mkIf cfg.niri.binds.enable {
+        text = ''
+          // Generated by Home-Manager from programs.kurashi.niri.binds: change the options, not this file.
+          // Include it after your own binds {} block in ~/.config/niri/config.kdl (niri 25.11 or later).
+          binds {
+          ${lib.concatStringsSep "\n" (
+            lib.mapAttrsToList niriBindLine (lib.filterAttrs (_: action: action != null) cfg.niri.binds.keys)
+          )}
+          }
+        '';
+      };
+
+      systemd.user.services.kurashid = lib.mkIf cfg.systemd.enable {
+        Unit = {
+          Description = "Kurashi shell daemon";
+          PartOf = [ "graphical-session.target" ];
+          After = [ "graphical-session.target" ];
+        };
+        Service = {
+          Type = "simple";
+          ExecStart = "${daemonPackage}/bin/kurashid";
+          Restart = "on-failure";
+          # Backoff 1 s -> 30 s so a crash loop does not spin (Ma).
+          RestartSec = 1;
+          RestartSteps = 5;
+          RestartMaxDelaySec = 30;
+          Environment = envList;
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+
+      # Requires (not BindsTo): a daemon restart must not kill the frontend; it reconnects itself.
+      systemd.user.services.kurashi-frontend = lib.mkIf (cfg.systemd.enable && cfg.frontend.enable) {
+        Unit = {
+          Description = "Kurashi shell frontend (Quickshell)";
+          PartOf = [ "graphical-session.target" ];
+          Requires = [ "kurashid.service" ];
+          After = [ "graphical-session.target" "kurashid.service" ];
+        };
+        Service = {
+          Type = "simple";
+          # launch.sh pins the EGL vendor of the GPU the session renders on (K16, K-hybrid-egl). It asks
+          # wayland-info for the compositor's main device, which the service gets by store path like qs.
+          ExecStart = "${cfg.package}/share/kurashi/frontend/launch.sh";
+          Restart = "on-failure";
+          RestartSec = 1;
+          RestartSteps = 5;
+          RestartMaxDelaySec = 30;
+          Environment = envList ++ [
+            "KURASHI_QS=${lib.getExe' cfg.frontend.package "qs"}"
+            "KURASHI_WAYLAND_INFO=${lib.getExe' pkgs.wayland-utils "wayland-info"}"
+          ];
+        };
+        Install.WantedBy = [ "graphical-session.target" ];
+      };
+    })
+
+    (lib.mkIf wd.enable {
+      assertions = [
+        {
+          assertion = cfg.enable;
+          message = "programs.kurashi.webdock.enable needs programs.kurashi.enable = true.";
+        }
+        {
+          assertion = lib.length (lib.unique (map (pin: pin.id) wd.pins)) == lib.length wd.pins;
+          message = "programs.kurashi.webdock.pins: each pin id may appear once.";
+        }
+      ];
+      warnings = lib.optional (wd.keybind != null && !cfg.niri.binds.enable) ''
+        programs.kurashi.webdock.keybind (${wd.keybind}) writes no bind: binds go to niri/kurashi-binds.kdl,
+        which needs programs.kurashi.niri.binds.enable = true (or set keybind to null).
       '';
-    };
 
-    systemd.user.services.kurashid = lib.mkIf cfg.systemd.enable {
-      Unit = {
-        Description = "Kurashi shell daemon";
-        PartOf = [ "graphical-session.target" ];
-        After = [ "graphical-session.target" ];
-      };
-      Service = {
-        Type = "simple";
-        ExecStart = "${cfg.package}/bin/kurashid";
-        Restart = "on-failure";
-        # Backoff 1 s -> 30 s so a crash loop does not spin (Ma).
-        RestartSec = 1;
-        RestartSteps = 5;
-        RestartMaxDelaySec = 30;
-        Environment = envList;
-      };
-      Install.WantedBy = [ "graphical-session.target" ];
-    };
+      home.packages = [ wd.package ];
 
-    # Requires (not BindsTo): a daemon restart must not kill the frontend; it reconnects itself.
-    systemd.user.services.kurashi-frontend = lib.mkIf (cfg.systemd.enable && cfg.frontend.enable) {
-      Unit = {
-        Description = "Kurashi shell frontend (Quickshell)";
-        PartOf = [ "graphical-session.target" ];
-        Requires = [ "kurashid.service" ];
-        After = [ "graphical-session.target" "kurashid.service" ];
+      # The dock's bind joins the niri binds; a user entry for the same key wins.
+      programs.kurashi.niri.binds.keys = lib.mkIf (wd.keybind != null) {
+        ${wd.keybind} = lib.mkDefault "webdock.toggle";
       };
-      Service = {
-        Type = "simple";
-        # launch.sh pins the EGL vendor of the GPU the session renders on (K16, K-hybrid-egl). It asks
-        # wayland-info for the compositor's main device, which the service gets by store path like qs.
-        ExecStart = "${cfg.package}/share/kurashi/frontend/launch.sh";
-        Restart = "on-failure";
-        RestartSec = 1;
-        RestartSteps = 5;
-        RestartMaxDelaySec = 30;
-        Environment = envList ++ [
-          "KURASHI_QS=${lib.getExe' cfg.frontend.package "qs"}"
-          "KURASHI_WAYLAND_INFO=${lib.getExe' pkgs.wayland-utils "wayland-info"}"
-        ];
+
+      # The mod is loaded and on (K25: enabled is a subset of loaded). Its settings form the Nix layer of
+      # `mods.webdock`; lists from other modules of `settings.mods` merge in.
+      programs.kurashi.settings.mods = {
+        loaded = [ "webdock" ];
+        enabled = [ "webdock" ];
+        webdock = webdockToml;
       };
-      Install.WantedBy = [ "graphical-session.target" ];
-    };
-  };
+    })
+  ];
 }
