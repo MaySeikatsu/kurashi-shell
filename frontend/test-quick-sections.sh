@@ -218,12 +218,13 @@ last_event() { grep -E "^(un)?sub $1\$" "$R/subs.log" | tail -n 1 || true; }
 # A pointer at layout coordinates measured from the card's top left (cx0, cy0), in the shots: the Wi-Fi tile's switch zone
 # and arrow zone, the heading, the Wi-Fi page's Back control, and the media row's title.
 at() { click $(( cx0 + $1 )) $(( cy0 + $2 )); }
-WIFI_TILE=(76 114)
-WIFI_ARROW=(185 114)
-HEADING=(60 24)
-BACK=(50 30)
+# W21: the card is a phone (PhoneFrame): the rows sit on its screen, under its status row and the greeting row.
+WIFI_TILE=(90 186)
+WIFI_ARROW=(184 186)
+HEADING=(116 76)       # the greeting row
+BACK=(54 82)          # the page header's round back key
 MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
-MEDIA_FROM_BOTTOM=112   # and 112 px above the card's bottom edge: the rows above it differ by locale (the status line wraps), the footer does not
+MEDIA_FROM_BOTTOM=147   # and 147 px above the card's bottom edge: the rows above it differ by locale (the status line wraps), the footer does not
 
 : > "$R/qs.log"
 : > "$R/server.log"

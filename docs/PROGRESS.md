@@ -181,3 +181,14 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W19.3 | Wallpaper picker polish without colour: width, output chips, overflow menu, keys (I83, I32) | ✅ functional · UX ⏳ (colours, Stage Close: design pass, row 106) | W19-wallpaper 86c0518 |
 | W19.4 | Calendar: day marks, week start/numbers, slot setup states (I46, rows 71–72) | ✅ functional · UX ⏳ (I89) | W19-calendar b6bda1d; lead deadlock fix B29 |
 
+
+## Session 9 — the sekai look, morphing island, phone, desk (K42–K44; `INSPIRATION.md`)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| S9.0 | Chrome axis (flat/keycap), decor recipes (`theme.decor`), palettes sekai/sekai-night, spring/icon/tonal tokens, `Block`/`Icon`, fonts in HM + dev shell, `frontend/test-look.sh` (K42) | ✅ functional · UX ✅ (lead screenshots) | lead, merged 034e70a |
+| S9.1 | Primitives (Button, IconButton, Chip, Slider, ToggleSwitch, NotificationCard) and surfaces (bar groups + numbered workspaces, launcher, notification centre, session keys, lock keycap clock) in keycap chrome | ✅ functional · UX ✅ first pass | feat/m8-sekai-surfaces |
+| S9.2 | Desktop widgets: keycap clock, month, now playing, weather (K43, `docs/ux/desktop.md`) | ✅ functional · UX first pass (I101) | feat/m8-sekai-surfaces |
+| S9.3 | Launcher calculator, `:` emoji, `;` clipboard (cliphist); bar window list + `window.focus` (K44) | ✅ functional · UX first pass (I102, I105) | feat/m8-sekai-surfaces |
+| S9.4 | Settings app: tonal selection, keycap controls, sidebar pills with icons (I51 leftovers, I104) | ✅ functional · UX first pass | feat/m8-sekai-surfaces |
+| W21.1 | Island morph: one shape pill → card, liquid neck, live faces, expanded views (card `W21-island-morph`) | ⏳ agent | feat/w21-island-morph |
+| W21.2 | Phone: web dock phone frame, quick settings as a phone (card `W21-phone`) | ⏳ agent | feat/w21-phone |

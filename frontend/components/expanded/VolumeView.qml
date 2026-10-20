@@ -26,7 +26,7 @@ Column {
     readonly property var streams: avail && d.streams ? d.streams : []
     property string errText: ""
     Refusal { id: refusal }
-    readonly property color onSel: Theme.color("color.on_selected", "#e9e4d8")
+    readonly property color onSel: Theme.fgOnSelected
 
     function act(action, args, msg) {
         view.errText = ""

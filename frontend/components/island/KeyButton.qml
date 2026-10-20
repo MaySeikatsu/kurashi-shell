@@ -16,9 +16,7 @@ Block {
     property int side: Theme.controlH + 4
     property int iconSize: Theme.fs + 8
     signal clicked()
-    // Read by key, not through Theme.onSelected: beside `selected` that name reads back as black (the same Qt 6.11 quirk
-    // Theme notes for onAccent; CONTRACT-CHANGE row asks for a rename).
-    readonly property color onSel: Theme.color("color.on_selected", "#e9e4d8")
+    readonly property color onSel: Theme.fgOnSelected
 
     function press() { if (kb.enabled) kb.clicked() }
 

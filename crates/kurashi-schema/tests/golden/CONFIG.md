@@ -39,10 +39,10 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 
 #### `theme.decor` — Look
 
-A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42).
+A decor pack: recommends colours, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42).
 
 - type: `choice` · default: `"none"`
-- choices: `"none"` | `"sekai"`
+- choices: `"none"` | `"sekai"` | `"glass"`
 
 #### `theme.colors.palette` — Palette
 
@@ -338,3 +338,51 @@ Start apps in their own systemd scope so they outlive the shell.
 - type: `bool` · default: `true`
 - restart required
 - advanced
+
+## Desktop
+
+### Widgets
+
+#### `desktop.enabled` — Desktop widgets
+
+Cards on the desktop under your windows: the clock, the month, what is playing, the weather.
+
+- type: `bool` · default: `false`
+- per-output
+
+#### `desktop.side` — Side
+
+The screen side the cards stand on.
+
+- type: `choice` · default: `"right"`
+- choices: `"left"` | `"right"`
+- only while `desktop.enabled == true`
+- per-output
+
+#### `desktop.clock` — Clock
+
+The time in big keys, with the date.
+
+- type: `bool` · default: `true`
+- only while `desktop.enabled == true`
+
+#### `desktop.calendar` — Calendar
+
+This month, today marked.
+
+- type: `bool` · default: `true`
+- only while `desktop.enabled == true`
+
+#### `desktop.media` — Now playing
+
+The song that plays, with its controls; hidden while nothing plays.
+
+- type: `bool` · default: `true`
+- only while `desktop.enabled == true`
+
+#### `desktop.weather` — Weather
+
+Today's weather, while the weather mod is on and has a place.
+
+- type: `bool` · default: `true`
+- only while `desktop.enabled == true`

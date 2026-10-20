@@ -38,6 +38,33 @@ a bar widget; configured in Settings › Web dock.
   returns to it, and **"Replace pin with this page"** makes the current page the pin's address (undoable).
 - The accent-colour design pass stays separate (later); the dock is built on today's tokens.
 
+## Session 9 phone (W21-phone, K42)
+**User:** "Let the 'Phone' sized sidebar browser actually be themed like a phone as shown in the preview, can be a
+front view instead of the angled one." Reference: SekaiPop's phone (`modules/sekai/phone/PhoneBody.qml`, the flat 2D
+face of its Quick Panel), iOS/Android phone browsers (Safari's and Chrome's bottom toolbars).
+- **The phone size is a phone seen from the front** (`frontend/components/phone/PhoneFrame.qml`, linked into the host
+  as `mods/webdock/host/PhoneFrame.qml`): body with bezel, rounded screen, a pill cut-out at the top, side buttons
+  (volume rocker left, power right), a home indicator. Token-driven: keycap = outline in `line`, a rim in `ring`, a
+  dark glass bezel, a hard shadow straight down; flat = a thin dark bezel with a hairline, no rim, no shadow. The card's
+  geometry is unchanged (412 × ≤ 2× width); the page gets the phone's screen (396 CSS px wide in flat chrome, 382 in
+  keycap at 412).
+- **Screen layout (top → bottom):** status row (time; the page's host name; no network/battery glyphs in the host — its
+  scope has no `svc.*`, so nothing it cannot know is drawn, Shōjiki; the time is a minute clock gated on the card being
+  mapped), the **title in a pill** (load progress along its foot), the page, then the header's controls as a **bottom
+  bar** spread evenly (back, forward, home, reload, view, size, more, collapse — same Tab order as before, Ctrl+L enters
+  at Back), the home indicator. The overflow menu and the tooltips open above the bottom bar.
+- **Large** stays the plain card with the header on top (the brief allows it); the page's corners are masked only there.
+- **The shell's cards** (a view pin, the cold engine, the empty dock) are the same phone in phone size: status row with
+  the time (`svc.clock`), the title in a pill with size and collapse, the body on the screen.
+- **The strip's pins are keycap app icons:** a rounded-square Block per pin, the shown pin lit in `color.selected`, a
+  letter tile's letter in a data colour (from the pin's id, `color.data.1..4`), the favicon otherwise; the dock's own
+  controls are round keys (Material Symbols `push_pin`, `add`, `settings`). Positions and sizes are unchanged (48 px).
+- **Motion:** the card rises on a spring (`Easing.OutBack`, `motion.spring.overshoot`, into the 24 px margin on the
+  strip's side) and leaves without one; `motion.spring.on = false` and reduced motion keep the plain curve or the fade.
+- Shots: `mods/webdock/shots/phone-{sekai,wa-iro}.png`, `phone-view-{sekai,wa-iro}.png`
+  (`mods/webdock/test/test-phone.sh <tag> <config line>`), and test-host's `phone-right`, `host-phone-header`,
+  `host-phone-footer`, `host-tooltip`.
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on
