@@ -53,7 +53,8 @@ Singleton {
     readonly property color line: color("chrome.line", "#121120")
     readonly property color ring: color("chrome.ring_color", "#e4e4ec")
     readonly property color selected: color("color.selected", "#4a3138")
-    readonly property color onSelected: color("color.on_selected", "#e9e4d8")
+    // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
+    readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")
     readonly property color secondary: color("color.secondary", "#5b7fa6")
     readonly property color tertiary: color("color.tertiary", "#8fa868")
     readonly property color warning: color("color.warning", "#e0a33b")

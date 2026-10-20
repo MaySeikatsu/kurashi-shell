@@ -85,7 +85,7 @@ Rectangle {
                 glyph: c.urgent ? "!" : "•"
                 filled: true
                 size: 18
-                color: c.urgent ? Theme.fgOnAccent : Theme.onSelected
+                color: c.urgent ? Theme.fgOnAccent : Theme.fgOnSelected
             }
         }
         Image {

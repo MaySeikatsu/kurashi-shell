@@ -319,9 +319,20 @@ ShellRoot {
                                         : I18n.pageTitle(navEntry.modelData.id, navEntry.modelData.label)
                                     function open(): void { win.page = navEntry.modelData.id; win.query = "" }
                                     width: parent.width
-                                    height: Theme.controlH
-                                    radius: Theme.rSm
-                                    color: on ? Theme.containerHigh : "transparent"
+                                    height: Theme.controlH + 4
+                                    radius: height / 2
+                                    // Tonal pill for the open page (I51); keycap chrome outlines it.
+                                    color: on ? Theme.selected : (navHover.hovered ? Theme.containerHigh : "transparent")
+                                    border.width: on && Theme.keycap ? Theme.outlineW : 0
+                                    border.color: Theme.line
+                                    HoverHandler { id: navHover }
+                                    // A Material Symbols icon per core page (none for mods and the views without one).
+                                    readonly property string icon: ({
+                                        bar: "toolbar", appearance: "palette", accessibility: "accessibility_new",
+                                        island: "toggle_on", notifications: "notifications", launcher: "apps",
+                                        clock: "schedule", desktop: "desktop_windows", "@changed": "history",
+                                        "@mods": "extension", "@profiles": "person"
+                                    })[navEntry.modelData.id] || ""
                                     activeFocusOnTab: true
                                     Keys.onReturnPressed: event => { entry.open(); event.accepted = true }
                                     Keys.onEnterPressed: event => { entry.open(); event.accepted = true }
@@ -330,15 +341,17 @@ ShellRoot {
                                     Accessible.name: isMod
                                         ? I18n.fmt("settings.ui.mod_nav", { name: shownName, state: I18n.tr(modOn ? "settings.ui.on" : "settings.ui.off") })
                                         : shownName
-                                    // The selected page has an accent bar on its edge, so the choice is not colour alone.
-                                    Rectangle {
-                                        visible: entry.on
-                                        x: 0
-                                        width: 3
-                                        height: parent.height - 8
+                                    // The selected page is a tonal pill with a bold label, so the choice is not colour alone.
+                                    Text {
+                                        id: navIcon
+                                        visible: Theme.iconFamily !== "" && entry.icon !== "" && !entry.isMod
+                                        x: Theme.pad
                                         anchors.verticalCenter: parent.verticalCenter
-                                        radius: 2
-                                        color: Theme.accent
+                                        font.family: Theme.iconFamily
+                                        font.pixelSize: Theme.fs + 6
+                                        font.variableAxes: ({ "FILL": entry.on ? 1 : 0 })
+                                        color: entry.on ? Theme.fgOnSelected : Theme.dim
+                                        text: entry.icon
                                     }
                                     Rectangle {
                                         visible: entry.isMod
@@ -352,11 +365,12 @@ ShellRoot {
                                         border.color: entry.modOn ? Theme.statusOn : Theme.statusOff
                                     }
                                     Text {
-                                        x: entry.isMod ? Theme.pad + 18 : Theme.pad
+                                        x: entry.isMod ? Theme.pad + 18 : (navIcon.visible ? Theme.pad + 28 : Theme.pad)
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - x - Theme.pad
                                         elide: Text.ElideRight
-                                        color: entry.on ? Theme.fg : Theme.dim
+                                        color: entry.on ? Theme.fgOnSelected : Theme.dim
+                                        font.weight: entry.on ? Theme.wBold : Theme.wMedium
                                         font.pixelSize: Theme.fs
                                         font.family: Theme.fam(text, Theme.families)
                                         text: entry.shownName

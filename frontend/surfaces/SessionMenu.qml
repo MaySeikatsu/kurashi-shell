@@ -112,7 +112,7 @@ Item {
                             glyph: row.modelData.glyph
                             filled: row.lit || row.isArmed
                             size: 30
-                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.onSelected : Theme.fg)
+                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.fgOnSelected : Theme.fg)
                             scale: row.lit ? 1.1 : 1
                             Behavior on scale {
                                 enabled: menu.active && Theme.springOn
@@ -124,7 +124,7 @@ Item {
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
                             maximumLineCount: 2
-                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.onSelected : Theme.fg)
+                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.fgOnSelected : Theme.fg)
                             font.pixelSize: Theme.fsCaption + 1
                             font.weight: Theme.wMedium
                             font.family: Theme.fam(text, Theme.families)

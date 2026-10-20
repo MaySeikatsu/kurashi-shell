@@ -231,7 +231,7 @@ PanelWindow {
                         glyph: "♪"
                         filled: true
                         size: 32
-                        color: Theme.onSelected
+                        color: Theme.fgOnSelected
                     }
                 }
                 Column {
