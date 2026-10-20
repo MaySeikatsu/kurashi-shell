@@ -1,9 +1,12 @@
 import QtQuick
 import "../../core"
+import ".."
+import "../island"
 
-// brightness: transient OSD from svc.brightness (glyph + level bar + percent). The service reads the
+// brightness: transient OSD from svc.brightness (icon + level bar + percent). The service reads the
 // backlight on demand, so the level is the last reading, not a live one. No reading yet, and no
-// backlight, are shown as such, never as 0% (Shōjiki). On a side bar: the glyph over the bare figure.
+// backlight, are shown as such, never as 0% (Shōjiki). On a side bar: the icon over the bare figure.
+// W21: the level is a thick bar that fills with a spring, as the volume face's.
 FaceBase {
     id: f
     readonly property var d: Store.docs["svc.brightness"]
@@ -12,6 +15,8 @@ FaceBase {
     readonly property real level: present ? Math.max(0, Math.min(1, (d.percent ?? 0) / 100)) : 0
     readonly property string full: !f.loaded ? "…"
         : (f.present ? Math.round(f.level * 100) + "%" : I18n.tr("frontend.brightness.unavailable"))
+    readonly property string icon: f.present ? (f.level < 0.5 ? "brightness_5" : "brightness_7") : ""
+    readonly property string glyph: f.present ? "☼" : (f.loaded ? "⊘" : "…")
     Watch { doc: "svc.brightness"; active: f.live }
 
     wantW: row.implicitWidth
@@ -21,33 +26,29 @@ FaceBase {
         visible: !f.vertical
         anchors.centerIn: parent
         spacing: Theme.gap
-        Text {
+        Icon {
             anchors.verticalCenter: parent.verticalCenter
-            color: f.present ? Theme.accent : Theme.dim
-            font.pixelSize: Theme.fs
-            text: f.present ? "☼" : (f.loaded ? "⊘" : "…")
+            name: f.icon
+            glyph: f.glyph
+            filled: true
+            size: Theme.fs + 5
+            color: f.present ? Theme.warning : Theme.dim
         }
-        Rectangle {
+        LevelMeter {
             visible: f.present
             anchors.verticalCenter: parent.verticalCenter
-            width: 90; height: 4; radius: 2
-            color: Theme.outline
-            Rectangle {
-                width: parent.width * f.level
-                height: parent.height; radius: 2
-                color: Theme.accent
-                // Short; runs only while the level changes under a live face.
-                Behavior on width {
-                    enabled: f.animate && f.live
-                    NumberAnimation { duration: Theme.stdMs / 2; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.continuousCurve }
-                }
-            }
+            width: 96
+            level: f.level
+            color: Theme.warning
+            animate: f.animate && f.live
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
+            font.weight: Theme.wMedium
             font.family: Theme.fam(text, Theme.families)
+            font.features: { "tnum": 1 }
             text: f.full
         }
     }
@@ -57,14 +58,18 @@ FaceBase {
         anchors.centerIn: parent
         Accessible.role: Accessible.StaticText
         Accessible.name: f.full
-        Text {
+        Icon {
             Accessible.ignored: true
-            color: f.present ? Theme.accent : Theme.dim
-            font.pixelSize: Theme.fs
-            text: f.present ? "☼" : (f.loaded ? "⊘" : "…")
+            anchors.horizontalCenter: parent.horizontalCenter
+            color: f.present ? Theme.warning : Theme.dim
+            name: f.icon
+            glyph: f.glyph
+            filled: true
+            size: Theme.fs + 3
         }
         Text {
             Accessible.ignored: true
+            anchors.horizontalCenter: parent.horizontalCenter
             visible: f.present
             color: Theme.fg
             font.pixelSize: Theme.fsCaption

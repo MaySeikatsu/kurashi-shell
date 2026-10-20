@@ -45,7 +45,6 @@
 "frontend.clock.week_n" = "{n}週"
 "frontend.clock.aside.no_place" = "場所が未設定"
 "frontend.desktop.now_playing" = "再生中"
-||||||| 034e70a
 
 # W21-phone (quick settings as a phone: the greeting row, by the clock document's hour)
 "frontend.quick.greeting.morning" = "おはようございます"

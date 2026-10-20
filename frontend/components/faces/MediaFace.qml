@@ -1,5 +1,7 @@
 import QtQuick
 import "../../core"
+import ".."
+import "../island"
 
 // media: [art] glyph title — artist, from svc.media. Art only loads while the face is live. On a side bar the
 // play state alone: the title is the column's accessible name and the peek's line.
@@ -36,13 +38,22 @@ FaceBase {
             asynchronous: true
             fillMode: Image.PreserveAspectCrop
         }
-        // Play state only while something is loaded; with no player the face is idle, not paused.
-        Text {
+        // Play state only while something is loaded; with no player the face is idle, not paused. Playing: the level bars
+        // move (W21; only while this face is live and motion is on); paused: they rest beside a pause icon.
+        Icon {
+            visible: f.title === "" || f.d.playing !== true
+            anchors.verticalCenter: parent.verticalCenter
+            name: f.title === "" ? "music_note" : "pause"
+            glyph: f.title === "" ? "♪" : "⏸"
+            filled: true
+            size: Theme.fs + 3
+            color: f.title === "" ? Theme.dim : Theme.accent
+        }
+        LevelBars {
             visible: f.title !== ""
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.accent
-            font.pixelSize: Theme.fs
-            text: f.d.playing ? "▶" : "⏸"
+            running: f.d.playing === true && f.live && f.current && f.animate
+            maxH: Theme.fs
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -60,11 +71,13 @@ FaceBase {
         anchors.centerIn: parent
         Accessible.role: Accessible.StaticText
         Accessible.name: f.full
-        Text {
+        Icon {
             Accessible.ignored: true
             color: f.title === "" ? Theme.dim : Theme.accent
-            font.pixelSize: Theme.fs
-            text: f.title === "" ? "♪" : (f.d.playing ? "▶" : "⏸")
+            name: f.title === "" ? "music_note" : (f.d.playing ? "play_arrow" : "pause")
+            glyph: f.title === "" ? "♪" : (f.d.playing ? "▶" : "⏸")
+            filled: true
+            size: Theme.fs + 3
         }
     }
 }
