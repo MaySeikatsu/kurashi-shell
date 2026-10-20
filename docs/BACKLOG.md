@@ -178,6 +178,8 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I127 | 2026-10-21 | W23-auth-media (row 126) | A native mod's read-only feed of a core document (`ctx.follow("svc.media")`), refcounted; the lyrics mod then follows the track itself instead of the views sending `lyrics.track`. | new |
 | I128 | 2026-10-21 | W23-auth-media (row 131) | The Stage and the island step aside while `runtime.ui.polkit` is true (no open, no expand, no focus). | new |
 | I129 | 2026-10-21 | W23-auth-media report | Polkit: a real `pkexec` round trip in a sandbox with a private polkitd; lyrics: a "back to the line" key, the bar widget opening the media card directly, a lyrics backdrop/wallpaper. | new |
+| I130 | 2026-10-21 | W23-system report (row 134a) | `svc.nightlight` carries `start`/`end` so the night page shows the manual times; re-read the weather places when they change (sun schedule). | new |
+| I131 | 2026-10-21 | W23-system report | Layout chip and REC dot on side bars; "Open folder" on the recording notification; a recording face on the island. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

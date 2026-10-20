@@ -3230,3 +3230,1141 @@ mod tests {
         hub.unsubscribe("svc.audio");
     }
 }
+
+// ==== K47 (W23-system): idle, night light, keyboard layouts, screen recorder, screenshots ====================
+
+/// A one-shot compositor action (niri: its own request connection, no event stream). `Err` is the log text.
+pub type CompositorAct = Arc<
+    dyn Fn(
+            kurashi_compositor::Action,
+        ) -> std::pin::Pin<Box<dyn Future<Output = Result<(), String>> + Send>>
+        + Send
+        + Sync,
+>;
+/// The focused output's name, asked of the compositor when a recording starts.
+pub type FocusedOutputFn =
+    Arc<dyn Fn() -> std::pin::Pin<Box<dyn Future<Output = Option<String>> + Send>> + Send + Sync>;
+
+/// There is no compositor adapter to send the action to (no `NIRI_SOCKET`), or it refused.
+pub const COMPOSITOR_UNAVAILABLE: &str = "error.compositor.unavailable";
+
+/// [`CompositorAct`] over niri's socket.
+pub fn niri_act(sock: std::path::PathBuf) -> CompositorAct {
+    Arc::new(move |a| {
+        let sock = sock.clone();
+        Box::pin(async move {
+            kurashi_compositor::niri::act_at(&sock, &a)
+                .await
+                .map_err(|e| e.to_string())
+        })
+    })
+}
+
+/// [`FocusedOutputFn`] over niri's socket.
+pub fn niri_focused_output(sock: std::path::PathBuf) -> FocusedOutputFn {
+    Arc::new(move || {
+        let sock = sock.clone();
+        Box::pin(async move {
+            kurashi_compositor::niri::focused_output_at(&sock)
+                .await
+                .ok()
+                .flatten()
+        })
+    })
+}
+
+async fn compositor_do(
+    act: &Option<CompositorAct>,
+    a: kurashi_compositor::Action,
+) -> Result<(), ActionError> {
+    let act = act
+        .as_ref()
+        .ok_or_else(|| ActionError::Unavailable(COMPOSITOR_UNAVAILABLE.into()))?;
+    act(a).await.map_err(|e| {
+        tracing::warn!(error = %e, "compositor action failed");
+        ActionError::Unavailable(COMPOSITOR_UNAVAILABLE.into())
+    })
+}
+
+/// `screenshot.screen`, `screenshot.window`, `screenshot.region` (K47): the compositor's own screenshots (niri: the
+/// clipboard and its `screenshot-path`; `region` opens niri's screenshot UI).
+pub fn screenshots(actions: &mut ActionRegistry, act: Option<CompositorAct>) {
+    use kurashi_compositor::Action as A;
+    for (id, a) in [
+        ("screenshot.screen", A::ScreenshotScreen),
+        ("screenshot.window", A::ScreenshotWindow),
+        ("screenshot.region", A::ScreenshotRegion),
+    ] {
+        let act = act.clone();
+        actions.register(id, &format!("action.{id}"), move |_| {
+            let (act, a) = (act.clone(), a.clone());
+            async move {
+                compositor_do(&act, a).await?;
+                Ok(None)
+            }
+        });
+    }
+}
+
+// ---- svc.keyboard ------------------------------------------------------------------------------------------------
+
+pub const KEYBOARD_DOC: &str = "svc.keyboard";
+
+/// Short codes of common XKB layout names (Noctalia `Services/KeyboardLayoutService.qml`'s `layoutMap`).
+const LAYOUT_CODES: [(&str, &str); 21] = [
+    ("German", "de"),
+    ("English (US)", "us"),
+    ("English (UK)", "gb"),
+    ("French", "fr"),
+    ("Spanish", "es"),
+    ("Italian", "it"),
+    ("Portuguese (Brazil)", "br"),
+    ("Portuguese", "pt"),
+    ("Russian", "ru"),
+    ("Polish", "pl"),
+    ("Swedish", "se"),
+    ("Norwegian", "no"),
+    ("Danish", "dk"),
+    ("Finnish", "fi"),
+    ("Hungarian", "hu"),
+    ("Turkish", "tr"),
+    ("Czech", "cz"),
+    ("Slovak", "sk"),
+    ("Japanese", "jp"),
+    ("Korean", "kr"),
+    ("Chinese", "cn"),
+];
+
+/// The bar's short name of an XKB layout name: Noctalia's table, then the name without its variant
+/// (`German (Neo 2)` → `de`), else the first two letters, lower case.
+pub fn layout_short(name: &str) -> String {
+    let code = |n: &str| LAYOUT_CODES.iter().find(|(k, _)| *k == n).map(|(_, c)| *c);
+    if let Some(c) = code(name) {
+        return c.into();
+    }
+    let base = name.split(" (").next().unwrap_or(name).trim();
+    if let Some(c) = code(base) {
+        return c.into();
+    }
+    base.chars()
+        .filter(|c| c.is_alphanumeric())
+        .take(2)
+        .collect::<String>()
+        .to_lowercase()
+}
+
+/// `{"layouts":[{"name","short"}],"current":i}`; no layouts until the compositor names them.
+pub fn keyboard_doc(k: Option<&kurashi_compositor::KeyboardLayouts>) -> Value {
+    match k {
+        Some(k) => json!({
+            "layouts": k.names.iter().map(|n| json!({"name": n, "short": layout_short(n)})).collect::<Vec<_>>(),
+            "current": k.current,
+        }),
+        None => json!({"layouts": [], "current": 0}),
+    }
+}
+
+/// `svc.keyboard` from the compositor's event stream, while subscribed (Ma: the stream exists only then).
+pub struct KeyboardProvider<C> {
+    factory: Arc<dyn Fn() -> C + Send + Sync>,
+    task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+impl<C: kurashi_compositor::Compositor + 'static> KeyboardProvider<C> {
+    pub fn new(factory: impl Fn() -> C + Send + Sync + 'static) -> Arc<Self> {
+        Arc::new(KeyboardProvider {
+            factory: Arc::new(factory),
+            task: Mutex::new(None),
+        })
+    }
+}
+
+impl<C: kurashi_compositor::Compositor + 'static> crate::hub::Provider for KeyboardProvider<C> {
+    fn start(&self, hub: Arc<Hub>) {
+        use tokio_stream::StreamExt;
+        let compositor = (self.factory)();
+        let task = tokio::spawn(async move {
+            let mut events = compositor.events();
+            if let Ok(s) = compositor.snapshot().await {
+                let _ = hub.set(KEYBOARD_DOC, keyboard_doc(s.keyboard.as_ref()), None);
+            }
+            while let Some(ev) = events.next().await {
+                match ev {
+                    kurashi_compositor::Event::Keyboard(k) => {
+                        let _ = hub.set(KEYBOARD_DOC, keyboard_doc(k.as_ref()), None);
+                    }
+                    kurashi_compositor::Event::Resync => {
+                        if let Ok(s) = compositor.snapshot().await {
+                            let _ =
+                                hub.push_snapshot(KEYBOARD_DOC, keyboard_doc(s.keyboard.as_ref()));
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        });
+        if let Some(old) = self.task.lock().expect("task lock").replace(task) {
+            old.abort();
+        }
+    }
+
+    fn stop(&self) {
+        if let Some(t) = self.task.lock().expect("task lock").take() {
+            t.abort();
+        }
+    }
+}
+
+/// `keyboard.set {index}` with an index that is no layout of the document.
+pub const NO_SUCH_LAYOUT: &str = "error.keyboard.no_such_layout";
+
+/// `svc.keyboard` (refcounted when there is a compositor) and `keyboard.next`, `keyboard.set {index}`.
+pub fn keyboard(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    provider: Option<Arc<dyn crate::hub::Provider>>,
+    act: Option<CompositorAct>,
+) {
+    use kurashi_compositor::{Action as A, LayoutTarget};
+    hub.register(KEYBOARD_DOC, keyboard_doc(None), provider);
+    let a = act.clone();
+    actions.register("keyboard.next", "action.keyboard.next", move |_| {
+        let a = a.clone();
+        async move {
+            compositor_do(&a, A::SwitchLayout(LayoutTarget::Next)).await?;
+            Ok(None)
+        }
+    });
+    let h = hub.clone();
+    actions.register("keyboard.set", "action.keyboard.set", move |args: Value| {
+        let (a, h) = (act.clone(), h.clone());
+        async move {
+            let index = args["index"]
+                .as_u64()
+                .and_then(|i| u8::try_from(i).ok())
+                .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+            // While the document is watched it knows the layouts: an index past them is refused here.
+            let known = h
+                .snapshot(KEYBOARD_DOC)
+                .ok()
+                .and_then(|(_, d)| d["layouts"].as_array().map(Vec::len))
+                .unwrap_or(0);
+            if known > 0 && usize::from(index) >= known {
+                return Err(ActionError::Invalid(NO_SUCH_LAYOUT.into()));
+            }
+            compositor_do(&a, A::SwitchLayout(LayoutTarget::Index(index))).await?;
+            Ok(None)
+        }
+    });
+}
+
+// ---- svc.idle ----------------------------------------------------------------------------------------------------
+
+pub const IDLE_DOC: &str = "svc.idle";
+
+/// What the idle policy acts through.
+pub struct IdleDeps {
+    /// Screens off (niri `power-off-monitors`); `None` without a compositor adapter.
+    pub act: Option<CompositorAct>,
+    pub backlight_dir: std::path::PathBuf,
+    /// The system bus: the backlight write and logind's inhibitors (suspend goes through `session.suspend`).
+    pub system: ConnectFn,
+}
+
+enum IdleCmd {
+    Settings(kurashi_services::idle::Settings),
+    Caffeine(bool),
+}
+
+fn cfg_u32(c: &ConfigStore, key: &str, dflt: u32) -> u32 {
+    c.get(key, None)
+        .and_then(|p| p.value.as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .unwrap_or(dflt)
+}
+
+fn idle_settings(c: Option<&ConfigStore>) -> kurashi_services::idle::Settings {
+    let d = kurashi_services::idle::Settings::default();
+    let Some(c) = c else { return d };
+    kurashi_services::idle::Settings {
+        enabled: cfg_bool(Some(c), "idle.enabled", d.enabled),
+        dim_after: cfg_u32(c, "idle.dim_after", d.dim_after),
+        lock_after: cfg_u32(c, "idle.lock_after", d.lock_after),
+        screen_off_after: cfg_u32(c, "idle.screen_off_after", d.screen_off_after),
+        suspend_after: cfg_u32(c, "idle.suspend_after", d.suspend_after),
+        inhibit_while_media: cfg_bool(Some(c), "idle.inhibit_while_media", d.inhibit_while_media),
+    }
+}
+
+/// The player that plays now in a `svc.media` document.
+fn media_playing(d: &Value) -> Option<String> {
+    d["players"]
+        .as_array()?
+        .iter()
+        .find(|p| p["playing"] == true)
+        .map(|p| p["name"].as_str().unwrap_or("media").to_owned())
+}
+
+async fn recv_or_pending<T>(rx: &mut Option<tokio::sync::mpsc::UnboundedReceiver<T>>) -> Option<T> {
+    match rx {
+        Some(rx) => rx.recv().await,
+        None => std::future::pending().await,
+    }
+}
+
+/// The optional `on` of a toggle action; without it, the opposite of `current`.
+fn on_arg(args: &Value, current: bool) -> Result<bool, ActionError> {
+    match args.get("on") {
+        None | Some(Value::Null) => Ok(!current),
+        Some(v) => v
+            .as_bool()
+            .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into())),
+    }
+}
+
+/// `svc.idle` (K47) + `idle.caffeine {on?}`, `idle.lock_now`. A policy, not a refcounted service: it runs while
+/// `idle.enabled` (the Wayland connection, logind's inhibitors and the media subscription exist only then) and acts
+/// with nobody watching. See `kurashi_services::idle`.
+pub fn idle(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    cfg: Option<Arc<ConfigStore>>,
+    deps: IdleDeps,
+) {
+    use kurashi_services::idle::{self as policy, Policy};
+    let settings = idle_settings(cfg.as_deref());
+    hub.register(IDLE_DOC, Policy::new(settings.clone()).doc(), None);
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<IdleCmd>();
+    if let Some(store) = &cfg {
+        let tx = tx.clone();
+        store.on_change(move |c| {
+            let _ = tx.send(IdleCmd::Settings(idle_settings(Some(c))));
+        });
+    }
+    {
+        let hub = hub.clone();
+        actions.register(
+            "idle.caffeine",
+            "action.idle.caffeine",
+            move |args: Value| {
+                let (hub, tx) = (hub.clone(), tx.clone());
+                async move {
+                    let current = hub
+                        .snapshot(IDLE_DOC)
+                        .is_ok_and(|(_, d)| d["caffeine"] == true);
+                    let on = on_arg(&args, current)?;
+                    tx.send(IdleCmd::Caffeine(on))
+                        .map_err(|_| ActionError::Internal("idle policy stopped".into()))?;
+                    Ok(None)
+                }
+            },
+        );
+    }
+    let reg = actions.clone();
+    actions.register("idle.lock_now", "action.idle.lock_now", move |_| {
+        let reg = reg.clone();
+        async move { reg.invoke("session.lock", json!({})).await }
+    });
+
+    let (hub, reg) = (hub.clone(), actions.clone());
+    tokio::spawn(async move {
+        let mut p = Policy::new(settings);
+        let mut watcher: Option<kurashi_compositor::idle::IdleWatcher> = None;
+        let mut idle_rx = None;
+        let mut logind_rx: Option<tokio::sync::mpsc::UnboundedReceiver<Vec<policy::Inhibitor>>> =
+            None;
+        let mut logind_task: Option<tokio::task::JoinHandle<()>> = None;
+        let mut media: Option<tokio::sync::broadcast::Receiver<Arc<kurashi_ipc::ServerMsg>>> = None;
+        let mut armed: Option<Vec<u32>> = None;
+        let mut saved_level: Option<f64> = None;
+        // Started once per time idle is turned on: a missing protocol or bus is not looped on.
+        let mut running = false;
+        loop {
+            let s = p.settings().clone();
+            let mut steps = Vec::new();
+            if s.enabled && !running {
+                running = true;
+                let (w, r) = kurashi_compositor::idle::IdleWatcher::spawn();
+                watcher = Some(w);
+                idle_rx = Some(r);
+                armed = None;
+                steps.extend(p.set_unavailable(None));
+                let (ltx, lrx) = tokio::sync::mpsc::unbounded_channel();
+                logind_rx = Some(lrx);
+                let connect = deps.system.clone();
+                logind_task = Some(tokio::spawn(async move {
+                    match connect().await {
+                        Ok(conn) => {
+                            if let Err(e) = policy::follow_logind(conn, ltx).await {
+                                tracing::debug!(error = %e, "logind idle inhibitors not followed");
+                            }
+                        }
+                        Err(e) => {
+                            tracing::debug!(error = %e, "no system bus: logind idle inhibitors unknown")
+                        }
+                    }
+                }));
+            } else if !s.enabled && running {
+                running = false;
+                watcher = None;
+                idle_rx = None;
+                logind_rx = None;
+                if let Some(t) = logind_task.take() {
+                    t.abort();
+                }
+                steps.extend(p.set_logind(Vec::new()));
+                steps.extend(p.set_unavailable(None));
+            }
+            let want_media = s.enabled && s.inhibit_while_media;
+            if want_media && media.is_none() {
+                media = Some(hub.events());
+                if let Ok((_, d)) = hub.subscribe(MEDIA_DOC) {
+                    steps.extend(p.set_media(media_playing(&d)));
+                }
+            } else if !want_media && media.is_some() {
+                media = None;
+                hub.unsubscribe(MEDIA_DOC);
+                steps.extend(p.set_media(None));
+            }
+            for step in steps {
+                run_idle_step(step, &deps, &reg, &hub, &mut saved_level).await;
+            }
+            let timers = p.timers();
+            if let Some(w) = &watcher
+                && armed.as_ref() != Some(&timers)
+            {
+                w.arm(timers.clone());
+                armed = Some(timers);
+            }
+            let _ = hub.set(IDLE_DOC, p.doc(), None);
+
+            let steps = tokio::select! {
+                cmd = rx.recv() => match cmd {
+                    Some(IdleCmd::Settings(s)) if &s != p.settings() => p.set_settings(s),
+                    Some(IdleCmd::Settings(_)) => Vec::new(),
+                    Some(IdleCmd::Caffeine(on)) => p.set_caffeine(on),
+                    None => break,
+                },
+                ev = recv_or_pending(&mut idle_rx) => {
+                    use kurashi_compositor::idle::{IdleEvent, Unavailable};
+                    match ev {
+                        Some(IdleEvent::Idled(i)) => p.on_idle(i),
+                        Some(IdleEvent::Resumed(_)) => p.on_resume(),
+                        other => {
+                            let reason = match other {
+                                Some(IdleEvent::Unavailable(Unavailable::NoProtocol)) => policy::REASON_NO_PROTOCOL,
+                                Some(IdleEvent::Unavailable(Unavailable::NoDisplay)) => policy::REASON_NO_DISPLAY,
+                                _ => policy::REASON_LOST,
+                            };
+                            tracing::warn!(reason, "idle notifications unavailable");
+                            watcher = None;
+                            idle_rx = None;
+                            p.set_unavailable(Some(reason))
+                        }
+                    }
+                },
+                list = recv_or_pending(&mut logind_rx) => match list {
+                    Some(list) => p.set_logind(list),
+                    None => {
+                        logind_rx = None;
+                        p.set_logind(Vec::new())
+                    }
+                },
+                msg = async {
+                    match media.as_mut() {
+                        Some(m) => m.recv().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    use tokio::sync::broadcast::error::RecvError;
+                    let relevant = match &msg {
+                        Ok(m) => matches!(&**m, kurashi_ipc::ServerMsg::Patch { doc, .. }
+                            | kurashi_ipc::ServerMsg::Snap { doc, .. } if doc == MEDIA_DOC),
+                        Err(RecvError::Lagged(_)) => true,
+                        Err(RecvError::Closed) => false,
+                    };
+                    match hub.snapshot(MEDIA_DOC) {
+                        Ok((_, d)) if relevant => p.set_media(media_playing(&d)),
+                        _ => Vec::new(),
+                    }
+                },
+            };
+            for step in steps {
+                run_idle_step(step, &deps, &reg, &hub, &mut saved_level).await;
+            }
+        }
+    });
+}
+
+async fn set_backlight(deps: &IdleDeps, hub: &Hub, level: f64) {
+    let Some(plan) = backlight::plan(&deps.backlight_dir, Change::To(level)) else {
+        return;
+    };
+    match (deps.system)().await {
+        Ok(conn) => match plan.apply(&conn).await {
+            // A running service keeps its document in step; otherwise it reads the level when it starts.
+            Ok(doc) if hub.subscribers("svc.brightness") > 0 => {
+                let _ = hub.set("svc.brightness", doc, None);
+            }
+            Ok(_) => {}
+            Err(e) => tracing::warn!(error = %e, "idle: backlight write failed"),
+        },
+        Err(e) => tracing::warn!(error = %e, "idle: no system bus for the backlight"),
+    }
+}
+
+async fn run_idle_step(
+    step: kurashi_services::idle::Step,
+    deps: &IdleDeps,
+    reg: &ActionRegistry,
+    hub: &Hub,
+    saved: &mut Option<f64>,
+) {
+    use kurashi_services::idle::{DIM_FACTOR, Step, backlight_level};
+    tracing::info!(?step, "idle");
+    let done = match step {
+        Step::Dim => {
+            if let Some(level) = backlight_level(&deps.backlight_dir) {
+                *saved = Some(level);
+                set_backlight(deps, hub, level * DIM_FACTOR).await;
+            }
+            Ok(())
+        }
+        Step::Undim => {
+            if let Some(level) = saved.take() {
+                set_backlight(deps, hub, level).await;
+            }
+            Ok(())
+        }
+        Step::Lock => reg.invoke("session.lock", json!({})).await.map(|_| ()),
+        Step::ScreenOff => {
+            compositor_do(&deps.act, kurashi_compositor::Action::PowerOffMonitors).await
+        }
+        Step::Suspend => reg
+            .invoke("session.suspend", json!({"confirm": true}))
+            .await
+            .map(|_| ()),
+    };
+    if let Err(e) = done {
+        tracing::warn!(?step, error = %e, "idle step failed");
+    }
+}
+
+// ---- svc.nightlight ----------------------------------------------------------------------------------------------
+
+pub const NIGHT_DOC: &str = "svc.nightlight";
+
+#[derive(Debug, Clone, PartialEq)]
+struct NightConfig {
+    enabled: bool,
+    temperature: u32,
+    schedule: String,
+    start: String,
+    end: String,
+    /// The weather mod's place, for the sun schedule.
+    place: Option<(f64, f64)>,
+}
+
+fn cfg_str(c: Option<&ConfigStore>, key: &str, dflt: &str) -> String {
+    c.and_then(|c| c.get(key, None))
+        .and_then(|p| p.value.as_str().map(str::to_owned))
+        .unwrap_or_else(|| dflt.to_owned())
+}
+
+fn night_config(c: Option<&ConfigStore>) -> NightConfig {
+    let places =
+        kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
+    let configured = cfg_str(c, "mods.weather.place", "");
+    let place =
+        kurashi_mod_weather::places::effective(&places, &configured, None).map(|p| (p.lat, p.lon));
+    NightConfig {
+        enabled: cfg_bool(c, "night_light.enabled", false),
+        temperature: c.map_or(4000, |c| cfg_u32(c, "night_light.temperature", 4000)),
+        schedule: cfg_str(c, "night_light.schedule", "manual"),
+        start: cfg_str(c, "night_light.start", "20:00"),
+        end: cfg_str(c, "night_light.end", "07:00"),
+        place,
+    }
+}
+
+/// The schedule, or the reason it cannot run.
+fn night_schedule(c: &NightConfig) -> Result<kurashi_services::nightlight::Schedule, &'static str> {
+    use kurashi_services::nightlight::{self as nl, Schedule};
+    match c.schedule.as_str() {
+        "always" => Ok(Schedule::Always),
+        "sun" => c
+            .place
+            .map(|(lat, lon)| Schedule::Sun { lat, lon })
+            .ok_or(nl::REASON_NO_PLACE),
+        _ => match (nl::parse_hhmm(&c.start), nl::parse_hhmm(&c.end)) {
+            (Some(start), Some(end)) => Ok(Schedule::Manual { start, end }),
+            _ => Err(nl::REASON_BAD_TIME),
+        },
+    }
+}
+
+/// Local `(minute of the day, day of the year, UTC offset in minutes)`.
+fn local_now() -> (u32, u32, i32) {
+    use chrono::{Datelike, Timelike};
+    let now = chrono::Local::now();
+    (
+        now.hour() * 60 + now.minute(),
+        now.ordinal(),
+        now.offset().local_minus_utc() / 60,
+    )
+}
+
+/// Stops a supervised process (wlsunset, a recorder) with `sig`, then kills it after `grace`.
+async fn stop_child(
+    child: &mut tokio::process::Child,
+    sig: rustix::process::Signal,
+    grace: std::time::Duration,
+) {
+    if let Some(pid) = child
+        .id()
+        .and_then(|p| i32::try_from(p).ok())
+        .and_then(rustix::process::Pid::from_raw)
+    {
+        let _ = rustix::process::kill_process(pid, sig);
+    }
+    if tokio::time::timeout(grace, child.wait()).await.is_err() {
+        let _ = child.kill().await;
+    }
+}
+
+/// `svc.nightlight` (K47) + `nightlight.toggle {on?}` (sets `night_light.enabled`). The daemon runs `wlsunset` while
+/// enabled — no refcount: an effect that is on runs, off is no process. `active` follows the schedule with one timer to
+/// the next change (no polling). See `kurashi_services::nightlight`.
+pub fn nightlight(hub: &Arc<Hub>, actions: &mut ActionRegistry, cfg: Option<Arc<ConfigStore>>) {
+    use kurashi_services::nightlight as nl;
+    let initial = night_config(cfg.as_deref());
+    hub.register(
+        NIGHT_DOC,
+        json!({"available": true, "enabled": false, "active": false,
+               "temperature": initial.temperature, "schedule": initial.schedule}),
+        None,
+    );
+    let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<NightConfig>();
+    if let Some(store) = &cfg {
+        store.on_change(move |c| {
+            let _ = tx.send(night_config(Some(c)));
+        });
+    }
+    let store = cfg.clone();
+    let h = hub.clone();
+    actions.register(
+        "nightlight.toggle",
+        "action.nightlight.toggle",
+        move |args: Value| {
+            let (store, h) = (store.clone(), h.clone());
+            async move {
+                let current = h
+                    .snapshot(NIGHT_DOC)
+                    .is_ok_and(|(_, d)| d["enabled"] == true);
+                let on = on_arg(&args, current)?;
+                let store =
+                    store.ok_or_else(|| ActionError::Unavailable(SERVICE_NOT_RUNNING.into()))?;
+                store
+                    .apply(&[ApplyOp::Set {
+                        set: "night_light.enabled".into(),
+                        value: json!(on),
+                        output: None,
+                    }])
+                    .map_err(|errs| {
+                        ActionError::Invalid(
+                            errs.first()
+                                .map_or_else(|| ARGS_INVALID.into(), |e| e.code.clone()),
+                        )
+                    })?;
+                Ok(None)
+            }
+        },
+    );
+
+    let hub = hub.clone();
+    tokio::spawn(async move {
+        let mut c = initial;
+        let mut child: Option<(Vec<String>, tokio::process::Child)> = None;
+        // The command line that ended by itself: not started again until the settings change.
+        let mut exited: Option<Vec<String>> = None;
+        loop {
+            let path = std::env::var("PATH").unwrap_or_default();
+            let program = kurashi_services::recorder::which("wlsunset", &path);
+            let plan = match (c.enabled, &program, night_schedule(&c)) {
+                (false, _, _) => Err(None),
+                (true, None, _) => Err(Some(nl::REASON_MISSING)),
+                (true, Some(_), Err(r)) => Err(Some(r)),
+                (true, Some(_), Ok(s)) => Ok(s),
+            };
+            let want = plan.ok().map(|s| nl::command(c.temperature, s));
+            if child.as_ref().map(|(a, _)| a) != want.as_ref() {
+                if let Some((_, mut old)) = child.take() {
+                    stop_child(
+                        &mut old,
+                        rustix::process::Signal::TERM,
+                        std::time::Duration::from_secs(2),
+                    )
+                    .await;
+                    tracing::info!("wlsunset stopped");
+                }
+                if let (Some(argv), Some(program)) = (&want, &program)
+                    && exited.as_ref() != Some(argv)
+                {
+                    match tokio::process::Command::new(program)
+                        .args(argv)
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .kill_on_drop(true)
+                        .spawn()
+                    {
+                        Ok(ch) => {
+                            tracing::info!(?argv, "wlsunset started");
+                            child = Some((argv.clone(), ch));
+                        }
+                        Err(e) => {
+                            tracing::warn!(error = %e, "wlsunset did not start");
+                            exited = Some(argv.clone());
+                        }
+                    }
+                }
+            }
+            let (now, doy, off) = local_now();
+            let mut doc = json!({
+                "available": true, "enabled": c.enabled, "active": false,
+                "temperature": c.temperature, "schedule": c.schedule,
+            });
+            let mut wake: Option<u32> = None;
+            match (plan, child.is_some()) {
+                (Ok(s), true) => {
+                    let (active, next) = nl::state_at(s, now, doy, off);
+                    doc["active"] = json!(active);
+                    if let Some(n) = next {
+                        doc["next_change"] = json!(nl::hhmm(n));
+                        wake = Some(nl::minutes_until(now, n));
+                    }
+                }
+                (Ok(_), false) => {
+                    doc["available"] = json!(false);
+                    doc["reason"] = json!(nl::REASON_EXITED);
+                }
+                (Err(Some(r)), _) => {
+                    doc["available"] = json!(false);
+                    doc["reason"] = json!(r);
+                }
+                (Err(None), _) => {}
+            }
+            let _ = hub.set(NIGHT_DOC, doc, None);
+            let sleep = async {
+                match wake {
+                    // To just past the change, so the schedule reads the new side.
+                    Some(m) => {
+                        tokio::time::sleep(std::time::Duration::from_secs(u64::from(m) * 60 + 1))
+                            .await
+                    }
+                    None => std::future::pending().await,
+                }
+            };
+            tokio::select! {
+                next = rx.recv() => match next {
+                    Some(n) => {
+                        if n != c {
+                            exited = None;
+                        }
+                        c = n;
+                    }
+                    None => break,
+                },
+                status = async {
+                    match child.as_mut() {
+                        Some((_, ch)) => ch.wait().await,
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    tracing::warn!(?status, "wlsunset ended by itself");
+                    exited = child.take().map(|(a, _)| a);
+                }
+                _ = sleep => {}
+            }
+        }
+    });
+}
+
+// ---- svc.recorder ------------------------------------------------------------------------------------------------
+
+pub const RECORDER_DOC: &str = "svc.recorder";
+/// `recorder.start` while a recording runs, or `recorder.stop` while none does.
+pub const RECORDER_BUSY: &str = "error.recorder.busy";
+pub const RECORDER_IDLE: &str = "error.recorder.not_recording";
+
+struct Recording {
+    stop: Option<tokio::sync::oneshot::Sender<()>>,
+    done: tokio::sync::watch::Receiver<bool>,
+}
+
+struct RecorderState {
+    hub: Arc<Hub>,
+    cfg: Option<Arc<ConfigStore>>,
+    focused: Option<FocusedOutputFn>,
+    now: Mutex<Option<Recording>>,
+    texts: std::collections::BTreeMap<String, String>,
+}
+
+impl RecorderState {
+    fn backend(&self) -> Option<kurashi_services::recorder::Backend> {
+        let setting = cfg_str(self.cfg.as_deref(), "recorder.backend", "auto");
+        kurashi_services::recorder::pick(&setting, &std::env::var("PATH").unwrap_or_default())
+    }
+
+    /// The document while nothing records (and the last file, if any).
+    fn idle_doc(&self, last: Option<&str>) -> Value {
+        let mut d = match self.backend() {
+            Some(b) => json!({"available": true, "backend": b.program(), "recording": false}),
+            None => json!({"available": false, "backend": "", "recording": false,
+                           "reason": kurashi_services::recorder::REASON_MISSING}),
+        };
+        if let Some(f) = last {
+            d["file"] = json!(f);
+        }
+        d
+    }
+
+    fn folder(&self) -> std::path::PathBuf {
+        let set = cfg_str(self.cfg.as_deref(), "recorder.directory", "");
+        let home = std::path::PathBuf::from(std::env::var_os("HOME").unwrap_or_default());
+        if !set.is_empty() {
+            return match set.strip_prefix("~/") {
+                Some(rest) => home.join(rest),
+                None => set.into(),
+            };
+        }
+        let config_home = std::env::var_os("XDG_CONFIG_HOME")
+            .filter(|v| !v.is_empty())
+            .map_or_else(|| home.join(".config"), std::path::PathBuf::from);
+        kurashi_services::recorder::videos_dir(&home, &config_home)
+    }
+
+    fn text(&self, key: &str) -> String {
+        self.texts
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| key.to_owned())
+    }
+
+    async fn start(self: &Arc<Self>, output: Option<String>) -> ActionResult {
+        use kurashi_services::recorder as rec;
+        if self.now.lock().expect("recorder lock").is_some() {
+            return Err(ActionError::Invalid(RECORDER_BUSY.into()));
+        }
+        let backend = self
+            .backend()
+            .ok_or_else(|| ActionError::Unavailable(rec::REASON_MISSING.into()))?;
+        let output = match output {
+            Some(o) => Some(o),
+            None => match &self.focused {
+                Some(f) => f().await,
+                None => None,
+            },
+        };
+        let dir = self.folder();
+        let _ = std::fs::create_dir_all(&dir);
+        let stamp = chrono::Local::now().format("%Y-%m-%d_%H-%M-%S").to_string();
+        let file = dir.join(rec::file_name(&stamp));
+        let audio = cfg_bool(self.cfg.as_deref(), "recorder.audio", true);
+        let (stop_tx, stop_rx) = tokio::sync::oneshot::channel();
+        let (done_tx, done_rx) = tokio::sync::watch::channel(false);
+        // Taken before the process starts, so a second start in between is refused, not doubled.
+        {
+            let mut now = self.now.lock().expect("recorder lock");
+            if now.is_some() {
+                return Err(ActionError::Invalid(RECORDER_BUSY.into()));
+            }
+            *now = Some(Recording {
+                stop: Some(stop_tx),
+                done: done_rx,
+            });
+        }
+        let spawned = tokio::process::Command::new(backend.program())
+            .args(backend.args(output.as_deref(), &file, audio))
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .kill_on_drop(true)
+            .spawn();
+        let mut child = match spawned {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::warn!(error = %e, program = backend.program(), "recorder did not start");
+                *self.now.lock().expect("recorder lock") = None;
+                return Err(ActionError::Unavailable(rec::REASON_FAILED.into()));
+            }
+        };
+        let file_s = file.to_string_lossy().into_owned();
+        let _ = self.hub.set(
+            RECORDER_DOC,
+            json!({"available": true, "backend": backend.program(), "recording": true,
+                   "since_ms": unix_ms(), "file": file_s}),
+            None,
+        );
+        let me = self.clone();
+        tokio::spawn(async move {
+            let status = tokio::select! {
+                s = child.wait() => s.ok(),
+                _ = stop_rx => {
+                    // SIGINT: both recorders finish the file on it (Noctalia stops gpu-screen-recorder this way).
+                    stop_child(&mut child, rustix::process::Signal::INT, std::time::Duration::from_secs(5)).await;
+                    child.try_wait().ok().flatten()
+                }
+            };
+            tracing::info!(?status, file = %file_s, "recording ended");
+            let saved = std::fs::metadata(&file_s).is_ok_and(|m| m.len() > 0);
+            let mut doc = me.idle_doc(saved.then_some(file_s.as_str()));
+            if !saved {
+                doc["reason"] = json!(rec::REASON_FAILED);
+            }
+            *me.now.lock().expect("recorder lock") = None;
+            let _ = me.hub.set(RECORDER_DOC, doc, None);
+            let _ = done_tx.send(true);
+            let (summary, body) = if saved {
+                (me.text("power.recorder.saved"), file_s.clone())
+            } else {
+                (me.text("power.recorder.failed"), String::new())
+            };
+            notify_self(&summary, &body).await;
+        });
+        Ok(None)
+    }
+
+    async fn stop(&self) -> ActionResult {
+        let (stop, mut done) = {
+            let mut now = self.now.lock().expect("recorder lock");
+            let r = now
+                .as_mut()
+                .ok_or_else(|| ActionError::Invalid(RECORDER_IDLE.into()))?;
+            (r.stop.take(), r.done.clone())
+        };
+        if let Some(s) = stop {
+            let _ = s.send(());
+        }
+        // The reply comes once the file is finished (or the recorder was killed).
+        let _ =
+            tokio::time::timeout(std::time::Duration::from_secs(8), done.wait_for(|d| *d)).await;
+        Ok(None)
+    }
+}
+
+/// A notification through the session's notification server (ours, while it holds the name).
+async fn notify_self(summary: &str, body: &str) {
+    let Ok(conn) = zbus::Connection::session().await else {
+        return;
+    };
+    let hints: std::collections::HashMap<&str, zbus::zvariant::Value> = Default::default();
+    let r = conn
+        .call_method(
+            Some("org.freedesktop.Notifications"),
+            "/org/freedesktop/Notifications",
+            Some("org.freedesktop.Notifications"),
+            "Notify",
+            &(
+                "Kurashi",
+                0u32,
+                "media-record",
+                summary,
+                body,
+                Vec::<&str>::new(),
+                hints,
+                -1i32,
+            ),
+        )
+        .await;
+    if let Err(e) = r {
+        tracing::debug!(error = %e, "recording notification not shown");
+    }
+}
+
+/// `svc.recorder` (K47) + `recorder.start {output?}`, `recorder.stop`, `recorder.toggle`: a supervised
+/// gpu-screen-recorder or wf-recorder (`kurashi_services::recorder`) that exists only while recording. When it ends,
+/// a notification names the file.
+pub fn recorder(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    cfg: Option<Arc<ConfigStore>>,
+    focused: Option<FocusedOutputFn>,
+) {
+    let st = Arc::new(RecorderState {
+        hub: hub.clone(),
+        cfg: cfg.clone(),
+        focused,
+        now: Mutex::new(None),
+        texts: crate::i18n::load_locale(
+            &crate::i18n::data_dir().join("i18n"),
+            &crate::i18n::locale_from_env(),
+        ),
+    });
+    hub.register(RECORDER_DOC, st.idle_doc(None), None);
+    if let Some(store) = &cfg {
+        let st = st.clone();
+        store.on_change(move |_| {
+            // The backend setting may have changed; a running recording keeps its document.
+            if st.now.lock().expect("recorder lock").is_none() {
+                let last = st
+                    .hub
+                    .snapshot(RECORDER_DOC)
+                    .ok()
+                    .and_then(|(_, d)| d["file"].as_str().map(str::to_owned));
+                let _ = st.hub.set(RECORDER_DOC, st.idle_doc(last.as_deref()), None);
+            }
+        });
+    }
+    let s = st.clone();
+    actions.register(
+        "recorder.start",
+        "action.recorder.start",
+        move |args: Value| {
+            let s = s.clone();
+            async move {
+                let output = args["output"].as_str().map(str::to_owned);
+                s.start(output).await
+            }
+        },
+    );
+    let s = st.clone();
+    actions.register("recorder.stop", "action.recorder.stop", move |_| {
+        let s = s.clone();
+        async move { s.stop().await }
+    });
+    actions.register("recorder.toggle", "action.recorder.toggle", move |_| {
+        let s = st.clone();
+        async move {
+            let recording = s.now.lock().expect("recorder lock").is_some();
+            if recording {
+                s.stop().await
+            } else {
+                s.start(None).await
+            }
+        }
+    });
+}
+
+#[cfg(test)]
+mod power_tests {
+    use super::*;
+
+    #[test]
+    fn layout_short_names() {
+        assert_eq!(layout_short("English (US)"), "us");
+        assert_eq!(layout_short("Japanese"), "jp");
+        assert_eq!(layout_short("German (Neo 2)"), "de");
+        assert_eq!(layout_short("Esperanto"), "es");
+        let doc = keyboard_doc(Some(&kurashi_compositor::KeyboardLayouts {
+            names: vec!["English (US)".into(), "Japanese".into()],
+            current: 1,
+        }));
+        assert_eq!(
+            doc,
+            json!({"layouts": [{"name": "English (US)", "short": "us"}, {"name": "Japanese", "short": "jp"}], "current": 1})
+        );
+    }
+
+    #[test]
+    fn media_playing_names_the_player() {
+        assert_eq!(
+            media_playing(
+                &json!({"players": [{"name": "mpv", "playing": false}, {"name": "Firefox", "playing": true}]})
+            ),
+            Some("Firefox".into())
+        );
+        assert_eq!(media_playing(&json!({"available": false})), None);
+    }
+
+    #[tokio::test]
+    async fn actions_without_a_compositor_say_so() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        keyboard(&hub, &mut actions, None, None);
+        screenshots(&mut actions, None);
+        for id in [
+            "keyboard.next",
+            "screenshot.screen",
+            "screenshot.window",
+            "screenshot.region",
+        ] {
+            assert_eq!(
+                actions.invoke(id, json!({})).await,
+                Err(ActionError::Unavailable(COMPOSITOR_UNAVAILABLE.into())),
+                "{id}"
+            );
+        }
+        assert_eq!(
+            actions.invoke("keyboard.set", json!({})).await,
+            Err(ActionError::Invalid(ARGS_INVALID.into()))
+        );
+    }
+
+    #[tokio::test]
+    async fn screenshots_and_layouts_reach_the_compositor() {
+        use kurashi_compositor::{Action as A, LayoutTarget};
+        let seen: Arc<Mutex<Vec<A>>> = Arc::default();
+        let s = seen.clone();
+        let act: CompositorAct = Arc::new(move |a| {
+            s.lock().unwrap().push(a);
+            Box::pin(async { Ok(()) })
+        });
+        let mut actions = ActionRegistry::default();
+        screenshots(&mut actions, Some(act.clone()));
+        let hub = Hub::new();
+        keyboard(&hub, &mut actions, None, Some(act));
+        actions
+            .invoke("screenshot.region", json!({}))
+            .await
+            .unwrap();
+        actions
+            .invoke("keyboard.set", json!({"index": 1}))
+            .await
+            .unwrap();
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![A::ScreenshotRegion, A::SwitchLayout(LayoutTarget::Index(1))]
+        );
+    }
+
+    #[tokio::test]
+    async fn caffeine_toggles_the_idle_document() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        let connect: ConnectFn =
+            Arc::new(|| Box::pin(async { Err(zbus::Error::Failure("no bus".into())) }));
+        idle(
+            &hub,
+            &mut actions,
+            None,
+            IdleDeps {
+                act: None,
+                backlight_dir: "/nonexistent".into(),
+                system: connect,
+            },
+        );
+        let wait = |want: bool| {
+            let hub = hub.clone();
+            async move {
+                for _ in 0..400 {
+                    if hub.snapshot(IDLE_DOC).unwrap().1["caffeine"] == want {
+                        return hub.snapshot(IDLE_DOC).unwrap().1;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+                panic!("caffeine never became {want}");
+            }
+        };
+        actions.invoke("idle.caffeine", json!({})).await.unwrap();
+        let d = wait(true).await;
+        assert_eq!(d["inhibited"], true);
+        actions
+            .invoke("idle.caffeine", json!({"on": false}))
+            .await
+            .unwrap();
+        wait(false).await;
+        assert_eq!(
+            actions.invoke("idle.caffeine", json!({"on": "yes"})).await,
+            Err(ActionError::Invalid(ARGS_INVALID.into()))
+        );
+    }
+}

@@ -32,6 +32,10 @@ Item {
     Watch { doc: "svc.media" }
     Watch { doc: "svc.session" }
     Watch { doc: "svc.clock" }
+    // K47 (W23-system): the caffeine, night light and record tiles.
+    Watch { doc: "svc.idle" }
+    Watch { doc: "svc.nightlight" }
+    Watch { doc: "svc.recorder" }
 
     readonly property string intentOrigin: "qs:quick"
     readonly property var netDoc: Store.docs["svc.network"] || ({})
@@ -81,6 +85,30 @@ Item {
         : String(powerDoc.state || "") === "charging" ? "battery_charging_full"
         : Number(powerDoc.percent) >= 95 ? "battery_full"
         : "battery_" + Math.max(0, Math.min(6, Math.floor(Number(powerDoc.percent) / 100 * 7))) + "_bar"
+    // K47 (docs/ux/power.md): idle (caffeine), night light, the recorder. A missing program or protocol is a reason.
+    readonly property var idleDoc: Store.docs["svc.idle"] || ({})
+    readonly property bool idleOk: Store.docs["svc.idle"] !== undefined
+    readonly property bool caffeine: idleDoc.caffeine === true
+    readonly property var nightDoc: Store.docs["svc.nightlight"] || ({})
+    readonly property bool nightOk: Store.docs["svc.nightlight"] !== undefined
+    readonly property var recDoc: Store.docs["svc.recorder"] || ({})
+    readonly property bool recOk: Store.docs["svc.recorder"] !== undefined
+    readonly property bool recording: recDoc.recording === true
+    readonly property string caffeineValue: caffeine ? I18n.tr("power.quick.caffeine.on")
+        : idleDoc.enabled === false ? I18n.tr("power.quick.caffeine.idle_off")
+        : idleDoc.inhibited === true && (idleDoc.inhibitors || []).length > 0
+            ? I18n.tr("power.quick.caffeine.kept_by").replace("{who}", String(idleDoc.inhibitors[0].who || ""))
+        : I18n.tr("island.quick.off")
+    readonly property string nightValue: nightDoc.enabled !== true ? I18n.tr("island.quick.off")
+        : String(nightDoc.schedule || "") === "always" ? I18n.tr("island.quick.on")
+        : nightDoc.active === true
+            ? (nightDoc.next_change ? I18n.tr("island.quick.tile.until").replace("{t}", String(nightDoc.next_change)) : I18n.tr("island.quick.on"))
+        : nightDoc.next_change ? I18n.tr("power.quick.night.from").replace("{t}", String(nightDoc.next_change))
+        : I18n.tr("island.quick.on")
+    readonly property string recordValue: recording
+        ? I18n.tr("power.quick.record.since").replace("{t}", hhmm(Number(recDoc.since_ms || Date.now())))
+        : recDoc.reason === "power.recorder.reason.failed" ? I18n.tr("power.recorder.reason.failed")
+        : I18n.tr("power.quick.record.screen")
     readonly property bool saverOffered: (powerDoc.profiles || []).indexOf("power-saver") >= 0
 
     // Lookups and formats. Pure: no state, so a value is what the document says now.
@@ -225,6 +253,24 @@ Item {
         }
     }
 
+    Request {
+        id: rqCaffeine
+        value: quick.caffeine
+        start: function (to, report) { Store.act("idle.caffeine", {on: to}, quick.cb(report, "power.quick.failed")) }
+    }
+    Request {
+        id: rqNight
+        value: quick.nightDoc.enabled === true
+        start: function (to, report) { Store.act("nightlight.toggle", {on: to}, quick.cb(report, "power.quick.failed")) }
+    }
+    Request {
+        id: rqRecord
+        value: quick.recording
+        start: function (to, report) {
+            Store.act(to ? "recorder.start" : "recorder.stop", {}, quick.cb(report, "power.quick.record.failed"))
+        }
+    }
+
     // Pages: one page at a time, slid in from the right; the tiles slide out to the left.
     // The page the card opens on: the power and bluetooth faces' expanded views (Stage, I44). "" opens on the tiles.
     property string startPage: ""
@@ -288,7 +334,7 @@ Item {
     // The grid's cells in visual order: the six core tiles, then one per contribution. A cell that is not a tile (a plain
     // contribution) is null, so the arrows keep their places and never land on it.
     function tileCells() {
-        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay]
+        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay, tCaffeine, tNight, tRecord]
         for (var i = 0; i < modCells.count; i++) {
             var cell = modCells.itemAt(i)
             var t = cell !== null ? cell.tile : null
@@ -339,6 +385,13 @@ Item {
     Component {
         id: displayC
         DisplayPage { onBackRequested: quick.closePage() }
+    }
+    Component {
+        id: nightC
+        NightPage {
+            nightReq: rqNight
+            onBackRequested: quick.closePage()
+        }
     }
 
     // ---- the phone ----
@@ -578,6 +631,51 @@ Item {
                         toggles: false
                         onPageRequested: quick.openPage("display", tDisplay)
                     }
+                    // K47 (W23-system, docs/ux/power.md): keep awake, night light, record. A missing program, protocol or
+                    // compositor is the tile's reason, never a dead tile.
+                    QuickTile {
+                        id: tCaffeine
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "☕"
+                        icon: "coffee"
+                        label: I18n.tr("power.quick.caffeine")
+                        subtitle: quick.caffeineValue
+                        reason: !quick.idleOk ? I18n.tr("power.quick.caffeine.no_idle")
+                            : quick.idleDoc.reason ? I18n.tr(String(quick.idleDoc.reason)) : ""
+                        on: quick.caffeine
+                        req: rqCaffeine
+                        hasPage: false
+                        pendingText: I18n.tr("island.quick.changing")
+                    }
+                    QuickTile {
+                        id: tNight
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "◐"
+                        icon: "nightlight"
+                        label: I18n.tr("power.night.title")
+                        subtitle: quick.nightValue
+                        reason: !quick.nightOk ? I18n.tr("power.quick.night.none")
+                            : quick.nightDoc.available === false && quick.nightDoc.reason ? I18n.tr(String(quick.nightDoc.reason)) : ""
+                        on: quick.nightDoc.enabled === true
+                        req: rqNight
+                        pendingText: I18n.tr("island.quick.changing")
+                        onPageRequested: quick.openPage("night", tNight)
+                    }
+                    QuickTile {
+                        id: tRecord
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "●"
+                        icon: quick.recording ? "stop_circle" : "screen_record"
+                        label: I18n.tr("power.quick.record")
+                        subtitle: quick.recordValue
+                        reason: !quick.recOk ? I18n.tr("power.quick.record.none")
+                            : quick.recDoc.available === false && !quick.recording && quick.recDoc.reason === "power.recorder.reason.missing"
+                                ? I18n.tr("power.recorder.reason.missing") : ""
+                        on: quick.recording
+                        req: rqRecord
+                        hasPage: false
+                        pendingText: I18n.tr("power.quick.record.starting")
+                    }
                     // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
                     // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
                     Repeater {
@@ -675,7 +773,8 @@ Item {
                     : quick.shownPage === "focus" ? focusC
                     : quick.shownPage === "audio" ? audioC
                     : quick.shownPage === "power" ? powerC
-                    : quick.shownPage === "display" ? displayC : null
+                    : quick.shownPage === "display" ? displayC
+                    : quick.shownPage === "night" ? nightC : null
                 // The page's first control takes the focus once it exists (after the Loader has made it).
                 onStatusChanged: if (status === Loader.Ready && item !== null)
                     Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })

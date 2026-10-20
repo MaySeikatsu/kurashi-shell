@@ -181,6 +181,8 @@ impl State {
         State {
             docs: seed
                 .into_iter()
+                // K47 (W23-system): idle, night light, keyboard layouts, recorder.
+                .chain(crate::power::docs())
                 .map(|(name, data)| (name.to_string(), Doc { rev: 1, data }))
                 .collect(),
             outputs: outputs.to_vec(),
@@ -489,6 +491,7 @@ impl State {
             "input.dispatch" => return self.dispatch(args),
             _ if action.starts_with("webdock.") => return self.webdock(action, args),
             _ if action.starts_with("tasks.") => return self.tasks(action, args),
+            _ if crate::power::handles(action) => return self.power(action, args),
             _ => {
                 return Err(Fail {
                     kind: "unknown_action",
@@ -886,6 +889,16 @@ impl State {
     }
 
     /// `tasks.*` (K46): answered in memory by tasks.rs, which returns the patch of `mod.tasks` and the reply.
+    /// K47 (W23-system): the `idle.*`, `nightlight.*`, `keyboard.*`, `recorder.*` and `screenshot.*` actions.
+    fn power(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        let now = documents::now(self.fixed_time).timestamp_millis();
+        let patches = crate::power::act(|d| self.data(d).clone(), action, args, now)?;
+        for (doc, ops) in patches {
+            self.patch(doc, ops, None);
+        }
+        Ok(None)
+    }
+
     fn tasks(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
         let out = tasks::act(self.data("mod.tasks"), action, args)?;
         if let Some(ops) = out.ops {

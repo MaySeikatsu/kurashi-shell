@@ -86,6 +86,19 @@ in
       '';
     };
 
+    tools = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = with pkgs; [ wlsunset wf-recorder ];
+      defaultText = lib.literalExpression "with pkgs; [ wlsunset wf-recorder ]";
+      description = ''
+        Programs kurashid runs (K47), installed with the user's packages (NixOS puts the per-user profile on the
+        user manager's PATH): wlsunset for night light, wf-recorder for the screen recorder. gpu-screen-recorder is preferred when it is installed (it needs the NixOS module's
+        {option}`programs.kurashi.gpuScreenRecorder.enable` for its capability wrapper). Without a program, the
+        quick settings tile says why instead of acting. Idle (dim, lock, screens off, suspend) is the daemon's own:
+        no swayidle or hypridle is needed — turn those off, or set `idle.enabled = false`.
+      '';
+    };
+
     clipboardHistory = lib.mkOption {
       type = lib.types.bool;
       default = true;
@@ -243,7 +256,7 @@ in
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       # wl-copy: the launcher copies a calculation (K42 session).
-      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts;
+      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts ++ cfg.tools;
       fonts.fontconfig.enable = lib.mkIf (cfg.fonts != [ ]) (lib.mkDefault true);
       services.cliphist.enable = lib.mkIf cfg.clipboardHistory (lib.mkDefault true);
 

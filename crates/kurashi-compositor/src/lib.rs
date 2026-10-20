@@ -11,14 +11,15 @@
 mod doc;
 pub mod fake;
 pub mod globals;
+pub mod idle;
 pub mod niri;
 mod types;
 
 pub use doc::workspaces_doc;
 pub use tokio_stream::Stream;
 pub use types::{
-    Action, Capabilities, CompositorState, Direction, Event, Output, Window, Workspace,
-    WorkspaceRef, diff,
+    Action, Capabilities, CompositorState, Direction, Event, KeyboardLayouts, LayoutTarget, Output,
+    Window, Workspace, WorkspaceRef, diff,
 };
 
 #[derive(Debug, thiserror::Error)]
