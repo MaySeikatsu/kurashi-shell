@@ -175,6 +175,9 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I124 | 2026-10-20 | W22-styles report | Lock backgrounds (dot field, graph paper, glows) are not repainted when the theme changes while locked. | new |
 | I125 | 2026-10-20 | lead (session 10) | Mods' desk cards and the tasks panel use a few `Theme.keycap` (now `ringW > 0`) checks; move them to `lifted`/`boxed`/`outlineColor` so line and soft looks style them too. | new |
 | I126 | 2026-10-20 | lead (session 10) | Launcher `>` commands (actions registry) and a web search row (rest of I105). | done (session 10: `>` commands from registered actions, web search row `launcher.web_search`) |
+| I127 | 2026-10-21 | W23-auth-media (row 126) | A native mod's read-only feed of a core document (`ctx.follow("svc.media")`), refcounted; the lyrics mod then follows the track itself instead of the views sending `lyrics.track`. | new |
+| I128 | 2026-10-21 | W23-auth-media (row 131) | The Stage and the island step aside while `runtime.ui.polkit` is true (no open, no expand, no focus). | new |
+| I129 | 2026-10-21 | W23-auth-media report | Polkit: a real `pkexec` round trip in a sandbox with a private polkitd; lyrics: a "back to the line" key, the bar widget opening the media card directly, a lyrics backdrop/wallpaper. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |

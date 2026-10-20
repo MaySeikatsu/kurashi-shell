@@ -27,6 +27,8 @@ env_lines() {
   echo "export SWAYSOCK=$(ls "$R"/sway-ipc.*.sock 2>/dev/null | head -1)"
   [ -f "$R/dbus.addr" ] && echo "export DBUS_SESSION_BUS_ADDRESS=$(cat "$R/dbus.addr")"
   echo "export KURASHI_SOCKET=$R/kurashi/ipc.sock"
+  # Row 129: a sandbox shell must never answer the user's own polkit prompts (it shares the login session).
+  echo "export KURASHI_POLKIT_AGENT=0"
   if netns_on; then
     preload=$R/netjoin.so
     # Keep whatever the caller preloads, unless this library is already in it.
