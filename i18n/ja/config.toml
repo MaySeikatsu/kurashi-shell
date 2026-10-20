@@ -17,6 +17,8 @@
 # 選択肢 (I9): パレットと Island の面。デーモンが解決します。
 "config.choice.palette.wa-iro" = "和色"
 "config.choice.palette.kanso" = "簡素"
+"config.choice.palette.sekai" = "セカイ"
+"config.choice.palette.sekai-night" = "セカイ・夜"
 "config.choice.palette.high-contrast" = "ハイコントラスト"
 "config.choice.palette.wallpaper" = "壁紙から"
 "config.face.clock" = "時計"

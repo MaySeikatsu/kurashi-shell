@@ -259,7 +259,10 @@ async fn choices_come_from_the_daemon_and_a_value_outside_them_is_inert() {
     };
     let palette = row("theme.colors.palette");
     assert_eq!(palette["choices_from"], "palettes");
-    assert_eq!(values(&palette), ["wa-iro", "kanso", "high-contrast"]);
+    assert_eq!(
+        values(&palette),
+        ["wa-iro", "kanso", "high-contrast", "sekai", "sekai-night"]
+    );
 
     // The island registers its faces after the store opened; the next change picks them up. The
     // OSD faces are not an option of the island's face list.

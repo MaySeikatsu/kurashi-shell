@@ -44,6 +44,32 @@ Singleton {
     readonly property int emphMs: tok("motion.emphasized_ms", 320)
     readonly property var enterCurve: bezier("motion.easing.enter", [0.05, 0.7, 0.1, 1.0])
     readonly property var continuousCurve: bezier("motion.easing.continuous", [0.4, 0.0, 0.2, 1.0])
+    // Chrome (K42): a block is a flat fill, or a keycap — outline in `line`, a `ring` between outline and fill, and
+    // a hard shadow straight down that it sinks into while pressed. All widths are 0 under flat chrome.
+    readonly property bool keycap: tok("chrome.style", "flat") === "keycap"
+    readonly property int outlineW: tok("chrome.outline", 0)
+    readonly property int ringW: tok("chrome.ring", 0)
+    readonly property int shadowDy: tok("chrome.shadow", 0)
+    readonly property color line: color("chrome.line", "#121120")
+    readonly property color ring: color("chrome.ring_color", "#e4e4ec")
+    readonly property color selected: color("color.selected", "#4a3138")
+    readonly property color onSelected: color("color.on_selected", "#e9e4d8")
+    readonly property color secondary: color("color.secondary", "#5b7fa6")
+    readonly property color tertiary: color("color.tertiary", "#8fa868")
+    readonly property color warning: color("color.warning", "#e0a33b")
+    function dataColor(i) { return color("color.data." + (((i - 1) % 4) + 1), "#5b7fa6") }
+    readonly property int wRegular: tok("font.weight.regular", 400)
+    readonly property int wMedium: tok("font.weight.medium", 500)
+    readonly property int wBold: tok("font.weight.bold", 700)
+    readonly property int fsDisplay: tok("font.size.display", 24)
+    // Icons: Material Symbols Rounded by ligature name when installed ("" otherwise: Icon draws its glyph).
+    readonly property string iconFamily: tok("font.icons", "")
+    // Springs: arrivals overshoot by `overshoot` (Easing.OutBack amplitude); morphs that retarget mid-flight use
+    // SpringAnimation with `spring`/`damping`. `springOn` false = motion off: snap.
+    readonly property real overshoot: tok("motion.spring.overshoot", 0.6)
+    readonly property bool springOn: tok("motion.spring.on", true)
+    readonly property real spring: tok("motion.spring.spring", 4.0)
+    readonly property real damping: tok("motion.spring.damping", 0.45)
     // How visible bar content stays while the daemon is away (reconnect veil).
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
 }

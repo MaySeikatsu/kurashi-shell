@@ -412,6 +412,8 @@ pub struct ConfigStore {
     /// Options of the mods' choice sources (K28 (3)), by source name. A source a manifest declares
     /// is known here even while its mod is off (no options): its values are then inert, not unjudged.
     mod_sources: Mutex<BTreeMap<String, Vec<Offer>>>,
+    /// The decor pack whose recipe is the `theme:<pack>` layer now (K42); "" for none.
+    decor: Mutex<String>,
 }
 
 /// What a committed transaction answers on the wire.
@@ -629,8 +631,10 @@ impl ConfigStore {
             started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
             mod_sources: Mutex::new(BTreeMap::new()),
+            decor: Mutex::new(String::new()),
         });
         store.apply_couplings();
+        store.apply_decor();
         store.remember_started();
         hub.register(DOC, store.document(), None);
         store
@@ -695,6 +699,33 @@ impl ConfigStore {
             if let Err(e) = cfg.set_forced("accessibility", (key.clone(), None), forced) {
                 tracing::warn!(%key, error = %e, "cannot force a11y coupling");
             }
+        }
+        *have = want;
+    }
+
+    /// The chosen decor pack's recipe becomes the `theme:<pack>` layer (K42), rewritten only when
+    /// the choice changes. It sits under the user's own values, so a pinned palette still wins and
+    /// the provenance of every recommended value says `theme:<pack>`.
+    fn apply_decor(&self) {
+        let mut cfg = self.cfg.lock().expect("config lock");
+        let want = cfg
+            .resolve("theme.decor", None)
+            .and_then(|p| p.value.as_str().map(String::from))
+            .unwrap_or_default();
+        let mut have = self.decor.lock().expect("decor lock");
+        if *have == want {
+            return;
+        }
+        let layer = kurashi_theme::decor_recipe(&want).map(|r| {
+            let entries = r
+                .into_iter()
+                .map(|(k, v)| ((k.to_string(), None), v))
+                .collect();
+            (want.clone(), entries)
+        });
+        let diff = cfg.set_theme_layer(layer);
+        for d in &diff.diagnostics {
+            tracing::warn!(key = %d.key, reason = d.reason.i18n_key(), "decor recipe entry refused");
         }
         *have = want;
     }
@@ -873,6 +904,7 @@ impl ConfigStore {
 
     fn publish(&self) {
         self.apply_couplings();
+        self.apply_decor();
         self.publish_settings();
         let _ = self.hub.set(DOC, self.document(), None);
         for l in self.listeners.lock().expect("listeners").iter() {

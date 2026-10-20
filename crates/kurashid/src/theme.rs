@@ -108,6 +108,10 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Density::Regular,
         },
         type_scale: f(store, "theme.typography.scale", 1.0),
+        chrome: match s(store, "theme.chrome").as_str() {
+            "keycap" => kurashi_theme::Chrome::Keycap,
+            _ => kurashi_theme::Chrome::Flat,
+        },
         ..Axes::default()
     };
     let chain = families("theme.typography.family");

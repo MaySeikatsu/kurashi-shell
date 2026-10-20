@@ -36,6 +36,10 @@ pub const ROLES: &[&str] = &[
     "on_error",
     "scrim",
     "shadow",
+    // Keycap chrome (K42): the outline round every block and its hard shadow, and the light ring
+    // between outline and fill. Derived when a palette does not name them.
+    "line",
+    "ring",
 ];
 
 /// A palette file must name at least these; the rest is derived by [`Palette::complete`].
@@ -159,6 +163,20 @@ impl Palette {
         def("on_surface_variant", fg.mix(s, 0.25), &mut self);
         def("outline", fg.mix(s, 0.6), &mut self);
         def("outline_variant", fg.mix(s, 0.8), &mut self);
+        // A line darker than the text on light grounds, and darker than the ground on dark ones,
+        // so a block reads as a sticker on either; the ring is paper-light on both.
+        let line = if dark {
+            s.mix(BLACK, 0.55)
+        } else {
+            fg.mix(BLACK, 0.25)
+        };
+        def("line", line, &mut self);
+        let ring = if dark {
+            fg.mix(s, 0.12)
+        } else {
+            WHITE.mix(s, 0.12)
+        };
+        def("ring", ring, &mut self);
         let acc = self.roles["accent"];
         def("accent_container", acc.mix(s, 0.7), &mut self);
         let ac = self.roles["accent_container"];
@@ -251,6 +269,11 @@ const BUNDLED: &[(&str, &str)] = &[
     (
         "high-contrast",
         include_str!("../../../palettes/high-contrast.toml"),
+    ),
+    ("sekai", include_str!("../../../palettes/sekai.toml")),
+    (
+        "sekai-night",
+        include_str!("../../../palettes/sekai-night.toml"),
     ),
 ];
 
