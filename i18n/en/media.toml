@@ -1,0 +1,3 @@
+# Media: live audio levels (`svc.audio.spectrum`, K48, W24-media; docs/ux/media.md).
+"media.spectrum.reason.missing" = "cava is not installed: the level bars stay still"
+"media.spectrum.reason.exited" = "cava stopped: the level bars stay still until the media views open again"

@@ -1,0 +1,38 @@
+{
+ "data": {
+  "id": "6d71l7",
+  "url": "https://wallhaven.cc/w/6d71l7",
+  "short_url": "https://whvn.cc/6d71l7",
+  "views": 88,
+  "favorites": 3,
+  "source": "",
+  "purity": "sfw",
+  "category": "people",
+  "dimension_x": 3840,
+  "dimension_y": 2160,
+  "resolution": "3840x2160",
+  "ratio": "1.78",
+  "file_size": 2345678,
+  "file_type": "image/png",
+  "created_at": "2025-05-05 05:05:05",
+  "colors": [
+   "#e7d8b1"
+  ],
+  "path": "https://w.wallhaven.cc/full/6d/wallhaven-6d71l7.png",
+  "thumbs": {
+   "large": "https://th.wallhaven.cc/lg/6d/6d71l7.jpg",
+   "original": "https://th.wallhaven.cc/orig/6d/6d71l7.jpg",
+   "small": "https://th.wallhaven.cc/small/6d/6d71l7.jpg"
+  },
+  "uploader": {
+   "username": "test",
+   "group": "User"
+  },
+  "tags": [
+   {
+    "id": 1,
+    "name": "sky"
+   }
+  ]
+ }
+}

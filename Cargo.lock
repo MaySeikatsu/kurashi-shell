@@ -952,6 +952,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "zbus",
 ]
 
 [[package]]
@@ -1022,6 +1023,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "tracing",
+ "ureq",
 ]
 
 [[package]]
@@ -1102,11 +1104,14 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "futures-util",
+ "image",
+ "kurashi-theme",
  "serde",
  "serde_json",
  "tempfile",
  "tokio",
  "tracing",
+ "ureq",
  "zbus",
 ]
 

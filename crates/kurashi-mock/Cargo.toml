@@ -18,5 +18,9 @@ tracing-subscriber.workspace = true
 chrono.workspace = true
 clap.workspace = true
 
+[dev-dependencies]
+# The fake MPRIS player with a cover of frontend/test-media.sh (examples/fake_mpris_art.rs).
+zbus = { version = "5", default-features = false, features = ["tokio"] }
+
 [lints]
 workspace = true

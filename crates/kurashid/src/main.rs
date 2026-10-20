@@ -226,6 +226,7 @@ async fn run() -> anyhow::Result<()> {
         config.clone(),
         niri_sock.clone().map(kurashid::wiring::niri_focused_output),
     );
+    kurashid::wiring::spectrum(&hub);
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
     let bindings = config.clone().map(|store| {
         let h = island.clone();
