@@ -1,3 +1,5 @@
 # Launcher strings (en): frontend/surfaces/Launcher.qml
-"launcher.placeholder" = "Search apps…"
+"launcher.placeholder" = "Search apps or calculate…"
+"launcher.copy" = "Copy"
+"launcher.open" = "Open"
 "launcher.empty" = "No matches"

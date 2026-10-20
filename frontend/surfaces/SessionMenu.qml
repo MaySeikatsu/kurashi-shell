@@ -1,5 +1,6 @@
 import QtQuick
 import "../core"
+import "../components"
 
 // Session menu (runtime.ui.panel === "session", opened by the `session.menu` action), shown inside
 // the Stage card. A pure view: each entry sends one daemon action and nothing else. Lock runs at
@@ -15,18 +16,20 @@ Item {
 
     // Keys are spelled out so every string is greppable against i18n/ (rule 8).
     readonly property var entries: [
-        { label: "action.session.lock", confirm: "", action: "session.lock", destructive: false },
-        { label: "action.session.suspend", confirm: "frontend.session.confirm.suspend", action: "session.suspend", destructive: true },
-        { label: "action.session.logout", confirm: "frontend.session.confirm.logout", action: "session.logout", destructive: true },
-        { label: "action.session.reboot", confirm: "frontend.session.confirm.reboot", action: "session.reboot", destructive: true },
-        { label: "action.session.poweroff", confirm: "frontend.session.confirm.poweroff", action: "session.poweroff", destructive: true }
+        { label: "action.session.lock", confirm: "", action: "session.lock", destructive: false, icon: "lock", glyph: "🔒" },
+        { label: "action.session.suspend", confirm: "frontend.session.confirm.suspend", action: "session.suspend", destructive: true, icon: "bedtime", glyph: "☾" },
+        { label: "action.session.logout", confirm: "frontend.session.confirm.logout", action: "session.logout", destructive: true, icon: "logout", glyph: "⇥" },
+        { label: "action.session.reboot", confirm: "frontend.session.confirm.reboot", action: "session.reboot", destructive: true, icon: "restart_alt", glyph: "↻" },
+        { label: "action.session.poweroff", confirm: "frontend.session.confirm.poweroff", action: "session.poweroff", destructive: true, icon: "power_settings_new", glyph: "⏻" }
     ]
     property int cursor: 0
     property int armed: -1      // entry index waiting for its confirming press
     property bool busy: false   // an action is in flight; presses are ignored until it answers
     property string errText: ""
 
-    implicitWidth: 328
+    // Five keys in a row (SekaiPop's power menu): icon over label, the armed one lit and asking to confirm.
+    readonly property int keyW: 92
+    implicitWidth: entries.length * keyW + (entries.length - 1) * Theme.gap
     implicitHeight: body.implicitHeight
 
     onActiveChanged: if (!active) { disarm(); errText = "" }
@@ -65,8 +68,8 @@ Item {
     // would clear the card's focus flag for good. Returns false for keys the menu does not use.
     function handleKey(key) {
         var n = entries.length
-        if (key === Qt.Key_Down || key === Qt.Key_Tab) cursor = (cursor + 1) % n
-        else if (key === Qt.Key_Up || key === Qt.Key_Backtab) cursor = (cursor + n - 1) % n
+        if (key === Qt.Key_Down || key === Qt.Key_Right || key === Qt.Key_Tab) cursor = (cursor + 1) % n
+        else if (key === Qt.Key_Up || key === Qt.Key_Left || key === Qt.Key_Backtab) cursor = (cursor + n - 1) % n
         else if (key === Qt.Key_Return || key === Qt.Key_Enter) activate(cursor)
         else return false
         return true
@@ -80,32 +83,57 @@ Item {
         Text {
             color: Theme.fg
             font.pixelSize: Theme.fsTitle
+            font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("action.session.menu")
         }
-        Repeater {
-            model: menu.entries
-            delegate: Rectangle {
-                id: row
-                required property var modelData
-                required property int index
-                width: body.width
-                height: 32
-                radius: Theme.rSm
-                color: menu.cursor === index ? Theme.containerHigh : "transparent"
-                border.width: menu.cursor === index ? 1 : 0
-                border.color: menu.armed === index ? Theme.accent : Theme.outline
-
-                Text {
-                    x: Theme.pad
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: menu.armed === index ? Theme.accent : Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
-                    text: I18n.tr(menu.armed === index ? row.modelData.confirm : row.modelData.label)
+        Row {
+            spacing: Theme.gap
+            Repeater {
+                model: menu.entries
+                delegate: Block {
+                    id: row
+                    required property var modelData
+                    required property int index
+                    readonly property bool lit: menu.cursor === index
+                    readonly property bool isArmed: menu.armed === index
+                    width: menu.keyW
+                    height: 96 + Theme.shadowDy
+                    radius: Theme.rLg
+                    pressed: tap.pressed
+                    fill: isArmed ? Theme.accent : (lit ? Theme.selected : Theme.containerHigh)
+                    flatBorder: lit && !isArmed ? Theme.outline : "transparent"
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: Theme.xs + 2
+                        Icon {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            name: row.modelData.icon
+                            glyph: row.modelData.glyph
+                            filled: row.lit || row.isArmed
+                            size: 30
+                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.onSelected : Theme.fg)
+                            scale: row.lit ? 1.1 : 1
+                            Behavior on scale {
+                                enabled: menu.active && Theme.springOn
+                                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
+                            }
+                        }
+                        Text {
+                            width: menu.keyW - 2 * Theme.gap
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
+                            color: row.isArmed ? Theme.fgOnAccent : (row.lit ? Theme.onSelected : Theme.fg)
+                            font.pixelSize: Theme.fsCaption + 1
+                            font.weight: Theme.wMedium
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr(row.isArmed ? row.modelData.confirm : row.modelData.label)
+                        }
+                    }
+                    HoverHandler { onHoveredChanged: if (hovered) menu.cursor = row.index }
+                    TapHandler { id: tap; onTapped: menu.activate(row.index) }
                 }
-                HoverHandler { onHoveredChanged: if (hovered) menu.cursor = row.index }
-                TapHandler { onTapped: menu.activate(row.index) }
             }
         }
         Text {
