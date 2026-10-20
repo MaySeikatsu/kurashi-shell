@@ -11,6 +11,12 @@
   hard shadows, springy presses), `glass` (frosted, soft rims and shadows), `terminal` (ink lines, square, mono),
   `washi` (paper and ink, serif), or your own palette, chrome and motion. A look never moves anything — layout stays
   yours (profiles keep a look and a layout together) — and your own settings always win over a look's recommendations.
+- **Daily driver** — idle (dim, lock, screens off, suspend) with keep-awake, night light, keyboard layouts, screen
+  recording and screenshots, a polkit password dialog, rounded screen corners; lyrics (LRCLIB), live audio levels and
+  cover colours for media, Wallhaven in the wallpaper picker; tasks and notes over Markdown files (Obsidian-friendly).
+- **Identity packs and app themes** — 18 looks as data files (`decors/*.toml`, your own in `~/.config/kurashi/decors/`),
+  among them ports of Catppuccin, Tokyo Night, Rosé Pine, Material, YoRHa, Win95/XP/7, PS2, SNES, Hollow Knight; the
+  theme is written for GTK, Qt, foot, kitty, Alacritty, Ghostty and niri (`theme.export`, matugen-compatible templates).
 - **Desk, launcher, phone** — desktop widgets (keycap clock, month, now playing, weather); a launcher that also
   calculates (`2^8`, `15% of 2500`) and converts (`10 km to mi`, `72 f in c`), runs commands (`>lock`), searches the web, finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
   web dock drawn as a phone.

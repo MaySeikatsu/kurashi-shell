@@ -201,4 +201,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W22.1 | Styles: Block draws four chromes, every surface per decor, keycap island card joins its bar group (I115), glass island (I114), I109, I110 (card `W22-styles`) | ✅ functional · UX ✅ first pass (`frontend/shots/look/<decor>/`; I122–I125) | merged 5b9f66b |
 | W22.2 | Tasks + notes mod over Markdown (Obsidian Tasks syntax), desk cards, panel, bar widget, mock parity (card `W22-tasks`) | ✅ functional · UX ✅ first pass (`mods/tasks/shots/`; I118–I121) | merged 27afd21 |
 | S10.1 | Settings: decor cards drawn from `theme.decors` (I104); launcher unit conversions (I105); bundled look+layout profiles (`profiles/`); B31 fixed (stale test) | ✅ functional · UX ✅ first pass (`settings/shots/14-palette-keyboard.png`) | merged 7efd324 |
+| S10.2 | Launcher `>` commands + web search (I126), app theme export (K49: matugen-syntax templates for GTK, Qt, foot, kitty, alacritty, ghostty, niri), decor packs as files (K50), dock schema (K51), B31 + B33 test fixes | ✅ functional · UX first pass | lead, merged |
+| W23.1 | Idle (ext-idle-notify: dim → lock → screens off → suspend), keep-awake, night light (wlsunset), keyboard layouts, screen recorder, screenshots; quick tiles + night page + bar chips (card `W23-system`, K47) | ✅ functional · UX ✅ first pass (`frontend/shots/power/`) | merged 0e309d2 |
+| W23.2 | Polkit dialog (Quickshell PolkitAgent), rounded screen corners, lyrics mod (LRCLIB; card slot, bar widget, desk card) (card `W23-auth-media`, K47) | ✅ functional · UX ✅ first pass (`frontend/shots/polkit-*`, `mods/lyrics/shots/`) | merged |
+| W24.1 | Live audio levels (cava, `svc.audio.spectrum`), cover colours (`art_colors`), Wallhaven in the wallpaper picker (card `W24-media`, K48) | ✅ functional · UX ✅ first pass (`frontend/shots/media/`) | merged 82d9c6c |
+| W25.1 | 14 identity packs from shellseikatsu (palettes, decors, frames, lock backdrops; no Cyberpunk — I117) (card `W25-identity`, K50) | ✅ functional · UX ✅ first pass (`frontend/shots/look/identity-sheet.png`) | merged 71b38be |
+| W24.2 | Desk edit mode (`desktop.order`), Settings section cards, theme-export status (card `W24-desk-settings`) | 🟡 | agent |
+| W25.2 | App dock (card `W25-dock`, K51) | 🟡 | agent |
+| W26.1 | Hyprland and Sway adapters (card `W26-adapters`) | ⬜ | next |
 
