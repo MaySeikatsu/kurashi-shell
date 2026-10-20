@@ -529,13 +529,14 @@ unlinked_block() {
 }
 
 # The mods with a native crate linked into this build (the test-mods feature); phases 1 and 3 use the list.
-LINKED="weather sysmon wallpaper hello"
+LINKED="weather sysmon wallpaper tasks hello"
 # Phase 1: each linked mod, one at a time.
 echo "--- phase 1: the linked mods, one at a time"
 shot_full start
 mod_block weather "$ROOT/mods/weather"
 mod_block sysmon "$ROOT/mods/sysmon"
 mod_block wallpaper "$ROOT/mods/wallpaper"
+mod_block tasks "$ROOT/mods/tasks"
 mod_block hello "$HELLO_SRC" hello.raise hello.clear
 # Phase 2: the mods that have no crate.
 echo "--- phase 2: the mods without a native crate"
