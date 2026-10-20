@@ -1,7 +1,9 @@
 import QtQuick
+import Quickshell
 import "../core"
 import "expanded"
 import "quick"
+import "phone"
 
 // The quick settings card (K24, W13; docs/ux/quick-settings.md): the `quick` panel of runtime.ui, opened by the bar's button or
 // `quick.toggle`. The tiles are the view: a status sentence, six tiles (Wi-Fi, Bluetooth, Focus, Audio, Power, Display), the
@@ -9,11 +11,16 @@ import "quick"
 // A tile's arrow, a status segment, or Right opens its page in the same card: the content slides, Esc or ← goes back, and Esc
 // on the tiles closes the card (through the Stage). Every document the card shows is watched while it is up (Ma); a page
 // watches what it lists only while it is on screen. Requests are owned here, so a tile and its page show one state.
+// W21 (K42, SekaiPop's "the control center is a phone"): the card is a phone (PhoneFrame) — a status row with the time and
+// the glyphs of what the card already watches, a greeting row, keycap tiles and pill levels; the pages slide inside the
+// screen. The phone is the card's own chrome (`ownChrome`): the Stage draws no card background around it.
 Item {
     id: quick
+    readonly property bool ownChrome: true
     width: parent.width
-    height: quick.shownPage !== "" ? pageLoader.height : tilesPane.height
-    clip: true
+    height: phone.implicitHeight
+    // The width the rows take on the phone's screen.
+    readonly property real innerW: phone.screen.width - 2 * Theme.pad
 
     // Documents: the card's own (the tiles, the status, the levels) are watched while it is up.
     Watch { doc: "svc.network" }
@@ -24,6 +31,7 @@ Item {
     Watch { doc: "svc.notifications" }
     Watch { doc: "svc.media" }
     Watch { doc: "svc.session" }
+    Watch { doc: "svc.clock" }
 
     readonly property string intentOrigin: "qs:quick"
     readonly property var netDoc: Store.docs["svc.network"] || ({})
@@ -53,6 +61,26 @@ Item {
     readonly property var mediaDoc: Store.docs["svc.media"] || ({})
     readonly property bool mediaPlaying: mediaDoc.playing === true && String(mediaDoc.title || "") !== ""
     readonly property bool sessionOk: (Store.docs["svc.session"] || ({})).available === true
+    readonly property var clockDoc: Store.docs["svc.clock"] || ({})
+    // The avatar's letter: the login name's first letter (the session's environment; nothing else knows a name yet).
+    readonly property string userLetter: String(Quickshell.env("USER") || "").charAt(0).toUpperCase()
+    // The greeting's part of the day, from the clock document's hour.
+    readonly property string daypart: {
+        var h = Number(clockDoc.hh)
+        if (clockDoc.hh === undefined || isNaN(h)) return "day"
+        return h < 5 ? "night" : h < 11 ? "morning" : h < 18 ? "day" : h < 22 ? "evening" : "night"
+    }
+    // The status row's network mark: [Material Symbols name, text glyph] for the primary link, or the radio's state.
+    readonly property var netGlyph: !wifiOn && primary === null ? ["wifi_off", "≋"]
+        : primary === null ? ["signal_wifi_0_bar", "≋"]
+        : primary.kind === "ethernet" ? ["lan", "⇄"]
+        : primary.kind === "vpn" ? ["vpn_key", "⚿"]
+        : ["wifi", "≋"]
+    // The battery's mark in seven steps, or charging.
+    readonly property string batteryIcon: !battery ? ""
+        : String(powerDoc.state || "") === "charging" ? "battery_charging_full"
+        : Number(powerDoc.percent) >= 95 ? "battery_full"
+        : "battery_" + Math.max(0, Math.min(6, Math.floor(Number(powerDoc.percent) / 100 * 7))) + "_bar"
     readonly property bool saverOffered: (powerDoc.profiles || []).indexOf("power-saver") >= 0
 
     // Lookups and formats. Pure: no state, so a value is what the document says now.
@@ -226,8 +254,10 @@ Item {
         id: slideAnim
         target: quick
         property: "slide"
-        duration: Theme.emphMs
-        easing.type: Easing.BezierSpline
+        // A spring (K42): the page arrives with the theme's overshoot; motion off keeps the plain curve.
+        duration: Theme.emphMs + (Theme.springOn ? 60 : 0)
+        easing.type: Theme.springOn ? Easing.OutBack : Easing.BezierSpline
+        easing.overshoot: Theme.overshoot
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (quick.page === "") quick.shownPage = ""
     }
@@ -252,7 +282,7 @@ Item {
         id: tileSlot
         slot: "quick.tiles"
         layout: "cells"
-        cellWidth: (quick.width - Theme.gap) / 2
+        cellWidth: (quick.innerW - Theme.gap) / 2
         cellHeight: 56
     }
     // The grid's cells in visual order: the six core tiles, then one per contribution. A cell that is not a tile (a plain
@@ -265,212 +295,6 @@ Item {
             out.push(t !== null && t !== undefined && t.isTile === true ? t : null)
         }
         return out
-    }
-
-    Column {
-        id: tilesPane
-        width: quick.width
-        spacing: Theme.gap
-        x: -quick.slide * quick.width
-        visible: quick.tilesShown
-
-        Text {
-            width: quick.width
-            color: Theme.fg
-            font.pixelSize: Theme.fsTitle
-            font.family: Theme.fam(text, Theme.families)
-            text: I18n.tr("island.quick.heading")
-        }
-        QuickStatus {
-            id: statusLine
-            width: quick.width
-            segments: quick.statusSegments
-            onOpened: (target, from) => quick.openPage(target, from)
-        }
-        Grid {
-            id: grid
-            width: quick.width
-            columns: 2
-            spacing: Theme.gap
-            // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
-            // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
-            Keys.onPressed: event => {
-                var cells = quick.tileCells()
-                var i = -1
-                for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
-                if (i < 0) return
-                var to = -1
-                switch (event.key) {
-                case Qt.Key_Up: to = i >= 2 ? i - 2 : -1; break
-                case Qt.Key_Down: to = i + 2 < cells.length ? i + 2 : -1; break
-                case Qt.Key_Left: to = i % 2 === 1 ? i - 1 : -1; break
-                case Qt.Key_Right: to = i % 2 === 0 ? i + 1 : -1; break
-                default: return
-                }
-                if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
-                event.accepted = true
-            }
-
-            QuickTile {
-                id: tWifi
-                width: (grid.width - grid.spacing) / 2
-                glyph: "≋"
-                label: I18n.tr("island.quick.tile.wifi")
-                subtitle: quick.wifiValue
-                reason: quick.netOk ? "" : I18n.tr("island.quick.tile.no_network")
-                forcedBy: String(quick.netDoc.forced_by || "")
-                on: quick.wifiOn
-                req: rqWifi
-                pendingText: I18n.tr("island.quick.connecting")
-                onPageRequested: quick.openPage("wifi", tWifi)
-            }
-            QuickTile {
-                id: tBt
-                width: (grid.width - grid.spacing) / 2
-                glyph: "ᛒ"
-                label: I18n.tr("island.quick.tile.bluetooth")
-                subtitle: quick.btValue
-                reason: quick.btOk ? "" : I18n.tr("island.quick.tile.no_bluetooth")
-                forcedBy: String(quick.btDoc.forced_by || "")
-                on: quick.btDoc.powered === true
-                req: rqBt
-                pendingText: I18n.tr("island.quick.connecting")
-                onPageRequested: quick.openPage("bluetooth", tBt)
-            }
-            QuickTile {
-                id: tFocus
-                width: (grid.width - grid.spacing) / 2
-                glyph: "☾"
-                label: I18n.tr("island.quick.tile.focus")
-                subtitle: quick.focusValue
-                reason: quick.notifyOk ? "" : I18n.tr("island.quick.tile.no_notify")
-                forcedBy: String(quick.notesDoc.forced_by || "")
-                on: quick.dnd
-                req: rqDnd
-                pendingText: I18n.tr("island.quick.changing")
-                onPageRequested: quick.openPage("focus", tFocus)
-            }
-            QuickTile {
-                id: tAudio
-                width: (grid.width - grid.spacing) / 2
-                glyph: "♪"
-                label: I18n.tr("island.quick.tile.audio")
-                subtitle: quick.audioValue
-                reason: quick.audioOk ? "" : I18n.tr("island.quick.tile.no_audio")
-                forcedBy: String(quick.audioDoc.forced_by || "")
-                on: !quick.muted
-                req: rqMute
-                pendingText: I18n.tr("island.quick.changing")
-                onPageRequested: quick.openPage("audio", tAudio)
-            }
-            QuickTile {
-                id: tPower
-                width: (grid.width - grid.spacing) / 2
-                glyph: "⚡"
-                label: I18n.tr("island.quick.tile.power")
-                subtitle: quick.powerValue
-                reason: quick.powerOk ? "" : I18n.tr("island.quick.tile.no_power")
-                forcedBy: String(quick.powerDoc.forced_by || "")
-                on: quick.powerDoc.profile === "power-saver"
-                toggles: quick.saverOffered
-                req: rqSaver
-                pendingText: I18n.tr("island.quick.changing")
-                onPageRequested: quick.openPage("power", tPower)
-            }
-            QuickTile {
-                id: tDisplay
-                width: (grid.width - grid.spacing) / 2
-                glyph: "☼"
-                label: I18n.tr("island.quick.tile.display")
-                subtitle: quick.brOk ? quick.displayValue : ""
-                reason: quick.brOk ? "" : I18n.tr("island.quick.tile.no_backlight")
-                forcedBy: String(quick.brDoc.forced_by || "")
-                toggles: false
-                onPageRequested: quick.openPage("display", tDisplay)
-            }
-            // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
-            // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
-            Repeater {
-                id: modCells
-                model: tileSlot.entries
-                delegate: tileSlot.cell
-            }
-        }
-
-        LevelRow {
-            width: quick.width
-            glyph: "♪"
-            value: quick.audioOk ? Math.max(0, Math.min(1, Number(quick.audioDoc.volume || 0))) : 0
-            readout: quick.audioOk ? (quick.muted ? I18n.tr("island.quick.status.muted") : quick.volPct + " %") : ""
-            unavailable: !quick.audioOk
-            a11y: I18n.tr("island.quick.level.volume")
-            onMoved: v => Store.intent("audio.volume", v, quick.intentOrigin)
-        }
-        // The output device under its level: a link to the Audio page (a Tab stop, Enter opens it).
-        Item {
-            id: chip
-            width: quick.width
-            height: visible ? 24 : 0
-            visible: quick.audioOk && quick.sinkName !== ""
-            activeFocusOnTab: true
-            Keys.onReturnPressed: quick.openPage("audio", chip)
-            Keys.onEnterPressed: quick.openPage("audio", chip)
-            Keys.onSpacePressed: quick.openPage("audio", chip)
-            Accessible.role: Accessible.Button
-            Accessible.name: quick.sinkName
-
-            Rectangle {
-                id: pill
-                x: 20 + Theme.gap
-                anchors.verticalCenter: parent.verticalCenter
-                height: 22
-                width: Math.min(pillText.implicitWidth + 2 * Theme.gap, chip.width - x)
-                radius: height / 2
-                color: "transparent"
-                border.width: 1
-                border.color: Theme.outline
-                Text {
-                    id: pillText
-                    x: Theme.gap
-                    width: pill.width - 2 * Theme.gap
-                    anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
-                    text: quick.sinkName
-                }
-            }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: quick.openPage("audio", chip)
-            }
-            FocusRing {
-                anchors.fill: pill
-                shown: chip.activeFocus
-                corner: pill.radius
-            }
-        }
-        LevelRow {
-            visible: quick.brOk
-            width: quick.width
-            glyph: "☼"
-            value: quick.brLevel
-            readout: quick.brOk ? quick.displayValue : ""
-            a11y: I18n.tr("island.brightness.heading")
-            onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
-        }
-        QuickMedia {
-            width: quick.width
-            visible: quick.mediaPlaying
-            d: quick.mediaDoc
-            // The island's media view: its expanded card, with the transport in it.
-            onOpenRequested: Store.act("island.expand")
-        }
-        QuickFooter {
-            width: quick.width
-            sessionOk: quick.sessionOk
-        }
     }
 
     // The page pane: one page loaded at a time, and only while it is shown (its Watch runs only then).
@@ -516,19 +340,346 @@ Item {
         id: displayC
         DisplayPage { onBackRequested: quick.closePage() }
     }
-    Loader {
-        id: pageLoader
+
+    // ---- the phone ----
+    PhoneFrame {
+        id: phone
+        theme: Theme
         width: quick.width
-        x: (1 - quick.slide) * quick.width
-        active: quick.shownPage !== ""
-        sourceComponent: quick.shownPage === "wifi" ? wifiC
-            : quick.shownPage === "bluetooth" ? btC
-            : quick.shownPage === "focus" ? focusC
-            : quick.shownPage === "audio" ? audioC
-            : quick.shownPage === "power" ? powerC
-            : quick.shownPage === "display" ? displayC : null
-        // The page's first control takes the focus once it exists (after the Loader has made it).
-        onStatusChanged: if (status === Loader.Ready && item !== null)
-            Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
+        contentHeight: (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad
+        // The status row: the time on the left; on the right the network, Do not disturb while it is on, and the battery
+        // — only from the documents the card watches (nothing is polled), and nothing for a service that is not there.
+        statusLeft: Text {
+            height: phone.statusH
+            verticalAlignment: Text.AlignVCenter
+            color: Theme.fg
+            font.pixelSize: Theme.fsLabel
+            font.weight: Theme.wBold
+            font.family: Theme.fam(text, Theme.families)
+            text: quick.clockDoc.hh !== undefined ? quick.clockDoc.hh + ":" + quick.clockDoc.mm : ""
+        }
+        statusRight: [
+            Icon {
+                visible: quick.dnd
+                height: phone.statusH
+                name: "do_not_disturb_on"
+                glyph: "☾"
+                filled: true
+                size: 15
+            },
+            Icon {
+                visible: quick.netOk
+                height: phone.statusH
+                name: quick.netGlyph[0]
+                glyph: quick.netGlyph[1]
+                filled: true
+                size: 15
+            },
+            Icon {
+                visible: quick.battery
+                height: phone.statusH
+                name: quick.batteryIcon
+                glyph: "▮"
+                filled: true
+                size: 15
+            },
+            Text {
+                visible: quick.battery
+                height: phone.statusH
+                verticalAlignment: Text.AlignVCenter
+                color: Theme.fg
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: quick.battery ? Math.round(Number(quick.powerDoc.percent)) + "%" : ""
+            }
+        ]
+
+        // The screen's content: the tiles and the page side by side, sliding inside the screen.
+        Item {
+            id: viewport
+            width: phone.area.width
+            height: phone.area.height
+            clip: true
+
+            Column {
+                id: tilesPane
+                width: quick.innerW
+                spacing: Theme.gap
+                x: Theme.pad - quick.slide * viewport.width
+                visible: quick.tilesShown
+
+                // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
+                Item {
+                    id: hello
+                    width: quick.innerW
+                    height: avatar.height
+                    Accessible.role: Accessible.Heading
+                    Accessible.name: I18n.tr("island.quick.heading")
+                    Block {
+                        id: avatar
+                        width: 44
+                        height: 44 + Theme.shadowDy
+                        radius: Theme.rFull
+                        fill: Theme.selected
+                        Text {
+                            visible: quick.userLetter !== ""
+                            anchors.centerIn: parent
+                            color: Theme.color("color.on_selected", Theme.fg)
+                            font.pixelSize: Theme.fsTitle + 4
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: quick.userLetter
+                        }
+                        Icon {
+                            visible: quick.userLetter === ""
+                            anchors.centerIn: parent
+                            name: "person"
+                            glyph: "◡"
+                            filled: true
+                            size: 24
+                            color: Theme.color("color.on_selected", Theme.fg)
+                        }
+                    }
+                    Column {
+                        x: avatar.width + Theme.gap + 2
+                        width: hello.width - x
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            color: Theme.fg
+                            font.pixelSize: Theme.fsTitle
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr("frontend.quick.greeting." + quick.daypart)
+                        }
+                        Text {
+                            width: parent.width
+                            elide: Text.ElideRight
+                            color: Theme.dim
+                            font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr("island.quick.heading")
+                        }
+                    }
+                }
+                QuickStatus {
+                    id: statusLine
+                    width: quick.innerW
+                    segments: quick.statusSegments
+                    onOpened: (target, from) => quick.openPage(target, from)
+                }
+                Grid {
+                    id: grid
+                    width: quick.innerW
+                    columns: 2
+                    spacing: Theme.gap
+                    // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
+                    // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
+                    Keys.onPressed: event => {
+                        var cells = quick.tileCells()
+                        var i = -1
+                        for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) i = k
+                        if (i < 0) return
+                        var to = -1
+                        switch (event.key) {
+                        case Qt.Key_Up: to = i >= 2 ? i - 2 : -1; break
+                        case Qt.Key_Down: to = i + 2 < cells.length ? i + 2 : -1; break
+                        case Qt.Key_Left: to = i % 2 === 1 ? i - 1 : -1; break
+                        case Qt.Key_Right: to = i % 2 === 0 ? i + 1 : -1; break
+                        default: return
+                        }
+                        if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
+                        event.accepted = true
+                    }
+
+                    QuickTile {
+                        id: tWifi
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "≋"
+                        icon: quick.wifiOn ? "wifi" : "wifi_off"
+                        label: I18n.tr("island.quick.tile.wifi")
+                        subtitle: quick.wifiValue
+                        reason: quick.netOk ? "" : I18n.tr("island.quick.tile.no_network")
+                        forcedBy: String(quick.netDoc.forced_by || "")
+                        on: quick.wifiOn
+                        req: rqWifi
+                        pendingText: I18n.tr("island.quick.connecting")
+                        onPageRequested: quick.openPage("wifi", tWifi)
+                    }
+                    QuickTile {
+                        id: tBt
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "ᛒ"
+                        icon: quick.btDoc.powered === true ? "bluetooth" : "bluetooth_disabled"
+                        label: I18n.tr("island.quick.tile.bluetooth")
+                        subtitle: quick.btValue
+                        reason: quick.btOk ? "" : I18n.tr("island.quick.tile.no_bluetooth")
+                        forcedBy: String(quick.btDoc.forced_by || "")
+                        on: quick.btDoc.powered === true
+                        req: rqBt
+                        pendingText: I18n.tr("island.quick.connecting")
+                        onPageRequested: quick.openPage("bluetooth", tBt)
+                    }
+                    QuickTile {
+                        id: tFocus
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "☾"
+                        icon: "bedtime"
+                        label: I18n.tr("island.quick.tile.focus")
+                        subtitle: quick.focusValue
+                        reason: quick.notifyOk ? "" : I18n.tr("island.quick.tile.no_notify")
+                        forcedBy: String(quick.notesDoc.forced_by || "")
+                        on: quick.dnd
+                        req: rqDnd
+                        pendingText: I18n.tr("island.quick.changing")
+                        onPageRequested: quick.openPage("focus", tFocus)
+                    }
+                    QuickTile {
+                        id: tAudio
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "♪"
+                        icon: quick.muted ? "volume_off" : "volume_up"
+                        label: I18n.tr("island.quick.tile.audio")
+                        subtitle: quick.audioValue
+                        reason: quick.audioOk ? "" : I18n.tr("island.quick.tile.no_audio")
+                        forcedBy: String(quick.audioDoc.forced_by || "")
+                        on: !quick.muted
+                        req: rqMute
+                        pendingText: I18n.tr("island.quick.changing")
+                        onPageRequested: quick.openPage("audio", tAudio)
+                    }
+                    QuickTile {
+                        id: tPower
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "⚡"
+                        icon: quick.powerDoc.profile === "power-saver" ? "energy_savings_leaf" : "bolt"
+                        label: I18n.tr("island.quick.tile.power")
+                        subtitle: quick.powerValue
+                        reason: quick.powerOk ? "" : I18n.tr("island.quick.tile.no_power")
+                        forcedBy: String(quick.powerDoc.forced_by || "")
+                        on: quick.powerDoc.profile === "power-saver"
+                        toggles: quick.saverOffered
+                        req: rqSaver
+                        pendingText: I18n.tr("island.quick.changing")
+                        onPageRequested: quick.openPage("power", tPower)
+                    }
+                    QuickTile {
+                        id: tDisplay
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "☼"
+                        icon: "light_mode"
+                        label: I18n.tr("island.quick.tile.display")
+                        subtitle: quick.brOk ? quick.displayValue : ""
+                        reason: quick.brOk ? "" : I18n.tr("island.quick.tile.no_backlight")
+                        forcedBy: String(quick.brDoc.forced_by || "")
+                        toggles: false
+                        onPageRequested: quick.openPage("display", tDisplay)
+                    }
+                    // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
+                    // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
+                    Repeater {
+                        id: modCells
+                        model: tileSlot.entries
+                        delegate: tileSlot.cell
+                    }
+                }
+
+                LevelRow {
+                    width: quick.innerW
+                    glyph: "♪"
+                    icon: quick.muted ? "volume_off" : "volume_up"
+                    value: quick.audioOk ? Math.max(0, Math.min(1, Number(quick.audioDoc.volume || 0))) : 0
+                    readout: quick.audioOk ? (quick.muted ? I18n.tr("island.quick.status.muted") : quick.volPct + " %") : ""
+                    unavailable: !quick.audioOk
+                    a11y: I18n.tr("island.quick.level.volume")
+                    onMoved: v => Store.intent("audio.volume", v, quick.intentOrigin)
+                }
+                // The output device under its level: a link to the Audio page (a Tab stop, Enter opens it).
+                Item {
+                    id: chip
+                    width: quick.innerW
+                    height: visible ? 24 : 0
+                    visible: quick.audioOk && quick.sinkName !== ""
+                    activeFocusOnTab: true
+                    Keys.onReturnPressed: quick.openPage("audio", chip)
+                    Keys.onEnterPressed: quick.openPage("audio", chip)
+                    Keys.onSpacePressed: quick.openPage("audio", chip)
+                    Accessible.role: Accessible.Button
+                    Accessible.name: quick.sinkName
+
+                    Rectangle {
+                        id: pill
+                        x: 20 + Theme.gap
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: 22
+                        width: Math.min(pillText.implicitWidth + 2 * Theme.gap, chip.width - x)
+                        radius: height / 2
+                        color: "transparent"
+                        border.width: 1
+                        border.color: Theme.outline
+                        Text {
+                            id: pillText
+                            x: Theme.gap
+                            width: pill.width - 2 * Theme.gap
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            color: Theme.dim
+                            font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
+                            text: quick.sinkName
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        onClicked: quick.openPage("audio", chip)
+                    }
+                    FocusRing {
+                        anchors.fill: pill
+                        shown: chip.activeFocus
+                        corner: pill.radius
+                    }
+                }
+                LevelRow {
+                    visible: quick.brOk
+                    width: quick.innerW
+                    glyph: "☼"
+                    icon: "light_mode"
+                    value: quick.brLevel
+                    readout: quick.brOk ? quick.displayValue : ""
+                    a11y: I18n.tr("island.brightness.heading")
+                    onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
+                }
+                QuickMedia {
+                    width: quick.innerW
+                    visible: quick.mediaPlaying
+                    d: quick.mediaDoc
+                    // The island's media view: its expanded card, with the transport in it.
+                    onOpenRequested: Store.act("island.expand")
+                }
+                QuickFooter {
+                    width: quick.innerW
+                    sessionOk: quick.sessionOk
+                }
+            }
+
+            Loader {
+                id: pageLoader
+                width: quick.innerW
+                x: Theme.pad + (1 - quick.slide) * viewport.width
+                active: quick.shownPage !== ""
+                sourceComponent: quick.shownPage === "wifi" ? wifiC
+                    : quick.shownPage === "bluetooth" ? btC
+                    : quick.shownPage === "focus" ? focusC
+                    : quick.shownPage === "audio" ? audioC
+                    : quick.shownPage === "power" ? powerC
+                    : quick.shownPage === "display" ? displayC : null
+                // The page's first control takes the focus once it exists (after the Loader has made it).
+                onStatusChanged: if (status === Loader.Ready && item !== null)
+                    Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
+            }
+        }
     }
 }

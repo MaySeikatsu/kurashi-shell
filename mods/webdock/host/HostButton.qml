@@ -12,6 +12,9 @@ Rectangle {
     id: b
 
     property string glyph: ""
+    // A Material Symbols name, drawn when the theme found the font (Theme.iconFamily, K42); else `glyph`.
+    property string icon: ""
+    readonly property bool symbols: Theme.iconFamily !== "" && icon !== "" && !texted
     property string shape: ""           // phone | desktop (the view), narrow | wide (the size): drawn, not a glyph
     property string label: ""
     property string a11y: ""
@@ -49,10 +52,12 @@ Rectangle {
         x: b.start ? Theme.gap : Math.round((b.width - width) / 2)
         y: Math.round((b.height - height) / 2)
         visible: b.shape === ""
-        text: b.texted ? b.label : b.glyph
+        text: b.texted ? b.label : (b.symbols ? b.icon : b.glyph)
         color: b.texted && b.primary ? Theme.fgOnAccent : Theme.fg
-        font.pixelSize: b.texted ? Theme.fsLabel : Theme.fs + 2
-        font.family: Theme.fam(text, Theme.families)
+        font.pixelSize: b.texted ? Theme.fsLabel : (b.symbols ? 18 : Theme.fs + 2)
+        font.family: b.symbols ? Theme.iconFamily : Theme.fam(text, Theme.families)
+        font.variableAxes: b.symbols ? { "FILL": 0, "wght": Theme.keycap ? 600 : 400, "opsz": 20 } : ({})
+        renderType: Text.QtRendering
     }
 
     // A device drawn in the foreground colour: a phone or a desktop (with its stand) for the view, a narrow or a wide
