@@ -1502,6 +1502,152 @@
           ]
         }
       ]
+    },
+    {
+      "id": "dock",
+      "label": "settings.page.dock",
+      "sections": [
+        {
+          "id": "dock",
+          "label": "settings.section.dock",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.dock.enabled.help",
+              "key": "dock.enabled",
+              "label": "config.dock.enabled.label",
+              "per_output": true,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.dock_edge.bottom",
+                  "value": "bottom"
+                },
+                {
+                  "label": "config.choice.dock_edge.left",
+                  "value": "left"
+                },
+                {
+                  "label": "config.choice.dock_edge.right",
+                  "value": "right"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "dock.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "bottom",
+              "key": "dock.edge",
+              "label": "config.dock.edge.label",
+              "per_output": true,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "dock.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.dock.autohide.help",
+              "key": "dock.autohide",
+              "label": "config.dock.autohide.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "list",
+              "couplings": [
+                {
+                  "key": "dock.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": [],
+              "help": "config.dock.pinned.help",
+              "key": "dock.pinned",
+              "label": "config.dock.pinned.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "dock.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 44,
+              "key": "dock.icon_size",
+              "label": "config.dock.icon_size.label",
+              "max": 96,
+              "min": 24,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 2,
+              "type": "int",
+              "unit": "px"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "dock.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": true,
+              "help": "config.dock.show_running.help",
+              "key": "dock.show_running",
+              "label": "config.dock.show_running.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        }
+      ]
     }
   ],
   "schema_version": 1
