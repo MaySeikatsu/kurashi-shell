@@ -161,7 +161,7 @@ fn decor_previews(fonts: &dyn FontProvider) -> Value {
     PREVIEWS
         .get_or_init(|| {
             Value::Array(
-                kurashi_theme::DECORS
+                kurashi_theme::decor_names()
                     .iter()
                     .filter_map(|n| kurashi_theme::decor_preview(n, fonts))
                     .collect(),

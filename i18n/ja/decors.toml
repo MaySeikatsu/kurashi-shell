@@ -1,0 +1,6 @@
+# 同梱デコールパックの名前（decors/*.toml、K50）。
+"config.choice.decor.none" = "自分で設定"
+"config.choice.decor.sekai" = "セカイ（ポップなキーキャップ）"
+"config.choice.decor.glass" = "グラス（すりガラス）"
+"config.choice.decor.terminal" = "ターミナル（墨の線）"
+"config.choice.decor.washi" = "和紙（紙と墨）"

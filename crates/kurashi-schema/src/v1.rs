@@ -80,8 +80,8 @@ pub struct Theme {
     /// Look
     /// A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one choice. It
     /// changes how things look, never where they are. Your own settings still win (K42, K45).
-    #[kurashi(default = Decor::None, section = "colors")]
-    pub decor: Decor,
+    #[kurashi(default = "none".to_owned(), choices_from = "decors", section = "colors")]
+    pub decor: String,
     #[kurashi(nested, section = "colors")]
     pub colors: Colors,
     #[kurashi(nested, section = "shape")]
@@ -108,20 +108,6 @@ pub struct Theme {
     /// needs one line in its own config to read the file; Settings shows it.
     #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-pub enum Decor {
-    /// Your own
-    None,
-    /// Sekai (pop keycaps)
-    Sekai,
-    /// Glass (frosted)
-    Glass,
-    /// Terminal (ink lines)
-    Terminal,
-    /// Washi (paper)
-    Washi,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
