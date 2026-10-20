@@ -218,9 +218,12 @@ Quickshell `qs-webengine` running `{mod_dir}/host/shell.qml`, K39), kurashi view
 Capabilities `network`, `exec:qs-webengine`, `exec:xdg-open`, `fs:scoped`.
 
 **Document `mod.webdock`** (fixture `fixtures/ipc/server/snap_mod_webdock.json`; absent keys, no `null`):
-`{available, mode: hidden|compact|extended, shown?, size: phone|large, edge: right|left|top|bottom, output?,
-geometry {strip, width, large}, keep: [pin id], pins: [pin], host {state: off|starting|ready|failed|missing, reason?,
-detail?}, dirs {profiles, icons}}`. A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
+`{available, mode: hidden|compact|extended, shown?, size: phone|large, pinned, engaged, hover, reserve, indicator,
+new_tabs: dock|browser, edge: right|left|top|bottom, output?, geometry {strip, width, large, grace}, keep: [pin id],
+pins: [pin], host {state: off|starting|ready|failed|missing, reason?, detail?}, dirs {profiles, icons}}`. `pinned`,
+`hover`, `reserve`, `indicator`, `new_tabs` and `geometry.strip` are the settings in effect (row 110); `engaged` is
+true while the strip or the card has keyboard focus; `geometry.grace` (24 px) is the hysteresis every part's input
+region adds around what it draws. A **pin** is `{id, kind: web|view, title, target, view?, profile?, loaded?, icon?,
 audible?, blocked?: [permission], error?}`: `kind` follows `target` (`mod:<id>:<panel>` → view, `https`, `http`,
 `file` → web); for web pins `view` is the effective view (the pin's, or `default_view` when it says `default`) and
 `profile` the effective profile (the pin's, or its id); `loaded`, `icon`, `audible`, `blocked`, `error` come from the
@@ -239,6 +242,27 @@ toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable
 `webdock.host.new_window {pin, url}` (→ `open_external`) · `webdock.host.crashed {pin}` (`error` =
 `webdock.error.crashed` until the next `loaded`).
 
+**Shell side (K40, rows 88, 109–111):** the shell draws the indicator, the strip and the card of a view pin
+(`surface:dock` → `qml/surfaces/dock.qml`, one per output, required property `screen`); the bar widget
+`widget:webdock` toggles the dock. Their actions, and the host's for its card:
+`webdock.hover {part: edge|strip|card, inside, output, shared?}` (the pointer entered or left a part, its grace
+included; `shared` on an edge that borders another output) · `webdock.engage {on}` (a part took or lost keyboard
+focus) · `webdock.select {pin, output?}` (a click on a pin: extended(pin), or compact with `shown` cleared when that
+pin is shown) · `webdock.back {}` (Escape on the chrome: extended → compact; compact → hidden unless pinned) ·
+`webdock.pin {on?}` (the `pinned` setting; no argument flips it) · `webdock.add {url, title?}` → `{pin}` ·
+`webdock.remove {pin}` · `webdock.move {pin, to}` (index, clamped) · `webdock.retarget {pin, url}` (a web pin's
+`target` becomes `url`: "replace the pin with this page"). `pin`, `add`, `remove`, `move` and `retarget` are
+settings writes (undoable; a refused value answers with the validator's field path, row 96). **Hover state machine
+(daemon):** it tracks which parts the pointer is inside on the dock's output. Hidden: an edge `inside` (with `hover`
+on) arms a reveal of 250 ms (500 ms when `shared`) and takes that edge's output; leaving the edge first disarms it. The
+reveal opens the strip, plus the card of `shown` when `reopen_last` is on (a web pin starts the host). Shown: when no
+part is inside and the dock is neither pinned nor engaged, a hide of 400 ms is armed; entering any part disarms it;
+it hides the dock and keeps `shown`. `engage {on: false}` counts as a leave. While the dock is shown, events from
+another output are ignored. `toggle` reveals with `engaged` = true (the front part takes keyboard focus: the card when
+extended, else the strip) and hides with `engaged` = false. A timer exists only while armed (rule 5). New tabs
+(`new_tabs`): `dock` loads the link in the pin's own view (Back returns), `browser` sends
+`webdock.host.new_window`; a popup with an opener is a sheet either way.
+
 **Lifecycle (daemon):** the host starts when a web pin becomes `shown`. `keep` lists the web pins the host keeps
 loaded, most recently shown first: the shown pin, then up to `max_loaded` in all; an audible pin is never dropped. The
 idle clock runs while no web pin is shown and none is audible; after `unload_after` minutes (0 = never while the mod is
@@ -256,7 +280,9 @@ engine's user agent with an Android platform and `Mobile`, client hints `mobile`
 
 **Settings:** `pins` (records, W17-records: `id` slug unique, `title`, `target` url with schemes https, http, file, mod,
 `view` default|mobile|desktop, `profile`, `icon`), `default_view` (mobile|desktop, mobile), `width` (360..720 px, 412),
-`large` (50..95 %, 90), `edge` (right|left|top|bottom, right), `unload_after` (0..1440 min, 60), `max_loaded` (1..12, 4).
+`large` (50..95 %, 90), `edge` (right|left|top|bottom, right), `unload_after` (0..1440 min, 60), `max_loaded` (1..12, 4),
+`hover` (true), `reopen_last` (true), `pinned` (false), `reserve` (false: a pinned strip claims its width as an
+exclusive zone; the card always overlays), `indicator` (true), `strip` (40..64 px, 56), `new_tabs` (dock|browser, dock).
 
 ## Lifecycle
 - **Enable/disable is live.** Enabling: daemon validates manifest → registers services
@@ -278,7 +304,8 @@ engine's user agent with an Android platform and `Mobile`, client hints `mobile`
   WASM only if demand appears.
 
 ## Contributions a mod can make
-widgets (bar placeable; a widget or island face may declare `property bool vertical`, which the bar sets on a left
+surfaces (`surface:<name>` → `qml/surfaces/<name>.qml`: a layer-shell window of the mod's own, created once per
+output while the mod is enabled, required property `screen`, 0 frames while it shows nothing; row 88) · widgets (bar placeable; a widget or island face may declare `property bool vertical`, which the bar sets on a left
 or right edge — the component then draws its vertical form within its own `implicitHeight`, never rotated text; one
 that does not declare it is clipped to its slot, row 107) · peeks (`peek:<name>` → `qml/Peek.qml`, shown by the Stage under the widget on
 hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · island faces · panels (stage) · settings · actions · launcher

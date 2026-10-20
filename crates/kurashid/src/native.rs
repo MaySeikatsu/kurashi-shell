@@ -1052,7 +1052,8 @@ fn setting_value(store: Option<&ConfigStore>, config_key: &str, default: &Settin
 /// `qml` of an enabled native mod (K26, K28): the file URL of each component its manifest provides
 /// (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`, `peek:x` → `qml/Peek.qml` (K35),
 /// `island-face:x` → `qml/Face.qml`,
-/// `island-face:x:expanded` → `qml/FaceExpanded.qml`, `slot:x` → `qml/slots/x.qml`), listed only
+/// `island-face:x:expanded` → `qml/FaceExpanded.qml`, `slot:x` → `qml/slots/x.qml`, `surface:x` →
+/// `qml/surfaces/x.qml` (K38, row 88)), listed only
 /// where the file exists: a URL to nothing is not in effect (Shōjiki).
 fn qml_of(e: &ModEntry) -> Option<Value> {
     let m = e
@@ -1072,6 +1073,12 @@ fn qml_of(e: &ModEntry) -> Option<Value> {
             ],
             Provide::Slot(name) => {
                 vec![(p.to_string(), dir.join("slots").join(format!("{name}.qml")))]
+            }
+            Provide::Surface(name) => {
+                vec![(
+                    p.to_string(),
+                    dir.join("surfaces").join(format!("{name}.qml")),
+                )]
             }
             _ => continue,
         };

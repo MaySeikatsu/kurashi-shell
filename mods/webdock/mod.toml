@@ -11,6 +11,8 @@ provides = [
     "service:webdock",
     "action:webdock.*",
     "host:web",
+    "surface:dock",
+    "widget:webdock",
     "i18n",
 ]
 capabilities = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]
@@ -105,3 +107,54 @@ type = "int"
 default = 4
 range = [1, 12]
 label = "mods.webdock.max_loaded"
+
+# How the dock reveals and stays (user decisions, session 8, K40; docs/ux/webdock.md "Modes and transitions").
+[[setting]]
+key = "hover"
+type = "bool"
+default = true
+label = "mods.webdock.hover"
+help = "mods.webdock.hover.help"
+
+[[setting]]
+key = "reopen_last"
+type = "bool"
+default = true
+label = "mods.webdock.reopen_last"
+help = "mods.webdock.reopen_last.help"
+
+[[setting]]
+key = "pinned"
+type = "bool"
+default = false
+label = "mods.webdock.pinned"
+help = "mods.webdock.pinned.help"
+
+[[setting]]
+key = "reserve"
+type = "bool"
+default = false
+label = "mods.webdock.reserve"
+help = "mods.webdock.reserve.help"
+
+[[setting]]
+key = "indicator"
+type = "bool"
+default = true
+label = "mods.webdock.indicator"
+
+[[setting]]
+key = "strip"
+type = "int"
+default = 56
+range = [40, 64]
+unit = "px"
+label = "mods.webdock.strip"
+
+[[setting]]
+key = "new_tabs"
+type = "enum"
+default = "dock"
+choices = ["dock", "browser"]
+label = "mods.webdock.new_tabs"
+help = "mods.webdock.new_tabs.help"
