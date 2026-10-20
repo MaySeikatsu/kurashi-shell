@@ -164,16 +164,21 @@ def read_ppm(data):
     return int(fields[1]), int(fields[2]), data[i + 1:]
 
 
-def card(ppm, surface):
-    """Pixels of the surface colour in the band under the bar (where cards are drawn): count and bounding box."""
+def card(ppm, surface, alpha="1"):
+    """Pixels of the surface colour in the band under the bar (where cards are drawn): count and bounding box. The
+    island's shape is drawn at the panel's opacity (W22, I114), so the colour blended over the desk counts too."""
     t = [int(surface.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
     w, h, raster = read_ppm(pathlib.Path(ppm).read_bytes())
+    a = float(alpha)
+    b = ((h - 3) * w + (w - 3)) * 3   # the desk's own colour, from the bottom-right corner
+    blend = [round(t[k] * a + raster[b + k] * (1 - a)) for k in range(3)]
     n, x0, y0, x1, y1 = 0, 1 << 30, 1 << 30, -1, -1
     for y in range(40, min(1000, h)):
         row = y * w * 3
         for x in range(640, min(1920, w)):
             o = row + x * 3
-            if abs(raster[o] - t[0]) <= 3 and abs(raster[o + 1] - t[1]) <= 3 and abs(raster[o + 2] - t[2]) <= 3:
+            if any(abs(raster[o] - c[0]) <= 3 and abs(raster[o + 1] - c[1]) <= 3 and abs(raster[o + 2] - c[2]) <= 3
+                   for c in (t, blend)):
                 n += 1
                 x0, x1 = min(x0, x), max(x1, x)
                 y0, y1 = min(y0, y), max(y1, y)
@@ -343,13 +348,14 @@ check_frontend() {
 sleep 4
 # Wait for the frontend's first documents, then the card surface colour of this theme (color.surface_container).
 SURFACE=$(doc theme | jq -r '.tokens["color.surface_container"] // "#252329"')
+ALPHA=$(doc theme | jq -r '.tokens["color.surface_alpha"] // 1')
 echo "surface colour: $SURFACE"
 
 # A card of the surface colour, centred on the output (the Stage and the expanded Island), cropped as evidence.
 card() {  # card <name>
   local res x0 y0 x1 y1
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
-  res=$(python3 -I "$W/tool.py" card "$W/$1.ppm" "$SURFACE") || fail "$1: analysis failed"
+  res=$(python3 -I "$W/tool.py" card "$W/$1.ppm" "$SURFACE" "$ALPHA") || fail "$1: analysis failed"
   echo "  card $1: $res"
   jq -e '.surface >= 15000 and .bbox != null and (((.bbox[0] + .bbox[2]) / 2 - (.width / 2)) | fabs) <= 4' \
     <<<"$res" >/dev/null || fail "$1: no card centred on the output ($res)"
@@ -362,7 +368,7 @@ card() {  # card <name>
 closed() {  # closed <name>: nothing of the surface colour is drawn under the bar (Ma)
   local res
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
-  res=$(python3 -I "$W/tool.py" card "$W/$1.ppm" "$SURFACE") || fail "$1: analysis failed"
+  res=$(python3 -I "$W/tool.py" card "$W/$1.ppm" "$SURFACE" "$ALPHA") || fail "$1: analysis failed"
   jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$1: a card is still drawn ($res)"
 }
 
