@@ -18,6 +18,7 @@ rustPlatform.buildRustPackage {
       ../fixtures
       ../i18n
       ../palettes
+      ../profiles
       ../frontend
       ../settings
       ../mods
@@ -46,11 +47,11 @@ rustPlatform.buildRustPackage {
     patchShebangs crates/kurashid/tests/data/hosts
   '';
 
-  # kurashid finds i18n/, palettes/ and the frontend here (crates/kurashid/src/i18n.rs).
+  # kurashid finds i18n/, palettes/, profiles/ (bundled) and the frontend here (crates/kurashid/src/i18n.rs).
   env.KURASHI_DATA_DIR = "${placeholder "out"}/share/kurashi";
   postInstall = ''
     mkdir -p $out/share/kurashi
-    cp -r i18n palettes frontend settings mods $out/share/kurashi/
+    cp -r i18n palettes profiles frontend settings mods $out/share/kurashi/
   '';
 
   meta = {
