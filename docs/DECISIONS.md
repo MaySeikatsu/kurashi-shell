@@ -381,3 +381,11 @@ content-sized bottom-layer window per output while on, none while off (Ma, K16);
 Cards read existing documents only (svc.clock, svc.media, mod.weather) — no new service. *Why:* the user asked for
 SekaiPop's concepts and "almost feature complete"; a desk is the visible half of that look. Its per-output cost is
 outside the base budget while off by default (as K41 for opt-in mods). UX brief `docs/ux/desktop.md`.
+
+**K44** 🟢 Launcher modes and the bar's window list (session 9; Capsule's launcher, SekaiPop's dock). The launcher query
+answers arithmetic with a first `calc` row (`kurashi_launcher::calc`), `:` with emoji (data from Vitreus, MIT,
+`crates/kurashi-launcher/data/`), `;` with the cliphist history (HM `programs.kurashi.clipboardHistory`); launching
+such a row copies it (`wl-copy`). A `note` row explains an empty or missing source instead of a blank list (Shōjiki).
+`svc.workspaces` gains `tasks` (per output, the active workspace's windows, no titles) and `window.focus {id}`; the
+top/bottom bar draws them as icons after the workspaces. *Why:* the user asked for "almost feature complete" and to
+copy what works elsewhere; all of it is daemon data, the views stay thin (rule 1).
