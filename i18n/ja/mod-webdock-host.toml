@@ -1,0 +1,12 @@
+# ウェブドック・ホスト (ja): W20-webdock-host がカードのヘッダーに加える文言。進む、ホーム、その他のメニューと
+# 「ピンを置き換え」、モバイル/デスクトップとサイズの切り替えの名前（ツールチップと支援技術の名前）。残りの文言
+# （戻る、再読み込み、たたむ、ブラウザで開く、各状態）は mod-webdock.toml にある。
+
+"webdock.nav.forward" = "進む"
+"webdock.nav.home" = "ホーム"
+"webdock.nav.more" = "その他"
+"webdock.nav.replace" = "ピンをこのページに置き換え"
+"webdock.host.view.mobile" = "表示: モバイル"
+"webdock.host.view.desktop" = "表示: デスクトップ"
+"webdock.host.size.phone" = "サイズ: スマホ"
+"webdock.host.size.large" = "サイズ: 大"

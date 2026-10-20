@@ -1,0 +1,12 @@
+# Web dock host (en): the copy the card's header adds in W20-webdock-host: forward, home, the overflow menu and its
+# replace item, the view and size toggles' names (tooltips and accessible names). The rest of the card's copy (back,
+# reload, collapse, open in browser, the states) is in mod-webdock.toml.
+
+"webdock.nav.forward" = "Forward"
+"webdock.nav.home" = "Home"
+"webdock.nav.more" = "More"
+"webdock.nav.replace" = "Replace pin with this page"
+"webdock.host.view.mobile" = "View: mobile"
+"webdock.host.view.desktop" = "View: desktop"
+"webdock.host.size.phone" = "Size: phone"
+"webdock.host.size.large" = "Size: large"
