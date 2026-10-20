@@ -1,0 +1,14 @@
+# Decor pack file (K42, K45, K50). A decor is a whole look and never a layout: `[recipe]` may set `theme.*` keys only;
+# the daemon puts them at the `theme:<name>` layer, under the user's own values. `label` is an i18n key or plain text.
+name = "sekai"
+label = "config.choice.decor.sekai"
+# After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type.
+[recipe]
+"theme.colors.palette" = "sekai"
+"theme.colors.scheme" = "light"
+"theme.chrome" = "keycap"
+"theme.motion.profile" = "lively"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 1.25
+"theme.typography.family" = ["Nunito", "M PLUS Rounded 1c", "Noto Sans CJK JP", "sans-serif"]

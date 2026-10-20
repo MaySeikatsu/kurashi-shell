@@ -450,3 +450,11 @@ reports the include line each app needs and whether it is there. *Why:* one them
 matugen setups (DMS, Caelestia, ii, Noctalia) give; writing our own files and leaving the user's config alone keeps
 it honest and reversible.
 
+**K50** 🟢 Decor packs are files (WormShell `05-surface-style.md` "a SurfaceStyle is a folder pack"; shellseikatsu's
+`Services/Modes/*.qml` preset manifests). `decors/<name>.toml` = `name`, `label` (i18n key or plain text), `[recipe]`
+of `theme.*` values (anything else is dropped and reported). Bundled packs are compiled in (as palettes); a pack in
+`$XDG_CONFIG_HOME/kurashi/decors/` replaces a bundled one of the same name or adds one; mods' `decor:` provides read
+`<mod>/decors/<name>.toml` next (I103). `theme.decor` becomes a string with offers from source `decors` (`none` =
+your own). *Why:* identity packs (v0.3) and the user's own looks without a Rust change; the K45 rule (looks, never
+layout) is enforced by the loader, not by review.
+

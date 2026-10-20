@@ -99,28 +99,8 @@
           "rows": [
             {
               "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.decor.none",
-                  "value": "none"
-                },
-                {
-                  "label": "config.choice.decor.sekai",
-                  "value": "sekai"
-                },
-                {
-                  "label": "config.choice.decor.glass",
-                  "value": "glass"
-                },
-                {
-                  "label": "config.choice.decor.terminal",
-                  "value": "terminal"
-                },
-                {
-                  "label": "config.choice.decor.washi",
-                  "value": "washi"
-                }
-              ],
+              "choices": [],
+              "choices_from": "decors",
               "control": "select",
               "couplings": [],
               "default": "none",
@@ -130,7 +110,7 @@
               "per_output": false,
               "restart": false,
               "since": 1,
-              "type": "choice"
+              "type": "string"
             },
             {
               "advanced": false,

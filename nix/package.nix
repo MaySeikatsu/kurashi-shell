@@ -20,6 +20,7 @@ rustPlatform.buildRustPackage {
       ../palettes
       ../profiles
       ../templates
+      ../decors
       ../frontend
       ../settings
       ../mods

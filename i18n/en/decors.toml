@@ -1,0 +1,6 @@
+# Labels of the bundled decor packs (decors/*.toml, K50); a user's pack may name plain text instead.
+"config.choice.decor.none" = "Your own"
+"config.choice.decor.sekai" = "Sekai (pop keycaps)"
+"config.choice.decor.glass" = "Glass (frosted)"
+"config.choice.decor.terminal" = "Terminal (ink lines)"
+"config.choice.decor.washi" = "Washi (paper)"
