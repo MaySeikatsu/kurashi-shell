@@ -76,12 +76,13 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = with pkgs; [ material-symbols nunito noto-fonts-cjk-sans ];
-      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito noto-fonts-cjk-sans ]";
+      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif ];
+      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif ]";
       description = ''
-        Fonts the shell draws with: Material Symbols Rounded for icons (without it, components fall back to text
-        glyphs), Nunito for the `sekai` look (decor, K42) and Noto Sans CJK for Japanese. Installed with fontconfig
-        enabled; set to [ ] to manage fonts yourself.
+        Fonts the shell draws with: Material Symbols (Rounded, and Sharp for line chrome) for icons (without it,
+        components fall back to text glyphs), the decor packs' families (K42, K45: Nunito for `sekai`, Inter for
+        `glass`, JetBrains Mono for `terminal`, Noto Serif for `washi`) and Noto CJK (sans and serif) for Japanese.
+        Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };
 

@@ -126,6 +126,9 @@ pub enum Provide {
     /// A layer-shell surface of the mod's own that the frontend creates once per output while the mod is enabled
     /// (K38, row 88): `qml/surfaces/<name>.qml`, required property `screen`, 0 frames while it shows nothing.
     Surface(String),
+    /// A card on the desktop widget column (K43, K46, row 120): `qml/desk/<name>.qml`, drawn by the desk
+    /// with the core cards while `desktop.enabled`; it fills the width it is given.
+    Desk(String),
     I18n,
 }
 
@@ -164,6 +167,7 @@ impl Provide {
             "job" => Self::Job(id),
             "host" => Self::Host(id),
             "surface" => Self::Surface(id),
+            "desk" => Self::Desk(id),
             _ => return Err("provide_unknown_kind"),
         })
     }
@@ -207,6 +211,7 @@ impl fmt::Display for Provide {
             Self::Job(i) => write!(f, "job:{i}"),
             Self::Host(i) => write!(f, "host:{i}"),
             Self::Surface(i) => write!(f, "surface:{i}"),
+            Self::Desk(i) => write!(f, "desk:{i}"),
             Self::I18n => write!(f, "i18n"),
         }
     }

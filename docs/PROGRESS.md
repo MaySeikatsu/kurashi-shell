@@ -193,3 +193,12 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W21.1 | Island morph: one shape pill → card (Capsule springs), liquid neck (flat chrome), keycap pill, flip clock, media level bars, OSD level meter, KeyButton views, ownChrome for the phone (card `W21-island-morph`) | ✅ functional · UX ✅ first pass (morph frames `frontend/shots/island/morph-*`; I111–I115, B32) | merged 6b749d6 |
 | W21.2 | Phone: `PhoneFrame`, web dock phone card + keycap strip, quick settings as a SekaiPop phone (card `W21-phone`); row 118 `svc.clock` in host scopes (lead) | ✅ functional · UX ✅ first pass (I106–I110) | merged 22967bd |
 | S9.5 | Glass decor (Vitreus/pleamar), `Theme.panel` | ✅ functional · UX first pass (I114) | main |
+
+## Session 10 — distinct looks, tasks and notes (K45, K46; user answers to session 9's open decisions)
+| Step | Description | Status | Branch / notes |
+|---|---|---|---|
+| S10.0 | Contracts: chrome `soft`/`line` + tokens, decors `terminal`/`washi`, recipes look-only (no layout keys, test), `desk:` provide (row 120), fonts in HM + dev shell | ✅ | lead, feat/s10-contracts |
+| W22.1 | Styles: Block draws four chromes, every surface per decor, keycap island card joins its bar group (I115), glass island (I114), I109, I110 (card `W22-styles`) | 🟡 | agent |
+| W22.2 | Tasks + notes mod over Markdown (Obsidian Tasks syntax), desk cards, panel, bar widget, mock parity (card `W22-tasks`) | 🟡 | agent |
+| S10.1 | Settings: decor cards with previews (I104) | 🟡 | lead |
+

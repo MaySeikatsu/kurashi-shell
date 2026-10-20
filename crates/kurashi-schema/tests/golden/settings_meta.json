@@ -111,6 +111,14 @@
                 {
                   "label": "config.choice.decor.glass",
                   "value": "glass"
+                },
+                {
+                  "label": "config.choice.decor.terminal",
+                  "value": "terminal"
+                },
+                {
+                  "label": "config.choice.decor.washi",
+                  "value": "washi"
                 }
               ],
               "control": "select",
@@ -328,6 +336,14 @@
                 {
                   "label": "config.choice.chrome.keycap",
                   "value": "keycap"
+                },
+                {
+                  "label": "config.choice.chrome.soft",
+                  "value": "soft"
+                },
+                {
+                  "label": "config.choice.chrome.line",
+                  "value": "line"
                 }
               ],
               "control": "select",
