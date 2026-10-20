@@ -567,4 +567,3 @@ pub struct Dock {
     #[kurashi(default = true, requires = "dock.enabled == true")]
     pub show_running: bool,
 }
-
