@@ -1,0 +1,14 @@
+# polkit 認証ダイアログ（ja）：frontend/surfaces/PolkitDialog.qml（K47 (5)、docs/ux/polkit.md）。波かっこの
+# プレースホルダーはフロントエンドが埋める。
+"polkit.title" = "認証が必要です"
+"polkit.as" = "{user} として"
+"polkit.identity" = "認証するユーザー"
+"polkit.group" = "{name}（グループ）"
+"polkit.password" = "パスワード"
+"polkit.response" = "応答"
+"polkit.checking" = "確認しています…"
+"polkit.failed" = "パスワードが違います。もう一度入力してください。"
+"polkit.authenticate" = "認証"
+"polkit.cancel" = "キャンセル"
+"polkit.a11y.dialog" = "認証が必要です：{message}"
+"polkit.a11y.action" = "アクション：{action}"

@@ -328,6 +328,13 @@ impl State {
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null}),
                 None,
             ),
+            // K47 (5), as kurashid: the polkit agent's dialog is up or gone; `ui.close` keeps it.
+            "ui.polkit" => {
+                let active = args["active"]
+                    .as_bool()
+                    .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
+                self.patch("runtime.ui", json!({"polkit": active}), None);
+            }
             // K35, as kurashid: `{}` clears the peek; none over an open card; mod peeks of `hello` only.
             "ui.peek" => {
                 let source = args["source"].as_str().unwrap_or("");
@@ -1266,6 +1273,20 @@ mod tests {
             st.data("runtime.ui"),
             &json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
         );
+    }
+
+    #[test]
+    fn the_polkit_flag_follows_the_agent_and_outlives_ui_close() {
+        let mut st = state();
+        st.act("ui.polkit", &json!({"active": true})).unwrap();
+        assert_eq!(st.data("runtime.ui")["polkit"], true);
+        st.act("island.expand", &none()).unwrap();
+        st.act("ui.close", &none()).unwrap();
+        assert_eq!(st.data("runtime.ui")["polkit"], true);
+        st.act("ui.polkit", &json!({"active": false})).unwrap();
+        assert_eq!(st.data("runtime.ui")["polkit"], false);
+        assert!(st.act("ui.polkit", &json!({"active": "yes"})).is_err());
+        assert!(st.act("ui.polkit", &none()).is_err());
     }
 
     #[test]
