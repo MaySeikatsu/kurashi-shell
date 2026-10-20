@@ -96,6 +96,13 @@ Corner style of bars, popups and the island.
 - type: `choice` · default: `"rounded"`
 - choices: `"none"` | `"rounded"` | `"squircle"`
 
+#### `theme.shape.screen_corners` — Screen corners
+
+Rounds the corners of every screen by this many pixels (0 = square, as the panel is).
+
+- type: `int` · default: `0`
+- range: `0..=48`, step `2` (px)
+
 #### `theme.shape.radius_scale` — Corner radius scale
 
 Multiplies every corner radius token.
@@ -386,3 +393,112 @@ Today's weather, while the weather mod is on and has a place.
 
 - type: `bool` · default: `true`
 - only while `desktop.enabled == true`
+
+## Power
+
+### Idle
+
+#### `idle.enabled` — Idle actions
+
+Dim, lock, turn the screens off and suspend after a time without input. Apps that play video or calls that are on keep the screen awake (they inhibit idle).
+
+- type: `bool` · default: `true`
+
+#### `idle.dim_after` — Dim after
+
+Lowers the brightness a little before locking. 0 = never.
+
+- type: `int` · default: `240`
+- range: `0..=7200`, step `30` (s)
+- only while `idle.enabled == true`
+
+#### `idle.lock_after` — Lock after
+
+0 = never.
+
+- type: `int` · default: `300`
+- range: `0..=7200`, step `30` (s)
+- only while `idle.enabled == true`
+
+#### `idle.screen_off_after` — Screens off after
+
+0 = never.
+
+- type: `int` · default: `600`
+- range: `0..=7200`, step `30` (s)
+- only while `idle.enabled == true`
+
+#### `idle.suspend_after` — Suspend after
+
+0 = never.
+
+- type: `int` · default: `0`
+- range: `0..=14400`, step `60` (s)
+- only while `idle.enabled == true`
+
+#### `idle.inhibit_while_media` — Stay awake while media plays
+
+Music or video that plays keeps the screen on.
+
+- type: `bool` · default: `true`
+- only while `idle.enabled == true`
+
+### Night light
+
+#### `night_light.enabled` — Night light
+
+Warmer colours in the evening (wlsunset). Off by default.
+
+- type: `bool` · default: `false`
+
+#### `night_light.temperature` — Warmth
+
+Colour temperature at night; lower is warmer.
+
+- type: `int` · default: `4000`
+- range: `1500..=6500`, step `100` (K)
+- only while `night_light.enabled == true`
+
+#### `night_light.schedule` — Schedule
+
+When the night colours are on. Sunset to sunrise needs the weather mod's place.
+
+- type: `choice` · default: `"manual"`
+- choices: `"always"` | `"manual"` | `"sun"`
+- only while `night_light.enabled == true`
+
+#### `night_light.start` — From
+
+Start of the night colours, as HH:MM.
+
+- type: `string` · default: `"20:00"`
+- only while `night_light.schedule == "manual"`
+
+#### `night_light.end` — Until
+
+End of the night colours, as HH:MM.
+
+- type: `string` · default: `"07:00"`
+- only while `night_light.schedule == "manual"`
+
+### Recorder
+
+#### `recorder.directory` — Folder
+
+Where recordings are saved; empty = your Videos folder.
+
+- type: `string` · default: `""`
+
+#### `recorder.audio` — Record sound
+
+The desktop's sound goes into the recording.
+
+- type: `bool` · default: `true`
+
+#### `recorder.backend` — Recorder
+
+The program that records; automatic takes the first one installed.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"gpu_screen_recorder"` | `"wf_recorder"`
+- advanced

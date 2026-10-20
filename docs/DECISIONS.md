@@ -413,3 +413,19 @@ subscriber (Ma), keeps every line it does not own untouched, and writes atomical
 Todoist/TickTick are later backends of the same document. *Why:* a file is the most honest store — the user can read
 it, sync it and edit it with any tool, and the vault already holds their notes.
 
+**K47** 🟢 Daily-driver services, copied where others solved them (user, session 10: "get the desktop shell as complete
+and usable as possible … don't reinvent it if they did it better already"). (1) **Idle** in the daemon over
+`ext-idle-notify-v1` (one long-lived Wayland connection; the compositor applies apps' idle-inhibit itself): stages dim →
+lock → screens off (`niri msg action power-off-monitors` through the adapter) → suspend (logind), each 0 = never;
+inhibitors of our own: caffeine (DMS/ii idle inhibitor), media playing (DMS), logind `idle` locks. Replaces
+swayidle/hypridle; HM stops recommending them. (2) **Night light** = a supervised `wlsunset` process (Noctalia
+`NightLightService.qml`: the same flags), schedule always/manual/sun (sun takes the weather mod's place). (3)
+**Keyboard layouts** from niri's event stream. (4) **Screen recorder** = a supervised `gpu-screen-recorder` (Noctalia
+`ScreenRecorderService.qml`) or `wf-recorder`; screenshots are niri's own actions. (5) **Polkit**: the authentication
+agent is Quickshell's `Quickshell.Services.Polkit` (as ii's `PolkitService.qml` and DMS) in a dedicated frontend
+surface — an exception to rule 1 like the toolkit's own Wayland work: the agent must live in the process that draws
+the dialog, the flow (libpolkit-agent, the setuid helper) is Quickshell's C++, no logic of ours. The daemon learns only
+that a dialog is up (`ui.polkit {active}`) so the island stays out of its way. (6) **Rounded screen corners**
+(`theme.shape.screen_corners`, Caelestia/shellseikatsu `ScreenCorners.qml`): one click-through overlay per output while
+> 0. *Why:* these are what people miss first when they switch from Caelestia, Noctalia, DMS or ii.
+
