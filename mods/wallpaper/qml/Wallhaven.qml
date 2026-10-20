@@ -49,7 +49,8 @@ Item {
             if (!g.open || t !== wh.token) return
             wh.busy = false
             wh.searched = true
-            if (err) { wh.errorKey = err.msg || "mod-wallpaper.wallhaven.error.failed"; return }
+            // A failed search shows its state (offline, refused) instead of the last page: those results are not this search's.
+            if (err) { wh.rows = []; wh.errorKey = err.msg || "mod-wallpaper.wallhaven.error.failed"; return }
             var d = (done && done.data) || {}
             wh.rows = d.rows || []
             wh.page = d.page || 1
@@ -134,13 +135,13 @@ Item {
             id: sortTop
             label: I18n.tr("mod-wallpaper.wallhaven.sort.toplist")
             selected: wh.sorting === "toplist"
-            onActivated: wh.sorting = "toplist"
+            onActivated: { if (wh.sorting === "toplist") wh.search(1); else wh.sorting = "toplist" }
         }
         PickButton {
             id: sortNew
             label: I18n.tr("mod-wallpaper.wallhaven.sort.date_added")
             selected: wh.sorting === "date_added"
-            onActivated: wh.sorting = "date_added"
+            onActivated: { if (wh.sorting === "date_added") wh.search(1); else wh.sorting = "date_added" }
         }
         PickButton {
             id: sortRandom
@@ -202,10 +203,12 @@ Item {
             anchors.rightMargin: Theme.gap
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
-            color: Theme.dim
+            color: wh.errorKey !== "" ? Theme.error : Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
+            // A refused download says why here; otherwise the selected picture's size, category and whether it is saved.
             text: {
+                if (wh.errorKey !== "") return I18n.tr(wh.errorKey)
                 var r = wh.selected
                 if (!r) return ""
                 var parts = [r.resolution || ""]

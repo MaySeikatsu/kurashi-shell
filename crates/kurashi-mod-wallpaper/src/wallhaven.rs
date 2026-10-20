@@ -286,7 +286,7 @@ pub fn ext_of(url: &str) -> &str {
 
 /// The picture of `id` in `dir`, if it was downloaded.
 pub fn downloaded(dir: &Path, id: &str) -> Option<PathBuf> {
-    ["jpg", "jpeg", "png", "webp", "gif"]
+    ["jpg", "jpeg", "png", "webp", "gif", "bmp"]
         .iter()
         .map(|e| dir.join(format!("wallhaven-{id}.{e}")))
         .find(|p| p.is_file())
@@ -370,8 +370,13 @@ pub async fn search(
     let url = search_url(base, &q);
     let (thumbs, saved) = (dirs.wallhaven_thumbs(), dirs.wallhaven());
     let reply = tokio::task::spawn_blocking(move || {
-        let body = get(&url, cfg.key.as_deref(), 4 * 1024 * 1024, Duration::from_secs(15))
-            .map_err(|e| key_of(&e))?;
+        let body = get(
+            &url,
+            cfg.key.as_deref(),
+            4 * 1024 * 1024,
+            Duration::from_secs(15),
+        )
+        .map_err(|e| key_of(&e))?;
         let page = parse_search(&String::from_utf8_lossy(&body))?;
         let made = fetch_thumbs(&thumbs, &page.hits);
         Ok::<_, &'static str>(reply_of(&page, &made, &saved))
@@ -401,7 +406,8 @@ fn fetch_thumbs(dir: &Path, hits: &[Hit]) -> Vec<Option<PathBuf>> {
                             return Some(file);
                         }
                         let body =
-                            get(&h.thumb_url, None, THUMB_MAX_BYTES, Duration::from_secs(10)).ok()?;
+                            get(&h.thumb_url, None, THUMB_MAX_BYTES, Duration::from_secs(10))
+                                .ok()?;
                         let part = file.with_extension("part");
                         std::fs::write(&part, body).ok()?;
                         std::fs::rename(&part, &file).ok()?;
@@ -476,21 +482,39 @@ pub async fn download(
         .to_owned();
     let dir = dirs.wallhaven();
     if let Some(p) = downloaded(&dir, &id) {
-        return Ok(Some(json!({"path": p.display().to_string(), "fetched": false})));
+        return Ok(Some(
+            json!({"path": p.display().to_string(), "fetched": false}),
+        ));
     }
     let info_url = format!("{base}/api/v1/w/{id}");
     let got = tokio::task::spawn_blocking(move || {
-        let body = get(&info_url, cfg.key.as_deref(), 1024 * 1024, Duration::from_secs(15))
-            .map_err(|e| key_of(&e))?;
+        let body = get(
+            &info_url,
+            cfg.key.as_deref(),
+            1024 * 1024,
+            Duration::from_secs(15),
+        )
+        .map_err(|e| key_of(&e))?;
         let hit = parse_info(&String::from_utf8_lossy(&body))?;
-        let bytes = get(&hit.full_url, cfg.key.as_deref(), FULL_MAX_BYTES, Duration::from_secs(90))
-            .map_err(|e| key_of(&e))?;
-        // A picture must decode: an HTML error page saved as .jpg would be set as a broken wallpaper.
-        if image::guess_format(&bytes).is_err() {
-            return Err(ERR_REPLY);
-        }
+        let bytes = get(
+            &hit.full_url,
+            cfg.key.as_deref(),
+            FULL_MAX_BYTES,
+            Duration::from_secs(90),
+        )
+        .map_err(|e| key_of(&e))?;
+        // A picture must be one: an HTML error page saved as .jpg would be set as a broken wallpaper. The file is named
+        // after what it holds, not after the URL, so the decoders that go by the extension read it.
+        let ext = match image::guess_format(&bytes).map_err(|_| ERR_REPLY)? {
+            image::ImageFormat::Png => "png",
+            image::ImageFormat::Jpeg => "jpg",
+            image::ImageFormat::WebP => "webp",
+            image::ImageFormat::Gif => "gif",
+            image::ImageFormat::Bmp => "bmp",
+            _ => return Err(ERR_REPLY),
+        };
         std::fs::create_dir_all(&dir).map_err(|_| ERR_FAILED)?;
-        let file = dir.join(format!("wallhaven-{id}.{}", ext_of(&hit.full_url)));
+        let file = dir.join(format!("wallhaven-{id}.{ext}"));
         let part = dir.join(format!(".wallhaven-{id}.part"));
         std::fs::write(&part, bytes).map_err(|_| ERR_FAILED)?;
         std::fs::rename(&part, &file).map_err(|_| ERR_FAILED)?;
@@ -539,7 +563,10 @@ mod tests {
         let h = &page.hits[0];
         assert_eq!(h.id, "94x38z");
         assert_eq!(h.thumb_url, "https://th.wallhaven.cc/small/94/94x38z.jpg");
-        assert_eq!(h.full_url, "https://w.wallhaven.cc/full/94/wallhaven-94x38z.jpg");
+        assert_eq!(
+            h.full_url,
+            "https://w.wallhaven.cc/full/94/wallhaven-94x38z.jpg"
+        );
         assert_eq!(h.resolution, "6742x3534");
         assert_eq!(h.file_size, 5_070_446);
         assert_eq!(h.category, "anime");
@@ -552,8 +579,14 @@ mod tests {
     fn an_info_reply_and_errors_parse() {
         let h = parse_info(INFO).unwrap();
         assert_eq!(h.id, "6d71l7");
-        assert_eq!(h.full_url, "https://w.wallhaven.cc/full/6d/wallhaven-6d71l7.png");
-        assert_eq!(parse_info(r#"{"error":"Nothing here"}"#), Err(ERR_NOT_FOUND));
+        assert_eq!(
+            h.full_url,
+            "https://w.wallhaven.cc/full/6d/wallhaven-6d71l7.png"
+        );
+        assert_eq!(
+            parse_info(r#"{"error":"Nothing here"}"#),
+            Err(ERR_NOT_FOUND)
+        );
         assert_eq!(parse_search("<html>"), Err(ERR_REPLY));
         assert_eq!(parse_search(r#"{"meta":{}}"#), Err(ERR_REPLY));
         assert_eq!(parse_search(r#"{"error":"Unauthorized"}"#), Err(ERR_FAILED));
@@ -563,7 +596,13 @@ mod tests {
     fn queries_are_checked_and_sfw_by_default() {
         let q = parse_query(&json!({}), false).unwrap();
         assert_eq!(
-            (q.q.as_str(), q.categories.as_str(), q.purity.as_str(), q.sorting.as_str(), q.page),
+            (
+                q.q.as_str(),
+                q.categories.as_str(),
+                q.purity.as_str(),
+                q.sorting.as_str(),
+                q.page
+            ),
             ("", "111", "100", "toplist", 1)
         );
         let q = parse_query(
@@ -576,19 +615,40 @@ mod tests {
             "http://x/api/v1/search?categories=010&purity=110&sorting=random&page=2&q=%E5%A4%9C%20sky&seed=aB3dE6"
         );
         let bad = |a: Value| parse_query(&a, true).unwrap_err();
-        assert_eq!(bad(json!({"categories": "000"})), ActionError::Invalid(ERR_ARGS.into()));
-        assert_eq!(bad(json!({"purity": "1x0"})), ActionError::Invalid(ERR_ARGS.into()));
-        assert_eq!(bad(json!({"sorting": "best"})), ActionError::Invalid(ERR_ARGS.into()));
-        assert_eq!(bad(json!({"page": 0})), ActionError::Invalid(ERR_ARGS.into()));
-        assert_eq!(bad(json!({"seed": "a;b"})), ActionError::Invalid(ERR_ARGS.into()));
-        assert_eq!(bad(json!({"query": 3})), ActionError::Invalid(ERR_ARGS.into()));
+        assert_eq!(
+            bad(json!({"categories": "000"})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
+        assert_eq!(
+            bad(json!({"purity": "1x0"})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
+        assert_eq!(
+            bad(json!({"sorting": "best"})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
+        assert_eq!(
+            bad(json!({"page": 0})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
+        assert_eq!(
+            bad(json!({"seed": "a;b"})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
+        assert_eq!(
+            bad(json!({"query": 3})),
+            ActionError::Invalid(ERR_ARGS.into())
+        );
         assert_eq!(
             parse_query(&json!({"purity": "111"}), false),
             Err(ActionError::Invalid(ERR_NSFW_KEY.into())),
             "NSFW needs the API key"
         );
         assert!(parse_query(&json!({"purity": "111"}), true).is_ok());
-        assert!(search_url(BASE_DEFAULT, &parse_query(&json!({}), false).unwrap()).contains("topRange=1M"));
+        assert!(
+            search_url(BASE_DEFAULT, &parse_query(&json!({}), false).unwrap())
+                .contains("topRange=1M")
+        );
     }
 
     #[test]
@@ -597,7 +657,10 @@ mod tests {
         assert!(!valid_id("../etc"));
         assert!(!valid_id(""));
         assert!(!valid_id("ABC"));
-        assert_eq!(ext_of("https://w.wallhaven.cc/full/94/wallhaven-94x38z.jpg"), "jpg");
+        assert_eq!(
+            ext_of("https://w.wallhaven.cc/full/94/wallhaven-94x38z.jpg"),
+            "jpg"
+        );
         assert_eq!(ext_of("https://x/a.webp?x=1"), "webp");
         assert_eq!(ext_of("https://x/a"), "jpg");
     }
@@ -616,9 +679,15 @@ mod tests {
             v["rows"][0]["local"],
             dir.join("wallhaven-94x38z.jpg").display().to_string()
         );
-        assert_eq!(v["rows"][1]["thumb_error"], "mod-wallpaper.wallhaven.error.thumb");
+        assert_eq!(
+            v["rows"][1]["thumb_error"],
+            "mod-wallpaper.wallhaven.error.thumb"
+        );
         assert!(v["rows"][1].get("local").is_none());
-        assert!(v["rows"][2].get("thumb").is_none(), "missing thumbs are not invented");
+        assert!(
+            v["rows"][2].get("thumb").is_none(),
+            "missing thumbs are not invented"
+        );
         assert_eq!(v["seed"], "aB3dE6");
         assert_eq!(v["last_page"], 3);
         let _ = std::fs::remove_dir_all(&dir);
@@ -641,7 +710,10 @@ mod tests {
         let (_, rx) = tokio::sync::watch::channel(kurashi_mod_api::Values::new());
         assert_eq!(
             WhConfig::read(&Settings::new(rx)),
-            WhConfig { on: true, key: None }
+            WhConfig {
+                on: true,
+                key: None
+            }
         );
     }
 }

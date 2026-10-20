@@ -62,8 +62,9 @@ async fn the_bundled_manifest_is_listed_with_its_panel_file() {
     assert_eq!(m["cost"], "low");
     assert_eq!(
         m["capabilities"],
-        json!(["exec:awww", "exec:swww", "fs:scoped"]),
-        "the declared capabilities are the validator's known ones: the two backend binaries by name"
+        json!(["exec:awww", "exec:swww", "fs:scoped", "network"]),
+        "the declared capabilities are the validator's known ones: the two backend binaries by name, and the \
+         network for Wallhaven (K48)"
     );
 }
 
