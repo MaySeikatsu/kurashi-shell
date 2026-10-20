@@ -54,7 +54,7 @@ The daemon resolves which contributions are live (mod enabled, its document `ava
 publishes them (`runtime.slots`: `{"clock.expanded.aside": [{"mod": "weather", "qml": "file://…"}]}`); the
 frontend instantiates them with `ModLoader` only while the hosting view is shown. An empty slot takes no space
 (no placeholder). **Day marks (row 71, I46):** the month grid instantiates each `clock.expanded.daymark`
-contribution once per visible day cell, with the required property `date` (`yyyy-mm-dd`, the cell's local date); a
+contribution once per visible day cell, with the property `date` (`yyyy-mm-dd`, the cell's local date; set right after load, row 108); a
 contribution draws at most 14 × 14 px under the day number and draws nothing for a date it has no mark for; up to three
 contributions sit side by side in contribution order, more are dropped. **Needs setup (row 72):** a contribution whose
 mod says it needs setup has `reason` (an i18n key) in its `runtime.slots` entry while `ready` stays as it is; the host

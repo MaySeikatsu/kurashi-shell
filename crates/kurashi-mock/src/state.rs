@@ -137,8 +137,16 @@ impl State {
                 "runtime.ui",
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""}),
             ),
-            // K28: the contributions of the test mod `hello`, the wallpaper tile and a plain one (see documents::slots).
+            // K28: the contributions of the test mod `hello`, the wallpaper tile, the weather clock aside and day mark and a
+            // plain one (see documents::slots).
             ("runtime.slots", documents::slots()),
+            // The weather mod's document (W19): the clock aside and the day marks read it.
+            (
+                "mod.weather",
+                documents::weather(documents::now(fixed_time)),
+            ),
+            // The schema's defaults with their provenance (K21): the clock keys the clock view reads.
+            ("config", documents::config(kurashi_schema::v1::registry())),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
             (
@@ -1793,6 +1801,60 @@ mod tests {
         ] {
             assert_eq!(st.data(doc)["available"], true, "{doc}");
         }
+    }
+
+    /// W19 (row 71, I46): the clock view's day marks come from the hello and weather contributions, in mod-id order, and the
+    /// weather aside is listed beside them.
+    #[test]
+    fn runtime_slots_list_the_day_marks_and_the_weather_aside() {
+        let st = state();
+        let slots = st.data("runtime.slots");
+        let marks: Vec<&str> = slots["clock.expanded.daymark"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["mod"].as_str().unwrap())
+            .collect();
+        assert_eq!(marks, ["hello", "weather"]);
+        assert_eq!(slots["clock.expanded.aside"][0]["mod"], "weather");
+    }
+
+    /// W19 (rows 71, 72): `config` serves the schema's defaults with their provenance, `mock.doc` sets a clock key as a layer
+    /// would, and `mod.weather` covers seven days from the mock's fixed date.
+    #[test]
+    fn config_defaults_and_the_weather_days_follow_the_mock() {
+        let mut st = State::new(
+            &["HEADLESS-1".to_owned()],
+            Some(chrono::NaiveTime::from_hms_opt(12, 34, 0).unwrap()),
+        );
+        assert_eq!(
+            st.data("config")["values"]["clock.week_start"]["value"],
+            "auto"
+        );
+        assert_eq!(
+            st.data("config")["values"]["clock.week_start"]["source"],
+            json!({"kind": "default"})
+        );
+        assert_eq!(
+            st.data("config")["values"]["clock.week_numbers"]["value"],
+            false
+        );
+        st.act(
+            "mock.doc",
+            &json!({"doc": "config", "patch": {"values": {"clock.week_start": {"value": "sunday"}}}}),
+        )
+        .unwrap();
+        assert_eq!(
+            st.data("config")["values"]["clock.week_start"]["value"],
+            "sunday"
+        );
+
+        let weather = st.data("mod.weather");
+        assert_eq!(weather["available"], true);
+        let days = weather["days"].as_array().unwrap();
+        assert_eq!(days.len(), 7);
+        assert_eq!(days[0]["date"], "2026-10-09");
+        assert_eq!(days[6]["date"], "2026-10-15");
     }
 
     /// K28/K26 parity: `runtime.slots` has the fixture's shape, and `mod.panel.open` toggles the fake
