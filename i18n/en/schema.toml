@@ -102,6 +102,8 @@
 "config.theme.typography.family.help" = "Fallback chain; the first installed family wins (resolved via fontconfig)."
 "config.theme.typography.scale.label" = "Text scale"
 "config.theme.typography.scale.help" = "Multiplies every type size token."
+"config.theme.export.label" = "Apps that follow"
+"config.theme.export.help" = "Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the file; Settings shows it."
 "config.a11y.reduce_motion.label" = "Reduce motion"
 "config.a11y.reduce_motion.help" = "Turns animations off (forces the motion profile to none)."
 "config.a11y.reduce_transparency.label" = "Reduce transparency"

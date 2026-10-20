@@ -38,7 +38,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 2] = ["palettes", "island.faces"];
+pub const CORE_SOURCES: [&str; 3] = ["palettes", "island.faces", "theme.export"];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
 /// the static schema; the mods' lists `mods.loaded` / `mods.enabled` (K25) are hidden keys of
@@ -180,6 +180,14 @@ fn offers_now(hub: &Hub, mod_faces: &BTreeMap<String, String>) -> BTreeMap<Strin
         ));
     }
     offers.insert("palettes".to_string(), palettes);
+    // K49: the apps the theme can be exported to.
+    offers.insert(
+        "theme.export".to_string(),
+        kurashi_theme::export::TARGETS
+            .iter()
+            .map(|t| Offer::on(t.name, format!("config.choice.export.{}", t.name)))
+            .collect(),
+    );
     if let Ok((_, doc)) = hub.snapshot(ISLAND_DOC) {
         let faces = doc["faces"]
             .as_array()

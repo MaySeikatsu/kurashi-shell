@@ -40,6 +40,12 @@
 # Density — Scales spacing and control sizes everywhere.
 #   choices: "compact" | "regular" | "airy"
 # density = "regular"
+#
+# Apps that follow — Write the shell's colours for these apps whenever the theme changes:
+# GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the
+# file; Settings shows it.
+#   choices: from `theme.export` (resolved at runtime)
+# export = []
 
 # [theme.colors]
 #
