@@ -23,6 +23,9 @@
 # output's workspace as focused (`mock.focus {output}` moves it), so the shell's focusedScreen() picks that output: the
 # card is drawn there, not on the other. Shots: frontend/shots/stage/b14-quick-out*.png. The sandbox's network is
 # probed again here (`sandbox.sh netcheck`): a connection from inside must fail (I58).
+# W19 (docs/ux/island.md "Clock", COMPOSITION §3; before the two outputs): the clock's day marks of weather and hello, the
+# weather aside with a reason (row 72), the grid in Japanese with the week starting on Sunday (auto), on Monday (config)
+# and with ISO week numbers. Shots: frontend/shots/island/clock-*.png.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-fe-stage}
@@ -170,9 +173,9 @@ closed_card() {
   jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$1: a card is still drawn after ui.close ($res)"
 }
 
-start_mock() {
+start_mock() {  # MOCK_LC: the locale the mock reads from its environment (kurashid's rule); this shell keeps its own
   rm -f "$KURASHI_SOCKET"
-  RUST_LOG=info "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$KURASHI_SOCKET" \
+  RUST_LOG=info LC_ALL="${MOCK_LC:-$LC_ALL}" "$W/kurashi-mock" --outputs HEADLESS-1 --fixed-time 12:34 --socket "$KURASHI_SOCKET" \
     >> "$R/server.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && return 0; sleep 0.1; done
@@ -279,13 +282,14 @@ isl_shot pill-bluetooth
 K mock face clock >/dev/null
 K act mock.island '{"detail":{"clock":"10:00 Standup"}}' >/dev/null
 
-# Clock: by keyboard (Tab x4 to the grid, Right x3 and Down: Friday the 9th to Monday the 19th), then stale.
+# Clock: by keyboard (Tab x5 to the grid: the weather aside is the first stop; Right x3 and Down: Friday the 9th to Monday
+# the 19th), then stale.
 K act island.expand >/dev/null
 ppm_shot clock-keys 2.5
 open_card clock-keys island clock 400
 heading_click "$card_x0" "$card_y0"
 # The keyboard stays up for the shot: when it goes away the window loses its focus, and the ring with it.
-{ for k in tab tab tab tab right right right down; do echo "$k"; sleep 0.3; done; sleep 2.5; } \
+{ for k in tab tab tab tab tab right right right down; do echo "$k"; sleep 0.3; done; sleep 2.5; } \
   | timeout 60 python3 -I "$KEYS_PY" --serve &
 keys_pid=$!
 sleep 3.2
@@ -362,6 +366,86 @@ view_shot volume-muted 360
 K act audio.mute.toggle >/dev/null
 K act ui.close >/dev/null
 sleep 1.2
+
+# ---- W19 calendar (docs/ux/island.md "Clock", docs/ux/weather.md "Clock view integration", COMPOSITION §3): the day marks of
+# weather and hello (row 71), the weather aside with a reason (row 72), then Japanese: the weeks start on Sunday (auto),
+# on Monday (config) and show the week numbers (I46). Shots: frontend/shots/island/clock-*.png (read them, not just the code).
+# clock_card <name> <card width>: the clock view is open at that width and centred; sets card_x0..card_y1 (the check that
+# open_card makes, without its shot in frontend/shots/stage/).
+clock_card() {
+  local res
+  ppm_shot "$1" 2.5
+  res=$(analyse "$1") || fail "$1: analysis failed"
+  jq -e '.panel == "island" and .face == "clock"' <<<"$(ipc runtime.ui)" >/dev/null \
+    || fail "$1: the clock view is not open ($(ipc runtime.ui))"
+  echo "$1: $res"
+  jq -e --argjson w "$2" '.surface >= 15000 and .bbox != null
+      and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
+      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
+    || fail "$1: no card of width $2 centred on the output ($res)"
+  read -r card_x0 card_y0 card_x1 card_y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
+}
+# start_frontend_again: the frontend after a restart of the mock; the hello line it waits for is a new one.
+start_frontend_again() {
+  local before
+  before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
+  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  pids+=("$!")
+  for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
+  [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"
+  sleep 3
+}
+
+K mock face clock >/dev/null
+K act island.expand >/dev/null
+# (a) The day marks: weather's forecast glyphs for 9 to 15 October, and hello's dot on the 14th beside them.
+clock_card clock-marks 400
+view_shot clock-marks 400
+# (b) The aside with a reason (row 72): no place saved. The aside says "No place set" and offers "Set place", in its box.
+cur=$(ipc runtime.slots) || fail "runtime.slots not served"
+K act mock.doc "$(jq -nc --argjson s "$cur" '{doc: "runtime.slots", patch: {"clock.expanded.aside": ($s["clock.expanded.aside"] | map(. + {reason: "mod-weather.no_location"}))}}')" >/dev/null \
+  || fail "mock.doc refused the aside's reason"
+sleep 1.5
+jq -e '.["clock.expanded.aside"][0].reason == "mod-weather.no_location"' <<<"$(ipc runtime.slots)" >/dev/null \
+  || fail "the aside's reason is not in runtime.slots"
+clock_card clock-aside-reason 400
+view_shot clock-aside-reason 400
+K act mock.doc "$(jq -nc --argjson s "$cur" '{doc: "runtime.slots", patch: {"clock.expanded.aside": $s["clock.expanded.aside"]}}')" >/dev/null \
+  || fail "mock.doc refused the aside without its reason"
+sleep 1.5
+# (c) Japanese: the mock and the frontend restart with ja_JP.UTF-8 (kurashid reads the locale from the environment). The
+# weeks start on Sunday by auto; then on Monday by config; then with week numbers by config.
+K act ui.close >/dev/null
+stop_phase
+MOCK_LC=ja_JP.UTF-8 start_mock
+start_frontend_again
+[ "$(ipc i18n | jq -r .locale)" = ja ] || fail "the frontend's locale is not ja"
+K mock face clock >/dev/null
+K act island.expand >/dev/null
+clock_card clock-ja-sunday 400
+view_shot clock-ja-sunday 400
+# The keys on the Japanese grid: Tab x5 to the grid, Right x2 and Down: Friday the 9th to Sunday the 18th, the first column.
+heading_click "$card_x0" "$card_y0"
+{ for k in tab tab tab tab tab right right down; do echo "$k"; sleep 0.3; done; sleep 2.5; } \
+  | timeout 60 python3 -I "$KEYS_PY" --serve &
+keys_pid=$!
+sleep 3.5
+view_shot clock-ja-sunday-keys 400
+wait "$keys_pid" || fail "keys failed on the Japanese grid"
+# Monday by config: the 18th sits in the last column now, and the grid follows.
+K act mock.doc '{"doc":"config","patch":{"values":{"clock.week_start":{"value":"monday"}}}}' >/dev/null \
+  || fail "mock.doc refused the week start"
+sleep 1.5
+clock_card clock-ja-monday 400
+view_shot clock-ja-monday 400
+# Week numbers by config: one ISO number beside each row.
+K act mock.doc '{"doc":"config","patch":{"values":{"clock.week_numbers":{"value":true}}}}' >/dev/null \
+  || fail "mock.doc refused the week numbers"
+sleep 1.5
+clock_card clock-ja-monday-weeks 400
+view_shot clock-ja-monday-weeks 400
+K act ui.close >/dev/null
+stop_phase
 
 # ---- W16, B14 (row 80): two outputs. The mock and the frontend restart with HEADLESS-2 in the list; the outputs are
 # sway's, so the card's pixels come from `grim -o` of each.

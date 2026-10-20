@@ -179,5 +179,5 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W19.1 | Bar widgets on side bars (I85) | ✅ functional · UX ⏳ (hide priority, transient-face shots) | W19-side-bars 3292585 |
 | W19.2 | Weather polish without colour: hourly rain, seven days, places preview forecast, no-place reason (I82, I57) | ✅ functional · UX ⏳ (preview unverified in the sandbox, hourly overflow: I88; colours) | W19-weather 59f84b5 |
 | W19.3 | Wallpaper picker polish without colour: width, output chips, overflow menu, keys (I83, I32) | ✅ functional · UX ⏳ (colours, Stage Close: design pass, row 106) | W19-wallpaper 86c0518 |
-| W19.4 | Calendar: day marks, week start/numbers, slot setup states (I46, rows 71–72) | 🔄 | W19-calendar |
+| W19.4 | Calendar: day marks, week start/numbers, slot setup states (I46, rows 71–72) | ✅ functional · UX ⏳ (I89) | W19-calendar b6bda1d; lead deadlock fix B29 |
 

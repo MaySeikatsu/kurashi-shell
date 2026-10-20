@@ -4,8 +4,8 @@ description = "mods.weather.description"
 version = "0.1.0"
 tier = "native"
 kurashi = ">=0.0.1"
-# Bar widget, panel, rain-soon face (Island), clock aside (K28 slot), saved-place choices, the
-# mod service and its actions (docs/ux/weather.md), the rain-alerts job (I23). Each must be registered
+# Bar widget, panel, rain-soon face (Island), clock aside and clock day marks (K28 slots), saved-place choices,
+# the mod service and its actions (docs/ux/weather.md), the rain-alerts job (I23). Each must be registered
 # by the Rust crate.
 provides = [
     "service:weather",
@@ -17,6 +17,7 @@ provides = [
     "peek:weather",
     "panel:weather",
     "slot:clock.expanded.aside",
+    "slot:clock.expanded.daymark",
 ]
 capabilities = ["network", "fs:scoped"]
 cost = "low"

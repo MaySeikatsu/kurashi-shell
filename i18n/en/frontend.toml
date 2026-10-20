@@ -40,3 +40,7 @@
 "frontend.bar.short.mem" = "RAM"
 "frontend.bar.short.temp" = "Temp"
 "frontend.bar.short.load" = "Load"
+
+# W19-calendar (clock view: week numbers, the weather aside's setup state)
+"frontend.clock.week_n" = "Week {n}"
+"frontend.clock.aside.no_place" = "No place set"
