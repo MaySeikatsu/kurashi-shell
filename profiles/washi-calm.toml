@@ -1,0 +1,12 @@
+# Paper and ink: the washi look, airy spacing, the clock and the month on the desk.
+schema_version = 1
+
+[theme]
+decor = "washi"
+density = "airy"
+
+[desktop]
+enabled = true
+side = "right"
+media = false
+weather = false

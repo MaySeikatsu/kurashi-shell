@@ -1,0 +1,13 @@
+# A terminal's desktop: ink lines, a slim bar at the bottom, compact spacing, no desk.
+schema_version = 1
+
+[theme]
+decor = "terminal"
+density = "compact"
+
+[bar]
+edge = "bottom"
+height = 28
+
+[desktop]
+enabled = false
