@@ -1,0 +1,24 @@
+# Souls — Dark Souls' menus: leather black, antique-gold hairlines, ember accents, bone text. Dark only. Roles after
+# shellseikatsu `_dsoulsPalette()` (W25, K50). Meant for decor `souls` (frame `ornate`).
+name = "souls"
+kind = "dark"
+description = "Leather black and antique gold (decor souls)"
+
+[dark]
+surface = "#14110d"
+surface_container_lowest = "#0a0806"
+surface_container_low = "#100d0a"
+surface_container = "#1a1610"
+surface_container_high = "#242017"
+surface_container_highest = "#302a1e"
+on_surface = "#d8cfb8"                # bone
+on_surface_variant = "#a39878"
+outline = "#8a7444"                   # gold hairline
+outline_variant = "#3a3222"
+accent = "#c9a45c"                    # antique gold
+accent_container = "#7a3a1e"          # rust selection band
+on_accent_container = "#f0d8c0"
+secondary = "#a8966a"                 # worn brass
+tertiary = "#d0743a"                  # ember
+warning = "#d0a050"
+error = "#d0503c"

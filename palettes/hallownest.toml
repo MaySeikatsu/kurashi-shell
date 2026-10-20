@@ -1,0 +1,24 @@
+# Hallownest — Hollow Knight: pale bone-white line work on deep blue-grey fog, infection amber. Dark only. Roles
+# after shellseikatsu `_hollowPalette()` (W25, K50). Meant for decor `hallownest` (frame `hollow`).
+name = "hallownest"
+kind = "dark"
+description = "Pale bone on blue-grey fog (decor hallownest)"
+
+[dark]
+surface = "#12161e"
+surface_container_lowest = "#0a0d13"
+surface_container_low = "#0f1319"
+surface_container = "#161c26"
+surface_container_high = "#1e2632"
+surface_container_highest = "#283242"
+on_surface = "#dce4ec"
+on_surface_variant = "#9aa8b8"
+outline = "#7d8da2"
+outline_variant = "#333f4e"
+accent = "#e6edf2"                    # pale king white
+accent_container = "#3a4656"
+on_accent_container = "#eef4f8"
+secondary = "#7fa6c4"                 # crystal blue
+tertiary = "#e8a83c"                  # infection amber
+warning = "#e8a83c"
+error = "#e0645a"

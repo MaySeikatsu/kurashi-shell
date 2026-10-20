@@ -76,12 +76,14 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif ];
-      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif ]";
+      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ];
+      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ]";
       description = ''
         Fonts the shell draws with: Material Symbols (Rounded, and Sharp for line chrome) for icons (without it,
         components fall back to text glyphs), the decor packs' families (K42, K45: Nunito for `sekai`, Inter for
-        `glass`, JetBrains Mono for `terminal`, Noto Serif for `washi`) and Noto CJK (sans and serif) for Japanese.
+        `glass`, JetBrains Mono for `terminal`, Noto Serif for `washi`; W25: Quicksand and Comic Neue for `kawaii`, Cinzel
+        for `hallownest`, EB Garamond for `souls`, Roboto for `material` — the packs' other families are not free and
+        fall back along their chains) and Noto CJK (sans and serif) for Japanese.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };

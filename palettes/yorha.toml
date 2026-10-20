@@ -1,0 +1,26 @@
+# YoRHa — NieR: Automata's pause menu: faded parchment, near-monochrome dark-olive ink. Light only (the game's
+# menus are). Roles after shellseikatsu `_nierPalette()` (W25, K50). Meant for decor `yorha` (frame `yorha`).
+name = "yorha"
+kind = "light"
+description = "Parchment and olive ink (decor yorha)"
+
+[light]
+surface = "#c9c5b0"
+surface_container_lowest = "#d6d2be"
+surface_container_low = "#cfcbb6"
+surface_container = "#d1cdb8"
+surface_container_high = "#bab29a"
+surface_container_highest = "#aea890"
+on_surface = "#3e3b33"
+on_surface_variant = "#4e4b41"
+outline = "#6b6657"
+outline_variant = "#aba68d"
+accent = "#4e4b41"
+accent_container = "#4e4b41"
+on_accent_container = "#dad5be"
+secondary = "#6b6657"
+tertiary = "#575346"
+warning = "#6e4a10"
+error = "#8c3a2e"
+line = "#3e3b33"
+ring = "#dad5be"

@@ -1,0 +1,42 @@
+# Rosé Pine — "main" (dark) and "dawn" (light) (rosepinetheme.com, MIT). Roles after shellseikatsu
+# `_rosepinePalette()` (W25, K50): iris accent, foam secondary, rose tertiary, love as error, gold as warning.
+# Meant for decor `rose-pine`.
+name = "rose-pine"
+kind = "pair"
+description = "Rosé Pine dusk and dawn"
+
+[dark]
+surface = "#191724"                   # base
+surface_container_lowest = "#13111c"
+surface_container_low = "#1f1d2e"     # surface
+surface_container = "#26233a"         # overlay
+surface_container_high = "#2e2a45"
+surface_container_highest = "#403d52" # highlight med
+on_surface = "#e0def4"                # text
+on_surface_variant = "#908caa"        # subtle
+outline = "#6e6a86"                   # muted
+outline_variant = "#403d52"
+accent = "#c4a7e7"                    # iris
+secondary = "#9ccfd8"                 # foam
+tertiary = "#ebbcba"                  # rose
+warning = "#f6c177"                   # gold
+error = "#eb6f92"                     # love
+success = "#3e8fb0"                   # pine (moon)
+
+[light]
+surface = "#faf4ed"                   # base
+surface_container_lowest = "#fffaf3"  # surface
+surface_container_low = "#f4ede8"     # highlight low
+surface_container = "#f2e9e1"         # overlay
+surface_container_high = "#dfdad9"    # highlight med
+surface_container_highest = "#cecacd" # highlight high
+on_surface = "#575279"                # text
+on_surface_variant = "#797593"        # subtle
+outline = "#9893a5"                   # muted
+outline_variant = "#cecacd"
+accent = "#907aa9"                    # iris
+secondary = "#56949f"                 # foam
+tertiary = "#d7827e"                  # rose
+warning = "#ea9d34"                   # gold
+error = "#b4637a"                     # love
+success = "#286983"                   # pine

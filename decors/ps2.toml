@@ -1,0 +1,16 @@
+name = "ps2"
+label = "config.choice.decor.ps2"
+# After shellseikatsu `Services/Modes/Ps2.qml` and `Widgets/ThemeDecor/Ps2Frame.qml` (W25; the PS2 dashboard):
+# void black, translucent light towers and blue glow lines, thin silver type, solemn calm motion.
+[recipe]
+"theme.colors.palette" = "ps2"
+"theme.colors.scheme" = "dark"
+"theme.chrome" = "soft"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.92
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 0.5
+"theme.typography.family" = ["SST", "Zrnic", "Inter", "Noto Sans CJK JP", "sans-serif"]
+[slots]
+frame = "ps2"
