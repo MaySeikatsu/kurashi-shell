@@ -22,9 +22,8 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 test imported its own export under a saved profile's name), test-real, test-stage, test-peek, test-quick, test-volume,
 test-sidebars, test-island-morph, test-look for all five decors, `mods/tasks/test-tasks.sh`, `just webdock`, `just
 mods-live` (now loads `tasks`). `frontend/test-quick-sections.sh` fails at the pointer re-click of the Wi-Fi tile — the
-same at e4833f9, before this session's frontend work (B33). Two Opus agents (W22-styles, W22-tasks), both merged; the
-styles worktree under `.claude/worktrees/` was still locked by its agent process at the end (remove it with
-`git worktree remove --force --force` once the process is gone). Nothing is half-done.
+same at e4833f9, before this session's frontend work (B33). Two Opus agents (W22-styles, W22-tasks), both merged; their
+worktrees and branches are removed. `nix build .#kurashi` passes. Nothing is half-done.
 
 **User decisions (session 10, answers to session 9):** `sekai` stays an option; **every decor is a whole, distinct look
 and never changes layout** — layout lives in profiles, which may pair a look with a layout (K45); the keycap island card
