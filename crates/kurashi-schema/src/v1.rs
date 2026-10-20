@@ -429,6 +429,10 @@ pub struct Launcher {
     /// Start apps in their own systemd scope so they outlive the shell.
     #[kurashi(default = true, advanced, restart)]
     pub systemd_scope: bool,
+    /// Web search
+    /// The address a query is searched at, `{}` standing for the query; empty = no web search row.
+    #[kurashi(default = "https://duckduckgo.com/?q={}".to_owned())]
+    pub web_search: String,
 }
 
 // --- idle (K47) ------------------------------------------------------------------------------
@@ -528,4 +532,3 @@ pub struct Recorder {
     #[kurashi(default = RecorderBackend::Auto, advanced)]
     pub backend: RecorderBackend,
 }
-

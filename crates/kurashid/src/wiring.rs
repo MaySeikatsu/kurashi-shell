@@ -467,15 +467,44 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     );
     watch_while_open(daemon.hub.clone(), LauncherWatch::new(launcher.clone()));
     let l = launcher.clone();
+    let (hub, actions, store) = (
+        daemon.hub.clone(),
+        daemon.actions.clone(),
+        daemon.config.clone(),
+    );
+    // The `>` commands' labels in the session language, kept per revision of the `i18n` document (one copy, not
+    // one per keystroke).
+    let labels: Arc<Mutex<(u64, std::collections::HashMap<String, String>)>> = Arc::default();
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
     let query: QueryFn = Arc::new(move |q: &str| {
-        // Prefix modes: `:` emoji, `;` the clipboard history.
+        // Prefix modes: `:` emoji, `;` the clipboard history, `>` commands (I126).
         if let Some(rest) = q.strip_prefix(':') {
             return kurashi_launcher::extras::emoji_rows(rest, 40);
         }
         if let Some(rest) = q.strip_prefix(';') {
             return kurashi_launcher::extras::clip_rows(rest.trim(), 40);
+        }
+        if let Some(rest) = q.strip_prefix('>') {
+            let mut cache = labels.lock().expect("labels lock");
+            if let Ok((rev, doc)) = hub.snapshot("i18n") {
+                if cache.0 != rev || cache.1.is_empty() {
+                    cache.1 = kurashi_launcher::commands::COMMANDS
+                        .iter()
+                        .filter_map(|(id, _)| {
+                            doc["strings"][format!("action.{id}")]
+                                .as_str()
+                                .map(|t| ((*id).to_owned(), t.to_owned()))
+                        })
+                        .collect();
+                    cache.0 = rev;
+                }
+            }
+            let names = cache.1.clone();
+            drop(cache);
+            let label = |id: &str| names.get(id).cloned().unwrap_or_else(|| id.to_owned());
+            let registered = |id: &str| actions.contains(id);
+            return kurashi_launcher::commands::command_rows(rest, &label, &registered);
         }
         let calc = kurashi_launcher::calc::eval(q)
             .map(|v| {
@@ -492,25 +521,48 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                             "generic": q.trim(), "icon": null, "kind": "calc", "score": 1.0}),
                 )
             });
+        // Last, the web search row (I126), unless `launcher.web_search` is empty.
+        let template = store
+            .as_ref()
+            .and_then(|c| c.get("launcher.web_search", None))
+            .and_then(|p| p.value.as_str().map(String::from))
+            .unwrap_or_default();
         calc.into_iter()
             .chain(
                 l.query(q, 30)
                     .into_iter()
                     .filter_map(|r| serde_json::to_value(r).ok()),
             )
+            .chain(kurashi_launcher::commands::web_row(q, &template))
             .collect()
     });
     daemon.queries.insert("launcher".into(), query);
+    let run_actions = daemon.actions.clone();
     daemon.actions.register(
         "launcher.launch",
         "action.launcher.launch",
         move |args: Value| {
             let launcher = launcher.clone();
+            let actions = run_actions.clone();
             async move {
                 let id = args["id"]
                     .as_str()
                     .ok_or_else(|| ActionError::Invalid("launcher.launch needs id".into()))?
                     .to_string();
+                // A `>` command runs its action; the web row opens its address in the default browser.
+                if let Some(action) = id.strip_prefix("cmd:") {
+                    return actions.invoke(action, json!({})).await;
+                }
+                if let Some(url) = id.strip_prefix("web:") {
+                    return tokio::process::Command::new("xdg-open")
+                        .arg(url)
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null())
+                        .spawn()
+                        .map(|_| Some(json!({"opened": url})))
+                        .map_err(|e| ActionError::Unavailable(format!("xdg-open: {e}")));
+                }
                 let files: Vec<String> = args["files"]
                     .as_array()
                     .map(|a| {
