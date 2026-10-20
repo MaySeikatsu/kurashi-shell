@@ -175,3 +175,100 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
         _ => None,
     }
 }
+
+/// Names of the decor packs that have a recipe, in the order Settings shows them.
+pub const DECORS: [&str; 4] = ["sekai", "glass", "terminal", "washi"];
+
+/// What a decor would look like (K45, I104): the tokens a preview card draws, resolved from the
+/// pack's recipe alone — the user's own values left out, so the card shows the pack itself. The
+/// font is the first installed family of the pack's chain (Shōjiki). `None` for no recipe.
+pub fn decor_preview(name: &str, fonts: &dyn FontProvider) -> Option<serde_json::Value> {
+    use serde_json::{Value, json};
+    let recipe = decor_recipe(name)?;
+    let mut input = ThemeInput::default();
+    for (key, v) in &recipe {
+        let s = v.as_str().unwrap_or_default();
+        let f = v.as_f64().unwrap_or_default();
+        match *key {
+            "theme.colors.palette" => input.source = Source::Palette(s.into()),
+            "theme.colors.scheme" => {
+                input.scheme = if s == "light" {
+                    Scheme::Light
+                } else {
+                    Scheme::Dark
+                }
+            }
+            "theme.chrome" => {
+                input.axes.chrome = match s {
+                    "keycap" => Chrome::Keycap,
+                    "soft" => Chrome::Soft,
+                    "line" => Chrome::Line,
+                    _ => Chrome::Flat,
+                }
+            }
+            "theme.material.kind" => {
+                input.axes.material = match s {
+                    "solid" => Material::Solid,
+                    "glass" => Material::Glass,
+                    _ => Material::Translucent,
+                }
+            }
+            "theme.material.opacity" => input.axes.opacity = f,
+            "theme.shape.corners" => {
+                input.axes.shape = match s {
+                    "none" => Shape::None,
+                    "squircle" => Shape::Squircle,
+                    _ => Shape::Rounded,
+                }
+            }
+            "theme.shape.radius_scale" => input.axes.radius_scale = f,
+            "theme.typography.family" => {
+                input.axes.font_chain = v
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            }
+            _ => {}
+        }
+    }
+    let t = resolve(&input, fonts).ok()?.tokens;
+    let keys = [
+        "color.surface",
+        "color.surface_container",
+        "color.surface_container_high",
+        "color.on_surface",
+        "color.on_surface_variant",
+        "color.accent",
+        "color.on_accent",
+        "color.selected",
+        "color.secondary",
+        "color.tertiary",
+        "color.surface_alpha",
+        "chrome.style",
+        "chrome.outline",
+        "chrome.ring",
+        "chrome.shadow",
+        "chrome.soft",
+        "chrome.soft_dy",
+        "chrome.line",
+        "chrome.ring_color",
+        "chrome.outline_color",
+        "chrome.outline_alpha",
+        "chrome.soft_color",
+        "chrome.soft_alpha",
+        "radius.sm",
+        "radius.lg",
+        "font.family",
+        "font.weight.bold",
+    ];
+    let tokens: serde_json::Map<String, Value> = keys
+        .iter()
+        .filter_map(|k| t.get(*k).map(|v| ((*k).to_owned(), v.clone())))
+        .collect();
+    Some(json!({ "name": name, "tokens": tokens }))
+}
+
