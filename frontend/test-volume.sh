@@ -44,6 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
+rm -rf "$R/xdg"   # hermetic: the left-edge phase stores bar.edge, which a rerun would otherwise start with
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
