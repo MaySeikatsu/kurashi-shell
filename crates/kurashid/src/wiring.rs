@@ -510,8 +510,13 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                             .collect()
                     })
                     .unwrap_or_default();
-                if let Some(value) = id.strip_prefix("calc:").or_else(|| id.strip_prefix("emoji:")) {
-                    return copy_text(value).await.map(|_| Some(json!({"copied": value})));
+                if let Some(value) = id
+                    .strip_prefix("calc:")
+                    .or_else(|| id.strip_prefix("emoji:"))
+                {
+                    return copy_text(value)
+                        .await
+                        .map(|_| Some(json!({"copied": value})));
                 }
                 if let Some(line) = id.strip_prefix("clip:") {
                     return copy_clip(line).await.map(|_| Some(json!({"copied": line})));

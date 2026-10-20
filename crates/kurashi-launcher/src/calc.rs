@@ -33,7 +33,9 @@ pub fn format(v: f64) -> String {
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
-const FUNCS: [&str; 9] = ["sqrt", "sin", "cos", "tan", "ln", "log", "abs", "pi", "round"];
+const FUNCS: [&str; 9] = [
+    "sqrt", "sin", "cos", "tan", "ln", "log", "abs", "pi", "round",
+];
 
 fn eval_expr(s: &str) -> Option<f64> {
     let toks: Vec<char> = s

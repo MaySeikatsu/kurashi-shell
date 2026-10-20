@@ -17,7 +17,9 @@ struct Emoji {
 
 fn emoji() -> &'static [Emoji] {
     static LIST: OnceLock<Vec<Emoji>> = OnceLock::new();
-    LIST.get_or_init(|| serde_json::from_str(include_str!("../data/emoji.json")).unwrap_or_default())
+    LIST.get_or_init(|| {
+        serde_json::from_str(include_str!("../data/emoji.json")).unwrap_or_default()
+    })
 }
 
 /// Emoji whose name or keys contain every word of `q` (all of them for an empty `q`), at most `limit`.
