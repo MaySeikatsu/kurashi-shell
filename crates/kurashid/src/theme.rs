@@ -154,6 +154,22 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     }
 }
 
+/// `decors` (K45, I104): each decor pack's own look, for Settings' preview cards. Recipes and the
+/// installed fonts do not change while the daemon runs, so they are resolved once.
+fn decor_previews(fonts: &dyn FontProvider) -> Value {
+    static PREVIEWS: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
+    PREVIEWS
+        .get_or_init(|| {
+            Value::Array(
+                kurashi_theme::DECORS
+                    .iter()
+                    .filter_map(|n| kurashi_theme::decor_preview(n, fonts))
+                    .collect(),
+            )
+        })
+        .clone()
+}
+
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
@@ -186,7 +202,7 @@ pub fn document_with(
             if waiting {
                 notes.push(json!({"stage": "source", "text": "theme.note.wallpaper_waiting"}));
             }
-            json!({"tokens": tokens, "notes": notes})
+            json!({"tokens": tokens, "notes": notes, "decors": decor_previews(fonts)})
         }
         Err(e) => {
             tracing::warn!(error = %e, "theme resolution failed; keeping previous theme");

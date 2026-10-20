@@ -1,6 +1,7 @@
 //! Inline calculator for the launcher's query (Capsule's launcher, session 9): `2^8`, `15% of 2500`,
 //! `sqrt(2)*pi`, `(3+4)/2`. A query that is not arithmetic, or has no operator or function at all (a
-//! bare number), is not a calculation: apps keep the list.
+//! bare number), is not a calculation: apps keep the list. Unit conversions (Capsule, I105):
+//! `10 km to mi`, `72 f in c`, `1.5 GiB to MB`, `3h to min`.
 
 /// The value of `q` when it is a calculation, else `None`.
 pub fn eval(q: &str) -> Option<f64> {
@@ -160,6 +161,142 @@ impl Parser<'_> {
     }
 }
 
+/// Kinds of quantity a conversion stays within.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Dim {
+    Length,
+    Mass,
+    Volume,
+    Time,
+    Data,
+    Speed,
+    Temp,
+}
+
+/// Unit names (lower case; the first name is how a result is shown) and their factor to the base unit
+/// of their kind. Temperatures convert through `temp_*` instead.
+const UNITS: &[(&[&str], Dim, f64)] = &[
+    (&["m", "meter", "meters", "metre", "metres"], Dim::Length, 1.0),
+    (&["km", "kilometer", "kilometers"], Dim::Length, 1000.0),
+    (&["cm"], Dim::Length, 0.01),
+    (&["mm"], Dim::Length, 0.001),
+    (&["mi", "mile", "miles"], Dim::Length, 1609.344),
+    (&["yd", "yard", "yards"], Dim::Length, 0.9144),
+    (&["ft", "foot", "feet"], Dim::Length, 0.3048),
+    (&["in", "inch", "inches"], Dim::Length, 0.0254),
+    (&["nmi"], Dim::Length, 1852.0),
+    (&["kg", "kilo", "kilos"], Dim::Mass, 1.0),
+    (&["g", "gram", "grams"], Dim::Mass, 0.001),
+    (&["mg"], Dim::Mass, 1e-6),
+    (&["t", "tonne", "tonnes"], Dim::Mass, 1000.0),
+    (&["lb", "lbs", "pound", "pounds"], Dim::Mass, 0.453_592_37),
+    (&["oz", "ounce", "ounces"], Dim::Mass, 0.028_349_523_125),
+    (&["l", "liter", "liters", "litre", "litres"], Dim::Volume, 1.0),
+    (&["ml"], Dim::Volume, 0.001),
+    (&["gal", "gallon", "gallons"], Dim::Volume, 3.785_411_784),
+    (&["cup", "cups"], Dim::Volume, 0.236_588_236_5),
+    (&["s", "sec", "secs", "second", "seconds"], Dim::Time, 1.0),
+    (&["ms"], Dim::Time, 0.001),
+    (&["min", "mins", "minute", "minutes"], Dim::Time, 60.0),
+    (&["h", "hr", "hrs", "hour", "hours"], Dim::Time, 3600.0),
+    (&["d", "day", "days"], Dim::Time, 86400.0),
+    (&["wk", "week", "weeks"], Dim::Time, 604_800.0),
+    (&["b", "byte", "bytes"], Dim::Data, 1.0),
+    (&["kb"], Dim::Data, 1e3),
+    (&["mb"], Dim::Data, 1e6),
+    (&["gb"], Dim::Data, 1e9),
+    (&["tb"], Dim::Data, 1e12),
+    (&["kib"], Dim::Data, 1024.0),
+    (&["mib"], Dim::Data, 1_048_576.0),
+    (&["gib"], Dim::Data, 1_073_741_824.0),
+    (&["tib"], Dim::Data, 1_099_511_627_776.0),
+    (&["m/s"], Dim::Speed, 1.0),
+    (&["km/h", "kmh", "kph"], Dim::Speed, 1.0 / 3.6),
+    (&["mph"], Dim::Speed, 0.44704),
+    (&["kn", "knot", "knots"], Dim::Speed, 0.514_444),
+    (&["c", "°c", "celsius"], Dim::Temp, 0.0),
+    (&["f", "°f", "fahrenheit"], Dim::Temp, 1.0),
+    (&["k", "kelvin"], Dim::Temp, 2.0),
+];
+
+fn unit(name: &str) -> Option<(&'static str, Dim, f64)> {
+    let n = name.trim();
+    // Data units keep their case meaning loosely (MB = megabyte); everything else is lower case.
+    let lower = n.to_lowercase();
+    UNITS
+        .iter()
+        .find(|(names, _, _)| names.contains(&lower.as_str()))
+        .map(|(names, d, f)| (names[0], *d, *f))
+}
+
+fn to_celsius(v: f64, which: f64) -> f64 {
+    match which as i32 {
+        1 => (v - 32.0) * 5.0 / 9.0,
+        2 => v - 273.15,
+        _ => v,
+    }
+}
+
+fn from_celsius(c: f64, which: f64) -> f64 {
+    match which as i32 {
+        1 => c * 9.0 / 5.0 + 32.0,
+        2 => c + 273.15,
+        _ => c,
+    }
+}
+
+/// `q` as a unit conversion — `<amount> <unit> to|in|-> <unit>` — the converted value and the target
+/// unit's name as shown (`"mi"`, `"°F"`…); `None` for anything else or units of different kinds.
+pub fn convert(q: &str) -> Option<(f64, String)> {
+    let lower = q.trim().to_lowercase();
+    let (lhs, target) = [" to ", " in ", " -> ", " → ", " as "]
+        .iter()
+        .find_map(|sep| lower.split_once(sep))?;
+    let lhs = lhs.trim();
+    // Split the amount from its unit: the unit is the trailing run of letters, `/`, `°`.
+    let cut = lhs
+        .char_indices()
+        .rev()
+        .take_while(|(_, c)| c.is_alphabetic() || *c == '/' || *c == '°')
+        .last()
+        .map(|(i, _)| i)?;
+    let (amount, from) = lhs.split_at(cut);
+    let amount = amount.trim();
+    let v = amount
+        .parse::<f64>()
+        .ok()
+        .or_else(|| eval_expr(amount))?;
+    let (_, fd, ff) = unit(from)?;
+    let (tname, td, tf) = unit(target)?;
+    if fd != td {
+        return None;
+    }
+    let out = if fd == Dim::Temp {
+        from_celsius(to_celsius(v, ff), tf)
+    } else {
+        v * ff / tf
+    };
+    let shown = match tname {
+        "c" => "°C".to_owned(),
+        "f" => "°F".to_owned(),
+        "k" => "K".to_owned(),
+        "kb" | "mb" | "gb" | "tb" => tname.to_uppercase(),
+        "kib" | "mib" | "gib" | "tib" => format!("{}iB", tname[..1].to_uppercase()),
+        "b" => "B".to_owned(),
+        other => other.to_owned(),
+    };
+    out.is_finite().then_some((out, shown))
+}
+
+/// `v` rounded for a conversion row: up to 4 decimals, more only for tiny values.
+pub fn format_unit(v: f64) -> String {
+    if v != 0.0 && v.abs() < 0.001 {
+        return format!("{v:.3e}");
+    }
+    let s = format!("{v:.4}");
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,5 +330,21 @@ mod tests {
         assert_eq!(format(256.0), "256");
         assert_eq!(format(1.0 / 3.0), "0.3333333333");
         assert_eq!(format(-2.5), "-2.5");
+    }
+
+    #[test]
+    fn unit_conversions() {
+        let c = |q: &str| convert(q).map(|(v, u)| format!("{} {u}", format_unit(v)));
+        assert_eq!(c("10 km to mi").as_deref(), Some("6.2137 mi"));
+        assert_eq!(c("72 f in c").as_deref(), Some("22.2222 °C"));
+        assert_eq!(c("100c to f").as_deref(), Some("212 °F"));
+        assert_eq!(c("1.5 GiB to MB").as_deref(), Some("1610.6127 MB"));
+        assert_eq!(c("3h to min").as_deref(), Some("180 min"));
+        assert_eq!(c("5 kg in lb").as_deref(), Some("11.0231 lb"));
+        assert_eq!(c("100 km/h to mph").as_deref(), Some("62.1371 mph"));
+        assert_eq!(c("2*3 m to ft").as_deref(), Some("19.685 ft"));
+        assert_eq!(c("5 kg to m"), None);
+        assert_eq!(c("open to do"), None);
+        assert_eq!(c("firefox"), None);
     }
 }
