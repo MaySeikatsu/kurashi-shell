@@ -334,3 +334,16 @@ Chromium's sandboxed zygote (it runs in its own empty network namespace) — the
 children (they inherit the namespace); the host card amends K37 instead (row 94). Spike files:
 `archive/spikes/webengine-phase0/`. *Why:* the host reuses kurashi's QML kit, Store/Theme/I18n and IPC client; the
 alternative (a C++ host) duplicates them for a two-line patch.
+
+**K40** 🟢 Web dock hover, sizes and web rules (user review, session 8, 2026-10-20; `docs/ux/webdock.md` "User
+decisions (session 8)", CONTRACT rows 88, 109–111). A rest on the edge reveals the strip **and the last page**
+(`reopen_last`, on); a click on the shown pin's icon puts the page away; a click into the dock keeps it until keyboard
+focus leaves. Reveal 250 ms (500 ms on an edge shared with another output), hide 400 ms with 24 px grace — **driven by a
+daemon state machine** fed `webdock.hover`/`webdock.engage` by the shell and the host, never by raw enter/leave in a
+view (Firefox bug 2054033: a hover sidebar stuck open after rapid enter/leave). Strip 56 px, phone 412 × ≤ 2× width,
+large 90 %; pinned overlays, *reserve space* optional and strip-only; `Mod+B` via Home-Manager; kurashi views = mod
+panels. **New tabs stay in the dock** (`new_tabs = dock`, the link loads in the pin's own view and Back returns), a
+setting sends them to the default browser instead — the user's call over the brief's "new tabs to the browser"; the
+header gains forward, a home button once the page left the pin's address, and "replace pin with this page"
+(`webdock.retarget`, a settings write). The shell's parts come from a new provide kind `surface:<name>` (row 88). The
+accent-colour design pass (I51/I63) stays separate.
