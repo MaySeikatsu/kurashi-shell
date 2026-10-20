@@ -111,3 +111,15 @@
 "mods.webdock.new_tabs.help" = "ドック内：リンクがページを置き換え、「戻る」で戻ります。ブラウザ：既定のブラウザで開きます。"
 "mods.webdock.new_tabs.dock" = "ドック内"
 "mods.webdock.new_tabs.browser" = "ブラウザ"
+
+# ホバー、フォーカス、ピンの操作 (K40、W20-webdock-daemon) と、追加・差し替えのアドレスの拒否。
+"webdock.error.address" = "アドレスはウェブのページにしてください (https、http、file)"
+"action.webdock.hover" = "ポインターがドックの端、ストリップ、カードに入った、または出た"
+"action.webdock.engage" = "キーボードがドックに入った、または出た"
+"action.webdock.select" = "ピンを表示する、またはそのカードをしまう"
+"action.webdock.back" = "ドックを一段戻す (Escape)"
+"action.webdock.pin" = "ドックを開いたままにする、または隠れるままにする"
+"action.webdock.add" = "サイトをドックに追加する"
+"action.webdock.remove" = "ドックからピンを外す"
+"action.webdock.move" = "ドックのピンを動かす"
+"action.webdock.retarget" = "ピンのページをこのページに置き換える"
