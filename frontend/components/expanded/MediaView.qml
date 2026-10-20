@@ -1,6 +1,8 @@
 import QtQuick
+import Quickshell.Widgets
 import "../../core"
 import ".."
+import "../island"
 
 // The expanded view of the media face (K24; island brief 5): the art (a placeholder when there is none), title, artist
 // and album, the player switcher when several players run, the progress, the transport, the output chip (quick settings,
@@ -10,6 +12,8 @@ import ".."
 // Mod contributions (K28): `backdrop` behind the content (decorative, its contribution gates its own motion), `below`
 // under the transport (lyrics). Watches svc.media and svc.audio only while on screen (Ma); the progress timer runs only
 // while something plays and the view is shown.
+// W21 look: big rounded art beside the titles, the progress as a thick pill (a seek target only where seek is allowed),
+// keycap transport keys with the play key tonal and larger, the output as a chip with its speaker icon.
 Item {
     id: view
     width: parent.width
@@ -89,26 +93,27 @@ Item {
     Column {
         id: col
         width: view.width
-        spacing: Theme.gap
+        spacing: Theme.pad
 
         Text {
             width: view.width
-            color: Theme.fg
-            font.pixelSize: Theme.fsTitle
+            color: Theme.dim
+            font.pixelSize: Theme.fsLabel
+            font.weight: Theme.wMedium
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("island.media.heading")
         }
         StaleNote { face: "media" }
         Row {
             width: view.width
-            spacing: Theme.gap
-            Rectangle {
+            spacing: Theme.pad
+            // The art, big and rounded; a tonal tile with the note when there is none.
+            ClippingRectangle {
                 id: artBox
-                width: 56
-                height: 56
-                radius: Theme.rSm
-                color: Theme.containerHigh
-                clip: true
+                width: 96
+                height: 96
+                radius: Theme.rLg
+                color: Theme.selected
                 Accessible.role: Accessible.Graphic
                 Accessible.name: I18n.tr("island.media.art")
                 Image {
@@ -116,21 +121,24 @@ Item {
                     anchors.fill: parent
                     visible: status === Image.Ready
                     // Decoded at display size (2x for a sharp edge), not at the cover's own size.
-                    sourceSize: Qt.size(112, 112)
+                    sourceSize: Qt.size(192, 192)
                     source: view.idle ? "" : (view.d.art_url ?? "")
                     asynchronous: true
                     fillMode: Image.PreserveAspectCrop
                 }
-                Text {
+                Icon {
                     anchors.centerIn: parent
                     visible: art.status !== Image.Ready
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsTitle + 4
-                    text: "♪"
+                    name: "music_note"
+                    glyph: "♪"
+                    filled: true
+                    size: 44
+                    color: Theme.fgOnSelected
                 }
             }
             Column {
-                width: view.width - artBox.width - Theme.gap
+                width: view.width - artBox.width - Theme.pad
+                anchors.verticalCenter: parent.verticalCenter
                 spacing: Theme.xs
                 Text {
                     width: parent.width
@@ -138,8 +146,8 @@ Item {
                     maximumLineCount: 2
                     elide: Text.ElideRight
                     color: view.idle ? Theme.dim : Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.bold: !view.idle
+                    font.pixelSize: Theme.fsTitle
+                    font.weight: view.idle ? Theme.wRegular : Theme.wBold
                     font.family: Theme.fam(text, Theme.families)
                     text: view.idle ? (view.unavailable ? "" : I18n.tr("island.media.idle")) : (view.d.title ?? "")
                 }
@@ -147,8 +155,8 @@ Item {
                     visible: !view.idle && (view.d.artist ?? "") !== ""
                     width: parent.width
                     elide: Text.ElideRight
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
+                    color: Theme.fg
+                    font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
                     text: view.d.artist ?? ""
                 }
@@ -161,26 +169,32 @@ Item {
                     font.family: Theme.fam(text, Theme.families)
                     text: view.d.album ?? ""
                 }
+                LevelBars {
+                    visible: !view.idle
+                    running: view.playing && view.visible
+                    maxH: 12
+                }
             }
         }
 
-        // The players, when several run: the active one is outlined, a playing one carries ▶. Pick one to control it.
+        // The players, when several run: the active one is tonal, a playing one carries ▶. Pick one to control it.
         Flow {
             visible: view.players.length > 1
             width: view.width
             spacing: Theme.gap
             Repeater {
                 model: view.players
-                delegate: Rectangle {
+                delegate: Block {
                     id: chip
                     required property var modelData
                     readonly property bool active: modelData.active === true
                     implicitWidth: label.implicitWidth + 2 * Theme.pad
-                    implicitHeight: Theme.controlH - 6
+                    implicitHeight: Theme.controlH - 6 + Theme.shadowDy
                     radius: Theme.rFull
-                    color: active ? Theme.containerHigh : "transparent"
-                    border.width: 1
-                    border.color: active ? Theme.accent : Theme.outline
+                    ringScale: 0.5
+                    fill: active ? Theme.selected : Theme.container
+                    flatBorder: active ? "transparent" : Theme.outline
+                    pressed: chipTap.pressed
                     activeFocusOnTab: true
                     Keys.onReturnPressed: view.selectPlayer(modelData.id)
                     Keys.onEnterPressed: view.selectPlayer(modelData.id)
@@ -192,64 +206,82 @@ Item {
                     Text {
                         id: label
                         anchors.centerIn: parent
-                        color: chip.active ? Theme.fg : Theme.dim
+                        color: chip.active ? Theme.fgOnSelected : Theme.dim
                         font.pixelSize: Theme.fsCaption
+                        font.weight: chip.active ? Theme.wMedium : Theme.wRegular
                         font.family: Theme.fam(text, Theme.families)
                         text: (modelData.playing === true ? "▶ " : "") + (modelData.name ?? "")
                     }
-                    MouseArea { anchors.fill: parent; onClicked: view.selectPlayer(modelData.id) }
-                    FocusRing { anchors.fill: parent; shown: chip.activeFocus; corner: chip.radius }
+                    MouseArea { id: chipTap; anchors.fill: parent; onClicked: view.selectPlayer(modelData.id) }
+                    FocusRing { parent: chip.face; anchors.fill: parent; shown: chip.activeFocus; corner: Theme.rFull }
                 }
             }
         }
 
-        // Progress: the times at both ends and the bar between them, for a track (a length). The bar takes the seek only
-        // where the player allows it. A live stream has no progress: the reason line below says so.
-        Row {
+        // Progress: a thick pill, the times under its ends, for a track (a length). It takes a seek (click, drag, arrows)
+        // only where the player allows it. A live stream has no progress: the reason line below says so.
+        Column {
             visible: view.hasPos && view.hasLen
             width: view.width
-            spacing: Theme.gap
-            Text {
-                id: elapsed
-                width: 44
-                height: Theme.controlH
-                horizontalAlignment: Text.AlignLeft
-                verticalAlignment: Text.AlignVCenter
-                color: Theme.fg
-                font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
-                text: view.fmt(view.posUs)
+            spacing: Theme.xs
+            Item {
+                id: progress
+                width: view.width
+                height: 20
+                // While dragging, the pill shows where the release will seek to.
+                property real dragFrac: -1
+                readonly property real shownFrac: Math.max(0, Math.min(1, dragFrac >= 0 ? dragFrac : view.frac))
+                activeFocusOnTab: view.canSeek
+                Accessible.role: Accessible.Slider
+                Accessible.name: I18n.tr("island.media.position")
+                Accessible.focusable: view.canSeek
+                function seekTo(f) { view.act("media.set_position", {us: Math.round(Math.max(0, Math.min(1, f)) * view.d.length_us)}) }
+                Keys.onLeftPressed: if (view.canSeek) view.seek(-5000000)
+                Keys.onRightPressed: if (view.canSeek) view.seek(5000000)
+                Rectangle {
+                    id: track
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width
+                    height: 10
+                    radius: 5
+                    color: Qt.alpha(Theme.fg, 0.12)
+                    Rectangle {
+                        height: parent.height
+                        radius: 5
+                        width: progress.shownFrac > 0 ? Math.max(height, parent.width * progress.shownFrac) : 0
+                        color: Theme.accent
+                    }
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: view.canSeek
+                    cursorShape: view.canSeek ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onPressed: m => progress.dragFrac = m.x / width
+                    onPositionChanged: m => { if (pressed) progress.dragFrac = Math.max(0, Math.min(1, m.x / width)) }
+                    onReleased: m => { progress.seekTo(m.x / width); progress.dragFrac = -1 }
+                    onCanceled: progress.dragFrac = -1
+                }
+                FocusRing { anchors.fill: track; anchors.margins: -3; shown: progress.activeFocus; corner: 8 }
             }
-            Slider {
-                id: seekBar
-                visible: view.hasLen && view.canSeek
-                width: view.width - elapsed.width - total.width - 2 * Theme.gap
-                height: Theme.controlH
-                value: view.frac
-                a11y: I18n.tr("island.media.position")
-                // Released or keyed: one action with the new place. The drag itself only moves the knob.
-                onMoved: v => { if (!seekBar.dragging) view.act("media.set_position", {us: Math.round(v * view.d.length_us)}) }
-            }
-            Rectangle {
-                visible: view.hasLen && !view.canSeek
-                width: view.width - elapsed.width - total.width - 2 * Theme.gap
-                height: 4
-                anchors.verticalCenter: parent.verticalCenter
-                radius: 2
-                color: Theme.outline
-                Rectangle { width: parent.width * view.frac; height: parent.height; radius: 2; color: Theme.accent }
-            }
-            Text {
-                id: total
-                visible: view.hasLen
-                width: 44
-                height: Theme.controlH
-                horizontalAlignment: Text.AlignRight
-                verticalAlignment: Text.AlignVCenter
-                color: Theme.dim
-                font.pixelSize: Theme.fsCaption
-                font.family: Theme.fam(text, Theme.families)
-                text: view.fmt(view.d.length_us ?? 0)
+            Item {
+                width: view.width
+                height: elapsed.implicitHeight
+                Text {
+                    id: elapsed
+                    color: Theme.fg
+                    font.pixelSize: Theme.fsCaption
+                    font.features: { "tnum": 1 }
+                    font.family: Theme.fam(text, Theme.families)
+                    text: view.fmt(view.posUs)
+                }
+                Text {
+                    anchors.right: parent.right
+                    color: Theme.dim
+                    font.pixelSize: Theme.fsCaption
+                    font.features: { "tnum": 1 }
+                    font.family: Theme.fam(text, Theme.families)
+                    text: "−" + view.fmt(Math.max(0, (view.d.length_us ?? 0) - view.posUs))
+                }
             }
         }
         Text {
@@ -265,33 +297,46 @@ Item {
         Row {
             id: transportRow
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: Theme.gap
-            IconButton {
+            spacing: Theme.pad
+            KeyButton {
+                anchors.verticalCenter: parent.verticalCenter
                 visible: view.canSeek
+                icon: "replay_10"
                 glyph: "−10"
                 a11y: I18n.tr("island.media.seek.back")
                 onClicked: view.seek(-10000000)
             }
-            IconButton {
+            KeyButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "skip_previous"
                 glyph: "⏮"
                 a11y: I18n.tr("island.media.prev")
                 enabled: !view.idle && view.can("prev") !== false
                 onClicked: view.transport("media.prev")
             }
-            IconButton {
+            KeyButton {
+                anchors.verticalCenter: parent.verticalCenter
+                primary: true
+                side: Theme.controlH + 16
+                iconSize: Theme.fs + 18
+                icon: view.playing ? "pause" : "play_arrow"
                 glyph: view.playing ? "⏸" : "▶"
                 a11y: I18n.tr(view.playing ? "island.media.pause" : "island.media.play")
                 enabled: !view.idle && view.can(view.playing ? "pause" : "play") !== false
                 onClicked: view.transport("media.play_pause")
             }
-            IconButton {
+            KeyButton {
+                anchors.verticalCenter: parent.verticalCenter
+                icon: "skip_next"
                 glyph: "⏭"
                 a11y: I18n.tr("island.media.next")
                 enabled: !view.idle && view.can("next") !== false
                 onClicked: view.transport("media.next")
             }
-            IconButton {
+            KeyButton {
+                anchors.verticalCenter: parent.verticalCenter
                 visible: view.canSeek
+                icon: "forward_10"
                 glyph: "+10"
                 a11y: I18n.tr("island.media.seek.forward")
                 onClicked: view.seek(10000000)
@@ -301,6 +346,7 @@ Item {
             visible: view.transportReason !== ""
             width: view.width
             wrapMode: Text.WordWrap
+            horizontalAlignment: Text.AlignHCenter
             color: Theme.dim
             font.pixelSize: Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
@@ -308,12 +354,14 @@ Item {
         }
 
         // The output chip: the default output, and a click opens quick settings (its Audio section).
-        Rectangle {
+        Block {
             id: outChip
             width: view.width
-            height: Theme.controlH
+            height: Theme.controlH + Theme.shadowDy
             radius: Theme.rFull
-            color: Theme.containerHigh
+            ringScale: 0.5
+            fill: Theme.containerHigh
+            pressed: outTap.pressed
             activeFocusOnTab: true
             readonly property var sink: view.audio.sink
             readonly property string outText: view.audio.available === false ? I18n.tr("island.volume.unavailable")
@@ -324,16 +372,25 @@ Item {
             Keys.onSpacePressed: Store.act("quick.toggle")
             Accessible.role: Accessible.Button
             Accessible.name: outText
+            Icon {
+                id: spk
+                anchors { left: parent.left; leftMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+                name: "speaker"
+                glyph: "♫"
+                filled: true
+                size: Theme.fs + 4
+                color: Theme.dim
+            }
             Text {
-                anchors { left: parent.left; right: parent.right; leftMargin: Theme.pad; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+                anchors { left: spk.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
                 elide: Text.ElideRight
                 color: Theme.fg
                 font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
                 text: outChip.outText
             }
-            MouseArea { anchors.fill: parent; onClicked: Store.act("quick.toggle") }
-            FocusRing { anchors.fill: parent; shown: outChip.activeFocus; corner: Theme.rFull }
+            MouseArea { id: outTap; anchors.fill: parent; onClicked: Store.act("quick.toggle") }
+            FocusRing { parent: outChip.face; anchors.fill: parent; shown: outChip.activeFocus; corner: Theme.rFull }
         }
 
         SlotHost { slot: "media.expanded.below"; width: view.width }

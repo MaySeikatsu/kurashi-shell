@@ -1,5 +1,6 @@
 import QtQuick
 import "../../core"
+import ".."
 
 // bluetooth (K30): a device that just connected. The pill says the daemon's line for it, the device's name and its
 // battery when the device reports one (`line`); with no line it says the face's name. The name is elided, so a long
@@ -16,11 +17,12 @@ FaceBase {
         visible: !f.vertical
         anchors.centerIn: parent
         spacing: Theme.gap - 2
-        Text {
+        Icon {
             anchors.verticalCenter: parent.verticalCenter
-            color: Theme.accent
-            font.pixelSize: Theme.fs + 2
-            text: "ᛒ"
+            name: "bluetooth_connected"
+            glyph: "ᛒ"
+            size: Theme.fs + 5
+            color: Theme.secondary
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
@@ -38,11 +40,13 @@ FaceBase {
         anchors.centerIn: parent
         Accessible.role: Accessible.StaticText
         Accessible.name: f.full
-        Text {
+        Icon {
             Accessible.ignored: true
-            color: Theme.accent
-            font.pixelSize: Theme.fs + 2
-            text: "ᛒ"
+            anchors.horizontalCenter: parent.horizontalCenter
+            name: "bluetooth_connected"
+            glyph: "ᛒ"
+            size: Theme.fs + 3
+            color: Theme.secondary
         }
     }
 }

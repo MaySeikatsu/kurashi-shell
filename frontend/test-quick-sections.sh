@@ -224,7 +224,9 @@ WIFI_ARROW=(184 186)
 HEADING=(116 76)       # the greeting row
 BACK=(54 82)          # the page header's round back key
 MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
-MEDIA_FROM_BOTTOM=147   # and 147 px above the card's bottom edge: the rows above it differ by locale (the status line wraps), the footer does not
+# and 92 px above the phone screen's bottom edge (W21-island-morph: the phone is its own chrome, the Stage draws no card and
+# no Close row under it any more): the rows above it differ by locale (the status line wraps), the footer does not
+MEDIA_FROM_BOTTOM=92
 
 : > "$R/qs.log"
 : > "$R/server.log"

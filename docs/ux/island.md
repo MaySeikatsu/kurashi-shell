@@ -94,3 +94,43 @@ a stale hour, the secondary glyph and the "+N" overflow stack under it. Text nev
 widgets that fit and hides the rest from the end with a count; on a 720 px tall output with mods on, the clock and the
 quick-settings button hide before the mod widgets (list order is hide order — a priority is a design call).
 
+
+## Session 9 morph (W21, K42)
+The user: "ours is kinda stiff and non functional". What the references solved, copied rather than reinvented:
+- **One shape (Capsule, `capsule/animator.rs`)**: the island never hands over to a second card. Under a top or bottom bar the
+  Stage draws one shape (`components/island/MorphShape.qml`) that starts at the bar pill's exact rect (each Island reports
+  it to `IslandGeom`) and springs to the card's rect. Width and height have their own springs (`Theme.spring/damping`
+  scaled): on the way out width leads and height follows, on the way back height leads (Capsule's
+  `apple_island_morph_with_bounciness`). A spring past its target is soft-limited to 8 % so the shape stays inside the
+  Stage's slack. Retargets (reopen while folding) keep position and velocity. While the shape is out the bar's pill is not
+  drawn (`IslandGeom.takenOn`): one island on screen; it is handed back one beat before the shape goes, so there is never
+  none.
+- **Top stays put**: the shape's top stays where the pill's was, inside the bar; the pill's face stays in the shape's head
+  (`CompactFace`, same face component) and moves to the card's centre as it widens. The view's content sits where it always
+  did (past the bar), fades in (+ scale 0.98 → 1, 160 ms) once the shape has nearly grown and fades out first (90 ms);
+  the view is cut to the shape while it moves, never spilling out.
+- **Liquid neck (Vitreus)**: where the shape's sides cross the bar's edge, concave fillets of up to `Theme.rLg`, in the
+  shape's own colours, join it to the bar; under keycap chrome the outline and ring follow the fillets and melt into
+  the bar's edge, the hard shadow is the body's only (it never runs along the bar). Only where the bar draws a strip:
+  keycap chrome floats the bar's groups on a clear strip (Bar.qml), so there the card is a free keycap with no neck.
+- **Views with their own chrome** (`ownChrome`, the quick settings phone, also the power and bluetooth faces' pages): no
+  card fill, padding or Close row; the shape grows to the phone's rect, dissolves into it, and the bar gets its pill back
+  while the phone stands; closing brings the shape back to fold into the pill.
+- **Chrome**: flat = fill + `Theme.outline` hairline; keycap = Block's outline, ring (from half the token ring at pill size
+  to full at card size) and hard shadow. The pill itself is a `Block` (`ringScale` 0.5) whose size follows a spring, and
+  grows a few px under the pointer with the peek.
+- **Faces**: a face change cross-fades + rises in (Capsule FadeScale); the old one is swallowed (shrinks and lifts,
+  SekaiPop). Clock: the time flips digit by digit on the minute (`FlipText`, driven by svc.clock, no timer). Media: level
+  bars beside the title while playing (`LevelBars`, 10 Hz steps only while playing, live and motion on; decorative, there
+  is no audio level). Volume/brightness: a thick level bar that fills from empty and springs to each level (`LevelMeter`).
+  Icons via `Icon.qml` (Material Symbols) with the old glyphs as fallback.
+- **Expanded views**: keycap keys (`KeyButton`, tonal `Theme.selected` for the primary one, never an accent fill),
+  media with big rounded art, a thick progress pill (a seek target only where seek is allowed) and a larger tonal play key;
+  clock grid cells as small blocks with today lit in the accent and the selected day tonal; device rows tonal with a check;
+  do-not-disturb and night light on plates.
+- **Ma**: nothing animates while hidden; the springs run only during a morph; `Theme.springOn` false snaps (shape, pill,
+  meter, flip). Side bars keep the slide-out.
+- **Cost**: the Stage covers the bar's strip (barH px) above the card while the island's card is shown (content-sized
+  otherwise, K16); one extra face instance in the shape's head while it is out.
+Evidence: `frontend/test-island-morph.sh` (frames 40/120/250 ms after `island.expand` and `ui.close`, sekai, wa-iro and a
+bottom bar) → `frontend/shots/island/morph-*.png`.

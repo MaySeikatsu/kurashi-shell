@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import ".."
+import "../island"
 
 // The expanded view of the notifications face (K24; island brief 5): the list grouped by app (the group of the newest
 // note first; ongoing notes first inside a group), each note with its actions and its dismiss, Clear all, and do not
@@ -63,8 +64,11 @@ Column {
             font.family: Theme.fam(text, Theme.families)
             text: I18n.tr("notifications.center.title")
         }
-        Button {
+        KeyButton {
             id: clearAll
+            side: 28
+            icon: "clear_all"
+            iconSize: Theme.fs + 4
             label: I18n.tr("island.notifications.clear")
             enabled: view.items.length > 0
             onClicked: view.act("notify.dismiss", {}, "island.notifications.failed")
@@ -73,9 +77,17 @@ Column {
     StaleNote { face: "notifications" }
 
     // Do not disturb: the switch is the state (the daemon's), the caption says until when. Off, a one-hour choice.
+    // W21: on a plate, tonal (Theme.selected) while do-not-disturb is on.
+    Rectangle {
+        width: view.width
+        height: dndRow.height + 2 * Theme.gap
+        radius: Theme.rLg
+        color: view.dnd ? Theme.selected : Theme.containerHigh
     Row {
         id: dndRow
-        width: view.width
+        x: Theme.pad
+        y: Theme.gap
+        width: view.width - 2 * Theme.pad
         spacing: Theme.gap
         ToggleSwitch {
             id: dndSwitch
@@ -85,7 +97,7 @@ Column {
             onToggled: on => view.setDnd(on)
         }
         Column {
-            width: view.width - dndSwitch.width - (hourBtn.visible ? hourBtn.width + Theme.gap : 0) - Theme.gap
+            width: dndRow.width - dndSwitch.width - (hourBtn.visible ? hourBtn.width + Theme.gap : 0) - Theme.gap
             spacing: 0
             Text {
                 width: parent.width
@@ -104,13 +116,17 @@ Column {
                 text: view.dndText
             }
         }
-        Button {
+        KeyButton {
             id: hourBtn
             anchors.verticalCenter: parent.verticalCenter
+            side: 28
+            icon: "timer"
+            iconSize: Theme.fs + 4
             visible: !view.dnd
             label: I18n.tr("island.notifications.dnd.hour")
             onClicked: view.setDndHour()
         }
+    }
     }
 
     // K28: a mod's header row (a focus or DND schedule); nothing when no mod contributes.
@@ -169,7 +185,10 @@ Column {
         font.family: Theme.fam(text, Theme.families)
         text: view.errText
     }
-    Button {
+    KeyButton {
+        side: 28
+        icon: "notifications"
+        iconSize: Theme.fs + 4
         label: I18n.tr("island.notifications.all")
         onClicked: Store.act("notifications.center")
     }

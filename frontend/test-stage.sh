@@ -132,6 +132,20 @@ for y in range(Y0, min(Y1, h)):
             n += 1
             x0, x1 = min(x0, x), max(x1, x)
             y0, y1 = min(y0, y), max(y1, y)
+# The card's width is the most common extent of its rows (W21): an island card grown out of the bar is joined to it by a
+# neck whose fillets widen the surface's top rows, so the full bounding box is wider than the card; rows that cross
+# content (a notification, a slider) are rarer than the rows of the card's own padding.
+if n:
+    seen = {}
+    for y in range(y0, y1 + 1, 2):
+        row = y * w * 3
+        xs = [x for x in range(X0, min(X1, w))
+              if abs(raster[row + x * 3] - SURFACE[0]) <= TOL and abs(raster[row + x * 3 + 1] - SURFACE[1]) <= TOL
+              and abs(raster[row + x * 3 + 2] - SURFACE[2]) <= TOL]
+        if xs:
+            seen[(xs[0], xs[-1])] = seen.get((xs[0], xs[-1]), 0) + 1
+    if seen:
+        x0, x1 = max(seen, key=seen.get)
 print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
 PY
 analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
@@ -197,7 +211,10 @@ start_frontend
 
 # Face (and the card width its expanded view asks for). `weather` is no island face: the generic card.
 # power and bluetooth open the quick card's Power and Bluetooth pages (I44) in the quick card's 400 px width (row 79).
-for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:400 bluetooth:400 weather:360; do
+# The quick card is a phone that draws its own chrome (W21-phone, `ownChrome`): the Stage draws no card round it, and the
+# container-coloured part is the phone's screen inside its frame, PHONE_W - 2 px wide (W21-island-morph).
+PHONE_W=386
+for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:$PHONE_W bluetooth:$PHONE_W weather:360; do
   face=${spec%%:*}
   width=${spec##*:}
   K mock face "$face" >/dev/null
@@ -212,7 +229,7 @@ done
 
 K act quick.toggle >/dev/null
 ppm_shot quick 2.5
-open_card quick quick "" 400
+open_card quick quick "" "$PHONE_W"
 # Keyboard (docs/ux/quick-settings.md): a click on the card's inert left padding gives the Stage its keyboard focus;
 # Tab five times reaches the Bluetooth tile (three status segments, then the Wi-Fi tile), Enter toggles it, so the mock's
 # adapter goes off.
@@ -463,7 +480,7 @@ card_on() {
   timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
   res=$(analyse "$2") || fail "$2: analysis failed"
   echo "$2 on $1: $res"
-  jq -e '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4
+  jq -e --argjson w "$PHONE_W" '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
       and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
     || fail "$2: no quick card of width 400 centred on $1 ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
