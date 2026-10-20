@@ -7,7 +7,8 @@
 #   nix develop -c frontend/test-look.sh [tag] [config-toml-line ...]
 #   e.g. frontend/test-look.sh wa-iro 'theme.decor = "none"'
 #        frontend/test-look.sh sekai-dark 'theme.decor = "sekai"' 'theme.colors.scheme = "dark"'
-# LOOK_STEPS="bar island quick notif launcher session" picks steps; LOOK_EXTRA="<cmd>" runs a command (e.g.
+# LOOK_STEPS="bar island quick notif launcher session" picks steps; LOOK_LOCK=1 adds lock.png (the real daemon refuses
+# to lock without its PAM service, so the lock is shown by kurashi-mock wearing the real daemon's theme tokens); LOOK_EXTRA="<cmd>" runs a command (e.g.
 # `kurashi act webdock.open`) before a last screenshot named extra.png. Machine B: KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -27,6 +28,7 @@ R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
 cp "$BIN/kurashid" "$BIN/kurashi" "$W/"
+[ -x "$BIN/kurashi-mock" ] && cp "$BIN/kurashi-mock" "$W/"
 pids=()
 cleanup() {
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
@@ -72,6 +74,23 @@ done
 if [ -n "${LOOK_EXTRA:-}" ]; then
   KURASHI=$W/kurashi bash -c "$LOOK_EXTRA" || true
   shot extra 2
+fi
+if [ "${LOOK_LOCK:-0}" = 1 ]; then
+  K sub theme --count 0 --json | jq -c '{doc: "theme", patch: {tokens: .data.tokens}}' > "$W/theme-patch.json"
+  for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
+  for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  pids=()
+  rm -f "$KURASHI_SOCKET"
+  "$W/kurashi-mock" --outputs HEADLESS-1 --socket "$KURASHI_SOCKET" >> "$R/server.log" 2>&1 &
+  pids+=("$!")
+  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
+  K act mock.doc "$(cat "$W/theme-patch.json")" >/dev/null
+  : > "$R/server.log.lock"
+  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  pids+=("$!")
+  sleep 3
+  K act mock.doc '{"doc":"runtime.lock","patch":{"locked":true}}' >/dev/null
+  shot lock 2
 fi
 if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
   grep -E 'Error|error' "$R/qs.log" | head -20 >&2
