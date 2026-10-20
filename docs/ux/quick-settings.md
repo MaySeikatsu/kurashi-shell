@@ -71,6 +71,24 @@ for the daemon card). Per-output budget: the card lives on the one Stage (no per
 ## Later
 Edit mode UI · per-app stream routing · VPN management · hotspot · screen-share indicator (BACKLOG rows).
 
+## Session 9 phone (W21-phone, K42)
+**User:** SekaiPop's quick panel *is* a phone ("the control center is a phone"); take its design concepts. Reference:
+SekaiPop `modules/sekai/quickPanel/{QuickPanelFace,QuickToggle,VolumeSlider}.qml`, `docs/shot-quick-panel-phone.png`.
+- **The card is a phone** (`PhoneFrame`, shared with the web dock): status row beside the cut-out — the time
+  (`svc.clock`), and only what the card already watches: Do not disturb while on, the network's mark (Wi-Fi, wired,
+  VPN, radio off, not connected; nothing when NetworkManager is missing), the battery's mark and percent (nothing on a
+  desktop). Nothing is polled. Then a **greeting row** (an avatar key with the login name's letter, "Good evening" by
+  the clock's hour, the card's name), the status sentence, the **tiles as keycap pills** (Block; on = tonal
+  `color.selected`, the icon filled on an accent badge; failed = an error ring and badge; unavailable dim; forced inert),
+  the **levels as thick pills** (icon, slider, readout on one Block), the media row, the footer, the home indicator.
+- **Pages slide inside the screen** (clipped at the screen's edges) on a spring (`motion.spring.overshoot`); the page
+  header is a round back key and the title.
+- The phone is the card's own chrome: `QuickPanel.ownChrome` is true, so the Stage (W21-island-morph) skips its card
+  background for it. Icons are Material Symbols by name with the old text glyphs as the fallback (Icon.qml).
+- Keyboard, Tab order and every honesty state are unchanged (test-quick-sections is the spec; only its click points
+  moved with the layout).
+- Shots: `frontend/test-look.sh <tag>` `quick.png` in sekai and wa-iro (copies in `frontend/shots/quick/phone-*.png`).
+
 ## Lead review 1 (2026-10-10, screenshots `frontend/shots/quick-sections/`)
 Met: status sentence with live segments; six tiles with value subtitles and in-card pages (Wi-Fi with honest
 "needs password"/"not saved" refusals, Audio with outputs/inputs/per-app streams, Power with profiles, Focus with

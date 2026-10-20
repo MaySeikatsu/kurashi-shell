@@ -10,6 +10,9 @@ import "core"
 // enter and leave of that margin are the card's `webdock.hover` reports, and the window's keyboard focus gained or lost
 // its `webdock.engage`. The header holds the page's navigation and the dock's controls; the body holds one WebPage per
 // pin in `keep`. The card sends `webdock.*` actions and draws what `mod.webdock` says; it never decides a mode or a pin.
+// W21 (K42): the phone size is a phone seen from the front (PhoneFrame, the shell's own file through a link): the status
+// row (the time, the page's host), the title in a pill under it, the page, and the header's controls as a bottom bar over
+// the home indicator. The large size stays a plain card with the header on top.
 PanelWindow {
     id: card
 
@@ -51,6 +54,8 @@ PanelWindow {
     readonly property real basisH: sideways ? availH : screenH
     // Phone: `width` wide, as tall as twice that or the usable height allows, less a gap at each end (the lead's rule);
     // large: `large` % of the output's width, the usable height less a gap at each end.
+    // The phone look: the phone size drawn as a phone (the large size is a plain card).
+    readonly property bool phoneLook: !isLarge
     readonly property int cardW: isLarge ? Math.round(screenW * largePct / 100) : phoneWidth
     readonly property int cardH: Math.max(0, Math.round(isLarge ? basisH - 2 * gap : Math.min(2 * phoneWidth, basisH - 2 * gap)))
     // Where the card is in the window: a card on the right has its margin on its left (the window is card + margin wide),
@@ -87,6 +92,7 @@ PanelWindow {
     readonly property bool homeShown: !!activePage && shownTarget !== "" && !activePage.atTarget
     // The theme's motion profile: `none` (reduced motion, the accessibility axis) fades instead of sliding.
     readonly property bool moves: (Theme.tokens["motion.profile"] || "calm") !== "none"
+    readonly property bool springs: moves && Theme.springOn
     readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : Theme.quickMs
     // The distance the body slides out by, toward its edge; none when the motion is reduced.
     readonly property int away: !moves ? 0 : edge === "right" ? cardW : edge === "left" ? -cardW
@@ -256,9 +262,23 @@ PanelWindow {
         id: slideAnim
         target: card
         property: "slide"
-        duration: card.slideMs
-        easing.type: Easing.OutCubic
+        // The rise is a spring (K42: the theme's overshoot, into the margin on the strip's side); the way out has none.
+        duration: card.slideMs + (card.open && card.springs ? 60 : 0)
+        easing.type: card.open && card.springs ? Easing.OutBack : Easing.OutCubic
+        easing.overshoot: Theme.overshoot
         onStopped: if (!card.open) card.mapped = false
+    }
+    // The status row's time: the host has no svc.clock (its scope is mod.webdock, theme and i18n), so it keeps a minute
+    // clock of its own, and only while the card is mapped (Ma).
+    SystemClock {
+        id: clock
+        enabled: card.mapped && card.phoneLook
+        precision: SystemClock.Minutes
+    }
+    // The page's host name for the status row ("" for a file or an address without one).
+    function hostOf(u) {
+        var m = /^[a-z][a-z0-9+.-]*:\/\/([^\/?#:]+)/i.exec(String(u || ""))
+        return m ? m[1] : ""
     }
     Timer {
         id: tipTimer
@@ -302,14 +322,47 @@ PanelWindow {
         height: card.cardH
         opacity: card.moves ? 1 : 1 - card.slide
 
+        PhoneFrame {
+            id: phone
+            visible: card.phoneLook
+            anchors.fill: parent
+            theme: Theme
+            screenColor: Theme.container
+            statusLeft: Text {
+                height: phone.statusH
+                verticalAlignment: Text.AlignVCenter
+                text: Qt.formatTime(clock.date, "hh:mm")
+                color: Theme.fg
+                font.pixelSize: Theme.fsLabel
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+            }
+            statusRight: Text {
+                height: phone.statusH
+                width: Math.min(implicitWidth, phone.screen.width / 2 - 70)
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideLeft
+                text: card.activePage ? card.hostOf(card.activePage.engine.url) : ""
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+            }
+        }
+
         Rectangle {
             id: frame
-            anchors.fill: parent
-            radius: Theme.rLg
-            color: Theme.container
+            // Phone: the phone's screen (the status row and the home indicator are its own); large: the whole card.
+            x: card.phoneLook ? phone.screen.x : 0
+            y: card.phoneLook ? phone.screen.y : 0
+            width: card.phoneLook ? phone.screen.width : parent.width
+            height: card.phoneLook ? phone.screen.height : parent.height
+            radius: card.phoneLook ? phone.screenRadius : Theme.rLg
+            color: card.phoneLook ? "transparent" : Theme.container
             clip: true
-            // The page's corners follow the card's radius (I78): the layer is masked by the card's own rounded shape.
-            layer.enabled: true
+            // Large: the page's corners follow the card's radius (I78): the layer is masked by the card's own rounded
+            // shape. Phone: the page sits between the title and the bottom bar, clear of the screen's corners: no layer.
+            layer.enabled: !card.phoneLook
             layer.effect: MultiEffect {
                 maskEnabled: true
                 maskSource: frameMask
@@ -327,12 +380,75 @@ PanelWindow {
                 layer.enabled: true
             }
 
+            // Phone: the title in a pill under the status row (the page's title, or the pin's name), its load progress
+            // along the pill's foot. Not a control: the press that gives the card the keyboard may land on it.
+            Item {
+                id: titleBar
+                visible: card.phoneLook
+                y: phone.statusH
+                width: parent.width
+                height: card.phoneLook ? 40 : 0
+                Rectangle {
+                    visible: Theme.shadowDy > 0
+                    x: pill.x
+                    y: pill.y + Theme.shadowDy
+                    width: pill.width
+                    height: pill.height
+                    radius: height / 2
+                    color: Theme.line
+                }
+                Rectangle {
+                    id: pill
+                    x: 10
+                    y: 2
+                    width: parent.width - 20
+                    height: 32
+                    radius: height / 2
+                    color: Theme.containerHigh
+                    border.width: Theme.keycap ? Theme.outlineW : 0
+                    border.color: Theme.line
+                    clip: true
+                    Text {
+                        id: phoneTitle
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 14
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                        text: header.title
+                        color: Theme.fg
+                        font.pixelSize: Theme.fsLabel
+                        font.weight: Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        onWidthChanged: if (card.phoneLook && card.report && card.debugLog)
+                            console.log("webdock-debug title width", Math.round(width))
+                    }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: Theme.keycap ? Theme.outlineW : 0
+                        x: pill.height / 2
+                        height: 2
+                        radius: 1
+                        width: card.activePage ? (pill.width - pill.height) * card.activePage.engine.loadProgress / 100 : 0
+                        visible: !!card.activePage && card.activePage.engine.loading
+                        color: Theme.accent
+                    }
+                }
+            }
+
             Item {
                 id: header
-                anchors.top: parent.top
+                // A y, not switching anchors: a top anchor and a bottom anchor swapped in one change stretched the bar
+                // (both held for a moment) after a large-to-phone switch.
+                y: card.phoneLook ? parent.height - phone.homeH - height : 0
                 anchors.left: parent.left
                 anchors.right: parent.right
-                height: 36
+                height: card.phoneLook ? 40 : 36
+                // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
+                readonly property int count: 7 + (card.homeShown ? 1 : 0)
+                readonly property real spread: card.phoneLook
+                    ? Math.max(0, (width - 2 * 12 - count * 26) / (count - 1)) : 0
 
                 readonly property var page: card.activePage
                 readonly property string title: (page && page.engine.title) ? page.engine.title
@@ -348,11 +464,13 @@ PanelWindow {
                 Row {
                     id: nav
                     anchors.left: parent.left
-                    anchors.leftMargin: 4
+                    anchors.leftMargin: card.phoneLook ? 12 : 4
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: header.spread
                     HostButton {
                         id: back
                         glyph: "‹"
+                        icon: "arrow_back_ios_new"
                         a11y: I18n.tr("webdock.nav.back")
                         enabled: !!(header.page && header.page.engine.canGoBack)
                         tipFn: card.tipFor
@@ -361,6 +479,7 @@ PanelWindow {
                     HostButton {
                         id: forward
                         glyph: "›"
+                        icon: "arrow_forward_ios"
                         a11y: I18n.tr("webdock.nav.forward")
                         enabled: !!(header.page && header.page.engine.canGoForward)
                         tipFn: card.tipFor
@@ -370,6 +489,7 @@ PanelWindow {
                 // The title comes first: it keeps what the controls leave (at 360 px, 120 px at least; I78).
                 Text {
                     id: titleText
+                    visible: !card.phoneLook
                     anchors.left: nav.right
                     anchors.leftMargin: 6
                     anchors.right: tools.left
@@ -380,17 +500,20 @@ PanelWindow {
                     color: Theme.fg
                     font.pixelSize: Theme.fsLabel
                     font.family: Theme.fam(text, Theme.families)
-                    onWidthChanged: if (card.report && card.debugLog) console.log("webdock-debug title width", Math.round(width))
+                    onWidthChanged: if (!card.phoneLook && card.report && card.debugLog)
+                        console.log("webdock-debug title width", Math.round(width))
                 }
                 Row {
                     id: tools
                     anchors.right: parent.right
-                    anchors.rightMargin: 4
+                    anchors.rightMargin: card.phoneLook ? 12 : 4
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: header.spread
                     HostButton {
                         id: home
                         visible: card.homeShown
                         glyph: "⌂"
+                        icon: "home"
                         a11y: I18n.tr("webdock.nav.home")
                         tipFn: card.tipFor
                         onClicked: card.goHome()
@@ -398,6 +521,7 @@ PanelWindow {
                     HostButton {
                         id: reloadButton
                         glyph: "↻"
+                        icon: "refresh"
                         a11y: I18n.tr("webdock.nav.reload")
                         enabled: !!header.page
                         tipFn: card.tipFor
@@ -422,12 +546,14 @@ PanelWindow {
                     HostButton {
                         id: more
                         glyph: "…"
+                        icon: "more_horiz"
                         a11y: I18n.tr("webdock.nav.more")
                         tipFn: card.tipFor
                         onClicked: card.menuOpen = !card.menuOpen
                     }
                     HostButton {
                         glyph: "×"
+                        icon: "close"
                         a11y: I18n.tr("webdock.nav.collapse")
                         tipFn: card.tipFor
                         onClicked: card.report("webdock.collapse", {})
@@ -443,7 +569,7 @@ PanelWindow {
             // Blocked permissions of the shown pin: one chip each, until the next load (brief "Sites").
             Row {
                 id: chips
-                anchors.top: header.bottom
+                anchors.top: card.phoneLook ? titleBar.bottom : header.bottom
                 anchors.left: parent.left
                 anchors.leftMargin: 8
                 spacing: 6
@@ -459,22 +585,23 @@ PanelWindow {
                 }
             }
 
-            // The page's load progress, under the header.
+            // The page's load progress, under the header (large; the phone draws it on the title's pill).
             Rectangle {
+                visible: !card.phoneLook && !!card.activePage && card.activePage.engine.loading
                 anchors.top: header.bottom
                 anchors.left: parent.left
                 height: 2
                 width: card.activePage ? parent.width * card.activePage.engine.loadProgress / 100 : 0
-                visible: !!card.activePage && card.activePage.engine.loading
                 color: Theme.accent
             }
 
             Item {
                 id: pane
-                anchors.top: chips.visible ? chips.bottom : header.bottom
+                anchors.top: chips.visible ? chips.bottom : (card.phoneLook ? titleBar.bottom : header.bottom)
+                anchors.topMargin: card.phoneLook ? 6 : 0
                 anchors.left: parent.left
                 anchors.right: parent.right
-                anchors.bottom: parent.bottom
+                anchors.bottom: card.phoneLook ? header.top : parent.bottom
                 clip: true
 
                 Repeater {
@@ -595,10 +722,10 @@ PanelWindow {
                 id: menu
                 z: 8
                 visible: card.menuOpen
-                anchors.top: header.bottom
+                // Large: under the header; phone: over the bottom bar (a y, as the header's).
+                y: card.phoneLook ? header.y - height - 4 : header.y + header.height + 4
                 anchors.right: parent.right
-                anchors.topMargin: 4
-                anchors.rightMargin: 4
+                anchors.rightMargin: card.phoneLook ? 10 : 4
                 width: Math.min(frame.width - 8, 240)
                 height: menuCol.implicitHeight + 2 * Theme.xs
                 radius: Theme.rSm
@@ -647,7 +774,7 @@ PanelWindow {
                 id: tipBox
                 z: 9
                 visible: card.tipText !== ""
-                y: header.height + Theme.xs
+                y: card.phoneLook ? header.y - height - Theme.xs : header.height + Theme.xs
                 width: tipLabel.implicitWidth + 2 * Theme.gap
                 height: tipLabel.implicitHeight + 2 * Theme.xs
                 x: Math.max(Theme.xs, Math.min(card.tipX - width / 2, frame.width - width - Theme.xs))

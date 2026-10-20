@@ -135,6 +135,7 @@ Flickable {
                         readonly property bool live: !(isPin && strip.pinForced)
                         readonly property bool focusable: true
                         readonly property string glyph: isPin ? "◧" : (name === "add" ? "+" : "⚙")
+                        readonly property string icon: isPin ? "push_pin" : (name === "add" ? "add" : "settings")
                         readonly property string a11yName: isPin ? I18n.tr(lit ? "webdock.pin.undock" : "webdock.pin.dock")
                             : (name === "add" ? I18n.tr("webdock.dock.add") : I18n.tr("webdock.dock.settings"))
 
@@ -153,30 +154,38 @@ Flickable {
                         Accessible.role: Accessible.Button
                         Accessible.name: ctl.a11yName
 
-                        Rectangle {
-                            anchors.fill: parent
-                            anchors.margins: 4
-                            radius: Theme.rSm
-                            color: ctl.lit || hov.hovered ? Theme.containerHigh : "transparent"
-                            border.width: ctl.lit ? 1 : 0
-                            border.color: Theme.accent
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            text: ctl.glyph
-                            color: Theme.fg
+                        // A round key (K42): the dock's own controls, quieter than the pins' app icons.
+                        Block {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 6
+                            width: ctl.width - 12
+                            height: ctl.width - 12 + Theme.shadowDy
+                            radius: Theme.rFull
+                            ringScale: 0.5
+                            fill: ctl.lit ? Theme.selected : (hov.hovered ? Theme.containerHigh : Theme.container)
+                            pressed: ctlTap.pressed && ctl.live
                             opacity: ctl.live ? 1 : 0.5
-                            font.pixelSize: Theme.fs + 2
-                            font.family: Theme.fam(text, Theme.families)
+                            Icon {
+                                anchors.centerIn: parent
+                                name: ctl.icon
+                                glyph: ctl.glyph
+                                filled: ctl.lit
+                                size: 18
+                                color: ctl.lit ? Theme.color("color.on_selected", Theme.fg) : Theme.fg
+                            }
                         }
                         HoverHandler { id: hov }
                         TapHandler {
+                            id: ctlTap
                             onTapped: ctl.press()
                         }
                         FocusRing {
-                            anchors.fill: parent
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 6
+                            width: ctl.width - 12
+                            height: ctl.width - 12
                             shown: ctl.activeFocus
-                            corner: Theme.rSm
+                            corner: width / 2
                         }
                     }
                 }
