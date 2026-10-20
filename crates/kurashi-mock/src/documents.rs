@@ -436,6 +436,15 @@ pub fn power(profile: &str) -> Value {
     json!({"available": true, "present": false, "on_battery": false, "profile": profile, "profiles": PROFILES})
 }
 
+/// `svc.audio.spectrum` (K48): the 16 levels a playing track gives, as kurashid's cava reader publishes them (0..1, in
+/// hundredths). Still: the mock's track does not make sound, so its levels do not move.
+pub fn spectrum() -> Value {
+    json!({
+        "available": true,
+        "bars": [0.62, 0.81, 0.74, 0.55, 0.47, 0.52, 0.38, 0.33, 0.29, 0.31, 0.22, 0.18, 0.14, 0.09, 0.05, 0.02],
+    })
+}
+
 /// The two players `svc.media` offers: a track in mpv, which can seek, and a live stream in
 /// Firefox, which has no length and cannot seek. The ids are the bus names kurashid lists.
 pub const MEDIA_PLAYERS: [(&str, &str); 2] = [

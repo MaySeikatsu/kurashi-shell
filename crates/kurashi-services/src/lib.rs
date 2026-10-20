@@ -15,6 +15,7 @@ pub mod power;
 pub mod power_profiles;
 pub mod recorder;
 pub mod session;
+pub mod spectrum;
 mod util;
 
 pub use util::{DocSink, ServiceHandle};

@@ -104,6 +104,7 @@ impl State {
                 documents::workspaces(outputs, focus.as_deref(), 1),
             ),
             ("svc.audio", documents::audio(0.5, false, 1)),
+            ("svc.audio.spectrum", documents::spectrum()),
             (
                 "svc.media",
                 documents::media(
