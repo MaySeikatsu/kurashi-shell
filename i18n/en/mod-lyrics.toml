@@ -1,0 +1,31 @@
+# Lyrics mod (en): the settings of mods/lyrics, the daemon's state, reason and action keys, and the copy of the media
+# card's lyrics slot, the bar widget and the desk card (docs/ux/lyrics.md). Placeholders in braces are filled by the
+# frontend.
+
+# The mod in the catalogue and its settings (mods/lyrics/mod.toml).
+"mods.lyrics.description" = "Synced lyrics for the song that plays: in the media card, in the bar and on the desk. Lyrics come from LRCLIB (lrclib.net) and are kept on this computer once found."
+"mods.lyrics.online" = "Look lyrics up online"
+"mods.lyrics.online.help" = "Asks lrclib.net for the lyrics of each new song (artist, title, album and length are sent). Off: only lyrics already found are shown."
+"mods.lyrics.offset_ms" = "Timing offset"
+"mods.lyrics.offset_ms.help" = "Shifts every line. A positive value shows lines earlier, a negative one later."
+"mods.lyrics.bar_line" = "Current line in the bar"
+"mods.lyrics.bar_line.help" = "The bar widget shows the line being sung. Off: only the note icon."
+
+# Daemon: actions, states and reasons.
+"mod-lyrics.action.track" = "Show lyrics for the playing song"
+"mod-lyrics.action.retry" = "Look the lyrics up again"
+"mod-lyrics.none" = "No lyrics for this song"
+"mod-lyrics.online_off" = "Online lookup is off"
+"mod-lyrics.offline" = "No connection. Try again when you are online."
+"mod-lyrics.error.server" = "The lyrics server did not answer properly."
+"mod-lyrics.error.rate_limited" = "The lyrics server is busy. Try again in a minute."
+"mod-lyrics.error.answer" = "The lyrics server sent something unexpected."
+
+# Views.
+"mod-lyrics.title" = "Lyrics"
+"mod-lyrics.searching" = "Looking for lyrics…"
+"mod-lyrics.instrumental" = "Instrumental"
+"mod-lyrics.retry" = "Try again"
+"mod-lyrics.a11y.line" = "Lyrics: {line}"
+"mod-lyrics.a11y.widget" = "Lyrics: {line}. Opens the media card."
+"mod-lyrics.a11y.pause" = "instrumental break"
