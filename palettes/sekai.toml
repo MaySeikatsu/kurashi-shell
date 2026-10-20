@@ -1,0 +1,31 @@
+# セカイ sekai — pop pastels on paper, every block outlined in ink (K42; inspired by SekaiPop's
+# Virtual Singer unit theme, INSPIRATION.md). Meant for chrome `keycap` (decor `sekai`).
+name = "sekai"
+kind = "pair"
+description = "Pop pastels with ink outlines (decor sekai)"
+
+[dark]
+surface = "#232235"
+on_surface = "#f3fbf9"
+accent = "#ff75ac"         # pink
+secondary = "#04e6d8"      # miku teal
+tertiary = "#b3b2d4"       # lavender
+warning = "#ffe066"
+surface_container = "#2c2b42"
+surface_container_high = "#3d3d52"
+on_surface_variant = "#c9c8e0"
+line = "#121120"
+ring = "#e4e4ec"
+
+[light]
+surface = "#f3fbf9"
+on_surface = "#232235"
+accent = "#e2457f"
+secondary = "#00a99c"
+tertiary = "#6e6d94"
+warning = "#a86b00"
+surface_container = "#ffffff"
+surface_container_high = "#e4f6f2"
+on_surface_variant = "#555473"
+line = "#555473"
+ring = "#ffffff"

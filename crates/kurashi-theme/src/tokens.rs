@@ -7,8 +7,11 @@ use serde_json::{Value, json};
 use crate::ThemeError;
 use crate::color::{BLACK, Rgb, WHITE, contrast};
 use crate::fonts::{FontProvider, resolve_chain};
-use crate::input::{Axes, Density, Material, MotionProfile, Shape};
+use crate::input::{Axes, Chrome, Density, Material, MotionProfile, Shape};
 use crate::palette::{Palette, ROLES};
+
+/// The icon font components draw glyphs with (ligatures by name), when installed.
+pub const ICON_FAMILY: &str = "Material Symbols Rounded";
 
 /// Flat dotted-key map; the `theme` document's `tokens` object.
 pub type TokenMap = BTreeMap<String, Value>;
@@ -170,6 +173,14 @@ pub fn build(
     notes.extend(n2);
     t.insert("font.family".into(), json!(fam));
     t.insert("font.family_jp".into(), json!(fam_jp));
+    // Icons (K42): Material Symbols Rounded when installed, else "" and components draw their
+    // text glyph instead (Shōjiki: no tofu boxes for a font that is not there).
+    let icons = if fonts.is_installed(ICON_FAMILY) {
+        ICON_FAMILY
+    } else {
+        ""
+    };
+    t.insert("font.icons".into(), json!(icons));
 
     for (n, base) in DURATIONS {
         t.insert(
@@ -189,6 +200,32 @@ pub fn build(
         }),
     );
 
+    // Springs (K42): overshoot of arrivals (QML Easing.OutBack amplitude) and a spring for
+    // retargetable morphs (QML SpringAnimation `spring`/`damping`). Calm settles without a bounce,
+    // keycap chrome bounces more, `none` has no spring at all (`motion.spring.on` false).
+    let overshoot = match (axes.motion, axes.chrome) {
+        (MotionProfile::None, _) => 0.0,
+        (MotionProfile::Calm, _) => 0.6,
+        (MotionProfile::Lively, Chrome::Flat) => 1.4,
+        (MotionProfile::Lively, Chrome::Keycap) => 2.2,
+    };
+    t.insert("motion.spring.overshoot".into(), json!(overshoot));
+    let (spring, damping) = match axes.motion {
+        MotionProfile::None => (0.0, 1.0),
+        MotionProfile::Calm => (4.0, 0.45),
+        MotionProfile::Lively => (3.2, 0.26),
+    };
+    let sk = axes.motion_speed.clamp(0.25, 4.0);
+    t.insert(
+        "motion.spring.on".into(),
+        json!(axes.motion != MotionProfile::None),
+    );
+    t.insert(
+        "motion.spring.spring".into(),
+        json!((spring * sk * 100.0).round() / 100.0),
+    );
+    t.insert("motion.spring.damping".into(), json!(damping));
+
     // --- controls (touch targets stay >= 32 px even when compact) ---
     let ck = match axes.density {
         Density::Compact => 0.875,
@@ -201,6 +238,44 @@ pub fn build(
 
     // --- component tokens (renderers bind only to these) ---
     let g = |r: &str| p.get(r);
+
+    // Chrome (K42): what a block is made of. Flat: a fill, nothing round it. Keycap: an outline in
+    // `color.line`, a ring in `color.ring` between outline and fill, and a hard shadow in the line
+    // colour straight down, which the block sinks into while pressed.
+    let keycap = axes.chrome == Chrome::Keycap;
+    t.insert(
+        "chrome.style".into(),
+        json!(if keycap { "keycap" } else { "flat" }),
+    );
+    px(&mut t, "chrome.outline", if keycap { 2.0 } else { 0.0 });
+    px(&mut t, "chrome.ring", if keycap { 3.0 } else { 0.0 });
+    px(&mut t, "chrome.shadow", if keycap { 4.0 } else { 0.0 });
+    col(&mut t, "chrome.line", g("line"));
+    col(&mut t, "chrome.ring_color", g("ring"));
+    // Keycap type is heavier: the rounded families it is paired with read thin at 500.
+    if keycap {
+        for (n, w) in [("regular", 500), ("medium", 700), ("bold", 800)] {
+            t.insert(format!("font.weight.{n}"), json!(w));
+        }
+    }
+    // Selected states are tonal, not the accent itself, so a panel full of selections does not
+    // read as an alarm (I51); data marks get their own roles apart from the accent (I63).
+    let sel = g("accent").mix(g("surface_container_high"), 0.72);
+    col(&mut t, "color.selected", sel);
+    col(
+        &mut t,
+        "color.on_selected",
+        at_least(
+            g("on_surface"),
+            sel,
+            4.5,
+            if sel.luminance() > 0.4 { BLACK } else { WHITE },
+        ),
+    );
+    col(&mut t, "color.data.1", g("secondary"));
+    col(&mut t, "color.data.2", g("tertiary"));
+    col(&mut t, "color.data.3", g("warning"));
+    col(&mut t, "color.data.4", g("accent"));
     let (surface, fg, accent, on_accent) =
         (g("surface"), g("on_surface"), g("accent"), g("on_accent"));
     col(&mut t, "bar.bg", surface);

@@ -22,6 +22,22 @@
 #   range: 16..=96, step 2 (px) · only while bar.enabled == true · per-output
 # height = 32
 
+# [theme]
+#
+# Look — A decor pack: recommends a palette, chrome, motion, corners and fonts in one
+# choice. Your own settings still win over what it recommends (K42).
+#   choices: "none" | "sekai"
+# decor = "none"
+#
+# Chrome — How blocks are drawn: flat fills, or keycaps with an ink outline, a light ring
+# and a hard shadow they sink into when pressed (K42).
+#   choices: "flat" | "keycap" · forced to "flat" while a11y.high_contrast is on
+# chrome = "flat"
+#
+# Density — Scales spacing and control sizes everywhere.
+#   choices: "compact" | "regular" | "airy"
+# density = "regular"
+
 # [theme.colors]
 #
 # Palette — Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
@@ -85,12 +101,6 @@
 # Animation speed — Multiplies every motion duration's speed (2.0 = twice as fast).
 #   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none" · advanced
 # speed = 1.0
-
-# [theme]
-#
-# Density — Scales spacing and control sizes everywhere.
-#   choices: "compact" | "regular" | "airy"
-# density = "regular"
 
 # [theme.typography]
 #

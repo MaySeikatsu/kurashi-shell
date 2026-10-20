@@ -17,6 +17,8 @@
 # Options of the `choices_from` sources (I9), resolved by the daemon: palettes and island faces.
 "config.choice.palette.wa-iro" = "Wa-iro"
 "config.choice.palette.kanso" = "Kanso"
+"config.choice.palette.sekai" = "Sekai"
+"config.choice.palette.sekai-night" = "Sekai night"
 "config.choice.palette.high-contrast" = "High contrast"
 "config.choice.palette.wallpaper" = "From wallpaper"
 "config.face.clock" = "Clock"

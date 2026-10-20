@@ -74,6 +74,17 @@ in
       description = "Kurashi package (daemon + CLI + frontend data).";
     };
 
+    fonts = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = with pkgs; [ material-symbols nunito noto-fonts-cjk-sans ];
+      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito noto-fonts-cjk-sans ]";
+      description = ''
+        Fonts the shell draws with: Material Symbols Rounded for icons (without it, components fall back to text
+        glyphs), Nunito for the `sekai` look (decor, K42) and Noto Sans CJK for Japanese. Installed with fontconfig
+        enabled; set to [ ] to manage fonts yourself.
+      '';
+    };
+
     settings = lib.mkOption {
       inherit (toml) type;
       default = { };
@@ -224,7 +235,8 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
-      home.packages = [ cfg.package ];
+      home.packages = [ cfg.package ] ++ cfg.fonts;
+      fonts.fontconfig.enable = lib.mkIf (cfg.fonts != [ ]) (lib.mkDefault true);
 
       # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.
       programs.kurashi.niri.binds.keys = lib.mapAttrs (_: lib.mkDefault) niriDefaultKeys;
