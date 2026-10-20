@@ -10,6 +10,7 @@
 
 mod documents;
 mod state;
+mod tasks;
 mod webdock;
 
 use std::collections::HashSet;
