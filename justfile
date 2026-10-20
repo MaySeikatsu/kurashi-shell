@@ -78,4 +78,5 @@ webdock:
     status=0
     timeout 1200 bash mods/webdock/test/test-host.sh || status=1
     timeout 600 bash mods/webdock/test/test-real.sh || status=1
+    timeout 900 bash mods/webdock/test/test-dock.sh || status=1
     exit "$status"

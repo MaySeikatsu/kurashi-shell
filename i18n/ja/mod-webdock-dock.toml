@@ -1,0 +1,38 @@
+# ウェブドック、画面端の表示（mods/webdock/qml）: ストリップ、カードの枠、追加フォーム、ピンのメニュー、バーのボタン、
+# シェル自身が描く状態。ウェブホストの文言は mod-webdock.toml にあり、ここでは繰り返さない。
+
+# ストリップとピン。
+"webdock.dock.name" = "ウェブドック"
+"webdock.dock.kind.site" = "サイト"
+"webdock.dock.kind.view" = "ビュー"
+"webdock.dock.state.shown" = "表示中"
+"webdock.dock.state.loaded" = "読み込み済み"
+"webdock.dock.state.error" = "停止"
+"webdock.dock.add" = "サイトかビューを追加"
+"webdock.dock.settings" = "ウェブドックの設定"
+
+# 追加フォーム。
+"webdock.dock.add.title" = "ピンを追加"
+"webdock.dock.add.name" = "名前（任意）"
+"webdock.dock.add.submit" = "追加"
+"webdock.dock.add.cancel" = "キャンセル"
+"webdock.add.invalid" = "https:// または http:// で始まるアドレスを入力してください"
+
+# ピンのメニュー。
+"webdock.dock.move_up" = "上へ移動"
+"webdock.dock.move_down" = "下へ移動"
+"webdock.dock.remove" = "削除"
+"webdock.dock.close" = "閉じる"
+"webdock.dock.forced" = "設定元:"
+
+# カードの状態（シェルが描く）。
+"webdock.dock.empty.add" = "サイトを追加"
+"webdock.dock.host.failed" = "ウェブエンジンが停止しました"
+"webdock.dock.unavailable" = "ウェブドックは使えません"
+"webdock.view.gone" = "このビューは使えません: そのモッドはオフです"
+
+# バーのボタン。
+"webdock.dock.widget" = "ウェブドック"
+"webdock.dock.widget.open" = "表示中"
+"webdock.dock.widget.closed" = "非表示"
+"webdock.dock.widget.pinned" = "表示を維持"

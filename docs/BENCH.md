@@ -132,3 +132,7 @@ Bar + Stage + island faces + toasts/center + launcher + lock, real `kurashid`, s
 Earlier "exited early / 6.4 fps" readings came from parallel agents sharing sandbox names — fixed
 (sandbox names carry the pid).
 
+## Mods (K41: an enabled mod's own cost, mod on vs off)
+| Mod | Machine / renderer | Idle frames | Per output | Once | 20-cycle growth | Note |
+|---|---|---|---|---|---|---|
+| webdock (shell side, W20) | B, gles2 renderD129 | 0 commits / 10 s hidden | +6.2 MiB USS (median of 3; runs swing ~40 MiB) | +3.8 MiB USS (shared dock window, first reveal) | −0.9 MiB | PSS unusable on 2 outputs under gles2 (a ~1.9 TiB mapping, I93); bar widget +0.8 MiB PSS. Web host process: not yet measured (I79/BENCH) |

@@ -158,10 +158,10 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W17.1 | UX brief, K38/K39, contract rows 88–94, backlog I68–I76, B26–B27; scoped hello, `host:` provide, `qs-webengine`, netjoin (B26) | ✅ (hover/size details: user review open) | e077403 |
 | W17.2 | Records setting type + Settings editor + Nix pins (rows 89, 96, 97) | ✅ functional · UX ⏳ (keyboard reorder/delete unverified, add by form untested: wl_keys has no `:`) | W17-records 1fcc775 |
 | W17.3 | Host processes + scoped connections + mod `webdock` (document, actions, lifecycle, unload; rows 90–93) | ✅ functional (pins wait for W17.2; scope table → Daemon: I77) | W17-webdock-daemon 2ce2e14 (hover state machine: with W17.4) |
-| W17.4 | Shell side: `surface:` provide, indicator, strip, card, view pins (row 88); hover machine, pin edits, new tabs in the dock (K40, rows 109–111) | 🔄 contract on main; cards W20-webdock-{daemon,shell,host} | d827b06 |
+| W17.4 | Shell side: `surface:` provide, indicator, strip, card, view pins (row 88); hover machine, pin edits, new tabs in the dock (K40, rows 109–111) | ✅ functional (daemon + shell; cost per K41) · UX ⏳ (niri I80, I90, I91) · host follow-ups: W20-webdock-host | W20-webdock-daemon, W20-webdock-shell |
 | W17.5 | Web host on patched Quickshell: profiles, mobile/desktop, privacy + net-log test, freeze, sheets, chips (B27) | ✅ functional · UX ⏳ (I78–I80; niri) | W17-webdock-host efd2e7d + lead fix B28 |
 | W17.E2E | Pins in the config → `webdock.open` → the daemon starts the host → scoped hello → page loaded; view toggle via the settings writer (undo); forged scope refused; disable stops the host | ✅ | lead `mods/webdock/test/test-real.sh`, `just webdock` |
-| W17.6 | Nix: `kurashi-webdock` package apart from the base closure, HM/NixOS options, `Mod+B` | 🔄 card W20-webdock-nix | — |
+| W17.6 | Nix: `kurashi-webdock` package apart from the base closure, HM/NixOS options, `Mod+B` | ✅ (closure check, module eval; per-key enforce I95) | W20-webdock-nix |
 
 ## Wave 18 (session 7; contract rows 98–99)
 | Step | Description | Status | Branch / notes |

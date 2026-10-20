@@ -347,3 +347,14 @@ setting sends them to the default browser instead — the user's call over the b
 header gains forward, a home button once the page left the pin's address, and "replace pin with this page"
 (`webdock.retarget`, a settings write). The shell's parts come from a new provide kind `surface:<name>` (row 88). The
 accent-colour design pass (I51/I63) stays separate.
+
+**K41** 🟢 Opt-in mods carry their own measured cost, outside the base shell's budget (user decision, session 8,
+2026-10-20; W20-webdock-shell). The K16/K19 budgets (≤ 150 MiB @ 1 output, ≤ +6 MiB per extra output, ≤ 4 mapped
+surfaces per output) are for the **core profile with no mod on**; a mod that is off costs nothing (Ma). An enabled mod's
+cost is measured (mod on vs off, same profile) and recorded in BENCH "Mods" and its manifest's `cost`, and Settings
+shows it before the user turns the mod on (Shōjiki). First case: the web dock's per-output edge window costs about
+**6.2 MiB USS per output** (gles2, machine B, median of three; runs swing by ~40 MiB) plus **3.8 MiB once** for the shared
+dock window after the first reveal, 0 commits idle, no growth over 20 reveals. *Why:* the per-output edge window is
+its own Qt layer window, so no QML change gets it near 1 MiB; the alternatives were hover only on the bar's edge
+(reusing the bar window) or one edge window following focus (no hover on unfocused outputs) — both cut the feature the
+user asked for (K40). The base budget's per-output headroom (+6.0 of +6) stays reserved for core surfaces.
