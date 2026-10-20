@@ -38,6 +38,10 @@ pins = [
     site("k5", "k5"),
     {"id": "cam", "kind": "web", "title": "Camera", "target": pages + "/camera.html", "view": "mobile", "profile": "cam"},
     {"id": "bad", "kind": "web", "title": "Broken", "target": "file:///nonexistent/page.html", "view": "mobile", "profile": "bad"},
+    # New tabs (K40): a target=_blank link, and a window.open() without window features.
+    {"id": "links", "kind": "web", "title": "Links", "target": pages + "/links.html", "view": "mobile", "profile": "links"},
+    {"id": "linkb", "kind": "web", "title": "Link B", "target": pages + "/links.html", "view": "mobile", "profile": "linkb"},
+    {"id": "opener", "kind": "web", "title": "Opener", "target": pages + "/opener.html", "view": "mobile", "profile": "opener"},
     {"id": "weather", "kind": "view", "title": "Weather", "target": "mod:weather:weather"},
 ]
 if port:
