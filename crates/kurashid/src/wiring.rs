@@ -510,18 +510,18 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         }
         if let Some(rest) = q.strip_prefix('>') {
             let mut cache = labels.lock().expect("labels lock");
-            if let Ok((rev, doc)) = hub.snapshot("i18n") {
-                if cache.0 != rev || cache.1.is_empty() {
-                    cache.1 = kurashi_launcher::commands::COMMANDS
-                        .iter()
-                        .filter_map(|(id, _)| {
-                            doc["strings"][format!("action.{id}")]
-                                .as_str()
-                                .map(|t| ((*id).to_owned(), t.to_owned()))
-                        })
-                        .collect();
-                    cache.0 = rev;
-                }
+            if let Ok((rev, doc)) = hub.snapshot("i18n")
+                && (cache.0 != rev || cache.1.is_empty())
+            {
+                cache.1 = kurashi_launcher::commands::COMMANDS
+                    .iter()
+                    .filter_map(|(id, _)| {
+                        doc["strings"][format!("action.{id}")]
+                            .as_str()
+                            .map(|t| ((*id).to_owned(), t.to_owned()))
+                    })
+                    .collect();
+                cache.0 = rev;
             }
             let names = cache.1.clone();
             drop(cache);
