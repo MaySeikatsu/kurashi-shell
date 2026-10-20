@@ -426,6 +426,23 @@ async fn copy_text(text: &str) -> Result<(), ActionError> {
     Ok(())
 }
 
+/// Puts the cliphist entry `line` (its id) back on the clipboard: `cliphist decode` into `wl-copy`.
+async fn copy_clip(line: &str) -> Result<(), ActionError> {
+    if !line.chars().all(|c| c.is_ascii_digit()) {
+        return Err(ActionError::Invalid("error.args.invalid".into()));
+    }
+    let out = tokio::process::Command::new("cliphist")
+        .arg("decode")
+        .arg(line)
+        .output()
+        .await
+        .map_err(|e| ActionError::Unavailable(format!("cliphist: {e}")))?;
+    if !out.status.success() {
+        return Err(ActionError::Unavailable("cliphist decode failed".into()));
+    }
+    copy_text(&String::from_utf8_lossy(&out.stdout)).await
+}
+
 /// `query kind:"launcher"` + `launcher.launch {id, files?}`.
 pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::path::PathBuf) {
     use kurashi_launcher::{IndexConfig, LaunchOptions, Launcher};
@@ -453,6 +470,13 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
     let query: QueryFn = Arc::new(move |q: &str| {
+        // Prefix modes: `:` emoji, `;` the clipboard history.
+        if let Some(rest) = q.strip_prefix(':') {
+            return kurashi_launcher::extras::emoji_rows(rest, 40);
+        }
+        if let Some(rest) = q.strip_prefix(';') {
+            return kurashi_launcher::extras::clip_rows(rest.trim(), 40);
+        }
         let calc = kurashi_launcher::calc::eval(q).map(|v| {
             let shown = kurashi_launcher::calc::format(v);
             json!({"id": format!("calc:{shown}"), "name": shown, "generic": q.trim(),
@@ -486,8 +510,11 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                             .collect()
                     })
                     .unwrap_or_default();
-                if let Some(value) = id.strip_prefix("calc:") {
+                if let Some(value) = id.strip_prefix("calc:").or_else(|| id.strip_prefix("emoji:")) {
                     return copy_text(value).await.map(|_| Some(json!({"copied": value})));
+                }
+                if let Some(line) = id.strip_prefix("clip:") {
+                    return copy_clip(line).await.map(|_| Some(json!({"copied": line})));
                 }
                 let pid = tokio::task::spawn_blocking(move || launcher.launch(&id, &files))
                     .await

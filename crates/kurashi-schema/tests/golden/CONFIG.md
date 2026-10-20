@@ -39,7 +39,7 @@ Thickness of the bar in logical pixels (its width when anchored left or right).
 
 #### `theme.decor` — Look
 
-A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42).
+A decor pack: recommends colours, chrome, motion, corners and fonts in one choice. Your own settings still win over what it recommends (K42).
 
 - type: `choice` · default: `"none"`
 - choices: `"none"` | `"sekai"`

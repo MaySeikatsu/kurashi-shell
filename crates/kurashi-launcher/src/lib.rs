@@ -5,6 +5,7 @@
 //! `Launcher`; the frontend only sends queries and a launch intent.
 
 pub mod calc;
+pub mod extras;
 pub mod desktop;
 pub mod exec;
 pub mod frecency;
