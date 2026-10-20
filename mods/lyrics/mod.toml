@@ -1,0 +1,41 @@
+id = "lyrics"
+name = "Lyrics"
+description = "mods.lyrics.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# Synced lyrics for the track the media card shows (K47, docs/ux/lyrics.md): the service and its actions (the Rust crate
+# registers them), the media card's lyrics slot, a bar widget and a desk card (QML). Lyrics come from LRCLIB
+# (lrclib.net) and are cached per track in the mod's cache folder.
+provides = [
+    "service:lyrics",
+    "action:lyrics.*",
+    "slot:media.expanded.below",
+    "widget:lyrics",
+    "desk:lyrics",
+]
+capabilities = ["network", "fs:scoped"]
+cost = "low"
+
+[[setting]]
+key = "online"
+type = "bool"
+default = true
+label = "mods.lyrics.online"
+help = "mods.lyrics.online.help"
+
+[[setting]]
+key = "offset_ms"
+type = "int"
+default = 0
+range = [-5000, 5000]
+unit = "ms"
+label = "mods.lyrics.offset_ms"
+help = "mods.lyrics.offset_ms.help"
+
+[[setting]]
+key = "bar_line"
+type = "bool"
+default = true
+label = "mods.lyrics.bar_line"
+help = "mods.lyrics.bar_line.help"

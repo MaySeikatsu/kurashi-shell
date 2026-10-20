@@ -971,6 +971,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-lyrics"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "ureq",
+ "zbus",
+]
+
+[[package]]
 name = "kurashi-mod-sysmon"
 version = "0.0.1"
 dependencies = [
@@ -1142,6 +1154,7 @@ dependencies = [
  "kurashi-launcher",
  "kurashi-mod-api",
  "kurashi-mod-hello",
+ "kurashi-mod-lyrics",
  "kurashi-mod-sysmon",
  "kurashi-mod-tasks",
  "kurashi-mod-wallpaper",

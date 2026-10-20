@@ -1,0 +1,14 @@
+# Polkit authentication dialog (en): frontend/surfaces/PolkitDialog.qml (K47 (5), docs/ux/polkit.md). Placeholders in
+# braces are filled by the frontend.
+"polkit.title" = "Authentication required"
+"polkit.as" = "as {user}"
+"polkit.identity" = "Answer as"
+"polkit.group" = "{name} (group)"
+"polkit.password" = "Password"
+"polkit.response" = "Response"
+"polkit.checking" = "Checking…"
+"polkit.failed" = "That password did not work. Try again."
+"polkit.authenticate" = "Authenticate"
+"polkit.cancel" = "Cancel"
+"polkit.a11y.dialog" = "Authentication required: {message}"
+"polkit.a11y.action" = "Action: {action}"
