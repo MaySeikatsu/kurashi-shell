@@ -211,7 +211,10 @@ start_frontend
 
 # Face (and the card width its expanded view asks for). `weather` is no island face: the generic card.
 # power and bluetooth open the quick card's Power and Bluetooth pages (I44) in the quick card's 400 px width (row 79).
-for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:400 bluetooth:400 weather:360; do
+# The quick card is a phone that draws its own chrome (W21-phone, `ownChrome`): the Stage draws no card round it, and the
+# container-coloured part is the phone's screen inside its frame, PHONE_W - 2 px wide (W21-island-morph).
+PHONE_W=386
+for spec in clock:400 media:400 volume:360 brightness:360 notifications:360 power:$PHONE_W bluetooth:$PHONE_W weather:360; do
   face=${spec%%:*}
   width=${spec##*:}
   K mock face "$face" >/dev/null
@@ -226,7 +229,7 @@ done
 
 K act quick.toggle >/dev/null
 ppm_shot quick 2.5
-open_card quick quick "" 400
+open_card quick quick "" "$PHONE_W"
 # Keyboard (docs/ux/quick-settings.md): a click on the card's inert left padding gives the Stage its keyboard focus;
 # Tab five times reaches the Bluetooth tile (three status segments, then the Wi-Fi tile), Enter toggles it, so the mock's
 # adapter goes off.
@@ -477,7 +480,7 @@ card_on() {
   timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
   res=$(analyse "$2") || fail "$2: analysis failed"
   echo "$2 on $1: $res"
-  jq -e '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4
+  jq -e --argjson w "$PHONE_W" '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
       and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
     || fail "$2: no quick card of width 400 centred on $1 ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")

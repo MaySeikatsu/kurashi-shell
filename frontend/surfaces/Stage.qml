@@ -443,8 +443,11 @@ PanelWindow {
         target: IslandGeom
         property: "takenOn"
         value: stage.outName
-        when: stage.taken && stage.morphMode
+        when: stage.taken && stage.morphMode && !stage.handedToView
     }
+    // A view with its own chrome (the phone) takes over from the shape once it is in: the shape dissolves into it and the
+    // bar gets its pill back while the view stands; closing brings the shape back to fold into the pill.
+    readonly property bool handedToView: ownChrome && contentP >= 0.99
     readonly property bool springing: stage.shown && !stage.gate && Theme.springOn
     Behavior on mw {
         enabled: stage.springing
@@ -514,7 +517,8 @@ PanelWindow {
 
     MorphShape {
         id: shape
-        visible: stage.shown && stage.morphMode
+        visible: stage.shown && stage.morphMode && opacity > 0
+        opacity: stage.ownChrome ? 1 - stage.contentP : 1
         width: stage.morphW
         height: stage.morphH
         x0: stage.shapeCx - stage.shapeW / 2
@@ -536,6 +540,7 @@ PanelWindow {
         active: stage.shown && stage.morphMode
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
         animate: stage.shown
+        opacity: shape.opacity
         x: Math.round(stage.shapeCx - width / 2)
         y: stage.flip ? stage.morphH - stage.pillTop - stage.pillH : stage.pillTop
         width: Math.max(stage.pillW, wantW + 2 * Theme.pad)
