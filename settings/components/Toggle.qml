@@ -27,20 +27,26 @@ Item {
     Rectangle {
         id: track
         anchors.centerIn: parent
-        width: 40
-        height: 22
+        width: Theme.keycap ? 46 : 40
+        height: Theme.keycap ? 26 : 22
         radius: height / 2
         color: t.checked ? Theme.accent : Theme.containerHigh
-        border.width: 1
-        border.color: t.checked ? Theme.accent : Theme.outline
+        border.width: Theme.keycap ? Theme.outlineW : 1
+        border.color: Theme.keycap ? Theme.line : (t.checked ? Theme.accent : Theme.outline)
 
         Rectangle {
-            width: 16
-            height: 16
-            radius: 8
-            y: 3
-            x: t.checked ? track.width - width - 3 : 3
-            color: t.checked ? Theme.fgOnAccent : Theme.fg
+            width: Theme.keycap ? 18 : 16
+            height: width
+            radius: width / 2
+            y: (track.height - height) / 2
+            x: t.checked ? track.width - width - y : y
+            color: Theme.keycap ? Theme.ring : (t.checked ? Theme.fgOnAccent : Theme.fg)
+            border.width: Theme.keycap ? Theme.outlineW : 0
+            border.color: Theme.line
+            Behavior on x {
+                enabled: Theme.springOn
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
+            }
         }
     }
     MouseArea {

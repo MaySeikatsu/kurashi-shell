@@ -44,7 +44,7 @@ Item {
             glyph: b.glyph
             filled: b.lit
             size: Theme.fs + 5
-            color: b.lit ? Theme.onSelected : Theme.fg
+            color: b.lit ? Theme.fgOnSelected : Theme.fg
         }
     }
     HoverHandler { id: hover }

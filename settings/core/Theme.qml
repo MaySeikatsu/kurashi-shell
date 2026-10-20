@@ -37,5 +37,21 @@ Singleton {
     readonly property int rSm: tok("radius.sm", 6)
     readonly property int rLg: tok("radius.lg", 18)
     readonly property int rFull: tok("radius.full", 999)
+    // Chrome (K42), as the shell's Theme: keycap = ink outline, ring and hard shadow; flat = all widths 0.
+    readonly property bool keycap: tok("chrome.style", "flat") === "keycap"
+    readonly property int outlineW: tok("chrome.outline", 0)
+    readonly property int shadowDy: tok("chrome.shadow", 0)
+    readonly property color line: color("chrome.line", "#121120")
+    readonly property color ring: color("chrome.ring_color", "#e4e4ec")
+    // Tonal selection (I51): a selected choice is not an alarm.
+    readonly property color selected: color("color.selected", "#4a3138")
+    // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
+    readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")
+    readonly property int wMedium: tok("font.weight.medium", 500)
+    readonly property int wBold: tok("font.weight.bold", 700)
+    readonly property string iconFamily: tok("font.icons", "")
+    readonly property real overshoot: tok("motion.spring.overshoot", 0.6)
+    readonly property bool springOn: tok("motion.spring.on", true)
+    readonly property int stdMs: tok("motion.standard_ms", 220)
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
 }

@@ -40,7 +40,7 @@ Row {
                 flatBorder: Theme.outline
                 Text {
                     anchors.centerIn: parent
-                    color: keyItem.modelData < 2 ? Theme.fg : Theme.onSelected
+                    color: keyItem.modelData < 2 ? Theme.fg : Theme.fgOnSelected
                     font.pixelSize: kc.digitSize
                     font.weight: Font.Black
                     font.family: Theme.fam(text, Theme.families)

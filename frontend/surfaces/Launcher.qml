@@ -283,7 +283,7 @@ PanelWindow {
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        color: row.selected ? Theme.onSelected : Theme.fg
+                        color: row.selected ? Theme.fgOnSelected : Theme.fg
                         font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : Theme.fs
                         font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                         font.family: Theme.fam(text, Theme.families)
