@@ -871,7 +871,7 @@ impl State {
         if let Some(url) = out.external {
             tracing::info!(%url, "webdock: open in the default browser (logged, not started)");
         }
-        Ok(None)
+        Ok(out.reply)
     }
 
     /// `mock.webdock {…}` (mock-only): merges the fields into `mod.webdock`, so a test can set pins with
