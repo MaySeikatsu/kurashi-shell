@@ -219,8 +219,8 @@ last_event() { grep -E "^(un)?sub $1\$" "$R/subs.log" | tail -n 1 || true; }
 # and arrow zone, the heading, the Wi-Fi page's Back control, and the media row's title.
 at() { click $(( cx0 + $1 )) $(( cy0 + $2 )); }
 # W21: the card is a phone (PhoneFrame): the rows sit on its screen, under its status row and the greeting row.
-WIFI_TILE=(90 186)
-WIFI_ARROW=(184 186)
+WIFI_TILE=(90 158)     # the tile's middle (B33: 186 was its bottom edge, so a click there missed now and then)
+WIFI_ARROW=(184 158)
 HEADING=(116 76)       # the greeting row
 BACK=(54 82)          # the page header's round back key
 MEDIA_TITLE_X=76        # the media row's title, from the card's left edge
