@@ -22,6 +22,10 @@ Item {
     Component.onCompleted: created = true
     opacity: current && created ? 1 : 0
     visible: opacity > 0
+    // A face change (W21, Capsule's FadeScale): the new face rises into place from a little below and a little smaller;
+    // the old one is swallowed (it shrinks and lifts away) instead of only fading. Both ride the opacity animation.
+    scale: current ? 0.92 + 0.08 * opacity : 0.7 + 0.3 * opacity
+    transform: Translate { y: (face.current ? 1 : -1) * (1 - face.opacity) * 6 }
     Behavior on opacity {
         enabled: face.animate
         NumberAnimation { duration: Theme.emphMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
