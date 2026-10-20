@@ -24,14 +24,17 @@
 
 # [theme]
 #
-# Look — A decor pack: recommends colours, chrome, motion, corners and fonts in one
-# choice. Your own settings still win over what it recommends (K42).
-#   choices: "none" | "sekai" | "glass"
+# Look — A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one
+# choice. It changes how things look, never where they are. Your own settings still win
+# (K42, K45).
+#   choices: "none" | "sekai" | "glass" | "terminal" | "washi"
 # decor = "none"
 #
-# Chrome — How blocks are drawn: flat fills, or keycaps with an ink outline, a light ring
-# and a hard shadow they sink into when pressed (K42).
-#   choices: "flat" | "keycap" · forced to "flat" while a11y.high_contrast is on
+# Chrome — How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and
+# a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow;
+# or ink lines (K42, K45).
+#   choices: "flat" | "keycap" | "soft" | "line" · forced to "flat" while a11y.high_contrast
+#   is on
 # chrome = "flat"
 #
 # Density — Scales spacing and control sizes everywhere.

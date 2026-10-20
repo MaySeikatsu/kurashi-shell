@@ -43,6 +43,14 @@ Singleton {
     readonly property int shadowDy: tok("chrome.shadow", 0)
     readonly property color line: color("chrome.line", "#121120")
     readonly property color ring: color("chrome.ring_color", "#e4e4ec")
+    // K45 soft and line chrome (see the shell's Theme).
+    readonly property color outlineColor: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
+    readonly property int softR: tok("chrome.soft", 0)
+    readonly property int softDy: tok("chrome.soft_dy", 0)
+    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"), tok("chrome.soft_alpha", 0))
+    readonly property real pressScale: tok("chrome.press_scale", 1)
+    readonly property int iconFill: tok("icon.fill", 0)
+    readonly property int iconWeight: tok("icon.weight", 400)
     // Tonal selection (I51): a selected choice is not an alarm.
     readonly property color selected: color("color.selected", "#4a3138")
     // Not `onSelected`: an `on…` name reads back black (the onAccent issue).

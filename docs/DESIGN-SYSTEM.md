@@ -53,7 +53,7 @@ A decor pack = **typed slots + recipe**:
   (below user pins). Example: `edo` recommends `palette:wa-iro`, `shape.none`, `motion.calm`,
   `typography: Noto Serif JP`; the user can still pin `shape.rounded`.
 
-### Chrome and the `sekai` decor (K42)
+### Chrome and decor packs (K42, K45)
 `theme.chrome = keycap` draws every block (bar pills, tiles, buttons, cards, the island) as a keycap: outline
 (`chrome.outline` px, colour `chrome.line`), ring (`chrome.ring` px, `chrome.ring_color`), fill, and a hard shadow
 (`chrome.shadow` px down, `chrome.line`). Pressed = the face sinks by the shadow and springs back
@@ -61,6 +61,25 @@ A decor pack = **typed slots + recipe**:
 `theme.decor = sekai` recommends palette `sekai` (light), keycap chrome, lively motion, solid material, radius ×1.25
 and Nunito, at the `theme:sekai` layer. Icons come from `Icon.qml` (Material Symbols Rounded ligatures, text-glyph
 fallback).
+
+K45 adds two chromes and makes every decor a whole look that never touches layout:
+
+| chrome | outline | ring | shadow | soft shadow | press | bar groups |
+|---|---|---|---|---|---|---|
+| flat | 0 | 0 | 0 | 0 | scale 0.97 | one strip |
+| keycap | 2 px `chrome.line` | 3 px | 4 px hard | 0 | sinks by the shadow | blocks |
+| soft | 1 px light rim (`chrome.outline_color` × `outline_alpha`) | 0 | 0 | 18 px blur, 6 px down | scale 0.96 | blocks |
+| line | 1 px outline role | 0 | 0 | 0 | none (fill flash) | blocks |
+
+| decor | palette | chrome | corners | motion | type | icons |
+|---|---|---|---|---|---|---|
+| none | yours (wa-iro dark) | yours (flat) | yours | yours | yours | Rounded |
+| sekai | sekai light | keycap | rounded ×1.25 | lively | Nunito | Rounded, filled, 600 |
+| glass | kanso dark, glass 0.62 | soft | squircle ×1.4 | lively (settles) | Inter | Rounded, 400 |
+| terminal | kanso dark, solid | line | none | calm ×1.6 | JetBrains Mono | Sharp, 300 |
+| washi | wa-iro light, solid | line | rounded ×0.5 | calm | Noto Serif | Sharp, 300 |
+
+Recipes name `theme.*` keys only. Layout (bar edge/height, desk, island placement) belongs to the user and profiles.
 
 ## 5. Accessibility modes
 `reduce_motion`, `reduce_transparency`, `high_contrast`, `large_text` force axes with

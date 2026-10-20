@@ -54,6 +54,18 @@ Singleton {
     readonly property int shadowDy: tok("chrome.shadow", 0)
     readonly property color line: color("chrome.line", "#121120")
     readonly property color ring: color("chrome.ring_color", "#e4e4ec")
+    // K45: soft and line chrome. Read the widths and colours, never `chromeStyle` to pick a look (rule 4); the
+    // style name is for logs and tests.
+    readonly property string chromeStyle: tok("chrome.style", "flat")
+    readonly property color outlineColor: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
+    readonly property int softR: tok("chrome.soft", 0)
+    readonly property int softDy: tok("chrome.soft_dy", 0)
+    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"), tok("chrome.soft_alpha", 0))
+    readonly property real pressScale: tok("chrome.press_scale", 1)
+    // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
+    readonly property bool groups: tok("chrome.groups", false)
+    readonly property int iconFill: tok("icon.fill", 0)
+    readonly property int iconWeight: tok("icon.weight", 400)
     readonly property color selected: color("color.selected", "#4a3138")
     // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
     readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")

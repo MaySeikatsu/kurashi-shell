@@ -1053,7 +1053,7 @@ fn setting_value(store: Option<&ConfigStore>, config_key: &str, default: &Settin
 /// (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`, `peek:x` → `qml/Peek.qml` (K35),
 /// `island-face:x` → `qml/Face.qml`,
 /// `island-face:x:expanded` → `qml/FaceExpanded.qml`, `slot:x` → `qml/slots/x.qml`, `surface:x` →
-/// `qml/surfaces/x.qml` (K38, row 88)), listed only
+/// `qml/surfaces/x.qml` (K38, row 88), `desk:x` → `qml/desk/x.qml` (K46, row 120)), listed only
 /// where the file exists: a URL to nothing is not in effect (Shōjiki).
 fn qml_of(e: &ModEntry) -> Option<Value> {
     let m = e
@@ -1079,6 +1079,9 @@ fn qml_of(e: &ModEntry) -> Option<Value> {
                     p.to_string(),
                     dir.join("surfaces").join(format!("{name}.qml")),
                 )]
+            }
+            Provide::Desk(name) => {
+                vec![(p.to_string(), dir.join("desk").join(format!("{name}.qml")))]
             }
             _ => continue,
         };
