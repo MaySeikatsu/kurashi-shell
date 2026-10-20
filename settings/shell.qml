@@ -154,6 +154,18 @@ ShellRoot {
             function rowError(key: string): string { return Store.rowErrors[key] || "" }
             // Held-back values (I64 (3)): the user value a forced layer keeps out of effect, as JSON, or "none".
             function held(key: string): string { const h = Store.heldUserOf(key, ""); return h ? JSON.stringify(h.value) : "none" }
+            // Section cards (K48 (5)): the cards the page shows, as "page.section", in order.
+            function sections(): string { return settingsPages.cardNames().join(",") }
+            // Theme export (K49): each app the status under the row lists, as name:state (written, included, missing,
+            // error), "none" while the document is not there; and the copy result of an app ("copied", "error", "none").
+            function exportState(): string {
+                const d = Store.docs["svc.theme_export"]
+                if (!d || !Array.isArray(d.targets)) return "none"
+                return d.targets.map(function (t) {
+                    return t.name + ":" + (t.error ? "error" : !t.include ? "written" : (t.include.present ? "included" : "missing"))
+                }).join(",")
+            }
+            function exportCopied(name: string): string { return settingsPages.copyState(name) }
         }
 
         Column {
