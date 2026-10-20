@@ -175,13 +175,10 @@ PanelWindow {
     // ---- intents ----
     function send(action, args) { Store.act(action, args || ({})) }
 
-    // Engaged: the dock has keyboard focus (a part took it). Sent on change only.
-    property bool sentEngaged: false
-    function engage(on) {
-        if (on === sentEngaged) return
-        sentEngaged = on
-        send("webdock.engage", { on: on })
-    }
+    // Engaged: the dock has keyboard focus while it is open. A hide is a loss of focus for the daemon too (it clears
+    // `engaged` itself), so a reveal with the focus still inside reports engaged again.
+    readonly property bool focusInside: open && scope.activeFocus
+    onFocusInsideChanged: send("webdock.engage", { on: focusInside })
     // Hover parts: the pointer entered or left a part (its grace included). Sent on change only; `shared` on an edge
     // another output touches (the daemon waits longer there).
     property var sentHover: ({ edge: false, strip: false, card: false })
@@ -218,7 +215,6 @@ PanelWindow {
     FocusScope {
         id: scope
         anchors.fill: parent
-        onActiveFocusChanged: dock.engage(scope.activeFocus)
 
         // The hover zone: 2 px along the whole edge. It counts only while the dock is hidden (the strip covers it when open).
         Box {
@@ -273,6 +269,7 @@ PanelWindow {
                 shownId: dock.shownId
                 pinned: dock.pinned
                 pinForced: false
+                panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
                 onPinMenu: id => { dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }
                 onPinToggled: dock.send("webdock.pin", { on: !dock.pinned })
@@ -306,9 +303,9 @@ PanelWindow {
         }
     }
 
-    // The hover parts report what they show (never a part that is hidden): the zone while hidden, the strip and the panel
-    // while open.
-    readonly property bool edgeIn: zoneHover.hovered && !open
+    // The hover parts report what they show. The zone reports while the pointer is on the edge, open or not: when a reveal
+    // covers the zone, a zone that went quiet would read as the pointer leaving, and the dock would close again at once.
+    readonly property bool edgeIn: zoneHover.hovered
     readonly property bool stripIn: stripHover.hovered && open
     readonly property bool cardIn: panelHover.hovered && panelUp
     onEdgeInChanged: hover("edge", edgeIn)

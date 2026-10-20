@@ -24,6 +24,8 @@ Item {
 
     signal activated()
     signal menuRequested()
+    // Tab and Shift+Tab are the strip's to route (into the card, or to the next tile): handled here, on the focused tile.
+    signal tabbed(bool back)
 
     width: tileSize
     height: tileSize
@@ -33,6 +35,8 @@ Item {
     Keys.onReturnPressed: tile.activated()
     Keys.onEnterPressed: tile.activated()
     Keys.onMenuPressed: tile.menuRequested()
+    Keys.onTabPressed: tile.tabbed(false)
+    Keys.onBacktabPressed: tile.tabbed(true)
 
     Rectangle {
         anchors.fill: parent

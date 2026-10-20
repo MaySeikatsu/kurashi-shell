@@ -236,10 +236,11 @@ import json, sys
 
 path, on, root = sys.argv[1], sys.argv[2], sys.argv[3]
 mods = [{"id": "weather", "qml": {"panel:weather": f"file://{root}/mods/weather/qml/Panel.qml"}}]
-if on == "on":
-    mods.insert(0, {"id": "webdock", "qml": {
-        "surface:dock": f"file://{root}/mods/webdock/qml/surfaces/dock.qml",
-        "widget:webdock": f"file://{root}/mods/webdock/qml/Widget.qml"}})
+if on in ("on", "widget"):
+    qml = {"widget:webdock": f"file://{root}/mods/webdock/qml/Widget.qml"}
+    if on == "on":
+        qml["surface:dock"] = f"file://{root}/mods/webdock/qml/surfaces/dock.qml"
+    mods.insert(0, {"id": "webdock", "qml": qml})
 json.dump({"mods": mods}, open(path, "w"))
 PY
 }
@@ -300,6 +301,7 @@ drv() { timeout 10 python3 -I "$W/drive.py" "$@"; }
 setdoc() { drv act mock.webdock "$1" > /dev/null || fail "mock.webdock refused: $1"; }
 seen() { timeout 10 python3 -I "$W/seen.py" "$1"; }
 count() { timeout 10 python3 -I "$W/count.py" "$1"; }
+docq() { drv doc mod.webdock | python3 -c "import json,sys; d=json.load(sys.stdin); sys.exit(0 if ($1) else 1)"; }
 check() { # check <0|1> <label>
   if [ "$1" = 1 ]; then echo "ok: $2"; else echo "FAIL: $2"; FAILS=$((FAILS + 1)); fi
 }
@@ -393,9 +395,11 @@ phase_states() {
   stop_phase
 }
 
-# ---- intents: the pointer and the keys reach the dock, and the intents reach the log ----
+# ---- intents: the pointer and the keys reach the dock; the intents reach the mock, which answers them ----
+# The mock answers each intent (hover and engage at once, select, back, pin, add, move, remove, size, collapse, toggle),
+# so a check reads the document after the act (docq), and the intent the frontend sent (seen).
 phase_intents() {
-  echo "== phase intents: hover, engage, select, pin, add, move, remove, size, collapse, back, toggle"
+  echo "== phase intents: hover, engage, select, back, pin, move, size, collapse, add, remove, toggle"
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
@@ -405,7 +409,7 @@ phase_intents() {
   sleep 1
   move 1500 400; move 2559 400
   seen "i['action']=='webdock.hover' and i['args']['part']=='edge' and i['args']['inside'] is True and i['args']['output']=='HEADLESS-1'" && r=1 || r=0
-  check "$r" "hover: the pointer on the edge zone reports part edge, inside"
+  check "$r" "hover: the pointer on the edge zone reports part edge, inside, with the output"
   move 1500 400
   seen "i['action']=='webdock.hover' and i['args']['part']=='edge' and i['args']['inside'] is False" && r=1 || r=0
   check "$r" "hover: the pointer leaving the zone reports it outside"
@@ -417,76 +421,71 @@ phase_intents() {
   move 1500 701
   seen "i['action']=='webdock.hover' and i['args']['part']=='strip' and i['args']['inside'] is False" && r=1 || r=0
   check "$r" "hover: leaving the strip reports it outside"
+  setdoc '{"mode":"compact","shown":null}'; sleep 1
   click 2531 637
   seen "i['action']=='webdock.select' and i['args']['pin']=='mail' and i['args']['output']=='HEADLESS-1'" && r=1 || r=0
   check "$r" "click: a pin sends webdock.select with its id and the output"
   seen "i['action']=='webdock.engage' and i['args']['on'] is True" && r=1 || r=0
   check "$r" "focus: a click into the dock sends webdock.engage on"
+  docq "d['mode']=='extended' and d.get('shown')=='mail'" && r=1 || r=0
+  check "$r" "select: the mock shows the pin (extended, shown: mail)"
   press escape
   seen "i['action']=='webdock.back'" && r=1 || r=0
   check "$r" "keys: Escape on the strip sends webdock.back"
+  docq "d['mode']=='compact' and d.get('shown') is None" && r=1 || r=0
+  check "$r" "back: extended goes to compact, the card away"
   click 2531 768
   seen "i['action']=='webdock.pin' and i['args']['on'] is True" && r=1 || r=0
   check "$r" "click: the dock's pin control sends webdock.pin with the new value"
-  click 2531 820
-  shot add
-  check "$([ "$(changed "$W/dock-add.ppm" "$W/icompact.ppm" 2000 560 2500 900)" -gt 1000 ] && echo 1 || echo 0)" \
-    "add: the add form takes the card's place beside the strip"
-  click 2350 659
-  press h t t p s colon slash slash e x a m p l e period t e s t slash return
-  seen "i['action']=='webdock.add' and i['args']['url']=='https://example.test/'" && r=1 || r=0
-  check "$r" "add: the typed address goes to webdock.add (the mock refuses it, the form stays)"
-  press escape
-  click 2531 637
+  docq "d.get('pinned') is True" && r=1 || r=0
+  check "$r" "pin: the mock keeps the dock open (pinned)"
   press down return
   seen "i['action']=='webdock.select' and i['args']['pin']=='weather'" && r=1 || r=0
   check "$r" "keys: Down moves to the next pin and Return selects it"
   press space
-  [ "$(count "i['action']=='webdock.pin' and i['args']['on'] is True")" -ge 2 ] && r=1 || r=0
-  check "$r" "keys: Space toggles the dock's pin"
+  docq "d.get('pinned') is False" && r=1 || r=0
+  check "$r" "keys: Space toggles the dock's pin (the mock unpins)"
   press up
   click 2531 637 right
   shot menu
   press return
   seen "i['action']=='webdock.move' and i['args']['pin']=='mail' and i['args']['to']==1" && r=1 || r=0
   check "$r" "menu: a right click opens the pin's menu, which takes the keyboard (Move down)"
+  docq "[p['id'] for p in d['pins']]==['weather','mail']" && r=1 || r=0
+  check "$r" "move: the mock reorders the pins"
   click 2531 701 right
-  press tab return
-  seen "i['action']=='webdock.remove' and i['args']['pin']=='weather'" && r=1 || r=0
-  check "$r" "menu: Tab skips the disabled move and Return removes the pin"
-  setdoc '{"mode":"extended","shown":"weather","size":"phone"}'; sleep 1.5
-  click 2531 701
-  press tab tab
   press return
+  docq "[p['id'] for p in d['pins']]==['mail','weather']" && r=1 || r=0
+  check "$r" "menu: Move up (the first enabled) restores the order"
+  setdoc '{"mode":"compact","shown":null,"size":"phone"}'; sleep 1.2
+  click 2531 701
+  press tab tab return
   seen "i['action']=='webdock.size' and i['args']['size']=='large'" && r=1 || r=0
-  check "$r" "card: Tab reaches the card's size button, Return sends webdock.size"
+  check "$r" "card: Tab reaches the size button, Return sends webdock.size large"
+  docq "d.get('size')=='large'" && r=1 || r=0
+  check "$r" "size: the mock makes the card large"
   press tab return
   seen "i['action']=='webdock.collapse'" && r=1 || r=0
   check "$r" "card: Tab reaches the collapse button, Return sends webdock.collapse"
+  docq "d['mode']=='compact' and d.get('shown') is None" && r=1 || r=0
+  check "$r" "collapse: the mock puts the card away"
+  click 2531 701 right
+  press tab return
+  docq "[p['id'] for p in d['pins']]==['mail']" && r=1 || r=0
+  check "$r" "menu: Tab skips the disabled move and Return removes the pin (the mock drops it)"
+  click 2531 754
+  shot add
+  check "$([ "$(changed "$W/dock-add.ppm" "$W/icompact.ppm" 2000 560 2500 900)" -gt 1000 ] && echo 1 || echo 0)" \
+    "add: the add form takes the card's place beside the strip"
+  click 2350 659
+  press h t t p s colon slash slash e x a m p l e period t e s t slash return
+  seen "i['action']=='webdock.add' and i['args']['url']=='https://example.test/'" && r=1 || r=0
+  check "$r" "add: the typed address goes to webdock.add"
+  docq "[p['id'] for p in d['pins']]==['mail','example-test']" && r=1 || r=0
+  check "$r" "add: the mock adds the pin, and the form closes with the keyboard back on the add control"
   click 2338 17
   seen "i['action']=='webdock.toggle' and i['args'].get('output')=='HEADLESS-1'" && r=1 || r=0
   check "$r" "bar widget: a click sends webdock.toggle for the output the bar is on"
-  stop_phase
-}
-
-# ---- probe: which y of the control column takes a click (the pin control and the add button) ----
-phase_probe() {
-  echo "== phase probe: the control column's hit areas"
-  start_mock HEADLESS-1
-  mods_json "$W/mods-on.json" on
-  start_relay "$W/mods-on.json"
-  start_frontend
-  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
-  start_input
-  sleep 1
-  setdoc '{"mode":"compact","shown":null}'; sleep 1.2
-  move 2531 701
-  for y in 744 752 760 768 776 784; do click 2531 "$y"; done
-  echo "probe: pin intents after clicks at 744..784: $(count "i['action']=='webdock.pin'")"
-  click 2531 820
-  press h i
-  shot probe-form
-  echo "probe: the add form after the letters h, i was shot"
   stop_phase
 }
 
@@ -507,7 +506,7 @@ phase_ja() {
 phase_measure() {
   echo "== phase measure: idle commits and PSS (the mod on and off, one and two outputs)"
   local pss_on1 pss_off1 pss_on2 pss_off2 c0 commits
-  for run in on off; do
+  for run in on off widget; do
     start_mock HEADLESS-1
     mods_json "$W/mods-$run.json" "$run"
     start_relay "$W/mods-$run.json"
@@ -520,8 +519,10 @@ phase_measure() {
     if [ "$run" = on ]; then
       check "$([ "$commits" -eq 0 ] && echo 1 || echo 0)" "idle: 0 commits of the dock's surfaces in 10 s while hidden (got $commits)"
       pss_on1=$(pss_mib "$QS_PID")
-    else
+    elif [ "$run" = off ]; then
       pss_off1=$(pss_mib "$QS_PID")
+    else
+      pss_widget1=$(pss_mib "$QS_PID")
     fi
     stop_phase
   done
@@ -538,11 +539,11 @@ phase_measure() {
     stop_phase
   done
   echo "measure: PSS one output: mod on ${pss_on1} MiB, off ${pss_off1} MiB, delta $(python3 -c "print(round(${pss_on1} - ${pss_off1}, 2))") MiB"
+  echo "measure: PSS one output, the bar widget alone (no dock surface): ${pss_widget1} MiB, delta $(python3 -c "print(round(${pss_widget1} - ${pss_off1}, 2))") MiB"
   echo "measure: PSS two outputs: mod on ${pss_on2} MiB, off ${pss_off2} MiB, delta $(python3 -c "print(round(${pss_on2} - ${pss_off2}, 2))") MiB (per output $(python3 -c "print(round((${pss_on2} - ${pss_off2}) / 2, 2))") MiB)"
   check "$(python3 -c "print(1 if (${pss_on2} - ${pss_off2}) / 2 <= 1.0 else 0)")" "budget: the dock's delta per output is at most 1 MiB (K16/K19)"
 }
 
-want probe && phase_probe
 want states && phase_states
 want intents && phase_intents
 want ja && phase_ja
