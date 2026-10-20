@@ -50,13 +50,15 @@ const ERROR_ADDRESS: &str = "webdock.error.address";
 pub struct Outcome {
     pub ops: Option<Value>,
     pub external: Option<String>,
+    /// The action's reply (`webdock.add` → `{pin}`, as the daemon answers; row 113).
+    pub reply: Option<Value>,
 }
 
 impl Outcome {
     fn patch(ops: Value) -> Self {
         Outcome {
             ops: Some(ops),
-            external: None,
+            ..Outcome::default()
         }
     }
 }
@@ -331,7 +333,10 @@ fn add(doc: &Value, args: &Value) -> Result<Outcome, Fail> {
         "profile": id,
         "loaded": false,
     }));
-    Ok(Outcome::patch(json!({"pins": pins})))
+    Ok(Outcome {
+        reply: Some(json!({"pin": id})),
+        ..Outcome::patch(json!({"pins": pins}))
+    })
 }
 
 /// `webdock.remove {pin}` (K40): the pin's row goes; a card showing it closes, and the host stops keeping it.
@@ -455,8 +460,8 @@ fn external(url: &str) -> Result<Outcome, Fail> {
         return Err(Fail::invalid(ERROR_URL));
     }
     Ok(Outcome {
-        ops: None,
         external: Some(url.to_string()),
+        ..Outcome::default()
     })
 }
 
@@ -1156,6 +1161,7 @@ mod tests {
             &json!({"url": "https://www.example.org/x"}),
         )
         .unwrap();
+        assert_eq!(out.reply, Some(json!({"pin": "example-org"})));
         let ops = out.ops.unwrap();
         let pins = ops["pins"].as_array().unwrap();
         assert_eq!(pins.len(), 7);

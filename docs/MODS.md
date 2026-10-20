@@ -249,7 +249,7 @@ toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable
 included; `shared` on an edge that borders another output) · `webdock.engage {on}` (a part took or lost keyboard
 focus) · `webdock.select {pin, output?}` (a click on a pin: extended(pin), or compact with `shown` cleared when that
 pin is shown) · `webdock.back {}` (Escape on the chrome: extended → compact; compact → hidden unless pinned) ·
-`webdock.pin {on?}` (the `pinned` setting; no argument flips it) · `webdock.add {url, title?}` → `{pin}` ·
+`webdock.pin {on?}` (the `pinned` setting; no argument flips it) · `webdock.add {url, title?}` → `{pin}` (an `https`, `http` or `file` address; `id` = the host without `www.`, slugged, `-2`, `-3`… when taken; `title` = the argument, else the host; row 112) ·
 `webdock.remove {pin}` · `webdock.move {pin, to}` (index, clamped) · `webdock.retarget {pin, url}` (a web pin's
 `target` becomes `url`: "replace the pin with this page"). `pin`, `add`, `remove`, `move` and `retarget` are
 settings writes (undoable; a refused value answers with the validator's field path, row 96). **Hover state machine
