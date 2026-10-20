@@ -226,7 +226,20 @@ async fn wait_for(d: &Daemon, want: &str) {
         }
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    panic!("the host did not reach {want}: it is {}", d.state().await);
+    let logs: String = fs::read_dir(base().join("state"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|e| {
+            fs::read_to_string(e.path())
+                .ok()
+                .map(|t| format!("{}:\n{t}", e.path().display()))
+        })
+        .collect();
+    panic!(
+        "the host did not reach {want}: it is {}\n{logs}",
+        d.state().await
+    );
 }
 
 /// Waits until `check` holds (a file the program writes, a report line).

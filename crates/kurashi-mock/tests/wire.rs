@@ -31,10 +31,14 @@ fn start_with(tag: &str, extra: &[&str]) -> (Mock, PathBuf) {
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("socket dir");
     let sock = dir.join("ipc.sock");
+    // The mock creates the web dock's profile and icon dirs under HOME at startup. Nix builds run
+    // with a HOME that cannot be written, so the mock gets directories of its own.
     let child = Command::new(env!("CARGO_BIN_EXE_kurashi-mock"))
         .arg("--socket")
         .arg(&sock)
         .args(extra)
+        .env("XDG_DATA_HOME", dir.join("data"))
+        .env("XDG_CACHE_HOME", dir.join("cache"))
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .spawn()
