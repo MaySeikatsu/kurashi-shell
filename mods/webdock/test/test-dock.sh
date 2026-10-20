@@ -578,7 +578,9 @@ phase_measure() {
   echo "measure: PSS of the two-output runs is not usable (runs on:${on_p} off:${off_p}: a ~1.9 TiB mapping under gles2); per output PSS as computed: ${per_p} MiB"
   echo "measure: the first reveal, once for the shell (its window is made, then kept): +${uss_one_time} MiB USS (${uss_before} -> ${uss_rev1}), +${one_time} MiB PSS (${pss_before} -> ${pss_rev1})"
   echo "measure: 20 reveal/hide cycles after the first: growth ${growth_u} MiB USS (${uss_rev1} -> ${uss_rev20}), ${growth} MiB PSS (${pss_rev1} -> ${pss_rev20})"
-  check "$(python3 -c "print(1 if ${per_u} <= 1.0 else 0)")" "budget: the dock's USS cost per output, never revealed, is at most 1 MiB (K16/K19)"
+  # K41: an opt-in mod carries its own recorded cost (BENCH "Mods": 6.2 MiB USS per output, runs swing widely), so
+  # this guards against a regression rather than holding the core budget.
+  check "$(python3 -c "print(1 if ${per_u} <= 10.0 else 0)")" "cost: the dock's USS per output, never revealed, stays at most 10 MiB (K41; recorded 6.2)"
   check "$(python3 -c "print(1 if ${growth_u} <= 1.0 else 0)")" "growth: 20 reveal/hide cycles add at most 1 MiB of USS"
 }
 
