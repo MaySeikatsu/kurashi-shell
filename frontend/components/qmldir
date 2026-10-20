@@ -19,3 +19,4 @@ QuickPanel 1.0 QuickPanel.qml
 PeekLines 1.0 PeekLines.qml
 KeyClock 1.0 KeyClock.qml
 SoftShadow 1.0 SoftShadow.qml
+FrameHost 1.0 FrameHost.qml

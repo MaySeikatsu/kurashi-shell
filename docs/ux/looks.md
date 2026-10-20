@@ -48,6 +48,40 @@ glitchy). Reduce motion: everything snaps.
 One theme for all outputs (per-output overrides stay as they are). The previews cost one resolve per pack, once per
 daemon start (cached); the cards are static (0 frames while Settings is idle).
 
+## Identity packs (W25, v0.3; ported from shellseikatsu, the user's own shell)
+Fourteen more packs, each a recipe plus, for the game and OS looks, a frame (DESIGN-SYSTEM "Frames"). Sources, all
+in `~/Documents/projects/quickshell/shellseikatsu/`: presets `Services/Modes/<Name>.qml`, palettes
+`Services/Appearance.qml` `_<name>Palette()`, frames `Widgets/ThemeDecor/<Name>Frame.qml`, `Widgets/BevelBorder.qml`,
+`Widgets/GlassSheen.qml`, `Widgets/SurfaceFrame.qml`, lock grounds `Panels/Lockscreen/LockStyle<Name>.qml` (backdrops
+only: our lock keeps its own column, K45).
+
+| pack | from | frame (from) |
+|---|---|---|
+| catppuccin | `Catppuccin.qml`, `_catppuccinPalette` (+ Latte from catppuccin.com) | — |
+| tokyo-night | `Tokyonight.qml`, `_tokyonightPalette` (+ Day from tokyonight.nvim) | — |
+| rose-pine | `Rosepine.qml`, `_rosepinePalette` (+ Dawn from rosepinetheme.com) | — |
+| material | `Material.qml` (matugen there; the M3 baseline scheme here) | — |
+| aqua | `Macos.qml` | sheen (`GlassSheen.qml`) |
+| yorha | `Nier.qml`, `_nierPalette` | yorha (`YorhaFrame.qml`, `LockStyleNier.qml`) |
+| kawaii | `Kawaii.qml`, `_kawaiiPalette` | kawaii (`KawaiiFrame.qml`, `LockStyleKawaii.qml`) |
+| win95 | `Retro.qml`, `_win95Palette` | bevel (`BevelBorder.qml`, `LockStyleRetro.qml`) |
+| luna | `Winxp.qml`, `_winxpPalette` | luna (`SurfaceFrame.qml`, `LockStyleXp.qml`) |
+| aero | `Win7.qml`, `_win7Palette` | aero (`GlassSheen.qml` + `SurfaceFrame.qml`, `LockStyleWin7.qml`) |
+| ps2 | `Ps2.qml`, `_ps2Palette` | ps2 (`Ps2Frame.qml`, `LockStylePs2.qml`) |
+| snes | `Snes.qml`, `_snesPalette` | snes (`SnesFrame.qml`, `LockStyleSnes.qml`) |
+| hallownest | `HollowKnight.qml`, `_hollowPalette` | hollow (`HollowFrame.qml`, `LockStyleHollow.qml`) |
+| souls | `DarkSouls.qml`, `_dsoulsPalette` | ornate (`OrnateFrame.qml`, `LockStyleSouls.qml`) |
+
+Left out on purpose: the Cyberpunk presets (the user's own "isekai" decor comes later, I117), and shellseikatsu's
+other game presets (Settlers, osu!, Ultrakill, F-Zero, NFS) for now. Changes from the originals: colours come from
+palette roles instead of fixed hex (a pinned palette still fits); motes and fog that drift forever stand still (Ma:
+an idle shell renders no frames) — PS2's towers rise once when the lock appears; game palettes were nudged to
+text-grade contrast where the originals miss it (the AA test holds every scheme). Single-scheme palettes (the game and
+OS ones) say so in the theme notes when the other scheme is asked for. Fonts that are not free (Segoe UI, Tahoma,
+SF Pro, Trajan, OptimusPrinceps, W95FA, SST, Press Start 2P) stay first in the chains and fall back to free families;
+HM installs Quicksand, Comic Neue, Cinzel, EB Garamond and Roboto. Shots: `frontend/shots/look/<pack>/`, contact sheet
+`frontend/shots/look/identity-sheet.png`.
+
 ## Definition of done
 - Five looks visibly distinct on every surface (bar, island pill and card, quick settings, launcher, notifications,
   session, lock, web dock, desk) with an identical layout (test-look shots, `frontend/shots/look/<decor>/`).

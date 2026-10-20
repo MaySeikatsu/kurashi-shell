@@ -180,6 +180,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I129 | 2026-10-21 | W23-auth-media report | Polkit: a real `pkexec` round trip in a sandbox with a private polkitd; lyrics: a "back to the line" key, the bar widget opening the media card directly, a lyrics backdrop/wallpaper. | new |
 | I130 | 2026-10-21 | W23-system report (row 134a) | `svc.nightlight` carries `start`/`end` so the night page shows the manual times; re-read the weather places when they change (sun schedule). | new |
 | I131 | 2026-10-21 | W23-system report | Layout chip and REC dot on side bars; "Open folder" on the recording notification; a recording face on the island. | new |
+| I132 | 2026-10-21 | W25-identity report (row 142) | Frames on the island card and the quick panel (not Blocks today) and on the bar strip under flat chrome; frames in Settings' preview cards; hide frames under `a11y.high_contrast`?; a user pack naming an unknown frame should be reported (today a Loader warning). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
