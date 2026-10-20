@@ -111,3 +111,15 @@
 "mods.webdock.new_tabs.help" = "In the dock: the link replaces the page and Back returns. In the browser: it opens in your default browser."
 "mods.webdock.new_tabs.dock" = "In the dock"
 "mods.webdock.new_tabs.browser" = "In the browser"
+
+# The hover, focus and pin actions (K40, W20-webdock-daemon) and the address refusal of add and retarget.
+"webdock.error.address" = "The address must be a web page: https, http or file"
+"action.webdock.hover" = "The pointer entered or left the dock's edge, strip or card"
+"action.webdock.engage" = "The keyboard entered or left the dock"
+"action.webdock.select" = "Show a pin, or put its card away"
+"action.webdock.back" = "Step the dock back (Escape)"
+"action.webdock.pin" = "Keep the dock open, or let it hide"
+"action.webdock.add" = "Add a site to the dock"
+"action.webdock.remove" = "Remove a pin from the dock"
+"action.webdock.move" = "Move a pin in the dock"
+"action.webdock.retarget" = "Replace a pin's page with this one"
