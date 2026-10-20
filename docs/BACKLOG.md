@@ -156,6 +156,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I109 | 2026-10-20 | W21-phone report | Keycap styling for the web dock phone's bottom-bar buttons (flat while everything around is keycap). | new |
 | I110 | 2026-10-20 | W21-phone report | A mod's quick tile that is not a `QuickTile` still draws as a plain cell in the keycap pill grid. | new |
 | B30 | 2026-10-20 | lead (session 9) | `kurashid --test hosts` `a_scoped_connection_reaches_its_own_mod_and_nothing_else` failed once under heavy parallel load (no reply to p1 in time); passes alone. Timing margin in the fake host test. | new |
+| B31 | 2026-10-20 | lead (session 9) | `settings/test.sh` fails at P3 "import review: Apply does not hold the focus (Import file)" — also on the pre-session baseline 80640d6, so not a session-9 regression. `profile.import` itself answers its review (checked by CLI); the review's `applyBtn.forceActiveFocus()` does not take. Checks after P3 are not running. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
