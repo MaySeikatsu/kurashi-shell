@@ -1,0 +1,38 @@
+# Web dock, the shell's edge surface (mods/webdock/qml): the strip, the card's frame, the add form, a pin's menu, the bar
+# widget and the states the shell draws itself. The web host's copy is in mod-webdock.toml; keys are not repeated here.
+
+# The strip and its pins.
+"webdock.dock.name" = "Web dock"
+"webdock.dock.kind.site" = "site"
+"webdock.dock.kind.view" = "view"
+"webdock.dock.state.shown" = "shown"
+"webdock.dock.state.loaded" = "loaded"
+"webdock.dock.state.error" = "stopped"
+"webdock.dock.add" = "Add a site or a view"
+"webdock.dock.settings" = "Web dock settings"
+
+# The add form.
+"webdock.dock.add.title" = "Add a pin"
+"webdock.dock.add.name" = "Name (optional)"
+"webdock.dock.add.submit" = "Add"
+"webdock.dock.add.cancel" = "Cancel"
+"webdock.add.invalid" = "Enter a web address that starts with https:// or http://"
+
+# A pin's menu.
+"webdock.dock.move_up" = "Move up"
+"webdock.dock.move_down" = "Move down"
+"webdock.dock.remove" = "Remove"
+"webdock.dock.close" = "Close"
+"webdock.dock.forced" = "Set by"
+
+# The card's states drawn by the shell.
+"webdock.dock.empty.add" = "Add a site"
+"webdock.dock.host.failed" = "The web engine stopped"
+"webdock.dock.unavailable" = "The web dock is not available"
+"webdock.view.gone" = "This view is not available: its mod is off"
+
+# The bar widget.
+"webdock.dock.widget" = "Web dock"
+"webdock.dock.widget.open" = "shown"
+"webdock.dock.widget.closed" = "hidden"
+"webdock.dock.widget.pinned" = "kept open"
