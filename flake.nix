@@ -44,7 +44,10 @@
             strace (pkgs.perf or linuxPackages.perf) procps dbus hyperfine
           ];
           RUST_BACKTRACE = "1";
+          # The fonts the shell draws with (HM `programs.kurashi.fonts`), visible to fontconfig through its
+          # xdg data dirs, so sandbox screenshots show icons and the sekai look without a system install.
           shellHook = ''
+            export XDG_DATA_DIRS="${pkgs.material-symbols}/share:${pkgs.nunito}/share''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
             echo "kurashi dev shell — 'just' lists tasks"
           '';
         };

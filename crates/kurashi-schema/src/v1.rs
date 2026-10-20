@@ -69,12 +69,23 @@ pub struct Bar {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "appearance")]
 pub struct Theme {
+    /// Look
+    /// A decor pack: recommends a palette, chrome, motion, corners and fonts in one choice. Your own
+    /// settings still win over what it recommends (K42).
+    #[kurashi(default = Decor::None, section = "colors")]
+    pub decor: Decor,
     #[kurashi(nested, section = "colors")]
     pub colors: Colors,
     #[kurashi(nested, section = "shape")]
     pub shape: Shape,
     #[kurashi(nested, section = "material")]
     pub material: Material,
+    /// Chrome
+    /// How blocks are drawn: flat fills, or keycaps with an ink outline, a light ring and a hard
+    /// shadow they sink into when pressed (K42).
+    #[kurashi(default = Chrome::Flat, section = "shape",
+              overridden_by = "a11y.high_contrast => flat")]
+    pub chrome: Chrome,
     #[kurashi(nested, section = "motion")]
     pub motion: Motion,
     /// Density
@@ -83,6 +94,21 @@ pub struct Theme {
     pub density: Density,
     #[kurashi(nested, section = "typography")]
     pub typography: Typography,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Decor {
+    /// Your own
+    None,
+    /// Sekai (pop keycaps)
+    Sekai,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Chrome {
+    Flat,
+    /// Keycap
+    Keycap,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

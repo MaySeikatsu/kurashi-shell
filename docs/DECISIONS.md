@@ -358,3 +358,20 @@ dock window after the first reveal, 0 commits idle, no growth over 20 reveals. *
 its own Qt layer window, so no QML change gets it near 1 MiB; the alternatives were hover only on the bar's edge
 (reusing the bar window) or one edge window following focus (no hover on unfocused outputs) — both cut the feature the
 user asked for (K40). The base budget's per-output headroom (+6.0 of +6) stays reserved for core surfaces.
+
+**K42** 🟢 Chrome axis, decor recipes and a pop "sekai" look (user request, session 9: `INSPIRATION.md` — SekaiPop,
+Capsule, Vitreus, pleamar). (1) A new theme axis `theme.chrome` = `flat | keycap`. Keycap is SekaiPop's "one block,
+everywhere": an outline in palette role `line`, a ring in role `ring` between outline and fill, and a hard shadow
+straight down that the block sinks into while pressed, springing back with overshoot
+(<https://github.com/Blapples/SekaiPop> `modules/common/widgets/Pill.qml`). Renderers read only tokens
+(`chrome.style/outline/ring/shadow/line/ring_color`) through `Block.qml`; no renderer branches on a theme name (rule 4).
+`a11y.high_contrast` forces flat. (2) Palette roles `line` and `ring` join the role set, derived when a palette leaves
+them out. (3) Decor packs get their recipe half (DESIGN-SYSTEM §4): `theme.decor` (`none | sekai`) puts the pack's
+recommended axis values at the `theme:<pack>` layer, under the user's own values, so a pinned value still wins and
+every recommended value's provenance says `theme:sekai` (Shōjiki). Recipes are code (`kurashi_theme::decor_recipe`)
+until mods can ship them. (4) Springs as tokens: `motion.spring.{on,overshoot,spring,damping}` (calm settles, lively
+bounces, keycap bounces most; `none` = off); morphs that retarget use them (Capsule's island morph, pleamar's "every
+property is a spring"). (5) Icons: Material Symbols Rounded by ligature when installed (`font.icons`), else the
+component's text glyph; HM installs it with Nunito (`programs.kurashi.fonts`). (6) Tonal `color.selected` and
+`color.data.1..4` (I51, I63). *Why:* identity without forks of every component; one switch for the whole look, but
+still the user's settings on top.

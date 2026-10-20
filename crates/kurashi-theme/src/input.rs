@@ -94,6 +94,15 @@ pub enum MotionProfile {
     None,
 }
 
+/// How a block of chrome is drawn (K42): flat fills, or keycaps — outline, light ring, fill and a
+/// hard shadow straight down that the block sinks into when pressed.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum Chrome {
+    #[default]
+    Flat,
+    Keycap,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Density {
     Compact,
@@ -111,6 +120,7 @@ pub struct Axes {
     pub motion: MotionProfile,
     pub motion_speed: f64,
     pub density: Density,
+    pub chrome: Chrome,
     /// Type scale multiplier (accessibility `large_text` raises it).
     pub type_scale: f64,
     pub font_chain: Vec<String>,
@@ -128,6 +138,7 @@ impl Default for Axes {
             motion: MotionProfile::Calm,
             motion_speed: 1.0,
             density: Density::Regular,
+            chrome: Chrome::Flat,
             type_scale: 1.0,
             font_chain: ["Inter", "Noto Sans", "sans-serif"]
                 .map(String::from)
