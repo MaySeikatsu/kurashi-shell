@@ -70,6 +70,8 @@ Singleton {
     // Row 125: a block casts a shadow of either kind (bar groups float), or is an outlined box with no fill (line).
     readonly property bool lifted: shadowDy > 0 || softR > 0
     readonly property bool boxed: outlineW > 0 && !lifted
+    // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
+    readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")
     // Not `onSelected`: an `on…` name reads back black (the onAccent issue).
     readonly property color fgOnSelected: color("color.on_selected", "#e9e4d8")
