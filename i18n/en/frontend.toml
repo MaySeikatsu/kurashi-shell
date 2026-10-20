@@ -44,3 +44,9 @@
 # W19-calendar (clock view: week numbers, the weather aside's setup state)
 "frontend.clock.week_n" = "Week {n}"
 "frontend.clock.aside.no_place" = "No place set"
+
+# W21-phone (quick settings as a phone: the greeting row, by the clock document's hour)
+"frontend.quick.greeting.morning" = "Good morning"
+"frontend.quick.greeting.day" = "Hello"
+"frontend.quick.greeting.evening" = "Good evening"
+"frontend.quick.greeting.night" = "Good night"
