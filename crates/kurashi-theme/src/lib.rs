@@ -108,6 +108,7 @@ pub fn decor_recipe(name: &str) -> Option<Vec<(&'static str, serde_json::Value)>
             ("theme.shape.corners", json!("rounded")),
             ("theme.shape.radius_scale", json!(1.25)),
             ("bar.height", json!(40)),
+            ("desktop.enabled", json!(true)),
             (
                 "theme.typography.family",
                 json!([

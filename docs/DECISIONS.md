@@ -375,3 +375,9 @@ property is a spring"). (5) Icons: Material Symbols Rounded by ligature when ins
 component's text glyph; HM installs it with Nunito (`programs.kurashi.fonts`). (6) Tonal `color.selected` and
 `color.data.1..4` (I51, I63). *Why:* identity without forks of every component; one switch for the whole look, but
 still the user's settings on top.
+
+**K43** 🟢 Desktop widgets as a core surface, opt-in per output (session 9, SekaiPop's desk). `desktop.*` keys; one
+content-sized bottom-layer window per output while on, none while off (Ma, K16); the `sekai` decor recommends it.
+Cards read existing documents only (svc.clock, svc.media, mod.weather) — no new service. *Why:* the user asked for
+SekaiPop's concepts and "almost feature complete"; a desk is the visible half of that look. Its per-output cost is
+outside the base budget while off by default (as K41 for opt-in mods). UX brief `docs/ux/desktop.md`.

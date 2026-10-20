@@ -44,3 +44,4 @@
 # W19-calendar (clock view: week numbers, the weather aside's setup state)
 "frontend.clock.week_n" = "Week {n}"
 "frontend.clock.aside.no_place" = "No place set"
+"frontend.desktop.now_playing" = "Now playing"
