@@ -235,7 +235,8 @@ in
 
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
-      home.packages = [ cfg.package ] ++ cfg.fonts;
+      # wl-copy: the launcher copies a calculation (K42 session).
+      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts;
       fonts.fontconfig.enable = lib.mkIf (cfg.fonts != [ ]) (lib.mkDefault true);
 
       # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.

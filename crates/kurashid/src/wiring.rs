@@ -406,6 +406,26 @@ fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
     });
 }
 
+/// Puts `text` on the Wayland clipboard with `wl-copy` (wl-clipboard); unavailable without it.
+async fn copy_text(text: &str) -> Result<(), ActionError> {
+    use tokio::io::AsyncWriteExt;
+    let mut child = tokio::process::Command::new("wl-copy")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| ActionError::Unavailable(format!("wl-copy: {e}")))?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin
+            .write_all(text.as_bytes())
+            .await
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
+    }
+    // wl-copy forks to serve the clipboard; the parent exits at once.
+    let _ = child.wait().await;
+    Ok(())
+}
+
 /// `query kind:"launcher"` + `launcher.launch {id, files?}`.
 pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::path::PathBuf) {
     use kurashi_launcher::{IndexConfig, LaunchOptions, Launcher};
@@ -430,10 +450,20 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
     );
     watch_while_open(daemon.hub.clone(), LauncherWatch::new(launcher.clone()));
     let l = launcher.clone();
+    // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
+    // copies the value (Capsule's inline calculator, K42 session).
     let query: QueryFn = Arc::new(move |q: &str| {
-        l.query(q, 30)
-            .into_iter()
-            .filter_map(|r| serde_json::to_value(r).ok())
+        let calc = kurashi_launcher::calc::eval(q).map(|v| {
+            let shown = kurashi_launcher::calc::format(v);
+            json!({"id": format!("calc:{shown}"), "name": shown, "generic": q.trim(),
+                   "icon": null, "kind": "calc", "score": 1.0})
+        });
+        calc.into_iter()
+            .chain(
+                l.query(q, 30)
+                    .into_iter()
+                    .filter_map(|r| serde_json::to_value(r).ok()),
+            )
             .collect()
     });
     daemon.queries.insert("launcher".into(), query);
@@ -456,6 +486,9 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                             .collect()
                     })
                     .unwrap_or_default();
+                if let Some(value) = id.strip_prefix("calc:") {
+                    return copy_text(value).await.map(|_| Some(json!({"copied": value})));
+                }
                 let pid = tokio::task::spawn_blocking(move || launcher.launch(&id, &files))
                     .await
                     .map_err(|e| ActionError::Internal(e.to_string()))?

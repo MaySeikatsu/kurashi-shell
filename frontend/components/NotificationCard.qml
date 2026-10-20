@@ -25,8 +25,18 @@ Rectangle {
     implicitHeight: row.height + 2 * Theme.pad
     radius: Theme.rLg
     color: Theme.container
-    border.width: 1
-    border.color: urgent ? Theme.accent : Theme.outline
+    // Keycap chrome (K42): an ink outline (accent when urgent) and a hard shadow; flat: a hairline.
+    border.width: Theme.keycap ? Theme.outlineW : 1
+    border.color: urgent ? Theme.accent : (Theme.keycap ? Theme.line : Theme.outline)
+    Rectangle {
+        z: -1
+        visible: Theme.shadowDy > 0
+        y: Theme.shadowDy
+        width: c.width
+        height: c.height
+        radius: c.radius
+        color: Theme.line
+    }
     // Only a dragged or snapping card has opacity < 1, so static cards never pay for group opacity (K16).
     opacity: drag.active || snap.running ? Math.max(0.3, 1 - Math.abs(x) / width) : 1
 
@@ -60,6 +70,24 @@ Rectangle {
         y: Theme.pad
         width: parent.width - 2 * Theme.pad
         spacing: Theme.gap
+        // No picture from the app: its kind as an icon in a tonal disc, so every card has a face.
+        Rectangle {
+            visible: !img.visible
+            width: 32
+            height: 32
+            radius: 16
+            color: c.urgent ? Theme.accent : Theme.selected
+            border.width: Theme.keycap ? Theme.outlineW : 0
+            border.color: Theme.line
+            Icon {
+                anchors.centerIn: parent
+                name: c.urgent ? "priority_high" : "notifications"
+                glyph: c.urgent ? "!" : "•"
+                filled: true
+                size: 18
+                color: c.urgent ? Theme.fgOnAccent : Theme.onSelected
+            }
+        }
         Image {
             id: img
             visible: c.icon !== "" && status === Image.Ready
@@ -72,7 +100,7 @@ Rectangle {
         }
         Column {
             id: col
-            width: parent.width - (img.visible ? img.width + parent.spacing : 0) - closeBtn.width - parent.spacing
+            width: parent.width - 32 - parent.spacing - closeBtn.width - parent.spacing
             spacing: Theme.xs
             Text {
                 width: parent.width
@@ -87,7 +115,7 @@ Rectangle {
                 visible: text !== ""
                 color: Theme.fg
                 font.pixelSize: Theme.fs
-                font.bold: true
+                font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
                 wrapMode: Text.Wrap
                 maximumLineCount: 2
@@ -117,8 +145,10 @@ Rectangle {
                         required property var modelData
                         implicitWidth: lbl.implicitWidth + 2 * Theme.pad
                         implicitHeight: 26
-                        radius: Theme.rSm
+                        radius: Theme.keycap ? height / 2 : Theme.rSm
                         color: Theme.containerHigh
+                        border.width: Theme.keycap ? Theme.outlineW : 0
+                        border.color: Theme.line
                         activeFocusOnTab: true
                         Keys.onReturnPressed: c.invoked(modelData.key)
                         Keys.onEnterPressed: c.invoked(modelData.key)
@@ -161,11 +191,12 @@ Rectangle {
             Keys.onSpacePressed: c.dismissed()
             Accessible.role: Accessible.Button
             Accessible.name: I18n.tr("frontend.notification.dismiss")
-            Text {
+            Icon {
                 anchors.centerIn: parent
                 color: Theme.dim
-                font.pixelSize: Theme.fs
-                text: "✕"
+                name: "close"
+                glyph: "✕"
+                size: Theme.fs + 3
             }
             HoverHandler { id: closeHover }
             MouseArea {

@@ -56,14 +56,28 @@ Item {
     Accessible.role: Accessible.Slider
     Accessible.name: s.a11y
 
+    // Keycap chrome (K42): a thick outlined pill whose fill carries the level, and a ring-coloured knob.
+    readonly property int trackH: Theme.keycap ? 12 : 6
     Rectangle {
+        id: trackRect
         anchors.verticalCenter: parent.verticalCenter
-        width: parent.width; height: 6; radius: 3; color: s.track
+        width: parent.width; height: s.trackH; radius: height / 2
+        color: Theme.keycap ? Theme.ring : s.track
+        border.width: Theme.keycap ? Theme.outlineW : 0
+        border.color: Theme.line
         visible: !s.unavailable
-        Rectangle { width: parent.width * s.shown; height: parent.height; radius: 3; color: s.fill }
+        Rectangle {
+            x: trackRect.border.width; y: trackRect.border.width
+            width: Math.max(height, (parent.width - 2 * x) * s.shown); height: parent.height - 2 * y
+            radius: height / 2; color: s.fill
+            visible: s.shown > 0
+        }
     }
     Rectangle {
-        width: 12; height: 12; radius: 6; color: s.fill
+        width: Theme.keycap ? 18 : 12; height: width; radius: width / 2
+        color: Theme.keycap ? Theme.ring : s.fill
+        border.width: Theme.keycap ? Theme.outlineW : 0
+        border.color: Theme.line
         anchors.verticalCenter: parent.verticalCenter
         x: (s.width - width) * s.shown
         visible: !s.unavailable
