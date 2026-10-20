@@ -268,13 +268,9 @@ PanelWindow {
         easing.overshoot: Theme.overshoot
         onStopped: if (!card.open) card.mapped = false
     }
-    // The status row's time: the host has no svc.clock (its scope is mod.webdock, theme and i18n), so it keeps a minute
-    // clock of its own, and only while the card is mapped (Ma).
-    SystemClock {
-        id: clock
-        enabled: card.mapped && card.phoneLook
-        precision: SystemClock.Minutes
-    }
+    // The status row's time: svc.clock (in the host's scope since row 118), watched only while the phone is mapped (Ma).
+    Watch { doc: "svc.clock"; active: card.mapped && card.phoneLook }
+    readonly property var clockDoc: Store.docs["svc.clock"] || ({})
     // The page's host name for the status row ("" for a file or an address without one).
     function hostOf(u) {
         var m = /^[a-z][a-z0-9+.-]*:\/\/([^\/?#:]+)/i.exec(String(u || ""))
@@ -331,7 +327,7 @@ PanelWindow {
             statusLeft: Text {
                 height: phone.statusH
                 verticalAlignment: Text.AlignVCenter
-                text: Qt.formatTime(clock.date, "hh:mm")
+                text: (card.clockDoc.hh ?? "--") + ":" + (card.clockDoc.mm ?? "--")
                 color: Theme.fg
                 font.pixelSize: Theme.fsLabel
                 font.weight: Theme.wBold

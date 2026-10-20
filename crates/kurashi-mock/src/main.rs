@@ -279,6 +279,7 @@ fn scoped_refusal(mod_id: &str, msg: &ClientMsg) -> Option<Option<String>> {
     let doc_ok = |doc: &str| {
         doc == "theme"
             || doc == "i18n"
+            || doc == "svc.clock"
             || doc == format!("mod.{mod_id}")
             || doc.starts_with(&format!("mod.{mod_id}."))
     };
@@ -320,8 +321,10 @@ mod tests {
         assert_eq!(scoped_refusal("webdock", &sub("mod.webdock.pins")), None);
         assert_eq!(scoped_refusal("webdock", &sub("theme")), None);
         assert_eq!(scoped_refusal("webdock", &sub("i18n")), None);
+        // Row 118: the time is in every scope.
+        assert_eq!(scoped_refusal("webdock", &sub("svc.clock")), None);
         assert_eq!(
-            scoped_refusal("webdock", &sub("svc.clock")),
+            scoped_refusal("webdock", &sub("svc.network")),
             Some(Some("s1".into()))
         );
         assert_eq!(
