@@ -7,10 +7,12 @@
 - **Mods** — every feature beyond the core is a mod you can switch on live; it appears natively in Settings.
 - **Profiles** — save the whole shell, load it back fully or section by section.
 - **Island (島)** — a dynamic component that shows what matters now, and what you choose.
-- **Looks** — one switch (`theme.decor`): `sekai` (pop keycaps: ink outlines, hard shadows, springy presses), `glass`
-  (frosted, soft), or your own palette, chrome and motion; your own settings always win over a look's recommendations.
+- **Looks** — one switch (`theme.decor`), picked from preview cards in Settings: `sekai` (pop keycaps: ink outlines,
+  hard shadows, springy presses), `glass` (frosted, soft rims and shadows), `terminal` (ink lines, square, mono),
+  `washi` (paper and ink, serif), or your own palette, chrome and motion. A look never moves anything — layout stays
+  yours (profiles keep a look and a layout together) — and your own settings always win over a look's recommendations.
 - **Desk, launcher, phone** — desktop widgets (keycap clock, month, now playing, weather); a launcher that also
-  calculates (`2^8`, `15% of 2500`), finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
+  calculates (`2^8`, `15% of 2500`) and converts (`10 km to mi`, `72 f in c`), finds emoji (`:heart`) and your clipboard history (`;`); quick settings and the
   web dock drawn as a phone.
 
 Status: **pre-alpha**. See `docs/ROADMAP.md` and `docs/PROGRESS.md`.
