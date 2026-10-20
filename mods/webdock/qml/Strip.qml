@@ -15,6 +15,7 @@ Flickable {
     property string shownId: ""
     property bool pinned: false
     property bool pinForced: false      // set by the configuration: the dock's pin toggle is inert
+    property bool panelOpen: false      // a card or a panel is up: Tab goes to it
     readonly property int tile: thick - 8
     // The length the content takes along the edge (dock.qml sizes the strip to it, up to the output).
     readonly property real contentLen: vertical ? grid.height + 8 : grid.width + 8
@@ -65,6 +66,12 @@ Flickable {
         }
     }
 
+    // Tab from a tile: into the card when one is up, else on to the next tile; Shift+Tab steps back.
+    function tabFrom(back) {
+        if (!back && strip.panelOpen) strip.tabPressed()
+        else strip.step(back ? -1 : 1)
+    }
+
     Keys.onUpPressed: if (vertical) strip.step(-1)
     Keys.onDownPressed: if (vertical) strip.step(1)
     Keys.onLeftPressed: if (!vertical) strip.step(-1)
@@ -99,6 +106,7 @@ Flickable {
                         shown: strip.shownId === cell.modelData.pin.id
                         onActivated: strip.pinSelected(cell.modelData.pin.id)
                         onMenuRequested: strip.pinMenu(cell.modelData.pin.id)
+                        onTabbed: back => strip.tabFrom(back)
                     }
                 }
                 Component {
@@ -140,6 +148,8 @@ Flickable {
                         Keys.onReturnPressed: ctl.press()
                         Keys.onEnterPressed: ctl.press()
                         Keys.onSpacePressed: ctl.press()
+                        Keys.onTabPressed: strip.tabFrom(false)
+                        Keys.onBacktabPressed: strip.tabFrom(true)
                         Accessible.role: Accessible.Button
                         Accessible.name: ctl.a11yName
 

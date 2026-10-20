@@ -20,6 +20,8 @@ Rectangle {
     clip: true
     activeFocusOnTab: true
     Keys.onEscapePressed: card.escaped()
+    // Tab walks the header explicitly (size, collapse, and back to the card), not by the order of the focus chain.
+    KeyNavigation.tab: card.sizable ? sizeBtn : collapseBtn
 
     Item {
         id: head
@@ -35,16 +37,20 @@ Rectangle {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 4
             Button {
+                id: sizeBtn
                 visible: card.sizable
                 anchors.verticalCenter: parent.verticalCenter
                 label: card.large ? I18n.tr("webdock.size.phone") : I18n.tr("webdock.size.large")
                 onClicked: card.sizeChosen(card.large ? "phone" : "large")
+                KeyNavigation.tab: collapseBtn
             }
             IconButton {
+                id: collapseBtn
                 anchors.verticalCenter: parent.verticalCenter
                 glyph: "×"
                 a11y: I18n.tr("webdock.nav.collapse")
                 onClicked: card.collapse()
+                KeyNavigation.tab: card
             }
         }
         Text {
