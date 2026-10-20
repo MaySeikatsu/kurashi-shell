@@ -429,3 +429,13 @@ that a dialog is up (`ui.polkit {active}`) so the island stays out of its way. (
 (`theme.shape.screen_corners`, Caelestia/shellseikatsu `ScreenCorners.qml`): one click-through overlay per output while
 > 0. *Why:* these are what people miss first when they switch from Caelestia, Noctalia, DMS or ii.
 
+**K48** 🟢 Media and desk polish (session 10, wave 24; Caelestia, DMS, Noctalia, shellseikatsu). (1) Live audio levels:
+`svc.audio.spectrum` from a supervised `cava` process (Caelestia `Cava.qml`, DMS `CavaService.qml`), refcounted, ≤ 30
+patches/s while watched, nothing otherwise — the island's media bars and the media card draw it (I111); without cava
+the bars are a still "playing" mark, not a fake animation (Shōjiki). (2) Cover colours: `svc.media.art_colors` via the
+theme crate's material-colors extraction (shellseikatsu `MediaColorService`, DMS `MediaAccentService`). (3) Wallhaven
+in the wallpaper mod (shellseikatsu `WallhavenService`): search, preview, set; network capability, API key optional.
+(4) Desk layout: `desktop.order` (layout, so the user's and profiles', never a decor's) and an edit mode on the desk
+(SekaiPop "Edit Desktop"): reorder by drag or keys, then save. (5) Settings rows grouped as section cards (DMS/Noctalia
+settings) with icons per section (I104 rest).
+

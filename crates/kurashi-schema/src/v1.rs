@@ -414,6 +414,12 @@ pub struct Desktop {
     /// Today's weather, while the weather mod is on and has a place.
     #[kurashi(default = true, requires = "desktop.enabled == true")]
     pub weather: bool,
+    /// Order
+    /// The cards from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`.
+    /// A card that is not listed comes after the listed ones. The desk's edit mode writes it (K48).
+    #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), advanced,
+              requires = "desktop.enabled == true")]
+    pub order: Vec<String>,
 }
 
 // --- launcher --------------------------------------------------------------------------------

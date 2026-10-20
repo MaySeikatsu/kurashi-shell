@@ -211,3 +211,5 @@
 "config.choice.recorder_backend.wf_recorder" = "wf-recorder"
 "config.launcher.web_search.label" = "ウェブ検索"
 "config.launcher.web_search.help" = "検索に使うアドレス。{} が検索語になります。空欄 = ウェブ検索の行を出さない。"
+"config.desktop.order.label" = "並び順"
+"config.desktop.order.help" = "上から下へのカードの順：`clock`、`calendar`、`media`、`weather`、modのカードは `mod:<id>:<name>`。載っていないカードは後ろに並びます。デスクの編集モードがこれを書きます（K48）。"
