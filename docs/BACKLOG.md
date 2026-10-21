@@ -215,6 +215,9 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I164 | 2026-10-21 | user (session 12) | Hyprland adapter: use `decoration:screen_shader` for the texture scope `everything` — a true blend over apps (multiply/overlay with the pixels underneath) instead of the alpha overlay. Not relevant until the Hyprland adapter exists. | idea |
 | I165 | 2026-10-21 | user (session 12) | Screen filters as their own idea, apart from textures: pixelate, CRT (curvature, mask), scanlines and similar shader effects. They need the pixels underneath (a compositor screen shader, e.g. Hyprland `screen_shader`; niri has none), and some are animated; textures stay static reliefs. Keep separate; not planned. | idea |
 | I166 | 2026-10-21 | lead (session 12) | The greeter shows no material texture: the tile lives in the user's cache, which the greeter user cannot read. Copy the tile into the shared greeter slot (`/var/lib/kurashi-greeter/<user>.texture`, like the wallpaper) and point `texture.map` at it. | new |
+| I167 | 2026-10-21 | W31-relief report | With `texture.text` on, the media face's cover inside the island pill's Block is shaded by the over-content relief: give the face (and other pictures inside blocks) `relief: false`. | new |
+| I168 | 2026-10-21 | lead (session 12) | The island shape's relief covers its body and head rectangles; the neck's concave fillets (a few px) stay plain, and a translucent card over the bar shades twice where they overlap. A relief clipped to the shape's own path would close both. | new |
+| I169 | 2026-10-21 | lead review (session 12) | Paper fibres read a little busy on dark paper (light squiggles on kami-dark): a dark-scheme fibre strength, or less fibre relief under ruled kinds. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
