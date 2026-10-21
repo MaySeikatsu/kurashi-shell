@@ -206,7 +206,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W23.2 | Polkit dialog (Quickshell PolkitAgent), rounded screen corners, lyrics mod (LRCLIB; card slot, bar widget, desk card) (card `W23-auth-media`, K47) | ✅ functional · UX ✅ first pass (`frontend/shots/polkit-*`, `mods/lyrics/shots/`) | merged |
 | W24.1 | Live audio levels (cava, `svc.audio.spectrum`), cover colours (`art_colors`), Wallhaven in the wallpaper picker (card `W24-media`, K48) | ✅ functional · UX ✅ first pass (`frontend/shots/media/`) | merged 82d9c6c |
 | W25.1 | 14 identity packs from shellseikatsu (palettes, decors, frames, lock backdrops; no Cyberpunk — I117) (card `W25-identity`, K50) | ✅ functional · UX ✅ first pass (`frontend/shots/look/identity-sheet.png`) | merged 71b38be |
-| W24.2 | Desk edit mode (`desktop.order`), Settings section cards, theme-export status (card `W24-desk-settings`) | 🟡 | agent |
+| W24.2 | Desk edit mode (`desktop.order`), Settings section cards, theme-export status (card `W24-desk-settings`) | ✅ functional · UX ✅ first pass (`frontend/shots/desk/`, `settings/shots/28–31`) | merged |
 | W25.2 | App dock (card `W25-dock`, K51) | 🟡 | agent |
 | W26.1 | Hyprland and Sway adapters (card `W26-adapters`) | ⬜ | next |
 
