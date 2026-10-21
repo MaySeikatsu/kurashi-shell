@@ -1,0 +1,120 @@
+id = "ai"
+name = "AI"
+description = "mods.ai.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# A chat with a language model, local first (card W28-ai, docs/ux/ai.md): the service and its actions (the Rust crate
+# registers them) and the Stage panel (QML). The user's Ollama server by default; an OpenAI-compatible server or
+# Anthropic when chosen. API keys are never settings: the settings name an environment variable or secret-tool
+# attributes, looked up at each request (I134).
+provides = [
+    "service:ai",
+    "action:ai.*",
+    "panel:ai",
+]
+# The provider's server (network), the key from libsecret (`secret-tool lookup`), conversations as JSON files in the
+# mod's data folder, copying an answer (`wl-copy`).
+capabilities = ["network", "secrets", "exec:secret-tool", "exec:wl-copy", "fs:scoped"]
+cost = "low"
+
+[[setting]]
+key = "provider"
+type = "enum"
+default = "ollama"
+choices = ["ollama", "openai", "anthropic"]
+label = "mods.ai.provider"
+help = "mods.ai.provider.help"
+
+[[setting]]
+key = "ollama_url"
+type = "string"
+default = "http://127.0.0.1:11434"
+label = "mods.ai.ollama_url"
+help = "mods.ai.ollama_url.help"
+
+[[setting]]
+key = "ollama_model"
+type = "string"
+default = ""
+label = "mods.ai.ollama_model"
+help = "mods.ai.ollama_model.help"
+
+[[setting]]
+key = "openai_url"
+type = "string"
+default = "https://api.openai.com/v1"
+label = "mods.ai.openai_url"
+help = "mods.ai.openai_url.help"
+
+[[setting]]
+key = "openai_model"
+type = "string"
+default = ""
+label = "mods.ai.openai_model"
+help = "mods.ai.model.help"
+
+[[setting]]
+key = "openai_key_env"
+type = "string"
+default = "OPENAI_API_KEY"
+label = "mods.ai.openai_key_env"
+help = "mods.ai.key_env.help"
+
+[[setting]]
+key = "openai_key_secret"
+type = "string"
+default = ""
+label = "mods.ai.openai_key_secret"
+help = "mods.ai.key_secret.help"
+
+[[setting]]
+key = "anthropic_url"
+type = "string"
+default = "https://api.anthropic.com"
+label = "mods.ai.anthropic_url"
+help = "mods.ai.anthropic_url.help"
+
+[[setting]]
+key = "anthropic_model"
+type = "string"
+default = ""
+label = "mods.ai.anthropic_model"
+help = "mods.ai.model.help"
+
+[[setting]]
+key = "anthropic_key_env"
+type = "string"
+default = "ANTHROPIC_API_KEY"
+label = "mods.ai.anthropic_key_env"
+help = "mods.ai.key_env.help"
+
+[[setting]]
+key = "anthropic_key_secret"
+type = "string"
+default = ""
+label = "mods.ai.anthropic_key_secret"
+help = "mods.ai.key_secret.help"
+
+[[setting]]
+key = "max_tokens"
+type = "int"
+default = 4096
+range = [256, 128000]
+label = "mods.ai.max_tokens"
+help = "mods.ai.max_tokens.help"
+
+[[setting]]
+key = "system_prompt"
+type = "string"
+default = ""
+label = "mods.ai.system_prompt"
+help = "mods.ai.system_prompt.help"
+
+[[setting]]
+key = "history"
+type = "int"
+default = 50
+range = [0, 500]
+label = "mods.ai.history"
+help = "mods.ai.history.help"
