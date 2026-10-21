@@ -274,7 +274,8 @@ async fn a11y_mode_forces_coupled_keys_and_theme_follows() {
     f.store.undo(false).unwrap();
     assert_eq!(
         f.store.get("theme.motion.profile", None).unwrap().source,
-        Source::Default,
+        // The default style's look recommends it (K53).
+        Source::Theme("look:washi".into()),
         "forcing lifts when the mode is off"
     );
 }

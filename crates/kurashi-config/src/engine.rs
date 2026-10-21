@@ -33,7 +33,8 @@ pub struct Options {
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct Layers {
     pub nix: BTreeMap<Slot, Json>,
-    pub theme: Option<(String, BTreeMap<Slot, Json>)>,
+    /// Each entry names the pack that recommends it (`style:<name>`, `look:<name>`; K53).
+    pub theme: BTreeMap<Slot, (String, Json)>,
     /// Each entry names the profile that set it. Loads replace only the keys they set (B13), so
     /// entries of several profiles can coexist (K7).
     pub profile: BTreeMap<Slot, (String, Json)>,
@@ -45,9 +46,7 @@ pub(crate) struct Layers {
 impl Layers {
     fn slots(&self) -> BTreeSet<Slot> {
         let mut s: BTreeSet<Slot> = self.nix.keys().cloned().collect();
-        if let Some((_, t)) = &self.theme {
-            s.extend(t.keys().cloned());
-        }
+        s.extend(self.theme.keys().cloned());
         s.extend(self.profile.keys().cloned());
         s.extend(self.user.keys().cloned());
         for (_, f) in &self.forced {
@@ -260,10 +259,8 @@ impl<S: SchemaView> Config<S> {
         {
             return Some(plain(v.clone(), Source::Profile(name.clone())));
         }
-        if let Some((name, m)) = &l.theme
-            && let Some(v) = pick(m)
-        {
-            return Some(plain(v, Source::Theme(name.clone())));
+        if let Some((name, v)) = o.as_ref().and_then(|o| l.theme.get(o)).or(l.theme.get(&g)) {
+            return Some(plain(v.clone(), Source::Theme(name.clone())));
         }
         if let Some(v) = pick(&l.nix) {
             return Some(plain(v, Source::Nix));
@@ -295,11 +292,9 @@ impl<S: SchemaView> Config<S> {
                 out.push(lv(Source::Nix, s, v));
             }
         }
-        if let Some((name, m)) = &l.theme {
-            for s in &slots {
-                if let Some(v) = m.get(s) {
-                    out.push(lv(Source::Theme(name.clone()), s, v));
-                }
+        for s in &slots {
+            if let Some((name, v)) = l.theme.get(s) {
+                out.push(lv(Source::Theme(name.clone()), s, v));
             }
         }
         for s in &slots {
@@ -692,16 +687,22 @@ impl<S: SchemaView> Config<S> {
         (ok, diags)
     }
 
-    /// Replaces the `theme:<recipe>` layer (decor pack recipe, K8). Invalid entries are dropped
-    /// and reported.
-    pub fn set_theme_layer(&mut self, theme: Option<(String, BTreeMap<Slot, Json>)>) -> Diff {
+    /// Replaces the `theme:<source>` layer (the style's and look's recipes, K8, K53): each entry names its source.
+    /// Invalid entries are dropped and reported.
+    pub fn set_theme_layer(&mut self, theme: BTreeMap<Slot, (String, Json)>) -> Diff {
         let mut next = self.layers.clone();
         let mut diagnostics = Vec::new();
-        next.theme = theme.map(|(name, entries)| {
+        let mut by_source: BTreeMap<String, BTreeMap<Slot, Json>> = BTreeMap::new();
+        for (slot, (name, v)) in theme {
+            by_source.entry(name).or_default().insert(slot, v);
+        }
+        next.theme = BTreeMap::new();
+        for (name, entries) in by_source {
             let (ok, d) = self.validated(&format!("theme:{name}"), entries);
-            diagnostics = d;
-            (name, ok)
-        });
+            diagnostics.extend(d);
+            next.theme
+                .extend(ok.into_iter().map(|(s, v)| (s, (name.clone(), v))));
+        }
         let entries = self.swap_external(next);
         Diff {
             rev: self.rev,

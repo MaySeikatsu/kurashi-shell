@@ -1,0 +1,11 @@
+name = "sekai"
+label = "config.choice.look.sekai"
+category = "inspired"
+# After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type.
+[recipe]
+"theme.chrome" = "keycap"
+"theme.motion.profile" = "lively"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 1.25
+"theme.typography.family" = ["Nunito", "M PLUS Rounded 1c", "Noto Sans CJK JP", "sans-serif"]

@@ -57,14 +57,24 @@ Singleton {
     property var heldUsers: ({})
 
     function watch(doc) {
+        // 0 = still subscribed, about to be dropped (unwatch): kept without a new subscription.
+        var held = wanted[doc] === 0
         var n = (wanted[doc] || 0) + 1
         wanted[doc] = n
-        if (n === 1 && connected) send({ t: "sub", id: "w:" + doc, doc: doc })
+        if (n === 1 && !held && connected) send({ t: "sub", id: "w:" + doc, doc: doc })
     }
     function unwatch(doc) {
         var n = wanted[doc] || 0
         if (n <= 0) return
         if (n > 1) { wanted[doc] = n - 1; return }
+        // The last viewer went: the document is dropped a moment later, unless a view watches it again in the same
+        // turn (a page rebuilt from a search: its new rows must not wait for a new snapshot, or their controls are built
+        // twice and the keyboard focus is lost).
+        wanted[doc] = 0
+        Qt.callLater(function () { root.dropDoc(doc) })
+    }
+    function dropDoc(doc) {
+        if ((wanted[doc] || 0) > 0 || wanted[doc] === undefined) return
         delete wanted[doc]
         if (connected) send({ t: "unsub", doc: doc })
         delete revs[doc]
@@ -178,7 +188,13 @@ Singleton {
         case "default": return I18n.tr("settings.source.default")
         case "user": return I18n.tr("settings.source.user")
         case "profile": return I18n.fmt("settings.source.profile", { name: s.name || "" })
-        case "theme": return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
+        case "theme":
+            // K53: each value of the theme layer names its pack, `style:<name>` or `look:<name>`: "From the style Washi".
+            var pack = /^(style|look):(.+)$/.exec(s.name || "")
+            if (pack) return I18n.fmt("settings.source." + (pack[1] === "style" && styleRecommends.indexOf(key) >= 0
+                                                                ? "style_recommends" : pack[1]),
+                                      { name: packLabel(pack[1] + "s", pack[2]) })
+            return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
         case "nix": return I18n.fmt("settings.source.nix", { path: nixPath(key) })
         case "forced":
             if (s.name === "nix") return I18n.fmt("settings.source.nix", { path: nixPath(key) })
@@ -187,6 +203,40 @@ Singleton {
         }
         return s.kind || ""
     }
+    // --- appearance packs (K53) ----------------------------------------------------------------------
+    // The offer sources whose choices are packs with previews in `theme.previews` (its keys are these names), and the
+    // action that applies a pack of a kind: it resets the user's values of that kind's keys first (the daemon decides
+    // which), one undo step. A palette is a plain value.
+    readonly property var packSources: ["styles", "looks", "palettes"]
+    readonly property var packActions: ({ styles: "theme.style.apply", looks: "theme.look.apply" })
+    // Values a style only recommends until you pick (K53 amendment: light or dark is your mode, a style keeps it):
+    // their provenance reads "Recommended by the style Washi".
+    readonly property var styleRecommends: ["theme.colors.scheme"]
+    function isPackRow(row) { return !!row && packSources.indexOf(row.choices_from) >= 0 }
+    // A pack's name in words, from the offers of the row that picks it (a user pack without a catalogue key: its name).
+    function packLabel(source, name) {
+        var rows = allRows()
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].row.choices_from !== source) continue
+            var cs = rows[i].row.choices || []
+            for (var j = 0; j < cs.length; j++) if (cs[j].value === name) return I18n.tr(cs[j].label)
+        }
+        return name
+    }
+    // A pack picked: a style or a look is applied by its action ("none" — your own — only sets the style and keeps your
+    // values); anything else is a plain change. A refusal shows under the row, as an apply's does.
+    function pickPack(row, name) {
+        var action = packActions[row.choices_from]
+        if (!action || name === "none") return setValue(row.key, name)
+        clearRefusal(row.key)
+        act(action, { name: name }, function (m) {
+            if (m.t === "done") return
+            var e = Object.assign({}, rowErrors)
+            e[row.key] = actError(m, "settings.appearance.refused")
+            rowErrors = e
+        })
+    }
+
     // Whether a provenance is one the user or a profile gave, or Nix did: what the Changed view lists.
     function isChangedSource(p) {
         var s = p && p.source ? p.source : ({})

@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -44,6 +44,8 @@ pub struct Config {
     pub recorder: Recorder,
     #[kurashi(nested)]
     pub dock: Dock,
+    #[kurashi(nested)]
+    pub sidebar: Sidebar,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -79,11 +81,18 @@ pub struct Bar {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "appearance")]
 pub struct Theme {
+    /// Style
+    /// A fixed preset that recreates one aesthetic: a look, a palette, the scheme, density and motion. Applying a
+    /// style resets your appearance changes; what you change afterwards shows as a difference from it. It changes how
+    /// things look, never where they are (K53).
+    #[kurashi(default = "washi".to_owned(), choices_from = "styles", section = "colors")]
+    pub style: String,
     /// Look
-    /// A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one choice. It
-    /// changes how things look, never where they are. Your own settings still win (K42, K45).
-    #[kurashi(default = "none".to_owned(), choices_from = "decors", section = "colors")]
-    pub decor: String,
+    /// The form and feel of the interface without its colours: chrome, corners, material, motion, type and its
+    /// art — sekai's toy keycaps, washi's paper and ink, win95's bevels. The style picks one; pick another to
+    /// override it (K53).
+    #[kurashi(default = "kanso".to_owned(), choices_from = "looks", section = "colors")]
+    pub look: String,
     #[kurashi(nested, section = "colors")]
     pub colors: Colors,
     #[kurashi(nested, section = "shape")]
@@ -148,11 +157,12 @@ pub enum Colorblind {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Colors {
     /// Palette
-    /// Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+    /// Colours only: the roles every surface is painted with, in light and dark. A style picks one; pick another to
+    /// override it (K53).
     #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
     pub palette: String,
-    /// Scheme
-    /// Dark or light surfaces.
+    /// Light or dark
+    /// Your mode: every palette has both. A style recommends one until you pick; applying a style keeps it (K53).
     #[kurashi(default = Scheme::Dark)]
     pub scheme: Scheme,
     /// Contrast
@@ -566,4 +576,41 @@ pub struct Dock {
     /// Apps with windows that are not pinned show after the pinned ones.
     #[kurashi(default = true, requires = "dock.enabled == true")]
     pub show_running: bool,
+}
+
+// --- sidebars (W29, docs/ux/sidebar.md) ------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum SidebarStyle {
+    /// Panel
+    Panel,
+    /// Floating
+    Floating,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "sidebar", section = "sidebar")]
+pub struct Sidebar {
+    /// Style
+    /// Panel: from the bar (or the screen edge) to the far edge, flush to its side, the inner corners rounded. Floating:
+    /// the same column a gap away from every edge, every corner rounded, with the look's shadow.
+    #[kurashi(default = SidebarStyle::Panel)]
+    pub style: SidebarStyle,
+    /// Width
+    #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px")]
+    pub width: u32,
+    /// Right sidebar
+    /// Its sections, top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what
+    /// plays, and the mods' panels.
+    #[kurashi(default = strings(&["header", "toggles", "sliders", "notifications", "calendar"]),
+              choices_from = "sidebar.sections")]
+    pub right: Vec<String>,
+    /// Left sidebar
+    /// Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.
+    #[kurashi(default = strings(&["mod:ai:ai"]), choices_from = "sidebar.tabs")]
+    pub left: Vec<String>,
+    /// Open from the bar
+    /// The bar's quick settings button opens the right sidebar instead of the quick settings card.
+    #[kurashi(default = false)]
+    pub from_bar: bool,
 }

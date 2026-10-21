@@ -1,0 +1,14 @@
+name = "snes"
+label = "config.choice.look.snes"
+category = "retro"
+# After shellseikatsu `Services/Modes/Snes.qml` and `Widgets/ThemeDecor/SnesFrame.qml` (W25): console-plastic grey,
+# hard blocky keys, the logo's four dots and the purple buttons, chunky pixel type, quick motion.
+[recipe]
+"theme.chrome" = "keycap"
+"theme.motion.profile" = "calm"
+"theme.motion.speed" = 1.6
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["Press Start 2P", "JetBrains Mono", "Noto Sans Mono CJK JP", "monospace"]
+[slots]
+frame = "snes"

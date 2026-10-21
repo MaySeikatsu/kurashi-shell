@@ -71,6 +71,25 @@ derived from the `config` doc's provenance (no new contract); deep link = an arg
 ## Later
 Related-settings links · per-slot ordering UI (K28) · settings sync across machines · a11y audit with Orca.
 
+## Appearance blocks (W29, K53; brief: docs/ux/looks.md "Settings")
+- A row whose offers are appearance packs (`choices_from` = `styles`, `looks`, `palettes`: the keys of `theme.previews`)
+  leaves its section on its page and opens the page as a block of its own (`SettingRow { stacked }`): the card's title
+  is the setting's name, its first line says what the kind is (`settings.appearance.<source>.what`), the cards take the
+  full width, the provenance chip and Reset sit under them. A block can take companion rows with it (display map
+  `packCompanions` in `SettingsPages`: the scheme switch sits with the palette). In a search they are plain rows.
+- Cards by category (`PackCards`): chips with counts for the offers' `group`s, one open (the current pack's until a chip
+  is opened; a new pack in effect opens its own), offers without a group (None) as plain cards in front. Styles and
+  looks are applied by their actions (`Store.pickPack`; "None" only sets the style); their arrows move the focus only.
+- "Differs from the style" (`StyleDiffers`) under the Style block, from `theme.appearance.overrides`; Reset applies
+  the style again. Provenance words: `style:<n>` → "From the style Washi", `look:<n>` → "From the look …", a value a
+  style only recommends (the scheme) → "Recommended by the style …".
+- Search: Return lands on the first row whose name has the query, else the first hit ("palette" lands on Palette,
+  not on the Style whose help names a palette).
+- A watched document is dropped a moment after its last viewer goes, unless a view watches it again in the same turn
+  (a page rebuilt from a search keeps its previews, and the keyboard focus its card).
+- Shots: `settings/shots/appearance/` (washi, sekai, win95 pages; each category of styles and looks; the "differs" line;
+  a look over the style; the palette block in dark).
+
 ## Section cards (K48 (5), I104; W24-desk-settings)
 References: **DMS** `Modules/Settings/Widgets/SettingsCard.qml` + `SettingsGroup.qml` (a section label in the primary
 colour above a group of rows on tonal slots), **Noctalia** `SettingsPanel/Tabs` (headed sections between dividers),

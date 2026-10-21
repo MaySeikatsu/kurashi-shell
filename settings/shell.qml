@@ -166,6 +166,17 @@ ShellRoot {
                 }).join(",")
             }
             function exportCopied(name: string): string { return settingsPages.copyState(name) }
+            // Appearance (W29, K53): a card picked (JSON value; a style or a look by its action), the category chips of a
+            // row and the open one, a chip opened, the "differs from the style" line and its Reset, and a scroll to a
+            // named item (a block, "block:<key>"; the line, "differs").
+            function pick(key: string, json: string): void { settingsPages.pick(key, JSON.parse(json)) }
+            function categories(key: string): string { return settingsPages.categories(key) }
+            function openCategory(key: string): string { return settingsPages.openCategory(key) }
+            function category(key: string, id: string): void { settingsPages.openCategoryOf(key, id) }
+            function differs(): string { return settingsPages.differs() }
+            function resetToStyle(): void { settingsPages.resetToStyle() }
+            function scrollTo(name: string): void { settingsPages.scrollTo(name) }
+            function appearance(): string { return JSON.stringify(Store.theme.appearance || null) }
         }
 
         Column {
@@ -342,7 +353,7 @@ ShellRoot {
                                     readonly property string icon: ({
                                         bar: "toolbar", appearance: "palette", accessibility: "accessibility_new",
                                         island: "toggle_on", notifications: "notifications", launcher: "apps",
-                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", "@changed": "history",
+                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", "@changed": "history",
                                         "@mods": "extension", "@profiles": "person"
                                     })[navEntry.modelData.id] || ""
                                     activeFocusOnTab: true

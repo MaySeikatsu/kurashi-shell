@@ -1,0 +1,9 @@
+name = "kawaii"
+label = "config.choice.style.kawaii"
+category = "fiction"
+# After shellseikatsu `Services/Modes/Kawaii.qml` and `Widgets/ThemeDecor/KawaiiFrame.qml` (W25; Needy Streamer
+# Overload): pastel pink, lavender window chrome with a title band, pixel hearts, rounded friendly type, springs.
+look = "kawaii"
+palette = "kawaii"
+[recipe]
+"theme.colors.scheme" = "light"

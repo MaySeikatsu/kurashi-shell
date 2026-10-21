@@ -1,0 +1,14 @@
+name = "win95"
+label = "config.choice.look.win95"
+category = "retro"
+# After shellseikatsu `Services/Modes/Retro.qml` and `Widgets/BevelBorder.qml` (W25): silver controls with the
+# two-pixel outset bevel (sunken while pressed), square corners, fully opaque, no animation.
+# Line chrome makes the bar's groups and every key a block of its own; the bevel frame draws over its outline.
+[recipe]
+"theme.chrome" = "line"
+"theme.motion.profile" = "none"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["W95FA", "MS Sans Serif", "Tahoma", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+[slots]
+frame = "bevel"

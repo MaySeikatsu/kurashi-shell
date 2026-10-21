@@ -153,7 +153,9 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   `import qs.core` (Store, Theme, I18n, Watch) and `import qs.components` (Button, Chip, …) — never by relative path
   (a mod file loads from `file://`, the shell from `qs:@/qs/`, so a relative import would make a second, disconnected
   Store/Theme/I18n; found in the session-5 live check). The loader also hands `store`, `theme`, `i18n` as required
-  properties. Mods talk to the daemon only through their own documents/actions.
+  properties. Mods talk to the daemon only through their own documents/actions. A panel may declare
+  `property real fillHeight: 0`: a host that offers a fixed height (the left sidebar, K54/row 238) sets it, and the
+  panel can fill it (the AI chat puts its composer at the bottom); the Stage card sets nothing.
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;

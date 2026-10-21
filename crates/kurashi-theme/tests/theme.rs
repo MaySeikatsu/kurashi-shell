@@ -575,15 +575,24 @@ fn bad_palettes_are_rejected() {
 }
 
 #[test]
-fn decor_recipes_change_looks_never_layout() {
-    // K45: a decor names theme keys only; bar edge/height, desk cards and the island stay the user's.
-    for name in ["sekai", "glass", "terminal", "washi"] {
-        let recipe = decor_recipe(name).unwrap_or_else(|| panic!("{name} has a recipe"));
-        for (key, _) in recipe {
-            assert!(key.starts_with("theme."), "{name} sets {key}");
+fn styles_and_looks_change_looks_never_layout() {
+    // K45, K53: packs name theme keys only; bar edge/height, desk cards and the island stay the user's.
+    use kurashi_theme::appearance::{Kind, all_in, find, layer};
+    for kind in [Kind::Look, Kind::Style] {
+        for p in all_in(kind, &[]) {
+            for (key, _) in &p.recipe {
+                assert!(key.starts_with("theme."), "{} sets {key}", p.name);
+            }
         }
     }
-    assert!(decor_recipe("none").is_none());
+    let washi = find(Kind::Style, "washi").unwrap();
+    let entries = layer(Some(&washi), find(Kind::Look, &washi.look).as_ref());
+    assert!(entries.iter().all(|(k, _, _)| k.starts_with("theme.")));
+    assert!(find(Kind::Style, "none").is_none());
+    let p = style_preview("washi", &fonts()).unwrap();
+    assert_eq!(p["look"], "washi");
+    assert_eq!(p["category"], "inspired");
+    assert!(look_preview("sekai", "kanso", "dark", &fonts()).is_some());
 }
 
 #[test]
@@ -609,4 +618,25 @@ fn every_chrome_has_its_own_token_set() {
         seen.insert(t["chrome.style"].as_str().unwrap().to_owned());
     }
     assert_eq!(seen.len(), 4);
+}
+
+#[test]
+fn every_bundled_palette_has_both_schemes_as_written() {
+    // K53 (user, session 11): every palette has a light and a dark mode, authored — not derived from the other one.
+    // (Contrast in both is `every_palette_scheme_contrast_passes_aa_after_wcag`.)
+    for name in bundled_names() {
+        let set = bundled(name).unwrap();
+        assert!(
+            set.dark.is_some() && set.light.is_some(),
+            "{name} lacks a scheme"
+        );
+        if std::env::var_os("KURASHI_PRINT_WCAG").is_some() {
+            for scheme in [Scheme::Dark, Scheme::Light] {
+                let out = resolve(&input(name, scheme), &fonts()).unwrap();
+                for n in out.notes.iter().filter(|n| n.stage == "wcag") {
+                    eprintln!("{name} {scheme:?}: {}", n.text);
+                }
+            }
+        }
+    }
 }

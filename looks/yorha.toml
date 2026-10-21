@@ -1,0 +1,13 @@
+name = "yorha"
+label = "config.choice.look.yorha"
+category = "fiction"
+# After shellseikatsu `Services/Modes/Nier.qml` and `Widgets/ThemeDecor/YorhaFrame.qml` (W25): parchment and
+# olive ink, dead-flat sharp rectangles, scanlines and the double rule, a serif hand, damped motion.
+[recipe]
+"theme.chrome" = "flat"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["Noto Serif", "Noto Serif CJK JP", "serif"]
+[slots]
+frame = "yorha"

@@ -32,7 +32,14 @@ Item {
         }
     }
     onLiveOffersChanged: refreshOffers()
-    Component.onCompleted: refreshOffers()
+    Component.onCompleted: {
+        refreshOffers()
+        if (r.wantsPreviews) Store.watch("theme.previews")
+    }
+    // The block layout of the Appearance page (W29): the row's name is the card's title, so the left column gives way to
+    // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
+    // whole width under it.
+    property bool stacked: false
 
     readonly property string out: row.per_output ? output : ""
     readonly property var prov: Store.prov(row.key, out)
@@ -49,10 +56,17 @@ Item {
     readonly property bool editable: !inert && Store.live
     // A select with offers from the daemon (or more than four fixed ones) is a dropdown; two fixed ones are a switch;
     // three to four stay pills (BACKLOG I9, UX brief "Controls").
-    // Offers with a look of their own in `theme.decors` (K45, I104) are preview cards: name -> tokens.
+    // A row whose offers are appearance packs (K53: offers from `styles`, `looks` or `palettes`, the keys of
+    // `theme.previews`). The previews are watched only while a row that shows them exists (Ma).
+    readonly property bool wantsPreviews: Store.isPackRow(row)
+    // Picking a style or a look is its action (it resets that kind's settings), not a value: no preview on arrows.
+    readonly property bool packAction: Store.packActions[row.choices_from] !== undefined
+    Component.onDestruction: if (r.wantsPreviews) Store.unwatch("theme.previews")
+    // Offers with a look of their own (K45, I104, K53) are preview cards: name -> {tokens, frame?}, from `theme.previews`.
     readonly property var looks: {
-        var m = {}, list = (Store.theme && Store.theme.decors) || []
-        for (var i = 0; i < list.length; i++) m[list[i].name] = list[i].tokens
+        var pv = Store.docs["theme.previews"]
+        var m = {}, list = (pv && r.wantsPreviews && pv[row.choices_from]) || []
+        for (var i = 0; i < list.length; i++) m[list[i].name] = list[i]
         return m
     }
     readonly property bool cards: row.control === "select" && (row.choices ?? []).filter(function (c) {
@@ -74,6 +88,7 @@ Item {
 
     // A value the control picked (Enter, a click, Keep): the open preview is kept, or the value is one change.
     function setValue(v) {
+        if (packAction) { if (JSON.stringify(v) !== JSON.stringify(value) || r.overridden) Store.pickPack(row, v); return }
         if (previewing) {
             if (JSON.stringify(v) !== JSON.stringify(value)) Changes.show(row.key, out, v, prov)
             Changes.keep()
@@ -90,6 +105,9 @@ Item {
         if (previewable) Changes.show(row.key, out, v, prov)
         else Store.setValue(row.key, v, out)
     }
+    // A pack picked again while settings differ from it applies it again (the reset to the style; W29).
+    readonly property bool overridden: { Store.theme; return r.row.choices_from === "styles"
+        && !!Store.theme.appearance && (Store.theme.appearance.overrides || []).length > 0 }
     // Escape: the preview goes back to the value it started from.
     function cancel() { if (previewing) Changes.putBack() }
     // Opens the row's dropdown (a select) without a pointer: the settings test hook uses it, as Enter does.
@@ -118,14 +136,25 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        implicitHeight: Math.max(labels.implicitHeight, ctlCol.implicitHeight)
+        implicitHeight: r.stacked ? labels.implicitHeight + Theme.gap + ctlCol.implicitHeight
+                                  : Math.max(labels.implicitHeight, ctlCol.implicitHeight)
 
         // --- label, help, and the chips that say what the row is ---------------------------------
         Column {
             id: labels
-            width: r.labelW
+            width: r.stacked ? body.width : r.labelW
             spacing: 2
             Text {
+                visible: r.stacked
+                width: parent.width
+                color: Theme.dim
+                wrapMode: Text.WordWrap
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr("settings.appearance." + (r.row.choices_from || "") + ".what")
+            }
+            Text {
+                visible: !r.stacked
                 width: parent.width
                 color: r.inert ? Theme.dim : Theme.fg
                 wrapMode: Text.WordWrap
@@ -134,7 +163,7 @@ Item {
                 text: I18n.tr(r.row.label)
             }
             Text {
-                visible: text !== ""
+                visible: text !== "" && !r.stacked
                 width: parent.width
                 color: Theme.dim
                 wrapMode: Text.WordWrap
@@ -143,6 +172,7 @@ Item {
                 text: r.row.help ? I18n.tr(r.row.help) : ""
             }
             Row {
+                visible: !r.stacked
                 topPadding: 2
                 spacing: 4
                 Chip { visible: r.row.per_output; text: I18n.tr("settings.ui.per_output") }
@@ -153,7 +183,8 @@ Item {
         // --- control, then its provenance line and the reasons ------------------------------------
         Column {
             id: ctlCol
-            x: r.labelW + Theme.pad
+            x: r.stacked ? 0 : r.labelW + Theme.pad
+            y: r.stacked ? labels.implicitHeight + Theme.gap : 0
             width: body.width - x
             spacing: Theme.gap / 2
 
@@ -331,15 +362,16 @@ Item {
             onCancelled: r.cancel()
         }
     }
-    // Offers with looks of their own: preview cards (K45, I104).
+    // Offers with looks of their own: preview cards (K45, I104), by category where the offers have one (W29).
     Component {
         id: cCards
-        DecorCards {
+        PackCards {
             objectName: "cards:" + r.row.key
             choices: r.offers
             looks: r.looks
             current: r.value
             enabled: r.editable
+            previewOnMove: !r.packAction
             onPicked: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)
             onCancelled: r.cancel()

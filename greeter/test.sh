@@ -89,7 +89,7 @@ cache_for() { # cache_for <decor>: the real kurashid fills the greeter slots for
   rm -rf "$R/xdg" "$W/gdir"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$W/gdir"
   : > "$W/gdir/tester.json"
-  printf 'theme.decor = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  printf 'theme.style = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   env USER=tester KURASHI_GREETER_DIR="$W/gdir" KURASHI_SOCKET="$R/kurashi-cache.sock" \
     DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     "$W/kurashid" >> "$R/kurashid.log" 2>&1 &

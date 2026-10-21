@@ -1,0 +1,9 @@
+name = "yorha"
+label = "config.choice.style.yorha"
+category = "fiction"
+# After shellseikatsu `Services/Modes/Nier.qml` and `Widgets/ThemeDecor/YorhaFrame.qml` (W25): parchment and
+# olive ink, dead-flat sharp rectangles, scanlines and the double rule, a serif hand, damped motion.
+look = "yorha"
+palette = "yorha"
+[recipe]
+"theme.colors.scheme" = "light"

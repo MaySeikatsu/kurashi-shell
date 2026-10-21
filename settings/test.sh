@@ -20,6 +20,9 @@
 # a list pinned by Nix (read-only), and its Japanese page. W24 (K48 (5), K49): the pages' sections as cards in order
 # (power, desktop, a search), and the theme export status under its row: foot's file, its missing include line, Copy by
 # keyboard (the clipboard holds the line, or the row says it could not copy without wl-copy).
+# W29 (K53): the Appearance page's Style, Look and Palette blocks, their categories (each opened once, shots in
+# settings/shots/appearance/), the "differs from the style" line and its Reset (undo, redo), style cards that reset the
+# user's appearance values and keep the rest, a look over the style (the palette stays), dark kept by a style, None.
 # Keyboard only (K1-K15): the sidebar and every page, a switch, a dropdown (type-ahead, Return, Up), the scheme, radius and
 # font previews, search typed and landed on, the pick list's move buttons (focus follows the moved row) and Alt+Down/Alt+Up,
 # the Changed view's reset plan with Cancel and confirm, a mod switch that keeps its focus, invalid input refused.
@@ -158,6 +161,94 @@ shot 0-undo-on-open
 # 1. a user value: chip "you", with Reset on the same line (bar.height = 40 from config.toml)
 shot 1-user-value
 
+# A. Appearance as Style · Look · Palette (W29, K53; docs/ux/looks.md "Settings"). A fresh config: the style is washi.
+mkdir -p settings/shots/appearance
+ashot() { sleep 1; grim -o HEADLESS-1 "settings/shots/appearance/$1.png"; [ -s "settings/shots/appearance/$1.png" ]; }
+ap() { Q appearance | python3 -c 'import json,sys; a=json.loads(sys.stdin.read()); print(a[sys.argv[1]] if isinstance(a[sys.argv[1]], str) else ",".join(a[sys.argv[1]]))' "$1"; }
+wait_ap() { for _ in $(seq 50); do [ "$(ap "$1")" = "$2" ] && return 0; sleep 0.2; done; fail "appearance: $1 is $(ap "$1"), expected $2"; }
+wait_differs() {   # "" = hidden, else a substring of the line
+  for _ in $(seq 50); do
+    if [ -z "$1" ]; then [ -z "$(Q differs)" ] && return 0; else [[ "$(Q differs)" == *"$1"* ]] && return 0; fi
+    sleep 0.2
+  done
+  fail "appearance: the differs line is '$(Q differs)', expected '${1:-hidden}'"
+}
+Q goto appearance
+wait_ap style washi
+[ "$(ap look)" = washi ] && [ "$(ap palette)" = wa-iro ] || fail "appearance: washi's look and palette are not in effect ($(Q appearance))"
+# A1. three blocks in order — Style, Look, Palette — before the detail sections; the light/dark switch sits with the palette.
+for _ in $(seq 25); do [[ "$(Q sections)" == block:theme.style,block:theme.look,block:theme.colors.palette,appearance.* ]] && break; sleep 0.2; done
+[[ "$(Q sections)" == block:theme.style,block:theme.look,block:theme.colors.palette,appearance.* ]] || fail "appearance: the page does not open with the three blocks ($(Q sections))"
+wait_differs ""
+[ "$(src theme.colors.palette)" = theme ] || fail "appearance: the palette is not the style's ($(src theme.colors.palette))"
+Q scrollTo block:theme.style
+ashot washi-page
+# A2. categories: only those with packs, the current pack's open; each opened once (style and look).
+[ "$(Q categories theme.style)" = "modern,inspired,retro,fiction" ] || fail "appearance: style categories $(Q categories theme.style)"
+[ "$(Q openCategory theme.style)" = inspired ] || fail "appearance: washi's category is not open ($(Q openCategory theme.style))"
+for row in theme.style theme.look; do
+  IFS=, read -ra cats <<< "$(Q categories $row)"
+  for c in "${cats[@]}"; do
+    Q category "$row" "$c"
+    [ "$(Q openCategory $row)" = "$c" ] || fail "appearance: $row did not open $c"
+    Q scrollTo "block:$row"
+    ashot "${row#theme.}-$c"
+  done
+done
+echo "appearance A1-A2: Style, Look, Palette blocks; categories $(Q categories theme.style) each opened"
+# A3. changed from the style: two appearance values of yours (and a contrast, which is not the style's) → the line names
+#     them; Reset to Washi takes them away (one undo step: Undo brings them back, Redo removes them again).
+K '{"t":"apply","id":"ap1","ops":[{"set":"theme.chrome","value":"keycap"},{"set":"theme.shape.corners","value":"none"},{"set":"theme.colors.contrast","value":"medium"}]}' | grep -q applied || fail "appearance: the user's values were refused"
+wait_differs "2 settings differ from Washi: Chrome, Corners"
+Q scrollTo block:theme.style
+ashot differs
+Q resetToStyle
+wait_differs ""
+[ "$(src theme.chrome)" = theme ] || fail "appearance: Reset to Washi kept the user's chrome ($(src theme.chrome))"
+[ "$(val theme.colors.contrast)" = '"medium"' ] || fail "appearance: Reset to Washi took the contrast too"
+Q undo
+wait_differs "Chrome"
+K '{"t":"redo","id":"rd"}' | grep -q applied || fail "appearance: redo of the reset was refused"
+wait_differs ""
+echo "appearance A3: the differs line came with chrome and corners, Reset to Washi took it away (undo, redo)"
+# A4. a style card: earlier appearance values of yours are gone, the contrast stays; its category opens.
+K '{"t":"apply","id":"ap2","ops":[{"set":"theme.chrome","value":"soft"}]}' | grep -q applied || fail "appearance: chrome refused"
+wait_differs "Chrome"
+Q pick theme.style '"sekai"'
+wait_ap style sekai
+[ "$(src theme.chrome)" != user ] || fail "appearance: applying sekai kept the user's chrome"
+[ "$(val theme.colors.contrast)" = '"medium"' ] || fail "appearance: applying sekai reset the contrast"
+wait_differs ""
+Q scrollTo block:theme.style
+ashot sekai-page
+Q pick theme.style '"win95"'
+wait_ap style win95
+[ "$(Q openCategory theme.style)" = retro ] || fail "appearance: win95's category is not open ($(Q openCategory theme.style))"
+Q scrollTo block:theme.style
+ashot win95-page
+# A5. a look over the style: theme.look is yours, the style's palette stays; the line names the look.
+Q pick theme.look '"sekai"'
+wait_ap look sekai
+[ "$(src theme.look)" = user ] || fail "appearance: the look picked is not the user's ($(src theme.look))"
+[ "$(ap palette)" = win95 ] && [ "$(src theme.colors.palette)" = theme ] || fail "appearance: the style's palette did not stay ($(ap palette), $(src theme.colors.palette))"
+wait_differs "1 setting differs from Win95: Look"
+Q scrollTo block:theme.style
+ashot look-over-style
+# A6. light or dark is yours (K53 amendment): dark set by you, applying the style again keeps it; the cards follow it.
+K '{"t":"apply","id":"ap3","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' | grep -q applied || fail "appearance: dark refused"
+Q resetToStyle
+wait_differs ""
+[ "$(val theme.colors.scheme)" = '"dark"' ] && [ "$(src theme.colors.scheme)" = user ] || fail "appearance: the style did not keep the user's dark"
+Q scrollTo block:theme.colors.palette
+ashot palette-dark
+echo "appearance A4-A6: sekai and win95 applied by card (chrome reset, contrast kept), a look over the style, dark kept"
+# A7. None (your own): only the style changes. Back to the baseline the steps below expect (no style, defaults).
+Q pick theme.style '"none"'
+wait_ap style none
+K '{"t":"apply","id":"ap4","ops":[{"reset":"theme.colors.scheme"},{"reset":"theme.colors.contrast"}]}' | grep -q applied || fail "appearance: baseline reset refused"
+wait_ap look kanso
+Q goto bar
+
 # 2. inert rows with reasons and their links: a11y override + the enforced (forced) blur value (Advanced on)
 K '{"t":"apply","id":"a1","ops":[{"set":"a11y.reduce_transparency","value":true}]}' | grep -q applied || fail "a11y override not applied"
 Q goto appearance
@@ -273,6 +364,20 @@ kp return
 [ "$(Q previewState)" = none ] || fail "palette cards: the preview is still open after Return"
 shot 14-palette-keyboard
 echo "keyboard K3: palette cards Down (preview), Return (kept): kanso"
+
+# K3b. the category chips (W29): one Tab stop (the open chip), Right moves to the next, Return opens it, Tab goes on into
+#      its cards; an arrow in the style cards moves the focus only (applying a style resets settings: it is never a preview).
+Q goto appearance
+Q focusList >/dev/null
+tab_to "category:modern"
+kp right return
+[ "$(Q openCategory theme.style)" = inspired ] || fail "chips: Right and Return did not open inspired ($(Q openCategory theme.style))"
+kp tab
+[ "$(Q focused)" = "cards:theme.style" ] || fail "chips: Tab did not go into the cards ($(Q focused))"
+kp right
+[ "$(val theme.style)" = '"none"' ] || fail "chips: an arrow in the style cards applied a style ($(val theme.style))"
+[ "$(Q previewState)" = none ] || fail "chips: an arrow in the style cards opened a preview"
+echo "keyboard K3b: chips Right+Return opened inspired, Tab into its cards, an arrow there changed nothing"
 
 # K4. the scheme switch: Right previews light (shot: Keep and Put back shown), then Esc (the same path as the IPC hook
 #     putBack) puts dark back, and Redo stays off: the cancelled preview is not a redo step.
@@ -399,7 +504,7 @@ kp p a l e t t e return
 [ "$(Q current)" = appearance ] || fail "search: Return on 'palette' did not land on its page ($(Q current))"
 [ "$(Q focused)" = "cards:theme.colors.palette" ] || fail "search: the keyboard focus did not land on the row's control ($(Q focused))"
 shot_now 5b-search-lands
-echo "keyboard K12: typed 'palette', Return landed on the row (appearance)"
+echo "keyboard K12: typed 'palette' (the Style and Look name palettes in their help: the row named so wins), Return landed on the row (appearance)"
 
 # K13. a provenance chip with focus shows every layer that sets its key (cfg.why); the Nix layer names its option path
 #      (UX brief, settings 1). theme.density is forced by Nix (managed.toml).
@@ -458,7 +563,7 @@ shot 10b-cli-change
 Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
-want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,desktop,power,dock,@changed,@mods,@profiles"
+want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto bar

@@ -1,0 +1,8 @@
+name = "sekai"
+label = "config.choice.style.sekai"
+category = "inspired"
+# After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type.
+look = "sekai"
+palette = "sekai"
+[recipe]
+"theme.colors.scheme" = "light"

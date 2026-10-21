@@ -547,6 +547,7 @@ fn offers_of(options: Vec<Choice>) -> Vec<Offer> {
             label: c.label,
             enabled: c.enabled,
             reason: c.reason,
+            group: None,
         })
         .collect()
 }
