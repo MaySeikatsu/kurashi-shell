@@ -123,3 +123,10 @@
 "action.webdock.remove" = "ドックからピンを外す"
 "action.webdock.move" = "ドックのピンを動かす"
 "action.webdock.retarget" = "ピンのページをこのページに置き換える"
+
+# サイドバーのウェブドック (W30、docs/ux/webdock.md「In the sidebar」): パネルの状態、端のカードの案内、操作。
+"webdock.side.unplaced" = "ウェブドックをサイドバーのタブにすると、ここにサイトが表示されます。ここでは画面の端で開きます。"
+"webdock.side.at_edge" = "端で表示"
+"webdock.side.elsewhere" = "このページはサイドバーに表示されています"
+"action.webdock.sidebar" = "サイドバーのウェブドックが位置に落ち着いた、または離れた"
+"action.webdock.sidebar_select" = "ピンをサイドバーに表示する"

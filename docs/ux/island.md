@@ -149,3 +149,36 @@ The user on I115: "Yes it should join". The shape picks its topology from tokens
   odd-even), so no layer lies under another and the fill is the panel's (`Theme.panel`: translucent under glass).
 - Evidence: `frontend/test-island-morph.sh` with `theme.decor = "sekai"` (joined keycap), `"glass"` (joined soft),
   `"terminal"` (strip, square) → `frontend/shots/island/morph-{sekai,glass,terminal}-*.png`.
+
+## Session 12: the join under line chrome (W30)
+The user: "When the dynamic island is open with Line chrome active, it seems disconnected on the merge to the bar since
+the island is going straight down and the extended island part merging into the bar, both not really meet at the same
+point." Under a ruled strip (an outline token: line chrome, washi's and terminal's) the card stood in front of the bar:
+its own outline ran up through the bar's rule round the head, and the fillet's band thinned to nothing at the rule, so
+the rule met the card in a T (square) or a fork (rounded), never as one line (`join-before-{washi,terminal}-rest.png`).
+- **The card hangs from the rule** (`MorphShape.hangs`): its outline *is* the rule — along the rule's band (barH − ow …
+  barH), round each concave fillet (concentric arcs, radius n outside and n + ow inside, so the line keeps its width;
+  mitred when the corners are square) and down the sides. Drawn as one U-shaped band from fillet top to fillet top, so
+  no edges coincide.
+- **The head loses its box as the card grows**: the pill's outline (the bar's boxed pill) thins to nothing while the
+  card's bottom travels a bar's height past the edge (`opened`); open, the head inside the bar is fill only.
+- **The shape draws the rule under its box; the bar opens its rule there** (`MorphShape.rulePath`,
+  `IslandGeom.openL/openR`, read by the bar whose pill is taken): a translucent card never shows the rule through it.
+  Fix after the lead's review (a mid-morph washi frame: the rule stopped a few px short of the fillet, light blobs where
+  the line should run): the first cut opened the bar's rule at the fillets, frame by frame, but the bar and the Stage
+  are two surfaces presented independently, so the opening ran a frame ahead of the drawn card (a growing card's fillet
+  stood off the rule's end; a shrinking one would leave the rule under the card). Now the opening is the shape's whole
+  box (2 px inside its edges, an overlap) and stands still while the card morphs; the shape draws the rule itself across
+  the box, in step with the card — whole under a pill that has not reached it (beneath the fill), and from the box's
+  edges into the fillets' bands once the card hangs (never under the card). The two surfaces agree only when the shape
+  comes out or goes (`takenOn`, already synchronised for the pill) or the box is resized.
+- Flat, keycap and soft are untouched (no outline token, or the joined topology: no rule copy, no opening).
+- Evidence: `frontend/test-island-join.sh` — washi light and dark, terminal, line on the default look, corners
+  none/squircle, radius scales 0.5 and 2, washi and terminal on a bottom bar, and two mid-morph cases (`washi-mid`,
+  `terminal-bottom-mid`: springs at `theme.motion.speed = 0.25`, 22 grabs per direction; the shape logs `opened` under
+  `KURASHI_ISLAND_DEBUG=1` and the case fails unless a checked frame caught 0 < opened < 1) — fails on a gap, a step or
+  an overshoot in the outline from the rule to the card's side (rest and every morph frame; a card shorter than 50 px
+  is checked half way down), or a rule left under the card → `frontend/shots/island/morph-{washi,terminal}-*.png`,
+  `join-mid-{washi-open,washi-close,terminal-bottom-open}.png`, the other cases under `target/island-join/`.
+- Known edge: a view with its own chrome (the phone) fades the shape out before it hands the bar its pill back; during
+  that fade the shape's rule copy fades with it while the bar's rule is still open under the box.

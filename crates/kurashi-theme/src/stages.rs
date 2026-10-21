@@ -101,6 +101,47 @@ pub struct Extracted {
     pub set: PaletteSet,
     pub seed: Option<Rgb>,
     pub mono: bool,
+    /// The picture's mean perceived lightness, CIE L* 0–100 (K55: scheme `wallpaper` is light from
+    /// [`LIGHT_WALLPAPER`] up).
+    pub lightness: f64,
+}
+
+/// The mean L* from which a wallpaper counts as light (K55). Photos of a bright sky sit near 70, night scenes
+/// below 30; 55 keeps mid-grey pictures dark, where a light shell over them would glare.
+pub const LIGHT_WALLPAPER: f64 = 55.0;
+
+impl Extracted {
+    /// Whether scheme `wallpaper` resolves to light for this picture (K55).
+    pub fn is_light(&self) -> bool {
+        self.lightness >= LIGHT_WALLPAPER
+    }
+}
+
+/// The mean perceived lightness (CIE L*, 0–100) of the opaque pixels of `rgba`: the relative luminance of each
+/// pixel (sRGB → linear, Rec. 709 weights) averaged, then mapped to L*.
+pub fn mean_lightness(rgba: &[u8]) -> f64 {
+    fn lin(c: u8) -> f64 {
+        let c = f64::from(c) / 255.0;
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+    let (mut sum, mut n) = (0.0, 0u64);
+    for p in rgba.chunks_exact(4).filter(|p| p[3] >= 128) {
+        sum += 0.2126 * lin(p[0]) + 0.7152 * lin(p[1]) + 0.0722 * lin(p[2]);
+        n += 1;
+    }
+    if n == 0 {
+        return 0.0;
+    }
+    let y = sum / n as f64;
+    if y > 216.0 / 24389.0 {
+        116.0 * y.cbrt() - 16.0
+    } else {
+        y * 24389.0 / 27.0
+    }
 }
 
 impl Extracted {
@@ -129,6 +170,7 @@ fn validate(w: &Wallpaper) -> Result<(), ThemeError> {
 /// Extracts a decoded picture: material roles, or the monochrome fallback.
 pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
     validate(w)?;
+    let lightness = mean_lightness(&w.rgba);
     if is_monochrome(&w.rgba) {
         let mut set = crate::palette::bundled("wa-iro")?;
         set.name = "wa-iro".into();
@@ -136,6 +178,7 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
             set,
             seed: None,
             mono: true,
+            lightness,
         });
     }
     let (set, seed) = from_wallpaper(w)?;
@@ -143,6 +186,7 @@ pub fn extract(w: &Wallpaper) -> Result<Extracted, ThemeError> {
         set,
         seed: Some(seed),
         mono: false,
+        lightness,
     })
 }
 

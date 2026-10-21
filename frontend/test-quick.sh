@@ -45,7 +45,7 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 # Pixel checks of the plain look (K53: a fresh install wears the style washi; this test reads layout and fills).
 mkdir -p "$XDG_CONFIG_HOME/kurashi"
-printf 'theme.style = "none"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 K() { timeout 10 "$W/kurashi" "$@"; }
 
 # The pressed button's fill in a P6 PPM crop: the primary button's colours (rest, hover, pressed; the pointer

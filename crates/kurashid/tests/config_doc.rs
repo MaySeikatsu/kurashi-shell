@@ -64,11 +64,20 @@ async fn within_two_seconds(hub: &Hub, pred: impl Fn(&Value) -> bool) -> bool {
 #[tokio::test]
 async fn history_follows_apply_undo_redo_and_profile_actions() {
     let (store, hub, actions, root) = open();
+    // The buttons' state, without the revision (checked on its own below).
+    let buttons = |hub: &Hub| {
+        let mut h = doc(hub)["history"].clone();
+        h.as_object_mut().unwrap().remove("rev");
+        h
+    };
     assert_eq!(
-        doc(&hub)["history"],
+        buttons(&hub),
         json!({"can_undo": false, "can_redo": false}),
         "nothing done yet"
     );
+    let before = doc(&hub)["history"]["rev"]
+        .as_u64()
+        .expect("history.rev (K57)");
 
     store
         .apply(&[ApplyOp::Set {
@@ -77,22 +86,15 @@ async fn history_follows_apply_undo_redo_and_profile_actions() {
             output: None,
         }])
         .expect("apply");
-    assert_eq!(
-        doc(&hub)["history"],
-        json!({"can_undo": true, "can_redo": false})
-    );
+    assert_eq!(buttons(&hub), json!({"can_undo": true, "can_redo": false}));
+    // K57: the config's own revision, as the apply answered it.
+    assert!(doc(&hub)["history"]["rev"].as_u64().unwrap() > before);
 
     store.undo(false).expect("undo");
-    assert_eq!(
-        doc(&hub)["history"],
-        json!({"can_undo": false, "can_redo": true})
-    );
+    assert_eq!(buttons(&hub), json!({"can_undo": false, "can_redo": true}));
 
     store.undo(true).expect("redo");
-    assert_eq!(
-        doc(&hub)["history"],
-        json!({"can_undo": true, "can_redo": false})
-    );
+    assert_eq!(buttons(&hub), json!({"can_undo": true, "can_redo": false}));
 
     // A profile load is one undoable change; saving a profile publishes the list at once.
     std::fs::create_dir_all(profiles_dir(&root)).unwrap();

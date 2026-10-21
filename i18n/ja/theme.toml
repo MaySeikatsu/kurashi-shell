@@ -1,2 +1,12 @@
 # テーマ文書のノート (DESIGN-SYSTEM §2)：いま有効なテーマがなぜそうなっているか。
 "theme.note.wallpaper_waiting" = "壁紙 mod が画像をテーマ付きで適用すると、テーマは壁紙に従います。それまでは既定のパレットが有効です。"
+
+# K55：いまライト／ダークのどちらがなぜ有効か（テーマ文書 `appearance.scheme_detail`）と、スタイルの後に戻す操作。
+"theme.scheme.detail.os" = "システムに従う：{scheme}"
+"theme.scheme.detail.os_unknown" = "システムに設定がありません（デスクトップポータルが応答しません）：ダーク"
+"theme.scheme.detail.wallpaper" = "壁紙の明るさに従う：{scheme}"
+"theme.scheme.detail.wallpaper_waiting" = "壁紙の画像がまだありません（壁紙 mod がテーマ付きで適用します）：それまではダーク"
+"theme.scheme.style" = "スタイル「{style}」に従う"
+"theme.scheme.back" = "「{mode}」に戻す"
+"theme.scheme.light" = "ライト"
+"theme.scheme.dark" = "ダーク"

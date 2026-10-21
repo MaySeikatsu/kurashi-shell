@@ -33,13 +33,14 @@ pub const LOOK_KEYS: &[&str] = &[
     "theme.typography.family",
 ];
 
-/// The keys applying a style resets: its look and palette, every look key and the density. Light or dark
-/// (`theme.colors.scheme`) is the user's mode — a style recommends one only until the user picks (K53: every palette
-/// has both) — and accessibility preferences (contrast, colour-blind shift, text scale, pure black), the seasonal
-/// tint, the screen corners and the app export are the user's too: they stay.
+/// The keys applying a style resets: its look and palette, light or dark, every look key and the density. Applying a
+/// style makes light or dark follow it (K55: the user's own mode before it is kept by the daemon, one click brings it
+/// back). Accessibility preferences (contrast, colour-blind shift, text scale, pure black), the seasonal tint, the
+/// screen corners and the app export are the user's: they stay.
 pub const STYLE_KEYS: &[&str] = &[
     "theme.look",
     "theme.colors.palette",
+    "theme.colors.scheme",
     "theme.density",
     "theme.chrome",
     "theme.shape.corners",
@@ -126,10 +127,7 @@ impl Kind {
         match self {
             Kind::Look => LOOK_KEYS.contains(&key),
             Kind::Style => {
-                key == "theme.colors.scheme"
-                    || (STYLE_KEYS.contains(&key)
-                        && key != "theme.look"
-                        && key != "theme.colors.palette")
+                STYLE_KEYS.contains(&key) && key != "theme.look" && key != "theme.colors.palette"
             }
         }
     }
