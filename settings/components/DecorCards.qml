@@ -1,18 +1,22 @@
 import QtQuick
 import "../core"
 
-// A choice drawn as preview cards (K45, I104): for a select whose offers have looks in the theme document (`styles`, `looks`, `palettes`; K53), each card is a
-// small scene in that look — its ground, a bar of three blocks, a card with "Aa" in its font and an accent pill — drawn
-// from the tokens the daemon resolved from the pack's recipe alone (Shōjiki: what you pick is what you get). An offer
-// without a look (your own settings) is a plain card. Keyboard as Segmented: Tab enters, arrows move (`previewed`),
-// Space/Return/click pick, Escape is `cancelled`.
+// A choice drawn as preview cards (K45, I104): for a select whose offers have previews in `theme.previews` (`styles`,
+// `looks`, `palettes`; K53), each card is a small scene in that pack — its ground, a bar of three blocks, a card with "Aa"
+// in its font and an accent pill — drawn from the tokens the daemon resolved for it (Shōjiki: what you pick is what you
+// get). A look with frame art (`frame`) gets a hint of it: corner brackets in its ink and a frame mark (the frames are the
+// shell's components; W29). An offer without a preview (your own settings) is a plain card. Keyboard as Segmented: Tab
+// enters, arrows move (and, with `previewOnMove`, emit `previewed`), Space/Return/click pick, Escape is `cancelled`.
 Flow {
     id: dc
     property var choices: []
     property var current
     property bool enabled: true
-    // name -> tokens, from the theme document.
+    // name -> preview entry {tokens, frame?}, from `theme.previews`.
     property var looks: ({})
+    // Arrows preview the card moved to. Off where a pick is an action that resets settings (styles, looks: W29): there
+    // the arrows only move the focus, and Space/Return/click pick (a radio group with manual activation).
+    property bool previewOnMove: true
     signal picked(var value)
     signal previewed(var value)
     signal cancelled()
@@ -26,7 +30,7 @@ Flow {
         var c = rep.itemAt(i)
         if (!c || !dc.enabled) return
         c.forceActiveFocus()
-        if (JSON.stringify(dc.choices[i].value) !== JSON.stringify(dc.current)) dc.previewed(dc.choices[i].value)
+        if (dc.previewOnMove && JSON.stringify(dc.choices[i].value) !== JSON.stringify(dc.current)) dc.previewed(dc.choices[i].value)
     }
 
     Repeater {
@@ -37,7 +41,9 @@ Flow {
             required property var modelData
             required property int index
             readonly property bool on: JSON.stringify(modelData.value) === JSON.stringify(dc.current)
-            readonly property var t: dc.looks[modelData.value] || null
+            readonly property var entry: dc.looks[modelData.value] || null
+            readonly property var t: card.entry ? card.entry.tokens : null
+            readonly property bool framed: !!card.entry && !!card.entry.frame
             function tk(k, d) { var v = card.t ? card.t[k] : undefined; return v === undefined ? d : v }
             function ck(k, d) { return Qt.color(tk(k, d)) }
             width: 156
@@ -56,7 +62,7 @@ Flow {
             Keys.onRightPressed: event => { dc.move(card.index, 1); event.accepted = true }
             Keys.onDownPressed: event => { dc.move(card.index, 1); event.accepted = true }
             Accessible.role: Accessible.RadioButton
-            Accessible.name: I18n.tr(modelData.label)
+            Accessible.name: I18n.tr(modelData.label) + (card.framed ? ", " + I18n.tr("settings.appearance.frame") : "")
             Accessible.checkable: true
             Accessible.checked: card.on
 
@@ -142,6 +148,41 @@ Flow {
                         }
                     }
                 }
+            }
+            // The look's frame art, as a hint: corner brackets in its ink round the card, and a frame mark in the corner.
+            Item {
+                id: brackets
+                visible: card.framed
+                x: scene.x + 4; y: scene.y + 30
+                width: scene.width - 8; height: 68
+                readonly property color ink: Qt.alpha(card.ck("color.on_surface", "#eee"), 0.55)
+                readonly property real arm: 10
+                Repeater {
+                    model: 4
+                    delegate: Item {
+                        id: corner
+                        required property int index
+                        readonly property bool atRight: index % 2 === 1
+                        readonly property bool atBottom: index >= 2
+                        x: corner.atRight ? brackets.width - brackets.arm : 0
+                        y: corner.atBottom ? brackets.height - brackets.arm : 0
+                        width: brackets.arm
+                        height: brackets.arm
+                        Rectangle { y: corner.atBottom ? corner.height - 2 : 0; width: corner.width; height: 2; color: brackets.ink }
+                        Rectangle { x: corner.atRight ? corner.width - 2 : 0; width: 2; height: corner.height; color: brackets.ink }
+                    }
+                }
+            }
+            Text {
+                visible: card.framed
+                anchors.right: scene.right
+                anchors.top: scene.top
+                anchors.margins: 6
+                text: Theme.iconFamily !== "" ? "filter_frames" : "▣"
+                font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam(text, Theme.families)
+                font.pixelSize: 14
+                color: card.ck("color.on_surface", "#eee")
+                opacity: 0.7
             }
             Row {
                 id: caption

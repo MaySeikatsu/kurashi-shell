@@ -9,3 +9,5 @@ category = "inspired"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius_scale" = 0.5
 "theme.typography.family" = ["Noto Serif", "Noto Serif CJK JP", "serif"]
+[slots]
+frame = "paper"
