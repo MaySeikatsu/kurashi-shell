@@ -449,26 +449,12 @@ async fn copy_text(text: &str) -> Result<(), ActionError> {
     Ok(())
 }
 
-/// Puts the cliphist entry `line` (its id) back on the clipboard: `cliphist decode` into `wl-copy`.
-async fn copy_clip(line: &str) -> Result<(), ActionError> {
-    if !line.chars().all(|c| c.is_ascii_digit()) {
-        return Err(ActionError::Invalid("error.args.invalid".into()));
-    }
-    let out = tokio::process::Command::new("cliphist")
-        .arg("decode")
-        .arg(line)
-        .output()
-        .await
-        .map_err(|e| ActionError::Unavailable(format!("cliphist: {e}")))?;
-    if !out.status.success() {
-        return Err(ActionError::Unavailable("cliphist decode failed".into()));
-    }
-    copy_text(&String::from_utf8_lossy(&out.stdout)).await
-}
-
-/// `query kind:"launcher"` + `launcher.launch {id, files?}`.
+/// `query kind:"launcher"` + `launcher.launch {id, files?}`. W26: `launcher.keys` (opens the launcher on the keybind
+/// cheat sheet, `runtime.ui.launcher_query = "?"`), `launcher.clip.thumb {id}` → `{path}`, `launcher.clip.delete {id}`,
+/// `launcher.clip.pin {id}` → `{pinned}`, `launcher.clip.clear {}`.
 pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::path::PathBuf) {
-    use kurashi_launcher::{IndexConfig, LaunchOptions, Launcher};
+    use kurashi_launcher::clip::{Clip, ClipError};
+    use kurashi_launcher::{Frecency, IndexConfig, LaunchOptions, Launcher};
     let terminal = cfg
         .and_then(|c| c.get("launcher.terminal", None))
         .and_then(|p| p.value.as_array().cloned())
@@ -489,24 +475,79 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         state_dir.join("launcher.json"),
     );
     watch_while_open(daemon.hub.clone(), LauncherWatch::new(launcher.clone()));
+    // The clipboard mode (W26): thumbnails in the cache, pins in the state dir; recent emoji (frecency) in the state
+    // dir; the niri binds re-read only when their files change.
+    let clip = Arc::new(Clip::new(
+        crate::xdg_dir("cache").join("clip"),
+        state_dir.join("clip-pins"),
+    ));
+    let emoji = Arc::new(Mutex::new(Frecency::load(state_dir.join("emoji.json"))));
+    let keys = Arc::new(kurashi_launcher::keys::KeysCache::default());
+    let now = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs())
+    };
+    // `launcher_query` (the text `launcher.keys` opens the launcher with) lasts while the launcher is open: once it
+    // closes by any path, the key goes, so the next plain open starts empty.
+    {
+        let hub = daemon.hub.clone();
+        let mut events = hub.events();
+        tokio::spawn(async move {
+            loop {
+                match events.recv().await {
+                    Ok(_) | Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                    Err(_) => return,
+                }
+                let stale = hub.snapshot("runtime.ui").is_ok_and(|(_, d)| {
+                    d["launcher"].as_bool() != Some(true) && d.get("launcher_query").is_some()
+                });
+                if stale {
+                    let _ = hub.update("runtime.ui", None, |d| {
+                        if let Some(o) = d.as_object_mut() {
+                            o.remove("launcher_query");
+                        }
+                    });
+                }
+            }
+        });
+    }
     let l = launcher.clone();
     let (hub, actions, store) = (
         daemon.hub.clone(),
         daemon.actions.clone(),
         daemon.config.clone(),
     );
+    let (q_clip, q_emoji) = (clip.clone(), emoji.clone());
     // The `>` commands' labels in the session language, kept per revision of the `i18n` document (one copy, not
     // one per keystroke).
     let labels: Arc<Mutex<(u64, std::collections::HashMap<String, String>)>> = Arc::default();
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
     let query: QueryFn = Arc::new(move |q: &str| {
-        // Prefix modes: `:` emoji, `;` the clipboard history, `>` commands (I126).
+        // Prefix modes: `:` emoji (recent first), `;` the clipboard history, `>` commands (I126), `?` the keys (W26).
         if let Some(rest) = q.strip_prefix(':') {
-            return kurashi_launcher::extras::emoji_rows(rest, 40);
+            let f = q_emoji.lock().expect("emoji frecency");
+            let t = now();
+            let limit = if rest.trim().is_empty() { 240 } else { 160 };
+            return kurashi_launcher::extras::emoji_rows(rest, limit, &|c| f.score(c, t));
         }
         if let Some(rest) = q.strip_prefix(';') {
-            return kurashi_launcher::extras::clip_rows(rest.trim(), 40);
+            return q_clip.rows(rest.trim(), 60);
+        }
+        if let Some(rest) = q.strip_prefix('?') {
+            let strings = hub
+                .snapshot("i18n")
+                .map(|(_, d)| d["strings"].clone())
+                .unwrap_or_default();
+            let tr = |k: &str| strings.get(k).and_then(Value::as_str).map(str::to_owned);
+            let bindings = hub
+                .snapshot(crate::bindings::DOC)
+                .map(|(_, d)| d)
+                .unwrap_or_default();
+            let pointer = kurashi_launcher::keys::pointer_rows(&bindings, &tr);
+            let nb = keys.binds(&kurashi_launcher::keys::niri_config_path());
+            return kurashi_launcher::keys::key_rows(&nb, pointer, rest, &tr);
         }
         if let Some(rest) = q.strip_prefix('>') {
             let mut cache = labels.lock().expect("labels lock");
@@ -560,6 +601,108 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             .collect()
     });
     daemon.queries.insert("launcher".into(), query);
+
+    // A clipboard refusal as an action error: the kind picks the view's line, the key says which.
+    fn clip_err(e: ClipError) -> ActionError {
+        match e {
+            ClipError::Missing(_) => ActionError::Unavailable("launcher.clip.unavailable".into()),
+            ClipError::Gone => ActionError::Invalid("launcher.clip.error.gone".into()),
+            ClipError::TooLarge => ActionError::Invalid("launcher.clip.error.too_large".into()),
+            ClipError::NotImage => ActionError::Invalid("launcher.clip.error.not_image".into()),
+            ClipError::PinsFull => ActionError::Invalid("launcher.clip.error.pins_full".into()),
+            ClipError::Failed(m) => ActionError::Unavailable(m),
+        }
+    }
+    // The entry an action names: the row id (`clip:<n>`, `clip:pin:<key>`) or the bare id.
+    fn clip_id(args: &Value) -> Result<String, ActionError> {
+        let id = args["id"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| ActionError::Invalid("error.args.invalid".into()))?;
+        Ok(id.strip_prefix("clip:").unwrap_or(id).to_owned())
+    }
+    async fn blocking<T: Send + 'static>(
+        f: impl FnOnce() -> Result<T, ClipError> + Send + 'static,
+    ) -> Result<T, ActionError> {
+        tokio::task::spawn_blocking(f)
+            .await
+            .map_err(|e| ActionError::Internal(e.to_string()))?
+            .map_err(clip_err)
+    }
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.thumb",
+        "action.launcher.clip.thumb",
+        move |args: Value| {
+            let c = c.clone();
+            async move {
+                let id = clip_id(&args)?;
+                let path = blocking(move || c.thumb(&id)).await?;
+                Ok(Some(json!({"path": path.display().to_string()})))
+            }
+        },
+    );
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.delete",
+        "action.launcher.clip.delete",
+        move |args: Value| {
+            let c = c.clone();
+            async move {
+                let id = clip_id(&args)?;
+                blocking(move || c.delete(&id)).await?;
+                Ok(None)
+            }
+        },
+    );
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.pin",
+        "action.launcher.clip.pin",
+        move |args: Value| {
+            let c = c.clone();
+            async move {
+                let id = clip_id(&args)?;
+                let pinned = blocking(move || c.toggle_pin(&id)).await?;
+                Ok(Some(json!({"pinned": pinned})))
+            }
+        },
+    );
+    let c = clip.clone();
+    daemon.actions.register(
+        "launcher.clip.clear",
+        "action.launcher.clip.clear",
+        move |_| {
+            let c = c.clone();
+            async move {
+                blocking(move || c.clear()).await?;
+                Ok(None)
+            }
+        },
+    );
+    // The cheat sheet: opens the launcher with `?`; again while it shows the sheet, closes it (a toggle for one key).
+    let h = daemon.hub.clone();
+    daemon
+        .actions
+        .register("launcher.keys", "action.launcher.keys", move |_| {
+            let hub = h.clone();
+            async move {
+                hub.update("runtime.ui", None, |d| {
+                    let showing = d["launcher"].as_bool() == Some(true)
+                        && d["launcher_query"].as_str() == Some("?");
+                    d["launcher"] = json!(!showing);
+                    if showing {
+                        if let Some(o) = d.as_object_mut() {
+                            o.remove("launcher_query");
+                        }
+                    } else {
+                        d["launcher_query"] = json!("?");
+                    }
+                })
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        });
     let run_actions = daemon.actions.clone();
     daemon.actions.register(
         "launcher.launch",
@@ -567,6 +710,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         move |args: Value| {
             let launcher = launcher.clone();
             let actions = run_actions.clone();
+            let (clip, emoji) = (clip.clone(), emoji.clone());
             async move {
                 let id = args["id"]
                     .as_str()
@@ -595,16 +739,21 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                             .collect()
                     })
                     .unwrap_or_default();
-                if let Some(value) = id
-                    .strip_prefix("calc:")
-                    .or_else(|| id.strip_prefix("emoji:"))
-                {
+                if let Some(value) = id.strip_prefix("calc:") {
                     return copy_text(value)
                         .await
                         .map(|_| Some(json!({"copied": value})));
                 }
-                if let Some(line) = id.strip_prefix("clip:") {
-                    return copy_clip(line).await.map(|_| Some(json!({"copied": line})));
+                if let Some(value) = id.strip_prefix("emoji:") {
+                    copy_text(value).await?;
+                    emoji.lock().expect("emoji frecency").record(value, now());
+                    return Ok(Some(json!({"copied": value})));
+                }
+                // A history entry or a pin, bytes and type kept (an image stays an image).
+                if let Some(entry) = id.strip_prefix("clip:") {
+                    let e = entry.to_owned();
+                    blocking(move || clip.copy(&e)).await?;
+                    return Ok(Some(json!({"copied": entry})));
                 }
                 let pid = tokio::task::spawn_blocking(move || launcher.launch(&id, &files))
                     .await

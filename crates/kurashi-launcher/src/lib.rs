@@ -5,12 +5,14 @@
 //! `Launcher`; the frontend only sends queries and a launch intent.
 
 pub mod calc;
+pub mod clip;
 pub mod commands;
 pub mod desktop;
 pub mod exec;
 pub mod extras;
 pub mod frecency;
 pub mod index;
+pub mod keys;
 pub mod matcher;
 pub mod watch;
 

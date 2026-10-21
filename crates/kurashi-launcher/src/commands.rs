@@ -13,6 +13,7 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("quick.toggle", "tune"),
     ("notifications.center", "notifications"),
     ("settings.open", "settings"),
+    ("launcher.keys", "keyboard_keys"),
     ("screenshot.region", "screenshot_region"),
     ("screenshot.screen", "screenshot_monitor"),
     ("screenshot.window", "select_window"),
