@@ -24,9 +24,12 @@ rustPlatform.buildRustPackage {
       ../frontend
       ../settings
       ../mods
+      # The greeter (W28): its QML and the links `core`/`components` into frontend/.
+      ../greeter
     ]) (fs.unions [
       (fs.maybeMissing ../frontend/shots)
       (fs.maybeMissing ../settings/shots)
+      (fs.maybeMissing ../greeter/shots)
     ]);
   };
 
@@ -53,7 +56,7 @@ rustPlatform.buildRustPackage {
   env.KURASHI_DATA_DIR = "${placeholder "out"}/share/kurashi";
   postInstall = ''
     mkdir -p $out/share/kurashi
-    cp -r i18n palettes profiles templates frontend settings mods $out/share/kurashi/
+    cp -r i18n palettes profiles templates frontend settings mods greeter $out/share/kurashi/
   '';
 
   meta = {
