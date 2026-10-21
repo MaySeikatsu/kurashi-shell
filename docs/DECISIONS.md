@@ -486,7 +486,7 @@ already existing other look it should be a color Palette instead"). Three kinds 
   A look naming a colour key is refused. The 18 decors split into 17 looks: the shared forms `kanso` (plain) and `soft`
   (rim + shadow) replace catppuccin/rose-pine/tokyo-night, whose difference was colour.
 - **Style** (`styles/*.toml`, `theme.style`, **default `washi`** — user: "the paper like (Washi) look as a default on a
-  fresh install"): `look` + `palette` + a recipe of `STYLE_KEYS` (scheme, density, and tweaks of its own look's keys).
+  fresh install"): `look` + `palette` + a recipe of the recommended scheme, density and tweaks of its own look's keys (`STYLE_KEYS` + scheme).
   Each pack has a `category` (`modern`, `inspired`, `retro`, `fiction`; user files without one: `custom`) for
   Settings' grouping; offers carry it as `group`.
 - **Layering:** one `theme:` layer whose entries each name their pack (`Source::Theme("look:washi")`,
@@ -495,8 +495,10 @@ already existing other look it should be a color Palette instead"). Three kinds 
   effect is the one set outside the theme layer, else the style's, else the schema default.
 - **Reset semantics:** `theme.style.apply {name}` resets every user value of `STYLE_KEYS` and sets the style — one
   undoable transaction, so the style is recreated exactly; `theme.look.apply {name}` does the same for `LOOK_KEYS`.
-  Accessibility preferences (contrast, colour-blind shift, text scale, OLED), the seasonal tint, screen corners and app
-  export are never reset. The theme document's `appearance {style, look, palette, overrides}` lists the keys that differ
+  Light/dark (`theme.colors.scheme`) is the user's mode: a style recommends one until the user picks, and applying a
+  style keeps it (user: "every theme should have a light / dark mode" — all 19 palettes now have both, a test holds
+  it). Accessibility preferences (contrast, colour-blind shift, text scale, OLED), the seasonal tint, screen corners
+  and app export are never reset either. The theme document's `appearance {style, look, palette, overrides}` lists the keys that differ
   from the style ("changed from the style · Reset").
 - **Previews** move out of `theme` into their own document `theme.previews {styles, looks, palettes}` (looks drawn in
   the palette in effect, palettes in the look in effect), watched by Settings only — the shell's surfaces never receive

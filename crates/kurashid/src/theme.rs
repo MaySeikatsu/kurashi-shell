@@ -276,6 +276,7 @@ pub fn document_with(
                     "style": s(store, "theme.style"),
                     "look": s(store, "theme.look"),
                     "palette": s(store, "theme.colors.palette"),
+                    "scheme": s(store, "theme.colors.scheme"),
                     "overrides": store.appearance_overrides(),
                 },
             })
@@ -476,7 +477,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         let store = store_with(
             &root,
-            "schema_version = 2\n[theme]\nstyle = \"sekai\"\nchrome = \"flat\"\ndensity = \"airy\"\n[theme.colors]\ncontrast = \"high\"\n[bar]\nheight = 40\n",
+            "schema_version = 2\n[theme]\nstyle = \"sekai\"\nchrome = \"flat\"\ndensity = \"airy\"\n[theme.colors]\ncontrast = \"high\"\nscheme = \"dark\"\n[bar]\nheight = 40\n",
         );
         assert_eq!(
             store.appearance_overrides(),
@@ -498,8 +499,9 @@ mod tests {
             val("theme.density").source,
             kurashi_config::Source::Theme("style:win95".into())
         );
-        // Not appearance: kept.
+        // Not reset: accessibility, light or dark, layout.
         assert_eq!(val("theme.colors.contrast").value, "high");
+        assert_eq!(val("theme.colors.scheme").value, "dark");
         assert_eq!(val("bar.height").value, 40);
         assert!(store.appearance_overrides().is_empty());
         actions

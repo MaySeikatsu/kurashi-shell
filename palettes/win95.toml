@@ -1,7 +1,7 @@
-# Win95 — silver controls, navy title bars, the 3D bevel era. Light only. Roles after shellseikatsu
+# Win95 — silver controls, navy title bars, the 3D bevel era. Light, and dark (K53). Roles after shellseikatsu
 # `_win95Palette()` (W25, K50). Meant for decor `win95` (frame `bevel`).
 name = "win95"
-kind = "light"
+kind = "pair"
 description = "Silver, navy and teal (decor win95)"
 
 [light]
@@ -24,3 +24,25 @@ warning = "#6e5200"
 error = "#aa0000"
 line = "#000000"
 ring = "#ffffff"
+
+# Dark (K53: every palette has both schemes): a charcoal take on the bevel era: dark silver controls, Win98 title blue, teal.
+[dark]
+surface = "#3a3a3a"
+surface_container_lowest = "#262626"
+surface_container_low = "#323232"
+surface_container = "#3a3a3a"
+surface_container_high = "#3a3a3a"
+surface_container_highest = "#474747"
+on_surface = "#ffffff"
+on_surface_variant = "#dddddd"
+outline = "#858585"
+outline_variant = "#5a5a5a"
+accent = "#4aa8f0"
+accent_container = "#000080"
+on_accent_container = "#ffffff"
+secondary = "#2ac0c0"
+tertiary = "#d0d040"
+warning = "#e8c040"
+error = "#ff6060"
+line = "#0a0a0a"
+ring = "#6e6e6e"

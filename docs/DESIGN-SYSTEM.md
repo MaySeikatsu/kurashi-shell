@@ -52,12 +52,14 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 |---|---|---|---|---|
 | **Palette** | `palettes/<n>.toml` | `theme.colors.palette` | colours only | sets the palette |
 | **Look** | `looks/<n>.toml` | `theme.look` (default `kanso`) | form and feel without colour: chrome, corners, radius, material, motion, type family (`LOOK_KEYS`) + `[slots] frame` | `theme.look.apply`: resets your look keys, sets the look |
-| **Style** | `styles/<n>.toml` | `theme.style` (default **`washi`**) | `look` + `palette` + scheme, density and tweaks of its own look (`STYLE_KEYS`) | `theme.style.apply`: resets every appearance key you set, sets the style |
+| **Style** | `styles/<n>.toml` | `theme.style` (default **`washi`**) | `look` + `palette` + density, tweaks of its own look (`STYLE_KEYS`) and a recommended scheme | `theme.style.apply`: resets every appearance key you set except light/dark, sets the style |
 
 A look that only recolours another one is a palette. Every pack names a `category` (`modern`, `inspired`, `retro`,
 `fiction`; `custom` for a user file without one) — Settings groups by it. The theme layer holds the look's recipe under
 the style's (`theme: look:<n>` / `theme: style:<n>` provenance); a style's look tweaks apply only while its own look is
-the one in effect. Accessibility preferences, the seasonal tint, screen corners and app export are never reset.
+the one in effect. Every palette has a light and a dark scheme; light/dark is the user's mode (the quick settings'
+Dark tile), a style only recommends one. Accessibility preferences, the seasonal tint, screen corners and app export
+are never reset.
 
 | style | category | look | palette | own recipe |
 |---|---|---|---|---|
