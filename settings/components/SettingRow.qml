@@ -16,6 +16,8 @@ Item {
     property string output: ""
     // A link to the setting that controls this row (a reason's "open").
     signal openKey(string key)
+    // The hairline under the row; a section card leaves it off its last row.
+    property bool divider: true
 
     // The offers of a choice control, replaced only when their content changes: the daemon re-publishes the schema after
     // a change, and an open dropdown must keep its highlight when the offers it shows are the same.
@@ -282,6 +284,7 @@ Item {
     }
 
     Rectangle {
+        visible: r.divider
         anchors.bottom: parent.bottom
         width: parent.width
         height: 1

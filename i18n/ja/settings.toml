@@ -243,3 +243,15 @@
 # W18-settings (I64, docs/ux/settings.md): プロファイルの差分で値が変わらない行と、変更一覧で有効化されない値。
 "settings.ui.profile_now_from" = "このプロファイルの値"
 "settings.ui.held_back" = "効力なし: {reason} · 適用中: {value}"
+
+# W24-desk-settings (K49): under the theme export row, what became of each app's theme file
+"settings.export.waiting" = "最初の書き出しを待っています…"
+"settings.export.file" = "{path} に書き出しました"
+"settings.export.same" = "最新です：{path}"
+"settings.export.error" = "書き出せませんでした：{reason}"
+"settings.export.unknown" = "テンプレートに存在しない色名があります：{names}"
+"settings.export.included" = "{file} が読み込んでいます"
+"settings.export.add_line" = "{app} はまだこのファイルを読み込んでいません。{file} に次の行を追加してください："
+"settings.export.copy" = "コピー"
+"settings.export.copied" = "コピーしました"
+"settings.export.copy_failed" = "コピーできませんでした"

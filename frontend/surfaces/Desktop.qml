@@ -13,8 +13,13 @@ import "../core/mods.js" as Mods
 // an action.
 // Ma: no surface while off; the documents are watched only while the surface is shown; nothing animates on its own —
 // the clock changes when svc.clock's minute patch arrives. Content-sized (K16): the window is the column of cards.
-// Mods add cards after the core ones (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only
-// while the desk is shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say).
+// Mods add cards (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only while the desk is
+// shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say).
+// Order (K48 (4)): the column follows `desktop.order` — core ids and `mod:<id>:<name>` — and the cards it does not list
+// come after, core ones first. Edit mode (SekaiPop "Edit Desktop", macOS "Edit Widgets"; docs/ux/desktop.md v3): the
+// "Edit" key on hover lifts the column over the windows with the keyboard, every card shows (a placeholder says when it
+// shows), drag or Alt+Up/Down reorders, the eye (or Space) hides a core card, and Done writes the order and the
+// switches as one `apply` (one undo step); Escape puts everything back. Nothing is written while editing.
 PanelWindow {
     id: desk
     required property var modelData
@@ -25,10 +30,17 @@ PanelWindow {
     readonly property bool onLeft: bars.valueOf("desktop.side", "right") === "left"
     function want(key) { return bars.valueOf("desktop." + key, true) === true }
 
+    // Edit mode. While on, the column sits on the top layer and holds the keyboard (exclusive: a bottom-layer surface
+    // gets keys only after a second click in sway and niri, and Escape must always work); Done or Escape gives both back.
+    property bool editing: false
+    // What the edit shows before Done: the core cards' switches (`desktop.<id>`) as staged.
+    property var staged: ({})
+    property string editError: ""
+
     visible: on
-    WlrLayershell.layer: WlrLayer.Bottom
+    WlrLayershell.layer: editing ? WlrLayer.Top : WlrLayer.Bottom
     WlrLayershell.namespace: "kurashi-desktop"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: editing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     anchors { top: true; left: desk.onLeft; right: !desk.onLeft }
@@ -39,10 +51,11 @@ PanelWindow {
     }
     implicitWidth: cards.width
     implicitHeight: Math.max(1, cards.height)
+    onOnChanged: if (!on) cancelEdit()
 
     Watch { doc: "svc.clock"; active: desk.visible }
-    Watch { doc: "svc.media"; active: desk.visible && desk.want("media") }
-    Watch { doc: "mod.weather"; active: desk.visible && desk.want("weather") && desk.weatherMod }
+    Watch { doc: "svc.media"; active: desk.visible && (desk.want("media") || desk.editing) }
+    Watch { doc: "mod.weather"; active: desk.visible && (desk.want("weather") || desk.editing) && desk.weatherMod }
     Watch { doc: "mods"; active: desk.visible }
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var media: Store.docs["svc.media"] || ({})
@@ -54,20 +67,128 @@ PanelWindow {
         for (var i = 0; i < m.length; i++) if (m[i].id === "weather" && m[i].qml !== undefined) return true
         return false
     }
+    function modName(id) {
+        var m = (Store.docs["mods"] || {}).mods || []
+        for (var i = 0; i < m.length; i++) if (m[i].id === id) return I18n.tr(m[i].name || id)
+        return id
+    }
 
-    // The desk cards of enabled mods as their file URLs. The list is rebuilt only when the URLs change: the `mods`
-    // document also changes when a mod starts or stops running (a card's own subscription does that), and a new model
-    // array would remake every card, which would unsubscribe and resubscribe it, without end.
+    // The desk cards of enabled mods as [{id: "mod:<mod>:<name>", url, mod}]. The list is rebuilt only when the URLs
+    // change: the `mods` document also changes when a mod starts or stops running (a card's own subscription does that),
+    // and a new list would remake every card, which would unsubscribe and resubscribe it, without end.
     readonly property var modsDoc: Store.docs["mods"]
     readonly property string deskKey: desk.visible
-        ? JSON.stringify(Mods.deskCards(desk.modsDoc).map(function (c) { return c.url })) : "[]"
-    property var deskUrls: []
-    onDeskKeyChanged: deskUrls = JSON.parse(deskKey)
+        ? JSON.stringify(Mods.deskCards(desk.modsDoc).map(function (c) {
+            return { id: "mod:" + c.mod + ":" + c.provide.substring(5), url: c.url, mod: c.mod }
+        })) : "[]"
+    property var modCards: []
+    onDeskKeyChanged: modCards = JSON.parse(deskKey)
+
+    // ---- order -------------------------------------------------------------------------------------------------------
+    readonly property var coreIds: ["clock", "calendar", "media", "weather"]
+    readonly property var configOrder: { var o = bars.valueOf("desktop.order", null); return Array.isArray(o) ? o : coreIds }
+    // Every card the desk can show now, in their unlisted order: core first, then mods' in mod order.
+    readonly property var available: coreIds.concat(modCards.map(function (c) { return c.id }))
+    function urlOf(id) {
+        for (var i = 0; i < modCards.length; i++) if (modCards[i].id === id) return modCards[i].url
+        return ""
+    }
+    // `first` (ids in order) narrowed to the available ones, then every available id it does not list.
+    function arrange(first) {
+        var out = [], seen = {}
+        for (var i = 0; i < first.length; i++)
+            if (available.indexOf(first[i]) >= 0 && !seen[first[i]]) { seen[first[i]] = true; out.push(first[i]) }
+        for (var j = 0; j < available.length; j++) if (!seen[available[j]]) out.push(available[j])
+        return out
+    }
+    function modelIds() {
+        var out = []
+        for (var i = 0; i < order.count; i++) out.push(order.get(i).cid)
+        return out
+    }
+    // The model follows the order in place (moves, not a rebuild), so a card keeps its object, its subscriptions and its
+    // keyboard focus. While editing it follows the edit; else the config.
+    function sync() {
+        var ids = arrange(editing ? modelIds() : configOrder)
+        for (var i = 0; i < ids.length; i++) {
+            var at = -1
+            for (var j = i; j < order.count; j++) if (order.get(j).cid === ids[i]) { at = j; break }
+            if (at < 0) order.insert(i, { cid: ids[i], url: urlOf(ids[i]) })
+            else if (at !== i) order.move(at, i, 1)
+        }
+        if (order.count > ids.length) order.remove(ids.length, order.count - ids.length)
+    }
+    ListModel { id: order }
+    readonly property string syncKey: JSON.stringify([configOrder, available])
+    onSyncKeyChanged: Qt.callLater(sync)
+    Component.onCompleted: sync()
+
+    // ---- edit mode ---------------------------------------------------------------------------------------------------
+    readonly property var orderProv: bars.entry("desktop.order")
+    // A layer above the user's (Nix, a forced value) holds the order: edit mode says so and moves nothing (Shōjiki).
+    readonly property bool orderLocked: !!orderProv && (!!orderProv.forced_by || (orderProv.source || {}).kind === "forced"
+                                                        || (orderProv.source || {}).kind === "nix")
+    function switchLocked(id) {
+        var p = bars.entry("desktop." + id)
+        return !!p && (!!p.forced_by || (p.source || {}).kind === "forced" || (p.source || {}).kind === "nix")
+    }
+    function shown(id) {
+        if (id.indexOf("mod:") === 0) return true
+        return editing && staged[id] !== undefined ? staged[id] : want(id)
+    }
+    function startEdit() {
+        if (editing) return
+        staged = ({})
+        editError = ""
+        editing = true
+        sync()
+        Qt.callLater(function () { var s = rep.itemAt(0); if (s) s.forceActiveFocus() })
+    }
+    function cancelEdit() {
+        if (!editing) return
+        editing = false
+        staged = ({})
+        editError = ""
+        sync()
+    }
+    function toggleShown(id) {
+        if (id.indexOf("mod:") === 0 || switchLocked(id)) return
+        var s = Object.assign({}, staged)
+        s[id] = !shown(id)
+        staged = s
+    }
+    function moveCard(from, to) {
+        if (orderLocked || to < 0 || to >= order.count || from === to) return
+        order.move(from, to, 1)
+    }
+    // Done: the order and the switches that changed, as one apply (one undo step); nothing when nothing changed.
+    function saveEdit() {
+        if (!editing) return
+        var ops = []
+        var ids = modelIds()
+        if (!orderLocked && JSON.stringify(ids) !== JSON.stringify(arrange(configOrder)))
+            ops.push({ set: "desktop.order", value: ids })
+        for (var id in staged)
+            if (staged[id] !== want(id)) ops.push({ set: "desktop." + id, value: staged[id] })
+        if (ops.length === 0) { cancelEdit(); return }
+        editError = ""
+        Store.apply(ops, function (errors) {
+            if (!errors) { editing = false; staged = ({}); return }
+            var c = errors.length ? (errors[0].code || "") : ""
+            editError = c === "disconnected" ? I18n.tr("frontend.desktop.edit.disconnected")
+                : I18n.tr("frontend.desktop.edit.refused") + (c !== "" ? " (" + I18n.tr(c) + ")" : "")
+        })
+    }
+    // A one-time wiggle when edit mode starts (SekaiPop's shelf, iOS): three swings, then still. Off with reduced motion.
+    signal wiggle()
+    onEditingChanged: if (editing && Theme.springOn) wiggle()
 
     readonly property int cardW: 300
-    // A card: a Block with the panel's padding; keycap chrome outlines it and drops its hard shadow.
+    // A card: a Block with the panel's padding; keycap chrome outlines it and drops its hard shadow. `hasContent` false =
+    // nothing to show now (the column skips it; edit mode shows a placeholder instead).
     component Card: Block {
         default property alias body: inner.data
+        property bool hasContent: true
         width: desk.cardW
         height: inner.childrenRect.height + 2 * Theme.pad + 2 * inset + Theme.shadowDy
         radius: Theme.rLg + 4
@@ -91,282 +212,584 @@ PanelWindow {
         font.family: Theme.fam(text, Theme.families)
     }
 
-    Column {
-        id: cards
-        width: desk.cardW
-        spacing: Theme.pad + 4
-
-        // ---- clock: four keys, the date, the day's progress ----
-        Card {
-            visible: desk.want("clock")
-            Column {
+    // ---- clock: four keys, the date, the day's progress ----
+    component ClockCard: Card {
+        Column {
+            width: parent.width
+            spacing: Theme.gap
+            KeyClock {
+                anchors.horizontalCenter: parent.horizontalCenter
+                hh: desk.clock.hh ?? "--"
+                mm: desk.clock.mm ?? "--"
+                animate: desk.visible
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                color: Theme.fg
+                font.pixelSize: Theme.fsTitle
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+                text: {
+                    var d = desk.clock.date ? new Date(desk.clock.date + "T12:00:00") : null
+                    return d ? d.toLocaleDateString(Qt.locale(desk.locale), "dddd, d MMMM") : ""
+                }
+            }
+            // The day's progress (SekaiPop's clock card): how much of today has gone, from the minute patch.
+            Rectangle {
                 width: parent.width
-                spacing: Theme.gap
-                KeyClock {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    hh: desk.clock.hh ?? "--"
-                    mm: desk.clock.mm ?? "--"
-                    animate: desk.visible
-                }
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    color: Theme.fg
-                    font.pixelSize: Theme.fsTitle
-                    font.weight: Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
-                    text: {
-                        var d = desk.clock.date ? new Date(desk.clock.date + "T12:00:00") : null
-                        return d ? d.toLocaleDateString(Qt.locale(desk.locale), "dddd, d MMMM") : ""
-                    }
-                }
-                // The day's progress (SekaiPop's clock card): how much of today has gone, from the minute patch.
+                height: Theme.keycap ? 12 : 6
+                radius: height / 2
+                color: Theme.keycap ? Theme.ring : Theme.containerHigh
+                border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
+                border.color: Theme.line
+                readonly property real day: ((parseInt(desk.clock.hh) || 0) * 60 + (parseInt(desk.clock.mm) || 0)) / 1440
                 Rectangle {
-                    width: parent.width
-                    height: Theme.keycap ? 12 : 6
+                    x: parent.border.width; y: parent.border.width
+                    height: parent.height - 2 * y
+                    width: Math.max(height, (parent.width - 2 * x) * parent.day)
                     radius: height / 2
-                    color: Theme.keycap ? Theme.ring : Theme.containerHigh
-                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
-                    border.color: Theme.line
-                    readonly property real day: ((parseInt(desk.clock.hh) || 0) * 60 + (parseInt(desk.clock.mm) || 0)) / 1440
-                    Rectangle {
-                        x: parent.border.width; y: parent.border.width
-                        height: parent.height - 2 * y
-                        width: Math.max(height, (parent.width - 2 * x) * parent.day)
-                        radius: height / 2
-                        color: Theme.accent
-                    }
+                    color: Theme.accent
                 }
-            }
-        }
-
-        // ---- this month ----
-        Card {
-            visible: desk.want("calendar")
-            Column {
-                id: cal
-                width: parent.width
-                spacing: Theme.xs + 2
-                readonly property date today: desk.clock.date ? new Date(desk.clock.date + "T12:00:00") : new Date()
-                // The first column follows clock.week_start (auto: Sunday for Japanese, Monday otherwise), as the
-                // island's calendar does.
-                readonly property int first: {
-                    var w = bars.valueOf("clock.week_start", "auto")
-                    if (w === "sunday") return 0
-                    if (w === "saturday") return 6
-                    if (w === "monday") return 1
-                    return desk.locale.indexOf("ja") === 0 ? 0 : 1
-                }
-                readonly property int lead: (new Date(today.getFullYear(), today.getMonth(), 1).getDay() - first + 7) % 7
-                readonly property int days: new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
-                Row {
-                    width: parent.width
-                    Caption {
-                        width: parent.width - wk.width
-                        text: cal.today.toLocaleDateString(Qt.locale(desk.locale), "MMMM yyyy")
-                    }
-                    Caption { id: wk; text: "" }
-                }
-                Grid {
-                    columns: 7
-                    spacing: 4
-                    readonly property real cell: (cal.width - 6 * spacing) / 7
-                    Repeater {
-                        model: 7
-                        delegate: Text {
-                            required property int index
-                            width: parent.cell
-                            horizontalAlignment: Text.AlignHCenter
-                            color: Theme.dim
-                            font.pixelSize: Theme.fsCaption
-                            font.weight: Theme.wBold
-                            font.family: Theme.fam(text, Theme.families)
-                            text: Qt.locale(desk.locale).dayName((cal.first + index) % 7, Locale.NarrowFormat)
-                        }
-                    }
-                    Repeater {
-                        model: cal.lead + cal.days
-                        delegate: Item {
-                            required property int index
-                            readonly property int day: index - cal.lead + 1
-                            readonly property bool isToday: day === cal.today.getDate()
-                            width: parent.cell
-                            height: 26 + (Theme.keycap ? 2 : 0)
-                            Rectangle {
-                                visible: parent.day > 0 && parent.isToday
-                                anchors.centerIn: parent
-                                width: 28; height: 24
-                                radius: 12
-                                color: Theme.accent
-                                border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
-                                border.color: Theme.line
-                            }
-                            Text {
-                                visible: parent.day > 0
-                                anchors.centerIn: parent
-                                color: parent.isToday ? Theme.fgOnAccent : Theme.fg
-                                font.pixelSize: Theme.fs
-                                font.weight: parent.isToday ? Theme.wBold : Theme.wMedium
-                                font.family: Theme.fam(text, Theme.families)
-                                text: parent.day
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ---- now playing: shown while a player plays or is paused on a track ----
-        // W24 (K48): on the cover's colours when the daemon has them (`art_colors`: data colours, checked for contrast),
-        // with the live level bars (LevelBars watches `svc.audio.spectrum` only while they show and the track plays).
-        Card {
-            id: mediaCard
-            visible: desk.want("media") && desk.media.available === true && (desk.media.title || "") !== ""
-            readonly property var cover: desk.media.art_colors && typeof desk.media.art_colors.bg === "string" ? desk.media.art_colors : null
-            readonly property color ink: cover ? cover.fg : Theme.fg
-            fill: cover ? cover.bg : Theme.surfaceAlpha
-            Row {
-                width: parent.width
-                spacing: Theme.pad
-                Rectangle {
-                    id: art
-                    width: 72; height: 72
-                    radius: Theme.rLg
-                    color: Theme.selected
-                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
-                    border.color: Theme.line
-                    clip: true
-                    Image {
-                        id: coverImg
-                        anchors.fill: parent
-                        anchors.margins: parent.border.width
-                        source: desk.visible ? (desk.media.art_url || "") : ""
-                        sourceSize: Qt.size(144, 144)
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        visible: status === Image.Ready
-                    }
-                    Icon {
-                        anchors.centerIn: parent
-                        visible: !coverImg.visible
-                        name: "music_note"
-                        glyph: "♪"
-                        filled: true
-                        size: 32
-                        color: Theme.fgOnSelected
-                    }
-                }
-                Column {
-                    width: parent.width - art.width - parent.spacing
-                    spacing: 2
-                    Row {
-                        width: parent.width
-                        spacing: Theme.gap
-                        Caption {
-                            color: mediaCard.cover ? mediaCard.ink : Theme.dim
-                            text: I18n.tr("frontend.desktop.now_playing")
-                        }
-                        LevelBars {
-                            anchors.verticalCenter: parent.verticalCenter
-                            running: desk.visible && mediaCard.visible && desk.media.playing === true
-                            color: mediaCard.cover ? mediaCard.cover.accent : Theme.accent
-                            bars: 6
-                            maxH: Theme.fsCaption
-                        }
-                    }
-                    Text {
-                        width: parent.width
-                        elide: Text.ElideRight
-                        color: mediaCard.ink
-                        font.pixelSize: Theme.fs + 1
-                        font.weight: Theme.wBold
-                        font.family: Theme.fam(text, Theme.families)
-                        text: desk.media.title || ""
-                    }
-                    Text {
-                        width: parent.width
-                        elide: Text.ElideRight
-                        color: mediaCard.cover ? mediaCard.ink : Theme.dim
-                        font.pixelSize: Theme.fs - 1
-                        font.family: Theme.fam(text, Theme.families)
-                        text: desk.media.artist || ""
-                    }
-                    Row {
-                        spacing: Theme.xs
-                        readonly property var can: desk.media.can || ({})
-                        IconButton {
-                            icon: "skip_previous"; glyph: "⏮"
-                            a11y: I18n.tr("action.media.prev")
-                            enabled: parent.can.prev === true
-                            onClicked: Store.act("media.prev")
-                        }
-                        IconButton {
-                            icon: desk.media.playing ? "pause" : "play_arrow"; glyph: desk.media.playing ? "⏸" : "▶"
-                            a11y: I18n.tr("action.media.play_pause")
-                            lit: true
-                            enabled: parent.can.play === true || parent.can.pause === true
-                            onClicked: Store.act("media.play_pause")
-                        }
-                        IconButton {
-                            icon: "skip_next"; glyph: "⏭"
-                            a11y: I18n.tr("action.media.next")
-                            enabled: parent.can.next === true
-                            onClicked: Store.act("media.next")
-                        }
-                    }
-                }
-            }
-        }
-
-        // ---- weather: while the weather mod is on and serves today's values ----
-        Card {
-            id: wcard
-            readonly property var now: desk.weather.now || ({})
-            visible: desk.want("weather") && desk.weatherMod && desk.weather.available === true && desk.weather.now !== undefined
-            Row {
-                width: parent.width
-                spacing: Theme.pad
-                Icon {
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: desk.conditionIcon(wcard.now.code, wcard.now.is_day)
-                    glyph: "☁"
-                    filled: true
-                    size: 52
-                    color: Theme.secondary
-                }
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    Caption { text: desk.weather.place ? desk.weather.place.name : "" }
-                    Text {
-                        color: Theme.fg
-                        font.pixelSize: 34
-                        font.weight: Font.Black
-                        font.family: Theme.fam(text, Theme.families)
-                        text: wcard.now.temp !== undefined ? Math.round(wcard.now.temp) + "°" : "—"
-                    }
-                    Text {
-                        color: Theme.dim
-                        font.pixelSize: Theme.fs - 1
-                        font.family: Theme.fam(text, Theme.families)
-                        text: I18n.tr("mod-weather.condition." + (wcard.now.code || "unknown"))
-                    }
-                }
-            }
-        }
-
-        // ---- cards of enabled mods (K46): any mod's `desk:<name>`, in mod order ----
-        Repeater {
-            model: desk.deskUrls
-            delegate: ModLoader {
-                required property var modelData
-                width: desk.cardW
-                url: modelData
-                shown: desk.visible
-                // Height follows the card's implicitHeight; a card with nothing to say takes no room and no gap.
-                height: item ? item.implicitHeight : 0
-                visible: height > 0
             }
         }
     }
+
+    // ---- this month ----
+    component CalendarCard: Card {
+        Column {
+            id: cal
+            width: parent.width
+            spacing: Theme.xs + 2
+            readonly property date today: desk.clock.date ? new Date(desk.clock.date + "T12:00:00") : new Date()
+            // The first column follows clock.week_start (auto: Sunday for Japanese, Monday otherwise), as the
+            // island's calendar does.
+            readonly property int first: {
+                var w = bars.valueOf("clock.week_start", "auto")
+                if (w === "sunday") return 0
+                if (w === "saturday") return 6
+                if (w === "monday") return 1
+                return desk.locale.indexOf("ja") === 0 ? 0 : 1
+            }
+            readonly property int lead: (new Date(today.getFullYear(), today.getMonth(), 1).getDay() - first + 7) % 7
+            readonly property int days: new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+            Caption {
+                width: parent.width
+                text: cal.today.toLocaleDateString(Qt.locale(desk.locale), "MMMM yyyy")
+            }
+            Grid {
+                columns: 7
+                spacing: 4
+                readonly property real cell: (cal.width - 6 * spacing) / 7
+                Repeater {
+                    model: 7
+                    delegate: Text {
+                        required property int index
+                        width: parent.cell
+                        horizontalAlignment: Text.AlignHCenter
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.weight: Theme.wBold
+                        font.family: Theme.fam(text, Theme.families)
+                        text: Qt.locale(desk.locale).dayName((cal.first + index) % 7, Locale.NarrowFormat)
+                    }
+                }
+                Repeater {
+                    model: cal.lead + cal.days
+                    delegate: Item {
+                        required property int index
+                        readonly property int day: index - cal.lead + 1
+                        readonly property bool isToday: day === cal.today.getDate()
+                        width: parent.cell
+                        height: 26 + (Theme.keycap ? 2 : 0)
+                        Rectangle {
+                            visible: parent.day > 0 && parent.isToday
+                            anchors.centerIn: parent
+                            width: 28; height: 24
+                            radius: 12
+                            color: Theme.accent
+                            border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
+                            border.color: Theme.line
+                        }
+                        Text {
+                            visible: parent.day > 0
+                            anchors.centerIn: parent
+                            color: parent.isToday ? Theme.fgOnAccent : Theme.fg
+                            font.pixelSize: Theme.fs
+                            font.weight: parent.isToday ? Theme.wBold : Theme.wMedium
+                            font.family: Theme.fam(text, Theme.families)
+                            text: parent.day
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- now playing: shown while a player plays or is paused on a track ----
+    // W24 (K48): on the cover's colours when the daemon has them (`art_colors`: data colours, checked for contrast),
+    // with the live level bars (LevelBars watches `svc.audio.spectrum` only while they show and the track plays).
+    // Kept as its own component: the media card's look is W24-media's.
+    component MediaCard: Card {
+        id: mediaCard
+        hasContent: desk.media.available === true && (desk.media.title || "") !== ""
+        readonly property var cover: desk.media.art_colors && typeof desk.media.art_colors.bg === "string" ? desk.media.art_colors : null
+        readonly property color ink: cover ? cover.fg : Theme.fg
+        fill: cover ? cover.bg : Theme.surfaceAlpha
+        Row {
+            width: parent.width
+            spacing: Theme.pad
+            Rectangle {
+                id: art
+                width: 72; height: 72
+                radius: Theme.rLg
+                color: Theme.selected
+                border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
+                border.color: Theme.line
+                clip: true
+                Image {
+                    id: coverImg
+                    anchors.fill: parent
+                    anchors.margins: parent.border.width
+                    source: desk.visible ? (desk.media.art_url || "") : ""
+                    sourceSize: Qt.size(144, 144)
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    visible: status === Image.Ready
+                }
+                Icon {
+                    anchors.centerIn: parent
+                    visible: !coverImg.visible
+                    name: "music_note"
+                    glyph: "♪"
+                    filled: true
+                    size: 32
+                    color: Theme.fgOnSelected
+                }
+            }
+            Column {
+                width: parent.width - art.width - parent.spacing
+                spacing: 2
+                Row {
+                    width: parent.width
+                    spacing: Theme.gap
+                    Caption {
+                        color: mediaCard.cover ? mediaCard.ink : Theme.dim
+                        text: I18n.tr("frontend.desktop.now_playing")
+                    }
+                    LevelBars {
+                        anchors.verticalCenter: parent.verticalCenter
+                        running: desk.visible && mediaCard.visible && desk.media.playing === true
+                        color: mediaCard.cover ? mediaCard.cover.accent : Theme.accent
+                        bars: 6
+                        maxH: Theme.fsCaption
+                    }
+                }
+                Text {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    color: mediaCard.ink
+                    font.pixelSize: Theme.fs + 1
+                    font.weight: Theme.wBold
+                    font.family: Theme.fam(text, Theme.families)
+                    text: desk.media.title || ""
+                }
+                Text {
+                    width: parent.width
+                    elide: Text.ElideRight
+                    color: mediaCard.cover ? mediaCard.ink : Theme.dim
+                    font.pixelSize: Theme.fs - 1
+                    font.family: Theme.fam(text, Theme.families)
+                    text: desk.media.artist || ""
+                }
+                Row {
+                    spacing: Theme.xs
+                    readonly property var can: desk.media.can || ({})
+                    IconButton {
+                        icon: "skip_previous"; glyph: "⏮"
+                        a11y: I18n.tr("action.media.prev")
+                        enabled: parent.can.prev === true
+                        onClicked: Store.act("media.prev")
+                    }
+                    IconButton {
+                        icon: desk.media.playing ? "pause" : "play_arrow"; glyph: desk.media.playing ? "⏸" : "▶"
+                        a11y: I18n.tr("action.media.play_pause")
+                        lit: true
+                        enabled: parent.can.play === true || parent.can.pause === true
+                        onClicked: Store.act("media.play_pause")
+                    }
+                    IconButton {
+                        icon: "skip_next"; glyph: "⏭"
+                        a11y: I18n.tr("action.media.next")
+                        enabled: parent.can.next === true
+                        onClicked: Store.act("media.next")
+                    }
+                }
+            }
+        }
+    }
+
+    // ---- weather: while the weather mod is on and serves today's values ----
+    component WeatherCard: Card {
+        id: wcard
+        readonly property var now: desk.weather.now || ({})
+        hasContent: desk.weatherMod && desk.weather.available === true && desk.weather.now !== undefined
+        Row {
+            width: parent.width
+            spacing: Theme.pad
+            Icon {
+                anchors.verticalCenter: parent.verticalCenter
+                name: desk.conditionIcon(wcard.now.code, wcard.now.is_day)
+                glyph: "☁"
+                filled: true
+                size: 52
+                color: Theme.secondary
+            }
+            Column {
+                anchors.verticalCenter: parent.verticalCenter
+                Caption { text: desk.weather.place ? desk.weather.place.name : "" }
+                Text {
+                    color: Theme.fg
+                    font.pixelSize: 34
+                    font.weight: Font.Black
+                    font.family: Theme.fam(text, Theme.families)
+                    text: wcard.now.temp !== undefined ? Math.round(wcard.now.temp) + "°" : "—"
+                }
+                Text {
+                    color: Theme.dim
+                    font.pixelSize: Theme.fs - 1
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("mod-weather.condition." + (wcard.now.code || "unknown"))
+                }
+            }
+        }
+    }
+
+    // ---- a mod's card (K46): its file, at the column's width; height 0 = nothing to say ----
+    component ModCard: ModLoader {
+        property string cardUrl: ""
+        readonly property bool hasContent: item ? item.implicitHeight > 0 : false
+        width: desk.cardW
+        url: cardUrl
+        shown: desk.visible
+        height: item ? item.implicitHeight : 0
+    }
+
+    // Edit mode's stand-in for a card with nothing to show now: its name and when it shows.
+    component Placeholder: Card {
+        id: ph
+        property string title: ""
+        property string note: ""
+        Column {
+            width: parent.width
+            spacing: 2
+            Caption { width: parent.width; text: ph.title }
+            Text {
+                width: parent.width
+                wrapMode: Text.WordWrap
+                color: Theme.dim
+                font.pixelSize: Theme.fs - 1
+                font.family: Theme.fam(text, Theme.families)
+                text: ph.note
+            }
+        }
+    }
+
+    // A mod card's name: its catalog key `mod-<id>.desk.<name>` when the mod has one, else the mod's name with the card's.
+    function cardTitle(id) {
+        if (id.indexOf("mod:") !== 0) return I18n.tr("frontend.desktop.card." + id)
+        var parts = id.split(":")
+        var key = "mod-" + parts[1] + ".desk." + parts[2]
+        var t = I18n.tr(key)
+        if (t !== key) return t
+        return parts[2] === parts[1] ? modName(parts[1]) : modName(parts[1]) + " · " + parts[2]
+    }
+    function placeholderNote(id) {
+        if (id === "media") return I18n.tr("frontend.desktop.edit.note_media")
+        if (id === "weather") return I18n.tr(weatherMod ? "frontend.desktop.edit.note_weather_place" : "frontend.desktop.edit.note_weather_mod")
+        return I18n.tr("frontend.desktop.edit.note_mod")
+    }
+
+    Item {
+        id: root
+        width: cards.width
+        height: cards.height
+        focus: true
+        Keys.onEscapePressed: event => { desk.cancelEdit(); event.accepted = true }
+        HoverHandler { id: deskHover }
+
+        Column {
+            id: cards
+            width: desk.cardW
+            spacing: Theme.pad + 4
+            move: Transition {
+                enabled: Theme.springOn
+                NumberAnimation { properties: "y"; duration: Theme.stdMs; easing.type: Easing.OutCubic }
+            }
+
+            // ---- edit mode's bar: what this is, Cancel and Done, and why a save was refused ----
+            Card {
+                visible: desk.editing
+                fill: Theme.panel
+                Column {
+                    width: parent.width
+                    spacing: Theme.gap
+                    Row {
+                        width: parent.width
+                        spacing: Theme.gap
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - cancelKey.width - doneKey.width - 2 * parent.spacing
+                            elide: Text.ElideRight
+                            color: Theme.fg
+                            font.pixelSize: Theme.fs + 1
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr("frontend.desktop.edit.title")
+                        }
+                        Button {
+                            id: cancelKey
+                            objectName: "desk-cancel"
+                            label: I18n.tr("frontend.desktop.edit.cancel")
+                            onClicked: desk.cancelEdit()
+                        }
+                        Button {
+                            id: doneKey
+                            objectName: "desk-done"
+                            primary: true
+                            label: I18n.tr("frontend.desktop.edit.done")
+                            onClicked: desk.saveEdit()
+                        }
+                    }
+                    Text {
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        text: desk.orderLocked ? I18n.tr("frontend.desktop.edit.order_locked")
+                                               : I18n.tr("frontend.desktop.edit.hint")
+                    }
+                    Text {
+                        visible: desk.editError !== ""
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.error
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        text: "✕ " + desk.editError
+                    }
+                }
+            }
+
+            Repeater {
+                id: rep
+                model: order
+                delegate: Item {
+                    id: slot
+                    required property int index
+                    required property string cid
+                    required property string url
+                    readonly property bool isMod: cid.indexOf("mod:") === 0
+                    readonly property bool wanted: desk.shown(cid)
+                    readonly property bool hasContent: real.item ? real.item.hasContent === true : false
+                    readonly property bool showReal: hasContent && (wanted || desk.editing)
+                    readonly property bool locked: !isMod && desk.switchLocked(cid)
+                    // Pointer drag (edit mode): the card follows the pointer; crossing a neighbour's middle moves it there.
+                    property bool dragging: false
+                    property real grabY: 0
+                    property real pointerTop: 0
+                    readonly property real dragDy: dragging ? pointerTop - y : 0
+
+                    width: desk.cardW
+                    height: desk.editing ? (showReal ? real.height : stand.height) : (showReal ? real.height : 0)
+                    visible: desk.editing || showReal
+                    z: dragging ? 10 : 0
+                    transform: [
+                        Translate { y: slot.dragDy },
+                        Rotation {
+                            id: tilt
+                            origin.x: slot.width / 2
+                            origin.y: slot.height / 2
+                            angle: 0
+                        }
+                    ]
+                    SequentialAnimation {
+                        id: wiggleAnim
+                        NumberAnimation { target: tilt; property: "angle"; to: 1.6; duration: 60 }
+                        NumberAnimation { target: tilt; property: "angle"; to: -1.6; duration: 110 }
+                        NumberAnimation { target: tilt; property: "angle"; to: 1.0; duration: 100 }
+                        NumberAnimation { target: tilt; property: "angle"; to: 0; duration: 90 }
+                    }
+                    Connections {
+                        target: desk
+                        function onWiggle() { wiggleAnim.start() }
+                    }
+
+                    activeFocusOnTab: desk.editing
+                    objectName: "deskcard:" + cid
+                    Accessible.role: Accessible.ListItem
+                    Accessible.name: desk.cardTitle(cid) + (wanted ? "" : " · " + I18n.tr("frontend.desktop.edit.hidden"))
+                    Keys.onPressed: event => {
+                        if (!desk.editing) return
+                        var alt = (event.modifiers & Qt.AltModifier) !== 0
+                        var next = null
+                        if (event.key === Qt.Key_Up && alt) desk.moveCard(slot.index, slot.index - 1)
+                        else if (event.key === Qt.Key_Down && alt) desk.moveCard(slot.index, slot.index + 1)
+                        else if (event.key === Qt.Key_Up) next = rep.itemAt(slot.index - 1)
+                        else if (event.key === Qt.Key_Down) next = rep.itemAt(slot.index + 1)
+                        else if (event.key === Qt.Key_Space) desk.toggleShown(slot.cid)
+                        else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) desk.saveEdit()
+                        else return
+                        if (next) next.forceActiveFocus()
+                        event.accepted = true
+                    }
+
+                    // The card itself. A mod's card stays loaded while the desk is shown, so it keeps its subscriptions
+                    // (it says itself when it has nothing to show); a core card the user hid is made only while editing.
+                    Loader {
+                        id: real
+                        active: slot.isMod || slot.wanted || desk.editing
+                        visible: slot.showReal
+                        opacity: slot.wanted ? 1 : 0.45
+                        sourceComponent: slot.isMod ? cMod
+                            : slot.cid === "clock" ? cClock
+                            : slot.cid === "calendar" ? cCalendar
+                            : slot.cid === "media" ? cMedia
+                            : slot.cid === "weather" ? cWeather : null
+                        onLoaded: if (slot.isMod) item.cardUrl = Qt.binding(function () { return slot.url })
+                    }
+                    Loader {
+                        id: stand
+                        active: desk.editing && !slot.showReal
+                        visible: active
+                        opacity: slot.wanted ? 1 : 0.45
+                        sourceComponent: Placeholder {
+                            title: desk.cardTitle(slot.cid)
+                            note: desk.placeholderNote(slot.cid)
+                        }
+                    }
+
+                    // ---- edit mode: the outline, the drag surface (it also keeps clicks off the card's own keys) and
+                    // the card's keys: up, down, show/hide ----
+                    Rectangle {
+                        visible: desk.editing
+                        anchors.fill: parent
+                        anchors.bottomMargin: Theme.shadowDy
+                        radius: Theme.rLg + 4
+                        color: "transparent"
+                        border.width: slot.activeFocus || slot.dragging ? 3 : 2
+                        border.color: slot.activeFocus || slot.dragging ? Theme.focusRing : Qt.alpha(Theme.accent, 0.7)
+                    }
+                    MouseArea {
+                        visible: desk.editing
+                        anchors.fill: parent
+                        preventStealing: true
+                        cursorShape: slot.dragging ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                        onPressed: mouse => {
+                            slot.forceActiveFocus()
+                            if (desk.orderLocked) return
+                            slot.grabY = mouse.y
+                            slot.pointerTop = slot.y
+                            slot.dragging = true
+                        }
+                        onPositionChanged: mouse => {
+                            if (!slot.dragging) return
+                            slot.pointerTop = mapToItem(cards, mouse.x, mouse.y).y - slot.grabY
+                            var prev = rep.itemAt(slot.index - 1)
+                            var nxt = rep.itemAt(slot.index + 1)
+                            if (prev && slot.pointerTop < prev.y + prev.height / 2) desk.moveCard(slot.index, slot.index - 1)
+                            else if (nxt && slot.pointerTop + slot.height > nxt.y + nxt.height / 2) desk.moveCard(slot.index, slot.index + 1)
+                        }
+                        onReleased: slot.dragging = false
+                        onCanceled: slot.dragging = false
+                    }
+                    // On the card's top edge, over its padding and the gap above, so they cover none of its content; on a
+                    // pill of their own so they read on any wallpaper (flat chrome draws its keys without a fill).
+                    Rectangle {
+                        visible: desk.editing
+                        anchors.fill: cardKeys
+                        anchors.margins: -3
+                        radius: height / 2
+                        color: Theme.panel
+                        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                        border.color: Theme.outlineW > 0 ? Theme.line : Theme.outline
+                    }
+                    Row {
+                        id: cardKeys
+                        visible: desk.editing
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.topMargin: -Math.round(height / 2)
+                        anchors.rightMargin: Theme.pad
+                        spacing: Theme.xs
+                        IconButton {
+                            icon: "arrow_upward"; glyph: "↑"
+                            a11y: I18n.tr("frontend.desktop.edit.up")
+                            enabled: !desk.orderLocked && slot.index > 0
+                            onClicked: desk.moveCard(slot.index, slot.index - 1)
+                        }
+                        IconButton {
+                            icon: "arrow_downward"; glyph: "↓"
+                            a11y: I18n.tr("frontend.desktop.edit.down")
+                            enabled: !desk.orderLocked && slot.index < order.count - 1
+                            onClicked: desk.moveCard(slot.index, slot.index + 1)
+                        }
+                        IconButton {
+                            visible: !slot.isMod
+                            icon: slot.wanted ? "visibility" : "visibility_off"; glyph: slot.wanted ? "◉" : "◌"
+                            a11y: I18n.tr(slot.wanted ? "frontend.desktop.edit.hide" : "frontend.desktop.edit.show")
+                            lit: slot.wanted
+                            enabled: !slot.locked
+                            onClicked: desk.toggleShown(slot.cid)
+                        }
+                    }
+                    // A hidden card says so in words, not by its dimming alone.
+                    Rectangle {
+                        visible: desk.editing && !slot.wanted
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.leftMargin: Theme.pad
+                        anchors.topMargin: -height / 2
+                        width: hiddenText.implicitWidth + 2 * Theme.gap
+                        height: hiddenText.implicitHeight + 4
+                        radius: height / 2
+                        color: Theme.selected
+                        border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
+                        border.color: Theme.line
+                        Text {
+                            id: hiddenText
+                            anchors.centerIn: parent
+                            color: Theme.fgOnSelected
+                            font.pixelSize: Theme.fsCaption
+                            font.weight: Theme.wBold
+                            font.family: Theme.fam(text, Theme.families)
+                            text: I18n.tr("frontend.desktop.edit.hidden")
+                        }
+                    }
+                }
+            }
+        }
+
+        // The way in: a small key on the column's corner while the pointer is over the desk (or Tab reaches it).
+        Button {
+            id: editKey
+            objectName: "desk-edit"
+            visible: !desk.editing && (deskHover.hovered || editKey.activeFocus)
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.topMargin: Theme.gap
+            anchors.rightMargin: Theme.gap
+            icon: "edit"
+            label: I18n.tr("frontend.desktop.edit.start")
+            onClicked: desk.startEdit()
+        }
+    }
+
+    Component { id: cClock; ClockCard {} }
+    Component { id: cCalendar; CalendarCard {} }
+    Component { id: cMedia; MediaCard {} }
+    Component { id: cWeather; WeatherCard {} }
+    Component { id: cMod; ModCard {} }
 
     // The weather mod's condition codes as Material Symbols names.
     function conditionIcon(code, isDay) {
