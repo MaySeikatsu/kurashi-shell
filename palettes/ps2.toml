@@ -1,7 +1,7 @@
-# PS2 — the dashboard void: black with a deep blue glow, silver-white text. Dark only. Roles after shellseikatsu
+# PS2 — the dashboard void: black with a deep blue glow, silver-white text. Dark, and light (K53). Roles after shellseikatsu
 # `_ps2Palette()` (W25, K50). Meant for decor `ps2` (frame `ps2`).
 name = "ps2"
-kind = "dark"
+kind = "pair"
 description = "Void black and tower blue (decor ps2)"
 
 [dark]
@@ -22,3 +22,23 @@ secondary = "#c8cfde"                 # silver
 tertiary = "#7b88f0"                  # deep blue, lifted for contrast
 warning = "#e8c070"
 error = "#e8685c"
+
+# Light (K53: every palette has both schemes): the memory-card browser in daylight: silver-white with tower blue.
+[light]
+surface = "#e6e9f0"
+surface_container_lowest = "#f5f7fb"
+surface_container_low = "#edf0f6"
+surface_container = "#dfe3ec"
+surface_container_high = "#d2d8e4"
+surface_container_highest = "#c4ccdb"
+on_surface = "#10141f"
+on_surface_variant = "#3e4860"
+outline = "#6a7898"
+outline_variant = "#b6c0d4"
+accent = "#2a5ab0"
+accent_container = "#c8d8f4"
+on_accent_container = "#0a1e44"
+secondary = "#4a5470"
+tertiary = "#3a46c0"
+warning = "#8a5a00"
+error = "#b8382c"
