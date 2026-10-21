@@ -1,0 +1,371 @@
+//! Material textures (K59, DESIGN-SYSTEM "Texture and light"): a seamless relief tile per material, the one shading
+//! function the frontend's `Relief` shader mirrors, and the wallpaper bake that applies it to a picture on the CPU.
+//!
+//! A tile is RGBA8, square, seamless: R and G the surface normal's x and y (`2v − 1`, x right, y down; z is implied,
+//! `sqrt(1 − x² − y²)`), B the cavity (`2v − 1`: −1 a crevice, +1 a crest, 0 the mean height), A the ink coverage
+//! (printed rulings, dots, pigment). Everything is deterministic: the same kind, wrinkles, tint and scale make the same
+//! bytes, so a tile is cached by those and every surface shows the same sheet.
+//!
+//! [`shade`] is the contract with `frontend/shaders/relief.frag`: change one, change both (and DESIGN-SYSTEM).
+
+use std::path::{Path, PathBuf};
+
+mod generate;
+mod noise;
+
+pub use generate::generate;
+
+/// The materials (`theme.texture.kind` without `none`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Kind {
+    Paper,
+    PaperDots,
+    PaperLines,
+    PaperGrid,
+    Fabric,
+    Wool,
+    Stone,
+    Halftone,
+    Metal,
+    Leather,
+    Wood,
+}
+
+impl Kind {
+    pub const ALL: [Kind; 11] = [
+        Kind::Paper,
+        Kind::PaperDots,
+        Kind::PaperLines,
+        Kind::PaperGrid,
+        Kind::Fabric,
+        Kind::Wool,
+        Kind::Stone,
+        Kind::Halftone,
+        Kind::Metal,
+        Kind::Leather,
+        Kind::Wood,
+    ];
+
+    /// The config value (`paper_dots`); `None` for an unknown name and for `none`.
+    pub fn parse(s: &str) -> Option<Kind> {
+        Kind::ALL.into_iter().find(|k| k.name() == s)
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Kind::Paper => "paper",
+            Kind::PaperDots => "paper_dots",
+            Kind::PaperLines => "paper_lines",
+            Kind::PaperGrid => "paper_grid",
+            Kind::Fabric => "fabric",
+            Kind::Wool => "wool",
+            Kind::Stone => "stone",
+            Kind::Halftone => "halftone",
+            Kind::Metal => "metal",
+            Kind::Leather => "leather",
+            Kind::Wood => "wood",
+        }
+    }
+}
+
+/// Which palette role a kind's ink takes (the daemon resolves it to a colour, token `texture.ink`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InkRole {
+    /// No ink in this kind.
+    None,
+    /// Rulings, grids, dots: the palette's secondary role (a notebook's blue lines).
+    Secondary,
+    /// Print and pigment: the text colour.
+    OnSurface,
+}
+
+/// How a kind reflects light, and what its ink is.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Material {
+    /// Specular amount (0 matte paper … 1 polished metal).
+    pub gloss: f32,
+    /// Specular exponent.
+    pub shininess: f32,
+    pub ink_role: InkRole,
+    /// The ink's opacity at full coverage (A = 255), before the user's strength.
+    pub ink_alpha: f32,
+}
+
+/// One generated tile.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Tile {
+    /// Side in device pixels.
+    pub size: u32,
+    /// The logical pixels the tile covers at `theme.texture.scale` 1 (`size / device_scale`).
+    pub logical: f32,
+    /// Row-major RGBA8, `size * size * 4` bytes, in the layout of the module docs.
+    pub rgba: Vec<u8>,
+}
+
+impl Tile {
+    pub fn texel(&self, x: u32, y: u32) -> [u8; 4] {
+        let i = ((y % self.size) * self.size + (x % self.size)) as usize * 4;
+        [self.rgba[i], self.rgba[i + 1], self.rgba[i + 2], self.rgba[i + 3]]
+    }
+
+    /// Bilinear sample at sheet position `p` (logical px) for a sheet scaled by `scale`, wrapping.
+    pub fn sample(&self, px: f32, py: f32, scale: f32) -> [f32; 4] {
+        let k = self.size as f32 / (self.logical * scale.max(0.01));
+        let (fx, fy) = (px * k - 0.5, py * k - 0.5);
+        let (x0, y0) = (fx.floor(), fy.floor());
+        let (tx, ty) = (fx - x0, fy - y0);
+        let n = self.size as i64;
+        let w = |v: f32| (v as i64).rem_euclid(n) as u32;
+        let (xa, xb, ya, yb) = (w(x0), w(x0 + 1.0), w(y0), w(y0 + 1.0));
+        let (a, b, c, d) = (
+            self.texel(xa, ya),
+            self.texel(xb, ya),
+            self.texel(xa, yb),
+            self.texel(xb, yb),
+        );
+        std::array::from_fn(|i| {
+            let top = f32::from(a[i]) * (1.0 - tx) + f32::from(b[i]) * tx;
+            let bot = f32::from(c[i]) * (1.0 - tx) + f32::from(d[i]) * tx;
+            (top * (1.0 - ty) + bot * ty) / 255.0
+        })
+    }
+}
+
+/// What a tile is made from; the cache key.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Params {
+    pub kind: Kind,
+    /// 0 … 1: folds and creases over the material.
+    pub wrinkles: f32,
+    /// Ink printed (true) or pressed into the relief (false: no colour at all).
+    pub tint: bool,
+    /// The largest output scale the tile is shown at (1, 1.5, 2 …): the tile's device pixels per logical pixel.
+    pub device_scale: f32,
+}
+
+/// The light and the material's response, as the theme tokens carry them (`texture.*`, `light.*`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Shading {
+    /// Largest shade either way (`texture.amp`: strength × the legibility cap).
+    pub amp: f32,
+    pub gloss: f32,
+    pub shininess: f32,
+    /// Linear 0..1 RGB.
+    pub ink: [f32; 3],
+    /// 0 when the tint is off.
+    pub ink_alpha: f32,
+    /// Unit vector toward the light (x right, y down, z toward the viewer).
+    pub light_dir: [f32; 3],
+    /// 0..1 RGB of the light's highlights.
+    pub light_color: [f32; 3],
+}
+
+/// The relief's colour over whatever lies under it, premultiplied RGBA (0..1) for a normal "over" blend: shade is
+/// black at α (it multiplies what is under it by `1 − α`), light is `light_color` at α (a screen blend), and the ink
+/// lies under the shade. A flat texel with no ink is fully transparent: the material never shifts the overall tone.
+pub fn shade(t: [f32; 4], s: &Shading) -> [f32; 4] {
+    let (nx, ny) = (2.0 * t[0] - 1.0, 2.0 * t[1] - 1.0);
+    let nz = (1.0 - nx * nx - ny * ny).max(0.0).sqrt();
+    let n = normalize([nx, ny, nz]);
+    let cav = 2.0 * t[2] - 1.0;
+    let l = s.light_dir;
+    let diff = dot(n, l) - l[2];
+    let h = normalize([l[0], l[1], l[2] + 1.0]);
+    let spec = s.gloss
+        * (dot(n, h).max(0.0).powf(s.shininess) - h[2].max(0.0).powf(s.shininess));
+    let v = (s.amp * (2.0 * diff + 0.5 * cav + spec)).clamp(-s.amp, s.amp);
+    let shade = if v < 0.0 {
+        [0.0, 0.0, 0.0, -v]
+    } else {
+        [
+            s.light_color[0] * v,
+            s.light_color[1] * v,
+            s.light_color[2] * v,
+            v,
+        ]
+    };
+    let a = t[3] * s.ink_alpha;
+    let ink = [s.ink[0] * a, s.ink[1] * a, s.ink[2] * a, a];
+    std::array::from_fn(|i| shade[i] + ink[i] * (1.0 - shade[3]))
+}
+
+/// The light from compass `angle` (degrees: 0 from the top, 90 from the right) at `elevation` degrees.
+pub fn light_dir(angle: f32, elevation: f32) -> [f32; 3] {
+    let (a, e) = (angle.to_radians(), elevation.clamp(1.0, 89.0).to_radians());
+    [a.sin() * e.cos(), -a.cos() * e.cos(), e.sin()]
+}
+
+/// The texture baked into a picture (wallpaper scope): every pixel gets [`shade`] over it, the sheet registered at
+/// `1 / output_scale` logical px per pixel so it lines up with the shell's sheet on the same output.
+pub fn bake(
+    picture: &image::RgbaImage,
+    tile: &Tile,
+    s: &Shading,
+    output_scale: f32,
+    scale: f32,
+) -> image::RgbaImage {
+    let mut out = picture.clone();
+    let k = 1.0 / output_scale.max(0.1);
+    for (x, y, px) in out.enumerate_pixels_mut() {
+        let t = tile.sample((x as f32 + 0.5) * k, (y as f32 + 0.5) * k, scale);
+        let o = shade(t, s);
+        for i in 0..3 {
+            let dst = f32::from(px[i]) / 255.0;
+            px[i] = ((o[i] + dst * (1.0 - o[3])).clamp(0.0, 1.0) * 255.0).round() as u8;
+        }
+    }
+    out
+}
+
+/// A lit swatch of `px` × `px` on `base` (0..1 RGB): Settings' material cards.
+pub fn preview(tile: &Tile, s: &Shading, base: [f32; 3], px: u32, scale: f32) -> image::RgbaImage {
+    let b = image::Rgba([
+        (base[0] * 255.0) as u8,
+        (base[1] * 255.0) as u8,
+        (base[2] * 255.0) as u8,
+        255,
+    ]);
+    let ground = image::RgbaImage::from_pixel(px, px, b);
+    bake(&ground, tile, s, 1.0, scale)
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("texture cache: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("texture image: {0}")]
+    Image(#[from] image::ImageError),
+}
+
+/// The tile for `p` as a PNG in `cache_dir`, generated once (atomic write) and reused after: the file name is the cache
+/// key, so a stale file can never be shown for other parameters.
+pub fn tile_file(cache_dir: &Path, p: &Params) -> Result<(PathBuf, Tile), Error> {
+    let name = format!(
+        "{}-w{:03}-{}-s{:03}-v{}.png",
+        p.kind.name(),
+        (p.wrinkles.clamp(0.0, 1.0) * 100.0).round() as u32,
+        if p.tint { "ink" } else { "plain" },
+        (p.device_scale * 100.0).round() as u32,
+        generate::VERSION,
+    );
+    let path = cache_dir.join(name);
+    let tile = generate(p);
+    if !path.is_file() {
+        std::fs::create_dir_all(cache_dir)?;
+        let tmp = path.with_extension("png.tmp");
+        image::RgbaImage::from_raw(tile.size, tile.size, tile.rgba.clone())
+            .expect("tile size matches its buffer")
+            .save_with_format(&tmp, image::ImageFormat::Png)?;
+        std::fs::rename(&tmp, &path)?;
+    }
+    Ok((path, tile))
+}
+
+/// How each kind reflects light and which ink it carries.
+pub fn material(kind: Kind) -> Material {
+    let m = |gloss, shininess, ink_role, ink_alpha| Material {
+        gloss,
+        shininess,
+        ink_role,
+        ink_alpha,
+    };
+    match kind {
+        Kind::Paper => m(0.0, 8.0, InkRole::OnSurface, 0.06),
+        Kind::PaperDots | Kind::PaperLines | Kind::PaperGrid => m(0.0, 8.0, InkRole::Secondary, 0.35),
+        Kind::Fabric => m(0.05, 6.0, InkRole::OnSurface, 0.08),
+        Kind::Wool => m(0.0, 4.0, InkRole::None, 0.0),
+        Kind::Stone => m(0.1, 12.0, InkRole::OnSurface, 0.1),
+        Kind::Halftone => m(0.0, 8.0, InkRole::OnSurface, 0.22),
+        Kind::Metal => m(0.6, 40.0, InkRole::None, 0.0),
+        Kind::Leather => m(0.3, 18.0, InkRole::None, 0.0),
+        Kind::Wood => m(0.12, 14.0, InkRole::OnSurface, 0.12),
+    }
+}
+
+fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
+    a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+fn normalize(v: [f32; 3]) -> [f32; 3] {
+    let l = dot(v, v).sqrt().max(1e-6);
+    [v[0] / l, v[1] / l, v[2] / l]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn lit() -> Shading {
+        Shading {
+            amp: 0.1,
+            gloss: 0.0,
+            shininess: 8.0,
+            ink: [0.2, 0.3, 0.6],
+            ink_alpha: 0.0,
+            light_dir: light_dir(315.0, 40.0),
+            light_color: [1.0, 1.0, 1.0],
+        }
+    }
+
+    #[test]
+    fn a_flat_texel_leaves_the_ground_alone() {
+        let o = shade([0.5, 0.5, 0.5, 0.0], &lit());
+        assert!(o.iter().all(|v| v.abs() < 1e-3), "{o:?}");
+    }
+
+    #[test]
+    fn a_slope_toward_the_light_brightens_and_away_darkens() {
+        // Light from the top left: a normal tilted up-left faces it.
+        let toward = shade([0.3, 0.3, 0.5, 0.0], &lit());
+        let away = shade([0.7, 0.7, 0.5, 0.0], &lit());
+        assert!(toward[3] > 0.0 && toward[0] > 0.0, "{toward:?}");
+        assert!(away[3] > 0.0 && away[0] == 0.0, "{away:?}");
+        assert!(toward[3] <= 0.1 + 1e-6 && away[3] <= 0.1 + 1e-6);
+    }
+
+    #[test]
+    fn light_dir_is_a_unit_vector_from_the_compass() {
+        let top = light_dir(0.0, 45.0);
+        assert!(top[1] < 0.0 && top[0].abs() < 1e-6);
+        let right = light_dir(90.0, 45.0);
+        assert!(right[0] > 0.0);
+        assert!((dot(right, right) - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn every_kind_generates_a_seamless_deterministic_tile() {
+        for kind in Kind::ALL {
+            let p = Params {
+                kind,
+                wrinkles: 0.3,
+                tint: true,
+                device_scale: 1.0,
+            };
+            let a = generate(&p);
+            assert_eq!(a.rgba.len(), (a.size * a.size * 4) as usize, "{kind:?}");
+            assert_eq!(a, generate(&p), "{kind:?} is not deterministic");
+            assert_eq!(Kind::parse(kind.name()), Some(kind));
+        }
+    }
+
+    #[test]
+    fn tile_files_are_cached_by_their_parameters() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = Params {
+            kind: Kind::Paper,
+            wrinkles: 0.0,
+            tint: false,
+            device_scale: 1.0,
+        };
+        let (a, _) = tile_file(dir.path(), &p).unwrap();
+        let (b, _) = tile_file(
+            dir.path(),
+            &Params {
+                tint: true,
+                ..p
+            },
+        )
+        .unwrap();
+        assert!(a.is_file() && b.is_file() && a != b);
+    }
+}

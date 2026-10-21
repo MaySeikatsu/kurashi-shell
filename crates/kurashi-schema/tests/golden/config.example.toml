@@ -82,6 +82,17 @@
 # Pure black (OLED) — Pure-black grounds on dark schemes.
 #   only while theme.colors.scheme != "light"
 # oled = false
+#
+# Text colour — The colour of text and icons: the palette's own, or an ink — each with a
+# shade for light and for dark — or a colour of your own. It is kept legible on every
+# surface; the theme notes say when it had to be adjusted (K60).
+#   choices: "palette" | "blue" | "black" | "sepia" | "red" | "green" | "violet" | "custom"
+# ink = "palette"
+#
+# Your text colour — Used in light and dark alike, adjusted only as far as legibility
+# needs.
+#   only while theme.colors.ink == "custom"
+# ink_custom = "#2b4a8b"
 
 # [theme.shape]
 #
@@ -131,9 +142,71 @@
 # Font family — Fallback chain; the first installed family wins (resolved via fontconfig).
 # family = ["Inter", "Noto Sans CJK JP", "sans-serif"]
 #
+# Japanese font family — Fallback chain for Japanese text; the first installed family wins
+# (K60).
+#   advanced
+# family_jp = ["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]
+#
 # Text scale — Multiplies every type size token.
 #   range: 0.75..=2.0, step 0.05 · forced to 1.25 while a11y.large_text is on
 # scale = 1.0
+
+# [theme.texture]
+#
+# Material — A relief the shell is made of — paper, fabric, stone, metal, leather, wood.
+# It adds light and shade from the light below, never colours of its own (K59).
+#   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" · forced to "none" while
+#   a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
+# kind = "none"
+#
+# Where — The shell's surfaces, the wallpaper (baked into the picture), both, or an
+# overlay over everything, apps included — that one costs a full-screen layer, shows in
+# screenshots and keeps fullscreen apps from the fastest path to the screen.
+#   choices: "shell" | "wallpaper" | "shell_wallpaper" | "everything" · only while
+#   theme.texture.kind != "none"
+# scope = "shell"
+#
+# Strength — How deep the relief reads. Under text it is capped so text stays legible.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# strength = 0.5
+#
+# Scale — The size of the material's grain, weave or rulings.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.kind != "none"
+# scale = 1.0
+#
+# Wrinkles — Crumples the material: folds and creases, as in crumpled paper or creased
+# leather.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# wrinkles = 0.0
+#
+# Ink and colour — Print the rulings, dots and grain in faint colours of the palette. Off:
+# relief only — rulings are pressed into the sheet, nothing is coloured.
+#   only while theme.texture.kind != "none"
+# tint = true
+#
+# Texture over text — Let the relief run through text and icons too, as ink sinks into
+# paper or is pressed into leather. Off keeps them crisp on the material.
+#   only while theme.texture.kind != "none"
+# text = false
+
+# [theme.light]
+#
+# Light — Where the material's light comes from: a fixed direction, a lamp at the pointer
+# (over the shell's surfaces; elsewhere it rests at the fixed direction), or the sun of the
+# day — sunrise from the left, sunset from the right, warm when it is low (K59).
+#   choices: "static" | "pointer" | "daytime" · only while theme.texture.kind != "none"
+# mode = "static"
+#
+# Direction — Where the fixed light comes from, in degrees round the screen: 0 from the
+# top, 90 from the right, 315 from the top left.
+#   range: 0..=359, step 1 (°) · only while theme.light.mode != "daytime"
+# angle = 315
+#
+# Height — How high the light stands over the screen: low light makes long shadows and a
+# deeper relief.
+#   range: 10..=80, step 1 (°) · only while theme.light.mode != "daytime"
+# elevation = 40
 
 # [a11y]
 #

@@ -2,7 +2,7 @@
 //! colour, size, radius, font and duration here; renderers never compute colours
 //! (CLAUDE.md rule 4). Input is a plain [`ThemeInput`]; no schema/config dependency.
 //!
-//! Pipeline order: source, scheme, oled, contrast, season, colorblind, wcag. Each stage is
+//! Pipeline order: source, scheme, oled, contrast, season, colorblind, ink, wcag. Each stage is
 //! a pure `Palette -> Palette` function in [`stages`] returning provenance notes.
 //! Wallpaper extraction ([`Wallpaper::load`], [`stages::from_wallpaper`]) is blocking CPU:
 //! callers run it on a blocking thread (`tokio::task::spawn_blocking`).
@@ -72,6 +72,8 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
     push("season", s.notes);
     let s = stages::colorblind(s.palette, input.colorblind);
     push("colorblind", s.notes);
+    let s = stages::ink(s.palette, &input.ink);
+    push("ink", s.notes);
     let s = stages::wcag(s.palette, input.wcag);
     push("wcag", s.notes);
     Ok((s.palette, notes))
