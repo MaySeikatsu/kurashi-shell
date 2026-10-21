@@ -92,6 +92,29 @@ capability-gated features (scroll position, overview, window previews, blur hint
 `Resync` on reconnect (subscribers discard state and await a snapshot). niri first; Hyprland,
 MangoWM, Sway later — adapters only, no core changes.
 
+**Adapters (W26).** `kurashi_compositor::any` picks one at startup: `KURASHI_COMPOSITOR`
+(`niri|hyprland|sway|none|auto`) overrides, else `NIRI_SOCKET` → niri, `HYPRLAND_INSTANCE_SIGNATURE` →
+Hyprland, `SWAYSOCK` → Sway, else none (the daemon runs; `svc.workspaces` stays empty, compositor actions are
+refused as unavailable). `AnyCompositor` implements the trait by delegation (an enum, no `dyn`); a `Target`
+(kind + socket path) is the clonable factory and also serves the one-shot actions (screens off, screenshots,
+layouts) and the recorder's focused output. `kurashi doctor`'s compositor row names the adapter and what it
+offers and lacks.
+
+| | niri | Sway (i3-IPC, hand-framed) | Hyprland (`.socket.sock` / `.socket2.sock`) |
+|---|---|---|---|
+| state | event stream, incremental | events → re-read only the touched domain (workspaces+tree, tree, outputs, inputs); titles in place | events → re-read monitors+workspaces / clients / devices; focus, urgency, titles in place |
+| workspaces | per output | per output; `idx` = `num` | global, shown on their monitor; `idx` = number; named ids 2³²+\|id\|; special ones hidden |
+| window id | niri id | container id | client address |
+| layouts | `KeyboardLayoutsChanged` | `get_inputs` (first keyboard naming its layouts) | `devices` main keyboard (codes → XKB names) |
+| screens off | `power-off-monitors` (niri wakes) | `output * power off`, then `on` at the next input | `dpms off`, then `on` at the next input |
+| screenshots | niri's own | `grim`/`slurp` (+`wl-copy`), if installed | same |
+| overview | yes | no | no |
+
+"At the next input" is kurashid's wake guard: an `ext-idle-notify` notification of 1 s proves the protocol works
+and the seat is idle, then the screens go off; its `resumed` turns them on (swayidle's `resume`, hypridle's
+`on-resume`). Without the protocol the screens stay on. A burst of events is read whole before anything is
+re-read, so a workspace switch costs one round of requests; nothing polls.
+
 ## 8. Mods
 See `MODS.md`. Native-tier (first-party, renderer components + daemon logic) in v0.2; portable
 tier (declarative UI vocabulary + Luau) in v0.3. Enable/disable is live.

@@ -465,3 +465,13 @@ come from `svc.workspaces.windows` (every window: `{id, app_id, workspace, outpu
 click = focus (cycle on repeat) or launch, middle = new window, right = a menu (pin/unpin, close). Off by default:
 its per-output cost is opt-in (K41).
 
+**K52** 🟢 Compositor adapters (roadmap v0.3; WormShell `10-compositor-adapter.md`). One `AnyCompositor` (an enum, no
+dyn: the trait is not object-safe), chosen at startup from `KURASHI_COMPOSITOR` (`niri|hyprland|sway|none|auto`), else
+`NIRI_SOCKET` → niri, `HYPRLAND_INSTANCE_SIGNATURE` → Hyprland, `SWAYSOCK` → Sway, else none (documents say
+unavailable). Sway: hand-framed i3-IPC (no new dependency); Hyprland: its request and event sockets. Events re-read
+only the domain they touched; no polling. Hyprland's global workspaces are listed under the monitor that shows them.
+Screens off on Sway/Hyprland need a wake guard (they stay off until told): kurashid turns them on at the next input
+seen by `ext-idle-notify`; screenshots there use grim/slurp. `kurashi doctor` names the adapter and its gaps. *Why:*
+CLAUDE.md's "designed for Hyprland / MangoWM / Sway adapters"; and the headless test sandbox (sway) now runs the real
+adapter path instead of a fake.
+
