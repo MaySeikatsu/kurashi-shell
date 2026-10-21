@@ -9,7 +9,9 @@
 #   e.g. frontend/test-island-morph.sh sekai 'theme.style = "sekai"'
 #        frontend/test-island-morph.sh wa-iro 'theme.style = "none"'
 # MORPH_FACE=media|volume|... picks the face (`island.next` until runtime.island.main has it is not done: the real daemon
-# picks the face; the default is the clock). Machine B: export KURASHI_RENDER_NODE first.
+# picks the face; the default is the clock). MORPH_OUT=<dir> writes the shots there instead (test-island-join.sh's
+# extra cases). The join of the card to a ruled bar is checked by frontend/test-island-join.sh. Machine B: export
+# KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TAG=${1:-sekai}
@@ -18,7 +20,7 @@ LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
 NAME=${MORPH_SANDBOX:-w21-isl-morph}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
-OUT=$ROOT/frontend/shots/island
+OUT=${MORPH_OUT:-$ROOT/frontend/shots/island}
 AT=${MORPH_AT:-40 120 250}
 CROP=${MORPH_CROP:-860,0 840x520}
 mkdir -p "$OUT"

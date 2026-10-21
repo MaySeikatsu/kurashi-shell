@@ -21,4 +21,12 @@ Singleton {
     function pillOf(output) { return pills[output] || null }
     // The output whose pill is inside the Stage's shape right now; "" when none.
     property string takenOn: ""
+    // Where the shape opens the `takenOn` bar's rule (line chrome, W30): from the bar's centre, left and right, in px;
+    // 0, 0 while it does not hang from the rule. The bar leaves its rule out in between (the shape draws the join).
+    property real openL: 0
+    property real openR: 0
+    function setOpening(l, r) {
+        if (openL !== l) openL = l
+        if (openR !== r) openR = r
+    }
 }

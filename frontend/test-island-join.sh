@@ -1,0 +1,177 @@
+#!/usr/bin/env bash
+# The open island meets a ruled bar (W30, docs/ux/island.md "Session 12: the join under line chrome"), invisibly
+# (headless sway sandbox, through frontend/test-island-morph.sh), against the REAL kurashid. Under line chrome the bar
+# rules its strip's inner edge; the open card must hang from that rule: the rule runs round the card's fillet (or its
+# mitred corner when square) into the card's side as one line. For each case the morph test runs, then a pixel check
+# reads the shots (top bar as is, bottom bar flipped; left side, then mirrored for the right):
+#   - the rule is found down the crop's left column (its row R, its colour = the outline);
+#   - the outline is one connected line (8-neighbours, a 1 px gap bridged, no more) from the rule at the crop's edge to
+#     the card's side 50 px below the rule — in the card at rest and in every morph frame whose card has grown that far;
+#   - at rest, walking from the crop's edge to the side, the outline's topmost pixel never rises above the rule (no
+#     side running on into the bar, no step up, no tab outline round the head) and the rule is open between the sides.
+# Shots: washi and terminal into frontend/shots/island/morph-<tag>-*.png, the other cases into
+# target/island-join/ (MORPH_OUT). Fails on a gap, a step or an overshoot, or where the morph test fails.
+#   nix develop -c frontend/test-island-join.sh            # all cases
+#   JOIN_CASES="washi terminal" nix develop -c frontend/test-island-join.sh
+# Machine B: export KURASHI_RENDER_NODE first.
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+EXTRA=${JOIN_OUT:-${CARGO_TARGET_DIR:-$ROOT/target}/island-join}
+mkdir -p "$EXTRA"
+fail() { echo "test-island-join: $*" >&2; exit 1; }
+CHECK=$EXTRA/check.py
+
+cat > "$CHECK" <<'PY'
+import struct, sys, zlib
+
+def load(path):
+    data = open(path, "rb").read()
+    assert data[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
+    i, idat, w = 8, b"", 0
+    while i < len(data):
+        n, = struct.unpack(">I", data[i:i + 4]); kind = data[i + 4:i + 8]; body = data[i + 8:i + 8 + n]; i += 12 + n
+        if kind == b"IHDR":
+            w, h, depth, ctype, _, _, inter = struct.unpack(">IIBBBBB", body)
+            assert depth == 8 and ctype in (2, 6) and inter == 0, "unsupported PNG"
+            bpp = 3 if ctype == 2 else 4
+        elif kind == b"IDAT":
+            idat += body
+    raw = zlib.decompress(idat)
+    stride = w * bpp
+    rows, prev, p = [], bytearray(stride), 0
+    for _ in range(h):
+        ft = raw[p]; line = bytearray(raw[p + 1:p + 1 + stride]); p += 1 + stride
+        for x in range(stride):
+            a = line[x - bpp] if x >= bpp else 0
+            b = prev[x]
+            c = prev[x - bpp] if x >= bpp else 0
+            if ft == 1: line[x] = (line[x] + a) & 255
+            elif ft == 2: line[x] = (line[x] + b) & 255
+            elif ft == 3: line[x] = (line[x] + (a + b) // 2) & 255
+            elif ft == 4:
+                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+                pr = a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+                line[x] = (line[x] + pr) & 255
+        rows.append([tuple(line[x * bpp:x * bpp + 3]) for x in range(w)])
+        prev = line
+    return w, h, rows
+
+def dist(a, b):
+    return sum((x - y) ** 2 for x, y in zip(a, b)) ** 0.5
+
+def side(rows, w, rest, name):
+    """Checks the left half of a top-bar image; returns an error string or None."""
+    px = lambda x, y: rows[y][x]
+    bar = px(4, 2)
+    R = next((y for y in range(3, 120) if dist(px(4, y), bar) > 40), None)
+    if R is None: return "no rule under the bar (is this line chrome?)"
+    ref = px(4, R)
+    R2 = R
+    while dist(px(4, R2 + 1), ref) < 30: R2 += 1
+    desk = px(4, R2 + 4)
+    card = px(w // 2, R2 + 6)
+    contrast = min(dist(ref, c) for c in (bar, desk, card) if dist(ref, c) > 1)
+    if contrast < 40: return "the rule hardly differs from its grounds (%.0f)" % contrast
+    thr = 0.5 * contrast
+    # The grounds an outline pixel may blend with: the bar, the desk, the card over the desk and over the bar (its head).
+    grounds = [c for c in (bar, desk, card, px(w // 2, R)) if dist(ref, c) > 20]
+    def cover(p):
+        # How much of the pixel is the outline: p as a blend of the outline and one of its grounds (anti-aliasing).
+        best = 0.0
+        for g in grounds:
+            v = [r - c for r, c in zip(ref, g)]; d = [q - c for q, c in zip(p, g)]
+            vv = sum(a * a for a in v)
+            a = sum(x * y for x, y in zip(v, d)) / vv
+            off = dist(d, [a * x for x in v])
+            if off < 0.2 * vv ** 0.5: best = max(best, a)
+        return best
+    # A flat arc spreads a 1 px line over two rows (two pixels of about half each).
+    on = lambda x, y: cover(px(x, y)) >= 0.3
+    ys = R2 + 50
+    if ys >= len(rows): return "crop too short"
+    xs = next((x for x in range(4, w // 2) if on(x, ys)), None)
+    if xs is None or dist(px(w // 2, ys), desk) < thr:
+        return "no card side %d px below the rule" % (ys - R) if rest else None
+    # One line from the rule at the edge to the side: flood the outline, a 1 px gap bridged.
+    seen, todo = set(), [(x, y) for x in range(4, 9) for y in range(R, R2 + 1) if on(x, y)]
+    seen.update(todo)
+    while todo:
+        x, y = todo.pop()
+        for dx in range(-2, 3):
+            for dy in range(-2, 3):
+                q = (x + dx, y + dy)
+                if q in seen or not (0 <= q[0] <= w // 2 and 0 <= q[1] <= ys): continue
+                if on(*q):
+                    seen.add(q); todo.append(q)
+    if (xs, ys) not in seen:
+        reach = max((p for p in seen), key=lambda p: (p[1], p[0]))
+        return "gap: the rule's outline stops at %s and never reaches the card's side at (%d, %d)" % (reach, xs, ys)
+    if not rest: return None
+    # The topmost outline pixel, column by column from the edge to the side: never above the rule, never back up.
+    top_prev, missing = R, 0
+    for x in range(4, xs + 1):
+        top = next((y for y in range(2, ys + 1) if on(x, y)), None)
+        if top is None:
+            missing += 1
+            if missing > 1: return "gap: columns %d-%d have no outline between the bar and the side" % (x - 1, x)
+            continue
+        missing = 0
+        if top < R: return "overshoot: the outline rises into the bar at x=%d (row %d, rule at %d)" % (x, top, R)
+        if top < top_prev - 1: return "step: the outline steps up at x=%d (%d -> %d)" % (x, top_prev, top)
+        top_prev = max(top_prev, top)
+    for x in range(xs + 4, w // 2):
+        if any(on(x, y) for y in range(R, R2 + 1)): return "double line: the rule runs on under the card at x=%d" % x
+    return None
+
+def main():
+    edge, rest_name = sys.argv[1], sys.argv[2]
+    bad = []
+    for path in sys.argv[2:]:
+        w, h, rows = load(path)
+        if edge == "bottom": rows = rows[::-1]
+        rest = path == rest_name
+        for label, rr in (("left", rows), ("right", [r[::-1] for r in rows])):
+            err = side(rr, w, rest, path)
+            if err: bad.append("%s (%s): %s" % (path, label, err))
+    for b in bad: print("test-island-join: " + b)
+    sys.exit(1 if bad else 0)
+
+main()
+PY
+
+# case <tag> <edge> <into-repo 0|1> <config lines...>
+run_case() {
+  local tag=$1 edge=$2 keep=$3; shift 3
+  local out=$EXTRA crop="860,0 840x520"
+  [ "$keep" = 1 ] && out=$ROOT/frontend/shots/island
+  [ "$edge" = bottom ] && crop="860,920 840x520"
+  echo "test-island-join: case $tag ($edge): $*"
+  MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" \
+    > "$EXTRA/$tag.log" 2>&1 || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
+  local shots=("$out/morph-$tag-rest.png")
+  for f in "$out/morph-$tag"-open-*.png "$out/morph-$tag"-close-*.png; do shots+=("$f"); done
+  timeout 120 python3 -I "$CHECK" "$edge" "${shots[@]}" || fail "the join is broken for $tag"
+  echo "test-island-join: $tag ok"
+}
+
+declare -A CASES=(
+  [washi]='top 1 theme.style = "washi"'
+  [terminal]='top 1 theme.style = "terminal"'
+  [washi-dark]='top 0 theme.style = "washi"|theme.colors.scheme = "dark"'
+  [line-none]='top 0 theme.style = "none"|theme.chrome = "line"'
+  [line-square]='top 0 theme.style = "washi"|theme.shape.corners = "none"'
+  [line-squircle]='top 0 theme.style = "washi"|theme.shape.corners = "squircle"'
+  [line-r05]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 0.5'
+  [line-r2]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 2.0'
+  [washi-bottom]='bottom 0 theme.style = "washi"|bar.edge = "bottom"'
+  [terminal-bottom]='bottom 0 theme.style = "terminal"|bar.edge = "bottom"'
+)
+ORDER="washi terminal washi-dark line-none line-square line-squircle line-r05 line-r2 washi-bottom terminal-bottom"
+for c in ${JOIN_CASES:-$ORDER}; do
+  spec=${CASES[$c]:-}
+  [ -n "$spec" ] || fail "unknown case $c"
+  read -r edge keep rest <<<"$spec"
+  IFS='|' read -r -a lines <<<"$rest"
+  run_case "$c" "$edge" "$keep" "${lines[@]}"
+done
+echo "test-island-join: ok"
