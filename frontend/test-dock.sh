@@ -6,7 +6,9 @@
 #      foot's window (`window.close`); autohide: the dock hides, a rest on the bottom edge reveals it, leaving hides it;
 #   2. the REAL kurashid: the dock with its pins; right-click Firefox → "Unpin from dock" writes `dock.pinned`
 #      (one cfg.apply), and the tile goes;
-#   3. looks: the dock under the decors sekai, glass, terminal and none (the real daemon's theme worn by the mock).
+#   3. looks: the dock under the decors sekai, glass, terminal and none (the real daemon's theme worn by the mock);
+#   4. with DOCK_MEASURE=1: idle commits of the dock's surfaces (hidden and shown, 10 s each) and its USS per output
+#      (dock on and hidden vs off, medians of three alternating runs; shown vs hidden once) — docs/BENCH.md "Mods".
 #   nix develop -c frontend/test-dock.sh [sandbox-name]
 # Binaries: kurashid, kurashi and kurashi-mock from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug).
 # Shots in frontend/shots/dock/<decor>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
@@ -28,14 +30,13 @@ cp "$BIN/kurashid" "$BIN/kurashi" "$BIN/kurashi-mock" "$W/"
 pids=()
 PTR_PID=""
 stop_phase() {  # kills only the processes this script started
+  stop_pointer
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
   pids=()
   rm -f "$KURASHI_SOCKET"
 }
 cleanup() {
-  exec 7>&- 2>/dev/null || true
-  [ -n "$PTR_PID" ] && kill "$PTR_PID" 2>/dev/null || true
   stop_phase
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
@@ -102,19 +103,29 @@ start_kurashid() {
   pids+=("$!")
   wait_socket kurashid
 }
-start_frontend() {
+start_frontend() {  # start_frontend [VAR=value ...]
   : > "$R/qs.log"
-  env -u KURASHI_SOCKET KURASHI_DOCK_GEOMETRY=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
-  pids+=("$!")
+  env -u KURASHI_SOCKET KURASHI_DOCK_GEOMETRY=1 "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  QS_PID=$!
+  pids+=("$QS_PID")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
   sleep 3
+  start_pointer
 }
-# One virtual pointer for the whole run (a pointer that goes away ends every hover).
-mkfifo "$W/ptr"
-python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$W/ptr" > "$W/ptr.log" 2>&1 &
-PTR_PID=$!
-exec 7> "$W/ptr"
+# One virtual pointer per phase (a pointer that goes away ends every hover), made once the frontend is up.
+start_pointer() {
+  rm -f "$W/ptr"; mkfifo "$W/ptr"
+  python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$W/ptr" >> "$W/ptr.log" 2>&1 &
+  PTR_PID=$!
+  exec 7> "$W/ptr"
+}
+stop_pointer() {
+  [ -n "$PTR_PID" ] || return 0
+  exec 7>&-
+  wait "$PTR_PID" 2>/dev/null || true
+  PTR_PID=""
+}
 ptr() { echo "$*" >&7; sleep 0.5; }
 keys() { timeout 20 python3 -I "$ROOT/tools/bench/wl_keys.py" "$@"; }
 shot() { timeout 20 grim "$OUT/$1.png" && echo "shot $OUT/$1.png"; }
@@ -152,11 +163,11 @@ WINDOWS='[{"id":11,"app_id":"firefox","workspace":1,"output":"HEADLESS-1","focus
  {"id":14,"app_id":"net.example.NoEntry","workspace":1,"output":"HEADLESS-1","focused":false}]'
 TASKS='{"*":[{"id":11,"app_id":"firefox","focused":false},{"id":13,"app_id":"foot","focused":true}],
  "HEADLESS-1":[{"id":11,"app_id":"firefox","focused":false},{"id":13,"app_id":"foot","focused":true}]}'
-mock_scene() {  # the dock on, two pins, the fake windows
-  cfgval dock.enabled true
-  cfgval dock.autohide false
-  cfgval dock.pinned '["firefox","org.gnome.Nautilus"]'
+mock_scene() {  # mock_scene [autohide]: the fake windows, two pins, the dock on (autohide off unless given)
   mockdoc "{\"doc\":\"svc.workspaces\",\"patch\":{\"windows\":$(echo "$WINDOWS" | jq -c .),\"tasks\":$(echo "$TASKS" | jq -c .)}}"
+  cfgval dock.autohide "${1:-false}"
+  cfgval dock.pinned '["firefox","org.gnome.Nautilus"]'
+  cfgval dock.enabled true
 }
 qml_errors() {
   if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Unable to assign|is not defined' "$R/qs.log" \
@@ -204,6 +215,9 @@ sleep 1
 shot "$FIRST/menu"
 keys escape
 sleep 0.6
+n=$(ink $(( TX - 150 )) $(( TY - 260 )) 300 200)
+[ "$n" -lt 50 ] || fail "Escape did not close the menu ($n px above the tile)"
+echo "ok: Escape closes the menu"
 ptr click "$TX" "$TY" right
 sleep 0.8
 # Rows: Pin, New window, Close window → Down Down Return.
@@ -214,17 +228,21 @@ done
 K sub svc.workspaces --count 0 --json | jq -e '[.data.windows[].id] | index(13) == null' >/dev/null \
   || fail "the menu's Close window did not close foot's window"
 echo "ok: the menu's Close window closed window 13 (window.close)"
-wait_geom 'net.example.noentry@'
-geom | grep -q 'foot@' && fail "foot's tile stayed after its last window closed"
+for _ in $(seq 40); do geom | grep -q 'foot@' || break; sleep 0.25; done
+geom | grep -q 'foot@' && fail "foot's tile stayed after its last window closed ($(geom))"
 echo "ok: foot's tile went with its window"
 shot "$FIRST/closed"
-# The tile without a desktop entry: the menu offers Pin; the mock refuses config writes, so the menu says so.
+# The tile without a desktop entry: the menu offers Pin (New window inert). The mock refuses config writes: the
+# dock shows no pin it was not given (Shōjiki) — the tile stays among the running apps.
 read -r NX NY <<< "$(tile_xy net.example.noentry)"
 ptr click "$NX" "$NY" right
 sleep 0.8
+shot "$FIRST/menu-no-entry"
 keys return
 sleep 0.8
-shot "$FIRST/write-refused"
+geom | grep -q 'org.gnome.nautilus@[^ ]* net.example.noentry@' \
+  || fail "a refused pin moved the tile ($(geom))"
+echo "ok: a refused pin changes nothing"
 keys escape
 sleep 0.5
 # Autohide: away from the dock it hides; a rest on the edge reveals it; leaving hides it again.
@@ -285,7 +303,62 @@ for d in $DECORS; do
   ptr move $(( SW / 2 )) $(( SH / 2 ))
   sleep 0.6
   timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$OUT/$d/look.png" && echo "shot $OUT/$d/look.png"
+  if [ "$d" = "$FIRST" ]; then
+    # The left edge, then the empty state (nothing pinned, nothing running: one tile that opens the launcher).
+    cfgval dock.edge '"left"'
+    wait_geom 'win [0-9]* [0-9]* firefox@'
+    sleep 0.6
+    timeout 20 grim -g "0,$(( SH / 2 - 300 )) 300x600" "$OUT/$d/left.png" && echo "shot $OUT/$d/left.png"
+    cfgval dock.edge '"bottom"'
+    cfgval dock.pinned '[]'
+    mockdoc '{"doc":"svc.workspaces","patch":{"windows":[]}}'
+    wait_geom 'win [0-9]* [0-9]* +@[^ ]*$'
+    sleep 0.6
+    timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$OUT/$d/empty.png" && echo "shot $OUT/$d/empty.png"
+  fi
   qml_errors
   stop_phase
 done
+# 4. Cost (opt-in: DOCK_MEASURE=1).
+if [ "${DOCK_MEASURE:-0}" = 1 ]; then
+  uss_mib() { awk '/^Private_(Clean|Dirty):/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_rollup"; }
+  median() { python3 -I -c 'import statistics,sys; print(round(statistics.median([float(x) for x in sys.argv[1:]]), 2))' "$@"; }
+  size() { stat -c %s "$R/qs.log"; }
+  dock_commits() {  # dock_commits <start byte>: commits of the dock's layer surfaces since that offset
+    local ids
+    ids=$(grep -oE 'wl_surface#[0-9]+, wl_output#[0-9]+, [0-9]+, "kurashi-dock(-edge)?"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
+      | grep -oE '[0-9]+$' | paste -sd'|' - || true)
+    [ -n "$ids" ] || { echo none; return 0; }
+    tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -cE "wl_surface#($ids)\.commit\(" || true
+  }
+  scene_hidden() { mock_scene true; }
+  start_mock; mockdoc "$(cat "$W/theme-$FIRST.json")"
+  start_frontend WAYLAND_DEBUG=1
+  scene_hidden
+  sleep 5; c0=$(size); sleep 10; hid=$(dock_commits "$c0")
+  cfgval dock.autohide false
+  sleep 5; c0=$(size); sleep 10; shown=$(dock_commits "$c0")
+  stop_phase
+  [ "$hid" = 0 ] || fail "idle: the hidden dock committed $hid times in 10 s"
+  [ "$shown" = 0 ] || fail "idle: the shown dock committed $shown times in 10 s"
+  echo "ok: idle 0 commits in 10 s hidden, 0 shown"
+  on_u=""; off_u=""; shown_u=""
+  for rep in 1 2 3; do
+    for run in on off; do
+      start_mock; mockdoc "$(cat "$W/theme-$FIRST.json")"
+      start_frontend
+      if [ "$run" = on ]; then scene_hidden; else mockdoc "{\"doc\":\"svc.workspaces\",\"patch\":{\"windows\":$(echo "$WINDOWS" | jq -c .),\"tasks\":$(echo "$TASKS" | jq -c .)}}"; fi
+      sleep 10
+      u=$(uss_mib "$QS_PID")
+      if [ "$run" = on ]; then
+        on_u="$on_u $u"
+        if [ "$rep" = 1 ]; then cfgval dock.autohide false; sleep 6; shown_u=$(uss_mib "$QS_PID"); fi
+      else off_u="$off_u $u"; fi
+      stop_phase
+    done
+  done
+  m_on=$(median $on_u); m_off=$(median $off_u)
+  echo "measure: USS dock on (hidden, edge window only) ${m_on} MiB, off ${m_off} MiB: per output $(python3 -I -c "print(round(${m_on} - ${m_off}, 2))") MiB (runs on:${on_u} off:${off_u})"
+  echo "measure: the first show (run 1): +$(python3 -I -c "print(round(${shown_u} - $(echo $on_u | awk '{print $1}'), 2))") MiB USS over hidden (the dock window, made then kept)"
+fi
 echo "test-dock: ok (shots in $OUT)"

@@ -18,6 +18,8 @@ the truth about what runs (a dot per window, the focused one lit; an app without
 - **DMS** `Modules/Dock/DockAppButton.qml`: `handleLeftClick` — no window → launch the entry; one → focus; more →
   `cycleGroupedToplevels()` (index of the focused one + 1, mod n); middle = launch; right = the context menu; up to
   four indicator dots. Copied: the cycle rule and the dot count cap.
+- **DMS** `Modules/Dock/DockContextMenuBase.qml`: the context menu is an overlay over the whole output while open, a
+  press outside closes it. Copied: a popup of a layer surface without keyboard gets no keys (measured), the overlay does.
 - **Noctalia** `Modules/Dock/Dock.qml`: peek area + `showTimer`/`hideTimer`, hide only when neither the dock, an app,
   nor the peek area is hovered. Copied: one "pointer inside" truth fed by every part, timers re-checking on fire.
 - **ii** `modules/ii/dock/Dock.qml`: `reveal` also while no window is active (an empty desk has nothing to cover).
@@ -38,9 +40,12 @@ the truth about what runs (a dot per window, the focused one lit; an app without
 - Tooltip: the entry's name (or the app id) in a popup over the tile after 400 ms of hover, click-through.
 - Click: no window → `launcher.launch {id}`; windows → focus the app's most recent one (the last one seen focused,
   else the first); again (the app already focused) → the next of its windows (DMS cycle). Middle: launch (new window).
-  Right: a menu popup (grabs the pointer; Escape or a click outside closes it): Pin / Unpin (one `cfg.apply` of the
-  whole `dock.pinned` list), New window, Close window / Close all windows (n) (`window.close {id}` for each).
-  A rejected write keeps the dock as it was and says so in the menu (Shōjiki).
+  Right: a menu over the tile (an overlay on the output while open, DMS; the tile stays lit): the app's name, then
+  "Pin to dock" / "Unpin from dock" (one `cfg.apply` of the whole `dock.pinned` list; inert with the reason while the
+  list is forced), "New window" (inert without a desktop entry), "Close window" / "Close n windows" (`window.close {id}`
+  each). A press outside or Escape closes it; a left click on the dock while it is open only closes it. A rejected write
+  changes nothing in the dock (no optimistic pin, Shōjiki) and the menu shows `dock.error.write` — once Store passes an
+  `err` reply to an `apply` callback (it drops it today; backlog).
 - Autohide (`dock.autohide`): a 4 px edge window (2 px input zone) along the edge; a rest of 250 ms reveals, the dock
   hides 400 ms after the pointer left the edge, the dock and the menu. Also shown while the output's active workspace
   is empty (ii) and while its menu is open. Exclusive zone only when autohide is off.
@@ -55,23 +60,25 @@ the truth about what runs (a dot per window, the focused one lit; an app without
 | empty (nothing pinned, nothing runs) | a small body with one hint tile ("Right-click an app to keep it here") — never a 0-px dock |
 | only pinned | the pinned tiles, no dots, no separator |
 | many apps | tiles shrink to fit the output (min 24 px), past that the list scrolls (wheel) inside the body |
-| urgent window | not in the document yet (row 160 asks for `urgent`); no faked state |
+| urgent window | not in the document yet (CONTRACT-CHANGE row 160 asks for `urgent`); no faked state |
 | no desktop entry | the app id's first letter on the tile, the app id as the name; Pin is offered (a desktop id may exist) |
 | daemon away | last state, dimmed (`Theme.staleOpacity`), clicks refused by Store |
 | multi-output | one dock per output where enabled; each shows every app (the windows of all outputs), like macOS/Windows |
 
 ## Keyboard and a11y
-Every tile is `Accessible.Button` with the app's name and its window count in the description. The menu is
-keyboard-driven while open (Up/Down, Enter, Escape). A global key to focus the dock (Super+Alt+D style) waits for the
-bindings work (backlog).
+Every tile is `Accessible.Button` with the app's name and its window count in the description. The menu takes the
+keyboard while open (Up/Down move, Return/Enter/Space run, Escape closes). The dock itself takes no keyboard focus (it
+must never steal it from the app); a key to focus the dock waits for the bindings work (backlog).
 
 ## Motion
 Reveal/hide: the body slides from the edge by its thickness (`Theme.stdMs`, enter curve), then the window unmaps
 (0 frames hidden). Magnify on hover only while `Theme.springOn`; no idle animation, no timer while nothing is hovered.
 
 ## Ma / budget
-No surface while off; hidden = one 4 px transparent edge window per output; the dock window unmapped. Idle 0 frames.
-Measured cost in `docs/BENCH.md` (Opt-in).
+No surface while off; hidden = one 4 px transparent edge window per output; the dock window is made on the first show
+and kept (unmapped while hidden). Measured (`DOCK_MEASURE=1 frontend/test-dock.sh`, docs/BENCH.md "Mods"): 0 commits in
+10 s hidden and shown; +6.9 MiB USS with the dock on and hidden (one output, with the component load), +2.2 MiB on the
+first show. The tooltip and the menu exist only while shown.
 
 ## Later (backlog)
 Drag to reorder pins (DMS long-press drag), window previews in the tooltip (needs screencopy per window), urgent
