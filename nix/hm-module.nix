@@ -6,6 +6,7 @@ let
   wd = cfg.webdock;
   toml = pkgs.formats.toml { };
   envList = lib.mapAttrsToList (k: v: "${k}=${v}") cfg.extraEnvironment;
+  exportsTo = app: cfg.themeExport.includes && lib.elem app cfg.themeExport.apps;
 
   # Defaults of niri.binds.keys (niri key name -> kurashi action id, see docs/niri-binds.kdl).
   niriDefaultKeys = {
@@ -106,6 +107,27 @@ in
       type = lib.types.bool;
       default = true;
       description = "Keep a clipboard history with cliphist (Home-Manager's services.cliphist), which the launcher shows after `;`.";
+    };
+
+    themeExport = {
+      apps = lib.mkOption {
+        type = lib.types.listOf (lib.types.enum [ "gtk3" "gtk4" "qt" "qt5" "foot" "kitty" "alacritty" "ghostty" "niri" ]);
+        default = [ ];
+        example = [ "gtk3" "gtk4" "foot" ];
+        description = ''
+          Apps that follow the shell's colours (K49, `theme.export`): kurashid writes their colour files whenever the
+          theme changes. Set as a Nix value of `theme.export`.
+        '';
+      };
+      includes = lib.mkOption {
+        type = lib.types.bool;
+        default = true;
+        description = ''
+          Add the line each app needs to read its colour file, through that app's own Home-Manager module when it is
+          enabled here (gtk, foot, kitty, alacritty, ghostty). niri and Qt (qt6ct/qt5ct) need it by hand: Settings
+          shows the line.
+        '';
+      };
     };
 
     settings = lib.mkOption {
@@ -291,6 +313,17 @@ in
           }
         '';
       };
+
+      # K49: the apps that follow the theme, as Nix values, and their include lines through their own modules.
+      programs.kurashi.settings.theme = lib.mkIf (cfg.themeExport.apps != [ ]) { export = cfg.themeExport.apps; };
+      gtk.gtk3.extraCss = lib.mkIf (exportsTo "gtk3" && config.gtk.enable) (lib.mkAfter "@import 'kurashi-colors.css';");
+      gtk.gtk4.extraCss = lib.mkIf (exportsTo "gtk4" && config.gtk.enable) (lib.mkAfter "@import 'kurashi-colors.css';");
+      programs.foot.settings.main.include = lib.mkIf (exportsTo "foot" && config.programs.foot.enable)
+        "${config.xdg.configHome}/foot/kurashi-colors.ini";
+      programs.kitty.extraConfig = lib.mkIf (exportsTo "kitty" && config.programs.kitty.enable) (lib.mkAfter "include kurashi-colors.conf");
+      programs.alacritty.settings.general.import = lib.mkIf (exportsTo "alacritty" && config.programs.alacritty.enable)
+        [ "${config.xdg.configHome}/alacritty/kurashi-colors.toml" ];
+      programs.ghostty.settings.theme = lib.mkIf (exportsTo "ghostty" && config.programs.ghostty.enable) (lib.mkDefault "kurashi");
 
       systemd.user.services.kurashid = lib.mkIf cfg.systemd.enable {
         Unit = {
