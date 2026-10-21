@@ -1360,27 +1360,31 @@ impl ConfigStore {
 
         // K55: `theme.scheme.restore {}` — back to the light/dark mode the user had before a style took it over.
         let me = self.clone();
-        actions.register("theme.scheme.restore", "action.theme.scheme.restore", move |_| {
-            let me = me.clone();
-            async move {
-                let mode = me
-                    .scheme_before()
-                    .ok_or_else(|| ActionError::Invalid("config.error.no_scheme_before".into()))?;
-                let done = me
-                    .apply(&[ApplyOp::Set {
-                        set: SCHEME_KEY.into(),
-                        value: json!(mode),
-                        output: None,
-                    }])
-                    .map_err(|errs| {
-                        let code = errs
-                            .first()
-                            .map_or("config.error.unrepresentable", |e| e.code.as_str());
-                        ActionError::Invalid(code.into())
+        actions.register(
+            "theme.scheme.restore",
+            "action.theme.scheme.restore",
+            move |_| {
+                let me = me.clone();
+                async move {
+                    let mode = me.scheme_before().ok_or_else(|| {
+                        ActionError::Invalid("config.error.no_scheme_before".into())
                     })?;
-                Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
-            }
-        });
+                    let done = me
+                        .apply(&[ApplyOp::Set {
+                            set: SCHEME_KEY.into(),
+                            value: json!(mode),
+                            output: None,
+                        }])
+                        .map_err(|errs| {
+                            let code = errs
+                                .first()
+                                .map_or("config.error.unrepresentable", |e| e.code.as_str());
+                            ActionError::Invalid(code.into())
+                        })?;
+                    Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
+                }
+            },
+        );
 
         let me = self.clone();
         actions.register("profile.list", "action.profile.list", move |_| {

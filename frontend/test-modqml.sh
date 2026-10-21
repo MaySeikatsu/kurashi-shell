@@ -51,7 +51,7 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME/kurashi/mods/hello" "$XDG_CACHE_HOME"
 # Pixel checks of the plain look (K53: a fresh install wears the style washi; this test reads layout and fills).
 mkdir -p "$XDG_CONFIG_HOME/kurashi"
-printf 'theme.style = "none"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 # The test mod as kurashid discovers it in its data dir: the checkout's qml with the live manifest (see live.mod.toml).
 cp -r "$HELLO/qml" "$XDG_DATA_HOME/kurashi/mods/hello/"
 cp "$HELLO/live.mod.toml" "$XDG_DATA_HOME/kurashi/mods/hello/mod.toml"
