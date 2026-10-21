@@ -89,7 +89,8 @@ Flickable {
     }
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
-    readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus })
+    readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus,
+                                       "sidebar.bar_buttons": cSidebarOpen })
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
     readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
     // Rows a pack block shows with it (K53 amendment): light or dark sits with the palette, as the palette cards are drawn
@@ -97,6 +98,7 @@ Flickable {
     readonly property var packCompanions: ({ palettes: ["theme.colors.scheme"] })
     Component { id: cThemeExport; ThemeExportStatus {} }
     Component { id: cSchemeStatus; SchemeStatus {} }
+    Component { id: cSidebarOpen; SidebarOpen {} }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2

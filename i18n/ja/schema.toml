@@ -242,3 +242,5 @@
 "config.sidebar.left.help" = "タブ：モッドのパネル（AIチャット、タスクなど）。モッドがオンでないタブは表示しません。空なら左のサイドバーはありません。"
 "config.sidebar.from_bar.label" = "バーから開く"
 "config.sidebar.from_bar.help" = "バーのクイック設定ボタンで、クイック設定カードの代わりに右のサイドバーを開きます。"
+"config.sidebar.bar_buttons.label" = "バーのボタン"
+"config.sidebar.bar_buttons.help" = "バーの両端のボタンで、その側のサイドバーを開きます。左は始まりに、右は終わりに（クイック設定ボタンが右のサイドバーを開く間は省きます）。ランチャーの「> サイドバー」とキーでも開けます。"

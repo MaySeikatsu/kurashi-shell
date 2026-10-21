@@ -57,6 +57,10 @@ Scope {
     readonly property bool vertical: enabled && (edge === "left" || edge === "right")
     // W29 `sidebar.from_bar`: the quick settings button opens the right sidebar instead of the quick card.
     readonly property bool sidebarFromBar: valueOf("sidebar.from_bar", false) === true
+    // I154 `sidebar.bar_buttons`: a button at each end of the bar opens that side's sidebar; the left one only while the
+    // left sidebar has tabs configured (the daemon refuses it otherwise).
+    readonly property bool sidebarButtons: valueOf("sidebar.bar_buttons", true) === true
+    readonly property bool leftSidebarTabs: { var t = valueOf("sidebar.left", []); return Array.isArray(t) && t.length > 0 }
 
     // Clearance for something that hugs an edge: past the bar when this output's bar sits there,
     // else the screen-edge margin.
