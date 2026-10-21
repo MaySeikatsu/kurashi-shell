@@ -1,10 +1,9 @@
 name = "material"
-label = "config.choice.decor.material"
+label = "config.choice.look.material"
+category = "modern"
 # After shellseikatsu `Services/Modes/Material.qml` (W25): the M3 purist — opaque tonal surfaces carry depth, no
 # shadows, constant rounding, emphasized damped easing, Roboto.
 [recipe]
-"theme.colors.palette" = "material"
-"theme.colors.scheme" = "dark"
 "theme.chrome" = "flat"
 "theme.motion.profile" = "calm"
 "theme.material.kind" = "solid"

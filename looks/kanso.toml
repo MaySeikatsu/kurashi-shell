@@ -1,0 +1,13 @@
+name = "kanso"
+label = "config.choice.look.kanso"
+category = "modern"
+# Kanso (簡素, simplicity): the shell's plain form — flat tonal blocks, even rounding, a light translucency, calm motion,
+# a neutral sans. The look every other one is measured against (K53).
+[recipe]
+"theme.chrome" = "flat"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.85
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 1.0
+"theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]

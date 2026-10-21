@@ -1,9 +1,13 @@
 //! The `theme` document (DESIGN-SYSTEM §1–§3): resolved config → `kurashi-theme` pipeline → flat
 //! token map. Recomputed on config changes only; renderers never compute colours (rule 4).
 //!
-//! Token `decor.frame` (W25, K50): the active decor pack's `[slots] frame` — read from `theme.decor` through
-//! `kurashi_theme::decor::find`, `""` for `none` or a pack without one. The frontend loads the frame component of that
+//! Token `decor.frame` (W25, K50, K53): the look in effect's `[slots] frame` — `theme.look` through
+//! `kurashi_theme::appearance::find`, `""` for a look without one. The frontend loads the frame component of that
 //! name (`frontend/components/frames/`); it is data, no renderer compares it (rule 4).
+//!
+//! K53: the document also carries the preview cards of every style (`styles`) and look (`looks`, drawn in the palette
+//! and scheme in effect: a look has no colours) and `appearance {style, look, palette, overrides}` — the keys that
+//! differ from the style, for Settings' "changed from the style" line.
 
 use std::sync::Arc;
 
@@ -158,27 +162,78 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     }
 }
 
-/// `decors` (K45, I104): each decor pack's own look, for Settings' preview cards. Recipes and the
-/// installed fonts do not change while the daemon runs, so they are resolved once.
-fn decor_previews(fonts: &dyn FontProvider) -> Value {
+/// `styles` (K45, I104, K53): each style's own look, for Settings' preview cards. Packs and the installed fonts do not
+/// change while the daemon runs, so they are resolved once.
+fn style_previews(fonts: &dyn FontProvider) -> Value {
     static PREVIEWS: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
     PREVIEWS
         .get_or_init(|| {
+            use kurashi_theme::appearance::{Kind, all};
             Value::Array(
-                kurashi_theme::decor_names()
+                all(Kind::Style)
                     .iter()
-                    .filter_map(|n| kurashi_theme::decor_preview(n, fonts))
+                    .filter_map(|p| kurashi_theme::style_preview(&p.name, fonts))
                     .collect(),
             )
         })
         .clone()
 }
 
-/// The active decor pack's frame (`[slots] frame`), `""` when there is none (W25).
+/// `looks` (K53): each look in the palette and scheme in effect, resolved once per pair.
+fn look_previews(palette: &str, scheme: &str, fonts: &dyn FontProvider) -> Value {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<(String, String), Value>>> = OnceLock::new();
+    let key = (palette.to_owned(), scheme.to_owned());
+    let mut cache = CACHE
+        .get_or_init(Default::default)
+        .lock()
+        .expect("look previews");
+    cache
+        .entry(key)
+        .or_insert_with(|| {
+            use kurashi_theme::appearance::{Kind, all};
+            Value::Array(
+                all(Kind::Look)
+                    .iter()
+                    .filter_map(|p| kurashi_theme::look_preview(&p.name, palette, scheme, fonts))
+                    .collect(),
+            )
+        })
+        .clone()
+}
+
+/// `palettes` (K53): each bundled palette in the look and scheme in effect, resolved once per pair.
+fn palette_previews(look: &str, scheme: &str, fonts: &dyn FontProvider) -> Value {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static CACHE: OnceLock<Mutex<HashMap<(String, String), Value>>> = OnceLock::new();
+    let key = (look.to_owned(), scheme.to_owned());
+    let mut cache = CACHE
+        .get_or_init(Default::default)
+        .lock()
+        .expect("palette previews");
+    cache
+        .entry(key)
+        .or_insert_with(|| {
+            Value::Array(
+                kurashi_theme::bundled_names()
+                    .iter()
+                    .filter_map(|n| kurashi_theme::palette_preview(n, look, scheme, fonts))
+                    .collect(),
+            )
+        })
+        .clone()
+}
+
+/// The look in effect's frame (`[slots] frame`), `""` when it has none (W25, K53).
 fn decor_frame(store: &ConfigStore) -> String {
-    kurashi_theme::decor::find(&s(store, "theme.decor"))
-        .map(|d| d.frame)
-        .unwrap_or_default()
+    kurashi_theme::appearance::find(
+        kurashi_theme::appearance::Kind::Look,
+        &s(store, "theme.look"),
+    )
+    .map(|d| d.frame)
+    .unwrap_or_default()
 }
 
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
@@ -214,7 +269,16 @@ pub fn document_with(
             if waiting {
                 notes.push(json!({"stage": "source", "text": "theme.note.wallpaper_waiting"}));
             }
-            json!({"tokens": tokens, "notes": notes, "decors": decor_previews(fonts)})
+            json!({
+                "tokens": tokens,
+                "notes": notes,
+                "appearance": {
+                    "style": s(store, "theme.style"),
+                    "look": s(store, "theme.look"),
+                    "palette": s(store, "theme.colors.palette"),
+                    "overrides": store.appearance_overrides(),
+                },
+            })
         }
         Err(e) => {
             tracing::warn!(error = %e, "theme resolution failed; keeping previous theme");
@@ -224,6 +288,24 @@ pub fn document_with(
         }
     }
 }
+
+/// `theme.previews` (K53): the preview cards of every style, look (in the palette and scheme in effect) and palette (in
+/// the look and scheme in effect) — a document of its own, so only Settings, which shows them, receives them.
+pub fn previews(store: &ConfigStore, fonts: &dyn FontProvider) -> Value {
+    // The wallpaper's palette has no file to preview a look in; its looks show in the bundled default.
+    let palette = match s(store, "theme.colors.palette") {
+        p if kurashi_theme::bundled_names().contains(&p.as_str()) => p,
+        _ => "wa-iro".to_owned(),
+    };
+    let scheme = s(store, "theme.colors.scheme");
+    json!({
+        "styles": style_previews(fonts),
+        "looks": look_previews(&palette, &scheme, fonts),
+        "palettes": palette_previews(&s(store, "theme.look"), &scheme, fonts),
+    })
+}
+
+pub const PREVIEWS_DOC: &str = "theme.previews";
 
 /// Register `theme` and recompute it whenever config changes.
 pub fn register(
@@ -237,6 +319,7 @@ pub fn register(
         document_with(store, fonts.as_ref(), None, pic.as_deref()),
         None,
     );
+    hub.register(PREVIEWS_DOC, previews(store, fonts.as_ref()), None);
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
         store.on_change(move |store| republish(&hub, store, fonts.as_ref()));
@@ -316,19 +399,16 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
         o.remove("error");
     }
     let _ = hub.set(DOC, next, None);
+    let _ = hub.set(PREVIEWS_DOC, previews(store, fonts), None);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn store_with(root: &std::path::Path, decor: &str) -> std::sync::Arc<ConfigStore> {
+    fn store_with(root: &std::path::Path, toml: &str) -> std::sync::Arc<ConfigStore> {
         std::fs::create_dir_all(root.join("config")).unwrap();
-        std::fs::write(
-            root.join("config/config.toml"),
-            format!("[theme]\ndecor = \"{decor}\"\n"),
-        )
-        .unwrap();
+        std::fs::write(root.join("config/config.toml"), toml).unwrap();
         ConfigStore::open(
             Hub::new(),
             kurashi_schema::v1::registry(),
@@ -337,20 +417,97 @@ mod tests {
         )
     }
 
-    /// W25: the active pack's frame travels as `decor.frame`; a pack without one (or none) is `""`.
+    /// W25, K53: the look in effect's frame travels as `decor.frame`; a look without one is `""`. A v1 file's
+    /// `theme.decor` is migrated to the style of that name.
     #[test]
-    fn decor_frame_token_follows_the_active_pack() {
+    fn decor_frame_token_follows_the_look_in_effect() {
         let root = std::env::temp_dir().join(format!("kurashid-frame-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let fonts = kurashi_theme::FakeFonts::new(&["Inter"]);
-        let doc = document(&store_with(&root, "yorha"), &fonts, None);
+        let store = store_with(&root, "[theme]\ndecor = \"yorha\"\n");
+        let doc = document(&store, &fonts, None);
         assert_eq!(doc["tokens"]["decor.frame"], "yorha", "{}", doc["error"]);
-        // The pack's own palette is in effect, at the decor's layer.
+        assert_eq!(doc["appearance"]["style"], "yorha");
+        // The style's own palette is in effect, at the theme layer.
         assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
-        let doc = document(&store_with(&root, "sekai"), &fonts, None);
+        assert!(
+            doc["appearance"]["overrides"]
+                .as_array()
+                .unwrap()
+                .is_empty()
+        );
+        // A look picked over the style: its frame, the style's palette still.
+        let doc = document(
+            &store_with(
+                &root,
+                "schema_version = 2\n[theme]\nstyle = \"yorha\"\nlook = \"win95\"\n",
+            ),
+            &fonts,
+            None,
+        );
+        assert_eq!(doc["tokens"]["decor.frame"], "bevel");
+        assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
+        assert_eq!(doc["appearance"]["overrides"], json!(["theme.look"]));
+        let doc = document(
+            &store_with(&root, "schema_version = 2\n[theme]\nstyle = \"sekai\"\n"),
+            &fonts,
+            None,
+        );
         assert_eq!(doc["tokens"]["decor.frame"], "");
-        let doc = document(&store_with(&root, "none"), &fonts, None);
+        let doc = document(
+            &store_with(&root, "schema_version = 2\n[theme]\nstyle = \"none\"\n"),
+            &fonts,
+            None,
+        );
         assert_eq!(doc["tokens"]["decor.frame"], "");
+        assert_eq!(doc["appearance"]["look"], "kanso");
+        let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts);
+        assert!(shown["styles"].as_array().unwrap().len() > 10);
+        assert_eq!(shown["looks"].as_array().unwrap().len(), 17);
+        assert!(shown["palettes"].as_array().unwrap().len() > 10);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// K53: applying a style resets the appearance keys the user set and is one undoable change; a look keeps the
+    /// style's palette.
+    #[tokio::test]
+    async fn applying_a_style_resets_appearance_and_keeps_the_rest() {
+        let root = std::env::temp_dir().join(format!("kurashid-style-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let store = store_with(
+            &root,
+            "schema_version = 2\n[theme]\nstyle = \"sekai\"\nchrome = \"flat\"\ndensity = \"airy\"\n[theme.colors]\ncontrast = \"high\"\n[bar]\nheight = 40\n",
+        );
+        assert_eq!(
+            store.appearance_overrides(),
+            ["theme.density", "theme.chrome"]
+        );
+        let mut actions = crate::actions::ActionRegistry::default();
+        store.register_actions(&mut actions);
+        actions
+            .invoke("theme.style.apply", json!({"name": "win95"}))
+            .await
+            .unwrap();
+        let val = |k: &str| store.get(k, None).unwrap();
+        assert_eq!(val("theme.style").value, "win95");
+        assert_eq!(
+            val("theme.chrome").source,
+            kurashi_config::Source::Theme("look:win95".into())
+        );
+        assert_eq!(
+            val("theme.density").source,
+            kurashi_config::Source::Theme("style:win95".into())
+        );
+        // Not appearance: kept.
+        assert_eq!(val("theme.colors.contrast").value, "high");
+        assert_eq!(val("bar.height").value, 40);
+        assert!(store.appearance_overrides().is_empty());
+        actions
+            .invoke("theme.look.apply", json!({"name": "sekai"}))
+            .await
+            .unwrap();
+        assert_eq!(val("theme.chrome").value, "keycap");
+        assert_eq!(val("theme.colors.palette").value, "win95");
         let _ = std::fs::remove_dir_all(&root);
     }
 }

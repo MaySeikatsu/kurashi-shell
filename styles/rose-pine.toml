@@ -1,0 +1,11 @@
+name = "rose-pine"
+label = "config.choice.style.rose-pine"
+category = "modern"
+# After shellseikatsu `Services/Modes/Rosepine.qml` (W25): muted dusk, iris/foam/rose, generous rounding, gentle
+# damped motion.
+look = "soft"
+palette = "rose-pine"
+[recipe]
+"theme.shape.radius_scale" = 1.15
+"theme.typography.family" = ["Nunito", "Noto Sans CJK JP", "sans-serif"]
+"theme.colors.scheme" = "dark"

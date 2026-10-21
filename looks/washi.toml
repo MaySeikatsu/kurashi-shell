@@ -1,9 +1,8 @@
 name = "washi"
-label = "config.choice.decor.washi"
+label = "config.choice.look.washi"
+category = "inspired"
 # Paper and ink: wa-iro on a light ground, fine ink lines, small corners, a serif hand.
 [recipe]
-"theme.colors.palette" = "wa-iro"
-"theme.colors.scheme" = "light"
 "theme.chrome" = "line"
 "theme.motion.profile" = "calm"
 "theme.material.kind" = "solid"

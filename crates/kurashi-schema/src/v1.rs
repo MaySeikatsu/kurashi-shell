@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -79,11 +79,18 @@ pub struct Bar {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "appearance")]
 pub struct Theme {
+    /// Style
+    /// A fixed preset that recreates one aesthetic: a look, a palette, the scheme, density and motion. Applying a
+    /// style resets your appearance changes; what you change afterwards shows as a difference from it. It changes how
+    /// things look, never where they are (K53).
+    #[kurashi(default = "washi".to_owned(), choices_from = "styles", section = "colors")]
+    pub style: String,
     /// Look
-    /// A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one choice. It
-    /// changes how things look, never where they are. Your own settings still win (K42, K45).
-    #[kurashi(default = "none".to_owned(), choices_from = "decors", section = "colors")]
-    pub decor: String,
+    /// The form and feel of the interface without its colours: chrome, corners, material, motion, type and its
+    /// art — sekai's toy keycaps, washi's paper and ink, win95's bevels. The style picks one; pick another to
+    /// override it (K53).
+    #[kurashi(default = "kanso".to_owned(), choices_from = "looks", section = "colors")]
+    pub look: String,
     #[kurashi(nested, section = "colors")]
     pub colors: Colors,
     #[kurashi(nested, section = "shape")]

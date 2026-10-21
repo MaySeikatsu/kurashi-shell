@@ -189,7 +189,8 @@ async fn export_then_import_round_trip_drops_machine_local_keys() {
             .get("theme.colors.palette", None)
             .unwrap()
             .source
-            == Source::Default
+            // A review applies nothing: the default style's palette still (K53).
+            == Source::Theme("style:washi".into())
     );
 
     let applied = other

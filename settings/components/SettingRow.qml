@@ -32,7 +32,10 @@ Item {
         }
     }
     onLiveOffersChanged: refreshOffers()
-    Component.onCompleted: refreshOffers()
+    Component.onCompleted: {
+        refreshOffers()
+        if (r.wantsPreviews) Store.watch("theme.previews")
+    }
 
     readonly property string out: row.per_output ? output : ""
     readonly property var prov: Store.prov(row.key, out)
@@ -49,9 +52,16 @@ Item {
     readonly property bool editable: !inert && Store.live
     // A select with offers from the daemon (or more than four fixed ones) is a dropdown; two fixed ones are a switch;
     // three to four stay pills (BACKLOG I9, UX brief "Controls").
-    // Offers with a look of their own in `theme.decors` (K45, I104) are preview cards: name -> tokens.
+    readonly property var previewKinds: ({"theme.style": "styles", "theme.look": "looks", "theme.colors.palette": "palettes"})
+    // The previews are watched only while a row that shows them exists (Ma).
+    readonly property bool wantsPreviews: r.previewKinds[row.key] !== undefined
+    Component.onDestruction: if (r.wantsPreviews) Store.unwatch("theme.previews")
+    // Offers with a look of their own (K45, I104, K53) are preview cards: name -> tokens, from `theme.previews`
+    // (`styles`, `looks` or `palettes`, for the key that picks one).
     readonly property var looks: {
-        var m = {}, list = (Store.theme && Store.theme.decors) || []
+        var by = r.previewKinds
+        var pv = Store.docs["theme.previews"]
+        var m = {}, list = (pv && by[row.key] && pv[by[row.key]]) || []
         for (var i = 0; i < list.length; i++) m[list[i].name] = list[i].tokens
         return m
     }

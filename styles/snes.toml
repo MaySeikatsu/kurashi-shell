@@ -1,0 +1,10 @@
+name = "snes"
+label = "config.choice.style.snes"
+category = "retro"
+# After shellseikatsu `Services/Modes/Snes.qml` and `Widgets/ThemeDecor/SnesFrame.qml` (W25): console-plastic grey,
+# hard blocky keys, the logo's four dots and the purple buttons, chunky pixel type, quick motion.
+look = "snes"
+palette = "snes"
+[recipe]
+"theme.colors.scheme" = "light"
+"theme.density" = "compact"

@@ -11,7 +11,7 @@
 "mods.ai.ollama_url" = "Ollama のアドレス"
 "mods.ai.ollama_url.help" = "Ollama サーバー (ollama serve) が待ち受けるアドレス。"
 "mods.ai.ollama_model" = "Ollama のモデル"
-"mods.ai.ollama_model.help" = "取得済みのモデル (例: llama3.2)。空欄: 最初にインストールされたもの。パネルのモデル選択でも設定できます。"
+"mods.ai.ollama_model.help" = "取得済みのモデル (例: llama3.2)。空欄: 前回使ったもの、なければ最初にインストールされたもの。パネルのモデル選択でも設定でき、次回も使われます。"
 "mods.ai.openai_url" = "OpenAI 互換のアドレス"
 "mods.ai.openai_url.help" = "API のベースアドレス (/chat/completions の手前まで): OpenAI、OpenRouter、Mistral、llama.cpp、LM Studio、vLLM など。"
 "mods.ai.openai_model" = "OpenAI 互換のモデル"

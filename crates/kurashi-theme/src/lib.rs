@@ -7,8 +7,8 @@
 //! Wallpaper extraction ([`Wallpaper::load`], [`stages::from_wallpaper`]) is blocking CPU:
 //! callers run it on a blocking thread (`tokio::task::spawn_blocking`).
 
+pub mod appearance;
 pub mod color;
-pub mod decor;
 pub mod export;
 pub mod fonts;
 pub mod input;
@@ -96,27 +96,17 @@ pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutp
     })
 }
 
-/// Decor packs' recipes (K42, K45, K50, DESIGN-SYSTEM §4): the axis values a pack recommends, applied by the daemon at
-/// the `theme:<pack>` layer, under everything the user sets. `None` for no pack. A recipe names `theme.*` keys only: a
-/// decor changes how things look, never where they are — layout belongs to the user and to profiles. The packs are
-/// files (`decors/*.toml`, [`decor`]).
-pub fn decor_recipe(name: &str) -> Option<Vec<(String, serde_json::Value)>> {
-    decor::find(name).map(|d| d.recipe)
-}
-
-/// Names of the decor packs, in the order Settings shows them.
-pub fn decor_names() -> Vec<String> {
-    decor::all().into_iter().map(|d| d.name).collect()
-}
-
-/// What a decor would look like (K45, I104): the tokens a preview card draws, resolved from the
-/// pack's recipe alone — the user's own values left out, so the card shows the pack itself. The
-/// font is the first installed family of the pack's chain (Shōjiki). `None` for no recipe.
-pub fn decor_preview(name: &str, fonts: &dyn FontProvider) -> Option<serde_json::Value> {
+/// What a style or a look looks like (K45, I104, K53): the tokens a preview card draws, resolved from theme `entries`
+/// alone (a pack's layer, [`appearance::layer`]) — the user's own values left out, so the card shows the pack itself.
+/// The font is the first installed family of the pack's chain (Shōjiki). `None` when the tokens cannot be resolved.
+pub fn preview(
+    name: &str,
+    entries: &[(String, serde_json::Value)],
+    fonts: &dyn FontProvider,
+) -> Option<serde_json::Value> {
     use serde_json::{Value, json};
-    let recipe = decor_recipe(name)?;
     let mut input = ThemeInput::default();
-    for (key, v) in &recipe {
+    for (key, v) in entries {
         let s = v.as_str().unwrap_or_default();
         let f = v.as_f64().unwrap_or_default();
         match key.as_str() {
@@ -200,4 +190,60 @@ pub fn decor_preview(name: &str, fonts: &dyn FontProvider) -> Option<serde_json:
         .filter_map(|k| t.get(*k).map(|v| ((*k).to_owned(), v.clone())))
         .collect();
     Some(json!({ "name": name, "tokens": tokens }))
+}
+
+/// A style's preview card: its look, palette and recipe, with its frame and category.
+pub fn style_preview(name: &str, fonts: &dyn FontProvider) -> Option<serde_json::Value> {
+    use appearance::Kind;
+    let style = appearance::find(Kind::Style, name)?;
+    let look = appearance::find(Kind::Look, &style.look);
+    let entries: Vec<_> = appearance::layer(Some(&style), look.as_ref())
+        .into_iter()
+        .map(|(k, v, _)| (k, v))
+        .collect();
+    let mut p = preview(name, &entries, fonts)?;
+    p["category"] = style.category.into();
+    p["look"] = style.look.into();
+    p["palette"] = style.palette.into();
+    p["frame"] = look.map(|l| l.frame).unwrap_or_default().into();
+    Some(p)
+}
+
+/// A palette's preview card, drawn in the look in effect and `scheme` (K53: the palette is what differs).
+pub fn palette_preview(
+    name: &str,
+    look: &str,
+    scheme: &str,
+    fonts: &dyn FontProvider,
+) -> Option<serde_json::Value> {
+    use appearance::Kind;
+    let look = appearance::find(Kind::Look, look);
+    let mut entries: Vec<_> = appearance::layer(None, look.as_ref())
+        .into_iter()
+        .map(|(k, v, _)| (k, v))
+        .collect();
+    entries.push(("theme.colors.palette".into(), name.into()));
+    entries.push(("theme.colors.scheme".into(), scheme.into()));
+    preview(name, &entries, fonts)
+}
+
+/// A look's preview card, drawn in `palette` and `scheme` (the ones in effect: a look has no colours of its own).
+pub fn look_preview(
+    name: &str,
+    palette: &str,
+    scheme: &str,
+    fonts: &dyn FontProvider,
+) -> Option<serde_json::Value> {
+    use appearance::Kind;
+    let look = appearance::find(Kind::Look, name)?;
+    let mut entries: Vec<_> = appearance::layer(None, Some(&look))
+        .into_iter()
+        .map(|(k, v, _)| (k, v))
+        .collect();
+    entries.push(("theme.colors.palette".into(), palette.into()));
+    entries.push(("theme.colors.scheme".into(), scheme.into()));
+    let mut p = preview(name, &entries, fonts)?;
+    p["category"] = look.category.into();
+    p["frame"] = look.frame.into();
+    Some(p)
 }

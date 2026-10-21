@@ -1,9 +1,8 @@
 name = "terminal"
-label = "config.choice.decor.terminal"
+label = "config.choice.look.terminal"
+category = "modern"
 # A terminal's honesty: ink outlines on mono, square corners, sharp icons, quick and calm.
 [recipe]
-"theme.colors.palette" = "kanso"
-"theme.colors.scheme" = "dark"
 "theme.chrome" = "line"
 "theme.motion.profile" = "calm"
 "theme.motion.speed" = 1.6

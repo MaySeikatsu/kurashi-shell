@@ -425,6 +425,17 @@ fn note(e: &Engine, p: &Provider, ok: bool, reason: &'static str, detail: String
 }
 
 /// The model list of `p` into the state; the list (or why there is none).
+/// The model of the newest answer from `provider` in the saved conversations (the five newest are looked at): with no
+/// model chosen, the chat goes on with the one the user used last.
+fn last_used(store: &Store, provider: &str) -> Option<String> {
+    store.list().iter().take(5).find_map(|c| {
+        store.load(&c.id)?.messages.iter().rev().find_map(|m| {
+            (m.role == Role::Assistant && m.provider == provider && !m.model.is_empty())
+                .then(|| m.model.clone())
+        })
+    })
+}
+
 async fn fetch_models(e: &Engine, p: &Provider) -> Result<Vec<Model>, (&'static str, String)> {
     let of = of(p);
     e.state.send_modify(|s| {
@@ -460,7 +471,11 @@ async fn fetch_models(e: &Engine, p: &Provider) -> Result<Vec<Model>, (&'static 
                     ..Models::default()
                 };
                 if p.format == Format::Ollama {
-                    s.auto_model = list.first().map(|m| (of.clone(), m.id.clone()));
+                    // The model the user last talked to, while it is still installed; else the first one.
+                    let pick = last_used(&e.store, p.format.id())
+                        .filter(|m| list.iter().any(|x| &x.id == m))
+                        .or_else(|| list.first().map(|m| m.id.clone()));
+                    s.auto_model = pick.map(|m| (of.clone(), m));
                 }
             });
         }

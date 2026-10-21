@@ -575,15 +575,24 @@ fn bad_palettes_are_rejected() {
 }
 
 #[test]
-fn decor_recipes_change_looks_never_layout() {
-    // K45: a decor names theme keys only; bar edge/height, desk cards and the island stay the user's.
-    for name in ["sekai", "glass", "terminal", "washi"] {
-        let recipe = decor_recipe(name).unwrap_or_else(|| panic!("{name} has a recipe"));
-        for (key, _) in recipe {
-            assert!(key.starts_with("theme."), "{name} sets {key}");
+fn styles_and_looks_change_looks_never_layout() {
+    // K45, K53: packs name theme keys only; bar edge/height, desk cards and the island stay the user's.
+    use kurashi_theme::appearance::{Kind, all_in, find, layer};
+    for kind in [Kind::Look, Kind::Style] {
+        for p in all_in(kind, &[]) {
+            for (key, _) in &p.recipe {
+                assert!(key.starts_with("theme."), "{} sets {key}", p.name);
+            }
         }
     }
-    assert!(decor_recipe("none").is_none());
+    let washi = find(Kind::Style, "washi").unwrap();
+    let entries = layer(Some(&washi), find(Kind::Look, &washi.look).as_ref());
+    assert!(entries.iter().all(|(k, _, _)| k.starts_with("theme.")));
+    assert!(find(Kind::Style, "none").is_none());
+    let p = style_preview("washi", &fonts()).unwrap();
+    assert_eq!(p["look"], "washi");
+    assert_eq!(p["category"], "inspired");
+    assert!(look_preview("sekai", "kanso", "dark", &fonts()).is_some());
 }
 
 #[test]
