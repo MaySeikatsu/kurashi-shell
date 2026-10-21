@@ -149,3 +149,24 @@ The user on I115: "Yes it should join". The shape picks its topology from tokens
   odd-even), so no layer lies under another and the fill is the panel's (`Theme.panel`: translucent under glass).
 - Evidence: `frontend/test-island-morph.sh` with `theme.decor = "sekai"` (joined keycap), `"glass"` (joined soft),
   `"terminal"` (strip, square) → `frontend/shots/island/morph-{sekai,glass,terminal}-*.png`.
+
+## Session 12: the join under line chrome (W30)
+The user: "When the dynamic island is open with Line chrome active, it seems disconnected on the merge to the bar since
+the island is going straight down and the extended island part merging into the bar, both not really meet at the same
+point." Under a ruled strip (an outline token: line chrome, washi's and terminal's) the card stood in front of the bar:
+its own outline ran up through the bar's rule round the head, and the fillet's band thinned to nothing at the rule, so
+the rule met the card in a T (square) or a fork (rounded), never as one line (`join-before-{washi,terminal}-rest.png`).
+- **The card hangs from the rule** (`MorphShape.hangs`): its outline *is* the rule — along the rule's band (barH − ow …
+  barH), round each concave fillet (concentric arcs, radius n outside and n + ow inside, so the line keeps its width;
+  mitred when the corners are square) and down the sides. Drawn as one U-shaped band from fillet top to fillet top, so
+  no edges coincide.
+- **The head loses its box as the card grows**: the pill's outline (the bar's boxed pill) thins to nothing while the
+  card's bottom travels a bar's height past the edge (`opened`); open, the head inside the bar is fill only.
+- **The bar opens its rule under the card** (`IslandGeom.openL/openR`, reported by the shape, read by the bar whose pill
+  is taken): a translucent card never shows the rule through it. The opening stops 2 px inside the fillets' tops, so a
+  frame between the two surfaces overlaps rather than gaps.
+- Flat, keycap and soft are untouched (no outline token, or the joined topology).
+- Evidence: `frontend/test-island-join.sh` — washi light and dark, terminal, line on the default look, corners
+  none/squircle, radius scales 0.5 and 2, washi and terminal on a bottom bar — fails on a gap, a step or an overshoot in
+  the outline from the rule to the card's side (rest and every morph frame), or a rule left under the card →
+  `frontend/shots/island/morph-{washi,terminal}-*.png`, the other cases under `target/island-join/`.
