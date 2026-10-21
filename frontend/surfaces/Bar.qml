@@ -200,9 +200,10 @@ PanelWindow {
         id: bg
         anchors.fill: parent
         color: bar.floating ? "transparent" : Theme.surfaceAlpha
-        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's card hangs from it
-        // (W30, IslandGeom.openL/R) the rule is left out under the card, whose shape draws the join: the rule runs round
-        // the card's fillets into its sides, and a translucent card never shows the rule through it.
+        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
+        // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there itself,
+        // in step with the card: round the hanging card's fillets into its sides, never under a translucent card. The
+        // opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
         readonly property bool opened: !bar.vertical && IslandGeom.openR > IslandGeom.openL
             && IslandGeom.takenOn !== "" && IslandGeom.takenOn === (bar.screen ? bar.screen.name : "")
         Rectangle {
