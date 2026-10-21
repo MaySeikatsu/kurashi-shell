@@ -94,6 +94,13 @@ Item {
             provide: lc.tab ? "panel:" + lc.tab.ref.panel : ""
             mod: lc.tab ? lc.tab.ref.mod : ""
         }
+        // The height on offer, for a panel that can fill it (optional `fillHeight`, MODS.md "Panels"; row 238).
+        Binding {
+            target: panel.item
+            property: "fillHeight"
+            value: pane.height
+            when: panel.item !== null && panel.item.fillHeight !== undefined
+        }
     }
     // Nothing to show: which tabs are missing, and why.
     Column {

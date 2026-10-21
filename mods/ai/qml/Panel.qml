@@ -21,15 +21,17 @@ Item {
     property int cardWidth: 560
     width: parent ? parent.width : cardWidth
     implicitHeight: body.implicitHeight
-    // A host that gives the panel more height than it needs (the left sidebar, W29 row 238) gets a conversation that
-    // fills it and the composer at the bottom; the Stage card sizes the panel to its implicit height, so `extra` stays 0
-    // there. Updated imperatively (natural height = the body without `extra`), so no binding loop.
+    // A host that offers more height than the panel needs (the left sidebar, W29 row 238) gets a conversation that fills
+    // it and the composer at the bottom; the Stage card offers none, so `extra` stays 0 there. Updated imperatively
+    // (natural height = the body without `extra`), so no binding loop.
+    // `fillHeight` is the optional mod-panel property a host sets to the height it offers (MODS.md "Panels"); 0 = none.
+    property real fillHeight: 0
     property real extra: 0
     function relayout() {
-        var e = Math.max(0, p.height - (body.implicitHeight - p.extra))
+        var e = Math.max(0, p.fillHeight - (body.implicitHeight - p.extra))
         if (Math.abs(e - p.extra) > 0.5) p.extra = e
     }
-    onHeightChanged: relayout()
+    onFillHeightChanged: relayout()
 
     readonly property var d: Store.docs["mod.ai"] || ({})
     readonly property bool loaded: d.provider !== undefined
