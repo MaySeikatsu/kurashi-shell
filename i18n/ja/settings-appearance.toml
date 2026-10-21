@@ -1,0 +1,13 @@
+# 設定 › 外観：スタイル・ルック・パレット（W29、K53）。
+"settings.appearance.styles.what" = "見た目・色・動きをまとめた一つの美意識。適用すると、外観の変更はリセットされます。"
+"settings.appearance.looks.what" = "色を除いた、形と手触り。"
+"settings.appearance.palettes.what" = "色だけ。"
+"settings.appearance.categories" = "カテゴリー"
+"settings.appearance.category_count" = "{name}・{n}"
+"settings.appearance.frame" = "フレーム装飾つき"
+"settings.appearance.differs_one" = "1 件の設定が{style}と異なります：{keys}"
+"settings.appearance.differs_many" = "{n} 件の設定が{style}と異なります：{keys}"
+"settings.appearance.reset_to" = "{style}に戻す"
+"settings.appearance.refused" = "適用できませんでした"
+"settings.source.style" = "スタイル「{name}」から"
+"settings.source.look" = "ルック「{name}」から"

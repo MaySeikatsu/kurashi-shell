@@ -90,6 +90,8 @@ Flickable {
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
     readonly property var extras: ({ "theme.export": cThemeExport })
+    // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
+    readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
     Component { id: cThemeExport; ThemeExportStatus {} }
 
     contentWidth: width
@@ -103,7 +105,9 @@ Flickable {
         return hay.indexOf(q) >= 0
     }
     // pages -> sections -> rows after page / search / advanced filtering; empty groups dropped.
-    // Rows are {row, pageId, crumb}: the crumb is what a search hit shows above its row.
+    // Rows are {row, pageId, crumb}: the crumb is what a search hit shows above its row. On a page (not a search), the
+    // rows that pick an appearance pack (K53: style, look, palette) leave their section and open the page as blocks of
+    // their own, in the schema's order (W29, docs/ux/looks.md "Settings").
     readonly property var view: {
         var q = p.query.trim().toLowerCase()
         var out = []
@@ -111,18 +115,24 @@ Flickable {
         var tr = I18n.strings   // re-evaluate when strings arrive
         for (var i = 0; i < pages.length; i++) {
             if (q === "" && pages[i].id !== p.pageId) continue
-            var secs = []
+            var secs = [], blocks = []
             for (var j = 0; j < pages[i].sections.length; j++) {
                 var s = pages[i].sections[j]
                 var rows = s.rows.filter(function (r) {
                     return (p.showAdvanced || !r.advanced || q !== "") && matches(r, q)
                 })
+                if (q === "") {
+                    rows.filter(function (r) { return Store.isPackRow(r) }).forEach(function (r) {
+                        blocks.push({ row: r, pageId: pages[i].id, crumb: "" })
+                    })
+                    rows = rows.filter(function (r) { return !Store.isPackRow(r) })
+                }
                 if (rows.length) secs.push({ id: s.id, label: s.label, rows: rows.map(function (r) {
                     return { row: r, pageId: pages[i].id,
                              crumb: I18n.pageTitle(pages[i].id, pages[i].label) + " › " + I18n.tr(s.label) + " › " + I18n.tr(r.label) }
                 }) })
             }
-            if (secs.length) out.push({ id: pages[i].id, label: pages[i].label, sections: secs })
+            if (secs.length || blocks.length) out.push({ id: pages[i].id, label: pages[i].label, sections: secs, blocks: blocks })
         }
         return out
     }
@@ -170,6 +180,7 @@ Flickable {
         var out = []
         var walk = function (item) {
             if (item.objectName && item.objectName.indexOf("section:") === 0) { if (item.visible) out.push(item.objectName.substring(8)); return }
+            if (item.objectName && item.objectName.indexOf("block:") === 0) { if (item.visible) out.push(item.objectName); return }
             var kids = item.children || []
             for (var i = 0; i < kids.length; i++) walk(kids[i])
         }
@@ -189,6 +200,35 @@ Flickable {
         }
         walk(col)
         return found
+    }
+    // The settings test (W29): an item on the page by its objectName, or null.
+    function findNamed(item, name) {
+        if (item.objectName === name && item.visible) return item
+        var kids = item.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var f = findNamed(kids[i], name)
+            if (f) return f
+        }
+        return null
+    }
+    // A row's value picked as its control would (a card's click): a style or a look by its action.
+    function pick(key, value) {
+        var hit = findRow(col, key)
+        if (hit) hit.setValue(value)
+    }
+    // The category chips of a row's cards ("modern,inspired,…") and the open one, and a chip's click.
+    function categories(key) { var c = findNamed(col, "cards:" + key); return c && c.categoryIds ? c.categoryIds() : "" }
+    function openCategory(key) { var c = findNamed(col, "cards:" + key); return c && c.openCat !== undefined ? c.openCat : "" }
+    function openCategoryOf(key, id) { var c = findNamed(col, "cards:" + key); if (c && c.open) c.open(id) }
+    // The "differs from the style" line as shown ("" when hidden), and its Reset.
+    function differs() { var d = findNamed(col, "differs"); return d ? d.text : "" }
+    function resetToStyle() { var b = findNamed(col, "differs-reset"); if (b) b.press() }
+    // The scroll position that brings an item named so into view (shots of a block).
+    function scrollTo(name) {
+        var it = findNamed(col, name)
+        if (!it) return
+        var y = it.mapToItem(p.contentItem, 0, 0).y
+        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
     }
     // A reason's link: the setting that controls this row, wherever it is.
     function openKey(key) {
@@ -245,6 +285,32 @@ Flickable {
                 required property var modelData
                 width: col.width
                 spacing: Theme.pad
+                // The appearance packs' blocks (W29): Style, Look, Palette, each a card titled with the setting's name, its
+                // control the whole width; the style's card adds the "differs from the style" line.
+                Repeater {
+                    model: modelData.blocks
+                    delegate: SectionCard {
+                        id: blk
+                        required property var modelData
+                        objectName: "block:" + modelData.row.key
+                        width: col.width
+                        title: I18n.tr(modelData.row.label)
+                        icon: p.packIcons[modelData.row.choices_from] || "palette"
+                        SettingRow {
+                            width: blk.width - 2 * Theme.pad
+                            rowKey: blk.modelData.row.key
+                            output: p.output
+                            stacked: true
+                            divider: false
+                            onOpenKey: key => p.openKey(key)
+                        }
+                        Loader {
+                            width: blk.width - 2 * Theme.pad
+                            active: blk.modelData.row.choices_from === "styles"
+                            sourceComponent: StyleDiffers {}
+                        }
+                    }
+                }
                 Repeater {
                     model: modelData.sections
                     delegate: SectionCard {
