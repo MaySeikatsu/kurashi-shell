@@ -626,7 +626,10 @@ fn every_bundled_palette_has_both_schemes_as_written() {
     // (Contrast in both is `every_palette_scheme_contrast_passes_aa_after_wcag`.)
     for name in bundled_names() {
         let set = bundled(name).unwrap();
-        assert!(set.dark.is_some() && set.light.is_some(), "{name} lacks a scheme");
+        assert!(
+            set.dark.is_some() && set.light.is_some(),
+            "{name} lacks a scheme"
+        );
         if std::env::var_os("KURASHI_PRINT_WCAG").is_some() {
             for scheme in [Scheme::Dark, Scheme::Light] {
                 let out = resolve(&input(name, scheme), &fonts()).unwrap();

@@ -56,6 +56,15 @@ PanelWindow {
     }
     onModsDocChanged: refreshWidgets()
     Component.onCompleted: { refreshWidgets(); Peeks.setEdge(screen ? screen.name : "", barEdge) }
+    // The quick button (K24), or with `sidebar.from_bar` the right sidebar on this output (W29): its open state and its click.
+    readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
+    readonly property bool quickOpen: cfg.sidebarFromBar
+        ? uiDoc.sidebar === "right" && (!uiDoc.sidebar_output || uiDoc.sidebar_output === (screen ? screen.name : ""))
+        : uiDoc.panel === "quick"
+    function quickClicked() {
+        if (cfg.sidebarFromBar) Store.act("sidebar.toggle", {side: "right", output: screen ? screen.name : ""})
+        else Store.act("quick.toggle")
+    }
     // A mod widget's peek (K35): its `peek:<name>` component, named after the widget's `widget:<name>`; "" when the mod has none.
     function modPeekOf(w) {
         var name = String(w.provide).substring("widget:".length)
@@ -508,8 +517,8 @@ PanelWindow {
                 // Quick settings sit before the tray (K24); the panel is the daemon's runtime.ui.panel.
                 QuickButton {
                     anchors.verticalCenter: parent.verticalCenter
-                    open: (Store.docs["runtime.ui"] || ({})).panel === "quick"
-                    onClicked: Store.act("quick.toggle")
+                    open: bar.quickOpen
+                    onClicked: bar.quickClicked()
                 }
                 // The tray ends the row: its menus align to the bar's end (K23).
                 Repeater {
@@ -707,8 +716,8 @@ PanelWindow {
                 QuickButton {
                     id: quickB
                     visible: vlayout.fit > 2 + vlayout.modN
-                    open: (Store.docs["runtime.ui"] || ({})).panel === "quick"
-                    onClicked: Store.act("quick.toggle")
+                    open: bar.quickOpen
+                    onClicked: bar.quickClicked()
                 }
                 Repeater {
                     id: trayRep
