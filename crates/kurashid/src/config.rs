@@ -38,7 +38,23 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 4] = ["palettes", "island.faces", "theme.export", "decors"];
+pub const CORE_SOURCES: [&str; 6] = [
+    "palettes",
+    "island.faces",
+    "theme.export",
+    "decors",
+    "sidebar.sections",
+    "sidebar.tabs",
+];
+/// The right sidebar's core sections (W29, docs/ux/sidebar.md), offered before the mods' panels.
+const SIDEBAR_SECTIONS: [&str; 6] = [
+    "header",
+    "toggles",
+    "sliders",
+    "notifications",
+    "calendar",
+    "media",
+];
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
 /// the static schema; the mods' lists `mods.loaded` / `mods.enabled` (K25) are hidden keys of
@@ -166,8 +182,24 @@ impl Offer {
 /// (a mod's palette file cannot be loaded yet, so it is no option); `island.faces` are the faces
 /// the island registered (`runtime.island.main`), without the OSD faces. `mod_faces` names the
 /// faces a mod provides, with the mod's name as their label (I37); a core face has its catalogue key.
-fn offers_now(hub: &Hub, mod_faces: &BTreeMap<String, String>) -> BTreeMap<String, Vec<Offer>> {
+/// `mod_panels` are the loaded mods' panels as `mod:<id>:<panel>` offers (W29): the left sidebar's tabs, and the right
+/// sidebar's sections after the core ones.
+fn offers_now(
+    hub: &Hub,
+    mod_faces: &BTreeMap<String, String>,
+    mod_panels: &[Offer],
+) -> BTreeMap<String, Vec<Offer>> {
     let mut offers = BTreeMap::new();
+    // W29: the right sidebar's sections and the left sidebar's tabs.
+    offers.insert(
+        "sidebar.sections".to_string(),
+        SIDEBAR_SECTIONS
+            .iter()
+            .map(|s| Offer::on(s, format!("config.choice.sidebar_section.{s}")))
+            .chain(mod_panels.iter().cloned())
+            .collect(),
+    );
+    offers.insert("sidebar.tabs".to_string(), mod_panels.to_vec());
     let mut palettes: Vec<Offer> = kurashi_theme::bundled_names()
         .into_iter()
         .map(|name| Offer::on(name, format!("config.choice.palette.{name}")))
@@ -237,6 +269,8 @@ struct ModSettings {
     keys: Vec<KeyMeta>,
     /// The island faces it provides (`island-face:<name>`): labelled with its name (I37).
     faces: Vec<String>,
+    /// The panels it provides (`panel:<name>`): sidebar tabs and sections (W29).
+    panels: Vec<String>,
 }
 
 impl ModTable {
@@ -253,6 +287,14 @@ impl ModTable {
                         _ => None,
                     })
                     .collect();
+                let panels = m
+                    .provides
+                    .iter()
+                    .filter_map(|p| match p {
+                        Provide::Panel(name) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
                 Some(ModSettings {
                     id: m.id.clone(),
                     name: m.name.clone(),
@@ -260,6 +302,7 @@ impl ModTable {
                     enabled: e.state == ModState::Enabled,
                     keys: m.settings.iter().map(|s| setting_meta(m, s)).collect(),
                     faces,
+                    panels,
                 })
             })
             .collect();
@@ -271,6 +314,23 @@ impl ModTable {
         self.mods
             .iter()
             .flat_map(|m| m.faces.iter().map(move |f| (f.clone(), m.name.clone())))
+            .collect()
+    }
+
+    /// Every loaded mod's panel as a sidebar offer `mod:<id>:<panel>`, labelled with the mod's name (W29). A mod that is
+    /// off offers its panels disabled, with the reason, so a value naming one is inert and Settings says why.
+    fn panel_offers(&self) -> Vec<Offer> {
+        self.mods
+            .iter()
+            .filter(|m| m.loaded)
+            .flat_map(|m| {
+                m.panels.iter().map(move |p| Offer {
+                    value: format!("mod:{}:{p}", m.id),
+                    label: m.name.clone(),
+                    enabled: m.enabled,
+                    reason: (!m.enabled).then(|| REASON_MOD_DISABLED.to_string()),
+                })
+            })
             .collect()
     }
 
@@ -624,7 +684,7 @@ impl ConfigStore {
         opts: Options,
     ) -> Arc<Self> {
         // No mods yet: their face labels follow with `sync_mods`.
-        let offers = offers_now(&hub, &BTreeMap::new());
+        let offers = offers_now(&hub, &BTreeMap::new(), &[]);
         let schema = SchemaAdapter {
             core: registry,
             lists: list_keys(registry.version()),
@@ -960,15 +1020,13 @@ impl ConfigStore {
     /// it registers, the mods' pages with their state. Republished whole; an unchanged document is
     /// no patch (hub).
     fn publish_settings(&self) {
-        // The mods' face names are read under their own lock first: `offers_now` reads the hub.
-        let mod_faces = self
-            .cfg
-            .lock()
-            .expect("config lock")
-            .schema()
-            .mods
-            .face_names();
-        let mut offers = offers_now(&self.hub, &mod_faces);
+        // The mods' face names and panels are read under their own lock first: `offers_now` reads the hub.
+        let (mod_faces, mod_panels) = {
+            let cfg = self.cfg.lock().expect("config lock");
+            let mods = &cfg.schema().mods;
+            (mods.face_names(), mods.panel_offers())
+        };
+        let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels);
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers
@@ -1417,12 +1475,59 @@ mod tests {
             None,
         );
         let mods = BTreeMap::from([("weather".to_string(), "mods.weather.name".to_string())]);
-        let offers = offers_now(&hub, &mods);
+        let offers = offers_now(&hub, &mods, &[]);
         let faces = &offers["island.faces"];
         let label = |v: &str| faces.iter().find(|o| o.value == v).map(|o| o.label.clone());
         assert_eq!(label("weather").as_deref(), Some("mods.weather.name"));
         assert_eq!(label("bluetooth").as_deref(), Some("config.face.bluetooth"));
         assert_eq!(label("volume"), None, "OSD faces are not offered");
+    }
+
+    /// W29: the right sidebar offers the core sections, then the mods' panels; the left one the panels only. A panel of a
+    /// mod that is off is offered disabled with its reason, so a value naming it is inert, not unjudged.
+    #[test]
+    fn sidebar_offers_core_sections_and_mod_panels() {
+        let hub = Hub::new();
+        let ai = Offer::on("mod:ai:ai", "mods.ai.name".into());
+        let tasks = Offer {
+            value: "mod:tasks:tasks".into(),
+            label: "mods.tasks.name".into(),
+            enabled: false,
+            reason: Some(REASON_MOD_DISABLED.into()),
+        };
+        let offers = offers_now(&hub, &BTreeMap::new(), &[ai, tasks]);
+        let values = |src: &str| {
+            offers[src]
+                .iter()
+                .map(|o| o.value.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            values("sidebar.sections"),
+            [
+                "header",
+                "toggles",
+                "sliders",
+                "notifications",
+                "calendar",
+                "media",
+                "mod:ai:ai",
+                "mod:tasks:tasks"
+            ]
+        );
+        assert_eq!(values("sidebar.tabs"), ["mod:ai:ai", "mod:tasks:tasks"]);
+        let ok = |src: &str, v: Value| offered(&offers, src, &v);
+        assert_eq!(ok("sidebar.tabs", json!(["mod:ai:ai"])), Some(true));
+        assert_eq!(ok("sidebar.tabs", json!(["mod:tasks:tasks"])), Some(false));
+        assert_eq!(ok("sidebar.tabs", json!(["mod:gone:x"])), Some(false));
+        assert_eq!(
+            ok("sidebar.sections", json!(["header", "media"])),
+            Some(true)
+        );
+        assert_eq!(
+            offers["sidebar.tabs"][1].json()["reason"],
+            REASON_MOD_DISABLED
+        );
     }
 }
 

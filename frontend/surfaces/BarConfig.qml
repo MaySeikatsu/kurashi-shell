@@ -55,6 +55,8 @@ Scope {
     readonly property bool atBottom: enabled && edge === "bottom"
     readonly property bool atRight: enabled && edge === "right"
     readonly property bool vertical: enabled && (edge === "left" || edge === "right")
+    // W29 `sidebar.from_bar`: the quick settings button opens the right sidebar instead of the quick card.
+    readonly property bool sidebarFromBar: valueOf("sidebar.from_bar", false) === true
 
     // Clearance for something that hugs an edge: past the bar when this output's bar sits there,
     // else the screen-edge margin.

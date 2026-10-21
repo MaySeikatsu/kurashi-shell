@@ -320,7 +320,8 @@ impl State {
                 let (panel, tray) = if open { ("", "") } else { ("tray", id) };
                 self.patch(
                     "runtime.ui",
-                    json!({"panel": panel, "popup": !open, "tray": tray, "face": "", "peek": null}),
+                    json!({"panel": panel, "popup": !open, "tray": tray, "face": "", "peek": null,
+                           "sidebar": null, "sidebar_output": null}),
                     None,
                 );
             }
@@ -328,11 +329,50 @@ impl State {
                 let open = self.data("runtime.ui")["launcher"]
                     .as_bool()
                     .unwrap_or(false);
-                self.patch("runtime.ui", json!({"launcher": !open}), None);
+                // W29, as kurashid: opening the launcher closes a sidebar.
+                let ops = if open {
+                    json!({"launcher": false})
+                } else {
+                    json!({"launcher": true, "sidebar": null, "sidebar_output": null})
+                };
+                self.patch("runtime.ui", ops, None);
             }
+            // W29, as kurashid: one sidebar side on one output; the same toggle closes it; opening it closes the panel and
+            // the launcher. The mock has no config document of its own to refuse an empty left sidebar with.
+            "sidebar.toggle" | "sidebar.open" => {
+                let side = match args["side"].as_str() {
+                    Some(s @ ("left" | "right")) => s.to_owned(),
+                    _ => return Err(Fail::invalid(ARGS_INVALID)),
+                };
+                let output = match args.get("output") {
+                    None => None,
+                    Some(Value::String(o)) if !o.is_empty() => Some(o.clone()),
+                    Some(_) => return Err(Fail::invalid(ARGS_INVALID)),
+                };
+                let ui = self.data("runtime.ui");
+                let same = ui["sidebar"] == side.as_str()
+                    && output.as_deref().is_none_or(|o| ui["sidebar_output"] == o);
+                if action == "sidebar.toggle" && same {
+                    self.patch("runtime.ui", json!({"sidebar": null, "sidebar_output": null}), None);
+                } else {
+                    let out = match (&output, same) {
+                        (Some(o), _) => json!(o),
+                        (None, true) => ui["sidebar_output"].clone(),
+                        (None, false) => Value::Null,
+                    };
+                    self.patch(
+                        "runtime.ui",
+                        json!({"panel": "", "popup": false, "tray": "", "face": "", "launcher": false, "peek": null,
+                               "sidebar": side, "sidebar_output": out}),
+                        None,
+                    );
+                }
+            }
+            "sidebar.close" => self.patch("runtime.ui", json!({"sidebar": null, "sidebar_output": null}), None),
             "ui.close" => self.patch(
                 "runtime.ui",
-                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null}),
+                json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null,
+                       "sidebar": null, "sidebar_output": null}),
                 None,
             ),
             // K47 (5), as kurashid: the polkit agent's dialog is up or gone; `ui.close` keeps it.
@@ -524,7 +564,8 @@ impl State {
         let panel = if open { "" } else { name };
         self.patch(
             "runtime.ui",
-            json!({"panel": panel, "popup": !open, "tray": "", "face": "", "peek": null}),
+            json!({"panel": panel, "popup": !open, "tray": "", "face": "", "peek": null,
+                   "sidebar": null, "sidebar_output": null}),
             None,
         );
     }
@@ -1244,6 +1285,36 @@ mod tests {
             .iter()
             .map(|i| i["id"].as_u64().expect("id"))
             .collect()
+    }
+
+    /// W29, as kurashid: one sidebar at a time, exclusive with the panels and the launcher; absent fields when closed.
+    #[test]
+    fn a_sidebar_is_exclusive_with_the_panels_and_the_launcher() {
+        let mut st = state();
+        let closed =
+            json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""});
+        let right = json!({"side": "right", "output": "HEADLESS-1"});
+        st.act("quick.toggle", &none()).unwrap();
+        st.act("sidebar.toggle", &right).unwrap();
+        assert_eq!(st.data("runtime.ui")["sidebar"], "right");
+        assert_eq!(st.data("runtime.ui")["sidebar_output"], "HEADLESS-1");
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+        st.act("sidebar.toggle", &right).unwrap();
+        assert_eq!(st.data("runtime.ui"), &closed);
+        st.act("sidebar.open", &json!({"side": "left"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["sidebar"], "left");
+        assert!(st.data("runtime.ui").get("sidebar_output").is_none());
+        st.act("launcher.toggle", &none()).unwrap();
+        assert!(st.data("runtime.ui").get("sidebar").is_none());
+        st.act("sidebar.open", &right).unwrap();
+        assert_eq!(st.data("runtime.ui")["launcher"], false);
+        st.act("island.expand", &none()).unwrap();
+        assert!(st.data("runtime.ui").get("sidebar").is_none());
+        st.act("sidebar.open", &right).unwrap();
+        st.act("sidebar.close", &none()).unwrap();
+        st.act("ui.close", &none()).unwrap();
+        assert_eq!(st.data("runtime.ui"), &closed);
+        assert!(st.act("sidebar.toggle", &json!({"side": "top"})).is_err());
     }
 
     #[test]
