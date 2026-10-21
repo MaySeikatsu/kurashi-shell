@@ -703,8 +703,19 @@ PanelWindow {
                         onReleased: slot.dragging = false
                         onCanceled: slot.dragging = false
                     }
-                    // On the card's top edge, over its padding and the gap above, so they cover none of its content.
+                    // On the card's top edge, over its padding and the gap above, so they cover none of its content; on a
+                    // pill of their own so they read on any wallpaper (flat chrome draws its keys without a fill).
+                    Rectangle {
+                        visible: desk.editing
+                        anchors.fill: cardKeys
+                        anchors.margins: -3
+                        radius: height / 2
+                        color: Theme.panel
+                        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                        border.color: Theme.outlineW > 0 ? Theme.line : Theme.outline
+                    }
                     Row {
+                        id: cardKeys
                         visible: desk.editing
                         anchors.top: parent.top
                         anchors.right: parent.right
