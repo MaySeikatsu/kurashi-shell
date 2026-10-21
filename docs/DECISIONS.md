@@ -521,3 +521,40 @@ AI chat by default), `sidebar.from_bar` (the bar's quick button opens the right 
 becomes a sidebar tab is open with the user (I116). Keys: Mod+Shift+N (right; Mod+N stays the notification centre),
 Mod+A (left). *Why:* ii's sidebarLeft/Right (copied: the anchoring, sections, tabbed left pane) without
 shellseikatsu's sizing and focus races.
+
+**K55** 🟢 Light or dark has modes, and a style takes it over (user, session 12: "Light/Dark should have multiple Modes:
+Follow OS/Auto (detects OS setting), Follow Wallpaper (Depending on the wallpapers color adjust the shells color to
+dark/light), Dark, Light. When a Styles is toggled it should overwrite that settings and follow the Style by default.
+Users can press reset to go back to their previous default then."). Supersedes the K53 amendment (light/dark as the
+user's mode a style never touches). `theme.colors.scheme` = `auto` (default) | `wallpaper` | `dark` | `light`.
+`auto` reads xdg-desktop-portal Settings `org.freedesktop.appearance color-scheme` (`ReadOne`, `Read` before portal
+1.17) and follows `SettingChanged` — the value GTK 4, Qt 6.5+, Firefox and Chromium read too — watched only while the
+mode is `auto` (`kurashid/src/os_scheme.rs`, Ma); no portal or "no preference" → dark, and the theme document says so.
+`wallpaper` takes the mean CIE L* of the wallpaper mod's applied picture (`stages::mean_lightness`, light from 55) —
+the same picture palette `wallpaper` reads (K34), held while either needs it; no picture yet → dark, said so. The
+scheme joins `STYLE_KEYS`: applying a style resets it, so it follows the style (theme layer `style:<name>`); the
+user's own mode from before is kept in `$XDG_STATE_HOME/kurashi/scheme-before` (a second style keeps the first
+remembered mode) and `theme.scheme.restore {}` sets it back (one undo step). The theme document's `appearance` gains
+`scheme_effective`, `scheme_detail` (`os`, `os_unknown`, `wallpaper`, `wallpaper_waiting`, `""`) and `scheme_before`.
+The quick and sidebar Dark tiles show the scheme in effect and set dark or light outright. *Why:* GNOME/KDE/macOS
+"Auto" follows the system; matugen/Caelestia/DMS derive the scheme from the wallpaper; a style is a whole aesthetic
+(K53), so it owns light/dark until the user picks again, and "Back to Auto" undoes only that.
+
+**K56** 🟢 The web dock in the sidebar fills it (user, session 12: "It should be able to be used in the sidebar but
+inside of it it fills the whole sidebar instead of being phone shaped"; resolves I116; card W30-webdock-sidebar, rows
+250–252). The web dock offers panel `panel:webdock` (tab value `mod:webdock:webdock`) for `sidebar.left` and
+`sidebar.right`: a row of pin keys over the page, which fills the pane — no phone frame. One engine, one page per pin
+(K38 kept): the web host maps a second layer window (`kurashi-webdock-side`, Overlay, anchored like the sidebar, exclusive
+zone 0) only while the sidebar rests open on a site, at the place the panel reports (`webdock.sidebar`, panel property
+`placement`), and moves that pin's page between its windows (QQuickItem reparent, no reload — spiked headless). The same
+pin at the edge and in the sidebar: the sidebar shows it live, the edge card says "shown in the sidebar". Closing the
+sidebar unmaps the window (0 frames) and freezes the page; it stays loaded under the dock's own unload rules, a page in
+an open sidebar counting as shown. *Why:* Vivaldi/Edge/Opera web panels are a page beside the content at the panel's
+full size — a phone bezel inside a sidebar wastes its width. Host memory with the window mapped: to measure (BENCH).
+
+**K57** 🟢 The config document publishes its own revision (`history.rev`, the `rev` an `applied` answer carries).
+Settings' preview takes back its own previous step before the next only while nobody committed after it (K27); it
+compared the *document's* revision, but one apply patches the document several times (values, overrides, offers), so
+a preview moved across several choices stacked undo steps instead of staying one (found when light/dark grew to four
+choices, K55). *Why:* the transaction counter is the only honest "did anyone else commit" signal; fixture
+`snap_config.json` and PROTOCOL updated.

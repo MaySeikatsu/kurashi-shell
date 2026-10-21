@@ -234,14 +234,14 @@ wait_ap look sekai
 wait_differs "1 setting differs from Win95: Look"
 Q scrollTo block:theme.style
 ashot look-over-style
-# A6. light or dark is yours (K53 amendment): dark set by you, applying the style again keeps it; the cards follow it.
+# A6. light or dark follows a style (K55): dark set by you, applying the style again sets the style's light.
 K '{"t":"apply","id":"ap3","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' | grep -q applied || fail "appearance: dark refused"
 Q resetToStyle
 wait_differs ""
-[ "$(val theme.colors.scheme)" = '"dark"' ] && [ "$(src theme.colors.scheme)" = user ] || fail "appearance: the style did not keep the user's dark"
+[ "$(val theme.colors.scheme)" = '"light"' ] && [ "$(src theme.colors.scheme)" = theme ] || fail "appearance: the style did not take light or dark over ($(val theme.colors.scheme), $(src theme.colors.scheme))"
 Q scrollTo block:theme.colors.palette
 ashot palette-dark
-echo "appearance A4-A6: sekai and win95 applied by card (chrome reset, contrast kept), a look over the style, dark kept"
+echo "appearance A4-A6: sekai and win95 applied by card (chrome reset, contrast kept), a look over the style, the style's light"
 # A7. None (your own): only the style changes. Back to the baseline the steps below expect (no style, defaults).
 Q pick theme.style '"none"'
 wait_ap style none
@@ -379,25 +379,26 @@ kp right
 [ "$(Q previewState)" = none ] || fail "chips: an arrow in the style cards opened a preview"
 echo "keyboard K3b: chips Right+Return opened inspired, Tab into its cards, an arrow there changed nothing"
 
-# K4. the scheme switch: Right previews light (shot: Keep and Put back shown), then Esc (the same path as the IPC hook
-#     putBack) puts dark back, and Redo stays off: the cancelled preview is not a redo step.
-tab_to "switch:theme.colors.scheme"
+# K4. the scheme's pills (K55: auto, wallpaper, dark, light): Right previews wallpaper (shot: Keep and Put back shown),
+#     then Esc (the same path as the IPC hook putBack) puts auto back, and Redo stays off: the cancelled preview is not a
+#     redo step.
+tab_to "Follow the system"   # the first pill (auto), named by its label
 kp right
-[ "$(Q previewState)" = 'theme.colors.scheme="light"' ] || fail "preview: Right did not preview light ($(Q previewState))"
-[ "$(val theme.colors.scheme)" = '"light"' ] || fail "preview: the shell does not show the previewed scheme"
+[ "$(Q previewState)" = 'theme.colors.scheme="wallpaper"' ] || fail "preview: Right did not preview wallpaper ($(Q previewState))"
+[ "$(val theme.colors.scheme)" = '"wallpaper"' ] || fail "preview: the shell does not show the previewed scheme"
 shot 20-preview-scheme
 Q putBack
 [ "$(Q previewState)" = none ] || fail "preview: Put back did not end the preview"
-[ "$(val theme.colors.scheme)" = '"dark"' ] || fail "preview: Put back did not restore dark ($(val theme.colors.scheme))"
+[ "$(val theme.colors.scheme)" = '"auto"' ] || fail "preview: Put back did not restore auto ($(val theme.colors.scheme))"
 [ "$(Q undoState)" = "undo=on,redo=off" ] || fail "preview: after Put back, Redo must be off ($(Q undoState))"
-echo "keyboard K4: Right previewed light; Put back restored dark; Redo stayed off"
+echo "keyboard K4: Right previewed wallpaper; Put back restored auto; Redo stayed off"
 
 # K5. a preview moved several times and kept is ONE undo step: Undo takes back the scheme only, and the step before
 #     (the bar switched off in K1) stays.
 kp right left right return
-[ "$(val theme.colors.scheme)" = '"light"' ] || fail "preview: the kept scheme is not light ($(val theme.colors.scheme))"
+[ "$(val theme.colors.scheme)" = '"dark"' ] || fail "preview: the kept scheme is not dark ($(val theme.colors.scheme))"
 Q undo
-[ "$(val theme.colors.scheme)" = '"dark"' ] || fail "preview: one Undo did not take back the whole preview ($(val theme.colors.scheme))"
+[ "$(val theme.colors.scheme)" = '"auto"' ] || fail "preview: one Undo did not take back the whole preview ($(val theme.colors.scheme))"
 [ "$(val bar.enabled)" = false ] || fail "preview: Undo took back more than the preview (bar.enabled)"
 echo "keyboard K5: a moved-and-kept preview is one undo step"
 

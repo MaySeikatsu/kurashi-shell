@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "../core"
 import "../core/mods.js" as Mods
 import "../components"
+import "../components/island"
 
 // One bar per output, on the edge that output's config names (bar.edge). bar.enabled false: no
 // surface, no exclusive zone and no subscriptions held for it (Ma). Everything shown comes from
@@ -199,14 +200,27 @@ PanelWindow {
         id: bg
         anchors.fill: parent
         color: bar.floating ? "transparent" : Theme.surfaceAlpha
-        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat).
+        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
+        // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there itself,
+        // in step with the card: round the hanging card's fillets into its sides, never under a translucent card. The
+        // opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
+        readonly property bool opened: !bar.vertical && IslandGeom.openR > IslandGeom.openL
+            && IslandGeom.takenOn !== "" && IslandGeom.takenOn === (bar.screen ? bar.screen.name : "")
         Rectangle {
             visible: !bar.floating && Theme.outlineW > 0
             color: Theme.outlineColor
             x: cfg.edge === "left" ? parent.width - width : 0
             y: cfg.edge === "top" ? parent.height - height : 0
-            width: bar.vertical ? Theme.outlineW : parent.width
+            width: bar.vertical ? Theme.outlineW : (bg.opened ? Math.max(0, parent.width / 2 + IslandGeom.openL) : parent.width)
             height: bar.vertical ? parent.height : Theme.outlineW
+        }
+        Rectangle {
+            visible: !bar.floating && Theme.outlineW > 0 && bg.opened
+            color: Theme.outlineColor
+            x: parent.width / 2 + IslandGeom.openR
+            y: cfg.edge === "top" ? parent.height - height : 0
+            width: Math.max(0, parent.width - x)
+            height: Theme.outlineW
         }
     }
     // K47 (W23-system, docs/ux/power.md): the keyboard layout's short name (svc.keyboard), shown only while the compositor

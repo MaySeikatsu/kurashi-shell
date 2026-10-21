@@ -23,7 +23,8 @@ motion tokens (`instant, quick 120, standard 220, emphasized 320, long 500` ms) 
    once per path, mtime and size, `stages::wallpaper_file`; a monochrome picture, mean HSL saturation under
    0.08, falls back to `wa-iro` and the provenance says so) | `palette:<name>` (TOML in `palettes/`) |
    `manual` (user roles)
-2. **scheme** — light/dark: `portal` (`org.freedesktop.appearance color-scheme`) | `time` | `manual`
+2. **scheme** — light/dark (K55): mode `auto` (the portal's `org.freedesktop.appearance color-scheme`, dark without
+   one) | `wallpaper` (the applied picture's mean L*, light from 55) | `dark` | `light`
 3. **contrast** — `standard | medium | high`
 4. **season** — optional seasonal drift (旬; hue/temperature nudges by 二十四節気)
 5. **colorblind** — `none | protanopia | deuteranopia | tritanopia` (Machado matrices)
@@ -52,13 +53,13 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 |---|---|---|---|---|
 | **Palette** | `palettes/<n>.toml` | `theme.colors.palette` | colours only | sets the palette |
 | **Look** | `looks/<n>.toml` | `theme.look` (default `kanso`) | form and feel without colour: chrome, corners, radius, material, motion, type family (`LOOK_KEYS`) + `[slots] frame` | `theme.look.apply`: resets your look keys, sets the look |
-| **Style** | `styles/<n>.toml` | `theme.style` (default **`washi`**) | `look` + `palette` + density, tweaks of its own look (`STYLE_KEYS`) and a recommended scheme | `theme.style.apply`: resets every appearance key you set except light/dark, sets the style |
+| **Style** | `styles/<n>.toml` | `theme.style` (default **`washi`**) | `look` + `palette` + density, tweaks of its own look (`STYLE_KEYS`) and a recommended scheme | `theme.style.apply`: resets every appearance key you set (light/dark too, K55: "Back to …" restores yours), sets the style |
 
 A look that only recolours another one is a palette. Every pack names a `category` (`modern`, `inspired`, `retro`,
 `fiction`; `custom` for a user file without one) — Settings groups by it. The theme layer holds the look's recipe under
 the style's (`theme: look:<n>` / `theme: style:<n>` provenance); a style's look tweaks apply only while its own look is
-the one in effect. Every palette has a light and a dark scheme; light/dark is the user's mode (the quick settings'
-Dark tile), a style only recommends one. Accessibility preferences, the seasonal tint, screen corners and app export
+the one in effect. Every palette has a light and a dark scheme; a style sets light or dark too (K55), and the user's mode from
+before comes back with "Back to …" (`theme.scheme.restore`). Accessibility preferences, the seasonal tint, screen corners and app export
 are never reset.
 
 | style | category | look | palette | own recipe |

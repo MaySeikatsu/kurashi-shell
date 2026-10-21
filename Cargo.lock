@@ -1264,6 +1264,7 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "chrono",
+ "futures-util",
  "image",
  "kurashi-audio",
  "kurashi-auth",
@@ -1294,6 +1295,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-stream",

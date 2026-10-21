@@ -9,7 +9,10 @@
 #   e.g. frontend/test-island-morph.sh sekai 'theme.style = "sekai"'
 #        frontend/test-island-morph.sh wa-iro 'theme.style = "none"'
 # MORPH_FACE=media|volume|... picks the face (`island.next` until runtime.island.main has it is not done: the real daemon
-# picks the face; the default is the clock). Machine B: export KURASHI_RENDER_NODE first.
+# picks the face; the default is the clock). MORPH_OUT=<dir> writes the shots there instead (test-island-join.sh's
+# extra cases). MORPH_LOG=<file> keeps the frontend's log there (the join test reads the shape's KURASHI_ISLAND_DEBUG lines).
+# The join of the card to a ruled bar is checked by frontend/test-island-join.sh. Machine B: export
+# KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TAG=${1:-sekai}
@@ -18,7 +21,7 @@ LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
 NAME=${MORPH_SANDBOX:-w21-isl-morph}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
-OUT=$ROOT/frontend/shots/island
+OUT=${MORPH_OUT:-$ROOT/frontend/shots/island}
 AT=${MORPH_AT:-40 120 250}
 CROP=${MORPH_CROP:-860,0 840x520}
 mkdir -p "$OUT"
@@ -33,6 +36,7 @@ pids=()
 cleanup() {
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
+  if [ -n "${MORPH_LOG:-}" ]; then cp "$R/qs.log" "$MORPH_LOG" 2>/dev/null || true; fi
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
@@ -65,7 +69,7 @@ burst() {
   K act "$2" >/dev/null &
   ap=$!
   for t in $AT; do
-    ( now=$(date +%s%N); wait_ms=$(( t - (now - t0) / 1000000 )); [ "$wait_ms" -gt 0 ] && sleep "$(printf '0.%03d' "$wait_ms")"
+    ( now=$(date +%s%N); wait_ms=$(( t - (now - t0) / 1000000 )); [ "$wait_ms" -gt 0 ] && sleep "$(printf '%d.%03d' $((wait_ms / 1000)) $((wait_ms % 1000)))"
       grim -g "$CROP" "$OUT/morph-$TAG-$1-$t.png" ) &
     gp+=("$!")
   done

@@ -365,7 +365,7 @@ pub fn config(registry: &Registry) -> Value {
     json!({
         "values": values,
         "outputs": {},
-        "history": {"can_undo": false, "can_redo": false},
+        "history": {"can_undo": false, "can_redo": false, "rev": 0},
         "profiles": [],
     })
 }

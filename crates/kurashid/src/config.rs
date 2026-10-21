@@ -522,6 +522,10 @@ fn is_mod_key(key: &str) -> bool {
 
 type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
 
+/// K55: the light/dark key, and the state file holding the user's mode from before a style took it over.
+const SCHEME_KEY: &str = "theme.colors.scheme";
+const SCHEME_BEFORE_FILE: &str = "scheme-before";
+
 pub struct ConfigStore {
     cfg: Mutex<Config<SchemaAdapter>>,
     hub: Arc<Hub>,
@@ -871,6 +875,23 @@ impl ConfigStore {
         *have = want;
     }
 
+    /// K55: the light/dark mode the user had chosen before a style took it over, while the style's still holds (the
+    /// user has not picked one since). Settings offers "Back to …" with it.
+    pub fn scheme_before(&self) -> Option<String> {
+        let cfg = self.cfg.lock().expect("config lock");
+        if cfg
+            .resolve(SCHEME_KEY, None)
+            .is_some_and(|p| p.source == Source::User)
+        {
+            return None;
+        }
+        let mode = std::fs::read_to_string(cfg.paths().state_dir.join(SCHEME_BEFORE_FILE)).ok()?;
+        let mode = mode.trim();
+        ["auto", "wallpaper", "dark", "light"]
+            .contains(&mode)
+            .then(|| mode.to_owned())
+    }
+
     /// K53: the appearance keys that differ from the style — set by the user or a profile — for Settings' "changed
     /// from the style" line and its reset.
     pub fn appearance_overrides(&self) -> Vec<String> {
@@ -899,6 +920,19 @@ impl ConfigStore {
         };
         let user: Vec<&str> = {
             let cfg = self.cfg.lock().expect("config lock");
+            // K55: a style makes light or dark follow it; the user's own mode is kept to come back to. A second style
+            // keeps the first remembered mode (the user's, not the style's).
+            if kind == Kind::Style
+                && let Some(p) = cfg.resolve(SCHEME_KEY, None)
+                && p.source == Source::User
+                && let Some(mode) = p.value.as_str()
+            {
+                let file = cfg.paths().state_dir.join(SCHEME_BEFORE_FILE);
+                let _ = std::fs::create_dir_all(&cfg.paths().state_dir);
+                if let Err(e) = std::fs::write(&file, mode) {
+                    tracing::warn!(file = %file.display(), error = %e, "cannot keep the scheme before the style");
+                }
+            }
             keys.iter()
                 .copied()
                 .filter(|k| {
@@ -962,7 +996,7 @@ impl ConfigStore {
         json!({
             "values": values,
             "outputs": outputs,
-            "history": {"can_undo": cfg.can_undo(), "can_redo": cfg.can_redo()},
+            "history": {"can_undo": cfg.can_undo(), "can_redo": cfg.can_redo(), "rev": cfg.rev()},
             "profiles": profile_entries(&cfg),
         })
     }
@@ -1323,6 +1357,34 @@ impl ConfigStore {
                 }
             });
         }
+
+        // K55: `theme.scheme.restore {}` — back to the light/dark mode the user had before a style took it over.
+        let me = self.clone();
+        actions.register(
+            "theme.scheme.restore",
+            "action.theme.scheme.restore",
+            move |_| {
+                let me = me.clone();
+                async move {
+                    let mode = me.scheme_before().ok_or_else(|| {
+                        ActionError::Invalid("config.error.no_scheme_before".into())
+                    })?;
+                    let done = me
+                        .apply(&[ApplyOp::Set {
+                            set: SCHEME_KEY.into(),
+                            value: json!(mode),
+                            output: None,
+                        }])
+                        .map_err(|errs| {
+                            let code = errs
+                                .first()
+                                .map_or("config.error.unrepresentable", |e| e.code.as_str());
+                            ActionError::Invalid(code.into())
+                        })?;
+                    Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
+                }
+            },
+        );
 
         let me = self.clone();
         actions.register("profile.list", "action.profile.list", move |_| {

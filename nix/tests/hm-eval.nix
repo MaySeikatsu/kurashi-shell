@@ -107,6 +107,7 @@ let
     [ "managed.toml generated" (cfg.xdg.configFile ? "kurashi/managed.toml") ]
     [ "niri binds file written when enabled" (cfg.xdg.configFile ? "niri/kurashi-binds.kdl") ]
     [ "niri binds: Mod+Space runs the launcher through the package CLI" (lib.hasInfix "{ spawn \"${kurashiBin}\" \"act\" \"launcher.toggle\"; }" (lineFor "Mod+Space")) ]
+    [ "niri binds: the right sidebar passes its JSON argument" (lib.hasInfix "Mod+Shift+N repeat=false { spawn \"${kurashiBin}\" \"act\" \"sidebar.toggle\" \"{\\\"side\\\":\\\"right\\\"}\"; }" (lineFor "Mod+Shift+N")) ]
     [ "niri binds: a custom key is added" (lib.hasInfix "{ spawn \"${kurashiBin}\" \"act\" \"session.lock\"; }" (lineFor "Mod+L")) ]
     [ "niri binds: null removes a default" (lineFor "XF86AudioMute" == "") ]
     [ "niri binds: the lock ignores inhibitors and does not repeat" (lib.hasInfix "allow-inhibiting=false repeat=false {" (lineFor "Super+Alt+L")) ]

@@ -13,6 +13,8 @@ provides = [
     "host:web",
     "surface:dock",
     "widget:webdock",
+    # W30: the dock as a sidebar tab or section (`mod:webdock:webdock`): pins on top, the page filling the pane.
+    "panel:webdock",
     "i18n",
 ]
 capabilities = ["network", "exec:qs-webengine", "exec:xdg-open", "fs:scoped"]

@@ -15,4 +15,18 @@ Card {
         provide: ms.panel !== "" ? "panel:" + ms.panel : ""
         mod: ms.mod
     }
+    // Where the panel rests in the right sidebar's window (optional `placement`, W30; see LeftColumn).
+    Placement {
+        id: placement
+        target: loader.item !== null && loader.item.placement !== undefined ? loader.item : null
+        win: ms.Window.window
+        output: ms.Screen.name
+        side: "right"
+    }
+    Binding {
+        target: loader.item
+        property: "placement"
+        value: placement.value
+        when: placement.target !== null
+    }
 }

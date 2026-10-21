@@ -40,8 +40,9 @@ Item {
     readonly property string themeImage: (doc.theme && doc.theme.image) || ""
     readonly property var themeDoc: Store.docs["theme"] || ({})
     readonly property var configValues: (Store.docs["config"] && Store.docs["config"].values) || ({})
-    readonly property string configScheme: configValues["theme.colors.scheme"]
-        && configValues["theme.colors.scheme"].value === "light" ? "light" : "dark"
+    readonly property string configMode: configValues["theme.colors.scheme"]
+        ? String(configValues["theme.colors.scheme"].value || "") : ""
+    readonly property string configScheme: configMode === "light" ? "light" : "dark"
     readonly property string configPalette: configValues["theme.colors.palette"]
         ? String(configValues["theme.colors.palette"].value || "") : ""
     readonly property bool themeFollowsWallpaper: configPalette === "wallpaper"
@@ -289,7 +290,9 @@ Item {
         })
     }
     function followTheme(scheme, variant) {
-        if (scheme !== configScheme) Store.intent("theme.colors.scheme", scheme, "wallpaper")
+        // K55: a mode that follows the system or the wallpaper is kept; only a picked dark or light follows the preview.
+        if ((configMode === "dark" || configMode === "light") && scheme !== configScheme)
+            Store.intent("theme.colors.scheme", scheme, "wallpaper")
         if (variant !== configPalette) Store.intent("theme.colors.palette", variant, "wallpaper")
     }
     // A picture the picker can use: the backend answers and the file reads (a broken tile is shown, not applied).

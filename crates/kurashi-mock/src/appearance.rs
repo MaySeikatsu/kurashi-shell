@@ -76,7 +76,7 @@ fn settle(config: &Value, defaults: &Map<String, Value>) -> Map<String, Value> {
     let look = find(Kind::Look, &look_name);
     let mut ops = Map::new();
     // Every appearance key not set by the user goes back to its default first, then the packs write theirs.
-    for key in STYLE_KEYS.iter().chain(["theme.colors.scheme"].iter()) {
+    for key in STYLE_KEYS {
         if source(config, key) != "user"
             && let Some(d) = defaults.get(*key)
         {
@@ -101,11 +101,20 @@ pub fn summary(config: &Value) -> Value {
         .copied()
         .filter(|k| matches!(source(config, k).as_str(), "user" | "profile"))
         .collect();
+    let scheme = text(config, "theme.colors.scheme");
     json!({
         "style": text(config, "theme.style"),
         "look": text(config, "theme.look"),
         "palette": text(config, "theme.colors.palette"),
-        "scheme": text(config, "theme.colors.scheme"),
+        "scheme": scheme,
+        // K55: the mock has no portal and no wallpaper picture: `auto` and `wallpaper` resolve to dark, and say why.
+        "scheme_effective": if scheme == "light" { "light" } else { "dark" },
+        "scheme_detail": match scheme.as_str() {
+            "auto" => "os_unknown",
+            "wallpaper" => "wallpaper_waiting",
+            _ => "",
+        },
+        "scheme_before": Value::Null,
         "overrides": overrides,
     })
 }

@@ -134,6 +134,10 @@ pub enum Chrome {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum Scheme {
+    /// Follow the system
+    Auto,
+    /// Follow the wallpaper
+    Wallpaper,
     Dark,
     Light,
 }
@@ -162,8 +166,9 @@ pub struct Colors {
     #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
     pub palette: String,
     /// Light or dark
-    /// Your mode: every palette has both. A style recommends one until you pick; applying a style keeps it (K53).
-    #[kurashi(default = Scheme::Dark)]
+    /// Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a
+    /// style makes it follow the style; "Back to …" returns to your own choice (K55).
+    #[kurashi(default = Scheme::Auto)]
     pub scheme: Scheme,
     /// Contrast
     /// Raises the contrast between surfaces and text.
@@ -179,7 +184,7 @@ pub struct Colors {
     pub season: bool,
     /// Pure black (OLED)
     /// Pure-black grounds on dark schemes.
-    #[kurashi(default = false, requires = "theme.colors.scheme == dark")]
+    #[kurashi(default = false, requires = "theme.colors.scheme != light")]
     pub oled: bool,
 }
 
