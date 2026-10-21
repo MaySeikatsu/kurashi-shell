@@ -53,14 +53,14 @@ async fn run() -> anyhow::Result<()> {
         None,
     );
     let mut actions = ActionRegistry::default();
-    // niri first (ARCHITECTURE §7); other adapters slot in here. Without a compositor socket the
-    // document stays empty rather than pretending (Shōjiki).
-    match std::env::var_os("NIRI_SOCKET") {
-        Some(sock) => {
-            let sock = std::path::PathBuf::from(sock);
-            let provider = kurashid::workspaces::WorkspacesProvider::new(move || {
-                kurashi_compositor::niri::NiriCompositor::spawn(sock.clone())
-            });
+    // W26 (ARCHITECTURE §7): the adapter for this session — `KURASHI_COMPOSITOR`, else `NIRI_SOCKET`,
+    // `HYPRLAND_INSTANCE_SIGNATURE`, `SWAYSOCK`. Without one the document stays empty rather than pretending (Shōjiki).
+    let compositor = kurashi_compositor::any::detect();
+    match &compositor {
+        Some(target) => {
+            tracing::info!(adapter = target.kind.name(), path = %target.path.display(), "compositor adapter");
+            let t = target.clone();
+            let provider = kurashid::workspaces::WorkspacesProvider::new(move || t.spawn());
             provider.register_actions(&mut actions);
             hub.register(
                 kurashid::workspaces::DOC,
@@ -69,18 +69,19 @@ async fn run() -> anyhow::Result<()> {
             );
         }
         None => {
-            tracing::warn!("NIRI_SOCKET not set: svc.workspaces stays empty");
+            tracing::warn!(
+                "no compositor adapter (NIRI_SOCKET, HYPRLAND_INSTANCE_SIGNATURE, SWAYSOCK unset or \
+                 KURASHI_COMPOSITOR=none): svc.workspaces stays empty"
+            );
             hub.register(kurashid::workspaces::DOC, json!({"outputs": {}}), None);
         }
     }
     // K47 (W23-system): keyboard layouts from the compositor's stream, its one-shot actions (screenshots, screens off)
     // and the focused output for the recorder.
-    let niri_sock = std::env::var_os("NIRI_SOCKET").map(std::path::PathBuf::from);
-    let compositor_act = niri_sock.clone().map(kurashid::wiring::niri_act);
-    let keyboard_provider = niri_sock.clone().map(|sock| {
-        let p: Arc<dyn kurashid::Provider> = kurashid::wiring::KeyboardProvider::new(move || {
-            kurashi_compositor::niri::NiriCompositor::spawn(sock.clone())
-        });
+    let compositor_act = compositor.clone().map(adapter_act);
+    let keyboard_provider = compositor.clone().map(|t| {
+        let p: Arc<dyn kurashid::Provider> =
+            kurashid::wiring::KeyboardProvider::new(move || t.spawn());
         p
     });
     kurashid::wiring::keyboard(
@@ -163,9 +164,8 @@ async fn run() -> anyhow::Result<()> {
     // Facts we know synchronously; bus/notification facts are filled in by the tasks that
     // actually connect (Shōjiki: n/a until then, never a guessed ok).
     let facts = kurashid::doctor::SharedFacts::from(kurashid::doctor::DoctorFacts {
-        compositor_socket: Some(
-            std::env::var_os("NIRI_SOCKET").is_some_and(|p| std::path::Path::new(&p).exists()),
-        ),
+        compositor_socket: Some(compositor.as_ref().is_some_and(|t| t.reachable())),
+        compositor_adapter: compositor.as_ref().map(|t| t.describe()),
         fc_list_worked: fc_ok,
         data_dir_found: Some(kurashid::i18n::data_dir().join("i18n").is_dir()),
         ..Default::default()
@@ -224,7 +224,7 @@ async fn run() -> anyhow::Result<()> {
         &hub,
         &mut actions,
         config.clone(),
-        niri_sock.clone().map(kurashid::wiring::niri_focused_output),
+        compositor.clone().map(adapter_focused_output),
     );
     kurashid::wiring::spectrum(&hub);
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
@@ -262,6 +262,24 @@ async fn run() -> anyhow::Result<()> {
     let _ = std::fs::remove_file(&path);
     tracing::info!("kurashid stopped");
     Ok(())
+}
+
+/// [`kurashid::wiring::CompositorAct`] over the chosen adapter (W26; niri's is `wiring::niri_act`).
+fn adapter_act(target: kurashi_compositor::any::Target) -> kurashid::wiring::CompositorAct {
+    Arc::new(move |a| {
+        let t = target.clone();
+        Box::pin(async move { t.act(&a).await.map_err(|e| e.to_string()) })
+    })
+}
+
+/// [`kurashid::wiring::FocusedOutputFn`] over the chosen adapter.
+fn adapter_focused_output(
+    target: kurashi_compositor::any::Target,
+) -> kurashid::wiring::FocusedOutputFn {
+    Arc::new(move || {
+        let t = target.clone();
+        Box::pin(async move { t.focused_output().await.ok().flatten() })
+    })
 }
 
 /// D-Bus services as refcounted documents (ARCHITECTURE §1, rule 5). Media also feeds the Island.

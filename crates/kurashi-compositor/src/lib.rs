@@ -1,20 +1,24 @@
 //! Compositor abstraction for `kurashid` (ARCHITECTURE §7).
 //!
-//! The daemon talks to one [`Compositor`]; adapters (niri first, Hyprland / MangoWM / Sway later)
-//! translate their native IPC into the neutral types here. No core changes per adapter.
+//! The daemon talks to one [`Compositor`]; adapters (niri, Hyprland, Sway; MangoWM later) translate their
+//! native IPC into the neutral types here, and [`any`] picks one at startup. No core changes per adapter.
 //!
 //! Events are *domain-level*: each carries the full, new list for the domain that changed
 //! (outputs, workspaces, windows). That keeps them idempotent, so a subscriber that applies a
 //! replayed event after a snapshot ends up in the same state, and lets the adapter drop noise
 //! (focus timestamps, layout geometry) by diffing before it emits — Ma: no spurious wakeups.
 
+pub mod any;
 mod doc;
 pub mod fake;
 pub mod globals;
+pub mod hyprland;
 pub mod idle;
 pub mod niri;
+pub mod sway;
 mod types;
 
+pub use any::AnyCompositor;
 pub use doc::workspaces_doc;
 pub use tokio_stream::Stream;
 pub use types::{
