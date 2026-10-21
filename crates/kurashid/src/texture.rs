@@ -870,7 +870,10 @@ mod tests {
         let lit = light(&store, chrono::Local::now());
         assert_eq!(lit.detail, "wallpaper");
         let [x, y] = lit.lamp.expect("a lamp");
-        assert!((0.1..0.25).contains(&x) && (0.1..0.35).contains(&y), "{x} {y}");
+        assert!(
+            (0.1..0.25).contains(&x) && (0.1..0.35).contains(&y),
+            "{x} {y}"
+        );
         assert!(lit.color[0] > lit.color[2], "warm: {:?}", lit.color);
         // Toward the top left from the middle.
         assert!(lit.dir[0] < 0.0 && lit.dir[1] < 0.0, "{:?}", lit.dir);
