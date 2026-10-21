@@ -10,3 +10,4 @@ Desktop 1.0 Desktop.qml
 PolkitDialog 1.0 PolkitDialog.qml
 ScreenCorners 1.0 ScreenCorners.qml
 Dock 1.0 Dock.qml
+Sidebar 1.0 Sidebar.qml

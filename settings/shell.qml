@@ -342,7 +342,7 @@ ShellRoot {
                                     readonly property string icon: ({
                                         bar: "toolbar", appearance: "palette", accessibility: "accessibility_new",
                                         island: "toggle_on", notifications: "notifications", launcher: "apps",
-                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", "@changed": "history",
+                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", "@changed": "history",
                                         "@mods": "extension", "@profiles": "person"
                                     })[navEntry.modelData.id] || ""
                                     activeFocusOnTab: true

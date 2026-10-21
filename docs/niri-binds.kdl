@@ -12,7 +12,7 @@
 //   Super+Alt+L           [spawn swaylock]
 //   XF86AudioRaiseVolume  [wpctl]     XF86AudioLowerVolume  [wpctl]     XF86AudioMute  [wpctl]
 //   XF86MonBrightnessUp   [brightnessctl]     XF86MonBrightnessDown  [brightnessctl]
-// Mod+Space, Mod+N and Mod+B have no niri default bind (niri ships Mod+Space commented out).
+// Mod+Space, Mod+N, Mod+Shift+N, Mod+A and Mod+B have no niri default bind (niri ships Mod+Space commented out).
 //
 // Toggles and menus do not repeat while the key is held. Volume, mute and brightness keys
 // also work while the session is locked, as niri's own media keys do.
@@ -24,6 +24,11 @@ binds {
 
     // Notification centre.
     Mod+N repeat=false { spawn "kurashi" "act" "notifications.center"; }
+
+    // Sidebars (docs/ux/sidebar.md): the right one (you, the quick tiles, the levels, notifications, the month) on
+    // Mod+Shift+N — Mod+N stays the notification centre — and the left one (mod panels: AI chat, tasks…) on Mod+A.
+    Mod+Shift+N repeat=false { spawn "kurashi" "act" "sidebar.toggle" "{\"side\":\"right\"}"; }
+    Mod+A repeat=false { spawn "kurashi" "act" "sidebar.toggle" "{\"side\":\"left\"}"; }
 
     // Web dock: shows and hides it (mod `webdock`, on with programs.kurashi.webdock.enable).
     Mod+B repeat=false { spawn "kurashi" "act" "webdock.toggle"; }
