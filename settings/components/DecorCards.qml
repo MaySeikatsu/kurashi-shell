@@ -18,12 +18,13 @@ Flow {
     signal cancelled()
 
     spacing: Theme.gap
+    readonly property bool anyOn: dc.choices.some(function (c) { return JSON.stringify(c.value) === JSON.stringify(dc.current) })
 
     function move(from, d) {
         var i = from + d
         if (i < 0 || i >= dc.choices.length) return
         var c = rep.itemAt(i)
-        if (!c || !c.activeFocusOnTab) return
+        if (!c || !dc.enabled) return
         c.forceActiveFocus()
         if (JSON.stringify(dc.choices[i].value) !== JSON.stringify(dc.current)) dc.previewed(dc.choices[i].value)
     }
@@ -42,7 +43,10 @@ Flow {
             width: 156
             height: scene.height + caption.height + Theme.gap
             opacity: dc.enabled ? 1 : 0.5
-            activeFocusOnTab: dc.enabled
+            // One Tab stop for the group (WAI-ARIA radio group, roving): the chosen card, or the first when none is; the
+            // arrows move inside. Every card a stop made a page of 26 looks and 26 palettes 52 Tabs long.
+            activeFocusOnTab: dc.enabled && (card.on || (card.index === 0 && !dc.anyOn))
+            objectName: dc.objectName
             Keys.onSpacePressed: event => { dc.picked(modelData.value); event.accepted = true }
             Keys.onReturnPressed: event => { dc.picked(modelData.value); event.accepted = true }
             Keys.onEnterPressed: event => { dc.picked(modelData.value); event.accepted = true }

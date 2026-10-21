@@ -196,7 +196,12 @@ Q modLoad demo-blur
 for _ in $(seq 20); do [ "$(Q navOrder | tr ',' '\n' | grep -c demo-blur)" -ge 1 ] && break; sleep 0.2; done
 shot 6a-mods-loaded-off
 Q mod demo-blur true
+# The enable is answered once the mod runs; any change that goes through clears the refusal lines (B8), so the refused
+# enable is sent after that answer, not raced against it.
+for _ in $(seq 25); do [[ "$(K '{"t":"cfg.get","id":"m0","key":"mods.enabled"}')" == *demo-blur* ]] && break; sleep 0.2; done
+sleep 0.5
 Q mod broken-demo true
+for _ in $(seq 25); do [ -n "$(Q modRefusal broken-demo)" ] && break; sleep 0.2; done
 shot 6-mods
 [ -n "$(Q modRefusal broken-demo)" ] || fail "mods: the refusal under broken-demo is not shown"
 
@@ -256,17 +261,18 @@ done
 echo "keyboard K2: every sidebar page opened with Tab and Return (${#nav[@]} entries)"
 Q goto bar
 
-# K3. the palette dropdown: Return opens it, Down previews the next palette, Return picks it (kept, one change)
+# K3. the palette as preview cards (K45, I104; it was a dropdown): one Tab stop, the chosen card; Down previews the next
+#     palette, Return keeps it (one change)
 Q goto appearance
 Q focusList >/dev/null
-tab_to "select:theme.colors.palette"
-kp return down
-[ "$(Q previewState)" = 'theme.colors.palette="kanso"' ] || fail "dropdown: Down did not preview kanso ($(Q previewState))"
+tab_to "cards:theme.colors.palette"
+kp down
+[ "$(Q previewState)" = 'theme.colors.palette="kanso"' ] || fail "palette cards: Down did not preview kanso ($(Q previewState))"
 kp return
-[ "$(val theme.colors.palette)" = '"kanso"' ] || fail "dropdown: Return did not keep kanso ($(val theme.colors.palette))"
-[ "$(Q previewState)" = none ] || fail "dropdown: the preview is still open after Return"
+[ "$(val theme.colors.palette)" = '"kanso"' ] || fail "palette cards: Return did not keep kanso ($(val theme.colors.palette))"
+[ "$(Q previewState)" = none ] || fail "palette cards: the preview is still open after Return"
 shot 14-palette-keyboard
-echo "keyboard K3: palette Return, Down (preview), Return (kept): kanso"
+echo "keyboard K3: palette cards Down (preview), Return (kept): kanso"
 
 # K4. the scheme switch: Right previews light (shot: Keep and Put back shown), then Esc (the same path as the IPC hook
 #     putBack) puts dark back, and Redo stays off: the cancelled preview is not a redo step.
@@ -391,7 +397,7 @@ Q goto bar
 Q focusList >/dev/null
 kp p a l e t t e return
 [ "$(Q current)" = appearance ] || fail "search: Return on 'palette' did not land on its page ($(Q current))"
-[ "$(Q focused)" = "select:theme.colors.palette" ] || fail "search: the keyboard focus did not land on the row's control ($(Q focused))"
+[ "$(Q focused)" = "cards:theme.colors.palette" ] || fail "search: the keyboard focus did not land on the row's control ($(Q focused))"
 shot_now 5b-search-lands
 echo "keyboard K12: typed 'palette', Return landed on the row (appearance)"
 
@@ -525,11 +531,10 @@ case "$(K '{"t":"cfg.get","id":"k3","key":"theme.colors.palette"}')" in *from-a-
 shot 18-palette-unavailable
 Q set theme.colors.palette '"wa-iro"'
 
-# 15. the palette dropdown open (opened the way Enter opens it): the offers, the chosen one ticked and highlighted.
-Q goto appearance
-Q openChoice theme.colors.palette
+# 15. the palette's offers (preview cards now, K45/I104; the dropdown they replaced has no open state): every offer, the
+#     chosen one ticked and framed. The dropdown's open state is 15c's.
+Q jump theme.colors.palette
 shot 15-palette-dropdown
-kp return
 
 # 15c. an offer that is not available now: the island's default face offers the Media face while its mod is off, greyed
 #      with its reason (the daemon says which). Return picks the highlighted offer, the value in effect: nothing changes.
