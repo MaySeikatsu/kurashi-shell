@@ -96,6 +96,15 @@ Item {
             Store.act(to ? "recorder.start" : "recorder.stop", {}, tg.cb(report, "power.quick.record.failed"))
         } }
 
+    // K53: light or dark, the user's mode (as the quick card's Dark mode tile).
+    readonly property bool darkOn: String((Store.docs["theme"] || {}).appearance ? Store.docs["theme"].appearance.scheme : "") === "dark"
+    Request { id: rqDark; value: tg.darkOn
+        start: function (to, report) {
+            Store.apply([{set: "theme.colors.scheme", value: to ? "dark" : "light"}], function (errors) {
+                if (errors && errors.length) report(I18n.tr(String(errors[0].code || "power.quick.failed")))
+            })
+        } }
+
     // ---- the pages (the quick card's), made by the column over the sections ----
     Component { id: wifiC; WifiPage { live: true; wifiReq: rqWifi; airReq: rqAir; joinReq: rqJoin } }
     Component { id: btC; BluetoothPage {} }
@@ -116,7 +125,7 @@ Item {
         cellHeight: 56
     }
     function cells() {
-        var out = [tWifi, tBt, tFocus, tAudio, tPower, tCaffeine, tNight, tRecord]
+        var out = [tWifi, tBt, tFocus, tAudio, tPower, tCaffeine, tNight, tRecord, tDark]
         for (var i = 0; i < modCells.count; i++) {
             var c = modCells.itemAt(i), t = c !== null ? c.tile : null
             out.push(t !== null && t !== undefined && t.isTile === true ? t : null)
@@ -267,6 +276,18 @@ Item {
             req: rqRecord
             hasPage: false
             pendingText: I18n.tr("power.quick.record.starting")
+        }
+        QuickTile {
+            id: tDark
+            width: tg.cellW
+            glyph: "☾"
+            icon: "dark_mode"
+            label: I18n.tr("island.quick.tile.dark")
+            subtitle: tg.darkOn ? I18n.tr("island.quick.on") : I18n.tr("island.quick.off")
+            on: tg.darkOn
+            req: rqDark
+            hasPage: false
+            pendingText: I18n.tr("island.quick.changing")
         }
         Repeater {
             id: modCells

@@ -21,6 +21,15 @@ Item {
     property int cardWidth: 560
     width: parent ? parent.width : cardWidth
     implicitHeight: body.implicitHeight
+    // A host that gives the panel more height than it needs (the left sidebar, W29 row 238) gets a conversation that
+    // fills it and the composer at the bottom; the Stage card sizes the panel to its implicit height, so `extra` stays 0
+    // there. Updated imperatively (natural height = the body without `extra`), so no binding loop.
+    property real extra: 0
+    function relayout() {
+        var e = Math.max(0, p.height - (body.implicitHeight - p.extra))
+        if (Math.abs(e - p.extra) > 0.5) p.extra = e
+    }
+    onHeightChanged: relayout()
 
     readonly property var d: Store.docs["mod.ai"] || ({})
     readonly property bool loaded: d.provider !== undefined
@@ -212,6 +221,7 @@ Item {
         id: body
         width: parent.width
         spacing: Theme.gap
+        onImplicitHeightChanged: Qt.callLater(p.relayout)
 
         // ---- header: the title, history, new chat ----
         Row {
@@ -552,7 +562,7 @@ Item {
                 id: flick
                 visible: p.msgs.length > 0 || !!p.reply
                 width: parent.width
-                height: 460
+                height: 460 + p.extra
                 contentHeight: convCol.implicitHeight
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
@@ -673,6 +683,9 @@ Item {
                     }
                 }
             }
+
+            // The room a taller host gives, while there is no conversation to fill it: the composer stays at the bottom.
+            Item { width: 1; height: flick.visible ? 0 : p.extra }
 
             // ---- the composer ----
             Row {
