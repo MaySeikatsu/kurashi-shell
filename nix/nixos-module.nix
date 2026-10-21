@@ -5,6 +5,60 @@ self:
 # the Home-Manager module; nothing here starts a user unit (K11).
 let
   cfg = config.programs.kurashi;
+  gcfg = config.services.kurashi.greeter;
+  greeterDir = "/var/lib/kurashi-greeter";
+  qml = "${cfg.package}/share/kurashi/greeter/shell.qml";
+  qs = lib.getExe' gcfg.quickshellPackage "qs";
+  xkb = config.services.xserver.xkb;
+
+  # W28 (docs/ux/greeter.md; DMS's greeter does the same): greetd runs a minimal compositor whose only client is the
+  # greeter, and the compositor quits when the greeter does (a session started, or it failed).
+  niriConfig = pkgs.writeText "kurashi-greeter-niri.kdl" ''
+    hotkey-overlay {
+        skip-at-startup
+    }
+    input {
+        keyboard {
+            xkb {
+                layout "${xkb.layout}"
+                variant "${xkb.variant}"
+                options "${xkb.options}"
+            }
+        }
+    }
+    layout {
+        background-color "#000000"
+    }
+    spawn-at-startup "sh" "-c" "${qs} -p ${qml}; ${lib.getExe gcfg.niriPackage} msg action quit --skip-confirmation"
+  '';
+  swayConfig = pkgs.writeText "kurashi-greeter-sway.conf" ''
+    input type:keyboard {
+        xkb_layout "${xkb.layout}"
+        xkb_variant "${xkb.variant}"
+        xkb_options "${xkb.options}"
+    }
+    output * bg #000000 solid_color
+    exec "${qs} -p ${qml}; ${gcfg.swayPackage}/bin/swaymsg exit"
+  '';
+  greeterCommand = pkgs.writeShellScript "kurashi-greeter" ''
+    export XDG_SESSION_TYPE=wayland QT_QPA_PLATFORM=wayland
+    export KURASHI_GREETER_DIR=${greeterDir} KURASHI_DATA_DIR=${cfg.package}/share/kurashi
+    # No kurashid exists before login; the greeter's Store never dials one.
+    export KURASHI_SOCKET=/run/kurashi-greeter-has-no-daemon
+    ${
+      if gcfg.compositor == "niri" then
+        "exec ${lib.getExe gcfg.niriPackage} -c ${niriConfig}"
+      else
+        "exec ${gcfg.swayPackage}/bin/sway --unsupported-gpu -c ${swayConfig}"
+    }
+  '';
+  # One slot pair per user: theirs to write (kurashid's greeter_cache.rs), the greeter's to read.
+  slots = lib.listToAttrs (
+    lib.concatMap (u: [
+      (lib.nameValuePair "${greeterDir}/${u}.json" { f = { user = u; mode = "0644"; }; })
+      (lib.nameValuePair "${greeterDir}/${u}.wallpaper" { f = { user = u; mode = "0644"; }; })
+    ]) gcfg.users
+  );
 in
 {
   options.programs.kurashi = {
@@ -30,6 +84,35 @@ in
     };
   };
 
+  # W28: the login screen in the shell's look (greetd + a Quickshell greeter in a minimal compositor).
+  options.services.kurashi.greeter = {
+    enable = lib.mkEnableOption "the Kurashi greeter: greetd with Kurashi's login screen (the last user's look)";
+    compositor = lib.mkOption {
+      type = lib.types.enum [ "niri" "sway" ];
+      default = "niri";
+      description = "The minimal compositor the greeter runs in (it shows only the greeter and quits with it).";
+    };
+    users = lib.mkOption {
+      type = lib.types.listOf lib.types.str;
+      default = lib.attrNames (lib.filterAttrs (_: u: u.isNormalUser) config.users.users);
+      defaultText = lib.literalExpression "every user with isNormalUser = true";
+      description = ''
+        Users whose look the greeter may show. Each gets `${greeterDir}/<user>.json` and `<user>.wallpaper`, owned by
+        them, which their kurashid fills after every theme or wallpaper change; the greeter reads them, since it cannot
+        read a home directory.
+      '';
+    };
+    fonts = lib.mkOption {
+      type = lib.types.listOf lib.types.package;
+      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ];
+      defaultText = lib.literalExpression "the Home-Manager module's `programs.kurashi.fonts`";
+      description = "System fonts for the greeter (it runs as the greeter user, without the user's fonts); [ ] to manage them yourself.";
+    };
+    quickshellPackage = lib.mkPackageOption pkgs "quickshell" { };
+    niriPackage = lib.mkPackageOption pkgs "niri" { };
+    swayPackage = lib.mkPackageOption pkgs "sway" { };
+  };
+
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       environment.systemPackages = [ cfg.package ];
@@ -46,6 +129,22 @@ in
 
     (lib.mkIf (cfg.enable && cfg.gpuScreenRecorder.enable) {
       programs.gpu-screen-recorder.enable = true;
+    })
+
+    (lib.mkIf gcfg.enable {
+      services.greetd = {
+        enable = true;
+        settings.default_session.command = "${greeterCommand}";
+      };
+      fonts.packages = gcfg.fonts;
+      # The greeter's own directory (its memory of the last user and session) and the users' slots.
+      systemd.tmpfiles.settings."10-kurashi-greeter" = {
+        ${greeterDir}.d = {
+          user = "greeter";
+          group = "greeter";
+          mode = "0755";
+        };
+      } // slots;
     })
 
     (lib.mkIf cfg.webdock.enable {

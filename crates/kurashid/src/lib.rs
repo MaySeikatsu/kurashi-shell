@@ -7,6 +7,7 @@ pub mod capabilities;
 pub mod clock;
 pub mod config;
 pub mod doctor;
+pub mod greeter_cache;
 pub mod hub;
 pub mod i18n;
 pub mod intents;

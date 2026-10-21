@@ -243,6 +243,8 @@ pub fn register(
     }
     // K49: the chosen apps follow the theme document.
     crate::theme_export::register(hub, store);
+    // W28: the greeter's copy of this look (greeter_cache.rs).
+    crate::greeter_cache::register(hub);
     // K34: palette `wallpaper` follows the wallpaper mod's picture. Event-driven (the hub's change
     // stream, filtered to the mod's document, `mods` and `config`); nothing runs while neither the
     // picture nor the palette changes (Ma). The picture is extracted on a blocking thread first, so
