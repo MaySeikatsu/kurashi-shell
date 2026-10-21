@@ -236,6 +236,34 @@ fn tile_files_are_loaded_from_the_cache_once_written() {
     );
 }
 
+/// FNV-1a over the tile's bytes: a checksum that does not change between Rust releases, unlike `DefaultHasher`.
+fn fnv1a(bytes: &[u8]) -> u64 {
+    bytes.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, b| {
+        (h ^ u64::from(*b)).wrapping_mul(0x0100_0000_01b3)
+    })
+}
+
+/// The ruled papers, the halftone, the leather and the stone were not changed by W31: their tiles keep the bytes the
+/// generator made before it (checked against that commit). A change to the shared noise or the notebook sheet shows here.
+#[test]
+fn the_notebook_print_and_pebble_kinds_keep_their_bytes() {
+    let golden = [
+        (Kind::PaperDots, 0x07fb_17ae_dd5a_7958u64),
+        (Kind::PaperLines, 0xc953_e343_ab7c_11cf),
+        (Kind::PaperGrid, 0x80e9_1410_a94c_4d90),
+        (Kind::Halftone, 0x4afa_1e18_b1ac_6b08),
+        (Kind::Leather, 0x5b17_95c3_476a_2b98),
+        (Kind::Stone, 0xa2e3_6515_052c_e072),
+    ];
+    for (kind, want) in golden {
+        let got = fnv1a(&generate(&params(kind, true, 0.0)).rgba);
+        assert_eq!(
+            got, want,
+            "{kind:?} no longer generates the bytes it had before W31"
+        );
+    }
+}
+
 /// Generation time per tile at device scale 1 (the card's budget: ≤ 300 ms in release, with wrinkles).
 #[test]
 #[ignore = "timing: run with --release -- --ignored"]

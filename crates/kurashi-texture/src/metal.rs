@@ -1,46 +1,55 @@
-//! Scratched metal (`metal`): brushed streaks along x (fine lines a pixel apart, broader bands and long slow variation, all
-//! stretched along the brushing), straight scratches of varied length, depth and angle, and a few soft dents. No ink: the
-//! material is its gloss (high, K59).
+//! Brushed steel (`metal`): the brushing is the dominant feature, a dense fine streak along x. Every pixel row takes its own
+//! level, and that level changes in segments some 40 px long, so the streaks are many, short and varied rather than one
+//! flat stripe. Over it a few short light scratches run in nearly one direction, and a couple of tiny dings. Calm at a
+//! glance, rich up close. No ink: the material is its gloss (K59).
 
 use crate::generate::Field;
 use crate::noise::{Rng, value_xy};
 use crate::raster::{bowl_at, groove};
 
+/// Scratches per tile: a few, not a field. Most run with the brushing, the rest at a slant.
+const SCRATCHES: usize = 9;
+/// Dings per tile: tiny, pressed or raised.
+const DINGS: usize = 3;
+
 pub fn brushed(f: &mut Field, seed: u64) {
     let (n, l) = (f.n, f.logical);
-    // Streaks: each row of the brushing has its own level (a pixel-thin line), broader bands run across several rows, and a
-    // slow variation runs along the length. The lattices are stretched along x and fine along y.
+    let rows = n as u32;
     for iy in 0..n {
+        // Evaluated at the row's own lattice point, so each pixel row takes its own level: that is what makes a brushing.
+        let v = iy as f32 / n as f32;
         for ix in 0..n {
-            let (u, v) = (f.uv(ix), f.uv(iy));
-            let s = 0.5 * (value_xy(u, v, 3, 480, seed) - 0.5)
-                + 0.35 * (value_xy(u, v, 6, 160, seed ^ 0x01) - 0.5)
-                + 0.25 * (value_xy(u, v, 2, 40, seed ^ 0x02) - 0.5);
-            f.h[iy * n + ix] = 0.8 * s;
+            let u = (ix as f32 + 0.5) / n as f32;
+            let row = value_xy(0.0, v, 1, rows, seed) - 0.5;
+            let seg = value_xy(u, v, 20, rows, seed ^ 0x51) - 0.5;
+            // The brushing is stronger in some broad patches than in others, as a hand-brushed sheet is.
+            let patch = 0.6 + 0.8 * value_xy(u, (iy as f32 + 0.5) / n as f32, 3, 2, seed ^ 0x52);
+            f.h[iy * n + ix] = patch * (0.7 * row + 0.7 * seg);
         }
     }
     let mut rng = Rng::new(seed ^ 0x5C4A);
-    // Scratches: most run along the brushing, some cross it. Each is a groove of its own depth and width.
-    for _ in 0..(l * l / 1300.0) as usize {
+    // Scratches: short and light, nearly all in the brushing's direction.
+    for _ in 0..SCRATCHES {
         let (x, y) = (rng.range(0.0, l), rng.range(0.0, l));
-        let a = if rng.unit() < 0.7 {
-            rng.range(-0.08, 0.08)
+        let a = if rng.unit() < 0.8 {
+            rng.range(-0.07, 0.07)
         } else {
-            rng.range(0.0, std::f32::consts::PI)
+            rng.range(-0.3, 0.3)
         };
-        let len = rng.range(18.0, 220.0);
+        let len = rng.range(25.0, 90.0);
         let (dx, dy) = (a.cos() * len, a.sin() * len);
         groove(
             f,
             [x, y],
             [x + dx, y + dy],
-            rng.range(0.6, 1.4),
-            rng.range(0.25, 1.0),
+            rng.range(0.45, 0.7),
+            rng.range(0.5, 0.9),
         );
     }
-    // A few soft dents, raised or pressed.
-    for _ in 0..6 {
+    // Dings: a couple of tiny dents, a few raised.
+    for _ in 0..DINGS {
         let (x, y) = (rng.range(0.0, l), rng.range(0.0, l));
-        bowl_at(f, x, y, rng.range(5.0, 12.0), rng.range(-0.6, 0.6));
+        let sign = if rng.unit() < 0.5 { 1.0 } else { -1.0 };
+        bowl_at(f, x, y, rng.range(1.2, 2.2), sign * rng.range(0.35, 0.7));
     }
 }
