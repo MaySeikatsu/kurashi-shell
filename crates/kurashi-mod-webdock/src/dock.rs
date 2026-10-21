@@ -296,7 +296,48 @@ struct PinState {
     icon: Option<String>,
 }
 
+/// The side of the sidebar window the dock's panel sits in (W30, `webdock.sidebar`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Side {
+    Left,
+    Right,
+}
+
+impl Side {
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "left" => Some(Self::Left),
+            "right" => Some(Self::Right),
+            _ => None,
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Right => "right",
+        }
+    }
+}
+
+/// Where the sidebar panel's page area is at rest (W30, `webdock.sidebar {on: true, …}`): on `output`, in a layer
+/// window anchored to the usable area's top and to `side`; `inset` px in from that side's edge, `top` px down from the
+/// usable area's top, `width` × `height`. The host maps its sidebar window there.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Place {
+    pub output: String,
+    pub side: Side,
+    pub inset: u32,
+    pub top: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
 pub struct Dock {
+    /// The pin the sidebar panel shows (W30), kept while the sidebar is closed.
+    side_pin: Option<String>,
+    /// The sidebar panel's page area while the panel is at rest in an open sidebar; `None` otherwise.
+    place: Option<Place>,
     pins: Vec<PinSpec>,
     states: BTreeMap<String, PinState>,
     /// Web pins by the time they were last shown, most recent first.
@@ -321,6 +362,8 @@ impl Dock {
     /// The dock as the settings say it is now, hidden, with the host off.
     pub fn new(settings: &Settings, profiles: PathBuf, icons: PathBuf) -> Self {
         let mut dock = Self {
+            side_pin: None,
+            place: None,
             pins: Vec::new(),
             states: BTreeMap::new(),
             recent: Vec::new(),
@@ -360,8 +403,57 @@ impl Dock {
                 self.mode = Mode::Compact;
             }
         }
+        // The sidebar's pin goes with its pin too; an open sidebar shows the first pin instead.
+        if self
+            .side_pin
+            .as_ref()
+            .is_some_and(|s| !self.pins.iter().any(|p| &p.id == s))
+        {
+            self.side_pin = None;
+        }
+        self.default_side_pin();
         self.sanitize();
         self.settle(now);
+    }
+
+    /// `webdock.sidebar`: the sidebar panel's page area at rest (`Some`), or the panel moved, hid or went (`None`).
+    /// An open sidebar with no pin of its own shows the first pin. True when it shows a site (the host starts).
+    pub fn place(&mut self, place: Option<Place>) -> bool {
+        self.place = place;
+        self.default_side_pin();
+        match self.side_web() {
+            Some(id) => {
+                self.touch(&id);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// `webdock.sidebar_select {pin}`: the sidebar shows `pin`. True when the sidebar is open on a site (the host
+    /// starts); a closed sidebar keeps the pin for its next opening.
+    pub fn side_select(&mut self, pin: &str) -> Result<bool, DockError> {
+        let (id, _) = self.find(pin)?;
+        self.side_pin = Some(id);
+        Ok(match self.side_web() {
+            Some(id) => {
+                self.touch(&id);
+                true
+            }
+            None => false,
+        })
+    }
+
+    fn default_side_pin(&mut self) {
+        if self.place.is_some() && self.side_pin.is_none() {
+            self.side_pin = self.pins.first().map(|p| p.id.clone());
+        }
+    }
+
+    /// The site the open sidebar shows, if it shows one.
+    fn side_web(&self) -> Option<String> {
+        self.place.as_ref()?;
+        self.side_pin.clone().filter(|id| self.is_web(id))
     }
 
     /// The host's state as the daemon reports it. Without a connected host nothing is loaded or audible (Shōjiki).
@@ -663,7 +755,18 @@ impl Dock {
         let cap = self.config.max_loaded as usize;
         let (first, rest) = web.split_at(web.len().min(cap));
         let mut keep = first.to_vec();
-        keep.extend(rest.iter().filter(|id| self.is_audible(id)).cloned());
+        // Beyond the cap: an audible site, and a site on screen (the edge card's and the sidebar's at once, W30).
+        let shown = self.edge_web();
+        let side = self.side_web();
+        keep.extend(
+            rest.iter()
+                .filter(|id| {
+                    self.is_audible(id)
+                        || shown.as_deref() == Some(id.as_str())
+                        || side.as_deref() == Some(id.as_str())
+                })
+                .cloned(),
+        );
         keep
     }
 
@@ -708,6 +811,24 @@ impl Dock {
         }
         if let Some(output) = &self.output {
             doc["output"] = json!(output);
+        }
+        // W30: the sidebar's pin and, while the panel is at rest in an open sidebar, its page area (absent otherwise).
+        if self.side_pin.is_some() || self.place.is_some() {
+            let mut side = json!({});
+            if let Some(pin) = &self.side_pin {
+                side["pin"] = json!(pin);
+            }
+            if let Some(p) = &self.place {
+                side["place"] = json!({
+                    "output": p.output,
+                    "side": p.side.name(),
+                    "inset": p.inset,
+                    "top": p.top,
+                    "width": p.width,
+                    "height": p.height,
+                });
+            }
+            doc["sidebar"] = side;
         }
         doc
     }
@@ -826,8 +947,17 @@ impl Dock {
         }
     }
 
+    /// A site is on screen: the edge card's, or the open sidebar's (W30).
     fn web_visible(&self) -> bool {
-        self.mode == Mode::Extended && self.shown.as_deref().is_some_and(|s| self.is_web(s))
+        self.edge_web().is_some() || self.side_web().is_some()
+    }
+
+    /// The site the edge card shows, if it shows one.
+    fn edge_web(&self) -> Option<String> {
+        (self.mode == Mode::Extended)
+            .then(|| self.shown.clone())
+            .flatten()
+            .filter(|s| self.is_web(s))
     }
 
     fn any_audible(&self) -> bool {
@@ -1675,6 +1805,100 @@ mod tests {
         assert_eq!(doc["geometry"]["grace"], GRACE_PX);
         assert_eq!(doc["engaged"], true);
         assert_eq!(doc["pins"][1]["error"], "webdock.error.crashed");
+    }
+
+    fn place_left() -> Place {
+        Place {
+            output: "DP-1".into(),
+            side: Side::Left,
+            inset: 12,
+            top: 60,
+            width: 396,
+            height: 1300,
+        }
+    }
+
+    #[test]
+    fn the_sidebar_is_absent_until_used_and_an_open_sidebar_shows_the_first_pin() {
+        let mut d = dock(&[]);
+        assert!(
+            d.doc().get("sidebar").is_none(),
+            "no sidebar key before use"
+        );
+        d.set_host(HostState::Ready);
+        assert!(
+            d.place(Some(place_left())),
+            "the first pin is a site: the host starts"
+        );
+        let doc = d.doc();
+        assert_eq!(doc["sidebar"]["pin"], "mail");
+        assert_eq!(
+            doc["sidebar"]["place"],
+            json!({"output": "DP-1", "side": "left", "inset": 12, "top": 60, "width": 396, "height": 1300})
+        );
+        assert_eq!(doc["keep"], json!(["mail"]), "the sidebar's site is kept");
+        assert!(!d.is_idle(), "a site in the sidebar is shown");
+        // Closing the sidebar hides the page but keeps it loaded and keeps the pin for next time.
+        assert!(!d.place(None));
+        let doc = d.doc();
+        assert_eq!(doc["sidebar"], json!({"pin": "mail"}));
+        assert_eq!(doc["keep"], json!(["mail"]));
+        assert!(
+            d.is_idle(),
+            "nothing shown: the idle clock runs (unload_after unchanged)"
+        );
+    }
+
+    #[test]
+    fn sidebar_select_switches_pins_and_a_view_pin_does_not_start_the_host() {
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        assert!(
+            !d.side_select("chat").unwrap(),
+            "a closed sidebar starts nothing"
+        );
+        assert_eq!(d.doc()["keep"], json!([]), "nor loads anything");
+        assert!(d.place(Some(place_left())));
+        assert_eq!(
+            d.doc()["sidebar"]["pin"],
+            "chat",
+            "the chosen pin, not the first"
+        );
+        assert!(
+            !d.side_select("weather").unwrap(),
+            "a view is drawn by the shell"
+        );
+        assert!(d.is_idle(), "a view in the sidebar is not a site on screen");
+        assert_eq!(d.side_select("nope"), Err(DockError::UnknownPin));
+    }
+
+    #[test]
+    fn the_edge_and_the_sidebar_keep_both_sites_beyond_the_cap() {
+        let mut d = dock(&[("max_loaded", json!(1))]);
+        d.set_host(HostState::Ready);
+        d.open("mail", Some("DP-1")).unwrap();
+        d.side_select("chat").unwrap();
+        d.place(Some(place_left()));
+        let keep = d.doc()["keep"].clone();
+        assert_eq!(keep, json!(["chat", "mail"]), "both on screen, cap 1");
+        d.collapse();
+        assert_eq!(
+            d.doc()["keep"],
+            json!(["chat"]),
+            "the edge's site leaves at the cap"
+        );
+    }
+
+    #[test]
+    fn a_removed_sidebar_pin_falls_back_to_the_first_pin_while_open() {
+        let mut d = dock(&[]);
+        d.side_select("chat").unwrap();
+        d.place(Some(place_left()));
+        let rows = json!([
+            {"id": "mail", "title": "Mail", "target": "https://mail.example.org/", "view": "default", "profile": "", "icon": ""},
+        ]);
+        d.apply_settings(&settings_with(rows, &[]), Instant::now());
+        assert_eq!(d.doc()["sidebar"]["pin"], "mail");
     }
 
     fn keys(v: &Value) -> Vec<String> {

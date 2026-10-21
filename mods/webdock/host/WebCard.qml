@@ -32,6 +32,12 @@ PanelWindow {
     property string output: ""
     property var profiles: null        // Profiles (the view of each profile, the storage of each pin)
     property var report: null          // function(action, args): the reports and actions the card sends
+    // W30: the sidebar rests open on the web pin `sidePin`; its page is drawn in `sideSlot` (SideWindow), not here.
+    property string sidePin: ""
+    property bool sideOpen: false
+    property Item sideSlot: null
+    readonly property bool shownInSide: sideOpen && shownId === sidePin
+    readonly property var sidePage: sideOpen ? pageFor(sidePin, rep.count) : null
 
     readonly property int gap: Theme.gap
     readonly property bool sideways: edge === "left" || edge === "right"
@@ -84,7 +90,8 @@ PanelWindow {
     onCardHChanged: geometryLog()
     onAvailHChanged: geometryLog()
 
-    readonly property var activePage: pageFor(shownId, rep.count)
+    // The page the card shows: none while the sidebar shows the same pin (the sidebar wins; the card says so).
+    readonly property var activePage: shownInSide ? null : pageFor(shownId, rep.count)
     readonly property var shownPin: pinById(shownId)
     readonly property string shownTarget: targetOf(shownId)
     readonly property string shownView: modeOf(shownId)
@@ -619,7 +626,11 @@ PanelWindow {
                         profile: prof
                         report: card.report
                         mode: card.modeOf(pid)
-                        active: card.open && pid === card.shownId
+                        readonly property bool inSide: card.sideOpen && pid === card.sidePin && card.sideSlot !== null
+                        home: pane
+                        sideHost: inSide ? card.sideSlot : null
+                        debugLog: card.debugLog
+                        active: inSide || (card.open && pid === card.shownId)
                         newTabsInDock: card.newTabs !== "browser"
                     }
                 }
@@ -689,6 +700,20 @@ PanelWindow {
                         primary: true
                         onClicked: if (card.activePage) card.activePage.engine.reload()
                     }
+                }
+
+                // W30: the shown pin's page is in the open sidebar (one page per pin): the card says where it is.
+                Text {
+                    anchors.centerIn: parent
+                    width: pane.width - 2 * Theme.pad
+                    visible: card.open && card.shownInSide
+                    z: 3
+                    wrapMode: Text.Wrap
+                    horizontalAlignment: Text.AlignHCenter
+                    text: I18n.tr("webdock.side.elsewhere")
+                    color: Theme.dim
+                    font.pixelSize: Theme.fs
+                    font.family: Theme.fam(text, Theme.families)
                 }
 
                 // The web engine is still starting: the card frame is up before the host is connected.
