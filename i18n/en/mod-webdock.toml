@@ -123,3 +123,10 @@
 "action.webdock.remove" = "Remove a pin from the dock"
 "action.webdock.move" = "Move a pin in the dock"
 "action.webdock.retarget" = "Replace a pin's page with this one"
+
+# The dock in a sidebar (W30, docs/ux/webdock.md "In the sidebar"): the panel's states, the edge card's note, the actions.
+"webdock.side.unplaced" = "Sites show here when the web dock is a sidebar tab. Here, open them at the screen edge."
+"webdock.side.at_edge" = "Show at the edge"
+"webdock.side.elsewhere" = "This page is shown in the sidebar"
+"action.webdock.sidebar" = "The sidebar's web dock panel rests at a place, or left it"
+"action.webdock.sidebar_select" = "Show a pin in the sidebar"

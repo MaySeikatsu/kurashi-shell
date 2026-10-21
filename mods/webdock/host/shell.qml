@@ -92,5 +92,24 @@ ShellRoot {
         engaged: root.engaged
         profiles: profiles
         report: root.report
+        sidePin: root.sidePinId
+        sideOpen: root.sideOpen
+        sideSlot: side.slot
+    }
+
+    // W30: the sidebar's page, where the sidebar panel's page area rests (`sidebar.place`), while it shows a site.
+    readonly property var sideDoc: doc.sidebar || ({})
+    readonly property string sidePinId: sideDoc.pin || ""
+    readonly property var sidePinObj: pinById(sidePinId)
+    readonly property bool sideOpen: !!sideDoc.place && !!sidePinObj && sidePinObj.kind === "web"
+        && keepWeb.indexOf(sidePinId) >= 0
+    SideWindow {
+        id: side
+        place: root.sideDoc.place || null
+        open: root.sideOpen && card.sidePage !== null
+        pin: root.sidePinObj
+        page: card.sidePage
+        view: root.sidePinObj ? profiles.viewOf(root.sidePinObj.profile || root.sidePinObj.id) : "mobile"
+        report: root.report
     }
 }
