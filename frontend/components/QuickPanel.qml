@@ -258,6 +258,18 @@ Item {
         value: quick.caffeine
         start: function (to, report) { Store.act("idle.caffeine", {on: to}, quick.cb(report, "power.quick.failed")) }
     }
+    // K53: light or dark is the user's mode (every palette has both). The theme document says which is in effect; the tile
+    // writes the setting, so a style only recommends one until this is used.
+    readonly property bool darkOn: String((Store.docs["theme"] || {}).appearance ? Store.docs["theme"].appearance.scheme : "") === "dark"
+    Request {
+        id: rqDark
+        value: quick.darkOn
+        start: function (to, report) {
+            Store.apply([{set: "theme.colors.scheme", value: to ? "dark" : "light"}], function (errors) {
+                if (errors && errors.length) report(I18n.tr(String(errors[0].code || "power.quick.failed")))
+            })
+        }
+    }
     Request {
         id: rqNight
         value: quick.nightDoc.enabled === true
@@ -334,7 +346,7 @@ Item {
     // The grid's cells in visual order: the six core tiles, then one per contribution. A cell that is not a tile (a plain
     // contribution) is null, so the arrows keep their places and never land on it.
     function tileCells() {
-        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay, tCaffeine, tNight, tRecord]
+        var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay, tCaffeine, tNight, tRecord, tDark]
         for (var i = 0; i < modCells.count; i++) {
             var cell = modCells.itemAt(i)
             var t = cell !== null ? cell.tile : null
@@ -675,6 +687,18 @@ Item {
                         req: rqRecord
                         hasPage: false
                         pendingText: I18n.tr("power.quick.record.starting")
+                    }
+                    QuickTile {
+                        id: tDark
+                        width: (grid.width - grid.spacing) / 2
+                        glyph: "☾"
+                        icon: "dark_mode"
+                        label: I18n.tr("island.quick.tile.dark")
+                        subtitle: quick.darkOn ? I18n.tr("island.quick.on") : I18n.tr("island.quick.off")
+                        on: quick.darkOn
+                        req: rqDark
+                        hasPage: false
+                        pendingText: I18n.tr("island.quick.changing")
                     }
                     // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
                     // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.

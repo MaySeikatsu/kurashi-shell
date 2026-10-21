@@ -11,7 +11,7 @@
 #     warmth, and no process once it is turned off;
 #   - the recorder with a fake wf-recorder: recording true with the file and the bar's REC dot; recorder.stop ends it
 #     (SIGINT), the file is there and the document says recording false;
-#   - shots of the quick card with the three tiles under theme.decor "sekai" and "none", and of the night light page.
+#   - shots of the quick card with the three tiles under theme.style "sekai" and "none", and of the night light page.
 #   nix develop -c frontend/test-power.sh [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug, else target/debug), copied first.
 # Shots in frontend/shots/power/. On a hybrid laptop export KURASHI_RENDER_NODE first.
@@ -217,12 +217,12 @@ ok "wf-recorder started: $(head -1 "$W/wf-recorder.argv")"
 shot bar-recording
 K act quick.toggle >/dev/null
 for decor in sekai none; do
-  K set theme.decor="$decor" >/dev/null || fail "theme.decor $decor"
+  K set theme.style="$decor" >/dev/null || fail "theme.style $decor"
   shot "quick-$decor" 2
 done
 
 # The night light page: a click on the night tile's arrow (sekai: the 8th tile, right column, at 1441,388).
-K set theme.decor=sekai >/dev/null
+K set theme.style=sekai >/dev/null
 K act ui.close >/dev/null
 sleep 0.5
 K act quick.toggle >/dev/null

@@ -1,7 +1,7 @@
-# SNES — console-plastic grey, US-purple buttons, the logo's red, yellow and green as spice. Light only. Roles after
+# SNES — console-plastic grey, US-purple buttons, the logo's red, yellow and green as spice. Light, and dark (K53). Roles after
 # shellseikatsu `_snesPalette()` (W25, K50). Meant for decor `snes` (frame `snes`).
 name = "snes"
-kind = "light"
+kind = "pair"
 description = "Console grey and US purple (decor snes)"
 
 [light]
@@ -25,3 +25,26 @@ error = "#a8231b"
 success = "#1f6e2c"                   # logo green
 line = "#2e2e36"
 ring = "#dcddd8"
+
+# Dark (K53: every palette has both schemes): the console in charcoal: dark plastic, lilac buttons, the logo's red, yellow and green.
+[dark]
+surface = "#2a2b2f"
+surface_container_lowest = "#1e1f22"
+surface_container_low = "#25262a"
+surface_container = "#303136"
+surface_container_high = "#393a40"
+surface_container_highest = "#44454c"
+on_surface = "#e4e5e0"
+on_surface_variant = "#b8b9b4"
+outline = "#8e8f8a"
+outline_variant = "#4a4b52"
+accent = "#a89cf0"
+accent_container = "#4f43ae"
+on_accent_container = "#ece8ff"
+secondary = "#e8605a"
+tertiary = "#e8c040"
+warning = "#e8c040"
+error = "#f06058"
+success = "#5ac46a"
+line = "#0e0e12"
+ring = "#54555c"

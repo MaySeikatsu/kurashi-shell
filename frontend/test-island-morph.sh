@@ -6,8 +6,8 @@
 # frontend/shots/island/morph-<tag>-{open,close}-<ms>.png and morph-<tag>-rest.png. Fails only on a server that does not
 # come up or on a QML error.
 #   nix develop -c frontend/test-island-morph.sh [tag] [config-toml-line ...]
-#   e.g. frontend/test-island-morph.sh sekai 'theme.decor = "sekai"'
-#        frontend/test-island-morph.sh wa-iro 'theme.decor = "none"'
+#   e.g. frontend/test-island-morph.sh sekai 'theme.style = "sekai"'
+#        frontend/test-island-morph.sh wa-iro 'theme.style = "none"'
 # MORPH_FACE=media|volume|... picks the face (`island.next` until runtime.island.main has it is not done: the real daemon
 # picks the face; the default is the clock). Machine B: export KURASHI_RENDER_NODE first.
 set -euo pipefail
@@ -15,7 +15,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TAG=${1:-sekai}
 shift || true
 LINES=("$@")
-[ ${#LINES[@]} -eq 0 ] && LINES=('theme.decor = "sekai"')
+[ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
 NAME=${MORPH_SANDBOX:-w21-isl-morph}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/island

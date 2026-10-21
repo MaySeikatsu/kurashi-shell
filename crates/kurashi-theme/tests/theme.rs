@@ -619,3 +619,21 @@ fn every_chrome_has_its_own_token_set() {
     }
     assert_eq!(seen.len(), 4);
 }
+
+#[test]
+fn every_bundled_palette_has_both_schemes_as_written() {
+    // K53 (user, session 11): every palette has a light and a dark mode, authored — not derived from the other one.
+    // (Contrast in both is `every_palette_scheme_contrast_passes_aa_after_wcag`.)
+    for name in bundled_names() {
+        let set = bundled(name).unwrap();
+        assert!(set.dark.is_some() && set.light.is_some(), "{name} lacks a scheme");
+        if std::env::var_os("KURASHI_PRINT_WCAG").is_some() {
+            for scheme in [Scheme::Dark, Scheme::Light] {
+                let out = resolve(&input(name, scheme), &fonts()).unwrap();
+                for n in out.notes.iter().filter(|n| n.stage == "wcag") {
+                    eprintln!("{name} {scheme:?}: {}", n.text);
+                }
+            }
+        }
+    }
+}
