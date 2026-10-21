@@ -8,5 +8,6 @@
 "theme.scheme.detail.wallpaper_waiting" = "No wallpaper picture yet (the wallpaper mod applies one with its theme): dark until then"
 "theme.scheme.style" = "Follows the style {style}"
 "theme.scheme.back" = "Back to {mode}"
+"theme.texture.back" = "Back to {material}"
 "theme.scheme.light" = "light"
 "theme.scheme.dark" = "dark"

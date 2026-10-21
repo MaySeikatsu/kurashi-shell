@@ -460,6 +460,103 @@ pub fn bake_file(
     Ok(out)
 }
 
+/// Settings' material cards want swatches (it watches `theme.previews`); none are made otherwise (Ma).
+static SWATCHES_WANTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static SWATCHES_RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn want_swatches(on: bool) {
+    if SWATCHES_WANTED.swap(on, Ordering::Relaxed) != on && on {
+        again();
+    }
+}
+
+/// The swatch side in pixels (a card shows it at about half: sharp on a scale-2 output).
+const SWATCH_PX: u32 = 128;
+
+/// Settings' material cards (K59): every kind as a small lit square on the container colour, in the light, tint and
+/// wrinkles in effect — `[{name, image}]`, `image` `""` until it is made (one blocking task makes the missing ones, then
+/// the theme is republished). Empty while nobody watches.
+pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
+    if !SWATCHES_WANTED.load(Ordering::Relaxed) {
+        return json!([]);
+    }
+    let lt = light(store, chrono::Local::now());
+    let base = lin(rgb(t, "color.surface_container_high"));
+    let grounds = [base];
+    let amp = legible_amp(0.12, lin(rgb(t, "color.on_surface")), &grounds, lt.color).max(0.06);
+    let tint = b(store, "theme.texture.tint");
+    let wrinkles = (f(store, "theme.texture.wrinkles", 0.0) as f32 * 20.0).round() / 20.0;
+    let jobs: Vec<(Kind, PathBuf, Shading)> = Kind::ALL
+        .into_iter()
+        .map(|kind| {
+            let m = kurashi_texture::material(kind);
+            let ink = match m.ink_role {
+                InkRole::Secondary => rgb(t, "color.secondary"),
+                InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
+            };
+            let sh = Shading {
+                amp: amp as f32,
+                gloss: m.gloss,
+                shininess: m.shininess,
+                ink: lin(ink),
+                ink_alpha: if tint { m.ink_alpha } else { 0.0 },
+                light_dir: lt.dir,
+                light_color: lt.color,
+            };
+            let name = {
+                use std::hash::{Hash, Hasher};
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                format!("{sh:?}{wrinkles}{tint}{base:?}{}", kurashi_texture::generate_version())
+                    .hash(&mut h);
+                format!("{}-{:016x}.png", kind.name(), h.finish())
+            };
+            (kind, cache_dir().join("swatch").join(name), sh)
+        })
+        .collect();
+    let missing: Vec<_> = jobs.iter().filter(|(_, p, _)| !p.is_file()).cloned().collect();
+    if !missing.is_empty() && !SWATCHES_RUNNING.swap(true, Ordering::Relaxed) {
+        let make = move || {
+            for (kind, path, sh) in missing {
+                let p = Params {
+                    kind,
+                    wrinkles,
+                    tint,
+                    device_scale: 1.0,
+                };
+                let Ok((_, tile)) = kurashi_texture::tile_file(&cache_dir(), &p) else {
+                    continue;
+                };
+                let img = kurashi_texture::preview(&tile, &sh, base, SWATCH_PX, 1.0);
+                let _ = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")));
+                let tmp = path.with_extension("png.tmp");
+                if img.save_with_format(&tmp, image::ImageFormat::Png).is_ok() {
+                    let _ = std::fs::rename(&tmp, &path);
+                }
+            }
+            SWATCHES_RUNNING.store(false, Ordering::Relaxed);
+        };
+        match tokio::runtime::Handle::try_current() {
+            Ok(rt) => {
+                rt.spawn(async move {
+                    let _ = tokio::task::spawn_blocking(make).await;
+                    again();
+                });
+            }
+            Err(_) => make(),
+        }
+    }
+    Value::Array(
+        jobs.iter()
+            .map(|(kind, path, _)| {
+                json!({
+                    "name": kind.name(),
+                    "image": if path.is_file() { path.to_string_lossy().into_owned() } else { String::new() },
+                })
+            })
+            .collect(),
+    )
+}
+
 /// What the wallpaper bake uses now; `None` while the wallpaper is not a texture scope (pictures go through unchanged).
 #[derive(Clone)]
 struct Bake {

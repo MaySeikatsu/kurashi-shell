@@ -279,6 +279,17 @@ fn decor_frame(store: &ConfigStore) -> String {
     .unwrap_or_default()
 }
 
+/// K60: each named ink's shade in a scheme, for Settings' swatches.
+fn inks(dark: bool) -> Value {
+    ["blue", "black", "sepia", "red", "green", "violet"]
+        .iter()
+        .filter_map(|n| {
+            kurashi_theme::stages::ink_color(n, dark).map(|c| ((*n).to_owned(), json!(c.hex())))
+        })
+        .collect::<serde_json::Map<String, Value>>()
+        .into()
+}
+
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
@@ -330,6 +341,10 @@ pub fn document_with(
                     "scheme_detail": effective_scheme(store, picture).1,
                     "scheme_before": store.scheme_before(),
                     "texture_before": store.texture_before(),
+                    // K59: why the daytime light is where it is (`sun`: the weather mod's place, `day`: a 06:00–18:00
+                    // day without one; `""` for the other modes); K60: each ink's shade in the scheme in effect.
+                    "light_detail": crate::texture::light(store, chrono::Local::now()).detail,
+                    "inks": inks(input.scheme == Scheme::Dark),
                     "overrides": store.appearance_overrides(),
                 },
             })
@@ -365,6 +380,19 @@ pub fn previews(
 
 pub const PREVIEWS_DOC: &str = "theme.previews";
 
+/// Starts and stops the material swatches with the previews' first and last subscriber.
+struct SwatchWatch;
+
+impl crate::hub::Provider for SwatchWatch {
+    fn start(&self, _hub: Arc<Hub>) {
+        crate::texture::want_swatches(true);
+    }
+
+    fn stop(&self) {
+        crate::texture::want_swatches(false);
+    }
+}
+
 /// Register `theme` and recompute it whenever config changes.
 pub fn register(
     hub: &Arc<Hub>,
@@ -376,12 +404,13 @@ pub fn register(
     if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
         crate::texture::update_bake(store, tokens);
     }
+    let mut shown = previews(store, fonts.as_ref(), pic.as_deref());
+    if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
+        shown["textures"] = crate::texture::swatches(store, tokens);
+    }
     hub.register(DOC, first, None);
-    hub.register(
-        PREVIEWS_DOC,
-        previews(store, fonts.as_ref(), pic.as_deref()),
-        None,
-    );
+    // K59: the material swatches are made only while someone (Settings) watches the previews.
+    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(SwatchWatch)));
     // K55: scheme `auto` follows the portal's preference, watched only while that mode is chosen.
     let watcher = Arc::new(crate::os_scheme::Watcher::default());
     let follow = {
@@ -513,11 +542,13 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
     {
         o.remove("error");
     }
+    let mut shown = previews(store, fonts, pic.as_deref());
     if let Some(tokens) = next.get("tokens").and_then(Value::as_object) {
         crate::texture::update_bake(store, tokens);
+        shown["textures"] = crate::texture::swatches(store, tokens);
     }
     let _ = hub.set(DOC, next, None);
-    let _ = hub.set(PREVIEWS_DOC, previews(store, fonts, pic.as_deref()), None);
+    let _ = hub.set(PREVIEWS_DOC, shown, None);
 }
 
 #[cfg(test)]

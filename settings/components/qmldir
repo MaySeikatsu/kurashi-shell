@@ -25,3 +25,6 @@ PackCards 1.0 PackCards.qml
 StyleDiffers 1.0 StyleDiffers.qml
 SchemeStatus 1.0 SchemeStatus.qml
 SidebarOpen 1.0 SidebarOpen.qml
+TextureCards 1.0 TextureCards.qml
+LightDial 1.0 LightDial.qml
+InkSwatches 1.0 InkSwatches.qml
