@@ -33,6 +33,11 @@ import "../components/island"
 PanelWindow {
     id: stage
 
+    // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+    property var tileSheet: tilesLoader.item
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    LightSense {}
+
     // The island panel is wanted (shell.qml sets it after it picked the output, with the session
     // menu and the tray menu).
     property bool want: false
@@ -598,6 +603,25 @@ PanelWindow {
             ringScale: 0.5 + 0.5 * stage.tw
             flip: stage.flip
         }
+        // K59: the shape's card is a material area too — the relief over its body and, joined, its head, inside the
+        // outline and under the views (the fillets of the neck stay plain: a few pixels). The sheet registers by window
+        // pixel, so the Stage's mirror for a bottom bar does not move it.
+        Loader {
+            active: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
+            x: shape.x0 + shape.ow
+            y: shape.y0 + (stage.joined ? shape.ow : 0)
+            width: Math.max(0, shape.w - 2 * shape.ow)
+            height: Math.max(0, shape.h - shape.ow - (stage.joined ? shape.ow : 0))
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, shape.rb - shape.ow) }
+        }
+        Loader {
+            active: Theme.texShell && shape.visible && stage.joined && shape.hw > 2
+            x: shape.hx0 + shape.ow
+            y: shape.hy0 + shape.ow
+            width: Math.max(0, shape.hw - 2 * shape.ow)
+            height: Math.max(0, shape.hh - 2 * shape.ow)
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, shape.hr - shape.ow) }
+        }
     }
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).
     CompactFace {
@@ -646,6 +670,22 @@ PanelWindow {
         color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.panel
         border.width: stage.morphMode || stage.ownChrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
+        // island morphs, where the shape draws the card.
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell && !Theme.texText && !stage.morphMode && !stage.ownChrome
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+        }
+        // With `texture.text` the relief lies over the views too: their text and icons sink into the same sheet.
+        Loader {
+            z: 1
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell && Theme.texText && !stage.morphMode && !stage.ownChrome
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+        }
         // The Stage's one keyboard focus holder. The menus are driven from here and never take
         // focus themselves (a second holder would clear this flag for good). Esc closes whichever panel.
         focus: true

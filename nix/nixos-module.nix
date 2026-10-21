@@ -104,7 +104,7 @@ in
     };
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ];
+      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ];
       defaultText = lib.literalExpression "the Home-Manager module's `programs.kurashi.fonts`";
       description = "System fonts for the greeter (it runs as the greeter user, without the user's fonts); [ ] to manage them yourself.";
     };

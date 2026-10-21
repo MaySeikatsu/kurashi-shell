@@ -85,13 +85,13 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ];
-      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto ]";
+      default = with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ];
+      defaultText = lib.literalExpression "with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" ]; }) ]";
       description = ''
         Fonts the shell draws with: Material Symbols (Rounded, and Sharp for line chrome) for icons (without it,
         components fall back to text glyphs), the looks' families (K42, K45, K53: Nunito for `sekai`, Inter for
         `glass`, JetBrains Mono for `terminal`, Noto Serif for `washi`; W25: Quicksand and Comic Neue for `kawaii`, Cinzel
-        for `hallownest`, EB Garamond for `souls`, Roboto for `material` — the looks' other families are not free and
+        for `hallownest`, EB Garamond for `souls`, Roboto for `material`; K60: Kalam and Klee One for `kami` — the looks' other families are not free and
         fall back along their chains) and Noto CJK (sans and serif) for Japanese.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';

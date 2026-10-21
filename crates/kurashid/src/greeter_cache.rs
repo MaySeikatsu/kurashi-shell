@@ -53,11 +53,18 @@ pub fn wallpaper_of(doc: &Value) -> Option<PathBuf> {
 
 /// The cache's content (absent fields are left out, as in documents: B25).
 pub fn cache_doc(theme: &Value, locale: &str, wallpaper: Option<&Path>, user: &str) -> Value {
+    let mut tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
+    // K59: the texture's tile lives in the user's cache, which the greeter cannot read: no material there (I166).
+    for (k, v) in [("texture.map", json!("")), ("texture.amp", json!(0.0))] {
+        if tokens.contains_key(k) {
+            tokens.insert(k.into(), v);
+        }
+    }
     let mut doc = json!({
         "v": 1,
         "user": user,
         "locale": locale,
-        "tokens": theme["tokens"].as_object().cloned().unwrap_or_default(),
+        "tokens": tokens,
     });
     if let Some(w) = wallpaper {
         doc["wallpaper"] = json!(w.to_string_lossy());

@@ -2,6 +2,7 @@
 # text instead of a key.
 "config.choice.style.none" = "None (your own)"
 "config.choice.style.washi" = "Washi"
+"config.choice.style.kami" = "Kami (notebook)"
 "config.choice.style.kanso" = "Kanso"
 "config.choice.style.material" = "Material"
 "config.choice.style.glass" = "Glass"
@@ -26,6 +27,7 @@
 "config.choice.look.material" = "Material (tonal)"
 "config.choice.look.terminal" = "Terminal (ink lines)"
 "config.choice.look.washi" = "Washi (paper and ink)"
+"config.choice.look.kami" = "Kami (pen on dotted paper)"
 "config.choice.look.sekai" = "Sekai (pop keycaps)"
 "config.choice.look.aqua" = "Aqua (macOS-like glass)"
 "config.choice.look.win95" = "Win95 (bevels)"
@@ -46,4 +48,6 @@
 "action.theme.look.apply" = "Apply a look"
 "action.theme.scheme.restore" = "Back to my light/dark mode"
 "config.error.no_scheme_before" = "There is no earlier light/dark mode to go back to."
+"action.theme.texture.restore" = "Back to my material"
+"config.error.no_texture_before" = "There is no earlier material to go back to."
 "config.error.appearance_name" = "Name a style or a look."

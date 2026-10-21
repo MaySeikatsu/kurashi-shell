@@ -32,6 +32,21 @@ Rectangle {
 
     color: Theme.surface
 
+    // K59: the lock's ground is a material area; the relief lies under the content. The surface is a whole output, so
+    // its sheet origin is the output's own.
+    Loader {
+        anchors.fill: parent
+        active: Theme.texShell && !Theme.texText
+        sourceComponent: Relief { anchors.fill: parent }
+    }
+    // With `texture.text` the relief lies over the lock's text as well.
+    Loader {
+        z: 1
+        anchors.fill: parent
+        active: Theme.texShell && Theme.texText
+        sourceComponent: Relief { anchors.fill: parent }
+    }
+
     // Keycap chrome (K42; the ring is keycap-only): SekaiPop's dot field — dots that grow toward the top-right and
     // bottom-left corners, drawn once per size (the lock surface exists only while locked).
     Canvas {

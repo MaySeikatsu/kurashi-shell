@@ -218,6 +218,12 @@ is in effect and the theme document says so (note `theme.note.wallpaper_waiting`
 `settings.choice.unavailable` while the mod is off). Picker: a Stage panel (`cardWidth` up to 720 px,
 contract row 66). Wallhaven: later (BACKLOG D3).
 
+**Picture filter (K59).** `ModCtx::picture_filter()` hands every native mod the host's `PictureFilter`: `filter(picture,
+size, scale) -> file` (blocking) and `changes()` (a watch that ticks when the result would differ). The wallpaper mod
+shows the backend each output's filtered file — the material texture baked in when `theme.texture.scope` includes the
+wallpaper (`kurashid/src/texture.rs`, cached under `$XDG_CACHE_HOME/kurashi/texture/wallpaper/`) — and keeps the
+picture's own path in its state, its document and `theme.image`; on a tick it shows every picture again with a fade.
+
 ### Web dock (K38, `docs/ux/webdock.md`)
 Mod `webdock` (native, off by default): pins at a screen edge, sites shown by the **web host** (`host:web`: the patched
 Quickshell `qs-webengine` running `{mod_dir}/host/shell.qml`, K39), kurashi views drawn by the shell (later wave).

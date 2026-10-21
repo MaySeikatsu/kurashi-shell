@@ -1,0 +1,9 @@
+name = "kami"
+label = "config.choice.style.kami"
+category = "inspired"
+# 紙: a notebook page written with a blue pen — light paper by default, a blue-black card in the dark (K60).
+look = "kami"
+palette = "kami"
+[recipe]
+"theme.colors.scheme" = "light"
+"theme.colors.ink" = "blue"
