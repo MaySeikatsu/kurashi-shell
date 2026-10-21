@@ -6,9 +6,13 @@
 # reads the shots (top bar as is, bottom bar flipped; left side, then mirrored for the right):
 #   - the rule is found down the crop's left column (its row R, its colour = the outline);
 #   - the outline is one connected line (8-neighbours, a 1 px gap bridged, no more) from the rule at the crop's edge to
-#     the card's side 50 px below the rule — in the card at rest and in every morph frame whose card has grown that far;
+#     the card's side 50 px below the rule — in the card at rest and in every morph frame whose card is past the rule
+#     (a card shorter than that: half way down it; a pill not yet 8 px past the rule is skipped);
+#   - no rule left under the card, at rest and in every morph frame;
 #   - at rest, walking from the crop's edge to the side, the outline's topmost pixel never rises above the rule (no
 #     side running on into the bar, no step up, no tab outline round the head) and the rule is open between the sides.
+# The -mid cases run the springs at a quarter speed with dense grabs and fail unless a checked frame caught the card
+# mid-morph (0 < opened < 1, from the shape's KURASHI_ISLAND_DEBUG log matched to the card's foot in the frame).
 # Shots: washi and terminal into frontend/shots/island/morph-<tag>-*.png, the other cases into
 # target/island-join/ (MORPH_OUT). Fails on a gap, a step or an overshoot, or where the morph test fails.
 #   nix develop -c frontend/test-island-join.sh            # all cases
@@ -69,7 +73,15 @@ def side(rows, w, rest, name):
     R2 = R
     while dist(px(4, R2 + 1), ref) < 30: R2 += 1
     desk = px(4, R2 + 4)
-    card = px(w // 2, R2 + 6)
+    # The card's bottom down its centre (the first desk row past the rule); a card that is not 8 px past the rule yet is
+    # a pill (no join to check). The side is checked 50 px below the rule, or half way down a card shorter than that.
+    E = R2 + 1
+    B = next((y for y in range(E, len(rows)) if dist(px(w // 2, y), desk) < 12), len(rows))
+    depth = B - E
+    if depth < 8:
+        return "no card side below the rule" if rest else None
+    CHECKED.append(B)
+    card = px(w // 2, E + min(5, depth // 2 - 1))
     contrast = min(dist(ref, c) for c in (bar, desk, card) if dist(ref, c) > 1)
     if contrast < 40: return "the rule hardly differs from its grounds (%.0f)" % contrast
     thr = 0.5 * contrast
@@ -87,11 +99,10 @@ def side(rows, w, rest, name):
         return best
     # A flat arc spreads a 1 px line over two rows (two pixels of about half each).
     on = lambda x, y: cover(px(x, y)) >= 0.3
-    ys = R2 + 50
+    ys = R2 + min(50, max(4, depth // 2))
     if ys >= len(rows): return "crop too short"
     xs = next((x for x in range(4, w // 2) if on(x, ys)), None)
-    if xs is None or dist(px(w // 2, ys), desk) < thr:
-        return "no card side %d px below the rule" % (ys - R) if rest else None
+    if xs is None: return "no outline at the card's side %d px below the rule" % (ys - R)
     # One line from the rule at the edge to the side: flood the outline, a 1 px gap bridged.
     seen, todo = set(), [(x, y) for x in range(4, 9) for y in range(R, R2 + 1) if on(x, y)]
     seen.update(todo)
@@ -106,6 +117,9 @@ def side(rows, w, rest, name):
     if (xs, ys) not in seen:
         reach = max((p for p in seen), key=lambda p: (p[1], p[0]))
         return "gap: the rule's outline stops at %s and never reaches the card's side at (%d, %d)" % (reach, xs, ys)
+    # No rule left under the card (a mid-morph frame too: the bar's rule lagging the card would show here).
+    for x in range(xs + 4, w // 2):
+        if any(on(x, y) for y in range(R, R2 + 1)): return "double line: the rule runs on under the card at x=%d" % x
     if not rest: return None
     # The topmost outline pixel, column by column from the edge to the side: never above the rule, never back up.
     top_prev, missing = R, 0
@@ -119,21 +133,44 @@ def side(rows, w, rest, name):
         if top < R: return "overshoot: the outline rises into the bar at x=%d (row %d, rule at %d)" % (x, top, R)
         if top < top_prev - 1: return "step: the outline steps up at x=%d (%d -> %d)" % (x, top_prev, top)
         top_prev = max(top_prev, top)
-    for x in range(xs + 4, w // 2):
-        if any(on(x, y) for y in range(R, R2 + 1)): return "double line: the rule runs on under the card at x=%d" % x
     return None
 
+CHECKED = []
+
 def main():
-    edge, rest_name = sys.argv[1], sys.argv[2]
-    bad = []
-    for path in sys.argv[2:]:
+    # check.py <edge> <shape log or -> <rest.png> <frames...>
+    edge, log, rest_name = sys.argv[1], sys.argv[2], sys.argv[3]
+    bad, mid = [], []
+    # The shape's log (KURASHI_ISLAND_DEBUG=1): "island-shape opened=<o> y1=<y>" on every change of `opened`.
+    states = []
+    if log != "-":
+        for line in open(log, errors="replace"):
+            i = line.find("island-shape opened=")
+            if i < 0: continue
+            kv = dict(p.split("=", 1) for p in line[i:].split()[1:] if "=" in p)
+            states.append((float(kv["opened"]), float(kv["y1"])))
+    for path in sys.argv[3:]:
         w, h, rows = load(path)
         if edge == "bottom": rows = rows[::-1]
         rest = path == rest_name
+        del CHECKED[:]
+        errs = []
         for label, rr in (("left", rows), ("right", [r[::-1] for r in rows])):
             err = side(rr, w, rest, path)
-            if err: bad.append("%s (%s): %s" % (path, label, err))
+            if err: errs.append("%s (%s): %s" % (path, label, err))
+        bad += errs
+        # A checked frame whose card's bottom (B) matches a logged state with 0 < opened < 1 is a mid-morph frame.
+        if CHECKED and not errs and states:
+            B = CHECKED[0]
+            near = [o for o, y in states if abs(y - B) <= 1.5]
+            if near and all(0 < o < 1 for o in near):
+                mid.append(path)
     for b in bad: print("test-island-join: " + b)
+    if log != "-":
+        print("test-island-join: mid-morph frames checked (0 < opened < 1): %d %s" % (len(mid), " ".join(p.rsplit("/", 1)[-1] for p in mid)))
+        if not bad and not mid:
+            print("test-island-join: no checked frame caught the card mid-morph (0 < opened < 1)")
+            sys.exit(1)
     sys.exit(1 if bad else 0)
 
 main()
@@ -145,12 +182,21 @@ run_case() {
   local out=$EXTRA crop="860,0 840x520"
   [ "$keep" = 1 ] && out=$ROOT/frontend/shots/island
   [ "$edge" = bottom ] && crop="860,920 840x520"
+  local at=${MID_AT[$tag]:-} log=- qslog=$EXTRA/$tag.qs.log
   echo "test-island-join: case $tag ($edge): $*"
-  MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" \
-    > "$EXTRA/$tag.log" 2>&1 || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
+  rm -f "$out/morph-$tag"-open-*.png "$out/morph-$tag"-close-*.png "$qslog"
+  if [ -n "$at" ]; then
+    log=$qslog
+    KURASHI_ISLAND_DEBUG=1 MORPH_LOG=$qslog MORPH_AT=$at MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join \
+      "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" > "$EXTRA/$tag.log" 2>&1 \
+      || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
+  else
+    MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" \
+      > "$EXTRA/$tag.log" 2>&1 || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
+  fi
   local shots=("$out/morph-$tag-rest.png")
   for f in "$out/morph-$tag"-open-*.png "$out/morph-$tag"-close-*.png; do shots+=("$f"); done
-  timeout 120 python3 -I "$CHECK" "$edge" "${shots[@]}" || fail "the join is broken for $tag"
+  timeout 300 python3 -I "$CHECK" "$edge" "$log" "${shots[@]}" || fail "the join is broken for $tag"
   echo "test-island-join: $tag ok"
 }
 
@@ -165,8 +211,14 @@ declare -A CASES=(
   [line-r2]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 2.0'
   [washi-bottom]='bottom 0 theme.style = "washi"|bar.edge = "bottom"'
   [terminal-bottom]='bottom 0 theme.style = "terminal"|bar.edge = "bottom"'
+  [washi-mid]='top 0 theme.style = "washi"|theme.motion.speed = 0.25'
+  [terminal-bottom-mid]='bottom 0 theme.style = "terminal"|bar.edge = "bottom"|theme.motion.speed = 0.25'
 )
-ORDER="washi terminal washi-dark line-none line-square line-squircle line-r05 line-r2 washi-bottom terminal-bottom"
+# Mid-morph cases: the springs at a quarter speed and dense grabs, so frames land while the card is still short (the
+# shape logs `opened`, KURASHI_ISLAND_DEBUG); the check fails unless one checked frame has 0 < opened < 1.
+DENSE="60 80 100 115 130 145 160 175 190 205 220 240 260 290 330 400 500 600 700 800 900 1100"
+declare -A MID_AT=([washi-mid]=$DENSE [terminal-bottom-mid]=$DENSE)
+ORDER="washi terminal washi-dark line-none line-square line-squircle line-r05 line-r2 washi-bottom terminal-bottom washi-mid terminal-bottom-mid"
 for c in ${JOIN_CASES:-$ORDER}; do
   spec=${CASES[$c]:-}
   [ -n "$spec" ] || fail "unknown case $c"

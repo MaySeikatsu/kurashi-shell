@@ -22,7 +22,8 @@ Singleton {
     // The output whose pill is inside the Stage's shape right now; "" when none.
     property string takenOn: ""
     // Where the shape opens the `takenOn` bar's rule (line chrome, W30): from the bar's centre, left and right, in px;
-    // 0, 0 while it does not hang from the rule. The bar leaves its rule out in between (the shape draws the join).
+    // 0, 0 while the shape is not out on a ruled strip. The bar leaves its rule out in between (the shape draws the rule
+    // there, and the join).
     property real openL: 0
     property real openR: 0
     function setOpening(l, r) {

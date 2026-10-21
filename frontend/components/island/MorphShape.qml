@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Shapes
+import Quickshell
 import "../../core"
 
 // The island's one shape while it morphs (W21; Capsule's single morphing capsule, Vitreus's liquid neck). Drawn in a top
@@ -113,12 +114,16 @@ Shape {
     // when square) and down the sides — and the head, the part inside the bar, loses its own outline as the card grows
     // (`opened`: 0 the pill's outlined box, 1 once the bottom is a bar's height past the edge; the head's inset thins to
     // nothing). Open, a band is one U-shaped polygon from one fillet's top round the card to the other's (no head, no
-    // coincident edges, which would leave an anti-aliased trace), and the shape tells the bar where it opens its rule
-    // (IslandGeom.setOpening), so a translucent fill never shows the rule through it: the card's side and the bar's rule
-    // meet at one point, as one line.
+    // coincident edges, which would leave an anti-aliased trace). The rule up to the fillets is the shape's own too, and
+    // the bar leaves its rule out under the shape's box (rulePath, IslandGeom.setOpening), so a translucent fill never
+    // shows the rule through it and the card's side and the rule meet as one line in every frame, morphing or not.
     readonly property bool ruled: Theme.outlineW > 0
     readonly property bool hangs: !joined && ruled && y1 - edgeY > rb + 1
     readonly property real opened: hangs ? Math.max(0, Math.min(1, (y1 - edgeY - rb) / Math.max(1, edgeY))) : 0
+    // Test only (KURASHI_ISLAND_DEBUG=1, frontend/test-island-join.sh): every change of `opened` with the card's foot, so
+    // the pixel check can tell which grabbed frames caught the card mid-morph.
+    readonly property bool debugLog: Quickshell.env("KURASHI_ISLAND_DEBUG") === "1"
+    onOpenedChanged: if (debugLog && visible) console.log("island-shape opened=" + opened.toFixed(3) + " y1=" + y1.toFixed(1))
     // The hanging card's contour inset by `d`, from the right fillet's top (x1 + n, edgeY − min(d, ow)) round the card to
     // the left fillet's top; `back` walks it the other way. The fillet is concentric with the outside one (radius n + d),
     // a square corner is mitred; a ring's inset (d > ow) runs on below the fillet.
@@ -164,11 +169,27 @@ Shape {
         return "M " + f(x1 + n) + " " + f(edgeY - Math.min(a, ow)) + hangContour(a, 0, false)
             + " L " + f(x0 - n) + " " + f(edgeY - Math.min(b, ow)) + hangContour(b, 0, true) + " Z"
     }
-    // Where the bar's rule opens under the shape, from the shape's centre (the Stage is centred on its bar): inside the
-    // fillets' tops by 2 px, so the rule and the fillet's band overlap there and a frame between the two surfaces never
-    // shows a gap. Reported only on a change; cleared while the shape does not hang from the rule.
-    readonly property real openL: hangs && visible ? Math.floor(x0 - n + 2 - width / 2) : 0
-    readonly property real openR: hangs && visible ? Math.ceil(x1 + n - 2 - width / 2) : 0
+    // The bar and the shape are two surfaces whose frames are not presented together: an opening that followed the card
+    // frame by frame lagged it (a growing card's fillet stood off the rule's end, a shrinking one left the rule under the
+    // card). So under a ruled strip the shape draws the bar's rule itself across its whole box — the rule's band, in the
+    // outline (opaque under line chrome), level with the bar's — in every state: whole under a pill that has not reached
+    // it (beneath the fill, as the bar's rule was), and while the card hangs from it, from the box's edges to the fillets'
+    // tops (1 px into the fillet's band, so the two never leave a seam), never under the card. The bar opens its rule
+    // under the box (2 px inside its edges, an overlap), which stands still while the box does: it changes only when the
+    // shape comes out or goes (IslandGeom.takenOn) or the box is resized, never while the card morphs.
+    readonly property bool ruledStrip: !joined && ruled
+    function ruleRect(a, b) {
+        var R = edgeY - ow
+        return b - a < 0.5 ? "" : " M " + f(a) + " " + f(R) + " L " + f(b) + " " + f(R) + " L " + f(b) + " " + f(edgeY) + " L " + f(a) + " " + f(edgeY) + " Z"
+    }
+    function rulePath() {
+        if (!ruledStrip) return ""
+        return hangs ? ruleRect(0, x0 - n + 1) + ruleRect(x1 + n - 1, width) : ruleRect(0, width)
+    }
+    // Where the bar's rule opens under the shape, from the shape's centre (the Stage is centred on its bar); 0, 0 while
+    // the shape is not out on a ruled strip. Reported only on a change.
+    readonly property real openL: ruledStrip && visible && width > 8 ? -Math.floor(width / 2) + 2 : 0
+    readonly property real openR: ruledStrip && visible && width > 8 ? Math.floor(width / 2) - 2 : 0
     onOpenLChanged: IslandGeom.setOpening(openL, openR)
     onOpenRChanged: IslandGeom.setOpening(openL, openR)
     Component.onDestruction: IslandGeom.setOpening(0, 0)
@@ -179,6 +200,13 @@ Shape {
         strokeColor: "transparent"
         fillColor: Theme.shadowDy > 0 ? Theme.line : "transparent"
         PathSvg { path: sh.visible && Theme.shadowDy > 0 ? (sh.joined ? sh.joinedPath(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
+    }
+    // The bar's rule, drawn by the shape (a ruled strip only; see rulePath), under the outline and the fill.
+    ShapePath {
+        strokeWidth: -1
+        strokeColor: "transparent"
+        fillColor: sh.ruledStrip ? sh.oc : "transparent"
+        PathSvg { path: sh.visible ? sh.rulePath() : "" }
     }
     ShapePath {
         strokeWidth: -1
