@@ -45,11 +45,11 @@ fn palette_of(theme: &Value) -> kurashi_theme::Palette {
 }
 
 /// The template text: the user's copy in `~/.config/kurashi/templates/` first, else the bundled one.
-fn template(home: &Path, name: &str) -> Option<String> {
+fn template(home: &Path, bundled: &Path, name: &str) -> Option<String> {
     let user = home.join("kurashi/templates").join(name);
-    std::fs::read_to_string(user).ok().or_else(|| {
-        std::fs::read_to_string(crate::i18n::data_dir().join("templates").join(name)).ok()
-    })
+    std::fs::read_to_string(user)
+        .ok()
+        .or_else(|| std::fs::read_to_string(bundled.join(name)).ok())
 }
 
 fn write_if_changed(path: &Path, text: &str) -> std::io::Result<bool> {
@@ -65,8 +65,9 @@ fn write_if_changed(path: &Path, text: &str) -> std::io::Result<bool> {
     Ok(true)
 }
 
-/// Renders and writes every chosen target under `home` (`$XDG_CONFIG_HOME`); returns the document.
-pub fn export(theme: &Value, targets: &[String], home: &Path) -> Value {
+/// Renders and writes every chosen target under `home` (`$XDG_CONFIG_HOME`), with the bundled templates from
+/// `bundled`; returns the document.
+pub fn export(theme: &Value, targets: &[String], home: &Path, bundled: &Path) -> Value {
     let p = palette_of(theme);
     let mut out = Vec::new();
     for name in targets {
@@ -76,7 +77,7 @@ pub fn export(theme: &Value, targets: &[String], home: &Path) -> Value {
         };
         let path = home.join(t.path);
         let mut entry = json!({"name": name, "path": path.to_string_lossy()});
-        match template(home, t.template) {
+        match template(home, bundled, t.template) {
             None => entry["error"] = json!("theme.export.no_template"),
             Some(text) => {
                 let (rendered, unknown) = kurashi_theme::export::render(&text, &p);
@@ -124,7 +125,12 @@ pub fn register(hub: &std::sync::Arc<Hub>, store: &std::sync::Arc<ConfigStore>) 
             let doc = if targets.is_empty() {
                 json!({"targets": []})
             } else {
-                export(&theme, &targets, &config_home())
+                export(
+                    &theme,
+                    &targets,
+                    &config_home(),
+                    &crate::i18n::data_dir().join("templates"),
+                )
             };
             let _ = hub.set(DOC, doc, None);
         }
@@ -169,14 +175,16 @@ mod tests {
             "color.surface_container_highest": "#38353d", "color.surface_container_low": "#211f24",
             "color.on_surface_variant": "#b9b2a6", "color.outline_variant": "#3a3740", "color.shadow": "#000000",
             "color.on_error": "#000000", "color.on_secondary": "#000000", "color.on_tertiary": "#000000"}});
-        let doc = export(&theme, &["foot".into(), "nope".into()], &dir);
+        // The repository's templates: a Nix build's data dir is still empty while its tests run.
+        let bundled = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../templates");
+        let doc = export(&theme, &["foot".into(), "nope".into()], &dir, &bundled);
         let foot = &doc["targets"][0];
         assert_eq!(foot["written"], true, "{doc}");
         assert_eq!(foot["include"]["present"], false);
         let text = std::fs::read_to_string(dir.join("foot/kurashi-colors.ini")).unwrap();
         assert!(text.contains("background=1b1a1e"), "{text}");
         assert_eq!(doc["targets"][1]["error"], "theme.export.unknown_target");
-        let again = export(&theme, &["foot".into()], &dir);
+        let again = export(&theme, &["foot".into()], &dir, &bundled);
         assert_eq!(again["targets"][0]["written"], false);
         let _ = std::fs::remove_dir_all(&dir);
     }
