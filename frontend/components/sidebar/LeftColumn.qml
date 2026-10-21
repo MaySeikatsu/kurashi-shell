@@ -101,6 +101,21 @@ Item {
             value: pane.height
             when: panel.item !== null && panel.item.fillHeight !== undefined
         }
+        // Where the panel rests in the window, for a panel that maps another process's surface there (optional
+        // `placement`, W30; null while the column slides or scrolls). Watched only for a panel that declares it.
+        Placement {
+            id: placement
+            target: panel.item !== null && panel.item.placement !== undefined ? panel.item : null
+            win: lc.Window.window
+            output: lc.Screen.name
+            side: "left"
+        }
+        Binding {
+            target: panel.item
+            property: "placement"
+            value: placement.value
+            when: placement.target !== null
+        }
     }
     // Nothing to show: which tabs are missing, and why.
     Column {

@@ -6,3 +6,4 @@ NotificationsSection 1.0 NotificationsSection.qml
 ModSection 1.0 ModSection.qml
 RightColumn 1.0 RightColumn.qml
 LeftColumn 1.0 LeftColumn.qml
+Placement 1.0 Placement.qml

@@ -40,7 +40,18 @@ Item {
 
     // The pin's address loads when the page is made, and again when the pin's target moves to another address (a
     // settings edit). The view's `url` is not bound: the header navigates it, which would drop a binding.
-    Component.onCompleted: if (target !== "") web.url = target
+    Component.onCompleted: {
+        if (target !== "") web.url = target
+        // W30: the page lives in the card's pane (`home`) or, while the sidebar shows its pin, in the sidebar window's
+        // slot (`sideHost`). Bound here, after the Repeater has set the parent it creates the page with.
+        parent = Qt.binding(function () { return page.sideHost !== null ? page.sideHost : page.home })
+    }
+    // W30: where the page is drawn (see above). A move between the two windows keeps the page (no reload).
+    property Item home: null
+    property Item sideHost: null
+    // Test only (KURASHI_WEBDOCK_DEBUG=1): the page drawn or frozen.
+    onActiveChanged: if (debugLog) console.log("webdock-debug page " + pinId + " " + (active ? "active" : "frozen"))
+    property bool debugLog: false
     onTargetChanged: if (target !== "" && !atTarget) web.url = target
 
     onModeChanged: {
