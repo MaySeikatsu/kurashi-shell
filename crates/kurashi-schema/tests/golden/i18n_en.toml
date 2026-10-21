@@ -221,6 +221,8 @@
 "config.sidebar.left.help" = "Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar."
 "config.sidebar.from_bar.label" = "Open from the bar"
 "config.sidebar.from_bar.help" = "The bar's quick settings button opens the right sidebar instead of the quick settings card."
+"config.sidebar.bar_buttons.label" = "Buttons in the bar"
+"config.sidebar.bar_buttons.help" = "A button at each end of the bar opens that side's sidebar: the left one at the start, the right one at the end (left out while the quick settings button opens the right sidebar). The launcher's \"> sidebar\" and the keys open them too."
 "settings.inert.requires" = "Only applies while {key} is {value}."
 "settings.inert.capability" = "Your compositor does not support {name}."
 "settings.inert.overridden_by" = "Controlled by {key}."

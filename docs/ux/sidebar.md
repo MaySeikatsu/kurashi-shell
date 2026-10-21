@@ -48,6 +48,12 @@ surface of its own — the web dock (mod `webdock`) stays what it is.
 - **Left** (`sidebar.left`): one tab per mod panel; the tab bar on top, the panel under it (scrolls when taller).
   A tab whose mod is not loaded or off is skipped; with none left the column says which tabs are missing and why,
   with a button to the setting (Shōjiki). Settings marks such a value "not available now".
+- **Opening without a key** (I154, session 12 — the user could not find a way in): `sidebar.bar_buttons` (on by
+  default) puts a button at each end of the bar — the left sidebar's at its start (only while `sidebar.left` has tabs),
+  the right sidebar's at its end (left out while `sidebar.from_bar` makes the quick button open it); a side bar has them
+  at the column's top and bottom. The launcher's `>` lists "Right sidebar" / "Left sidebar" (`sidebar.right.toggle`,
+  `sidebar.left.toggle`, no arguments), and Settings › Sidebar has "Open now" and names the default keys. ii opens its
+  sidebars from the bar's ends; Windows 11 from the taskbar's corners.
 - **Opening**: `sidebar.toggle {side, output?}` (keys `Mod+Shift+N` right, `Mod+A` left in `docs/niri-binds.kdl` —
   `Mod+N` stays the notification centre, CONTRACT row 233; the bar button with `sidebar.from_bar`),
   `sidebar.open`, `sidebar.close`. One at a time: opening a sidebar closes the island card / quick card / launcher and

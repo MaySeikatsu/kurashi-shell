@@ -233,6 +233,16 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         "action.sidebar.open",
         sidebar_open(hub.clone(), false),
     );
+    // I154: each side as an action of its own, without arguments — what the launcher's `>` commands and a plain bind
+    // run (the frontend's focused output).
+    for side in ["left", "right"] {
+        let open = sidebar_open(hub.clone(), true);
+        actions.register(
+            &format!("sidebar.{side}.toggle"),
+            &format!("action.sidebar.{side}.toggle"),
+            move |_| open(json!({ "side": side })),
+        );
+    }
     let h = hub.clone();
     actions.register("sidebar.close", "action.sidebar.close", move |_| {
         let hub = h.clone();

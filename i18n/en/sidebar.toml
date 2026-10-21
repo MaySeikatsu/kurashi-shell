@@ -2,6 +2,12 @@
 "action.sidebar.toggle" = "Sidebar"
 "action.sidebar.open" = "Open sidebar"
 "action.sidebar.close" = "Close sidebar"
+"action.sidebar.right.toggle" = "Right sidebar"
+"action.sidebar.left.toggle" = "Left sidebar"
+"sidebar.bar.right" = "Open the right sidebar"
+"sidebar.bar.left" = "Open the left sidebar"
+"sidebar.open_now" = "Open now"
+"sidebar.keys" = "Keys: {right} for the right sidebar, {left} for the left one — with programs.kurashi.niri.binds.enable and include \"kurashi-binds.kdl\" in your niri config."
 "sidebar.error.no_tabs" = "The left sidebar has no tabs: add one in Settings › Sidebar."
 
 # The right sidebar's sections (`sidebar.right`, choice source `sidebar.sections`).

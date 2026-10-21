@@ -62,6 +62,15 @@ PanelWindow {
     readonly property bool quickOpen: cfg.sidebarFromBar
         ? uiDoc.sidebar === "right" && (!uiDoc.sidebar_output || uiDoc.sidebar_output === (screen ? screen.name : ""))
         : uiDoc.panel === "quick"
+    // I154: the sidebars' buttons at the bar's ends — open state per side on this output, and the click.
+    readonly property string outName: screen ? screen.name : ""
+    function sidebarOpen(side) {
+        return uiDoc.sidebar === side && (!uiDoc.sidebar_output || uiDoc.sidebar_output === outName)
+    }
+    function toggleSidebar(side) { Store.act("sidebar.toggle", {side: side, output: outName}) }
+    readonly property bool leftButton: cfg.sidebarButtons && cfg.leftSidebarTabs
+    // The quick button already opens the right sidebar with `sidebar.from_bar`: no second button for it.
+    readonly property bool rightButton: cfg.sidebarButtons && !cfg.sidebarFromBar
     function quickClicked() {
         if (cfg.sidebarFromBar) Store.act("sidebar.toggle", {side: "right", output: screen ? screen.name : ""})
         else Store.act("quick.toggle")
@@ -392,6 +401,13 @@ PanelWindow {
                 anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
                 anchors.verticalCenterOffset: -Theme.shadowDy / 2
                 spacing: Theme.groups ? Theme.xs + 1 : Theme.gap
+                SidebarButton {
+                    visible: bar.leftButton
+                    anchors.verticalCenter: parent.verticalCenter
+                    side: "left"
+                    open: bar.sidebarOpen("left")
+                    onClicked: bar.toggleSidebar("left")
+                }
                 Repeater {
                     model: bar.pills
                     delegate: Theme.groups ? keyPill : dotPill
@@ -539,6 +555,14 @@ PanelWindow {
                     model: bar.trayItems
                     delegate: trayIconDelegate
                 }
+                // I154: the right sidebar's button at the very end.
+                SidebarButton {
+                    visible: bar.rightButton
+                    anchors.verticalCenter: parent.verticalCenter
+                    side: "right"
+                    open: bar.sidebarOpen("right")
+                    onClicked: bar.toggleSidebar("right")
+                }
             }
         }
     }
@@ -591,7 +615,9 @@ PanelWindow {
                 return h
             }
             // The room between the island's lower edge (with a gap) and the bar's end (with the bottom margin).
-            readonly property real columnAvail: height / 2 - isl.height / 2 - Theme.gap - Theme.pad
+            // The right sidebar's button sits below the column, at the bar's end (I154): its room is not the column's.
+            readonly property real endButtonH: bar.rightButton ? Theme.barH + Theme.pad : 0
+            readonly property real columnAvail: height / 2 - isl.height / 2 - Theme.gap - Theme.pad - endButtonH
             // The marker's height is measured on a fixed text: the marker's own text depends on the fit (a loop otherwise).
             TextMetrics { id: markM; text: "+0"; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(text, Theme.families) }
             readonly property int fit: bar.fitCount(slotH, columnAvail, Theme.pad, markM.height)
@@ -607,6 +633,14 @@ PanelWindow {
                 id: workspaceCol
                 anchors { top: parent.top; topMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
                 spacing: Theme.gap
+                // I154: the left sidebar's button heads the column.
+                SidebarButton {
+                    id: sbLeftV
+                    visible: bar.leftButton
+                    side: "left"
+                    open: bar.sidebarOpen("left")
+                    onClicked: bar.toggleSidebar("left")
+                }
                 Repeater {
                     model: bar.pills
                     delegate: Item {
@@ -650,9 +684,17 @@ PanelWindow {
                 onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
             }
 
+            SidebarButton {
+                id: sbRightV
+                visible: bar.rightButton
+                anchors { bottom: parent.bottom; bottomMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
+                side: "right"
+                open: bar.sidebarOpen("right")
+                onClicked: bar.toggleSidebar("right")
+            }
             Column {
                 id: stack
-                anchors { bottom: parent.bottom; bottomMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
+                anchors { bottom: parent.bottom; bottomMargin: Theme.pad + vlayout.endButtonH; horizontalCenter: parent.horizontalCenter }
                 spacing: Theme.pad
                 Item {
                     visible: vlayout.fit >= 1
@@ -793,6 +835,8 @@ PanelWindow {
                 add("clock", clockT)
                 add("quick", quickB)
                 add("more", hiddenT)
+                add("sidebar-left", sbLeftV)
+                add("sidebar-right", sbRightV)
                 for (var i = 0; i < modRep.count; i++) {
                     var d = modRep.itemAt(i)
                     if (!d) continue
