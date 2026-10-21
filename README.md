@@ -7,14 +7,16 @@
 - **Mods** — every feature beyond the core is a mod you can switch on live; it appears natively in Settings.
 - **Profiles** — save the whole shell, load it back fully or section by section.
 - **Island (島)** — a dynamic component that shows what matters now, and what you choose.
-- **Looks** — one switch (`theme.decor`), picked from preview cards in Settings: `sekai` (pop keycaps: ink outlines,
-  hard shadows, springy presses), `glass` (frosted, soft rims and shadows), `terminal` (ink lines, square, mono),
-  `washi` (paper and ink, serif), or your own palette, chrome and motion. A look never moves anything — layout stays
-  yours (profiles keep a look and a layout together) — and your own settings always win over a look's recommendations.
+- **Styles, looks, palettes** — a **style** recreates one whole aesthetic (look + palette + motion and density; applying
+  it resets your appearance changes, so it is exactly that style again — `washi`, paper and ink, by default); a **look**
+  is the form and feel without colour (`sekai`'s pop keycaps, `glass`, `terminal`'s ink lines, `win95`'s bevels…); a
+  **palette** is colours only. Settings shows each as preview cards by category (Modern, Inspired, Retro, Gaming &
+  fiction) and says what differs from the style. Nothing here moves anything — layout stays yours (profiles keep a
+  style and a layout together).
 - **Daily driver** — idle (dim, lock, screens off, suspend) with keep-awake, night light, keyboard layouts, screen
   recording and screenshots, a polkit password dialog, rounded screen corners; lyrics (LRCLIB), live audio levels and
   cover colours for media, Wallhaven in the wallpaper picker; tasks and notes over Markdown files (Obsidian-friendly).
-- **Identity packs and app themes** — 18 looks as data files (`decors/*.toml`, your own in `~/.config/kurashi/decors/`),
+- **Identity packs and app themes** — 19 styles and 17 looks as data files (`styles/`, `looks/`; your own in `~/.config/kurashi/{styles,looks}/`),
   among them ports of Catppuccin, Tokyo Night, Rosé Pine, Material, YoRHa, Win95/XP/7, PS2, SNES, Hollow Knight; the
   theme is written for GTK, Qt, foot, kitty, Alacritty, Ghostty and niri (`theme.export`, matugen-compatible templates).
 - **Desk, launcher, phone** — desktop widgets (keycap clock, month, now playing, weather); a launcher that also

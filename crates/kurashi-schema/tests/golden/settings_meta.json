@@ -100,13 +100,28 @@
             {
               "advanced": false,
               "choices": [],
-              "choices_from": "decors",
+              "choices_from": "styles",
               "control": "select",
               "couplings": [],
-              "default": "none",
-              "help": "config.theme.decor.help",
-              "key": "theme.decor",
-              "label": "config.theme.decor.label",
+              "default": "washi",
+              "help": "config.theme.style.help",
+              "key": "theme.style",
+              "label": "config.theme.style.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "looks",
+              "control": "select",
+              "couplings": [],
+              "default": "kanso",
+              "help": "config.theme.look.help",
+              "key": "theme.look",
+              "label": "config.theme.look.label",
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -1648,7 +1663,109 @@
           ]
         }
       ]
+    },
+    {
+      "id": "sidebar",
+      "label": "settings.page.sidebar",
+      "sections": [
+        {
+          "id": "sidebar",
+          "label": "settings.section.sidebar",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.sidebar_style.panel",
+                  "value": "panel"
+                },
+                {
+                  "label": "config.choice.sidebar_style.floating",
+                  "value": "floating"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "panel",
+              "help": "config.sidebar.style.help",
+              "key": "sidebar.style",
+              "label": "config.sidebar.style.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": 420,
+              "key": "sidebar.width",
+              "label": "config.sidebar.width.label",
+              "max": 640,
+              "min": 320,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 10,
+              "type": "int",
+              "unit": "px"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "sidebar.sections",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [
+                "header",
+                "toggles",
+                "sliders",
+                "notifications",
+                "calendar"
+              ],
+              "help": "config.sidebar.right.help",
+              "key": "sidebar.right",
+              "label": "config.sidebar.right.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "sidebar.tabs",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [
+                "mod:ai:ai"
+              ],
+              "help": "config.sidebar.left.help",
+              "key": "sidebar.left",
+              "label": "config.sidebar.left.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.sidebar.from_bar.help",
+              "key": "sidebar.from_bar",
+              "label": "config.sidebar.from_bar.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            }
+          ]
+        }
+      ]
     }
   ],
-  "schema_version": 1
+  "schema_version": 2
 }

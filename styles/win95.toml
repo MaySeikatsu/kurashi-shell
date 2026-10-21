@@ -1,0 +1,11 @@
+name = "win95"
+label = "config.choice.style.win95"
+category = "retro"
+# After shellseikatsu `Services/Modes/Retro.qml` and `Widgets/BevelBorder.qml` (W25): silver controls with the
+# two-pixel outset bevel (sunken while pressed), square corners, fully opaque, no animation.
+# Line chrome makes the bar's groups and every key a block of its own; the bevel frame draws over its outline.
+look = "win95"
+palette = "win95"
+[recipe]
+"theme.colors.scheme" = "light"
+"theme.density" = "compact"

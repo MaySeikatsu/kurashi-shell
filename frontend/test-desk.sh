@@ -96,7 +96,7 @@ start_all() { # start_all <decor>
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$VAULT"
   printf -- '- [ ] Buy rice\n- [ ] Call the dentist\n' > "$VAULT/Tasks.md"
   cat > "$XDG_CONFIG_HOME/kurashi/config.toml" <<TOML
-theme.decor = "$1"
+theme.style = "$1"
 desktop.enabled = true
 
 [mods.tasks]

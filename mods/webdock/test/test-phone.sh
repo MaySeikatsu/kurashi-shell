@@ -5,14 +5,14 @@
 # fails on a QML error in the frontend or the host, or a host that never gets ready. Shots: mods/webdock/shots/
 # phone-<tag>.png and phone-view-<tag>.png.
 #   nix develop -c mods/webdock/test/test-phone.sh [tag] [config-toml-line ...]
-#   e.g. mods/webdock/test/test-phone.sh sekai 'theme.decor = "sekai"'
-#        mods/webdock/test/test-phone.sh wa-iro 'theme.decor = "none"'
+#   e.g. mods/webdock/test/test-phone.sh sekai 'theme.style = "sekai"'
+#        mods/webdock/test/test-phone.sh wa-iro 'theme.style = "none"'
 # Machine B: KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 TAG=${1:-sekai}
 shift || true
-[ $# -eq 0 ] && set -- 'theme.decor = "sekai"'
+[ $# -eq 0 ] && set -- 'theme.style = "sekai"'
 PAGES=file://$ROOT/mods/webdock/test/pages
 SHOTS=$ROOT/mods/webdock/shots
 LOOK=$ROOT/frontend/shots/look/w21-phone-$TAG

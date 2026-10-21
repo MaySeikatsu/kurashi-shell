@@ -776,7 +776,8 @@ mod tests {
         .await
         .unwrap();
         assert!(
-            applied.text.starts_with("applied rev 1"),
+            // Rev 1 is the default style's theme layer, set when the store opens (K53).
+            applied.text.starts_with("applied rev 2"),
             "{}",
             applied.text
         );

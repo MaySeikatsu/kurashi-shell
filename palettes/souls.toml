@@ -1,7 +1,7 @@
-# Souls — Dark Souls' menus: leather black, antique-gold hairlines, ember accents, bone text. Dark only. Roles after
-# shellseikatsu `_dsoulsPalette()` (W25, K50). Meant for decor `souls` (frame `ornate`).
+# Souls — Dark Souls' menus: leather black, antique-gold hairlines, ember accents, bone text. Dark, and light (K53).
+# Roles after shellseikatsu `_dsoulsPalette()` (W25, K50). Meant for decor `souls` (frame `ornate`).
 name = "souls"
-kind = "dark"
+kind = "pair"
 description = "Leather black and antique gold (decor souls)"
 
 [dark]
@@ -22,3 +22,23 @@ secondary = "#a8966a"                 # worn brass
 tertiary = "#d0743a"                  # ember
 warning = "#d0a050"
 error = "#d0503c"
+
+# Light (K53: every palette has both schemes): an item's parchment: aged vellum, leather-brown ink, deep gold and ember.
+[light]
+surface = "#e8dfc8"
+surface_container_lowest = "#f2ebd8"
+surface_container_low = "#ece4ce"
+surface_container = "#e2d8bd"
+surface_container_high = "#d6cba9"
+surface_container_highest = "#c9bc98"
+on_surface = "#1e1810"
+on_surface_variant = "#4a3e2a"
+outline = "#8a7444"
+outline_variant = "#c0b08a"
+accent = "#7a5a1e"
+accent_container = "#e6cf9c"
+on_accent_container = "#2a1c08"
+secondary = "#6e5e36"
+tertiary = "#a8481c"
+warning = "#8a5a10"
+error = "#a8301e"

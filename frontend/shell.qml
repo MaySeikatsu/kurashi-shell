@@ -99,6 +99,9 @@ ShellRoot {
         model: Quickshell.screens
         delegate: ScreenCorners {}
     }
+    // The edge sidebars (W29, docs/ux/sidebar.md): a window only while runtime.ui.sidebar names its side, on that output.
+    Sidebar { side: "right"; focusedScreen: root.focusedScreen() }
+    Sidebar { side: "left"; focusedScreen: root.focusedScreen() }
     Lock {}
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped

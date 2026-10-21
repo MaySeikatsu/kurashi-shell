@@ -1,0 +1,14 @@
+name = "luna"
+label = "config.choice.look.luna"
+category = "retro"
+# After shellseikatsu `Services/Modes/Winxp.qml` and `Widgets/SurfaceFrame.qml` (W25; Windows XP "Luna"): beige
+# controls in a Luna-blue window frame with its title band, glossy buttons, slight rounding, Tahoma.
+[recipe]
+"theme.chrome" = "soft"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 0.6
+"theme.typography.family" = ["Tahoma", "Verdana", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+[slots]
+frame = "luna"

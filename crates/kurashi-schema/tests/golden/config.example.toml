@@ -1,11 +1,11 @@
-# Kurashi configuration — schema v1.
+# Kurashi configuration — schema v2.
 # Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
 #
 # Every key is listed commented out at its default. Set only what you want to change:
 # unset keys keep following defaults, themes and profiles.
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
 #
-# schema_version = 1
+# schema_version = 2
 
 # [bar]
 #
@@ -24,11 +24,18 @@
 
 # [theme]
 #
-# Look — A decor pack: recommends colours, chrome, motion, corners, icons and fonts in one
-# choice. It changes how things look, never where they are. Your own settings still win
-# (K42, K45).
-#   choices: from `decors` (resolved at runtime)
-# decor = "none"
+# Style — A fixed preset that recreates one aesthetic: a look, a palette, the scheme,
+# density and motion. Applying a style resets your appearance changes; what you change
+# afterwards shows as a difference from it. It changes how things look, never where they are
+# (K53).
+#   choices: from `styles` (resolved at runtime)
+# style = "washi"
+#
+# Look — The form and feel of the interface without its colours: chrome, corners,
+# material, motion, type and its art — sekai's toy keycaps, washi's paper and ink, win95's
+# bevels. The style picks one; pick another to override it (K53).
+#   choices: from `looks` (resolved at runtime)
+# look = "kanso"
 #
 # Chrome — How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and
 # a hard shadow they sink into when pressed; soft blocks with a faint rim and a soft shadow;
@@ -49,11 +56,13 @@
 
 # [theme.colors]
 #
-# Palette — Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+# Palette — Colours only: the roles every surface is painted with, in light and dark. A
+# style picks one; pick another to override it (K53).
 #   choices: from `palettes` (resolved at runtime)
 # palette = "wa-iro"
 #
-# Scheme — Dark or light surfaces.
+# Light or dark — Your mode: every palette has both. A style recommends one until you
+# pick; applying a style keeps it (K53).
 #   choices: "dark" | "light"
 # scheme = "dark"
 #
@@ -346,3 +355,29 @@
 # Running apps — Apps with windows that are not pinned show after the pinned ones.
 #   only while dock.enabled == true
 # show_running = true
+
+# [sidebar]
+#
+# Style — Panel: from the bar (or the screen edge) to the far edge, flush to its side, the
+# inner corners rounded. Floating: the same column a gap away from every edge, every corner
+# rounded, with the look's shadow.
+#   choices: "panel" | "floating"
+# style = "panel"
+#
+# Width
+#   range: 320..=640, step 10 (px)
+# width = 420
+#
+# Right sidebar — Its sections, top to bottom: you and the session, the quick tiles, the
+# levels, notifications, the month, what plays, and the mods' panels.
+#   choices: from `sidebar.sections` (resolved at runtime)
+# right = ["header", "toggles", "sliders", "notifications", "calendar"]
+#
+# Left sidebar — Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not
+# on is skipped. Empty: no left sidebar.
+#   choices: from `sidebar.tabs` (resolved at runtime)
+# left = ["mod:ai:ai"]
+#
+# Open from the bar — The bar's quick settings button opens the right sidebar instead of
+# the quick settings card.
+# from_bar = false

@@ -47,6 +47,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["tray"] = json!("");
                     d["face"] = json!("");
                     clear_peek(d);
+                    clear_sidebar(d);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -81,6 +82,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["tray"] = json!("");
                     d["face"] = json!(if open { "" } else { face.as_str() });
                     clear_peek(d);
+                    clear_sidebar(d);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -123,6 +125,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["tray"] = json!("");
                 d["face"] = json!("");
                 clear_peek(d);
+                clear_sidebar(d);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -155,6 +158,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["tray"] = json!(if open { "" } else { id.as_str() });
                 d["face"] = json!("");
                 clear_peek(d);
+                clear_sidebar(d);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -165,9 +169,76 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         let hub = h.clone();
         async move {
             hub.update("runtime.ui", None, |d| {
-                d["launcher"] = json!(!d["launcher"].as_bool().unwrap_or(false))
+                let open = !d["launcher"].as_bool().unwrap_or(false);
+                d["launcher"] = json!(open);
+                // W29: the launcher and a sidebar are one at a time.
+                if open {
+                    clear_sidebar(d);
+                }
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
+            Ok(None)
+        }
+    });
+    // W29 (docs/ux/sidebar.md): the edge sidebars. `{side: "left"|"right", output?}`; `runtime.ui.sidebar` names the open
+    // side and `sidebar_output` the output it is on (absent: the frontend's focused output). One at a time: opening a
+    // sidebar closes the Stage's panel and the launcher, and opening those closes it. A left sidebar with no tab
+    // configured (`sidebar.left = []`) is refused.
+    let sidebar_open = |hub: Arc<Hub>, toggle: bool| {
+        move |a: Value| {
+            let hub = hub.clone();
+            async move {
+                let (side, output) = sidebar_args(&a)?;
+                if side == "left" && left_sidebar_empty(&hub) {
+                    return Err(ActionError::Invalid(SIDEBAR_NO_TABS.into()));
+                }
+                hub.update("runtime.ui", None, |d| {
+                    let same = d["sidebar"].as_str() == Some(side)
+                        && output
+                            .as_deref()
+                            .is_none_or(|o| d["sidebar_output"].as_str() == Some(o));
+                    if toggle && same {
+                        clear_sidebar(d);
+                        return;
+                    }
+                    d["panel"] = json!("");
+                    d["popup"] = json!(false);
+                    d["tray"] = json!("");
+                    d["face"] = json!("");
+                    d["launcher"] = json!(false);
+                    clear_peek(d);
+                    d["sidebar"] = json!(side);
+                    match &output {
+                        Some(o) => d["sidebar_output"] = json!(o),
+                        None if !same => {
+                            if let Some(m) = d.as_object_mut() {
+                                m.remove("sidebar_output");
+                            }
+                        }
+                        None => {}
+                    }
+                })
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        }
+    };
+    actions.register(
+        "sidebar.toggle",
+        "action.sidebar.toggle",
+        sidebar_open(hub.clone(), true),
+    );
+    actions.register(
+        "sidebar.open",
+        "action.sidebar.open",
+        sidebar_open(hub.clone(), false),
+    );
+    let h = hub.clone();
+    actions.register("sidebar.close", "action.sidebar.close", move |_| {
+        let hub = h.clone();
+        async move {
+            hub.update("runtime.ui", None, clear_sidebar)
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
         }
     });
@@ -243,6 +314,42 @@ fn clear_peek(d: &mut Value) {
         o.remove("peek");
     }
 }
+
+/// Closes the sidebar in a `runtime.ui` value (W29): `sidebar` and `sidebar_output` are absent while none is open.
+fn clear_sidebar(d: &mut Value) {
+    if let Some(o) = d.as_object_mut() {
+        o.remove("sidebar");
+        o.remove("sidebar_output");
+    }
+}
+
+/// `{side, output?}` of `sidebar.toggle` / `sidebar.open`: the side, and the output when one is named.
+fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError> {
+    let invalid = || ActionError::Invalid(ARGS_INVALID.into());
+    let side = match a["side"].as_str() {
+        Some("left") => "left",
+        Some("right") => "right",
+        _ => return Err(invalid()),
+    };
+    let output = match a.get("output") {
+        None => None,
+        Some(Value::String(o)) if !o.is_empty() => Some(o.clone()),
+        Some(_) => return Err(invalid()),
+    };
+    Ok((side, output))
+}
+
+/// Whether `sidebar.left` lists no tab in effect (the `config` document's value; unknown counts as not empty).
+fn left_sidebar_empty(hub: &Hub) -> bool {
+    hub.snapshot(crate::config::DOC).is_ok_and(|(_, d)| {
+        d["values"]["sidebar.left"]["value"]
+            .as_array()
+            .is_some_and(Vec::is_empty)
+    })
+}
+
+/// `sidebar.toggle` / `sidebar.open` of the left side while `sidebar.left` names no tab.
+const SIDEBAR_NO_TABS: &str = "sidebar.error.no_tabs";
 
 /// The peek `ui.peek` asks for (K35): `None` clears it (no `source`, or an empty one). A source is
 /// `mod:<id>:<name>` (the mod is on and provides `peek:<name>`), `tray:<item>` or `island:<instance>`.
@@ -697,6 +804,8 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         }
                     } else {
                         d["launcher_query"] = json!("?");
+                        // W29: the launcher and a sidebar are one at a time.
+                        clear_sidebar(d);
                     }
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
@@ -2579,6 +2688,92 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(25)).await;
         }
         panic!("the service connection never closed");
+    }
+
+    /// W29: a sidebar is one side on one output; the same toggle closes it, the other side or output switches; opening it
+    /// closes the Stage's panel and the launcher, and opening those (or `ui.close`) closes it. `sidebar` and
+    /// `sidebar_output` are absent while it is closed; a left sidebar without tabs is refused.
+    #[tokio::test]
+    async fn a_sidebar_is_exclusive_with_the_panels_and_the_launcher() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+        let right = json!({"side": "right", "output": "DP-1"});
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
+        actions
+            .invoke("sidebar.toggle", right.clone())
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["sidebar"], "right");
+        assert_eq!(ui_doc()["sidebar_output"], "DP-1");
+        assert_eq!(
+            ui_doc()["panel"],
+            "",
+            "opening a sidebar closes the quick card"
+        );
+        actions
+            .invoke("sidebar.toggle", right.clone())
+            .await
+            .unwrap();
+        assert!(ui_doc().get("sidebar").is_none() && ui_doc().get("sidebar_output").is_none());
+        // Another output moves it; the toggle without an output closes it wherever it is.
+        actions.invoke("sidebar.open", right.clone()).await.unwrap();
+        actions
+            .invoke("sidebar.toggle", json!({"side": "right", "output": "DP-2"}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["sidebar_output"], "DP-2");
+        actions
+            .invoke("sidebar.toggle", json!({"side": "left"}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["sidebar"], "left");
+        assert!(
+            ui_doc().get("sidebar_output").is_none(),
+            "no output named: the focused one"
+        );
+        actions
+            .invoke("sidebar.toggle", json!({"side": "left"}))
+            .await
+            .unwrap();
+        assert!(ui_doc().get("sidebar").is_none());
+        // The launcher and the panels close it; it closes them.
+        actions.invoke("sidebar.open", right.clone()).await.unwrap();
+        actions.invoke("launcher.toggle", json!({})).await.unwrap();
+        assert!(ui_doc().get("sidebar").is_none());
+        assert_eq!(ui_doc()["launcher"], true);
+        actions.invoke("sidebar.open", right.clone()).await.unwrap();
+        assert_eq!(ui_doc()["launcher"], false);
+        actions.invoke("island.expand", json!({})).await.unwrap();
+        assert!(ui_doc().get("sidebar").is_none());
+        actions.invoke("sidebar.open", right.clone()).await.unwrap();
+        actions.invoke("sidebar.close", json!({})).await.unwrap();
+        assert_eq!(ui_doc(), ui_closed());
+        actions.invoke("sidebar.open", right.clone()).await.unwrap();
+        actions.invoke("ui.close", json!({})).await.unwrap();
+        assert_eq!(ui_doc(), ui_closed());
+        // Bad arguments; a left sidebar the config gives no tab.
+        for bad in [
+            json!({}),
+            json!({"side": "top"}),
+            json!({"side": "left", "output": ""}),
+        ] {
+            assert!(actions.invoke("sidebar.toggle", bad).await.is_err());
+        }
+        hub.register(
+            crate::config::DOC,
+            json!({"values": {"sidebar.left": {"value": [], "source": "user"}}}),
+            None,
+        );
+        match actions
+            .invoke("sidebar.open", json!({"side": "left"}))
+            .await
+        {
+            Err(ActionError::Invalid(k)) => assert_eq!(k, SIDEBAR_NO_TABS),
+            other => panic!("expected the no-tabs refusal, got {other:?}"),
+        }
+        assert!(ui_doc().get("sidebar").is_none());
     }
 
     /// K23: `tray.menu.open` opens the `tray` panel for one item; the same item closes it, another

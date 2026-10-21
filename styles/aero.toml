@@ -1,0 +1,9 @@
+name = "aero"
+label = "config.choice.style.aero"
+category = "retro"
+# After shellseikatsu `Services/Modes/Win7.qml`, `Widgets/GlassSheen.qml` and `Widgets/SurfaceFrame.qml` (W25;
+# Windows 7 "Aero"): translucent glass with a specular sheen in a glass window band, aero blue, Segoe UI.
+look = "aero"
+palette = "aero"
+[recipe]
+"theme.colors.scheme" = "light"

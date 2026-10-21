@@ -1,0 +1,9 @@
+name = "ps2"
+label = "config.choice.style.ps2"
+category = "retro"
+# After shellseikatsu `Services/Modes/Ps2.qml` and `Widgets/ThemeDecor/Ps2Frame.qml` (W25; the PS2 dashboard):
+# void black, translucent light towers and blue glow lines, thin silver type, solemn calm motion.
+look = "ps2"
+palette = "ps2"
+[recipe]
+"theme.colors.scheme" = "dark"

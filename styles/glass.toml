@@ -1,0 +1,8 @@
+name = "glass"
+label = "config.choice.style.glass"
+category = "modern"
+# After Vitreus/pleamar: frosted glass, soft squircles with a light rim and a soft shadow, springs that settle.
+look = "glass"
+palette = "kanso"
+[recipe]
+"theme.colors.scheme" = "dark"
