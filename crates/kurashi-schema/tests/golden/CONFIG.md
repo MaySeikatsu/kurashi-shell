@@ -568,3 +568,39 @@ Apps with windows that are not pinned show after the pinned ones.
 
 - type: `bool` · default: `true`
 - only while `dock.enabled == true`
+
+## Sidebar
+
+### Sidebar
+
+#### `sidebar.style` — Style
+
+Panel: from the bar (or the screen edge) to the far edge, flush to its side, the inner corners rounded. Floating: the same column a gap away from every edge, every corner rounded, with the look's shadow.
+
+- type: `choice` · default: `"panel"`
+- choices: `"panel"` | `"floating"`
+
+#### `sidebar.width` — Width
+
+- type: `int` · default: `420`
+- range: `320..=640`, step `10` (px)
+
+#### `sidebar.right` — Right sidebar
+
+Its sections, top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what plays, and the mods' panels.
+
+- type: `string_list` · default: `["header", "toggles", "sliders", "notifications", "calendar"]`
+- choices: from `sidebar.sections` (resolved at runtime)
+
+#### `sidebar.left` — Left sidebar
+
+Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.
+
+- type: `string_list` · default: `["mod:ai:ai"]`
+- choices: from `sidebar.tabs` (resolved at runtime)
+
+#### `sidebar.from_bar` — Open from the bar
+
+The bar's quick settings button opens the right sidebar instead of the quick settings card.
+
+- type: `bool` · default: `false`

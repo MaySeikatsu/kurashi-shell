@@ -1,0 +1,25 @@
+# The edge sidebars (card W29, docs/ux/sidebar.md).
+"action.sidebar.toggle" = "Sidebar"
+"action.sidebar.open" = "Open sidebar"
+"action.sidebar.close" = "Close sidebar"
+"sidebar.error.no_tabs" = "The left sidebar has no tabs: add one in Settings › Sidebar."
+
+# The right sidebar's sections (`sidebar.right`, choice source `sidebar.sections`).
+"config.choice.sidebar_section.header" = "You and the session"
+"config.choice.sidebar_section.toggles" = "Quick tiles"
+"config.choice.sidebar_section.sliders" = "Levels"
+"config.choice.sidebar_section.notifications" = "Notifications"
+"config.choice.sidebar_section.calendar" = "Calendar"
+"config.choice.sidebar_section.media" = "Now playing"
+
+"sidebar.a11y.right" = "Right sidebar"
+"sidebar.a11y.left" = "Left sidebar"
+"sidebar.header.user" = "You"
+"sidebar.header.settings" = "Settings"
+"sidebar.header.failed" = "That did not work."
+"sidebar.left.empty" = "No tab to show"
+"sidebar.left.missing.not_loaded" = "{name}: the mod is not loaded."
+"sidebar.left.missing.off" = "{name}: the mod is off."
+"sidebar.left.missing.no_panel" = "{name}: the mod has no such panel."
+"sidebar.left.missing.unknown" = "{name}: not a mod panel."
+"sidebar.left.settings" = "Choose tabs"

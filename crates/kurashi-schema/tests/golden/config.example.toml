@@ -346,3 +346,29 @@
 # Running apps — Apps with windows that are not pinned show after the pinned ones.
 #   only while dock.enabled == true
 # show_running = true
+
+# [sidebar]
+#
+# Style — Panel: from the bar (or the screen edge) to the far edge, flush to its side, the
+# inner corners rounded. Floating: the same column a gap away from every edge, every corner
+# rounded, with the look's shadow.
+#   choices: "panel" | "floating"
+# style = "panel"
+#
+# Width
+#   range: 320..=640, step 10 (px)
+# width = 420
+#
+# Right sidebar — Its sections, top to bottom: you and the session, the quick tiles, the
+# levels, notifications, the month, what plays, and the mods' panels.
+#   choices: from `sidebar.sections` (resolved at runtime)
+# right = ["header", "toggles", "sliders", "notifications", "calendar"]
+#
+# Left sidebar — Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not
+# on is skipped. Empty: no left sidebar.
+#   choices: from `sidebar.tabs` (resolved at runtime)
+# left = ["mod:ai:ai"]
+#
+# Open from the bar — The bar's quick settings button opens the right sidebar instead of
+# the quick settings card.
+# from_bar = false

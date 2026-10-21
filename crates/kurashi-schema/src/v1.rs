@@ -44,6 +44,8 @@ pub struct Config {
     pub recorder: Recorder,
     #[kurashi(nested)]
     pub dock: Dock,
+    #[kurashi(nested)]
+    pub sidebar: Sidebar,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -566,4 +568,41 @@ pub struct Dock {
     /// Apps with windows that are not pinned show after the pinned ones.
     #[kurashi(default = true, requires = "dock.enabled == true")]
     pub show_running: bool,
+}
+
+// --- sidebars (W29, docs/ux/sidebar.md) ------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum SidebarStyle {
+    /// Panel
+    Panel,
+    /// Floating
+    Floating,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "sidebar", section = "sidebar")]
+pub struct Sidebar {
+    /// Style
+    /// Panel: from the bar (or the screen edge) to the far edge, flush to its side, the inner corners rounded. Floating:
+    /// the same column a gap away from every edge, every corner rounded, with the look's shadow.
+    #[kurashi(default = SidebarStyle::Panel)]
+    pub style: SidebarStyle,
+    /// Width
+    #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px")]
+    pub width: u32,
+    /// Right sidebar
+    /// Its sections, top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what
+    /// plays, and the mods' panels.
+    #[kurashi(default = strings(&["header", "toggles", "sliders", "notifications", "calendar"]),
+              choices_from = "sidebar.sections")]
+    pub right: Vec<String>,
+    /// Left sidebar
+    /// Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.
+    #[kurashi(default = strings(&["mod:ai:ai"]), choices_from = "sidebar.tabs")]
+    pub left: Vec<String>,
+    /// Open from the bar
+    /// The bar's quick settings button opens the right sidebar instead of the quick settings card.
+    #[kurashi(default = false)]
+    pub from_bar: bool,
 }
