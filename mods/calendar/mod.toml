@@ -1,0 +1,85 @@
+id = "calendar"
+name = "Calendar"
+description = "mods.calendar.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# Events from .ics files and folders (vdirsyncer/khal storage), feed addresses and khal (W27, docs/ux/calendar.md): the
+# service and its action and the island peek with its job (the Rust crate registers them), the clock card's agenda and
+# day dots (K28 slots), a desk card, the bar widget (QML).
+provides = [
+    "service:calendar",
+    "action:calendar.*",
+    "island-face:calendar",
+    "job:peek",
+    "slot:clock.expanded.day",
+    "slot:clock.expanded.daymark",
+    "desk:agenda",
+    "widget:calendar",
+]
+# Feeds need the network; the feeds' copies live in the shell's cache (`fs:scoped`); files and folders anywhere the
+# settings point (as the tasks mod, `fs:scoped` is the nearest capability); `khal list` when khal is on.
+capabilities = ["network", "fs:scoped", "exec:khal"]
+cost = "low"
+
+# Calendars: a .ics file, a folder of them (a vdirsyncer/khal storage folder: one calendar per sub-folder), or a feed
+# address (https://, webcal://; the "secret address" of Google, Proton or Nextcloud). The address is never shown in the
+# mod.calendar document.
+[[setting]]
+key = "sources"
+type = "records"
+default = []
+item_label = "name"
+label = "mods.calendar.sources"
+help = "mods.calendar.sources.help"
+  [[setting.field]]
+  key = "name"
+  type = "string"
+  default = ""
+  label = "mods.calendar.sources.name"
+  [[setting.field]]
+  key = "location"
+  type = "string"
+  required = true
+  label = "mods.calendar.sources.location"
+  [[setting.field]]
+  key = "color"
+  type = "string"
+  default = ""
+  label = "mods.calendar.sources.color"
+  [[setting.field]]
+  key = "enabled"
+  type = "bool"
+  default = true
+  label = "mods.calendar.sources.enabled"
+
+[[setting]]
+key = "khal"
+type = "bool"
+default = false
+label = "mods.calendar.khal"
+help = "mods.calendar.khal.help"
+
+[[setting]]
+key = "refresh"
+type = "int"
+default = 30
+range = [5, 1440]
+unit = "min"
+label = "mods.calendar.refresh"
+help = "mods.calendar.refresh.help"
+
+[[setting]]
+key = "peek"
+type = "bool"
+default = false
+label = "mods.calendar.peek"
+help = "mods.calendar.peek.help"
+
+[[setting]]
+key = "peek_minutes"
+type = "int"
+default = 10
+range = [1, 60]
+unit = "min"
+label = "mods.calendar.peek_minutes"
