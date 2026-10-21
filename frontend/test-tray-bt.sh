@@ -95,7 +95,7 @@ sleep 3
 # the tray is the last thing in the right-hand row, so its last item ends one pad from the edge).
 read -r SW SH < <(swaymsg -t get_outputs -r | jq -r '.[0].rect | "\(.width) \(.height)"')
 PAD=12; BARH=36; HALF=$((BARH / 2))
-RIGHT_ITEM_X=$((SW - PAD - BARH / 2))             # "Network", the second item
+RIGHT_ITEM_X=$((SW - 2 * PAD - BARH - BARH / 2))  # "Network", the second item (before the right sidebar button, I154)
 LEFT_ITEM_X=$((RIGHT_ITEM_X - PAD - BARH))        # "Nextcloud", the fixture's item
 
 shot() { # <name> [settle-seconds]

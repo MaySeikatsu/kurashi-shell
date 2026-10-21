@@ -9,8 +9,8 @@ Column {
     spacing: Theme.gap
     width: parent ? parent.width : 400
     objectName: "sidebar-open"
-    readonly property var left: Store.valueOf("sidebar.left")
-    readonly property bool hasLeft: Array.isArray(so.left) && so.left.length > 0
+    readonly property var tabs: Store.valueOf("sidebar.left")
+    readonly property bool hasLeft: Array.isArray(so.tabs) && so.tabs.length > 0
     property string error: ""
 
     function open(side) {
