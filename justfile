@@ -80,3 +80,7 @@ webdock:
     timeout 600 bash mods/webdock/test/test-real.sh || status=1
     timeout 900 bash mods/webdock/test/test-dock.sh || status=1
     exit "$status"
+
+# K59: the relief shader is compiled to the .qsb the frontend loads (Qt 6 shader tools, in nix develop).
+shaders:
+    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/relief.frag.qsb frontend/shaders/relief.frag
