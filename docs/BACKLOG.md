@@ -220,6 +220,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I169 | 2026-10-21 | lead review (session 12) | Paper fibres read a little busy on dark paper (light squiggles on kami-dark): a dark-scheme fibre strength, or less fibre relief under ruled kinds. | new |
 | I170 | 2026-10-21 | W31-paint report | `kurashi-texture` `finish()` takes normals by ±1 px central differences: relief detail finer than about 2.5 px (fine bristle tracks, fine weave) vanishes. A wider or two-scale kernel would sharpen every material (and change every tile's bytes and the goldens). | new |
 | I171 | 2026-10-21 | W31-paint report | Tile generation at device scale 2 takes ~0.8 s for the heaviest kinds (shared weave and wrinkle passes; area-bound). It runs once on a blocking thread and is cached, but rows could be generated in parallel (`std::thread::scope`). | new |
+| I172 | 2026-10-21 | lead review (session 12) | Views with their own chrome (the phone-shaped quick card, `stage.ownChrome`) draw no relief on their own ground: under kami the phone body is plain paper between its dotted tiles. Give the phone frame a Relief (as the island shape has). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
