@@ -382,7 +382,7 @@ echo "keyboard K3b: chips Right+Return opened inspired, Tab into its cards, an a
 # K4. the scheme's pills (K55: auto, wallpaper, dark, light): Right previews wallpaper (shot: Keep and Put back shown),
 #     then Esc (the same path as the IPC hook putBack) puts auto back, and Redo stays off: the cancelled preview is not a
 #     redo step.
-tab_to "segment:theme.colors.scheme"
+tab_to "Follow the system"   # the first pill (auto), named by its label
 kp right
 [ "$(Q previewState)" = 'theme.colors.scheme="wallpaper"' ] || fail "preview: Right did not preview wallpaper ($(Q previewState))"
 [ "$(val theme.colors.scheme)" = '"wallpaper"' ] || fail "preview: the shell does not show the previewed scheme"
