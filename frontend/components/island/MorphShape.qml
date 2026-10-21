@@ -7,7 +7,9 @@ import "../../core"
 // bottom then). Two topologies, picked by the Stage from tokens (rule 4):
 // - strip (`joined` false: the bar is one strip, flat and line chrome): a rounded rect from (x0, y0), w x h, whose top
 //   lies inside the bar; where its side crosses the bar's edge (`edgeY`) it is joined to the strip by concave fillets of
-//   up to `neck` px, so the card grows out of the bar rather than floating under it.
+//   up to `neck` px, so the card grows out of the bar rather than floating under it. Where the bar rules its edge (an
+//   outline token: line chrome) the card hangs from the rule, whose line runs round the fillets into the card's sides
+//   (`hangs`, W30).
 // - joined (`joined` true: the bar's groups float as blocks, keycap and soft chrome; I115): the head is the island's own
 //   bar block (hx0, hy0, hw x hh, corners hr), the body (x0, y0, w x h) grows out from under it, and a neck with concave
 //   fillets of up to `neckF` px joins them. One closed outline round head, neck and body, so the keycap's outline, ring
@@ -105,7 +107,71 @@ Shape {
         s += " L " + f(HX0) + " " + f(HY0 + r) + arc(r, 1, HX0 + r, HY0) + " Z"
         return s
     }
-    function path(d, dy) { return joined ? joinedPath(d, dy) : stripPath(d, true, dy) }
+    // A ruled strip (line chrome: an outline token, the bar rules its strip's edge in it; W30): the card hangs from the
+    // bar's rule rather than standing in front of it. Its outline is the rule itself — along the rule's band (edgeY − ow …
+    // edgeY), round the concave fillet (concentric: radius n outside, n + ow inside, so the band keeps its width; mitred
+    // when square) and down the sides — and the head, the part inside the bar, loses its own outline as the card grows
+    // (`opened`: 0 the pill's outlined box, 1 once the bottom is a bar's height past the edge; the head's inset thins to
+    // nothing). Open, a band is one U-shaped polygon from one fillet's top round the card to the other's (no head, no
+    // coincident edges, which would leave an anti-aliased trace), and the shape tells the bar where it opens its rule
+    // (IslandGeom.setOpening), so a translucent fill never shows the rule through it: the card's side and the bar's rule
+    // meet at one point, as one line.
+    readonly property bool ruled: Theme.outlineW > 0
+    readonly property bool hangs: !joined && ruled && y1 - edgeY > rb + 1
+    readonly property real opened: hangs ? Math.max(0, Math.min(1, (y1 - edgeY - rb) / Math.max(1, edgeY))) : 0
+    // The hanging card's contour inset by `d`, from the right fillet's top (x1 + n, edgeY − min(d, ow)) round the card to
+    // the left fillet's top; `back` walks it the other way. The fillet is concentric with the outside one (radius n + d),
+    // a square corner is mitred; a ring's inset (d > ow) runs on below the fillet.
+    function hangContour(d, dy, back) {
+        var dd = Math.min(d, ow), E = edgeY + dy, rnd = n > 0.5
+        var X0 = x0 + d, X1 = x1 - d, Y1 = y1 - d + dy, b = Math.max(0, rb - d)
+        var yF = rnd ? E + n : E - dd, yN = yF + (d - dd)
+        var s = ""
+        if (!back) {
+            s += rnd ? arc(n + dd, 0, x1 - dd, E + n) : " L " + f(x1 - dd) + " " + f(E - dd)
+            s += " L " + f(X1) + " " + f(yN) + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1)
+            s += " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b) + " L " + f(X0) + " " + f(yN) + " L " + f(x0 + dd) + " " + f(yF)
+            s += rnd ? arc(n + dd, 0, x0 - n, E - dd) : " L " + f(x0) + " " + f(E - dd)
+        } else {
+            s += rnd ? arc(n + dd, 1, x0 + dd, E + n) : " L " + f(x0 + dd) + " " + f(E - dd)
+            s += " L " + f(X0) + " " + f(yN) + " L " + f(X0) + " " + f(Y1 - b) + arc(b, 0, X0 + b, Y1)
+            s += " L " + f(X1 - b) + " " + f(Y1) + arc(b, 0, X1, Y1 - b) + " L " + f(X1) + " " + f(yN) + " L " + f(x1 - dd) + " " + f(yF)
+            s += rnd ? arc(n + dd, 1, x1 + n, E - dd) : " L " + f(x1) + " " + f(E - dd)
+        }
+        return s
+    }
+    // The whole hanging shape inset by `d` (the fill, and the bands while the head still has its outline): the head inside
+    // the bar (inset by d·(1 − opened)), along the rule's top to the right fillet, round the card, back to the head.
+    function openPath(d, dy) {
+        var hd = d * (1 - opened), dd = Math.min(d, ow)
+        var H0 = x0 + hd, H1 = x1 - hd, Y0 = y0 + hd + dy
+        var E = edgeY + dy, R = E - ow
+        var t = Math.max(0, rt - hd)
+        if (x1 - x0 - 2 * d < 1 || H1 - H0 < 1) return ""
+        var s = "M " + f(H0 + t) + " " + f(Y0) + " L " + f(H1 - t) + " " + f(Y0) + arc(t, 1, H1, Y0 + t) + " L " + f(H1) + " " + f(R)
+        s += " L " + f(x1 + n) + " " + f(R) + " L " + f(x1 + n) + " " + f(E - dd) + hangContour(d, dy, false)
+        s += " L " + f(x0 - n) + " " + f(R) + " L " + f(H0) + " " + f(R) + " L " + f(H0) + " " + f(Y0 + t) + arc(t, 1, H0 + t, Y0)
+        return s + " Z"
+    }
+    function path(d, dy) {
+        if (joined) return joinedPath(d, dy)
+        return hangs ? openPath(d, dy) : stripPath(d, true, dy)
+    }
+    // A band between the insets a and b (the outline: 0 … ow; the ring: ow … ow + gw), for odd-even filling.
+    function band(a, b) {
+        if (!hangs || opened < 1) return path(a, 0) + " " + path(b, 0)
+        if (x1 - x0 - 2 * b < 1) return ""
+        return "M " + f(x1 + n) + " " + f(edgeY - Math.min(a, ow)) + hangContour(a, 0, false)
+            + " L " + f(x0 - n) + " " + f(edgeY - Math.min(b, ow)) + hangContour(b, 0, true) + " Z"
+    }
+    // Where the bar's rule opens under the shape, from the shape's centre (the Stage is centred on its bar): inside the
+    // fillets' tops by 2 px, so the rule and the fillet's band overlap there and a frame between the two surfaces never
+    // shows a gap. Reported only on a change; cleared while the shape does not hang from the rule.
+    readonly property real openL: hangs && visible ? Math.floor(x0 - n + 2 - width / 2) : 0
+    readonly property real openR: hangs && visible ? Math.ceil(x1 + n - 2 - width / 2) : 0
+    onOpenLChanged: IslandGeom.setOpening(openL, openR)
+    onOpenRChanged: IslandGeom.setOpening(openL, openR)
+    Component.onDestruction: IslandGeom.setOpening(0, 0)
 
     preferredRendererType: Shape.CurveRenderer
     ShapePath {
@@ -119,14 +185,14 @@ Shape {
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.oc
-        PathSvg { path: sh.visible ? sh.path(0, 0) + " " + sh.path(sh.ow, 0) : "" }
+        PathSvg { path: sh.visible ? sh.band(0, sh.ow) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.gw > 0 ? Theme.ring : "transparent"
-        PathSvg { path: sh.visible && sh.gw > 0 ? sh.path(sh.ow, 0) + " " + sh.path(sh.ow + sh.gw, 0) : "" }
+        PathSvg { path: sh.visible && sh.gw > 0 ? sh.band(sh.ow, sh.ow + sh.gw) : "" }
     }
     ShapePath {
         strokeWidth: -1
