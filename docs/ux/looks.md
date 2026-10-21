@@ -1,6 +1,9 @@
-# UX brief — Looks (decor packs) (K42, K45, I104)
+# UX brief — Styles, looks and palettes (K42, K45, I104, K53)
 
-A decor is a whole look picked in one choice: colours, chrome, corners, motion, icons and type. It never moves
+Since K53 an appearance is three kinds of pack. A **style** is a whole aesthetic picked in one choice — a look, a
+palette, the scheme, density and motion — and applying one recreates it exactly. A **look** is the form and feel
+without colours (chrome, corners, material, motion, type and its frame art). A **palette** is colours only. None of
+them ever moves
 anything: the bar stays on its edge at its height, the desk keeps its cards, the island stays where it is. Layout
 and look travel together only in a profile, which the user saves on purpose.
 
@@ -18,9 +21,10 @@ and look travel together only in a profile, which the user saves on purpose.
   insets, motion, type and icons, and is explicitly not a palette and not a layout.
 
 ## Our model
-`theme.decor` = none | sekai | glass | terminal | washi. A recipe at the `theme:<pack>` layer (K42), under the user's
-own values; every value it sets shows `theme:<pack>` as its source. Four chromes (flat, keycap, soft, line) are drawn by
-the same components from tokens (rule 4). DESIGN-SYSTEM "Chrome and decor packs" has the tables.
+`theme.style` (default `washi`, or `none` = your own), `theme.look`, `theme.colors.palette` (K53). The style's and the
+look's recipes are one `theme:` layer under the user's own values; every value they set names its pack as its source
+(`style:washi`, `look:sekai`), which Settings words as "From the style Washi". Four chromes (flat, keycap, soft, line)
+are drawn by the same components from tokens (rule 4). DESIGN-SYSTEM "Chrome and decor packs" has the tables.
 
 ## States
 - **Picked:** the shell re-themes in one theme document change; no restart, no flash (the palette animates via the
@@ -33,12 +37,37 @@ the same components from tokens (rule 4). DESIGN-SYSTEM "Chrome and decor packs"
   decor, with `forced_by: accessibility` on each row.
 - **Mods' decors (later, I103):** a `decor:` provide adds a recipe; an invalid one is refused with a reason.
 
-## Settings (I104)
-The Look row is a row of preview cards, each a small scene drawn from the tokens the daemon resolved from that pack's
-recipe alone (`theme.decors`): ground, a bar of three blocks, a card with "Aa あ" in the pack's font and its accent.
-"Your own" is a plain card. Keyboard as the pill choices: Tab enters, arrows preview (the shell shows the look while the
-preview is open), Return/Space pick, Escape puts the old look back. The selection is a frame plus a check and a bold
-caption, never colour alone.
+## Settings (I104; W29, K53)
+References: **KDE** Global Theme (colours + Plasma style + window decoration under one pick: our Style ⊃ Look +
+Palette), its "apply" overwriting what you tweaked is the complaint we answer with the "differs from" line;
+**GNOME** Appearance (style = light/dark + accent only); **Noctalia** colour-scheme tab (a section title, one line of
+what it does, a grid of swatch cards with a check); **shellseikatsu** mode presets (one preset recreates a whole
+aesthetic, then single settings on top); **ii** wallpaper/scheme picker (a category row above a grid); **macOS**
+Appearance (three big previews, one line each).
+
+The Appearance page opens with three blocks, in this order: **Style**, **Look**, **Palette**. Each block is a card
+whose title is the setting's name and whose first line says what the kind is (Style "a whole aesthetic: look, colours,
+motion — applying one resets your appearance changes"; Look "the form and feel without colours"; Palette "colours
+only"). Under it the provenance of the value in effect: "From the style Washi", "Yours" with Reset, a profile, Nix.
+Then the detail sections as before (scheme and the accessibility colour keys, shape, material, motion, layout, type).
+- **Categories** (styles, looks): a row of chips — Modern · Inspired · Retro · Gaming & fiction · Your own — only
+  categories that have packs, each with its count; one category is open at a time, the current pack's by default. A
+  chip is a tab: Left/Right move between chips, Return/Space open one, Tab goes on into its cards. "None (your own)"
+  (styles) is a plain card in front of the chips, always shown.
+- **Cards:** a small scene drawn from the tokens the daemon resolved for that pack (`theme.previews`): ground, a bar
+  of three blocks, a card with "Aa あ" in its font and its accent. A look with frame art (`frame`) gets a hint of it:
+  corner brackets in the ink colour and a frame mark — the frame components themselves belong to the shell's process,
+  and a hint costs four rectangles. Only the open category's cards exist.
+- **Picking:** a style card applies the style (`theme.style.apply`: your appearance values are reset, one undo
+  step); "None (your own)" only sets `theme.style = none` and keeps your values; a look card applies the look
+  (`theme.look.apply`: your look values reset, the style's palette stays); a palette card sets the palette (with the
+  live preview it always had). Styles and looks are not previewed by arrow keys — an arrow press must never reset
+  settings — so in those groups arrows move the focus and Return/Space/click pick (WAI-ARIA radio group with manual
+  activation). Palettes keep "arrows preview, Return keeps, Escape puts back".
+- **Changed from the style:** while `theme.appearance.overrides` is not empty, a line under the Style block: "3
+  settings differ from Washi: Chrome, Corners, Palette · Reset to Washi" (labels from the schema catalogue, at most
+  four then "…"). Reset applies the current style again (one undo step). With style `none` there is no such line.
+- The selection is a frame plus a check and a bold caption, never colour alone.
 
 ## Motion
 Colours cross-fade (`Theme.quickMs`); blocks change chrome instantly (a morph between outline and shadow styles reads as
@@ -82,8 +111,25 @@ SF Pro, Trajan, OptimusPrinceps, W95FA, SST, Press Start 2P) stay first in the c
 HM installs Quicksand, Comic Neue, Cinzel, EB Garamond and Roboto. Shots: `frontend/shots/look/<pack>/`, contact sheet
 `frontend/shots/look/identity-sheet.png`.
 
+## States (Settings, W29)
+default (washi, nothing changed: no "differs" line) · style picked (its category open) · user value on top (the
+"differs" line, the row's chip "Yours") · look picked over the style (Look block "Yours", the Palette block still "From
+the style …") · style none (no line; blocks say "Default" or "Yours") · a user pack without a category ("Your own"
+chip) · disconnected (blocks greyed, picks off) · refused action (the reason under the block) · search (the rows show as
+plain rows with their cards).
+
+## Washi's paper (W29)
+Washi's look carries a frame, `paper`: a very fine fibre grain and a soft hairline in the ink colour (`Theme.fg`, low
+alpha), a little stronger on the lock/greeter ground. The grain is one small tile (an SVG made once per ink colour,
+from a fixed seed so every block shows the same paper) that the image cache shares between all blocks; it never
+animates. Small blocks (bar groups, keys) get the hairline only — grain on a 20 px key reads as dirt.
+
 ## Definition of done
 - Five looks visibly distinct on every surface (bar, island pill and card, quick settings, launcher, notifications,
   session, lock, web dock, desk) with an identical layout (test-look shots, `frontend/shots/look/<decor>/`).
 - A test keeps recipes to `theme.*` keys.
 - Settings shows the cards with keyboard preview; the Japanese copy names each look.
+- W29: three blocks named Style, Look, Palette with their lines; categories with counts; picking a style resets the
+  user's appearance values (daemon) and the "differs" line comes and goes; shots under washi, sekai and win95, each
+  category open once (`settings/shots/appearance/`); paper on bar, card and lock ground in light and dark
+  (`frontend/shots/look/washi*/`).

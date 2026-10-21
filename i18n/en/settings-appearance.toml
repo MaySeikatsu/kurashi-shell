@@ -1,0 +1,13 @@
+# Settings › Appearance as Style · Look · Palette (W29, K53; docs/ux/looks.md "Settings").
+"settings.appearance.styles.what" = "A whole aesthetic: look, colours, motion — applying one resets your appearance changes."
+"settings.appearance.looks.what" = "The form and feel without colours."
+"settings.appearance.palettes.what" = "Colours only."
+"settings.appearance.categories" = "Categories"
+"settings.appearance.category_count" = "{name} · {n}"
+"settings.appearance.frame" = "with frame art"
+"settings.appearance.differs_one" = "1 setting differs from {style}: {keys}"
+"settings.appearance.differs_many" = "{n} settings differ from {style}: {keys}"
+"settings.appearance.reset_to" = "Reset to {style}"
+"settings.appearance.refused" = "Could not apply"
+"settings.source.style" = "From the style {name}"
+"settings.source.look" = "From the look {name}"

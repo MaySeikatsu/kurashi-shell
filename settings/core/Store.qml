@@ -178,7 +178,11 @@ Singleton {
         case "default": return I18n.tr("settings.source.default")
         case "user": return I18n.tr("settings.source.user")
         case "profile": return I18n.fmt("settings.source.profile", { name: s.name || "" })
-        case "theme": return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
+        case "theme":
+            // K53: each value of the theme layer names its pack, `style:<name>` or `look:<name>`: "From the style Washi".
+            var pack = /^(style|look):(.+)$/.exec(s.name || "")
+            if (pack) return I18n.fmt("settings.source." + pack[1], { name: packLabel(pack[1] + "s", pack[2]) })
+            return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
         case "nix": return I18n.fmt("settings.source.nix", { path: nixPath(key) })
         case "forced":
             if (s.name === "nix") return I18n.fmt("settings.source.nix", { path: nixPath(key) })
@@ -187,6 +191,37 @@ Singleton {
         }
         return s.kind || ""
     }
+    // --- appearance packs (K53) ----------------------------------------------------------------------
+    // The offer sources whose choices are packs with previews in `theme.previews` (its keys are these names), and the
+    // action that applies a pack of a kind: it resets the user's values of that kind's keys first (the daemon decides
+    // which), one undo step. A palette is a plain value.
+    readonly property var packSources: ["styles", "looks", "palettes"]
+    readonly property var packActions: ({ styles: "theme.style.apply", looks: "theme.look.apply" })
+    function isPackRow(row) { return !!row && packSources.indexOf(row.choices_from) >= 0 }
+    // A pack's name in words, from the offers of the row that picks it (a user pack without a catalogue key: its name).
+    function packLabel(source, name) {
+        var rows = allRows()
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].row.choices_from !== source) continue
+            var cs = rows[i].row.choices || []
+            for (var j = 0; j < cs.length; j++) if (cs[j].value === name) return I18n.tr(cs[j].label)
+        }
+        return name
+    }
+    // A pack picked: a style or a look is applied by its action ("none" — your own — only sets the style and keeps your
+    // values); anything else is a plain change. A refusal shows under the row, as an apply's does.
+    function pickPack(row, name) {
+        var action = packActions[row.choices_from]
+        if (!action || name === "none") return setValue(row.key, name)
+        clearRefusal(row.key)
+        act(action, { name: name }, function (m) {
+            if (m.t === "done") return
+            var e = Object.assign({}, rowErrors)
+            e[row.key] = actError(m, "settings.appearance.refused")
+            rowErrors = e
+        })
+    }
+
     // Whether a provenance is one the user or a profile gave, or Nix did: what the Changed view lists.
     function isChangedSource(p) {
         var s = p && p.source ? p.source : ({})
