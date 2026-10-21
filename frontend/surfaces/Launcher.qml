@@ -3,10 +3,15 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/launcher"
 
 // Launcher (M5): centred overlay with exclusive keyboard focus while open. The daemon owns the
 // open state (runtime.ui.launcher), the index, ranking and launching; this only renders results
 // of `query launcher` and sends `launcher.launch` / `ui.close`.
+//
+// Prefix modes (K44, I126, W26; docs/ux/launcher.md): `:` emoji as a grid (8 a row, arrows move in two dimensions,
+// recent first), `;` the clipboard history (image thumbnails, pins, Shift+Delete removes, a "clear history" row with a
+// confirm), `>` commands, `?` the keybind cheat sheet (also action `launcher.keys`: `runtime.ui.launcher_query`).
 //
 // Same idle discipline as Stage (K16): permanently mapped but transparent, input-less and
 // focus-less while hidden, so it renders 0 frames; the reveal is a slide that starts on the first
@@ -14,21 +19,51 @@ import "../components"
 PanelWindow {
     id: lp
 
-    readonly property bool want: (Store.docs["runtime.ui"] && Store.docs["runtime.ui"].launcher) === true
+    readonly property var ui: Store.docs["runtime.ui"] || ({})
+    readonly property bool want: ui.launcher === true
+    // The text `launcher.keys` (or a later caller) opens the launcher with; "" for a plain open.
+    readonly property string openQuery: ui.launcher_query || ""
+    readonly property string mode: {
+        var c = field.text.charAt(0)
+        return c === ":" ? "emoji" : (c === ";" ? "clip" : (c === "?" ? "keys" : "apps"))
+    }
     readonly property int slide: 12
     readonly property int rowH: 48
     readonly property int maxRows: 7
-    readonly property int minRows: 1      // the empty state keeps one row of height
-    // The list follows its results: as many rows as there are, within [minRows, maxRows].
-    readonly property int listH: Math.max(minRows, Math.min(results.length, maxRows)) * rowH
+    readonly property int cols: 8          // emoji grid
+    readonly property int cellH: 60
+    readonly property int gridRows: 5
+    // The list follows its results: as tall as its rows, within one row and the mode's most.
+    readonly property int maxListH: mode === "keys" ? 432 : (mode === "clip" ? 396 : maxRows * rowH)
+    readonly property int contentH: {
+        var h = 0
+        for (var i = 0; i < results.length && h < maxListH; i++) h += heightOf(results[i])
+        return h
+    }
+    readonly property int listH: mode === "emoji"
+        ? Math.max(1, Math.min(Math.ceil(results.length / cols), gridRows)) * cellH
+        : Math.max(rowH, Math.min(contentH, maxListH))
+    readonly property bool footer: mode !== "apps"
     property real p: 0
     property bool gate: false
     property bool shown: false
     property var results: []
     property int sel: 0
     property string err: ""     // translated failure line above the list; "" when there is none
+    property bool confirmClear: false   // the "clear history" row asked once; Enter again clears
+    // Clipboard thumbnails asked for during this open (id → path, "!" = none), and which ids were asked.
+    property var thumbs: ({})
+    property var asked: ({})
     property var scr: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null   // latched on open so the card never jumps outputs
 
+    function heightOf(r) {
+        switch (r.kind) {
+        case "keygroup": return 30
+        case "key": return 38
+        case "clip": return r.image ? 72 : 58
+        default: return rowH
+        }
+    }
     function focusedScreen() {
         var o = (Store.docs["svc.workspaces"] && Store.docs["svc.workspaces"].outputs) || {}
         var s = Quickshell.screens
@@ -39,24 +74,83 @@ PanelWindow {
         }
         return s.length > 0 ? s[0] : null
     }
-    // A failure carries a kind (invalid, unavailable, internal, or the Store's own). Its message is
-    // English and is never shown: the kind picks a translated line, unknown kinds the generic one.
+    // A failure carries a kind (invalid, unavailable, internal, or the Store's own) and a message. A message that is
+    // one of our i18n keys (the clipboard's refusals) is shown translated; any other message is English and never
+    // shown: the kind picks a translated line, unknown kinds the generic one.
     function errorText(e) {
+        if (e.msg) {
+            var m = I18n.tr(e.msg)
+            if (m !== e.msg) return m
+        }
         var k = "surfaces.launcher.error." + (e.kind || "failed")
         var t = I18n.tr(k)
         return t !== k ? t : I18n.tr("surfaces.launcher.error.failed")
     }
-    function run(q) {
+    function selectable(i) { return i >= 0 && i < results.length && results[i].kind !== "keygroup" }
+    // The first selectable row from `i` going `d` (±1), else the other way, else 0.
+    function settle(i, d) {
+        var j = i
+        while (j >= 0 && j < results.length && !selectable(j)) j += d
+        if (selectable(j)) return j
+        j = i
+        while (j >= 0 && j < results.length && !selectable(j)) j -= d
+        return selectable(j) ? j : 0
+    }
+    function move(d) {
+        if (results.length === 0) return
+        if (mode === "emoji") {
+            var g = sel + d
+            if (g >= 0 && g < results.length) sel = g
+            else if (d > 1) sel = results.length - 1     // Down on the last row: the last cell
+            return
+        }
+        var j = sel + d
+        while (j >= 0 && j < results.length && !selectable(j)) j += d > 0 ? 1 : -1
+        if (selectable(j)) sel = j
+    }
+    function run(q, keep) {
         Store.query("launcher", q, function (items, e) {
             if (!lp.want) return
+            var old = lp.sel
             lp.results = items || []
-            lp.sel = 0
+            lp.sel = lp.settle(keep ? Math.min(old, lp.results.length - 1) : 0, 1)
             lp.err = e ? lp.errorText(e) : ""
         })
     }
+    function requestThumb(id) {
+        if (!want || asked[id]) return
+        asked[id] = true
+        Store.act("launcher.clip.thumb", { id: id }, function (done, e) {
+            if (!lp.want) return
+            var t = Object.assign({}, lp.thumbs)
+            t[id] = done && done.data && done.data.path ? done.data.path : "!"
+            lp.thumbs = t
+        })
+    }
+    // Clipboard keys: Shift+Delete removes the selected entry (a pin: unpins it), Ctrl+P pins or unpins it.
+    function clipAct(action) {
+        var r = results[sel]
+        if (!r || r.kind !== "clip") return
+        Store.act(action, { id: r.id }, function (done, e) {
+            if (e) { lp.err = lp.errorText(e); return }
+            lp.err = ""
+            lp.run(field.text, true)
+        })
+    }
     function launch() {
-        if (sel < 0 || sel >= results.length || !results[sel].id) return
-        var id = results[sel].id
+        if (sel < 0 || sel >= results.length) return
+        var r = results[sel]
+        if (r.kind === "clipclear") {
+            if (!confirmClear) { confirmClear = true; return }
+            confirmClear = false
+            Store.act("launcher.clip.clear", {}, function (done, e) {
+                if (e) { lp.err = lp.errorText(e); return }
+                lp.run(field.text)
+            })
+            return
+        }
+        if (!r.id) return
+        var id = r.id
         // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first.
         if (id.indexOf("cmd:") === 0) {
             Store.act("ui.close", {}, function () { Store.act("launcher.launch", { id: id }) })
@@ -68,6 +162,8 @@ PanelWindow {
             Store.act("ui.close")
         })
     }
+    onSelChanged: confirmClear = false
+    onModeChanged: confirmClear = false
 
     screen: scr
     // No anchors: the compositor centres the surface.
@@ -88,24 +184,32 @@ PanelWindow {
     onWantChanged: {
         if (want) {
             scr = focusedScreen()
-            field.text = ""
-            results = []; sel = 0; err = ""
+            results = []; sel = 0; err = ""; confirmClear = false
+            thumbs = ({}); asked = ({})
             anim.stop()
             if (!shown) { p = 0; gate = true; shown = true }
             else { anim.from = p; anim.to = 1; anim.start() }
-            run("")
+            // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
+            if (field.text === openQuery) run(openQuery)
+            else field.text = openQuery
+            field.cursorPosition = field.text.length
             field.forceActiveFocus()
         } else if (shown) {
             gate = false
             anim.stop(); anim.from = p; anim.to = 0; anim.start()
         }
     }
+    // `launcher.keys` while the launcher is already open: switch to the cheat sheet.
+    onOpenQueryChanged: if (want && openQuery !== "" && field.text !== openQuery) {
+        field.text = openQuery
+        field.cursorPosition = field.text.length
+    }
     NumberAnimation {
         id: anim
         target: lp; property: "p"
         duration: Theme.stdMs
         easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve
-        onFinished: if (lp.p <= 0 && !lp.want) { lp.shown = false; lp.results = [] }
+        onFinished: if (lp.p <= 0 && !lp.want) { lp.shown = false; lp.results = []; lp.thumbs = ({}) }
     }
     Connections {
         target: card.Window.window
@@ -121,7 +225,9 @@ PanelWindow {
         visible: lp.shown
         width: 600
         readonly property real inset: Theme.outlineW + Theme.ringW
-        height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH + Theme.shadowDy
+        readonly property int footH: lp.footer ? Theme.gap + 18 : 0
+        height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
+            + footH + Theme.shadowDy
         x: lp.shade
         y: lp.shade - lp.slide * (1 - lp.p)
         opacity: Math.min(1, lp.p * 1.6)
@@ -148,7 +254,8 @@ PanelWindow {
                 id: searchIcon
                 x: 14
                 anchors.verticalCenter: parent.verticalCenter
-                name: "search"
+                name: lp.mode === "emoji" ? "mood" : (lp.mode === "clip" ? "content_paste"
+                    : (lp.mode === "keys" ? "keyboard" : "search"))
                 glyph: "⌕"
                 color: Theme.dim
                 size: Theme.fsTitle + 4
@@ -164,11 +271,30 @@ PanelWindow {
                 selectByMouse: true
                 clip: true
                 onTextChanged: if (lp.want) lp.run(text)
-                Keys.onEscapePressed: Store.act("ui.close")
-                Keys.onDownPressed: if (lp.sel < lp.results.length - 1) lp.sel++
-                Keys.onUpPressed: if (lp.sel > 0) lp.sel--
+                Keys.onEscapePressed: {
+                    if (lp.confirmClear) lp.confirmClear = false
+                    else Store.act("ui.close")
+                }
+                Keys.onDownPressed: lp.move(lp.mode === "emoji" ? lp.cols : 1)
+                Keys.onUpPressed: lp.move(lp.mode === "emoji" ? -lp.cols : -1)
+                // In the emoji grid the arrows move across a row; elsewhere they move the text cursor.
+                Keys.onLeftPressed: (event) => { if (lp.mode === "emoji") lp.move(-1); else event.accepted = false }
+                Keys.onRightPressed: (event) => { if (lp.mode === "emoji") lp.move(1); else event.accepted = false }
                 Keys.onReturnPressed: lp.launch()
                 Keys.onEnterPressed: lp.launch()
+                Keys.onPressed: (event) => {
+                    var shift = (event.modifiers & Qt.ShiftModifier) !== 0
+                    var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+                    if (lp.mode === "clip" && event.key === Qt.Key_Delete && shift) {
+                        lp.clipAct("launcher.clip.delete"); event.accepted = true
+                    } else if (lp.mode === "clip" && event.key === Qt.Key_P && ctrl) {
+                        lp.clipAct("launcher.clip.pin"); event.accepted = true
+                    } else if (event.key === Qt.Key_PageDown) {
+                        lp.move(lp.mode === "emoji" ? lp.cols * lp.gridRows : 8); event.accepted = true
+                    } else if (event.key === Qt.Key_PageUp) {
+                        lp.move(lp.mode === "emoji" ? -lp.cols * lp.gridRows : -8); event.accepted = true
+                    }
+                }
                 Text {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
@@ -205,19 +331,22 @@ PanelWindow {
 
         ListView {
             id: list
+            visible: lp.mode !== "emoji"
             x: Theme.pad + card.inset
             y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
             width: card.width - 2 * x
             height: lp.listH
             clip: true
             interactive: false
-            model: lp.results
+            // Only the rows on screen exist, so only their thumbnails are asked for (Ma).
+            cacheBuffer: 0
+            model: lp.mode !== "emoji" ? lp.results : []
             currentIndex: lp.sel
             highlightMoveDuration: 0
             // The selected row's highlight is one tonal block that springs to the row (keycap: outlined).
             highlight: Block {
                 width: list.width
-                height: lp.rowH - 2
+                height: list.currentItem ? list.currentItem.height - 2 : lp.rowH - 2
                 radius: Theme.rLg
                 ringScale: 0
                 softScale: 0
@@ -232,111 +361,248 @@ PanelWindow {
                 id: row
                 required property var modelData
                 required property int index
-                readonly property bool isCalc: modelData.kind === "calc"
+                readonly property string kind: modelData.kind || ""
+                readonly property bool isCalc: kind === "calc"
                 // Prefix modes (daemon): `:` emoji, `;` clipboard; a `note` row only explains (an i18n key, no id).
-                readonly property bool isEmoji: modelData.kind === "emoji"
-                readonly property bool isClip: modelData.kind === "clip"
-                readonly property bool isNote: modelData.kind === "note"
+                readonly property bool isEmoji: kind === "emoji"
+                readonly property bool isNote: kind === "note"
                 // `>` commands (I126) carry their Material icon; the web row searches the query.
-                readonly property bool isCommand: modelData.kind === "command"
-                readonly property bool isWeb: modelData.kind === "web"
-                readonly property bool copies: isCalc || isEmoji || isClip
+                readonly property bool isCommand: kind === "command"
+                readonly property bool isWeb: kind === "web"
+                // Rows drawn by their own component (W26): a clipboard entry, the clear row, a cheat sheet row.
+                readonly property bool own: kind === "clip" || kind === "clipclear" || kind === "key" || kind === "keygroup"
+                readonly property bool copies: isCalc || isEmoji
                 readonly property bool selected: index === lp.sel
                 width: list.width
-                height: lp.rowH
+                height: lp.heightOf(modelData)
 
                 Item {
-                    id: ico
-                    x: 10; anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                    width: 30; height: 30
-                    property string src: modelData.kind === "app" && modelData.icon ? Quickshell.iconPath(modelData.icon, true) : ""
-                    Image {
-                        id: img
-                        anchors.fill: parent
-                        source: ico.src
-                        sourceSize: Qt.size(60, 60)
-                        asynchronous: true
-                        visible: ico.src !== "" && status === Image.Ready
+                    anchors.fill: parent
+                    visible: !row.own
+                    Item {
+                        id: ico
+                        x: 10; anchors.verticalCenter: parent.verticalCenter
+                        anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                        width: 30; height: 30
+                        property string src: row.kind === "app" && row.modelData.icon ? Quickshell.iconPath(row.modelData.icon, true) : ""
+                        Image {
+                            id: img
+                            anchors.fill: parent
+                            source: ico.src
+                            sourceSize: Qt.size(60, 60)
+                            asynchronous: true
+                            visible: ico.src !== "" && status === Image.Ready
+                        }
+                        // Text fallback: initial of the name; a calculation shows its icon.
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: !img.visible
+                            radius: Theme.rSm
+                            color: row.isCalc ? Theme.accent : (row.isEmoji ? "transparent" : Theme.surface)
+                            border.width: !row.isEmoji ? Theme.outlineW : 0
+                            border.color: Theme.outlineColor
+                            Icon {
+                                anchors.centerIn: parent
+                                visible: row.isCalc || row.isNote || row.isCommand || row.isWeb
+                                name: row.isCalc ? "calculate"
+                                    : ((row.isCommand || row.isWeb) ? (row.modelData.icon || "bolt") : "info")
+                                glyph: row.isCalc ? "=" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i"))
+                                filled: true
+                                color: row.isCalc ? Theme.fgOnAccent : Theme.dim
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: row.isEmoji
+                                font.pixelSize: 24
+                                text: row.modelData.glyph || ""
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                visible: row.kind === "app" || row.kind === "action"
+                                color: Theme.dim
+                                font.pixelSize: Theme.fs
+                                font.weight: Theme.wBold
+                                font.family: Theme.fam(text, Theme.families)
+                                text: (row.modelData.name || "?").charAt(0).toUpperCase()
+                            }
+                        }
                     }
-                    // Text fallback: initial of the name; a calculation shows its icon.
-                    Rectangle {
-                        anchors.fill: parent
-                        visible: !img.visible
-                        radius: Theme.rSm
-                        color: row.isCalc ? Theme.accent : (row.isEmoji ? "transparent" : Theme.surface)
-                        border.width: !row.isEmoji ? Theme.outlineW : 0
-                        border.color: Theme.outlineColor
-                        Icon {
-                            anchors.centerIn: parent
-                            visible: row.isCalc || row.isClip || row.isNote || row.isCommand || row.isWeb
-                            name: row.isCalc ? "calculate" : (row.isClip ? "content_paste"
-                                : ((row.isCommand || row.isWeb) ? (modelData.icon || "bolt") : "info"))
-                            glyph: row.isCalc ? "=" : (row.isClip ? "⎘" : (row.isWeb ? "⌕" : (row.isCommand ? "›" : "i")))
-                            filled: true
-                            color: row.isCalc ? Theme.fgOnAccent : Theme.dim
-                        }
+                    Column {
+                        anchors { left: ico.right; leftMargin: Theme.gap + 2; right: hint.left; rightMargin: 8
+                                  verticalCenter: ico.verticalCenter }
                         Text {
-                            anchors.centerIn: parent
-                            visible: row.isEmoji
-                            font.pixelSize: 24
-                            text: modelData.glyph || ""
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            visible: modelData.kind === "app" || modelData.kind === "action"
-                            color: Theme.dim
-                            font.pixelSize: Theme.fs
-                            font.weight: Theme.wBold
+                            width: parent.width
+                            elide: Text.ElideRight
+                            wrapMode: row.isNote ? Text.Wrap : Text.NoWrap
+                            maximumLineCount: 2
+                            color: row.selected ? Theme.fgOnSelected : Theme.fg
+                            font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : (row.isNote ? Theme.fs - 1 : Theme.fs)
+                            font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                             font.family: Theme.fam(text, Theme.families)
-                            text: (modelData.name || "?").charAt(0).toUpperCase()
+                            text: row.isNote ? I18n.tr(row.modelData.name).replace("{path}", row.modelData.arg || "")
+                                : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", row.modelData.name) : row.modelData.name)
+                        }
+                        Text {
+                            width: parent.width
+                            visible: !!row.modelData.generic
+                            elide: Text.ElideRight
+                            color: Theme.dim
+                            font.pixelSize: Theme.fs - 2
+                            font.family: Theme.fam(text, Theme.families)
+                            text: row.modelData.generic || ""
+                        }
+                    }
+                    // What Enter does on the selected row: launch, or copy a calculation.
+                    Text {
+                        id: hint
+                        anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
+                        visible: row.selected && !row.isNote
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
+                        font.family: Theme.fam(text, Theme.families)
+                        text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
+                            : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open")))
+                    }
+                }
+                Loader {
+                    anchors.fill: parent
+                    active: row.kind === "clip"
+                    sourceComponent: Component {
+                        ClipRow {
+                            entry: row.modelData
+                            selected: row.selected
+                            thumb: row.modelData.thumb || lp.thumbs[row.modelData.id] || ""
+                            onWantThumb: lp.requestThumb(row.modelData.id)
                         }
                     }
                 }
-                Column {
-                    anchors { left: ico.right; leftMargin: Theme.gap + 2; right: hint.left; rightMargin: 8
-                              verticalCenter: ico.verticalCenter }
-                    Text {
-                        width: parent.width
-                        elide: Text.ElideRight
-                        color: row.selected ? Theme.fgOnSelected : Theme.fg
-                        font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : Theme.fs
-                        font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
-                        font.family: Theme.fam(text, Theme.families)
-                        text: row.isNote ? I18n.tr(modelData.name)
-                            : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", modelData.name) : modelData.name)
-                    }
-                    Text {
-                        width: parent.width
-                        visible: !!modelData.generic
-                        elide: Text.ElideRight
-                        color: Theme.dim
-                        font.pixelSize: Theme.fs - 2
-                        font.family: Theme.fam(text, Theme.families)
-                        text: modelData.generic || ""
+                Loader {
+                    anchors.fill: parent
+                    active: row.kind === "key" || row.kind === "keygroup"
+                    sourceComponent: Component {
+                        KeyRow { entry: row.modelData; selected: row.selected }
                     }
                 }
-                // What Enter does on the selected row: launch, or copy a calculation.
-                Text {
-                    id: hint
-                    anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
-                    visible: row.selected && !row.isNote
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
-                    text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
-                        : (row.isCommand ? "launcher.run" : (row.isWeb ? "launcher.search" : "launcher.open")))
+                // The "clear history" row: once to ask, Enter again to clear (pins stay; DMS's confirm, inline).
+                Item {
+                    anchors.fill: parent
+                    visible: row.kind === "clipclear"
+                    readonly property bool asking: lp.confirmClear && row.selected
+                    Icon {
+                        id: clearIcon
+                        x: 10 + (30 - width) / 2
+                        anchors { verticalCenter: parent.verticalCenter; verticalCenterOffset: -Theme.shadowDy / 2 }
+                        name: "delete_sweep"
+                        glyph: "×"
+                        color: parent.asking ? Theme.error : Theme.dim
+                    }
+                    Text {
+                        anchors { left: parent.left; leftMargin: 40 + Theme.gap + 2; right: parent.right; rightMargin: 12
+                                  verticalCenter: clearIcon.verticalCenter }
+                        elide: Text.ElideRight
+                        color: parent.asking ? Theme.error : (row.selected ? Theme.fgOnSelected : Theme.dim)
+                        font.pixelSize: Theme.fs
+                        font.weight: parent.asking || row.selected ? Theme.wBold : Theme.wMedium
+                        font.family: Theme.fam(text, Theme.families)
+                        text: (parent.asking ? I18n.tr("launcher.clip.clear_confirm")
+                            : I18n.tr((row.modelData.pins || 0) > 0 ? "launcher.clip.clear_pins" : "launcher.clip.clear"))
+                            .replace("{n}", row.modelData.count || 0).replace("{p}", row.modelData.pins || 0)
+                    }
                 }
                 MouseArea {
                     anchors.fill: parent
+                    enabled: row.kind !== "keygroup"
                     onClicked: { lp.sel = row.index; lp.launch() }
                 }
             }
-            onCurrentIndexChanged: positionViewAtIndex(currentIndex, ListView.Contain)
+            onCurrentIndexChanged: {
+                // A group's first row also shows its header.
+                if (currentIndex > 0 && lp.results[currentIndex - 1] && lp.results[currentIndex - 1].kind === "keygroup")
+                    positionViewAtIndex(currentIndex - 1, ListView.Contain)
+                positionViewAtIndex(currentIndex, ListView.Contain)
+            }
+        }
+
+        // The emoji grid (`:`): 8 a row, the selected cell a tonal block; its name under the grid.
+        GridView {
+            id: grid
+            visible: lp.mode === "emoji"
+            x: list.x
+            y: list.y
+            width: list.width
+            height: lp.listH
+            clip: true
+            interactive: false
+            cacheBuffer: 0
+            cellWidth: width / lp.cols
+            cellHeight: lp.cellH
+            model: lp.mode === "emoji" ? lp.results : []
+            currentIndex: lp.sel
+            highlightMoveDuration: 0
+            highlightFollowsCurrentItem: true
+            highlight: Block {
+                width: grid.cellWidth
+                height: grid.cellHeight
+                radius: Theme.rLg
+                ringScale: 0
+                softScale: 0
+                fill: Theme.selected
+            }
+            delegate: Item {
+                id: cell
+                required property var modelData
+                required property int index
+                width: grid.cellWidth
+                height: grid.cellHeight
+                Text {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: -Theme.shadowDy / 2
+                    font.pixelSize: 30
+                    text: cell.modelData.glyph || ""
+                    Accessible.name: cell.modelData.name || ""
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    onClicked: { lp.sel = cell.index; lp.launch() }
+                }
+            }
+            onCurrentIndexChanged: positionViewAtIndex(currentIndex, GridView.Contain)
+        }
+
+        // Under the list: the mode's keys (clipboard, cheat sheet), or the selected emoji's name.
+        Item {
+            visible: lp.footer
+            x: Theme.pad + card.inset
+            y: list.y + lp.listH + Theme.gap
+            width: card.width - 2 * x
+            height: 18
+            readonly property var cur: lp.results[lp.sel] || null
+            Text {
+                id: footLeft
+                anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                width: parent.width - footRight.implicitWidth - 24
+                visible: lp.mode === "emoji"
+                elide: Text.ElideRight
+                color: Theme.fg
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wMedium
+                font.family: Theme.fam(text, Theme.families)
+                text: parent.cur && parent.cur.kind === "emoji"
+                    ? parent.cur.name + (parent.cur.recent ? "  ·  " + I18n.tr("launcher.emoji.recent") : "") : ""
+            }
+            Text {
+                id: footRight
+                anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                color: Theme.dim
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: I18n.tr(lp.mode === "emoji" ? "launcher.hint.emoji"
+                    : (lp.mode === "clip" ? "launcher.hint.clip" : (lp.mode === "keys" ? "launcher.hint.keys" : "")))
+            }
         }
 
         Text {
-            anchors { centerIn: list }
+            anchors { centerIn: lp.mode === "emoji" ? grid : list }
             visible: lp.results.length === 0
             color: Theme.dim
             font.pixelSize: Theme.fs
