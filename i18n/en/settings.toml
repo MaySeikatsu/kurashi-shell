@@ -244,3 +244,15 @@
 # W18-settings (I64, docs/ux/settings.md): a profile line whose value stays, and a Changed row whose user value a forced layer holds back.
 "settings.ui.profile_now_from" = "Now from this profile"
 "settings.ui.held_back" = "Not in effect: {reason} · In effect: {value}"
+
+# W24-desk-settings (K49): under the theme export row, what became of each app's theme file
+"settings.export.waiting" = "Waiting for the first export…"
+"settings.export.file" = "Written to {path}"
+"settings.export.same" = "Up to date: {path}"
+"settings.export.error" = "Not written: {reason}"
+"settings.export.unknown" = "The template names colours that do not exist: {names}"
+"settings.export.included" = "Read by {file}"
+"settings.export.add_line" = "{app} does not read it yet. Add this line to {file}:"
+"settings.export.copy" = "Copy"
+"settings.export.copied" = "Copied"
+"settings.export.copy_failed" = "Could not copy"

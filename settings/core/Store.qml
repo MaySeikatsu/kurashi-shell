@@ -41,6 +41,10 @@ Singleton {
 
     // Only these documents are subscribed, and only while this process lives (Ma).
     readonly property var subs: ["theme", "config", "schema.settings", "i18n", "svc.workspaces", "mods"]
+    // Documents a view asks for only while it shows them (watch/unwatch, refcounted; Ma): `docs[name]`. The theme export
+    // status under its row is one (svc.theme_export, K49).
+    property var docs: ({})
+    property var wanted: ({})
     property var data: ({})
     property var revs: ({})
     property var pending: ({})
@@ -51,6 +55,24 @@ Singleton {
     // for every forced key on each config and schema change. Kept apart from `explained`, which a config change clears:
     // the Changed view's rows must not come and go with every change.
     property var heldUsers: ({})
+
+    function watch(doc) {
+        var n = (wanted[doc] || 0) + 1
+        wanted[doc] = n
+        if (n === 1 && connected) send({ t: "sub", id: "w:" + doc, doc: doc })
+    }
+    function unwatch(doc) {
+        var n = wanted[doc] || 0
+        if (n <= 0) return
+        if (n > 1) { wanted[doc] = n - 1; return }
+        delete wanted[doc]
+        if (connected) send({ t: "unsub", doc: doc })
+        delete revs[doc]
+        delete data[doc]
+        var d = Object.assign({}, docs)
+        delete d[doc]
+        docs = d
+    }
 
     function send(m) {
         if (!sock.connected) return false
@@ -465,6 +487,11 @@ Singleton {
         case "i18n": i18n = v; break
         case "svc.workspaces": workspaces = v; break
         case "mods": mods = v; break
+        default:
+            if (!wanted[doc]) return
+            var d = Object.assign({}, docs)
+            d[doc] = v
+            docs = d
         }
         // The user values that forced layers hold back follow the config and the schema (I64 (3)).
         if (doc === "config" || doc === "schema.settings") refreshHeld()
@@ -483,12 +510,14 @@ Singleton {
             retry.interval = 250
             connected = true
             for (var i = 0; i < subs.length; i++) send({ t: "sub", id: "s" + i, doc: subs[i] })
+            for (var w in wanted) send({ t: "sub", id: "w:" + w, doc: w })
         } else if (m.t === "snap") {
             data[m.doc] = m.data
             revs[m.doc] = m.rev
             publish(m.doc)
             live = true
         } else if (m.t === "patch") {
+            if (data[m.doc] === undefined) return
             if (revs[m.doc] === undefined || m.rev !== revs[m.doc] + 1) {
                 if (revs[m.doc] === undefined || m.rev > revs[m.doc]) send({ t: "resync", doc: m.doc })
                 return

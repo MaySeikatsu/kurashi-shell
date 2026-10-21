@@ -19,3 +19,5 @@ PageHeader 1.0 PageHeader.qml
 ModHead 1.0 ModHead.qml
 ProfileDiffRow 1.0 ProfileDiffRow.qml
 ProfileReview 1.0 ProfileReview.qml
+SectionCard 1.0 SectionCard.qml
+ThemeExportStatus 1.0 ThemeExportStatus.qml

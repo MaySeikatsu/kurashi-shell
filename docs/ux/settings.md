@@ -70,3 +70,22 @@ derived from the `config` doc's provenance (no new contract); deep link = an arg
 
 ## Later
 Related-settings links · per-slot ordering UI (K28) · settings sync across machines · a11y audit with Orca.
+
+## Section cards (K48 (5), I104; W24-desk-settings)
+References: **DMS** `Modules/Settings/Widgets/SettingsCard.qml` + `SettingsGroup.qml` (a section label in the primary
+colour above a group of rows on tonal slots), **Noctalia** `SettingsPanel/Tabs` (headed sections between dividers),
+**Caelestia** dashboard cards (rounded container blocks), **GNOME** libadwaita preference groups (boxed lists under a title).
+- Each section of a page is a card (`SectionCard`): the container fill, the chrome's ink outline (keycap, line) or a
+  hairline, keycap's hard shadow; the section's Material Symbols icon (accent, a mark not text) and title on top; rows
+  inside, hairlines between them, none after the last. Icons come from a map in `SettingsPages` by section id (or
+  `page.section`), a mod's section gets the puzzle piece, anything else the sliders — display only, no key named.
+- Search results keep their breadcrumbs, one card per section found, with no card title (the crumb names it). The
+  Changed view is unchanged (its own list).
+- **A row's document** (the one place Settings shows one): a per-key map `extras` in `SettingsPages` (key → component),
+  drawn under the row's control column; `SettingRow` knows nothing of it. First use: under `theme.export`, each chosen
+  app from `svc.theme_export` — where its file went ("Written to" / "Up to date"), "Read by <file>" when the include is
+  there, else the line to add with the config file it goes in and Copy (wl-copy through `launcher.launch {id: "calc:…"}`;
+  "Copied" on the key until the line changes, a refusal line if it could not), an error by its i18n key, unknown colour
+  names. The document is watched only while the status shows (Ma). DMS writes the include itself
+  (`IncludeSetupBanner`); kurashid never edits an app's own config (K49), so we show the one step and copy it.
+- Shots: `settings/shots/{28-cards-power,29-cards-desktop,30-theme-export,31-theme-export-copied,ja-cards-power}.png`.
