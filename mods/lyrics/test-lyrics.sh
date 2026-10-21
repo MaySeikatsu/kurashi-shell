@@ -174,7 +174,7 @@ start_all() { # start_all <decor>
   rm -rf "$R/xdg"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   cat > "$XDG_CONFIG_HOME/kurashi/config.toml" <<TOML
-theme.decor = "$1"
+theme.style = "$1"
 desktop.enabled = true
 TOML
   : > "$R/lrclib.log"
