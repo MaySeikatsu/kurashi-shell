@@ -470,8 +470,8 @@ echo "ok: tile states: three, one and no tile on (tiles-*-on.png)"
 card_shot tiles-mods 1
 [ "$(last_event mod.wallpaper)" = "sub mod.wallpaper" ] || fail "the wallpaper tile did not subscribe its document while the card shows it"
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
-# W23: the core tiles gained Keep awake, Night light and Record (three more Tab stops before the test mod's tile).
-press tab tab tab tab tab tab tab tab tab tab tab tab tab
+# W23: the core tiles gained Keep awake, Night light and Record; K53 Dark mode (four more Tab stops before the test mod's tile).
+press tab tab tab tab tab tab tab tab tab tab tab tab tab tab
 press down
 pic0=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
 press return
@@ -514,7 +514,7 @@ for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
 [ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the picker check"
 sleep 1
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
-press tab tab tab tab tab tab tab tab tab tab tab tab tab   # W23: three more core tiles
+press tab tab tab tab tab tab tab tab tab tab tab tab tab tab   # W23: three more core tiles; K53: Dark mode
 press down right
 sleep 1.5
 [ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "Right on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
