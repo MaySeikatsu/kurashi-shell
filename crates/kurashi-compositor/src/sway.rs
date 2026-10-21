@@ -678,10 +678,13 @@ mod tests {
 
     /// A fake sway: canned replies per request type, RUN_COMMAND payloads recorded, events pushed to the
     /// subscribed connection; `drop_events` closes it (a sway restart).
+    /// The subscribed connections' senders; `None` closes one.
+    type Subs = Arc<Mutex<Vec<mpsc::UnboundedSender<Option<(u32, Value)>>>>>;
+
     struct FakeSway {
         replies: Arc<Mutex<HashMap<u32, Value>>>,
         commands: Arc<Mutex<Vec<String>>>,
-        subs: Arc<Mutex<Vec<mpsc::UnboundedSender<Option<(u32, Value)>>>>>,
+        subs: Subs,
     }
 
     impl FakeSway {
