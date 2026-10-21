@@ -75,7 +75,9 @@ async fn history_follows_apply_undo_redo_and_profile_actions() {
         json!({"can_undo": false, "can_redo": false}),
         "nothing done yet"
     );
-    let before = doc(&hub)["history"]["rev"].as_u64().expect("history.rev (K57)");
+    let before = doc(&hub)["history"]["rev"]
+        .as_u64()
+        .expect("history.rev (K57)");
 
     store
         .apply(&[ApplyOp::Set {
