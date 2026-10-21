@@ -144,7 +144,7 @@ start_daemon() { # start_daemon <decor> [extra config lines]
   stop_daemon
   rm -rf "$R/xdg"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-  printf 'theme.decor = "%s"\n%s\n' "$1" "${2:-}" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  printf 'theme.style = "%s"\n%s\n' "$1" "${2:-}" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" PULSE_SERVER="unix:$R/no-pulse/native" PULSE_RUNTIME_PATH="$R/no-pulse" \
     "$W/kurashid" >> "$R/kurashid.log" 2>&1 &

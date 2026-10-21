@@ -5,8 +5,8 @@
 # frontend/shots/look/<tag>/ (LOOK_SANDBOX names the sandbox prefix, default fe-look). Evidence to look at, not a pass/fail test; it fails only on a QML error or a server
 # that does not come up.
 #   nix develop -c frontend/test-look.sh [tag] [config-toml-line ...]
-#   e.g. frontend/test-look.sh wa-iro 'theme.decor = "none"'
-#        frontend/test-look.sh sekai-dark 'theme.decor = "sekai"' 'theme.colors.scheme = "dark"'
+#   e.g. frontend/test-look.sh wa-iro 'theme.style = "none"'
+#        frontend/test-look.sh sekai-dark 'theme.style = "sekai"' 'theme.colors.scheme = "dark"'
 # LOOK_MOCK=1 adds mock-bar.png (fake windows in the bar's window list, the mock wearing the daemon's theme).
 # LOOK_STEPS="bar island quick toast notif launcher session" picks steps (toast sends two notifications); LOOK_LOCK=1 adds lock.png (the real daemon refuses
 # to lock without its PAM service, so the lock is shown by kurashi-mock wearing the real daemon's theme tokens); LOOK_EXTRA="<cmd>" runs a command (e.g.
@@ -16,7 +16,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 TAG=${1:-sekai}
 shift || true
 LINES=("$@")
-[ ${#LINES[@]} -eq 0 ] && LINES=('theme.decor = "sekai"')
+[ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
 NAME=${LOOK_SANDBOX:-fe-look}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/look/$TAG

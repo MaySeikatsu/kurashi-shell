@@ -1,7 +1,7 @@
-# Luna — Windows XP: beige control chrome (#ECE9D8), Luna-blue accent, the green "start" highlight. Light only.
+# Luna — Windows XP: beige control chrome (#ECE9D8), Luna-blue accent, the green "start" highlight. Light, and dark (K53).
 # Roles after shellseikatsu `_winxpPalette()` (W25, K50). Meant for decor `luna` (frame `luna`).
 name = "luna"
-kind = "light"
+kind = "pair"
 description = "XP beige with Luna blue (decor luna)"
 
 [light]
@@ -23,3 +23,24 @@ tertiary = "#b5650e"
 warning = "#9a5b00"
 error = "#c42b1c"
 success = "#2f8a2b"
+
+# Dark (K53: every palette has both schemes): XP's Royale Noir: glossy black with Luna blue and the start-button green.
+[dark]
+surface = "#1e1f24"
+surface_container_lowest = "#121316"
+surface_container_low = "#1a1b1f"
+surface_container = "#24262c"
+surface_container_high = "#2e3038"
+surface_container_highest = "#3a3d46"
+on_surface = "#f0efe8"
+on_surface_variant = "#b8b6a8"
+outline = "#6c7080"
+outline_variant = "#3a3d46"
+accent = "#6b9af2"
+accent_container = "#1c3f8f"
+on_accent_container = "#dde8ff"
+secondary = "#5cc456"
+tertiary = "#e8923a"
+warning = "#e8b04a"
+error = "#f0645a"
+success = "#5cc456"

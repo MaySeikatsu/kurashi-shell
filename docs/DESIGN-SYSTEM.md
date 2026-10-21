@@ -44,7 +44,38 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 | `typography` | family chain (resolved via fontconfig → first installed), scale |
 | `icons` | glyph set (`lucide` default), weight, app-icon theme |
 
-## 4. Decor packs (identity without renderer branches)
+## 4. Styles, looks and palettes (identity without renderer branches)
+
+**K53 — three kinds of appearance pack, each a file** (`kurashi-theme::appearance`; bundled + `~/.config/kurashi/{looks,styles}/`):
+
+| kind | file | key | what it sets | applying it |
+|---|---|---|---|---|
+| **Palette** | `palettes/<n>.toml` | `theme.colors.palette` | colours only | sets the palette |
+| **Look** | `looks/<n>.toml` | `theme.look` (default `kanso`) | form and feel without colour: chrome, corners, radius, material, motion, type family (`LOOK_KEYS`) + `[slots] frame` | `theme.look.apply`: resets your look keys, sets the look |
+| **Style** | `styles/<n>.toml` | `theme.style` (default **`washi`**) | `look` + `palette` + density, tweaks of its own look (`STYLE_KEYS`) and a recommended scheme | `theme.style.apply`: resets every appearance key you set except light/dark, sets the style |
+
+A look that only recolours another one is a palette. Every pack names a `category` (`modern`, `inspired`, `retro`,
+`fiction`; `custom` for a user file without one) — Settings groups by it. The theme layer holds the look's recipe under
+the style's (`theme: look:<n>` / `theme: style:<n>` provenance); a style's look tweaks apply only while its own look is
+the one in effect. Every palette has a light and a dark scheme; light/dark is the user's mode (the quick settings'
+Dark tile), a style only recommends one. Accessibility preferences, the seasonal tint, screen corners and app export
+are never reset.
+
+| style | category | look | palette | own recipe |
+|---|---|---|---|---|
+| washi | inspired | washi | wa-iro | light |
+| kanso | modern | kanso | kanso | dark |
+| material, glass, terminal | modern | same name | material / kanso / kanso | dark |
+| catppuccin | modern | soft | catppuccin | dark, lively, opacity 0.92, radius ×1.3 |
+| rose-pine | modern | soft | rose-pine | dark, radius ×1.15, Nunito |
+| tokyo-night | modern | kanso | tokyo-night | dark, compact, calm ×1.25, opacity 0.88, radius ×0.85, mono |
+| sekai, aqua | inspired | same name | same name | sekai light / aqua dark |
+| win95, luna, aero, ps2, snes | retro | same name | same name | scheme; win95/snes compact |
+| kawaii, yorha, hallownest, souls | fiction | same name | same name | scheme |
+
+The tables below describe the looks (their columns other than palette); the original decor pack design follows.
+
+### The pack design (K42)
 A decor pack = **typed slots + recipe**:
 - **Slots** per surface kind: `bar.frame`, `bar.background`, `popup.chrome`, `island.chrome`,
   `lock.scene`, `osd.chrome`, `button.style`. A slot is filled by a renderer component shipped in
@@ -81,8 +112,9 @@ K45 adds two chromes and makes every decor a whole look that never touches layou
 
 Recipes name `theme.*` keys only. Layout (bar edge/height, desk, island placement) belongs to the user and profiles.
 
-**Frames (W25, K50).** A pack's `[slots]` may name `frame = "<name>"`: art drawn over every block's edge. The daemon
-reads it from the active `theme.decor` (`kurashi_theme::decor::find`) and publishes token `decor.frame` (`""` for none);
+**Frames (W25, K50, K53).** A look's `[slots]` may name `frame = "<name>"`: art drawn over every block's edge. The
+daemon reads it from the look in effect (`theme.look`, `kurashi_theme::appearance::find`) and publishes token
+`decor.frame` (`""` for none);
 `Theme.frame` carries it and `FrameHost.qml` (one optional child of `Block.qml`, and the lock's ground) loads
 `components/frames/<Name>.qml` (kebab-case → PascalCase). The name is data; no renderer compares it (rule 4). A frame
 paints from palette roles, so a pinned palette still fits; it is static (one paint per size and colour) and runs at

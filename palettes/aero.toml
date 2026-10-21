@@ -1,7 +1,7 @@
-# Aero — Windows 7: cool glassy blue-white surfaces over blur, aero-blue accent. Light only. Roles after
+# Aero — Windows 7: cool glassy blue-white surfaces over blur, aero-blue accent. Light, and dark (K53). Roles after
 # shellseikatsu `_win7Palette()` (W25, K50). Meant for decor `aero` (frame `aero`).
 name = "aero"
-kind = "light"
+kind = "pair"
 description = "Aero glass blue-white (decor aero)"
 
 [light]
@@ -22,3 +22,23 @@ secondary = "#2f7fb0"
 tertiary = "#3f8fbf"
 warning = "#8a5a00"
 error = "#c42b1c"
+
+# Dark (K53: every palette has both schemes): Windows 7 with a black glass colour: deep blue-black glass, sky-blue accent.
+[dark]
+surface = "#142230"
+surface_container_lowest = "#0b1621"
+surface_container_low = "#111d29"
+surface_container = "#172636"
+surface_container_high = "#1f3245"
+surface_container_highest = "#2a4058"
+on_surface = "#e4f0f8"
+on_surface_variant = "#a9c2d4"
+outline = "#4f7894"
+outline_variant = "#2a4058"
+accent = "#6fb8e8"
+accent_container = "#1f4f73"
+on_accent_container = "#d8eefc"
+secondary = "#5aa8d8"
+tertiary = "#7fc4e8"
+warning = "#e8b04a"
+error = "#f06a5a"

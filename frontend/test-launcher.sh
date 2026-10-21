@@ -159,7 +159,7 @@ start_all() { # start_all <decor>
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   fill_history
   niri_fixture
-  printf 'theme.decor = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  printf 'theme.style = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env PATH="$FAKE:$PATH" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &

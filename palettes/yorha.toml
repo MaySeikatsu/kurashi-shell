@@ -1,7 +1,7 @@
-# YoRHa — NieR: Automata's pause menu: faded parchment, near-monochrome dark-olive ink. Light only (the game's
-# menus are). Roles after shellseikatsu `_nierPalette()` (W25, K50). Meant for decor `yorha` (frame `yorha`).
+# YoRHa — NieR: Automata's pause menu: faded parchment, near-monochrome dark-olive ink. Light, and dark (K53). Roles
+# after shellseikatsu `_nierPalette()` (W25, K50). Meant for the look `yorha` (frame `yorha`).
 name = "yorha"
-kind = "light"
+kind = "pair"
 description = "Parchment and olive ink (decor yorha)"
 
 [light]
@@ -24,3 +24,25 @@ warning = "#6e4a10"
 error = "#8c3a2e"
 line = "#3e3b33"
 ring = "#dad5be"
+
+# Dark (K53: every palette has both schemes): the black-box menus of the game's dark screens: olive-black ground, parchment ink.
+[dark]
+surface = "#262520"
+surface_container_lowest = "#1b1a16"
+surface_container_low = "#211f1b"
+surface_container = "#2b2a24"
+surface_container_high = "#35332c"
+surface_container_highest = "#403d35"
+on_surface = "#dad5be"
+on_surface_variant = "#b8b29c"
+outline = "#8a8572"
+outline_variant = "#4a473d"
+accent = "#c9c5b0"
+accent_container = "#4e4b41"
+on_accent_container = "#dad5be"
+secondary = "#aba68d"
+tertiary = "#c2bca2"
+warning = "#d8a850"
+error = "#d8705e"
+line = "#dad5be"
+ring = "#3e3b33"

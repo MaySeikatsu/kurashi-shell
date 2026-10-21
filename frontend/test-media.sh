@@ -302,7 +302,7 @@ start_all() { # start_all <decor>
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME" "$WP_STATE" "$R/pics"
   cp "$R/covers/blue.png" "$R/pics/library-blue.png"
   cat > "$XDG_CONFIG_HOME/kurashi/config.toml" <<TOML
-theme.decor = "$1"
+theme.style = "$1"
 desktop.enabled = true
 
 [mods]
