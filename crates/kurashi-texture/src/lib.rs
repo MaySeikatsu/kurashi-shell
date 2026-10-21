@@ -14,6 +14,7 @@ mod generate;
 mod leather;
 mod metal;
 mod noise;
+mod paint;
 mod paper;
 mod print;
 mod raster;
