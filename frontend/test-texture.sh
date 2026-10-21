@@ -14,8 +14,8 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/texture/shell
-TMP=$(mktemp -d)
-trap 'rm -rf "$TMP"' EXIT
+TMP=${KEEP_TMP:-$(mktemp -d)}; mkdir -p "$TMP"
+trap '[ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"' EXIT
 mkdir -p "$OUT"
 FAILS=0
 fail() { echo "test-texture: FAIL $*" >&2; FAILS=$((FAILS + 1)); }
@@ -282,7 +282,8 @@ def main():
         mean = total / n if n else 99.0
         shift = moved / n if n else 0.0
         print("glyph pixels", n, "mean error", round(mean, 2), "of 255; the formula moves them by", round(shift, 2))
-        sys.exit(0 if n >= 4 and mean <= 2.0 and shift >= 2.0 else 1)
+        # The relief lies over the glyphs: they move (by the formula, at least 1 level) and match it well under that move.
+        sys.exit(0 if n >= 4 and shift >= 1.0 and mean <= min(2.0, shift / 3) else 1)
     elif cmd == "same":                    # same A B POINTS: points whose colour is the same in A and B
         a = read_png(sys.argv[2])
         b = read_png(sys.argv[3])
@@ -364,11 +365,15 @@ session() {
     done
     [ -n "$tile" ] || { echo "test-texture: no tile was generated ($name)" >&2; exit 1; }
     sleep 0.5
-    local ink="${tile%.png}-ink.png"
-    [ -f "$ink" ] || ink=-
-    "${TEX[@]}" join "$tile" "$ink" "$TMP/normal-$name.png"
   fi
   timeout 10 "$W_DIR/kurashi" sub theme --count 0 --json 2>/dev/null | head -1 > "$TMP/tokens-$name.json" || true
+  if [ "$texture" = yes ]; then
+    # The tile the theme names (a sandbox cache may hold older generators' files too).
+    local map ink
+    map=$(python3 -c 'import json,sys; t=json.load(open(sys.argv[1])); t=t.get("data",t)["tokens"]; print(t["texture.map"])' "$TMP/tokens-$name.json")
+    ink=$(python3 -c 'import json,sys; t=json.load(open(sys.argv[1])); t=t.get("data",t)["tokens"]; print(t["texture.ink_map"] or "-")' "$TMP/tokens-$name.json")
+    "${TEX[@]}" join "$map" "$ink" "$TMP/normal-$name.png"
+  fi
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$QS_LOG" 2>&1 &
   PIDS+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
