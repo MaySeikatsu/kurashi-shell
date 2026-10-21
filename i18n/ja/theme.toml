@@ -8,5 +8,6 @@
 "theme.scheme.detail.wallpaper_waiting" = "壁紙の画像がまだありません（壁紙 mod がテーマ付きで適用します）：それまではダーク"
 "theme.scheme.style" = "スタイル「{style}」に従う"
 "theme.scheme.back" = "「{mode}」に戻す"
+"theme.texture.back" = "「{material}」に戻す"
 "theme.scheme.light" = "ライト"
 "theme.scheme.dark" = "ダーク"
