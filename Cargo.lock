@@ -1045,6 +1045,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-ai"
+version = "0.0.1"
+dependencies = [
+ "kurashi-mod-api",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "ureq",
+]
+
+[[package]]
 name = "kurashi-mod-api"
 version = "0.0.1"
 dependencies = [
@@ -1260,6 +1272,7 @@ dependencies = [
  "kurashi-ipc",
  "kurashi-island",
  "kurashi-launcher",
+ "kurashi-mod-ai",
  "kurashi-mod-api",
  "kurashi-mod-calendar",
  "kurashi-mod-hello",
