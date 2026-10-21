@@ -17,6 +17,56 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-21 — session 11 (machine B): Style · Look · Palette, light/dark everywhere, sidebars — K53, K54, wave 29
+**State:** `main` green, pushed. Two agent cards (W29-sidebar, W29-appearance) merged through the integration branch
+`feat/k53-appearance`; no agent worktrees left. `target/` deleted at the end (disk at 94 %). Nothing is half-done.
+
+**User decisions (session 11):** washi is the default on a fresh install; the greeter stays off in the user's NixOS
+config (the feature stays); AI defaults to Ollama with the **last used model** (else the first installed); MangoWM after
+most of the shell is done (I143); "isekai" may be "mirai" or both — **ask again** (I117); sidebar gets style options and
+an edge-to-edge panel like ii (stops at a bar on that side), the phone style stays, a paper-notebook sidebar is an idea
+(I144); appearance split into **Style** (a fixed preset that resets and sets everything), **Look** (shape, chrome,
+material, motion, type, frame), **Palette** (colours only), sorted into categories Modern / Inspired / Retro / Fiction;
+every palette has light **and** dark.
+
+**Built and merged:**
+- **K53 appearance:** `looks/*.toml` (17) and `styles/*.toml` (19) replace `decors/`; user packs in
+  `~/.config/kurashi/{looks,styles}/`; `theme.style` (default washi) + `theme.look` (default kanso); schema v2 with a
+  v1→v2 migration (`theme.decor` → `theme.style`); per-entry theme layer sources `look:<n>`/`style:<n>`; actions
+  `theme.style.apply` / `theme.look.apply` reset their keys and set the pack in one undoable transaction; document
+  `theme.previews`; the theme document carries `appearance`; offers carry `group`. Light/dark is the **user's mode**:
+  never reset by a style (a style only recommends one). Dark mode tile in quick settings and the sidebar toggles.
+- **Settings:** Style / Look / Palette blocks with category chips and preview cards, "N settings differ from Washi ·
+  Reset", light/dark switch with the style's recommendation; washi paper frame (`frames/Paper.qml`).
+- **Palettes:** the missing scheme added to yorha, win95, luna, aero, kawaii, snes (dark) and hallownest, ps2, souls
+  (light); a test requires both.
+- **K54 sidebars:** `surfaces/Sidebar.qml`, `sidebar.{style panel|floating, width, right, left, from_bar}`, actions
+  `sidebar.toggle/open/close`, Mod+Shift+N (right) and Mod+A (left); left column = mod panel tabs (AI, …), mod panels
+  may fill the offered height (`fillHeight`, MODS.md).
+- **AI:** empty Ollama model = the last used one from saved conversations, if still installed.
+
+**Verification (end of session):** `just check`; `nix build .#kurashi`; hm-eval; all 24 sandbox suites (real, stage,
+quick, quick-sections, volume, modqml, mods-live, sidebars, sidebar-panel, power, desk, dock, launcher, media, polkit,
+island-morph, sway-adapter, settings, greeter, ai, tasks, lyrics, calendar, webdock); look washi and sekai — green.
+
+**Next steps (ordered):**
+1. Ask the user: isekai and/or mirai inspiration (I117); should the web dock become a sidebar tab (I116); keep
+   light/dark as the user's mode, or let a style set it on apply (K53 amendment)?
+2. Show the session's work live when the user asks: Settings › Appearance categories, Reset to Washi, Dark tile,
+   both sidebars in panel and floating styles.
+3. Sidebar follow-ups I148–I152; appearance follow-ups I145 (mod `decor:` provide → `look:`/`style:`), I146 (profile
+   layer vs style apply), I147 (palette categories), I153 (Settings display maps; the mock lacks `schema.settings`).
+4. Then session 10's remaining steps: I134 secret setting type, I127, I141, I139; backlog sweep I118–I142; bench.
+
+**Open decisions (ask):** see step 1. MangoWM stays deferred.
+
+**Gotchas (new):** frontend pixel tests pin `theme.style = "none"` (washi is the default now). `cargo test` replaces the
+`--features kurashid/test-mods` binary: rebuild with the feature before the sandbox suites. A new quick tile adds a Tab
+stop (quick-sections counts them). Data URLs: use `encodeURIComponent`, not `Qt.btoa(string)` (deprecated, logs a
+warning that fails the QML-warning checks). Sandbox dirs may survive a run: remove fifos before `mkfifo`.
+
+---
+
 ## 2026-10-21 — session 10 (machine B): looks, daily-driver services, identity packs, adapters — K45–K52, waves 22–28
 **State:** `main` green (see "Verification" below), pushed. 13 Opus agent cards merged in waves of ≤ 2; no agent worktrees
 left. **Disk:** the machine ran full once (`target/` dirs grew to 70 GB across worktrees) — delete `target/` and agent
@@ -241,43 +291,3 @@ which cannot type `:` (I81). `qs-webengine` (dev shell) is the patched Quickshel
 refuses imports outside a config root). Card cross-talk: give the host card the daemon's i18n key list early (done by
 SendMessage this time). The permission guard refused decompressing the user's Zen session file (it holds open tabs) —
 don't read browser profiles without asking. Disk is at 90 % (38 GB free): clean caches before the next wave.
-
----
-
-## 2026-10-18 — session 6 (machine B): wave 14 close, K34–K36, wave 15, K35 daemon
-**State:** `main` green and pushed after W16 (`just check` 686 tests, test-peek/stage/real, settings/test.sh, mods-live no QML warnings, stage/quick/volume tests, golden B ok). Wave 16 (W16-peek-frontend) is the next card; nothing half-done.
-
-**Merged:** session-5 leftovers resumed and finished — W14-weather-ux, W14-sysmon-ux (PopupWindow peek removed at merge:
-K19, row 75 rejected); lead: Stage `cardWidth` for mod panels (row 66, I53); **K34** palette `wallpaper` follows
-`mod.wallpaper.theme.image` (daemon holds the mod's document while chosen; waiting note); **K35** (user decision) the
-Stage hosts peeks — daemon/contract/mock side: `ui.peek`, `runtime.ui.peek`, `peek:<name>` → `qml/Peek.qml`;
-**K36** (user decision, B13) profile load is an overlay. Wave 15 (4 Haiku cards): W15-profiles (K36 + Profiles page
-review/export/import), W15-job-active (`JobCtx::set_active`, honest "Running now", I48), W15-quick-island-polish
-(I51/I52/I45/I44/B14), W15-sysmon-fixes (B24 shell processes protected by identity, I61 names, I62 GPU tile, I56
-`KURASHI_SYSMON_ROOT` + `mods/sysmon/test-states.sh`). Lead fixes: island secondary name, volume a11y (I12), 400 px
-card for power/bluetooth. BACKLOG: B22–B25, I55–I65 filed; contract rows 70–82 decided.
-
-**User decisions this session:** B13 → overlay (K36); K35 → Stage-hosted peeks. User added `INSPIRATION.md` (I60:
-Vitreus, Capsule, pleamar, a Project-Sekai Quickshell rice) — use it in the next design pass.
-
-**Next steps (ordered):**
-1. **Wave 16 merged:** W16-test-infra (K37 no-network sandboxes, mock focus + B14 two-output step, B25) and
-   W16-peek-frontend (K35 frontend: Stage peeks for tray, island, sysmon, weather; measured). Follow-ups in I67
-   (side bars, keyboard path, fade-out, peek state shots, quiet re-measure). Original card for reference: (`docs/tasks/W16-peek-frontend.md`, card ready; push main first). It owns Stage.qml,
-   Bar.qml hover plumbing, tray/island peeks and the sysmon/weather/hello `Peek.qml`; it must report the K35
-   measurements (idle 0 fps, peek PSS, retarget to a second output, 20 hover cycles).
-2. Parallel cards with disjoint paths (write them): I52 host sizing of `quick.tiles` (SlotHost + wallpaper/hello tiles,
-   row 76); I64 profiles follow-ups; I65/B25 mod follow-ups (wallpaper `null`, sysmon main device); I58 network-less
-   sandboxes; row 80 mock focus model so B14 gets a two-output runtime check; I63 data colour roles (kurashi-theme).
-3. Lead UX review against the briefs with screenshots: wallpaper (I32 open items), weather (I57), settings profiles.
-   PROGRESS "UX ✅" only after that.
-4. B7 quiet-machine repro (no agents running) and I10 render-loop check on machine A.
-5. Design pass with the user using `INSPIRATION.md` (decor packs, motion; I60, I63).
-
-**Gotchas (new):** agents now get **one build dir per card** (`~/.cache/kurashi-agents-target/<card>`, README rule 3;
-B23) — the shared dir handed worktrees stale path crates and once let a sandbox daemon reach Open-Meteo. Delete a
-card's dir after merging it (disk: 365 GB, keep ≥ 40 GB free; `./target` is the lead's gate dir). Parallel cards
-still collide on CONTRACT-CHANGE row numbers and on the `i18n/*/settings.toml` tail — renumber/resolve at merge.
-`git merge` here uses diff3 markers: strip the `|||||||` base block when resolving. One agent's sandbox commands were
-refused by the permission guard (W15-job-active): the lead ran the UI checks. A finished agent's worktree stays
-locked by this session's own pid — `git worktree remove -f -f` once its branch is merged.
