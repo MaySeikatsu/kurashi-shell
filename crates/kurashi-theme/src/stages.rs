@@ -1,6 +1,6 @@
 //! The palette pipeline (DESIGN-SYSTEM §2): pure `Palette -> Palette` stages, each
 //! returning notes for provenance. Order: source, scheme, oled, contrast, season,
-//! colorblind, wcag (wcag last so nothing can undo the legibility guarantee).
+//! colorblind, ink, wcag (wcag last so nothing can undo the legibility guarantee).
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -15,7 +15,7 @@ use material_colors::theme::ThemeBuilder;
 
 use crate::ThemeError;
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
-use crate::input::{Colorblind, ContrastLevel, Scheme, Source, Wallpaper};
+use crate::input::{Colorblind, ContrastLevel, Ink, Scheme, Source, Wallpaper};
 use crate::palette::{CHROMA_ROLES, CONTAINERS, Palette, PaletteSet, ROLES, RawRoles};
 use crate::season::{Date, solar_term, warmth};
 
@@ -507,6 +507,39 @@ pub fn colorblind(mut p: Palette, kind: Colorblind) -> StageOut {
             "colorblind: {kind:?} (Machado 2009, severity 1.0), chroma roles daltonised"
         )],
     )
+}
+
+// ---------- ink (K60) ----------
+
+/// A named ink's shade on light paper and on dark paper: a pen on a page, a gel pen on black card.
+pub fn ink_color(name: &str, dark: bool) -> Option<Rgb> {
+    let (light, dark_c) = match name {
+        "blue" => ("#1d3f99", "#9fc2ff"),
+        "black" => ("#1f1e22", "#ecebe6"),
+        "sepia" => ("#5b3a1e", "#e3c69c"),
+        "red" => ("#a3222b", "#ff9d92"),
+        "green" => ("#1f6b3a", "#96d8a8"),
+        "violet" => ("#57308f", "#cdb0ff"),
+        _ => return None,
+    };
+    Rgb::parse(if dark { dark_c } else { light })
+}
+
+/// The text colour (`theme.colors.ink`): `on_surface` becomes the ink and `on_surface_variant` the ink thinned toward
+/// the surface. The wcag stage after it keeps both legible.
+pub fn ink(mut p: Palette, ink: &Ink) -> StageOut {
+    let c = match ink {
+        Ink::Palette => return out(p, vec!["ink: the palette's".into()]),
+        Ink::Named(name) => match ink_color(name, p.dark) {
+            Some(c) => c,
+            None => return out(p, vec![format!("ink: unknown ink `{name}`, the palette's kept")]),
+        },
+        Ink::Custom(c) => *c,
+    };
+    let before = p.get("on_surface");
+    p.set("on_surface", c);
+    p.set("on_surface_variant", c.mix(p.get("surface"), 0.3));
+    out(p, vec![format!("ink: on_surface {before} → {c}")])
 }
 
 // ---------- 6. wcag ----------

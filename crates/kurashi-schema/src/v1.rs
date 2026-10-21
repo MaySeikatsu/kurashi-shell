@@ -5,7 +5,7 @@
 
 use std::sync::OnceLock;
 
-use crate::{FontFamilies, KurashiSchema, Registry, strings};
+use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
 pub const VERSION: u32 = 2;
 
@@ -114,6 +114,10 @@ pub struct Theme {
     pub density: Density,
     #[kurashi(nested, section = "typography")]
     pub typography: Typography,
+    #[kurashi(nested, section = "texture")]
+    pub texture: Texture,
+    #[kurashi(nested, section = "light")]
+    pub light: Light,
     /// Apps that follow
     /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one
     /// needs one line in its own config to read the file; Settings shows it.
@@ -186,6 +190,147 @@ pub struct Colors {
     /// Pure-black grounds on dark schemes.
     #[kurashi(default = false, requires = "theme.colors.scheme != light")]
     pub oled: bool,
+    /// Text colour
+    /// The colour of text and icons: the palette's own, or an ink — each with a shade for light and for dark — or a
+    /// colour of your own. It is kept legible on every surface; the theme notes say when it had to be adjusted (K60).
+    #[kurashi(default = Ink::Palette)]
+    pub ink: Ink,
+    /// Your text colour
+    /// Used in light and dark alike, adjusted only as far as legibility needs.
+    #[kurashi(default = Color::new("#2b4a8b"), requires = "theme.colors.ink == custom")]
+    pub ink_custom: Color,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum Ink {
+    /// The palette's
+    Palette,
+    /// Blue
+    Blue,
+    /// Black
+    Black,
+    /// Sepia
+    Sepia,
+    /// Red
+    Red,
+    /// Green
+    Green,
+    /// Violet
+    Violet,
+    /// Your own
+    Custom,
+}
+
+// --- texture and light (K59) ---------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "texture")]
+pub enum TextureKind {
+    /// None
+    None,
+    /// Paper
+    Paper,
+    /// Dotted paper
+    PaperDots,
+    /// Lined paper
+    PaperLines,
+    /// Squared paper
+    PaperGrid,
+    /// Fabric
+    Fabric,
+    /// Wool
+    Wool,
+    /// Stone
+    Stone,
+    /// Print (halftone)
+    Halftone,
+    /// Scratched metal
+    Metal,
+    /// Leather
+    Leather,
+    /// Wood
+    Wood,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "texture_scope")]
+pub enum TextureScope {
+    /// The shell
+    Shell,
+    /// The wallpaper
+    Wallpaper,
+    /// The shell and the wallpaper
+    ShellWallpaper,
+    /// Everything (apps too)
+    Everything,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct Texture {
+    /// Material
+    /// A relief the shell is made of — paper, fabric, stone, metal, leather, wood. It adds light and shade from the
+    /// light below, never colours of its own (K59).
+    #[kurashi(default = TextureKind::None, overridden_by = "a11y.high_contrast => none",
+              overridden_by = "a11y.reduce_transparency => none")]
+    pub kind: TextureKind,
+    /// Where
+    /// The shell's surfaces, the wallpaper (baked into the picture), both, or an overlay over everything, apps
+    /// included — that one costs a full-screen layer, shows in screenshots and keeps fullscreen apps from the fastest
+    /// path to the screen.
+    #[kurashi(default = TextureScope::Shell, requires = "theme.texture.kind != none")]
+    pub scope: TextureScope,
+    /// Strength
+    /// How deep the relief reads. Under text it is capped so text stays legible.
+    #[kurashi(default = 0.5, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.kind != none")]
+    pub strength: f64,
+    /// Scale
+    /// The size of the material's grain, weave or rulings.
+    #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.kind != none")]
+    pub scale: f64,
+    /// Wrinkles
+    /// Crumples the material: folds and creases, as in crumpled paper or creased leather.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.kind != none")]
+    pub wrinkles: f64,
+    /// Ink and colour
+    /// Print the rulings, dots and grain in faint colours of the palette. Off: relief only — rulings are pressed into
+    /// the sheet, nothing is coloured.
+    #[kurashi(default = true, requires = "theme.texture.kind != none")]
+    pub tint: bool,
+    /// Texture over text
+    /// Let the relief run through text and icons too, as ink sinks into paper or is pressed into leather. Off keeps
+    /// them crisp on the material.
+    #[kurashi(default = false, requires = "theme.texture.kind != none")]
+    pub text: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "light")]
+pub enum LightMode {
+    /// Fixed
+    Static,
+    /// From the pointer
+    Pointer,
+    /// The sun
+    Daytime,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct Light {
+    /// Light
+    /// Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces;
+    /// elsewhere it rests at the fixed direction), or the sun of the day — sunrise from the left, sunset from the right,
+    /// warm when it is low (K59).
+    #[kurashi(default = LightMode::Static, requires = "theme.texture.kind != none")]
+    pub mode: LightMode,
+    /// Direction
+    /// Where the fixed light comes from, in degrees round the screen: 0 from the top, 90 from the right, 315 from the
+    /// top left.
+    #[kurashi(default = 315, range = 0..=359, step = 1, unit = "°", requires = "theme.light.mode != daytime")]
+    pub angle: u32,
+    /// Height
+    /// How high the light stands over the screen: low light makes long shadows and a deeper relief.
+    #[kurashi(default = 40, range = 10..=80, step = 1, unit = "°", requires = "theme.light.mode != daytime")]
+    pub elevation: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -281,6 +426,11 @@ pub struct Typography {
     /// Fallback chain; the first installed family wins (resolved via fontconfig).
     #[kurashi(default = FontFamilies::of(&["Inter", "Noto Sans CJK JP", "sans-serif"]))]
     pub family: FontFamilies,
+    /// Japanese font family
+    /// Fallback chain for Japanese text; the first installed family wins (K60).
+    #[kurashi(default = FontFamilies::of(&["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]),
+              advanced)]
+    pub family_jp: FontFamilies,
     /// Text scale
     /// Multiplies every type size token.
     #[kurashi(default = 1.0, range = 0.75..=2.0, step = 0.05,
