@@ -14,6 +14,8 @@ use crate::Daemon;
 #[derive(Debug, Clone, Default)]
 pub struct DoctorFacts {
     pub compositor_socket: Option<bool>,
+    /// The adapter and what it offers (W26 `Target::describe`); `None`: no adapter chosen.
+    pub compositor_adapter: Option<String>,
     pub session_bus: Option<bool>,
     pub system_bus: Option<bool>,
     /// Did we win the `org.freedesktop.Notifications` name?
@@ -107,11 +109,14 @@ pub fn register(daemon: &mut Daemon, facts: impl Into<SharedFacts>) {
         let mut rows = vec![
             row("protocol", "ok", format!("v{PROTOCOL_VERSION}"), false),
             row("instance", "ok", instance.clone(), false),
+            // The detail names the adapter and its capabilities (W26), or why there is none.
             probe(
                 "compositor",
                 facts.compositor_socket,
                 "fail",
-                "compositor socket",
+                facts.compositor_adapter.as_deref().unwrap_or(
+                    "no adapter: NIRI_SOCKET, HYPRLAND_INSTANCE_SIGNATURE, SWAYSOCK unset (or KURASHI_COMPOSITOR=none)",
+                ),
             ),
             probe("bus_session", facts.session_bus, "fail", "session bus"),
             probe("bus_system", facts.system_bus, "warn", "system bus"),
@@ -218,6 +223,38 @@ mod tests {
         assert_eq!(status(&rows, "bus_session"), "ok");
         assert_eq!(status(&rows, "bus_system"), "warn");
         assert_eq!(status(&rows, "notifications"), "warn");
+    }
+
+    /// W26: the compositor row names the adapter and what it offers, or why there is none.
+    #[test]
+    fn compositor_row_names_the_adapter() {
+        let mut d = Daemon::new(Hub::new(), ActionRegistry::default(), Intents::default());
+        let facts = SharedFacts::default();
+        register(&mut d, facts.clone());
+        let q = d.queries.get("doctor").unwrap().clone();
+        let detail = |rows: &[Value]| {
+            rows.iter().find(|r| r["id"] == "compositor").unwrap()["detail"]
+                .as_str()
+                .unwrap()
+                .to_string()
+        };
+        facts.update(|f| f.compositor_socket = Some(false));
+        assert!(detail(&q("")).starts_with("no adapter: NIRI_SOCKET"));
+        let sway = kurashi_compositor::any::Target {
+            kind: kurashi_compositor::any::Kind::Sway,
+            path: "/run/sway.sock".into(),
+        };
+        facts.update(|f| {
+            f.compositor_socket = Some(true);
+            f.compositor_adapter = Some(sway.describe());
+        });
+        let rows = q("");
+        assert_eq!(status(&rows, "compositor"), "ok");
+        assert!(
+            detail(&rows).starts_with("sway: workspace names"),
+            "{}",
+            detail(&rows)
+        );
     }
 
     #[test]
