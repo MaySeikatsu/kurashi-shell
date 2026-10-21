@@ -996,7 +996,7 @@ impl ConfigStore {
         json!({
             "values": values,
             "outputs": outputs,
-            "history": {"can_undo": cfg.can_undo(), "can_redo": cfg.can_redo()},
+            "history": {"can_undo": cfg.can_undo(), "can_redo": cfg.can_redo(), "rev": cfg.rev()},
             "profiles": profile_entries(&cfg),
         })
     }

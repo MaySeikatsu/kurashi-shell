@@ -44,11 +44,14 @@ Singleton {
         if (!session.busy) step()
     }
     // One change for the shown value. The step before is taken back first, when this session made one and the config
-    // has not changed since; the two requests are answered in order by the daemon.
+    // has not changed since; the two requests are answered in order by the daemon. "Not changed since" compares the
+    // config's own revision (`history.rev`, the `rev` an apply answers) with this step's: one apply patches the document
+    // several times, so the document's revision cannot say it. The patch may still be on its way: at or below is ours.
     function step() {
         var s = session
         var id = s.id
-        var undoFirst = s.txMade && Store.revs.config === s.rev
+        var hist = (Store.config && Store.config.history) || ({})
+        var undoFirst = s.txMade && hist.rev !== undefined && hist.rev <= s.rev
         if (undoFirst) Store.request({ t: "undo" }, null)
         // The apply's reply says whether this step made a change (txMade) and at which config revision (rev).
         update({ busy: true })
@@ -57,7 +60,7 @@ Singleton {
             if (!session || session.id !== id) return
             // Refused: the row says why and shows the daemon's value again.
             if (m.t !== "applied") { session = null; return }
-            update({ busy: false, txMade: !!m.undo, rev: Store.revs.config, value: value })
+            update({ busy: false, txMade: !!m.undo, rev: m.rev, value: value })
             if (session.ending === "put") return revertNow()
             if (session.shown !== session.value) return step()
             if (session.ending === "keep") session = null
