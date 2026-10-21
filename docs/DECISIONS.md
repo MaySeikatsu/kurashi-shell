@@ -558,3 +558,11 @@ compared the *document's* revision, but one apply patches the document several t
 a preview moved across several choices stacked undo steps instead of staying one (found when light/dark grew to four
 choices, K55). *Why:* the transaction counter is the only honest "did anyone else commit" signal; fixture
 `snap_config.json` and PROTOCOL updated.
+
+**K58** 🟢 The sidebars open without a key (user, session 12: "The new sidebar doesn't toggle at the moment, or I don't
+know how to open it at all"; I154). `sidebar.bar_buttons` (default on): a button at each end of the bar — the left
+sidebar's at the start, the right one's at the end (none while `sidebar.from_bar` already makes the quick button open
+it); the launcher's `>` commands `sidebar.right.toggle` / `sidebar.left.toggle` (argument-free actions on the focused
+output); Settings › Sidebar "Open now" and the default keys. The HM default binds carry `Mod+Shift+N` / `Mod+A` (bind
+entries may carry JSON arguments). *Why:* a surface reachable only by a key the user must first wire into niri is not
+discoverable; ii puts its sidebars on the bar's ends, Windows 11 on the taskbar's corners.

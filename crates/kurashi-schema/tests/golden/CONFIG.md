@@ -611,3 +611,9 @@ Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is s
 The bar's quick settings button opens the right sidebar instead of the quick settings card.
 
 - type: `bool` · default: `false`
+
+#### `sidebar.bar_buttons` — Buttons in the bar
+
+A button at each end of the bar opens that side's sidebar: the left one at the start, the right one at the end (left out while the quick settings button opens the right sidebar). The launcher's "> sidebar" and the keys open them too.
+
+- type: `bool` · default: `true`

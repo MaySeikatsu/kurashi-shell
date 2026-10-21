@@ -34,7 +34,9 @@ Reported: the sidebar could not be opened (I154) and the open island's outline d
   user's mode before is kept in `$XDG_STATE_HOME/kurashi/scheme-before`, `theme.scheme.restore {}` brings it back.
   Theme document `appearance.scheme_effective / scheme_detail / scheme_before`. Settings: four pills + a reason line +
   "Back to …" (`SchemeStatus.qml`); Dark tiles show the scheme in effect; the wallpaper picker keeps a follow mode.
-- **I154:** HM default binds now include `Mod+Shift+N` (right sidebar) and `Mod+A` (left); bind entries may carry JSON
+- **I154 / K58:** the sidebars open without a key — a button at each end of the bar (`sidebar.bar_buttons`, on by
+  default), launcher `>` "Right sidebar" / "Left sidebar" (`sidebar.{right,left}.toggle`), Settings › Sidebar "Open
+  now" with the keys. HM default binds now include `Mod+Shift+N` (right sidebar) and `Mod+A` (left); bind entries may carry JSON
   arguments (`"sidebar.toggle {\"side\":\"left\"}"`). The user's niri config does not include `kurashi-binds.kdl`
   yet (`programs.kurashi.niri.binds.enable` + `include "kurashi-binds.kdl"`) — tell them, don't edit it.
 - **W30-island-line:** under line chrome the card hangs from the bar's rule: one continuous outline (fillets with
@@ -53,8 +55,8 @@ sidebar**, webdock host; looks washi and sekai — all green.
 **Next steps (ordered):**
 1. Show the user live when they ask: the four light/dark modes and "Back to …", both sidebars via the new keys, the
    web dock as a left tab (`sidebar.left = ["mod:webdock:webdock", "mod:ai:ai"]`), the island under washi.
-2. I154 rest: a way into the sidebar without a key (Settings sidebar page names the keys + "Open now"; a bar
-   affordance). I156 time-of-day fallback for `auto` without a portal.
+2. I156 time-of-day fallback for `auto` without a portal. (I154 is done: K58 — bar end buttons, launcher commands,
+   Settings "Open now".)
 3. Follow-ups I158 (host memory with the sidebar window, BENCH), I159 (web dock in the sidebar polish), I160 (island
    polish), I148–I153 (sidebar/appearance), I145–I147.
 4. Then session 10's remaining steps: I134 secret setting type, I127, I141, I139; backlog sweep I118–I142; bench.

@@ -150,7 +150,7 @@ qml_errors() {
 }
 RIGHT='{"side":"right","output":"HEADLESS-1"}'
 # SIDEBAR_PHASES=146 runs only those phases (all by default).
-want() { [[ "${SIDEBAR_PHASES:-123456}" == *"$1"* ]]; }
+want() { [[ "${SIDEBAR_PHASES:-1234567}" == *"$1"* ]]; }
 : > "$R/server.log"
 
 # 1. A top bar, panel style: geometry, Esc, the launcher.
@@ -295,6 +295,32 @@ if want 5 && swaymsg output HEADLESS-1 mode 1280x720 >/dev/null 2>&1; then
   dims
 elif want 5; then
   echo "skip: the sandbox output cannot change its mode"
+fi
+
+# 7. The bar's sidebar buttons (I154, `sidebar.bar_buttons` on by default): under a top bar and a left bar, a click on
+#    the right button opens the right sidebar, on the left one the left sidebar, a second click closes it.
+if want 7; then
+for edge in top left; do
+  config washi '[bar]' "edge = \"$edge\""
+  : > "$R/server.log"
+  start_kurashid
+  start_frontend
+  for side in right left; do
+    for _ in $(seq 40); do grep -q "SIDEBARBTN $side " "$R/qs.log" && break; sleep 0.25; done
+    read -r X0 Y0 X1 Y1 <<< "$(grep "SIDEBARBTN $side " "$R/qs.log" | tail -1 | sed "s/.*SIDEBARBTN $side //")"
+    [ -n "${Y1:-}" ] || fail "the $edge bar logged no $side sidebar button"
+    # The bar's window sits at the output's origin for a top or left bar: its boxes are screen coordinates.
+    ptr click $(( (X0 + X1) / 2 )) $(( (Y0 + Y1) / 2 )) left
+    wait_window up
+    ui | jq -e --arg s "$side" '.sidebar == $s and .sidebar_output == "HEADLESS-1"' >/dev/null \
+      || fail "the $edge bar's $side button did not open the $side sidebar ($(ui))"
+    ptr click $(( (X0 + X1) / 2 )) $(( (Y0 + Y1) / 2 )) left
+    wait_window down
+    echo "ok: $edge bar: the $side button opens the $side sidebar and closes it"
+  done
+  qml_errors
+  stop_phase
+done
 fi
 
 # 6. Looks: right panel and floating under each style.
