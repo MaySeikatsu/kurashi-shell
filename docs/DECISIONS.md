@@ -551,3 +551,10 @@ pin at the edge and in the sidebar: the sidebar shows it live, the edge card say
 sidebar unmaps the window (0 frames) and freezes the page; it stays loaded under the dock's own unload rules, a page in
 an open sidebar counting as shown. *Why:* Vivaldi/Edge/Opera web panels are a page beside the content at the panel's
 full size — a phone bezel inside a sidebar wastes its width. Host memory with the window mapped: to measure (BENCH).
+
+**K57** 🟢 The config document publishes its own revision (`history.rev`, the `rev` an `applied` answer carries).
+Settings' preview takes back its own previous step before the next only while nobody committed after it (K27); it
+compared the *document's* revision, but one apply patches the document several times (values, overrides, offers), so
+a preview moved across several choices stacked undo steps instead of staying one (found when light/dark grew to four
+choices, K55). *Why:* the transaction counter is the only honest "did anyone else commit" signal; fixture
+`snap_config.json` and PROTOCOL updated.

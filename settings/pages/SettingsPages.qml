@@ -338,7 +338,9 @@ Flickable {
                                 }
                                 // A companion's document under it, as for a section's row (`extras`).
                                 Loader {
-                                    width: parent.width
+                                    // Under the control column, as a section row's document is.
+                                    x: Math.min(300, Math.max(180, parent.width * 0.36)) + Theme.pad
+                                    width: parent.width - x
                                     active: parent.extra !== undefined
                                     sourceComponent: parent.extra ?? null
                                 }

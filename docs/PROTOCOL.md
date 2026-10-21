@@ -88,7 +88,9 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   section prefix removes every user key below it. Profile loads are one transaction.
 - **`config` document** (subscribe like any other):
   `{"values":{"<key>":Provenanced,…},"outputs":{"<name>":{"<per-output key>":Provenanced}},
-  "history":{"can_undo":bool,"can_redo":bool},"profiles":[{"name":"kanso","bundled":true},…]}`.
+  "history":{"can_undo":bool,"can_redo":bool,"rev":u64},"profiles":[{"name":"kanso","bundled":true},…]}`.
+  `history.rev` is the config's own revision — the `rev` an `applied` answer carries — so a client can tell whether
+  anyone committed after its own change (Settings' preview steps take back their own step only then; session 12).
   Patches carry only keys whose *effective* value or provenance changed. `history` follows every
   applied change, undo, redo and profile load (whoever sent it: settings, CLI, another client);
   `profiles` is what `profile.list` answers, kept current when profile files appear or go (file
