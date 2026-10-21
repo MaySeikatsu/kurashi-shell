@@ -1,32 +1,35 @@
-//! Oil paint on primed canvas (`paint`, W31): a thin underpaint over the canvas, then a few dozen brush strokes laid in
-//! passages. Each stroke is a gentle arc or S with a ductus: fine bristle tracks run along its path, each at its own depth.
-//! Its body is thickest mid-stroke and thins toward the tail, where the dry brush breaks it into streaks and the canvas
-//! shows between; a bead of pushed paint stands where it starts, a lip where it stops, and its sides are a little raised.
-//! Later strokes lie over earlier ones. The canvas weave of `weave.rs` shows through the bare patches and the thin tails
-//! and is muted under the thick passages. Tint on: the pigment's tone, a touch darker where the paint is thick. A stroke is
-//! drawn at its unwrapped place, so one over the edge is drawn on both sides and the tile repeats without a seam.
+//! Oil paint on primed canvas (`paint`, W31): a surface the strokes cover edge to edge. The strokes are streamlines of one
+//! slowly turning flow over the tile, grouped in passages (each with its own lean, brush width and pigment tone) and laid in
+//! order, so later strokes lie over earlier ones and their edge ridges and beads stand on the paint below. Each stroke has
+//! bristle tracks along its length, each at its own depth; its body lumps and thins toward a dry-brush tail, where the canvas
+//! shows through in streaks; a bead of pushed paint stands where it starts, a lip where it stops, and its sides are raised.
+//! The canvas weave of `weave.rs` shows only in the dry tails and the rare thin spot, and is muted under the paint. Tint on:
+//! the pigment follows the strokes, a touch darker where the paint is thick. The flow, the strokes and the noise are periodic
+//! in the tile, and a stroke over the edge is drawn on both sides, so the tile repeats without a seam.
 
 use std::f32::consts::{PI, TAU};
 
 use crate::generate::Field;
-use crate::noise::{Rng, fbm_xy, hash, smoothstep};
+use crate::noise::{Rng, hash, smoothstep};
 use crate::weave;
 
-/// The passages: each a family of strokes in a similar direction, painted one after another.
-const PASSAGES: usize = 4;
-/// Centreline segments per stroke: smooth at this count for an arc or an S of up to 180 px.
-const SEGMENTS: usize = 12;
+/// The passages: each a region with its own lean of the strokes, brush width and pigment tone.
+const PASSAGES: usize = 3;
+/// The strokes: one per cell of a jittered grid of this many cells a side.
+const GRID: usize = 7;
+/// Centreline segments per stroke, and how many of them lie before the seed (the seed sits near the middle).
+const SEGMENTS: usize = 8;
+const BACK: usize = 3;
 /// The paint's opacity over what lies under it (before its coverage): a thin layer lets the stroke below show a little.
 const OPACITY: f32 = 0.93;
 /// The weave under the paint as a fraction of its height: the paint smooths the canvas under a thick passage.
 const CANVAS: f32 = 0.25;
-/// The underpaint: its coverage where the fractal noise is high (the canvas is bare where it is low), its coverage, and
-/// its height over the canvas, logical px.
-const GROUND: (f32, f32) = (0.2, 0.42);
-const GROUND_COVER: f32 = 0.9;
-const GROUND_HEIGHT: f32 = 0.3;
-/// The bare canvas as a fraction of its weave's height: calmer than the weave of a cloth (it reads behind text).
+/// The bare canvas as a fraction of its weave's height (the start, before any stroke): calmer than a cloth's weave.
 const BARE: f32 = 0.6;
+/// The relief of a stroke's bead, lip and raised sides, as fractions of its body thickness.
+const BEAD: f32 = 0.7;
+const LIP: f32 = 0.5;
+const SIDE: f32 = 0.45;
 
 /// One brush stroke. Its centreline is in unwrapped logical px.
 struct Stroke {
@@ -51,27 +54,76 @@ struct Stroke {
     seed: u64,
 }
 
-/// Oil paint: the canvas of `weave.rs`, the underpaint, then the strokes of the tile, each over the ones before. Tint on:
-/// the paint's pigment (A), a slight tone that follows the strokes.
+/// A passage: a Gaussian region of the tile (`radius`) where the strokes lean by `lean` radians, with its brush and tone.
+#[derive(Clone, Copy)]
+struct Passage {
+    centre: [f32; 2],
+    radius: f32,
+    lean: f32,
+    width: f32,
+    tone: f32,
+}
+
+/// The direction of the strokes at a point (radians). A few slow waves over the tile (whole periods, so the field is
+/// periodic) and each passage's lean where it lies, blended by the passages' Gaussians of the wrapped distance.
+struct Flow {
+    phase: [f32; 4],
+    passages: [Passage; PASSAGES],
+    size: f32,
+}
+
+/// `d` wrapped to −`l`/2 … `l`/2 (the nearest image on the tile).
+fn wrap(d: f32, l: f32) -> f32 {
+    d - l * (d / l).round()
+}
+
+impl Flow {
+    fn weights(&self, p: [f32; 2]) -> [f32; PASSAGES] {
+        std::array::from_fn(|j| {
+            let q = &self.passages[j];
+            let (dx, dy) = (
+                wrap(p[0] - q.centre[0], self.size),
+                wrap(p[1] - q.centre[1], self.size),
+            );
+            (-(dx * dx + dy * dy) / (2.0 * q.radius * q.radius)).exp()
+        })
+    }
+
+    fn angle(&self, p: [f32; 2]) -> f32 {
+        let (x, y, t) = (p[0], p[1], TAU / self.size);
+        let wave = 0.16 * (t * x + self.phase[0]).sin()
+            + 0.10 * (t * y + self.phase[1]).sin()
+            + 0.06 * (t * (x + y) + self.phase[2]).sin()
+            + 0.05 * (t * (x - y) + self.phase[3]).sin();
+        let w = self.weights(p);
+        let (mut sum, mut lean) = (1.0f32, 0.0f32);
+        for (j, wj) in w.iter().enumerate() {
+            sum += wj;
+            lean += wj * self.passages[j].lean;
+        }
+        wave + lean / sum
+    }
+
+    /// The passage a point belongs to most: the one with the largest weight.
+    fn owner(&self, p: [f32; 2]) -> usize {
+        let w = self.weights(p);
+        (0..PASSAGES)
+            .max_by(|a, b| w[*a].total_cmp(&w[*b]))
+            .unwrap_or(0)
+    }
+}
+
+/// Oil paint: the canvas of `weave.rs`, muted to bare, then the strokes of the tile, each over the ones before. Tint on: the
+/// paint's pigment (A), a slight tone that follows the strokes.
 pub fn oil(f: &mut Field, seed: u64, tint: bool) {
     weave::fabric(f, seed, false);
     let canvas = f.h.clone();
     let (n, l) = (f.n, f.logical);
+    for (h, c) in f.h.iter_mut().zip(&canvas) {
+        *h = BARE * c;
+    }
     let mut cover = vec![0f32; n * n];
     let mut tone = vec![0f32; n * n];
-    for iy in 0..n {
-        for ix in 0..n {
-            let k = iy * n + ix;
-            let g = smoothstep(
-                GROUND.0,
-                GROUND.1,
-                fbm_xy(f.uv(ix), f.uv(iy), 4, 4, 3, seed ^ 0x6E),
-            );
-            // The underpaint is relief only: the pigment follows the strokes.
-            let c = GROUND_COVER * g;
-            f.h[k] = (1.0 - c) * BARE * canvas[k] + c * (CANVAS * canvas[k] + GROUND_HEIGHT);
-        }
-    }
     for s in layout(seed, l) {
         lay(f, &s, &canvas, &mut cover, &mut tone);
     }
@@ -84,92 +136,76 @@ pub fn oil(f: &mut Field, seed: u64, tint: bool) {
     }
 }
 
-/// The strokes of the tile in the order they are laid: passage by passage, each passage closed by a stroke across it.
+/// The strokes of the tile in the order they are laid: passage by passage, and within a passage in grid order.
 fn layout(seed: u64, l: f32) -> Vec<Stroke> {
     let mut rng = Rng::new(seed ^ 0x9A17_7E00);
-    let mut out: Vec<Stroke> = Vec::new();
-    for _ in 0..PASSAGES {
-        // A passage: a direction (a line; a stroke may go either way), a region and a brush.
-        let heading = rng.range(0.0, PI);
-        let spread = rng.range(0.1, 0.2);
-        let centre = [rng.range(0.0, l), rng.range(0.0, l)];
-        let reach = rng.range(130.0, 200.0);
-        let width = rng.range(17.0, 25.0);
-        let passage_tone = rng.unit();
-        let count = 13 + (rng.unit() * 3.0) as usize;
-        for k in 0..=count {
-            let (psi, at, len, w) = if k == count {
-                // The stroke across the passage: it ties the strokes together and makes the crossings.
-                (
-                    heading + PI / 2.0 + rng.range(-0.2, 0.2),
-                    centre,
-                    rng.range(80.0, 120.0),
-                    width * 0.9,
-                )
-            } else {
-                let r = reach * rng.unit().sqrt();
-                let phi = TAU * rng.unit();
-                let flip = if rng.unit() < 0.2 { PI } else { 0.0 };
-                (
-                    heading + flip + spread * (2.0 * rng.unit() - 1.0),
-                    [centre[0] + r * phi.cos(), centre[1] + r * phi.sin()],
-                    rng.range(90.0, 180.0),
-                    width * rng.range(0.85, 1.15),
-                )
-            };
-            let s_curve = rng.unit() < 0.35;
-            let bend = if s_curve {
-                rng.range(0.2, 0.4)
-            } else {
-                rng.range(-0.45, 0.45)
-            };
-            let pts = path(at, psi, len, bend, s_curve);
+    let passages = std::array::from_fn(|_| Passage {
+        centre: [rng.range(0.0, l), rng.range(0.0, l)],
+        radius: rng.range(140.0, 220.0),
+        lean: rng.range(-0.45, 0.45),
+        width: rng.range(40.0, 60.0),
+        tone: rng.unit(),
+    });
+    let phase = std::array::from_fn(|_| rng.range(0.0, TAU));
+    let flow = Flow {
+        phase,
+        passages,
+        size: l,
+    };
+    let cell = l / GRID as f32;
+    let mut laid: Vec<(usize, Stroke)> = Vec::with_capacity(GRID * GRID);
+    for j in 0..GRID {
+        for i in 0..GRID {
+            let seed_at = [
+                (i as f32 + 0.5 + rng.range(-0.4, 0.4)) * cell,
+                (j as f32 + 0.5 + rng.range(-0.4, 0.4)) * cell,
+            ];
+            let owner = flow.owner(seed_at);
+            let pass = flow.passages[owner];
+            // A streamline through the seed: a few segments back, the rest forward along the flow.
+            let total = rng.range(130.0, 200.0);
+            let step = total / SEGMENTS as f32;
+            let a0 = flow.angle(seed_at);
+            let mut q = [
+                seed_at[0] - a0.cos() * step * BACK as f32,
+                seed_at[1] - a0.sin() * step * BACK as f32,
+            ];
+            let mut pts = vec![q];
+            for _ in 0..SEGMENTS {
+                let a = flow.angle(q);
+                q = [q[0] + a.cos() * step, q[1] + a.sin() * step];
+                pts.push(q);
+            }
             let mut cum = vec![0.0f32];
             for p in pts.windows(2) {
                 let last = cum[cum.len() - 1];
                 cum.push(last + (p[1][0] - p[0][0]).hypot(p[1][1] - p[0][1]));
             }
             let len = cum[cum.len() - 1];
-            out.push(Stroke {
+            let stroke = Stroke {
                 pts,
                 cum,
                 len,
-                half: w * 0.5,
-                body: rng.range(1.5, 2.2),
-                track: rng.range(2.8, 3.6),
+                half: 0.5 * pass.width * rng.range(0.8, 1.2),
+                body: rng.range(1.0, 2.6),
+                track: rng.range(3.0, 4.0),
                 phase: rng.unit(),
                 dry: rng.range(0.4, 0.7),
-                tone: (passage_tone + 0.3 * (rng.unit() - 0.5)).clamp(0.0, 1.0),
-                idx: out.len() as i64,
+                tone: (pass.tone + 0.3 * (rng.unit() - 0.5)).clamp(0.0, 1.0),
+                idx: 0,
                 seed: rng.next_u64(),
-            });
+            };
+            laid.push((owner, stroke));
         }
     }
-    out
-}
-
-/// The centreline of a stroke: `len` px from `heading`, bent by a turn of `bend` radians (an arc) or swung to an S of
-/// amplitude `bend` (`s_curve`), and centred on `at`.
-fn path(at: [f32; 2], heading: f32, len: f32, bend: f32, s_curve: bool) -> Vec<[f32; 2]> {
-    let step = len / SEGMENTS as f32;
-    let mut pts = vec![[0.0f32; 2]];
-    for k in 0..SEGMENTS {
-        let s = (k as f32 + 0.5) / SEGMENTS as f32;
-        let psi = heading
-            + if s_curve {
-                bend * (TAU * s).sin()
-            } else {
-                bend * (s - 0.5)
-            };
-        let [x, y] = pts[pts.len() - 1];
-        pts.push([x + psi.cos() * step, y + psi.sin() * step]);
-    }
-    let n = pts.len() as f32;
-    let (mx, my) = pts
-        .iter()
-        .fold((0.0, 0.0), |(sx, sy), p| (sx + p[0] / n, sy + p[1] / n));
-    pts.iter()
-        .map(|p| [at[0] + p[0] - mx, at[1] + p[1] - my])
+    // Passage by passage (a stable sort keeps the grid order within one): later passages lie over earlier ones.
+    laid.sort_by_key(|(owner, _)| *owner);
+    laid.into_iter()
+        .enumerate()
+        .map(|(i, (_, mut s))| {
+            s.idx = i as i64;
+            s
+        })
         .collect()
 }
 
@@ -244,6 +280,24 @@ fn near(s: &Stroke, scale: f32, reach: f32) -> Near {
     near
 }
 
+/// How far the brush has come at arc position `u`: 0 beyond the ends, rounding up over the head (0.55 of the half-width) and
+/// the tail (0.9, dragged out), and 1 across the body. A rounded tip, so no stroke ends in a straight line.
+fn end_taper(u: f32, len: f32, half: f32) -> f32 {
+    if u <= 0.0 || u >= len {
+        return 0.0;
+    }
+    let (head, tail) = (0.55 * half, 0.9 * half);
+    let round = |x: f32| (1.0 - x * x).max(0.0).sqrt();
+    let mut k = 1.0;
+    if u < head {
+        k = round((head - u) / head);
+    }
+    if u > len - tail {
+        k = k.min(round((u - (len - tail)) / tail));
+    }
+    k
+}
+
 /// Smooth noise along a stroke (0..1): a hash per cell of `t` (a few px), blended, so a track's streaks run a short way.
 fn along(i: i64, t: f32, seed: u64) -> f32 {
     let k = t.floor();
@@ -253,8 +307,8 @@ fn along(i: i64, t: f32, seed: u64) -> f32 {
     a + (b - a) * s
 }
 
-/// Lays one stroke over the surface: its relief over `f.h` (the paint covers what it reaches, the canvas shows between and
-/// through the dry brush), and its coverage and tone for the pigment.
+/// Lays one stroke over the surface: its relief over `f.h` (it covers what it reaches; the paint below shows only where it
+/// is thin), and its coverage and tone for the pigment.
 fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut [f32]) {
     // The widest the brush wanders (1.2 half-widths) and the coverage's edge, so every texel that is covered is in the box.
     let reach = s.half * 1.2 + 1.2;
@@ -264,62 +318,60 @@ fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut 
         for bx in 0..near.w {
             let bi = by * near.w + bx;
             // Beyond the reach no texel is covered (the brush is at most 1.19 half-widths wide): skip it before the noise.
-            if near.d[bi] >= reach {
+            let d = near.d[bi];
+            if d >= reach {
                 continue;
             }
             let (e, u) = (near.e[bi], near.u[bi]);
-            // The brush's half-width wanders along the stroke, so its edges are never ruled lines.
-            let half = s.half
-                * (0.85
-                    + 0.3 * along(0, u / 22.0, s.seed ^ 0x77)
-                    + 0.08 * (along(0, u / 5.0, s.seed ^ 0x79) - 0.5));
-            // `outside` is the distance to the stroke (0 within) and `sd` its signed distance (negative within), for the
-            // coverage and the ridge along its sides. Past either end the stroke is a flat-ended rectangle, round only at its
-            // corners; along the body it is the round-edged path itself, so a joint between two segments does not square off.
-            let d = near.d[bi];
-            let (outside, sd) = if u < 0.0 || u > s.len {
-                let lat = e.abs() - half;
-                let beyond = (-u).max(u - s.len);
-                (lat.max(0.0).hypot(beyond.max(0.0)), lat.max(beyond))
-            } else {
-                (d - half, d - half)
-            };
+            // The brush's half-width: wandering along the stroke, so its edges are never ruled lines, and tapering to a rounded
+            // end at either end. `outside` is the distance to the stroke (0 within), `sd` its signed distance for the ridge
+            // along its sides. The distance is to the centreline itself, so a joint between two segments stays round.
+            let wobble = 0.85 + 0.3 * along(0, u / 22.0, s.seed ^ 0x77);
+            let hw = s.half * wobble * end_taper(u, s.len, s.half);
+            let outside = d - hw;
+            let sd = outside;
             if outside >= 1.2 {
                 continue;
             }
+            let half = hw.max(1e-3);
             let (ix, iy) = (near.x0 + bx as isize, near.y0 + by as isize);
             let k = (iy.rem_euclid(n) * n + ix.rem_euclid(n)) as usize;
             let t = (u / s.len).clamp(0.0, 1.0);
-            // Coverage: full inside the brush, a soft edge, thinner toward the tail, and a little thicker and thinner along.
+            // Coverage: full inside the brush, a soft edge, and thinner toward the tail.
             let edge = smoothstep(0.8, -0.9, outside);
-            let thick = (1.0 - 0.7 * smoothstep(0.45, 1.0, t))
-                * (0.85 + 0.3 * along(0, u / 30.0, s.seed ^ 0x78));
+            let thick = 1.0 - 0.7 * smoothstep(0.45, 1.0, t);
             // Dry brush: from `dry` along the stroke the tracks lose their paint in streaks, the canvas between.
             let dryness = smoothstep(s.dry, 1.0, t);
             let across = e / s.track + s.phase + (along(0, u / 14.0, s.seed ^ 0x51) - 0.5);
             let track = across.floor();
             let frac = across - track;
             let ti = track as i64;
-            let streak = along(ti, u / 6.0, s.seed ^ 0xD2);
-            let cut = 0.75 * dryness;
-            let alive = 1.0 - dryness * (1.0 - smoothstep(cut - 0.1, cut + 0.1, streak));
+            let alive = if dryness > 0.0 {
+                let cut = 0.75 * dryness;
+                let streak = along(ti, u / 6.0, s.seed ^ 0xD2);
+                1.0 - dryness * (1.0 - smoothstep(cut - 0.1, cut + 0.1, streak))
+            } else {
+                1.0
+            };
             // Ductus: each bristle track has its own depth, which deepens and breaks up along the stroke.
-            let depth = ((0.35 + 0.65 * hash(ti, s.idx, s.seed ^ 0xA7))
-                * (0.6 + 0.8 * along(ti, u / 9.0, s.seed ^ 0xB3)))
-            .clamp(0.0, 1.2);
-            let groove = 0.8 * depth * (1.0 - (PI * frac).sin()).powf(1.5);
+            // Most tracks are shallow and a few are deep, so the grooves read as strokes of the brush rather than corrugation.
+            let pick = hash(ti, s.idx, s.seed ^ 0xA7);
+            let depth = ((0.15 + 0.85 * pick * pick)
+                * (0.5 + 0.9 * along(ti, u / 9.0, s.seed ^ 0xB3)))
+            .clamp(0.0, 1.4);
+            let groove = 0.9 * depth * (1.0 - (PI * frac).sin()).powf(2.5);
             // Impasto: the paint lumps along each track, so the body is never an even plateau.
             let lump = 0.8 + 0.4 * along(ti, u / 12.0, s.seed ^ 0x91);
             let body = (s.body * thick * lump - groove).max(0.0);
             // Pushed paint: a bead where the stroke starts, a lip where it stops, and raised sides.
             let across_w = (1.0 - (e / half).powi(2)).max(0.0).sqrt();
-            let bead = 0.55 * s.body * (-(u / 2.2).powi(2)).exp() * across_w;
-            let lip = 0.5
+            let bead = BEAD * s.body * (-(u / 2.2).powi(2)).exp() * across_w;
+            let lip = LIP
                 * s.body
                 * (-((u - s.len) / 2.5).powi(2)).exp()
                 * across_w
                 * (1.0 - 0.4 * dryness);
-            let side = 0.3 * thick * (-((sd + 0.7) / 0.7).powi(2)).exp();
+            let side = SIDE * thick * (-((sd + 0.7) / 0.7).powi(2)).exp();
             let top = body + bead + lip + side;
             let c = (edge * thick * alive * OPACITY).clamp(0.0, 1.0);
             f.h[k] = f.h[k] * (1.0 - c) + c * (CANVAS * canvas[k] + top);

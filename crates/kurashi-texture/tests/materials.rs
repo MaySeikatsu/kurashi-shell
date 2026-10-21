@@ -282,7 +282,7 @@ fn a_tile_generates_within_the_budget() {
 /// The oil paint (W31): its strokes cover part of the tile and leave the canvas showing between them, its seams are as tight
 /// as the other materials', and its bytes are pinned, so a change to the generator is a conscious one.
 #[test]
-fn paint_strokes_cover_part_of_the_tile_and_wrap_tightly() {
+fn paint_covers_the_tile_edge_to_edge_and_wraps_tightly() {
     for wrinkles in [0.0, 0.6] {
         let t = generate(&params(Kind::Paint, true, wrinkles));
         let (rx, ry) = seam_ratios(&t);
@@ -290,11 +290,12 @@ fn paint_strokes_cover_part_of_the_tile_and_wrap_tightly() {
             rx <= 1.35 && ry <= 1.35,
             "paint seam x {rx:.2} y {ry:.2} (wrinkles {wrinkles})"
         );
-        let inked =
-            t.rgba.chunks_exact(4).filter(|px| px[3] > 0).count() as f32 / (t.size * t.size) as f32;
+        // Bare canvas is where the pigment is almost absent (A < 64: under a quarter of the paint's full tone).
+        let bare = t.rgba.chunks_exact(4).filter(|px| px[3] < 64).count() as f32
+            / (t.size * t.size) as f32;
         assert!(
-            (0.3..=0.7).contains(&inked),
-            "paint covers {inked:.2} of the tile (wrinkles {wrinkles})"
+            bare <= 0.15,
+            "paint leaves {bare:.3} of the tile bare (wrinkles {wrinkles})"
         );
     }
 }
@@ -303,9 +304,9 @@ fn paint_strokes_cover_part_of_the_tile_and_wrap_tightly() {
 fn paint_keeps_its_bytes() {
     let plain = fnv1a(&generate(&params(Kind::Paint, true, 0.0)).rgba);
     let creased = fnv1a(&generate(&params(Kind::Paint, true, 0.6)).rgba);
-    assert_eq!(plain, 0xf45f_ff7f_c30d_fa37, "paint (wrinkles 0) changed");
+    assert_eq!(plain, 0xf711_c7b1_cc82_253e, "paint (wrinkles 0) changed");
     assert_eq!(
-        creased, 0x7b87_4cde_93bb_aa8a,
+        creased, 0x4b16_3949_26b0_684d,
         "paint (wrinkles 0.6) changed"
     );
 }
