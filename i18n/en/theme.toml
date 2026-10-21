@@ -1,2 +1,12 @@
 # Notes of the theme document (DESIGN-SYSTEM §2): why the theme in effect is what it is.
 "theme.note.wallpaper_waiting" = "The theme follows the wallpaper once the wallpaper mod has applied a picture with its theme; until then the default palette is in effect."
+
+# K55: why light or dark is in effect (theme document `appearance.scheme_detail`), and the way back after a style.
+"theme.scheme.detail.os" = "Following the system: {scheme}"
+"theme.scheme.detail.os_unknown" = "The system states no preference (no desktop portal answers): dark"
+"theme.scheme.detail.wallpaper" = "Following the wallpaper's brightness: {scheme}"
+"theme.scheme.detail.wallpaper_waiting" = "No wallpaper picture yet (the wallpaper mod applies one with its theme): dark until then"
+"theme.scheme.style" = "Follows the style {style}"
+"theme.scheme.back" = "Back to {mode}"
+"theme.scheme.light" = "light"
+"theme.scheme.dark" = "dark"

@@ -43,4 +43,6 @@
 "appearance.category.custom" = "自作"
 "action.theme.style.apply" = "スタイルを適用"
 "action.theme.look.apply" = "ルックを適用"
+"action.theme.scheme.restore" = "自分のライト／ダークに戻す"
+"config.error.no_scheme_before" = "戻せる以前のライト／ダーク設定がありません。"
 "config.error.appearance_name" = "スタイルかルックの名前を指定してください。"

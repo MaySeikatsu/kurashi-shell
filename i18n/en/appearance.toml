@@ -44,4 +44,6 @@
 "appearance.category.custom" = "Your own"
 "action.theme.style.apply" = "Apply a style"
 "action.theme.look.apply" = "Apply a look"
+"action.theme.scheme.restore" = "Back to my light/dark mode"
+"config.error.no_scheme_before" = "There is no earlier light/dark mode to go back to."
 "config.error.appearance_name" = "Name a style or a look."

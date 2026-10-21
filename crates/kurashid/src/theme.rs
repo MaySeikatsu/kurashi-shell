@@ -70,6 +70,43 @@ pub fn wallpaper_picture(hub: &Hub) -> Option<std::path::PathBuf> {
         .map(Into::into)
 }
 
+/// K55: the scheme a mode resolves to, with why: `""` (dark or light chosen), `os` / `os_unknown` (mode `auto`: the
+/// portal's preference, or none — then dark), `wallpaper` / `wallpaper_waiting` (mode `wallpaper`: the picture's
+/// mean lightness, or no picture yet — then dark).
+pub fn effective_scheme(
+    store: &ConfigStore,
+    picture: Option<&std::path::Path>,
+) -> (Scheme, &'static str) {
+    use crate::os_scheme::{Pref, get};
+    match s(store, "theme.colors.scheme").as_str() {
+        "light" => (Scheme::Light, ""),
+        "auto" => match get() {
+            Pref::Light => (Scheme::Light, "os"),
+            Pref::Dark => (Scheme::Dark, "os"),
+            Pref::Unknown => (Scheme::Dark, "os_unknown"),
+        },
+        "wallpaper" => match picture.and_then(|p| kurashi_theme::stages::wallpaper_file(p).ok()) {
+            Some(x) if x.is_light() => (Scheme::Light, "wallpaper"),
+            Some(_) => (Scheme::Dark, "wallpaper"),
+            None => (Scheme::Dark, "wallpaper_waiting"),
+        },
+        _ => (Scheme::Dark, ""),
+    }
+}
+
+fn scheme_name(s: Scheme) -> &'static str {
+    match s {
+        Scheme::Light => "light",
+        Scheme::Dark => "dark",
+    }
+}
+
+/// Whether the theme needs the wallpaper's picture: palette `wallpaper` or scheme `wallpaper` (K34, K55).
+fn wants_picture(store: &ConfigStore) -> bool {
+    s(store, "theme.colors.palette") == WALLPAPER_PALETTE
+        || s(store, "theme.colors.scheme") == WALLPAPER_PALETTE
+}
+
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
 pub fn input_from(store: &ConfigStore) -> ThemeInput {
     input_with(store, None)
@@ -139,11 +176,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     };
     ThemeInput {
         source,
-        scheme: if s(store, "theme.colors.scheme") == "light" {
-            Scheme::Light
-        } else {
-            Scheme::Dark
-        },
+        scheme: effective_scheme(store, picture).0,
         contrast: match s(store, "theme.colors.contrast").as_str() {
             "high" => ContrastLevel::High,
             "medium" => ContrastLevel::Medium,
@@ -277,6 +310,9 @@ pub fn document_with(
                     "look": s(store, "theme.look"),
                     "palette": s(store, "theme.colors.palette"),
                     "scheme": s(store, "theme.colors.scheme"),
+                    "scheme_effective": scheme_name(input.scheme),
+                    "scheme_detail": effective_scheme(store, picture).1,
+                    "scheme_before": store.scheme_before(),
                     "overrides": store.appearance_overrides(),
                 },
             })
@@ -292,17 +328,21 @@ pub fn document_with(
 
 /// `theme.previews` (K53): the preview cards of every style, look (in the palette and scheme in effect) and palette (in
 /// the look and scheme in effect) — a document of its own, so only Settings, which shows them, receives them.
-pub fn previews(store: &ConfigStore, fonts: &dyn FontProvider) -> Value {
+pub fn previews(
+    store: &ConfigStore,
+    fonts: &dyn FontProvider,
+    picture: Option<&std::path::Path>,
+) -> Value {
     // The wallpaper's palette has no file to preview a look in; its looks show in the bundled default.
     let palette = match s(store, "theme.colors.palette") {
         p if kurashi_theme::bundled_names().contains(&p.as_str()) => p,
         _ => "wa-iro".to_owned(),
     };
-    let scheme = s(store, "theme.colors.scheme");
+    let scheme = scheme_name(effective_scheme(store, picture).0);
     json!({
         "styles": style_previews(fonts),
-        "looks": look_previews(&palette, &scheme, fonts),
-        "palettes": palette_previews(&s(store, "theme.look"), &scheme, fonts),
+        "looks": look_previews(&palette, scheme, fonts),
+        "palettes": palette_previews(&s(store, "theme.look"), scheme, fonts),
     })
 }
 
@@ -320,10 +360,32 @@ pub fn register(
         document_with(store, fonts.as_ref(), None, pic.as_deref()),
         None,
     );
-    hub.register(PREVIEWS_DOC, previews(store, fonts.as_ref()), None);
+    hub.register(
+        PREVIEWS_DOC,
+        previews(store, fonts.as_ref(), pic.as_deref()),
+        None,
+    );
+    // K55: scheme `auto` follows the portal's preference, watched only while that mode is chosen.
+    let watcher = Arc::new(crate::os_scheme::Watcher::default());
+    let follow = {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        let again: Arc<dyn Fn() + Send + Sync> = Arc::new(move || {
+            if let Some(store) = store.upgrade() {
+                republish(&hub, &store, fonts.as_ref());
+            }
+        });
+        let watcher = watcher.clone();
+        move |store: &ConfigStore| {
+            watcher.want(s(store, "theme.colors.scheme") == "auto", again.clone());
+        }
+    };
+    follow(store);
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
-        store.on_change(move |store| republish(&hub, store, fonts.as_ref()));
+        store.on_change(move |store| {
+            follow(store);
+            republish(&hub, store, fonts.as_ref());
+        });
     }
     // K49: the chosen apps follow the theme document.
     crate::theme_export::register(hub, store);
@@ -359,7 +421,7 @@ pub fn register(
                 continue;
             }
             last = now.clone();
-            if s(&store, "theme.colors.palette") != WALLPAPER_PALETTE {
+            if !wants_picture(&store) {
                 continue;
             }
             if let Some(path) = now {
@@ -381,7 +443,7 @@ fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
     if *held && (!exists || hub.subscribers(WALLPAPER_DOC) == 0) {
         *held = false;
     }
-    let want = exists && s(store, "theme.colors.palette") == WALLPAPER_PALETTE;
+    let want = exists && wants_picture(store);
     if want && !*held {
         *held = hub.subscribe(WALLPAPER_DOC).is_ok();
     } else if !want && *held {
@@ -400,7 +462,7 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
         o.remove("error");
     }
     let _ = hub.set(DOC, next, None);
-    let _ = hub.set(PREVIEWS_DOC, previews(store, fonts), None);
+    let _ = hub.set(PREVIEWS_DOC, previews(store, fonts, pic.as_deref()), None);
 }
 
 #[cfg(test)]
@@ -462,7 +524,7 @@ mod tests {
         );
         assert_eq!(doc["tokens"]["decor.frame"], "");
         assert_eq!(doc["appearance"]["look"], "kanso");
-        let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts);
+        let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts, None);
         assert!(shown["styles"].as_array().unwrap().len() > 10);
         assert_eq!(shown["looks"].as_array().unwrap().len(), 17);
         assert!(shown["palettes"].as_array().unwrap().len() > 10);
@@ -471,6 +533,42 @@ mod tests {
 
     /// K53: applying a style resets the appearance keys the user set and is one undoable change; a look keeps the
     /// style's palette.
+    /// K55: the modes resolve with their reason; `wallpaper` reads the picture's lightness.
+    #[test]
+    fn scheme_modes_resolve_with_their_reason() {
+        let root = std::env::temp_dir().join(format!("kurashid-modes-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let with = |mode: &str| {
+            store_with(
+                &root,
+                &format!("schema_version = 2\n[theme]\nstyle = \"none\"\n[theme.colors]\nscheme = \"{mode}\"\n"),
+            )
+        };
+        assert_eq!(effective_scheme(&with("light"), None), (Scheme::Light, ""));
+        assert_eq!(effective_scheme(&with("dark"), None), (Scheme::Dark, ""));
+        assert_eq!(effective_scheme(&with("wallpaper"), None), (Scheme::Dark, "wallpaper_waiting"));
+        // A pale picture is light, a dark one dark.
+        for (rgb, want) in [([235u8, 230, 220], Scheme::Light), ([30u8, 34, 48], Scheme::Dark)] {
+            let pic = root.join(format!("pic-{}.png", rgb[0]));
+            image::RgbImage::from_fn(32, 32, |x, _| {
+                image::Rgb([rgb[0], rgb[1].saturating_sub(x as u8), rgb[2]])
+            })
+            .save(&pic)
+            .unwrap();
+            assert_eq!(
+                effective_scheme(&with("wallpaper"), Some(&pic)),
+                (want, "wallpaper")
+            );
+        }
+        // No portal in a test: `auto` is dark and says the system has no preference (unless the portal test runs).
+        let (_, why) = effective_scheme(&with("auto"), None);
+        assert!(why == "os_unknown" || why == "os", "{why}");
+        // Schema default with no style: auto.
+        let store = store_with(&root, "schema_version = 2\n[theme]\nstyle = \"none\"\n");
+        assert_eq!(s(&store, "theme.colors.scheme"), "auto");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     #[tokio::test]
     async fn applying_a_style_resets_appearance_and_keeps_the_rest() {
         let root = std::env::temp_dir().join(format!("kurashid-style-{}", std::process::id()));
@@ -481,8 +579,9 @@ mod tests {
         );
         assert_eq!(
             store.appearance_overrides(),
-            ["theme.density", "theme.chrome"]
+            ["theme.colors.scheme", "theme.density", "theme.chrome"]
         );
+        assert_eq!(store.scheme_before(), None, "the user's own mode holds");
         let mut actions = crate::actions::ActionRegistry::default();
         store.register_actions(&mut actions);
         actions
@@ -499,11 +598,45 @@ mod tests {
             val("theme.density").source,
             kurashi_config::Source::Theme("style:win95".into())
         );
-        // Not reset: accessibility, light or dark, layout.
+        // Not reset: accessibility, layout.
         assert_eq!(val("theme.colors.contrast").value, "high");
-        assert_eq!(val("theme.colors.scheme").value, "dark");
         assert_eq!(val("bar.height").value, 40);
         assert!(store.appearance_overrides().is_empty());
+        // K55: light or dark follows the style; the user's dark is kept to go back to.
+        assert_eq!(val("theme.colors.scheme").value, "light");
+        assert_eq!(
+            val("theme.colors.scheme").source,
+            kurashi_config::Source::Theme("style:win95".into())
+        );
+        assert_eq!(store.scheme_before().as_deref(), Some("dark"));
+        let fonts = kurashi_theme::FakeFonts::new(&["Inter"]);
+        let doc = document(&store, &fonts, None);
+        assert_eq!(doc["appearance"]["scheme_before"], "dark");
+        assert_eq!(doc["appearance"]["scheme_effective"], "light");
+        // A second style keeps the user's mode, not the first style's.
+        actions
+            .invoke("theme.style.apply", json!({"name": "sekai"}))
+            .await
+            .unwrap();
+        assert_eq!(store.scheme_before().as_deref(), Some("dark"));
+        actions
+            .invoke("theme.scheme.restore", json!({}))
+            .await
+            .unwrap();
+        assert_eq!(val("theme.colors.scheme").value, "dark");
+        assert_eq!(val("theme.colors.scheme").source, kurashi_config::Source::User);
+        assert_eq!(store.scheme_before(), None);
+        assert!(
+            actions
+                .invoke("theme.scheme.restore", json!({}))
+                .await
+                .is_err(),
+            "nothing to go back to while the user's mode holds"
+        );
+        actions
+            .invoke("theme.style.apply", json!({"name": "win95"}))
+            .await
+            .unwrap();
         actions
             .invoke("theme.look.apply", json!({"name": "sekai"}))
             .await

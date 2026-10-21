@@ -188,3 +188,5 @@
 "island.quick.session.failed" = "セッションを操作できませんでした。"
 "island.quick.media.open" = "メディア表示を開く"
 "island.quick.tile.dark" = "ダークモード"
+"island.quick.tile.dark.auto" = "システムに従う"
+"island.quick.tile.dark.wallpaper" = "壁紙に従う"

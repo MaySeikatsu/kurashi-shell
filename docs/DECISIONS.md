@@ -521,3 +521,21 @@ AI chat by default), `sidebar.from_bar` (the bar's quick button opens the right 
 becomes a sidebar tab is open with the user (I116). Keys: Mod+Shift+N (right; Mod+N stays the notification centre),
 Mod+A (left). *Why:* ii's sidebarLeft/Right (copied: the anchoring, sections, tabbed left pane) without
 shellseikatsu's sizing and focus races.
+
+**K55** 🟢 Light or dark has modes, and a style takes it over (user, session 12: "Light/Dark should have multiple Modes:
+Follow OS/Auto (detects OS setting), Follow Wallpaper (Depending on the wallpapers color adjust the shells color to
+dark/light), Dark, Light. When a Styles is toggled it should overwrite that settings and follow the Style by default.
+Users can press reset to go back to their previous default then."). Supersedes the K53 amendment (light/dark as the
+user's mode a style never touches). `theme.colors.scheme` = `auto` (default) | `wallpaper` | `dark` | `light`.
+`auto` reads xdg-desktop-portal Settings `org.freedesktop.appearance color-scheme` (`ReadOne`, `Read` before portal
+1.17) and follows `SettingChanged` — the value GTK 4, Qt 6.5+, Firefox and Chromium read too — watched only while the
+mode is `auto` (`kurashid/src/os_scheme.rs`, Ma); no portal or "no preference" → dark, and the theme document says so.
+`wallpaper` takes the mean CIE L* of the wallpaper mod's applied picture (`stages::mean_lightness`, light from 55) —
+the same picture palette `wallpaper` reads (K34), held while either needs it; no picture yet → dark, said so. The
+scheme joins `STYLE_KEYS`: applying a style resets it, so it follows the style (theme layer `style:<name>`); the
+user's own mode from before is kept in `$XDG_STATE_HOME/kurashi/scheme-before` (a second style keeps the first
+remembered mode) and `theme.scheme.restore {}` sets it back (one undo step). The theme document's `appearance` gains
+`scheme_effective`, `scheme_detail` (`os`, `os_unknown`, `wallpaper`, `wallpaper_waiting`, `""`) and `scheme_before`.
+The quick and sidebar Dark tiles show the scheme in effect and set dark or light outright. *Why:* GNOME/KDE/macOS
+"Auto" follows the system; matugen/Caelestia/DMS derive the scheme from the wallpaper; a style is a whole aesthetic
+(K53), so it owns light/dark until the user picks again, and "Back to Auto" undoes only that.

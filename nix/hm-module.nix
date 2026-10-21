@@ -12,6 +12,9 @@ let
   niriDefaultKeys = {
     "Mod+Space" = "launcher.toggle";
     "Mod+N" = "notifications.center";
+    # K54: the sidebars (an action with arguments: the id, a space, the JSON).
+    "Mod+Shift+N" = ''sidebar.toggle {"side":"right"}'';
+    "Mod+A" = ''sidebar.toggle {"side":"left"}'';
     "Mod+Shift+E" = "session.menu";
     "Super+Alt+L" = "session.lock";
     "XF86AudioRaiseVolume" = "audio.volume.up";
@@ -30,12 +33,17 @@ let
     # Media keys work while locked, as niri's own volume keys do.
     ++ lib.optional (lib.hasPrefix "audio." action || lib.hasPrefix "brightness." action) "allow-when-locked=true"
     ++ lib.optional (!(lib.elem action niriRepeating)) "repeat=false";
+  # An entry is an action id, or the id, a space and its JSON arguments (`sidebar.toggle {"side":"left"}`).
   niriBindLine =
-    key: action:
+    key: entry:
     let
+      parts = builtins.match "([^ ]+) (.+)" entry;
+      action = if parts == null then entry else builtins.elemAt parts 0;
+      args = lib.optional (parts != null) (builtins.elemAt parts 1);
+      quote = s: "\"${lib.escape [ "\\" "\"" ] s}\"";
       lhs = lib.concatStringsSep " " ([ key ] ++ niriBindProps action);
     in
-    "    ${lhs} { spawn \"${cfg.package}/bin/kurashi\" \"act\" \"${action}\"; }";
+    "    ${lhs} { spawn ${lib.concatMapStringsSep " " quote ([ "${cfg.package}/bin/kurashi" "act" action ] ++ args)}; }";
 
   # The web dock's settings are the mod's own keys (K38, K40; mods/webdock/mod.toml), written as `mods.webdock.<key>`
   # into the Nix layer. A null option writes nothing and leaves the mod's default in place.
@@ -190,13 +198,15 @@ in
       };
 
       keys = lib.mkOption {
-        type = lib.types.attrsOf (lib.types.nullOr (lib.types.strMatching "[a-z0-9._-]+"));
+        type = lib.types.attrsOf (lib.types.nullOr (lib.types.strMatching "[a-z0-9._-]+( [{].*[}])?"));
         default = { };
         example = lib.literalExpression ''{ "Mod+L" = "session.lock"; XF86AudioMute = null; }'';
         description = ''
-          niri key name to kurashi action id (the argument of `kurashi act`). Entries add to the
-          defaults and override them for the same key; `null` removes a default. The defaults:
-          `Mod+Space` launcher.toggle, `Mod+N` notifications.center, `Mod+Shift+E` session.menu,
+          niri key name to kurashi action id (the argument of `kurashi act`), optionally followed by a
+          space and the action's JSON arguments. Entries add to the defaults and override them for the
+          same key; `null` removes a default. The defaults:
+          `Mod+Space` launcher.toggle, `Mod+N` notifications.center, `Mod+Shift+N` and `Mod+A`
+          `sidebar.toggle {"side":"right"}` and `{"side":"left"}`, `Mod+Shift+E` session.menu,
           `Super+Alt+L` session.lock, `XF86AudioRaiseVolume` and `XF86AudioLowerVolume`
           audio.volume.up and audio.volume.down, `XF86AudioMute` audio.mute.toggle,
           `XF86MonBrightnessUp` and `XF86MonBrightnessDown` brightness.up and brightness.down.

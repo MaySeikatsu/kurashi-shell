@@ -89,13 +89,14 @@ Flickable {
     }
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
-    readonly property var extras: ({ "theme.export": cThemeExport })
+    readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus })
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
     readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
     // Rows a pack block shows with it (K53 amendment): light or dark sits with the palette, as the palette cards are drawn
     // in it. Display only: the row keeps its own schema row, provenance and reset.
     readonly property var packCompanions: ({ palettes: ["theme.colors.scheme"] })
     Component { id: cThemeExport; ThemeExportStatus {} }
+    Component { id: cSchemeStatus; SchemeStatus {} }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -323,14 +324,24 @@ Flickable {
                         }
                         Repeater {
                             model: blk.modelData.companions
-                            delegate: SettingRow {
+                            delegate: Column {
                                 required property var modelData
                                 required property int index
+                                readonly property var extra: p.extras[modelData]
                                 width: blk.width - 2 * Theme.pad
-                                rowKey: modelData
-                                output: p.output
-                                divider: index < blk.modelData.companions.length - 1
-                                onOpenKey: key => p.openKey(key)
+                                SettingRow {
+                                    width: parent.width
+                                    rowKey: parent.modelData
+                                    output: p.output
+                                    divider: parent.index < blk.modelData.companions.length - 1 && parent.extra === undefined
+                                    onOpenKey: key => p.openKey(key)
+                                }
+                                // A companion's document under it, as for a section's row (`extras`).
+                                Loader {
+                                    width: parent.width
+                                    active: parent.extra !== undefined
+                                    sourceComponent: parent.extra ?? null
+                                }
                             }
                         }
                         Loader {

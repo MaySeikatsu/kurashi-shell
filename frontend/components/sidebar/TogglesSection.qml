@@ -97,7 +97,11 @@ Item {
         } }
 
     // K53: light or dark, the user's mode (as the quick card's Dark mode tile).
-    readonly property bool darkOn: String((Store.docs["theme"] || {}).appearance ? Store.docs["theme"].appearance.scheme : "") === "dark"
+    // K55: the scheme in effect (a mode may follow the system or the wallpaper); a press picks dark or light outright.
+    readonly property var darkAp: (Store.docs["theme"] || {}).appearance || ({})
+    readonly property bool darkOn: String(darkAp.scheme_effective || darkAp.scheme || "") === "dark"
+    readonly property string darkSub: darkAp.scheme === "auto" || darkAp.scheme === "wallpaper"
+        ? I18n.tr("island.quick.tile.dark." + darkAp.scheme) : I18n.tr(darkOn ? "island.quick.on" : "island.quick.off")
     Request { id: rqDark; value: tg.darkOn
         start: function (to, report) {
             Store.apply([{set: "theme.colors.scheme", value: to ? "dark" : "light"}], function (errors) {
@@ -283,7 +287,7 @@ Item {
             glyph: "☾"
             icon: "dark_mode"
             label: I18n.tr("island.quick.tile.dark")
-            subtitle: tg.darkOn ? I18n.tr("island.quick.on") : I18n.tr("island.quick.off")
+            subtitle: tg.darkSub
             on: tg.darkOn
             req: rqDark
             hasPage: false
