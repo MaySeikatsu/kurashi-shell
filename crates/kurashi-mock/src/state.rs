@@ -99,10 +99,14 @@ impl State {
                 "svc.notifications",
                 documents::notes_doc(&notes, false, None),
             ),
-            (
-                "svc.workspaces",
-                documents::workspaces(outputs, focus.as_deref(), 1),
-            ),
+            // No windows (K51 `windows`, session 9 `tasks`) until a test sets them with `mock.doc`; the workspace
+            // updates merge `outputs` only, so they keep what a test set.
+            ("svc.workspaces", {
+                let mut d = documents::workspaces(outputs, focus.as_deref(), 1);
+                d["windows"] = json!([]);
+                d["tasks"] = json!({});
+                d
+            }),
             ("svc.audio", documents::audio(0.5, false, 1)),
             ("svc.audio.spectrum", documents::spectrum()),
             (
@@ -447,6 +451,7 @@ impl State {
             "mock.island" => return self.mock_island(args),
             "mock.doc" => return self.mock_doc(args),
             "mock.focus" => return self.mock_focus(args),
+            "window.focus" | "window.close" => return self.window_act(action, args),
             // The web dock (MODS.md "Web dock"): the rules are in webdock.rs; `mock.webdock` sets fields.
             "mock.webdock" => return self.mock_webdock(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
@@ -1065,6 +1070,53 @@ impl State {
         }
         self.focus = Some(output);
         self.publish_workspaces();
+        Ok(None)
+    }
+
+    /// `window.focus {id}` / `window.close {id}` (K51) on the windows a test put into `svc.workspaces` (`mock.doc`
+    /// sets `windows` and `tasks`; the mock starts with none): focus lights that window alone, close removes it from
+    /// `windows` and every `tasks` list. No id is refused as kurashid refuses it; an id the document lacks is
+    /// unavailable, as the compositor would answer.
+    fn window_act(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        let id = args["id"]
+            .as_u64()
+            .ok_or_else(|| Fail::invalid(format!("{action} needs id")))?;
+        let doc = self.data("svc.workspaces");
+        let known = |list: &Value| {
+            list.as_array()
+                .is_some_and(|l| l.iter().any(|w| w["id"] == json!(id)))
+        };
+        let in_tasks = doc["tasks"]
+            .as_object()
+            .is_some_and(|t| t.values().any(known));
+        if !known(&doc["windows"]) && !in_tasks {
+            return Err(Fail::unavailable(format!("no window {id}")));
+        }
+        let close = action == "window.close";
+        let edit = |list: &Value| -> Value {
+            let windows = list.as_array().cloned().unwrap_or_default();
+            Value::Array(
+                windows
+                    .into_iter()
+                    .filter(|w| !close || w["id"] != json!(id))
+                    .map(|mut w| {
+                        if !close {
+                            w["focused"] = json!(w["id"] == json!(id));
+                        }
+                        w
+                    })
+                    .collect(),
+            )
+        };
+        let mut patch = json!({"windows": edit(&doc["windows"])});
+        if let Some(tasks) = doc["tasks"].as_object() {
+            patch["tasks"] = tasks
+                .iter()
+                .map(|(k, v)| (k.clone(), edit(v)))
+                .collect::<serde_json::Map<_, _>>()
+                .into();
+        }
+        self.patch("svc.workspaces", patch, None);
         Ok(None)
     }
 
@@ -2420,6 +2472,55 @@ mod tests {
                 .iter()
                 .all(|(name, ids)| name != "*" || ids.is_empty()),
             "the * list is never focused"
+        );
+    }
+
+    /// K51: the mock starts with no windows; a test sets them with `mock.doc`, `window.focus` lights one alone,
+    /// `window.close` removes it from `windows` and `tasks`, and a workspace change keeps them.
+    #[test]
+    fn window_focus_and_close_edit_the_windows_a_test_set() {
+        let mut st = State::new(&["HEADLESS-1".to_owned()], None);
+        assert_eq!(st.data("svc.workspaces")["windows"], json!([]));
+        let w = |id: u64, app: &str, focused: bool| json!({"id": id, "app_id": app, "workspace": 1, "output": "HEADLESS-1", "focused": focused});
+        let t = |id: u64, app: &str, focused: bool| json!({"id": id, "app_id": app, "focused": focused});
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.workspaces", "patch": {
+                "windows": [w(1, "firefox", true), w(2, "firefox", false), w(3, "foot", false)],
+                "tasks": {"*": [t(1, "firefox", true), t(3, "foot", false)]},
+            }}),
+        )
+        .unwrap();
+        assert_eq!(st.act("window.focus", &json!({"id": 2})), Ok(None));
+        let d = st.data("svc.workspaces").clone();
+        assert_eq!(
+            d["windows"],
+            json!([
+                w(1, "firefox", false),
+                w(2, "firefox", true),
+                w(3, "foot", false)
+            ])
+        );
+        assert_eq!(
+            d["tasks"]["*"],
+            json!([t(1, "firefox", false), t(3, "foot", false)])
+        );
+        assert_eq!(st.act("window.close", &json!({"id": 1})), Ok(None));
+        st.mock_workspace(2);
+        let d = st.data("svc.workspaces").clone();
+        assert_eq!(
+            d["windows"],
+            json!([w(2, "firefox", true), w(3, "foot", false)])
+        );
+        assert_eq!(d["tasks"]["*"], json!([t(3, "foot", false)]));
+        assert_eq!(
+            st.act("window.close", &json!({})).unwrap_err().msg,
+            "window.close needs id"
+        );
+        assert_eq!(
+            st.act("window.focus", &json!({"id": 1})).unwrap_err().kind,
+            "unavailable",
+            "a closed window is gone"
         );
     }
 

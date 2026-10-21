@@ -107,6 +107,8 @@ pub enum WorkspaceRef {
 pub enum Action {
     FocusWorkspace(WorkspaceRef),
     FocusWindow(u64),
+    /// Ask the window to close (K51, the dock's menu); the app may still refuse or ask first.
+    CloseWindow(u64),
     MoveWindowToWorkspace {
         window_id: u64,
         workspace: WorkspaceRef,

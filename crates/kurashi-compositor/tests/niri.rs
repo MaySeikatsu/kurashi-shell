@@ -192,6 +192,11 @@ fn k47_actions_serialize_as_niri_ipc_json() {
 #[test]
 fn actions_serialize_as_niri_ipc_json() {
     let j = |a: Action| serde_json::to_value(to_request(&a)).unwrap();
+    // K51: the dock closes a window by its id, never "the focused one" (niri-ipc's race note).
+    assert_eq!(
+        j(Action::CloseWindow(40)),
+        json!({"Action": {"CloseWindow": {"id": 40}}})
+    );
     assert_eq!(
         j(Action::FocusWorkspace(WorkspaceRef::Idx(2))),
         json!({"Action": {"FocusWorkspace": {"reference": {"Index": 2}}}})
