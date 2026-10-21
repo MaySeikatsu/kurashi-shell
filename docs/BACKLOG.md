@@ -201,6 +201,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I150 | 2026-10-21 | W29-sidebar report (rows 236, 237) | Sidebar header uptime (a daemon value, e.g. `svc.session.boot_ms`) and a mic slider (`audio.source.volume` intent). | new |
 | I151 | 2026-10-21 | W29-sidebar report (row 239) | Extract the quick tiles' values/requests into a shared `components/quick/QuickState.qml` for the quick card and the sidebar's toggles (they already drifted once: the Dark tile had to be added twice). | new |
 | I152 | 2026-10-21 | W29-sidebar report | Sidebar: click outside to close (niri has no layer-surface focus grab); measure 20 open/close cycles for USS growth (K16: map/unmap leaked ~5 MiB per cycle for the Stage). | new |
+| I153 | 2026-10-21 | W29-appearance report (row 243) | Settings keeps two display maps naming keys (`packCompanions`: scheme with palette; `Store.styleRecommends`: scheme) until the schema can say them — e.g. `#[kurashi(with = "theme.colors.palette")]` and a provenance `recommended: true` for theme-layer values outside `STYLE_KEYS`. Also: the mock has no `schema.settings`/`apply`, so Settings cannot run against it end to end. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
