@@ -191,9 +191,7 @@ Singleton {
         case "theme":
             // K53: each value of the theme layer names its pack, `style:<name>` or `look:<name>`: "From the style Washi".
             var pack = /^(style|look):(.+)$/.exec(s.name || "")
-            if (pack) return I18n.fmt("settings.source." + (pack[1] === "style" && styleRecommends.indexOf(key) >= 0
-                                                                ? "style_recommends" : pack[1]),
-                                      { name: packLabel(pack[1] + "s", pack[2]) })
+            if (pack) return I18n.fmt("settings.source." + pack[1], { name: packLabel(pack[1] + "s", pack[2]) })
             return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
         case "nix": return I18n.fmt("settings.source.nix", { path: nixPath(key) })
         case "forced":
@@ -209,9 +207,6 @@ Singleton {
     // which), one undo step. A palette is a plain value.
     readonly property var packSources: ["styles", "looks", "palettes"]
     readonly property var packActions: ({ styles: "theme.style.apply", looks: "theme.look.apply" })
-    // Values a style only recommends until you pick (K53 amendment: light or dark is your mode, a style keeps it):
-    // their provenance reads "Recommended by the style Washi".
-    readonly property var styleRecommends: ["theme.colors.scheme"]
     function isPackRow(row) { return !!row && packSources.indexOf(row.choices_from) >= 0 }
     // A pack's name in words, from the offers of the row that picks it (a user pack without a catalogue key: its name).
     function packLabel(source, name) {

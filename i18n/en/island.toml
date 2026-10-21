@@ -188,3 +188,5 @@
 "island.quick.session.failed" = "The session could not be changed."
 "island.quick.media.open" = "Open the media view"
 "island.quick.tile.dark" = "Dark mode"
+"island.quick.tile.dark.auto" = "Follows the system"
+"island.quick.tile.dark.wallpaper" = "Follows the wallpaper"

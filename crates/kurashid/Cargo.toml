@@ -10,6 +10,7 @@ kurashi-core.workspace = true
 kurashi-ipc.workspace = true
 kurashi-compositor = { path = "../kurashi-compositor" }
 tokio-stream = "0.1"
+futures-util = "0.3"
 kurashi-island = { path = "../kurashi-island" }
 kurashi-services = { path = "../kurashi-services" }
 kurashi-tray = { path = "../kurashi-tray" }
@@ -55,6 +56,8 @@ workspace = true
 test-mods = ["dep:kurashi-mod-hello"]
 
 [dev-dependencies]
+# K55: the portal test's private bus directory (os_scheme.rs).
+tempfile = "3"
 kurashi-config = { path = "../kurashi-config" }
 kurashi-theme = { path = "../kurashi-theme" }
 kurashi-mod-hello = { path = "../kurashi-mod-hello" }
