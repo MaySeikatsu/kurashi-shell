@@ -508,3 +508,16 @@ already existing other look it should be a color Palette instead"). Three kinds 
 *Why:* a decor mixed form and colour, and its recipe sat under the user's values, so returning to a look meant resetting
 settings by hand. Shellseikatsu's presets and WormShell's packs are both "whole aesthetic" presets; Noctalia/DMS/
 Caelestia keep colour schemes apart from the shell's form — this keeps both, named.
+
+**K54** 🟢 Sidebars, a core surface apart from the web dock (user, session 11: "a simple styled sidebar that goes from
+one edge to another (if there is a bar it should go to the bar rather than the edge) just like … illogical-impulse";
+"maybe the sidebar should be something separate from the webbar"). Left and right sidebars (`frontend/surfaces/Sidebar.qml`,
+card W29-sidebar, docs/ux/sidebar.md): one layer window per open side, none while closed (Ma), anchored top+bottom+side
+with exclusive zone 0 so the compositor stops it at the bar. `sidebar.style` `panel` (flush, ii) | `floating` (inset,
+the look's chrome), `sidebar.width`, `sidebar.right` (sections from source `sidebar.sections`: header, toggles,
+sliders, notifications, calendar, media, then mod panels), `sidebar.left` (tabs from `sidebar.tabs`: mod panels — the
+AI chat by default), `sidebar.from_bar` (the bar's quick button opens the right sidebar). State in `runtime.ui`
+(`sidebar`, `sidebar_output`), one at a time with the Stage and the launcher. The web dock stays its own mod; whether it
+becomes a sidebar tab is open with the user (I116). Keys: Mod+Shift+N (right; Mod+N stays the notification centre),
+Mod+A (left). *Why:* ii's sidebarLeft/Right (copied: the anchoring, sections, tabbed left pane) without
+shellseikatsu's sizing and focus races.
