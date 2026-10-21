@@ -4,8 +4,11 @@
 //! `sheet.png`: every kind, each in a 120 px window of its tile at 1:1 (no resampling), lit from four directions (315°,
 //! 45°, 135°, 225°, 40° up), with ink and without, on the washi-light ground `#f3eee3` (left) and the sumi-dark ground
 //! `#1b1a1e` (right), at `amp` 0.09. `ui-<kind>.png`: a 640×360 mock in wa-iro light (a 36 px bar with three blocks and
-//! a card with two lines of text), the sheet continuous across bar and card, lit from 315°/40°. `--detail` writes
-//! `detail-<kind>.png`: 256 px windows of the same tile, the whole light set, for close inspection.
+//! a card with two lines of text), the sheet continuous across bar and card, lit from 315°/40°.
+//!
+//! Review options: `--detail <dir>` writes `detail-<kind>.png`, a 384×256 window at 1:1 with the ink on, `amp` 0.12, lit
+//! from 315°/40° on `#f3eee3`; `--lights <dir>` writes `lights-<kind>.png` (256 px windows, the whole light set) and
+//! `wrinkled-<kind>.png` (the same at wrinkles 0.6); `--kinds a,b` limits the `--detail` and `--lights` files.
 
 use std::path::{Path, PathBuf};
 
@@ -13,6 +16,8 @@ use image::{Rgba, RgbaImage};
 use kurashi_texture::{InkRole, Kind, Params, Shading, Tile, generate, light_dir, material, shade};
 
 const AMP: f32 = 0.09;
+/// The detail windows use the stronger relief of the card's close inspection.
+const DETAIL_AMP: f32 = 0.12;
 const ELEVATION: f32 = 40.0;
 const LIGHTS: [f32; 4] = [315.0, 45.0, 135.0, 225.0];
 const CELL: u32 = 120;
@@ -42,10 +47,10 @@ fn ink_colour(role: InkRole, dark: bool) -> [f32; 3] {
     }
 }
 
-fn shading(kind: Kind, tint: bool, angle: f32, dark: bool) -> Shading {
+fn shading(kind: Kind, tint: bool, angle: f32, dark: bool, amp: f32) -> Shading {
     let m = material(kind);
     Shading {
-        amp: AMP,
+        amp,
         gloss: m.gloss,
         shininess: m.shininess,
         ink: ink_colour(m.ink_role, dark),
@@ -280,7 +285,7 @@ fn sheet(tiles: &[(Kind, Tile, Tile)]) -> RgbaImage {
             let ground = if dark { SUMI_DARK } else { PAPER_LIGHT };
             for (k, tile, tint) in [(0u32, ink, true), (1, plain, false)] {
                 for (li, angle) in LIGHTS.iter().enumerate() {
-                    let s = shading(*kind, tint, *angle, dark);
+                    let s = shading(*kind, tint, *angle, dark, AMP);
                     let x0 = gx + (k * 4 + li as u32) * (CELL + GAP);
                     for y in 0..CELL {
                         for x in 0..CELL {
@@ -307,7 +312,7 @@ fn ui(kind: Kind, tile: &Tile) -> RgbaImage {
     let outline = hex("#cfc7b5");
     let ink = hex("#2b2a2e");
     let accent = hex("#a8323b");
-    let s = shading(kind, true, 315.0, false);
+    let s = shading(kind, true, 315.0, false, AMP);
     // Flat colours first (rounded shapes by a corner test), then the relief over everything.
     let mut base = vec![desk; (W * H) as usize];
     let rect =
@@ -356,8 +361,8 @@ fn rect_fill(img: &mut RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32, c: [f32; 3
     }
 }
 
-/// The 1:1 detail: four lights, ink and plain, 256 px windows on the washi ground.
-fn detail(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
+/// The lights review: four lights, ink and plain, 256 px windows on the washi ground.
+fn lights(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
     const D: u32 = 256;
     const G: u32 = 8;
     let w = 4 * (D + G) + G;
@@ -365,7 +370,7 @@ fn detail(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
     let mut img = RgbaImage::from_pixel(w, h, Rgba([40, 40, 44, 255]));
     for (row, (tile, tint)) in [(ink, true), (plain, false)].into_iter().enumerate() {
         for (li, angle) in LIGHTS.iter().enumerate() {
-            let s = shading(kind, tint, *angle, false);
+            let s = shading(kind, tint, *angle, false, AMP);
             let (x0, y0) = (G + li as u32 * (D + G), G + row as u32 * (D + G));
             for y in 0..D {
                 for x in 0..D {
@@ -373,6 +378,22 @@ fn detail(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
                     put(&mut img, x0 + x, y0 + y, c);
                 }
             }
+        }
+    }
+    img
+}
+
+/// The 1:1 detail window: 384 × 256 device px of the tile from its origin, lit from 315°/40° at the card's amp, on the
+/// washi ground (the ink on).
+fn detail(kind: Kind, ink: &Tile) -> RgbaImage {
+    const W: u32 = 384;
+    const H: u32 = 256;
+    let s = shading(kind, true, 315.0, false, DETAIL_AMP);
+    let mut img = RgbaImage::new(W, H);
+    for y in 0..H {
+        for x in 0..W {
+            let c = over(PAPER_LIGHT, texel_f(ink, x, y), &s);
+            put(&mut img, x, y, c);
         }
     }
     img
@@ -398,13 +419,24 @@ fn main() {
     let mut args = std::env::args().skip(1);
     let mut out = PathBuf::from("frontend/shots/texture");
     let mut detail_dir: Option<PathBuf> = None;
+    let mut lights_dir: Option<PathBuf> = None;
+    let mut only: Option<Vec<Kind>> = None;
     while let Some(a) = args.next() {
-        if a == "--detail" {
-            detail_dir = args.next().map(PathBuf::from);
-        } else {
-            out = PathBuf::from(a);
+        match a.as_str() {
+            "--detail" => detail_dir = args.next().map(PathBuf::from),
+            "--lights" => lights_dir = args.next().map(PathBuf::from),
+            "--kinds" => {
+                let list = args.next().unwrap_or_default();
+                only = Some(
+                    list.split(',')
+                        .map(|k| Kind::parse(k).unwrap_or_else(|| panic!("unknown kind {k}")))
+                        .collect(),
+                );
+            }
+            _ => out = PathBuf::from(a),
         }
     }
+    let wanted = |k: &Kind| only.as_ref().is_none_or(|o| o.contains(k));
     std::fs::create_dir_all(&out).expect("output directory");
     let tiles: Vec<(Kind, Tile, Tile)> = Kind::ALL
         .into_iter()
@@ -416,18 +448,28 @@ fn main() {
     }
     if let Some(dir) = detail_dir {
         std::fs::create_dir_all(&dir).expect("detail directory");
-        for (kind, ink, plain) in &tiles {
+        for (kind, ink, _) in tiles.iter().filter(|(k, _, _)| wanted(k)) {
             save(
-                &detail(*kind, ink, plain),
+                &detail(*kind, ink),
                 &dir,
                 &format!("detail-{}.png", kind.name()),
             );
         }
+    }
+    if let Some(dir) = lights_dir {
+        std::fs::create_dir_all(&dir).expect("lights directory");
+        for (kind, ink, plain) in tiles.iter().filter(|(k, _, _)| wanted(k)) {
+            save(
+                &lights(*kind, ink, plain),
+                &dir,
+                &format!("lights-{}.png", kind.name()),
+            );
+        }
         // The same windows with wrinkles at 0.6 (ink and plain), for the crumple and the creases.
-        for kind in Kind::ALL {
+        for kind in Kind::ALL.into_iter().filter(wanted) {
             let (ink, plain) = (tile(kind, true, 0.6), tile(kind, false, 0.6));
             save(
-                &detail(kind, &ink, &plain),
+                &lights(kind, &ink, &plain),
                 &dir,
                 &format!("wrinkled-{}.png", kind.name()),
             );
