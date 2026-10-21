@@ -2,6 +2,12 @@
 "action.sidebar.toggle" = "サイドバー"
 "action.sidebar.open" = "サイドバーを開く"
 "action.sidebar.close" = "サイドバーを閉じる"
+"action.sidebar.right.toggle" = "右サイドバー"
+"action.sidebar.left.toggle" = "左サイドバー"
+"sidebar.bar.right" = "右サイドバーを開く"
+"sidebar.bar.left" = "左サイドバーを開く"
+"sidebar.open_now" = "今すぐ開く"
+"sidebar.keys" = "キー：右サイドバーは {right}、左は {left}（programs.kurashi.niri.binds.enable と niri 設定の include \"kurashi-binds.kdl\" が必要）。"
 "sidebar.error.no_tabs" = "左のサイドバーにタブがありません。設定 › サイドバーで追加してください。"
 
 "config.choice.sidebar_section.header" = "ユーザーとセッション"

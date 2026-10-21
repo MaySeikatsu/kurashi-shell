@@ -1769,6 +1769,19 @@
               "restart": false,
               "since": 1,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.sidebar.bar_buttons.help",
+              "key": "sidebar.bar_buttons",
+              "label": "config.sidebar.bar_buttons.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
             }
           ]
         }

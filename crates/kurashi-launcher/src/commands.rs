@@ -12,6 +12,8 @@ pub const COMMANDS: &[(&str, &str)] = &[
     ("notify.dnd", "do_not_disturb_on"),
     ("quick.toggle", "tune"),
     ("notifications.center", "notifications"),
+    ("sidebar.right.toggle", "right_panel_open"),
+    ("sidebar.left.toggle", "left_panel_open"),
     ("settings.open", "settings"),
     ("launcher.keys", "keyboard_keys"),
     ("screenshot.region", "screenshot_region"),

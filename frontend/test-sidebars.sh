@@ -491,6 +491,9 @@ scene() {
   timeout 20 swaymsg output HEADLESS-1 resolution "${width}x${height}" >/dev/null || fail "the output did not take ${width}x${height}"
   start_daemon "$locale"
   K set bar.edge "$edge" >/dev/null || fail "bar.edge $edge was refused"
+  # The fit arithmetic below counts the column's own slots; the sidebars' end buttons (I154) are tested in
+  # test-sidebar-panel.sh.
+  K set sidebar.bar_buttons false >/dev/null || fail "sidebar.bar_buttons was refused"
   [ "$mods" = 0 ] || enable_mods
   env -u KURASHI_SOCKET KURASHI_BAR_GEOMETRY=1 LC_ALL="$locale" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   SCENE_PIDS+=("$!")

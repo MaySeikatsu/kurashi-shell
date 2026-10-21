@@ -618,4 +618,10 @@ pub struct Sidebar {
     /// The bar's quick settings button opens the right sidebar instead of the quick settings card.
     #[kurashi(default = false)]
     pub from_bar: bool,
+    /// Buttons in the bar
+    /// A button at each end of the bar opens that side's sidebar: the left one at the start, the right one at the end
+    /// (left out while the quick settings button opens the right sidebar). The launcher's "> sidebar" and the keys
+    /// open them too.
+    #[kurashi(default = true)]
+    pub bar_buttons: bool,
 }
