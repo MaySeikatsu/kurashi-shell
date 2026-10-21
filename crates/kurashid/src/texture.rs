@@ -845,6 +845,39 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    /// The wallpaper's light: a lamp at the picture's bright corner, warm like it; from above while there is no picture.
+    #[test]
+    fn the_wallpaper_light_is_a_lamp_at_its_brightest_place() {
+        let root = std::env::temp_dir().join(format!("kurashi-wall-light-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).unwrap();
+        let pic = root.join("sunset.png");
+        let mut img = image::RgbImage::from_pixel(320, 180, image::Rgb([20, 24, 40]));
+        for y in 20..60 {
+            for x in 30..80 {
+                img.put_pixel(x, y, image::Rgb([255, 190, 120]));
+            }
+        }
+        img.save(&pic).unwrap();
+        let store = store_with(
+            &root,
+            "schema_version = 2\n[theme.texture]\nkind = \"paper\"\n[theme.light]\nmode = \"wallpaper\"\n",
+        );
+        set_wallpaper(None);
+        let waiting = light(&store, chrono::Local::now());
+        assert_eq!((waiting.detail, waiting.lamp), ("wallpaper_waiting", None));
+        set_wallpaper(Some(pic));
+        let lit = light(&store, chrono::Local::now());
+        assert_eq!(lit.detail, "wallpaper");
+        let [x, y] = lit.lamp.expect("a lamp");
+        assert!((0.1..0.25).contains(&x) && (0.1..0.35).contains(&y), "{x} {y}");
+        assert!(lit.color[0] > lit.color[2], "warm: {:?}", lit.color);
+        // Toward the top left from the middle.
+        assert!(lit.dir[0] < 0.0 && lit.dir[1] < 0.0, "{:?}", lit.dir);
+        set_wallpaper(None);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     #[test]
     fn the_cap_keeps_text_legible() {
         // Dark text on light paper: a deep shade would sink the paper toward the ink.
