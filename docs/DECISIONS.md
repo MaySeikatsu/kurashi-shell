@@ -597,3 +597,11 @@ legibility still wins. `theme.typography.family_jp` (a look key) makes the Japan
 now it was fixed to Noto Sans CJK, so washi's serif never reached Japanese text. *Why:* the user asked for a
 presentable paper style with a handwritten blue font and a general text colour option; an ink with two shades follows
 light/dark the way a pen colour would.
+
+**K59 amendment** (user, session 12) — light mode `wallpaper`: a lamp at the wallpaper picture's brightest region
+(`kurashi_texture::light_spot`: smoothed-luminance peak, light-weighted centre of the bright pixels within a quarter of
+the picture around it; none when the 97th percentile stands less than 0.12 above the median), its colour halfway to
+white; token `light.lamp` `[x, y]` (fractions of the output), the shader's and the bake's lamp. The picture is the
+theme's, else an output's (the wallpaper mod's document, held while this light is chosen); decoded once per picture on a
+blocking thread. Material `paint`: oil paint on canvas with deep brush strokes (card W31-paint). The tile is two files
+(rows 280–281): an opaque RGB relief and a white ink map with coverage in alpha, because Qt premultiplies textures.

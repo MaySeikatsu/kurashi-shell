@@ -232,10 +232,10 @@ Multiplies every type size token.
 
 #### `theme.texture.kind` — Material
 
-A relief the shell is made of — paper, fabric, stone, metal, leather, wood. It adds light and shade from the light below, never colours of its own (K59).
+A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and shade from the light below, never colours of its own (K59).
 
 - type: `choice` · default: `"none"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"`
 - forced to `"none"` while `a11y.high_contrast` is on
 - forced to `"none"` while `a11y.reduce_transparency` is on
 
@@ -289,10 +289,10 @@ Let the relief run through text and icons too, as ink sinks into paper or is pre
 
 #### `theme.light.mode` — Light
 
-Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces; elsewhere it rests at the fixed direction), or the sun of the day — sunrise from the left, sunset from the right, warm when it is low (K59).
+Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right, warm when it is low — or the wallpaper's own light: a lamp at its brightest place, in its colour (K59).
 
 - type: `choice` · default: `"static"`
-- choices: `"static"` | `"pointer"` | `"daytime"`
+- choices: `"static"` | `"pointer"` | `"daytime"` | `"wallpaper"`
 - only while `theme.texture.kind != "none"`
 
 #### `theme.light.angle` — Direction

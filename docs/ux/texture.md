@@ -53,6 +53,7 @@ the CPU. Tokens in DESIGN-SYSTEM "Texture and light", PROTOCOL §8.
 | metal | brushed lines and random scratches | — | high, anisotropic |
 | leather | pebbled grain cells, pores, creases | — | medium |
 | wood | growth rings and long pores along the grain | late-wood tone | low |
+| paint | oil paint on canvas: brush strokes with deep bristle grooves (ductus), ridges where a stroke ends, the canvas weave under thin passages | pigment tone | medium |
 
 `theme.texture.wrinkles` (0–1) crumples any of them: folds and creases with sharp ridges (crumpled paper, creased
 leather). `strength` (0–1) and `scale` (0.5–3) are the user's. With `tint` off the ink is relief only: rulings, dots
@@ -83,6 +84,11 @@ is pressed into leather. The legibility cap still holds (below).
 - **daytime**: the sun of the weather mod's place (the same NOAA equations as the night light): sunrise from the left,
   noon from above, sunset from the right; low sun is long-shadowed and warm (gold, then red at the horizon), noon
   neutral, night a faint cool moonlight from above. Without a place it follows a 06:00–18:00 day and says so.
+- **wallpaper** (user, session 12: "it shines onto the canvas from the bright(est) point(s) of the wallpaper"): a lamp
+  at the wallpaper's brightest region — the peak of its smoothed luminance and the light-weighted centre of the bright
+  pixels around it, so a sun or a window, never the average of two far highlights — in that region's colour (halfway to
+  white), `elevation` its height. A flat picture (no region stands out) lights from above and says so. The wallpaper
+  bake uses the same lamp, so the baked relief and the shell's agree.
 
 ### 紙 kami — the style (K60)
 A clean notebook page: warm white (light) or blue-black (dark) paper, `paper_dots` relief at medium strength, a

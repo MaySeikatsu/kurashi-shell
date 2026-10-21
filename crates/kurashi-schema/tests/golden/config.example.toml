@@ -153,11 +153,12 @@
 
 # [theme.texture]
 #
-# Material — A relief the shell is made of — paper, fabric, stone, metal, leather, wood.
-# It adds light and shade from the light below, never colours of its own (K59).
+# Material — A relief the shell is made of — paper, fabric, stone, metal, leather, wood,
+# brushed oil paint. It adds light and shade from the light below, never colours of its own
+# (K59).
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
-#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" · forced to "none" while
-#   a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" · forced to "none"
+#   while a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
 # kind = "none"
 #
 # Where — The shell's surfaces, the wallpaper (baked into the picture), both, or an
@@ -193,9 +194,11 @@
 # [theme.light]
 #
 # Light — Where the material's light comes from: a fixed direction, a lamp at the pointer
-# (over the shell's surfaces; elsewhere it rests at the fixed direction), or the sun of the
-# day — sunrise from the left, sunset from the right, warm when it is low (K59).
-#   choices: "static" | "pointer" | "daytime" · only while theme.texture.kind != "none"
+# (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day
+# — sunrise from the left, sunset from the right, warm when it is low — or the
+# wallpaper's own light: a lamp at its brightest place, in its colour (K59).
+#   choices: "static" | "pointer" | "daytime" | "wallpaper" · only while theme.texture.kind
+#   != "none"
 # mode = "static"
 #
 # Direction — Where the fixed light comes from, in degrees round the screen: 0 from the

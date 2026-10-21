@@ -105,6 +105,25 @@ fn scheme_name(s: Scheme) -> &'static str {
 fn wants_picture(store: &ConfigStore) -> bool {
     s(store, "theme.colors.palette") == WALLPAPER_PALETTE
         || s(store, "theme.colors.scheme") == WALLPAPER_PALETTE
+        || crate::texture::wants_wallpaper(store)
+}
+
+/// The picture the wallpaper shows now, for its light (K59): the theme's picture, else the first output's.
+pub fn wallpaper_shown(hub: &Hub) -> Option<std::path::PathBuf> {
+    if hub.subscribers(WALLPAPER_DOC) == 0 {
+        return None;
+    }
+    let (_, doc) = hub.snapshot(WALLPAPER_DOC).ok()?;
+    doc["theme"]["image"]
+        .as_str()
+        .or_else(|| {
+            doc["outputs"]
+                .as_object()?
+                .values()
+                .find_map(|o| o["path"].as_str())
+        })
+        .filter(|s| !s.is_empty())
+        .map(Into::into)
 }
 
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
@@ -400,6 +419,7 @@ pub fn register(
     fonts: Arc<dyn FontProvider + Send + Sync>,
 ) {
     let pic = wallpaper_picture(hub);
+    crate::texture::set_wallpaper(wallpaper_shown(hub));
     let first = document_with(store, fonts.as_ref(), None, pic.as_deref());
     if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
         crate::texture::update_bake(store, tokens);
@@ -484,7 +504,7 @@ pub fn register(
     rt.spawn(async move {
         let mut held = false;
         hold_wallpaper(&hub, &store, &mut held);
-        let mut last = wallpaper_picture(&hub);
+        let mut last = (wallpaper_picture(&hub), wallpaper_shown(&hub));
         loop {
             match events.recv().await {
                 Ok(msg) => match msg.as_ref() {
@@ -497,7 +517,7 @@ pub fn register(
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             }
             hold_wallpaper(&hub, &store, &mut held);
-            let now = wallpaper_picture(&hub);
+            let now = (wallpaper_picture(&hub), wallpaper_shown(&hub));
             if now == last {
                 continue;
             }
@@ -505,7 +525,7 @@ pub fn register(
             if !wants_picture(&store) {
                 continue;
             }
-            if let Some(path) = now {
+            if let Some(path) = now.0 {
                 let _ = tokio::task::spawn_blocking(move || {
                     kurashi_theme::stages::wallpaper_file(&path)
                 })
@@ -536,6 +556,7 @@ fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
 fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
     let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
     let pic = wallpaper_picture(hub);
+    crate::texture::set_wallpaper(wallpaper_shown(hub));
     let mut next = document_with(store, fonts, prev.as_ref(), pic.as_deref());
     if next.get("error").is_none()
         && let Some(o) = next.as_object_mut()

@@ -43,10 +43,11 @@ pub enum Kind {
     Metal,
     Leather,
     Wood,
+    Paint,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 11] = [
+    pub const ALL: [Kind; 12] = [
         Kind::Paper,
         Kind::PaperDots,
         Kind::PaperLines,
@@ -58,6 +59,7 @@ impl Kind {
         Kind::Metal,
         Kind::Leather,
         Kind::Wood,
+        Kind::Paint,
     ];
 
     /// The config value (`paper_dots`); `None` for an unknown name and for `none`.
@@ -78,6 +80,7 @@ impl Kind {
             Kind::Metal => "metal",
             Kind::Leather => "leather",
             Kind::Wood => "wood",
+            Kind::Paint => "paint",
         }
     }
 }
@@ -177,6 +180,9 @@ pub struct Shading {
     pub light_dir: [f32; 3],
     /// 0..1 RGB of the light's highlights.
     pub light_color: [f32; 3],
+    /// A lamp instead of `light_dir` (the wallpaper's light, K59): its position as fractions of the picture or output
+    /// (x, y) and its height over the sheet in logical px (z). The direction is then taken per pixel.
+    pub lamp: Option<[f32; 3]>,
 }
 
 /// The relief's colour over whatever lies under it, premultiplied RGBA (0..1) for a normal "over" blend: shade is
@@ -224,15 +230,105 @@ pub fn bake(
 ) -> image::RgbaImage {
     let mut out = picture.clone();
     let k = 1.0 / output_scale.max(0.1);
+    let (w, h) = (out.width() as f32 * k, out.height() as f32 * k);
     for (x, y, px) in out.enumerate_pixels_mut() {
-        let t = tile.sample((x as f32 + 0.5) * k, (y as f32 + 0.5) * k, scale);
-        let o = shade(t, s);
+        let (lx, ly) = ((x as f32 + 0.5) * k, (y as f32 + 0.5) * k);
+        let t = tile.sample(lx, ly, scale);
+        let o = match s.lamp {
+            Some([fx, fy, hz]) => {
+                let sh = Shading {
+                    light_dir: normalize([fx * w - lx, fy * h - ly, hz.max(1.0)]),
+                    ..*s
+                };
+                shade(t, &sh)
+            }
+            None => shade(t, s),
+        };
         for i in 0..3 {
             let dst = f32::from(px[i]) / 255.0;
             px[i] = ((o[i] + dst * (1.0 - o[3])).clamp(0.0, 1.0) * 255.0).round() as u8;
         }
     }
     out
+}
+
+/// Where a picture's light comes from (K59, light mode `wallpaper`): the brightest region's centre as fractions of the
+/// picture (x, y), its colour (0..1 RGB, its brightest channel 1) and how much it stands out (0..1).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Spot {
+    pub x: f32,
+    pub y: f32,
+    pub color: [f32; 3],
+    pub contrast: f32,
+}
+
+/// The brightest region of `picture`: the peak of its smoothed luminance, then the light-weighted centre of the bright
+/// pixels near that peak (a sun, a window, a lamp — not the average of two far-apart highlights). `None` for a picture
+/// too flat to have a light of its own.
+pub fn light_spot(picture: &image::RgbaImage) -> Option<Spot> {
+    let small = image::imageops::thumbnail(picture, 96, 96);
+    let (w, h) = (small.width() as usize, small.height() as usize);
+    if w < 4 || h < 4 {
+        return None;
+    }
+    let lum: Vec<f32> = small
+        .pixels()
+        .map(|p| {
+            (0.2126 * f32::from(p[0]) + 0.7152 * f32::from(p[1]) + 0.0722 * f32::from(p[2])) / 255.0
+        })
+        .collect();
+    // A 5×5 box blur: one bright pixel is noise, a bright patch is a light.
+    let at = |x: isize, y: isize| {
+        lum[(y.clamp(0, h as isize - 1) as usize) * w + x.clamp(0, w as isize - 1) as usize]
+    };
+    let blur: Vec<f32> = (0..h * w)
+        .map(|i| {
+            let (x, y) = ((i % w) as isize, (i / w) as isize);
+            let mut sum = 0.0;
+            for dy in -2..=2 {
+                for dx in -2..=2 {
+                    sum += at(x + dx, y + dy);
+                }
+            }
+            sum / 25.0
+        })
+        .collect();
+    let mut sorted = blur.clone();
+    sorted.sort_by(f32::total_cmp);
+    let (median, p97) = (sorted[sorted.len() / 2], sorted[sorted.len() * 97 / 100]);
+    let contrast = p97 - median;
+    if contrast < 0.12 {
+        return None;
+    }
+    let peak = (0..blur.len()).max_by(|a, b| blur[*a].total_cmp(&blur[*b]))?;
+    let (px, py) = ((peak % w) as f32, (peak / w) as f32);
+    let reach = 0.25 * w.max(h) as f32;
+    let (mut sx, mut sy, mut sw) = (0.0, 0.0, 0.0);
+    let mut color = [0.0f32; 3];
+    for (i, b) in blur.iter().enumerate() {
+        let (x, y) = ((i % w) as f32, (i / w) as f32);
+        if *b < p97 || ((x - px).powi(2) + (y - py).powi(2)).sqrt() > reach {
+            continue;
+        }
+        let wt = (b - p97 + 0.02).powi(2);
+        sx += x * wt;
+        sy += y * wt;
+        sw += wt;
+        let p = small.get_pixel(i as u32 % w as u32, i as u32 / w as u32);
+        for c in 0..3 {
+            color[c] += f32::from(p[c]) / 255.0 * wt;
+        }
+    }
+    if sw <= 0.0 {
+        return None;
+    }
+    let max = color.iter().copied().fold(1e-6, f32::max);
+    Some(Spot {
+        x: (sx / sw + 0.5) / w as f32,
+        y: (sy / sw + 0.5) / h as f32,
+        color: color.map(|c| c / max),
+        contrast: contrast.min(1.0),
+    })
 }
 
 /// A lit swatch of `px` × `px` on `base` (0..1 RGB): Settings' material cards.
@@ -267,28 +363,70 @@ pub fn tile_file(cache_dir: &Path, p: &Params) -> Result<(PathBuf, Tile), Error>
         generate::VERSION,
     );
     let path = cache_dir.join(name);
-    if path.is_file() {
-        if let Ok(img) = image::open(&path) {
-            let img = img.to_rgba8();
-            let (side, logical) = generate::geometry(p.device_scale);
-            if img.width() == side && img.height() == side {
-                let tile = Tile {
-                    size: side,
-                    logical,
-                    rgba: img.into_raw(),
-                };
-                return Ok((path, tile));
+    let ink = ink_path(&path);
+    if path.is_file()
+        && let Ok(img) = image::open(&path)
+    {
+        let rgb = img.to_rgb8();
+        let (side, logical) = generate::geometry(p.device_scale);
+        if rgb.width() == side && rgb.height() == side {
+            // The ink map is optional (none for an ink-free tile); a missing or unreadable one means no ink.
+            let alpha = image::open(&ink).ok().map(|i| i.to_rgba8());
+            let mut rgba = Vec::with_capacity((side * side * 4) as usize);
+            for (i, px) in rgb.pixels().enumerate() {
+                let a = alpha.as_ref().map_or(0, |a| {
+                    let (x, y) = (i as u32 % side, i as u32 / side);
+                    a.get_pixel(x, y)[3]
+                });
+                rgba.extend_from_slice(&[px[0], px[1], px[2], a]);
             }
+            let tile = Tile {
+                size: side,
+                logical,
+                rgba,
+            };
+            return Ok((path, tile));
         }
     }
     let tile = generate(p);
     std::fs::create_dir_all(cache_dir)?;
+    // Two files (contract rows 280, 281): Qt uploads textures premultiplied, so the normals cannot share a texel with
+    // an alpha that is mostly 0. The relief is an opaque RGB map; the ink, when there is any, an RGBA map of white with
+    // the coverage in alpha.
+    let rgb: Vec<u8> = tile
+        .rgba
+        .chunks_exact(4)
+        .flat_map(|c| [c[0], c[1], c[2]])
+        .collect();
     let tmp = path.with_extension("png.tmp");
-    image::RgbaImage::from_raw(tile.size, tile.size, tile.rgba.clone())
+    image::RgbImage::from_raw(tile.size, tile.size, rgb)
         .expect("tile size matches its buffer")
         .save_with_format(&tmp, image::ImageFormat::Png)?;
+    if tile.rgba.chunks_exact(4).any(|c| c[3] > 0) {
+        let white: Vec<u8> = tile
+            .rgba
+            .chunks_exact(4)
+            .flat_map(|c| [255, 255, 255, c[3]])
+            .collect();
+        let tmp_ink = ink.with_extension("png.tmp");
+        image::RgbaImage::from_raw(tile.size, tile.size, white)
+            .expect("tile size matches its buffer")
+            .save_with_format(&tmp_ink, image::ImageFormat::Png)?;
+        std::fs::rename(&tmp_ink, &ink)?;
+    } else {
+        let _ = std::fs::remove_file(&ink);
+    }
     std::fs::rename(&tmp, &path)?;
     Ok((path, tile))
+}
+
+/// The ink map beside a tile file (`<name>-ink.png`); it exists only when the tile prints ink.
+pub fn ink_path(tile_file: &Path) -> PathBuf {
+    let stem = tile_file
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    tile_file.with_file_name(format!("{stem}-ink.png"))
 }
 
 /// How each kind reflects light and which ink it carries.
@@ -312,6 +450,8 @@ pub fn material(kind: Kind) -> Material {
         Kind::Metal => m(0.6, 40.0, InkRole::None, 0.0),
         Kind::Leather => m(0.3, 18.0, InkRole::None, 0.0),
         Kind::Wood => m(0.12, 14.0, InkRole::OnSurface, 0.12),
+        // Oil paint is glossy where the brush left ridges; its pigment varies a little in tone.
+        Kind::Paint => m(0.3, 24.0, InkRole::OnSurface, 0.06),
     }
 }
 
@@ -337,6 +477,7 @@ mod tests {
             ink_alpha: 0.0,
             light_dir: light_dir(315.0, 40.0),
             light_color: [1.0, 1.0, 1.0],
+            lamp: None,
         }
     }
 
@@ -354,6 +495,26 @@ mod tests {
         assert!(toward[3] > 0.0 && toward[0] > 0.0, "{toward:?}");
         assert!(away[3] > 0.0 && away[0] == 0.0, "{away:?}");
         assert!(toward[3] <= 0.1 + 1e-6 && away[3] <= 0.1 + 1e-6);
+    }
+
+    #[test]
+    fn the_light_spot_is_the_bright_patch_and_flat_pictures_have_none() {
+        let mut img = image::RgbaImage::from_pixel(160, 90, image::Rgba([30, 40, 60, 255]));
+        // A warm sun up right, and a lone bright pixel down left (noise).
+        for y in 10..26 {
+            for x in 110..130 {
+                img.put_pixel(x, y, image::Rgba([255, 210, 150, 255]));
+            }
+        }
+        img.put_pixel(5, 80, image::Rgba([255, 255, 255, 255]));
+        let s = light_spot(&img).expect("a sun");
+        assert!(
+            (s.x - 0.75).abs() < 0.08 && (s.y - 0.2).abs() < 0.1,
+            "{s:?}"
+        );
+        assert!(s.color[0] > s.color[2], "warm: {s:?}");
+        let flat = image::RgbaImage::from_pixel(160, 90, image::Rgba([120, 120, 120, 255]));
+        assert_eq!(light_spot(&flat), None);
     }
 
     #[test]

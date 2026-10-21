@@ -145,14 +145,17 @@ A material is a relief, not a picture (`docs/ux/texture.md`). The daemon generat
 `kurashi_texture::shade` on the CPU (wallpaper bake, Settings swatches) and `frontend/shaders/relief.frag` on the GPU —
 the two are kept identical.
 
-**Tile:** RGBA8 PNG, square, seamless, `texture.tile_px` device px covering `texture.tile_logical` logical px. R, G: the
-surface normal's x, y as `2v − 1` (x right, y down; z = `sqrt(1 − x² − y²)`); B: cavity `2v − 1` (−1 crevice, +1
-crest); A: ink coverage. Flat and ink-free = (128, 128, 128, 0).
+**Tile:** square, seamless, `texture.tile_px` device px covering `texture.tile_logical` logical px; in memory RGBA8, on
+disk two PNGs (rows 280–281: Qt premultiplies textures, so normals cannot share texels with a mostly-zero alpha):
+`texture.map` opaque RGB — R, G the surface normal's x, y as `2v − 1` (x right, y down; z = `sqrt(1 − x² − y²)`), B the
+cavity `2v − 1` (−1 crevice, +1 crest); `texture.ink_map` white RGBA with the ink coverage in A (`""` without ink). Flat
+and ink-free = (128, 128, 128) and no ink.
 
 **Tokens** (`theme` document; all present, `texture.amp` 0 and `texture.map` "" when there is no texture):
 | token | meaning |
 |---|---|
-| `texture.map` | absolute path of the tile PNG, `""` = none |
+| `texture.map` | absolute path of the relief PNG (opaque RGB), `""` = none |
+| `texture.ink_map` | absolute path of the ink PNG (coverage in alpha), `""` = no ink |
 | `texture.tile_px`, `texture.tile_logical` | the tile's side in device px, and the logical px it covers |
 | `texture.scale` | the user's scale: the sheet position is divided by `tile_logical × scale` |
 | `texture.amp` | the largest shade either way (strength × 0.18, capped so body text keeps 4.5:1) |
@@ -160,7 +163,8 @@ crest); A: ink coverage. Flat and ink-free = (128, 128, 128, 0).
 | `texture.ink`, `texture.ink_alpha` | the ink colour (a palette role per kind) and its opacity at full coverage; 0 = tint off |
 | `texture.text` | the relief also shades text and icons (drawn over content instead of under it) |
 | `texture.shell`, `texture.overlay` | shell surfaces draw it (scope shell / shell_wallpaper); the click-through overlay is on (scope everything) |
-| `light.mode` | `static` \| `pointer` \| `daytime` |
+| `light.mode` | `static` \| `pointer` \| `daytime` \| `wallpaper` |
+| `light.lamp` | `[x, y]` the wallpaper light's lamp as fractions of the output (its brightest region), `null` otherwise |
 | `light.dir` | `[x, y, z]` unit vector toward the light (x right, y down, z toward the viewer) |
 | `light.color` | the highlights' colour (white for static and pointer; the sun's for daytime) |
 | `light.height_px` | the pointer lamp's height over the sheet, logical px |
@@ -173,6 +177,7 @@ n    = normalize(2 t.r − 1, 2 t.g − 1, sqrt(max(0, 1 − x² − y²)))
 cav  = 2 t.b − 1
 L    = light.dir                                        static, daytime, and pointer away from the shell
      | normalize(pointer − p, light.height_px)          pointer over a shell surface
+     | normalize(lamp × output − p, light.height_px)    wallpaper (a lamp at its brightest region)
 diff = dot(n, L) − L.z                                  0 on a flat sheet: the material never shifts the overall tone
 H    = normalize(L + (0, 0, 1))
 spec = gloss × (max(dot(n, H), 0)^shininess − H.z^shininess)

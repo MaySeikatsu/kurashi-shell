@@ -8,10 +8,8 @@
 # checks decide the exit code.
 #   nix develop -c frontend/test-texture.sh
 #   Machine B: export KURASHI_RENDER_NODE=/dev/dri/renderD129 first (the sandbox's gles2 renderer).
-# Fixture (contract rows 280-281): the daemon's tile is an RGBA PNG, and Qt Quick premultiplies textures, which drops the
-# RGB of alpha-0 texels, the normal map. Until the daemon publishes the opaque normal map and `texture.ink_map`, each
-# session with a texture copies the tile's RGB, alpha 255, into the sandbox's cache before the frontend starts. No ink
-# is drawn in these shots.
+# The tile is two files (contract rows 280-281): the opaque RGB normal map (`texture.map`) and, when the material prints
+# ink, a white RGBA map with the coverage in alpha (`texture.ink_map`): Qt Quick premultiplies textures.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
@@ -111,6 +109,21 @@ def write_rgb_png(path, img):
     open(path, "wb").write(png)
 
 
+def write_rgba_png(path, w, h, pixels):
+    rows = bytearray()
+    for y in range(h):
+        rows.append(0)
+        for x in range(w):
+            rows += bytes(pixels[y * w + x])
+
+    def chunk(kind, body):
+        c = kind + body
+        return struct.pack(">I", len(body)) + c + struct.pack(">I", zlib.crc32(c) & 0xffffffff)
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+    png += chunk(b"IDAT", zlib.compress(bytes(rows), 9)) + chunk(b"IEND", b"")
+    open(path, "wb").write(png)
+
+
 def rgb_of(hexstr):
     s = hexstr.lstrip("#")
     return tuple(int(s[i:i + 2], 16) for i in (0, 2, 4))
@@ -187,8 +200,12 @@ def interior(img, x, y, colour):
 
 def main():
     cmd = sys.argv[1]
-    if cmd == "rgb":                       # rgb SRC DST: the tile as an opaque RGB normal map
-        write_rgb_png(sys.argv[3], read_png(sys.argv[2]))
+    if cmd == "join":                      # join RELIEF INK|- DST: the tile in memory (RGBA, ink in A), rows 280-281
+        rel = read_png(sys.argv[2])
+        ink = read_png(sys.argv[3]) if sys.argv[3] != "-" else None
+        w, h = rel[0], rel[1]
+        write_rgba_png(sys.argv[4], w, h, [px(rel, x, y)[:3] + ((px(ink, x, y)[3],) if ink else (0,))
+                                           for y in range(h) for x in range(w)])
     elif cmd == "pick":                    # pick NOTEX X0 Y0 X1 Y1 N: plain fill points of a box
         img = read_png(sys.argv[2])
         x0, y0, x1, y1, n = map(int, sys.argv[3:8])
@@ -198,7 +215,7 @@ def main():
             print(x, y)
     elif cmd == "check":                   # check NORMAL TOKENS SHOT NOTEX POINTS: the formula on the plain points
         tile = read_png(sys.argv[2])
-        p = params(sys.argv[3], ink_on=False)
+        p = params(sys.argv[3], ink_on=True)
         shot = read_png(sys.argv[4])
         notex = read_png(sys.argv[5])
         worst, n = 0.0, 0
@@ -231,7 +248,7 @@ def main():
             print(x, y)
     elif cmd == "meanerr":                 # meanerr NORMAL TOKENS NOTEX SHOT X0 Y0 X1 Y1: the formula over changed pixels
         tile = read_png(sys.argv[2])
-        p = params(sys.argv[3], ink_on=False)
+        p = params(sys.argv[3], ink_on=True)
         notex = read_png(sys.argv[4])
         shot = read_png(sys.argv[5])
         x0, y0, x1, y1 = map(int, sys.argv[6:10])
@@ -250,7 +267,7 @@ def main():
         sys.exit(0 if n >= 1000 and mean <= 2.0 else 1)
     elif cmd == "glyphcheck":              # glyphcheck NORMAL TOKENS NOTEX ON POINTS: the formula over the glyph colour
         tile = read_png(sys.argv[2])
-        p = params(sys.argv[3], ink_on=False)
+        p = params(sys.argv[3], ink_on=True)
         notex = read_png(sys.argv[4])
         on = read_png(sys.argv[5])
         total, moved, n = 0.0, 0.0, 0
@@ -341,14 +358,15 @@ session() {
   if [ "$texture" = yes ]; then
     local tile=""
     for _ in $(seq 150); do
-      tile=$(ls "$XDG_CACHE_HOME"/kurashi/texture/*.png 2>/dev/null | head -1 || true)
+      tile=$(ls "$XDG_CACHE_HOME"/kurashi/texture/*.png 2>/dev/null | grep -v -- '-ink\.png$' | head -1 || true)
       [ -n "$tile" ] && break
       sleep 0.2
     done
     [ -n "$tile" ] || { echo "test-texture: no tile was generated ($name)" >&2; exit 1; }
     sleep 0.5
-    "${TEX[@]}" rgb "$tile" "$TMP/normal-$name.png"
-    cp "$TMP/normal-$name.png" "$tile"
+    local ink="${tile%.png}-ink.png"
+    [ -f "$ink" ] || ink=-
+    "${TEX[@]}" join "$tile" "$ink" "$TMP/normal-$name.png"
   fi
   timeout 10 "$W_DIR/kurashi" sub theme --count 0 --json 2>/dev/null | head -1 > "$TMP/tokens-$name.json" || true
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$QS_LOG" 2>&1 &

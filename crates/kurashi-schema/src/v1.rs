@@ -250,6 +250,8 @@ pub enum TextureKind {
     Leather,
     /// Wood
     Wood,
+    /// Oil paint (brush strokes)
+    Paint,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -268,8 +270,8 @@ pub enum TextureScope {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Texture {
     /// Material
-    /// A relief the shell is made of — paper, fabric, stone, metal, leather, wood. It adds light and shade from the
-    /// light below, never colours of its own (K59).
+    /// A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and
+    /// shade from the light below, never colours of its own (K59).
     #[kurashi(default = TextureKind::None, overridden_by = "a11y.high_contrast => none",
               overridden_by = "a11y.reduce_transparency => none")]
     pub kind: TextureKind,
@@ -312,14 +314,16 @@ pub enum LightMode {
     Pointer,
     /// The sun
     Daytime,
+    /// The wallpaper's light
+    Wallpaper,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Light {
     /// Light
     /// Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces;
-    /// elsewhere it rests at the fixed direction), or the sun of the day — sunrise from the left, sunset from the right,
-    /// warm when it is low (K59).
+    /// elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right,
+    /// warm when it is low — or the wallpaper's own light: a lamp at its brightest place, in its colour (K59).
     #[kurashi(default = LightMode::Static, requires = "theme.texture.kind != none")]
     pub mode: LightMode,
     /// Direction
