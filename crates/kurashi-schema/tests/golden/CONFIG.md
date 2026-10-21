@@ -53,14 +53,14 @@ The form and feel of the interface without its colours: chrome, corners, materia
 
 #### `theme.colors.palette` — Palette
 
-Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+Colours only: the roles every surface is painted with, in light and dark. A style picks one; pick another to override it (K53).
 
 - type: `string` · default: `"wa-iro"`
 - choices: from `palettes` (resolved at runtime)
 
-#### `theme.colors.scheme` — Scheme
+#### `theme.colors.scheme` — Light or dark
 
-Dark or light surfaces.
+Your mode: every palette has both. A style recommends one until you pick; applying a style keeps it (K53).
 
 - type: `choice` · default: `"dark"`
 - choices: `"dark"` | `"light"`

@@ -157,11 +157,12 @@ pub enum Colorblind {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Colors {
     /// Palette
-    /// Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+    /// Colours only: the roles every surface is painted with, in light and dark. A style picks one; pick another to
+    /// override it (K53).
     #[kurashi(default = "wa-iro".to_owned(), choices_from = "palettes")]
     pub palette: String,
-    /// Scheme
-    /// Dark or light surfaces.
+    /// Light or dark
+    /// Your mode: every palette has both. A style recommends one until you pick; applying a style keeps it (K53).
     #[kurashi(default = Scheme::Dark)]
     pub scheme: Scheme,
     /// Contrast

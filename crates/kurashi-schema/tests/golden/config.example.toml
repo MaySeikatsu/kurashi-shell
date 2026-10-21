@@ -56,11 +56,13 @@
 
 # [theme.colors]
 #
-# Palette — Colour palette (bundled: wa-iro, kanso, high-contrast; mods may add more).
+# Palette — Colours only: the roles every surface is painted with, in light and dark. A
+# style picks one; pick another to override it (K53).
 #   choices: from `palettes` (resolved at runtime)
 # palette = "wa-iro"
 #
-# Scheme — Dark or light surfaces.
+# Light or dark — Your mode: every palette has both. A style recommends one until you
+# pick; applying a style keeps it (K53).
 #   choices: "dark" | "light"
 # scheme = "dark"
 #
