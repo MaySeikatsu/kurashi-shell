@@ -236,6 +236,7 @@ pub fn to_request(action: &Action) -> Request {
             reference: reference(r),
         },
         Action::FocusWindow(id) => N::FocusWindow { id: *id },
+        Action::CloseWindow(id) => N::CloseWindow { id: Some(*id) },
         Action::MoveWindowToWorkspace {
             window_id,
             workspace,
