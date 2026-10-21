@@ -265,14 +265,33 @@ async fn audit_keys(client: &mut Client, keys: &[String], scenario: &str, bad: &
     }
 }
 
-/// Step 1 on the untouched store: every key reports its schema default as `default`.
+/// What `key` is at rest: the default style's theme layer (K53: the style washi on its look) where it recommends a
+/// value, else the schema default.
+fn at_rest(key: &str) -> (Value, Source) {
+    use kurashi_theme::appearance::{Kind, find, layer};
+    let style = find(Kind::Style, "washi").expect("default style");
+    let look = find(Kind::Look, &style.look);
+    layer(Some(&style), look.as_ref())
+        .into_iter()
+        .find(|e| e.0 == key)
+        .map(|(_, v, src)| (v, Source::Theme(src)))
+        .unwrap_or_else(|| {
+            (
+                registry().get(key).expect("key").default.clone(),
+                Source::Default,
+            )
+        })
+}
+
+/// Step 1 on the untouched store: every key reports the value at rest — its schema default as `default`, or the default
+/// style's recommendation as `theme:` — with the layer in effect.
 #[tokio::test]
 async fn every_key_reports_the_layer_in_effect_at_defaults() {
     let mut client = start(None).await;
     let mut bad = Vec::new();
     for m in registry().iter() {
         let p = client.get(&m.key, None).await;
-        if p.source != Source::Default || p.value != m.default {
+        if (p.value.clone(), p.source.clone()) != at_rest(&m.key) {
             bad.push(format!("{}: default reported as {p:?}", m.key));
         }
     }
@@ -316,7 +335,7 @@ async fn user_values_show_as_user_and_reset_restores_default() {
             continue;
         }
         let p = client.get(key, None).await;
-        if p.value != m.default || p.source != Source::Default {
+        if (p.value.clone(), p.source.clone()) != at_rest(key) {
             bad.push(format!(
                 "{key}: reset should restore the default, cfg.get says {p:?}"
             ));
@@ -461,9 +480,8 @@ async fn a11y_modes_force_their_coupled_keys_with_a_reason() {
             continue;
         }
         for (key, _) in coupled {
-            let default = &registry().get(key).expect("coupled key exists").default;
             let p = client.get(key, None).await;
-            if p.source != Source::Default || p.value != *default {
+            if (p.value.clone(), p.source.clone()) != at_rest(key) {
                 bad.push(format!(
                     "{mode} off: {key} should fall back to its default, cfg.get says {p:?}"
                 ));

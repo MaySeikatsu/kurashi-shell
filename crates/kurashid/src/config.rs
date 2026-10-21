@@ -38,7 +38,33 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 4] = ["palettes", "island.faces", "theme.export", "decors"];
+pub const CORE_SOURCES: [&str; 5] = [
+    "palettes",
+    "island.faces",
+    "theme.export",
+    "styles",
+    "looks",
+];
+
+/// The config files' migrations (user file, profiles, managed.toml; `schema_version`).
+pub fn migrations() -> Vec<kurashi_config::Migration> {
+    vec![kurashi_config::Migration {
+        from: 1,
+        to: 2,
+        apply: v1_to_v2,
+    }]
+}
+
+/// K53: `theme.decor` (a whole look, K42/K50) became `theme.style`; every bundled decor is a style of the same name,
+/// and `none` stays `none`.
+fn v1_to_v2(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    if let Some(theme) = doc.get_mut("theme").and_then(|t| t.as_table_like_mut())
+        && let Some(item) = theme.remove("decor")
+    {
+        theme.insert("style", item);
+    }
+    Ok(())
+}
 
 /// `kurashi-config` is schema-agnostic; this is the only place the two meet. Core keys come from
 /// the static schema; the mods' lists `mods.loaded` / `mods.enabled` (K25) are hidden keys of
@@ -138,6 +164,8 @@ pub struct Offer {
     /// `false` with a `reason` for an option that cannot work now (a backend not installed).
     pub enabled: bool,
     pub reason: Option<String>,
+    /// The category Settings groups the offer under (styles and looks: `modern`, `inspired`, …; K53).
+    pub group: Option<String>,
 }
 
 impl Offer {
@@ -147,13 +175,22 @@ impl Offer {
             label,
             enabled: true,
             reason: None,
+            group: None,
         }
+    }
+
+    fn in_group(mut self, group: &str) -> Self {
+        self.group = Some(group.into());
+        self
     }
 
     fn json(&self) -> Value {
         let mut v = json!({"value": self.value, "label": self.label});
         if !self.enabled {
             v["enabled"] = json!(false);
+        }
+        if let Some(g) = &self.group {
+            v["group"] = json!(g);
         }
         if let Some(r) = &self.reason {
             v["reason"] = json!(r);
@@ -180,17 +217,27 @@ fn offers_now(hub: &Hub, mod_faces: &BTreeMap<String, String>) -> BTreeMap<Strin
         ));
     }
     offers.insert("palettes".to_string(), palettes);
-    // K50: the decor packs (files: bundled and the user's), after "your own".
-    offers.insert(
-        "decors".to_string(),
-        std::iter::once(Offer::on("none", "config.choice.decor.none".into()))
-            .chain(
-                kurashi_theme::decor::all()
-                    .into_iter()
-                    .map(|d| Offer::on(&d.name, d.label)),
-            )
-            .collect(),
-    );
+    // K53: the styles (after "none": your own settings) and the looks, files bundled and the user's, by category.
+    {
+        use kurashi_theme::appearance::{Kind, all};
+        offers.insert(
+            "styles".to_string(),
+            std::iter::once(Offer::on("none", "config.choice.style.none".into()))
+                .chain(
+                    all(Kind::Style)
+                        .into_iter()
+                        .map(|d| Offer::on(&d.name, d.label).in_group(&d.category)),
+                )
+                .collect(),
+        );
+        offers.insert(
+            "looks".to_string(),
+            all(Kind::Look)
+                .into_iter()
+                .map(|d| Offer::on(&d.name, d.label).in_group(&d.category))
+                .collect(),
+        );
+    }
     // K49: the apps the theme can be exported to.
     offers.insert(
         "theme.export".to_string(),
@@ -431,8 +478,8 @@ pub struct ConfigStore {
     /// Options of the mods' choice sources (K28 (3)), by source name. A source a manifest declares
     /// is known here even while its mod is off (no options): its values are then inert, not unjudged.
     mod_sources: Mutex<BTreeMap<String, Vec<Offer>>>,
-    /// The decor pack whose recipe is the `theme:<pack>` layer now (K42); "" for none.
-    decor: Mutex<String>,
+    /// The (style, look) whose recipes are the `theme:` layer now (K42, K53).
+    appearance: Mutex<(String, String)>,
 }
 
 /// What a committed transaction answers on the wire.
@@ -621,8 +668,12 @@ impl ConfigStore {
         hub: Arc<Hub>,
         registry: &'static Registry,
         paths: Paths,
-        opts: Options,
+        mut opts: Options,
     ) -> Arc<Self> {
+        // The schema's own migrations always apply, whoever opens the store (tests, tools).
+        if opts.migrations.is_empty() {
+            opts.migrations = migrations();
+        }
         // No mods yet: their face labels follow with `sync_mods`.
         let offers = offers_now(&hub, &BTreeMap::new());
         let schema = SchemaAdapter {
@@ -650,10 +701,10 @@ impl ConfigStore {
             started: OnceLock::new(),
             listeners: Mutex::new(Vec::new()),
             mod_sources: Mutex::new(BTreeMap::new()),
-            decor: Mutex::new(String::new()),
+            appearance: Mutex::new((String::new(), String::new())),
         });
         store.apply_couplings();
-        store.apply_decor();
+        store.apply_appearance();
         store.remember_started();
         hub.register(DOC, store.document(), None);
         store
@@ -722,31 +773,99 @@ impl ConfigStore {
         *have = want;
     }
 
-    /// The chosen decor pack's recipe becomes the `theme:<pack>` layer (K42), rewritten only when
-    /// the choice changes. It sits under the user's own values, so a pinned palette still wins and
-    /// the provenance of every recommended value says `theme:<pack>`.
-    fn apply_decor(&self) {
+    /// The style's and the look's recipes become the `theme:` layer (K42, K53), rewritten only when either changes. It
+    /// sits under the profile's and the user's own values, so a pinned palette still wins, and each recommended value
+    /// names its pack (`style:<name>`, `look:<name>`).
+    fn apply_appearance(&self) {
+        use kurashi_theme::appearance::{Kind, find, layer};
         let mut cfg = self.cfg.lock().expect("config lock");
-        let want = cfg
-            .resolve("theme.decor", None)
-            .and_then(|p| p.value.as_str().map(String::from))
+        let text = |cfg: &Config<SchemaAdapter>, key: &str| {
+            cfg.resolve(key, None)
+                .map(|p| (p.value.as_str().unwrap_or_default().to_owned(), p.source))
+        };
+        let style_name = text(&cfg, "theme.style")
+            .map(|(v, _)| v)
             .unwrap_or_default();
-        let mut have = self.decor.lock().expect("decor lock");
+        let style = find(Kind::Style, &style_name);
+        // The look in effect: one set outside the theme layer (by the user, a profile, Nix) wins; else the style's;
+        // else the schema's default. The theme layer's own `theme.look` is what this recomputes, so it is not asked.
+        let look_name = match text(&cfg, "theme.look") {
+            Some((v, src)) if !matches!(src, Source::Theme(_) | Source::Default) => v,
+            _ => style.as_ref().map(|s| s.look.clone()).unwrap_or_else(|| {
+                cfg.schema()
+                    .default("theme.look")
+                    .and_then(|v| v.as_str().map(String::from))
+                    .unwrap_or_default()
+            }),
+        };
+        let want = (style_name, look_name);
+        let mut have = self.appearance.lock().expect("appearance lock");
         if *have == want {
             return;
         }
-        let layer = kurashi_theme::decor_recipe(&want).map(|r| {
-            let entries = r
-                .into_iter()
-                .map(|(k, v)| ((k.to_string(), None), v))
-                .collect();
-            (want.clone(), entries)
-        });
-        let diff = cfg.set_theme_layer(layer);
+        let look = find(Kind::Look, &want.1);
+        let entries = layer(style.as_ref(), look.as_ref())
+            .into_iter()
+            .map(|(k, v, src)| ((k, None), (src, v)))
+            .collect();
+        let diff = cfg.set_theme_layer(entries);
         for d in &diff.diagnostics {
-            tracing::warn!(key = %d.key, reason = d.reason.i18n_key(), "decor recipe entry refused");
+            tracing::warn!(key = %d.key, reason = d.reason.i18n_key(), "appearance recipe entry refused");
         }
         *have = want;
+    }
+
+    /// K53: the appearance keys that differ from the style — set by the user or a profile — for Settings' "changed
+    /// from the style" line and its reset.
+    pub fn appearance_overrides(&self) -> Vec<String> {
+        let cfg = self.cfg.lock().expect("config lock");
+        kurashi_theme::appearance::STYLE_KEYS
+            .iter()
+            .filter(|k| {
+                cfg.resolve(k, None)
+                    .is_some_and(|p| matches!(p.source, Source::User | Source::Profile(_)))
+            })
+            .map(|k| (*k).to_owned())
+            .collect()
+    }
+
+    /// K53: applies a style (`theme.style.apply`) or a look (`theme.look.apply`) as one undoable change: every
+    /// appearance key of its kind the user set is reset, then the choice is set — so the pack is recreated exactly.
+    fn apply_pack(
+        &self,
+        kind: kurashi_theme::appearance::Kind,
+        name: &str,
+    ) -> Result<Committed, Vec<OpError>> {
+        use kurashi_theme::appearance::{Kind, LOOK_KEYS, STYLE_KEYS};
+        let (keys, key) = match kind {
+            Kind::Style => (STYLE_KEYS, "theme.style"),
+            Kind::Look => (LOOK_KEYS, "theme.look"),
+        };
+        let user: Vec<&str> = {
+            let cfg = self.cfg.lock().expect("config lock");
+            keys.iter()
+                .copied()
+                .filter(|k| {
+                    *k != key
+                        && cfg
+                            .resolve(k, None)
+                            .is_some_and(|p| p.source == Source::User)
+                })
+                .collect()
+        };
+        let mut ops: Vec<ApplyOp> = user
+            .into_iter()
+            .map(|k| ApplyOp::Reset {
+                reset: k.into(),
+                output: None,
+            })
+            .collect();
+        ops.push(ApplyOp::Set {
+            set: key.into(),
+            value: json!(name),
+            output: None,
+        });
+        self.apply(&ops)
     }
 
     /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}, "history":{can_undo,
@@ -923,7 +1042,7 @@ impl ConfigStore {
 
     fn publish(&self) {
         self.apply_couplings();
-        self.apply_decor();
+        self.apply_appearance();
         self.publish_settings();
         let _ = self.hub.set(DOC, self.document(), None);
         for l in self.listeners.lock().expect("listeners").iter() {
@@ -1123,6 +1242,33 @@ impl ConfigStore {
             (name, sections)
         }
         let no_name = || ActionError::Invalid(PROFILE_INVALID_NAME.into());
+
+        // K53: `theme.style.apply {name}` / `theme.look.apply {name}` — one undoable change that resets the kind's
+        // appearance keys the user set and picks the pack ("reset to style" is applying the current one again).
+        for (id, kind) in [
+            ("theme.style.apply", kurashi_theme::appearance::Kind::Style),
+            ("theme.look.apply", kurashi_theme::appearance::Kind::Look),
+        ] {
+            let me = self.clone();
+            actions.register(id, &format!("action.{id}"), move |v| {
+                let me = me.clone();
+                async move {
+                    let name = v
+                        .get("name")
+                        .and_then(Value::as_str)
+                        .filter(|n| !n.is_empty())
+                        .ok_or_else(|| ActionError::Invalid("config.error.appearance_name".into()))?
+                        .to_owned();
+                    let done = me.apply_pack(kind, &name).map_err(|errs| {
+                        let code = errs
+                            .first()
+                            .map_or("config.error.unrepresentable", |e| e.code.as_str());
+                        ActionError::Invalid(code.into())
+                    })?;
+                    Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
+                }
+            });
+        }
 
         let me = self.clone();
         actions.register("profile.list", "action.profile.list", move |_| {

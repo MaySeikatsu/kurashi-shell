@@ -189,10 +189,13 @@ fn theme_layer_validated() {
     let dir = TempDir::new().unwrap();
     let mut cfg = open(&dir);
     let entries = BTreeMap::from([
-        (slot("bar.height", None), json!(44)),
-        (slot("bar.height", Some("DP-1")), json!(999)),
+        (slot("bar.height", None), ("ishi".to_string(), json!(44))),
+        (
+            slot("bar.height", Some("DP-1")),
+            ("ishi".to_string(), json!(999)),
+        ),
     ]);
-    let d = cfg.set_theme_layer(Some(("ishi".into(), entries)));
+    let d = cfg.set_theme_layer(entries);
     assert_eq!(d.diagnostics.len(), 1);
     assert_eq!(
         val(&cfg, "bar.height", Some("DP-1")),
@@ -1004,7 +1007,10 @@ fn layers() -> impl Strategy<Value = Layers> {
     (layer(), layer(), layer(), layer(), layer()).prop_map(|(nix, theme, profile, user, forced)| {
         Layers {
             nix,
-            theme: Some(("ishi".into(), theme)),
+            theme: theme
+                .into_iter()
+                .map(|(s, v)| (s, ("ishi".into(), v)))
+                .collect(),
             profile: profile
                 .into_iter()
                 .map(|(s, v)| (s, ("kanso".into(), v)))
@@ -1048,7 +1054,13 @@ fn model(l: &Layers, key: &str, out: Option<&str>) -> (Json, Source) {
                 .map(|(s, (_, v))| (s.clone(), v.clone()))
                 .collect(),
         ),
-        (Source::Theme("ishi".into()), l.theme.clone().unwrap().1),
+        (
+            Source::Theme("ishi".into()),
+            l.theme
+                .iter()
+                .map(|(s, (_, v))| (s.clone(), v.clone()))
+                .collect(),
+        ),
         (Source::Nix, l.nix.clone()),
     ];
     for (src, m) in stack {

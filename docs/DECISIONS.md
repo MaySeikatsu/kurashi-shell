@@ -475,3 +475,34 @@ seen by `ext-idle-notify`; screenshots there use grim/slurp. `kurashi doctor` na
 CLAUDE.md's "designed for Hyprland / MangoWM / Sway adapters"; and the headless test sandbox (sway) now runs the real
 adapter path instead of a fake.
 
+
+**K53** 🟢 Style ⊃ Look + Palette (user, session 11: "a clear differentiation between what a Look, a Style, a Palette or
+Chrome is"; "fixed Style presets that reset previous style related settings"; "If a Look just changes the color of an
+already existing other look it should be a color Palette instead"). Three kinds of appearance pack, each a file
+(`kurashi-theme::appearance`, bundled + `~/.config/kurashi/{looks,styles}/`):
+- **Palette** (`palettes/*.toml`, `theme.colors.palette`): colours only, as before.
+- **Look** (`looks/*.toml`, `theme.look`, default `kanso`): the form and feel without colour — `LOOK_KEYS` (chrome,
+  corners, radius scale, material kind/opacity/blur, motion profile/speed, type family) and the `[slots] frame` art.
+  A look naming a colour key is refused. The 18 decors split into 17 looks: the shared forms `kanso` (plain) and `soft`
+  (rim + shadow) replace catppuccin/rose-pine/tokyo-night, whose difference was colour.
+- **Style** (`styles/*.toml`, `theme.style`, **default `washi`** — user: "the paper like (Washi) look as a default on a
+  fresh install"): `look` + `palette` + a recipe of `STYLE_KEYS` (scheme, density, and tweaks of its own look's keys).
+  Each pack has a `category` (`modern`, `inspired`, `retro`, `fiction`; user files without one: `custom`) for
+  Settings' grouping; offers carry it as `group`.
+- **Layering:** one `theme:` layer whose entries each name their pack (`Source::Theme("look:washi")`,
+  `"style:washi"`): the look's recipe, then the style's look/palette/recipe — a style's look tweaks apply only while its
+  own look is in effect (a look the user picks over the style is that look, not the style's version of it). The look in
+  effect is the one set outside the theme layer, else the style's, else the schema default.
+- **Reset semantics:** `theme.style.apply {name}` resets every user value of `STYLE_KEYS` and sets the style — one
+  undoable transaction, so the style is recreated exactly; `theme.look.apply {name}` does the same for `LOOK_KEYS`.
+  Accessibility preferences (contrast, colour-blind shift, text scale, OLED), the seasonal tint, screen corners and app
+  export are never reset. The theme document's `appearance {style, look, palette, overrides}` lists the keys that differ
+  from the style ("changed from the style · Reset").
+- **Previews** move out of `theme` into their own document `theme.previews {styles, looks, palettes}` (looks drawn in
+  the palette in effect, palettes in the look in effect), watched by Settings only — the shell's surfaces never receive
+  them (Ma).
+- **Migration:** schema v2; `theme.decor = X` → `theme.style = X` (every old decor is a style of that name; `none`
+  stays `none`), in config.toml, profiles and managed.toml. Token `decor.frame` keeps its name (the look's art slot).
+*Why:* a decor mixed form and colour, and its recipe sat under the user's values, so returning to a look meant resetting
+settings by hand. Shellseikatsu's presets and WormShell's packs are both "whole aesthetic" presets; Noctalia/DMS/
+Caelestia keep colour schemes apart from the shell's form — this keeps both, named.

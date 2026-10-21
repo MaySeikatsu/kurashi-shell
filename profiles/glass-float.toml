@@ -1,8 +1,8 @@
 # Vitreus/pleamar: frosted glass, the clock and the month on the desk, nothing else on it.
-schema_version = 1
+schema_version = 2
 
 [theme]
-decor = "glass"
+style = "glass"
 
 [bar]
 height = 38

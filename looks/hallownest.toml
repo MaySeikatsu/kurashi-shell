@@ -1,10 +1,9 @@
 name = "hallownest"
-label = "config.choice.decor.hallownest"
+label = "config.choice.look.hallownest"
+category = "fiction"
 # After shellseikatsu `Services/Modes/HollowKnight.qml` and `Widgets/ThemeDecor/HollowFrame.qml` (W25): pale
 # bone line work on blue-grey fog, symmetrical filigree with a centre diamond, engraved capitals, drifting calm.
 [recipe]
-"theme.colors.palette" = "hallownest"
-"theme.colors.scheme" = "dark"
 "theme.chrome" = "line"
 "theme.motion.profile" = "calm"
 "theme.motion.speed" = 0.85

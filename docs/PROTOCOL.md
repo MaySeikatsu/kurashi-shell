@@ -119,7 +119,7 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   `qml/Face.qml` and `island-face:<name>:expanded` → `qml/FaceExpanded.qml`.
 - **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
   `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
-  `choices: [{value, label, enabled?, reason?}]` (`enabled:false` + `reason` (i18n key) for an option that
+  `choices: [{value, label, enabled?, reason?, group?}]` (`group`: a style's or look's category, K53) (`enabled:false` + `reason` (i18n key) for an option that
   cannot work now, e.g. a backend that is not installed). `control` is `select` for a string, `pick_list`
   (ordered subset) for a string list. The daemon re-publishes `schema.settings` when a source changes.
   A configured value outside the current set keeps its value and is reported inert (`reason`
@@ -142,6 +142,11 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 → {"t":"query","id":"8","kind":"launcher","q":"fire"}
 ← {"t":"results","id":"8","items":[...]}    // stale ids are dropped by the client
 ```
+
+Appearance actions (K53): `theme.style.apply {name}` and `theme.look.apply {name}` reset the user's values of the
+kind's keys (`STYLE_KEYS` / `LOOK_KEYS`, `kurashi-theme::appearance`) and set `theme.style` / `theme.look`, as one
+undoable change; they answer `{rev, undo}`. Applying the current style again is "reset to the style". Refusals:
+`config.error.appearance_name` (no name), else the config's own op error codes.
 
 Profile and Settings actions (session 5, W14; I25, I35, I36):
 - `profile.preview {name, sections?}` and `profile.load {name, sections?}` answer, besides the diff or
@@ -196,7 +201,8 @@ start them (`error.service.not_running`). Shapes pinned by `fixtures/ipc/server/
 ## 8. Probe subset (M0 bake-off, served by `kurashi-mock`)
 | Document | Shape |
 |---|---|
-| `theme` | `{"tokens":{"color.surface":"#1c1b22","color.on_surface":"#e8e3d8","color.accent":"#c1323b","color.surface_alpha":0.82,"radius.md":12,"space.md":8,"font.family":"Inter","font.size.md":13,"motion.standard_ms":220,…},"notes":[{stage,text}],"decors":[{"name":"sekai","tokens":{"color.surface":…,"chrome.style":"keycap","radius.lg":…,"font.family":"Nunito",…}},…]}` — `decors` (K45, I104): each decor pack's own look resolved from its recipe alone, for preview cards. K50/row 140: token `decor.frame` names the active decor's frame component (`""` = none); the frontend loads `components/frames/<Name>.qml` by it |
+| `theme` | `{"tokens":{"color.surface":"#1c1b22","color.on_surface":"#e8e3d8","color.accent":"#c1323b","color.surface_alpha":0.82,"radius.md":12,"space.md":8,"font.family":"Inter","font.size.md":13,"motion.standard_ms":220,…},"notes":[{stage,text}],"appearance":{"style":"washi","look":"washi","palette":"wa-iro","overrides":["theme.chrome"]}}` — K53: `appearance.overrides` = the `STYLE_KEYS` set by the user or a profile (differences from the style). K50/row 140: token `decor.frame` names the look in effect's frame component (`""` = none); the frontend loads `components/frames/<Name>.qml` by it |
+| `theme.previews` | `{"styles":[{"name":"washi","category":"inspired","look":"washi","palette":"wa-iro","frame":"","tokens":{"color.surface":…,"chrome.style":"line","radius.lg":…,"font.family":"Noto Serif",…}},…],"looks":[{"name","category","frame","tokens"}],"palettes":[{"name","tokens"}]}` — K53 (was `theme.decors`, K45/I104): preview cards resolved from each pack alone — a style whole, a look in the palette and scheme in effect, a palette in the look and scheme in effect. Its own document so only Settings receives it |
 | `svc.clock` | `{"hh":"14","mm":"07","date":"2026-10-09","weekday":"Fri"}` (patch once per minute; kurashid sends `weekday` in its locale from i18n domain `clock`) |
 | `svc.workspaces` | `{"outputs":{"<name>":[{"id":1,"idx":1,"focused":true,"occupied":true},…]},"tasks":{"<name>":[{"id":40,"app_id":"firefox","focused":true},…]}}`. `tasks` (session 9, K44) lists the windows of each output's active workspace in id order (`"*"` = the focused output's); no titles (they churn). K51: `windows` = every window `[{id, app_id, workspace, output, focused}]` (id order) for the dock; action `window.close {id}`. Actions `workspace.focus {id|idx}`, `window.focus {id}` |
 | `svc.audio` | `{"volume":0.5,"muted":false}`; accepts intent `audio.volume`. kurashid adds `available`, `sinks:[{id, name, description, default}]` and action `audio.sink.default {id}` (quick settings, K24). W13 adds `sources:[{id, name, description, default}]` (inputs, monitors left out), `source` (the default input, with `volume` and `muted`) and `streams:[{id, app, icon?, volume, muted}]` (playing applications, PulseAudio sink inputs); all three absent while audio is unavailable. Actions `audio.source.default {id}` (`error.audio.no_such_source`), `audio.stream.volume {id, value}` (`0..1.5`; `error.audio.no_such_stream`), `audio.stream.mute {id, on?}` (flips without `on`), `audio.mic.mute.toggle`. Unknown ids are refused by kurashid before the server is asked |

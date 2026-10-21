@@ -1,7 +1,7 @@
 import QtQuick
 import "../core"
 
-// A choice drawn as preview cards (K45, I104): for a select whose offers have looks in `theme.decors`, each card is a
+// A choice drawn as preview cards (K45, I104): for a select whose offers have looks in the theme document (`styles`, `looks`, `palettes`; K53), each card is a
 // small scene in that look — its ground, a bar of three blocks, a card with "Aa" in its font and an accent pill — drawn
 // from the tokens the daemon resolved from the pack's recipe alone (Shōjiki: what you pick is what you get). An offer
 // without a look (your own settings) is a plain card. Keyboard as Segmented: Tab enters, arrows move (`previewed`),
@@ -11,7 +11,7 @@ Flow {
     property var choices: []
     property var current
     property bool enabled: true
-    // name -> tokens, from `theme.decors`.
+    // name -> tokens, from the theme document.
     property var looks: ({})
     signal picked(var value)
     signal previewed(var value)

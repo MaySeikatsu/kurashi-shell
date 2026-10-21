@@ -1,0 +1,8 @@
+name = "terminal"
+label = "config.choice.style.terminal"
+category = "modern"
+# A terminal's honesty: ink outlines on mono, square corners, sharp icons, quick and calm.
+look = "terminal"
+palette = "kanso"
+[recipe]
+"theme.colors.scheme" = "dark"

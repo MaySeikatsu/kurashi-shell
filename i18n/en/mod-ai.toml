@@ -11,7 +11,7 @@
 "mods.ai.ollama_url" = "Ollama address"
 "mods.ai.ollama_url.help" = "Where your Ollama server listens (ollama serve)."
 "mods.ai.ollama_model" = "Ollama model"
-"mods.ai.ollama_model.help" = "A model you pulled, e.g. llama3.2. Empty: the first installed one. The panel's model picker sets it too."
+"mods.ai.ollama_model.help" = "A model you pulled, e.g. llama3.2. Empty: the one you used last, else the first installed. The panel's model picker sets it too and is remembered."
 "mods.ai.openai_url" = "OpenAI-compatible address"
 "mods.ai.openai_url.help" = "The API's base address, ending before /chat/completions: OpenAI, OpenRouter, Mistral, llama.cpp, LM Studio, vLLM…"
 "mods.ai.openai_model" = "OpenAI-compatible model"

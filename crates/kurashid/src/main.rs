@@ -130,7 +130,7 @@ async fn run() -> anyhow::Result<()> {
                 paths,
                 kurashi_config::Options {
                     bundled_profile_dirs: vec![kurashid::i18n::data_dir().join("profiles")],
-                    migrations: Vec::new(),
+                    migrations: kurashid::config::migrations(),
                 },
             );
             store.register_actions(&mut actions);

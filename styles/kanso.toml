@@ -1,0 +1,8 @@
+name = "kanso"
+label = "config.choice.style.kanso"
+category = "modern"
+# The plain shell: the kanso look in its own quiet palette, dark.
+look = "kanso"
+palette = "kanso"
+[recipe]
+"theme.colors.scheme" = "dark"

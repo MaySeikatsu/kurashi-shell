@@ -1,0 +1,9 @@
+name = "aqua"
+label = "config.choice.style.aqua"
+category = "inspired"
+# After shellseikatsu `Services/Modes/Macos.qml` and `Widgets/GlassSheen.qml` (W25): frosted, soft, deferential —
+# graphite glass with a specular rim, squircles, smooth and never bouncy; SF Pro when installed, Inter otherwise.
+look = "aqua"
+palette = "aqua"
+[recipe]
+"theme.colors.scheme" = "dark"

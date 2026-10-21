@@ -1,10 +1,9 @@
 name = "souls"
-label = "config.choice.decor.souls"
+label = "config.choice.look.souls"
+category = "fiction"
 # After shellseikatsu `Services/Modes/DarkSouls.qml` and `Widgets/ThemeDecor/OrnateFrame.qml` (W25): leather black,
 # antique-gold hairlines with corner flourishes, ember accents, an engraved serif, solemn slow motion.
 [recipe]
-"theme.colors.palette" = "souls"
-"theme.colors.scheme" = "dark"
 "theme.chrome" = "line"
 "theme.motion.profile" = "calm"
 "theme.motion.speed" = 0.8

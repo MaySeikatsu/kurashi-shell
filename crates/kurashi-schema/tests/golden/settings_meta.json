@@ -100,13 +100,28 @@
             {
               "advanced": false,
               "choices": [],
-              "choices_from": "decors",
+              "choices_from": "styles",
               "control": "select",
               "couplings": [],
-              "default": "none",
-              "help": "config.theme.decor.help",
-              "key": "theme.decor",
-              "label": "config.theme.decor.label",
+              "default": "washi",
+              "help": "config.theme.style.help",
+              "key": "theme.style",
+              "label": "config.theme.style.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "looks",
+              "control": "select",
+              "couplings": [],
+              "default": "kanso",
+              "help": "config.theme.look.help",
+              "key": "theme.look",
+              "label": "config.theme.look.label",
               "per_output": false,
               "restart": false,
               "since": 1,
@@ -1650,5 +1665,5 @@
       ]
     }
   ],
-  "schema_version": 1
+  "schema_version": 2
 }

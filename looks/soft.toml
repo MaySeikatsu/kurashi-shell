@@ -1,0 +1,13 @@
+name = "soft"
+label = "config.choice.look.soft"
+category = "modern"
+# Soft blocks: a faint rim and a soft shadow under generous rounding, a light translucency, calm motion (the common
+# form of the editor-palette styles: catppuccin, rose-pine; K53).
+[recipe]
+"theme.chrome" = "soft"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.9
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 1.2
+"theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]
