@@ -42,6 +42,7 @@ pub fn linked() -> Vec<Box<dyn NativeMod>> {
         Box::new(kurashi_mod_webdock::Webdock::new()),
         Box::new(kurashi_mod_tasks::TasksMod::new()),
         Box::new(kurashi_mod_lyrics::LyricsMod::new()),
+        Box::new(kurashi_mod_calendar::CalendarMod::new()),
     ];
     #[cfg(feature = "test-mods")]
     let mods = mods
