@@ -34,15 +34,16 @@ let
     extraEnvironment.RUST_LOG = "kurashid=debug";
   };
 
-  evalHm =
-    kurashi:
+  evalHm = kurashi: evalHmWith kurashi { };
+  evalHmWith =
+    kurashi: extra:
     import "${hmSrc}/modules" {
       inherit pkgs;
       check = false;
       configuration =
         { ... }:
         {
-          imports = [ (import ../hm-module.nix self) ];
+          imports = [ (import ../hm-module.nix self) extra ];
           home = {
             username = "tester";
             homeDirectory = "/home/tester";
@@ -69,6 +70,11 @@ let
   hmDefaults = evalHm (base // { niri.binds.enable = true; });
   # Binds off (the default): no file.
   hmOff = evalHm base;
+  # K49: theme export with foot and kitty managed by Home-Manager.
+  hmExport = evalHmWith (base // { themeExport.apps = [ "foot" "kitty" "niri" ]; }) {
+    programs.foot.enable = true;
+    programs.kitty.enable = true;
+  };
 
   cfg = hm.config;
   daemon = cfg.systemd.user.services.kurashid;
@@ -108,6 +114,9 @@ let
     [ "niri binds: media keys work while locked" (lib.hasInfix "allow-when-locked=true {" (lineFor "XF86AudioRaiseVolume")) ]
     [ "niri binds: toggles do not repeat" (lib.hasInfix "Mod+Space repeat=false {" (lineFor "Mod+Space")) ]
     [ "niri binds: no file when disabled" (!(hmOff.config.xdg.configFile ? "niri/kurashi-binds.kdl")) ]
+    [ "theme export: theme.export in the Nix layer" (hmExport.config.programs.kurashi.settings.theme.export == [ "foot" "kitty" "niri" ]) ]
+    [ "theme export: foot includes its colour file" (lib.hasSuffix "/foot/kurashi-colors.ini" (hmExport.config.programs.foot.settings.main.include or "")) ]
+    [ "theme export: kitty includes its colour file" (lib.hasInfix "include kurashi-colors.conf" hmExport.config.programs.kitty.extraConfig) ]
     [ "docs/niri-binds.kdl has every default bind line" (
       bindLines (niriText hmDefaults) != [ ]
       && lib.all (l: lib.hasInfix (snippetLine l) docs) (bindLines (niriText hmDefaults))
