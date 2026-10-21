@@ -5,7 +5,7 @@ import "../../core"
 // alpha), a stronger grain on a surface's ground (the lock, the greeter). The grain is one small tile — an SVG made once
 // per ink colour from a fixed seed, so every block shows the same sheet — that Qt's image cache shares between all
 // blocks; it tiles seamlessly (a fibre that crosses an edge is drawn again on the other side) and never animates.
-// Small blocks (bar groups, keys) get the hairline only: grain on a 20 px key reads as dirt. Tokens only (rule 4).
+// Small blocks (bar groups, keys) get it fainter: more on a 20 px key reads as dirt. Tokens only (rule 4).
 FrameBase {
     id: f
     // The ground is paper: the surface's colour under a stronger grain (it replaces the chrome's ruled ground).

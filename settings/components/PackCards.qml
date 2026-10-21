@@ -38,6 +38,8 @@ Item {
     }
     // The open category: the one a chip opened, else the current pack's, else the first.
     property string opened: ""
+    // A new pack in effect (picked here, by a profile, from the CLI) opens its own category again.
+    onCurrentChanged: pc.opened = ""
     readonly property string openCat: {
         var ids = pc.categories.map(function (c) { return c.id })
         if (pc.opened !== "" && ids.indexOf(pc.opened) >= 0) return pc.opened
