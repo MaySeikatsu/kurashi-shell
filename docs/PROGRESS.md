@@ -208,5 +208,5 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W25.1 | 14 identity packs from shellseikatsu (palettes, decors, frames, lock backdrops; no Cyberpunk — I117) (card `W25-identity`, K50) | ✅ functional · UX ✅ first pass (`frontend/shots/look/identity-sheet.png`) | merged 71b38be |
 | W24.2 | Desk edit mode (`desktop.order`), Settings section cards, theme-export status (card `W24-desk-settings`) | ✅ functional · UX ✅ first pass (`frontend/shots/desk/`, `settings/shots/28–31`) | merged |
 | W25.2 | App dock: pinned + running, cycle, menu, autohide edge (card `W25-dock`, K51; +6.9 MiB USS hidden, BENCH) | ✅ functional · UX ✅ first pass (`frontend/shots/dock/`) | merged |
-| W26.1 | Hyprland and Sway adapters (card `W26-adapters`) | ⬜ | next |
+| W26.1 | Hyprland and Sway adapters, `AnyCompositor`, doctor names the adapter (card `W26-adapters`, K52) | ✅ functional · tests: fake sockets + real sway sandbox (`frontend/shots/sway-adapter/`) | merged |
 | W26.2 | Launcher: clipboard with image thumbnails and pins, emoji grid with recents, `?` keybind cheat sheet from niri's config (card `W26-launcher`) | ✅ functional · UX ✅ first pass (`frontend/shots/launcher/w26/`) | merged |
