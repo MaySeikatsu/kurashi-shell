@@ -16,6 +16,8 @@ Loader {
     property string kind: height >= 64 && width >= 120 ? "card" : "small"
     // The frame draws a ground of its own (kind "ground"): the surface hides its chrome-derived ground meanwhile.
     readonly property bool grounds: item !== null && item.grounds === true
+    // The frame draws the block's outline itself (FrameBase.drawsOutline): the block then leaves its straight line out.
+    readonly property bool drawsOutline: item !== null && item.drawsOutline === true
     readonly property string file: {
         var n = Theme.frame
         if (!n) return ""

@@ -33,6 +33,11 @@ import "../components/island"
 PanelWindow {
     id: stage
 
+    // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+    property var tileSheet: tilesLoader.item
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    LightSense {}
+
     // The island panel is wanted (shell.qml sets it after it picked the output, with the session
     // menu and the tray menu).
     property bool want: false
@@ -646,6 +651,22 @@ PanelWindow {
         color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.panel
         border.width: stage.morphMode || stage.ownChrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
+        // island morphs, where the shape draws the card.
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell && !Theme.texText && !stage.morphMode && !stage.ownChrome
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+        }
+        // With `texture.text` the relief lies over the views too: their text and icons sink into the same sheet.
+        Loader {
+            z: 1
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell && Theme.texText && !stage.morphMode && !stage.ownChrome
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+        }
         // The Stage's one keyboard focus holder. The menus are driven from here and never take
         // focus themselves (a second holder would clear this flag for good). Esc closes whichever panel.
         focus: true

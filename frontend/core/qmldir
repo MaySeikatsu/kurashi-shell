@@ -5,3 +5,4 @@ Watch 1.0 Watch.qml
 ModLoader 1.0 ModLoader.qml
 singleton Peeks 1.0 Peeks.qml
 PeekSource 1.0 PeekSource.qml
+singleton Light 1.0 Light.qml

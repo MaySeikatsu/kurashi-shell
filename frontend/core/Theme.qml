@@ -95,4 +95,30 @@ Singleton {
     readonly property real damping: tok("motion.spring.damping", 0.45)
     // How visible bar content stays while the daemon is away (reconnect veil).
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
+    readonly property int longMs: tok("motion.long_ms", 500)
+
+    // K59 (docs/ux/texture.md, DESIGN-SYSTEM "Texture and light"): the material's relief and its light, as the daemon
+    // resolves them. A Relief exists only while a shell scope shades (`texShell`) or the everything overlay does
+    // (`texOverlay`), and a tile is there (`texOn`): nothing is made for a theme without a texture (Ma).
+    readonly property string texMap: tok("texture.map", "")
+    // The ink coverage map (alpha only): "" when the material prints no ink.
+    readonly property string texInkMap: tok("texture.ink_map", "")
+    readonly property real texAmp: tok("texture.amp", 0)
+    readonly property bool texOn: texMap !== "" && texAmp > 0
+    readonly property bool texShell: texOn && tok("texture.shell", false) === true
+    readonly property bool texOverlay: texOn && tok("texture.overlay", false) === true
+    // The relief shades text and icons too (drawn over the content) instead of sitting under it.
+    readonly property bool texText: tok("texture.text", false) === true
+    readonly property real texTilePx: tok("texture.tile_px", 0)
+    readonly property real texTileLogical: tok("texture.tile_logical", 0)
+    readonly property real texScale: tok("texture.scale", 1)
+    readonly property real texGloss: tok("texture.gloss", 0)
+    readonly property real texShininess: tok("texture.shininess", 1)
+    readonly property color texInk: color("texture.ink", "#000000")
+    readonly property real texInkAlpha: tok("texture.ink_alpha", 0)
+    readonly property string lightMode: tok("light.mode", "static")
+    // Unit vector toward the light (x right, y down, z toward the viewer); a daytime sun or the static angle.
+    readonly property var lightDirToken: tok("light.dir", [0, 0, 1])
+    readonly property color lightColor: color("light.color", "#ffffff")
+    readonly property real lightHeight: tok("light.height_px", 60)
 }
