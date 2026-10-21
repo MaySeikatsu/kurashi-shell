@@ -86,7 +86,7 @@ write_fixtures() {
   ev "$CALS/home/trip.ics" trip "Trip to Kyoto" "DTSTART;VALUE=DATE:$(d8 '+2 days')" "DTEND;VALUE=DATE:$(d8 '+5 days')"
   ev "$CALS/home/dinner.ics" dinner "Dinner at Ume" "DTSTART:$(d8 '+1 day')T190000" "DTEND:$(d8 '+1 day')T210000"
   { printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-WR-CALNAME:Team\r\nBEGIN:VEVENT\r\nUID:feed-1\r\nSUMMARY:Team lunch\r\n'
-    printf 'DTSTART:%s\r\nDTEND:%s\r\nEND:VEVENT\r\n' "$(ts '+5 hours')" "$(ts '+6 hours')"
+    printf 'DTSTART:%s\r\nDTEND:%s\r\nEND:VEVENT\r\n' "$(ts '+40 min')" "$(ts '+70 min')"   # still today in an evening run
     printf 'BEGIN:VEVENT\r\nUID:feed-2\r\nSUMMARY:Sprint planning\r\nDTSTART:%sT100000\r\nDTEND:%sT113000\r\nEND:VEVENT\r\n' \
       "$(d8 '+7 days')" "$(d8 '+7 days')"
     printf 'END:VCALENDAR\r\n'; } > "$FEEDDIR/team.ics"
