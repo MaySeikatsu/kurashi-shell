@@ -44,7 +44,7 @@ the CPU. Tokens in DESIGN-SYSTEM "Texture and light", PROTOCOL §8.
 |---|---|---|---|
 | paper | fine fibres, felt pores, a slow cloud (formation) | faint fibres | matte |
 | paper_dots | paper + a 5 mm dot grid | dots in the secondary role | matte |
-| paper_lines | paper + ruled lines, a margin | lines in secondary, the margin in accent | matte |
+| paper_lines | paper + ruled lines, a margin | lines in secondary | matte |
 | paper_grid | paper + a 5 mm square grid | grid in secondary | matte |
 | fabric | a plain weave of twisted threads, slubs | thread shade | matte |
 | wool | felted knit loops, fuzz | — | matte |
