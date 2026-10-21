@@ -958,9 +958,11 @@ dependencies = [
 name = "kurashi-compositor"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "niri-ipc",
  "serde",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-stream",

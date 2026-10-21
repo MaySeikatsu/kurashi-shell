@@ -4,14 +4,17 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Compositor trait + niri adapter for kurashid"
+description = "Compositor trait + niri, Hyprland and Sway adapters for kurashid"
 
 [dependencies]
+# W26: screenshot file names (niri's pattern) for the grim fallback.
+chrono.workspace = true
 niri-ipc = { version = "26.4.0", default-features = false }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
-tokio.workspace = true
+# W26: grim / slurp / wl-copy for compositors without screenshots of their own.
+tokio = { workspace = true, features = ["process"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
 tracing.workspace = true
 wayland-client = "0.31"
@@ -19,6 +22,7 @@ wayland-client = "0.31"
 wayland-protocols = { version = "0.32", features = ["client", "staging"] }
 
 [dev-dependencies]
+tempfile = "3"
 tokio = { workspace = true, features = ["test-util"] }
 
 [lints]
