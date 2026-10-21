@@ -29,6 +29,21 @@ Rectangle {
     // flat: a hairline.
     border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+    // K59: the card is a material area (the panel's fill); the relief lies under the content.
+    Loader {
+        anchors.fill: parent
+        anchors.margins: Theme.outlineW
+        active: Theme.texShell && !Theme.texText
+        sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, c.radius - Theme.outlineW) }
+    }
+    // With `texture.text` the relief lies over the card's text too.
+    Loader {
+        z: 1
+        anchors.fill: parent
+        anchors.margins: Theme.outlineW
+        active: Theme.texShell && Theme.texText
+        sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, c.radius - Theme.outlineW) }
+    }
     SoftShadow { anchors.fill: parent; radius: c.radius }
     Rectangle {
         z: -1

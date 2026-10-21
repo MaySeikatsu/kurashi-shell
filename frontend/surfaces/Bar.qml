@@ -14,6 +14,11 @@ PanelWindow {
     required property var modelData
     screen: modelData
 
+    // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+    property var tileSheet: tilesLoader.item
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    LightSense {}
+
     // This output's bar settings (config document, per-output entry wins).
     BarConfig { id: cfg; screen: bar.screen }
     readonly property bool vertical: cfg.vertical
@@ -215,6 +220,12 @@ PanelWindow {
         // opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
         readonly property bool opened: !bar.vertical && IslandGeom.openR > IslandGeom.openL
             && IslandGeom.takenOn !== "" && IslandGeom.takenOn === (bar.screen ? bar.screen.name : "")
+        // K59: the strip's material, under its rules (flat chrome; floating groups stand on their own blocks).
+        Loader {
+            anchors.fill: parent
+            active: !bar.floating && Theme.texShell
+            sourceComponent: Relief { anchors.fill: parent }
+        }
         Rectangle {
             visible: !bar.floating && Theme.outlineW > 0
             color: Theme.outlineColor

@@ -103,6 +103,11 @@ ShellRoot {
     Sidebar { side: "right"; focusedScreen: root.focusedScreen() }
     Sidebar { side: "left"; focusedScreen: root.focusedScreen() }
     Lock {}
+    // The material's relief over every output, apps included (K59, scope everything): a window only while that scope is on.
+    Variants {
+        model: Quickshell.screens
+        delegate: TextureOverlay {}
+    }
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
     // one costs less than that and keeps first-open latency low.
