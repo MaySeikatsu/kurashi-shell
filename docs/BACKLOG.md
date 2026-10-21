@@ -218,6 +218,8 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I167 | 2026-10-21 | W31-relief report | With `texture.text` on, the media face's cover inside the island pill's Block is shaded by the over-content relief: give the face (and other pictures inside blocks) `relief: false`. | new |
 | I168 | 2026-10-21 | lead (session 12) | The island shape's relief covers its body and head rectangles; the neck's concave fillets (a few px) stay plain, and a translucent card over the bar shades twice where they overlap. A relief clipped to the shape's own path would close both. | new |
 | I169 | 2026-10-21 | lead review (session 12) | Paper fibres read a little busy on dark paper (light squiggles on kami-dark): a dark-scheme fibre strength, or less fibre relief under ruled kinds. | new |
+| I170 | 2026-10-21 | W31-paint report | `kurashi-texture` `finish()` takes normals by ±1 px central differences: relief detail finer than about 2.5 px (fine bristle tracks, fine weave) vanishes. A wider or two-scale kernel would sharpen every material (and change every tile's bytes and the goldens). | new |
+| I171 | 2026-10-21 | W31-paint report | Tile generation at device scale 2 takes ~0.8 s for the heaviest kinds (shared weave and wrinkle passes; area-bound). It runs once on a blocking thread and is cached, but rows could be generated in parallel (`std::thread::scope`). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
