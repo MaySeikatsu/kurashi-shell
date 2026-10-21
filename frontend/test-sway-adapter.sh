@@ -110,7 +110,7 @@ echo "ok: workspace.focus {id: $ID2} (a sway container id) switched to workspace
 #    whose layouts sway reports as null and never configures (`input … xkb_layout` does not apply to it). So: the
 #    input event reaches the adapter, svc.keyboard shows no layouts rather than a guess (Shōjiki), the adapter
 #    survives it (a workspace switch after it is still mirrored), and keyboard.next reaches sway.
-mkfifo "$W/kbd"
+rm -f "$W/kbd"; mkfifo "$W/kbd"
 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve < "$W/kbd" >> "$W/kbd.log" 2>&1 &
 pids+=("$!")
 exec 7> "$W/kbd"
