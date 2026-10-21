@@ -181,7 +181,7 @@ qml_errors() {
 
 # 0. The decors' themes, as the real daemon serves them.
 for d in $DECORS; do
-  printf 'theme.decor = "%s"\n' "$d" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  printf 'theme.style = "%s"\n' "$d" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   start_kurashid
   K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$d.json"
   stop_phase
@@ -268,7 +268,7 @@ qml_errors
 stop_phase
 
 # 2. The real kurashid: Unpin by the menu writes dock.pinned.
-printf 'theme.decor = "%s"\n[dock]\nenabled = true\nautohide = false\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
+printf 'theme.style = "%s"\n[dock]\nenabled = true\nautohide = false\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
   > "$XDG_CONFIG_HOME/kurashi/config.toml"
 : > "$R/server.log"
 start_kurashid

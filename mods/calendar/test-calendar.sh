@@ -152,7 +152,7 @@ start_all() { # start_all <decor> <with sources: 1|0>
   rm -rf "$R/xdg"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   {
-    printf 'theme.decor = "%s"\ndesktop.enabled = true\n\n[mods.calendar]\n' "$1"
+    printf 'theme.style = "%s"\ndesktop.enabled = true\n\n[mods.calendar]\n' "$1"
     if [ "$2" = 1 ]; then
       printf 'sources = [\n  { name = "", location = "%s", color = "", enabled = true },\n' "$CALS"
       printf '  { name = "Team", location = "http://127.0.0.1:%s/team.ics", color = "#4caf7d", enabled = true },\n]\n' "$PORT"
