@@ -1231,6 +1231,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-texture"
+version = "0.0.1"
+dependencies = [
+ "image",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "kurashi-theme"
 version = "0.0.1"
 dependencies = [
@@ -1288,6 +1297,7 @@ dependencies = [
  "kurashi-notify",
  "kurashi-schema",
  "kurashi-services",
+ "kurashi-texture",
  "kurashi-theme",
  "kurashi-tray",
  "notify",

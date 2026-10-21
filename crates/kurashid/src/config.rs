@@ -525,6 +525,8 @@ type Listener = Box<dyn Fn(&ConfigStore) + Send + Sync>;
 /// K55: the light/dark key, and the state file holding the user's mode from before a style took it over.
 const SCHEME_KEY: &str = "theme.colors.scheme";
 const SCHEME_BEFORE_FILE: &str = "scheme-before";
+/// K59: the user's material before a look or style took it over (JSON: key → value).
+const TEXTURE_BEFORE_FILE: &str = "texture-before.json";
 
 pub struct ConfigStore {
     cfg: Mutex<Config<SchemaAdapter>>,
@@ -892,6 +894,24 @@ impl ConfigStore {
             .then(|| mode.to_owned())
     }
 
+    /// K59: the material the user had chosen before a look or style took it over (its keys and values), while the
+    /// pack's still holds (the user has not picked a material since). Settings offers "Back to …" with it.
+    pub fn texture_before(&self) -> Option<serde_json::Map<String, Value>> {
+        let cfg = self.cfg.lock().expect("config lock");
+        if cfg
+            .resolve("theme.texture.kind", None)
+            .is_some_and(|p| p.source == Source::User)
+        {
+            return None;
+        }
+        let text = std::fs::read_to_string(cfg.paths().state_dir.join(TEXTURE_BEFORE_FILE)).ok()?;
+        let map: serde_json::Map<String, Value> = serde_json::from_str(&text).ok()?;
+        map.keys()
+            .all(|k| kurashi_theme::appearance::TEXTURE_KEYS.contains(&k.as_str()))
+            .then_some(map)
+            .filter(|m| m.contains_key("theme.texture.kind"))
+    }
+
     /// K53: the appearance keys that differ from the style — set by the user or a profile — for Settings' "changed
     /// from the style" line and its reset.
     pub fn appearance_overrides(&self) -> Vec<String> {
@@ -931,6 +951,25 @@ impl ConfigStore {
                 let _ = std::fs::create_dir_all(&cfg.paths().state_dir);
                 if let Err(e) = std::fs::write(&file, mode) {
                     tracing::warn!(file = %file.display(), error = %e, "cannot keep the scheme before the style");
+                }
+            }
+            // K59: the same for the material, for a look as for a style — the user's own keys, as they were.
+            if cfg
+                .resolve("theme.texture.kind", None)
+                .is_some_and(|p| p.source == Source::User)
+            {
+                let mine: serde_json::Map<String, Value> = kurashi_theme::appearance::TEXTURE_KEYS
+                    .iter()
+                    .filter_map(|k| {
+                        cfg.resolve(k, None)
+                            .filter(|p| p.source == Source::User)
+                            .map(|p| ((*k).to_owned(), p.value))
+                    })
+                    .collect();
+                let file = cfg.paths().state_dir.join(TEXTURE_BEFORE_FILE);
+                let _ = std::fs::create_dir_all(&cfg.paths().state_dir);
+                if let Err(e) = std::fs::write(&file, Value::Object(mine).to_string()) {
+                    tracing::warn!(file = %file.display(), error = %e, "cannot keep the material before the pack");
                 }
             }
             keys.iter()
@@ -1381,6 +1420,36 @@ impl ConfigStore {
                                 .map_or("config.error.unrepresentable", |e| e.code.as_str());
                             ActionError::Invalid(code.into())
                         })?;
+                    Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
+                }
+            },
+        );
+
+        // K59: `theme.texture.restore {}` — back to the material the user had before a look or style took it over.
+        let me = self.clone();
+        actions.register(
+            "theme.texture.restore",
+            "action.theme.texture.restore",
+            move |_| {
+                let me = me.clone();
+                async move {
+                    let before = me.texture_before().ok_or_else(|| {
+                        ActionError::Invalid("config.error.no_texture_before".into())
+                    })?;
+                    let ops: Vec<ApplyOp> = before
+                        .into_iter()
+                        .map(|(set, value)| ApplyOp::Set {
+                            set,
+                            value,
+                            output: None,
+                        })
+                        .collect();
+                    let done = me.apply(&ops).map_err(|errs| {
+                        let code = errs
+                            .first()
+                            .map_or("config.error.unrepresentable", |e| e.code.as_str());
+                        ActionError::Invalid(code.into())
+                    })?;
                     Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
                 }
             },

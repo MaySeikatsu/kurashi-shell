@@ -158,6 +158,15 @@ impl Default for Axes {
     }
 }
 
+/// The text colour (K60): the palette's own, a named ink (`stages::ink_color`) or one colour for both schemes.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub enum Ink {
+    #[default]
+    Palette,
+    Named(String),
+    Custom(crate::color::Rgb),
+}
+
 #[derive(Clone, Debug)]
 pub struct ThemeInput {
     pub source: Source,
@@ -171,6 +180,8 @@ pub struct ThemeInput {
     pub wcag: bool,
     /// Pure-black grounds on dark schemes (OLED).
     pub oled: bool,
+    /// The text colour (K60).
+    pub ink: Ink,
     pub axes: Axes,
     /// Per-surface / per-output overrides: component token key -> value
     /// (e.g. `"popup.bg" -> "#101010"`). Unknown keys are an error, never silent.
@@ -187,6 +198,7 @@ impl Default for ThemeInput {
             colorblind: Colorblind::None,
             wcag: true,
             oled: false,
+            ink: Ink::Palette,
             axes: Axes::default(),
             overrides: BTreeMap::new(),
         }

@@ -34,6 +34,7 @@
 "config.choice.palette.snes" = "SNES"
 "config.choice.palette.hallownest" = "Hallownest"
 "config.choice.palette.souls" = "Souls"
+"config.choice.palette.kami" = "Kami"
 "config.choice.palette.wallpaper" = "From wallpaper"
 "config.face.clock" = "Clock"
 "config.face.media" = "Media"

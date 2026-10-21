@@ -1,0 +1,33 @@
+# 紙 kami — a notebook page: warm white paper with graphite and a blue pen, a red pen for corrections; in the dark a
+# blue-black card with chalk-light ink (K60). Meant for look `kami` (paper_dots, the sketch frame).
+name = "kami"
+kind = "pair"
+description = "Notebook paper, pencil and a red pen (style kami)"
+
+[dark]
+surface = "#171a22"        # blue-black card
+on_surface = "#e9e6dc"     # chalk
+accent = "#ff8a80"         # red pen
+secondary = "#8fb1ff"      # blue pencil
+tertiary = "#9fd39a"
+warning = "#ffd166"
+surface_container = "#1c2029"
+surface_container_high = "#232835"
+on_surface_variant = "#b6bac6"
+outline = "#7d8496"
+line = "#0d0f14"
+ring = "#2c3140"
+
+[light]
+surface = "#f7f4ec"        # paper
+on_surface = "#2b2d33"     # graphite
+accent = "#c3343c"         # red pen
+secondary = "#3f6cb3"      # blue pencil
+tertiary = "#4b7a45"
+warning = "#a86b00"
+surface_container = "#faf8f2"
+surface_container_high = "#f0ece2"
+on_surface_variant = "#5b5e68"
+outline = "#6b6f7a"
+line = "#2b2d33"
+ring = "#ffffff"

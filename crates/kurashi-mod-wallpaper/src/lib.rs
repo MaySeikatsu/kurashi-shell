@@ -138,6 +138,7 @@ impl NativeMod for Wallpaper {
             exec: self.exec.clone(),
             dirs: self.dirs.clone(),
             scans: Mutex::new(None),
+            filter: ctx.picture_filter(),
         });
 
         // The document: served while subscribed, from the supervisor's current state. A subscriber

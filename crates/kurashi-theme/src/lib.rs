@@ -2,7 +2,7 @@
 //! colour, size, radius, font and duration here; renderers never compute colours
 //! (CLAUDE.md rule 4). Input is a plain [`ThemeInput`]; no schema/config dependency.
 //!
-//! Pipeline order: source, scheme, oled, contrast, season, colorblind, wcag. Each stage is
+//! Pipeline order: source, scheme, oled, contrast, season, colorblind, ink, wcag. Each stage is
 //! a pure `Palette -> Palette` function in [`stages`] returning provenance notes.
 //! Wallpaper extraction ([`Wallpaper::load`], [`stages::from_wallpaper`]) is blocking CPU:
 //! callers run it on a blocking thread (`tokio::task::spawn_blocking`).
@@ -72,6 +72,8 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
     push("season", s.notes);
     let s = stages::colorblind(s.palette, input.colorblind);
     push("colorblind", s.notes);
+    let s = stages::ink(s.palette, &input.ink);
+    push("ink", s.notes);
     let s = stages::wcag(s.palette, input.wcag);
     push("wcag", s.notes);
     Ok((s.palette, notes))
@@ -142,6 +144,17 @@ pub fn preview(
                 }
             }
             "theme.shape.radius_scale" => input.axes.radius_scale = f,
+            "theme.colors.ink" if s != "palette" => input.ink = Ink::Named(s.into()),
+            "theme.typography.family_jp" => {
+                input.axes.font_chain_jp = v
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            }
             "theme.typography.family" => {
                 input.axes.font_chain = v
                     .as_array()
@@ -183,6 +196,7 @@ pub fn preview(
         "radius.sm",
         "radius.lg",
         "font.family",
+        "font.family_jp",
         "font.weight.bold",
     ];
     let tokens: serde_json::Map<String, Value> = keys

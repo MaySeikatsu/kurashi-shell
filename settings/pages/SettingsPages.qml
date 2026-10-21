@@ -82,7 +82,7 @@ Flickable {
         layout: "view_quilt", colors: "palette", shape: "rounded_corner", material: "blur_on", motion: "animation",
         typography: "text_fields", modes: "accessibility_new", main: "toggle_on", clock: "schedule",
         server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
-        recorder: "screen_record", dock: "dock_to_bottom"
+        recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode"
     })
     function sectionIcon(pageId, id) {
         return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
@@ -90,7 +90,8 @@ Flickable {
     // A document a row shows beside it (the one place Settings does): row key -> component. The theme export says where
     // each app's file went and what the app still needs (K49).
     readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus,
-                                       "sidebar.bar_buttons": cSidebarOpen })
+                                       "sidebar.bar_buttons": cSidebarOpen, "theme.texture.kind": cTextureCards,
+                                       "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches })
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
     readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
     // Rows a pack block shows with it (K53 amendment): light or dark sits with the palette, as the palette cards are drawn
@@ -99,6 +100,9 @@ Flickable {
     Component { id: cThemeExport; ThemeExportStatus {} }
     Component { id: cSchemeStatus; SchemeStatus {} }
     Component { id: cSidebarOpen; SidebarOpen {} }
+    Component { id: cTextureCards; TextureCards {} }
+    Component { id: cLightDial; LightDial {} }
+    Component { id: cInkSwatches; InkSwatches {} }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2

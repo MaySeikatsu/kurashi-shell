@@ -94,6 +94,20 @@ Pure-black grounds on dark schemes.
 - type: `bool` · default: `false`
 - only while `theme.colors.scheme != "light"`
 
+#### `theme.colors.ink` — Text colour
+
+The colour of text and icons: the palette's own, or an ink — each with a shade for light and for dark — or a colour of your own. It is kept legible on every surface; the theme notes say when it had to be adjusted (K60).
+
+- type: `choice` · default: `"palette"`
+- choices: `"palette"` | `"blue"` | `"black"` | `"sepia"` | `"red"` | `"green"` | `"violet"` | `"custom"`
+
+#### `theme.colors.ink_custom` — Your text colour
+
+Used in light and dark alike, adjusted only as far as legibility needs.
+
+- type: `color` · default: `"#2b4a8b"`
+- only while `theme.colors.ink == "custom"`
+
 #### `theme.export` — Apps that follow
 
 Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the file; Settings shows it.
@@ -199,6 +213,13 @@ Fallback chain; the first installed family wins (resolved via fontconfig).
 
 - type: `font` · default: `["Inter", "Noto Sans CJK JP", "sans-serif"]`
 
+#### `theme.typography.family_jp` — Japanese font family
+
+Fallback chain for Japanese text; the first installed family wins (K60).
+
+- type: `font` · default: `["Noto Sans CJK JP", "Noto Sans JP", "IPAexGothic", "sans-serif"]`
+- advanced
+
 #### `theme.typography.scale` — Text scale
 
 Multiplies every type size token.
@@ -206,6 +227,89 @@ Multiplies every type size token.
 - type: `float` · default: `1.0`
 - range: `0.75..=2.0`, step `0.05`
 - forced to `1.25` while `a11y.large_text` is on
+
+### Texture
+
+#### `theme.texture.kind` — Material
+
+A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and shade from the light below, never colours of its own (K59).
+
+- type: `choice` · default: `"none"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"`
+- forced to `"none"` while `a11y.high_contrast` is on
+- forced to `"none"` while `a11y.reduce_transparency` is on
+
+#### `theme.texture.scope` — Where
+
+The shell's surfaces, the wallpaper (baked into the picture), both, or an overlay over everything, apps included — that one costs a full-screen layer, shows in screenshots and keeps fullscreen apps from the fastest path to the screen.
+
+- type: `choice` · default: `"shell"`
+- choices: `"shell"` | `"wallpaper"` | `"shell_wallpaper"` | `"everything"`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.strength` — Strength
+
+How deep the relief reads. Under text it is capped so text stays legible.
+
+- type: `float` · default: `0.5`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.scale` — Scale
+
+The size of the material's grain, weave or rulings.
+
+- type: `float` · default: `1.0`
+- range: `0.5..=3.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.wrinkles` — Wrinkles
+
+Crumples the material: folds and creases, as in crumpled paper or creased leather.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.tint` — Ink and colour
+
+Print the rulings, dots and grain in faint colours of the palette. Off: relief only — rulings are pressed into the sheet, nothing is coloured.
+
+- type: `bool` · default: `true`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.text` — Texture over text
+
+Let the relief run through text and icons too, as ink sinks into paper or is pressed into leather. Off keeps them crisp on the material.
+
+- type: `bool` · default: `false`
+- only while `theme.texture.kind != "none"`
+
+### Light
+
+#### `theme.light.mode` — Light
+
+Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right, warm when it is low — or the wallpaper's own light: a lamp at its brightest place, in its colour (K59).
+
+- type: `choice` · default: `"static"`
+- choices: `"static"` | `"pointer"` | `"daytime"` | `"wallpaper"`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.light.angle` — Direction
+
+Where the fixed light comes from, in degrees round the screen: 0 from the top, 90 from the right, 315 from the top left.
+
+- type: `int` · default: `315`
+- range: `0..=359`, step `1` (°)
+- only while `theme.light.mode != "daytime"`
+
+#### `theme.light.elevation` — Height
+
+How high the light stands over the screen: low light makes long shadows and a deeper relief.
+
+- type: `int` · default: `40`
+- range: `10..=80`, step `1` (°)
+- only while `theme.light.mode != "daytime"`
 
 ## Accessibility
 

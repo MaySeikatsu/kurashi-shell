@@ -115,6 +115,7 @@ pub fn summary(config: &Value) -> Value {
             _ => "",
         },
         "scheme_before": Value::Null,
+        "texture_before": Value::Null,
         "overrides": overrides,
     })
 }

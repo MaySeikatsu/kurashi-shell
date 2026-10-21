@@ -22,19 +22,19 @@ use crate::hub::Hub;
 
 pub const DOC: &str = "theme";
 
-fn s(store: &ConfigStore, key: &str) -> String {
+pub(crate) fn s(store: &ConfigStore, key: &str) -> String {
     store
         .get(key, None)
         .and_then(|p| p.value.as_str().map(String::from))
         .unwrap_or_default()
 }
-fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
+pub(crate) fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
     store
         .get(key, None)
         .and_then(|p| p.value.as_f64())
         .unwrap_or(dflt)
 }
-fn b(store: &ConfigStore, key: &str) -> bool {
+pub(crate) fn b(store: &ConfigStore, key: &str) -> bool {
     store
         .get(key, None)
         .and_then(|p| p.value.as_bool())
@@ -105,6 +105,25 @@ fn scheme_name(s: Scheme) -> &'static str {
 fn wants_picture(store: &ConfigStore) -> bool {
     s(store, "theme.colors.palette") == WALLPAPER_PALETTE
         || s(store, "theme.colors.scheme") == WALLPAPER_PALETTE
+        || crate::texture::wants_wallpaper(store)
+}
+
+/// The picture the wallpaper shows now, for its light (K59): the theme's picture, else the first output's.
+pub fn wallpaper_shown(hub: &Hub) -> Option<std::path::PathBuf> {
+    if hub.subscribers(WALLPAPER_DOC) == 0 {
+        return None;
+    }
+    let (_, doc) = hub.snapshot(WALLPAPER_DOC).ok()?;
+    doc["theme"]["image"]
+        .as_str()
+        .or_else(|| {
+            doc["outputs"]
+                .as_object()?
+                .values()
+                .find_map(|o| o["path"].as_str())
+        })
+        .filter(|s| !s.is_empty())
+        .map(Into::into)
 }
 
 /// Map resolved config (provenance already applied: a11y forcing, profiles, …) onto the input.
@@ -165,6 +184,10 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     if !chain.is_empty() {
         axes.font_chain = chain;
     }
+    let chain_jp = families("theme.typography.family_jp");
+    if !chain_jp.is_empty() {
+        axes.font_chain_jp = chain_jp;
+    }
     if b(store, "a11y.large_text") {
         axes.type_scale = axes.type_scale.max(1.25);
     }
@@ -190,6 +213,12 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
+        ink: match s(store, "theme.colors.ink").as_str() {
+            "" | "palette" => kurashi_theme::Ink::Palette,
+            "custom" => kurashi_theme::color::Rgb::parse(&s(store, "theme.colors.ink_custom"))
+                .map_or(kurashi_theme::Ink::Palette, kurashi_theme::Ink::Custom),
+            name => kurashi_theme::Ink::Named(name.to_owned()),
+        },
         axes,
         ..ThemeInput::default()
     }
@@ -269,6 +298,17 @@ fn decor_frame(store: &ConfigStore) -> String {
     .unwrap_or_default()
 }
 
+/// K60: each named ink's shade in a scheme, for Settings' swatches.
+fn inks(dark: bool) -> Value {
+    ["blue", "black", "sepia", "red", "green", "violet"]
+        .iter()
+        .filter_map(|n| {
+            kurashi_theme::stages::ink_color(n, dark).map(|c| ((*n).to_owned(), json!(c.hex())))
+        })
+        .collect::<serde_json::Map<String, Value>>()
+        .into()
+}
+
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
@@ -293,10 +333,16 @@ pub fn document_with(
             }
             tokens.insert("blur".into(), json!(input.axes.blur));
             tokens.insert("decor.frame".into(), json!(decor_frame(store)));
+            let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
                 .map(|n| json!({"stage": n.stage, "text": n.text}))
+                .chain(
+                    texture_notes
+                        .into_iter()
+                        .map(|text| json!({"stage": "texture", "text": text})),
+                )
                 .collect();
             // Shōjiki: the theme says it is not the wallpaper's yet, instead of looking like it.
             if waiting {
@@ -313,6 +359,11 @@ pub fn document_with(
                     "scheme_effective": scheme_name(input.scheme),
                     "scheme_detail": effective_scheme(store, picture).1,
                     "scheme_before": store.scheme_before(),
+                    "texture_before": store.texture_before(),
+                    // K59: why the daytime light is where it is (`sun`: the weather mod's place, `day`: a 06:00–18:00
+                    // day without one; `""` for the other modes); K60: each ink's shade in the scheme in effect.
+                    "light_detail": crate::texture::light(store, chrono::Local::now()).detail,
+                    "inks": inks(input.scheme == Scheme::Dark),
                     "overrides": store.appearance_overrides(),
                 },
             })
@@ -348,6 +399,19 @@ pub fn previews(
 
 pub const PREVIEWS_DOC: &str = "theme.previews";
 
+/// Starts and stops the material swatches with the previews' first and last subscriber.
+struct SwatchWatch;
+
+impl crate::hub::Provider for SwatchWatch {
+    fn start(&self, _hub: Arc<Hub>) {
+        crate::texture::want_swatches(true);
+    }
+
+    fn stop(&self) {
+        crate::texture::want_swatches(false);
+    }
+}
+
 /// Register `theme` and recompute it whenever config changes.
 pub fn register(
     hub: &Arc<Hub>,
@@ -355,16 +419,18 @@ pub fn register(
     fonts: Arc<dyn FontProvider + Send + Sync>,
 ) {
     let pic = wallpaper_picture(hub);
-    hub.register(
-        DOC,
-        document_with(store, fonts.as_ref(), None, pic.as_deref()),
-        None,
-    );
-    hub.register(
-        PREVIEWS_DOC,
-        previews(store, fonts.as_ref(), pic.as_deref()),
-        None,
-    );
+    crate::texture::set_wallpaper(wallpaper_shown(hub));
+    let first = document_with(store, fonts.as_ref(), None, pic.as_deref());
+    if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
+        crate::texture::update_bake(store, tokens);
+    }
+    let mut shown = previews(store, fonts.as_ref(), pic.as_deref());
+    if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
+        shown["textures"] = crate::texture::swatches(store, tokens);
+    }
+    hub.register(DOC, first, None);
+    // K59: the material swatches are made only while someone (Settings) watches the previews.
+    hub.register(PREVIEWS_DOC, shown, Some(Arc::new(SwatchWatch)));
     // K55: scheme `auto` follows the portal's preference, watched only while that mode is chosen.
     let watcher = Arc::new(crate::os_scheme::Watcher::default());
     let follow = {
@@ -380,11 +446,46 @@ pub fn register(
         }
     };
     follow(store);
+    // K59: a texture tile became ready, or the outputs' scale changed.
+    {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        crate::texture::on_ready(Arc::new(move || {
+            if let Some(store) = store.upgrade() {
+                republish(&hub, &store, fonts.as_ref());
+            }
+        }));
+    }
+    // K59: the daytime light moves with the sun — a 5-minute tick, only while that light is chosen (Ma).
+    let (sun_tx, mut sun_rx) = tokio::sync::watch::channel(crate::texture::wants_sun(store));
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
         store.on_change(move |store| {
             follow(store);
+            sun_tx.send_if_modified(|on| {
+                let want = crate::texture::wants_sun(store);
+                std::mem::replace(on, want) != want
+            });
             republish(&hub, store, fonts.as_ref());
+        });
+    }
+    if let Ok(rt) = tokio::runtime::Handle::try_current() {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        rt.spawn(async move {
+            loop {
+                if !*sun_rx.borrow_and_update() {
+                    if sun_rx.changed().await.is_err() {
+                        break;
+                    }
+                    continue;
+                }
+                tokio::select! {
+                    () = tokio::time::sleep(std::time::Duration::from_secs(300)) => {
+                        let Some(store) = store.upgrade() else { break };
+                        republish(&hub, &store, fonts.as_ref());
+                    }
+                    r = sun_rx.changed() => if r.is_err() { break },
+                }
+            }
         });
     }
     // K49: the chosen apps follow the theme document.
@@ -403,7 +504,7 @@ pub fn register(
     rt.spawn(async move {
         let mut held = false;
         hold_wallpaper(&hub, &store, &mut held);
-        let mut last = wallpaper_picture(&hub);
+        let mut last = (wallpaper_picture(&hub), wallpaper_shown(&hub));
         loop {
             match events.recv().await {
                 Ok(msg) => match msg.as_ref() {
@@ -416,7 +517,7 @@ pub fn register(
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
             }
             hold_wallpaper(&hub, &store, &mut held);
-            let now = wallpaper_picture(&hub);
+            let now = (wallpaper_picture(&hub), wallpaper_shown(&hub));
             if now == last {
                 continue;
             }
@@ -424,7 +525,7 @@ pub fn register(
             if !wants_picture(&store) {
                 continue;
             }
-            if let Some(path) = now {
+            if let Some(path) = now.0 {
                 let _ = tokio::task::spawn_blocking(move || {
                     kurashi_theme::stages::wallpaper_file(&path)
                 })
@@ -455,14 +556,20 @@ fn hold_wallpaper(hub: &Hub, store: &ConfigStore, held: &mut bool) {
 fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + Sync)) {
     let prev = hub.snapshot(DOC).ok().map(|(_, v)| v);
     let pic = wallpaper_picture(hub);
+    crate::texture::set_wallpaper(wallpaper_shown(hub));
     let mut next = document_with(store, fonts, prev.as_ref(), pic.as_deref());
     if next.get("error").is_none()
         && let Some(o) = next.as_object_mut()
     {
         o.remove("error");
     }
+    let mut shown = previews(store, fonts, pic.as_deref());
+    if let Some(tokens) = next.get("tokens").and_then(Value::as_object) {
+        crate::texture::update_bake(store, tokens);
+        shown["textures"] = crate::texture::swatches(store, tokens);
+    }
     let _ = hub.set(DOC, next, None);
-    let _ = hub.set(PREVIEWS_DOC, previews(store, fonts, pic.as_deref()), None);
+    let _ = hub.set(PREVIEWS_DOC, shown, None);
 }
 
 #[cfg(test)]
@@ -526,7 +633,7 @@ mod tests {
         assert_eq!(doc["appearance"]["look"], "kanso");
         let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts, None);
         assert!(shown["styles"].as_array().unwrap().len() > 10);
-        assert_eq!(shown["looks"].as_array().unwrap().len(), 17);
+        assert_eq!(shown["looks"].as_array().unwrap().len(), 18);
         assert!(shown["palettes"].as_array().unwrap().len() > 10);
         let _ = std::fs::remove_dir_all(&root);
     }

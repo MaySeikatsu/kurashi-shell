@@ -17,6 +17,59 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-21 — session 12, part 2 (machine B): material textures and their light, 紙 kami, text colour — K59, K60, wave 31
+**State:** `main` green, pushed (merge of `feat/k59-texture-light`). Four agent cards merged (W31-texture-gen,
+W31-texture-polish, W31-relief, W31-paint); no agent worktrees left; their build dirs deleted. Nothing is half-done.
+
+**User decisions (session 12, part 2):** textures are colourless reliefs lit like a normal map, an appearance option
+of their own; scopes shell (default) / wallpaper / shell + wallpaper / everything (apps too); rulings and dots as faint
+ink in the palette's colours with a switch to no colour; a continuous sheet by default; light modes static (direction
+configurable), pointer, daytime and — added later — the wallpaper's own light (its brightest place); text untextured by
+default with an option to texture it; screen filters (CRT, pixelate, scanlines) are a separate idea (I165), Hyprland's
+`screen_shader` a later adapter detail (I164); a polished 紙 (kami) style with a handwritten font in blue ink; a general
+text colour option; a brushed oil-paint material.
+
+**Built and merged:**
+- **K59 textures:** `crates/kurashi-texture` — twelve seamless, deterministic materials (paper, dotted/lined/squared
+  paper, fabric, wool, stone, halftone, metal, leather, wood, paint), wrinkles, tint/plain; the shading formula
+  (DESIGN-SYSTEM "Texture and light") mirrored by `frontend/shaders/relief.frag` (qsb, `just shaders`); tiles as an opaque
+  relief map + a white ink map (rows 280–281, Qt premultiplies). Daemon `kurashid/src/texture.rs`: tokens `texture.*`,
+  `light.*` (legibility cap so text keeps 4.5:1), tile cache on a blocking thread, daytime sun (NOAA, 5-minute tick only in
+  that mode), the wallpaper light (`light_spot`: a lamp at the picture's brightest region, `light.lamp`), the wallpaper
+  bake through the mod API's new `PictureFilter`, Settings swatches only while Settings watches `theme.previews`.
+  `theme.texture.restore` brings the user's material back after a look/style took it (as K55).
+- **Frontend:** `Relief` on blocks, bar strip, grounds, Stage card and the island's shape, notifications, lock;
+  continuous sheet (gl_FragCoord + window origin, `Light.originOf`); `TextureOverlay` (scope everything, click-through);
+  pointer lamp (`core/Light.qml`, `LightSense.qml`); `texture.text` lays the relief over content.
+- **K60:** `theme.colors.ink` (palette | blue | black | sepia | red | green | violet | custom) as a palette stage before
+  wcag; `theme.typography.family_jp`; style/look/palette `kami` (paper_dots, sketch frame, Kalam + Klee One — in the dev
+  shell and the HM/NixOS font defaults via `google-fonts.override`), light and dark.
+- **Settings:** material cards (daemon swatches), light dial, ink swatches (`settings/test-texture.sh`).
+
+**Verification (end of session):** `just check`; `nix build .#kurashi`; hm-eval; 30 sandbox suites incl. the new
+`frontend/test-texture.sh` (relief = formula within 0.6/255, ink included; continuity; text on/off; overlay
+click-through; four static angles, pointer, daytime) and `settings/test-texture.sh`; looks washi and kami — all green.
+Fixed on the way: `mods/webdock/test/test-dock.sh` clicked where the K58 sidebar button now sits; the calendar test's feed
+event fell into tomorrow in an evening run.
+
+**Next steps (ordered):**
+1. Show the user live when they ask: 紙 in light and dark, a few materials under each light mode (incl. the wallpaper's
+   light with a real wallpaper, never shot in the sandbox yet), the everything overlay.
+2. Kami polish: I172 (the phone card's ground), I168 (relief clipped to the island's path), I169 (fibres busy on dark
+   paper), I167 (media cover opt-out).
+3. BENCH row for scope shell (idle 0 frames measured by W31-relief; PSS with one tile pair per window ≈ 1.8 MiB at
+   scale 1) and the everything overlay; I171 (generation time at scale 2), I170 (finer normals), I166 (greeter tile).
+4. Then session 12's earlier list: I156 time-of-day fallback for `auto`, I158–I162, I148–I153, I145–I147; session 10's
+   I134, I127, I141, I139; backlog sweep I118–I142.
+
+**Open decisions (ask):** none pending. MangoWM and isekai/mirai stay deferred until the user raises them.
+
+**Gotchas (new):** Qt Quick premultiplies texture alpha — never keep data in the RGB of alpha-0 texels. A sandbox name
+reused across runs keeps its cache (`/tmp/kurashi-sb-<name>`): read the file the tokens name, not the first match. Tests
+that place events "hours from now" break in evening runs.
+
+---
+
 ## 2026-10-21 — session 12 (machine B): light/dark modes, web dock in the sidebar, island join — K55, K56, wave 30
 **State:** `main` green, pushed. Two agent cards (W30-webdock-sidebar, W30-island-line) merged through the integration
 branch `feat/k55-scheme-modes`; no agent worktrees left. `target/` deleted at the end. Nothing is half-done.
@@ -228,50 +281,3 @@ markers: remove the `|||||||` base line too (main was broken once by it). `setti
 this session (B31). The emoji data lives in `crates/kurashi-launcher/data/` (MIT note there).
 
 ---
-
-## 2026-10-20 — session 8 (machine B): web dock shell side — K40, K41, wave 20
-**State:** `main` green and pushed (80640d6): `just check`, `just webdock` (test-host incl. net-log privacy, test-real against
-kurashid, test-dock all four phases), `nix build .#kurashi` + `checks.webdock-closure` (with the uncommitted fix below),
-`nix flake check --no-build`. No agents, no extra worktrees; `w20-*` build dirs deleted.
-
-**User decisions this session (K40):** the eight interpretations of `docs/ux/webdock.md` as proposed — hover reveals
-the strip **and** re-opens the last page, a click on its icon puts it away, click-in keeps it until focus leaves;
-250/500 ms reveal, 400 ms hide, 24 px grace; 56 px strip, 412 phone, 90 % large; pinned overlays, reserve optional;
-`Mod+B`; kurashi views = mod panels. **Change:** new tabs stay in the dock (setting `new_tabs`, browser optional); the
-header has back/forward, **home** once the page left the pin's address, and **"Replace pin with this page"**
-(`webdock.retarget`). **K41:** opt-in mods carry their own measured cost (BENCH "Mods"), outside the core K16/K19 budget —
-the dock's per-output edge window is ~6.2 MiB USS per output (+3.8 MiB once for the shared dock window). Accent design
-pass: later, separately.
-
-**Merged (wave 20, 4 Haiku cards):** lead contract (`surface:` provide row 88, `mod.webdock` fields row 109, seven
-settings row 110, actions + hover machine row 111; mock `add` reply row 113); W20-webdock-daemon (pure hover/focus state
-machine with deadlines in the supervisor, select/back/pin/add/remove/move/retarget as settings writes, mock parity —
-the mock has no timers); W20-webdock-shell (per-output thin edge window + **one** shared dock window retargeted like the
-Stage after a first design used one full window per output at 20–35 MiB each; strip panel, view card, add form, pin
-menu, empty/cold/missing states, keyboard, bar widget `widget:webdock`); W20-webdock-host (new tabs in the dock,
-home/forward, overflow menu, retarget, I78 polish, hover/engage reports, card centred in the usable area);
-W20-webdock-nix (W17.6: `packages.kurashi-webdock` 1.7 GB apart from `kurashi` 160 MB, closure check,
-`programs.kurashi.webdock.{enable,pins,keybind,…}`, NixOS parity, `Mod+B` bind). Rows 112–117 decided/deferred; new
-backlog I90–I100.
-
-**Not mine, left alone — ask the user:** uncommitted changes in `nix/package.nix`, `crates/kurashid/tests/hosts.rs`,
-`crates/kurashi-mock/tests/wire.rs` (another session's: python3 + patchShebangs for the fake host, XDG dirs for the mock
-under Nix). Verified: with them `nix build .#kurashi` passes; without them it fails in checkPhase. `hosts.rs` needs
-`cargo fmt` before commit.
-
-**Next steps (ordered):**
-1. Commit the Nix-build fix above (user's OK), then `nix build .#checks.x86_64-linux.webdock-closure` on main.
-2. **I80** the web dock on niri (nested niri in the sandbox, then the user's session on request): reveal by hover and
-   by `Mod+B`, keyboard focus (I98 first keystroke), layer surfaces at each edge; then PROGRESS W17 "UX ✅".
-3. Web dock follow-ups: I90 (view card Tab path + padding), I91 (provenance on `pinned`), I94 (CLI reveal and the hide),
-   I97 (`online` on `mod.webdock`), I99/I100 (reduced motion, 26 px buttons, top/bottom edges), I92 (browser command),
-   I95 (per-key enforce), I96 (mock `mods` document).
-4. Earlier queue (session 7 step 3–4): I86, I88, I89, I84, I67 keyboard path, I77, I87; B7 quiet re-measure; I93 (PSS
-   reader on two outputs under gles2) before trusting two-output PSS; I10 on machine A.
-5. Design pass with the user (accent colour: I51, I63, I78 leftovers, I82, I83, I86; `INSPIRATION.md`).
-
-**Gotchas (new):** a `cd` into an agent worktree moves the lead's session cwd — use `git -C`. `git commit -am` sweeps the
-other session's dirty files into your commit (happened once, undone before push) — stage paths explicitly while that
-diff exists. Parallel cards still collide on CONTRACT-CHANGE row numbers (renumbered 112→114, 114→115 at merge). The
-zsh tool shell has no `PIPESTATUS` (use `$pipestatus` or `set -o pipefail`). PSS on two outputs under gles2 shows a
-~1.9 TiB mapping: measure USS (I93).
