@@ -67,6 +67,9 @@ Then the detail sections as before (scheme and the accessibility colour keys, sh
 - **Changed from the style:** while `theme.appearance.overrides` is not empty, a line under the Style block: "3
   settings differ from Washi: Chrome, Corners, Palette · Reset to Washi" (labels from the schema catalogue, at most
   four then "…"). Reset applies the current style again (one undo step). With style `none` there is no such line.
+- **Light or dark** (K53 amendment) is the user's mode: the scheme switch sits in the Palette block, under the cards
+  (they are drawn in the scheme in effect), its chip "Recommended by the style Washi" until you pick, then "Yours".
+  Applying a style keeps it, and the Style block's line says so. It is never listed as a difference from the style.
 - The selection is a frame plus a check and a bold caption, never colour alone.
 
 ## Motion
@@ -122,7 +125,7 @@ plain rows with their cards).
 Washi's look carries a frame, `paper`: a very fine fibre grain and a soft hairline in the ink colour (`Theme.fg`, low
 alpha), a little stronger on the lock/greeter ground. The grain is one small tile (an SVG made once per ink colour,
 from a fixed seed so every block shows the same paper) that the image cache shares between all blocks; it never
-animates. Small blocks (bar groups, keys) get the hairline only — grain on a 20 px key reads as dirt.
+animates. Small blocks (bar groups, keys) get a fainter grain — more on a 20 px key reads as dirt.
 
 ## Definition of done
 - Five looks visibly distinct on every surface (bar, island pill and card, quick settings, launcher, notifications,

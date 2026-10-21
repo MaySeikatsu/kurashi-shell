@@ -57,14 +57,24 @@ Singleton {
     property var heldUsers: ({})
 
     function watch(doc) {
+        // 0 = still subscribed, about to be dropped (unwatch): kept without a new subscription.
+        var held = wanted[doc] === 0
         var n = (wanted[doc] || 0) + 1
         wanted[doc] = n
-        if (n === 1 && connected) send({ t: "sub", id: "w:" + doc, doc: doc })
+        if (n === 1 && !held && connected) send({ t: "sub", id: "w:" + doc, doc: doc })
     }
     function unwatch(doc) {
         var n = wanted[doc] || 0
         if (n <= 0) return
         if (n > 1) { wanted[doc] = n - 1; return }
+        // The last viewer went: the document is dropped a moment later, unless a view watches it again in the same
+        // turn (a page rebuilt from a search: its new rows must not wait for a new snapshot, or their controls are built
+        // twice and the keyboard focus is lost).
+        wanted[doc] = 0
+        Qt.callLater(function () { root.dropDoc(doc) })
+    }
+    function dropDoc(doc) {
+        if ((wanted[doc] || 0) > 0 || wanted[doc] === undefined) return
         delete wanted[doc]
         if (connected) send({ t: "unsub", doc: doc })
         delete revs[doc]
@@ -181,7 +191,9 @@ Singleton {
         case "theme":
             // K53: each value of the theme layer names its pack, `style:<name>` or `look:<name>`: "From the style Washi".
             var pack = /^(style|look):(.+)$/.exec(s.name || "")
-            if (pack) return I18n.fmt("settings.source." + pack[1], { name: packLabel(pack[1] + "s", pack[2]) })
+            if (pack) return I18n.fmt("settings.source." + (pack[1] === "style" && styleRecommends.indexOf(key) >= 0
+                                                                ? "style_recommends" : pack[1]),
+                                      { name: packLabel(pack[1] + "s", pack[2]) })
             return s.name ? I18n.fmt("settings.source.theme", { name: s.name }) : I18n.tr("settings.source.theme_plain")
         case "nix": return I18n.fmt("settings.source.nix", { path: nixPath(key) })
         case "forced":
@@ -197,6 +209,9 @@ Singleton {
     // which), one undo step. A palette is a plain value.
     readonly property var packSources: ["styles", "looks", "palettes"]
     readonly property var packActions: ({ styles: "theme.style.apply", looks: "theme.look.apply" })
+    // Values a style only recommends until you pick (K53 amendment: light or dark is your mode, a style keeps it):
+    // their provenance reads "Recommended by the style Washi".
+    readonly property var styleRecommends: ["theme.colors.scheme"]
     function isPackRow(row) { return !!row && packSources.indexOf(row.choices_from) >= 0 }
     // A pack's name in words, from the offers of the row that picks it (a user pack without a catalogue key: its name).
     function packLabel(source, name) {

@@ -92,6 +92,9 @@ Flickable {
     readonly property var extras: ({ "theme.export": cThemeExport })
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
     readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
+    // Rows a pack block shows with it (K53 amendment): light or dark sits with the palette, as the palette cards are drawn
+    // in it. Display only: the row keeps its own schema row, provenance and reset.
+    readonly property var packCompanions: ({ palettes: ["theme.colors.scheme"] })
     Component { id: cThemeExport; ThemeExportStatus {} }
 
     contentWidth: width
@@ -116,6 +119,12 @@ Flickable {
         for (var i = 0; i < pages.length; i++) {
             if (q === "" && pages[i].id !== p.pageId) continue
             var secs = [], blocks = []
+            // The rows a pack block takes in with it (its companions), when the page has that block.
+            var taken = {}, rowsByKey = {}
+            pages[i].sections.forEach(function (sc) { sc.rows.forEach(function (r) {
+                rowsByKey[r.key] = r
+                if (q === "" && Store.isPackRow(r)) (p.packCompanions[r.choices_from] || []).forEach(function (k) { taken[k] = true })
+            }) })
             for (var j = 0; j < pages[i].sections.length; j++) {
                 var s = pages[i].sections[j]
                 var rows = s.rows.filter(function (r) {
@@ -123,9 +132,11 @@ Flickable {
                 })
                 if (q === "") {
                     rows.filter(function (r) { return Store.isPackRow(r) }).forEach(function (r) {
-                        blocks.push({ row: r, pageId: pages[i].id, crumb: "" })
+                        blocks.push({ row: r, pageId: pages[i].id, crumb: "",
+                                      companions: (p.packCompanions[r.choices_from] || []).filter(function (k) {
+                                          return rowsByKey[k] !== undefined }) })
                     })
-                    rows = rows.filter(function (r) { return !Store.isPackRow(r) })
+                    rows = rows.filter(function (r) { return !Store.isPackRow(r) && !taken[r.key] })
                 }
                 if (rows.length) secs.push({ id: s.id, label: s.label, rows: rows.map(function (r) {
                     return { row: r, pageId: pages[i].id,
@@ -140,14 +151,20 @@ Flickable {
     readonly property int scopeCount: Store.allRows().length
 
     // The first search hit as {pageId, row}, or null (Enter in the search field).
+    // A row whose name has the query wins over one whose help only mentions it ("palette" lands on Palette, not on the
+    // Style whose help names a palette; W29).
     function firstHit() {
         var v = view
+        var q = p.query.trim().toLowerCase()
+        var first = null
         for (var i = 0; i < v.length; i++)
-            for (var j = 0; j < v[i].sections.length; j++) {
-                var w = v[i].sections[j].rows[0]
-                if (w) return { pageId: w.pageId, row: w.row }
-            }
-        return null
+            for (var j = 0; j < v[i].sections.length; j++)
+                for (var k = 0; k < v[i].sections[j].rows.length; k++) {
+                    var w = v[i].sections[j].rows[k]
+                    if (I18n.tr(w.row.label).toLowerCase().indexOf(q) >= 0) return { pageId: w.pageId, row: w.row }
+                    if (!first) first = { pageId: w.pageId, row: w.row }
+                }
+        return first
     }
     // After a jump the target page lays out on a later event: then the row is scrolled into view and
     // flashed once, and a keyboard jump moves the focus onto its control. Nothing repeats and no timer runs.
@@ -301,8 +318,20 @@ Flickable {
                             rowKey: blk.modelData.row.key
                             output: p.output
                             stacked: true
-                            divider: false
+                            divider: blk.modelData.companions.length > 0
                             onOpenKey: key => p.openKey(key)
+                        }
+                        Repeater {
+                            model: blk.modelData.companions
+                            delegate: SettingRow {
+                                required property var modelData
+                                required property int index
+                                width: blk.width - 2 * Theme.pad
+                                rowKey: modelData
+                                output: p.output
+                                divider: index < blk.modelData.companions.length - 1
+                                onOpenKey: key => p.openKey(key)
+                            }
                         }
                         Loader {
                             width: blk.width - 2 * Theme.pad

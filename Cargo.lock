@@ -1036,6 +1036,7 @@ dependencies = [
  "kurashi-core",
  "kurashi-ipc",
  "kurashi-schema",
+ "kurashi-theme",
  "kurashid",
  "serde_json",
  "tokio",
