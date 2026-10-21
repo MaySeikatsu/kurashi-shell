@@ -38,6 +38,8 @@
             just jq python3 git
             # Frontend default (K3 candidate 1) + headless test compositor
             quickshell sway grim wayland-utils
+            # Shaders (K59): `qsb` compiles frontend/shaders/*.frag
+            qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
             self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine wtype
             # Bench harness
@@ -47,7 +49,7 @@
           # The fonts the shell draws with (HM `programs.kurashi.fonts`), visible to fontconfig through its
           # xdg data dirs, so sandbox screenshots show icons and every decor look without a system install.
           shellHook = ''
-            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
             echo "kurashi dev shell — 'just' lists tasks"
           '';
         };

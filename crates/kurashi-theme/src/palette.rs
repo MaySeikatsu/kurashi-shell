@@ -302,6 +302,7 @@ const BUNDLED: &[(&str, &str)] = &[
         include_str!("../../../palettes/hallownest.toml"),
     ),
     ("souls", include_str!("../../../palettes/souls.toml")),
+    ("kami", include_str!("../../../palettes/kami.toml")),
 ];
 
 pub fn bundled_names() -> Vec<&'static str> {

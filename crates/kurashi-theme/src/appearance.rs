@@ -31,6 +31,21 @@ pub const LOOK_KEYS: &[&str] = &[
     "theme.motion.profile",
     "theme.motion.speed",
     "theme.typography.family",
+    "theme.typography.family_jp",
+    "theme.texture.kind",
+    "theme.texture.strength",
+    "theme.texture.scale",
+    "theme.texture.wrinkles",
+    "theme.texture.tint",
+];
+
+/// The material keys a look or style sets (K59): the user's own come back with `theme.texture.restore`.
+pub const TEXTURE_KEYS: &[&str] = &[
+    "theme.texture.kind",
+    "theme.texture.strength",
+    "theme.texture.scale",
+    "theme.texture.wrinkles",
+    "theme.texture.tint",
 ];
 
 /// The keys applying a style resets: its look and palette, light or dark, every look key and the density. Applying a
@@ -51,6 +66,13 @@ pub const STYLE_KEYS: &[&str] = &[
     "theme.motion.profile",
     "theme.motion.speed",
     "theme.typography.family",
+    "theme.typography.family_jp",
+    "theme.texture.kind",
+    "theme.texture.strength",
+    "theme.texture.scale",
+    "theme.texture.wrinkles",
+    "theme.texture.tint",
+    "theme.colors.ink",
 ];
 
 /// The categories Settings groups packs by, in its order. A pack naming another one is `custom`.
@@ -63,6 +85,7 @@ const BUNDLED_LOOKS: &[(&str, &str)] = &[
     ("material", include_str!("../../../looks/material.toml")),
     ("terminal", include_str!("../../../looks/terminal.toml")),
     ("washi", include_str!("../../../looks/washi.toml")),
+    ("kami", include_str!("../../../looks/kami.toml")),
     ("sekai", include_str!("../../../looks/sekai.toml")),
     ("aqua", include_str!("../../../looks/aqua.toml")),
     // W25 identity looks, after shellseikatsu's `Services/Modes/*.qml` presets.
@@ -79,6 +102,7 @@ const BUNDLED_LOOKS: &[(&str, &str)] = &[
 
 const BUNDLED_STYLES: &[(&str, &str)] = &[
     ("washi", include_str!("../../../styles/washi.toml")),
+    ("kami", include_str!("../../../styles/kami.toml")),
     ("kanso", include_str!("../../../styles/kanso.toml")),
     ("material", include_str!("../../../styles/material.toml")),
     ("glass", include_str!("../../../styles/glass.toml")),

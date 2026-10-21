@@ -105,7 +105,12 @@ pub struct Tile {
 impl Tile {
     pub fn texel(&self, x: u32, y: u32) -> [u8; 4] {
         let i = ((y % self.size) * self.size + (x % self.size)) as usize * 4;
-        [self.rgba[i], self.rgba[i + 1], self.rgba[i + 2], self.rgba[i + 3]]
+        [
+            self.rgba[i],
+            self.rgba[i + 1],
+            self.rgba[i + 2],
+            self.rgba[i + 3],
+        ]
     }
 
     /// Bilinear sample at sheet position `p` (logical px) for a sheet scaled by `scale`, wrapping.
@@ -171,8 +176,7 @@ pub fn shade(t: [f32; 4], s: &Shading) -> [f32; 4] {
     let l = s.light_dir;
     let diff = dot(n, l) - l[2];
     let h = normalize([l[0], l[1], l[2] + 1.0]);
-    let spec = s.gloss
-        * (dot(n, h).max(0.0).powf(s.shininess) - h[2].max(0.0).powf(s.shininess));
+    let spec = s.gloss * (dot(n, h).max(0.0).powf(s.shininess) - h[2].max(0.0).powf(s.shininess));
     let v = (s.amp * (2.0 * diff + 0.5 * cav + spec)).clamp(-s.amp, s.amp);
     let shade = if v < 0.0 {
         [0.0, 0.0, 0.0, -v]
@@ -271,7 +275,9 @@ pub fn material(kind: Kind) -> Material {
     };
     match kind {
         Kind::Paper => m(0.0, 8.0, InkRole::OnSurface, 0.06),
-        Kind::PaperDots | Kind::PaperLines | Kind::PaperGrid => m(0.0, 8.0, InkRole::Secondary, 0.35),
+        Kind::PaperDots | Kind::PaperLines | Kind::PaperGrid => {
+            m(0.0, 8.0, InkRole::Secondary, 0.35)
+        }
         Kind::Fabric => m(0.05, 6.0, InkRole::OnSurface, 0.08),
         Kind::Wool => m(0.0, 4.0, InkRole::None, 0.0),
         Kind::Stone => m(0.1, 12.0, InkRole::OnSurface, 0.1),
@@ -358,14 +364,7 @@ mod tests {
             device_scale: 1.0,
         };
         let (a, _) = tile_file(dir.path(), &p).unwrap();
-        let (b, _) = tile_file(
-            dir.path(),
-            &Params {
-                tint: true,
-                ..p
-            },
-        )
-        .unwrap();
+        let (b, _) = tile_file(dir.path(), &Params { tint: true, ..p }).unwrap();
         assert!(a.is_file() && b.is_file() && a != b);
     }
 }

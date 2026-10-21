@@ -164,6 +164,34 @@ pub fn sun_times(
     Some((local(rise), local(set)))
 }
 
+/// The sun's elevation in degrees at local `minute` (0..1440, fractional) of `day_of_year`, by the same NOAA equations
+/// (true solar time → hour angle → zenith). Negative below the horizon. K59's daytime light.
+pub fn sun_elevation(
+    lat: f64,
+    lon: f64,
+    day_of_year: u32,
+    minute: f64,
+    utc_offset_min: i32,
+) -> f64 {
+    use std::f64::consts::PI;
+    let g =
+        2.0 * PI / 365.0 * (f64::from(day_of_year.max(1)) - 1.0 + (minute / 60.0 - 12.0) / 24.0);
+    let eqtime = 229.18
+        * (0.000075 + 0.001868 * g.cos()
+            - 0.032077 * g.sin()
+            - 0.014615 * (2.0 * g).cos()
+            - 0.040849 * (2.0 * g).sin());
+    let decl = 0.006918 - 0.399912 * g.cos() + 0.070257 * g.sin() - 0.006758 * (2.0 * g).cos()
+        + 0.000907 * (2.0 * g).sin()
+        - 0.002697 * (3.0 * g).cos()
+        + 0.00148 * (3.0 * g).sin();
+    let solar = minute + eqtime + 4.0 * lon - f64::from(utc_offset_min);
+    let ha = (solar / 4.0 - 180.0).to_radians();
+    let lat_r = lat.to_radians();
+    let cos_zenith = lat_r.sin() * decl.sin() + lat_r.cos() * decl.cos() * ha.cos();
+    90.0 - cos_zenith.clamp(-1.0, 1.0).acos().to_degrees()
+}
+
 /// Reasons of `svc.nightlight.reason`.
 pub const REASON_MISSING: &str = "power.nightlight.reason.missing";
 pub const REASON_NO_PLACE: &str = "power.nightlight.reason.no_place";
@@ -228,6 +256,18 @@ mod tests {
         assert_eq!(state_at(Schedule::Always, 600, 1, 0), (true, None));
         assert_eq!(minutes_until(1300, 420), 560);
         assert_eq!(minutes_until(600, 600), 1440);
+    }
+
+    #[test]
+    fn tokyo_noon_sun_is_high_and_midnight_below() {
+        // 21 June, Tokyo: the noon sun stands about 78° high; at midnight it is far below.
+        let noon = sun_elevation(35.6895, 139.6917, 172, 11.0 * 60.0 + 43.0, 540);
+        assert!((76.0..80.0).contains(&noon), "{noon}");
+        assert!(sun_elevation(35.6895, 139.6917, 172, 0.0, 540) < -20.0);
+        // At its sunrise it is at the horizon (refraction: about −0.8°).
+        let (rise, _) = sun_times(35.6895, 139.6917, 172, 540).unwrap();
+        let at_rise = sun_elevation(35.6895, 139.6917, 172, f64::from(rise), 540);
+        assert!((-2.0..1.0).contains(&at_rise), "{at_rise}");
     }
 
     #[test]

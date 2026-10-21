@@ -166,9 +166,13 @@ impl<C: Compositor + 'static> Provider for WorkspacesProvider<C> {
                 }
             };
             let _ = hub.set(DOC, document(&state), None);
+            crate::texture::set_outputs(&state.outputs);
             while let Some(ev) = events.next().await {
                 match ev {
-                    Event::Outputs(o) => state.outputs = o,
+                    Event::Outputs(o) => {
+                        crate::texture::set_outputs(&o);
+                        state.outputs = o;
+                    }
                     Event::Workspaces(w) => state.workspaces = w,
                     Event::Windows(w) => state.windows = w,
                     Event::Overview(open) => state.overview_open = open,

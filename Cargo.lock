@@ -1297,6 +1297,7 @@ dependencies = [
  "kurashi-notify",
  "kurashi-schema",
  "kurashi-services",
+ "kurashi-texture",
  "kurashi-theme",
  "kurashi-tray",
  "notify",
