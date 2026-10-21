@@ -236,6 +236,7 @@ mod tests {
         follower.abort();
         set(Pref::Unknown);
         let _ = bus.kill();
+        let _ = bus.wait();
     }
 
     #[test]
