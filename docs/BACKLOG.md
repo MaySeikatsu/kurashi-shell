@@ -196,6 +196,11 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I145 | 2026-10-21 | lead (K53) | Mods' `decor:` provide (manifest `Provide::Decor`) predates K53: replace it with `look:` and `style:` provides that add packs from a mod's folder, offered in Settings with the mod named. | new |
 | I146 | 2026-10-21 | lead (K53) | A loaded profile's own `theme.*` entries (profile layer) beat the theme layer, and `theme.style.apply` resets only user values: applying a style after a profile with appearance keys keeps the profile's. Decide: should applying a style also drop the profile layer's appearance entries (and say so)? | new |
 | I147 | 2026-10-21 | lead (K53) | Palettes have no category (Settings shows them flat) and no light/dark hint; group them (by family or by the styles that use them) once the Style/Look overview has been tried. | new |
+| I148 | 2026-10-21 | W29-sidebar report (row 234) | Toasts cover the open right sidebar: hide banners while `runtime.ui.sidebar == "right"` on that output (macOS: no banners while Notification Center is open). | new |
+| I149 | 2026-10-21 | W29-sidebar report (row 235) | `wiring::ui` should get the adapter's focused output so `sidebar.toggle` from a key stores `sidebar_output` (daemon-owned; today the frontend picks its focused output). | new |
+| I150 | 2026-10-21 | W29-sidebar report (rows 236, 237) | Sidebar header uptime (a daemon value, e.g. `svc.session.boot_ms`) and a mic slider (`audio.source.volume` intent). | new |
+| I151 | 2026-10-21 | W29-sidebar report (row 239) | Extract the quick tiles' values/requests into a shared `components/quick/QuickState.qml` for the quick card and the sidebar's toggles (they already drifted once: the Dark tile had to be added twice). | new |
+| I152 | 2026-10-21 | W29-sidebar report | Sidebar: click outside to close (niri has no layer-surface focus grab); measure 20 open/close cycles for USS growth (K16: map/unmap leaked ~5 MiB per cycle for the Stage). | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
