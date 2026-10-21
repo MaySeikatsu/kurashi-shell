@@ -304,9 +304,9 @@ fn paint_covers_the_tile_edge_to_edge_and_wraps_tightly() {
 fn paint_keeps_its_bytes() {
     let plain = fnv1a(&generate(&params(Kind::Paint, true, 0.0)).rgba);
     let creased = fnv1a(&generate(&params(Kind::Paint, true, 0.6)).rgba);
-    assert_eq!(plain, 0xf711_c7b1_cc82_253e, "paint (wrinkles 0) changed");
+    assert_eq!(plain, 0xb7fd_c114_a8e2_1f31, "paint (wrinkles 0) changed");
     assert_eq!(
-        creased, 0x4b16_3949_26b0_684d,
+        creased, 0x70d0_1f26_8022_b827,
         "paint (wrinkles 0.6) changed"
     );
 }

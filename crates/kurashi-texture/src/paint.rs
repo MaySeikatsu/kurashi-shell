@@ -16,7 +16,7 @@ use crate::weave;
 /// The passages: each a region with its own lean of the strokes, brush width and pigment tone.
 const PASSAGES: usize = 3;
 /// The strokes: one per cell of a jittered grid of this many cells a side.
-const GRID: usize = 7;
+const GRID: usize = 8;
 /// Centreline segments per stroke, and how many of them lie before the seed (the seed sits near the middle).
 const SEGMENTS: usize = 8;
 const BACK: usize = 3;
@@ -29,7 +29,7 @@ const BARE: f32 = 0.6;
 /// The relief of a stroke's bead, lip and raised sides, as fractions of its body thickness.
 const BEAD: f32 = 0.7;
 const LIP: f32 = 0.5;
-const SIDE: f32 = 0.45;
+const SIDE: f32 = 0.55;
 
 /// One brush stroke. Its centreline is in unwrapped logical px.
 struct Stroke {
@@ -298,6 +298,24 @@ fn end_taper(u: f32, len: f32, half: f32) -> f32 {
     k
 }
 
+/// Smooth noise over the stroke's own coordinates (0..1): a hash per lattice point, blended bilinearly with smooth weights.
+/// Across the stroke it varies over a few tracks, so neighbouring bristles share their paint.
+fn value2(x: f32, y: f32, seed: u64) -> f32 {
+    let (x0, y0) = (x.floor(), y.floor());
+    let (fx, fy) = (x - x0, y - y0);
+    let (sx, sy) = (fx * fx * (3.0 - 2.0 * fx), fy * fy * (3.0 - 2.0 * fy));
+    let (i, j) = (x0 as i64, y0 as i64);
+    let top = {
+        let (a, b) = (hash(i, j, seed), hash(i + 1, j, seed));
+        a + (b - a) * sx
+    };
+    let bottom = {
+        let (c, d) = (hash(i, j + 1, seed), hash(i + 1, j + 1, seed));
+        c + (d - c) * sx
+    };
+    top + (bottom - top) * sy
+}
+
 /// Smooth noise along a stroke (0..1): a hash per cell of `t` (a few px), blended, so a track's streaks run a short way.
 fn along(i: i64, t: f32, seed: u64) -> f32 {
     let k = t.floor();
@@ -361,7 +379,7 @@ fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut 
             .clamp(0.0, 1.4);
             let groove = 0.9 * depth * (1.0 - (PI * frac).sin()).powf(2.5);
             // Impasto: the paint lumps along each track, so the body is never an even plateau.
-            let lump = 0.8 + 0.4 * along(ti, u / 12.0, s.seed ^ 0x91);
+            let lump = 0.6 + 0.8 * value2(across / 3.0, u / 14.0, s.seed ^ 0x91);
             let body = (s.body * thick * lump - groove).max(0.0);
             // Pushed paint: a bead where the stroke starts, a lip where it stops, and raised sides.
             let across_w = (1.0 - (e / half).powi(2)).max(0.0).sqrt();
