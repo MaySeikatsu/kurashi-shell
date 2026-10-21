@@ -539,3 +539,15 @@ remembered mode) and `theme.scheme.restore {}` sets it back (one undo step). The
 The quick and sidebar Dark tiles show the scheme in effect and set dark or light outright. *Why:* GNOME/KDE/macOS
 "Auto" follows the system; matugen/Caelestia/DMS derive the scheme from the wallpaper; a style is a whole aesthetic
 (K53), so it owns light/dark until the user picks again, and "Back to Auto" undoes only that.
+
+**K56** 🟢 The web dock in the sidebar fills it (user, session 12: "It should be able to be used in the sidebar but
+inside of it it fills the whole sidebar instead of being phone shaped"; resolves I116; card W30-webdock-sidebar, rows
+250–252). The web dock offers panel `panel:webdock` (tab value `mod:webdock:webdock`) for `sidebar.left` and
+`sidebar.right`: a row of pin keys over the page, which fills the pane — no phone frame. One engine, one page per pin
+(K38 kept): the web host maps a second layer window (`kurashi-webdock-side`, Overlay, anchored like the sidebar, exclusive
+zone 0) only while the sidebar rests open on a site, at the place the panel reports (`webdock.sidebar`, panel property
+`placement`), and moves that pin's page between its windows (QQuickItem reparent, no reload — spiked headless). The same
+pin at the edge and in the sidebar: the sidebar shows it live, the edge card says "shown in the sidebar". Closing the
+sidebar unmaps the window (0 frames) and freezes the page; it stays loaded under the dock's own unload rules, a page in
+an open sidebar counting as shown. *Why:* Vivaldi/Edge/Opera web panels are a page beside the content at the panel's
+full size — a phone bezel inside a sidebar wastes its width. Host memory with the window mapped: to measure (BENCH).

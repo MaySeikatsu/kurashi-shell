@@ -155,7 +155,11 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   Store/Theme/I18n; found in the session-5 live check). The loader also hands `store`, `theme`, `i18n` as required
   properties. Mods talk to the daemon only through their own documents/actions. A panel may declare
   `property real fillHeight: 0`: a host that offers a fixed height (the left sidebar, K54/row 238) sets it, and the
-  panel can fill it (the AI chat puts its composer at the bottom); the Stage card sets nothing.
+  panel can fill it (the AI chat puts its composer at the bottom); the Stage card sets nothing. A panel may also declare
+  `property var placement: null` (row 251): a sidebar sets it to `{output, side, inset, top, width, height}` — the
+  panel's rect at rest in the sidebar's layer window, from the anchored side edge and the window's top — and to null
+  while the panel moves (slide, scroll, a tile page), is clipped or hidden (`frontend/components/sidebar/Placement.qml`).
+  A panel showing another process's surface (the web dock's page) maps it exactly there; the Stage card sets nothing.
 - **Slots, faces, choices (K28):** `slot:<name>` → `qml/slots/<name>.qml`, listed in `runtime.slots` while the mod
   is enabled; `island-face:<name>` → `ModCtx::face(name, spec)` registers it with the core arbiter (transient or
   relevance signals via `ModCtx` handle), components `qml/Face.qml` + `qml/FaceExpanded.qml`;
@@ -237,7 +241,12 @@ until the shell's strip exists), `width` the phone width in px, `large` a percen
 `webdock.collapse {}` (compact, `shown` cleared) · `webdock.hide {}` (hidden, `shown` kept) · `webdock.toggle
 {output?}` (hidden → extended(`shown`) or compact; else hidden) · `webdock.size {size?}` (phone|large; no argument
 toggles) · `webdock.view {pin, view: mobile|desktop}` (settings write, undoable) · `webdock.open_external {url}`
-(`xdg-open`; http, https only). An unknown pin is `invalid` with `webdock.error.unknown_pin`. **Host reports**
+(`xdg-open`; http, https only) · `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (the sidebar
+panel's placement report, row 250; `on: false` withdraws it; bad fields → `webdock.error.argument`) ·
+`webdock.sidebar_select {pin}` (the pin the sidebar shows). An unknown pin is `invalid` with `webdock.error.unknown_pin`.
+In the sidebar (K56): the document's optional `sidebar {pin?, place?}` — absent until the sidebar panel is used —
+names the pin the sidebar shows and, while it rests open, where its page area is; the host maps its second window
+there and moves that pin's page into it. **Host reports**
 (the host's scoped connection): `webdock.host.loaded {pin, icon?}` (icon: a file under `dirs.icons`) ·
 `webdock.host.unloaded {pin}` · `webdock.host.audible {pin, on}` · `webdock.host.blocked {pin, permission}`
 (`camera|microphone|location|notifications|screen|clipboard|download|other`; cleared by the next `loaded`) ·

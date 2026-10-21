@@ -60,10 +60,10 @@ Colours only: the roles every surface is painted with, in light and dark. A styl
 
 #### `theme.colors.scheme` — Light or dark
 
-Your mode: every palette has both. A style recommends one until you pick; applying a style keeps it (K53).
+Every palette has both. Follow the system's preference, the wallpaper's brightness, or pick one. Applying a style makes it follow the style; "Back to …" returns to your own choice (K55).
 
-- type: `choice` · default: `"dark"`
-- choices: `"dark"` | `"light"`
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"wallpaper"` | `"dark"` | `"light"`
 
 #### `theme.colors.contrast` — Contrast
 
@@ -92,7 +92,7 @@ A slight seasonal drift of hues following the 24 solar terms.
 Pure-black grounds on dark schemes.
 
 - type: `bool` · default: `false`
-- only while `theme.colors.scheme == "dark"`
+- only while `theme.colors.scheme != "light"`
 
 #### `theme.export` — Apps that follow
 

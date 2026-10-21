@@ -61,10 +61,11 @@
 #   choices: from `palettes` (resolved at runtime)
 # palette = "wa-iro"
 #
-# Light or dark — Your mode: every palette has both. A style recommends one until you
-# pick; applying a style keeps it (K53).
-#   choices: "dark" | "light"
-# scheme = "dark"
+# Light or dark — Every palette has both. Follow the system's preference, the wallpaper's
+# brightness, or pick one. Applying a style makes it follow the style; "Back to …" returns
+# to your own choice (K55).
+#   choices: "auto" | "wallpaper" | "dark" | "light"
+# scheme = "auto"
 #
 # Contrast — Raises the contrast between surfaces and text.
 #   choices: "standard" | "medium" | "high" · forced to "high" while a11y.high_contrast is on
@@ -79,7 +80,7 @@
 # season = false
 #
 # Pure black (OLED) — Pure-black grounds on dark schemes.
-#   only while theme.colors.scheme == "dark"
+#   only while theme.colors.scheme != "light"
 # oled = false
 
 # [theme.shape]

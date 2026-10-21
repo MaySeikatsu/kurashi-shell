@@ -1773,6 +1773,35 @@ mod tests {
         );
     }
 
+    /// Row 250: once the sidebar shows the dock, `sidebar {pin, place}` carries the fixture variant's keys.
+    #[test]
+    fn the_sidebar_keys_match_their_fixture() {
+        let fixture: Value = serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_mod_webdock_sidebar.json"
+        ))
+        .unwrap();
+        let fixture = &fixture["data"]["sidebar"];
+        let mut d = dock(&[]);
+        d.set_host(HostState::Ready);
+        d.side_select("mail").unwrap();
+        d.place(Some(Place {
+            output: "DP-1".into(),
+            side: Side::Left,
+            inset: 12,
+            top: 60,
+            width: 396,
+            height: 1336,
+        }));
+        let doc = d.doc();
+        assert_eq!(keys(&doc["sidebar"]), keys(fixture), "the sidebar");
+        assert_eq!(
+            keys(&doc["sidebar"]["place"]),
+            keys(&fixture["place"]),
+            "its place"
+        );
+        assert_eq!(doc["sidebar"]["place"]["side"], "left");
+    }
+
     #[test]
     fn the_document_has_the_fixture_keys() {
         let fixture: Value = serde_json::from_str(include_str!(

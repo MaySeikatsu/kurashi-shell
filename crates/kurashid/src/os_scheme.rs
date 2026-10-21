@@ -155,13 +155,19 @@ mod tests {
     /// A private bus (never the user's): the fake portal answers light, then signals dark.
     #[tokio::test]
     async fn follows_the_portal_colour_scheme() {
+        tokio::time::timeout(std::time::Duration::from_secs(20), portal_round_trip())
+            .await
+            .expect("the portal test timed out");
+    }
+
+    async fn portal_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let conf = dir.path().join("bus.conf");
         std::fs::write(
             &conf,
             format!(
                 r#"<busconfig><type>session</type><listen>unix:tmpdir={}</listen><auth>EXTERNAL</auth>
-<policy context="default"><allow send_destination="*"/><allow own="*"/></policy></busconfig>"#,
+<policy context="default"><allow send_destination="*"/><allow receive_sender="*"/><allow own="*"/></policy></busconfig>"#,
                 dir.path().display()
             ),
         )
