@@ -694,7 +694,8 @@ impl Native {
             state: Mutex::default(),
         });
         let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone())
-            .with_capabilities(&manifest.capabilities);
+            .with_capabilities(&manifest.capabilities)
+            .with_picture_filter(Some(crate::texture::picture_filter()));
         module.enable(&mut ctx)?;
         let declared_jobs = ctx.take_jobs();
         let declared_hosts = ctx.take_hosts();

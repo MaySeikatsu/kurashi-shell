@@ -186,6 +186,16 @@ pub struct Mod {
 
 impl Mod {
     pub fn enable(fake: Arc<Fake>, dirs: Dirs, values: Values) -> Result<Self, ModError> {
+        Self::enable_filtered(fake, dirs, values, None)
+    }
+
+    /// [`Mod::enable`] with the host's picture filter (K59).
+    pub fn enable_filtered(
+        fake: Arc<Fake>,
+        dirs: Dirs,
+        values: Values,
+        filter: Option<Arc<dyn kurashi_mod_api::PictureFilter>>,
+    ) -> Result<Self, ModError> {
         let wp = Wallpaper::with(fake.clone(), dirs.clone());
         let (settings_tx, settings_rx) = watch::channel(values);
         let provides: Vec<String> = PROVIDES.iter().map(|s| s.to_string()).collect();
@@ -193,7 +203,8 @@ impl Mod {
             &provides,
             Settings::new(settings_rx.clone()),
             Arc::new(NoHooks),
-        );
+        )
+        .with_picture_filter(filter);
         wp.enable(&mut ctx)?;
         let regs = ctx.finish()?;
         let (doc_tx, doc) = watch::channel(Value::Null);

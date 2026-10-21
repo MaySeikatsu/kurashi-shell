@@ -59,8 +59,19 @@ fn device_scale() -> f32 {
     SCALE.load(Ordering::Relaxed) as f32 / 100.0
 }
 
+static CACHE_DIR: OnceLock<PathBuf> = OnceLock::new();
+
+/// Tiles and bakes live here: `$XDG_CACHE_HOME/kurashi/texture` (tests set their own, once per process).
 pub fn cache_dir() -> PathBuf {
-    crate::xdg_dir("cache").join("texture")
+    CACHE_DIR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| crate::xdg_dir("cache").join("texture"))
+}
+
+/// For tests: keep tiles and bakes out of the user's cache.
+pub fn set_cache_dir(dir: PathBuf) {
+    let _ = CACHE_DIR.set(dir);
 }
 
 fn key(p: &Params) -> String {
@@ -449,6 +460,64 @@ pub fn bake_file(
     Ok(out)
 }
 
+/// What the wallpaper bake uses now; `None` while the wallpaper is not a texture scope (pictures go through unchanged).
+#[derive(Clone)]
+struct Bake {
+    tile: Arc<Tile>,
+    sh: Shading,
+    scale: f32,
+}
+
+fn bake_state() -> &'static Mutex<Option<Bake>> {
+    static BAKE: OnceLock<Mutex<Option<Bake>>> = OnceLock::new();
+    BAKE.get_or_init(Default::default)
+}
+
+fn bake_tx() -> &'static tokio::sync::watch::Sender<u64> {
+    static TX: OnceLock<tokio::sync::watch::Sender<u64>> = OnceLock::new();
+    TX.get_or_init(|| tokio::sync::watch::channel(0).0)
+}
+
+/// Called with every theme the daemon publishes: when what the bake would do changes, the wallpaper mod is told to show
+/// its pictures again (through [`picture_filter`]).
+pub fn update_bake(store: &ConfigStore, tokens: &Map<String, Value>) {
+    let next = wallpaper_shading(store, tokens).map(|(tile, sh, scale)| Bake { tile, sh, scale });
+    let mut cur = bake_state().lock().expect("bake state");
+    let same = match (&*cur, &next) {
+        (None, None) => true,
+        (Some(a), Some(b)) => Arc::ptr_eq(&a.tile, &b.tile) && a.sh == b.sh && a.scale == b.scale,
+        _ => false,
+    };
+    if !same {
+        *cur = next;
+        drop(cur);
+        bake_tx().send_modify(|v| *v += 1);
+    }
+}
+
+struct Filter;
+
+impl kurashi_mod_api::PictureFilter for Filter {
+    fn filter(&self, picture: &Path, size: (u32, u32), scale: f32) -> PathBuf {
+        let Some(b) = bake_state().lock().expect("bake state").clone() else {
+            return picture.to_path_buf();
+        };
+        bake_file(picture, size, scale, &b.tile, &b.sh, b.scale).unwrap_or_else(|e| {
+            tracing::warn!(picture = %picture.display(), error = %e, "texture bake failed; the picture is shown as is");
+            picture.to_path_buf()
+        })
+    }
+
+    fn changes(&self) -> tokio::sync::watch::Receiver<u64> {
+        bake_tx().subscribe()
+    }
+}
+
+/// The host's picture filter for wallpaper mods (K59).
+pub fn picture_filter() -> Arc<dyn kurashi_mod_api::PictureFilter> {
+    Arc::new(Filter)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -478,6 +547,71 @@ mod tests {
         assert!(night.dim < 1.0 && night.color[2] > night.color[0]);
         assert_eq!(sun(tokyo, at(12, 0)).detail, "sun");
         assert_eq!(noon.detail, "day");
+    }
+
+    fn store_with(root: &std::path::Path, toml: &str) -> std::sync::Arc<ConfigStore> {
+        std::fs::create_dir_all(root.join("config")).unwrap();
+        std::fs::write(root.join("config/config.toml"), toml).unwrap();
+        ConfigStore::open(
+            crate::hub::Hub::new(),
+            kurashi_schema::v1::registry(),
+            kurashi_config::Paths::rooted(root),
+            kurashi_config::Options::default(),
+        )
+    }
+
+    /// The tokens follow the config; the wallpaper scope bakes a copy of the output's size, the shell scope leaves the
+    /// picture alone, and the bake filter is told about the change.
+    #[test]
+    fn tokens_and_the_wallpaper_bake_follow_the_scope() {
+        let root = std::env::temp_dir().join(format!("kurashi-texture-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        set_cache_dir(root.join("cache"));
+        let pic = root.join("pic.png");
+        std::fs::create_dir_all(&root).unwrap();
+        image::RgbImage::from_pixel(64, 36, image::Rgb([90, 120, 160]))
+            .save(&pic)
+            .unwrap();
+        let now = chrono::Local::now();
+        let toml = |scope: &str| {
+            format!(
+                "schema_version = 2\n[theme.texture]\nkind = \"paper_grid\"\nscope = \"{scope}\"\nstrength = 1.0\n"
+            )
+        };
+        let store = store_with(&root, &toml("wallpaper"));
+        let mut t = Map::new();
+        t.insert("color.surface".into(), json!("#f3eee3"));
+        t.insert("color.surface_container".into(), json!("#ece6da"));
+        t.insert("color.surface_container_high".into(), json!("#e6dfd2"));
+        t.insert("color.on_surface".into(), json!("#2b2a2e"));
+        t.insert("color.secondary".into(), json!("#284f7e"));
+        tokens(&store, &mut t, now);
+        assert!(
+            t["texture.map"].as_str().unwrap().ends_with(".png"),
+            "{t:?}"
+        );
+        assert!(t["texture.amp"].as_f64().unwrap() > 0.0);
+        assert_eq!(t["texture.ink"], "#284f7e");
+        assert_eq!(t["texture.shell"], false);
+        assert_eq!(t["texture.overlay"], false);
+        assert_eq!(t["light.mode"], "static");
+
+        let changes = picture_filter().changes();
+        let seen = *changes.borrow();
+        update_bake(&store, &t);
+        assert!(*changes.borrow() > seen, "the filter is told");
+        let baked = picture_filter().filter(&pic, (320, 180), 1.0);
+        assert_ne!(baked, pic);
+        let img = image::open(&baked).unwrap();
+        assert_eq!((img.width(), img.height()), (320, 180));
+
+        let store = store_with(&root, &toml("shell"));
+        let mut t2 = t.clone();
+        tokens(&store, &mut t2, now);
+        assert_eq!(t2["texture.shell"], true);
+        update_bake(&store, &t2);
+        assert_eq!(picture_filter().filter(&pic, (320, 180), 1.0), pic);
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

@@ -372,11 +372,11 @@ pub fn register(
     fonts: Arc<dyn FontProvider + Send + Sync>,
 ) {
     let pic = wallpaper_picture(hub);
-    hub.register(
-        DOC,
-        document_with(store, fonts.as_ref(), None, pic.as_deref()),
-        None,
-    );
+    let first = document_with(store, fonts.as_ref(), None, pic.as_deref());
+    if let Some(tokens) = first.get("tokens").and_then(Value::as_object) {
+        crate::texture::update_bake(store, tokens);
+    }
+    hub.register(DOC, first, None);
     hub.register(
         PREVIEWS_DOC,
         previews(store, fonts.as_ref(), pic.as_deref()),
@@ -512,6 +512,9 @@ fn republish(hub: &Hub, store: &ConfigStore, fonts: &(dyn FontProvider + Send + 
         && let Some(o) = next.as_object_mut()
     {
         o.remove("error");
+    }
+    if let Some(tokens) = next.get("tokens").and_then(Value::as_object) {
+        crate::texture::update_bake(store, tokens);
     }
     let _ = hub.set(DOC, next, None);
     let _ = hub.set(PREVIEWS_DOC, previews(store, fonts, pic.as_deref()), None);
