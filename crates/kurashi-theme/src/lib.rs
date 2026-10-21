@@ -144,6 +144,17 @@ pub fn preview(
                 }
             }
             "theme.shape.radius_scale" => input.axes.radius_scale = f,
+            "theme.colors.ink" if s != "palette" => input.ink = Ink::Named(s.into()),
+            "theme.typography.family_jp" => {
+                input.axes.font_chain_jp = v
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default()
+            }
             "theme.typography.family" => {
                 input.axes.font_chain = v
                     .as_array()
@@ -185,6 +196,7 @@ pub fn preview(
         "radius.sm",
         "radius.lg",
         "font.family",
+        "font.family_jp",
         "font.weight.bold",
     ];
     let tokens: serde_json::Map<String, Value> = keys

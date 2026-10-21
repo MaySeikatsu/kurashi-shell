@@ -532,7 +532,12 @@ pub fn ink(mut p: Palette, ink: &Ink) -> StageOut {
         Ink::Palette => return out(p, vec!["ink: the palette's".into()]),
         Ink::Named(name) => match ink_color(name, p.dark) {
             Some(c) => c,
-            None => return out(p, vec![format!("ink: unknown ink `{name}`, the palette's kept")]),
+            None => {
+                return out(
+                    p,
+                    vec![format!("ink: unknown ink `{name}`, the palette's kept")],
+                );
+            }
         },
         Ink::Custom(c) => *c,
     };

@@ -22,19 +22,19 @@ use crate::hub::Hub;
 
 pub const DOC: &str = "theme";
 
-fn s(store: &ConfigStore, key: &str) -> String {
+pub(crate) fn s(store: &ConfigStore, key: &str) -> String {
     store
         .get(key, None)
         .and_then(|p| p.value.as_str().map(String::from))
         .unwrap_or_default()
 }
-fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
+pub(crate) fn f(store: &ConfigStore, key: &str, dflt: f64) -> f64 {
     store
         .get(key, None)
         .and_then(|p| p.value.as_f64())
         .unwrap_or(dflt)
 }
-fn b(store: &ConfigStore, key: &str) -> bool {
+pub(crate) fn b(store: &ConfigStore, key: &str) -> bool {
     store
         .get(key, None)
         .and_then(|p| p.value.as_bool())
@@ -165,6 +165,10 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
     if !chain.is_empty() {
         axes.font_chain = chain;
     }
+    let chain_jp = families("theme.typography.family_jp");
+    if !chain_jp.is_empty() {
+        axes.font_chain_jp = chain_jp;
+    }
     if b(store, "a11y.large_text") {
         axes.type_scale = axes.type_scale.max(1.25);
     }
@@ -190,6 +194,12 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Colorblind::None,
         },
         oled: b(store, "theme.colors.oled"),
+        ink: match s(store, "theme.colors.ink").as_str() {
+            "" | "palette" => kurashi_theme::Ink::Palette,
+            "custom" => kurashi_theme::color::Rgb::parse(&s(store, "theme.colors.ink_custom"))
+                .map_or(kurashi_theme::Ink::Palette, kurashi_theme::Ink::Custom),
+            name => kurashi_theme::Ink::Named(name.to_owned()),
+        },
         axes,
         ..ThemeInput::default()
     }
@@ -293,10 +303,16 @@ pub fn document_with(
             }
             tokens.insert("blur".into(), json!(input.axes.blur));
             tokens.insert("decor.frame".into(), json!(decor_frame(store)));
+            let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
                 .map(|n| json!({"stage": n.stage, "text": n.text}))
+                .chain(
+                    texture_notes
+                        .into_iter()
+                        .map(|text| json!({"stage": "texture", "text": text})),
+                )
                 .collect();
             // Shōjiki: the theme says it is not the wallpaper's yet, instead of looking like it.
             if waiting {
@@ -313,6 +329,7 @@ pub fn document_with(
                     "scheme_effective": scheme_name(input.scheme),
                     "scheme_detail": effective_scheme(store, picture).1,
                     "scheme_before": store.scheme_before(),
+                    "texture_before": store.texture_before(),
                     "overrides": store.appearance_overrides(),
                 },
             })
@@ -380,11 +397,46 @@ pub fn register(
         }
     };
     follow(store);
+    // K59: a texture tile became ready, or the outputs' scale changed.
+    {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        crate::texture::on_ready(Arc::new(move || {
+            if let Some(store) = store.upgrade() {
+                republish(&hub, &store, fonts.as_ref());
+            }
+        }));
+    }
+    // K59: the daytime light moves with the sun — a 5-minute tick, only while that light is chosen (Ma).
+    let (sun_tx, mut sun_rx) = tokio::sync::watch::channel(crate::texture::wants_sun(store));
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
         store.on_change(move |store| {
             follow(store);
+            sun_tx.send_if_modified(|on| {
+                let want = crate::texture::wants_sun(store);
+                std::mem::replace(on, want) != want
+            });
             republish(&hub, store, fonts.as_ref());
+        });
+    }
+    if let Ok(rt) = tokio::runtime::Handle::try_current() {
+        let (hub, store, fonts) = (hub.clone(), Arc::downgrade(store), fonts.clone());
+        rt.spawn(async move {
+            loop {
+                if !*sun_rx.borrow_and_update() {
+                    if sun_rx.changed().await.is_err() {
+                        break;
+                    }
+                    continue;
+                }
+                tokio::select! {
+                    () = tokio::time::sleep(std::time::Duration::from_secs(300)) => {
+                        let Some(store) = store.upgrade() else { break };
+                        republish(&hub, &store, fonts.as_ref());
+                    }
+                    r = sun_rx.changed() => if r.is_err() { break },
+                }
+            }
         });
     }
     // K49: the chosen apps follow the theme document.
@@ -526,7 +578,7 @@ mod tests {
         assert_eq!(doc["appearance"]["look"], "kanso");
         let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts, None);
         assert!(shown["styles"].as_array().unwrap().len() > 10);
-        assert_eq!(shown["looks"].as_array().unwrap().len(), 17);
+        assert_eq!(shown["looks"].as_array().unwrap().len(), 18);
         assert!(shown["palettes"].as_array().unwrap().len() > 10);
         let _ = std::fs::remove_dir_all(&root);
     }

@@ -1,0 +1,496 @@
+//! K59: the material texture and its light as theme tokens (`texture.*`, `light.*`, DESIGN-SYSTEM "Texture and
+//! light"), the tile cache, the daytime sun, and the wallpaper bake behind the wallpaper mod's picture filter.
+//!
+//! Tiles are generated once per parameters on a blocking thread; until one is ready the tokens say "no texture" and the
+//! theme is republished when it arrives (no flash, no blocked runtime). The light is resolved here except the pointer:
+//! a lamp at the pointer is a view concern (only the frontend sees the pointer, over its own surfaces).
+
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
+
+use kurashi_texture::{InkRole, Kind, Params, Shading, Tile};
+use serde_json::{Map, Value, json};
+
+use crate::config::ConfigStore;
+use crate::theme::{b, f, s};
+
+/// The shade amplitude at strength 1, before the legibility cap.
+const AMP_FULL: f64 = 0.18;
+/// Body text against the relief's darkest and lightest point.
+const TEXT_CONTRAST: f64 = 4.5;
+
+/// The largest output scale × 100 (the tile's device pixels per logical pixel).
+static SCALE: AtomicU32 = AtomicU32::new(100);
+/// Republishes the theme (set by `theme::register`): a tile became ready, the outputs' scale changed.
+static AGAIN: OnceLock<Arc<dyn Fn() + Send + Sync>> = OnceLock::new();
+
+enum Slot {
+    Pending,
+    Ready(PathBuf, Arc<Tile>),
+}
+
+fn cache() -> &'static Mutex<HashMap<String, Slot>> {
+    static CACHE: OnceLock<Mutex<HashMap<String, Slot>>> = OnceLock::new();
+    CACHE.get_or_init(Default::default)
+}
+
+pub fn on_ready(again: Arc<dyn Fn() + Send + Sync>) {
+    let _ = AGAIN.set(again);
+}
+
+fn again() {
+    if let Some(f) = AGAIN.get() {
+        f();
+    }
+}
+
+/// The compositor's outputs changed: a larger scale needs a sharper tile.
+pub fn set_outputs(outputs: &[kurashi_compositor::Output]) {
+    let max = outputs.iter().map(|o| o.scale).fold(1.0f64, f64::max);
+    let k = ((max * 4.0).ceil() * 25.0) as u32;
+    if SCALE.swap(k, Ordering::Relaxed) != k {
+        again();
+    }
+}
+
+fn device_scale() -> f32 {
+    SCALE.load(Ordering::Relaxed) as f32 / 100.0
+}
+
+pub fn cache_dir() -> PathBuf {
+    crate::xdg_dir("cache").join("texture")
+}
+
+fn key(p: &Params) -> String {
+    format!(
+        "{}:{:.2}:{}:{:.2}",
+        p.kind.name(),
+        p.wrinkles,
+        p.tint,
+        p.device_scale
+    )
+}
+
+/// The tile for `p`: ready, or `None` while it is generated on a blocking thread (the theme is republished when it is
+/// done). Outside a runtime (tests) it is generated in place.
+pub fn tile(p: &Params) -> Option<(PathBuf, Arc<Tile>)> {
+    let k = key(p);
+    {
+        let mut c = cache().lock().expect("texture cache");
+        match c.get(&k) {
+            Some(Slot::Ready(path, t)) => return Some((path.clone(), t.clone())),
+            Some(Slot::Pending) => return None,
+            None => {
+                c.insert(k.clone(), Slot::Pending);
+            }
+        }
+    }
+    let p = *p;
+    let make = move || match kurashi_texture::tile_file(&cache_dir(), &p) {
+        Ok((path, t)) => {
+            cache()
+                .lock()
+                .expect("texture cache")
+                .insert(k, Slot::Ready(path, Arc::new(t)));
+            true
+        }
+        Err(e) => {
+            tracing::warn!(error = %e, kind = p.kind.name(), "texture tile failed");
+            cache().lock().expect("texture cache").remove(&k);
+            false
+        }
+    };
+    match tokio::runtime::Handle::try_current() {
+        Ok(rt) => {
+            rt.spawn(async move {
+                if tokio::task::spawn_blocking(make).await.unwrap_or(false) {
+                    again();
+                }
+            });
+            None
+        }
+        Err(_) => {
+            make();
+            tile(&p)
+        }
+    }
+}
+
+/// The light in effect (the pointer's lamp rests at the static light; the frontend moves it).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Light {
+    pub mode: &'static str,
+    pub dir: [f32; 3],
+    pub color: [f32; 3],
+    /// Multiplies the shade amplitude (a dim night).
+    pub dim: f32,
+    /// Why the daytime light is where it is: `sun` (the weather mod's place) or `day` (06:00–18:00 without one).
+    pub detail: &'static str,
+}
+
+/// The weather mod's place, as the night light reads it.
+fn place(store: &ConfigStore) -> Option<(f64, f64)> {
+    let places =
+        kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
+    let configured = s(store, "mods.weather.place");
+    kurashi_mod_weather::places::effective(&places, &configured, None).map(|p| (p.lat, p.lon))
+}
+
+/// Local `(minute of the day, day of the year, UTC offset in minutes)` of `now`.
+fn local(now: chrono::DateTime<chrono::Local>) -> (f64, u32, i32) {
+    use chrono::{Datelike, Timelike};
+    (
+        f64::from(now.hour() * 60 + now.minute()) + f64::from(now.second()) / 60.0,
+        now.ordinal(),
+        now.offset().local_minus_utc() / 60,
+    )
+}
+
+/// The sun as a light (K59): across the screen from sunrise (left) over noon (top) to sunset (right), its height from
+/// the sun's elevation (kept readable), warm when low, a faint cool moon at night.
+pub fn sun(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> Light {
+    use kurashi_services::nightlight::{sun_elevation, sun_times};
+    let (minute, day, offset) = local(now);
+    let (rise, set, elevation, detail) = match place {
+        Some((lat, lon)) => {
+            let e = sun_elevation(lat, lon, day, minute, offset);
+            let (rise, set) = sun_times(lat, lon, day, offset)
+                .map_or((360.0, 1080.0), |(r, s)| (f64::from(r), f64::from(s)));
+            (rise, set, e, "sun")
+        }
+        None => {
+            // A day from 06:00 to 18:00, 50° high at noon.
+            let e = 50.0 * ((minute - 360.0) / 720.0 * std::f64::consts::PI).sin();
+            (360.0, 1080.0, e, "day")
+        }
+    };
+    let span = if set > rise {
+        set - rise
+    } else {
+        set + 1440.0 - rise
+    };
+    let since = (minute - rise).rem_euclid(1440.0);
+    if elevation < -6.0 || since > span {
+        // Night: the moon from above, cool and dim.
+        return Light {
+            mode: "daytime",
+            dir: kurashi_texture::light_dir(0.0, 50.0),
+            color: [0.62, 0.71, 0.91],
+            dim: 0.6,
+            detail,
+        };
+    }
+    let angle = (270.0 + 180.0 * (since / span).clamp(0.0, 1.0)) % 360.0;
+    let shown = elevation.clamp(12.0, 65.0);
+    // Warm at the horizon, neutral from 20° up.
+    let stops: [(f64, [f32; 3]); 4] = [
+        (-6.0, [1.0, 0.55, 0.42]),
+        (2.0, [1.0, 0.70, 0.45]),
+        (10.0, [1.0, 0.86, 0.66]),
+        (22.0, [1.0, 0.98, 0.95]),
+    ];
+    let color = stops
+        .windows(2)
+        .find(|w| elevation <= w[1].0)
+        .map_or(stops[3].1, |w| {
+            let t = ((elevation - w[0].0) / (w[1].0 - w[0].0)).clamp(0.0, 1.0) as f32;
+            std::array::from_fn(|i| w[0].1[i] + (w[1].1[i] - w[0].1[i]) * t)
+        });
+    Light {
+        mode: "daytime",
+        dir: kurashi_texture::light_dir(angle as f32, shown as f32),
+        color,
+        dim: if elevation < 0.0 { 0.8 } else { 1.0 },
+        detail,
+    }
+}
+
+pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light {
+    let fixed = |mode| Light {
+        mode,
+        dir: kurashi_texture::light_dir(
+            f(store, "theme.light.angle", 315.0) as f32,
+            f(store, "theme.light.elevation", 40.0) as f32,
+        ),
+        color: [1.0, 1.0, 1.0],
+        dim: 1.0,
+        detail: "",
+    };
+    match s(store, "theme.light.mode").as_str() {
+        "daytime" => sun(place(store), now),
+        "pointer" => fixed("pointer"),
+        _ => fixed("static"),
+    }
+}
+
+/// Whether the daytime light is wanted (the theme's 5-minute tick runs only then).
+pub fn wants_sun(store: &ConfigStore) -> bool {
+    kind(store).is_some() && s(store, "theme.light.mode") == "daytime"
+}
+
+fn kind(store: &ConfigStore) -> Option<Kind> {
+    Kind::parse(&s(store, "theme.texture.kind"))
+}
+
+fn params(store: &ConfigStore, kind: Kind) -> Params {
+    Params {
+        kind,
+        wrinkles: (f(store, "theme.texture.wrinkles", 0.0) as f32 * 20.0).round() / 20.0,
+        tint: b(store, "theme.texture.tint"),
+        device_scale: device_scale(),
+    }
+}
+
+fn rgb(t: &Map<String, Value>, key: &str) -> kurashi_theme::color::Rgb {
+    t.get(key)
+        .and_then(Value::as_str)
+        .and_then(kurashi_theme::color::Rgb::parse)
+        .unwrap_or(kurashi_theme::color::Rgb(128, 128, 128))
+}
+
+fn lin(c: kurashi_theme::color::Rgb) -> [f32; 3] {
+    [c.0, c.1, c.2].map(|v| f32::from(v) / 255.0)
+}
+
+/// The largest amplitude up to `want` at which `fg` keeps [`TEXT_CONTRAST`] on each ground both shaded (multiplied by
+/// `1 − amp`) and lit (screened toward the light by `amp`).
+pub fn legible_amp(want: f64, fg: [f32; 3], grounds: &[[f32; 3]], light: [f32; 3]) -> f64 {
+    use kurashi_theme::color::{Rgb, contrast};
+    let rgb = |c: [f32; 3]| {
+        let [r, g, b] = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+        Rgb(r, g, b)
+    };
+    let ok = |amp: f64| {
+        let a = amp as f32;
+        grounds.iter().all(|g| {
+            let dark = g.map(|v| v * (1.0 - a));
+            let lit: [f32; 3] = std::array::from_fn(|i| light[i] * a + g[i] * (1.0 - a));
+            contrast(rgb(fg), rgb(dark)) >= TEXT_CONTRAST
+                && contrast(rgb(fg), rgb(lit)) >= TEXT_CONTRAST
+        })
+    };
+    let mut amp = want;
+    while amp > 0.0 && !ok(amp) {
+        amp -= 0.005;
+    }
+    amp.max(0.0)
+}
+
+/// Adds the texture and light tokens to a resolved token map; notes for provenance.
+pub fn tokens(
+    store: &ConfigStore,
+    t: &mut Map<String, Value>,
+    now: chrono::DateTime<chrono::Local>,
+) -> Vec<String> {
+    let mut notes = vec![];
+    let lt = light(store, now);
+    let hex = |c: [f32; 3]| {
+        let [r, g, b] = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+        format!("#{r:02x}{g:02x}{b:02x}")
+    };
+    t.insert("light.mode".into(), json!(lt.mode));
+    t.insert("light.dir".into(), json!(lt.dir));
+    t.insert("light.color".into(), json!(hex(lt.color)));
+    t.insert(
+        "light.height_px".into(),
+        json!(30.0 + f(store, "theme.light.elevation", 40.0) * 5.0),
+    );
+    let scope = s(store, "theme.texture.scope");
+    let ready = kind(store).and_then(|k| tile(&params(store, k)).map(|(p, tl)| (k, p, tl)));
+    let Some((kind, path, tl)) = ready else {
+        for (k, v) in [
+            ("texture.map", json!("")),
+            ("texture.tile_px", json!(0)),
+            ("texture.tile_logical", json!(0)),
+            ("texture.scale", json!(1.0)),
+            ("texture.amp", json!(0.0)),
+            ("texture.gloss", json!(0.0)),
+            ("texture.shininess", json!(1.0)),
+            ("texture.ink", json!("#000000")),
+            ("texture.ink_alpha", json!(0.0)),
+            ("texture.text", json!(false)),
+            ("texture.shell", json!(false)),
+            ("texture.overlay", json!(false)),
+        ] {
+            t.insert(k.into(), v);
+        }
+        if kind(store).is_some() {
+            notes.push("texture: generating".into());
+        }
+        return notes;
+    };
+    let m = kurashi_texture::material(kind);
+    let want = f(store, "theme.texture.strength", 0.5) * AMP_FULL * f64::from(lt.dim);
+    let grounds = [
+        lin(rgb(t, "color.surface")),
+        lin(rgb(t, "color.surface_container")),
+        lin(rgb(t, "color.surface_container_high")),
+    ];
+    let amp = legible_amp(want, lin(rgb(t, "color.on_surface")), &grounds, lt.color);
+    if amp + 1e-9 < want {
+        notes.push(format!(
+            "texture: strength capped for legible text ({want:.3} → {amp:.3})"
+        ));
+    }
+    let ink = match m.ink_role {
+        InkRole::Secondary => rgb(t, "color.secondary"),
+        InkRole::OnSurface | InkRole::None => rgb(t, "color.on_surface"),
+    };
+    let tint = b(store, "theme.texture.tint") && m.ink_role != InkRole::None;
+    t.insert("texture.map".into(), json!(path.to_string_lossy()));
+    t.insert("texture.tile_px".into(), json!(tl.size));
+    t.insert("texture.tile_logical".into(), json!(tl.logical));
+    t.insert(
+        "texture.scale".into(),
+        json!(f(store, "theme.texture.scale", 1.0)),
+    );
+    t.insert("texture.amp".into(), json!((amp * 1000.0).round() / 1000.0));
+    t.insert("texture.gloss".into(), json!(m.gloss));
+    t.insert("texture.shininess".into(), json!(m.shininess));
+    t.insert("texture.ink".into(), json!(ink.hex()));
+    t.insert(
+        "texture.ink_alpha".into(),
+        json!(if tint { m.ink_alpha } else { 0.0 }),
+    );
+    t.insert("texture.text".into(), json!(b(store, "theme.texture.text")));
+    t.insert(
+        "texture.shell".into(),
+        json!(scope == "shell" || scope == "shell_wallpaper"),
+    );
+    t.insert("texture.overlay".into(), json!(scope == "everything"));
+    notes.push(format!("texture: {} ({})", kind.name(), lt.mode));
+    notes
+}
+
+/// What the wallpaper bake needs from the theme in effect: the tile, its shading, the user's scale. `None` when the
+/// scope leaves the wallpaper alone, or the tile is not ready yet.
+pub fn wallpaper_shading(
+    store: &ConfigStore,
+    tokens: &Map<String, Value>,
+) -> Option<(Arc<Tile>, Shading, f32)> {
+    let scope = s(store, "theme.texture.scope");
+    if scope != "wallpaper" && scope != "shell_wallpaper" {
+        return None;
+    }
+    let (_, tl) = tile(&params(store, kind(store)?))?;
+    let num = |k: &str| tokens.get(k).and_then(Value::as_f64).unwrap_or(0.0) as f32;
+    let dir = tokens
+        .get("light.dir")
+        .and_then(Value::as_array)
+        .map(|a| std::array::from_fn(|i| a.get(i).and_then(Value::as_f64).unwrap_or(0.0) as f32))?;
+    let sh = Shading {
+        amp: num("texture.amp"),
+        gloss: num("texture.gloss"),
+        shininess: num("texture.shininess").max(1.0),
+        ink: lin(rgb(tokens, "texture.ink")),
+        ink_alpha: num("texture.ink_alpha"),
+        light_dir: dir,
+        light_color: lin(rgb(tokens, "light.color")),
+    };
+    Some((tl, sh, num("texture.scale").max(0.1)))
+}
+
+/// Bakes the texture into `picture` for an output of `size` at `scale` (cached by everything that changes the bytes);
+/// the original picture is never written.
+pub fn bake_file(
+    picture: &Path,
+    size: (u32, u32),
+    output_scale: f32,
+    tile: &Tile,
+    sh: &Shading,
+    user_scale: f32,
+) -> Result<PathBuf, kurashi_texture::Error> {
+    use std::hash::{Hash, Hasher};
+    let meta = std::fs::metadata(picture)?;
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    picture.hash(&mut h);
+    meta.len().hash(&mut h);
+    meta.modified().ok().hash(&mut h);
+    size.hash(&mut h);
+    format!(
+        "{output_scale:?}{user_scale:?}{sh:?}{}{}",
+        tile.size,
+        tile.rgba.len()
+    )
+    .hash(&mut h);
+    tile.rgba.iter().step_by(997).for_each(|b| b.hash(&mut h));
+    let dir = cache_dir().join("wallpaper");
+    let out = dir.join(format!("{:016x}.png", h.finish()));
+    if out.is_file() {
+        return Ok(out);
+    }
+    std::fs::create_dir_all(&dir)?;
+    let img = image::open(picture)?;
+    // Cover the output as awww's default fit does; the bake is at the output's pixels, so the sheet lines up.
+    let filled = img
+        .resize_to_fill(
+            size.0.max(1),
+            size.1.max(1),
+            image::imageops::FilterType::Lanczos3,
+        )
+        .to_rgba8();
+    let baked = kurashi_texture::bake(&filled, tile, sh, output_scale, user_scale);
+    let tmp = out.with_extension("png.tmp");
+    baked.save_with_format(&tmp, image::ImageFormat::Png)?;
+    std::fs::rename(&tmp, &out)?;
+    // Keep the cache small: the newest dozen bakes.
+    if let Ok(rd) = std::fs::read_dir(&dir) {
+        let mut files: Vec<_> = rd
+            .filter_map(Result::ok)
+            .filter_map(|e| Some((e.metadata().ok()?.modified().ok()?, e.path())))
+            .collect();
+        files.sort();
+        for (_, p) in files.iter().rev().skip(12) {
+            let _ = std::fs::remove_file(p);
+        }
+    }
+    Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    #[test]
+    fn the_sun_crosses_the_screen_from_left_to_right() {
+        let tokyo = Some((35.6895, 139.6917));
+        let at = |h, m| {
+            chrono::Local
+                .with_ymd_and_hms(2026, 6, 21, h, m, 0)
+                .unwrap()
+        };
+        // Run in the machine's zone; only the shape is asserted.
+        let morning = sun(None, at(7, 0));
+        let noon = sun(None, at(12, 0));
+        let evening = sun(None, at(17, 0));
+        assert!(morning.dir[0] < -0.3, "morning from the left: {morning:?}");
+        assert!(
+            noon.dir[1] < -0.3 && noon.dir[0].abs() < 0.2,
+            "noon from above: {noon:?}"
+        );
+        assert!(evening.dir[0] > 0.3, "evening from the right: {evening:?}");
+        // Low sun is warm, noon neutral.
+        assert!(morning.color[2] < noon.color[2]);
+        let night = sun(None, at(23, 30));
+        assert!(night.dim < 1.0 && night.color[2] > night.color[0]);
+        assert_eq!(sun(tokyo, at(12, 0)).detail, "sun");
+        assert_eq!(noon.detail, "day");
+    }
+
+    #[test]
+    fn the_cap_keeps_text_legible() {
+        // Dark text on light paper: a deep shade would sink the paper toward the ink.
+        let fg = [0.11, 0.25, 0.6];
+        let paper = [[0.95, 0.93, 0.89]];
+        let amp = legible_amp(0.18, fg, &paper, [1.0, 1.0, 1.0]);
+        assert!(amp > 0.0 && amp <= 0.18);
+        // Already-low contrast leaves no room at all.
+        assert_eq!(
+            legible_amp(0.18, [0.5, 0.5, 0.5], &[[0.55, 0.55, 0.55]], [1.0; 3]),
+            0.0
+        );
+    }
+}

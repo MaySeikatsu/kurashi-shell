@@ -1,0 +1,17 @@
+name = "kami"
+label = "config.choice.look.kami"
+category = "inspired"
+# A notebook page (K60): dotted paper you can feel, blocks outlined by hand in pen, a handwritten type.
+[recipe]
+"theme.chrome" = "line"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "solid"
+"theme.shape.corners" = "rounded"
+"theme.shape.radius_scale" = 0.7
+"theme.typography.family" = ["Kalam", "Klee One", "cursive"]
+"theme.typography.family_jp" = ["Klee One", "Noto Sans CJK JP", "sans-serif"]
+"theme.texture.kind" = "paper_dots"
+"theme.texture.strength" = 0.55
+"theme.texture.tint" = true
+[slots]
+frame = "sketch"

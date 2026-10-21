@@ -1,6 +1,7 @@
 # 外観（K53）：スタイル（styles/*.toml）、ルック（looks/*.toml）とそのカテゴリ。
 "config.choice.style.none" = "なし（自分で設定）"
 "config.choice.style.washi" = "和紙"
+"config.choice.style.kami" = "紙（ノート）"
 "config.choice.style.kanso" = "簡素"
 "config.choice.style.material" = "マテリアル"
 "config.choice.style.glass" = "グラス"
@@ -25,6 +26,7 @@
 "config.choice.look.material" = "マテリアル（トーン）"
 "config.choice.look.terminal" = "ターミナル（墨の線）"
 "config.choice.look.washi" = "和紙（紙と墨）"
+"config.choice.look.kami" = "紙（ドット方眼にペン）"
 "config.choice.look.sekai" = "セカイ（ポップなキーキャップ）"
 "config.choice.look.aqua" = "アクア（macOS風ガラス）"
 "config.choice.look.win95" = "Win95（立体枠）"
@@ -45,4 +47,6 @@
 "action.theme.look.apply" = "ルックを適用"
 "action.theme.scheme.restore" = "自分のライト／ダークに戻す"
 "config.error.no_scheme_before" = "戻せる以前のライト／ダーク設定がありません。"
+"action.theme.texture.restore" = "自分の素材に戻す"
+"config.error.no_texture_before" = "戻せる以前の素材がありません。"
 "config.error.appearance_name" = "スタイルかルックの名前を指定してください。"

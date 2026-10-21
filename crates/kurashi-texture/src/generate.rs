@@ -33,7 +33,9 @@ pub fn generate(p: &Params) -> Tile {
     }
     let depth = 6.0 * p.device_scale.max(1.0);
     let mut rgba = vec![0u8; n * n * 4];
-    let at = |x: isize, y: isize| height[(y.rem_euclid(n as isize) as usize) * n + x.rem_euclid(n as isize) as usize];
+    let at = |x: isize, y: isize| {
+        height[(y.rem_euclid(n as isize) as usize) * n + x.rem_euclid(n as isize) as usize]
+    };
     let mean = height.iter().sum::<f32>() / height.len() as f32;
     let spread = height.iter().map(|h| (h - mean).abs()).fold(1e-6, f32::max);
     for y in 0..n {

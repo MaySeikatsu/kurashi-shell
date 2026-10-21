@@ -18,6 +18,8 @@ kurashi-config = { path = "../kurashi-config" }
 kurashi-schema = { path = "../kurashi-schema" }
 notify = "8"
 kurashi-theme = { path = "../kurashi-theme" }
+kurashi-texture = { path = "../kurashi-texture" }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif", "bmp"] }
 chrono.workspace = true
 kurashi-launcher = { path = "../kurashi-launcher" }
 kurashi-notify = { path = "../kurashi-notify" }

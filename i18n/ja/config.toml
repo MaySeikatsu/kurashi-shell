@@ -34,6 +34,7 @@
 "config.choice.palette.snes" = "スーファミ"
 "config.choice.palette.hallownest" = "ハロウネスト"
 "config.choice.palette.souls" = "ソウル"
+"config.choice.palette.kami" = "紙"
 "config.choice.palette.wallpaper" = "壁紙から"
 "config.face.clock" = "時計"
 "config.face.media" = "メディア"
