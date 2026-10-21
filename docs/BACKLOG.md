@@ -184,6 +184,7 @@ Status: `new` (not looked at) · `accepted` (agreed, needs design or a card) · 
 | I133 | 2026-10-21 | W24-media report (rows 150, 151) | Media: a config key for fetching http covers (env `KURASHI_MEDIA_ART_FETCH=0` today); `art_colors` and `svc.audio.spectrum` in the fixtures and the mock; bench the live bars; clip the desk card's cover to its corners; Wallhaven downloads listed in the library without adding the folder. | new |
 | I134 | 2026-10-21 | W24-media report (row 152) | A secret setting type (stored outside `config.toml`, via libsecret; never in the `config` document) for API keys — Wallhaven's key is a plain mod setting today. | new |
 | I135 | 2026-10-21 | W24-media report | Wallpaper picker shows "Theme not applied yet (no source)" after applying with theme in the sandbox (also in the library tab; pre-existing). | new |
+| I136 | 2026-10-21 | W24-desk-settings report (row 180) | Hide mod desk cards from edit mode (a schema key such as `desktop.hidden`); mod card titles from `mod-<id>.desk.<name>`; the Edit key overlaps the clock's last digit on hover; a drag test (the pointer tool only clicks); ThemeExportStatus shortens paths under `$HOME` only. | new |
 
 ## Ideas (not planned)
 | # | Date | Source | What | Status |
