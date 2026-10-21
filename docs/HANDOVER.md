@@ -17,51 +17,59 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-20 — session 10 (machine B): every decor a whole look, tasks and notes — K45, K46, wave 22
-**State:** `main` green: `just check` (fmt, clippy -D warnings, all tests), `settings/test.sh` end to end (B31 fixed: the
-test imported its own export under a saved profile's name), test-real, test-stage, test-peek, test-quick, test-volume,
-test-sidebars, test-island-morph, test-look for all five decors, `mods/tasks/test-tasks.sh`, `just webdock`, `just
-mods-live` (now loads `tasks`). `frontend/test-quick-sections.sh` fails at the pointer re-click of the Wi-Fi tile — the
-same at e4833f9, before this session's frontend work (B33). Two Opus agents (W22-styles, W22-tasks), both merged; their
-worktrees and branches are removed. `nix build .#kurashi` passes. Nothing is half-done.
+## 2026-10-21 — session 10 (machine B): looks, daily-driver services, identity packs, adapters — K45–K52, waves 22–28
+**State:** `main` green (see "Verification" below), pushed. 13 Opus agent cards merged in waves of ≤ 2; no agent worktrees
+left. **Disk:** the machine ran full once (`target/` dirs grew to 70 GB across worktrees) — delete `target/` and agent
+worktrees' `target/` after merges; `~/.cache/kurashi-agents-target` is gone. Nothing is half-done.
 
-**User decisions (session 10, answers to session 9):** `sekai` stays an option; **every decor is a whole, distinct look
-and never changes layout** — layout lives in profiles, which may pair a look with a layout (K45); the keycap island card
-**joins** its bar group (I115, done); sidebar details to be discussed later (I116); idea **"isekai"** (cyberpunk) noted,
-not to be built before the user sends inspiration (I117). Committed the other session's Nix-check fix; `main` pushed.
+**User decisions (session 10):** `sekai` stays an option; every decor is a whole, distinct look and **never** a layout —
+layout lives in profiles (K45); the keycap island card joins its bar group (done); sidebar details to be discussed
+(I116); "isekai" cyberpunk decor only after the user sends inspiration (I117 — Cyberpunk presets were left out on
+purpose); first look / first-run profile offer deferred. Then: "as complete and usable as possible", copy from
+Caelestia, Noctalia, DMS, ii, shellseikatsu, WormShell where they solved it.
 
 **Built and merged:**
-- **K45 (lead contract):** chrome `soft` (light rim, soft drop shadow, press shrink) and `line` (ink outlines), tokens
-  `chrome.soft/soft_dy/soft_color/outline_color/press_scale/groups`, `icon.fill/weight`, Sharp icons under line chrome;
-  decors `terminal` and `washi` beside `sekai`/`glass`; recipes name `theme.*` keys only (test). HM installs the decor
-  fonts; the dev shell exposes them. `theme.decors` in the theme document (each pack's own look, resolved once).
-- **W22-styles:** `Block` draws all four chromes from tokens; every surface per decor; keycap/soft island card joined to
-  its bar group with one outline/shadow (I115), translucent island (I114), I109, I110; Theme `lifted`/`boxed` (row 125),
-  `Theme.keycap` derives from `ringW` (no name compare anywhere). Shots `frontend/shots/look/<decor>/`.
-- **W22-tasks (K46):** native mod `tasks` over Markdown files (Obsidian Tasks syntax, atomic writes, watch only while
-  subscribed): desk cards (tasks, note), Stage panel (Tasks/Note), bar widget, mock parity; provide kind `desk:` (row
-  120) so any mod can add desk cards. `docs/ux/tasks.md`, shots `mods/tasks/shots/`.
-- **Lead:** Settings decor preview cards drawn from `theme.decors` (I104), launcher unit conversions (I105), bundled
-  starter profiles `profiles/` (sekai-desk, glass-float, terminal-dense, washi-calm: look + layout), `docs/ux/looks.md`.
+- **Looks:** chrome flat/keycap/soft/line from tokens (K45); decors are files `decors/*.toml` + user packs (K50); 18
+  packs incl. 14 ports from shellseikatsu with frames and lock backdrops; Settings decor preview cards; bundled
+  look+layout profiles (`profiles/`); **app theme export** (K49: matugen-syntax templates for GTK, Qt, foot, kitty,
+  alacritty, ghostty, niri; HM `programs.kurashi.themeExport` adds the include lines).
+- **Daily driver (K47):** idle (ext-idle-notify: dim → lock → screens off → suspend) + keep-awake + media inhibit,
+  night light (wlsunset), keyboard layouts, recorder (gpu-screen-recorder/wf-recorder), screenshots, polkit dialog
+  (Quickshell PolkitAgent; never in sandboxes), rounded screen corners, power page in Settings.
+- **Mods:** tasks + notes over Markdown (K46, Obsidian Tasks syntax), lyrics (LRCLIB), calendar (ICS/vdirsyncer/feeds/
+  khal, RRULE, time zones), AI chat (Ollama first, OpenAI-compatible, Anthropic; keys from secret-tool/env only),
+  Wallhaven in the wallpaper picker; `desk:` provide for mod desk cards.
+- **Shell:** app dock (K51), desk edit mode + `desktop.order`, Settings section cards + theme-export status, launcher
+  `>` commands / web search / unit conversions / clipboard with images and pins / emoji grid / `?` keybind cheat
+  sheet, live audio levels (cava) + cover colours, greetd greeter (NixOS `services.kurashi.greeter`).
+- **Compositors (K52):** Sway and Hyprland adapters beside niri, `AnyCompositor` chosen from env; the sway sandbox now
+  runs the real adapter path.
+- **Fixed:** B31 and B33 (stale tests), the polkit agent can never run inside a sandbox, `Store.apply` (+ err path),
+  theme-export test independent of the install prefix (nix build checks).
+
+**Verification (end of session):** `just check`; `nix build .#kurashi`; `nix/tests/hm-eval.nix`; `greeter/nixos-eval.nix`;
+every frontend suite incl. new ones (power, media, desk, dock, launcher, polkit, sway adapter, greeter, ai, tasks,
+lyrics, calendar, settings, webdock, mods-live, peek, sidebars, look for 8 decors) — all green; the last full run after
+the W28 merges: check, nix build, hm-eval, greeter-eval, greeter, ai, real, look, mods-live green.
 
 **Next steps (ordered):**
-1. Show the user the five looks (`theme.decor`, or load a bundled profile in Settings › Profiles) and the tasks desk
-   (`kurashi set mods.enabled` + `desktop.enabled = true`; point `mods.tasks.file` into the Obsidian vault); collect taste
-   feedback. Review sets: `frontend/shots/look/*`, `mods/tasks/shots/*`, `settings/shots/14-palette-keyboard.png`.
-2. Sidebar discussion with the user (I116) before more side-bar/web-dock work; then I80 (web dock on niri).
-3. B33 (quick-sections Wi-Fi re-click), B32, B30.
-4. Follow-ups: I122–I125 (soft shadows on slide-ins, glass shadow under fills, lock repaint, mod cards on `lifted`/
-   `boxed`), I118–I121 (tasks: `fs:user` capability, card order, note conflict, backends), I126 (launcher `>` commands,
-   web search), I101 (desk drag/resize), I102, I104 rest (section cards), I106–I113.
-5. Bench the desk with mod cards and the translucent island (Stage while the card is out).
+1. Show the user the session's work live (the shell on their display only when they ask): `theme.decor` packs,
+   Settings › Appearance cards, `theme.export`, quick tiles (keep awake, night light, record), dock (`dock.enabled`),
+   desk edit mode, launcher `>`/`;`/`:`/`?`, AI panel against their Ollama, calendar/tasks pointed at their files.
+2. Sidebar discussion (I116), then the isekai decor when inspiration arrives (I117).
+3. Contract follow-ups: I134 secret setting type (Wallhaven key, AI keys, calendar feeds), I127 mods following core
+   documents, I141 mods adding launcher rows (AI `!` mode), I139 capabilities published per adapter.
+4. Backlog sweep of the session's rows I118–I142 (polish), then bench: dock (+6.9 MiB hidden), desk with mod cards,
+   spectrum bars, idle service.
 
-**Open decisions (ask):** default look for new installs (`none` = wa-iro flat today)? Should a bundled profile be offered
-on first run? Isekai inspiration (I117).
+**Open decisions (ask):** default look for new installs; should the greeter be on in the user's NixOS config; which AI
+provider/model by default; MangoWM adapter priority.
 
-**Gotchas (new):** decors must never set layout keys (a test in `crates/kurashi-theme/tests/theme.rs`). Tests that find
-cards by exact colour must also accept the container blended at the panel's opacity (island at `Theme.panel`, I114).
-A `cd` into an agent worktree moves the lead's cwd (use `git -C`). `git commit -am` while a suite runs sweeps
-regenerated shots in.
+**Gotchas (new):** agents' CONTRACT-CHANGE rows collide — give each card its own row range (this session: 120–223 in
+blocks). Resolving those conflicts with a regex left a `|||||||` line once: grep for markers after every merge. A
+`cd` into a worktree moves the lead's cwd. Nix builds run tests with an empty data dir: tests must read repository
+files by `CARGO_MANIFEST_DIR`. Quick-settings and web dock tests click fixed coordinates: new tiles or bar chips move
+them (update the offsets, B33).
 
 ---
 
