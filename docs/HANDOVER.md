@@ -17,6 +17,63 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-21 — session 12 (machine B): light/dark modes, web dock in the sidebar, island join — K55, K56, wave 30
+**State:** `main` green, pushed. Two agent cards (W30-webdock-sidebar, W30-island-line) merged through the integration
+branch `feat/k55-scheme-modes`; no agent worktrees left. `target/` deleted at the end. Nothing is half-done.
+
+**User decisions (session 12):** isekai/mirai stays deferred (I117 — don't ask again until the user brings it up); the
+web dock can be used in the sidebar and fills it there, not phone shaped (K56); light/dark has modes Follow system /
+Follow wallpaper / Dark / Light, a style takes it over when applied and "reset" goes back to the user's own (K55).
+Reported: the sidebar could not be opened (I154) and the open island's outline did not meet the bar under line chrome
+(I155) — both fixed.
+
+**Built and merged:**
+- **K55:** `theme.colors.scheme` = `auto` (default; xdg-desktop-portal `org.freedesktop.appearance color-scheme`,
+  `kurashid/src/os_scheme.rs`, watched only while chosen) | `wallpaper` (mean CIE L* of the wallpaper mod's applied
+  picture, light from 55) | `dark` | `light`. The scheme is in `STYLE_KEYS` again: applying a style resets it; the
+  user's mode before is kept in `$XDG_STATE_HOME/kurashi/scheme-before`, `theme.scheme.restore {}` brings it back.
+  Theme document `appearance.scheme_effective / scheme_detail / scheme_before`. Settings: four pills + a reason line +
+  "Back to …" (`SchemeStatus.qml`); Dark tiles show the scheme in effect; the wallpaper picker keeps a follow mode.
+- **I154:** HM default binds now include `Mod+Shift+N` (right sidebar) and `Mod+A` (left); bind entries may carry JSON
+  arguments (`"sidebar.toggle {\"side\":\"left\"}"`). The user's niri config does not include `kurashi-binds.kdl`
+  yet (`programs.kurashi.niri.binds.enable` + `include "kurashi-binds.kdl"`) — tell them, don't edit it.
+- **W30-island-line:** under line chrome the card hangs from the bar's rule: one continuous outline (fillets with
+  constant width), the rule opened under the card; `frontend/test-island-join.sh` pixel-checks 10 cases.
+- **W30-webdock-sidebar (K56):** `panel:webdock` for `sidebar.left`/`sidebar.right`; pins as a key row, the page fills
+  the pane; the host maps a second window `kurashi-webdock-side` and moves the pin's page (no reload); same pin in
+  both places → live in the sidebar, "shown in the sidebar" at the edge. Panel property `placement` (MODS "Panels"),
+  `mod.webdock.sidebar {pin?, place?}` (fixture variant `snap_mod_webdock_sidebar.json`).
+
+**Verification (end of session):** `just check` (fmt, clippy -D warnings, all tests); `nix build .#kurashi`; hm-eval
+(incl. the sidebar binds with JSON args, `niri validate`); 31 sandbox suites — real, stage, quick, quick-sections, volume,
+modqml, mods-live, sidebars, sidebar-panel, power, desk, dock, launcher, media, polkit, island-morph, sway-adapter,
+**island-join (12 cases incl. mid-morph)**, settings, greeter, ai, tasks, lyrics, calendar, webdock dock, **webdock
+sidebar**, webdock host; looks washi and sekai — all green.
+
+**Next steps (ordered):**
+1. Show the user live when they ask: the four light/dark modes and "Back to …", both sidebars via the new keys, the
+   web dock as a left tab (`sidebar.left = ["mod:webdock:webdock", "mod:ai:ai"]`), the island under washi.
+2. I154 rest: a way into the sidebar without a key (Settings sidebar page names the keys + "Open now"; a bar
+   affordance). I156 time-of-day fallback for `auto` without a portal.
+3. Follow-ups I158 (host memory with the sidebar window, BENCH), I159 (web dock in the sidebar polish), I160 (island
+   polish), I148–I153 (sidebar/appearance), I145–I147.
+4. Then session 10's remaining steps: I134 secret setting type, I127, I141, I139; backlog sweep I118–I142; bench.
+
+**Open decisions (ask):** none pending. MangoWM and isekai/mirai stay deferred until the user raises them.
+
+**Also fixed (session 12):** Settings' preview moved across several choices stacked undo steps (K57: the config
+document publishes `history.rev`); the sandbox's D-Bus no longer activates a real desktop portal (`tools/bench/sandbox.sh`
+denies `org.freedesktop.portal.Desktop`); the washi grain no longer uses deprecated `Qt.btoa`.
+
+**Gotchas (new):** never run `just check` while sandbox suites run — `cargo test` and the `--features
+kurashid/test-mods` build share `target/`. The lyrics test needs `cargo build -p kurashi-mod-lyrics --example fake_mpris`.
+Settings' focus hook names a Segmented pill by its label (e.g. "Follow the system"), not `segment:<key>`. `pkill -f` with a pattern that also matches your own shell's command line kills the tool call
+(exit 144) — kill by PID. A private `dbus-daemon` for tests needs `<allow receive_sender="*"/>` or replies are
+dropped and the test hangs; bound such tests with `tokio::time::timeout`. With two agents building, a lead `cargo
+test` can wait 10+ minutes on the build lock — run it in the background.
+
+---
+
 ## 2026-10-21 — session 11 (machine B): Style · Look · Palette, light/dark everywhere, sidebars — K53, K54, wave 29
 **State:** `main` green, pushed. Two agent cards (W29-sidebar, W29-appearance) merged through the integration branch
 `feat/k53-appearance`; no agent worktrees left. `target/` deleted at the end (disk at 94 %). Nothing is half-done.
@@ -216,78 +273,3 @@ other session's dirty files into your commit (happened once, undone before push)
 diff exists. Parallel cards still collide on CONTRACT-CHANGE row numbers (renumbered 112→114, 114→115 at merge). The
 zsh tool shell has no `PIPESTATUS` (use `$pipestatus` or `set -o pipefail`). PSS on two outputs under gles2 shows a
 ~1.9 TiB mapping: measure USS (I93).
-
----
-
-## 2026-10-19 — session 7 (machine B): web dock (I68) — K38/K39, Phase 0, waves 17 and 18
-**State:** `main` green (`just check` 779 tests; `just webdock`, `just peek`, `just mods-live` 5/5 after the B29 fix,
-test-stage, test-sidebars, test-quick(-sections), settings/test.sh, weather and wallpaper state tests). Waves 17–19
-merged; no agents, no extra worktrees; nothing half-done.
-
-**Wave 19 (user: "start the next wave, we handle the open decisions afterwards"):** lead contract — slot
-`clock.expanded.daymark` (row 71), `runtime.slots` `reason` + `ModCtx::slot().set_reason` (row 72), schema
-`clock.week_start`/`week_numbers`. Cards: W19-side-bars (vertical widget forms, hidden count; row 107, I85),
-W19-weather (labelled hourly rain, week range, place preview forecast, no-place reason; I82), W19-wallpaper (720 px
-picker, quiet choices, overflow menu, keyboard paths; rows 105–106, I83, I32), W19-calendar (day marks, week start and
-numbers, the aside's "Set place"; row 108, I46). **B29:** my row-72 prep caused a lock-order deadlock in kurashid
-(`slots()` under the hub's lock took a mod's state lock that a choice-source change holds across hub calls) — found by
-the calendar agent's mods-live runs, fixed (own lock), 5/5. New rows I87–I89.
-
-**Wave 18 (after the web dock, user: "continue with other parts of the shell"):** contract rows 98 (peek `edge`/`y`/`h`)
-and 99 (diff `same_value`) by the lead; W18-quick-tiles (160×56 cells for `quick.tiles`, wallpaper/hello as
-`QuickTile`, `mock.doc`; I52, I50), W18-peeks (peeks on every bar edge, fade-out, weather/sysmon peek states, `just
-peek`, mods-live kinds from manifests; I67), W18-sysmon (GPU by connected output, names in the session language,
-refusals on the row, counter reset, states; I65), W18-settings (same-value lines, held-back values in Changed,
-records keyboard paths, `wl_keys` modifiers + URL characters; I64, I81). Lead: row 101 (an import named like a saved
-profile is refused), two Settings editor fixes, the island peek crop. UX reviews filed: weather I82, wallpaper I83.
-
-**Merged:** session-6 wave 16 (peeks, no-network sandboxes). Session 7 — the user's **web dock** request (an Edge/Floorp-
-style edge dock with pinned sites, from a WormShell prompt adapted to kurashi): Phase 0 spike
-(`archive/spikes/webengine-phase0/`: stock Quickshell aborts with QtWebEngine — `argc = 0`; a 2-line patch works;
-engine comparison QtWebEngine 390 MiB vs WebKitGTK 294 MiB for one page; net log shows zero engine requests); UX brief
-`docs/ux/webdock.md`; **K38** (web dock: own lazy host process, Chromium ungoogled by configuration, default browser as
-the bridge), **K39** (patched Quickshell `qs-webengine` for the host only; the shell keeps stock Quickshell); contract
-(scoped hello + `forbidden`, `host:` provide + `ModCtx::host`, `mod.webdock`, records type; rows 88–97); netjoin accepts
-loopback-only namespaces (K37 amended, B26). Wave 17 (3 Haiku cards): W17-webdock-host (QML host: profiles per pin,
-mobile/desktop UA + client hints, privacy switches, card states, sheets, blocked chips, freeze, mock parity),
-W17-webdock-daemon (host facility: start/scoped token/one restart/Failed/stop, scope enforcement, settings writer, mod
-`webdock`: actions, keep/max_loaded, idle unload), W17-records (records setting type: manifest, schema, kurashid,
-Settings editor). Lead: pins setting, `mods/webdock/test/test-real.sh`, B28 sheet fix, `just webdock`.
-
-**User decisions this session:** web dock = mod `webdock` "Web dock"; modes hidden/compact/extended (extended phone
-format by default, up to ~full screen); edge configurable (default right), hover reveal, pin/unpin, keybind + bar
-widget; kurashi pins first (sites and kurashi views); mobile/desktop toggle; lazy engine that unloads after 1 h;
-Chromium via QtWebEngine on a patched Quickshell (Gecko is not embeddable); "ungoogled" by configuration + net-log test
-(no ungoogled build, I76); the browser bridge is the **default browser**, never Zen by name; hybrid pins (I75) and
-browser bookmarks (I70) later; a browse/search section later (I69).
-
-**Open decision (ask before W17.4):** the eight interpretations in `docs/ux/webdock.md` "Modes and transitions" and
-sizes — hover re-opens the last app and a click on its icon clears it; a click into the dock keeps it until focus leaves;
-strip 56 px, phone 412 × ≤ 2× width, large 90 %; reveal 250 ms (500 ms on a shared edge), hide 400 ms + 24 px
-hysteresis; pinned overlays (reserve space optional, strip only); keybind `Mod+B` via HM; sign-in popups as sheets,
-new tabs to the browser, permissions/downloads refused with a chip; kurashi views = mod panels in v1.
-
-**Design pass with the user (ask):** the accent colour (crimson in wa-iro) is used for selected states, data and
-every primary button, so panels read as alarms — I51, I63, I78, I82, I83, I86 (row 104 tile tokens). Proposal: tonal
-selected states, `color.data.*` roles, one primary action per panel; use `INSPIRATION.md` (I60).
-
-**Next steps (ordered):**
-1. Ask the user the open web-dock decision above and the design pass; then: **W17.4 shell side** (row 88 `surface:` provide: indicator,
-   strip, card frame for view pins, `webdock.hover` state machine in the daemon, pin/unpin, add/remove/move, keyboard,
-   bar widget, empty/cold/offline states), **I78** card polish (title first, quieter toggles, rounded bottom, keyboard
-   path into the header, reduced motion), **I77** scope table and host registry into `Daemon`, **W17.6** Nix (a
-   `kurashi-webdock` package apart from the base closure, HM/NixOS options, closure check).
-2. **I80** web host on niri (nested niri in the sandbox; reveal by click).
-3. Cards without a user decision: I86 (`forced_by` on service documents), I88 (weather: preview verification path,
-   hourly overflow, ja review), I89 (calendar polish), I84 sysmon leftovers, the keyboard path into bar widgets (I67),
-   I77 (scope table into `Daemon`), W17.6 (web dock Nix packaging), I87 (peek PSS check robust under load).
-4. B7 quiet repro + quiet re-measure of K35, W18 peeks (second output +3…+34 MiB under load) and the web host (BENCH);
-   no agents running. I10 on machine A.
-
-**Gotchas (new):** parallel cards keep colliding on CONTRACT-CHANGE row numbers (renumber at merge) and on sandbox
-names (give each card unique names, I84). `wtype` drops the first key of every call (looked like B27) — type with `tools/bench/wl_keys.py`,
-which cannot type `:` (I81). `qs-webengine` (dev shell) is the patched Quickshell; Chromium needs `argc > 0` for
-`QTWEBENGINE_CHROMIUM_FLAGS`. The host imports `frontend/core` through the link `mods/webdock/host/core` (Quickshell
-refuses imports outside a config root). Card cross-talk: give the host card the daemon's i18n key list early (done by
-SendMessage this time). The permission guard refused decompressing the user's Zen session file (it holds open tabs) —
-don't read browser profiles without asking. Disk is at 90 % (38 GB free): clean caches before the next wave.
