@@ -449,6 +449,17 @@ impl Settings {
     }
 }
 
+/// K59: what the host does to a picture before a wallpaper mod shows it (the material texture baked in, when the user
+/// chose the wallpaper as a texture scope). The mod shows the returned file and keeps its own path everywhere else.
+pub trait PictureFilter: Send + Sync {
+    /// The file to show for `picture` on an output of `size` device pixels at `scale`: the picture itself when nothing
+    /// applies. Blocking (it may decode and encode): call it from a blocking thread.
+    fn filter(&self, picture: &std::path::Path, size: (u32, u32), scale: f32)
+    -> std::path::PathBuf;
+    /// Changes whenever the filter would give other files (a texture, its light, the scope): show the pictures again.
+    fn changes(&self) -> watch::Receiver<u64>;
+}
+
 /// The registrations of one enable. Each call checks the manifest's `provides` (the list the daemon
 /// passes in, e.g. `action:hello.*`); a call that fails is remembered, and `finish` fails with it
 /// even when the mod ignored the error.
@@ -462,6 +473,7 @@ pub struct ModCtx {
     hosts: Vec<HostDecl>,
     seen: BTreeSet<String>,
     refused: Vec<ModError>,
+    picture_filter: Option<Arc<dyn PictureFilter>>,
 }
 
 impl ModCtx {
@@ -478,7 +490,18 @@ impl ModCtx {
             hosts: Vec::new(),
             seen: BTreeSet::new(),
             refused: Vec::new(),
+            picture_filter: None,
         }
+    }
+
+    /// The host's picture filter (K59), handed to every mod; only a wallpaper mod has a use for it.
+    pub fn with_picture_filter(mut self, filter: Option<Arc<dyn PictureFilter>>) -> Self {
+        self.picture_filter = filter;
+        self
+    }
+
+    pub fn picture_filter(&self) -> Option<Arc<dyn PictureFilter>> {
+        self.picture_filter.clone()
     }
 
     /// The manifest's capabilities, which a host process checks its `exec:<binary>` against (K38).

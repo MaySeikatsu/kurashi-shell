@@ -81,6 +81,9 @@ pub struct Shared {
     pub dirs: Dirs,
     /// The last library scan the picker asked for, reused for a few seconds (paging).
     pub scans: Mutex<Option<CachedScan>>,
+    /// K59: the host's picture filter (the texture baked in); the backend is shown its result, the state keeps the
+    /// picture's own path.
+    pub filter: Option<Arc<dyn kurashi_mod_api::PictureFilter>>,
 }
 
 pub struct CachedScan {
@@ -166,9 +169,21 @@ impl Supervisor {
     pub async fn run(mut self) {
         self.start().await;
         self.publish();
+        let mut filtered = self.shared.filter.as_ref().map(|f| f.changes());
         loop {
             let due = self.due.values().min().copied();
             tokio::select! {
+                // K59: the texture or its light changed: show every picture again, through the filter, with a fade.
+                Ok(()) = async {
+                    match filtered.as_mut() {
+                        Some(rx) => rx.changed().await.map_err(drop),
+                        None => std::future::pending().await,
+                    }
+                } => {
+                    if self.status.up() {
+                        self.reapply_all("fade").await;
+                    }
+                }
                 cmd = self.cmds.recv() => match cmd {
                     Some(cmd) => self.command(cmd).await,
                     None => break,
@@ -292,6 +307,43 @@ impl Supervisor {
         let Some(id) = BackendId::parse(&self.cfg.backend) else {
             return Err("mod-wallpaper.backend.unknown".into());
         };
+        // K59: each output may need its own baked copy (its size and scale); the same file for all goes as one call.
+        if let Some(filter) = self.shared.filter.clone() {
+            let targets: Vec<Output> = self
+                .outputs
+                .iter()
+                .filter(|o| outputs.is_empty() || outputs.contains(&o.name))
+                .cloned()
+                .collect();
+            let mut shown = Vec::with_capacity(targets.len());
+            for o in &targets {
+                let (filter, picture) = (filter.clone(), PathBuf::from(path));
+                let (size, scale) = ((o.width, o.height), o.scale.max(1) as f32);
+                let file =
+                    tokio::task::spawn_blocking(move || filter.filter(&picture, size, scale))
+                        .await
+                        .unwrap_or_else(|_| PathBuf::from(path));
+                shown.push((o.name.clone(), file));
+            }
+            if shown.iter().any(|(_, f)| f != Path::new(path)) {
+                for (name, file) in shown {
+                    self.apply_one(id, &file.to_string_lossy(), &[name], transition, origin)
+                        .await?;
+                }
+                return Ok(());
+            }
+        }
+        self.apply_one(id, path, outputs, transition, origin).await
+    }
+
+    async fn apply_one(
+        &mut self,
+        id: BackendId,
+        path: &str,
+        outputs: &[String],
+        transition: &str,
+        origin: Option<(i64, i64)>,
+    ) -> Result<(), String> {
         let args = {
             let opts = ImgOpts {
                 outputs,
@@ -633,7 +685,7 @@ impl Supervisor {
             != (new.fit.as_str(), new.crop_anchor.as_str())
             && self.status.up()
         {
-            self.reapply_all().await;
+            self.reapply_all("none").await;
         }
         let rotation_changed = old.rotate_min != new.rotate_min
             || old.shuffle != new.shuffle
@@ -643,8 +695,8 @@ impl Supervisor {
         }
     }
 
-    /// Every output's stored image, shown again with the current fit and no transition.
-    async fn reapply_all(&mut self) {
+    /// Every output's stored image, shown again with the current fit and `transition`.
+    async fn reapply_all(&mut self, transition: &str) {
         let plan: Vec<(String, String)> = self
             .outputs
             .iter()
@@ -652,7 +704,7 @@ impl Supervisor {
             .filter(|(_, p)| Path::new(p).is_file())
             .collect();
         for (name, path) in plan {
-            if let Err(e) = self.apply(&path, &[name], "none", None).await {
+            if let Err(e) = self.apply(&path, &[name], transition, None).await {
                 self.error = Some(("mod-wallpaper.error.apply".into(), Some(e)));
             }
         }
