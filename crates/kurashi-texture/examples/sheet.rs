@@ -57,6 +57,7 @@ fn shading(kind: Kind, tint: bool, angle: f32, dark: bool, amp: f32) -> Shading 
         ink_alpha: if tint { m.ink_alpha } else { 0.0 },
         light_dir: light_dir(angle, ELEVATION),
         light_color: [1.0, 1.0, 1.0],
+        lamp: None,
     }
 }
 

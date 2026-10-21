@@ -137,8 +137,12 @@ pub struct Light {
     pub color: [f32; 3],
     /// Multiplies the shade amplitude (a dim night).
     pub dim: f32,
-    /// Why the daytime light is where it is: `sun` (the weather mod's place) or `day` (06:00–18:00 without one).
+    /// Why the light is where it is: daytime `sun` (the weather mod's place) or `day` (06:00–18:00 without one);
+    /// wallpaper `wallpaper` (its brightest region), `wallpaper_flat` (no light of its own: from above) or
+    /// `wallpaper_waiting` (no picture yet).
     pub detail: &'static str,
+    /// The wallpaper's light: a lamp at this point of the output (fractions), at `light.height_px`.
+    pub lamp: Option<[f32; 2]>,
 }
 
 /// The weather mod's place, as the night light reads it.
@@ -191,6 +195,7 @@ pub fn sun(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> L
             color: [0.62, 0.71, 0.91],
             dim: 0.6,
             detail,
+            lamp: None,
         };
     }
     let angle = (270.0 + 180.0 * (since / span).clamp(0.0, 1.0)) % 360.0;
@@ -215,6 +220,98 @@ pub fn sun(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> L
         color,
         dim: if elevation < 0.0 { 0.8 } else { 1.0 },
         detail,
+        lamp: None,
+    }
+}
+
+/// The picture the wallpaper shows now (the theme's picture, else an output's), set by the theme with every publish.
+fn shown_picture() -> &'static Mutex<Option<PathBuf>> {
+    static SHOWN: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
+    SHOWN.get_or_init(Default::default)
+}
+
+pub fn set_wallpaper(picture: Option<PathBuf>) {
+    *shown_picture().lock().expect("shown picture") = picture;
+}
+
+/// The wallpaper's light spot per picture (decoded once, on a blocking thread; the theme is republished when it is
+/// known). `Some(None)`: the picture has no light of its own.
+fn spots() -> &'static Mutex<HashMap<PathBuf, Option<Option<kurashi_texture::Spot>>>> {
+    static SPOTS: OnceLock<Mutex<HashMap<PathBuf, Option<Option<kurashi_texture::Spot>>>>> =
+        OnceLock::new();
+    SPOTS.get_or_init(Default::default)
+}
+
+/// The spot of `picture`: known (`Some`), or being found (`None`).
+fn spot_of(picture: &Path) -> Option<Option<kurashi_texture::Spot>> {
+    {
+        let mut m = spots().lock().expect("spots");
+        match m.get(picture) {
+            Some(Some(known)) => return Some(*known),
+            Some(None) => return None,
+            None => {
+                m.insert(picture.to_path_buf(), None);
+            }
+        }
+    }
+    let path = picture.to_path_buf();
+    let find = move || {
+        let spot = image::open(&path)
+            .ok()
+            .and_then(|img| kurashi_texture::light_spot(&img.to_rgba8()));
+        spots().lock().expect("spots").insert(path, Some(spot));
+    };
+    match tokio::runtime::Handle::try_current() {
+        Ok(rt) => {
+            rt.spawn(async move {
+                let _ = tokio::task::spawn_blocking(find).await;
+                again();
+            });
+            None
+        }
+        Err(_) => {
+            find();
+            spot_of(picture)
+        }
+    }
+}
+
+/// The wallpaper's light (K59): a lamp at the picture's brightest region, in its colour (halfway to white, so the
+/// shell's palette stays itself); a flat picture lights from above, as does a missing one until it is there.
+fn wallpaper_light(store: &ConfigStore) -> Light {
+    let from_above = |detail| Light {
+        mode: "wallpaper",
+        dir: kurashi_texture::light_dir(0.0, f(store, "theme.light.elevation", 40.0) as f32),
+        color: [1.0, 1.0, 1.0],
+        dim: 1.0,
+        detail,
+        lamp: None,
+    };
+    let picture = shown_picture().lock().expect("shown picture").clone();
+    let Some(picture) = picture else {
+        return from_above("wallpaper_waiting");
+    };
+    match spot_of(&picture) {
+        None => from_above("wallpaper_waiting"),
+        Some(None) => from_above("wallpaper_flat"),
+        Some(Some(spot)) => {
+            // The direction from the screen's middle toward the spot, for what needs one direction (swatches).
+            let angle = (spot.x - 0.5)
+                .atan2(0.5 - spot.y)
+                .to_degrees()
+                .rem_euclid(360.0);
+            Light {
+                mode: "wallpaper",
+                dir: kurashi_texture::light_dir(
+                    angle,
+                    f(store, "theme.light.elevation", 40.0) as f32,
+                ),
+                color: spot.color.map(|c| 0.5 + 0.5 * c),
+                dim: 1.0,
+                detail: "wallpaper",
+                lamp: Some([spot.x, spot.y]),
+            }
+        }
     }
 }
 
@@ -228,12 +325,19 @@ pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light
         color: [1.0, 1.0, 1.0],
         dim: 1.0,
         detail: "",
+        lamp: None,
     };
     match s(store, "theme.light.mode").as_str() {
         "daytime" => sun(place(store), now),
         "pointer" => fixed("pointer"),
+        "wallpaper" => wallpaper_light(store),
         _ => fixed("static"),
     }
+}
+
+/// Whether the light needs the wallpaper's picture (the theme then holds the wallpaper mod's document).
+pub fn wants_wallpaper(store: &ConfigStore) -> bool {
+    kind(store).is_some() && s(store, "theme.light.mode") == "wallpaper"
 }
 
 /// Whether the daytime light is wanted (the theme's 5-minute tick runs only then).
@@ -304,6 +408,7 @@ pub fn tokens(
     t.insert("light.mode".into(), json!(lt.mode));
     t.insert("light.dir".into(), json!(lt.dir));
     t.insert("light.color".into(), json!(hex(lt.color)));
+    t.insert("light.lamp".into(), json!(lt.lamp));
     t.insert(
         "light.height_px".into(),
         json!(30.0 + f(store, "theme.light.elevation", 40.0) * 5.0),
@@ -313,6 +418,7 @@ pub fn tokens(
     let Some((kind, path, tl)) = ready else {
         for (k, v) in [
             ("texture.map", json!("")),
+            ("texture.ink_map", json!("")),
             ("texture.tile_px", json!(0)),
             ("texture.tile_logical", json!(0)),
             ("texture.scale", json!(1.0)),
@@ -351,6 +457,15 @@ pub fn tokens(
     };
     let tint = b(store, "theme.texture.tint") && m.ink_role != InkRole::None;
     t.insert("texture.map".into(), json!(path.to_string_lossy()));
+    let ink_map = kurashi_texture::ink_path(&path);
+    t.insert(
+        "texture.ink_map".into(),
+        json!(if tint && ink_map.is_file() {
+            ink_map.to_string_lossy().into_owned()
+        } else {
+            String::new()
+        }),
+    );
     t.insert("texture.tile_px".into(), json!(tl.size));
     t.insert("texture.tile_logical".into(), json!(tl.logical));
     t.insert(
@@ -399,6 +514,17 @@ pub fn wallpaper_shading(
         ink_alpha: num("texture.ink_alpha"),
         light_dir: dir,
         light_color: lin(rgb(tokens, "light.color")),
+        lamp: tokens
+            .get("light.lamp")
+            .and_then(Value::as_array)
+            .filter(|a| a.len() == 2)
+            .map(|a| {
+                [
+                    a[0].as_f64().unwrap_or(0.5) as f32,
+                    a[1].as_f64().unwrap_or(0.0) as f32,
+                    num("light.height_px").max(1.0),
+                ]
+            }),
     };
     Some((tl, sh, num("texture.scale").max(0.1)))
 }
@@ -502,6 +628,7 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
                 ink_alpha: if tint { m.ink_alpha } else { 0.0 },
                 light_dir: lt.dir,
                 light_color: lt.color,
+                lamp: None,
             };
             let name = {
                 use std::hash::{Hash, Hasher};

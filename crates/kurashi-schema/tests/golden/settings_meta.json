@@ -792,6 +792,10 @@
                 {
                   "label": "config.choice.texture.wood",
                   "value": "wood"
+                },
+                {
+                  "label": "config.choice.texture.paint",
+                  "value": "paint"
                 }
               ],
               "control": "select",
@@ -991,6 +995,10 @@
                 {
                   "label": "config.choice.light.daytime",
                   "value": "daytime"
+                },
+                {
+                  "label": "config.choice.light.wallpaper",
+                  "value": "wallpaper"
                 }
               ],
               "control": "select",

@@ -18,3 +18,6 @@
 "settings.light.daytime.sun" = "The sun at the weather mod's place, where it stands now: rising on the left, setting on the right."
 "settings.light.daytime.day" = "No place is set in the weather mod: a day from 06:00 to 18:00 stands in for the sun."
 "settings.ink.sample" = "The quick brown fox jumps over the lazy dog · 暮らしの手帖"
+"settings.light.wallpaper.wallpaper" = "A lamp where the wallpaper is brightest, in its colour; the dial shows the way it falls on the middle."
+"settings.light.wallpaper.wallpaper_flat" = "This wallpaper has no bright place of its own: the light comes from above."
+"settings.light.wallpaper.wallpaper_waiting" = "Waiting for the wallpaper: the light comes from above until its picture is read."

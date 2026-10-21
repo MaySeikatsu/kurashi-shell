@@ -51,8 +51,12 @@ ShaderEffect {
     readonly property vector4d lightDir: Qt.vector4d(Theme.lightDirToken[0], Theme.lightDirToken[1],
         Theme.lightDirToken[2], 0)
     readonly property vector4d lightCol: Qt.vector4d(Theme.lightColor.r, Theme.lightColor.g, Theme.lightColor.b, 0)
-    readonly property vector4d lamp: Qt.vector4d(lamped ? Light.x : 0, lamped ? Light.y : 0,
-        Theme.lightHeight, lamped ? Light.k : 0)
+    // The wallpaper's light (K59): a lamp held at its brightest place, `light.lamp` as fractions of the output.
+    readonly property var spot: Theme.tok("light.lamp", null)
+    readonly property bool spotted: Theme.lightMode === "wallpaper" && !!spot && spot.length === 2 && !!qsw && !!qsw.screen
+    readonly property vector4d lamp: spotted
+        ? Qt.vector4d(spot[0] * qsw.screen.width, spot[1] * qsw.screen.height, Theme.lightHeight, 1)
+        : Qt.vector4d(lamped ? Light.x : 0, lamped ? Light.y : 0, Theme.lightHeight, lamped ? Light.k : 0)
     readonly property vector4d sheet: Qt.vector4d(origin.x, origin.y, dpr, (win ? win.height : 0) * dpr)
     // `win` in the expression: the graphics API is known only once the item is in a window.
     readonly property vector4d flags: Qt.vector4d(

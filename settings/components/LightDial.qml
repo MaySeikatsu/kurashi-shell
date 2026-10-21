@@ -5,13 +5,14 @@ import "../core"
 // Under Light (K59, docs/ux/texture.md "Settings"): where the material's light comes from. For a fixed light (and the
 // pointer's resting light) a dial — a lit dome you drag: the angle round it is the direction, the distance from the
 // middle the height (the middle is high, the rim low) — with the numbers beside it; arrows turn it by 15°, Up/Down
-// raise or lower it by 5°, and a release or key press is one change (both keys, one undo step). For the sun, the
-// daemon's words for where it is now (`theme.appearance.light_detail`) and its direction in effect (`light.dir`).
+// raise or lower it by 5°, and a release or key press is one change (both keys, one undo step). For the sun and the
+// wallpaper's light, the daemon's words for where it is now (`theme.appearance.light_detail`) and its direction in
+// effect (`light.dir`).
 Row {
     id: ld
     readonly property string mode: Store.valueOf("theme.light.mode") || "static"
     readonly property string detail: (Store.theme && Store.theme.appearance && Store.theme.appearance.light_detail) || ""
-    readonly property bool fixed: ld.mode !== "daytime"
+    readonly property bool fixed: ld.mode === "static" || ld.mode === "pointer"
     readonly property real angle: ld.dragging ? ld.dragAngle : Number(Store.valueOf("theme.light.angle") ?? 315)
     readonly property real elevation: ld.dragging ? ld.dragElevation : Number(Store.valueOf("theme.light.elevation") ?? 40)
     // The direction in effect, as the daemon resolved it (the sun's for daytime): compass degrees and height.
@@ -123,6 +124,7 @@ Row {
             font.family: Theme.fam(text, Theme.families)
             text: ld.mode === "pointer" ? I18n.tr("settings.light.pointer")
                 : ld.mode === "daytime" ? I18n.tr("settings.light.daytime." + (ld.detail || "day"))
+                : ld.mode === "wallpaper" ? I18n.tr("settings.light.wallpaper." + (ld.detail || "wallpaper_waiting"))
                 : I18n.tr("settings.light.static")
         }
     }
