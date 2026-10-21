@@ -146,6 +146,14 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.scheme.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.scheme.wallpaper",
+                  "value": "wallpaper"
+                },
+                {
                   "label": "config.choice.scheme.dark",
                   "value": "dark"
                 },
@@ -156,7 +164,7 @@
               ],
               "control": "select",
               "couplings": [],
-              "default": "dark",
+              "default": "auto",
               "help": "config.theme.colors.scheme.help",
               "key": "theme.colors.scheme",
               "label": "config.theme.colors.scheme.label",
@@ -250,9 +258,9 @@
                 {
                   "key": "theme.colors.scheme",
                   "kind": "requires",
-                  "op": "eq",
+                  "op": "ne",
                   "reason": "settings.inert.requires",
-                  "value": "dark"
+                  "value": "light"
                 }
               ],
               "default": false,
