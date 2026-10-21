@@ -506,14 +506,21 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
             let name = {
                 use std::hash::{Hash, Hasher};
                 let mut h = std::collections::hash_map::DefaultHasher::new();
-                format!("{sh:?}{wrinkles}{tint}{base:?}{}", kurashi_texture::generate_version())
-                    .hash(&mut h);
+                format!(
+                    "{sh:?}{wrinkles}{tint}{base:?}{}",
+                    kurashi_texture::generate_version()
+                )
+                .hash(&mut h);
                 format!("{}-{:016x}.png", kind.name(), h.finish())
             };
             (kind, cache_dir().join("swatch").join(name), sh)
         })
         .collect();
-    let missing: Vec<_> = jobs.iter().filter(|(_, p, _)| !p.is_file()).cloned().collect();
+    let missing: Vec<_> = jobs
+        .iter()
+        .filter(|(_, p, _)| !p.is_file())
+        .cloned()
+        .collect();
     if !missing.is_empty() && !SWATCHES_RUNNING.swap(true, Ordering::Relaxed) {
         let make = move || {
             for (kind, path, sh) in missing {
