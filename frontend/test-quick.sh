@@ -192,8 +192,9 @@ PAD=$(num "$(token space.md)")
 SCREEN_W=$(num "$(output_size width)")
 N=$(num "$(tray_items)")
 [ "$N" = 2 ] || fail "precondition: the mock's tray has 2 items (got $N)"
-# Row, right to left: margin PAD, the N items (BARH each, PAD apart), PAD, the button (BARH wide).
-X=$(( SCREEN_W - PAD * (N + 1) - BARH * N - BARH / 2 ))
+# Row, right to left: margin PAD, the right sidebar's button (BARH, I154), PAD, the N items (BARH each, PAD apart), PAD,
+# the button (BARH wide).
+X=$(( SCREEN_W - PAD * (N + 2) - BARH * (N + 1) - BARH / 2 ))
 Y=$(( BARH / 2 ))
 CROP_X=$(( SCREEN_W - 400 ))
 expect_panel "" "closed at start"
@@ -224,7 +225,7 @@ GAP=$(num "$(token space.sm)")
 SCREEN_W=$(num "$(output_size width)")
 SCREEN_H=$(num "$(output_size height)")
 N=$(num "$(tray_items)")
-X=$(( SCREEN_W - PAD * (N + 1) - BARH * N - BARH / 2 ))
+X=$(( SCREEN_W - PAD * (N + 2) - BARH * (N + 1) - BARH / 2 ))
 Y=$(( BARH / 2 ))
 CROP_X=$(( SCREEN_W - 400 ))
 expect_panel "" "closed at start (real top bar)"
@@ -246,7 +247,7 @@ PH=$(( BARH - 6 ))
 N=$(num "$(tray_items)")
 # Column, bottom up: margin PAD, the N items (BARH each, GAP apart), GAP, the button (BARH tall).
 X=$(( BARH / 2 ))
-Y=$(( SCREEN_H - PAD - N * BARH - N * GAP - BARH / 2 ))
+Y=$(( SCREEN_H - PAD - (BARH + PAD) - N * BARH - N * GAP - BARH / 2 ))   # under the column: the right sidebar's button (I154)
 CROP_Y=$(( SCREEN_H - 300 ))
 expect_panel "" "closed at start (left bar)"
 click "$X" "$Y"
