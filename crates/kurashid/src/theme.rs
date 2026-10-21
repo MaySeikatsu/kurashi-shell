@@ -541,14 +541,22 @@ mod tests {
         let with = |mode: &str| {
             store_with(
                 &root,
-                &format!("schema_version = 2\n[theme]\nstyle = \"none\"\n[theme.colors]\nscheme = \"{mode}\"\n"),
+                &format!(
+                    "schema_version = 2\n[theme]\nstyle = \"none\"\n[theme.colors]\nscheme = \"{mode}\"\n"
+                ),
             )
         };
         assert_eq!(effective_scheme(&with("light"), None), (Scheme::Light, ""));
         assert_eq!(effective_scheme(&with("dark"), None), (Scheme::Dark, ""));
-        assert_eq!(effective_scheme(&with("wallpaper"), None), (Scheme::Dark, "wallpaper_waiting"));
+        assert_eq!(
+            effective_scheme(&with("wallpaper"), None),
+            (Scheme::Dark, "wallpaper_waiting")
+        );
         // A pale picture is light, a dark one dark.
-        for (rgb, want) in [([235u8, 230, 220], Scheme::Light), ([30u8, 34, 48], Scheme::Dark)] {
+        for (rgb, want) in [
+            ([235u8, 230, 220], Scheme::Light),
+            ([30u8, 34, 48], Scheme::Dark),
+        ] {
             let pic = root.join(format!("pic-{}.png", rgb[0]));
             image::RgbImage::from_fn(32, 32, |x, _| {
                 image::Rgb([rgb[0], rgb[1].saturating_sub(x as u8), rgb[2]])
@@ -624,7 +632,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(val("theme.colors.scheme").value, "dark");
-        assert_eq!(val("theme.colors.scheme").source, kurashi_config::Source::User);
+        assert_eq!(
+            val("theme.colors.scheme").source,
+            kurashi_config::Source::User
+        );
         assert_eq!(store.scheme_before(), None);
         assert!(
             actions

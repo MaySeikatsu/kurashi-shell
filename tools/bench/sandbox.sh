@@ -114,7 +114,18 @@ case $action in
     if netns_on; then
       join=(LD_PRELOAD="$R/netjoin.so" KURASHI_SANDBOX_NETNS_PID="$(cat "$R/sway.pid")" KURASHI_SANDBOX_NETNS_ID="$(cat "$R/netns.id")")
     fi
-    env XDG_RUNTIME_DIR="$R" "${join[@]}" dbus-daemon --session --fork --print-address=1 --print-pid=1 \
+    # The session bus's own config, plus one rule: nothing reaches the desktop portal, so the bus never activates a
+    # real xdg-desktop-portal (and its backends) inside the sandbox — scheme `auto` (K55) then has no preference here,
+    # the same on every machine.
+    conf="$(dirname "$(readlink -f "$(command -v dbus-daemon)")")/../share/dbus-1/session.conf"
+    if [ -f "$conf" ]; then
+      printf '<busconfig><include>%s</include><policy context="mandatory"><deny send_destination="org.freedesktop.portal.Desktop"/></policy></busconfig>\n' \
+        "$conf" > "$R/bus.conf"
+      busargs=(--config-file="$R/bus.conf")
+    else
+      busargs=(--session)
+    fi
+    env XDG_RUNTIME_DIR="$R" "${join[@]}" dbus-daemon "${busargs[@]}" --fork --print-address=1 --print-pid=1 \
       --address="unix:path=$R/bus" > "$R/dbus.out" 2>/dev/null || true
     head -1 "$R/dbus.out" > "$R/dbus.addr" 2>/dev/null || true
     if netns_on && [ ! -s "$R/dbus.addr" ]; then fail "the sandbox's D-Bus did not start inside its network namespace"; fi

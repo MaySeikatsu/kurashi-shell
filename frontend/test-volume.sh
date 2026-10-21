@@ -50,7 +50,7 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 # Pixel checks of the plain look (K53: a fresh install wears the style washi; this test reads layout and fills).
 mkdir -p "$XDG_CONFIG_HOME/kurashi"
-printf 'theme.style = "none"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 
 # One protocol exchange with the socket: `ipc sub <doc>` prints the first snapshot's data, `ipc act
 # <action> [args-json]` prints the reply (exit 1 on err). Plain stdlib, as in test-tray-bt.sh.

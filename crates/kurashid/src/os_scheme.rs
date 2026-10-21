@@ -222,9 +222,14 @@ mod tests {
             .unwrap();
         until(Pref::Dark).await;
         // Another key changes nothing.
-        Portal::setting_changed(iface.signal_emitter(), NAMESPACE, "accent-color", Value::U32(2))
-            .await
-            .unwrap();
+        Portal::setting_changed(
+            iface.signal_emitter(),
+            NAMESPACE,
+            "accent-color",
+            Value::U32(2),
+        )
+        .await
+        .unwrap();
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         assert_eq!(get(), Pref::Dark);
         assert_eq!(calls.load(Ordering::SeqCst), 2);
