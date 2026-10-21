@@ -12,6 +12,8 @@ Item {
     property bool animate: false
     // This frame draws a ground for kind "ground" (else the surface keeps its own).
     property bool grounds: true
+    // This frame draws the block's outline itself (kami's pen): the block drops its straight line (Block.qml; data, rule 4).
+    property bool drawsOutline: false
     readonly property bool card: kind === "card"
     readonly property bool small: kind === "small"
     readonly property bool ground: kind === "ground"
