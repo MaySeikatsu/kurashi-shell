@@ -21,3 +21,5 @@ ProfileDiffRow 1.0 ProfileDiffRow.qml
 ProfileReview 1.0 ProfileReview.qml
 SectionCard 1.0 SectionCard.qml
 ThemeExportStatus 1.0 ThemeExportStatus.qml
+PackCards 1.0 PackCards.qml
+StyleDiffers 1.0 StyleDiffers.qml

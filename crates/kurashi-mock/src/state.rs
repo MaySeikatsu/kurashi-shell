@@ -17,6 +17,7 @@ use kurashid::wiring::{
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
+use crate::appearance;
 use crate::documents::{self, Note};
 use crate::tasks;
 use crate::webdock;
@@ -86,7 +87,14 @@ impl State {
         // The first output holds the focus at start (as the first screen does in a real session).
         let focus = outputs.first().cloned();
         let seed = [
-            ("theme", documents::theme()),
+            // K53: `appearance` names the style, look, palette and scheme in effect (washi at the start).
+            ("theme", {
+                let mut t = documents::theme();
+                t["appearance"] = appearance::summary(&appearance::initial(documents::config(
+                    kurashi_schema::v1::registry(),
+                )));
+                t
+            }),
             (
                 "i18n",
                 kurashid::i18n::document(
@@ -151,8 +159,17 @@ impl State {
                 "mod.weather",
                 documents::weather(documents::now(fixed_time)),
             ),
-            // The schema's defaults with their provenance (K21): the clock keys the clock view reads.
-            ("config", documents::config(kurashi_schema::v1::registry())),
+            // The schema's defaults with their provenance (K21): the clock keys the clock view reads. The style in effect
+            // (washi) and its look are settled in, each value naming its pack (K53, W29).
+            (
+                "config",
+                appearance::initial(documents::config(kurashi_schema::v1::registry())),
+            ),
+            // K53: the preview cards Settings shows (styles whole, looks and palettes in what is in effect).
+            (
+                "theme.previews",
+                appearance::previews("wa-iro", "washi", "light"),
+            ),
             // Unlocked and never changes: `session.lock` is a no-op here, so there is no unlock
             // path for the lock surface to wait on.
             (
@@ -538,6 +555,7 @@ impl State {
             _ if action.starts_with("webdock.") => return self.webdock(action, args),
             _ if action.starts_with("tasks.") => return self.tasks(action, args),
             _ if crate::power::handles(action) => return self.power(action, args),
+            _ if appearance::handles(action) => return self.appearance(action, args),
             _ => {
                 return Err(Fail {
                     kind: "unknown_action",
@@ -944,6 +962,27 @@ impl State {
             self.patch(doc, ops, None);
         }
         Ok(None)
+    }
+
+    /// K53 (W29): `theme.style.apply` / `theme.look.apply`, answered against `config` by appearance.rs; `theme`'s
+    /// `appearance` and `theme.previews` follow. Answers `{rev, undo}` as the daemon does (the mock keeps no history).
+    fn appearance(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        let defaults = documents::config(kurashi_schema::v1::registry())["values"]
+            .as_object()
+            .cloned()
+            .unwrap_or_default();
+        let out = appearance::act(self.data("config"), &defaults, action, args)?;
+        self.patch("config", json!({"values": out.values}), None);
+        let a = appearance::summary(&out.config);
+        self.patch("theme", json!({"appearance": a.clone()}), None);
+        let previews = appearance::previews(
+            a["palette"].as_str().unwrap_or_default(),
+            a["look"].as_str().unwrap_or_default(),
+            a["scheme"].as_str().unwrap_or_default(),
+        );
+        // Arrays are replaced whole by a merge patch: the lists go as they are now.
+        self.patch("theme.previews", previews, None);
+        Ok(Some(json!({"rev": self.docs["config"].rev, "undo": null})))
     }
 
     fn tasks(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {

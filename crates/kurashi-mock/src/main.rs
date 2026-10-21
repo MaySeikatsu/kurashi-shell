@@ -8,6 +8,7 @@
 //! stay idle. The clock (minute boundaries) and the mock.* controls emit whenever they fire; under
 //! `--fixed-time` the clock never fires on its own.
 
+mod appearance;
 mod documents;
 mod power;
 mod state;
