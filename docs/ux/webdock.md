@@ -65,6 +65,86 @@ face of its Quick Panel), iOS/Android phone browsers (Safari's and Chrome's bott
   (`mods/webdock/test/test-phone.sh <tag> <config line>`), and test-host's `phone-right`, `host-phone-header`,
   `host-phone-footer`, `host-tooltip`.
 
+## In the sidebar (W30, session 12)
+**User (session 12):** "It should be able to be used in the sidebar but inside of it it fills the whole sidebar instead
+of being phone shaped." The edge dock stays exactly as it is; the sidebar is a second place for the same pins and pages.
+
+### How others do it (research 2026-10-21)
+- **Vivaldi web panels:** a column of panel icons on the window's edge, the panel's page beside it at a width the user
+  drags; a toolbar over the page (back, forward, reload, home, the address, "mobile" toggle); the page stays loaded when
+  the panel closes (users ask for hibernation). https://help.vivaldi.com/?p=67 (and the forum threads in "References")
+- **Edge sidebar apps** (removed in Edge 149): an icon column on the right, the app fills the pane's full height, a
+  small header (title, open in a tab, close); min width 376 px. https://learn.microsoft.com/en-us/microsoft-edge/progressive-web-apps/how-to/sidebar
+- **Opera panels:** messengers pinned in the sidebar's icon column; the panel is the site at full height, "pin" keeps
+  it open beside the page. https://blogs.opera.com/tips-and-tricks/?p=378
+- **Firefox sidebar** (136+ "sidebar revamp"): a launcher of tool icons, the open tool fills the sidebar under a
+  header with its name and a switcher; the toolbar button closes it (from the product, not re-checked online for this
+  card: the sandbox rule keeps agents off real sites).
+- **Zen Essentials:** a row of pinned site tiles at the sidebar's top, the rest of the sidebar below (the user's
+  browser; see "User decisions (session 7)").
+- **Taken:** the page fills the pane at full height (Edge, Firefox), a slim navigation toolbar over the page (Vivaldi),
+  pins as a **row of app keys on top** (Zen's Essentials row) rather than a side column of icons (Vivaldi, Edge,
+  Opera): kurashi's sidebar is 320–640 px wide and a 48 px icon column would take 15 % of a 320 px pane, while the
+  sidebar's own tab bar already sits on top. The page stays loaded when the panel closes (Vivaldi), but under the
+  dock's own unload rules, so it does not keep resources forever.
+
+### Design
+- The dock provides a panel `panel:webdock` → the tab or section value **`mod:webdock:webdock`**, offered by
+  `sidebar.tabs` (left) and `sidebar.sections` (right) while the mod is on.
+- **Layout:** the pins as one row of 40 px app keys (the strip's PinTile: favicon or letter tile, the loaded dot, the
+  shown pin lit), scrolling sideways when they do not fit, and a settings key at its end; under it the **page well**
+  fills the rest of the pane edge to edge inside the sidebar's padding and takes the full height on offer
+  (`fillHeight`; a right section without one is 560 px tall). No PhoneFrame, no phone aspect.
+- **The page:** the web host maps a layer window over the well (Overlay layer, anchored like the sidebar: top + side,
+  exclusive zone 0, so the compositor puts both in the same place): a 36 px navigation row (back, forward, title, home
+  once the page left the pin's address, reload, mobile/desktop view, open in browser) and the page under it, masked to
+  the well's radius. The view is the pin's `view` (mobile at that width is fine; `desktop` is honoured).
+- **A view pin** (`mod:<id>:<panel>`) is drawn in the well by the shell (no engine), with the well's height as its
+  `fillHeight`. The dock's own panel is never a view of itself.
+- **One host, one page per pin (K38):** the page is the same WebPage the edge card shows; it moves between the edge
+  card's window and the sidebar's (a reparent: the page is kept, no reload, measured in the spike). `max_loaded` and
+  `unload_after` are unchanged; a site on screen in the sidebar counts as shown (the idle clock waits), and a site on
+  screen at the edge and in the sidebar at once is kept even past the cap.
+- **Both visible:** different pins show live in both places. The **same** pin: the **sidebar shows the live page** (the
+  user put it there on purpose and it is the larger place), and the edge card shows "This page is shown in the
+  sidebar" (`webdock.side.elsewhere`) in its body.
+- **Placement (contract row 250):** the sidebar hands a panel that declares `property var placement` its rect at rest
+  in the sidebar window (`{output, side, inset, top, width, height}`; null while it slides, scrolls or is clipped —
+  generic, no mod named, `frontend/components/sidebar/Placement.qml`). The panel adds the well's offset and reports
+  `webdock.sidebar {on, output, side, inset, top, width, height}`; the daemon publishes `mod.webdock.sidebar {pin?,
+  place?}` and the host follows it. A click on a pin is `webdock.sidebar_select {pin}` (the daemon's state; an open
+  sidebar without a chosen pin shows the first).
+- **Outside a sidebar** (the panel in a Stage card, no placement): the pins still show; a click shows the pin at the
+  edge (`webdock.open`), and the well says so with a "Show at the edge" button.
+
+### States
+- **No pins:** the well says `webdock.empty` with "Add a site" (Settings › Web dock › pins).
+- **Cold engine / host starting:** the well (drawn by the shell) says "Starting the web engine…"; the host's window
+  maps once its page exists, with the skeleton until the first paint (no white flash).
+- **Page loading:** the skeleton and the progress line along the navigation row's foot.
+- **Load error:** code, Retry, Open in browser (as the card). **Renderer crashed:** "The page stopped", Reload.
+- **Host missing / failed:** the well says why (`webdock.host.missing`, the failure's reason); view pins still work.
+- **Offline:** the page's own offline state (the host has no `svc.network`; a chip is later, as at the edge).
+- **Blocked permission:** the chips under the navigation row, as the card.
+- **Mod off:** the tab is skipped and the sidebar's empty state names it (LeftColumn, Shōjiki).
+
+### Keyboard, motion, outputs, budget
+- **Keyboard:** the pin row's keys are Tab stops (Enter opens, the menu key opens the pins' settings); the sidebar's
+  Ctrl+PageUp/PageDown switch its tabs while the column has the keyboard; a click on the page gives the host's window
+  the keyboard (on demand) and keys go to the page — Esc inside a page is the page's, Esc on the navigation row returns
+  to the page, Esc on the column closes the sidebar (Sidebar.qml). Known gap: with the page focused, Ctrl+PageUp/Down
+  reach the page, not the tab bar (the host cannot drive the shell's tabs).
+- **Motion:** the page appears 160 ms after the column stops moving (the sidebar's spring, a tile page, a scroll) and
+  goes the moment it moves again — the well under it carries the slide, so the page never trails the column. Reduced
+  motion: the column does not slide, the page appears after the same settle.
+- **Multi-output:** the page is on the sidebar's output (`place.output`), one sidebar at a time (K54).
+- **Ma / budget:** sidebar closed = the panel is destroyed, `webdock.sidebar {on: false}`, the host's sidebar window
+  unmaps (0 frames) and the page is Frozen unless the edge card shows it; it unloads by the dock's rules. The host's
+  window exists only while it is mapped; the panel's placement watch runs on the sidebar window's swapped frames only
+  (none while idle). No new cost while the sidebar does not show the dock.
+- **Done (W30):** `mods/webdock/test/test-sidebar.sh` (left tab, two `file://` pins, the page fills the well, pin switch,
+  close = hidden and no frames), shots `mods/webdock/shots/sidebar-{washi,sekai}.png`.
+
 ## References (research 2026-10-19)
 - **Floorp** panel sidebar — the closest model: a container (own cookie jar) per panel, "Use mobile user agent" per
   panel (docs warn it does not always take), width per panel (0 = global), "unload when closing panel", **open on

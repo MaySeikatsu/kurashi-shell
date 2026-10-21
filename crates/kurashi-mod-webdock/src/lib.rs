@@ -14,7 +14,8 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use dock::{
-    Dock, DockError, Part, View, add_row, move_row, remove_row, retarget_row, rows_of, view_rows,
+    Dock, DockError, Part, Place, Side, View, add_row, move_row, remove_row, retarget_row, rows_of,
+    view_rows,
 };
 pub use open::{Opener, SystemOpener};
 
@@ -318,6 +319,54 @@ impl Shared {
         Ok(None)
     }
 
+    /// `webdock.sidebar {on, output?, side?, inset?, top?, width?, height?}` (W30): the sidebar panel's page area at
+    /// rest (`on: true`, every field), or gone (`on: false`). An open sidebar on a site starts the host.
+    fn sidebar(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let on = args["on"]
+            .as_bool()
+            .ok_or_else(|| dock_error(DockError::Argument))?;
+        let place = if on {
+            let num = |key: &str| {
+                args[key]
+                    .as_u64()
+                    .and_then(|n| u32::try_from(n).ok())
+                    .ok_or_else(|| dock_error(DockError::Argument))
+            };
+            let width = num("width")?;
+            let height = num("height")?;
+            if width == 0 || height == 0 {
+                return Err(dock_error(DockError::Argument));
+            }
+            Some(Place {
+                output: str_arg(args, "output")
+                    .ok_or_else(|| dock_error(DockError::Argument))?
+                    .to_string(),
+                side: str_arg(args, "side")
+                    .and_then(Side::parse)
+                    .ok_or_else(|| dock_error(DockError::Argument))?,
+                inset: num("inset")?,
+                top: num("top")?,
+                width,
+                height,
+            })
+        } else {
+            None
+        };
+        if self.with_dock(|d| Ok(d.place(place)))? {
+            self.host.start();
+        }
+        Ok(None)
+    }
+
+    /// `webdock.sidebar_select {pin}` (W30): the sidebar shows `pin`; an open sidebar on a site starts the host.
+    fn sidebar_select(&self, args: &Value) -> Result<Option<Value>, ActionError> {
+        let pin = pin_arg(args)?;
+        if self.with_dock(|d| d.side_select(pin).map_err(dock_error))? {
+            self.host.start();
+        }
+        Ok(None)
+    }
+
     /// `webdock.back {}`: Escape on the dock's chrome (K40).
     fn back(&self) -> Result<Option<Value>, ActionError> {
         self.with_dock(|d| {
@@ -534,6 +583,10 @@ fn register_actions(ctx: &mut ModCtx, s: &Arc<Shared>) -> Result<(), ModError> {
     sync_action(ctx, s, "webdock.engage", |s, a| s.engage(&a))?;
     sync_action(ctx, s, "webdock.select", |s, a| s.select(&a))?;
     sync_action(ctx, s, "webdock.back", |s, _| s.back())?;
+    sync_action(ctx, s, "webdock.sidebar", |s, a| s.sidebar(&a))?;
+    sync_action(ctx, s, "webdock.sidebar_select", |s, a| {
+        s.sidebar_select(&a)
+    })?;
     sync_action(ctx, s, "webdock.open_external", |s, a| {
         s.open_external_action(&a)
     })?;
