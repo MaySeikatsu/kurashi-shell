@@ -89,6 +89,11 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Desktop {}
     }
+    // The app dock (K51): per output, only while dock.enabled is on there (no surface otherwise).
+    Variants {
+        model: Quickshell.screens
+        delegate: Dock {}
+    }
     // Rounded screen corners (K47 (6)): per output, only while theme.shape.screen_corners > 0.
     Variants {
         model: Quickshell.screens

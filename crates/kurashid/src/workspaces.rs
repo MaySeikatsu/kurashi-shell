@@ -16,6 +16,8 @@ use crate::hub::{Hub, Provider};
 pub const DOC: &str = "svc.workspaces";
 
 type Factory<C> = Arc<dyn Fn() -> C + Send + Sync>;
+/// A window action: its id, its label key and the adapter action it becomes.
+type WindowAction = (&'static str, &'static str, fn(u64) -> Action);
 
 /// The document plus the `"*"` alias (the focused output's list) that frontends use for outputs
 /// the compositor hasn't named yet (PROTOCOL §8).
@@ -34,7 +36,32 @@ pub fn document(state: &CompositorState) -> Value {
         outputs.insert("*".into(), alias);
     }
     doc["tasks"] = tasks(state);
+    doc["windows"] = windows(state);
     doc
+}
+
+/// `windows` (K51, the dock): every window in id order as `{id, app_id, workspace, output, focused}`. `workspace` is
+/// the workspace id and `output` its output's name, `null` while the compositor has placed it on neither; no titles
+/// (the reason `tasks` has none).
+fn windows(state: &CompositorState) -> Value {
+    let list: Vec<Value> = state
+        .windows
+        .iter()
+        .map(|w| {
+            let output = w
+                .workspace_id
+                .and_then(|id| state.workspaces.iter().find(|ws| ws.id == id))
+                .and_then(|ws| ws.output.clone());
+            json!({
+                "id": w.id,
+                "app_id": w.app_id.clone().unwrap_or_default(),
+                "workspace": w.workspace_id,
+                "output": output,
+                "focused": w.focused,
+            })
+        })
+        .collect();
+    Value::Array(list)
 }
 
 /// `tasks`: per output, the windows of its active workspace in id order, as `{id, app_id, focused}` (session 9: the
@@ -74,23 +101,29 @@ impl<C: Compositor + 'static> WorkspacesProvider<C> {
         })
     }
 
-    /// `workspace.focus {idx}` / `{id}`, `window.focus {id}`.
+    /// `workspace.focus {idx}` / `{id}`, `window.focus {id}`, `window.close {id}` (K51).
     pub fn register_actions(self: &Arc<Self>, actions: &mut ActionRegistry) {
-        let wf = self.factory.clone();
-        actions.register("window.focus", "action.window.focus", move |args: Value| {
-            let factory = wf.clone();
-            async move {
-                let id = args
-                    .get("id")
-                    .and_then(Value::as_u64)
-                    .ok_or_else(|| ActionError::Invalid("window.focus needs id".into()))?;
-                factory()
-                    .act(Action::FocusWindow(id))
-                    .await
-                    .map_err(|e| ActionError::Unavailable(e.to_string()))?;
-                Ok(None)
-            }
-        });
+        let window_actions: [WindowAction; 2] = [
+            ("window.focus", "action.window.focus", Action::FocusWindow),
+            ("window.close", "action.window.close", Action::CloseWindow),
+        ];
+        for (name, label, make) in window_actions {
+            let wf = self.factory.clone();
+            actions.register(name, label, move |args: Value| {
+                let factory = wf.clone();
+                async move {
+                    let id = args
+                        .get("id")
+                        .and_then(Value::as_u64)
+                        .ok_or_else(|| ActionError::Invalid(format!("{name} needs id")))?;
+                    factory()
+                        .act(make(id))
+                        .await
+                        .map_err(|e| ActionError::Unavailable(e.to_string()))?;
+                    Ok(None)
+                }
+            });
+        }
         let factory = self.factory.clone();
         actions.register(
             "workspace.focus",
@@ -172,7 +205,7 @@ impl<C: Compositor + 'static> Provider for WorkspacesProvider<C> {
 mod tests {
     use super::*;
     use kurashi_compositor::fake::FakeCompositor;
-    use kurashi_compositor::{Output, Workspace};
+    use kurashi_compositor::{Output, Window, Workspace};
 
     /// The fake isn't `Clone`; every provider start gets a handle to the same fake.
     struct Shared(Arc<FakeCompositor>);
@@ -218,6 +251,80 @@ mod tests {
                 .collect(),
             ..Default::default()
         }
+    }
+
+    fn window(id: u64, app_id: Option<&str>, workspace_id: Option<u64>, focused: bool) -> Window {
+        Window {
+            id,
+            app_id: app_id.map(String::from),
+            title: Some("churns".into()),
+            workspace_id,
+            focused,
+            floating: false,
+        }
+    }
+
+    /// K51: `windows` lists every window of every workspace in id order with its workspace and that workspace's
+    /// output; an unplaced window has `null` for both, a window without app id an empty one; no titles.
+    #[test]
+    fn windows_lists_every_window_with_workspace_and_output() {
+        let mut st = state(1);
+        st.workspaces.push(Workspace {
+            id: 9,
+            idx: 1,
+            name: None,
+            output: None,
+            focused: false,
+            active: false,
+            occupied: true,
+            urgent: false,
+        });
+        st.windows = vec![
+            window(3, Some("foot"), Some(2), false),
+            window(5, Some("firefox"), Some(1), true),
+            window(7, None, Some(9), false),
+            window(8, Some("mpv"), None, false),
+        ];
+        let doc = document(&st);
+        assert_eq!(
+            doc["windows"],
+            json!([
+                {"id": 3, "app_id": "foot", "workspace": 2, "output": "DP-1", "focused": false},
+                {"id": 5, "app_id": "firefox", "workspace": 1, "output": "DP-1", "focused": true},
+                {"id": 7, "app_id": "", "workspace": 9, "output": null, "focused": false},
+                {"id": 8, "app_id": "mpv", "workspace": null, "output": null, "focused": false},
+            ])
+        );
+        // `tasks` still holds only the active workspace's windows.
+        assert_eq!(
+            doc["tasks"]["DP-1"],
+            json!([{"id": 5, "app_id": "firefox", "focused": true}])
+        );
+        assert_eq!(document(&CompositorState::default())["windows"], json!([]));
+    }
+
+    /// K51: `window.close {id}` asks the adapter to close exactly that window; no id is refused before it.
+    #[tokio::test]
+    async fn window_close_closes_that_window_and_needs_an_id() {
+        let fake = Arc::new(FakeCompositor::new(state(1)));
+        let f = fake.clone();
+        let provider = WorkspacesProvider::new(move || Shared(f.clone()));
+        let mut actions = ActionRegistry::default();
+        provider.register_actions(&mut actions);
+        actions
+            .invoke("window.close", json!({"id": 40}))
+            .await
+            .unwrap();
+        actions
+            .invoke("window.focus", json!({"id": 41}))
+            .await
+            .unwrap();
+        let refused = actions.invoke("window.close", json!({})).await.unwrap_err();
+        assert_eq!(refused.kind(), "invalid");
+        assert_eq!(
+            fake.actions(),
+            vec![Action::CloseWindow(40), Action::FocusWindow(41)]
+        );
     }
 
     #[tokio::test]

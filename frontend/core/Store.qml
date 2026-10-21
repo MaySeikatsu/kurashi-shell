@@ -103,6 +103,7 @@ Singleton {
         delete pending[id]
         if (!p) return
         if (typeof p === "function") p(null, e)
+        else if (p.apply) p.apply([{ code: e && e.kind ? "error." + e.kind : "error.internal", msg: e && e.msg }])
         else if (p.cb) p.cb(null, e)
     }
     function failAll(e) {
