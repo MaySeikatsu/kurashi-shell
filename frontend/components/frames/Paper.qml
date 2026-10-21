@@ -52,7 +52,7 @@ FrameBase {
         var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + size + '" height="' + size + '">'
             + '<g fill="none" stroke="' + hex + '" stroke-linecap="round">' + out.join("") + '</g>'
             + '<g fill="' + hex + '">' + dots.join("") + '</g></svg>'
-        return "data:image/svg+xml;base64," + Qt.btoa(svg)
+        return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg)
     }
     // The ink without its alpha, so one tile serves every opacity (the layers set theirs).
     readonly property color ink: Qt.rgba(Theme.fg.r, Theme.fg.g, Theme.fg.b, 1)
