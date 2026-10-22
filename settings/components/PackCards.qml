@@ -17,6 +17,9 @@ Item {
     signal picked(var value)
     signal previewed(var value)
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     // The order the categories show in (K53's list); a category the daemon adds later goes after them.
     readonly property var order: ["modern", "inspired", "retro", "fiction", "custom"]
@@ -71,6 +74,7 @@ Item {
             previewOnMove: pc.previewOnMove
             onPicked: v => pc.picked(v)
             onPreviewed: v => pc.previewed(v)
+            cancellable: pc.cancellable
             onCancelled: pc.cancelled()
         }
         Column {
@@ -148,6 +152,7 @@ Item {
                 previewOnMove: pc.previewOnMove
                 onPicked: v => pc.picked(v)
                 onPreviewed: v => pc.previewed(v)
+                cancellable: pc.cancellable
                 onCancelled: pc.cancelled()
             }
         }

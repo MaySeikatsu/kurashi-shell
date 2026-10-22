@@ -5,21 +5,94 @@ import "core"
 import "components"
 import "pages"
 
-// Settings app (K2): a separate, on-demand process; `qs -p settings`. A normal xdg toplevel, not a layer surface. Pages are
-// generated from the daemon's `schema.settings` document (rule 3); this file lays out the chrome. The process ends when the
-// window closes. `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start; a running window takes the
-// same link through `qs -p settings ipc call settings jump <key>`; `kurashi settings <key>` and the daemon action
-// `settings.open {key}` do either for you (K32).
+// Settings app (K2): a separate, on-demand process; `qs -p settings`. Pages are generated from the daemon's
+// `schema.settings` document (rule 3); this file lays out the chrome. `settings.window` (K63) picks the host: `window`, a
+// normal xdg toplevel the compositor places and tiles, or `sheet`, a layer surface the app draws over the focused output
+// (components/SheetHost.qml). The app's content is one item (`win`) that either host holds; switching the key while open
+// moves that same item into the other host, so the page, the scroll position, the search and an open preview stay. No
+// host maps before the config has arrived (a sheet must not flash up as a window first); without a daemon the window
+// comes after a moment, with the disconnected veil. The process ends when the window closes or the sheet is dismissed.
+// `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start; a running app takes the same link
+// through `qs -p settings ipc call settings jump <key>`; `kurashi settings <key>` and the daemon action `settings.open
+// {key}` do either for you (K32).
 ShellRoot {
-    FloatingWindow {
+    id: root
+    readonly property bool configIn: Store.config.values !== undefined
+    property bool waited: false
+    Timer {
+        interval: 1500
+        running: !root.configIn && !root.waited
+        onTriggered: root.waited = true
+    }
+    // "" until the config is in (or the daemon did not answer in time); then the key's value, live.
+    readonly property string host: root.configIn ? (Store.valueOf("settings.window") === "sheet" ? "sheet" : "window")
+        : (root.waited ? "window" : "")
+
+    // Closing ends an open preview: the value it started from comes back, as Esc would do.
+    property var sheetHost: null
+    function quit(): void { Changes.putBack(); Qt.quit() }
+    // A host takes the content: the item moves into it with its state; the keyboard focus goes where it was (else to the
+    // list, where typing starts a search).
+    function adopt(slot: Item): void {
+        const had = win.Window.activeFocusItem
+        win.parent = slot
+        Qt.callLater(function () {
+            if (had && root.inside(had)) had.forceActiveFocus()
+            else keys.forceActiveFocus()
+        })
+    }
+    function release(slot: Item): void { if (win.parent === slot) win.parent = null }
+    function inside(item: Item): bool {
+        for (var it = item; it; it = it.parent) if (it === win) return true
+        return false
+    }
+
+    LazyLoader {
+        active: root.host === "window"
+        FloatingWindow {
+            title: I18n.tr("settings.ui.title")
+            implicitWidth: 1040
+            implicitHeight: 740
+            minimumSize: Qt.size(640, 420)
+            color: Theme.surface
+            Component.onCompleted: root.adopt(contentItem)
+            Component.onDestruction: root.release(contentItem)
+            // Closed by the compositor or the user; a re-host to the sheet (host changed first) does not end the app.
+            onVisibleChanged: if (!visible && root.host === "window") root.quit()
+        }
+    }
+    LazyLoader {
+        active: root.host === "sheet"
+        SheetHost {
+            id: sheet
+            Component.onCompleted: { root.sheetHost = sheet; root.adopt(sheet.slot) }
+            Component.onDestruction: { if (root.sheetHost === sheet) root.sheetHost = null; root.release(sheet.slot) }
+            onDismissed: root.quit()
+        }
+    }
+
+    // The content both hosts show (one instance; it has no window until a host adopts it).
+    Item {
         id: win
-        title: I18n.tr("settings.ui.title")
-        implicitWidth: 1040
-        implicitHeight: 740
-        minimumSize: Qt.size(640, 420)
-        color: Theme.surface
-        // Closing the window ends an open preview: the value it started from comes back, as Esc would do.
-        onVisibleChanged: if (!visible) { Changes.putBack(); Qt.quit() }
+        anchors.fill: parent
+        readonly property bool sheet: root.host === "sheet"
+        // Frames the host window has drawn (the settings test's idle check: none while open and still, Ma).
+        property int frames: 0
+        Connections {
+            target: win.Window.window
+            function onFrameSwapped() { win.frames++ }
+        }
+        // Esc that no control took (a field, a dropdown, a preview's put back take theirs first) dismisses the sheet; the
+        // window is unchanged.
+        Keys.onEscapePressed: event => {
+            if (win.sheet) win.dismiss()
+            else event.accepted = false
+        }
+        function dismiss(): void {
+            Changes.putBack()
+            if (root.sheetHost) root.sheetHost.close()
+            else root.quit()
+        }
 
         Shortcut {
             sequence: "Ctrl+F"
@@ -83,17 +156,22 @@ ShellRoot {
             else search.clear()
         }
 
-        // A deep link given at start is opened once the schema has arrived.
+        // A deep link given at start is opened once the schema has arrived and a host holds the content (the row's place is
+        // only known once the page is laid out at the host's size).
         property bool startKeyDone: false
         readonly property string startKey: Quickshell.env("KURASHI_SETTINGS_KEY") || ""
+        function openStartKey(): void {
+            if (!win.startKeyDone && win.startKey !== "" && win.parent !== null && win.width > 0
+                    && Store.rowOf(win.startKey)) {
+                win.startKeyDone = true
+                win.openKey(win.startKey)
+            }
+        }
+        onParentChanged: openStartKey()
+        onWidthChanged: openStartKey()
         Connections {
             target: Store
-            function onSchemaChanged() {
-                if (!win.startKeyDone && win.startKey !== "" && Store.rowOf(win.startKey)) {
-                    win.startKeyDone = true
-                    win.openKey(win.startKey)
-                }
-            }
+            function onSchemaChanged() { win.openStartKey() }
         }
 
         // Test/automation hook: `qs -p settings ipc call settings <fn> ...`. Goes through the same paths as the controls
@@ -108,6 +186,18 @@ ShellRoot {
             function output(name: string): void { win.output = name }
             // The page on screen: its id ("bar", "appearance", "@changed", …).
             function current(): string { return win.current }
+            // Settings as a sheet (K63): the host in use — for the sheet its rectangle on the output, as
+            // "sheet x,y WxH on <output> WxH" —, the page's scroll position, and the frames drawn so far (idle check).
+            function host(): string {
+                const h = root.sheetHost
+                if (!h) return root.host
+                const f = h.frame
+                return "sheet " + f.x + "," + f.y + " " + f.width + "x" + f.height + " on "
+                    + (h.screen ? h.screen.name : "?") + " " + h.width + "x" + h.height
+            }
+            function scrollY(): string { return "" + Math.round(settingsPages.contentY) }
+            function scroll(y: int): void { settingsPages.pinKey = ""; settingsPages.contentY = y }
+            function frames(): string { return "" + win.frames }
             // Start-up state for the deep link test: the key the environment named, and whether it was opened.
             function dbg(): string {
                 return "startKey=" + win.startKey + ",done=" + win.startKeyDone + ",schemaPages=" + win.pages.length
@@ -199,9 +289,32 @@ ShellRoot {
                 width: parent.width
                 height: 52
                 color: Theme.container
+                // The sheet has no title bar: its own close button sits at the header's end (UX brief: Esc, the backdrop
+                // or this button).
+                Button {
+                    id: closeButton
+                    objectName: "sheet-close"
+                    visible: win.sheet
+                    anchors.right: parent.right
+                    anchors.rightMargin: Theme.pad
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: height
+                    label: Theme.iconFamily !== "" ? "" : "✕"
+                    accessibleName: I18n.tr("settings.sheet.close")
+                    onClicked: win.dismiss()
+                    Text {
+                        visible: Theme.iconFamily !== ""
+                        anchors.centerIn: parent
+                        font.family: Theme.iconFamily
+                        font.pixelSize: Theme.fs + 6
+                        color: Theme.fg
+                        text: "close"
+                    }
+                }
                 Row {
                     anchors.fill: parent
                     anchors.margins: Theme.pad
+                    anchors.rightMargin: win.sheet ? closeButton.width + 2 * Theme.pad : Theme.pad
                     spacing: Theme.gap
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
@@ -219,6 +332,7 @@ ShellRoot {
                         placeholder: I18n.tr("settings.ui.search")
                         onTyping: t => win.query = t
                         onSubmitted: win.jumpFirst()
+                        escapeTaken: win.query !== ""
                         onEscaped: { win.query = ""; keys.forceActiveFocus() }
                     }
                     // Undo and redo are on while the daemon's config.history says there is something to take back. Redo
@@ -293,6 +407,7 @@ ShellRoot {
                         current: win.output
                         onPicked: v => win.output = v
                         onPreviewed: v => win.output = v
+                        cancellable: false
                     }
                 }
             }

@@ -20,6 +20,9 @@ Flow {
     signal picked(var value)
     signal previewed(var value)
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     spacing: Theme.gap
     readonly property bool anyOn: dc.choices.some(function (c) { return JSON.stringify(c.value) === JSON.stringify(dc.current) })
@@ -56,7 +59,7 @@ Flow {
             Keys.onSpacePressed: event => { dc.picked(modelData.value); event.accepted = true }
             Keys.onReturnPressed: event => { dc.picked(modelData.value); event.accepted = true }
             Keys.onEnterPressed: event => { dc.picked(modelData.value); event.accepted = true }
-            Keys.onEscapePressed: event => { dc.cancelled(); event.accepted = true }
+            Keys.onEscapePressed: event => { if (dc.cancellable) dc.cancelled(); event.accepted = dc.cancellable }
             Keys.onLeftPressed: event => { dc.move(card.index, -1); event.accepted = true }
             Keys.onUpPressed: event => { dc.move(card.index, -1); event.accepted = true }
             Keys.onRightPressed: event => { dc.move(card.index, 1); event.accepted = true }

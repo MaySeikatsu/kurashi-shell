@@ -12,6 +12,9 @@ Flow {
     signal edited(var items)
     signal keepRequested()
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     spacing: Theme.gap / 2
 
@@ -43,8 +46,8 @@ Flow {
                     event.accepted = true
                     break
                 case Qt.Key_Escape:
-                    l.cancelled()
-                    event.accepted = true
+                    if (l.cancellable) l.cancelled()
+                    event.accepted = l.cancellable
                     break
                 }
             }
@@ -98,6 +101,7 @@ Flow {
             if (l.items.indexOf(v) < 0) l.edited(l.items.concat([v]))
             add.clear()
         }
-        onEscaped: l.cancelled()
+        escapeTaken: l.cancellable
+        onEscaped: if (l.cancellable) l.cancelled()
     }
 }

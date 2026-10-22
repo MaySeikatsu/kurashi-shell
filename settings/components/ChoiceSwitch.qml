@@ -13,6 +13,9 @@ Item {
     signal picked(var value)
     signal previewed(var value)
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     readonly property int chosenIndex: {
         for (var i = 0; i < choices.length; i++)
@@ -39,7 +42,7 @@ Item {
     Keys.onSpacePressed: event => { s.picked(s.choices[s.chosenIndex].value); event.accepted = true }
     Keys.onReturnPressed: event => { s.picked(s.choices[s.chosenIndex].value); event.accepted = true }
     Keys.onEnterPressed: event => { s.picked(s.choices[s.chosenIndex].value); event.accepted = true }
-    Keys.onEscapePressed: event => { s.cancelled(); event.accepted = true }
+    Keys.onEscapePressed: event => { if (s.cancellable) s.cancelled(); event.accepted = s.cancellable }
 
     Rectangle {
         id: track

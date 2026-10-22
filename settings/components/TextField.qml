@@ -21,6 +21,9 @@ Rectangle {
     // Enter in the field (search jumps to the first hit), and Escape (search clears itself, a row restores its value).
     signal submitted(string text)
     signal escaped()
+    // Escape is taken while the field has an edit to take back, or when its owner says it has a use for it (the search
+    // clears a query, a form closes); otherwise it goes on up, where the sheet closes on it (K63).
+    property bool escapeTaken: false
 
     // Focus from a shortcut or a keystroke on the list; the caret goes to the end.
     function focusInput() {
@@ -75,7 +78,13 @@ Rectangle {
         // relied on: it did not follow Enter in the sandbox, so a typed value was never sent).
         onAccepted: { f.submitted(text); f.commit(text) }
         onActiveFocusChanged: if (!activeFocus) f.commit(text)
-        Keys.onEscapePressed: event => { f.restore(); f.escaped(); event.accepted = true }
+        Keys.onEscapePressed: event => {
+            const edited = input.text !== f.value
+            const taken = edited || f.escapeTaken
+            f.restore()
+            f.escaped()
+            event.accepted = taken
+        }
         Accessible.role: Accessible.EditableText
         Accessible.name: f.label !== "" ? f.label : f.placeholder
         Text {
