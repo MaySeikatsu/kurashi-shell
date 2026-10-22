@@ -166,9 +166,9 @@ wait_window up
 wait_geom "^HEADLESS-1 right panel$SETTLED"
 read -r _ _ _ _ WW WH _ FR _ BEDGE BARH _ <<< "$(geom)"
 [ "$BEDGE" = top ] || fail "expected a top bar, got '$BEDGE' ($(geom))"
-[ "$WW" = 420 ] || fail "the panel is $WW px wide, not 420 ($(geom))"
+[ "$WW" = "$SW" ] || fail "the window is $WW px wide, not the output's $SW (the catcher; $(geom))"
 [ "$WH" = $(( SH - BARH )) ] || fail "under a $BARH px top bar the panel is $WH px tall, not $(( SH - BARH )) ($(geom))"
-[ "$FR" = "0,0,420,$WH" ] || fail "the panel's column is not flush ($FR)"
+[ "$FR" = "$(( WW - 420 )),0,420,$WH" ] || fail "the panel's column is not flush or not 420 px wide ($FR)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) $(( SH - 1 )))" = ink ] || fail "the panel does not reach the screen's bottom-right corner"
 [ "$(px $(( SW - 410 )) $(( SH - 1 )))" = ink ] || fail "the panel's bottom row is not drawn"
@@ -210,7 +210,7 @@ start_frontend
 K act sidebar.toggle "$RIGHT" >/dev/null
 wait_geom "^HEADLESS-1 right floating$SETTLED"
 read -r _ _ _ _ WW WH _ FR _ _ BARH _ GAP _ <<< "$(geom)"
-[ "$FR" = "$GAP,$GAP,$(( WW - 2 * GAP )),$(( WH - 2 * GAP ))" ] || fail "the floating column is not inset by $GAP ($FR in ${WW}x$WH)"
+[ "$FR" = "$(( WW - GAP - 420 )),0,420,$(( WH - GAP ))" ] || fail "the floating column is not inset by $GAP at its free sides and joined to the bar ($FR in ${WW}x$WH)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) $(( SH / 2 )))" = desk ] || fail "the floating column touches the screen's edge"
 [ "$(px $(( SW - 1 )) $(( SH - 1 )))" = desk ] || fail "the floating column touches the screen's bottom"
