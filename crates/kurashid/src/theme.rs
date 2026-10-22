@@ -381,6 +381,8 @@ pub fn document_with(
                     // day without one; `""` for the other modes); K60: each ink's shade in the scheme in effect.
                     "light_detail": crate::texture::light(store, chrono::Local::now()).detail,
                     "inks": inks(input.scheme == Scheme::Dark),
+                    // K61 (row 340): each light colour as resolved, for Settings' swatches.
+                    "light_colors": crate::texture::light_colors(store, chrono::Local::now()),
                     "overrides": store.appearance_overrides(),
                 },
             })

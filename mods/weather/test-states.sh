@@ -19,7 +19,8 @@ NAME=${1:-w19-weather-states}   # unique per run: other runs stop any sandbox th
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/weather/shots
 FX=$ROOT/crates/kurashi-mod-weather/tests/fixtures
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The crops of the fresh panel (grim geometry "x,y WxH", layout px of the 2560 x 1440 output): the hourly strip with its
 # rain row, and the seven days. The card sits under the bar at 1080,36 and is 400 px wide.
 HOURS_GEOM=${HOURS_GEOM:-"1090,278 380x112"}

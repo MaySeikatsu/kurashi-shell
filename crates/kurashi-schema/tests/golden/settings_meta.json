@@ -1245,6 +1245,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": true
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "shell"
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "everything"
                 }
               ],
               "default": "paper",
@@ -1266,6 +1280,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": true
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "shell"
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "everything"
                 }
               ],
               "default": 0.5,
@@ -1290,6 +1318,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": true
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "shell"
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "everything"
                 }
               ],
               "default": 1.0,
@@ -1314,6 +1356,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": true
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "shell"
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "everything"
                 }
               ],
               "default": 0.0,
@@ -1338,6 +1394,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": true
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "shell"
+                },
+                {
+                  "key": "theme.texture.scope",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "everything"
                 }
               ],
               "default": 0.0,

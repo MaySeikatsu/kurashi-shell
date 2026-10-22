@@ -405,23 +405,28 @@ pub struct WallpaperTexture {
     pub own: bool,
     /// Wallpaper material
     /// The relief baked into the wallpaper.
-    #[kurashi(default = TextureKind::Paper, requires = "theme.texture.wallpaper.own == true")]
+    #[kurashi(default = TextureKind::Paper, requires = "theme.texture.wallpaper.own == true",
+              requires = "theme.texture.scope != shell", requires = "theme.texture.scope != everything")]
     pub kind: TextureKind,
     /// Wallpaper strength
     /// How strongly the wallpaper's relief reads.
-    #[kurashi(default = 0.5, range = 0.0..=2.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    #[kurashi(default = 0.5, range = 0.0..=2.0, step = 0.05, requires = "theme.texture.wallpaper.own == true",
+              requires = "theme.texture.scope != shell", requires = "theme.texture.scope != everything")]
     pub strength: f64,
     /// Wallpaper scale
     /// The size of the wallpaper material's grain.
-    #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.wallpaper.own == true",
+              requires = "theme.texture.scope != shell", requires = "theme.texture.scope != everything")]
     pub scale: f64,
     /// Wallpaper wrinkles
     /// Crumples the wallpaper's material.
-    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true",
+              requires = "theme.texture.scope != shell", requires = "theme.texture.scope != everything")]
     pub wrinkles: f64,
     /// Wallpaper cracks
     /// Cracks in the wallpaper's material (the pattern is the shell's).
-    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true",
+              requires = "theme.texture.scope != shell", requires = "theme.texture.scope != everything")]
     pub cracks: f64,
 }
 

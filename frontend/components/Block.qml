@@ -37,6 +37,9 @@ Item {
     default property alias content: fillRect.data
     // The press a chrome has: a sink (hard shadow), a shrink (press scale), else a flash of the fill.
     readonly property bool flashes: Theme.shadowDy <= 0 && Theme.pressScale >= 1
+    // The outline this block draws (0: none): the chrome's, else the flat hairline.
+    readonly property real outlineWidth: Theme.outlineW > 0 ? Theme.outlineW : (flatBorder.a > 0 ? 1 : 0)
+    readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 
@@ -82,9 +85,9 @@ Item {
             anchors.fill: parent
             radius: Math.min(blk.radius, height / 2)
             color: blk.ringW > 0 ? Theme.ring : blk.fill
-            // A frame that draws the outline itself (kami's pen) replaces the straight line.
-            border.width: frameHost.drawsOutline ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : (blk.flatBorder.a > 0 ? 1 : 0))
-            border.color: Theme.outlineW > 0 ? Theme.outlineColor : blk.flatBorder
+            // A frame that draws the outline itself (kami's pen), or the pen (K62), replaces the straight line.
+            border.width: frameHost.drawsOutline || pen.active ? 0 : blk.outlineWidth
+            border.color: blk.outlineInk
             antialiasing: true
             Behavior on color { enabled: blk.animate && blk.ringW <= 0; ColorAnimation { duration: Theme.quickMs } }
         }
@@ -121,6 +124,11 @@ Item {
             color: blk.ringW > 0 ? blk.fill : "transparent"
             antialiasing: true
             Behavior on color { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
+            // K62: the pen's text modifiers draw the content (text, icons) through one layer while any is in effect;
+            // not over a picture or a web page (`relief: false`).
+            layer.enabled: Theme.penText && blk.relief
+            layer.smooth: true
+            layer.effect: PenInk {}
         }
         // With `texture.text` the relief is drawn over the content too: ink and icons sink into the same sheet.
         Loader {
@@ -130,6 +138,18 @@ Item {
             sourceComponent: Relief {
                 anchors.fill: parent
                 radius: Math.max(0, Math.min(blk.radius, face.height / 2) - blk.inset)
+            }
+        }
+        // K62: the pen draws the outline (a line style, fountain-pen modifiers) when one is in effect and the frame does
+        // not draw its own; flat like the straight line it replaces. Nothing is made otherwise.
+        Loader {
+            id: pen
+            active: Theme.penOutline && !frameHost.drawsOutline && blk.outlineWidth > 0
+            anchors.fill: parent
+            sourceComponent: PenOutline {
+                radius: Math.min(blk.radius, rim.height / 2)
+                color: blk.outlineInk
+                lineWidth: blk.outlineWidth
             }
         }
         // The decor pack's frame over the face's edge (W25): nothing is made while the pack has none.

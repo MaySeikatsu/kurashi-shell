@@ -9,7 +9,7 @@
 //! places only.
 
 use crate::Kind;
-use crate::generate::Field;
+use crate::generate::{Field, rows};
 use crate::noise::{cells, fbm_xy, hash, hash2, smoothstep};
 
 /// The facets' size, logical px (a divisor of every tile: 480 / 24 = 20 across).
@@ -67,17 +67,16 @@ pub fn apply(f: &mut Field, seed: u64, amount: f32, depth: f32) {
             [jx, jy, ax, ay, hash(wx, wy, seed ^ 0xFC) - 0.5]
         })
         .collect();
-    let mut facets = vec![0f32; n * n];
-    let mut creases = vec![0f32; n * n];
-    let mut folds = vec![0f32; n * n];
-    for iy in 0..n {
-        let y = f.at(iy);
+    // Facets, creases and folds of every texel, before each is normalised.
+    let mut parts = vec![[0f32; 3]; n * n];
+    let g = f.grid();
+    rows(n, f.threads, &mut parts, |iy, row| {
+        let y = g.at(iy);
         let cy = (y / FACET).floor() as i64;
-        for ix in 0..n {
-            let x = f.at(ix);
+        for (ix, part) in row.iter_mut().enumerate() {
+            let x = g.at(ix);
             let cx = (x / FACET).floor() as i64;
-            let k = iy * n + ix;
-            let (u, v) = (f.uv(ix), f.uv(iy));
+            let (u, v) = (g.uv(ix), g.uv(iy));
             // Facets: a weighted blend of the planes of the cells around, periodic in the cell index.
             let (mut sum, mut weight) = (0.0f32, 0.0f32);
             for dy in -2..=2 {
@@ -95,19 +94,22 @@ pub fn apply(f: &mut Field, seed: u64, amount: f32, depth: f32) {
                     weight += w;
                 }
             }
-            facets[k] = sum / weight.max(1e-12);
+            part[0] = sum / weight.max(1e-12);
             // Creases: zero on the edges between the facets of the same sites, a sharp valley there.
             let edge = cells(u, v, np as u32, seed_sites);
-            creases[k] = -(edge.f2 - edge.f1);
+            part[1] = -(edge.f2 - edge.f1);
             // Folds: long straight creases across the tile, in some places only.
             let mut fold = 0.0;
             for (kx, ky, phase, weight) in FOLDS {
                 fold += weight * tri(kx * u + ky * v + phase);
             }
             let mask = smoothstep(0.3, 0.7, fbm_xy(u, v, 2, 2, 2, seed ^ 0x3F));
-            folds[k] = fold * mask;
+            part[2] = fold * mask;
         }
-    }
+    });
+    let mut facets: Vec<f32> = parts.iter().map(|p| p[0]).collect();
+    let mut creases: Vec<f32> = parts.iter().map(|p| p[1]).collect();
+    let mut folds: Vec<f32> = parts.iter().map(|p| p[2]).collect();
     normalise(&mut facets);
     normalise(&mut creases);
     normalise(&mut folds);

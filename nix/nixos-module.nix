@@ -57,6 +57,10 @@ let
     lib.concatMap (u: [
       (lib.nameValuePair "${greeterDir}/${u}.json" { f = { user = u; mode = "0644"; }; })
       (lib.nameValuePair "${greeterDir}/${u}.wallpaper" { f = { user = u; mode = "0644"; }; })
+      # I166: the texture's relief, ink and height maps (the user's cache is not readable by the greeter).
+      (lib.nameValuePair "${greeterDir}/${u}.texture" { f = { user = u; mode = "0644"; }; })
+      (lib.nameValuePair "${greeterDir}/${u}.texture-ink" { f = { user = u; mode = "0644"; }; })
+      (lib.nameValuePair "${greeterDir}/${u}.texture-height" { f = { user = u; mode = "0644"; }; })
     ]) gcfg.users
   );
 in

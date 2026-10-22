@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../core"
 
 // Text button. `label` is already translated by the caller (I18n.tr). Emits `clicked`; the caller
@@ -14,6 +15,11 @@ Item {
     property bool enabled: true
     property real radius: Theme.groups ? Theme.rFull : Theme.rSm
     signal clicked()
+    // K61 (docs/ux/texture.md "Controls"): an opaque face carries the relief over its fill and icon, under its label (Block's
+    // own is then left out: one relief per pixel), in a window that shares its sheet. A boxed (line chrome) button has no
+    // fill at rest and gets none (QuickButton).
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !Theme.texText && blk.fill.a >= 1 && !!(qsw && qsw.tileSheet)
 
     function press() { if (b.enabled) b.clicked() }
 
@@ -39,16 +45,31 @@ Item {
         pressed: area.pressed && b.enabled
         fill: hover.hovered && b.enabled && Theme.groups ? (b.boxed && !b.primary ? Qt.alpha(Theme.fg, 0.08) : Qt.tint(b.base, Qt.alpha(Theme.fg, 0.08))) : b.base
         flatBorder: hover.hovered && b.enabled ? Theme.fg : "transparent"
+        relief: !b.ownRelief
+        // The icon lies under the relief and the label over it (K61): the icon is drawn here, at the row's slot for it.
+        Icon {
+            id: lead
+            visible: b.icon !== "" && Theme.iconFamily !== ""
+            name: b.icon
+            size: Theme.fs + 3
+            color: txt.color
+            x: row.x + slot.x
+            y: row.y + (row.height - height) / 2
+        }
+        Loader {
+            active: b.ownRelief
+            anchors.fill: parent
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(blk.radius, blk.face.height / 2) - blk.inset) }
+        }
         Row {
             id: row
             anchors.centerIn: parent
             spacing: Theme.xs + 2
-            Icon {
-                visible: b.icon !== "" && Theme.iconFamily !== ""
-                name: b.icon
-                size: Theme.fs + 3
-                color: txt.color
-                anchors.verticalCenter: parent.verticalCenter
+            Item {
+                id: slot
+                visible: lead.visible
+                width: lead.implicitWidth
+                height: lead.implicitHeight
             }
             Text {
                 id: txt

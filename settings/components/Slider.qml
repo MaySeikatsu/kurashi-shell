@@ -17,6 +17,9 @@ Item {
     signal committed(real value)
     signal previewed(real value)
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     property bool dragging: false
     property real dragValue: 0
@@ -57,7 +60,7 @@ Item {
         case Qt.Key_Left: case Qt.Key_Down: d = -1; break
         case Qt.Key_Right: case Qt.Key_Up: d = 1; break
         case Qt.Key_Return: case Qt.Key_Enter: s.committed(s.shown); event.accepted = true; return
-        case Qt.Key_Escape: s.cancelled(); event.accepted = true; return
+        case Qt.Key_Escape: if (s.cancellable || s.dragging) { s.cancelled(); event.accepted = true }; return
         default: return
         }
         s.nudge(d)

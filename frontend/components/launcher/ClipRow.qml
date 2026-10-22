@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 import ".."
 
@@ -15,6 +16,10 @@ Item {
     readonly property bool isImage: !!entry.image
     readonly property bool failed: thumb === "!"
     readonly property color ink: selected ? Theme.fgOnSelected : Theme.fg
+    // K61 (docs/ux/texture.md "Controls"): the lead tile of a text entry is opaque and carries the relief over its glyph; a
+    // thumbnail is a picture and never does. Only in a window that shares its sheet (Relief makes its own otherwise).
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool shared: !!(qsw && qsw.tileSheet)
 
     Component.onCompleted: if (isImage && thumb === "") wantThumb()
 
@@ -26,6 +31,7 @@ Item {
         width: cr.isImage ? 84 : 30
         height: cr.isImage ? 56 : 30
         Rectangle {
+            id: leadTile
             anchors.fill: parent
             radius: Theme.rSm
             color: Theme.surface
@@ -37,6 +43,12 @@ Item {
                 name: cr.isImage ? (cr.failed ? "hide_image" : "image") : (cr.entry.binary ? "draft" : "content_paste")
                 glyph: cr.isImage ? "▣" : "⎘"
                 color: Theme.dim
+            }
+            Loader {
+                active: Theme.texControls && cr.shared && !img.visible
+                anchors.fill: parent
+                anchors.margins: leadTile.border.width
+                sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, leadTile.radius - leadTile.border.width) }
             }
         }
         Image {
