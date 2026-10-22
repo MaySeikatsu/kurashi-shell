@@ -324,6 +324,11 @@ Scope {
                     exclusiveZone: dock.autohide ? 0 : dock.bodyAcross + dock.edgeGap
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-dock"
+                    // K59/row 284: this window's tile pair, shared by the body's and the tiles' reliefs (one pair, not
+                    // one per Relief), and the pointer light's sensor.
+                    property var tileSheet: tilesLoader.item
+                    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+                    LightSense {}
                     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
                     // The body's box at rest: a Region on the item would follow the slide's transform only on a resize, and
                     // a dock revealed after it was made hidden kept an input region off the window (measured).
