@@ -219,7 +219,7 @@ search_lands() {   # <expected focus prefix> <keys…>
   echo "search: Return landed on $(Q focused)"
   Q focusList >/dev/null
 }
-search_lands texture: m a t e r i a l
+search_lands texture: t e x t u r e period k i n d   # by its key: "Material" also names the blur's section row
 search_lands ink: t e x t space c o l o u r
 Q goto appearance
 Q openChoice theme.pen.line
