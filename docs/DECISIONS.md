@@ -654,3 +654,11 @@ from the motion profile); the old `kurashi-colors.kdl` stays a stub while an inc
 placeholder unfilled is never written — the last good file stays (an unfilled value in niri's KDL would break its
 whole config). Placeholders beyond colours: `templates/README.md`. *Why:* the user wants every app to follow the shell
 "by default", icons and fonts included, and the compositor to match the shell's shape and motion (I175, I183, I184).
+
+**K64** 🟢 Keyboard shortcuts are config (I72, user session 7 / 13): `keys.*` — one combo per shell action
+(launcher, notification centre, sidebars, quick settings, session menu, lock, Settings, web dock, volume, mute,
+brightness; `""` = none) and `keys.write` (default off). With `write` on, kurashid writes the compositor's binds file
+from them (niri: `$XDG_CONFIG_HOME/niri/kurashi-binds.kdl`, `spawn kurashi act …`), only when the content changes, and
+reports the include line (K49's pattern: our own file, never the user's config). A file Home-Manager manages (a store
+symlink) is not overwritten: the row says so. Settings shows the page "Keys" with a shortcut recorder and flags two
+actions on one combo. *Why:* the user wants to change shortcuts in Settings; until now only the HM module wrote them.
