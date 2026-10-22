@@ -23,7 +23,7 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/morph
 AT=${MORPH_AT:-40 120 250}
 TOAST_AT=${TOAST_AT:-40 120 250 320 400}
-MORPH_CASES=${MORPH_CASES:-washi:calm:top washi:calm:bottom washi:lively:top sekai:lively:top sekai:lively:bottom sekai:calm:top kami:calm:top kami:calm:bottom kami:lively:top}
+MORPH_CASES=${MORPH_CASES:-washi:calm:top washi:calm:bottom washi:lively:top sekai:lively:top sekai:lively:bottom sekai:calm:top kami:calm:top kami:calm:bottom kami:lively:top sekai:none:top}
 mkdir -p "$OUT"
 FAILS=0
 CHECKS=0

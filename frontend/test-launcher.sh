@@ -31,8 +31,8 @@ CARD_GEOM=${CARD_GEOM:-"930,300 700x840"}
 PHASES=${LAUNCHER_PHASES:-modes morph}
 MOUT=$ROOT/frontend/shots/morph
 AT=${MORPH_AT:-40 120 250}
-# <look>:<profile>:<edge>; each look in its own profile on both edges and in the other one on top.
-MORPH_CASES=${MORPH_CASES:-washi:calm:top washi:calm:bottom washi:lively:top sekai:lively:top sekai:lively:bottom sekai:calm:top kami:calm:top kami:calm:bottom kami:lively:top}
+# <look>:<profile>:<edge>; each look in its own profile on both edges and in the other one on top; `none` cuts.
+MORPH_CASES=${MORPH_CASES:-washi:calm:top washi:calm:bottom washi:lively:top sekai:lively:top sekai:lively:bottom sekai:calm:top kami:calm:top kami:calm:bottom kami:lively:top sekai:none:top}
 mkdir -p "$OUT" "$MOUT"
 FAILS=0
 CHECKS=0
