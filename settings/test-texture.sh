@@ -31,6 +31,7 @@ cleanup() {
 trap cleanup EXIT
 fail() { echo "FAIL: $*"; exit 1; }
 
+rm -rf "$R/cfg" "$R/state" "$R/data" "$R/cache"   # a reused sandbox name keeps its dir: start from empty XDG dirs
 mkdir -p "$R/cfg/kurashi" "$R/state" "$R/data" "$R/cache" settings/shots/appearance
 export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
 export KURASHI_DATA_DIR=$ROOT

@@ -45,6 +45,7 @@ fail() { echo "FAIL: $*"; exit 1; }
 
 OUT=settings/shots/sheet
 W32=settings/shots/appearance
+rm -rf "$R/cfg" "$R/state" "$R/data" "$R/cache"   # a reused sandbox name keeps its dir: start from empty XDG dirs
 mkdir -p "$R/cfg/kurashi" "$R/state" "$R/data" "$R/cache" "$OUT" "$W32"
 export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
 export KURASHI_DATA_DIR=$ROOT
