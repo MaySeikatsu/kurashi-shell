@@ -257,9 +257,11 @@ import sys
 
 for path in sys.argv[1:]:
     out = []
-    for ln in open(path).read().split("\n"):
+    lines = open(path).read().split("\n")
+    for i, ln in enumerate(lines):
         out.append(ln)
-        if re.match(r"^\s*PanelWindow \{\s*$", ln):
+        # A window that names its sheet already (the dock, row 284) keeps its own lines.
+        if re.match(r"^\s*PanelWindow \{\s*$", ln) and not any("property var tileSheet" in l for l in lines[i + 1:i + 25]):
             ind = re.match(r"^(\s*)", ln).group(1) + "    "
             out.append(ind + "property var tileSheet: tilesLoader.item")
             out.append(ind + "Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }")
