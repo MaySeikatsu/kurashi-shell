@@ -47,6 +47,9 @@ toggles before login (backlog), a first-login wizard.
   the NixOS module made the user's slots (`<user>.json`, `<user>.wallpaper`, owned by the user in a directory only the
   greeter writes) — fills them in place and copies the picture into the `.wallpaper` slot (a home directory is not the
   greeter's to read). Written only when the content changed; the picture only when its path, size or mtime changed.
+  I166: a material's relief, ink and height maps likewise go into `<user>.texture`, `.texture-ink`, `.texture-height`
+  (made by the module); a map without its slot is left out of the shared copy with what it drives (no material, no
+  ink, no shadows) — never pointed into the user's cache.
 - **Users**: `/etc/passwd`, uid 1000–59999, not `nologin`/`false`; the GECOS name shown. **Sessions**:
   `/run/current-system/sw/share/wayland-sessions`, `/usr/local/share/…`, `/usr/share/…` (the first folder with an id
   wins; `Hidden`/`NoDisplay` skipped), sorted by name; `Exec` split by the desktop-entry quoting, field codes dropped;
