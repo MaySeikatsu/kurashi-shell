@@ -30,6 +30,8 @@ Item {
     property real ringScale: 1
     // How much of the soft shadow this block casts: 1 for a card or a key, less for small things inside other blocks.
     property real softScale: 1
+    // K62: the pen's salt for this block's outline (≥ 0); -1 = the block's place in its parent (pen.js `salt`).
+    property int penSeed: -1
     readonly property real ringW: Theme.ringW * ringScale
     readonly property real inset: Theme.outlineW + ringW
     readonly property real faceH: height - Theme.shadowDy
@@ -128,7 +130,10 @@ Item {
             // not over a picture or a web page (`relief: false`).
             layer.enabled: Theme.penText && blk.relief
             layer.smooth: true
-            layer.effect: PenInk {}
+            layer.effect: PenInk {
+                anchor: blk
+                seed: blk.penSeed
+            }
         }
         // With `texture.text` the relief is drawn over the content too: ink and icons sink into the same sheet.
         Loader {
@@ -150,6 +155,8 @@ Item {
                 radius: Math.min(blk.radius, rim.height / 2)
                 color: blk.outlineInk
                 lineWidth: blk.outlineWidth
+                seed: blk.penSeed
+                anchor: blk
             }
         }
         // The decor pack's frame over the face's edge (W25): nothing is made while the pack has none.
@@ -159,6 +166,8 @@ Item {
             radius: Math.min(blk.radius, rim.height / 2)
             pressed: blk.pressed
             animate: blk.animate
+            anchor: blk
+            penSeed: blk.penSeed
         }
     }
 }

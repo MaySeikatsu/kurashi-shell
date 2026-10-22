@@ -5,8 +5,9 @@ import "pen.js" as Pen
 // PenOutline (K62, docs/ux/texture.md "The pen"): an outline drawn with the pen — `Theme.penLine` (solid | dotted |
 // dashed | broken | rough) and the modifiers `penPressure`, `penBreaks`, `penFade`, `penWobble` (components/pen.js).
 // By default the outline of this item's rounded rectangle (`radius`), the line `lineWidth` wide and running inside the
-// edge as a Rectangle's border does; `points` (a closed path, item coordinates) draws any other shape. Seeded by size:
-// the same size draws the same line, never shimmering. Painted once per size, colour or token change; nothing runs
+// edge as a Rectangle's border does; `points` (a closed path, item coordinates) draws any other shape. Seeded by size and
+// a salt (`seed`, else `anchor`'s place in its parent, read at paint time), so a line never shimmers and two equal
+// blocks side by side still differ. Painted once per size, colour or token change; nothing runs
 // after that (Ma). The canvas reaches `pad` px past the item, so a wandering or swelling line is never clipped.
 Item {
     id: po
@@ -20,6 +21,10 @@ Item {
     property real breaks: Theme.penBreaks
     property real fade: Theme.penFade
     property real wobble: Theme.penWobble
+    // The salt (pen.js `salt`): an explicit one (≥ 0, for a surface that knows who it is), else the place of `anchor`
+    // (the block) in its parent.
+    property int seed: -1
+    property Item anchor: null
     readonly property real pad: 4
 
     function paint(ctx) {
@@ -32,13 +37,16 @@ Item {
         Pen.outline(ctx, {
             pts: pts, width: po.lineWidth, color: po.color, line: po.line,
             pressure: po.pressure, breaks: po.breaks, fade: po.fade, wobble: po.wobble,
-            seed: Pen.seedOf(w, h, 0x5E11), W: w + 2 * po.pad, H: h + 2 * po.pad
+            seed: (Pen.seedOf(w, h, 0x5E11) ^ (po.seed >= 0 ? po.seed : Pen.salt(po.anchor))) >>> 0, W: w + 2 * po.pad, H: h + 2 * po.pad
         })
     }
 
     // Every input of the drawing: one change asks for one paint.
+    // The anchor's cell in its parent (ints: they notify only when the cell changes).
+    readonly property int cellX: anchor ? Pen.cell(anchor.x) : 0
+    readonly property int cellY: anchor ? Pen.cell(anchor.y) : 0
     readonly property var inputs: [width, height, radius, color.r, color.g, color.b, lineWidth, points, line, pressure,
-        breaks, fade, wobble]
+        breaks, fade, wobble, seed, cellX, cellY]
     onInputsChanged: cv.requestPaint()
 
     Canvas {

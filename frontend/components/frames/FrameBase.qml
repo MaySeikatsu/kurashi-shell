@@ -14,6 +14,9 @@ Item {
     property bool grounds: true
     // This frame draws the block's outline itself (kami's pen): the block drops its straight line (Block.qml; data, rule 4).
     property bool drawsOutline: false
+    // K62: a frame drawing a pen line salts it with its block's place (`anchor`, pen.js `salt`) or `penSeed` (≥ 0).
+    property Item anchor: null
+    property int penSeed: -1
     readonly property bool card: kind === "card"
     readonly property bool small: kind === "small"
     readonly property bool ground: kind === "ground"
