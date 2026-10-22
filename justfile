@@ -84,3 +84,4 @@ webdock:
 # K59: the relief shader is compiled to the .qsb the frontend loads (Qt 6 shader tools, in nix develop).
 shaders:
     qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/relief.frag.qsb frontend/shaders/relief.frag
+    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/pen_text.frag.qsb frontend/shaders/pen_text.frag
