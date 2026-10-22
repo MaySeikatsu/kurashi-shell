@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # The pen (K62, docs/ux/texture.md "The pen"), headless, against the real kurashid:
 #   - the committed pen_text.frag.qsb is the build of its source;
-#   - pen off draws what main's frontend draws (bar and quick card, washi and sekai; `git archive <base> frontend`),
+#   - pen off draws what main's frontend draws (desk with bar and toasts, quick card, island, sidebar; washi, sekai; `git archive <base> frontend`),
 #     pixel for pixel up to the ±1 level of glyph rasterisation that two runs of the same frontend differ by;
 #   - shots of each line style and each outline modifier alone at 0.6 on the quick card and the bar (line chrome, light
 #     and dark; flat chrome, which has no outline for the pen to draw), the text modifiers on the card, kami with its
 #     own pen (light and dark);
-#   - idle with the pen on (a rough line, every outline and text modifier): no Wayland commit in 10 s, bar and quick
-#     card; the frontend's PSS with the text layers off and on (printed);
+#   - phase 2, the surfaces' own outlines: each line style on the island open and closed, the bar's rule, the toasts and
+#     the right sidebar (line chrome; dark; flat; the joined island under sekai; kami) -> shots/pen/surfaces/;
+#   - idle with the pen on (a rough line, every outline and text modifier): no Wayland commit in 10 s, quick card open,
+#     bar only, island open; the frontend's PSS with the text layers off and on (printed);
 #   - no QML or shader error in the frontend's log.
 # Shots: frontend/shots/pen/ (evidence to look at: they must look like a fountain pen, a dotted line, a hand).
 #   KURASHI_BIN_DIR=<dir with kurashid, kurashi> timeout 1200 nix develop -c frontend/test-pen.sh [sandbox-name]
@@ -138,21 +140,26 @@ if n:
     sys.exit(1)
 print(f"test-pen: {sys.argv[3]}: identical ({noise} pixels one level off: rendering noise)")
 PY
+# Two critical notifications (they stay): toasts, the island's notification view and the sidebar's list all show cards.
+notify-send -u critical "Standup" "14:00 room 3" >/dev/null 2>&1 || fail "notify-send failed"
+notify-send -u critical "Battery low" "12 % left" >/dev/null 2>&1 || fail "notify-send failed"
+sleep 1
+cap() { # cap <prefix>: the desk with the bar and the toasts, the quick card, the open island, the right sidebar
+  grim -t ppm "$TMP/$1-bar.ppm"
+  K act quick.toggle >/dev/null; sleep 1.5; grim -t ppm "$TMP/$1-quick.ppm"; K act quick.toggle >/dev/null; sleep 0.9
+  K act island.expand >/dev/null; sleep 1.8; grim -t ppm "$TMP/$1-island.ppm"; K act island.expand >/dev/null; sleep 1.2
+  K act sidebar.toggle '{"side":"right"}' >/dev/null; sleep 1.6; grim -t ppm "$TMP/$1-sidebar.ppm"
+  K act sidebar.toggle '{"side":"right"}' >/dev/null; sleep 1.2
+}
 for style in washi sekai; do
   K set theme.style="$style" >/dev/null
   set_pen
   for attempt in 1 2; do
     quiet_minute
-    start_qs "$TMP/base/frontend"
-    grim -t ppm "$TMP/base-bar.ppm"
-    K act quick.toggle >/dev/null; sleep 1.5; grim -t ppm "$TMP/base-quick.ppm"; K act quick.toggle >/dev/null; sleep 0.9
-    stop_qs
-    start_qs "${PEN_NEW:-$ROOT/frontend}"
-    grim -t ppm "$TMP/new-bar.ppm"
-    K act quick.toggle >/dev/null; sleep 1.5; grim -t ppm "$TMP/new-quick.ppm"; K act quick.toggle >/dev/null; sleep 0.9
-    stop_qs
+    start_qs "$TMP/base/frontend"; cap base; stop_qs
+    start_qs "${PEN_NEW:-$ROOT/frontend}"; cap new; stop_qs
     same=1
-    for part in bar quick; do
+    for part in bar quick island sidebar; do
       python3 -I "$TMP/ppmdiff.py" "$TMP/base-$part.ppm" "$TMP/new-$part.ppm" "pen off, $style, $part" || same=0
     done
     [ -n "${PEN_KEEP:-}" ] && cp "$TMP"/base-*.ppm "$TMP"/new-*.ppm "$PEN_KEEP/"
@@ -196,6 +203,44 @@ set_pen; shoot "kami"
 set_pen theme.pen.line=rough; shoot "kami-rough"
 K set theme.colors.scheme=dark >/dev/null
 set_pen; shoot "kami-dark"
+
+# ---- phase 2: the surfaces' own outlines (Stage card, island shape, the bar's rule, sidebar, toasts) ----
+SURF=$OUT/surfaces
+mkdir -p "$SURF"
+surf() { # surf <name>: the island open and closed, the bar, the toasts, the right sidebar
+  K act island.expand >/dev/null; sleep 1.8
+  grim -s 2 -g "1040,0 480x470" "$SURF/$1-island-open.png"
+  K act island.expand >/dev/null; sleep 1.2
+  grim -s 2 -g "1040,0 480x44" "$SURF/$1-island-closed.png"
+  grim -g "0,0 2560x40" "$SURF/$1-bar.png"
+  grim -s 2 -g "2180,28 380x200" "$SURF/$1-toasts.png"
+  K act sidebar.toggle '{"side":"right"}' >/dev/null; sleep 1.6
+  grim -g "1960,0 600x900" "$SURF/$1-sidebar.png"
+  K act sidebar.toggle '{"side":"right"}' >/dev/null; sleep 1.2
+  say "$SURF/$1-{island-open,island-closed,bar,toasts,sidebar}.png"
+}
+K set theme.style=washi theme.colors.scheme=light >/dev/null
+for line in solid dotted dashed broken rough; do
+  if [ "$line" = solid ]; then set_pen; else set_pen theme.pen.line="$line"; fi
+  surf "line-$line"
+done
+set_pen theme.pen.line=rough theme.pen.pressure=0.6 theme.pen.breaks=0.6 theme.pen.fade=0.6 theme.pen.wobble=0.6
+surf "all-rough"
+set_pen theme.pen.pressure=0.6 theme.pen.breaks=0.6 theme.pen.fade=0.6 theme.pen.wobble=0.6
+surf "all-solid"
+K set theme.colors.scheme=dark >/dev/null
+set_pen theme.pen.line=dashed theme.pen.pressure=0.6; surf "dark-dashed"
+K set theme.colors.scheme=light theme.chrome=flat >/dev/null
+set_pen theme.pen.line=dashed; surf "flat-dashed"
+K reset theme.chrome >/dev/null
+# The joined island (keycap chrome: head, neck and body in one line).
+K set theme.style=sekai >/dev/null
+set_pen theme.pen.line=broken; surf "sekai-broken"
+set_pen theme.pen.line=rough; surf "sekai-rough"
+K set theme.style=kami >/dev/null
+set_pen; surf "kami"
+K set theme.colors.scheme=dark >/dev/null
+set_pen; surf "kami-dark"
 stop_qs
 
 # ---- idle with the pen on, and the text layers' memory ----
@@ -211,8 +256,9 @@ set_pen theme.pen.line=rough theme.pen.pressure=0.6 theme.pen.breaks=0.6 theme.p
 sleep 3
 pss_on=$(pss_mib "$QS")
 say "frontend PSS with the quick card open: text layers off ${pss_off} MiB, on ${pss_on} MiB"
-for what in "quick card open" "bar only"; do
+for what in "quick card open" "bar only" "island open"; do
   [ "$what" = "bar only" ] && { K act quick.toggle >/dev/null; sleep 3; }
+  [ "$what" = "island open" ] && { K act island.expand >/dev/null; sleep 3; }
   quiet_minute
   s=$(stat -c %s "$R/qs.log"); sleep 10; c=$(commits "$s")
   say "idle, pen on, $what: $c commits in 10 s"

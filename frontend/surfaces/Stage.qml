@@ -397,9 +397,23 @@ PanelWindow {
         height: peekLoader.implicitHeight + 2 * Theme.pad
         radius: Theme.rSm
         color: Theme.containerHigh
-        border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+        // K62: with a pen in effect the pen draws the outline (1 px further in: the frame clips its children).
+        border.width: peekPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         clip: true
+        Loader {
+            id: peekPen
+            z: 5
+            anchors.fill: parent
+            active: Theme.penOutline && peekCard.visible
+            sourceComponent: PenOutline {
+                radius: peekCard.radius
+                inset: 1
+                color: peekCard.border.color
+                lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+                seed: 0x9EE4
+            }
+        }
         opacity: stage.peekP
         // It slides in from its bar: down from a top bar, up from a bottom bar, out from a side bar.
         x: (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
@@ -712,8 +726,22 @@ PanelWindow {
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
         radius: Theme.rLg
         color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.panel
-        border.width: stage.morphMode || stage.ownChrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
+        border.width: stage.morphMode || stage.ownChrome || cardPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        Loader {
+            id: cardPen
+            z: 5
+            anchors.fill: parent
+            active: Theme.penOutline && !stage.morphMode && !stage.ownChrome && card.visible
+            sourceComponent: PenOutline {
+                radius: card.radius
+                inset: 1
+                color: card.border.color
+                lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+                seed: 0x57A6E
+            }
+        }
         // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
         // island morphs, where the shape draws the card.
         Loader {
