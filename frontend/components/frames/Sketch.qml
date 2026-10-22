@@ -64,7 +64,8 @@ FrameBase {
         if (w < 8 || h < 8) return
         var pad = cv.pad
         var r = Math.min(f.radius, w / 2, h / 2)
-        var seed = (Math.round(w) * 73856093) ^ (Math.round(h) * 19349663) ^ 0x4B0A1
+        var seed = ((Math.round(w) * 73856093) ^ (Math.round(h) * 19349663) ^ 0x4B0A1
+                    ^ (f.penSeed >= 0 ? f.penSeed : Pen.salt(f.anchor))) >>> 0
         var m = f.mods
         if (m.line !== "solid") {
             var src = Pen.roundRect(w, h, r, 1.2)
@@ -148,6 +149,12 @@ FrameBase {
     onRadiusChanged: cv.requestPaint()
     onSmallChanged: cv.requestPaint()
     onModsChanged: cv.requestPaint()
+    // The salt's cell (pen.js `salt`): ints notify only when the block lands in another cell of its parent.
+    readonly property int cellX: anchor ? Pen.cell(anchor.x) : 0
+    readonly property int cellY: anchor ? Pen.cell(anchor.y) : 0
+    onCellXChanged: cv.requestPaint()
+    onCellYChanged: cv.requestPaint()
+    onPenSeedChanged: cv.requestPaint()
     Connections {
         target: Theme
         function onFgChanged() { cv.requestPaint() }
