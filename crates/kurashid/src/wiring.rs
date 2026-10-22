@@ -1720,6 +1720,8 @@ pub fn brightness_with(
         dir,
         connect,
         turn: tokio::sync::Mutex::new(()),
+        held: tokio::sync::Mutex::new(None),
+        uses: std::sync::atomic::AtomicU64::new(0),
     });
     for (id, sign) in [("brightness.up", 1.0), ("brightness.down", -1.0)] {
         let w = writer.clone();
@@ -1744,7 +1746,9 @@ pub fn brightness_with(
 }
 
 /// Brightness writes. `turn` serialises them, so every step starts from the level the previous
-/// one left in effect (key repeat). Only writers wait on it; readers never do.
+/// one left in effect (key repeat). Only writers wait on it; readers never do. I14: a held key repeats ~30 times a
+/// second, so the system-bus connection is kept between writes and dropped [`BRIGHTNESS_HOLD`] after the last one
+/// (Ma: no connection while nobody changes the brightness).
 struct BrightnessWriter {
     hub: Arc<Hub>,
     provider: Arc<ServiceProvider<backlight::Commands>>,
@@ -1752,16 +1756,49 @@ struct BrightnessWriter {
     dir: std::path::PathBuf,
     connect: ConnectFn,
     turn: tokio::sync::Mutex<()>,
+    held: tokio::sync::Mutex<Option<zbus::Connection>>,
+    uses: std::sync::atomic::AtomicU64,
 }
 
+/// How long the brightness writer keeps its bus connection after the last write (I14).
+const BRIGHTNESS_HOLD: std::time::Duration = std::time::Duration::from_secs(5);
+
 impl BrightnessWriter {
-    async fn apply(&self, change: Change, origin: Option<String>) -> Result<(), ActionError> {
+    /// The held connection, or a new one; the drop after [`BRIGHTNESS_HOLD`] is re-armed by every use.
+    async fn connection(self: &Arc<Self>) -> Result<zbus::Connection, ActionError> {
+        let mut held = self.held.lock().await;
+        let conn = match held.as_ref() {
+            Some(c) => c.clone(),
+            None => {
+                let c = (self.connect)()
+                    .await
+                    .map_err(|e| ActionError::Unavailable(e.to_string()))?;
+                *held = Some(c.clone());
+                c
+            }
+        };
+        let n = self.uses.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        let me = Arc::downgrade(self);
+        tokio::spawn(async move {
+            tokio::time::sleep(BRIGHTNESS_HOLD).await;
+            if let Some(me) = me.upgrade()
+                && me.uses.load(std::sync::atomic::Ordering::Relaxed) == n
+            {
+                me.held.lock().await.take();
+            }
+        });
+        Ok(conn)
+    }
+
+    async fn apply(
+        self: &Arc<Self>,
+        change: Change,
+        origin: Option<String>,
+    ) -> Result<(), ActionError> {
         let _turn = self.turn.lock().await;
         let plan = backlight::plan(&self.dir, change)
             .ok_or_else(|| ActionError::Unavailable(NO_BACKLIGHT.into()))?;
-        let conn = (self.connect)()
-            .await
-            .map_err(|e| ActionError::Unavailable(e.to_string()))?;
+        let conn = self.connection().await?;
         let doc = plan
             .apply(&conn)
             .await
