@@ -263,3 +263,12 @@ Sandbox names: `w32-gen-…`, `w32-rel-…`, `w32-pen-…`, `w32-set-…`, `w32-
 | Card | Owner paths | Model |
 |---|---|---|
 | [W33-bench](W33-bench.md) | `tools/bench/**`, `docs/BENCH.md` (results), one `justfile` recipe | haiku (max) |
+
+## Wave 34 (session 13, machine A; brief docs/ux/motion.md; contract `theme.icon_theme` on main)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W34-morph-stage](W34-morph-stage.md) | Stage, components/island/**, phone, anchor rect lines in QuickButton/TrayIcon/SidebarButton/Bar, test-morph | opus |
+| [W34-morph-sidebar](W34-morph-sidebar.md) | Sidebar, components/sidebar/**, sidebar tests/shots | opus |
+| [W34-morph-surfaces](W34-morph-surfaces.md) | Launcher, NotificationCenter, Toasts, NotificationCard, launcher components, toast/launcher tests | opus |
+| [W34-app-follow](W34-app-follow.md) | theme export (kurashi-theme export.rs, kurashid theme_export.rs), templates, ThemeExportStatus, theme-export i18n, HM themeExport | haiku (max) |
+Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.

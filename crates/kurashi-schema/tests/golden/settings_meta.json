@@ -354,6 +354,21 @@
               "restart": false,
               "since": 1,
               "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "icon_themes",
+              "control": "select",
+              "couplings": [],
+              "default": "",
+              "help": "config.theme.icon_theme.help",
+              "key": "theme.icon_theme",
+              "label": "config.theme.icon_theme.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
             }
           ]
         },
