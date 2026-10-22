@@ -609,7 +609,7 @@ shot 10b-cli-change
 Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
-want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,@changed,@mods,@profiles"
+want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto bar
