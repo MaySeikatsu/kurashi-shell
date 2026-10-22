@@ -53,6 +53,11 @@
 # file; Settings shows it.
 #   choices: from `theme.export` (resolved at runtime)
 # export = []
+#
+# Icons for apps — The icon theme the apps that follow use (GTK, Qt, KDE), written with
+# their colours. "Leave as is" keeps each app's own choice (I183).
+#   choices: from `icon_themes` (resolved at runtime)
+# icon_theme = ""
 
 # [theme.colors]
 #

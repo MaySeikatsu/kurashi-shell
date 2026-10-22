@@ -11,3 +11,4 @@
 "theme.export.unknown_target" = "不明なアプリ"
 "theme.export.no_template" = "このアプリのテンプレートがありません"
 "theme.export.write_failed" = "ファイルを書けませんでした"
+"config.choice.icon_theme.keep" = "そのまま"

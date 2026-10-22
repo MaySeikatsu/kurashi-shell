@@ -115,6 +115,13 @@ Write the shell's colours for these apps whenever the theme changes: GTK, Qt, te
 - type: `string_list` · default: `[]`
 - choices: from `theme.export` (resolved at runtime)
 
+#### `theme.icon_theme` — Icons for apps
+
+The icon theme the apps that follow use (GTK, Qt, KDE), written with their colours. "Leave as is" keeps each app's own choice (I183).
+
+- type: `string` · default: `""`
+- choices: from `icon_themes` (resolved at runtime)
+
 ### Shape
 
 #### `theme.shape.corners` — Corners
