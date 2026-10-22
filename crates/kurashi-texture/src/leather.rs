@@ -1,14 +1,14 @@
 //! Leather (`leather`): a pebbled grain (domes about 12 px across, each its own size, the gaps between them creased), small
 //! pores, and a slow wrinkle where the hide folds. No ink: the material is its medium gloss (K59).
 
-use crate::generate::Field;
+use crate::generate::{Field, rows};
 use crate::noise::{cells, fbm_xy, smoothstep};
 
 pub fn leather(f: &mut Field, seed: u64) {
-    let n = f.n;
-    for iy in 0..n {
+    let (n, g) = (f.n, f.grid());
+    rows(n, f.threads, &mut f.h, |iy, h| {
         for ix in 0..n {
-            let (u, v) = (f.uv(ix), f.uv(iy));
+            let (u, v) = (g.uv(ix), g.uv(iy));
             // Pebbles: one dome per cell of 40 across the tile, its radius set per cell, the gaps creased.
             let c = cells(u, v, 40, seed);
             let size = 0.7 + 0.3 * c.id;
@@ -24,8 +24,7 @@ pub fn leather(f: &mut Field, seed: u64) {
             // A slow wrinkle: a soft ridge where the hide folds.
             let fold = fbm_xy(u, v, 3, 3, 3, seed ^ 0x51);
             let ridge = 1.0 - (2.0 * fold - 1.0).abs();
-            f.h[iy * n + ix] =
-                0.8 * dome * (0.35 + 0.65 * crease) - 0.3 * pore + 0.3 * ridge * ridge;
+            h[ix] = 0.8 * dome * (0.35 + 0.65 * crease) - 0.3 * pore + 0.3 * ridge * ridge;
         }
-    }
+    });
 }

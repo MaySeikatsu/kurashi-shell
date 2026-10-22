@@ -5,7 +5,7 @@
 
 use std::f32::consts::{PI, TAU};
 
-use crate::generate::{Field, box_blur};
+use crate::generate::{Field, box_blur, rows, rows2};
 use crate::noise::{Rng, hash, hash2, smoothstep, value_xy};
 use crate::raster::{dist_seg, tube_add};
 
@@ -145,11 +145,12 @@ pub fn fabric(f: &mut Field, seed: u64, tint: bool) {
     let (n, l) = (f.n, f.logical);
     let nt = (l / PITCH).round() as i64;
     let per = (l / RUN).round() as i64;
-    for iy in 0..n {
-        let y = f.at(iy);
+    let g = f.grid();
+    rows2(n, f.threads, &mut f.h, &mut f.ink, |iy, hrow, ink| {
+        let y = g.at(iy);
         let j = (y / PITCH).floor() as i64;
         for ix in 0..n {
-            let x = f.at(ix);
+            let x = g.at(ix);
             let i = (x / PITCH).floor() as i64;
             // The top of the yarns near this point, warp or weft (a yarn overlaps its neighbours).
             let (mut top, mut tone) = (f32::MIN, 0.0f32);
@@ -165,14 +166,13 @@ pub fn fabric(f: &mut Field, seed: u64, tint: bool) {
                     (top, tone) = (h, t);
                 }
             }
-            let k = iy * n + ix;
-            f.h[k] = top.max(0.0);
+            hrow[ix] = top.max(0.0);
             if tint {
                 // Each yarn's tone varies little: the weave shows, the yarns do not look like blocks.
-                f.ink[k] = ((0.52 + 0.06 * tone) * smoothstep(0.0, 0.12, top)).clamp(0.0, 1.0);
+                ink[ix] = ((0.52 + 0.06 * tone) * smoothstep(0.0, 0.12, top)).clamp(0.0, 1.0);
             }
         }
-    }
+    });
     let mut rng = Rng::new(seed ^ 0x51ab);
     // Slubs: a thicker stretch of a yarn, a few pitches long.
     for _ in 0..(l * l / 2600.0) as usize {
@@ -214,11 +214,11 @@ pub fn knit(f: &mut Field, seed: u64) {
     // between the columns show between the plump legs (16 and 12 divide every tile side).
     const W: f32 = 16.0;
     const H: f32 = 12.0;
-    let (cols, rows) = ((l / W).round() as i64, (l / H).round() as i64);
+    let (cols, nrows) = ((l / W).round() as i64, (l / H).round() as i64);
     // A stitch: its top-left and top-right corners, its bottom middle, the legs' radius and height. Periodic in the stitch
     // index, so the stitches at the edge have their neighbours across the seam; each stitch is a little its own.
     let stitch = |c: i64, r: i64| {
-        let (wc, wr) = (c.rem_euclid(cols), r.rem_euclid(rows));
+        let (wc, wr) = (c.rem_euclid(cols), r.rem_euclid(nrows));
         let (jx, jy) = hash2(wc, wr, seed);
         // Plump loops: a leg is about 5.5 px across and stands 1.8 px proud of the valleys: slopes steep enough to show.
         let rad = 2.5 + 0.3 * hash(wc, wr, seed ^ 0xA1);
@@ -227,11 +227,12 @@ pub fn knit(f: &mut Field, seed: u64) {
         let bottom = [x0 + W * 0.5 + (jx - 0.5) * 1.5, y0 + H + (jy - 0.5) * 1.0];
         ([x0 + 4.0, y0], [x0 + W - 4.0, y0], bottom, rad, height)
     };
-    for iy in 0..n {
-        let y = f.at(iy);
+    let g = f.grid();
+    rows(n, f.threads, &mut f.h, |iy, hrow| {
+        let y = g.at(iy);
         let r0 = (y / H).floor() as i64;
         for ix in 0..n {
-            let x = f.at(ix);
+            let x = g.at(ix);
             let c0 = (x / W).floor() as i64;
             let mut best = 0.0f32;
             for r in r0 - 1..=r0 + 1 {
@@ -250,19 +251,19 @@ pub fn knit(f: &mut Field, seed: u64) {
                     }
                 }
             }
-            f.h[iy * n + ix] = best;
+            hrow[ix] = best;
         }
-    }
+    });
     // The fibre halo: the yarn's blurred shoulder, and a fine fuzz over it.
-    let halo = box_blur(&f.h, n, 3);
+    let halo = box_blur(&f.h, n, 3, f.threads);
     let fuzz = seed ^ 0xF022;
-    for iy in 0..n {
-        for ix in 0..n {
-            let k = iy * n + ix;
-            let (u, v) = (f.uv(ix), f.uv(iy));
-            f.h[k] += 0.25 * halo[k] + 0.08 * (value_xy(u, v, n as u32, n as u32, fuzz) - 0.5);
+    rows(n, f.threads, &mut f.h, |iy, hrow| {
+        for (ix, out) in hrow.iter_mut().enumerate() {
+            let (u, v) = (g.uv(ix), g.uv(iy));
+            *out +=
+                0.25 * halo[iy * n + ix] + 0.08 * (value_xy(u, v, n as u32, n as u32, fuzz) - 0.5);
         }
-    }
+    });
     // The nap: fine strands at every angle, low and sparse, so the yarn has a soft fuzz rather than specks.
     let mut rng = Rng::new(seed ^ 0xF1B3);
     for _ in 0..(l * l / 120.0) as usize {

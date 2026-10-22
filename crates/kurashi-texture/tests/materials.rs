@@ -2,7 +2,7 @@
 //! seamless at its edges, averages near the flat value, carries no ink when the tint is off, prints its rulings at their
 //! pitch, and is generated within the frame budget (the timing test is `#[ignore]`: run it with `--release -- --ignored`).
 
-use kurashi_texture::{Kind, Params, Tile, generate, tile_file};
+use kurashi_texture::{Kind, Params, Tile, generate, generate_threads, tile_file};
 
 fn params(kind: Kind, tint: bool, wrinkles: f32) -> Params {
     Params {
@@ -268,19 +268,44 @@ fn the_notebook_print_and_pebble_kinds_keep_their_bytes() {
     }
 }
 
-/// Generation time per tile at device scale 1 (the card's budget: ≤ 300 ms in release, with wrinkles).
+/// Generation time per tile (wrinkles 0.6): at device scale 1 and 2 on the machine's threads, and at scale 1 and 2 on one
+/// thread (the sequential generator, I171). The budget is ≤ 300 ms at scale 1 in release; the table goes to the report.
 #[test]
 #[ignore = "timing: run with --release -- --ignored"]
 fn a_tile_generates_within_the_budget() {
-    for kind in Kind::ALL {
-        let p = params(kind, true, 0.6);
+    let time = |p: &Params, threads: Option<usize>| {
         let start = std::time::Instant::now();
-        let t = generate(&p);
-        let ms = start.elapsed().as_secs_f64() * 1000.0;
-        println!("{:<12} {ms:7.1} ms", kind.name());
-        assert_eq!(t.size, 480);
-        assert!(ms <= 300.0, "{kind:?} took {ms:.0} ms (budget 300 ms)");
+        let t = match threads {
+            Some(k) => generate_threads(p, k),
+            None => generate(p),
+        };
+        (start.elapsed().as_secs_f64() * 1000.0, t.size)
+    };
+    println!(
+        "{:<12} {:>10} {:>10} {:>12} {:>12}",
+        "kind", "scale 1", "scale 2", "1 thread s1", "1 thread s2"
+    );
+    let mut slow = Vec::new();
+    for kind in Kind::ALL {
+        let p1 = params(kind, true, 0.6);
+        let p2 = Params {
+            device_scale: 2.0,
+            ..p1
+        };
+        let (a, size1) = time(&p1, None);
+        let (b, size2) = time(&p2, None);
+        let (c, _) = time(&p1, Some(1));
+        let (d, _) = time(&p2, Some(1));
+        assert_eq!((size1, size2), (480, 960));
+        println!(
+            "{:<12} {a:7.1} ms {b:7.1} ms {c:9.1} ms {d:9.1} ms",
+            kind.name()
+        );
+        if a > 300.0 {
+            slow.push(format!("{kind:?} took {a:.0} ms (budget 300 ms)"));
+        }
     }
+    assert!(slow.is_empty(), "{}", slow.join("\n"));
 }
 
 /// The oil paint (W31): its strokes cover part of the tile and leave the canvas showing between them, its seams are as tight
