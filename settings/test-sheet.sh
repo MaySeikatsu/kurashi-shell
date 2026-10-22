@@ -7,7 +7,8 @@
 # Overlay layer, all four anchors, exclusive keyboard, no exclusive zone) on the focused output, centred on it at 1040 × 740
 # (the app's own geometry and the screenshot: the desktop around it dimmed by the scrim); 0 frames while open and still;
 # a deep link through the daemon (`kurashi settings <key>`) jumps the open sheet; a live switch to the window and back
-# keeps the page; Ctrl+F reaches the search before and after a re-host; Esc on an open dropdown closes the dropdown only, Esc on a slider's preview puts it back only, the next
+# keeps the page; Ctrl+F reaches the search before and after a re-host; a search landing on a row with its own picker
+# (material cards, ink swatches) focuses the picker; Esc on an open dropdown closes the dropdown only, Esc on a slider's preview puts it back only, the next
 # Esc closes the sheet (the process ends); a click on the backdrop closes it; the close button closes it.
 # Shots: the sheet over the desktop with the bar under the styles kami (line chrome; light and dark), sekai (keycap) and
 # aqua (soft), and the wave 32 rows (K61, K62) in the sheet: the spotlight on the Light dial, the light colours, the brush
@@ -207,6 +208,19 @@ for _ in $(seq 50); do [[ "$(Q host)" == sheet* ]] && break; sleep 0.2; done
 sleep 0.5
 ctrl_f "sheet after a re-host"
 echo "Ctrl+F: the search took the focus in the sheet, in the window after a re-host, and in the sheet again"
+# A row whose own picker stands in for its dropdown (material cards, ink swatches): a search landed on by Return puts the
+# keyboard focus on the picker's chosen card or swatch.
+search_lands() {   # <expected focus prefix> <keys…>
+  local want=$1; shift
+  Q focusList >/dev/null
+  kp ctrl+f "$@" return
+  for _ in $(seq 25); do [[ "$(Q focused)" == "$want"* ]] && break; sleep 0.2; done
+  [[ "$(Q focused)" == "$want"* ]] || fail "the search did not land on the picker $want (focus on $(Q focused))"
+  echo "search: Return landed on $(Q focused)"
+  Q focusList >/dev/null
+}
+search_lands texture: m a t e r i a l
+search_lands ink: t e x t space c o l o u r
 Q goto appearance
 Q openChoice theme.pen.line
 sleep 0.5

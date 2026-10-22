@@ -95,9 +95,15 @@ Flickable {
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
                                        "theme.light.color": cLightSwatches,
                                        "theme.texture.wallpaper.kind": cWallpaperCards })
+    // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
+    // dropdown (SettingRow.picker), with the provenance line under them.
+    readonly property var pickers: ({ "theme.texture.kind": true, "theme.colors.ink": true, "theme.light.color": true,
+                                      "theme.texture.wallpaper.kind": true })
     // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
     // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
+    // The picker that stands in for a row's control, or null (the generic control).
+    function pickerOf(key) { return p.pickers[key] ? (p.extraOf(key) ?? null) : null }
     function extraOf(key) {
         var when = p.extraWhen[key]
         // On and in effect: a switch that is on but inert (the wallpaper's own material with the scope "shell") hides them too.
@@ -384,11 +390,12 @@ Flickable {
                             delegate: Column {
                                 required property var modelData
                                 required property int index
-                                readonly property var extra: p.extraOf(modelData)
+                                readonly property var extra: p.pickers[modelData] ? undefined : p.extraOf(modelData)
                                 width: blk.width - 2 * Theme.pad
                                 SettingRow {
                                     width: parent.width
                                     rowKey: parent.modelData
+                                    picker: p.pickerOf(parent.modelData)
                                     output: p.output
                                     divider: parent.index < blk.modelData.companions.length - 1 && parent.extra === undefined
                                     onOpenKey: key => p.openKey(key)
@@ -427,7 +434,7 @@ Flickable {
                                 required property var modelData
                                 required property int index
                                 readonly property bool last: index === sec.modelData.rows.length - 1
-                                readonly property var extra: p.extraOf(modelData.row.key)
+                                readonly property var extra: p.pickers[modelData.row.key] ? undefined : p.extraOf(modelData.row.key)
                                 width: sec.width - 2 * Theme.pad
                                 spacing: 2
                                 // The breadcrumb of a search hit: a link to the row, reachable by Tab.
@@ -468,6 +475,7 @@ Flickable {
                                     rowKey: modelData.row.key
                                     output: p.output
                                     divider: !parent.last && parent.extra === undefined
+                                    picker: p.pickerOf(modelData.row.key)
                                     onOpenKey: key => p.openKey(key)
                                 }
                                 // A row's document beside it (the per-key map `extras`), under the control column.
