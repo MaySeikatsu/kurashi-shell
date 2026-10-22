@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../core"
 
 // Glyph-only button, 28 px square; its hit area is the control height (32 px floor). `a11y` is the
@@ -16,6 +17,10 @@ Item {
     property bool lit: false
     property real radius: Theme.rFull
     signal clicked()
+    // K61 (docs/ux/texture.md "Controls"): an opaque face carries the relief over its fill and glyph, and Block's own is
+    // then left out (one relief per pixel), in a window that shares its sheet. A transparent face gets none (QuickButton).
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !Theme.texText && blk.fill.a >= 1 && !!(qsw && qsw.tileSheet)
 
     function press() { if (b.enabled) b.clicked() }
 
@@ -40,6 +45,7 @@ Item {
         ringScale: 0.34
         softScale: 0.4
         pressed: area.pressed && b.enabled
+        relief: !b.ownRelief
         fill: b.lit ? Theme.selected
             : (Theme.groups && b.lifted ? (hover.hovered && b.enabled ? Theme.containerHigh : Theme.container)
                                         : (hover.hovered && b.enabled ? Theme.containerHigh : "transparent"))
@@ -50,6 +56,12 @@ Item {
             filled: b.lit
             size: Theme.fs + 5
             color: b.lit ? Theme.fgOnSelected : Theme.fg
+        }
+        // The relief over the fill and the glyph (the face is opaque here, see ownRelief).
+        Loader {
+            active: b.ownRelief
+            anchors.fill: parent
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(blk.radius, blk.face.height / 2) - blk.inset) }
         }
     }
     HoverHandler { id: hover }

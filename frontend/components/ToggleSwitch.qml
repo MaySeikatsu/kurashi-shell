@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../core"
 
 // On/off switch (Wi-Fi and Bluetooth in quick settings). The state is the knob's side and the accent fill,
@@ -10,6 +11,10 @@ Item {
     property bool enabled: true
     property string label: ""         // accessible name, already translated
     signal toggled(bool on)
+    // K61 (docs/ux/texture.md "Controls"): the track and the knob are opaque, so both carry the relief, in a window that
+    // shares its sheet (Relief makes its own otherwise).
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !!(qsw && qsw.tileSheet)
 
     function flip() { if (sw.enabled) sw.toggled(!sw.checked) }
 
@@ -35,6 +40,13 @@ Item {
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : (sw.checked ? Theme.accent : Theme.outline)
         opacity: sw.enabled ? 1 : 0.5
 
+        // The relief over the track, under the knob (the outline stays flat).
+        Loader {
+            active: sw.ownRelief
+            anchors.fill: parent
+            anchors.margins: track.border.width
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, track.radius - track.border.width) }
+        }
         Rectangle {
             id: knob
             width: Theme.ringW > 0 ? 18 : 16
@@ -45,6 +57,13 @@ Item {
             color: Theme.ringW > 0 ? Theme.ring : (sw.checked ? Theme.fgOnAccent : Theme.dim)
             border.width: Theme.ringW > 0 ? Theme.outlineW : 0
             border.color: Theme.outlineColor
+            // The relief over the knob (its ring stays flat).
+            Loader {
+                active: sw.ownRelief
+                anchors.fill: parent
+                anchors.margins: knob.border.width
+                sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, knob.radius - knob.border.width) }
+            }
             Behavior on x {
                 enabled: knob.visible && Theme.springOn
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }

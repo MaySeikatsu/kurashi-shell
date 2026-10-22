@@ -430,6 +430,11 @@ Scope {
                                         radius: Math.min(Theme.rLg, dock.icon / 2)
                                         ringScale: 0.5
                                         softScale: 0.35
+                                        // K61 (docs/ux/texture.md "Controls"): an opaque tile (focused, hovered, its menu open)
+                                        // carries the relief over its picture and glyph; a transparent one sits on the dock's
+                                        // body and carries none (a halo). In a window that shares its sheet.
+                                        relief: !(Theme.texControls && !Theme.texText && fill.a >= 1
+                                            && !!(Window.window && QsWindow.window && QsWindow.window.tileSheet))
                                         pressed: tap.pressed
                                         animate: win.visible
                                         fill: cell.focusedApp ? Theme.selected
@@ -470,6 +475,12 @@ Scope {
                                             font.weight: Theme.wBold
                                             font.family: Theme.fam(text, Theme.families)
                                             text: cell.g ? String(cell.g.name || "?").charAt(0).toUpperCase() : ""
+                                        }
+                                        // The relief over the picture and the glyph, when the tile carries it (see `relief`).
+                                        Loader {
+                                            active: !tile.relief
+                                            anchors.fill: parent
+                                            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(tile.radius, tile.face.height / 2) - tile.inset) }
                                         }
                                     }
                                     // One dot per window (max four, DMS), toward the screen edge; the focused one wider and
