@@ -29,12 +29,17 @@ Rectangle {
     // flat: a hairline.
     border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
-    // K59: the card is a material area (the panel's fill); the relief lies under the content.
+    // K59: the card is a material area (the panel's fill); the relief lies under the content. K61: a swiped card carries its
+    // sheet along (`texture.sheet = carried`), on top of its window's carry.
     Loader {
         anchors.fill: parent
         anchors.margins: Theme.outlineW
         active: Theme.texShell && !Theme.texText
-        sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, c.radius - Theme.outlineW) }
+        sourceComponent: Relief {
+            anchors.fill: parent
+            radius: Math.max(0, c.radius - Theme.outlineW)
+            carry: Qt.point(windowCarry.x + c.x, windowCarry.y)
+        }
     }
     // With `texture.text` the relief lies over the card's text too.
     Loader {
@@ -42,7 +47,11 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: Theme.outlineW
         active: Theme.texShell && Theme.texText
-        sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, c.radius - Theme.outlineW) }
+        sourceComponent: Relief {
+            anchors.fill: parent
+            radius: Math.max(0, c.radius - Theme.outlineW)
+            carry: Qt.point(windowCarry.x + c.x, windowCarry.y)
+        }
     }
     SoftShadow { anchors.fill: parent; radius: c.radius }
     Rectangle {
@@ -108,6 +117,10 @@ Rectangle {
         Image {
             id: img
             visible: c.icon !== "" && status === Image.Ready
+            // I167: the notification's own picture (an avatar, a photo) never gets the relief; an app icon is an icon.
+            readonly property var pictureOf: (c.item.image || "") !== "" ? Window.window : null
+            onPictureOfChanged: pictureOf ? Light.addPicture(img, pictureOf) : Light.removePicture(img)
+            Component.onDestruction: Light.removePicture(img)
             width: visible ? 32 : 0
             height: 32
             sourceSize: Qt.size(64, 64)

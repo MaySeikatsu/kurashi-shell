@@ -32,13 +32,6 @@ Rectangle {
 
     color: Theme.surface
 
-    // K59: the lock's ground is a material area; the relief lies under the content. The surface is a whole output, so
-    // its sheet origin is the output's own.
-    Loader {
-        anchors.fill: parent
-        active: Theme.texShell && !Theme.texText
-        sourceComponent: Relief { anchors.fill: parent }
-    }
     // With `texture.text` the relief lies over the lock's text as well.
     Loader {
         z: 1
@@ -78,7 +71,8 @@ Rectangle {
     readonly property bool ruled: Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0
     Canvas {
         anchors.fill: parent
-        visible: (c.ruled || Theme.softR > 0) && !groundFrame.grounds
+        // Under a shell texture the material is the ground: no graph paper over it (the glows stay, under the relief).
+        visible: ((c.ruled && !Theme.texShell) || Theme.softR > 0) && !groundFrame.grounds
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
         onVisibleChanged: if (visible) requestPaint()
@@ -114,6 +108,13 @@ Rectangle {
         anchors.fill: parent
         kind: "ground"
         animate: c.visible
+    }
+    // K59: the lock's ground is a material area; the relief lies over the ground's decoration (the dot field, the glows, a
+    // decor pack's backdrop) and under the content. The surface is a whole output, so its sheet origin is the output's own.
+    Loader {
+        anchors.fill: parent
+        active: Theme.texShell && !Theme.texText
+        sourceComponent: Relief { anchors.fill: parent }
     }
 
     function refocus() { field.forceActiveFocus() }
