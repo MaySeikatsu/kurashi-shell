@@ -20,7 +20,9 @@ import "../components/pen.js" as Pen
 // side (a swipe goes on in its direction), an expired one drifts and fades — never back into the bar. Without a top or
 // bottom bar the stack stands at the top right and cards just appear. Theme.springOn false (motion none) cuts.
 // I148: no toasts while the notification center is open, or the right sidebar is open on the toasts' output (it lists
-// them); they stay in the stack and come back when it closes (if the daemon still shows them).
+// them); they stay in the stack and come back when it closes (if the daemon still shows them). The same while something
+// else grows out of the island — the launcher, an island card or a Stage panel (W34: the toasts hang under the island
+// now, where those stand).
 Scope {
     id: root
     property var screen: null       // set by shell.qml: the focused output
@@ -35,7 +37,8 @@ Scope {
     property var latched: screen
     readonly property string outName: latched ? latched.name : ""
     readonly property bool sidebarHere: ui.sidebar === "right" && (!ui.sidebar_output || ui.sidebar_output === outName)
-    readonly property bool held: centerOpen || sidebarHere
+    readonly property bool islandBusy: ui.launcher === true || ui.popup === true || (ui.panel || "") !== ""
+    readonly property bool held: centerOpen || sidebarHere || islandBusy
 
     // The toasts the daemon shows, newest first.
     readonly property var wanted: {

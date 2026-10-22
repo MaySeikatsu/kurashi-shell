@@ -176,9 +176,9 @@ PanelWindow {
 
     screen: scr
     BarConfig { id: bars; screen: lp.scr }
-    // One vertical edge anchored under a top or bottom bar (the compositor centres the surface horizontally, so the
-    // shape's box is centred on the bar); none otherwise: the compositor centres it on the output.
-    anchors { top: morph.morph && !bars.atBottom; bottom: morph.morph && bars.atBottom }
+    // While the shape is out under a top or bottom bar, one vertical edge anchored (the compositor centres the surface
+    // horizontally, so the shape's box is centred on the bar); none otherwise (idle, or no such bar): centred on the output.
+    anchors { top: morph.layout && !bars.atBottom; bottom: morph.layout && bars.atBottom }
     implicitWidth: morph.width
     implicitHeight: morph.height
     exclusionMode: ExclusionMode.Ignore

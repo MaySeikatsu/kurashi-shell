@@ -11,10 +11,10 @@ import "../island"
 // neck at the bar's edge (strip) or the neck under the island's block (joined, keycap and soft chrome), the pill's face in
 // the shape's head, the content cut to the shape and faded in late, out first — for a surface that is not the Stage.
 //
-// The owner is a layer window that anchors one bar edge only (the compositor centres it on its output, so the shape's box
-// is centred on the bar: MorphShape opens the bar's rule from its own centre) and takes `winW` x `winH` while `morph`, with
-// margin 0 on that edge: the window covers the bar's strip above the card only while the shape is out (K16; idle it keeps
-// the card's size, or is unmapped). Its content goes in as children: they land in a `cardW` x `cardH` box where the grown
+// The owner is a layer window that, while `layout` (the shape is out), anchors one bar edge only (the compositor centres it
+// on its output, so the shape's box is centred on the bar: MorphShape opens the bar's rule from its own centre) with
+// margin 0 on that edge, and takes this item's size: the window covers the bar's strip above the card only while the
+// shape is out (K16; idle it keeps the card's size, or is unmapped). Its content goes in as children: they land in a `cardW` x `cardH` box where the grown
 // card stands, cut to the shape while it moves. Without a top or bottom bar (`morph` false) the card slides in instead and
 // the owner draws its own chrome (`morph` tells it which).
 //
@@ -252,8 +252,10 @@ Item {
         NumberAnimation { duration: m.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
 
-    width: morph ? morphW : cardW + 2 * shade
-    height: morph ? morphH : cardH + 2 * shade
+    // The bar's strip and the slack only while the shape is out (K16); idle, the card's size (the owner's window keeps no strip).
+    readonly property bool layout: morph && shown
+    width: layout ? morphW : cardW + 2 * shade
+    height: layout ? morphH : cardH + 2 * shade
 
     Item {
         id: shapeBox
