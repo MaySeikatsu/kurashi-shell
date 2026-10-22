@@ -119,12 +119,15 @@ in
 
     themeExport = {
       apps = lib.mkOption {
-        type = lib.types.listOf (lib.types.enum [ "gtk3" "gtk4" "qt" "qt5" "kde" "foot" "kitty" "alacritty" "ghostty" "niri" ]);
+        type = lib.types.listOf (lib.types.enum [ "gtk3" "gtk4" "qt" "qt5" "kde" "foot" "kitty" "alacritty" "ghostty" "niri" "gsettings" ]);
         default = [ ];
-        example = [ "gtk3" "gtk4" "foot" ];
+        example = [ "gtk3" "gtk4" "foot" "gsettings" ];
         description = ''
-          Apps that follow the shell's colours (K49, `theme.export`): kurashid writes their colour files whenever the
-          theme changes. Set as a Nix value of `theme.export`.
+          Apps that follow the shell (K49, `theme.export`): kurashid writes their colour files, and the icon theme and fonts
+          their templates name, whenever the theme changes (templates/README.md lists them). `gsettings` is the one target
+          that writes the desktop's settings instead of a file: the colour scheme, the font and the icon theme of
+          `org.gnome.desktop.interface`, only where they differ, for GNOME, GTK 4 and libadwaita apps. It adds `gsettings`
+          to the PATH. Set as a Nix value of `theme.export`.
         '';
       };
       includes = lib.mkOption {
@@ -132,8 +135,9 @@ in
         default = true;
         description = ''
           Add the line each app needs to read its colour file, through that app's own Home-Manager module when it is
-          enabled here (gtk, foot, kitty, alacritty, ghostty). niri and Qt (qt6ct/qt5ct) need it by hand: Settings
-          shows the line.
+          enabled here (gtk, foot, kitty, alacritty, ghostty). niri needs `include "kurashi.kdl"` after your own layout,
+          window-rule and animations blocks; Qt (qt6ct/qt5ct) and KDE (kdeglobals) need their lines by hand. Settings shows
+          each line. This module does not write qt6ct.conf or kdeglobals, so their icon theme and font stay yours.
         '';
       };
     };
@@ -291,7 +295,9 @@ in
   config = lib.mkMerge [
     (lib.mkIf cfg.enable {
       # wl-copy: the launcher copies a calculation (K42 session).
-      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts ++ cfg.tools;
+      # The gsettings theme target runs `gsettings` from the daemon's PATH (glib's bin output holds it, K49).
+      home.packages = [ cfg.package pkgs.wl-clipboard ] ++ cfg.fonts ++ cfg.tools
+        ++ lib.optional (lib.elem "gsettings" cfg.themeExport.apps) (lib.getBin pkgs.glib);
       fonts.fontconfig.enable = lib.mkIf (cfg.fonts != [ ]) (lib.mkDefault true);
       services.cliphist.enable = lib.mkIf cfg.clipboardHistory (lib.mkDefault true);
 
