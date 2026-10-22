@@ -13,8 +13,11 @@
 # item's box lies inside the bar, the bottom column is in order and does not overlap the island, and the mod slots and tray
 # icons drawn are the ones the column's fit gives, with the count of the rest. The frontend logs no QML error or warning.
 # Shots: frontend/shots/sidebars/<scene>.png (the output) and <scene>-bar.png (the bar's strip): read them, not just the exit code.
+# Part two (W34, `morph`, below): the edge sidebars grow out of the bar and fold back into it — frozen mid-morph frames,
+# the join's pixels, click outside, 20 cycles' USS, idle frames; shots in frontend/shots/sidebar/morph/.
+# SIDEBARS_PARTS="bars morph" (default) picks the parts; without a test-mods daemon the side-bar scenes are skipped (said so).
 #   KURASHI_BIN_DIR=<dir with kurashid (--features test-mods) and kurashi> \
-#     timeout 900 nix develop -c frontend/test-sidebars.sh [sandbox-name]
+#     timeout 1800 nix develop -c frontend/test-sidebars.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-w19-side-bars-$$}   # the w19-side-bars prefix: other runs never stop this sandbox
