@@ -8,7 +8,9 @@
 #   2. (between the rest and the drift) the notification centre grows out of the island pill: grims at MORPH_AT ms (40 120 250) after
 #      `notifications.center`, at rest, and at 40 120 after `ui.close`;
 #   3. I148 (first case only): no toast window while the right sidebar is open on the output (a toast sent then stays
-#      hidden), and the toast comes back once the sidebar closes.
+#      hidden), and the toast comes back once the sidebar closes;
+#   4. Ma (IDLE=0 skips it): with WAYLAND_DEBUG on the frontend, no Wayland commit in 5 s with the launcher open at rest
+#      (but its caret's blink), a toast at rest, the centre open at rest, and none in 10 s once all three are gone again.
 # The motion profile in effect is checked first (the theme document's `motion.profile`). Any FAIL, QML error or kurashid
 # panic makes the run exit 1.
 # Shots: frontend/shots/morph/toast-<look>-<profile>-<edge>-{bud-40,…,push-120,push-250,rest,drift-120,flick-800,flick-900}.png,
@@ -76,7 +78,8 @@ start_all() { # start_all <look> [config line ...]
   K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/kurashid.log)"
   swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
   : > "$R/qs.case.log"
-  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.case.log" 2>&1 &
+  # QS_ENV: extra environment for the frontend only (the idle phase: WAYLAND_DEBUG=client).
+  env -u KURASHI_SOCKET ${QS_ENV:-} qs -p "${FRONTEND_DIR:-$ROOT/frontend}" >> "$R/qs.case.log" 2>&1 &
   SHPID=$!
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/kurashid.log" && break; sleep 0.1; done
   sleep "${SHELL_WAIT:-4}"
@@ -196,6 +199,35 @@ for CASE in $MORPH_CASES; do
   stop_shell
   qml_errors
 done
+# 4. Ma: nothing draws while a surface rests, nor after it has gone.
+if [ "${IDLE:-1}" = 1 ]; then
+  echo "== idle"
+  QS_ENV="WAYLAND_DEBUG=client" start_all washi
+  commits() { tail -c +"$(( $1 + 1 ))" "$R/qs.case.log" | grep -c 'wl_surface#[0-9]*\.commit(' || true; }
+  quiet() { # quiet <seconds> <label> [max]: at most max (0) commits in that window (one retry: the clock's minute may tick)
+    local s c m=${3:-0}
+    for _ in 1 2; do
+      s=$(stat -c %s "$R/qs.case.log"); sleep "$1"; c=$(commits "$s")
+      [ "$c" -le "$m" ] && break
+    done
+    check "$([ "$c" -le "$m" ] && echo 1 || echo 0)" "idle: $2 ($c commits in $1 s, at most $m)"
+  }
+  K act launcher.toggle >/dev/null; sleep 2.5
+  # The open launcher's caret blinks (two frames a second); nothing else moves.
+  quiet 5 "the launcher open at rest" 11
+  K act ui.close >/dev/null; sleep 1.5
+  notify Calendar "Standup" "Room 3" 30000 >/dev/null; sleep 2.5
+  quiet 5 "a toast at rest"
+  K act notifications.center >/dev/null; sleep 2.5
+  quiet 5 "the centre open at rest"
+  K act ui.close >/dev/null; sleep 0.5
+  K act notify.dismiss '{}' >/dev/null; sleep 2
+  quiet 10 "all three gone"
+  stop_shell
+  # The debug output is kept only when asked (IDLE_LOG=<file>; it is large).
+  [ -n "${IDLE_LOG:-}" ] && cp "$R/qs.case.log" "$IDLE_LOG"
+  : > "$R/qs.case.log"
+fi
 stop_shell
 stop_daemon
 
