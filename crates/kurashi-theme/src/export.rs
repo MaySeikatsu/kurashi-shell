@@ -107,7 +107,7 @@ pub fn render(template: &str, p: &Palette) -> (String, BTreeSet<String>) {
 }
 
 /// A bundled export target: its name (`theme.export` lists these), the template file under `templates/`, where the
-/// file goes (relative to `$XDG_CONFIG_HOME`), and the line the program's own config needs to read it, when it does
+/// file goes (relative to `$XDG_CONFIG_HOME`; `@data/…` to `$XDG_DATA_HOME`), and the line the program's own config needs to read it, when it does
 /// not read the file by itself.
 pub struct Target {
     pub name: &'static str,
@@ -126,7 +126,8 @@ pub const TARGETS: &[Target] = &[
     },
     Target {
         name: "gtk4",
-        template: "gtk-colors.css",
+        // libadwaita 1.6+ reads CSS variables: GTK 4 gets them besides the named colours (GTK 3 would warn on them).
+        template: "gtk4-colors.css",
         path: "gtk-4.0/kurashi-colors.css",
         include: Some(("gtk-4.0/gtk.css", "@import 'kurashi-colors.css';")),
     },
@@ -140,6 +141,14 @@ pub const TARGETS: &[Target] = &[
         name: "qt5",
         template: "qtct-colors.conf",
         path: "qt5ct/colors/kurashi.conf",
+        include: None,
+    },
+    // KDE apps take their colours from a KDE colour scheme over the Qt palette: one for them to pick, in
+    // `$XDG_DATA_HOME` (the `@data/` prefix), where their Window Color Scheme menu lists it.
+    Target {
+        name: "kde",
+        template: "kde-colors.colors",
+        path: "@data/color-schemes/Kurashi.colors",
         include: None,
     },
     Target {

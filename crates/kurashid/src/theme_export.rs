@@ -23,6 +23,15 @@ fn config_home() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("/tmp"))
 }
 
+/// `$XDG_DATA_HOME` beside the config home `home` (`~/.local/share` when `home` is `~/.config`; tests pass their own
+/// config home, so the data home follows it as `<home>/../.local/share` only when the variable is unset).
+fn data_home(home: &Path) -> PathBuf {
+    std::env::var_os("XDG_DATA_HOME")
+        .map(PathBuf::from)
+        .filter(|p| p.is_absolute())
+        .unwrap_or_else(|| home.parent().unwrap_or(home).join(".local/share"))
+}
+
 /// The palette as the theme document carries it (`color.<role>` tokens).
 fn palette_of(theme: &Value) -> kurashi_theme::Palette {
     let mut roles = BTreeMap::new();
@@ -75,7 +84,10 @@ pub fn export(theme: &Value, targets: &[String], home: &Path, bundled: &Path) ->
             out.push(json!({"name": name, "error": "theme.export.unknown_target"}));
             continue;
         };
-        let path = home.join(t.path);
+        let path = match t.path.strip_prefix("@data/") {
+            Some(rest) => data_home(home).join(rest),
+            None => home.join(t.path),
+        };
         let mut entry = json!({"name": name, "path": path.to_string_lossy()});
         match template(home, bundled, t.template) {
             None => entry["error"] = json!("theme.export.no_template"),
