@@ -46,6 +46,29 @@ pub struct Config {
     pub dock: Dock,
     #[kurashi(nested)]
     pub sidebar: Sidebar,
+    #[kurashi(nested)]
+    pub settings: SettingsApp,
+}
+
+// --- the Settings app (K63) ------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "settings_window")]
+pub enum SettingsWindow {
+    /// A window
+    Window,
+    /// A sheet over the desktop
+    Sheet,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "appearance", section = "settings_app")]
+pub struct SettingsApp {
+    /// Settings opens as
+    /// A normal window the compositor places and tiles, or a sheet the shell draws in the middle of the screen over a
+    /// dimmed desktop — made of the shell's material and lit by its light, like every shell surface.
+    #[kurashi(default = SettingsWindow::Window)]
+    pub window: SettingsWindow,
 }
 
 // --- bar ---------------------------------------------------------------------------------------
@@ -118,6 +141,8 @@ pub struct Theme {
     pub texture: Texture,
     #[kurashi(nested, section = "light")]
     pub light: Light,
+    #[kurashi(nested, section = "pen")]
+    pub pen: Pen,
     /// Apps that follow
     /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one
     /// needs one line in its own config to read the file; Settings shows it.
@@ -252,6 +277,39 @@ pub enum TextureKind {
     Wood,
     /// Oil paint (brush strokes)
     Paint,
+    /// Brush strokes (bristles)
+    Brush,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "crack_style")]
+pub enum CrackStyle {
+    /// Stone
+    Stone,
+    /// Glass
+    Glass,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "texture_shadows")]
+pub enum TextureShadows {
+    /// Auto
+    Auto,
+    /// Off
+    Off,
+    /// On
+    On,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "texture_sheet")]
+pub enum TextureSheet {
+    /// Carried
+    Carried,
+    /// Fixed
+    Fixed,
+    /// Separate
+    Separate,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -282,9 +340,18 @@ pub struct Texture {
     #[kurashi(default = TextureScope::Shell, requires = "theme.texture.kind != none")]
     pub scope: TextureScope,
     /// Strength
-    /// How deep the relief reads. Under text it is capped so text stays legible.
-    #[kurashi(default = 0.5, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.kind != none")]
+    /// How strongly the relief reads; past 1 it is strong. Under text it is capped so text stays legible.
+    #[kurashi(default = 0.5, range = 0.0..=2.0, step = 0.05, requires = "theme.texture.kind != none")]
     pub strength: f64,
+    /// Depth
+    /// How steep the relief is: deeper grain, threads and rulings, with longer shadows when the light is low.
+    #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.kind != none")]
+    pub depth: f64,
+    /// Relief shadows
+    /// Grain, threads and rulings cast short shadows away from the light, longer when the light is low. Auto: on for
+    /// materials with real height (oil paint, brush strokes) and for styles that ask for it.
+    #[kurashi(default = TextureShadows::Auto, requires = "theme.texture.kind != none")]
+    pub shadows: TextureShadows,
     /// Scale
     /// The size of the material's grain, weave or rulings.
     #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.kind != none")]
@@ -293,6 +360,14 @@ pub struct Texture {
     /// Crumples the material: folds and creases, as in crumpled paper or creased leather.
     #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.kind != none")]
     pub wrinkles: f64,
+    /// Cracks
+    /// Breaks the material: a network of fine cracks, as in old stone or broken glass.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.kind != none")]
+    pub cracks: f64,
+    /// Crack pattern
+    /// Stone: jagged, branching cracks. Glass: straight-edged shards.
+    #[kurashi(default = CrackStyle::Stone, requires = "theme.texture.kind != none")]
+    pub crack_style: CrackStyle,
     /// Ink and colour
     /// Print the rulings, dots and grain in faint colours of the palette. Off: relief only — rulings are pressed into
     /// the sheet, nothing is coloured.
@@ -303,6 +378,51 @@ pub struct Texture {
     /// them crisp on the material.
     #[kurashi(default = false, requires = "theme.texture.kind != none")]
     pub text: bool,
+    /// Texture over controls
+    /// Let the relief run over buttons, sliders, switches and icons too, so the material reads through the whole
+    /// interface. Pictures — album covers, wallpapers, avatars — stay untouched.
+    #[kurashi(default = false, requires = "theme.texture.kind != none")]
+    pub controls: bool,
+    /// Sheet
+    /// How the material sits on surfaces that move. Carried: a panel takes its texture along as it slides or grows and
+    /// lands on the one continuous sheet. Fixed: the sheet stays put and surfaces slide over it. Separate: every surface
+    /// is a sheet of its own.
+    #[kurashi(default = TextureSheet::Carried, requires = "theme.texture.kind != none")]
+    pub sheet: TextureSheet,
+    #[kurashi(nested)]
+    pub wallpaper: WallpaperTexture,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct WallpaperTexture {
+    /// Own material for the wallpaper
+    /// Give the wallpaper a material of its own instead of the shell's (it is baked into the picture).
+    #[kurashi(
+        default = false,
+        requires = "theme.texture.scope != shell",
+        requires = "theme.texture.scope != everything"
+    )]
+    pub own: bool,
+    /// Wallpaper material
+    /// The relief baked into the wallpaper.
+    #[kurashi(default = TextureKind::Paper, requires = "theme.texture.wallpaper.own == true")]
+    pub kind: TextureKind,
+    /// Wallpaper strength
+    /// How strongly the wallpaper's relief reads.
+    #[kurashi(default = 0.5, range = 0.0..=2.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    pub strength: f64,
+    /// Wallpaper scale
+    /// The size of the wallpaper material's grain.
+    #[kurashi(default = 1.0, range = 0.5..=3.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    pub scale: f64,
+    /// Wallpaper wrinkles
+    /// Crumples the wallpaper's material.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    pub wrinkles: f64,
+    /// Wallpaper cracks
+    /// Cracks in the wallpaper's material (the pattern is the shell's).
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, requires = "theme.texture.wallpaper.own == true")]
+    pub cracks: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -316,6 +436,23 @@ pub enum LightMode {
     Daytime,
     /// The wallpaper's light
     Wallpaper,
+    /// Spotlight
+    Spotlight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "light_color")]
+pub enum LightColor {
+    /// Natural
+    Natural,
+    /// White
+    White,
+    /// Warm
+    Warm,
+    /// Cool
+    Cool,
+    /// Your own
+    Custom,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -323,7 +460,8 @@ pub struct Light {
     /// Light
     /// Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces;
     /// elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right,
-    /// warm when it is low — or the wallpaper's own light: a lamp at its brightest place, in its colour (K59).
+    /// warm when it is low — the wallpaper's own light: a lamp at its brightest place, in its colour (K59) — or a
+    /// spotlight: a lamp pinned at the screen's edge in the light's direction, its beam aimed at the pointer (K61).
     #[kurashi(default = LightMode::Static, requires = "theme.texture.kind != none")]
     pub mode: LightMode,
     /// Direction
@@ -335,6 +473,76 @@ pub struct Light {
     /// How high the light stands over the screen: low light makes long shadows and a deeper relief.
     #[kurashi(default = 40, range = 10..=80, step = 1, unit = "°", requires = "theme.light.mode != daytime")]
     pub elevation: u32,
+    /// Beam width
+    /// How wide the spotlight's beam is: narrow lights a small pool round the pointer, wide most of the screen.
+    #[kurashi(default = 35, range = 10..=80, step = 1, unit = "°", requires = "theme.light.mode == spotlight")]
+    pub beam: u32,
+    /// Light colour
+    /// The colour of the light's highlights. Natural: white, the sun's own, or the wallpaper's.
+    #[kurashi(default = LightColor::Natural, requires = "theme.texture.kind != none")]
+    pub color: LightColor,
+    /// Your light colour
+    /// The highlights' colour.
+    #[kurashi(default = Color::new("#ffd9a0"), requires = "theme.light.color == custom")]
+    pub color_custom: Color,
+}
+
+// --- pen (K62) -----------------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "pen_line")]
+pub enum PenLine {
+    /// Solid
+    Solid,
+    /// Dotted
+    Dotted,
+    /// Dashed
+    Dashed,
+    /// Broken
+    Broken,
+    /// Rough
+    Rough,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct Pen {
+    /// Outline
+    /// How outlines round blocks and surfaces are drawn: solid, dotted, dashed, broken — long strokes with gaps where
+    /// the pen left the paper — or rough, a very uneven hand line.
+    #[kurashi(default = PenLine::Solid, overridden_by = "a11y.high_contrast => solid")]
+    pub line: PenLine,
+    /// Pen pressure
+    /// Outlines swell and thin along their length, as with a fountain pen.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub pressure: f64,
+    /// Skips
+    /// The pen skips now and then: small gaps in the outlines.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub breaks: f64,
+    /// Ink flow
+    /// The ink runs thinner in places: the outlines' opacity varies along them.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub fade: f64,
+    /// Hand
+    /// Straight lines and curves wander a little, as if drawn by hand.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub wobble: f64,
+    /// Text: pen pressure
+    /// Letters and icons swell and thin, as written with a fountain pen.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub text_pressure: f64,
+    /// Text: skips
+    /// Small breaks in letters and icons where the pen skipped.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub text_breaks: f64,
+    /// Text: ink flow
+    /// Letters and icons vary a little in opacity, as ink does.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub text_fade: f64,
+    /// Text: hand
+    /// Letters and icons wander a little off the straight line, as if written by hand.
+    #[kurashi(default = 0.0, range = 0.0..=1.0, step = 0.05, overridden_by = "a11y.high_contrast => 0.0")]
+    pub text_wobble: f64,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

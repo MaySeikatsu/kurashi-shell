@@ -121,4 +121,32 @@ Singleton {
     readonly property var lightDirToken: tok("light.dir", [0, 0, 1])
     readonly property color lightColor: color("light.color", "#ffffff")
     readonly property real lightHeight: tok("light.height_px", 60)
+
+    // K61 (wave 32): depth, relief shadows (`texHeightMap` "" while they are off), the dark ground's balance, controls,
+    // how the sheet sits on moving surfaces, and the spotlight (its pin as fractions of the output, its beam in degrees).
+    readonly property real texDepth: tok("texture.depth", 1)
+    readonly property real texShadow: tok("texture.shadow", 0)
+    readonly property string texHeightMap: tok("texture.height_map", "")
+    readonly property real texReliefPx: tok("texture.relief_px", 0)
+    readonly property real texLit: tok("texture.lit", 1)
+    readonly property bool texControls: texShell && tok("texture.controls", false) === true
+    // "carried" | "fixed" | "separate"
+    readonly property string texSheet: tok("texture.sheet", "carried")
+    readonly property var lightPin: tok("light.pin", null)
+    readonly property real lightBeam: tok("light.beam", 35)
+
+    // K62: the pen. `penLine`: "solid" | "dotted" | "dashed" | "broken" | "rough"; the modifiers 0..1, for outlines and
+    // (through a layer over a block's content) for text and icons. Values in effect: high contrast forces them off.
+    readonly property string penLine: tok("pen.line", "solid")
+    readonly property real penPressure: tok("pen.pressure", 0)
+    readonly property real penBreaks: tok("pen.breaks", 0)
+    readonly property real penFade: tok("pen.fade", 0)
+    readonly property real penWobble: tok("pen.wobble", 0)
+    readonly property real penTextPressure: tok("pen.text_pressure", 0)
+    readonly property real penTextBreaks: tok("pen.text_breaks", 0)
+    readonly property real penTextFade: tok("pen.text_fade", 0)
+    readonly property real penTextWobble: tok("pen.text_wobble", 0)
+    // Some outline modifier or line style is in effect: outlines are drawn by the pen, not as straight borders.
+    readonly property bool penOutline: penLine !== "solid" || penPressure > 0 || penBreaks > 0 || penFade > 0 || penWobble > 0
+    readonly property bool penText: penTextPressure > 0 || penTextBreaks > 0 || penTextFade > 0 || penTextWobble > 0
 }

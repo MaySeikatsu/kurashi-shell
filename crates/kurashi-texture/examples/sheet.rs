@@ -58,6 +58,11 @@ fn shading(kind: Kind, tint: bool, angle: f32, dark: bool, amp: f32) -> Shading 
         light_dir: light_dir(angle, ELEVATION),
         light_color: [1.0, 1.0, 1.0],
         lamp: None,
+        depth: 1.0,
+        shadow: 0.0,
+        relief_px: 0.0,
+        lit: if dark { 0.6 } else { 1.0 },
+        beam: None,
     }
 }
 
@@ -413,6 +418,8 @@ fn tile(kind: Kind, tint: bool, wrinkles: f32) -> Tile {
         wrinkles,
         tint,
         device_scale: 1.0,
+        cracks: 0.0,
+        crack_style: kurashi_texture::CrackStyle::Stone,
     })
 }
 

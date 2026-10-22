@@ -168,20 +168,42 @@ and ink-free = (128, 128, 128) and no ink.
 | `light.dir` | `[x, y, z]` unit vector toward the light (x right, y down, z toward the viewer) |
 | `light.color` | the highlights' colour (white for static and pointer; the sun's for daytime) |
 | `light.height_px` | the pointer lamp's height over the sheet, logical px |
+| `texture.depth` | K61: steepens the normals' slope (1 = as generated) |
+| `texture.shadow` | K61: relief shadows, 0 (off) … 1; `texture.height_map` the opaque grey height PNG while > 0 (`""` otherwise) |
+| `texture.relief_px` | K61: the logical px the height map's 0…255 range stands on the sheet (`tile.relief × depth × scale`) |
+| `texture.lit` | K61 (I169): the weight of the light half — 1, or 0.6 on a dark ground (highlights read stronger there) |
+| `texture.controls` | K61: the relief also lies over controls (buttons, sliders, switches, chips, icons); never over pictures |
+| `texture.sheet` | K61: `carried` (a moving surface takes its sheet along and lands on the continuous one) \| `fixed` \| `separate` |
+| `light.pin`, `light.beam` | K61: the spotlight's lamp `[x, y]` (fractions of the output; `null` in other modes) at `light.height_px`, and its beam's half-angle in degrees |
+| `pen.line`, `pen.{pressure,breaks,fade,wobble}`, `pen.text_{…}` | K62: the outline style and the pen modifiers (0…1) for outlines and for text and icons |
+
+**Height map (K61):** `<tile>-height.png`, opaque grey (R = G = B), 0 the tile's lowest point and 255 its highest, sampled
+with the same wrapped bilinear taps as the tile; the range in logical px beside it (`<tile>-height.relief`, the daemon's
+`texture.relief_px` before depth and scale).
 
 **Shading** (per pixel; `p` is the sheet position in logical px, in output coordinates — the sheet is continuous across
-windows):
+windows; `kurashi_texture::shade_at` is the reference, `relief.frag` mirrors it):
 ```
 uv   = p / (tile_logical × scale)                       wrap; t = tile(uv), bilinear, 0..1
-n    = normalize(2 t.r − 1, 2 t.g − 1, sqrt(max(0, 1 − x² − y²)))
+xy   = (2 t.r − 1, 2 t.g − 1)
+n    = normalize(depth · xy, sqrt(max(0, 1 − |xy|²)))                        K61 depth
 cav  = 2 t.b − 1
 L    = light.dir                                        static, daytime, and pointer away from the shell
      | normalize(pointer − p, light.height_px)          pointer over a shell surface
      | normalize(lamp × output − p, light.height_px)    wallpaper (a lamp at its brightest region)
+     | normalize(pin × output − p, light.height_px)     spotlight (K61; the pin at the edge in the light's direction)
+k    = 1, or for the spotlight: the beam from lamp3 = (pin × output, height_px) toward (aim, 0) — aim the pointer, the
+       output's middle at rest — c = dot(normalize((p, 0) − lamp3), normalize((aim, 0) − lamp3));
+       k = 0.3 + 0.7 · smoothstep(cos beam, cos(beam / 2), c)
+sh   = 0, or with texture.shadow > 0 and |L.xy| > 0.001: d = L.xy / |L.xy|, rise = L.z / |L.xy|,
+       len = min(relief_px / max(rise, 0.05), 24); h(q) = height(q) × relief_px;
+       occ = max over i = 1…8 of h(p + d·len·i/8) − h(p) − len·i/8 · rise  (and 0);
+       sh = shadow · clamp(occ / max(0.25 relief_px, 0.15), 0, 1)
 diff = dot(n, L) − L.z                                  0 on a flat sheet: the material never shifts the overall tone
 H    = normalize(L + (0, 0, 1))
 spec = gloss × (max(dot(n, H), 0)^shininess − H.z^shininess)
-s    = clamp(amp × (2 diff + 0.5 cav + spec), −amp, amp)
+v    = k × amp × (2 diff + 0.5 cav + spec − 2 sh);  v = v > 0 ? v × lit : v
+s    = clamp(v, −amp, amp)
 shade = s < 0 ? (0, 0, 0, −s) : (light.color × s, s)    premultiplied; black at α multiplies, light screens
 ink   = (texture.ink × a, a), a = t.a × ink_alpha
 out   = shade + ink × (1 − shade.a)                     drawn with a normal "over" blend on the surface

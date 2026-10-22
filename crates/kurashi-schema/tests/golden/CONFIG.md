@@ -235,7 +235,7 @@ Multiplies every type size token.
 A relief the shell is made of — paper, fabric, stone, metal, leather, wood, brushed oil paint. It adds light and shade from the light below, never colours of its own (K59).
 
 - type: `choice` · default: `"none"`
-- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"`
 - forced to `"none"` while `a11y.high_contrast` is on
 - forced to `"none"` while `a11y.reduce_transparency` is on
 
@@ -249,10 +249,26 @@ The shell's surfaces, the wallpaper (baked into the picture), both, or an overla
 
 #### `theme.texture.strength` — Strength
 
-How deep the relief reads. Under text it is capped so text stays legible.
+How strongly the relief reads; past 1 it is strong. Under text it is capped so text stays legible.
 
 - type: `float` · default: `0.5`
-- range: `0.0..=1.0`, step `0.05`
+- range: `0.0..=2.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.depth` — Depth
+
+How steep the relief is: deeper grain, threads and rulings, with longer shadows when the light is low.
+
+- type: `float` · default: `1.0`
+- range: `0.5..=3.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.shadows` — Relief shadows
+
+Grain, threads and rulings cast short shadows away from the light, longer when the light is low. Auto: on for materials with real height (oil paint, brush strokes) and for styles that ask for it.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"off"` | `"on"`
 - only while `theme.texture.kind != "none"`
 
 #### `theme.texture.scale` — Scale
@@ -271,6 +287,22 @@ Crumples the material: folds and creases, as in crumpled paper or creased leathe
 - range: `0.0..=1.0`, step `0.05`
 - only while `theme.texture.kind != "none"`
 
+#### `theme.texture.cracks` — Cracks
+
+Breaks the material: a network of fine cracks, as in old stone or broken glass.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.crack_style` — Crack pattern
+
+Stone: jagged, branching cracks. Glass: straight-edged shards.
+
+- type: `choice` · default: `"stone"`
+- choices: `"stone"` | `"glass"`
+- only while `theme.texture.kind != "none"`
+
 #### `theme.texture.tint` — Ink and colour
 
 Print the rulings, dots and grain in faint colours of the palette. Off: relief only — rulings are pressed into the sheet, nothing is coloured.
@@ -285,14 +317,77 @@ Let the relief run through text and icons too, as ink sinks into paper or is pre
 - type: `bool` · default: `false`
 - only while `theme.texture.kind != "none"`
 
+#### `theme.texture.controls` — Texture over controls
+
+Let the relief run over buttons, sliders, switches and icons too, so the material reads through the whole interface. Pictures — album covers, wallpapers, avatars — stay untouched.
+
+- type: `bool` · default: `false`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.sheet` — Sheet
+
+How the material sits on surfaces that move. Carried: a panel takes its texture along as it slides or grows and lands on the one continuous sheet. Fixed: the sheet stays put and surfaces slide over it. Separate: every surface is a sheet of its own.
+
+- type: `choice` · default: `"carried"`
+- choices: `"carried"` | `"fixed"` | `"separate"`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.texture.wallpaper.own` — Own material for the wallpaper
+
+Give the wallpaper a material of its own instead of the shell's (it is baked into the picture).
+
+- type: `bool` · default: `false`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
+
+#### `theme.texture.wallpaper.kind` — Wallpaper material
+
+The relief baked into the wallpaper.
+
+- type: `choice` · default: `"paper"`
+- choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"`
+- only while `theme.texture.wallpaper.own == true`
+
+#### `theme.texture.wallpaper.strength` — Wallpaper strength
+
+How strongly the wallpaper's relief reads.
+
+- type: `float` · default: `0.5`
+- range: `0.0..=2.0`, step `0.05`
+- only while `theme.texture.wallpaper.own == true`
+
+#### `theme.texture.wallpaper.scale` — Wallpaper scale
+
+The size of the wallpaper material's grain.
+
+- type: `float` · default: `1.0`
+- range: `0.5..=3.0`, step `0.05`
+- only while `theme.texture.wallpaper.own == true`
+
+#### `theme.texture.wallpaper.wrinkles` — Wallpaper wrinkles
+
+Crumples the wallpaper's material.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.texture.wallpaper.own == true`
+
+#### `theme.texture.wallpaper.cracks` — Wallpaper cracks
+
+Cracks in the wallpaper's material (the pattern is the shell's).
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- only while `theme.texture.wallpaper.own == true`
+
 ### Light
 
 #### `theme.light.mode` — Light
 
-Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right, warm when it is low — or the wallpaper's own light: a lamp at its brightest place, in its colour (K59).
+Where the material's light comes from: a fixed direction, a lamp at the pointer (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day — sunrise from the left, sunset from the right, warm when it is low — the wallpaper's own light: a lamp at its brightest place, in its colour (K59) — or a spotlight: a lamp pinned at the screen's edge in the light's direction, its beam aimed at the pointer (K61).
 
 - type: `choice` · default: `"static"`
-- choices: `"static"` | `"pointer"` | `"daytime"` | `"wallpaper"`
+- choices: `"static"` | `"pointer"` | `"daytime"` | `"wallpaper"` | `"spotlight"`
 - only while `theme.texture.kind != "none"`
 
 #### `theme.light.angle` — Direction
@@ -310,6 +405,112 @@ How high the light stands over the screen: low light makes long shadows and a de
 - type: `int` · default: `40`
 - range: `10..=80`, step `1` (°)
 - only while `theme.light.mode != "daytime"`
+
+#### `theme.light.beam` — Beam width
+
+How wide the spotlight's beam is: narrow lights a small pool round the pointer, wide most of the screen.
+
+- type: `int` · default: `35`
+- range: `10..=80`, step `1` (°)
+- only while `theme.light.mode == "spotlight"`
+
+#### `theme.light.color` — Light colour
+
+The colour of the light's highlights. Natural: white, the sun's own, or the wallpaper's.
+
+- type: `choice` · default: `"natural"`
+- choices: `"natural"` | `"white"` | `"warm"` | `"cool"` | `"custom"`
+- only while `theme.texture.kind != "none"`
+
+#### `theme.light.color_custom` — Your light colour
+
+The highlights' colour.
+
+- type: `color` · default: `"#ffd9a0"`
+- only while `theme.light.color == "custom"`
+
+### Pen
+
+#### `theme.pen.line` — Outline
+
+How outlines round blocks and surfaces are drawn: solid, dotted, dashed, broken — long strokes with gaps where the pen left the paper — or rough, a very uneven hand line.
+
+- type: `choice` · default: `"solid"`
+- choices: `"solid"` | `"dotted"` | `"dashed"` | `"broken"` | `"rough"`
+- forced to `"solid"` while `a11y.high_contrast` is on
+
+#### `theme.pen.pressure` — Pen pressure
+
+Outlines swell and thin along their length, as with a fountain pen.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.breaks` — Skips
+
+The pen skips now and then: small gaps in the outlines.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.fade` — Ink flow
+
+The ink runs thinner in places: the outlines' opacity varies along them.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.wobble` — Hand
+
+Straight lines and curves wander a little, as if drawn by hand.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.text_pressure` — Text: pen pressure
+
+Letters and icons swell and thin, as written with a fountain pen.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.text_breaks` — Text: skips
+
+Small breaks in letters and icons where the pen skipped.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.text_fade` — Text: ink flow
+
+Letters and icons vary a little in opacity, as ink does.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+#### `theme.pen.text_wobble` — Text: hand
+
+Letters and icons wander a little off the straight line, as if written by hand.
+
+- type: `float` · default: `0.0`
+- range: `0.0..=1.0`, step `0.05`
+- forced to `0.0` while `a11y.high_contrast` is on
+
+### Settings app
+
+#### `settings.window` — Settings opens as
+
+A normal window the compositor places and tiles, or a sheet the shell draws in the middle of the screen over a dimmed desktop — made of the shell's material and lit by its light, like every shell surface.
+
+- type: `choice` · default: `"window"`
+- choices: `"window"` | `"sheet"`
 
 ## Accessibility
 

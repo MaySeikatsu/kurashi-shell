@@ -333,6 +333,23 @@ pub fn document_with(
             }
             tokens.insert("blur".into(), json!(input.axes.blur));
             tokens.insert("decor.frame".into(), json!(decor_frame(store)));
+            // K62: the pen — how outlines and (through a layer) text are drawn; values in effect (a11y forces them).
+            tokens.insert("pen.line".into(), json!(s(store, "theme.pen.line")));
+            for k in [
+                "pressure",
+                "breaks",
+                "fade",
+                "wobble",
+                "text_pressure",
+                "text_breaks",
+                "text_fade",
+                "text_wobble",
+            ] {
+                tokens.insert(
+                    format!("pen.{k}"),
+                    json!(f(store, &format!("theme.pen.{k}"), 0.0)),
+                );
+            }
             let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
             let mut notes: Vec<Value> = out
                 .notes

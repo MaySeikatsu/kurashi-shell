@@ -10,6 +10,8 @@ fn params(kind: Kind, tint: bool, wrinkles: f32) -> Params {
         wrinkles,
         tint,
         device_scale: 1.0,
+        cracks: 0.0,
+        crack_style: kurashi_texture::CrackStyle::Stone,
     }
 }
 
@@ -207,6 +209,8 @@ fn device_scale_scales_the_tile_and_keeps_its_logical_size() {
             wrinkles: 0.0,
             tint: true,
             device_scale: scale,
+            cracks: 0.0,
+            crack_style: kurashi_texture::CrackStyle::Stone,
         });
         assert_eq!(t.size, side, "device scale {scale}");
         assert!(
