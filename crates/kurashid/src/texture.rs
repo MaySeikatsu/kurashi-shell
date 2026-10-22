@@ -323,7 +323,8 @@ fn wallpaper_light(store: &ConfigStore) -> Light {
     }
 }
 
-pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light {
+/// The light of the mode in effect, in its own (natural) colour.
+fn natural_light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light {
     let fixed = |mode| Light {
         mode,
         dir: kurashi_texture::light_dir(
@@ -336,7 +337,7 @@ pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light
         lamp: None,
         pin: None,
     };
-    let mut lt = match s(store, "theme.light.mode").as_str() {
+    match s(store, "theme.light.mode").as_str() {
         "daytime" => sun(place(store), now),
         "pointer" => fixed("pointer"),
         "wallpaper" => wallpaper_light(store),
@@ -347,21 +348,58 @@ pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light
             ..fixed("spotlight")
         },
         _ => fixed("static"),
-    };
+    }
+}
+
+/// K61: the named light colours (`theme.light.color`); the one table Settings' swatches read too (`appearance`).
+const LIGHT_COLORS: [(&str, [f32; 3]); 3] = [
+    ("white", [1.0, 1.0, 1.0]),
+    ("warm", [1.0, 0.86, 0.66]),
+    ("cool", [0.78, 0.87, 1.0]),
+];
+
+fn hex(c: [f32; 3]) -> String {
+    let [r, g, b] = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
+    format!("#{r:02x}{g:02x}{b:02x}")
+}
+
+fn custom_light(store: &ConfigStore) -> Option<[f32; 3]> {
+    kurashi_theme::color::Rgb::parse(&s(store, "theme.light.color_custom")).map(lin)
+}
+
+pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light {
+    let mut lt = natural_light(store, now);
     // K61: the light's colour; natural keeps the mode's own (white, the sun's, the wallpaper's).
-    let own = match s(store, "theme.light.color").as_str() {
-        "white" => Some([1.0, 1.0, 1.0]),
-        "warm" => Some([1.0, 0.86, 0.66]),
-        "cool" => Some([0.78, 0.87, 1.0]),
-        "custom" => {
-            kurashi_theme::color::Rgb::parse(&s(store, "theme.light.color_custom")).map(lin)
-        }
-        _ => None,
+    let pick = s(store, "theme.light.color");
+    let own = match pick.as_str() {
+        "custom" => custom_light(store),
+        name => LIGHT_COLORS
+            .iter()
+            .find(|(n, _)| *n == name)
+            .map(|(_, c)| *c),
     };
     if let Some(c) = own {
         lt.color = c;
     }
     lt
+}
+
+/// K61 (row 340): every light colour as the daemon resolves it, for Settings' swatches: `{natural, white, warm, cool,
+/// custom}` in hex, natural the mode's own now.
+pub fn light_colors(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Value {
+    let mut m = Map::new();
+    m.insert(
+        "natural".into(),
+        json!(hex(natural_light(store, now).color)),
+    );
+    for (n, c) in LIGHT_COLORS {
+        m.insert(n.into(), json!(hex(c)));
+    }
+    m.insert(
+        "custom".into(),
+        json!(hex(custom_light(store).unwrap_or([1.0, 1.0, 1.0]))),
+    );
+    Value::Object(m)
 }
 
 /// Whether the light needs the wallpaper's picture (the theme then holds the wallpaper mod's document).
@@ -473,10 +511,6 @@ pub fn tokens(
 ) -> Vec<String> {
     let mut notes = vec![];
     let lt = light(store, now);
-    let hex = |c: [f32; 3]| {
-        let [r, g, b] = c.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8);
-        format!("#{r:02x}{g:02x}{b:02x}")
-    };
     t.insert("light.mode".into(), json!(lt.mode));
     t.insert("light.dir".into(), json!(lt.dir));
     t.insert("light.color".into(), json!(hex(lt.color)));
