@@ -4324,6 +4324,13 @@ pub fn nightlight(hub: &Arc<Hub>, actions: &mut ActionRegistry, cfg: Option<Arc<
                 "available": true, "enabled": c.enabled, "active": false,
                 "temperature": c.temperature, "schedule": c.schedule,
             });
+            // I130: the night's start and end in effect (the times by hand, or sunset and sunrise), for the night page.
+            if let Ok(sched) = plan
+                && let Some((start, end)) = nl::night_of(sched, doy, off)
+            {
+                doc["start"] = json!(nl::hhmm(start));
+                doc["end"] = json!(nl::hhmm(end));
+            }
             let mut wake: Option<u32> = None;
             match (plan, child.is_some()) {
                 (Ok(s), true) => {
