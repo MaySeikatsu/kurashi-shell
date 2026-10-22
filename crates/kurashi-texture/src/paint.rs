@@ -124,8 +124,16 @@ pub fn oil(f: &mut Field, seed: u64, tint: bool) {
     }
     let mut cover = vec![0f32; n * n];
     let mut tone = vec![0f32; n * n];
-    for s in layout(seed, l) {
-        lay(f, &s, &canvas, &mut cover, &mut tone);
+    // Each stroke's paint depends on the stroke alone, so the strokes are worked out on all threads (I171) and then laid
+    // in order, each over the ones before.
+    let strokes = layout(seed, l);
+    let mut laid: Vec<Option<Laid>> = strokes.iter().map(|_| None).collect();
+    let scale = f.scale;
+    rows(strokes.len(), f.threads, &mut laid, |i, slot| {
+        slot[0] = Some(paint_of(&strokes[i], scale));
+    });
+    for (s, paint) in strokes.iter().zip(laid.into_iter().flatten()) {
+        lay(f, s, paint, &canvas, &mut cover, &mut tone);
     }
     if tint {
         for k in 0..n * n {
@@ -328,17 +336,22 @@ fn along(i: i64, t: f32, seed: u64) -> f32 {
     a + (b - a) * s
 }
 
-/// Lays one stroke over the surface: its relief over `f.h` (it covers what it reaches; the paint below shows only where it
-/// is thin), and its coverage and tone for the pigment.
-fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut [f32]) {
+/// One stroke's paint over its box (unwrapped texels from `x0`, `y0`, `w` a row): its coverage and the height of its top,
+/// NaN where it does not reach.
+struct Laid {
+    x0: isize,
+    y0: isize,
+    w: usize,
+    dabs: Vec<[f32; 2]>,
+}
+
+/// The paint of stroke `s` at `scale` device px per logical px.
+fn paint_of(s: &Stroke, scale: f32) -> Laid {
     // The widest the brush wanders (1.2 half-widths) and the coverage's edge, so every texel that is covered is in the box.
     let reach = s.half * 1.2 + 1.2;
-    let near = near(s, f.scale, reach, f.threads);
-    let n = f.n as isize;
-    // The stroke's box is smaller than the tile, so its texels are distinct texels of the tile: each box row is computed
-    // on its own (coverage and the paint's top; NaN where the stroke does not reach), then laid in order.
+    let near = near(s, scale, reach, 1);
     let mut dabs = vec![[f32::NAN; 2]; near.w * near.h];
-    rows(near.h, f.threads, &mut dabs, |by, row| {
+    rows(near.h, 1, &mut dabs, |by, row| {
         for (bx, dab) in row.iter_mut().enumerate() {
             let bi = by * near.w + bx;
             // Beyond the reach no texel is covered (the brush is at most 1.19 half-widths wide): skip it before the noise.
@@ -398,13 +411,33 @@ fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut 
             *dab = [(edge * thick * alive * OPACITY).clamp(0.0, 1.0), top];
         }
     });
-    for (bi, [c, top]) in dabs.into_iter().enumerate() {
+    Laid {
+        x0: near.x0,
+        y0: near.y0,
+        w: near.w,
+        dabs,
+    }
+}
+
+/// Lays one stroke's paint over the surface: its relief over `f.h` (it covers what it reaches; the paint below shows only
+/// where it is thin), and its coverage and tone for the pigment. The stroke's box is smaller than the tile, so its texels
+/// are distinct texels of the tile.
+fn lay(
+    f: &mut Field,
+    s: &Stroke,
+    paint: Laid,
+    canvas: &[f32],
+    cover: &mut [f32],
+    tone: &mut [f32],
+) {
+    let n = f.n as isize;
+    for (bi, [c, top]) in paint.dabs.into_iter().enumerate() {
         if c.is_nan() {
             continue;
         }
         let (ix, iy) = (
-            near.x0 + (bi % near.w) as isize,
-            near.y0 + (bi / near.w) as isize,
+            paint.x0 + (bi % paint.w) as isize,
+            paint.y0 + (bi / paint.w) as isize,
         );
         let k = (iy.rem_euclid(n) * n + ix.rem_euclid(n)) as usize;
         f.h[k] = f.h[k] * (1.0 - c) + c * (CANVAS * canvas[k] + top);

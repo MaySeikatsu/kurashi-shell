@@ -231,7 +231,7 @@ pub fn knit(f: &mut Field, seed: u64) {
     rows(n, f.threads, &mut f.h, |iy, hrow| {
         let y = g.at(iy);
         let r0 = (y / H).floor() as i64;
-        for ix in 0..n {
+        for (ix, out) in hrow.iter_mut().enumerate() {
             let x = g.at(ix);
             let c0 = (x / W).floor() as i64;
             let mut best = 0.0f32;
@@ -251,7 +251,7 @@ pub fn knit(f: &mut Field, seed: u64) {
                     }
                 }
             }
-            hrow[ix] = best;
+            *out = best;
         }
     });
     // The fibre halo: the yarn's blurred shoulder, and a fine fuzz over it.

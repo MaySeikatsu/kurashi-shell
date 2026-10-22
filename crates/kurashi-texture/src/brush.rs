@@ -214,8 +214,9 @@ fn tracks(x: f32, u: f32, run: f32, aa: f32, seed: u64) -> f32 {
 }
 
 impl Frame {
-    /// The paint of this pass's strokes at logical `(x, y)` (tile coordinates `u`, `v`), into `dabs`.
-    fn dabs(&self, x: f32, y: f32, u: f32, v: f32, texel: f32, pass: u32, dabs: &mut Vec<Dab>) {
+    /// The paint of this pass's strokes at logical `p` (tile coordinates `uv`), into `dabs`.
+    fn dabs(&self, p: [f32; 2], uv: [f32; 2], texel: f32, pass: u32, dabs: &mut Vec<Dab>) {
+        let ([x, y], [u, v]) = (p, uv);
         let l = self.unit * self.m.sqrt();
         // The bent across coordinate: whole units per tile in x and y, plus a periodic field.
         let bend = self.bend
@@ -364,7 +365,7 @@ pub fn brush(f: &mut Field, seed: u64, tint: bool) {
             let mut ink = 0.5;
             dabs.clear();
             for (i, fr) in frames.iter().enumerate() {
-                fr.dabs(x, y, u, v, texel, i as u32, &mut dabs);
+                fr.dabs([x, y], [u, v], texel, i as u32, &mut dabs);
             }
             dabs.sort_by(|a, b| {
                 a.order

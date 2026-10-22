@@ -247,24 +247,22 @@ fn fnv1a(bytes: &[u8]) -> u64 {
     })
 }
 
-/// The ruled papers, the halftone, the leather and the stone were not changed by W31: their tiles keep the bytes the
-/// generator made before it (checked against that commit). A change to the shared noise or the notebook sheet shows here.
+/// The ruled papers, the halftone, the leather and the stone keep their bytes (re-pinned in W32: the five-point slope of
+/// I170 changed every tile, and the ruled stock's lower fibres of I169 the notebook kinds). A change to the shared noise,
+/// the notebook sheet or the normals shows here.
 #[test]
 fn the_notebook_print_and_pebble_kinds_keep_their_bytes() {
     let golden = [
-        (Kind::PaperDots, 0x07fb_17ae_dd5a_7958u64),
-        (Kind::PaperLines, 0xc953_e343_ab7c_11cf),
-        (Kind::PaperGrid, 0x80e9_1410_a94c_4d90),
-        (Kind::Halftone, 0x4afa_1e18_b1ac_6b08),
-        (Kind::Leather, 0x5b17_95c3_476a_2b98),
-        (Kind::Stone, 0xa2e3_6515_052c_e072),
+        (Kind::PaperDots, 0x7ec6_0093_8646_e493u64),
+        (Kind::PaperLines, 0x46ef_d7d7_c4ec_30a0),
+        (Kind::PaperGrid, 0x16a1_25a8_5d2f_d255),
+        (Kind::Halftone, 0xf970_2766_3d1b_969a),
+        (Kind::Leather, 0x465a_6b4d_95f7_d90f),
+        (Kind::Stone, 0xce2c_1593_8f63_480a),
     ];
     for (kind, want) in golden {
         let got = fnv1a(&generate(&params(kind, true, 0.0)).rgba);
-        assert_eq!(
-            got, want,
-            "{kind:?} no longer generates the bytes it had before W31"
-        );
+        assert_eq!(got, want, "{kind:?} no longer generates its pinned bytes");
     }
 }
 
@@ -329,13 +327,17 @@ fn paint_covers_the_tile_edge_to_edge_and_wraps_tightly() {
     }
 }
 
+/// The paint and the brush keep their bytes (pinned in W32), so a change to either generator is a conscious one.
 #[test]
-fn paint_keeps_its_bytes() {
-    let plain = fnv1a(&generate(&params(Kind::Paint, true, 0.0)).rgba);
-    let creased = fnv1a(&generate(&params(Kind::Paint, true, 0.6)).rgba);
-    assert_eq!(plain, 0xb7fd_c114_a8e2_1f31, "paint (wrinkles 0) changed");
-    assert_eq!(
-        creased, 0x70d0_1f26_8022_b827,
-        "paint (wrinkles 0.6) changed"
-    );
+fn paint_and_brush_keep_their_bytes() {
+    let pinned = [
+        (Kind::Paint, 0.0, 0xcc93_cb44_bff8_160fu64),
+        (Kind::Paint, 0.6, 0xe0cf_9590_fc8d_d787),
+        (Kind::Brush, 0.0, 0x0e92_18e6_19e2_2d14),
+        (Kind::Brush, 0.6, 0x88d1_4e6e_b267_d778),
+    ];
+    for (kind, wrinkles, want) in pinned {
+        let got = fnv1a(&generate(&params(kind, true, wrinkles)).rgba);
+        assert_eq!(got, want, "{kind:?} (wrinkles {wrinkles}) changed");
+    }
 }

@@ -18,13 +18,13 @@ pub fn brushed(f: &mut Field, seed: u64) {
     rows(n, f.threads, &mut f.h, |iy, h| {
         // Evaluated at the row's own lattice point, so each pixel row takes its own level: that is what makes a brushing.
         let v = iy as f32 / n as f32;
-        for ix in 0..n {
+        for (ix, out) in h.iter_mut().enumerate() {
             let u = (ix as f32 + 0.5) / n as f32;
             let row = value_xy(0.0, v, 1, lines, seed) - 0.5;
             let seg = value_xy(u, v, 20, lines, seed ^ 0x51) - 0.5;
             // The brushing is stronger in some broad patches than in others, as a hand-brushed sheet is.
             let patch = 0.6 + 0.8 * value_xy(u, (iy as f32 + 0.5) / n as f32, 3, 2, seed ^ 0x52);
-            h[ix] = patch * (0.7 * row + 0.7 * seg);
+            *out = patch * (0.7 * row + 0.7 * seg);
         }
     });
     let mut rng = Rng::new(seed ^ 0x5C4A);

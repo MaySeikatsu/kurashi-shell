@@ -292,8 +292,6 @@ fn text(img: &mut RgbaImage, x: u32, y: u32, s: &str, scale: u32, c: [f32; 3]) {
 }
 
 /// The contact sheet: a row per kind; the washi-light ground on the left, sumi-dark on the right; eight windows each
-
-/// The contact sheet: a row per kind; the washi-light ground on the left, sumi-dark on the right; eight windows each
 /// (ink × 4 lights, then plain × 4 lights), headed by the ground, the ink mode and the light's compass angle.
 fn sheet(tiles: &[(Kind, Tile, Tile)]) -> RgbaImage {
     let block = 8 * (CELL + GAP);
