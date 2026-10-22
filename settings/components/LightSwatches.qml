@@ -2,22 +2,19 @@ import QtQuick
 import "../core"
 
 // Under Light colour (K61): the light's colours as swatches, like the inks (InkSwatches) — natural, white, warm, cool and
-// your own — each a pick; the picked one shows the colour in effect (the daemon's `light.color`). Natural is the mode's
-// own light (white, the sun's, the wallpaper's): it shows the colour in effect while it is picked, else a plain light with
-// an "A" for automatic. Your own shows `theme.light.color_custom`; its colour field is the row under this one. Keyboard
-// as a radio group (arrows move, Return/Space pick); the selection is a ring and a check, never colour alone.
+// your own — each a pick, each in the colour the daemon resolves it to (`theme.appearance.light_colors`, row 340): natural
+// is the mode's own light now (white, the sun's, the wallpaper's), marked "A" for automatic; your own is
+// `theme.light.color_custom`, whose colour field is the row under this one. Keyboard as a radio group (arrows move,
+// Return/Space pick); the selection is a ring and a check, never colour alone.
 Column {
     id: ls
     readonly property string current: Store.valueOf("theme.light.color") || "natural"
-    readonly property color inEffect: Theme.tokens["light.color"] || "#ffffff"
     readonly property var names: ["natural", "white", "warm", "cool", "custom"]
-    // The daemon's fixed colours (crates/kurashid/src/texture.rs, K61) until it publishes them (CONTRACT-CHANGE): display
-    // only — the light in effect always comes from the daemon's `light.color`.
-    readonly property var fixedColors: ({ white: "#ffffff", warm: "#ffdba8", cool: "#c7deff" })
+    readonly property var colors: (Store.theme && Store.theme.appearance && Store.theme.appearance.light_colors) || ({})
+    // A daemon without the colours (none yet): the light in effect for the picked one, a plain light for the others.
     function colorOf(n) {
-        if (n === ls.current) return ls.inEffect
-        if (n === "custom") return Store.valueOf("theme.light.color_custom") || "#ffd9a0"
-        return ls.fixedColors[n] || "#ffffff"
+        if (ls.colors[n] !== undefined) return ls.colors[n]
+        return n === ls.current ? (Theme.tokens["light.color"] || "#ffffff") : "#ffffff"
     }
     function pick(n) { if (n !== ls.current && Store.live) Store.apply([{ set: "theme.light.color", value: n }]) }
     readonly property bool usable: {
