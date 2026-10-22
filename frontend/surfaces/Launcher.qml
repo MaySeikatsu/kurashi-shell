@@ -28,6 +28,12 @@ PanelWindow {
         return c === ":" ? "emoji" : (c === ";" ? "clip" : (c === "?" ? "keys" : "apps"))
     }
     readonly property int slide: 12
+    // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the card's carry while it
+    // slides in (`texture.sheet = carried`; its scale is not carried).
+    property var tileSheet: tilesLoader.item
+    readonly property point sheetCarry: Qt.point(0, card.y - shade)
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    LightSense {}
     readonly property int rowH: 48
     readonly property int maxRows: 7
     readonly property int cols: 8          // emoji grid

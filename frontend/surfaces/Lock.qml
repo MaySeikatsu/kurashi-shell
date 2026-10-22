@@ -37,6 +37,10 @@ Item {
         locked: root.locked
         WlSessionLockSurface {
             color: Theme.surface
+            // K59: this surface's tile set, shared by its reliefs, and the pointer light's sensor.
+            property var tileSheet: tilesLoader.item
+            Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+            LightSense {}
             LockContent {
                 anchors.fill: parent
                 lock: root.st

@@ -194,6 +194,10 @@ Shape {
     onOpenRChanged: IslandGeom.setOpening(openL, openR)
     Component.onDestruction: IslandGeom.setOpening(0, 0)
 
+    // The fill's own path (inside the outline and the ring): the Stage clips the island's relief to it (I168), so the
+    // material covers head, neck fillets and body and nothing else.
+    readonly property string fillPath: visible ? path(ow + gw, 0) : ""
+
     preferredRendererType: Shape.CurveRenderer
     ShapePath {
         strokeWidth: -1
@@ -226,6 +230,6 @@ Shape {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: sh.fill
-        PathSvg { path: sh.visible ? sh.path(sh.ow + sh.gw, 0) : "" }
+        PathSvg { path: sh.fillPath }
     }
 }

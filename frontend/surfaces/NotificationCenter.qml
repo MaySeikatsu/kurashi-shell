@@ -15,6 +15,12 @@ PanelWindow {
     readonly property var items: doc.items || []
     readonly property int maxH: 520
     readonly property int slide: 12
+    // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the card's carry while it
+    // slides in (`texture.sheet = carried`).
+    property var tileSheet: tilesLoader.item
+    readonly property point sheetCarry: Qt.point(0, card.y - (padT + lead))
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    LightSense {}
     property real p: 0
     property bool gate: false
     property bool shown: false
@@ -99,6 +105,14 @@ PanelWindow {
         border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         SoftShadow { anchors.fill: parent; radius: card.radius }
+        // K59: the card is a material area; the relief lies under the content (over it with texture.text).
+        Loader {
+            z: Theme.texText ? 2 : 0
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
+        }
         Rectangle {
             z: -1
             visible: Theme.shadowDy > 0

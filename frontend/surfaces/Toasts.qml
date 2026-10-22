@@ -47,6 +47,12 @@ Scope {
         property bool shown: false
         visible: shown     // unmapped at idle: mapped-surface budget (docs/BENCH.md)
         readonly property int slide: 16
+        // K59: this window's tile set, shared by its cards' reliefs, and the pointer light's sensor. K61: the stack's carry
+        // while it slides in (`texture.sheet = carried`); a swiped card adds its own (NotificationCard).
+        property var tileSheet: tilesLoader.item
+        readonly property point sheetCarry: Qt.point(stack.x - padL, 0)
+        Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+        LightSense {}
 
         // Clears this output's bar: below a top bar, above a bottom one, left of a right one.
         BarConfig { id: bars; screen: win.screen }

@@ -9,6 +9,13 @@ import Quickshell
 // is over a shell surface, gliding to 0 (the static light, `light.dir`) over `motion.long` when it leaves them all, or
 // snapping when motion is off. Nothing here repaints by itself: a Relief reads it and repaints on each move.
 //
+// The spotlight (K61) uses the same lamp as its aim: the beam lands on the pointer while it is over a shell surface of
+// that output and glides back to the output's middle with `k` (Relief: aim = middle + (pointer − middle) × k).
+//
+// `pictures` (I167): the pictures the light never falls on — album covers, avatars, notification images, wallpaper
+// thumbnails, web pages. A picture registers itself with its window (`addPicture(item, Window.window)`); every Relief in
+// that window cuts it out (up to four), even when it lies over the content (`texture.text`, `texture.controls`).
+//
 // `originOf(win)` is the sheet's registration (the frontend's half of "the sheet is continuous in output coordinates"):
 // where a layer window sits on its output, in logical px, from its anchors, margins and size. The Relief shader adds
 // the fragment's own window pixel to it, so every window of an output shows the same part of the sheet.
@@ -19,6 +26,19 @@ Singleton {
     property real x: 0
     property real y: 0
     property real k: 0
+    // [{item, win}] (I167): see the header.
+    property var pictures: []
+
+    function addPicture(item, win) {
+        if (!item || !win) return
+        var l = pictures.filter(function (e) { return e.item !== item })
+        l.push({ item: item, win: win })
+        pictures = l
+    }
+    function removePicture(item) {
+        var l = pictures.filter(function (e) { return e.item !== item })
+        if (l.length !== pictures.length) pictures = l
+    }
 
     // The glide back to the static light: a single motion.long run, gated by the glide's own running (it stops itself).
     NumberAnimation {

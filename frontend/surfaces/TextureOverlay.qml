@@ -9,6 +9,8 @@ import "../components"
 // to whatever lies under it), exclusion ignored and no keyboard focus. The shell's own surfaces draw no relief meanwhile
 // (texture.shell is off in this scope), so nothing is shaded twice. Settings says what it costs: fullscreen windows lose
 // direct scanout, and the overlay shows in screenshots and screencasts.
+// K61: the overlay's Relief is the shell's: depth, relief shadows (its TileSheet loads the height map while they are on)
+// and the spotlight's beam (aimed by the pointer over the shell's own surfaces, Light; the overlay takes no input).
 PanelWindow {
     id: overlay
     required property var modelData
