@@ -268,7 +268,7 @@ def main():
         step = max(1, len(pts) // n)
         for x, y in pts[::step][:n]:
             print(x, y)
-    elif cmd == "check":                   # check NORMAL TOKENS SHOT NOTEX POINTS: the formula on the plain points
+    elif cmd == "check":                   # check NORMAL TOKENS SHOT NOTEX POINTS [WORST]: the formula on the plain points
         tile = read_png(sys.argv[2])
         p = params(sys.argv[3], ink_on=True)
         shot = read_png(sys.argv[4])
@@ -282,7 +282,8 @@ def main():
             worst = max(worst, max(abs(e[i] - got[i]) for i in range(3)))
             n += 1
         print("checked", n, "plain pixels, worst error", round(worst, 2), "of 255")
-        sys.exit(0 if n >= 10 and worst <= 3.0 else 1)
+        limit = float(sys.argv[7]) if len(sys.argv) > 7 else 3.0
+        sys.exit(0 if n >= 10 and worst <= limit else 1)
     elif cmd == "glyphs":                  # glyphs NOTEX X0 Y0 X1 Y1 N: full-coverage glyph pixels (the text colour)
         img = read_png(sys.argv[2])
         x0, y0, x1, y1, n = map(int, sys.argv[3:8])
@@ -648,7 +649,7 @@ cp "$OUT/k61-rest.png" "$W32/spotlight-rest.png"
 "${TEX[@]}" pick "$TMP/notex-dark-bar.png" 14 4 1000 30 30 > "$TMP/dark-points.txt" || true
 "${TEX[@]}" pick "$TMP/notex-dark-bar.png" 1560 4 2200 30 30 >> "$TMP/dark-points.txt" || true
 "${TEX[@]}" check "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$OUT/k61-rest.png" "$TMP/notex-dark-bar.png" \
-  "$TMP/dark-points.txt" || fail "k61: the relief is not shade_at (depth, shadows, lit, spotlight, light colour)"
+  "$TMP/dark-points.txt" 1.5 || fail "k61: the relief is not shade_at (depth, shadows, lit, spotlight, light colour)"
 "${TEX[@]}" meanerr "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$TMP/notex-dark-bar.png" "$OUT/k61-rest.png" 0 0 1000 33 \
   || fail "k61: the bar's relief does not match shade_at"
 say "the spotlight: the beam follows the pointer and glides back to the middle"
