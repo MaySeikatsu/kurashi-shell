@@ -729,15 +729,13 @@ mod tests {
         );
     }
 
-    /// The desktop settings: a fake schema of the three keys in a temp dir, the keyfile backend in a temp
-    /// `XDG_CONFIG_HOME`. Only the values that differ are set; the same values again run nothing.
-    #[test]
-    fn gsettings_sets_only_what_changed_in_the_temp_keyfile() {
+    /// A fake schema of the three keys in `dir`, compiled, and the environment that makes `gsettings` read it with the
+    /// keyfile backend in `dir/config`: nothing reaches the user's dconf. `None` (the test skips) without the tools.
+    fn fake_gsettings(dir: &Path) -> Option<(PathBuf, Vec<(String, String)>)> {
         if !tool_ok("gsettings", "--version") || !tool_ok("glib-compile-schemas", "--version") {
-            return;
+            return None;
         }
-        let dir = tempfile::tempdir().unwrap();
-        let schemas = dir.path().join("schemas");
+        let schemas = dir.join("schemas");
         std::fs::create_dir_all(&schemas).unwrap();
         std::fs::write(
             schemas.join("org.gnome.desktop.interface.gschema.xml"),
@@ -752,7 +750,7 @@ mod tests {
             .status()
             .unwrap();
         assert!(compiled.success());
-        let config = dir.path().join("config");
+        let config = dir.join("config");
         std::fs::create_dir_all(&config).unwrap();
         let env = vec![
             ("GSETTINGS_BACKEND".to_owned(), "keyfile".to_owned()),
@@ -765,6 +763,16 @@ mod tests {
                 schemas.to_string_lossy().into_owned(),
             ),
         ];
+        Some((config, env))
+    }
+
+    /// Only the values that differ are set; the same values again run nothing.
+    #[test]
+    fn gsettings_sets_only_what_changed_in_the_temp_keyfile() {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((config, env)) = fake_gsettings(dir.path()) else {
+            return;
+        };
         let by_hand_env = env.clone();
         let desktop = Desktop::new("gsettings", env);
         let home = dir.path().join("home");
@@ -841,6 +849,56 @@ mod tests {
         assert_eq!(
             entry(&doc, "gsettings")["set"],
             json!(["color-scheme"]),
+            "{doc}"
+        );
+    }
+
+    /// A value whose placeholder the theme does not fill is left out and reported, never written with the braces in it.
+    #[test]
+    fn gsettings_leaves_out_a_value_the_theme_does_not_name() {
+        let dir = tempfile::tempdir().unwrap();
+        let Some((config, env)) = fake_gsettings(dir.path()) else {
+            return;
+        };
+        let desktop = Desktop::new("gsettings", env);
+        let mut t = theme("dark", 18, "calm");
+        t["tokens"].as_object_mut().unwrap().remove("font.family");
+        let doc = export_into(
+            &dir.path().join("home"),
+            &t,
+            &["gsettings"],
+            "Papirus",
+            &desktop,
+        );
+        let g = entry(&doc, "gsettings");
+        assert_eq!(g["set"], json!(["color-scheme", "icon-theme"]), "{doc}");
+        assert_eq!(g["unknown"], json!(["fonts.family"]), "{doc}");
+        let keyfile =
+            std::fs::read_to_string(config.join("glib-2.0/settings/keyfile")).unwrap_or_default();
+        assert!(!keyfile.contains("font-name"), "{keyfile}");
+    }
+
+    /// Qt 5 weights run 0-99 (Normal = 50): the qt5ct font line says 50, not Qt 6's 400.
+    #[test]
+    fn qt5_font_line_uses_the_qt5_weight_scale() {
+        let dir = tempfile::tempdir().unwrap();
+        let desktop = Desktop::new("/nonexistent/gsettings", vec![]);
+        let doc = export_into(
+            dir.path(),
+            &theme("dark", 18, "calm"),
+            &["qt5"],
+            "",
+            &desktop,
+        );
+        let font = entry(&doc, "qt5")["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l["line"].as_str().unwrap_or_default().to_owned())
+            .find(|l| l.starts_with("general="));
+        assert_eq!(
+            font.as_deref(),
+            Some("general=\"Inter,10,-1,5,50,0,0,0,0,0,0,0,0,0,0,1\""),
             "{doc}"
         );
     }
