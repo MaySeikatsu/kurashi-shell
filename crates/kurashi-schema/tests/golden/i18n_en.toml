@@ -232,6 +232,8 @@
 "config.theme.pen.text_wobble.help" = "Letters and icons wander a little off the straight line, as if written by hand."
 "config.theme.export.label" = "Apps that follow"
 "config.theme.export.help" = "Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the file; Settings shows it."
+"config.theme.icon_theme.label" = "Icons for apps"
+"config.theme.icon_theme.help" = "The icon theme the apps that follow use (GTK, Qt, KDE), written with their colours. \"Leave as is\" keeps each app's own choice (I183)."
 "config.a11y.reduce_motion.label" = "Reduce motion"
 "config.a11y.reduce_motion.help" = "Turns animations off (forces the motion profile to none)."
 "config.a11y.reduce_transparency.label" = "Reduce transparency"

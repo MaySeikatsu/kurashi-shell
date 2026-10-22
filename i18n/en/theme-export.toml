@@ -11,3 +11,4 @@
 "theme.export.unknown_target" = "Unknown app"
 "theme.export.no_template" = "No template for this app"
 "theme.export.write_failed" = "Could not write the file"
+"config.choice.icon_theme.keep" = "Leave as is"

@@ -38,8 +38,9 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 7] = [
+pub const CORE_SOURCES: [&str; 8] = [
     "palettes",
+    "icon_themes",
     "island.faces",
     "theme.export",
     "styles",
@@ -216,6 +217,50 @@ impl Offer {
 /// faces a mod provides, with the mod's name as their label (I37); a core face has its catalogue key.
 /// `mod_panels` are the loaded mods' panels as `mod:<id>:<panel>` offers (W29): the left sidebar's tabs, and the right
 /// sidebar's sections after the core ones.
+/// I183: the names of the icon themes installed for this user: `icons/<name>/index.theme` under `$XDG_DATA_HOME`,
+/// `~/.icons` and `$XDG_DATA_DIRS`, sorted, without the cursor-only and fallback themes.
+fn icon_themes() -> Vec<String> {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let mut dirs = vec![
+        crate::xdg_dir("data")
+            .parent()
+            .map(|d| d.join("icons"))
+            .unwrap_or_default(),
+        home.join(".icons"),
+    ];
+    let data_dirs =
+        std::env::var("XDG_DATA_DIRS").unwrap_or_else(|_| "/usr/local/share:/usr/share".into());
+    dirs.extend(
+        data_dirs
+            .split(':')
+            .filter(|d| !d.is_empty())
+            .map(|d| PathBuf::from(d).join("icons")),
+    );
+    let mut names = std::collections::BTreeSet::new();
+    for dir in dirs {
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for e in rd.flatten() {
+            let index = e.path().join("index.theme");
+            let Ok(text) = std::fs::read_to_string(&index) else {
+                continue;
+            };
+            // A theme with directories of icons, not a cursor theme (no `Directories=`) or the hicolor fallback.
+            let name = e.file_name().to_string_lossy().into_owned();
+            if name != "hicolor"
+                && name != "default"
+                && text.lines().any(|l| l.starts_with("Directories="))
+            {
+                names.insert(name);
+            }
+        }
+    }
+    names.into_iter().collect()
+}
+
 fn offers_now(
     hub: &Hub,
     mod_faces: &BTreeMap<String, String>,
@@ -265,6 +310,16 @@ fn offers_now(
                 .collect(),
         );
     }
+    // I183: the icon themes installed (an `index.theme` under an `icons/` data dir), after "leave as is".
+    offers.insert(
+        "icon_themes".to_string(),
+        std::iter::once(Offer::on("", "config.choice.icon_theme.keep".into()))
+            .chain(icon_themes().into_iter().map(|n| {
+                let label = n.clone();
+                Offer::on(&n, label)
+            }))
+            .collect(),
+    );
     // K49: the apps the theme can be exported to.
     offers.insert(
         "theme.export".to_string(),
