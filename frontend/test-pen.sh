@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The pen (K62, docs/ux/texture.md "The pen"), headless, against the real kurashid:
 #   - the committed pen_text.frag.qsb is the build of its source;
-#   - pen off is pixel-identical to main's frontend (bar and quick card, washi and sekai): `git archive main frontend`;
+#   - pen off draws what main's frontend draws (bar and quick card, washi and sekai; `git archive <base> frontend`),
+#     pixel for pixel up to the ±1 level of glyph rasterisation that two runs of the same frontend differ by;
 #   - shots of each line style and each outline modifier alone at 0.6 on the quick card and the bar (line chrome, light
 #     and dark; flat chrome, which has no outline for the pen to draw), the text modifiers on the card, kami with its
 #     own pen (light and dark);
@@ -11,7 +12,8 @@
 # Shots: frontend/shots/pen/ (evidence to look at: they must look like a fountain pen, a dotted line, a hand).
 #   KURASHI_BIN_DIR=<dir with kurashid, kurashi> timeout 1200 nix develop -c frontend/test-pen.sh [sandbox-name]
 #   Machine B: export KURASHI_RENDER_NODE=/dev/dri/renderD129 first. PEN_BASE=<git ref> picks the pen-off
-#   reference (default: where this branch left main).
+#   reference (default: where this branch left main). PEN_ONLY=identity stops after that check; PEN_KEEP=<dir> keeps
+#   its PPMs; PEN_NEW=<frontend dir> compares another frontend (PEN_NEW=<base export> is the noise control).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-w32-pen}
@@ -44,8 +46,9 @@ stop_qs() { [ -n "$QS" ] && { kill "$QS" 2>/dev/null || true; wait "$QS" 2>/dev/
 cleanup() {
   stop_qs
   [ -n "$DMN" ] && { kill "$DMN" 2>/dev/null || true; wait "$DMN" 2>/dev/null || true; }
-  "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
   rm -rf "$TMP"
+  # Last: once the sandbox is gone, a command started from this shell can no longer join its network namespace.
+  "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
 
@@ -89,6 +92,52 @@ shoot() { # shoot <name>: the bar (left half, 2×) and the quick card (2×)
 quiet_minute() { while [ "$(date +%-S)" -gt 35 ]; do sleep 1; done; }
 
 # ---- pen off = main, pixel for pixel ----
+# ppmdiff <a> <b> <label>: exit 0 when no channel of any pixel differs by more than 1. Two runs of the SAME frontend
+# differ by exactly that (measured: main against itself, 40–100 text pixels off by one level, the GPU's glyph
+# rasterisation), so ±1 is noise; a changed outline or fill differs by far more. Prints what differs.
+cat > "$TMP/ppmdiff.py" <<'PY'
+import sys
+
+
+def read(path):
+    data = open(path, "rb").read()
+    fields, i = [], 0
+    while len(fields) < 4:
+        while data[i:i + 1].isspace():
+            i += 1
+        j = i
+        while not data[j:j + 1].isspace():
+            j += 1
+        fields.append(data[i:j])
+        i = j
+    return int(fields[1]), int(fields[2]), data[i + 1:]
+
+
+wa, ha, a = read(sys.argv[1])
+wb, hb, b = read(sys.argv[2])
+if (wa, ha) != (wb, hb):
+    print(f"test-pen: {sys.argv[3]}: sizes differ {wa}x{ha} vs {wb}x{hb}")
+    sys.exit(1)
+noise, n, x0, y0, x1, y1 = 0, 0, wa, ha, -1, -1
+row = wa * 3
+for y in range(ha):
+    ra, rb = a[y * row:(y + 1) * row], b[y * row:(y + 1) * row]
+    if ra == rb:
+        continue
+    for x in range(wa):
+        pa, pb = ra[x * 3:x * 3 + 3], rb[x * 3:x * 3 + 3]
+        if pa == pb:
+            continue
+        if max(abs(pa[k] - pb[k]) for k in range(3)) <= 1:
+            noise += 1
+            continue
+        n += 1
+        x0, y0, x1, y1 = min(x0, x), min(y0, y), max(x1, x), max(y1, y)
+if n:
+    print(f"test-pen: {sys.argv[3]}: {n} pixels differ in x {x0}..{x1}, y {y0}..{y1} ({noise} more by one level)")
+    sys.exit(1)
+print(f"test-pen: {sys.argv[3]}: identical ({noise} pixels one level off: rendering noise)")
+PY
 for style in washi sekai; do
   K set theme.style="$style" >/dev/null
   set_pen
@@ -98,16 +147,21 @@ for style in washi sekai; do
     grim -t ppm "$TMP/base-bar.ppm"
     K act quick.toggle >/dev/null; sleep 1.5; grim -t ppm "$TMP/base-quick.ppm"; K act quick.toggle >/dev/null; sleep 0.9
     stop_qs
-    start_qs "$ROOT/frontend"
+    start_qs "${PEN_NEW:-$ROOT/frontend}"
     grim -t ppm "$TMP/new-bar.ppm"
     K act quick.toggle >/dev/null; sleep 1.5; grim -t ppm "$TMP/new-quick.ppm"; K act quick.toggle >/dev/null; sleep 0.9
     stop_qs
-    if cmp -s "$TMP/base-bar.ppm" "$TMP/new-bar.ppm" && cmp -s "$TMP/base-quick.ppm" "$TMP/new-quick.ppm"; then
-      say "pen off, $style: pixel-identical to $BASE (bar, quick card)"; break
-    fi
+    same=1
+    for part in bar quick; do
+      python3 -I "$TMP/ppmdiff.py" "$TMP/base-$part.ppm" "$TMP/new-$part.ppm" "pen off, $style, $part" || same=0
+    done
+    [ -n "${PEN_KEEP:-}" ] && cp "$TMP"/base-*.ppm "$TMP"/new-*.ppm "$PEN_KEEP/"
+    [ "$same" = 1 ] && break
     [ "$attempt" = 2 ] && fail "pen off, $style: the screen differs from $BASE's frontend"
   done
 done
+
+[ "${PEN_ONLY:-}" = identity ] && { [ "$FAILS" = 0 ] && exit 0 || exit 1; }
 
 # ---- the shots ----
 start_qs "$ROOT/frontend"
