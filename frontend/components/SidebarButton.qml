@@ -11,6 +11,12 @@ Item {
     property string side: "right"
     property bool open: false
     signal clicked()
+    // K61 (docs/ux/texture.md "Controls"): the relief over the square and the glyph while the square is filled, in a window
+    // that shares its sheet; a transparent square gets none (see QuickButton).
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool sheeted: !!(qsw && qsw.tileSheet)
+    readonly property bool filled: sb.open || ma.pressed || hover.hovered
+    readonly property bool ownRelief: Theme.texControls && sheeted && filled
 
     width: Theme.barH
     height: Theme.barH
@@ -51,6 +57,14 @@ Item {
         name: sb.side === "left" ? "left_panel_open" : "right_panel_open"
         glyph: sb.side === "left" ? "◧" : "◨"
         color: sb.open ? Theme.fgOnAccent : Theme.fg
+    }
+    // The relief over the square and the glyph, under the focus ring.
+    Loader {
+        active: sb.ownRelief
+        anchors.centerIn: parent
+        width: parent.width - 6
+        height: parent.height - 6
+        sourceComponent: Relief { anchors.fill: parent; radius: Theme.rSm }
     }
     MouseArea {
         id: ma
