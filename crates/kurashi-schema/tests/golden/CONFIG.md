@@ -585,41 +585,49 @@ How long a transient face (volume, brightness, notification) stays before fallin
 #### `island.main.input.left` — Left click
 
 - type: `action` · default: `"island.expand"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.right` — Right click
 
 - type: `action` · default: `"island.pin"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.middle` — Middle click
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.hover` — Hover
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.scroll_up` — Scroll up
 
 - type: `action` · default: `"island.prev"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.scroll_down` — Scroll down
 
 - type: `action` · default: `"island.next"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.shift_scroll_up` — Shift + scroll up
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.shift_scroll_down` — Shift + scroll down
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 ### Clock
