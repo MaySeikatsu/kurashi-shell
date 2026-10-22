@@ -168,6 +168,8 @@ PanelWindow {
             onRequested: (action, x, y) => bar.trayRequest(action, modelData.id, ticon, x, y)
             onScrolled: (delta, orientation) =>
                 Store.act("tray.scroll", {id: modelData.id, delta: delta, orientation: orientation})
+            // W34: the item's menu grows out of it (IslandGeom's origins; top and bottom bars).
+            AnchorReport { target: ticon; key: "tray:" + ticon.modelData.id; output: bar.outName; enabled: !bar.vertical }
         }
     }
 
@@ -555,6 +557,8 @@ PanelWindow {
                         required property var modelData
                         anchors.verticalCenter: parent.verticalCenter
                         url: modelData.url
+                        // W34: the mod's panel grows out of its widget (IslandGeom's origins).
+                        AnchorReport { target: modW; key: "mod:" + modW.modelData.mod + ":" + String(modW.modelData.provide).substring(7); output: bar.outName }
                         // The hover or keyboard-focus peek (K35): the widget's `peek:<name>`, drawn by the Stage.
                         HoverHandler { id: modHover }
                         PeekSource {
