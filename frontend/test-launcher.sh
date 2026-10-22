@@ -26,8 +26,8 @@ OUT=$ROOT/frontend/shots/launcher/w26
 DECORS=${DECORS:-sekai none}
 # Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
 [ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
-# The launcher card, centred on the 2560 x 1440 output.
-CARD_GEOM=${CARD_GEOM:-"930,300 700x840"}
+# The launcher card, hanging from the top bar under the island (W34) on the 2560 x 1440 output.
+CARD_GEOM=${CARD_GEOM:-"930,0 700x720"}
 PHASES=${LAUNCHER_PHASES:-modes morph}
 MOUT=$ROOT/frontend/shots/morph
 AT=${MORPH_AT:-40 120 250}
