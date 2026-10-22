@@ -268,7 +268,12 @@ PanelWindow {
             if (stage.peekGate) {
                 stage.peekGate = false
                 // W34: a peek on a top or bottom bar grows out of its widget first; its lines fade in once it has.
-                if (stage.peekMorph) { stage.peekOut = true; stage.peekFadeIn() }
+                // Its start is read now: the latched place may have followed the request after the peek was asked for.
+                if (stage.peekMorph) {
+                    if (!stage.peekOut && Math.abs(peekSprings.h - stage.peekE) < 1) peekSprings.place(stage.peekOriginCx, stage.peekOriginW, stage.peekE)
+                    stage.peekOut = true
+                    stage.peekFadeIn()
+                }
                 else { peekAnim.from = stage.peekP; peekAnim.to = 1; peekAnim.start() }
             }
         }
