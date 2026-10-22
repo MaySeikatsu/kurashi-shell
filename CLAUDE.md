@@ -76,6 +76,17 @@ Every delegated task gets a card: goal · owned paths (edit only these) · froze
 against · one executable acceptance test · token thrift (read only listed files, terse report) ·
 out-of-scope needs → `docs/CONTRACT-CHANGE.md`. Work happens in an isolated git worktree.
 
+**Model choice.** Haiku 5.5 at max effort for quick research, concept brainstorming (several parallel
+Haiku agents each draft a concept for the lead to compare), and implementation whose scope is clear: it is
+cheaper and fast enough. Opus for complex or cross-cutting work where judgement decides quality. The Opus lead
+reviews every draft and improves on it before it counts.
+
+**Review and pushback.** Accept a subagent draft only when it meets the quality bar. If it does not, hand it back
+with the specifics: what is below the bar, and what the extra mile still needs before the feature is complete
+(UX brief definition of done, states, keyboard and a11y, other shells' approaches, fit with the rest of the shell).
+Build each card in its own target dir (`CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target/<card>`, B23) and
+delete it after the merge; `docs/tasks/README.md` has the card rules.
+
 ## Testing without disturbing the user's session
 Never start the shell on the user's display unless asked. Use `just sandbox` (headless sway,
 own `XDG_RUNTIME_DIR` under `/tmp/kurashi-sb-*`, own `HOME`), screenshots via `grim`, and kill
