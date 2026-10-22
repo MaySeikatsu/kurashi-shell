@@ -7,7 +7,7 @@
 # Overlay layer, all four anchors, exclusive keyboard, no exclusive zone) on the focused output, centred on it at 1040 × 740
 # (the app's own geometry and the screenshot: the desktop around it dimmed by the scrim); 0 frames while open and still;
 # a deep link through the daemon (`kurashi settings <key>`) jumps the open sheet; a live switch to the window and back
-# keeps the page; Esc on an open dropdown closes the dropdown only, Esc on a slider's preview puts it back only, the next
+# keeps the page; Ctrl+F reaches the search before and after a re-host; Esc on an open dropdown closes the dropdown only, Esc on a slider's preview puts it back only, the next
 # Esc closes the sheet (the process ends); a click on the backdrop closes it; the close button closes it.
 # Shots: the sheet over the desktop with the bar under the styles kami (line chrome; light and dark), sekai (keycap) and
 # aqua (soft), and the wave 32 rows (K61, K62) in the sheet: the spotlight on the Light dial, the light colours, the brush
@@ -189,6 +189,24 @@ rm -f "$R/keys.fifo"; mkfifo "$R/keys.fifo"
 python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & pids+=("$!")
 exec 3> "$R/keys.fifo"
 kp() { for k in "$@"; do echo "$k" >&3; sleep 0.3; done; }
+# Ctrl+F reaches the search in the sheet, and still after a re-host to the window and back (the shortcut moves with the
+# content). The focus goes back to the list afterwards: Esc in an empty search would close the sheet.
+ctrl_f() {
+  Q focusList >/dev/null
+  kp ctrl+f
+  for _ in $(seq 15); do [ "$(Q focused)" = "Search settings" ] && break; sleep 0.2; done
+  [ "$(Q focused)" = "Search settings" ] || fail "Ctrl+F did not focus the search ($1; focus on $(Q focused))"
+  Q focusList >/dev/null
+}
+ctrl_f "sheet"
+K set settings.window '"window"' | grep -q '^applied' || fail "settings.window window refused"
+for _ in $(seq 50); do [ "$(Q host)" = window ] && break; sleep 0.2; done
+ctrl_f "window after a re-host"
+K set settings.window '"sheet"' | grep -q '^applied' || fail "settings.window sheet refused"
+for _ in $(seq 50); do [[ "$(Q host)" == sheet* ]] && break; sleep 0.2; done
+sleep 0.5
+ctrl_f "sheet after a re-host"
+echo "Ctrl+F: the search took the focus in the sheet, in the window after a re-host, and in the sheet again"
 Q goto appearance
 Q openChoice theme.pen.line
 sleep 0.5
