@@ -48,6 +48,8 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["face"] = json!("");
                     clear_peek(d);
                     clear_sidebar(d);
+                    // Row 362: the launcher and a Stage panel both grow out of the island pill: one at a time.
+                    d["launcher"] = json!(false);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -83,6 +85,8 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["face"] = json!(if open { "" } else { face.as_str() });
                     clear_peek(d);
                     clear_sidebar(d);
+                    // Row 362: the launcher and a Stage panel both grow out of the island pill: one at a time.
+                    d["launcher"] = json!(false);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
                 Ok(None)
@@ -126,6 +130,8 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["face"] = json!("");
                 clear_peek(d);
                 clear_sidebar(d);
+                // Row 362: the launcher and a Stage panel both grow out of the island pill: one at a time.
+                d["launcher"] = json!(false);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -159,6 +165,8 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["face"] = json!("");
                 clear_peek(d);
                 clear_sidebar(d);
+                // Row 362: the launcher and a Stage panel both grow out of the island pill: one at a time.
+                d["launcher"] = json!(false);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
@@ -171,9 +179,11 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             hub.update("runtime.ui", None, |d| {
                 let open = !d["launcher"].as_bool().unwrap_or(false);
                 d["launcher"] = json!(open);
-                // W29: the launcher and a sidebar are one at a time.
+                // W29: the launcher and a sidebar are one at a time; row 362: and a Stage panel (both grow out of the
+                // island pill).
                 if open {
                     clear_sidebar(d);
+                    close_panel(d);
                 }
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
@@ -319,6 +329,15 @@ fn ui_closed() -> Value {
 }
 
 /// Removes the peek from a `runtime.ui` value (K35); absence is "no peek".
+/// Row 362: no Stage panel (the island's card, quick, session, tray, a mod panel) and no peek.
+fn close_panel(d: &mut Value) {
+    d["panel"] = json!("");
+    d["popup"] = json!(false);
+    d["tray"] = json!("");
+    d["face"] = json!("");
+    clear_peek(d);
+}
+
 fn clear_peek(d: &mut Value) {
     if let Some(o) = d.as_object_mut() {
         o.remove("peek");
@@ -814,8 +833,9 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                         }
                     } else {
                         d["launcher_query"] = json!("?");
-                        // W29: the launcher and a sidebar are one at a time.
+                        // W29: the launcher and a sidebar are one at a time; row 362: and a Stage panel.
                         clear_sidebar(d);
+                        close_panel(d);
                     }
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
@@ -2794,6 +2814,18 @@ mod tests {
         assert_eq!(ui_doc()["launcher"], false);
         actions.invoke("island.expand", json!({})).await.unwrap();
         assert!(ui_doc().get("sidebar").is_none());
+        // Row 362: the launcher and a Stage panel both grow out of the island pill — one at a time.
+        actions.invoke("launcher.toggle", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["launcher"], true);
+        assert_eq!(
+            ui_doc()["panel"],
+            "",
+            "the launcher closed the island's card"
+        );
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["panel"], "quick");
+        assert_eq!(ui_doc()["launcher"], false, "a panel closed the launcher");
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
         actions.invoke("sidebar.open", right.clone()).await.unwrap();
         actions.invoke("sidebar.close", json!({})).await.unwrap();
         assert_eq!(ui_doc(), ui_closed());
