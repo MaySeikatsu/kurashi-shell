@@ -30,3 +30,6 @@ LightDial 1.0 LightDial.qml
 InkSwatches 1.0 InkSwatches.qml
 SheetHost 1.0 SheetHost.qml
 LightSwatches 1.0 LightSwatches.qml
+Relief 1.0 Relief.qml
+TileSheet 1.0 TileSheet.qml
+LightSense 1.0 LightSense.qml
