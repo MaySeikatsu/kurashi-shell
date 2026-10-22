@@ -6,7 +6,7 @@
 
 use std::f32::consts::{PI, TAU};
 
-use crate::generate::Field;
+use crate::generate::{Field, rows2};
 use crate::noise::{fbm_xy, hash, smoothstep, value_xy};
 use crate::raster::bowl;
 
@@ -29,9 +29,9 @@ fn wrap(d: f32, l: f32) -> f32 {
 }
 
 pub fn boards(f: &mut Field, seed: u64, tint: bool) {
-    let (n, l) = (f.n, f.logical);
-    for iy in 0..n {
-        let y = f.at(iy);
+    let (n, l, g) = (f.n, f.logical, f.grid());
+    rows2(n, f.threads, &mut f.h, &mut f.ink, |iy, h, ink| {
+        let y = g.at(iy);
         // The board of this row: the first whose span from its joint covers the row (the spans wrap across the tile).
         let p = BOARDS
             .iter()
@@ -48,8 +48,8 @@ pub fn boards(f: &mut Field, seed: u64, tint: bool) {
         let dent = 0.9 * bowl(seam / 1.4);
         let seam_ink = bowl(seam / 1.0);
         for ix in 0..n {
-            let x = f.at(ix);
-            let (u, v) = (f.uv(ix), f.uv(iy));
+            let x = g.at(ix);
+            let (u, v) = (g.uv(ix), g.uv(iy));
             // The arches: the ring coordinate falls by `lift` rings at the apex, where the sine vanishes, and the board's
             // rings are nested around it. A slow wobble keeps them from being perfect curves.
             let s = (PI * (x - apex * l) / l).sin();
@@ -82,12 +82,11 @@ pub fn boards(f: &mut Field, seed: u64, tint: bool) {
             let pore = smoothstep(0.70, 0.86, value_xy(u, v, 36, 320, seed ^ 0x9A)) * (1.0 - late);
             // Ray flecks: a few short pale-and-dark dashes across the grain.
             let ray = smoothstep(0.88, 0.93, value_xy(u, v, 20, 200, seed ^ 0x7A));
-            let k = iy * n + ix;
-            f.h[k] = 1.0 * late + 0.12 * streak - 0.4 * pore - dent + 0.6 * core;
+            h[ix] = 1.0 * late + 0.12 * streak - 0.4 * pore - dent + 0.6 * core;
             if tint {
-                f.ink[k] = (0.9 * late + 0.7 * core + 0.4 * ray + 0.5 * seam_ink + 0.35 * pore)
+                ink[ix] = (0.9 * late + 0.7 * core + 0.4 * ray + 0.5 * seam_ink + 0.35 * pore)
                     .clamp(0.0, 1.0);
             }
         }
-    }
+    });
 }

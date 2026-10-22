@@ -1,19 +1,26 @@
-//! The texture contact sheet and the UI mocks (W31), for review: `cargo run -p kurashi-texture --release --example sheet --
-//! <out-dir> [--detail <dir>]`.
+//! The texture contact sheets and the UI mocks (W31, W32), for review: `cargo run -p kurashi-texture --release --example
+//! sheet -- <out-dir> [--detail <dir>] [--lights <dir>] [--kinds a,b]`. Every pixel is `shade_at` (the whole K61 formula,
+//! relief shadows included) over its ground, the sheet at scale 1 and 1:1 (no resampling).
 //!
-//! `sheet.png`: every kind, each in a 120 px window of its tile at 1:1 (no resampling), lit from four directions (315°,
-//! 45°, 135°, 225°, 40° up), with ink and without, on the washi-light ground `#f3eee3` (left) and the sumi-dark ground
-//! `#1b1a1e` (right), at `amp` 0.09. `ui-<kind>.png`: a 640×360 mock in wa-iro light (a 36 px bar with three blocks and
-//! a card with two lines of text), the sheet continuous across bar and card, lit from 315°/40°.
+//! `sheet.png`: every kind in a 120 px window, lit from four directions (315°, 45°, 135°, 225°, 40° up), with ink and
+//! without, on the washi-light ground `#f3eee3` (left) and the sumi-dark ground `#1b1a1e` (right, `lit` 0.6), at `amp`
+//! 0.09, depth 1, shadows as the material has them (`auto`). `sheet-cracks.png`: every kind with stone cracks and with
+//! glass cracks at 0.5 (plain, light from 315° and 135° on washi, 315° on sumi). `sheet-shadows.png`: paper_dots, fabric,
+//! stone, leather, paint and brush at depth 1 and 2.5, shadows off and on, the light at 20° and 60° (from 315°), on washi.
+//! `ui-<kind>.png`: a 640×360 mock in wa-iro light (a 36 px bar with three blocks and a card with two lines of text), the
+//! sheet continuous across bar and card, lit from 315°/40°.
 //!
 //! Review options: `--detail <dir>` writes `detail-<kind>.png`, a 384×256 window at 1:1 with the ink on, `amp` 0.12, lit
-//! from 315°/40° on `#f3eee3`; `--lights <dir>` writes `lights-<kind>.png` (256 px windows, the whole light set) and
-//! `wrinkled-<kind>.png` (the same at wrinkles 0.6); `--kinds a,b` limits the `--detail` and `--lights` files.
+//! from 315°/40° on `#f3eee3`, and `detail-<kind>-<style>.png` with cracks 0.5; `--lights <dir>` writes
+//! `lights-<kind>.png` (256 px windows, the whole light set) and `wrinkled-<kind>.png` (the same at wrinkles 0.6);
+//! `--kinds a,b` limits the `--detail` and `--lights` files. Each kind's relief (px) is printed.
 
 use std::path::{Path, PathBuf};
 
 use image::{Rgba, RgbaImage};
-use kurashi_texture::{InkRole, Kind, Params, Shading, Tile, generate, light_dir, material, shade};
+use kurashi_texture::{
+    CrackStyle, InkRole, Kind, Params, Shading, Tile, generate, light_dir, material, shade_at,
+};
 
 const AMP: f32 = 0.09;
 /// The detail windows use the stronger relief of the card's close inspection.
@@ -25,6 +32,8 @@ const GAP: u32 = 8;
 const LABEL_W: u32 = 184;
 const PAPER_LIGHT: [f32; 3] = [243.0 / 255.0, 238.0 / 255.0, 227.0 / 255.0];
 const SUMI_DARK: [f32; 3] = [27.0 / 255.0, 26.0 / 255.0, 30.0 / 255.0];
+const BACKDROP: Rgba<u8> = Rgba([40, 40, 44, 255]);
+const HEAD: [f32; 3] = [0.9, 0.9, 0.9];
 
 fn hex(s: &str) -> [f32; 3] {
     let v = u32::from_str_radix(&s[1..], 16).unwrap_or(0);
@@ -47,33 +56,59 @@ fn ink_colour(role: InkRole, dark: bool) -> [f32; 3] {
     }
 }
 
-fn shading(kind: Kind, tint: bool, angle: f32, dark: bool, amp: f32) -> Shading {
+/// The light and the material's response for one window.
+#[derive(Clone, Copy)]
+struct Look {
+    tint: bool,
+    angle: f32,
+    elevation: f32,
+    dark: bool,
+    amp: f32,
+    depth: f32,
+    /// Relief shadows: `None` = the material's own (`auto`), else off (0) or on (1).
+    shadow: Option<f32>,
+}
+
+const LOOK: Look = Look {
+    tint: true,
+    angle: 315.0,
+    elevation: ELEVATION,
+    dark: false,
+    amp: AMP,
+    depth: 1.0,
+    shadow: None,
+};
+
+fn shading(kind: Kind, tile: &Tile, look: Look) -> Shading {
     let m = material(kind);
     Shading {
-        amp,
+        amp: look.amp,
         gloss: m.gloss,
         shininess: m.shininess,
-        ink: ink_colour(m.ink_role, dark),
-        ink_alpha: if tint { m.ink_alpha } else { 0.0 },
-        light_dir: light_dir(angle, ELEVATION),
+        ink: ink_colour(m.ink_role, look.dark),
+        ink_alpha: if look.tint { m.ink_alpha } else { 0.0 },
+        light_dir: light_dir(look.angle, look.elevation),
         light_color: [1.0, 1.0, 1.0],
         lamp: None,
-        depth: 1.0,
-        shadow: 0.0,
-        relief_px: 0.0,
-        lit: if dark { 0.6 } else { 1.0 },
+        depth: look.depth,
+        shadow: look.shadow.unwrap_or(m.shadow),
+        relief_px: tile.relief * look.depth,
+        lit: if look.dark { 0.6 } else { 1.0 },
         beam: None,
     }
 }
 
-/// `shade` over a ground colour (0..1), as the shell composites it: the relief's premultiplied colour over what lies under.
-fn over(ground: [f32; 3], t: [f32; 4], s: &Shading) -> [f32; 3] {
-    let o = shade(t, s);
+/// [`shade_at`] over a ground colour (0..1) at sheet position `(x, y)` (logical = device px, scale 1), as the shell
+/// composites it: the relief's premultiplied colour over what lies under.
+fn over(ground: [f32; 3], tile: &Tile, x: u32, y: u32, s: &Shading) -> [f32; 3] {
+    let o = shade_at(
+        tile,
+        [x as f32 + 0.5, y as f32 + 0.5],
+        [1920.0, 1080.0],
+        1.0,
+        s,
+    );
     [0, 1, 2].map(|i| (o[i] + ground[i] * (1.0 - o[3])).clamp(0.0, 1.0))
-}
-
-fn texel_f(tile: &Tile, x: u32, y: u32) -> [f32; 4] {
-    tile.texel(x, y).map(|v| f32::from(v) / 255.0)
 }
 
 fn put(img: &mut RgbaImage, x: u32, y: u32, c: [f32; 3]) {
@@ -86,6 +121,16 @@ fn to8(v: f32) -> u8 {
     (v.clamp(0.0, 1.0) * 255.0).round() as u8
 }
 
+/// One `size` × `size` window of `tile` from its origin, lit by `look`, at `(x0, y0)` of `img`.
+fn window(img: &mut RgbaImage, x0: u32, y0: u32, size: u32, kind: Kind, tile: &Tile, look: Look) {
+    let s = shading(kind, tile, look);
+    let ground = if look.dark { SUMI_DARK } else { PAPER_LIGHT };
+    for y in 0..size {
+        for x in 0..size {
+            put(img, x0 + x, y0 + y, over(ground, tile, x, y, &s));
+        }
+    }
+}
 /// A 5 × 7 bitmap font: capitals, digits and a few marks; lowercase is drawn in capitals.
 fn glyph(c: char) -> [&'static str; 7] {
     match c.to_ascii_uppercase() {
@@ -253,27 +298,26 @@ fn sheet(tiles: &[(Kind, Tile, Tile)]) -> RgbaImage {
     let w = LABEL_W + block + 48 + block;
     let top = 92u32;
     let h = top + tiles.len() as u32 * (CELL + GAP) + 16;
-    let mut img = RgbaImage::from_pixel(w, h, Rgba([40, 40, 44, 255]));
-    let head = [0.9, 0.9, 0.9];
+    let mut img = RgbaImage::from_pixel(w, h, BACKDROP);
     text(
         &mut img,
         8,
         10,
-        "TEXTURE SHEET  AMP 0.09  LIGHT 40 DEG",
+        "TEXTURE SHEET  AMP 0.09  LIGHT 40 DEG  DEPTH 1  SHADOWS AUTO",
         2,
-        head,
+        HEAD,
     );
     let grounds = [
         (LABEL_W, false, "WASHI LIGHT"),
         (LABEL_W + block + 48, true, "SUMI DARK"),
     ];
     for (gx, _, name) in grounds {
-        text(&mut img, gx, 36, name, 2, head);
+        text(&mut img, gx, 36, name, 2, HEAD);
         for (mx, mname) in [(gx, "INK"), (gx + 4 * (CELL + GAP), "PLAIN")] {
-            text(&mut img, mx, 60, mname, 1, head);
+            text(&mut img, mx, 60, mname, 1, HEAD);
             for (li, angle) in LIGHTS.iter().enumerate() {
                 let x = mx + li as u32 * (CELL + GAP);
-                text(&mut img, x, 72, &format!("{}", *angle as u32), 1, head);
+                text(&mut img, x, 72, &format!("{}", *angle as u32), 1, HEAD);
             }
         }
     }
@@ -285,25 +329,164 @@ fn sheet(tiles: &[(Kind, Tile, Tile)]) -> RgbaImage {
             y0 + CELL / 2 - 3,
             &kind.name().to_uppercase(),
             1,
-            head,
+            HEAD,
         );
         for (gx, dark, _) in grounds {
-            let ground = if dark { SUMI_DARK } else { PAPER_LIGHT };
             for (k, tile, tint) in [(0u32, ink, true), (1, plain, false)] {
                 for (li, angle) in LIGHTS.iter().enumerate() {
-                    let s = shading(*kind, tint, *angle, dark, AMP);
                     let x0 = gx + (k * 4 + li as u32) * (CELL + GAP);
-                    for y in 0..CELL {
-                        for x in 0..CELL {
-                            let c = over(ground, texel_f(tile, x, y), &s);
-                            put(&mut img, x0 + x, y0 + y, c);
-                        }
-                    }
+                    let look = Look {
+                        tint,
+                        angle: *angle,
+                        dark,
+                        ..LOOK
+                    };
+                    window(&mut img, x0, y0, CELL, *kind, tile, look);
                 }
             }
         }
     }
     img
+}
+
+/// A sheet of windows `cell` px large: a row per `(label, kind, tiles)`, a column per `(heading, look, tile index)`.
+fn grid(
+    title: &str,
+    rows: &[(String, Kind, Vec<Tile>)],
+    cols: &[(String, Look, usize)],
+    cell: u32,
+) -> RgbaImage {
+    let top = 84u32;
+    let w = LABEL_W + cols.len() as u32 * (cell + GAP) + 8;
+    let h = top + rows.len() as u32 * (cell + GAP) + 16;
+    let mut img = RgbaImage::from_pixel(w, h, BACKDROP);
+    text(&mut img, 8, 10, title, 2, HEAD);
+    for (c, (heading, _, _)) in cols.iter().enumerate() {
+        let x = LABEL_W + c as u32 * (cell + GAP);
+        for (i, line) in heading.split('|').enumerate() {
+            text(&mut img, x, 36 + 12 * i as u32, line, 1, HEAD);
+        }
+    }
+    for (r, (label, kind, tiles)) in rows.iter().enumerate() {
+        let y0 = top + r as u32 * (cell + GAP);
+        text(&mut img, 8, y0 + cell / 2 - 3, label, 1, HEAD);
+        for (c, (_, look, which)) in cols.iter().enumerate() {
+            let x0 = LABEL_W + c as u32 * (cell + GAP);
+            window(&mut img, x0, y0, cell, *kind, &tiles[*which], *look);
+        }
+    }
+    img
+}
+
+/// Every kind with stone and with glass cracks at 0.5 (plain, so the relief is all there is): per style, light from
+/// 315° and 135° on washi, 315° with shadows on, and 315° on sumi without and with shadows.
+fn cracks_sheet() -> RgbaImage {
+    let rows: Vec<(String, Kind, Vec<Tile>)> = Kind::ALL
+        .into_iter()
+        .map(|kind| {
+            let tiles = [CrackStyle::Stone, CrackStyle::Glass]
+                .map(|style| tile_with(kind, false, 0.0, 0.5, style))
+                .to_vec();
+            (kind.name().to_uppercase(), kind, tiles)
+        })
+        .collect();
+    let plain = Look {
+        tint: false,
+        ..LOOK
+    };
+    let looks = [
+        ("WASHI 315", plain),
+        (
+            "WASHI 135",
+            Look {
+                angle: 135.0,
+                ..plain
+            },
+        ),
+        (
+            "WASHI 315|SHADOWS ON",
+            Look {
+                shadow: Some(1.0),
+                ..plain
+            },
+        ),
+        (
+            "SUMI 315",
+            Look {
+                dark: true,
+                ..plain
+            },
+        ),
+        (
+            "SUMI 315|SHADOWS ON",
+            Look {
+                dark: true,
+                shadow: Some(1.0),
+                ..plain
+            },
+        ),
+    ];
+    let mut cols = Vec::new();
+    for (which, style) in ["STONE", "GLASS"].into_iter().enumerate() {
+        for (name, look) in looks {
+            cols.push((format!("{style}|{name}"), look, which));
+        }
+    }
+    grid(
+        "CRACKS 0.5  STONE (LEFT) AND GLASS (RIGHT)  AMP 0.09  LIGHT 40 DEG",
+        &rows,
+        &cols,
+        150,
+    )
+}
+
+/// Relief shadows: six kinds at depth 1 and 2.5, shadows off and on, the light low (20°) and high (60°).
+fn shadows_sheet() -> RgbaImage {
+    let kinds = [
+        Kind::PaperDots,
+        Kind::Fabric,
+        Kind::Stone,
+        Kind::Leather,
+        Kind::Paint,
+        Kind::Brush,
+    ];
+    let rows: Vec<(String, Kind, Vec<Tile>)> = kinds
+        .into_iter()
+        .map(|k| {
+            let t = tile_with(k, true, 0.0, 0.0, CrackStyle::Stone);
+            (
+                format!("{} {:.2} PX", k.name().to_uppercase(), t.relief),
+                k,
+                vec![t],
+            )
+        })
+        .collect();
+    let mut cols = Vec::new();
+    for depth in [1.0f32, 2.5] {
+        for elevation in [20.0f32, 60.0] {
+            for shadow in [0.0f32, 1.0] {
+                cols.push((
+                    format!(
+                        "DEPTH {depth}|LIGHT {elevation}|SHADOWS {}",
+                        if shadow > 0.0 { "ON" } else { "OFF" }
+                    ),
+                    Look {
+                        elevation,
+                        depth,
+                        shadow: Some(shadow),
+                        ..LOOK
+                    },
+                    0,
+                ));
+            }
+        }
+    }
+    grid(
+        "RELIEF SHADOWS  AMP 0.09  LIGHT FROM 315",
+        &rows,
+        &cols,
+        160,
+    )
 }
 
 /// A UI mock: the washi-light desk, a 36 px bar with three blocks, a card with two lines of text. The relief runs over
@@ -318,7 +501,7 @@ fn ui(kind: Kind, tile: &Tile) -> RgbaImage {
     let outline = hex("#cfc7b5");
     let ink = hex("#2b2a2e");
     let accent = hex("#a8323b");
-    let s = shading(kind, true, 315.0, false, AMP);
+    let s = shading(kind, tile, LOOK);
     // Flat colours first (rounded shapes by a corner test), then the relief over everything.
     let mut base = vec![desk; (W * H) as usize];
     let rect =
@@ -342,9 +525,12 @@ fn ui(kind: Kind, tile: &Tile) -> RgbaImage {
     let mut img = RgbaImage::new(W, H);
     for y in 0..H {
         for x in 0..W {
-            let t = texel_sample(tile, x as f32 + 0.5, y as f32 + 0.5);
-            let c = over(base[(y * W + x) as usize], t, &s);
-            put(&mut img, x, y, c);
+            put(
+                &mut img,
+                x,
+                y,
+                over(base[(y * W + x) as usize], tile, x, y, &s),
+            );
         }
     }
     text(&mut img, 96, 112, "TEXTURE, LIGHT AND INK", 2, ink);
@@ -352,11 +538,6 @@ fn ui(kind: Kind, tile: &Tile) -> RgbaImage {
     rect_fill(&mut img, 96, 196, 152, 210, accent);
     text(&mut img, 166, 198, "ACCENT", 2, accent);
     img
-}
-
-/// Bilinear sample of the tile at sheet position `(x, y)` logical = device px (scale 1), wrapping.
-fn texel_sample(tile: &Tile, x: f32, y: f32) -> [f32; 4] {
-    tile.sample(x, y, 1.0)
 }
 
 fn rect_fill(img: &mut RgbaImage, x0: u32, y0: u32, x1: u32, y1: u32, c: [f32; 3]) {
@@ -373,17 +554,16 @@ fn lights(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
     const G: u32 = 8;
     let w = 4 * (D + G) + G;
     let h = 2 * (D + G) + G;
-    let mut img = RgbaImage::from_pixel(w, h, Rgba([40, 40, 44, 255]));
+    let mut img = RgbaImage::from_pixel(w, h, BACKDROP);
     for (row, (tile, tint)) in [(ink, true), (plain, false)].into_iter().enumerate() {
         for (li, angle) in LIGHTS.iter().enumerate() {
-            let s = shading(kind, tint, *angle, false, AMP);
             let (x0, y0) = (G + li as u32 * (D + G), G + row as u32 * (D + G));
-            for y in 0..D {
-                for x in 0..D {
-                    let c = over(PAPER_LIGHT, texel_f(tile, x, y), &s);
-                    put(&mut img, x0 + x, y0 + y, c);
-                }
-            }
+            let look = Look {
+                tint,
+                angle: *angle,
+                ..LOOK
+            };
+            window(&mut img, x0, y0, D, kind, tile, look);
         }
     }
     img
@@ -394,15 +574,28 @@ fn lights(kind: Kind, ink: &Tile, plain: &Tile) -> RgbaImage {
 fn detail(kind: Kind, ink: &Tile) -> RgbaImage {
     const W: u32 = 384;
     const H: u32 = 256;
-    let s = shading(kind, true, 315.0, false, DETAIL_AMP);
+    let s = shading(
+        kind,
+        ink,
+        Look {
+            amp: DETAIL_AMP,
+            ..LOOK
+        },
+    );
     let mut img = RgbaImage::new(W, H);
     for y in 0..H {
         for x in 0..W {
-            let c = over(PAPER_LIGHT, texel_f(ink, x, y), &s);
-            put(&mut img, x, y, c);
+            put(&mut img, x, y, over(PAPER_LIGHT, ink, x, y, &s));
         }
     }
     img
+}
+
+/// The tile's height map as a grey picture (0 black, 255 white).
+fn heights(tile: &Tile) -> RgbaImage {
+    let grey = image::GrayImage::from_raw(tile.size, tile.size, tile.height.clone())
+        .expect("tile size matches its heights");
+    image::DynamicImage::ImageLuma8(grey).to_rgba8()
 }
 
 fn save(img: &RgbaImage, dir: &Path, name: &str) {
@@ -412,15 +605,19 @@ fn save(img: &RgbaImage, dir: &Path, name: &str) {
     println!("{}", path.display());
 }
 
-fn tile(kind: Kind, tint: bool, wrinkles: f32) -> Tile {
+fn tile_with(kind: Kind, tint: bool, wrinkles: f32, cracks: f32, crack_style: CrackStyle) -> Tile {
     generate(&Params {
         kind,
         wrinkles,
         tint,
         device_scale: 1.0,
-        cracks: 0.0,
-        crack_style: kurashi_texture::CrackStyle::Stone,
+        cracks,
+        crack_style,
     })
+}
+
+fn tile(kind: Kind, tint: bool, wrinkles: f32) -> Tile {
+    tile_with(kind, tint, wrinkles, 0.0, CrackStyle::Stone)
 }
 
 fn main() {
@@ -450,7 +647,12 @@ fn main() {
         .into_iter()
         .map(|k| (k, tile(k, true, 0.0), tile(k, false, 0.0)))
         .collect();
+    for (kind, ink, _) in &tiles {
+        println!("relief {:<12} {:.2} px", kind.name(), ink.relief);
+    }
     save(&sheet(&tiles), &out, "sheet.png");
+    save(&cracks_sheet(), &out, "sheet-cracks.png");
+    save(&shadows_sheet(), &out, "sheet-shadows.png");
     for (kind, ink, _) in &tiles {
         save(&ui(*kind, ink), &out, &format!("ui-{}.png", kind.name()));
     }
@@ -462,6 +664,26 @@ fn main() {
                 &dir,
                 &format!("detail-{}.png", kind.name()),
             );
+            save(&heights(ink), &dir, &format!("height-{}.png", kind.name()));
+            for style in [CrackStyle::Stone, CrackStyle::Glass] {
+                let cracked = tile_with(*kind, true, 0.0, 0.5, style);
+                println!(
+                    "relief {:<12} {:<5} {:.2} px",
+                    kind.name(),
+                    style.name(),
+                    cracked.relief
+                );
+                save(
+                    &detail(*kind, &cracked),
+                    &dir,
+                    &format!("detail-{}-{}.png", kind.name(), style.name()),
+                );
+                save(
+                    &heights(&cracked),
+                    &dir,
+                    &format!("height-{}-{}.png", kind.name(), style.name()),
+                );
+            }
         }
     }
     if let Some(dir) = lights_dir {
