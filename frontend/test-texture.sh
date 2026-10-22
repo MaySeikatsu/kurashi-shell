@@ -644,9 +644,9 @@ wait_height k61
 ctl act island.expand
 shot k61-rest 1.5
 cp "$OUT/k61-rest.png" "$W32/spotlight-rest.png"
-# The bar beside the open island (its card covers the middle of the strip).
+# The bar beside the open island (its card covers the middle of the strip), short of the clock (a minute may pass).
 "${TEX[@]}" pick "$TMP/notex-dark-bar.png" 14 4 1000 30 30 > "$TMP/dark-points.txt" || true
-"${TEX[@]}" pick "$TMP/notex-dark-bar.png" 1560 4 2540 30 30 >> "$TMP/dark-points.txt" || true
+"${TEX[@]}" pick "$TMP/notex-dark-bar.png" 1560 4 2200 30 30 >> "$TMP/dark-points.txt" || true
 "${TEX[@]}" check "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$OUT/k61-rest.png" "$TMP/notex-dark-bar.png" \
   "$TMP/dark-points.txt" || fail "k61: the relief is not shade_at (depth, shadows, lit, spotlight, light colour)"
 "${TEX[@]}" meanerr "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$TMP/notex-dark-bar.png" "$OUT/k61-rest.png" 0 0 1000 33 \
