@@ -3,6 +3,10 @@
 # Runs ONLY in a headless sway sandbox with an isolated kurashid (own XDG dirs); never touches the real session or ~/.config.
 #   settings/test.sh                        → exit 0 and settings/shots/*.png (English, then Japanese copy)
 #   KURASHI_BIN_DIR=<dir> settings/test.sh  → take kurashid + kurashi from <dir>; no cargo build
+#   SETTINGS_HOST=sheet settings/test.sh    → the same suite with Settings as a sheet (K63): the sandbox's config sets
+#                                             `settings.window = "sheet"`, so the app picks its host the real way; its
+#                                             shots go to the sandbox (the sheet's own shots: settings/test-sheet.sh).
+#                                             Both hosts also check a live re-host (step 0c).
 # Needs: nix develop (qs, grim, sway, python3); kurashid + kurashi from KURASHI_BIN_DIR, or built with
 # `cargo build -p kurashid -p kurashi`. KURASHI_RENDER_NODE picks the GPU (tools/bench/sandbox.sh).
 #
@@ -72,6 +76,13 @@ height = 40
 [outputs."HEADLESS-1".bar]
 height = 48
 T
+# The host (K63): a window (the default), or the sheet, chosen by the config as a user would.
+HOST=${SETTINGS_HOST:-window}
+case $HOST in
+  window) SHOTS=settings/shots ;;
+  sheet) SHOTS=$R/shots; printf '[settings]\nwindow = "sheet"\n' >> "$R/cfg/kurashi/config.toml" ;;
+  *) fail "SETTINGS_HOST is window or sheet, not $HOST" ;;
+esac
 # Enforced nix layer (managed.toml, _managed.enforce): density is forced by Nix with no coupling, so its chip reads
 # "Nix: programs.kurashi.settings.theme.density"; blur is also forced, by the compositor capability.
 cat > "$R/cfg/kurashi/managed.toml" <<'T'
@@ -140,10 +151,10 @@ for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
 Q current >/dev/null 2>&1 || { echo "settings app did not start"; cat "$R/settings.log"; exit 1; }
 sleep 1.5
 
-mkdir -p settings/shots
-shot() { sleep 1; grim -o HEADLESS-1 "settings/shots/$1.png"; [ -s "settings/shots/$1.png" ]; }
+mkdir -p $SHOTS
+shot() { sleep 1; grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 # No settle delay: a search flash or a tooltip is only on screen for a moment.
-shot_now() { grim -o HEADLESS-1 "settings/shots/$1.png"; [ -s "settings/shots/$1.png" ]; }
+shot_now() { grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 
 # 0. the deep link: the palette row's page opens by itself once the schema is in (the check is the page, the shot shows
 #    the row in place; its flash is over after a second).
@@ -158,12 +169,36 @@ for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=off" ] && break; sleep
 [ "$(Q undoState)" = "undo=on,redo=off" ] || fail "history: Undo not on after opening ($(Q undoState))"
 shot 0-undo-on-open
 
+# 0c. the host (K63): the one the config names, and a live re-host — the key switched while Settings is open moves it to
+#     the other host at once, on the same page and scroll position; switched back, the same again.
+[[ "$(Q host)" == "$HOST"* ]] || fail "host: the config names $HOST, the app shows $(Q host)"
+other=sheet; [ "$HOST" = sheet ] && other=window
+Q goto appearance
+sleep 0.5
+Q scroll 1200
+sleep 0.3
+y0=$(Q scrollY)
+[ "$y0" -gt 0 ] || fail "re-host: the appearance page did not scroll ($y0)"
+rehost() {   # <host to switch to> <apply op>
+  K "{\"t\":\"apply\",\"id\":\"rh\",\"ops\":[$2]}" | grep -q applied || fail "re-host: settings.window $1 was refused"
+  for _ in $(seq 50); do [[ "$(Q host)" == "$1"* ]] && break; sleep 0.2; done
+  [[ "$(Q host)" == "$1"* ]] || fail "re-host: still $(Q host) after settings.window = $1"
+  sleep 0.5
+  [ "$(Q current)" = appearance ] || fail "re-host to $1: the page changed to $(Q current)"
+  [ "$(Q scrollY)" = "$y0" ] || fail "re-host to $1: the scroll position moved from $y0 to $(Q scrollY)"
+}
+rehost "$other" "{\"set\":\"settings.window\",\"value\":\"$other\"}"
+if [ "$HOST" = sheet ]; then rehost sheet '{"set":"settings.window","value":"sheet"}'
+else rehost window '{"reset":"settings.window"}'; fi
+echo "host: $HOST; re-hosted to $other and back on the appearance page at scroll $y0"
+Q goto bar
+
 # 1. a user value: chip "you", with Reset on the same line (bar.height = 40 from config.toml)
 shot 1-user-value
 
 # A. Appearance as Style · Look · Palette (W29, K53; docs/ux/looks.md "Settings"). A fresh config: the style is washi.
-mkdir -p settings/shots/appearance
-ashot() { sleep 1; grim -o HEADLESS-1 "settings/shots/appearance/$1.png"; [ -s "settings/shots/appearance/$1.png" ]; }
+mkdir -p $SHOTS/appearance
+ashot() { sleep 1; grim -o HEADLESS-1 "$SHOTS/appearance/$1.png"; [ -s "$SHOTS/appearance/$1.png" ]; }
 ap() { Q appearance | python3 -c 'import json,sys; a=json.loads(sys.stdin.read()); print(a[sys.argv[1]] if isinstance(a[sys.argv[1]], str) else ",".join(a[sys.argv[1]]))' "$1"; }
 wait_ap() { for _ in $(seq 50); do [ "$(ap "$1")" = "$2" ] && return 0; sleep 0.2; done; fail "appearance: $1 is $(ap "$1"), expected $2"; }
 wait_differs() {   # "" = hidden, else a substring of the line
@@ -396,6 +431,8 @@ echo "keyboard K4: Right previewed wallpaper; Put back restored auto; Redo staye
 # K5. a preview moved several times and kept is ONE undo step: Undo takes back the scheme only, and the step before
 #     (the bar switched off in K1) stays.
 kp right left right return
+# The kept step may still be on its way to the daemon (each move is a round trip; a loaded machine takes a moment).
+for _ in $(seq 25); do [ "$(val theme.colors.scheme)" = '"dark"' ] && [ "$(Q previewState)" = none ] && break; sleep 0.2; done
 [ "$(val theme.colors.scheme)" = '"dark"' ] || fail "preview: the kept scheme is not dark ($(val theme.colors.scheme))"
 Q undo
 [ "$(val theme.colors.scheme)" = '"auto"' ] || fail "preview: one Undo did not take back the whole preview ($(val theme.colors.scheme))"
@@ -954,4 +991,4 @@ if grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to 
   fail "QML errors in the settings log"
 fi
 
-echo "ok: settings/shots/"; ls settings/shots
+echo "ok ($HOST host): $SHOTS/"; ls "$SHOTS"

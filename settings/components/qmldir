@@ -28,3 +28,5 @@ SidebarOpen 1.0 SidebarOpen.qml
 TextureCards 1.0 TextureCards.qml
 LightDial 1.0 LightDial.qml
 InkSwatches 1.0 InkSwatches.qml
+SheetHost 1.0 SheetHost.qml
+LightSwatches 1.0 LightSwatches.qml
