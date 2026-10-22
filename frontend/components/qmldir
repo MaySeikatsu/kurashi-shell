@@ -24,3 +24,5 @@ FrameHost 1.0 FrameHost.qml
 Relief 1.0 Relief.qml
 TileSheet 1.0 TileSheet.qml
 LightSense 1.0 LightSense.qml
+PenOutline 1.0 PenOutline.qml
+PenInk 1.0 PenInk.qml
