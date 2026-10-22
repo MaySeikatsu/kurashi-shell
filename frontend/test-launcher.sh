@@ -9,8 +9,13 @@
 #      delete reads its line), Enter on an image copies it as image/png; the clear row asks first, Enter again wipes;
 #   2. `:`: the grid, arrows move in two dimensions, Enter copies; the copied emoji comes first next time (recent);
 #   3. `?` via action launcher.keys: the cheat sheet, grouped, kurashi's own binds labelled; launcher.keys again closes.
+#   4. W34 (docs/ux/motion.md): the launcher grows out of the island pill and folds back into it. Per look x profile x bar
+#      edge (MORPH_CASES), three grims at MORPH_AT ms (40 120 250) after `launcher.toggle`, the card at rest, and two
+#      grims after the close; the motion profile in effect is checked first (the theme document's `motion.profile`).
 # Checks print ok / FAIL; any FAIL, QML error or kurashid panic makes the run exit 1.
-# Shots: frontend/shots/launcher/w26/{clip,clip-confirm,emoji,keys}-{sekai,none}.png (the launcher card).
+# Shots: frontend/shots/launcher/w26/{clip,clip-confirm,emoji,keys}-{sekai,none}.png (the launcher card);
+#   frontend/shots/morph/launcher-<look>-<profile>-<edge>-{open-40,open-120,open-250,rest,close-40,close-120}.png.
+# LAUNCHER_PHASES=modes|morph|"modes morph" picks the phases (both by default).
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c frontend/test-launcher.sh [sandbox-name]
 set -euo pipefail
@@ -23,7 +28,12 @@ DECORS=${DECORS:-sekai none}
 [ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The launcher card, centred on the 2560 x 1440 output.
 CARD_GEOM=${CARD_GEOM:-"930,300 700x840"}
-mkdir -p "$OUT"
+PHASES=${LAUNCHER_PHASES:-modes morph}
+MOUT=$ROOT/frontend/shots/morph
+AT=${MORPH_AT:-40 120 250}
+# <look>:<profile>:<edge>; each look in its own profile on both edges and in the other one on top.
+MORPH_CASES=${MORPH_CASES:-washi:calm:top washi:calm:bottom washi:lively:top sekai:lively:top sekai:lively:bottom sekai:calm:top kami:calm:top kami:calm:bottom kami:lively:top}
+mkdir -p "$OUT" "$MOUT"
 FAILS=0
 CHECKS=0
 fail() { echo "test-launcher: $*" >&2; exit 1; }
@@ -51,6 +61,8 @@ cleanup() {
   stop_keys
   stop_shell
   stop_daemon
+  # MORPH_LOG=<file> keeps the frontend's log (KURASHI_MORPH_DEBUG=1 adds the morph's lines).
+  if [ -n "${MORPH_LOG:-}" ]; then cp "$R/qs.log" "$MORPH_LOG" 2>/dev/null || true; fi
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
@@ -152,7 +164,7 @@ binds {
 KDL
 }
 
-start_all() { # start_all <decor>
+start_all() { # start_all <decor> [config line ...]
   stop_keys
   stop_shell
   stop_daemon
@@ -160,7 +172,7 @@ start_all() { # start_all <decor>
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   fill_history
   niri_fixture
-  printf 'theme.style = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  { printf 'theme.style = "%s"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env PATH="$FAKE:$PATH" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
@@ -180,6 +192,7 @@ start_all() { # start_all <decor>
 has() { grep -q -- "$2" "$1" 2>/dev/null && echo 1 || echo 0; }
 
 for DECOR in $DECORS; do
+  [[ " $PHASES " == *" modes "* ]] || break
   echo "== $DECOR: clipboard"
   start_all "$DECOR"
   K act launcher.toggle >/dev/null
@@ -259,6 +272,42 @@ for DECOR in $DECORS; do
   K act ui.close >/dev/null
   sleep 0.5
 done
+# burst <file prefix> <action> <crop>: the action, and one grim per MORPH_AT offset, each started on its own clock.
+burst() {
+  local gp=() t t0 ap
+  t0=$(date +%s%N)
+  K act "$2" >/dev/null &
+  ap=$!
+  for t in $AT; do
+    ( now=$(date +%s%N); w=$(( t - (now - t0) / 1000000 )); [ "$w" -gt 0 ] && sleep "$(printf '%d.%03d' $((w / 1000)) $((w % 1000)))"
+      grim -g "$3" "$1-$t.png" ) &
+    gp+=("$!")
+  done
+  for p in "${gp[@]}"; do wait "$p" || fail "grim failed ($1)"; done
+  wait "$ap" || fail "act $2 failed"
+}
+if [[ " $PHASES " == *" morph "* ]]; then
+  for CASE in $MORPH_CASES; do
+    IFS=: read -r LOOK PROFILE EDGE <<< "$CASE"
+    echo "== morph: $LOOK $PROFILE $EDGE"
+    start_all "$LOOK" "theme.motion.profile = \"$PROFILE\"" "bar.edge = \"$EDGE\""
+    got=$(K sub theme --count 0 --json | jq -r '.data.tokens["motion.profile"]')
+    check "$([ "$got" = "$PROFILE" ] && echo 1 || echo 0)" "$LOOK the motion profile in effect is $PROFILE ($got)"
+    # The card under the bar's centre: 800 x 720 from the bar's edge of the 2560 x 1440 output.
+    crop="880,0 800x720"
+    [ "$EDGE" = bottom ] && crop="880,720 800x720"
+    base=$MOUT/launcher-$LOOK-$PROFILE-$EDGE
+    # One open and close first: the first open of a fresh shell also loads the app icons.
+    K act launcher.toggle >/dev/null; sleep 1.5; K act ui.close >/dev/null; sleep 1.2
+    burst "$base-open" launcher.toggle "$crop"
+    sleep 1.5
+    grim -g "$crop" "$base-rest.png"
+    AT="40 120" burst "$base-close" ui.close "$crop"
+    sleep 1
+    check "$(K raw '{"t":"sub","id":"s","doc":"runtime.ui"}' | head -1 | grep -q '"launcher":false' && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the launcher closed"
+    echo "shots $base-*.png"
+  done
+fi
 stop_keys
 stop_shell
 stop_daemon
