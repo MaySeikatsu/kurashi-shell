@@ -3038,6 +3038,311 @@
           ]
         }
       ]
+    },
+    {
+      "id": "keys",
+      "label": "settings.page.keys",
+      "sections": [
+        {
+          "id": "shortcuts",
+          "label": "settings.section.shortcuts",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.keys.write.help",
+              "key": "keys.write",
+              "label": "config.keys.write.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Mod+Space",
+              "key": "keys.launcher",
+              "label": "config.keys.launcher.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Mod+N",
+              "key": "keys.notifications",
+              "label": "config.keys.notifications.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Mod+Shift+N",
+              "key": "keys.sidebar_right",
+              "label": "config.keys.sidebar_right.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Mod+A",
+              "key": "keys.sidebar_left",
+              "label": "config.keys.sidebar_left.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.quick",
+              "label": "config.keys.quick.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Mod+Shift+E",
+              "key": "keys.session_menu",
+              "label": "config.keys.session_menu.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "Super+Alt+L",
+              "key": "keys.lock",
+              "label": "config.keys.lock.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.settings",
+              "label": "config.keys.settings.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.webdock",
+              "label": "config.keys.webdock.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "XF86AudioRaiseVolume",
+              "key": "keys.volume_up",
+              "label": "config.keys.volume_up.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "XF86AudioLowerVolume",
+              "key": "keys.volume_down",
+              "label": "config.keys.volume_down.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "XF86AudioMute",
+              "key": "keys.mute",
+              "label": "config.keys.mute.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "XF86MonBrightnessUp",
+              "key": "keys.brightness_up",
+              "label": "config.keys.brightness_up.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "text",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "XF86MonBrightnessDown",
+              "key": "keys.brightness_down",
+              "label": "config.keys.brightness_down.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            }
+          ]
+        }
+      ]
     }
   ],
   "schema_version": 2
