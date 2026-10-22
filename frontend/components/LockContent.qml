@@ -47,6 +47,10 @@ Rectangle {
         visible: Theme.ringW > 0 && !groundFrame.grounds
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
+        // I124: the colours it paints with; a theme change while locked repaints it.
+        readonly property string paintKey: [Theme.line, Theme.outlineColor, Theme.accent, Theme.secondary, Theme.ringW,
+            Theme.softR, Theme.outlineW, Theme.shadowDy].join("|")
+        onPaintKeyChanged: requestPaint()
         onPaint: {
             var g = getContext("2d")
             g.reset()
@@ -75,6 +79,10 @@ Rectangle {
         visible: ((c.ruled && !Theme.texShell) || Theme.softR > 0) && !groundFrame.grounds
         onWidthChanged: requestPaint()
         onHeightChanged: requestPaint()
+        // I124: the colours it paints with; a theme change while locked repaints it.
+        readonly property string paintKey: [Theme.line, Theme.outlineColor, Theme.accent, Theme.secondary, Theme.ringW,
+            Theme.softR, Theme.outlineW, Theme.shadowDy].join("|")
+        onPaintKeyChanged: requestPaint()
         onVisibleChanged: if (visible) requestPaint()
         onPaint: {
             var g = getContext("2d")
