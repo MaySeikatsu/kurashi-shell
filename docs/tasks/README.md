@@ -248,3 +248,13 @@ Sandbox names: each card uses names prefixed with its card id (`w19-side-…`, `
 | [W20-webdock-host](W20-webdock-host.md) | `mods/webdock/host/`, host tests + pages, `i18n/*/mod-webdock-host.toml` | haiku (max) |
 | [W20-webdock-nix](W20-webdock-nix.md) | `nix/webdock.nix`, flake entries, HM/NixOS modules, `nix/tests/`, niri binds doc (not `nix/package.nix`) | haiku (max) |
 Sandbox names: `w20-dmn-…`, `w20-shell-…`, `w20-host-…`, `w20-nix-…`.
+
+## Wave 32 (session 13, machine A; contract K61–K63 on main 01c4503; base daemon `~/.cache/kurashi-agents-target/w32-base`)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W32-texture-gen](W32-texture-gen.md) | `crates/kurashi-texture/**`, `frontend/shots/texture/*.png` | opus |
+| [W32-relief](W32-relief.md) | relief shader, Relief/TileSheet/Light, MorphShape, phone, media covers, Stage/Sidebar/overlay/toasts/lock, Relief lines in Bar/Launcher, test-texture | opus |
+| [W32-pen](W32-pen.md) | Block, FrameHost, frames, PenOutline/PenInk, `pen_text` shader, test-pen (phase 2: surface outlines) | opus |
+| [W32-settings](W32-settings.md) | `settings/**`, settings i18n (phase 2: Relief in Settings) | opus |
+| [W32-controls](W32-controls.md) | Button, IconButton, QuickButton, Chip, ToggleSwitch, Slider, TrayIcon, SidebarButton, KeyButton, QuickTile, launcher rows, dock icons, test-controls | haiku (max) |
+Sandbox names: `w32-gen-…`, `w32-rel-…`, `w32-pen-…`, `w32-set-…`, `w32-ctl-…`. `CARGO_BUILD_JOBS=4`.
