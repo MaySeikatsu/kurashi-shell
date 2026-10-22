@@ -605,3 +605,41 @@ white; token `light.lamp` `[x, y]` (fractions of the output), the shader's and t
 theme's, else an output's (the wallpaper mod's document, held while this light is chosen); decoded once per picture on a
 blocking thread. Material `paint`: oil paint on canvas with deep brush strokes (card W31-paint). The tile is two files
 (rows 280–281): an opaque RGB relief and a white ink map with coverage in alpha, because Qt premultiplies textures.
+
+**K61** 🟢 Deeper texture, relief shadows, the spotlight, controls, a carried sheet, cracks, brush strokes and a material
+of the wallpaper's own (user, session 13). `theme.texture.depth` (0.5–3) steepens the normals; `strength` reaches 2 (the
+legibility cap still holds — depth and shadows never pass `texture.amp`). `theme.texture.shadows` (auto | off | on):
+self-shadowing from a height map (a third tile file, `<tile>-height.png` + its relief in px), 8 samples toward the light
+over at most 24 px — longer for a flatter light, as the user asked ("angling the light flatter or higher to have
+longer/shorter shadows"); auto = the material's own (`Material::shadow`: paint and brush on), the kami look sets on (user
+choice "On for kami/paint"; a recipe value, never a renderer branch — rule 4). `theme.light.color` (natural | white |
+warm | cool | custom). Light mode `spotlight` (user choice over a steered direction): a lamp pinned where a ray from the
+output's middle in `theme.light.angle`'s direction meets the edge (`kurashi_texture::pin`, the square of fractions so
+every aspect ratio agrees), at `elevation`'s height, its beam (`theme.light.beam`) aimed at the pointer — rests aimed at
+the middle when the pointer is off the shell; outside the beam the relief keeps 30 %. `theme.texture.controls`: the relief
+over buttons, sliders, switches, chips and icons; pictures (covers, thumbnails, avatars) opt out. `theme.texture.sheet`
+(user choice: carried by default): a surface in motion takes its sheet along and lands exactly on the continuous sheet
+at rest; `fixed` is K59's still sheet, `separate` a sheet per surface. `theme.texture.cracks` + `crack_style` (stone |
+glass) and kind `brush` (long, continuous hairy strokes) are tile parameters (`Params`, the cache name). I169: token
+`texture.lit` weighs the light half down to 0.6 on dark grounds. `theme.texture.wallpaper.{own,kind,strength,scale,
+wrinkles,cracks}`: the bake's own material (no legibility cap on the wallpaper). The formula stays one function,
+`kurashi_texture::shade_at` (CPU reference) mirrored by `relief.frag`. *Why:* the user asked for more depth, coloured
+light, pinned vs follow lights, texture over every element, surfaces that own their texture, cracks, a second brush and
+separate wallpaper/shell materials (session 13).
+
+**K62** 🟢 The pen (user, session 13): `theme.pen` — `line` (solid | dotted | dashed | broken | rough) and four modifiers
+for outlines (`pressure` = fountain-pen swell and thinning, `breaks` = skips, `fade` = ink flow, `wobble` = a hand that
+wanders, straight lines and curves alike) and the same four for text and icons (`text_*`, through a layer effect over a
+block's content — off by default, it costs one layer per block while on). Each modifier is separate and combinable, as
+the user asked. Seeded per size, never animated (Ma); high contrast forces all of them off. Tokens `pen.*`; look keys, so
+a look can carry a pen (kami: pressure 0.35). *Why:* "dotted lines or disconnected lines as an outline … or very uneven
+lines" and "slightly thinning/thickening and slightly disconnected and slightly less in opacity, just like … a fountain
+pen … Each of those should be a visual 'modifier'" (user, session 13).
+
+**K63** 🟢 Settings as a sheet (user, session 13): `settings.window` = `window` (default: today's xdg toplevel the
+compositor places and tiles) | `sheet` — the same on-demand process (K2: no cost while closed) maps a layer-shell surface
+centred on the focused output over a softly dimmed backdrop, exclusive keyboard, Esc or a click on the backdrop closes
+(user choice: a modal sheet). As a sheet it is a shell surface: material, light and (carried) sheet like the rest. *Why:*
+the Settings window was the one surface the texture and light never reached, because it is a compositor window; the
+user asked to toggle between "a normal compositor window" and "a quickshell hosted settings window that overlays in the
+center of the screen".

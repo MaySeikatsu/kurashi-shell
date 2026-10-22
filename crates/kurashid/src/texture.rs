@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use kurashi_texture::{InkRole, Kind, Params, Shading, Tile};
+use kurashi_texture::{Beam, CrackStyle, InkRole, Kind, Params, Shading, Tile};
 use serde_json::{Map, Value, json};
 
 use crate::config::ConfigStore;
@@ -76,9 +76,11 @@ pub fn set_cache_dir(dir: PathBuf) {
 
 fn key(p: &Params) -> String {
     format!(
-        "{}:{:.2}:{}:{:.2}",
+        "{}:{:.2}:{:.2}:{}:{}:{:.2}",
         p.kind.name(),
         p.wrinkles,
+        p.cracks,
+        p.crack_style.name(),
         p.tint,
         p.device_scale
     )
@@ -143,6 +145,8 @@ pub struct Light {
     pub detail: &'static str,
     /// The wallpaper's light: a lamp at this point of the output (fractions), at `light.height_px`.
     pub lamp: Option<[f32; 2]>,
+    /// K61: the spotlight's pin (fractions of the output), at `light.height_px`; its beam aims at the pointer.
+    pub pin: Option<[f32; 2]>,
 }
 
 /// The weather mod's place, as the night light reads it.
@@ -196,6 +200,7 @@ pub fn sun(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> L
             dim: 0.6,
             detail,
             lamp: None,
+            pin: None,
         };
     }
     let angle = (270.0 + 180.0 * (since / span).clamp(0.0, 1.0)) % 360.0;
@@ -221,6 +226,7 @@ pub fn sun(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> L
         dim: if elevation < 0.0 { 0.8 } else { 1.0 },
         detail,
         lamp: None,
+        pin: None,
     }
 }
 
@@ -286,6 +292,7 @@ fn wallpaper_light(store: &ConfigStore) -> Light {
         dim: 1.0,
         detail,
         lamp: None,
+        pin: None,
     };
     let picture = shown_picture().lock().expect("shown picture").clone();
     let Some(picture) = picture else {
@@ -310,6 +317,7 @@ fn wallpaper_light(store: &ConfigStore) -> Light {
                 dim: 1.0,
                 detail: "wallpaper",
                 lamp: Some([spot.x, spot.y]),
+                pin: None,
             }
         }
     }
@@ -326,13 +334,34 @@ pub fn light(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> Light
         dim: 1.0,
         detail: "",
         lamp: None,
+        pin: None,
     };
-    match s(store, "theme.light.mode").as_str() {
+    let mut lt = match s(store, "theme.light.mode").as_str() {
         "daytime" => sun(place(store), now),
         "pointer" => fixed("pointer"),
         "wallpaper" => wallpaper_light(store),
+        "spotlight" => Light {
+            pin: Some(kurashi_texture::pin(
+                f(store, "theme.light.angle", 315.0) as f32
+            )),
+            ..fixed("spotlight")
+        },
         _ => fixed("static"),
+    };
+    // K61: the light's colour; natural keeps the mode's own (white, the sun's, the wallpaper's).
+    let own = match s(store, "theme.light.color").as_str() {
+        "white" => Some([1.0, 1.0, 1.0]),
+        "warm" => Some([1.0, 0.86, 0.66]),
+        "cool" => Some([0.78, 0.87, 1.0]),
+        "custom" => {
+            kurashi_theme::color::Rgb::parse(&s(store, "theme.light.color_custom")).map(lin)
+        }
+        _ => None,
+    };
+    if let Some(c) = own {
+        lt.color = c;
     }
+    lt
 }
 
 /// Whether the light needs the wallpaper's picture (the theme then holds the wallpaper mod's document).
@@ -355,7 +384,50 @@ fn params(store: &ConfigStore, kind: Kind) -> Params {
         wrinkles: (f(store, "theme.texture.wrinkles", 0.0) as f32 * 20.0).round() / 20.0,
         tint: b(store, "theme.texture.tint"),
         device_scale: device_scale(),
+        cracks: (f(store, "theme.texture.cracks", 0.0) as f32 * 20.0).round() / 20.0,
+        crack_style: CrackStyle::parse(&s(store, "theme.texture.crack_style")),
     }
+}
+
+/// K61: the wallpaper's own material (`theme.texture.wallpaper.own`): its tile parameters, strength and scale; the
+/// shell's otherwise.
+fn wallpaper_params(store: &ConfigStore) -> Option<(Params, f64, f64)> {
+    if b(store, "theme.texture.wallpaper.own") {
+        let kind = Kind::parse(&s(store, "theme.texture.wallpaper.kind"))?;
+        let q = |k: &str| (f(store, k, 0.0) as f32 * 20.0).round() / 20.0;
+        Some((
+            Params {
+                kind,
+                wrinkles: q("theme.texture.wallpaper.wrinkles"),
+                cracks: q("theme.texture.wallpaper.cracks"),
+                ..params(store, kind)
+            },
+            f(store, "theme.texture.wallpaper.strength", 0.5),
+            f(store, "theme.texture.wallpaper.scale", 1.0),
+        ))
+    } else {
+        let kind = kind(store)?;
+        Some((
+            params(store, kind),
+            f(store, "theme.texture.strength", 0.5),
+            f(store, "theme.texture.scale", 1.0),
+        ))
+    }
+}
+
+/// K61: the relief shadows in effect: the material's own under auto, else on or off.
+fn shadow_of(store: &ConfigStore, kind: Kind) -> f32 {
+    match s(store, "theme.texture.shadows").as_str() {
+        "on" => 1.0,
+        "off" => 0.0,
+        _ => kurashi_texture::material(kind).shadow,
+    }
+}
+
+/// K61 (I169): highlights read stronger than shade on a dark ground, so the light half is weighed down there.
+fn lit_on(ground: [f32; 3]) -> f32 {
+    let l = 0.2126 * ground[0] + 0.7152 * ground[1] + 0.0722 * ground[2];
+    if l < 0.3 { 0.6 } else { 1.0 }
 }
 
 fn rgb(t: &Map<String, Value>, key: &str) -> kurashi_theme::color::Rgb {
@@ -409,6 +481,11 @@ pub fn tokens(
     t.insert("light.dir".into(), json!(lt.dir));
     t.insert("light.color".into(), json!(hex(lt.color)));
     t.insert("light.lamp".into(), json!(lt.lamp));
+    t.insert("light.pin".into(), json!(lt.pin));
+    t.insert(
+        "light.beam".into(),
+        json!(f(store, "theme.light.beam", 35.0)),
+    );
     t.insert(
         "light.height_px".into(),
         json!(30.0 + f(store, "theme.light.elevation", 40.0) * 5.0),
@@ -430,6 +507,13 @@ pub fn tokens(
             ("texture.text", json!(false)),
             ("texture.shell", json!(false)),
             ("texture.overlay", json!(false)),
+            ("texture.depth", json!(1.0)),
+            ("texture.shadow", json!(0.0)),
+            ("texture.height_map", json!("")),
+            ("texture.relief_px", json!(0.0)),
+            ("texture.lit", json!(1.0)),
+            ("texture.controls", json!(false)),
+            ("texture.sheet", json!("carried")),
         ] {
             t.insert(k.into(), v);
         }
@@ -486,6 +570,44 @@ pub fn tokens(
         json!(scope == "shell" || scope == "shell_wallpaper"),
     );
     t.insert("texture.overlay".into(), json!(scope == "everything"));
+    // K61: depth, relief shadows (the height map only while they are on), the dark ground's balance, controls, sheet.
+    let depth = f(store, "theme.texture.depth", 1.0);
+    let shadow = shadow_of(store, kind);
+    let height_map = kurashi_texture::height_path(&path);
+    t.insert("texture.depth".into(), json!(depth));
+    t.insert("texture.shadow".into(), json!(f64::from(shadow)));
+    t.insert(
+        "texture.height_map".into(),
+        json!(if shadow > 0.0 && height_map.is_file() {
+            height_map.to_string_lossy().into_owned()
+        } else {
+            String::new()
+        }),
+    );
+    t.insert(
+        "texture.relief_px".into(),
+        json!(
+            ((f64::from(tl.relief) * depth * f(store, "theme.texture.scale", 1.0)) * 1000.0)
+                .round()
+                / 1000.0
+        ),
+    );
+    t.insert(
+        "texture.lit".into(),
+        json!((f64::from(lit_on(grounds[0])) * 100.0).round() / 100.0),
+    );
+    t.insert(
+        "texture.controls".into(),
+        json!(b(store, "theme.texture.controls")),
+    );
+    t.insert(
+        "texture.sheet".into(),
+        json!(match s(store, "theme.texture.sheet").as_str() {
+            "fixed" => "fixed",
+            "separate" => "separate",
+            _ => "carried",
+        }),
+    );
     notes.push(format!("texture: {} ({})", kind.name(), lt.mode));
     notes
 }
@@ -500,33 +622,70 @@ pub fn wallpaper_shading(
     if scope != "wallpaper" && scope != "shell_wallpaper" {
         return None;
     }
-    let (_, tl) = tile(&params(store, kind(store)?))?;
+    let (wp, strength, scale) = wallpaper_params(store)?;
+    let (_, tl) = tile(&wp)?;
+    let own = b(store, "theme.texture.wallpaper.own");
     let num = |k: &str| tokens.get(k).and_then(Value::as_f64).unwrap_or(0.0) as f32;
+    let m = kurashi_texture::material(wp.kind);
+    let depth = f(store, "theme.texture.depth", 1.0) as f32;
+    let pin = tokens
+        .get("light.pin")
+        .and_then(Value::as_array)
+        .filter(|a| a.len() == 2)
+        .map(|a| {
+            [
+                a[0].as_f64().unwrap_or(0.5) as f32,
+                a[1].as_f64().unwrap_or(0.0) as f32,
+            ]
+        });
     let dir = tokens
         .get("light.dir")
         .and_then(Value::as_array)
         .map(|a| std::array::from_fn(|i| a.get(i).and_then(Value::as_f64).unwrap_or(0.0) as f32))?;
+    // The wallpaper carries no text: its own material is not capped for legibility (the shell's keeps its cap, so the
+    // baked relief and the shell's agree).
+    let amp = if own {
+        (strength * AMP_FULL) as f32
+    } else {
+        num("texture.amp")
+    };
+    let lamp = tokens
+        .get("light.lamp")
+        .and_then(Value::as_array)
+        .filter(|a| a.len() == 2)
+        .map(|a| {
+            [
+                a[0].as_f64().unwrap_or(0.5) as f32,
+                a[1].as_f64().unwrap_or(0.0) as f32,
+                num("light.height_px").max(1.0),
+            ]
+        })
+        .or(pin.map(|p| [p[0], p[1], num("light.height_px").max(1.0)]));
     let sh = Shading {
-        amp: num("texture.amp"),
-        gloss: num("texture.gloss"),
-        shininess: num("texture.shininess").max(1.0),
+        amp,
+        gloss: m.gloss,
+        shininess: m.shininess.max(1.0),
         ink: lin(rgb(tokens, "texture.ink")),
-        ink_alpha: num("texture.ink_alpha"),
+        ink_alpha: if own {
+            if b(store, "theme.texture.tint") && m.ink_role != InkRole::None {
+                m.ink_alpha
+            } else {
+                0.0
+            }
+        } else {
+            num("texture.ink_alpha")
+        },
         light_dir: dir,
         light_color: lin(rgb(tokens, "light.color")),
-        lamp: tokens
-            .get("light.lamp")
-            .and_then(Value::as_array)
-            .filter(|a| a.len() == 2)
-            .map(|a| {
-                [
-                    a[0].as_f64().unwrap_or(0.5) as f32,
-                    a[1].as_f64().unwrap_or(0.0) as f32,
-                    num("light.height_px").max(1.0),
-                ]
-            }),
+        lamp,
+        depth,
+        shadow: shadow_of(store, wp.kind),
+        relief_px: tl.relief * depth * scale as f32,
+        lit: 1.0,
+        // The bake keeps the spotlight at rest: aimed at the output's middle.
+        beam: pin.map(|_| Beam::new([0.5, 0.5], num("light.beam").max(1.0))),
     };
-    Some((tl, sh, num("texture.scale").max(0.1)))
+    Some((tl, sh, (scale as f32).max(0.1)))
 }
 
 /// Bakes the texture into `picture` for an output of `size` at `scale` (cached by everything that changes the bytes);
@@ -612,6 +771,8 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
     let amp = legible_amp(0.12, lin(rgb(t, "color.on_surface")), &grounds, lt.color).max(0.06);
     let tint = b(store, "theme.texture.tint");
     let wrinkles = (f(store, "theme.texture.wrinkles", 0.0) as f32 * 20.0).round() / 20.0;
+    let cracks = (f(store, "theme.texture.cracks", 0.0) as f32 * 20.0).round() / 20.0;
+    let crack_style = CrackStyle::parse(&s(store, "theme.texture.crack_style"));
     let jobs: Vec<(Kind, PathBuf, Shading)> = Kind::ALL
         .into_iter()
         .map(|kind| {
@@ -629,12 +790,18 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
                 light_dir: lt.dir,
                 light_color: lt.color,
                 lamp: None,
+                depth: f(store, "theme.texture.depth", 1.0) as f32,
+                shadow: shadow_of(store, kind),
+                // A swatch shows the tile at 1:1; its relief is set once the tile is known (below).
+                relief_px: 0.0,
+                lit: lit_on(base),
+                beam: None,
             };
             let name = {
                 use std::hash::{Hash, Hasher};
                 let mut h = std::collections::hash_map::DefaultHasher::new();
                 format!(
-                    "{sh:?}{wrinkles}{tint}{base:?}{}",
+                    "{sh:?}{wrinkles}{cracks}{crack_style:?}{tint}{base:?}{}",
                     kurashi_texture::generate_version()
                 )
                 .hash(&mut h);
@@ -656,9 +823,15 @@ pub fn swatches(store: &ConfigStore, t: &Map<String, Value>) -> Value {
                     wrinkles,
                     tint,
                     device_scale: 1.0,
+                    cracks,
+                    crack_style,
                 };
                 let Ok((_, tile)) = kurashi_texture::tile_file(&cache_dir(), &p) else {
                     continue;
+                };
+                let sh = Shading {
+                    relief_px: tile.relief * sh.depth,
+                    ..sh
                 };
                 let img = kurashi_texture::preview(&tile, &sh, base, SWATCH_PX, 1.0);
                 let _ = std::fs::create_dir_all(path.parent().unwrap_or(Path::new(".")));
@@ -842,6 +1015,46 @@ mod tests {
         assert_eq!(t2["texture.shell"], true);
         update_bake(&store, &t2);
         assert_eq!(picture_filter().filter(&pic, (320, 180), 1.0), pic);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// K61: depth, relief shadows (auto for paint, the height map with them), the spotlight's pin, the light's colour,
+    /// controls and the sheet as tokens; the dark ground weighs the light half down.
+    #[test]
+    fn wave_32_tokens_follow_their_keys() {
+        let root = std::env::temp_dir().join(format!("kurashi-texture-w32-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        set_cache_dir(root.join("cache"));
+        std::fs::create_dir_all(&root).unwrap();
+        let store = store_with(
+            &root,
+            "schema_version = 2\n[theme.texture]\nkind = \"paint\"\ndepth = 2.0\ncontrols = true\nsheet = \"fixed\"\n\
+             [theme.light]\nmode = \"spotlight\"\nangle = 0\nbeam = 25\ncolor = \"warm\"\n",
+        );
+        let mut t = Map::new();
+        t.insert("color.surface".into(), json!("#1d2230"));
+        t.insert("color.surface_container".into(), json!("#232838"));
+        t.insert("color.surface_container_high".into(), json!("#2a3042"));
+        t.insert("color.on_surface".into(), json!("#e8ecf6"));
+        t.insert("color.secondary".into(), json!("#9ab4e8"));
+        tokens(&store, &mut t, chrono::Local::now());
+        assert_eq!(t["texture.depth"], 2.0);
+        assert_eq!(t["texture.shadow"], 1.0, "paint casts shadows under auto");
+        assert!(
+            t["texture.height_map"]
+                .as_str()
+                .unwrap()
+                .ends_with("-height.png"),
+            "{t:?}"
+        );
+        assert!(t["texture.relief_px"].as_f64().unwrap() > 0.0);
+        assert_eq!(t["texture.lit"], 0.6, "a dark ground");
+        assert_eq!(t["texture.controls"], true);
+        assert_eq!(t["texture.sheet"], "fixed");
+        assert_eq!(t["light.mode"], "spotlight");
+        assert_eq!(t["light.pin"], json!([0.5, 0.0]));
+        assert_eq!(t["light.beam"], 25.0);
+        assert_eq!(t["light.color"], "#ffdba8");
         let _ = std::fs::remove_dir_all(&root);
     }
 

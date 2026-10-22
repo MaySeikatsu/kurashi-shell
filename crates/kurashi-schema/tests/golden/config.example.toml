@@ -157,8 +157,9 @@
 # brushed oil paint. It adds light and shade from the light below, never colours of its own
 # (K59).
 #   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
-#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" · forced to "none"
-#   while a11y.high_contrast is on · forced to "none" while a11y.reduce_transparency is on
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" · forced
+#   to "none" while a11y.high_contrast is on · forced to "none" while
+#   a11y.reduce_transparency is on
 # kind = "none"
 #
 # Where — The shell's surfaces, the wallpaper (baked into the picture), both, or an
@@ -168,9 +169,21 @@
 #   theme.texture.kind != "none"
 # scope = "shell"
 #
-# Strength — How deep the relief reads. Under text it is capped so text stays legible.
-#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# Strength — How strongly the relief reads; past 1 it is strong. Under text it is capped
+# so text stays legible.
+#   range: 0.0..=2.0, step 0.05 · only while theme.texture.kind != "none"
 # strength = 0.5
+#
+# Depth — How steep the relief is: deeper grain, threads and rulings, with longer shadows
+# when the light is low.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.kind != "none"
+# depth = 1.0
+#
+# Relief shadows — Grain, threads and rulings cast short shadows away from the light,
+# longer when the light is low. Auto: on for materials with real height (oil paint, brush
+# strokes) and for styles that ask for it.
+#   choices: "auto" | "off" | "on" · only while theme.texture.kind != "none"
+# shadows = "auto"
 #
 # Scale — The size of the material's grain, weave or rulings.
 #   range: 0.5..=3.0, step 0.05 · only while theme.texture.kind != "none"
@@ -181,6 +194,14 @@
 #   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
 # wrinkles = 0.0
 #
+# Cracks — Breaks the material: a network of fine cracks, as in old stone or broken glass.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.kind != "none"
+# cracks = 0.0
+#
+# Crack pattern — Stone: jagged, branching cracks. Glass: straight-edged shards.
+#   choices: "stone" | "glass" · only while theme.texture.kind != "none"
+# crack_style = "stone"
+#
 # Ink and colour — Print the rulings, dots and grain in faint colours of the palette. Off:
 # relief only — rulings are pressed into the sheet, nothing is coloured.
 #   only while theme.texture.kind != "none"
@@ -190,15 +211,58 @@
 # paper or is pressed into leather. Off keeps them crisp on the material.
 #   only while theme.texture.kind != "none"
 # text = false
+#
+# Texture over controls — Let the relief run over buttons, sliders, switches and icons
+# too, so the material reads through the whole interface. Pictures — album covers,
+# wallpapers, avatars — stay untouched.
+#   only while theme.texture.kind != "none"
+# controls = false
+#
+# Sheet — How the material sits on surfaces that move. Carried: a panel takes its texture
+# along as it slides or grows and lands on the one continuous sheet. Fixed: the sheet stays
+# put and surfaces slide over it. Separate: every surface is a sheet of its own.
+#   choices: "carried" | "fixed" | "separate" · only while theme.texture.kind != "none"
+# sheet = "carried"
+
+# [theme.texture.wallpaper]
+#
+# Own material for the wallpaper — Give the wallpaper a material of its own instead of the
+# shell's (it is baked into the picture).
+#   only while theme.texture.scope != "shell" · only while theme.texture.scope !=
+#   "everything"
+# own = false
+#
+# Wallpaper material — The relief baked into the wallpaper.
+#   choices: "none" | "paper" | "paper_dots" | "paper_lines" | "paper_grid" | "fabric" |
+#   "wool" | "stone" | "halftone" | "metal" | "leather" | "wood" | "paint" | "brush" · only
+#   while theme.texture.wallpaper.own == true
+# kind = "paper"
+#
+# Wallpaper strength — How strongly the wallpaper's relief reads.
+#   range: 0.0..=2.0, step 0.05 · only while theme.texture.wallpaper.own == true
+# strength = 0.5
+#
+# Wallpaper scale — The size of the wallpaper material's grain.
+#   range: 0.5..=3.0, step 0.05 · only while theme.texture.wallpaper.own == true
+# scale = 1.0
+#
+# Wallpaper wrinkles — Crumples the wallpaper's material.
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.wallpaper.own == true
+# wrinkles = 0.0
+#
+# Wallpaper cracks — Cracks in the wallpaper's material (the pattern is the shell's).
+#   range: 0.0..=1.0, step 0.05 · only while theme.texture.wallpaper.own == true
+# cracks = 0.0
 
 # [theme.light]
 #
 # Light — Where the material's light comes from: a fixed direction, a lamp at the pointer
 # (over the shell's surfaces; elsewhere it rests at the fixed direction), the sun of the day
-# — sunrise from the left, sunset from the right, warm when it is low — or the
-# wallpaper's own light: a lamp at its brightest place, in its colour (K59).
-#   choices: "static" | "pointer" | "daytime" | "wallpaper" · only while theme.texture.kind
-#   != "none"
+# — sunrise from the left, sunset from the right, warm when it is low — the wallpaper's
+# own light: a lamp at its brightest place, in its colour (K59) — or a spotlight: a lamp
+# pinned at the screen's edge in the light's direction, its beam aimed at the pointer (K61).
+#   choices: "static" | "pointer" | "daytime" | "wallpaper" | "spotlight" · only while
+#   theme.texture.kind != "none"
 # mode = "static"
 #
 # Direction — Where the fixed light comes from, in degrees round the screen: 0 from the
@@ -210,6 +274,63 @@
 # deeper relief.
 #   range: 10..=80, step 1 (°) · only while theme.light.mode != "daytime"
 # elevation = 40
+#
+# Beam width — How wide the spotlight's beam is: narrow lights a small pool round the
+# pointer, wide most of the screen.
+#   range: 10..=80, step 1 (°) · only while theme.light.mode == "spotlight"
+# beam = 35
+#
+# Light colour — The colour of the light's highlights. Natural: white, the sun's own, or
+# the wallpaper's.
+#   choices: "natural" | "white" | "warm" | "cool" | "custom" · only while theme.texture.kind
+#   != "none"
+# color = "natural"
+#
+# Your light colour — The highlights' colour.
+#   only while theme.light.color == "custom"
+# color_custom = "#ffd9a0"
+
+# [theme.pen]
+#
+# Outline — How outlines round blocks and surfaces are drawn: solid, dotted, dashed,
+# broken — long strokes with gaps where the pen left the paper — or rough, a very uneven
+# hand line.
+#   choices: "solid" | "dotted" | "dashed" | "broken" | "rough" · forced to "solid" while
+#   a11y.high_contrast is on
+# line = "solid"
+#
+# Pen pressure — Outlines swell and thin along their length, as with a fountain pen.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# pressure = 0.0
+#
+# Skips — The pen skips now and then: small gaps in the outlines.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# breaks = 0.0
+#
+# Ink flow — The ink runs thinner in places: the outlines' opacity varies along them.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# fade = 0.0
+#
+# Hand — Straight lines and curves wander a little, as if drawn by hand.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# wobble = 0.0
+#
+# Text: pen pressure — Letters and icons swell and thin, as written with a fountain pen.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_pressure = 0.0
+#
+# Text: skips — Small breaks in letters and icons where the pen skipped.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_breaks = 0.0
+#
+# Text: ink flow — Letters and icons vary a little in opacity, as ink does.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_fade = 0.0
+#
+# Text: hand — Letters and icons wander a little off the straight line, as if written by
+# hand.
+#   range: 0.0..=1.0, step 0.05 · forced to 0.0 while a11y.high_contrast is on
+# text_wobble = 0.0
 
 # [a11y]
 #
@@ -463,3 +584,11 @@
 # one at the start, the right one at the end (left out while the quick settings button opens
 # the right sidebar). The launcher's "> sidebar" and the keys open them too.
 # bar_buttons = true
+
+# [settings]
+#
+# Settings opens as — A normal window the compositor places and tiles, or a sheet the
+# shell draws in the middle of the screen over a dimmed desktop — made of the shell's
+# material and lit by its light, like every shell surface.
+#   choices: "window" | "sheet"
+# window = "window"

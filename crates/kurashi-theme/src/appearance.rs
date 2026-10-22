@@ -37,6 +37,15 @@ pub const LOOK_KEYS: &[&str] = &[
     "theme.texture.scale",
     "theme.texture.wrinkles",
     "theme.texture.tint",
+    "theme.texture.depth",
+    "theme.texture.shadows",
+    "theme.texture.cracks",
+    "theme.texture.crack_style",
+    "theme.pen.line",
+    "theme.pen.pressure",
+    "theme.pen.breaks",
+    "theme.pen.fade",
+    "theme.pen.wobble",
 ];
 
 /// The material keys a look or style sets (K59): the user's own come back with `theme.texture.restore`.
@@ -46,6 +55,10 @@ pub const TEXTURE_KEYS: &[&str] = &[
     "theme.texture.scale",
     "theme.texture.wrinkles",
     "theme.texture.tint",
+    "theme.texture.depth",
+    "theme.texture.shadows",
+    "theme.texture.cracks",
+    "theme.texture.crack_style",
 ];
 
 /// The keys applying a style resets: its look and palette, light or dark, every look key and the density. Applying a

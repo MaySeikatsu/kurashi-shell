@@ -153,3 +153,119 @@ a dozen ALU ops per pixel. Idle: 0 frames, 0 wakeups (static/daytime between tic
 - 紙 in light and dark on every surface (`frontend/shots/look/kami/`, `kami-dark/`), presentable: the lead reviews.
 - Settings: material cards, light dial, ink swatches (`settings/shots/appearance/texture-*.png`).
 - `just check`, all suites green; BENCH row for shell scope idle frames 0 and PSS delta.
+
+---
+
+# Wave 32 — deeper relief, shadows, the spotlight, controls, the carried sheet, cracks, brush, the pen (K61, K62)
+
+User (session 13): "a stronger texture effect with more depth and an option to adjust the color of the light source (maybe
+this could also adjust the strength of texture shadowing through angling the light flatter or higher …)"; "the texture
+also applies to those elements, so that the texture basically draws on all UI elements of the shell"; pinned vs follow
+light ("light is on top-center of the screen but adjusts angle after the mouse, instead of directly being emitted by the
+mouse pointer's position"); "surfaces don't all seem to 'own their texture' … the sidebar … slides into a static
+positioned texture"; a "crack" modifier ("cracks in stone surfaces, or broken glass"); a second brush texture ("a paint
+brush with lots of small hairs painting lines over the whole canvas … less separated and more continuous"); different
+textures on wallpaper and bar; dotted / disconnected / uneven outlines; fountain-pen modifiers for outlines and text, and
+a scribbly hand. The island's texture "just fills the inner circle" (bug).
+
+## How others do it (additions)
+- **Normal-map games** add *self-shadowing* with a height map (parallax-occlusion / horizon mapping: march a few height
+  samples toward the light; Crysis, The Last of Us brick and cobblestone). Short shadows make the same relief read
+  twice as deep; a lower sun lengthens them. Our relief shadows are that technique on a 2-D sheet, 8 samples.
+- **Pointer spotlights on the web** (Linear's and Vercel's card glows, Stripe's hover sheen) light from the pointer
+  itself — our `pointer` mode. A *pinned* lamp aimed by the pointer is the stage/flashlight model (a theatre spot, a
+  desk lamp you tilt): the light keeps one place, so shadows always fall away from it, and the pointer only chooses
+  where the beam lands. iOS 26 Liquid Glass and visionOS likewise keep the light source fixed and move the highlight.
+- **Skeuomorphic controls** (iOS 6 switches and sliders, macOS Aqua, Winamp/foobar skins): the controls were cut from the
+  same material as their panel; flat controls on a textured panel read as stickers. `controls` makes the material run
+  through them; pictures never get it (album art is content, not the shell's material).
+- **Moving sheets:** macOS sheets and Notification Center slide *with* their material (blur/vibrancy moves with the
+  panel); KDE's and GNOME's panels are solid. A texture that stays put while its panel moves looks like a window onto
+  a still wallpaper — the "carried" sheet removes that.
+- **Cracks and brush:** Substance materials (crackle, glass shards), Procreate's "Oil" and "Dry brush" (bristle tracks
+  that run on for the whole stroke), Rebelle's paint simulation. **Outlines:** rough.js / Excalidraw (seeded wobble,
+  two passes), tldraw's `perfect-freehand` (pressure from speed: strokes swell and thin), Paper by WeTransfer's
+  fountain pen; dotted and dashed outlines in Figma/Sketch strokes and in GoodNotes' "dashed" pen.
+
+## Model
+| key | values | what it does |
+|---|---|---|
+| `theme.texture.depth` | 0.5–3 (1) | steeper normals: grain, threads, rulings and strokes read deeper |
+| `theme.texture.strength` | 0–2 (0.5) | now up to 2; the legibility cap still bounds it under text |
+| `theme.texture.shadows` | auto · off · on | relief shadows; auto = the material's own (paint, brush) — the kami look turns them on |
+| `theme.light.color` | natural · white · warm · cool · custom | the highlights' colour; natural keeps white / the sun's / the wallpaper's |
+| `theme.light.mode = spotlight` | + `theme.light.beam` 10–80° (35) | a lamp pinned at the edge in `angle`'s direction, `elevation` high, its beam aimed at the pointer |
+| `theme.texture.controls` | bool (off) | the relief over buttons, sliders, switches, chips and icons (glyph and app icons) |
+| `theme.texture.sheet` | carried · fixed · separate | carried (default): a moving surface takes its sheet along and lands on the continuous sheet |
+| `theme.texture.cracks`, `crack_style` | 0–1, stone · glass | a crack network: jagged and branching, or straight shard edges |
+| kind `brush` | — | long, continuous strokes of a hairy brush across the whole sheet, bristle tracks, thin passages and dry edges |
+| `theme.texture.wallpaper.*` | own, kind, strength, scale, wrinkles, cracks | the wallpaper's own material (scope wallpaper / shell + wallpaper) |
+| `theme.pen.line` | solid · dotted · dashed · broken · rough | how outlines are drawn |
+| `theme.pen.{pressure,breaks,fade,wobble}` | 0–1 each | fountain-pen swell, skips, ink flow, a wandering hand — outlines |
+| `theme.pen.text_{…}` | 0–1 each | the same for text and icons (a layer per block while on) |
+
+Tokens and the formula: DESIGN-SYSTEM "Texture and light" (K61), `kurashi_texture::shade_at` is the reference.
+
+### The spotlight
+The lamp sits where a ray from the output's middle in the light's direction (`theme.light.angle`) meets the edge — 0° top
+centre, 315° the top-left corner — at the height `elevation` gives it. Its beam is aimed at the pointer: inside the beam
+the relief reads fully, at its rim it fades, outside it keeps 30 % (the room is never dark). Shadows always fall away
+from the lamp, never from the pointer. Off the shell's surfaces the beam glides back to the output's middle (`motion.long`;
+snaps with motion off), exactly as the pointer lamp rests. The wallpaper bake uses the beam at rest. The Light dial shows
+the pin on a little screen outline for this mode.
+
+### Controls
+With `controls` on, every control's face carries the relief: buttons, icon buttons, quick tiles, chips, toggle switches
+(track and knob), slider tracks and handles, tray and dock icons, the launcher's app icons, the island's keys. The relief
+lies over their fill and glyph and under their text label (text follows `texture.text`). Pictures opt out (`relief:
+false`): album covers, wallpaper thumbnails, avatars, web pages, the media face's cover (I167). Hover and press states
+keep reading: the relief never hides a state change (its amplitude is the capped `texture.amp`).
+
+### The sheet on moving surfaces
+**Carried** (default): a surface that slides, grows or folds (Stage card, island shape, sidebars, quick card, launcher,
+notifications, toasts) moves its sheet with it; at rest it lies exactly where the continuous sheet is — the K59 pixel
+test still holds at rest. **Fixed**: K59's still sheet. **Separate**: each surface its own sheet from its top-left corner
+(no continuity across surfaces). Cost: carried updates one uniform per frame only while a surface moves (it is drawing
+that frame anyway) — measured in BENCH.
+
+### The island (bug)
+The relief must fill the island's whole shape — head, neck fillets and body — clipped to the shape's own path (I168),
+never a disc or a rectangle inside it; the phone-shaped quick card's frame the same (I172).
+
+### The pen
+Outline styles and modifiers apply to whatever outline a block or surface draws (the chrome's line, a frame's own
+outline such as kami's sketch). Seeded by size, painted once, never animated. `rough` is the strongest hand; `wobble` is
+a gentle one for any style. Text modifiers draw the block's content through one layer effect (a few texture taps per
+pixel): pressure swells and thins strokes (a small dilate/erode by a slow noise along the line), breaks lift the pen
+(tiny gaps where a noise crosses a threshold), fade varies opacity (≥ 70 % so text stays legible), wobble shifts the
+sample position by under a pixel. They are presentation only — the text's accessible name is unchanged.
+
+## States
+- **Shadows on, height map not ready:** shading without shadows until it arrives (no flash, as the tile).
+- **Spotlight, pointer off the shell / on another output:** beam at rest (middle), the pin unchanged.
+- **Controls on, a picture inside a control:** app and tray icons count as controls (they get the relief); covers,
+  wallpaper thumbnails, avatars and web pages are pictures and stay untouched.
+- **Separate/fixed sheet:** as described; switching between modes takes effect on the next frame, no reload.
+- **Pen text modifiers with high contrast:** forced off (`forced_by: accessibility`), the row says so.
+- **Wallpaper material without the wallpaper scope:** the rows are inert with their reason.
+
+## Keyboard, a11y
+All rows are schema rows. The legibility cap bounds strength, depth, shadows and the beam. Text modifiers keep opacity ≥
+70 % and never move glyphs by more than 0.8 px. High contrast forces texture, pen line and every pen modifier off.
+
+## Motion and Ma
+Static everything; only the pointer/spotlight lamp repaints on pointer motion; carried sheets move only with the surface.
+Relief shadows cost 8 extra height samples per pixel *while on*; pen text layers cost one texture per block *while on*.
+Idle: 0 frames, 0 wakeups.
+
+## Definition of done (wave 32)
+- Contact sheet with `brush`, every kind with cracks (stone, glass), depth 1 / 2.5 and shadows on, lit from four sides
+  (`frontend/shots/texture/sheet.png`, `sheet-cracks.png`, `sheet-shadows.png`).
+- CPU `shade_at` = GPU within 1/255 incl. shadows and the spotlight (test-texture.sh formula check).
+- Shots: depth/shadows on kami and paint; light colours; the spotlight at two pointer positions + at rest; controls on/off
+  (bar, quick card, dock, launcher); carried vs fixed mid-slide (sidebar, Stage card) and at rest identical; the island's
+  shape fully textured (head, neck fillets, body) and the phone frame; wallpaper with its own material while the bar has
+  another; each pen line style and modifier on a card and on text (`frontend/shots/texture/w32/`).
+- Settings: new rows, the dial's spotlight pin, light colour swatches, material cards incl. brush, the wallpaper's own
+  material cards; Settings as a sheet textured and lit like the shell.
+- BENCH: shadows on/off, spotlight moving, carried slide, pen text layers — idle 0 frames, PSS deltas.
