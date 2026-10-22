@@ -27,7 +27,12 @@ FaceBase {
         anchors.centerIn: parent
         spacing: Theme.gap - 2
         Image {
+            id: cover
             visible: f.art !== "" && status === Image.Ready
+            // I167: the cover is a picture: never under the relief, even with texture.text on.
+            readonly property var pictureOf: status === Image.Ready ? Window.window : null
+            onPictureOfChanged: pictureOf ? Light.addPicture(cover, pictureOf) : Light.removePicture(cover)
+            Component.onDestruction: Light.removePicture(cover)
             anchors.verticalCenter: parent.verticalCenter
             height: Theme.barH - 18
             width: visible ? height : 0

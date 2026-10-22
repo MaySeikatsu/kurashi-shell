@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import "../core"
@@ -33,8 +34,11 @@ import "../components/island"
 PanelWindow {
     id: stage
 
-    // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+    // K59: this window's tile set, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+    // K61: the card's carry while it slides (a side bar's Stage): every relief on it takes its sheet along; 0 at rest
+    // and while the island's shape draws the card (the shape's relief carries its own, `shapeCarry`).
     property var tileSheet: tilesLoader.item
+    readonly property point sheetCarry: Qt.point(0, morphMode ? 0 : card.y)
     Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
     LightSense {}
 
@@ -532,6 +536,10 @@ PanelWindow {
     readonly property real shapeW: lerp(pillW, card.width, ew)
     readonly property real shapeH: lerp(pillH, cardTop + card.height - pillTop, eh)
     readonly property real shapeCx: morphW / 2 + lerp(pillGeom ? pillGeom.dx : 0, 0, tw)
+    // K61: how far the shape's body is from its place at rest, in output axes: its centre and its foot against the
+    // card's (0 once grown), so the island's sheet comes out with the body as it grows.
+    readonly property point shapeCarry: Qt.point(shapeCx - morphW / 2,
+        (flip ? -1 : 1) * (bodyTop + bodyH - cardTop - card.height))
     // The pill's corners (square corners: radius.full 0) and its centre at rest.
     readonly property real pillR: Math.min(Theme.rFull, pillH / 2)
     readonly property real pillCx: morphW / 2 + (pillGeom ? pillGeom.dx : 0)
@@ -603,24 +611,60 @@ PanelWindow {
             ringScale: 0.5 + 0.5 * stage.tw
             flip: stage.flip
         }
-        // K59: the shape's card is a material area too — the relief over its body and, joined, its head, inside the
-        // outline and under the views (the fillets of the neck stay plain: a few pixels). The sheet registers by window
-        // pixel, so the Stage's mirror for a bottom bar does not move it.
-        Loader {
-            active: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
-            x: shape.x0 + shape.ow
-            y: shape.y0 + (stage.joined ? shape.ow : 0)
-            width: Math.max(0, shape.w - 2 * shape.ow)
-            height: Math.max(0, shape.h - shape.ow - (stage.joined ? shape.ow : 0))
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, shape.rb - shape.ow) }
+        // The shape's fill as a mask for its relief (I168): the fill path alone, in white, drawn only into `shapeMask`'s
+        // texture, which is redrawn when the path changes (while the shape morphs) and never at rest.
+        Shape {
+            id: maskShape
+            visible: reliefBox.on
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                fillColor: "white"
+                PathSvg { path: reliefBox.on ? shape.fillPath : "" }
+            }
         }
+        // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
+        ShaderEffectSource {
+            id: shapeMask
+            x: -100000
+            width: parent.width
+            height: parent.height
+            sourceItem: reliefBox.on ? maskShape : null
+            hideSource: true
+            live: false
+        }
+        Connections {
+            target: reliefBox.on ? shape : null
+            function onFillPathChanged() { shapeMask.scheduleUpdate() }
+        }
+    }
+    // K59, K61 (I168): the island's material — one relief over the shape's whole box, clipped to the shape's own fill path
+    // (head, neck fillets and body; the outline and ring stay flat), under the views; with `texture.text` over them. The
+    // head stays registered with the bar it sits in (no carry above its foot; on a strip, whose own relief shows through
+    // the translucent fill, weighed by the fill's opacity so it is shaded about once); the body carries its sheet as it
+    // grows (`shapeCarry`: the body's foot and centre against the card's at rest, 0 once grown). The sheet registers by
+    // window pixel, so the Stage's mirror for a bottom bar does not move it.
+    Item {
+        id: reliefBox
+        readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
+        z: Theme.texText ? 2 : 0
+        visible: on
+        opacity: shapeBox.opacity
+        width: stage.morphW
+        height: stage.morphH
+        transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
         Loader {
-            active: Theme.texShell && shape.visible && stage.joined && shape.hw > 2
-            x: shape.hx0 + shape.ow
-            y: shape.hy0 + shape.ow
-            width: Math.max(0, shape.hw - 2 * shape.ow)
-            height: Math.max(0, shape.hh - 2 * shape.ow)
-            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, shape.hr - shape.ow) }
+            anchors.fill: parent
+            active: reliefBox.on
+            sourceComponent: Relief {
+                anchors.fill: parent
+                mask: shapeMask
+                carry: stage.shapeCarry
+                bandEdge: stage.joined ? shape.hy0 + shape.hh : shape.edgeY
+                bandWeight: stage.joined ? 1 : Theme.panel.a
+            }
         }
     }
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).

@@ -136,6 +136,10 @@ Item {
                     color: Theme.selected
                     Accessible.role: Accessible.Graphic
                     Accessible.name: I18n.tr("island.media.art")
+                    // I167: the cover is a picture: never under the relief, even with texture.text on.
+                    readonly property var pictureOf: art.status === Image.Ready ? Window.window : null
+                    onPictureOfChanged: pictureOf ? Light.addPicture(artBox, pictureOf) : Light.removePicture(artBox)
+                    Component.onDestruction: Light.removePicture(artBox)
                     Image {
                         id: art
                         anchors.fill: parent

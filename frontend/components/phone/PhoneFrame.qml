@@ -136,6 +136,18 @@ Item {
         border.color: ph.edgeC
         antialiasing: true
 
+        // K59 (I172): the screen's ground is a material area of the shell; the relief lies under the content (over it with
+        // texture.text). Loaded by path, and only from a theme that says the shell has a texture: the web host's own theme
+        // has none, and it never imports the shell's components.
+        Loader {
+            z: ph.theme && ph.theme.texText === true ? 1 : 0
+            anchors.fill: parent
+            anchors.margins: screenBox.border.width
+            active: !!ph.theme && ph.theme.texShell === true
+            source: active ? Qt.resolvedUrl("../Relief.qml") : ""
+            onLoaded: item.radius = Qt.binding(function () { return Math.max(0, ph.screenRadius - screenBox.border.width) })
+        }
+
         Item {
             id: area
             y: ph.statusH

@@ -42,7 +42,15 @@ Scope {
         var s = wantOutput !== "" ? screenNamed(wantOutput) : null
         return s !== null ? s : (focusedScreen || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null))
     }
+    // Test only (frontend/test-texture.sh, the carried sheet): the column holds at this slide progress instead of coming in.
+    readonly property real holdP: Quickshell.env("KURASHI_SIDEBAR_HOLD") ? Number(Quickshell.env("KURASHI_SIDEBAR_HOLD")) : -1
     onWantedChanged: {
+        if (wanted && holdP >= 0) {
+            if (!held) { screen = pick(); held = true }
+            gate = false
+            p = holdP
+            return
+        }
         if (wanted) {
             closeAnim.stop()
             if (!held) { screen = pick(); p = 0; gate = !instant; held = true }
@@ -113,6 +121,12 @@ Scope {
             BackgroundEffect.blurRegion: Region { item: frame }
 
             readonly property string outName: sb.screen ? sb.screen.name : ""
+            // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the column's carry
+            // while it slides (`texture.sheet = carried`): its material comes in with it and lands on the continuous sheet.
+            property var tileSheet: tilesLoader.item
+            readonly property point sheetCarry: Qt.point(frame.x - frame.restX, 0)
+            Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+            LightSense {}
             function logGeom() {
                 if (!sb.geometryLog) return
                 console.log("sidebar-geom " + outName + " " + sb.side + " " + (sb.floating ? "floating" : "panel")
@@ -157,6 +171,22 @@ Scope {
                     bottomRightRadius: sb.side === "left" ? Theme.rLg : 0
                     border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
                     border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+                }
+                // K59: the panel is a material area; the relief lies under the content (over it with texture.text). Its
+                // corners are the panel's (the outer ones square). Floating, the Block carries its own.
+                Loader {
+                    z: Theme.texText ? 2 : 0
+                    anchors.fill: parent
+                    anchors.margins: Theme.outlineW
+                    active: !sb.floating && Theme.texShell
+                    sourceComponent: Relief {
+                        readonly property real r: Math.max(0, Theme.rLg - Theme.outlineW)
+                        anchors.fill: parent
+                        topLeftRadius: sb.side === "right" ? r : 0
+                        bottomLeftRadius: sb.side === "right" ? r : 0
+                        topRightRadius: sb.side === "left" ? r : 0
+                        bottomRightRadius: sb.side === "left" ? r : 0
+                    }
                 }
                 // Floating: the look's block (keycap ring and hard shadow, soft shadow, line outline).
                 Block {
