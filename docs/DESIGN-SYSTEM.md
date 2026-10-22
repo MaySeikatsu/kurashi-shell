@@ -177,6 +177,10 @@ and ink-free = (128, 128, 128) and no ink.
 | `light.pin`, `light.beam` | K61: the spotlight's lamp `[x, y]` (fractions of the output; `null` in other modes) at `light.height_px`, and its beam's half-angle in degrees |
 | `pen.line`, `pen.{pressure,breaks,fade,wobble}`, `pen.text_{…}` | K62: the outline style and the pen modifiers (0…1) for outlines and for text and icons |
 
+**Two consumers (row 342):** Settings links the shell's `Relief.qml`, `TileSheet.qml`, `LightSense.qml`, `core/Light.qml`
+and `shaders/` (git symlinks under `settings/`), and its own `core/Theme.qml` mirrors the frontend Theme's `tex*`, `light*`
+and `longMs` names: renaming one renames both.
+
 **Height map (K61):** `<tile>-height.png`, opaque grey (R = G = B), 0 and 255 the tile's 0.5th and 99.5th height percentile (clamped beyond), sampled
 with the same wrapped bilinear taps as the tile; the range in logical px beside it (`<tile>-height.relief`, the daemon's
 `texture.relief_px` before depth and scale).
