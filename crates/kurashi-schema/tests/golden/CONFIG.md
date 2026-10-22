@@ -347,6 +347,8 @@ The relief baked into the wallpaper.
 - type: `choice` · default: `"paper"`
 - choices: `"none"` | `"paper"` | `"paper_dots"` | `"paper_lines"` | `"paper_grid"` | `"fabric"` | `"wool"` | `"stone"` | `"halftone"` | `"metal"` | `"leather"` | `"wood"` | `"paint"` | `"brush"`
 - only while `theme.texture.wallpaper.own == true`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
 
 #### `theme.texture.wallpaper.strength` — Wallpaper strength
 
@@ -355,6 +357,8 @@ How strongly the wallpaper's relief reads.
 - type: `float` · default: `0.5`
 - range: `0.0..=2.0`, step `0.05`
 - only while `theme.texture.wallpaper.own == true`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
 
 #### `theme.texture.wallpaper.scale` — Wallpaper scale
 
@@ -363,6 +367,8 @@ The size of the wallpaper material's grain.
 - type: `float` · default: `1.0`
 - range: `0.5..=3.0`, step `0.05`
 - only while `theme.texture.wallpaper.own == true`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
 
 #### `theme.texture.wallpaper.wrinkles` — Wallpaper wrinkles
 
@@ -371,6 +377,8 @@ Crumples the wallpaper's material.
 - type: `float` · default: `0.0`
 - range: `0.0..=1.0`, step `0.05`
 - only while `theme.texture.wallpaper.own == true`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
 
 #### `theme.texture.wallpaper.cracks` — Wallpaper cracks
 
@@ -379,6 +387,8 @@ Cracks in the wallpaper's material (the pattern is the shell's).
 - type: `float` · default: `0.0`
 - range: `0.0..=1.0`, step `0.05`
 - only while `theme.texture.wallpaper.own == true`
+- only while `theme.texture.scope != "shell"`
+- only while `theme.texture.scope != "everything"`
 
 ### Light
 
