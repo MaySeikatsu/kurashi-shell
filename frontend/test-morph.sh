@@ -15,15 +15,15 @@
 #   nix develop -c frontend/test-morph.sh
 #   MORPH_CASES="washi sekai" MORPH_SURFACES="quick session" MORPH_PHASES=real nix develop -c frontend/test-morph.sh
 # Cases: washi, sekai, kami (their own profiles: calm, lively, calm), washi-lively, sekai-calm, washi-bottom,
-# sekai-bottom, washi-none (motion off: cuts), plain (no style: translucent flat strip, the I160 head). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
+# sekai-bottom, washi-none (motion off: cuts), plain (no style: translucent flat strip, the I160 head), glass (soft: I122). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${MORPH_SANDBOX:-w34-stage-morph}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/morph}
 AT=${MORPH_AT:-40 120 250}
-CASES=${MORPH_CASES:-washi sekai kami washi-lively sekai-calm washi-bottom sekai-bottom washi-none plain}
-SURFACES=${MORPH_SURFACES:-island quick session mod peek retarget}
+CASES=${MORPH_CASES:-washi sekai kami washi-lively sekai-calm washi-bottom sekai-bottom washi-none plain glass}
+ALL_SURFACES="island quick session mod peek retarget"
 PHASES=${MORPH_PHASES:-real mock}
 mkdir -p "$OUT"
 fail() { echo "test-morph: $*" >&2; exit 1; }
@@ -173,6 +173,15 @@ if want real "$PHASES"; then
   for cs in $CASES; do
     echo "-- case $cs"
     apply_case "$cs"
+    # Every surface for the looks themselves; the variants (another profile, the bottom bar, no style) a few, to keep the
+    # shots reviewable. MORPH_SURFACES picks them for every case.
+    if [ -n "${MORPH_SURFACES:-}" ]; then SURFACES=$MORPH_SURFACES
+    else case "$cs" in
+      washi|sekai|kami) SURFACES=$ALL_SURFACES ;;
+      *-bottom) SURFACES="island quick session peek" ;;
+      plain) SURFACES="island quick" ;;
+      *) SURFACES="island quick session" ;;
+    esac; fi
     if want island "$SURFACES"; then
       surface "$cs" island "$(crop 860 0 840 560)" island.expand -- ui.close
     fi
