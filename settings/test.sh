@@ -342,6 +342,7 @@ for _ in $(seq 15); do [ -z "$(Q modRefusal broken-demo)" ] && break; sleep 0.2;
 shot 7b-mods-after-change
 
 # --- keyboard only from here: one virtual keyboard for the whole run (a keyboard that goes away drops focus) ----
+rm -f "$R/keys.fifo"   # a run stopped early leaves its fifo in the sandbox dir
 mkfifo "$R/keys.fifo"
 python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & kbd_pid=$!; pids+=("$kbd_pid")
 exec 3> "$R/keys.fifo"
