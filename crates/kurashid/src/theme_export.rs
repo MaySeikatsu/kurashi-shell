@@ -264,12 +264,19 @@ fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Va
                 None => entry["error"] = json!("theme.export.no_template"),
                 Some(text) => {
                     let (rendered, u) = export::render(&text, p, values);
+                    // A placeholder left unfilled would reach the app as text — in niri's KDL that breaks the whole
+                    // config. Such a render is not written: the last good file stays, and the entry says why.
+                    let held = !u.is_empty();
                     unknown.extend(u);
-                    match write_if_changed(&dest, &rendered) {
-                        Ok(changed) => entry["written"] = json!(changed),
-                        Err(e) => {
-                            tracing::warn!(target = %t.name, error = %e, "theme export failed");
-                            entry["error"] = json!("theme.export.write_failed");
+                    if held {
+                        entry["error"] = json!("theme.export.unfilled");
+                    } else {
+                        match write_if_changed(&dest, &rendered) {
+                            Ok(changed) => entry["written"] = json!(changed),
+                            Err(e) => {
+                                tracing::warn!(target = %t.name, error = %e, "theme export failed");
+                                entry["error"] = json!("theme.export.write_failed");
+                            }
                         }
                     }
                 }
@@ -592,6 +599,33 @@ mod tests {
             .iter()
             .any(|l| l["line"] == "icon_theme=Papirus-Dark");
         assert!(icon, "{doc}");
+    }
+
+    /// A render with a placeholder the shell cannot fill is never written: the last good file stays (an unfilled
+    /// value in niri's KDL would break the compositor's whole config).
+    #[test]
+    fn a_render_with_an_unfilled_placeholder_keeps_the_last_good_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let desktop = Desktop::new("/nonexistent/gsettings", vec![]);
+        let theme = theme("dark", 18, "calm");
+        let good = export_into(dir.path(), &theme, &["foot"], "", &desktop);
+        let path = std::path::PathBuf::from(entry(&good, "foot")["path"].as_str().unwrap());
+        let before = std::fs::read_to_string(&path).unwrap();
+        // The user's own template names a value that does not exist.
+        let user = dir.path().join("kurashi/templates");
+        std::fs::create_dir_all(&user).unwrap();
+        std::fs::write(
+            user.join("foot.ini"),
+            "[colors]\nbackground={{colors.nope.default.hex_stripped}}\n",
+        )
+        .unwrap();
+        let held = export_into(dir.path(), &theme, &["foot"], "", &desktop);
+        assert_eq!(
+            entry(&held, "foot")["error"],
+            "theme.export.unfilled",
+            "{held}"
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), before);
     }
 
     #[test]
