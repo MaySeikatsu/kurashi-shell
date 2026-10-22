@@ -258,3 +258,8 @@ Sandbox names: `w20-dmn-…`, `w20-shell-…`, `w20-host-…`, `w20-nix-…`.
 | [W32-settings](W32-settings.md) | `settings/**`, settings i18n (phase 2: Relief in Settings) | opus |
 | [W32-controls](W32-controls.md) | Button, IconButton, QuickButton, Chip, ToggleSwitch, Slider, TrayIcon, SidebarButton, KeyButton, QuickTile, launcher rows, dock icons, test-controls | haiku (max) |
 Sandbox names: `w32-gen-…`, `w32-rel-…`, `w32-pen-…`, `w32-set-…`, `w32-ctl-…`. `CARGO_BUILD_JOBS=4`.
+
+## Wave 33 (session 13, machine A)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W33-bench](W33-bench.md) | `tools/bench/**`, `docs/BENCH.md` (results), one `justfile` recipe | haiku (max) |
