@@ -19,7 +19,8 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/greeter/shots
 DECORS=${DECORS:-sekai none}
 PASS=kurashi-test-pass
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 mkdir -p "$OUT"
 FAILS=0
 CHECKS=0

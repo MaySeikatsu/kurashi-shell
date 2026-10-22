@@ -17,7 +17,8 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 PLAYER_BIN=${KURASHI_FAKE_MPRIS:-$BIN/examples/fake_mpris}
 OUT=$ROOT/mods/lyrics/shots
 DECORS=${DECORS:-sekai none}
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # Layout px of the 2560 x 1440 output: the bar's right half, the desk column, the Stage's card under the bar.
 BAR_GEOM=${BAR_GEOM:-"1600,0 960x48"}
 DESK_GEOM=${DESK_GEOM:-"2200,30 360x1000"}
