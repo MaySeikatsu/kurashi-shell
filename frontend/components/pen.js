@@ -28,6 +28,21 @@ function seedOf(w, h, salt) {
     return ((Math.round(w) * 73856093) ^ (Math.round(h) * 19349663) ^ (salt | 0)) >>> 0
 }
 
+// The per-block salt, so equal-sized blocks (a grid of quick tiles) do not draw identical lines: the item's place in its
+// parent and its parent's place in the grandparent, on a 24 px grid. It is read when a line is painted (a size, colour
+// or token change, or when the block lands in another 24 px cell of its parent — layout settling after the first paint),
+// so a block that does not move never changes its line. Ancestors' own motion (a card sliding in) does not enter it. A caller with a better identity passes an explicit seed.
+function cell(v) { return Math.floor((v + 12) / 24) }
+
+function salt(item) {
+    var h = 0x811C9DC5
+    for (var it = item, k = 0; it && k < 2; it = it.parent, k++) {
+        h = Math.imul(h ^ cell(it.x), 16777619) >>> 0
+        h = Math.imul(h ^ cell(it.y), 16777619) >>> 0
+    }
+    return h
+}
+
 function clamp(x, a, b) { return Math.max(a, Math.min(b, x)) }
 function smooth(e0, e1, x) { var t = clamp((x - e0) / (e1 - e0), 0, 1); return t * t * (3 - 2 * t) }
 
