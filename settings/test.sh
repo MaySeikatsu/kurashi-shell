@@ -24,6 +24,12 @@
 # a list pinned by Nix (read-only), and its Japanese page. W24 (K48 (5), K49): the pages' sections as cards in order
 # (power, desktop, a search), and the theme export status under its row: foot's file, its missing include line, Copy by
 # keyboard (the clipboard holds the line, or the row says it could not copy without wl-copy).
+# W35-keys (K64): the Keys page — under sway it says writing is niri's so far; under niri (the daemon started again with
+# KURASHI_COMPOSITOR=niri) the binds file written and checked by `niri validate`, a combo recorded by keyboard (Return,
+# Esc cancels, a key that types text needs a modifier, Backspace removes; the compositor's shortcuts inhibited while it
+# records), a taken combo that asks (Esc keeps both, Replace is one change), a conflict made by the CLI named on its row,
+# the include line copied and then seen once added, a later bind of the user's named, Home-Manager's link left alone
+# (shots in settings/shots/keys/), and the Japanese page.
 # W29 (K53): the Appearance page's Style, Look and Palette blocks, their categories (each opened once, shots in
 # settings/shots/appearance/), the "differs from the style" line and its Reset (undo, redo), style cards that reset the
 # user's appearance values and keep the rest, a look over the style (the palette stays), dark kept by a style, None.
@@ -938,6 +944,154 @@ fi
 shot 31-theme-export-copied
 K '{"t":"apply","id":"te2","ops":[{"reset":"theme.export"}]}' | grep -q applied || fail "export: theme.export reset was refused"
 
+# S3. keyboard shortcuts (K64, W35-keys). The sandbox runs sway, and writing the binds is niri's so far: with
+#     keys.write on, the page says so and no file is written.
+mkdir -p "$SHOTS/keys"
+K '{"t":"apply","id":"k0","ops":[{"set":"keys.write","value":true}]}' | grep -q applied || fail "keys: keys.write was refused"
+Q goto keys
+for _ in $(seq 50); do [ "$(Q keysState)" = unsupported ] && break; sleep 0.2; done
+[ "$(Q keysState)" = unsupported ] || fail "keys: under sway the page must say writing is niri's so far ($(Q keysState))"
+[ ! -e "$R/cfg/niri/kurashi-binds.kdl" ] || fail "keys: a binds file was written under sway"
+shot keys/unsupported
+echo "keys S3: under sway the page says the shortcuts are written for niri only, and no file is written"
+# The niri pass: the daemon starts again as under niri (its adapter finds no niri socket; the keys need none), and
+# Settings with it, opened on the row by its deep link. The Japanese pass below starts both again as before.
+kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
+sleep 0.5
+KURASHI_COMPOSITOR=niri NIRI_SOCKET=$R/niri-absent.sock start_daemon C
+start_qs keys.write
+for _ in $(seq 100); do [ "$(Q current 2>/dev/null)" = keys ] && break; sleep 0.2; done
+[ "$(Q current)" = keys ] || fail "keys: the deep link did not open the keys page ($(Q current))"
+KF=$R/cfg/niri/kurashi-binds.kdl
+for _ in $(seq 50); do [ "$(Q keysState)" = written:missing ] && break; sleep 0.2; done
+[ "$(Q keysState)" = written:missing ] || fail "keys: the binds file is not reported written with its include missing ($(Q keysState))"
+grep -qF "Mod+Space repeat=false { spawn \"$BIN/kurashi\" \"act\" \"launcher.toggle\"; }" "$KF" \
+  || fail "keys: the launcher's bind (the kurashi binary's absolute path) is not in $KF"
+# niri itself reads the file, as a config that includes it (skipped loudly without niri).
+niri_check() {
+  if command -v niri >/dev/null; then
+    printf 'include "%s"\n' "$KF" > "$R/niri-check.kdl"
+    niri validate -c "$R/niri-check.kdl" > "$R/niri-check.log" 2>&1 || { cat "$R/niri-check.log"; fail "keys: niri validate refused $KF ($1)"; }
+    echo "keys: niri validate accepts the written file ($1)"
+  else
+    echo "keys: SKIPPED niri validate ($1): no niri on PATH"
+  fi
+}
+niri_check defaults
+shot keys/written
+echo "keys S3: under niri the file is written with the kurashi binary's path; the page shows the include line to add"
+
+# One shortcut row as the page has it: a field of `Q keysRow` (recording, pending, notice, inhibiting, lines).
+krow() { Q keysRow "$1" | python3 -I -c 'import json,sys; v=json.loads(sys.stdin.read())[sys.argv[1]]; print(json.dumps(v) if isinstance(v, (list, bool)) else v)' "$2"; }
+wait_val() {   # <key> <json value>
+  for _ in $(seq 25); do [ "$(val "$1")" = "$2" ] && return 0; sleep 0.2; done
+  fail "keys: $1 is $(val "$1"), not $2"
+}
+# K16. by keyboard: Tab to the launcher's field and Return records ("Press a key combination…"); while it records the
+#      compositor's shortcuts go to the field (keyboard-shortcuts-inhibit). Esc cancels: nothing changes, the focus stays.
+Q focusList >/dev/null
+tab_to "shortcut:keys.launcher" 150
+kp return
+[ "$(krow keys.launcher recording)" = true ] || fail "keys: Return did not start recording ($(Q keysRow keys.launcher))"
+[ "$(krow keys.launcher inhibiting)" = true ] || fail "keys: the compositor's shortcuts are not inhibited while recording"
+shot keys/recording
+kp escape
+[ "$(krow keys.launcher recording)" = false ] || fail "keys: Esc did not stop recording"
+[ "$(val keys.launcher)" = '"Mod+Space"' ] || fail "keys: Esc changed the launcher's shortcut ($(val keys.launcher))"
+[ "$(Q focused)" = "shortcut:keys.launcher" ] || fail "keys: the focus left the field on Esc ($(Q focused))"
+echo "keyboard K16: Return records with the compositor's shortcuts inhibited, Esc cancels and keeps the focus"
+# K17. a key that types text needs a modifier: K alone is not taken (the line says why), Ctrl+Alt+K is; the file follows.
+kp return
+kp k
+[ "$(krow keys.launcher recording)" = true ] || fail "keys: K alone ended the recording"
+[ -n "$(krow keys.launcher notice)" ] || fail "keys: K alone did not say it needs a modifier"
+shot keys/needs-modifier
+kp ctrl+alt+k
+wait_val keys.launcher '"Ctrl+Alt+K"'
+for _ in $(seq 25); do grep -qF 'Ctrl+Alt+K repeat=false' "$KF" && break; sleep 0.2; done
+grep -qF 'Ctrl+Alt+K repeat=false' "$KF" || fail "keys: the recorded combo is not in $KF"
+echo "keyboard K17: K alone asks for a modifier; Ctrl+Alt+K recorded and written"
+# K18. a combo another action has asks first: on the quick settings' field Ctrl+Alt+K names the launcher, with Replace
+#      focused; Esc keeps both. Again, and Replace: quick settings take it, the launcher has none — one change, so one Undo
+#      brings both back.
+tab_to "shortcut:keys.quick" 60
+kp return
+kp ctrl+alt+k
+for _ in $(seq 15); do [ "$(krow keys.quick pending)" = "Ctrl+Alt+K>keys.launcher" ] && break; sleep 0.2; done
+[ "$(krow keys.quick pending)" = "Ctrl+Alt+K>keys.launcher" ] || fail "keys: the taken combo did not ask ($(Q keysRow keys.quick))"
+focus_on "keys-replace" || fail "keys: Replace does not have the focus ($(Q focused))"
+shot keys/conflict-ask
+kp escape
+[ -z "$(krow keys.quick pending)" ] || fail "keys: Esc did not drop the question"
+[ "$(val keys.quick)" = '""' ] && [ "$(val keys.launcher)" = '"Ctrl+Alt+K"' ] || fail "keys: Esc on the question changed a shortcut"
+focus_on "shortcut:keys.quick" || fail "keys: the focus did not go back to the field ($(Q focused))"
+kp return
+kp ctrl+alt+k
+focus_on "keys-replace" || fail "keys: Replace does not have the focus the second time ($(Q focused))"
+kp return
+wait_val keys.quick '"Ctrl+Alt+K"'
+wait_val keys.launcher '""'
+Q undo
+wait_val keys.launcher '"Ctrl+Alt+K"'
+wait_val keys.quick '""'
+echo "keyboard K18: a taken combo asks (Replace focused); Esc keeps both; Replace moves it in one change (one Undo)"
+# K19. Backspace while recording removes the shortcut.
+tab_to "shortcut:keys.launcher" 60
+kp return
+kp backspace
+wait_val keys.launcher '""'
+grep -qF 'launcher.toggle' "$KF" && fail "keys: the removed shortcut is still in $KF"
+K '{"t":"apply","id":"k1","ops":[{"reset":"keys.launcher"}]}' | grep -q applied || fail "keys: the launcher reset was refused"
+echo "keyboard K19: Backspace removed the launcher's shortcut (and its bind)"
+# S3b. a conflict made elsewhere (the CLI): Settings on Mod+N, the notification centre's. The first in the list is written,
+#      the other row says which action has it, with a link to that row; the file binds Mod+N once.
+"$BIN/kurashi" set keys.settings Mod+N | grep '^applied' >/dev/null || fail "keys: kurashi set keys.settings was not applied"
+for _ in $(seq 25); do [ "$(Q keyBind keys.settings)" = conflict ] && break; sleep 0.2; done
+[ "$(Q keyBind keys.settings)" = conflict ] || fail "keys: Mod+N twice is not a conflict ($(Q keyBind keys.settings))"
+[[ "$(krow keys.settings lines)" == *"Notification centre"* ]] || fail "keys: the row does not name the action that has Mod+N ($(krow keys.settings lines))"
+[ "$(grep -c 'Mod+N ' "$KF")" = 1 ] || fail "keys: Mod+N is bound $(grep -c 'Mod+N ' "$KF") times in $KF"
+niri_check "a conflict left out"
+Q jump keys.settings
+shot keys/conflict-row
+"$BIN/kurashi" reset keys.settings >/dev/null 2>&1 || K '{"t":"apply","id":"k2","ops":[{"reset":"keys.settings"}]}' >/dev/null
+echo "keys S3b: Mod+N twice: the first is written, the other row names it; niri reads the file"
+# S3c. the include line: Copy by keyboard (the clipboard holds it, or the page says it could not copy); added to niri's
+#      config, the page says it is included at once (niri's config directory is watched while the page shows). A bind of
+#      the user's own after the include wins: the row says the shortcut is not in effect.
+Q goto keys
+Q focusList >/dev/null
+tab_to "copy:keys-include" 150
+kp return
+for _ in $(seq 25); do [ "$(Q keysCopied)" != none ] && break; sleep 0.2; done
+if command -v wl-copy >/dev/null; then
+  [ "$(Q keysCopied)" = copied ] || fail "keys: Copy did not copy ($(Q keysCopied))"
+  [ "$(timeout 5 wl-paste -n 2>/dev/null)" = 'include "kurashi-binds.kdl"' ] || fail "keys: the clipboard does not hold the include line"
+else
+  [[ "$(Q keysCopied)" == error* ]] || fail "keys: without wl-copy, Copy must say it could not ($(Q keysCopied))"
+fi
+printf '\ninclude "kurashi-binds.kdl"\nbinds {\n    Mod+N { spawn "mako"; }\n}\n' >> "$R/cfg/niri/config.kdl"
+for _ in $(seq 25); do [ "$(Q keysState)" = written:included ] && break; sleep 0.2; done
+[ "$(Q keysState)" = written:included ] || fail "keys: the include line added to niri's config is not seen ($(Q keysState))"
+[ "$(Q keyBind keys.notifications)" = ok:overridden ] || fail "keys: a later bind of the user's on Mod+N is not reported ($(Q keyBind keys.notifications))"
+Q scroll 0
+shot keys/included
+echo "keys S3c: Copy ($(Q keysCopied)); the include line added by hand shows at once; a later bind of the user's is named"
+# S3d. Home-Manager's file: a link into the store at that path is never written; the page says whose keys are in effect.
+mkdir -p "$R/store"
+cp "$KF" "$R/store/hm-binds.kdl"
+ln -sf "$R/store/hm-binds.kdl" "$KF"
+before=$(sha256sum "$R/store/hm-binds.kdl")
+"$BIN/kurashi" set keys.quick Mod+Q | grep '^applied' >/dev/null || fail "keys: kurashi set keys.quick was not applied"
+for _ in $(seq 25); do [ "$(Q keysState)" = managed ] && break; sleep 0.2; done
+[ "$(Q keysState)" = managed ] || fail "keys: Home-Manager's link is not reported ($(Q keysState))"
+[ -L "$KF" ] && [ "$(sha256sum "$R/store/hm-binds.kdl")" = "$before" ] || fail "keys: Home-Manager's file was touched"
+[[ "$(krow keys.lock lines)" == *"Not in effect"* ]] || fail "keys: under Home-Manager's file the rows do not say their combos are not in effect ($(krow keys.lock lines))"
+Q scroll 0
+shot keys/managed
+echo "keys S3d: a store link at the path is left alone and named"
+rm -f "$KF"
+K '{"t":"apply","id":"k3","ops":[{"reset":"keys.quick"},{"reset":"keys.write"}]}' | grep -q applied || fail "keys: the reset was refused"
+
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
@@ -949,6 +1103,8 @@ Q goto appearance
 shot ja-appearance
 Q goto power
 shot ja-cards-power
+Q goto keys
+shot ja-keys
 Q goto @changed
 shot ja-changed
 Q goto @profiles
