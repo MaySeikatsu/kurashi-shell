@@ -1,15 +1,19 @@
-// Written by kurashid from the theme (K49; template from DankMaterialShell, MIT). Do not edit: it is rewritten.
-// Remove `include "kurashi-colors.kdl"` from config.kdl to stop following the shell's colours.
+// Written by kurashid from the theme (K49, W34; colours from DankMaterialShell, MIT). Do not edit: it is rewritten.
+// Include it in ~/.config/niri/config.kdl after your own layout, window-rule and animations blocks, so that its values
+// take effect:
+//   include "kurashi.kdl"
 
 layout {
 
     focus-ring {
+        width {{shape.border}}
         active-color   "{{colors.primary.default.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
         urgent-color   "{{colors.error.default.hex}}"
     }
 
     border {
+        width {{shape.border}}
         active-color   "{{colors.primary.default.hex}}"
         inactive-color "{{colors.outline.default.hex}}"
         urgent-color   "{{colors.error.default.hex}}"
@@ -29,3 +33,13 @@ layout {
         color "{{colors.primary.default.hex}}80"
     }
 }
+
+// Window corners follow the shell's panels (radius.lg; square under shape none). clip-to-geometry clips the window's
+// content to those corners too.
+window-rule {
+    geometry-corner-radius {{shape.radius}}
+    clip-to-geometry true
+}
+
+// The shell's motion profile: calm and lively are springs, none switches niri's animations off.
+{{motion.niri}}
