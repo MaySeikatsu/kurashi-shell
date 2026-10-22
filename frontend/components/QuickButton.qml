@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "island"
 
 // Quick settings in the bar (K24): one glyph in a square as thick as the bar, so the pointer target is the
 // bar's full thickness, as for a tray icon (the theme never makes the bar thinner than 32 px). Presentational:
@@ -33,6 +34,8 @@ Item {
     Accessible.checked: q.open
 
     HoverHandler { id: hover }
+    // W34: the quick panel grows out of this button (a top or bottom bar's; IslandGeom's origins).
+    AnchorReport { target: q; key: "quick"; output: q.qsw && q.qsw.screen ? q.qsw.screen.name : ""; enabled: q.qsw ? q.qsw.vertical !== true : false }
     // The drawn square sits 3 px in from the target on each side, as the tray icons' hover square does.
     Rectangle {
         anchors.centerIn: parent

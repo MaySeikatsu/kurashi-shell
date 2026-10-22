@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "island"
 
 // A sidebar's button at the bar's end (I154, `sidebar.bar_buttons`; ii opens its sidebars from the bar's two ends, Windows
 // 11 from the taskbar's corners): a panel glyph in a square as thick as the bar, as the quick button. Presentational: it
@@ -42,6 +43,8 @@ Item {
         }
     }
     HoverHandler { id: hover }
+    // W34: the sidebar grows out of this button (a top or bottom bar's; IslandGeom's origins).
+    AnchorReport { target: sb; key: "sidebar:" + sb.side; output: sb.qsw && sb.qsw.screen ? sb.qsw.screen.name : ""; enabled: sb.qsw ? sb.qsw.vertical !== true : false }
     Rectangle {
         anchors.centerIn: parent
         width: parent.width - 6
