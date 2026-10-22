@@ -9,7 +9,7 @@
 
 use std::f32::consts::{PI, TAU};
 
-use crate::generate::Field;
+use crate::generate::{Field, rows};
 use crate::noise::{Rng, hash, smoothstep};
 use crate::weave;
 
@@ -221,7 +221,7 @@ struct Near {
     u: Vec<f32>,
 }
 
-fn near(s: &Stroke, scale: f32, reach: f32) -> Near {
+fn near(s: &Stroke, scale: f32, reach: f32, threads: usize) -> Near {
     let (mut x0, mut y0, mut x1, mut y1) = (f32::MAX, f32::MAX, f32::MIN, f32::MIN);
     for p in &s.pts {
         x0 = x0.min(p[0]);
@@ -234,27 +234,24 @@ fn near(s: &Stroke, scale: f32, reach: f32) -> Near {
     let ix1 = ((x1 + reach) * scale).ceil() as isize;
     let iy1 = ((y1 + reach) * scale).ceil() as isize;
     let (w, h) = ((ix1 - ix0 + 1) as usize, (iy1 - iy0 + 1) as usize);
-    let mut near = Near {
-        x0: ix0,
-        y0: iy0,
-        w,
-        h,
-        d: vec![f32::MAX; w * h],
-        e: vec![0.0; w * h],
-        u: vec![0.0; w * h],
-    };
-    // Each segment fills only its own box (grown by the reach), so the work follows the stroke's length, not its box.
+    // Each segment fills only its own box (grown by the reach), so the work follows the stroke's length, not its box; the
+    // rows of the stroke's box are independent (I171), each taking the segments in order.
     let last = s.pts.len() - 2;
-    for j in 0..=last {
-        let (a, b) = (s.pts[j], s.pts[j + 1]);
-        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
-        let ll = dx.hypot(dy).max(1e-6);
-        let (ux, uy) = (dx / ll, dy / ll);
-        let jx0 = ((a[0].min(b[0]) - reach) * scale).floor() as isize;
-        let jx1 = ((a[0].max(b[0]) + reach) * scale).ceil() as isize;
-        let jy0 = ((a[1].min(b[1]) - reach) * scale).floor() as isize;
-        let jy1 = ((a[1].max(b[1]) + reach) * scale).ceil() as isize;
-        for iy in jy0..=jy1 {
+    let mut due = vec![[f32::MAX, 0.0, 0.0]; w * h];
+    rows(h, threads, &mut due, |by, row| {
+        let iy = iy0 + by as isize;
+        for j in 0..=last {
+            let (a, b) = (s.pts[j], s.pts[j + 1]);
+            let jy0 = ((a[1].min(b[1]) - reach) * scale).floor() as isize;
+            let jy1 = ((a[1].max(b[1]) + reach) * scale).ceil() as isize;
+            if iy < jy0 || iy > jy1 {
+                continue;
+            }
+            let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+            let ll = dx.hypot(dy).max(1e-6);
+            let (ux, uy) = (dx / ll, dy / ll);
+            let jx0 = ((a[0].min(b[0]) - reach) * scale).floor() as isize;
+            let jx1 = ((a[0].max(b[0]) + reach) * scale).ceil() as isize;
             let py = (iy as f32 + 0.5) / scale - a[1];
             for ix in jx0..=jx1 {
                 let px = (ix as f32 + 0.5) / scale - a[0];
@@ -262,22 +259,28 @@ fn near(s: &Stroke, scale: f32, reach: f32) -> Near {
                 let tau = t.clamp(0.0, 1.0);
                 let (qx, qy) = (px - ux * ll * tau, py - uy * ll * tau);
                 let d = qx.hypot(qy);
-                let i = (iy - iy0) as usize * w + (ix - ix0) as usize;
-                if d < near.d[i] {
+                let cell = &mut row[(ix - ix0) as usize];
+                if d < cell[0] {
                     // Beyond the first or the last segment the arc position runs on, so the caps are round.
                     let t_end = if (j == 0 && t < 0.0) || (j == last && t > 1.0) {
                         t
                     } else {
                         tau
                     };
-                    near.d[i] = d;
-                    near.e[i] = ux * py - uy * px;
-                    near.u[i] = s.cum[j] + t_end * ll;
+                    *cell = [d, ux * py - uy * px, s.cum[j] + t_end * ll];
                 }
             }
         }
+    });
+    Near {
+        x0: ix0,
+        y0: iy0,
+        w,
+        h,
+        d: due.iter().map(|c| c[0]).collect(),
+        e: due.iter().map(|c| c[1]).collect(),
+        u: due.iter().map(|c| c[2]).collect(),
     }
-    near
 }
 
 /// How far the brush has come at arc position `u`: 0 beyond the ends, rounding up over the head (0.55 of the half-width) and
@@ -330,10 +333,13 @@ fn along(i: i64, t: f32, seed: u64) -> f32 {
 fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut [f32]) {
     // The widest the brush wanders (1.2 half-widths) and the coverage's edge, so every texel that is covered is in the box.
     let reach = s.half * 1.2 + 1.2;
-    let near = near(s, f.scale, reach);
+    let near = near(s, f.scale, reach, f.threads);
     let n = f.n as isize;
-    for by in 0..near.h {
-        for bx in 0..near.w {
+    // The stroke's box is smaller than the tile, so its texels are distinct texels of the tile: each box row is computed
+    // on its own (coverage and the paint's top; NaN where the stroke does not reach), then laid in order.
+    let mut dabs = vec![[f32::NAN; 2]; near.w * near.h];
+    rows(near.h, f.threads, &mut dabs, |by, row| {
+        for (bx, dab) in row.iter_mut().enumerate() {
             let bi = by * near.w + bx;
             // Beyond the reach no texel is covered (the brush is at most 1.19 half-widths wide): skip it before the noise.
             let d = near.d[bi];
@@ -352,8 +358,6 @@ fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut 
                 continue;
             }
             let half = hw.max(1e-3);
-            let (ix, iy) = (near.x0 + bx as isize, near.y0 + by as isize);
-            let k = (iy.rem_euclid(n) * n + ix.rem_euclid(n)) as usize;
             let t = (u / s.len).clamp(0.0, 1.0);
             // Coverage: full inside the brush, a soft edge, and thinner toward the tail.
             let edge = smoothstep(0.8, -0.9, outside);
@@ -391,10 +395,20 @@ fn lay(f: &mut Field, s: &Stroke, canvas: &[f32], cover: &mut [f32], tone: &mut 
                 * (1.0 - 0.4 * dryness);
             let side = SIDE * thick * (-((sd + 0.7) / 0.7).powi(2)).exp();
             let top = body + bead + lip + side;
-            let c = (edge * thick * alive * OPACITY).clamp(0.0, 1.0);
-            f.h[k] = f.h[k] * (1.0 - c) + c * (CANVAS * canvas[k] + top);
-            cover[k] += (1.0 - cover[k]) * c;
-            tone[k] += (s.tone - tone[k]) * c;
+            *dab = [(edge * thick * alive * OPACITY).clamp(0.0, 1.0), top];
         }
+    });
+    for (bi, [c, top]) in dabs.into_iter().enumerate() {
+        if c.is_nan() {
+            continue;
+        }
+        let (ix, iy) = (
+            near.x0 + (bi % near.w) as isize,
+            near.y0 + (bi / near.w) as isize,
+        );
+        let k = (iy.rem_euclid(n) * n + ix.rem_euclid(n)) as usize;
+        f.h[k] = f.h[k] * (1.0 - c) + c * (CANVAS * canvas[k] + top);
+        cover[k] += (1.0 - cover[k]) * c;
+        tone[k] += (s.tone - tone[k]) * c;
     }
 }
