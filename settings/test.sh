@@ -67,6 +67,7 @@ trap cleanup EXIT
 fail() { echo "FAIL: $*"; exit 1; }
 
 # --- isolated daemon state -------------------------------------------------------------------------
+rm -rf "$R/cfg" "$R/state" "$R/data" "$R/cache"   # a reused sandbox name keeps its dir: start from empty XDG dirs
 mkdir -p "$R/cfg/kurashi/profiles" "$R/state" "$R/data" "$R/cache" "$R/root/i18n/en" "$R/root/i18n/ja"
 export XDG_CONFIG_HOME=$R/cfg XDG_STATE_HOME=$R/state XDG_DATA_HOME=$R/data XDG_CACHE_HOME=$R/cache
 cat > "$R/cfg/kurashi/config.toml" <<'T'
@@ -200,7 +201,7 @@ shot 1-user-value
 mkdir -p $SHOTS/appearance
 ashot() { sleep 1; grim -o HEADLESS-1 "$SHOTS/appearance/$1.png"; [ -s "$SHOTS/appearance/$1.png" ]; }
 ap() { Q appearance | python3 -c 'import json,sys; a=json.loads(sys.stdin.read()); print(a[sys.argv[1]] if isinstance(a[sys.argv[1]], str) else ",".join(a[sys.argv[1]]))' "$1"; }
-wait_ap() { for _ in $(seq 50); do [ "$(ap "$1")" = "$2" ] && return 0; sleep 0.2; done; fail "appearance: $1 is $(ap "$1"), expected $2"; }
+wait_ap() { for _ in $(seq 50); do [ "$(ap "$1")" = "$2" ] && return 0; sleep 0.2; done; fail "appearance: $1 is $(ap "$1"), expected $2 (theme.style = $(val theme.style) from $(src theme.style))"; }
 wait_differs() {   # "" = hidden, else a substring of the line
   for _ in $(seq 50); do
     if [ -z "$1" ]; then [ -z "$(Q differs)" ] && return 0; else [[ "$(Q differs)" == *"$1"* ]] && return 0; fi

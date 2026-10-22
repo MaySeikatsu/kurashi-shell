@@ -8,8 +8,19 @@ Column {
     id: ik
     readonly property var inks: (Store.theme && Store.theme.appearance && Store.theme.appearance.inks) || ({})
     readonly property string current: Store.valueOf("theme.colors.ink") || "palette"
-    readonly property var names: ["palette", "blue", "black", "sepia", "red", "green", "violet"]
-    function colorOf(n) { return n === "palette" ? Theme.color("color.on_surface", "#888888") : (ik.inks[n] || "#888888") }
+    // Every ink the row offers (the swatches are the row's only picker, so none may be missing): "Your own" shows
+    // `theme.colors.ink_custom`, the colour the daemon uses for it; its colour field is the row under this one.
+    readonly property var names: {
+        Store.schema
+        var h = Store.rowOf("theme.colors.ink")
+        var c = h && h.row.choices ? h.row.choices.map(function (x) { return x.value }) : []
+        return c.length ? c : ["palette", "blue", "black", "sepia", "red", "green", "violet", "custom"]
+    }
+    function colorOf(n) {
+        if (n === "palette") return Theme.color("color.on_surface", "#888888")
+        if (n === "custom") return Store.valueOf("theme.colors.ink_custom") || "#888888"
+        return ik.inks[n] || "#888888"
+    }
     function pick(n) { if (n !== ik.current && Store.live) Store.apply([{ set: "theme.colors.ink", value: n }]) }
 
     width: parent ? parent.width : 480
@@ -17,7 +28,7 @@ Column {
     objectName: "ink-swatches"
 
     Row {
-        spacing: Theme.gap
+        spacing: Theme.pad
         Repeater {
             id: rep
             model: ik.names
@@ -27,18 +38,33 @@ Column {
                 required property int index
                 readonly property bool on: modelData === ik.current
                 objectName: "ink:" + modelData
-                width: 30
-                height: 30
+                // Each with its name under it: the swatches are the row's picker, so the names must be on screen.
+                width: Math.max(40, cap.implicitWidth)
+                height: 30 + 4 + cap.height
                 activeFocusOnTab: sw.on
                 Keys.onLeftPressed: event => { var c = rep.itemAt(sw.index - 1); if (c) c.forceActiveFocus(); event.accepted = true }
                 Keys.onRightPressed: event => { var c = rep.itemAt(sw.index + 1); if (c) c.forceActiveFocus(); event.accepted = true }
                 Keys.onReturnPressed: event => { ik.pick(modelData); event.accepted = true }
+                Keys.onEnterPressed: event => { ik.pick(modelData); event.accepted = true }
                 Keys.onSpacePressed: event => { ik.pick(modelData); event.accepted = true }
                 Accessible.role: Accessible.RadioButton
                 Accessible.name: I18n.tr("config.choice.ink." + modelData)
                 Accessible.checked: sw.on
+                Text {
+                    id: cap
+                    anchors.top: dot.bottom
+                    anchors.topMargin: 4
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    color: sw.on ? Theme.fg : Theme.dim
+                    font.pixelSize: Theme.fs - 2
+                    font.weight: sw.on ? Font.Bold : Font.Normal
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("config.choice.ink." + sw.modelData)
+                }
                 Rectangle {
-                    anchors.centerIn: parent
+                    id: dot
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    y: 2
                     width: 26
                     height: 26
                     radius: 13
@@ -47,11 +73,11 @@ Column {
                     border.color: sw.on ? Theme.accent : Theme.outline
                     Text {
                         anchors.centerIn: parent
-                        visible: sw.on || sw.modelData === "palette"
+                        visible: sw.on || sw.modelData === "palette" || sw.modelData === "custom"
                         color: Theme.surface
                         font.pixelSize: 13
                         font.bold: true
-                        text: sw.on ? "✓" : "P"
+                        text: sw.on ? "✓" : (sw.modelData === "custom" ? "+" : "P")
                     }
                 }
                 MouseArea {
@@ -61,7 +87,8 @@ Column {
                     onClicked: ik.pick(sw.modelData)
                 }
                 FocusRing {
-                    anchors.fill: parent
+                    anchors.fill: dot
+                    anchors.margins: -2
                     shown: sw.activeFocus
                     corner: width / 2
                 }
