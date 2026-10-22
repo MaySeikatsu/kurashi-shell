@@ -243,6 +243,8 @@ PanelWindow {
             radius: Theme.rLg + 4
             fill: Theme.panel
             flatBorder: Theme.outline
+            // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).
+            penSeed: 0x1A0C
         }
 
         Block {
@@ -256,6 +258,7 @@ PanelWindow {
             softScale: 0
             fill: Theme.surface
             flatBorder: field.activeFocus ? Theme.accent : Theme.outline
+            penSeed: 0x1A0D
             Icon {
                 id: searchIcon
                 x: 14
@@ -357,6 +360,8 @@ PanelWindow {
                 ringScale: 0
                 softScale: 0
                 fill: Theme.selected
+                // K62: one line however far it springs (its place changes with the selection).
+                penSeed: 0x1A0E
                 Behavior on y {
                     enabled: lp.shown && Theme.springOn
                     NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot * 0.6 }
@@ -562,6 +567,7 @@ PanelWindow {
                 ringScale: 0
                 softScale: 0
                 fill: Theme.selected
+                penSeed: 0x1A0F
             }
             delegate: Item {
                 id: cell

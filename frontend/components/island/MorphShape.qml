@@ -2,6 +2,8 @@ import QtQuick
 import QtQuick.Shapes
 import Quickshell
 import "../../core"
+import ".."
+import "../pen.js" as Pen
 
 // The island's one shape while it morphs (W21; Capsule's single morphing capsule, Vitreus's liquid neck). Drawn in a top
 // bar's frame; the Stage mirrors the whole item for a bottom bar (`flip`: the hard shadow still falls towards the screen's
@@ -198,6 +200,48 @@ Shape {
     // material covers head, neck fillets and body and nothing else.
     readonly property string fillPath: visible ? path(ow + gw, 0) : ""
 
+    // K62: with a pen in effect the pen draws the outline band and the rule the shape carries, along their centre lines
+    // (the same contours at half the outline's inset): one closed line round head, neck and body — or, hanging from a
+    // ruled strip, one open line from the box's left edge along the rule, round the card and back along the rule to its
+    // right edge, so it meets the bar's own (pen) rule; the head's outline thins out as the card opens. The ring, the
+    // fill and its relief mask (`fillPath`) are untouched.
+    readonly property bool penOn: Theme.penOutline
+    function penPaths() {
+        if (!visible || !penOn) return []
+        var c = ow / 2, out = []
+        function add(d, width, closed) {
+            var subs = Pen.svgPaths(d)
+            for (var i = 0; i < subs.length; i++)
+                out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
+        }
+        if (joined) {
+            add(joinedPath(c, 0), ow)
+        } else if (!hangs) {
+            add(stripPath(c, true, 0), ow)
+            if (ruledStrip) add("M 0 " + f(edgeY - c) + " L " + f(width) + " " + f(edgeY - c), ow, false)
+        } else {
+            var E = edgeY - c
+            add("M " + f(width) + " " + f(E) + " L " + f(x1 + n) + " " + f(E) + hangContour(c, 0, false) + " L 0 " + f(E), ow, false)
+            if (opened < 0.99) {
+                var X0 = x0 + c, X1 = x1 - c, Y0 = y0 + c, R = edgeY - ow, t = Math.max(0, rt - c)
+                if (R - Y0 > t + 0.5)
+                    add("M " + f(X0) + " " + f(R) + " L " + f(X0) + " " + f(Y0 + t) + arc(t, 1, X0 + t, Y0) + " L " + f(X1 - t)
+                        + " " + f(Y0) + arc(t, 1, X1, Y0 + t) + " L " + f(X1) + " " + f(R), ow * (1 - opened), false)
+            }
+        }
+        return out
+    }
+    Loader {
+        anchors.fill: parent
+        active: sh.penOn && sh.visible
+        sourceComponent: PenOutline {
+            color: sh.oc
+            lineWidth: sh.ow
+            seed: 0x15A4D
+            paths: sh.penPaths()
+        }
+    }
+
     preferredRendererType: Shape.CurveRenderer
     ShapePath {
         strokeWidth: -1
@@ -209,15 +253,15 @@ Shape {
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
-        fillColor: sh.ruledStrip ? sh.oc : "transparent"
-        PathSvg { path: sh.visible ? sh.rulePath() : "" }
+        fillColor: sh.ruledStrip && !sh.penOn ? sh.oc : "transparent"
+        PathSvg { path: sh.visible && !sh.penOn ? sh.rulePath() : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.oc
-        PathSvg { path: sh.visible ? sh.band(0, sh.ow) : "" }
+        fillColor: sh.penOn ? "transparent" : sh.oc
+        PathSvg { path: sh.visible && !sh.penOn ? sh.band(0, sh.ow) : "" }
     }
     ShapePath {
         strokeWidth: -1
