@@ -4,8 +4,11 @@
 # daemon's own tokens give the colour every plain pixel must have); the sheet is continuous across the bar and the island
 # card; text stays crisp unless asked, and shades when asked; the everything overlay lets clicks through and no shell
 # surface shades twice under it; the light moves the relief (four static angles, the pointer, daytime); no texture, no
-# relief. Shots go to frontend/shots/texture/shell/ and frontend/shots/look/kami{,-dark}/ (evidence to look at); the pixel
-# checks decide the exit code.
+# relief. K61 (wave 32): the relief fills the open island's whole shape (centre, corners, the neck's fillets: I168); the
+# formula with depth 2, relief shadows, lit 0.6, the spotlight at rest and a warm light is shade_at; the spotlight's beam
+# follows the pointer and glides back; a sidebar held mid-slide carries its material (`carried`) or not (`fixed`), and
+# at rest both are the continuous sheet. Shots go to frontend/shots/texture/shell/, frontend/shots/texture/w32/ and
+# frontend/shots/look/kami{,-dark}/ (evidence to look at); the pixel checks decide the exit code.
 #   nix develop -c frontend/test-texture.sh
 #   Machine B: export KURASHI_RENDER_NODE=/dev/dri/renderD129 first (the sandbox's gles2 renderer).
 # The tile is two files (contract rows 280-281): the opaque RGB normal map (`texture.map`) and, when the material prints
@@ -14,8 +17,10 @@ set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/texture/shell
+W32=$ROOT/frontend/shots/texture/w32
 TMP=${KEEP_TMP:-$(mktemp -d)}; mkdir -p "$TMP"
-trap '[ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"' EXIT
+PIDS=()
+trap '[ ${#PIDS[@]} -eq 0 ] || stop_session; [ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"' EXIT
 mkdir -p "$OUT"
 FAILS=0
 fail() { echo "test-texture: FAIL $*" >&2; FAILS=$((FAILS + 1)); }
@@ -138,54 +143,104 @@ def normalize(v):
     return [v[0] / l, v[1] / l, v[2] / l]
 
 
-def params(tokens_path, ink_on):
+def params(tokens_path, ink_on, out=(2560, 1440)):
     t = json.load(open(tokens_path))
     tok = t.get("data", t).get("tokens", {})
     ink = [c / 255.0 for c in rgb_of(tok["texture.ink"])]
     lc = [c / 255.0 for c in rgb_of(tok["light.color"])]
-    return dict(size=int(tok["texture.tile_px"]), logical=float(tok["texture.tile_logical"]),
-                scale=float(tok["texture.scale"]), amp=float(tok["texture.amp"]),
-                gloss=float(tok["texture.gloss"]), shin=float(tok["texture.shininess"]),
-                ink=ink, ink_alpha=float(tok["texture.ink_alpha"]) if ink_on else 0.0,
-                L=[float(v) for v in tok["light.dir"]], Lc=lc)
+    p = dict(size=int(tok["texture.tile_px"]), logical=float(tok["texture.tile_logical"]),
+             scale=float(tok["texture.scale"]), amp=float(tok["texture.amp"]),
+             gloss=float(tok["texture.gloss"]), shin=float(tok["texture.shininess"]),
+             ink=ink, ink_alpha=float(tok["texture.ink_alpha"]) if ink_on else 0.0,
+             L=[float(v) for v in tok["light.dir"]], Lc=lc, out=out,
+             # K61: depth, the light half's weight, relief shadows (and their height map), the spotlight's pin and beam.
+             depth=float(tok.get("texture.depth", 1)), lit=float(tok.get("texture.lit", 1)),
+             shadow=float(tok.get("texture.shadow", 0)), relief_px=float(tok.get("texture.relief_px", 0)),
+             hmap=None, lamp=None, beam=None)
+    if p["shadow"] > 0 and tok.get("texture.height_map"):
+        p["hmap"] = read_png(tok["texture.height_map"])
+    pin = tok.get("light.pin")
+    if tok.get("light.mode") == "spotlight" and pin:
+        hz = max(float(tok["light.height_px"]), 1.0)
+        p["lamp"] = [pin[0] * out[0], pin[1] * out[1], hz]
+        a = math.radians(min(max(float(tok.get("light.beam", 35)), 1.0), 89.0))
+        # At rest the beam is aimed at the output's middle (the pointer off the shell).
+        p["beam"] = [out[0] / 2, out[1] / 2, math.cos(a), math.cos(a / 2)]
+    return p
 
 
-def sample(tile, p, x, y):
-    # Tile::sample: bilinear over the wrapped tile, at the sheet position of the pixel centre (output coordinates).
-    size = p["size"]
-    k = size / (p["logical"] * max(p["scale"], 0.01))
-    fx, fy = (x + 0.5) * k - 0.5, (y + 0.5) * k - 0.5
+def bilinear(img, size, k, sx, sy):
+    # Tile::sample / sample_height: bilinear over the wrapped tile at sheet position (sx, sy), logical px.
+    fx, fy = sx * k - 0.5, sy * k - 0.5
     x0, y0 = math.floor(fx), math.floor(fy)
     tx, ty = fx - x0, fy - y0
 
     def texel(ix, iy):
-        return px(tile, ix % size, iy % size)
+        return px(img, ix % size, iy % size)
     a, b = texel(x0, y0), texel(x0 + 1, y0)
     c, d = texel(x0, y0 + 1), texel(x0 + 1, y0 + 1)
     return [((a[i] * (1 - tx) + b[i] * tx) * (1 - ty) + (c[i] * (1 - tx) + d[i] * tx) * ty) / 255.0
             for i in range(4)]
 
 
-def shade(t, p):
-    # kurashi_texture::shade, line for line.
-    nx, ny = 2 * t[0] - 1, 2 * t[1] - 1
-    n = normalize([nx, ny, math.sqrt(max(0.0, 1 - nx * nx - ny * ny))])
-    cav = 2 * t[2] - 1
+def sample(tile, p, x, y):
+    # At the sheet position of the pixel centre (output coordinates).
+    return bilinear(tile, p["size"], p["size"] / (p["logical"] * max(p["scale"], 0.01)), x + 0.5, y + 0.5)
+
+
+def shade(t, p, q=None):
+    # kurashi_texture::shade_at, line for line: light_at, beam_at, shadow_at, shade_with (q: the pixel's position).
     L = p["L"]
+    k = 1.0
+    sh = 0.0
+    if p["lamp"] is not None and q is not None:
+        lx, ly, hz = p["lamp"]
+        L = normalize([lx - q[0], ly - q[1], hz])
+        if p["beam"] is not None:
+            ax, ay, co, ci = p["beam"]
+            axis = normalize([ax - lx, ay - ly, -hz])
+            ray = normalize([q[0] - lx, q[1] - ly, -hz])
+            c = dot(ray, axis)
+            u = min(max((c - co) / max(ci - co, 1e-6), 0.0), 1.0)
+            k = 0.3 + 0.7 * u * u * (3 - 2 * u)
+    lxy = math.sqrt(L[0] * L[0] + L[1] * L[1])
+    if p["shadow"] > 0 and p["relief_px"] > 0 and lxy >= 1e-3 and p["hmap"] is not None and q is not None:
+        rp = p["relief_px"]
+        dx, dy = L[0] / lxy, L[1] / lxy
+        rise = L[2] / lxy
+        ln = min(rp / max(rise, 0.05), 24.0)
+        hk = p["hmap"][0] / (p["logical"] * max(p["scale"], 0.01))
+        h0 = bilinear(p["hmap"], p["hmap"][0], hk, q[0], q[1])[0] * rp
+        occ = 0.0
+        for i in range(1, 9):
+            r = ln * i / 8
+            hi = bilinear(p["hmap"], p["hmap"][0], hk, q[0] + dx * r, q[1] + dy * r)[0] * rp
+            occ = max(occ, hi - h0 - r * rise)
+        sh = p["shadow"] * min(max(occ / max(0.25 * rp, 0.15), 0.0), 1.0)
+    nx, ny = 2 * t[0] - 1, 2 * t[1] - 1
+    nz = math.sqrt(max(0.0, 1 - nx * nx - ny * ny))
+    n = normalize([p["depth"] * nx, p["depth"] * ny, nz])
+    cav = 2 * t[2] - 1
     diff = dot(n, L) - L[2]
     h = normalize([L[0], L[1], L[2] + 1])
     spec = p["gloss"] * (max(dot(n, h), 0) ** p["shin"] - max(h[2], 0) ** p["shin"])
     amp = p["amp"]
-    v = min(max(amp * (2 * diff + 0.5 * cav + spec), -amp), amp)
-    sh = [0.0, 0.0, 0.0, -v] if v < 0 else [p["Lc"][0] * v, p["Lc"][1] * v, p["Lc"][2] * v, v]
+    v = k * amp * (2 * diff + 0.5 * cav + spec - 2 * sh)
+    if v > 0:
+        v *= p["lit"]
+    v = min(max(v, -amp), amp)
+    o = [0.0, 0.0, 0.0, -v] if v < 0 else [p["Lc"][0] * v, p["Lc"][1] * v, p["Lc"][2] * v, v]
     a = t[3] * p["ink_alpha"]
     ink = [p["ink"][0] * a, p["ink"][1] * a, p["ink"][2] * a, a]
-    return [sh[i] + ink[i] * (1 - sh[3]) for i in range(4)]
+    return [o[i] + ink[i] * (1 - o[3]) for i in range(4)]
 
 
 def expected(tile, p, bg, x, y):
-    o = shade(sample(tile, p, x, y), p)
+    o = shade(sample(tile, p, x, y), p, (x + 0.5, y + 0.5))
     return [o[i] * 255 + bg[i] * (1 - o[3]) for i in range(3)]
+
+
+WALL = (0x8f, 0xb8, 0xc8)    # the sandbox's wallpaper colour (session: swaymsg bg)
 
 
 def plain(img, x, y):
@@ -213,7 +268,7 @@ def main():
         step = max(1, len(pts) // n)
         for x, y in pts[::step][:n]:
             print(x, y)
-    elif cmd == "check":                   # check NORMAL TOKENS SHOT NOTEX POINTS: the formula on the plain points
+    elif cmd == "check":                   # check NORMAL TOKENS SHOT NOTEX POINTS [WORST]: the formula on the plain points
         tile = read_png(sys.argv[2])
         p = params(sys.argv[3], ink_on=True)
         shot = read_png(sys.argv[4])
@@ -227,7 +282,8 @@ def main():
             worst = max(worst, max(abs(e[i] - got[i]) for i in range(3)))
             n += 1
         print("checked", n, "plain pixels, worst error", round(worst, 2), "of 255")
-        sys.exit(0 if n >= 10 and worst <= 3.0 else 1)
+        limit = float(sys.argv[7]) if len(sys.argv) > 7 else 3.0
+        sys.exit(0 if n >= 10 and worst <= limit else 1)
     elif cmd == "glyphs":                  # glyphs NOTEX X0 Y0 X1 Y1 N: full-coverage glyph pixels (the text colour)
         img = read_png(sys.argv[2])
         x0, y0, x1, y1, n = map(int, sys.argv[3:8])
@@ -316,6 +372,70 @@ def main():
         print((d.get("data") or {}).get("panel", ""))
     elif cmd == "count":                   # count LOG TEXT: lines of a log that carry TEXT
         print(sum(1 for line in open(sys.argv[2], errors="replace") if sys.argv[3] in line))
+    elif cmd == "region":                  # region NORMAL TOKENS NOTEX SHOT NAME X0 Y0 X1 Y1: the relief is there, and right
+        # Every plain pixel of the box (3x3 one colour in the reference) must carry the formula: the shot matches it, and
+        # the formula moves the box (a box the relief misses, as the island's old disc did at the card's corners, keeps
+        # the reference's colours and fails).
+        tile = read_png(sys.argv[2])
+        notex = read_png(sys.argv[4])
+        shot = read_png(sys.argv[5])
+        p = params(sys.argv[3], ink_on=True, out=(shot[0], shot[1]))
+        name = sys.argv[6]
+        x0, y0, x1, y1 = map(int, sys.argv[7:11])
+        # A box too small for plain pixels (the neck's fillets, a few px) takes the pixels of the fill's own colour,
+        # read at FX FY (the card's plain inside), instead.
+        fill = px(notex, int(sys.argv[11]), int(sys.argv[12]))[:3] if len(sys.argv) > 12 else None
+        err = moved = 0.0
+        n = 0
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                c = px(notex, x, y)[:3]
+                if c == WALL or (fill is None and not plain(notex, x, y)) or (fill is not None and c != fill):
+                    continue
+                bg = px(notex, x, y)[:3]
+                e = expected(tile, p, bg, x, y)
+                got = px(shot, x, y)[:3]
+                err += sum(abs(e[i] - got[i]) for i in range(3)) / 3
+                moved += sum(abs(e[i] - bg[i]) for i in range(3)) / 3
+                n += 1
+        err, moved = (err / n, moved / n) if n else (99.0, 0.0)
+        print(name, "plain pixels", n, "mean error", round(err, 2), "the formula moves them by", round(moved, 2))
+        sys.exit(0 if n >= 3 and err <= min(1.5, 0.5 * moved) and moved >= 0.4 else 1)
+    elif cmd == "island":                  # island NOTEX: the open island card's boxes (name x0 y0 x1 y1 per line)
+        img = read_png(sys.argv[2])
+        w, h = img[0], img[1]
+        cx = w // 2
+        # The bar's edge: the first wallpaper row far from the card; the card's sides on a row below the bar.
+        edge = next(y for y in range(h) if px(img, 40, y)[:3] == WALL)
+        row = edge + 120
+        xl = next(x for x in range(cx, 0, -1) if px(img, x, row)[:3] == WALL) + 1
+        xr = next(x for x in range(cx, w) if px(img, x, row)[:3] == WALL) - 1
+        yb = next(y for y in range(edge + 10, h) if px(img, cx, y)[:3] == WALL) - 1
+        print("centre", cx - 30, (edge + yb) // 2 - 30, cx + 30, (edge + yb) // 2 + 30)
+        print("corner-bl", xl, yb - 14, xl + 14, yb)
+        print("corner-br", xr - 14, yb - 14, xr, yb)
+        print("fillet-l", xl - 8, edge, xl - 1, edge + 8, xl + 20, edge + 20)
+        print("fillet-r", xr + 1, edge, xr + 8, edge + 8, xr - 20, edge + 20)
+    elif cmd == "shifted":                 # shifted A B DX X0 Y0 X1 Y1: mean difference of A's box moved by DX against B's box
+        a = read_png(sys.argv[2])
+        b = read_png(sys.argv[3])
+        dx = int(sys.argv[4])
+        x0, y0, x1, y1 = map(int, sys.argv[5:9])
+        tot = cnt = 0
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                pa, pb = px(a, x + dx, y)[:3], px(b, x, y)[:3]
+                tot += sum(abs(pa[i] - pb[i]) for i in range(3))
+                cnt += 3
+        print(round(tot / max(cnt, 1), 3))
+    elif cmd == "tok":                     # tok TOKENS KEY: one token's value
+        t = json.load(open(sys.argv[2]))
+        print(json.dumps(t.get("data", t).get("tokens", {}).get(sys.argv[3])))
+    elif cmd == "warm":                    # warm TOKENS: the light's colour is warm (red over blue)
+        t = json.load(open(sys.argv[2]))
+        c = rgb_of(t.get("data", t)["tokens"]["light.color"])
+        print("light.color", c)
+        sys.exit(0 if c[0] > c[2] + 20 else 1)
     elif cmd == "pixel":                   # pixel SHOT X Y: the colour of one pixel
         print(",".join(str(c) for c in px(read_png(sys.argv[2]), int(sys.argv[3]), int(sys.argv[4]))[:3]))
 
@@ -332,7 +452,7 @@ QS_LOG=""
 session() {
   local name=$1 texture=$2
   shift 2
-  SB=w31-tex-$name
+  SB=w32-rel-$name
   # The last session's network namespace must not reach the launcher of this one.
   unset LD_PRELOAD KURASHI_SANDBOX_NETNS_PID KURASHI_SANDBOX_NETNS_ID
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$SB" 2>/dev/null)"
@@ -415,6 +535,21 @@ shot grid-island 1.5
   || fail "bar: the relief is not the formula of the tile"
 "${TEX[@]}" meanerr "$TMP/normal-grid.png" "$TMP/tokens-grid.json" "$TMP/notex-island.png" "$OUT/grid-island.png" 1100 40 1460 300 \
   || fail "island card: the relief does not match the formula of the tile over the card (the sheet is not continuous)"
+# K61 (I168): the relief fills the island's whole shape — its centre, its corners and the neck's fillets, not a disc.
+mkdir -p "$W32"
+cp "$OUT/grid-island.png" "$W32/island-fixed.png"
+"${TEX[@]}" island "$TMP/notex-island.png" > "$TMP/island-boxes.txt" || fail "island: the card's boxes were not found"
+while read -r name x0 y0 x1 y1 fx fy; do
+  # shellcheck disable=SC2086 # fx fy: absent for the boxes with plain pixels
+  "${TEX[@]}" region "$TMP/normal-grid.png" "$TMP/tokens-grid.json" "$TMP/notex-island.png" "$OUT/grid-island.png" \
+    "$name" "$x0" "$y0" "$x1" "$y1" $fx $fy || fail "island: the relief does not fill the shape at its $name"
+done < "$TMP/island-boxes.txt"
+# I172: the quick settings phone's screen is a material area too.
+ctl act ui.close
+sleep 1
+ctl act quick.toggle
+shot grid-phone 1.8
+cp "$OUT/grid-phone.png" "$W32/phone-frame.png"
 stop_session
 
 # ---- 2. text: untextured by default, shaded when asked (the glyph pixels of the reference, same layout) ----
@@ -465,6 +600,7 @@ say "light: the pointer"
 session pointer yes "$GRID" 'theme.light.mode = "pointer"'
 # One virtual pointer for the whole step, and it stays where it is put: a pointer that leaves glides the light back.
 PTR_FIFO=$TMP/pointer.fifo
+rm -f "$PTR_FIFO"
 mkfifo "$PTR_FIFO"
 python3 "$ROOT/tools/bench/wl_pointer.py" --serve < "$PTR_FIFO" >/dev/null 2>&1 &
 PTR_PID=$!
@@ -481,6 +617,106 @@ awk -v d="$D" 'BEGIN { exit !(d > 0.05) }' || fail "light: the pointer's lamp do
 say "light: daytime"
 session daytime yes "$GRID" 'theme.light.mode = "daytime"'
 shot light-daytime 0.8
+stop_session
+
+# ---- 4b. K61: depth, relief shadows, the light half on a dark ground, the spotlight and a warm light — shade_at exactly ----
+# wait_height: the theme names its height map once generated (shading without shadows meanwhile); fresh tokens then.
+wait_height() {
+  local name=$1
+  for _ in $(seq 100); do
+    timeout 10 "$W_DIR/kurashi" sub theme --count 0 --json 2>/dev/null | head -1 > "$TMP/tokens-$name.json" || true
+    [ "$("${TEX[@]}" tok "$TMP/tokens-$name.json" texture.height_map)" != '""' ] && break
+    [ "$("${TEX[@]}" tok "$TMP/tokens-$name.json" texture.shadow)" = "0.0" ] && break
+    sleep 0.2
+  done
+  sleep 1.5
+}
+K61=('theme.texture.depth = 2' 'theme.texture.shadows = "on"' 'theme.colors.scheme = "dark"' 'theme.light.mode = "spotlight"'
+  'theme.light.color = "warm"')
+say "K61 formula: depth 2, shadows, lit 0.6 (dark), the spotlight at rest, a warm light"
+session none-dark no 'theme.texture.kind = "none"' 'theme.colors.scheme = "dark"'
+shot none-dark-bar 0.5
+cp "$OUT/none-dark-bar.png" "$TMP/notex-dark-bar.png"
+stop_session
+session k61 yes "$GRID" 'theme.texture.strength = 0.8' "${K61[@]}"
+wait_height k61
+[ "$("${TEX[@]}" tok "$TMP/tokens-k61.json" texture.lit)" = "0.6" ] || fail "k61: texture.lit is not 0.6 on the dark ground"
+"${TEX[@]}" warm "$TMP/tokens-k61.json" || fail "k61: light.color warm is not warm"
+ctl act island.expand
+shot k61-rest 1.5
+cp "$OUT/k61-rest.png" "$W32/spotlight-rest.png"
+# The bar beside the open island (its card covers the middle of the strip), short of the clock (a minute may pass).
+"${TEX[@]}" pick "$TMP/notex-dark-bar.png" 14 4 1000 30 30 > "$TMP/dark-points.txt" || true
+"${TEX[@]}" pick "$TMP/notex-dark-bar.png" 1560 4 2200 30 30 >> "$TMP/dark-points.txt" || true
+"${TEX[@]}" check "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$OUT/k61-rest.png" "$TMP/notex-dark-bar.png" \
+  "$TMP/dark-points.txt" 1.5 || fail "k61: the relief is not shade_at (depth, shadows, lit, spotlight, light colour)"
+"${TEX[@]}" meanerr "$TMP/normal-k61.png" "$TMP/tokens-k61.json" "$TMP/notex-dark-bar.png" "$OUT/k61-rest.png" 0 0 1000 33 \
+  || fail "k61: the bar's relief does not match shade_at"
+say "the spotlight: the beam follows the pointer and glides back to the middle"
+PTR_FIFO=$TMP/pointer-spot.fifo
+rm -f "$PTR_FIFO"
+mkfifo "$PTR_FIFO"
+python3 "$ROOT/tools/bench/wl_pointer.py" --serve < "$PTR_FIFO" >/dev/null 2>&1 &
+PTR_PID=$!
+exec 3> "$PTR_FIFO"
+echo "move 300 18" >&3
+shot k61-spot-a 1.5
+cp "$OUT/k61-spot-a.png" "$W32/spotlight-a.png"
+echo "move 1300 300" >&3
+shot k61-spot-b 1.5
+cp "$OUT/k61-spot-b.png" "$W32/spotlight-b.png"
+echo "move 1280 900" >&3
+shot k61-spot-back 1.8
+exec 3>&-
+wait "$PTR_PID" 2>/dev/null || true
+stop_session
+D=$("${TEX[@]}" diff "$OUT/k61-rest.png" "$OUT/k61-spot-a.png" 0 0 2559 33)
+awk -v d="$D" 'BEGIN { exit !(d > 0.05) }' || fail "spotlight: the beam does not follow the pointer ($D)"
+D=$("${TEX[@]}" diff "$OUT/k61-spot-a.png" "$OUT/k61-spot-b.png" 0 0 2559 33)
+awk -v d="$D" 'BEGIN { exit !(d > 0.05) }' || fail "spotlight: two pointer places light the bar alike ($D)"
+D=$("${TEX[@]}" diff "$OUT/k61-rest.png" "$OUT/k61-spot-back.png" 0 0 1000 33)
+awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "spotlight: the beam did not glide back to the middle ($D)"
+
+# ---- 4c. K61: the carried sheet — a sidebar held mid-slide carries its material; at rest it is the continuous sheet ----
+# The right sidebar (420 px, flush) held at half its slide is 210 px out of place: carried, its material is the one it
+# has at rest, moved by 210 px; fixed, the material stays where the output's sheet is. At rest both are identical.
+say "carried and fixed sheets: a sidebar mid-slide and at rest"
+for mode in carried fixed; do
+  for hold in rest mid; do
+    if [ "$hold" = mid ]; then export KURASHI_SIDEBAR_HOLD=0.5; else unset KURASHI_SIDEBAR_HOLD; fi
+    session "sheet-$mode-$hold" yes "$GRID" 'theme.texture.strength = 0.8' "theme.texture.sheet = \"$mode\""
+    ctl act sidebar.toggle '{"side":"right"}'
+    shot "sheet-$mode-$hold" 1.8
+    stop_session
+  done
+done
+unset KURASHI_SIDEBAR_HOLD
+cp "$OUT/sheet-carried-mid.png" "$W32/carried-mid-slide.png"
+cp "$OUT/sheet-fixed-mid.png" "$W32/fixed-mid-slide.png"
+# A box of the column's empty middle (the notifications' room), at rest and 210 px further right mid-slide.
+D=$("${TEX[@]}" shifted "$OUT/sheet-carried-mid.png" "$OUT/sheet-carried-rest.png" 210 2160 700 2340 1000)
+awk -v d="$D" 'BEGIN { exit !(d < 0.05) }' || fail "carried: the sidebar mid-slide does not carry its material ($D)"
+D=$("${TEX[@]}" shifted "$OUT/sheet-fixed-mid.png" "$OUT/sheet-fixed-rest.png" 210 2160 700 2340 1000)
+awk -v d="$D" 'BEGIN { exit !(d > 0.3) }' || fail "fixed: the sidebar mid-slide carried its material ($D)"
+D=$("${TEX[@]}" diff "$OUT/sheet-carried-rest.png" "$OUT/sheet-fixed-rest.png" 2140 40 2559 1400)
+awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "carried at rest is not the continuous sheet ($D)"
+
+# ---- 4d. the W32 look shots: kami with shadows, light and dark; paint with the spotlight ----
+say "w32 shots"
+for scheme in light dark; do
+  session "kami-sh-$scheme" yes 'theme.style = "kami"' "theme.colors.scheme = \"$scheme\"" 'theme.texture.shadows = "on"'
+  wait_height "kami-sh-$scheme"
+  ctl act island.expand
+  shot "kami-shadows-$scheme" 1.5
+  cp "$OUT/kami-shadows-$scheme.png" "$W32/kami-shadows-$scheme.png"
+  stop_session
+done
+session paint-spot yes 'theme.texture.kind = "paint"' 'theme.texture.strength = 1.2' 'theme.texture.depth = 1.8' \
+  'theme.light.mode = "spotlight"'
+wait_height paint-spot
+ctl act island.expand
+shot paint-spotlight 1.5
+cp "$OUT/paint-spotlight.png" "$W32/paint-spotlight.png"
 stop_session
 
 # ---- 5. the kami look, light and dark (the frontend's own look, with the fixture tile) ----
