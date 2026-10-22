@@ -23,7 +23,9 @@ PanelWindow {
     // slides in (`texture.sheet = carried`); 0 in the morph, whose shape carries its own.
     property var tileSheet: tilesLoader.item
     readonly property point sheetCarry: morph.carry
-    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+    // Made while the window is mapped only: the sheet copies its tiles once (live for a moment), and an unmapped window
+    // loses those copies — a centre reopened after the window had gone showed no relief.
+    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0 && win.visible; sourceComponent: TileSheet {} }
     LightSense {}
     readonly property bool shown: morph.shown
     visible: shown     // unmapped at idle: mapped-surface budget (docs/BENCH.md)
