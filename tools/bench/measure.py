@@ -13,12 +13,16 @@ Pass B (WAYLAND_DEBUG)  : startup ms (launch → first commit), idle commits/s p
 Pass C (strace -f -ttt) : idle syscalls/s + top syscalls
 --daemon mock (default) runs kurashi-mock; --daemon real runs the built kurashid (isolated XDG
 dirs, the sandbox's D-Bus, no NIRI_SOCKET) and reports its CPU/PSS/wakeups separately.
+--config FILE (real daemon) starts kurashid with FILE as the user config.toml (a copy in the sandbox).
+--script FILE (real daemon) adds a motion window (see load_script): pass m (opt-in, --passes abm) measures the
+                          frontend's and the daemon's CPU and wakeups while it plays, pass b the commits in it.
+--max-load F waits (up to --load-wait s) for the 1-minute load average to fall below F, and records it.
 Line arrival on the stderr pipe is timestamped by us (libwayland writes unbuffered), so the
 numbers are comparable across toolkits without parsing toolkit-specific timestamp formats.
 """
 from __future__ import annotations
 
-import argparse, json, os, re, shutil, signal, statistics, subprocess, sys, threading, time
+import argparse, json, os, re, select, shlex, shutil, signal, statistics, subprocess, sys, threading, time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -30,6 +34,8 @@ COMMIT = re.compile(r"wl_surface#?@?(\d+)\.commit\(")
 WL_DEBUG = re.compile(r"^\[[\d:. ]+\].*?\w+[#@]\d+\.\w+\(")
 ATTACH = re.compile(r"wl_surface#?@?(\d+)\.attach\((nil|wl_buffer)")
 LAYER = re.compile(r"get_layer_surface\(.*?wl_surface#?@?(\d+)")
+# Set by main(): sandbox name prefix, the real daemon's user config, the motion script (--config, --script).
+SANDBOX_PREFIX, CONFIG, SCRIPT = "bench-", None, None
 
 
 def sh(*args, env=None, check=True, capture=True):
@@ -175,6 +181,10 @@ def start_daemon(env):
             denv.pop(k, None)
         if not denv.get("DBUS_SESSION_BUS_ADDRESS", "").startswith(f"unix:path={run}"):
             sys.exit("refusing to run kurashid without the sandbox's own D-Bus")
+        if CONFIG is not None:
+            # The daemon reads $XDG_CONFIG_HOME/kurashi/config.toml; the sandbox gets a copy, the source stays as it is.
+            (run / "xdg" / "config" / "kurashi").mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(CONFIG, run / "xdg" / "config" / "kurashi" / "config.toml")
     p = subprocess.Popen(argv, env=denv, stdout=log, stderr=log)
     for _ in range(100):
         if Path(env["KURASHI_SOCKET"]).exists():
@@ -227,16 +237,175 @@ def cycle_test(env, app, n):
             "pss_mib_cycle_growth": round((after - before) / 1024, 2)}
 
 
+# ---- motion (--script) and the textured shell (--config) -------------------------------------------------------
+BUTTONS_OK = ("left", "middle", "right")
+POINTER_ARGS = {"move": 2, "click": 3, "sweep": 5}   # arguments after the verb (wl_pointer.py)
+# Theme tokens recorded per run, so a report can show the config took effect (Shōjiki: what is in effect).
+TOKENS = ("light.mode", "texture.map", "texture.ink_map", "texture.shell", "texture.overlay", "texture.depth",
+          "texture.shadow", "texture.controls", "texture.sheet", "texture.amp", "pen.pressure", "pen.text_pressure",
+          "pen.text_breaks", "pen.text_fade", "pen.text_wobble")
+MOTION_TAIL = 1.5   # seconds the window runs on after the last action, when the script gives no `window`
+
+
+def load1():
+    return float(Path("/proc/loadavg").read_text().split()[0])
+
+
+def wait_quiet(limit, timeout):
+    """A quiet machine (docs/BENCH.md): waits until the 1-minute load average is below `limit`, for `timeout` s at
+    most. A run that goes ahead over the limit says so (quiet: false), so its numbers are labelled, not hidden."""
+    start, t0 = load1(), time.monotonic()
+    while load1() >= limit and time.monotonic() - t0 < timeout:
+        time.sleep(5)
+    now = load1()
+    return {"load1_start": start, "load1_go": now, "waited_s": round(time.monotonic() - t0, 1),
+            "limit": limit, "quiet": now < limit}
+
+
+def action_seconds(body):
+    """Checks one action (its argv, without the time) and returns how long it runs: a sweep's seconds, else 0."""
+    verb, args = body[0], body[1:]
+    if verb == "act":
+        if len(args) not in (1, 2):
+            raise ValueError("act takes an action name and optional JSON")
+        return 0.0
+    if verb not in POINTER_ARGS or len(args) != POINTER_ARGS[verb]:
+        raise ValueError(f"not an action: {' '.join(body)}")
+    if verb == "click" and args[2] not in BUTTONS_OK:
+        raise ValueError("click takes left, middle or right")
+    for n in (args[:4] if verb == "sweep" else args[:2]):
+        int(n)
+    return float(args[4]) if verb == "sweep" else 0.0
+
+
+def load_script(path):
+    """A motion script. `pre <action>` runs before the warm-up ends (the pointer is created and parked there);
+    `<t> <action>` runs t seconds into the motion window; `window <s>` sets the window's length (default: the last
+    action's end plus 1.5 s). Actions: `act <name> [json]` (kurashi act), `move x y`, `click x y <button>`,
+    `sweep x0 y0 x1 y1 <s>` (wl_pointer.py). Quote JSON with single quotes. `#` starts a comment line."""
+    pre, steps, window = [], [], None
+    for n, raw in enumerate(Path(path).read_text().splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        try:
+            parts = shlex.split(line)
+            if parts[0] == "window":
+                if len(parts) != 2:
+                    raise ValueError("window takes one number of seconds")
+                window = float(parts[1])
+            elif parts[0] == "pre":
+                action_seconds(parts[1:])
+                pre.append(parts[1:])
+            else:
+                steps.append((float(parts[0]), parts[1:], action_seconds(parts[1:])))
+        except (ValueError, IndexError) as e:
+            sys.exit(f"{path}:{n}: {e}")
+    steps.sort(key=lambda s: s[0])
+    end = max([t + d for t, _, d in steps] or [0.0])
+    if window is None:
+        window = end + MOTION_TAIL
+    elif window < end:
+        sys.exit(f"{path}: window {window} s ends before its last action ({end} s)")
+    return {"pre": pre, "steps": [(t, body) for t, body, _ in steps], "window": window}
+
+
+class Motion:
+    """A script's actions in one sandbox: one virtual pointer (wl_pointer.py --serve, created by the first pointer
+    action, its log in the sandbox's runtime dir) and the timed actions."""
+
+    def __init__(self, env, script):
+        self.env, self.script, self.pointer = env, script, None
+        self.errors: list[str] = []   # refused actions (kurashi act exits 1 on an error reply): reported, not hidden
+
+    def do(self, body):
+        if body[0] == "act":
+            r = kurashi(self.env, "act", *body[1:])
+            if r.returncode != 0:
+                self.errors.append(f"{' '.join(body)}: {(r.stdout or r.stderr or '').strip()[:200]}")
+            return
+        if self.pointer is None:
+            log = open(Path(self.env["XDG_RUNTIME_DIR"]) / "pointer.log", "w")
+            self.pointer = subprocess.Popen([sys.executable, str(ROOT / "tools/bench/wl_pointer.py"), "--serve"],
+                                            env=self.env, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL,
+                                            stderr=log, text=True)
+            time.sleep(1.0)   # the virtual pointer exists ~0.5 s after its creation (wl_pointer.Pointer)
+        self.pointer.stdin.write(" ".join(body) + "\n")
+        self.pointer.stdin.flush()
+
+    def pre(self):
+        for body in self.script["pre"]:
+            self.do(body)
+
+    def play(self, start, end):
+        """Runs the timed actions over the window; start() and end() run at its two ends (the caller samples there)."""
+        start()
+        t0 = time.monotonic()
+        for at, body in self.script["steps"]:
+            wait = t0 + at - time.monotonic()
+            if wait > 0:
+                time.sleep(wait)
+            self.do(body)
+        wait = t0 + self.script["window"] - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
+        end()
+
+    def close(self):
+        if self.pointer is not None:
+            self.pointer.stdin.close()   # EOF ends the serve loop; the virtual pointer goes with its socket
+            try:
+                self.pointer.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.pointer.kill()
+            self.pointer = None
+
+
+def theme_doc(env):
+    """The theme document as the daemon has it now (the first snapshot of `kurashi sub theme`), or None."""
+    p = subprocess.Popen([binary("kurashi"), "sub", "theme", "--count", "0", "--json"], env=env,
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    try:
+        line = p.stdout.readline() if select.select([p.stdout], [], [], 5)[0] else ""
+    finally:
+        p.kill()
+        p.wait()
+    try:
+        doc = json.loads(line)
+    except ValueError:   # no snapshot yet (an empty or non-JSON line): the caller treats it as "not ready"
+        return None
+    return doc.get("data", doc) if isinstance(doc, dict) else None
+
+
+def wait_texture(env, limit=60.0):
+    """The daemon makes a material's relief tile in the background on first use, so a window that starts before it
+    is ready would measure the generation. Waits while the theme says 'texture: generating' (for `limit` s at most).
+    Returns (seconds waited, the TOKENS in effect, the theme's notes)."""
+    t0 = time.monotonic()
+    while True:
+        doc = theme_doc(env) or {}
+        notes = doc.get("notes", [])
+        if not any("generating" in json.dumps(n) for n in notes) or time.monotonic() - t0 > limit:
+            break
+        time.sleep(0.5)
+    tokens = doc.get("tokens", {})
+    return round(time.monotonic() - t0, 2), {k: tokens.get(k) for k in TOKENS}, notes
+
+
 def pass_a(name, cmd, warmup, idle, cycles=20):
-    sb = Sandbox(f"bench-{name}-a-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
+    sb = Sandbox(f"{SANDBOX_PREFIX}{name}-a-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     mock = start_daemon(sb.env)
+    motion = Motion(sb.env, SCRIPT) if SCRIPT else None
     try:
         app = subprocess.Popen(cmd, env=sb.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if motion:
+            motion.pre()
         time.sleep(warmup)
         if app.poll() is not None:
             return {"error": f"exited early with {app.returncode}"}
         if mock.poll() is not None:
             return {"error": f"daemon exited early with {mock.returncode} (see daemon.log in the sandbox)"}
+        texture = wait_texture(sb.env) if CONFIG else None
         pids = tree(app.pid)
         dpids = tree(mock.pid)
         t0, c0, s0 = time.monotonic(), cpu_ticks(pids), ctx_switches(pids)
@@ -280,17 +449,22 @@ def pass_a(name, cmd, warmup, idle, cycles=20):
             r.update(cycle_test(sb.env, app, cycles))
         if DAEMON == "real":
             r["daemon_pss_mib_end"] = round(pss_kib(tree(mock.pid)) / 1024, 1)
+        if texture:
+            r.update(texture_wait_s=texture[0], tokens=texture[1], theme_notes=texture[2])
         stop(app)
         return r
     finally:
+        if motion:
+            motion.close()
         stop(mock)
         sb.stop()
 
 
 def pass_b(name, cmd, warmup, idle):
-    sb = Sandbox(f"bench-{name}-b-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
+    sb = Sandbox(f"{SANDBOX_PREFIX}{name}-b-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     env = dict(sb.env, WAYLAND_DEBUG="client")
     mock = start_daemon(sb.env)
+    motion = Motion(sb.env, SCRIPT) if SCRIPT else None
     events: list[tuple[float, int]] = []
     debug_lines = [0]          # any libwayland debug line at all
     mapped: dict[int, bool] = {}   # layer-shell wl_surface id -> last attach had a buffer
@@ -319,6 +493,8 @@ def pass_b(name, cmd, warmup, idle):
                     if m:
                         mapped[int(m.group(1))] = m.group(2) != "nil"
         threading.Thread(target=reader, daemon=True).start()
+        if motion:
+            motion.pre()   # after the reader: the frontend's debug output must keep draining while the pointer appears
 
         def commits_since(t):
             with lock:
@@ -329,6 +505,8 @@ def pass_b(name, cmd, warmup, idle):
             return {"error": f"exited early with {app.returncode}"}
         if mock.poll() is not None:
             return {"error": f"daemon exited early with {mock.returncode}"}
+        if CONFIG:
+            wait_texture(sb.env)   # the relief tile is generated before the idle window (see wait_texture)
         with lock:
             startup_ms = round((events[0][0] - t_launch) * 1000) if events else None
             measurable = debug_lines[0] > 0
@@ -363,6 +541,20 @@ def pass_b(name, cmd, warmup, idle):
         time.sleep(1.5)
         morph_t = [e[0] for e in commits_since(t)]
         gaps = sorted((b - a) * 1000 for a, b in zip(morph_t, morph_t[1:]))
+        motion_fields = {}
+        if motion:
+            # Frames while the script plays, after the idle and popup measurements (the state they left is the rest).
+            marks = {}
+            motion.play(lambda: marks.update(t0=time.monotonic()), lambda: marks.update(t1=time.monotonic()))
+            with lock:
+                inside = [e for e in events if marks["t0"] <= e[0] <= marks["t1"]]
+            by_surface: dict[int, int] = {}
+            for _, sid in inside:
+                by_surface[sid] = by_surface.get(sid, 0) + 1
+            span = marks["t1"] - marks["t0"]
+            motion_fields = {"motion_window_s": round(span, 2), "motion_commits": len(inside),
+                             "motion_commits_per_s": round(len(inside) / span, 2),
+                             "motion_commits_by_surface": by_surface, "motion_act_errors": motion.errors}
         stop(app)
         return {
             "startup_ms": startup_ms,
@@ -374,8 +566,11 @@ def pass_b(name, cmd, warmup, idle):
             "morph_commits": len(morph_t),
             "morph_frame_ms_p50": round(gaps[len(gaps) // 2], 1) if gaps else None,
             "morph_frame_ms_p99": round(gaps[min(len(gaps) - 1, int(len(gaps) * 0.99))], 1) if gaps else None,
+            **motion_fields,
         }
     finally:
+        if motion:
+            motion.close()
         stop(mock)
         sb.stop()
 
@@ -383,7 +578,7 @@ def pass_b(name, cmd, warmup, idle):
 def pass_c(name, cmd, warmup, idle):
     if not shutil.which("strace"):
         return {"error": "strace missing"}
-    sb = Sandbox(f"bench-{name}-c-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
+    sb = Sandbox(f"{SANDBOX_PREFIX}{name}-c-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
     mock = start_daemon(sb.env)
     log = Path(sb.env["XDG_RUNTIME_DIR"]) / "strace.log"
     try:
@@ -417,31 +612,115 @@ def pass_c(name, cmd, warmup, idle):
         sb.stop()
 
 
+def pass_m(name, cmd, warmup):
+    """Motion, clean (no WAYLAND_DEBUG): the frontend's and the daemon's CPU and wakeups while the script plays, and
+    their PSS after it. Its own sandbox; the same daemon and config as the other passes."""
+    sb = Sandbox(f"{SANDBOX_PREFIX}{name}-m-{os.getpid()}")  # pid: parallel runs never share (and kill) a sandbox
+    mock = start_daemon(sb.env)
+    motion = Motion(sb.env, SCRIPT)
+    try:
+        app = subprocess.Popen(cmd, env=sb.env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        motion.pre()
+        time.sleep(warmup)
+        if app.poll() is not None:
+            return {"error": f"exited early with {app.returncode}"}
+        if mock.poll() is not None:
+            return {"error": f"daemon exited early with {mock.returncode}"}
+        if CONFIG:
+            wait_texture(sb.env)
+        marks: dict = {}
+
+        def start():
+            marks["t0"] = time.monotonic()
+            marks["p0"], marks["d0"] = tree(app.pid), tree(mock.pid)
+            marks["c0"], marks["dc0"] = cpu_ticks(marks["p0"]), cpu_ticks(marks["d0"])
+            marks["s0"], marks["ds0"] = ctx_switches(marks["p0"]), ctx_switches(marks["d0"])
+
+        def end():
+            marks["t1"] = time.monotonic()
+            pids, dpids = tree(app.pid), tree(mock.pid)
+            marks["c1"], marks["dc1"] = cpu_ticks(pids), cpu_ticks(dpids)
+            marks["s1"], marks["ds1"] = ctx_switches(pids), ctx_switches(dpids)
+            marks["pss"], marks["dpss"] = pss_kib(pids), pss_kib(dpids)
+
+        motion.play(start, end)
+        dt = marks["t1"] - marks["t0"]
+        r = {
+            "motion_window_s": round(dt, 2),
+            "motion_cpu_pct": round(100 * (marks["c1"] - marks["c0"]) / CLK_TCK / dt, 3),
+            "motion_wakeups_per_s": max(0.0, round((marks["s1"] - marks["s0"]) / dt, 1)),
+            "pss_mib_motion_end": round(marks["pss"] / 1024, 1),
+            "motion_act_errors": motion.errors,
+        }
+        if DAEMON == "real":
+            r["daemon_motion_cpu_pct"] = round(100 * (marks["dc1"] - marks["dc0"]) / CLK_TCK / dt, 3)
+            r["daemon_motion_wakeups_per_s"] = max(0.0, round((marks["ds1"] - marks["ds0"]) / dt, 1))
+            r["motion_cpu_pct_total"] = round(r["motion_cpu_pct"] + r["daemon_motion_cpu_pct"], 3)
+            r["daemon_pss_mib_motion_end"] = round(marks["dpss"] / 1024, 1)
+        stop(app)
+        return r
+    finally:
+        motion.close()
+        stop(mock)
+        sb.stop()
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--name", required=True)
     ap.add_argument("--warmup", type=float, default=10)
     ap.add_argument("--idle", type=float, default=30)
-    ap.add_argument("--passes", default="abc")
+    ap.add_argument("--passes", default="abc",
+                    help="a clean, b WAYLAND_DEBUG (frames), c strace, m motion (clean; needs --script)")
     ap.add_argument("--cycles", type=int, default=20,
                     help="open/close cycles per panel for the leak row (real daemon, pass A; 0 = skip)")
     ap.add_argument("--daemon", choices=("mock", "real"), default="mock",
                     help="kurashi-mock (default) or the built kurashid")
+    ap.add_argument("--config", type=Path,
+                    help="real daemon: this config.toml is the user config (a copy goes into the sandbox)")
+    ap.add_argument("--script", type=Path,
+                    help="real daemon: a motion script (load_script); pass m, and the end of pass b, play it")
+    ap.add_argument("--max-load", type=float,
+                    help="wait until the 1-minute load average is below this before the run (recorded)")
+    ap.add_argument("--load-wait", type=float, default=600,
+                    help="seconds --max-load may wait; the run goes ahead after that, marked quiet: false")
+    ap.add_argument("--sandbox-prefix", default="bench-",
+                    help="sandbox names are <prefix><name>-<pass>-<pid> (default bench-)")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    global DAEMON
+    global DAEMON, SANDBOX_PREFIX, CONFIG, SCRIPT
     DAEMON = a.daemon
+    SANDBOX_PREFIX = a.sandbox_prefix
+    if (a.config or a.script) and DAEMON != "real":
+        sys.exit("--config and --script need --daemon real (the mock has no such actions)")
+    if a.config is not None and not a.config.is_file():
+        sys.exit(f"--config: {a.config} is not a file")
+    CONFIG = a.config
+    SCRIPT = load_script(a.script) if a.script else None
+    if "m" in a.passes and SCRIPT is None:
+        sys.exit("--passes m needs --script")
     cmd = a.cmd[1:] if a.cmd[:1] == ["--"] else a.cmd
     if not cmd:
         sys.exit("missing frontend command after --")
     RESULTS.mkdir(parents=True, exist_ok=True)
     result = {"name": a.name, "cmd": cmd, "daemon": a.daemon, "date": time.strftime("%Y-%m-%d %H:%M"),
               "commit": sh("git", "-C", str(ROOT), "rev-parse", "--short", "HEAD", check=False).stdout.strip()}
-    for p, fn in (("a", pass_a), ("b", pass_b), ("c", pass_c)):
+    if CONFIG is not None:
+        result["config"] = str(a.config)
+    if SCRIPT is not None:
+        result["script"] = str(a.script)
+    if a.max_load is not None:
+        result["quiet"] = wait_quiet(a.max_load, a.load_wait)
+        print(f"[{a.name}] load1 {result['quiet']['load1_go']} (limit {a.max_load}, waited "
+              f"{result['quiet']['waited_s']} s)", file=sys.stderr)
+    for p, fn in (("a", pass_a), ("b", pass_b), ("c", pass_c), ("m", pass_m)):
         if p in a.passes:
             print(f"[{a.name}] pass {p} …", file=sys.stderr)
             result[f"pass_{p}"] = (fn(a.name, cmd, a.warmup, a.idle, a.cycles) if p == "a"
+                                   else fn(a.name, cmd, a.warmup) if p == "m"
                                    else fn(a.name, cmd, a.warmup, a.idle))
+    if a.max_load is not None:
+        result["quiet"]["load1_end"] = round(load1(), 2)
     out = RESULTS / f"{a.name}.json"
     out.write_text(json.dumps(result, indent=2, ensure_ascii=False))
     print(json.dumps(result, indent=2, ensure_ascii=False))

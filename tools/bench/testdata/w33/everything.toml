@@ -1,0 +1,7 @@
+# w33 scenario "everything": squared paper over everything, apps included (the click-through overlay layer).
+# Its delta against "carried" at rest is the overlay alone (same material, same sheet).
+schema_version = 2
+
+[theme.texture]
+kind = "paper_grid"
+scope = "everything"

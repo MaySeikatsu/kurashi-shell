@@ -1,0 +1,8 @@
+# w33 scenario "spotlight": oil paint under the spotlight (a lamp pinned at the edge, its beam aimed at the pointer).
+schema_version = 2
+
+[theme.texture]
+kind = "paint"
+
+[theme.light]
+mode = "spotlight"

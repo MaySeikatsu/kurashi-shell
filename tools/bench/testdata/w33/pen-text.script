@@ -1,0 +1,3 @@
+# w33 pen-text: the quick settings card opens (the motion); the window then holds it open at rest for 6 s.
+0.0 act quick.toggle
+window 8

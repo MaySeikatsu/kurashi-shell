@@ -1,0 +1,11 @@
+# w33 scenario "pen-text": kami, with every text pen modifier at 0.6 (letters and icons swell, skip, fade and wander).
+schema_version = 2
+
+[theme]
+style = "kami"
+
+[theme.pen]
+text_pressure = 0.6
+text_breaks = 0.6
+text_fade = 0.6
+text_wobble = 0.6

@@ -1,0 +1,5 @@
+# w33 spotlight: the pointer is created and parked mid-screen before the warm-up ends (not over the shell at rest);
+# then it sweeps across the bar for 5 s (about 60 motion events a second).
+pre move 1280 720
+0.0 sweep 40 16 2520 16 5
+window 7
