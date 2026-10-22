@@ -347,6 +347,8 @@ Item {
                     clip: true
                     Image {
                         id: thumb
+                        Component.onCompleted: Light.addPicture(thumb, Window.window)
+                        Component.onDestruction: Light.removePicture(thumb)
                         anchors.fill: parent
                         anchors.margins: tile.border.width
                         source: cell.modelData.thumb ? host.fileUrl(cell.modelData.thumb) : ""

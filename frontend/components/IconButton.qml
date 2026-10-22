@@ -21,6 +21,9 @@ Item {
     // then left out (one relief per pixel), in a window that shares its sheet. A transparent face gets none (QuickButton).
     readonly property var qsw: Window.window ? QsWindow.window : null
     readonly property bool ownRelief: Theme.texControls && !Theme.texText && blk.fill.a >= 1 && !!(qsw && qsw.tileSheet)
+    // The relief on the glyph alone (row 285: a mask of its own alpha) while the face is transparent or translucent: the
+    // ground of a transparent face gets no relief, so nothing halos.
+    readonly property bool glyphRelief: Theme.texControls && blk.fill.a < 1 && !!(qsw && qsw.tileSheet)
 
     function press() { if (b.enabled) b.clicked() }
 
@@ -50,6 +53,7 @@ Item {
             : (Theme.groups && b.lifted ? (hover.hovered && b.enabled ? Theme.containerHigh : Theme.container)
                                         : (hover.hovered && b.enabled ? Theme.containerHigh : "transparent"))
         Icon {
+            id: glyph
             anchors.centerIn: parent
             name: b.icon
             glyph: b.glyph
@@ -62,6 +66,27 @@ Item {
             active: b.ownRelief
             anchors.fill: parent
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(blk.radius, blk.face.height / 2) - blk.inset) }
+        }
+        // The glyph's relief: a parked, non-live copy of the glyph is the mask, refreshed only when the glyph's shape changes.
+        Loader {
+            active: b.glyphRelief && glyph.visible
+            x: glyph.x; y: glyph.y; width: glyph.width; height: glyph.height
+            sourceComponent: Item {
+                anchors.fill: parent
+                ShaderEffectSource {
+                    id: glyphMask
+                    width: parent.width
+                    height: parent.height
+                    sourceItem: glyph
+                    live: false
+                    x: -100000
+                    y: -100000
+                    readonly property var key: [glyph.text, glyph.font.pixelSize, glyph.font.family, glyph.font.variableAxes, glyph.width, glyph.height]
+                    onKeyChanged: scheduleUpdate()
+                    Component.onCompleted: scheduleUpdate()
+                }
+                Relief { anchors.fill: parent; radius: 0; mask: glyphMask }
+            }
         }
     }
     HoverHandler { id: hover }
