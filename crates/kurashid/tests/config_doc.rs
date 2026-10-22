@@ -214,3 +214,27 @@ async fn profile_refusals_are_catalog_keys_in_both_locales() {
         }
     }
 }
+
+/// W33 bench: reading `config.toml` (as the daemon's own reload does) must not trigger a reload — inotify reports
+/// opens, and every reload used to wake the next one (~5 a second).
+#[tokio::test]
+async fn reading_the_config_file_does_not_reload_it() {
+    let (store, hub, _actions, _root) = open();
+    let user = store.paths().user_file();
+    std::fs::create_dir_all(user.parent().unwrap()).unwrap();
+    std::fs::write(&user, "schema_version = 2\n[bar]\nheight = 40\n").unwrap();
+    let _watch = config::watch(store.clone()).expect("watcher");
+    // Let the write's own reload (if any) settle.
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    let (before, _) = hub.snapshot(DOC).expect("config doc");
+    for _ in 0..5 {
+        let _ = std::fs::read_to_string(&user).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    }
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    let (after, _) = hub.snapshot(DOC).expect("config doc");
+    assert_eq!(
+        before, after,
+        "reading config.toml republished the config document"
+    );
+}

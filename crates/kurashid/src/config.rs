@@ -1889,6 +1889,11 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Touched>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
         let Ok(ev) = res else { return };
+        // Our own reload opens the file, and inotify reports opens: without this every reload woke the next one
+        // (~5 a second, ~8 % CPU idle; W33 bench). Only changes count.
+        if ev.kind.is_access() {
+            return;
+        }
         if ev.paths.iter().any(|p| names.contains(p)) {
             let _ = tx.send(Touched::Config);
         } else if ev.paths.iter().any(|p| is_profile_event(p, &profiles)) {
