@@ -127,7 +127,9 @@ Scope {
         // their own sheet (NotificationCard `carryDy`, the drip's relief).
         property var tileSheet: tilesLoader.item
         readonly property point sheetCarry: Qt.point(0, 0)
-        Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+        // Made while the window is mapped only: the sheet copies its tiles once (live for a moment), and an unmapped window
+        // loses those copies — toasts that came after the window had gone showed no relief (also before W34).
+        Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0 && win.visible; sourceComponent: TileSheet {} }
         LightSense {}
 
         BarConfig { id: bars; screen: win.screen }
@@ -148,11 +150,14 @@ Scope {
 
         // ---- geometry, in a top bar's frame ("local": y from the bar's screen edge); mirrored for a bottom bar.
         readonly property real cardW: 340
-        readonly property int slackX: 24 + Theme.softR
+        // Room beside the stack for a flicked card to fly and fade in (the window is mapped only while toasts are up).
+        readonly property int slackX: 160 + Theme.softR
         readonly property var pill: drip && visible ? IslandGeom.pillOf(root.outName) : null
         readonly property real pillW: pill ? pill.w : 96
         readonly property real pillH: pill ? pill.h : Theme.barH - 10
         readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
+        // The hard shadow falls towards the screen's bottom on either edge (the drip's layer is mirrored for a bottom bar).
+        readonly property real shadowSy: (flip ? -1 : 1) * Theme.shadowDy
         // The bar's groups float as blocks (no strip under the island): the drip leaves the pill's foot; else the strip's edge.
         readonly property bool joined: Theme.groups && (Theme.shadowDy > 0 || Theme.softR > 0)
         readonly property real rootY: joined ? pillTop + pillH : Theme.barH
@@ -239,7 +244,9 @@ Scope {
                 readonly property real restY: win.restOf(index)
                 property real ry: restY
                 Behavior on ry {
-                    enabled: win.springing && !d.leaving
+                    // Not while a drop is still hanging: it pushes the stack itself (its room changes every frame, and a spring
+                    // retargeted every frame never gets going); what it leaves to settle — its pull past its place — springs.
+                    enabled: win.springing && !d.leaving && !root.budBusy
                     SpringAnimation { spring: Theme.spring * 1.4; damping: Math.min(1, Theme.damping * 1.2); epsilon: 0.25 }
                 }
 
@@ -248,6 +255,9 @@ Scope {
                 property bool waiting: bud
                 property bool detached: !bud
                 property bool freed: !bud
+                // Test only (KURASHI_MORPH_DEBUG=1): once it stands free, the card's top from the bar's screen edge and its height.
+                onFreedChanged: if (freed && Quickshell.env("KURASHI_MORPH_DEBUG") === "1")
+                    console.log("toast-card " + nid + " " + Math.round(ly) + " " + Math.round(cardH))
                 property real dy: 0
                 property real sqz: 0
                 Behavior on dy {
@@ -285,10 +295,11 @@ Scope {
                     snapCx = ncx
                     dy = by0 - ry
                     sqz = -win.squash * 2.5
+                    // The stack's springs first: the room the drop took while it pulled is given back on a spring.
+                    root.detached()
                     detached = true
                     dy = 0
                     sqz = 0
-                    root.detached()
                 }
                 function checkFree() { if (t >= 1 && Math.abs(dy) < 0.5 && Math.abs(sqz) < 0.003) freed = true }
                 onDyChanged: if (detached && !freed) checkFree()
@@ -386,7 +397,7 @@ Scope {
                 readonly property string fillPath: !drawn ? "" : (detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true))
                 readonly property string linePath: !drawn ? "" : (detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false))
                 readonly property string shadowPath: !drawn || Theme.shadowDy <= 0 ? ""
-                    : (detached ? free(0, Theme.shadowDy) : attached(0, Theme.shadowDy, false) + " Z")
+                    : (detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z")
                 readonly property color lineColor: card.urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
 
                 // ---- where the card is drawn (local top), and its space in the stack.
@@ -408,7 +419,7 @@ Scope {
                     id: leave
                     NumberAnimation {
                         target: d; property: "fx"
-                        to: d.flick ? win.cardW * 1.1 + Math.max(0, card.x) : 28
+                        to: d.flick ? Math.max(0, win.slackX - 8 - Math.max(0, card.x)) : 28
                         duration: d.flick ? Theme.stdMs : Theme.emphMs
                         easing.type: d.flick ? Easing.OutQuad : Easing.OutCubic
                     }
@@ -490,24 +501,29 @@ Scope {
                     }
                 }
 
-                NotificationCard {
-                    id: card
-                    item: d.item
-                    width: win.cardW
+                // The card's slot (its place); the card itself moves only when it is swiped (NotificationCard's x).
+                Item {
                     x: win.cardX + d.fx
-                    y: win.wy(d.leaving ? d.frozenY : d.ly, height)
-                    bare: d.drawn
-                    contentOpacity: d.freed ? 1 : d.clamp01((d.t - 0.5) / 0.25)
-                    carryDy: (win.flip ? -1 : 1) * (d.ly - d.restY)
-                    swipeable: !d.leaving
+                    y: win.wy(d.leaving ? d.frozenY : d.ly, card.height)
+                    width: win.cardW
+                    height: card.height
                     transform: Scale {
                         origin.x: win.cardW / 2
                         origin.y: win.flip ? card.height : 0
                         xScale: d.detached ? 1 + d.sqz * 0.5 : 1
                         yScale: d.detached ? 1 - d.sqz : 1
                     }
-                    onDismissed: root.dismiss(d.nid)
-                    onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
+                    NotificationCard {
+                        id: card
+                        item: d.item
+                        width: win.cardW
+                        bare: d.drawn
+                        contentOpacity: d.freed ? 1 : d.clamp01((d.t - 0.5) / 0.25)
+                        carryDy: (win.flip ? -1 : 1) * (d.ly - d.restY)
+                        swipeable: !d.leaving
+                        onDismissed: root.dismiss(d.nid)
+                        onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
+                    }
                 }
                 // A leaving card's chrome fades with it (group opacity only while it leaves, K16).
                 opacity: d.leaving ? d.fade : 1

@@ -4,13 +4,14 @@
 # Per look x profile x bar edge (MORPH_CASES):
 #   1. a toast buds off the bar under the island: grims at TOAST_AT ms (40 120 250 320 400) after the Notify call; a second
 #      toast pushes the first down (grims at 120 250); the stack at rest; one dismissed by the daemon drifts off (120);
-#   2. the notification centre grows out of the island pill: grims at MORPH_AT ms (40 120 250) after
+#      the close control of the last one (a click) flicks it away (grims ~100 and ~200 ms after the click);
+#   2. (between the rest and the drift) the notification centre grows out of the island pill: grims at MORPH_AT ms (40 120 250) after
 #      `notifications.center`, at rest, and at 40 120 after `ui.close`;
 #   3. I148 (first case only): no toast window while the right sidebar is open on the output (a toast sent then stays
 #      hidden), and the toast comes back once the sidebar closes.
 # The motion profile in effect is checked first (the theme document's `motion.profile`). Any FAIL, QML error or kurashid
 # panic makes the run exit 1.
-# Shots: frontend/shots/morph/toast-<look>-<profile>-<edge>-{bud-40,…,push-120,push-250,rest,drift-120}.png,
+# Shots: frontend/shots/morph/toast-<look>-<profile>-<edge>-{bud-40,…,push-120,push-250,rest,drift-120,flick-800,flick-900}.png,
 #        frontend/shots/morph/notifications-<look>-<profile>-<edge>-{open-40,open-120,open-250,rest,close-40,close-120}.png,
 #        frontend/shots/morph/toast-i148-{sidebar,back}.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD128 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
@@ -139,17 +140,12 @@ for CASE in $MORPH_CASES; do
   sleep 0.5
 
   # 1. A toast buds off the bar, a second pushes it down, the stack at rest, one drifts off.
-  burst "$base-bud" "$TOAST_AT" "$crop" notify Calendar "Standup in 5 minutes" "Room 3 · bring the notes from Monday" 12000
+  burst "$base-bud" "$TOAST_AT" "$crop" notify Calendar "Standup in 5 minutes" "Room 3 · bring the notes from Monday" 20000
   check "$(wait_window up && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the toast window came up"
   sleep 1.2
-  burst "$base-push" "120 250" "$crop" notify Mail "Aiko Tanaka" "The photos from Saturday are in the shared folder." 12000
+  burst "$base-push" "120 250" "$crop" notify Mail "Aiko Tanaka" "The photos from Saturday are in the shared folder." 20000
   sleep 1.5
   grim -g "$crop" "$base-rest.png"
-  first=$(K sub svc.notifications --count 0 --json | jq -r '.data.toasts | min')
-  burst "$base-drift" "120" "$crop" K act notify.dismiss "{\"id\":$first}"
-  sleep 1
-  toasts=$(K sub svc.notifications --count 0 --json | jq -c '.data.toasts')
-  check "$(echo "$toasts" | jq -e 'length == 1' >/dev/null && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: one toast left after the dismissal ($toasts)"
 
   # 2. The notification centre out of the island.
   nbase=$OUT/notifications-$LOOK-$PROFILE-$EDGE
@@ -159,7 +155,25 @@ for CASE in $MORPH_CASES; do
   check "$(ui | jq -e '.panel == "notifications"' >/dev/null && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the centre is open"
   check "$(last_window | grep -q down && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: no toast window while the centre is open"
   burst "$nbase-close" "40 120" "$crop" K act ui.close
+  check "$(wait_window up && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the toasts came back after the centre closed"
+  sleep 0.8
+
+  first=$(K sub svc.notifications --count 0 --json | jq -r '.data.toasts | min')
+  burst "$base-drift" "120" "$crop" K act notify.dismiss "{\"id\":$first}"
   sleep 1
+  toasts=$(K sub svc.notifications --count 0 --json | jq -c '.data.toasts')
+  check "$(echo "$toasts" | jq -e 'length == 1' >/dev/null && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: one toast left after the dismissal ($toasts)"
+  # The close control of the one left: it is flicked away (the click lands ~0.7 s after the pointer helper starts).
+  # Its place from the frontend's log (`toast-card <id> <top from the bar's edge> <height>`); the close control's centre lies
+  # pad + 12 px below the card's top, pad + 12 px in from its right edge.
+  pad=$(K sub theme --count 0 --json | jq -r '.data.tokens["space.md"] // 12')
+  read -r cid ctop ch <<< "$(grep -oE 'toast-card [0-9]+ [0-9]+ [0-9]+' "$R/qs.case.log" | tail -1 | cut -d' ' -f2-)"
+  cy=$(( ctop + pad + 12 ))
+  [ "$EDGE" = bottom ] && cy=$(( 1440 - ctop - ch + pad + 12 ))
+  burst "$base-flick" "800 900" "$crop" timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click $(( 1280 + 170 - pad - 12 )) "$cy" left
+  sleep 1
+  check "$(K sub svc.notifications --count 0 --json | jq -e '.data.toasts | length == 0' >/dev/null && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the close control dismissed the last toast"
+
 
   # 3. I148: the right sidebar open on this output hides the toasts; they come back after it closes.
   if [ "$FIRST" = 1 ]; then
