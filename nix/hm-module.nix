@@ -119,7 +119,7 @@ in
 
     themeExport = {
       apps = lib.mkOption {
-        type = lib.types.listOf (lib.types.enum [ "gtk3" "gtk4" "qt" "qt5" "foot" "kitty" "alacritty" "ghostty" "niri" ]);
+        type = lib.types.listOf (lib.types.enum [ "gtk3" "gtk4" "qt" "qt5" "kde" "foot" "kitty" "alacritty" "ghostty" "niri" ]);
         default = [ ];
         example = [ "gtk3" "gtk4" "foot" ];
         description = ''
