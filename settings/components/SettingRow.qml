@@ -40,6 +40,10 @@ Item {
     // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
     // whole width under it.
     property bool stacked: false
+    // A picker of the row's own (material cards, ink or light swatches; the page's `pickers`) takes the place of the generic
+    // control: the provenance line, Reset and the reasons stay under it, and a jump's keyboard focus lands in it. It reads
+    // and sets the value itself (it knows its key).
+    property Component picker: null
 
     readonly property string out: row.per_output ? output : ""
     readonly property var prov: Store.prov(row.key, out)
@@ -192,13 +196,16 @@ Item {
                 id: slot
                 width: parent.width
                 height: Math.max(ctl.item ? ctl.item.implicitHeight : 0, Theme.controlH)
-                opacity: r.inert ? 0.5 : 1
+                // A picker of its own dims itself while inert.
+                opacity: r.inert && r.picker === null ? 0.5 : 1
                 Loader {
                     id: ctl
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    width: r.row.control === "toggle" ? 40 : (r.cards ? slot.width : (r.wide ? Math.min(slot.width, 360) : ctl.implicitWidth))
+                    width: r.row.control === "toggle" ? 40
+                        : (r.cards || r.picker !== null ? slot.width : (r.wide ? Math.min(slot.width, 360) : ctl.implicitWidth))
                     sourceComponent: {
+                        if (r.picker !== null) return r.picker
                         switch (r.row.control) {
                         case "toggle": return cToggle
                         case "slider": return cSlider
