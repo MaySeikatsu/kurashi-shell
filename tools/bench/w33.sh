@@ -25,11 +25,12 @@ script_of() {
 for run in 1 2 3; do
   for s in $SCEN; do
     script=$(script_of "$s")
-    extra=""
-    [ -n "$script" ] && extra="--script tools/bench/testdata/w33/$script.script"
+    # Pass m needs a motion script; a rest-only scenario runs passes a and b.
+    extra="" passes=ab
+    [ -n "$script" ] && extra="--script tools/bench/testdata/w33/$script.script" passes=abm
     # shellcheck disable=SC2086  # $extra is one optional flag pair, split on purpose
     python3 tools/bench/measure.py --name "w33-$s-r$run" --daemon real --config "tools/bench/testdata/w33/$s.toml" \
-      $extra --passes abm --idle 10 --cycles 0 --max-load 1.5 --load-wait 600 --sandbox-prefix "" \
+      $extra --passes "$passes" --idle 10 --cycles 0 --max-load 1.5 --load-wait 600 --sandbox-prefix "" \
       -- frontend/launch.sh > /dev/null || { echo "w33: run $s r$run failed" >&2; status=1; }
   done
 done
