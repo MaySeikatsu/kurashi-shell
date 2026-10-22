@@ -100,7 +100,10 @@ Flickable {
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
     function extraOf(key) {
         var when = p.extraWhen[key]
-        if (when !== undefined && Store.valueOf(when) !== true) return undefined
+        // On and in effect: a switch that is on but inert (the wallpaper's own material with the scope "shell") hides them too.
+        var on = when === undefined ? null : Store.prov(when, "")
+        if (when !== undefined && (!on || on.value !== true || on.reason === "settings.inert.requires"))
+            return undefined
         return p.extras[key]
     }
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.

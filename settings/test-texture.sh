@@ -62,9 +62,9 @@ shot() { sleep 1.2; grim -o HEADLESS-1 "settings/shots/appearance/$1.png"; [ -s 
 errors() { grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign" "$1" | grep -v "^\s*$" || true; }
 
 start_qs theme.texture.kind light
-# The swatches are made once Settings watches the previews: eleven, then the cards show them.
-for _ in $(seq 150); do [ "$(ls "$R/cache/kurashi/texture/swatch" 2>/dev/null | grep -c '\.png$')" -ge 11 ] && break; sleep 0.2; done
-[ "$(ls "$R/cache/kurashi/texture/swatch" | grep -c '\.png$')" -ge 11 ] || fail "swatches were not made"
+# The swatches are made once Settings watches the previews: thirteen (brush among them, K61), then the cards show them.
+for _ in $(seq 150); do [ "$(ls "$R/cache/kurashi/texture/swatch" 2>/dev/null | grep -c '\.png$')" -ge 13 ] && break; sleep 0.2; done
+[ "$(ls "$R/cache/kurashi/texture/swatch" | grep -c '\.png$')" -ge 13 ] || fail "swatches were not made"
 shot texture-cards-light
 stop_qs
 start_qs theme.light.mode light2
@@ -75,7 +75,7 @@ shot texture-ink-light
 stop_qs
 K set theme.colors.scheme '"dark"' | grep -q '^applied' || fail "dark"
 start_qs theme.texture.kind dark
-for _ in $(seq 150); do [ "$(ls "$R/cache/kurashi/texture/swatch" | grep -c '\.png$')" -ge 22 ] && break; sleep 0.2; done
+for _ in $(seq 150); do [ "$(ls "$R/cache/kurashi/texture/swatch" | grep -c '\.png$')" -ge 26 ] && break; sleep 0.2; done
 shot texture-cards-dark
 stop_qs
 for f in "$R"/settings-*.log; do

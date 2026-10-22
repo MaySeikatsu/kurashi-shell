@@ -178,6 +178,10 @@ crop w32-light-colours
 apply '[{"set":"theme.texture.scope","value":"shell_wallpaper"},{"set":"theme.texture.wallpaper.own","value":true},{"set":"theme.texture.wallpaper.kind","value":"stone"}]'
 Q jump theme.texture.wallpaper.own
 crop w32-wallpaper-cards
+# Its own material without the wallpaper in the scope: the switch is inert and says why; the cards are not shown.
+apply '[{"set":"theme.texture.scope","value":"shell"}]'
+Q jump theme.texture.wallpaper.own
+crop w32-wallpaper-inert
 echo "wave 32 rows: shots in $W32/w32-*.png"
 
 # --- 6. Esc: a dropdown and a preview take theirs first; then the sheet closes ---------------------------------------
