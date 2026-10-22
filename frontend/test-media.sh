@@ -22,7 +22,8 @@ PLAYER_BIN=${KURASHI_FAKE_MPRIS_ART:-$BIN/examples/fake_mpris_art}
 OUT=$ROOT/frontend/shots/media
 DECORS=${DECORS:-sekai none}
 FIX=$ROOT/crates/kurashi-mod-wallpaper/tests/fixtures
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # Layout px of the 2560 x 1440 output: the bar's middle (the island pill), the Stage's card, the desk column.
 PILL_GEOM=${PILL_GEOM:-"980,0 600x48"}
 CARD_GEOM=${CARD_GEOM:-"860,30 840x760"}

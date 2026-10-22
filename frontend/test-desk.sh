@@ -18,7 +18,8 @@ NAME=${1:-w24-dsk-1}   # unique per run: other runs stop any sandbox that shares
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/desk
 DECORS=${DECORS:-sekai none}
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The desk column (layout px of the 2560 x 1440 output): 300 px wide, 32 px from the right edge, under the bar.
 DESK_GEOM=${DESK_GEOM:-"2200,20 360x1400"}
 mkdir -p "$OUT"
