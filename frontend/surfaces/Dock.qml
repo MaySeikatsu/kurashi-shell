@@ -463,6 +463,29 @@ Scope {
                                                 SpringAnimation { spring: Theme.spring; damping: Theme.damping }
                                             }
                                         }
+                                        // The picture's relief on a transparent tile: a parked, non-live copy of the picture is the mask
+                                        // (row 285). A filled tile carries its relief over the picture instead (see `relief`).
+                                        Loader {
+                                            active: Theme.texControls && img.visible && tile.relief && !(Theme.texText && tile.fill.a >= 1)
+                                                && !!(Window.window && QsWindow.window && QsWindow.window.tileSheet)
+                                            x: img.x; y: img.y; width: img.width; height: img.height
+                                            sourceComponent: Item {
+                                                anchors.fill: parent
+                                                ShaderEffectSource {
+                                                    id: pictureMask
+                                                    width: parent.width
+                                                    height: parent.height
+                                                    sourceItem: img
+                                                    live: false
+                                                    x: -100000
+                                                    y: -100000
+                                                    readonly property var key: [img.status, img.source, img.width, img.height]
+                                                    onKeyChanged: scheduleUpdate()
+                                                    Component.onCompleted: scheduleUpdate()
+                                                }
+                                                Relief { anchors.fill: parent; radius: 0; mask: pictureMask }
+                                            }
+                                        }
                                         // No icon (no desktop entry, or the theme lacks it): the app's first letter; the
                                         // empty state's tile shows the launcher symbol.
                                         Icon {

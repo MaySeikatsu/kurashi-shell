@@ -138,6 +138,8 @@ Item {
     // ---- the well: the page area. The host's page covers it while it shows; under it, what the shell knows ----
     Rectangle {
         id: well
+        Component.onCompleted: Light.addPicture(well, Window.window)
+        Component.onDestruction: Light.removePicture(well)
         y: panel.pins.length > 0 ? row.height + Theme.gap : settingsKey.height + Theme.gap
         width: panel.width
         height: Math.max(0, panel.height - y)

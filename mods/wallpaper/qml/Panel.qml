@@ -735,6 +735,8 @@ Item {
                 spacing: Theme.gap
                 Image {
                     id: previewImage
+                    Component.onCompleted: Light.addPicture(previewImage, Window.window)
+                    Component.onDestruction: Light.removePicture(previewImage)
                     // A third of the card at most (16:9): the theme beside it keeps the rest of the width.
                     width: Math.min(208, Math.round(previewRow.width * 0.34))
                     height: Math.round(width * 9 / 16)
@@ -1104,6 +1106,8 @@ Item {
 
                     Image {
                         id: thumb
+                        Component.onCompleted: Light.addPicture(thumb, Window.window)
+                        Component.onDestruction: Light.removePicture(thumb)
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top

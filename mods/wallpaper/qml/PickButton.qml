@@ -38,6 +38,9 @@ Rectangle {
         anchors.centerIn: parent
         spacing: Theme.xs
         Image {
+            id: thumbImg
+            Component.onCompleted: Light.addPicture(thumbImg, Window.window)
+            Component.onDestruction: Light.removePicture(thumbImg)
             anchors.verticalCenter: parent.verticalCenter
             width: 24
             height: 14

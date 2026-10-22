@@ -399,6 +399,28 @@ PanelWindow {
                             asynchronous: true
                             visible: ico.src !== "" && status === Image.Ready
                         }
+                        // The app's picture: its relief on its own pixels, masked by its alpha (row 285), so a transparent row's
+                        // ground does not halo. A fallback tile carries its own relief (below).
+                        Loader {
+                            active: Theme.texControls && img.visible && !!(Window.window && QsWindow.window && QsWindow.window.tileSheet)
+                            anchors.fill: parent
+                            sourceComponent: Item {
+                                anchors.fill: parent
+                                ShaderEffectSource {
+                                    id: pictureMask
+                                    width: parent.width
+                                    height: parent.height
+                                    sourceItem: img
+                                    live: false
+                                    x: -100000
+                                    y: -100000
+                                    readonly property var key: [img.status, img.source, img.width, img.height]
+                                    onKeyChanged: scheduleUpdate()
+                                    Component.onCompleted: scheduleUpdate()
+                                }
+                                Relief { anchors.fill: parent; radius: 0; mask: pictureMask }
+                            }
+                        }
                         // Text fallback: initial of the name; a calculation shows its icon.
                         Rectangle {
                             id: fallback
