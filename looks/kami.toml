@@ -13,5 +13,8 @@ category = "inspired"
 "theme.texture.kind" = "paper_dots"
 "theme.texture.strength" = 0.55
 "theme.texture.tint" = true
+# K61: the dots and fibres cast faint shadows; the pen swells and thins a little.
+"theme.texture.shadows" = "on"
+"theme.pen.pressure" = 0.35
 [slots]
 frame = "sketch"

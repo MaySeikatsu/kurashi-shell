@@ -45,10 +45,39 @@ pub enum Kind {
     Leather,
     Wood,
     Paint,
+    /// K61: long, continuous strokes of a hairy brush over the whole sheet.
+    Brush,
+}
+
+/// K61: the pattern of `theme.texture.cracks`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CrackStyle {
+    /// Jagged, branching cracks (old stone, dried clay).
+    Stone,
+    /// Straight-edged shards (broken glass).
+    Glass,
+}
+
+impl CrackStyle {
+    /// The config value; stone for anything unknown.
+    pub fn parse(s: &str) -> CrackStyle {
+        if s == "glass" {
+            CrackStyle::Glass
+        } else {
+            CrackStyle::Stone
+        }
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            CrackStyle::Stone => "stone",
+            CrackStyle::Glass => "glass",
+        }
+    }
 }
 
 impl Kind {
-    pub const ALL: [Kind; 12] = [
+    pub const ALL: [Kind; 13] = [
         Kind::Paper,
         Kind::PaperDots,
         Kind::PaperLines,
@@ -61,6 +90,7 @@ impl Kind {
         Kind::Leather,
         Kind::Wood,
         Kind::Paint,
+        Kind::Brush,
     ];
 
     /// The config value (`paper_dots`); `None` for an unknown name and for `none`.
@@ -82,6 +112,7 @@ impl Kind {
             Kind::Leather => "leather",
             Kind::Wood => "wood",
             Kind::Paint => "paint",
+            Kind::Brush => "brush",
         }
     }
 }
@@ -107,6 +138,8 @@ pub struct Material {
     pub ink_role: InkRole,
     /// The ink's opacity at full coverage (A = 255), before the user's strength.
     pub ink_alpha: f32,
+    /// K61: relief shadows under `theme.texture.shadows = auto` (0 off, 1 on): materials with real height.
+    pub shadow: f32,
 }
 
 /// One generated tile.
@@ -118,6 +151,10 @@ pub struct Tile {
     pub logical: f32,
     /// Row-major RGBA8, `size * size * 4` bytes, in the layout of the module docs.
     pub rgba: Vec<u8>,
+    /// K61: row-major heights, `size * size` bytes, 0 the lowest point of the tile and 255 its highest.
+    pub height: Vec<u8>,
+    /// K61: the logical px between height 0 and 255 (the material's relief at `theme.texture.scale` 1).
+    pub relief: f32,
 }
 
 impl Tile {
@@ -152,6 +189,24 @@ impl Tile {
             (top * (1.0 - ty) + bot * ty) / 255.0
         })
     }
+
+    /// K61: the height (0..1) at sheet position `p`, bilinear and wrapping exactly as [`Tile::sample`].
+    pub fn sample_height(&self, px: f32, py: f32, scale: f32) -> f32 {
+        if self.height.is_empty() {
+            return 0.0;
+        }
+        let k = self.size as f32 / (self.logical * scale.max(0.01));
+        let (fx, fy) = (px * k - 0.5, py * k - 0.5);
+        let (x0, y0) = (fx.floor(), fy.floor());
+        let (tx, ty) = (fx - x0, fy - y0);
+        let n = self.size as i64;
+        let w = |v: f32| (v as i64).rem_euclid(n) as usize;
+        let at = |x: usize, y: usize| f32::from(self.height[y * self.size as usize + x]);
+        let (xa, xb, ya, yb) = (w(x0), w(x0 + 1.0), w(y0), w(y0 + 1.0));
+        let top = at(xa, ya) * (1.0 - tx) + at(xb, ya) * tx;
+        let bot = at(xa, yb) * (1.0 - tx) + at(xb, yb) * tx;
+        (top * (1.0 - ty) + bot * ty) / 255.0
+    }
 }
 
 /// What a tile is made from; the cache key.
@@ -164,6 +219,9 @@ pub struct Params {
     pub tint: bool,
     /// The largest output scale the tile is shown at (1, 1.5, 2 …): the tile's device pixels per logical pixel.
     pub device_scale: f32,
+    /// K61: 0 … 1: a network of cracks over the material.
+    pub cracks: f32,
+    pub crack_style: CrackStyle,
 }
 
 /// The light and the material's response, as the theme tokens carry them (`texture.*`, `light.*`).
@@ -181,24 +239,82 @@ pub struct Shading {
     pub light_dir: [f32; 3],
     /// 0..1 RGB of the light's highlights.
     pub light_color: [f32; 3],
-    /// A lamp instead of `light_dir` (the wallpaper's light, K59): its position as fractions of the picture or output
-    /// (x, y) and its height over the sheet in logical px (z). The direction is then taken per pixel.
+    /// A lamp instead of `light_dir` (the wallpaper's light, K59; the spotlight's pin, K61): its position as fractions
+    /// of the picture or output (x, y) and its height over the sheet in logical px (z). The direction is then taken per
+    /// pixel.
     pub lamp: Option<[f32; 3]>,
+    /// K61: steepens the normals' slope (`theme.texture.depth`; 1 = as generated).
+    pub depth: f32,
+    /// K61: relief shadows, 0 (off) … 1.
+    pub shadow: f32,
+    /// K61: the logical px the height map's full range stands on the sheet (`tile.relief × depth × scale`).
+    pub relief_px: f32,
+    /// K61: the weight of the light half (1; less on dark grounds, where highlights read stronger than shade, I169).
+    pub lit: f32,
+    /// K61: the spotlight's beam, aimed from `lamp` (its pin) at a point of the output.
+    pub beam: Option<Beam>,
+}
+
+/// K61: a spotlight's beam: the lamp (the pin, [`Shading::lamp`]) aims at `aim` (fractions of the output); the relief
+/// reads fully inside `cos_inner`, fades out to `cos_outer` and keeps [`BEAM_AMBIENT`] outside.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Beam {
+    pub aim: [f32; 2],
+    pub cos_outer: f32,
+    pub cos_inner: f32,
+}
+
+/// K61: how much of the relief reads outside a spotlight's beam.
+pub const BEAM_AMBIENT: f32 = 0.3;
+/// K61: relief shadows march this many steps toward the light, …
+pub const SHADOW_STEPS: u32 = 8;
+/// … over at most this many logical px.
+pub const SHADOW_MAX_PX: f32 = 24.0;
+
+impl Beam {
+    /// The beam `half_angle` degrees wide (`theme.light.beam`); fully lit within half of it.
+    pub fn new(aim: [f32; 2], half_angle: f32) -> Beam {
+        let a = half_angle.clamp(1.0, 89.0).to_radians();
+        Beam {
+            aim,
+            cos_outer: a.cos(),
+            cos_inner: (a * 0.5).cos(),
+        }
+    }
+}
+
+/// K61: the spotlight's pin for a light from compass `angle`: where a ray from the output's centre in that direction
+/// meets its edge, as fractions of the output (the square of fractions, so it is the same on every aspect ratio).
+pub fn pin(angle: f32) -> [f32; 2] {
+    let a = angle.to_radians();
+    let (ux, uy) = (a.sin(), -a.cos());
+    let m = ux.abs().max(uy.abs()).max(1e-6);
+    [0.5 + 0.5 * ux / m, 0.5 + 0.5 * uy / m]
 }
 
 /// The relief's colour over whatever lies under it, premultiplied RGBA (0..1) for a normal "over" blend: shade is
 /// black at α (it multiplies what is under it by `1 − α`), light is `light_color` at α (a screen blend), and the ink
 /// lies under the shade. A flat texel with no ink is fully transparent: the material never shifts the overall tone.
+/// The light is `light_dir`, the beam full and no relief shadow: [`shade_at`] is the whole formula.
 pub fn shade(t: [f32; 4], s: &Shading) -> [f32; 4] {
+    shade_with(t, s.light_dir, 1.0, 0.0, s)
+}
+
+/// [`shade`] for the light `l` (unit, toward the light) at this pixel, the beam's weight `k` (1 outside a spotlight)
+/// and the relief shadow `sh` (0..1) — DESIGN-SYSTEM "Texture and light", line for line with `relief.frag`.
+pub fn shade_with(t: [f32; 4], l: [f32; 3], k: f32, sh: f32, s: &Shading) -> [f32; 4] {
     let (nx, ny) = (2.0 * t[0] - 1.0, 2.0 * t[1] - 1.0);
     let nz = (1.0 - nx * nx - ny * ny).max(0.0).sqrt();
-    let n = normalize([nx, ny, nz]);
+    let n = normalize([s.depth * nx, s.depth * ny, nz]);
     let cav = 2.0 * t[2] - 1.0;
-    let l = s.light_dir;
     let diff = dot(n, l) - l[2];
     let h = normalize([l[0], l[1], l[2] + 1.0]);
     let spec = s.gloss * (dot(n, h).max(0.0).powf(s.shininess) - h[2].max(0.0).powf(s.shininess));
-    let v = (s.amp * (2.0 * diff + 0.5 * cav + spec)).clamp(-s.amp, s.amp);
+    let mut v = k * s.amp * (2.0 * diff + 0.5 * cav + spec - 2.0 * sh);
+    if v > 0.0 {
+        v *= s.lit;
+    }
+    let v = v.clamp(-s.amp, s.amp);
     let shade = if v < 0.0 {
         [0.0, 0.0, 0.0, -v]
     } else {
@@ -212,6 +328,64 @@ pub fn shade(t: [f32; 4], s: &Shading) -> [f32; 4] {
     let a = t[3] * s.ink_alpha;
     let ink = [s.ink[0] * a, s.ink[1] * a, s.ink[2] * a, a];
     std::array::from_fn(|i| shade[i] + ink[i] * (1.0 - shade[3]))
+}
+
+/// The light at sheet position `p` (logical px) on an output `out` logical px large: the lamp's direction when there is
+/// one, else `light_dir`.
+pub fn light_at(p: [f32; 2], out: [f32; 2], s: &Shading) -> [f32; 3] {
+    match s.lamp {
+        Some([fx, fy, hz]) => normalize([fx * out[0] - p[0], fy * out[1] - p[1], hz.max(1.0)]),
+        None => s.light_dir,
+    }
+}
+
+/// K61: the spotlight's weight at `p`: 1 inside the beam, [`BEAM_AMBIENT`] outside it, smooth between; 1 without one.
+pub fn beam_at(p: [f32; 2], out: [f32; 2], s: &Shading) -> f32 {
+    let (Some(b), Some([fx, fy, hz])) = (s.beam, s.lamp) else {
+        return 1.0;
+    };
+    let lamp = [fx * out[0], fy * out[1], hz.max(1.0)];
+    let axis = normalize([
+        b.aim[0] * out[0] - lamp[0],
+        b.aim[1] * out[1] - lamp[1],
+        -lamp[2],
+    ]);
+    let ray = normalize([p[0] - lamp[0], p[1] - lamp[1], -lamp[2]]);
+    let c = dot(ray, axis);
+    let t = ((c - b.cos_outer) / (b.cos_inner - b.cos_outer).max(1e-6)).clamp(0.0, 1.0);
+    let cone = t * t * (3.0 - 2.0 * t);
+    BEAM_AMBIENT + (1.0 - BEAM_AMBIENT) * cone
+}
+
+/// K61: the relief shadow at `p` (0..1, before `Shading::shadow`): [`SHADOW_STEPS`] samples of the height toward the
+/// light `l`, over the length the tallest feature's shadow can reach (at most [`SHADOW_MAX_PX`]); the deepest point
+/// above the ray from `p` to the light, against a soft edge of a quarter of the relief (at least 0.15 px).
+pub fn shadow_at(tile: &Tile, p: [f32; 2], scale: f32, l: [f32; 3], s: &Shading) -> f32 {
+    let lxy = (l[0] * l[0] + l[1] * l[1]).sqrt();
+    if s.shadow <= 0.0 || s.relief_px <= 0.0 || lxy < 1e-3 {
+        return 0.0;
+    }
+    let (dx, dy) = (l[0] / lxy, l[1] / lxy);
+    let rise = l[2] / lxy;
+    let len = (s.relief_px / rise.max(0.05)).min(SHADOW_MAX_PX);
+    let h0 = tile.sample_height(p[0], p[1], scale) * s.relief_px;
+    let mut occ = 0.0f32;
+    for i in 1..=SHADOW_STEPS {
+        let r = len * i as f32 / SHADOW_STEPS as f32;
+        let hi = tile.sample_height(p[0] + dx * r, p[1] + dy * r, scale) * s.relief_px;
+        occ = occ.max(hi - h0 - r * rise);
+    }
+    (occ / (0.25 * s.relief_px).max(0.15)).clamp(0.0, 1.0)
+}
+
+/// The whole formula at sheet position `p` (logical px) of an output `out` logical px large, the sheet scaled by
+/// `scale`: the texel, the light there, the beam and the relief shadow.
+pub fn shade_at(tile: &Tile, p: [f32; 2], out: [f32; 2], scale: f32, s: &Shading) -> [f32; 4] {
+    let t = tile.sample(p[0], p[1], scale);
+    let l = light_at(p, out, s);
+    let k = beam_at(p, out, s);
+    let sh = s.shadow * shadow_at(tile, p, scale, l, s);
+    shade_with(t, l, k, sh, s)
 }
 
 /// The light from compass `angle` (degrees: 0 from the top, 90 from the right) at `elevation` degrees.
@@ -234,17 +408,7 @@ pub fn bake(
     let (w, h) = (out.width() as f32 * k, out.height() as f32 * k);
     for (x, y, px) in out.enumerate_pixels_mut() {
         let (lx, ly) = ((x as f32 + 0.5) * k, (y as f32 + 0.5) * k);
-        let t = tile.sample(lx, ly, scale);
-        let o = match s.lamp {
-            Some([fx, fy, hz]) => {
-                let sh = Shading {
-                    light_dir: normalize([fx * w - lx, fy * h - ly, hz.max(1.0)]),
-                    ..*s
-                };
-                shade(t, &sh)
-            }
-            None => shade(t, s),
-        };
+        let o = shade_at(tile, [lx, ly], [w, h], scale, s);
         for i in 0..3 {
             let dst = f32::from(px[i]) / 255.0;
             px[i] = ((o[i] + dst * (1.0 - o[3])).clamp(0.0, 1.0) * 255.0).round() as u8;
@@ -356,15 +520,23 @@ pub enum Error {
 /// key, so a stale file can never be shown for other parameters. A cached file that fails to decode is generated again.
 pub fn tile_file(cache_dir: &Path, p: &Params) -> Result<(PathBuf, Tile), Error> {
     let name = format!(
-        "{}-w{:03}-{}-s{:03}-v{}.png",
+        "{}-w{:03}-c{:03}{}-{}-s{:03}-v{}.png",
         p.kind.name(),
         (p.wrinkles.clamp(0.0, 1.0) * 100.0).round() as u32,
+        (p.cracks.clamp(0.0, 1.0) * 100.0).round() as u32,
+        if p.cracks > 0.0 {
+            p.crack_style.name()
+        } else {
+            ""
+        },
         if p.tint { "ink" } else { "plain" },
         (p.device_scale * 100.0).round() as u32,
         generate::VERSION,
     );
     let path = cache_dir.join(name);
     let ink = ink_path(&path);
+    let height = height_path(&path);
+    let relief_file = height.with_extension("relief");
     if path.is_file()
         && let Ok(img) = image::open(&path)
     {
@@ -381,12 +553,24 @@ pub fn tile_file(cache_dir: &Path, p: &Params) -> Result<(PathBuf, Tile), Error>
                 });
                 rgba.extend_from_slice(&[px[0], px[1], px[2], a]);
             }
-            let tile = Tile {
-                size: side,
-                logical,
-                rgba,
-            };
-            return Ok((path, tile));
+            // K61: the height map and its relief; a tile cached without them is generated again.
+            let heights = image::open(&height).ok().map(|i| i.to_luma8());
+            let relief = std::fs::read_to_string(&relief_file)
+                .ok()
+                .and_then(|r| r.trim().parse::<f32>().ok());
+            if let (Some(hm), Some(relief)) = (heights, relief)
+                && hm.width() == side
+                && hm.height() == side
+            {
+                let tile = Tile {
+                    size: side,
+                    logical,
+                    rgba,
+                    height: hm.into_raw(),
+                    relief,
+                };
+                return Ok((path, tile));
+            }
         }
     }
     let tile = generate(p);
@@ -417,6 +601,13 @@ pub fn tile_file(cache_dir: &Path, p: &Params) -> Result<(PathBuf, Tile), Error>
     } else {
         let _ = std::fs::remove_file(&ink);
     }
+    // K61: the heights as an opaque grey map, and the logical px their range stands for.
+    let tmp_h = height.with_extension("png.tmp");
+    image::GrayImage::from_raw(tile.size, tile.size, tile.height.clone())
+        .expect("tile size matches its heights")
+        .save_with_format(&tmp_h, image::ImageFormat::Png)?;
+    std::fs::rename(&tmp_h, &height)?;
+    std::fs::write(&relief_file, format!("{}\n", tile.relief))?;
     std::fs::rename(&tmp, &path)?;
     Ok((path, tile))
 }
@@ -430,6 +621,15 @@ pub fn ink_path(tile_file: &Path) -> PathBuf {
     tile_file.with_file_name(format!("{stem}-ink.png"))
 }
 
+/// K61: the height map beside a tile file (`<name>-height.png`, opaque grey; its relief in `<name>-height.relief`).
+pub fn height_path(tile_file: &Path) -> PathBuf {
+    let stem = tile_file
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    tile_file.with_file_name(format!("{stem}-height.png"))
+}
+
 /// How each kind reflects light and which ink it carries.
 pub fn material(kind: Kind) -> Material {
     let m = |gloss, shininess, ink_role, ink_alpha| Material {
@@ -437,6 +637,7 @@ pub fn material(kind: Kind) -> Material {
         shininess,
         ink_role,
         ink_alpha,
+        shadow: 0.0,
     };
     match kind {
         Kind::Paper => m(0.0, 8.0, InkRole::OnSurface, 0.06),
@@ -452,7 +653,15 @@ pub fn material(kind: Kind) -> Material {
         Kind::Leather => m(0.3, 18.0, InkRole::None, 0.0),
         Kind::Wood => m(0.12, 14.0, InkRole::OnSurface, 0.12),
         // Oil paint is glossy where the brush left ridges; its pigment varies a little in tone.
-        Kind::Paint => m(0.3, 24.0, InkRole::OnSurface, 0.06),
+        // K61: paint and brush strokes stand off the canvas: their relief casts shadows under `shadows = auto`.
+        Kind::Paint => Material {
+            shadow: 1.0,
+            ..m(0.3, 24.0, InkRole::OnSurface, 0.06)
+        },
+        Kind::Brush => Material {
+            shadow: 1.0,
+            ..m(0.25, 20.0, InkRole::OnSurface, 0.06)
+        },
     }
 }
 
@@ -479,6 +688,11 @@ mod tests {
             light_dir: light_dir(315.0, 40.0),
             light_color: [1.0, 1.0, 1.0],
             lamp: None,
+            depth: 1.0,
+            shadow: 0.0,
+            relief_px: 0.0,
+            lit: 1.0,
+            beam: None,
         }
     }
 
@@ -519,6 +733,65 @@ mod tests {
     }
 
     #[test]
+    fn depth_steepens_and_flat_stays_flat() {
+        let deep = Shading {
+            depth: 2.0,
+            ..lit()
+        };
+        assert!(
+            shade([0.5, 0.5, 0.5, 0.0], &deep)
+                .iter()
+                .all(|v| v.abs() < 1e-3)
+        );
+        let a = shade([0.4, 0.4, 0.5, 0.0], &lit());
+        let b = shade([0.4, 0.4, 0.5, 0.0], &deep);
+        assert!(b[3] > a[3], "{a:?} {b:?}");
+    }
+
+    #[test]
+    fn a_ridge_casts_a_shadow_away_from_the_light() {
+        // A flat tile with one tall ridge along x = 20 (logical px); light from the right, low.
+        let n = 64usize;
+        let mut height = vec![0u8; n * n];
+        for y in 0..n {
+            height[y * n + 20] = 255;
+        }
+        let tile = Tile {
+            size: n as u32,
+            logical: n as f32,
+            rgba: [128u8, 128, 128, 0].repeat(n * n),
+            height,
+            relief: 4.0,
+        };
+        let s = Shading {
+            shadow: 1.0,
+            relief_px: 4.0,
+            light_dir: light_dir(90.0, 20.0),
+            ..lit()
+        };
+        let l = s.light_dir;
+        // Left of the ridge (away from the light) lies in its shadow; right of it does not.
+        let behind = shadow_at(&tile, [17.5, 10.5], 1.0, l, &s);
+        let front = shadow_at(&tile, [23.5, 10.5], 1.0, l, &s);
+        assert!(behind > 0.5 && front == 0.0, "{behind} {front}");
+        assert!(shade_at(&tile, [17.5, 10.5], [64.0, 64.0], 1.0, &s)[3] > 0.0);
+    }
+
+    #[test]
+    fn the_beam_is_full_where_it_aims_and_ambient_far_off() {
+        let s = Shading {
+            lamp: Some([0.5, 0.0, 200.0]),
+            beam: Some(Beam::new([0.5, 0.5], 20.0)),
+            ..lit()
+        };
+        let out = [1000.0, 1000.0];
+        assert!((beam_at([500.0, 500.0], out, &s) - 1.0).abs() < 1e-4);
+        assert!((beam_at([20.0, 980.0], out, &s) - BEAM_AMBIENT).abs() < 1e-4);
+        assert_eq!(pin(0.0), [0.5, 0.0]);
+        assert_eq!(pin(90.0)[0], 1.0);
+    }
+
+    #[test]
     fn light_dir_is_a_unit_vector_from_the_compass() {
         let top = light_dir(0.0, 45.0);
         assert!(top[1] < 0.0 && top[0].abs() < 1e-6);
@@ -535,6 +808,8 @@ mod tests {
                 wrinkles: 0.3,
                 tint: true,
                 device_scale: 1.0,
+                cracks: 0.0,
+                crack_style: CrackStyle::Stone,
             };
             let a = generate(&p);
             assert_eq!(a.rgba.len(), (a.size * a.size * 4) as usize, "{kind:?}");
@@ -551,6 +826,8 @@ mod tests {
             wrinkles: 0.0,
             tint: false,
             device_scale: 1.0,
+            cracks: 0.0,
+            crack_style: CrackStyle::Stone,
         };
         let (a, _) = tile_file(dir.path(), &p).unwrap();
         let (b, _) = tile_file(dir.path(), &Params { tint: true, ..p }).unwrap();
