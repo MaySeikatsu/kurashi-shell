@@ -374,35 +374,35 @@
 # [island.main.input]
 #
 # Left click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # left = "island.expand"
 #
 # Right click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # right = "island.pin"
 #
 # Middle click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # middle = ""
 #
 # Hover
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # hover = ""
 #
 # Scroll up
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # scroll_up = "island.prev"
 #
 # Scroll down
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # scroll_down = "island.next"
 #
 # Shift + scroll up
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # shift_scroll_up = ""
 #
 # Shift + scroll down
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # shift_scroll_down = ""
 
 # [notifications]
