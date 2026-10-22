@@ -69,6 +69,7 @@ Scope {
     readonly property real holdP: Quickshell.env("KURASHI_SIDEBAR_HOLD") ? Number(Quickshell.env("KURASHI_SIDEBAR_HOLD")) : -1
     readonly property bool holding: holdP >= 0 && held
     onWantedChanged: {
+        if (!wanted && holdP >= 0) { held = false; mw = 0; mh = 0; return }
         if (wanted && holdP >= 0) {
             if (!held) { screen = pick(); held = true }
             gate = false
@@ -449,6 +450,7 @@ Scope {
             Item {
                 id: reliefBox
                 readonly property bool on: Theme.texShell && shape.shown
+                readonly property point carry: win.shapeCarry
                 z: Theme.texText ? 2 : 0
                 visible: on
                 x: box.x
@@ -466,7 +468,8 @@ Scope {
                     sourceComponent: Relief {
                         anchors.fill: parent
                         mask: shapeMask
-                        carry: win.shapeCarry
+                        // (not `win.…` here: Relief has a `win` of its own)
+                        carry: reliefBox.carry
                     }
                 }
             }

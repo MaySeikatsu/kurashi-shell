@@ -715,11 +715,13 @@ if want_part morph; then
           IFS=, read -r FX FY FW FH <<< "$FR"
           WINY=0; [ "$BEDGE" = top ] && WINY=$((SH - WH))
           STRIP=1; [ "$look" = sekai ] && STRIP=0   # keycap groups float on the desk: no strip
+          if [ "$BEDGE" = top ] || [ "$BEDGE" = bottom ]; then
           timeout 20 grim -t ppm "$R/rest.ppm" || fail "grim failed"
           while IFS= read -r line; do
             case "$line" in ok*) check 1 "$TAG: ${line#ok }" ;; FAIL*) check 0 "$TAG: ${line#FAIL }" ;; esac
           done < <(python3 -I "$W/join.py" "$R/rest.ppm" "$BEDGE" "$side" "$FX" "$FY" "$FW" "$FH" "$WINY" "$BARH" 3 "$STRIP" || true)
           [ "$look" = washi ] && [ "$prof" = calm ] && cp "$R/rest.ppm" "$R/rest-$TAG.ppm"
+          else echo "test-sidebars: $TAG: a side bar — at rest the column lies along it, no fillet to check"; fi
           close_down "$side" || true
           for t in 40 120 250; do
             open_rest "$side" || break
