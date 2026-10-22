@@ -226,8 +226,29 @@ PanelWindow {
             active: !bar.floating && Theme.texShell
             sourceComponent: Relief { anchors.fill: parent }
         }
+        // K62: with a pen in effect the rule is drawn by the pen, as one open line (two, either side of the island's
+        // opening); the opening and the line's ends are the rectangles' below.
+        Loader {
+            id: rulePen
+            anchors.fill: parent
+            active: Theme.penOutline && !bar.floating && Theme.outlineW > 0
+            sourceComponent: PenOutline {
+                readonly property real ow: Theme.outlineW
+                readonly property real cy: cfg.edge === "top" ? height - ow / 2 : ow / 2
+                readonly property real cx: cfg.edge === "left" ? width - ow / 2 : ow / 2
+                readonly property real openA: bg.opened ? Math.max(0, width / 2 + IslandGeom.openL) : width
+                readonly property real openB: width / 2 + IslandGeom.openR
+                color: Theme.outlineColor
+                lineWidth: ow
+                seed: bar.vertical ? 0xB4A2 : 0xB4A1
+                paths: bar.vertical ? [{ points: [{ x: cx, y: 0 }, { x: cx, y: height }], closed: false }]
+                    : (bg.opened ? [{ points: [{ x: 0, y: cy }, { x: openA, y: cy }], closed: false },
+                                    { points: [{ x: openB, y: cy }, { x: width, y: cy }], closed: false }]
+                                 : [{ points: [{ x: 0, y: cy }, { x: width, y: cy }], closed: false }])
+            }
+        }
         Rectangle {
-            visible: !bar.floating && Theme.outlineW > 0
+            visible: !bar.floating && Theme.outlineW > 0 && !rulePen.active
             color: Theme.outlineColor
             x: cfg.edge === "left" ? parent.width - width : 0
             y: cfg.edge === "top" ? parent.height - height : 0
@@ -235,7 +256,7 @@ PanelWindow {
             height: bar.vertical ? parent.height : Theme.outlineW
         }
         Rectangle {
-            visible: !bar.floating && Theme.outlineW > 0 && bg.opened
+            visible: !bar.floating && Theme.outlineW > 0 && bg.opened && !rulePen.active
             color: Theme.outlineColor
             x: parent.width / 2 + IslandGeom.openR
             y: cfg.edge === "top" ? parent.height - height : 0

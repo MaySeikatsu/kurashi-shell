@@ -64,61 +64,130 @@ function loopNoise(R, L, lambda) {
 }
 
 // The closed outline of a w × h rounded rectangle whose line runs `inset` px inside the edge, as points (clockwise
-// from the top-left corner's end). The corner radius stays at least 1.5 px: a pen does not turn on a point.
+// from the top-left corner's end). `r` is one radius, or [top-left, top-right, bottom-right, bottom-left]. A corner
+// keeps at least 1.5 px: a pen does not turn on a point.
 function roundRect(w, h, r, inset) {
     var x0 = inset, y0 = inset, x1 = w - inset, y1 = h - inset
-    var rc = clamp(r - inset, 1.5, Math.max(1.5, Math.min((x1 - x0) / 2, (y1 - y0) / 2)))
+    var rs = typeof r === "number" ? [r, r, r, r] : r
+    var lim = Math.max(1.5, Math.min((x1 - x0) / 2, (y1 - y0) / 2))
     var pts = []
-    function arc(cx, cy, a0) {
+    function arc(rr, cx, cy, a0) {
+        var rc = clamp(rr - inset, 1.5, lim)
+        cx += cx < w / 2 ? rc : -rc
+        cy += cy < h / 2 ? rc : -rc
         var n = Math.max(4, Math.ceil(rc * Math.PI / 2))
         for (var k = 0; k <= n; k++) {
             var a = a0 + (Math.PI / 2) * k / n
             pts.push({ x: cx + rc * Math.cos(a), y: cy + rc * Math.sin(a) })
         }
     }
-    arc(x1 - rc, y0 + rc, -Math.PI / 2)
-    arc(x1 - rc, y1 - rc, 0)
-    arc(x0 + rc, y1 - rc, Math.PI / 2)
-    arc(x0 + rc, y0 + rc, Math.PI)
+    arc(rs[1], x1, y0, -Math.PI / 2)
+    arc(rs[2], x1, y1, 0)
+    arc(rs[3], x0, y1, Math.PI / 2)
+    arc(rs[0], x0, y0, Math.PI)
     return pts
 }
 
-// A closed polyline resampled every ~`step` px of arc length: {pts: [{x, y, tx, ty}], L, step}.
-function resample(src, step) {
+// An SVG path of absolute M, L, A (circular, small arc) and Z commands — the paths MorphShape builds — as polylines:
+// [{pts, closed}], one per subpath. Arcs are sampled every ~1.5 px.
+function svgPaths(d) {
+    var tok = (d || "").trim().split(/[\s,]+/)
+    var out = [], cur = null, i = 0, px = 0, py = 0
+    function num() { return parseFloat(tok[i++]) }
+    while (i < tok.length) {
+        var c = tok[i++]
+        if (c === "M") {
+            px = num(); py = num()
+            cur = { pts: [{ x: px, y: py }], closed: false }
+            out.push(cur)
+        } else if (c === "L") {
+            px = num(); py = num()
+            if (cur) cur.pts.push({ x: px, y: py })
+        } else if (c === "A") {
+            var r = num(); num(); num(); num()
+            var sweep = num(), x = num(), y = num()
+            var dx = x - px, dy = y - py, q = Math.hypot(dx, dy)
+            if (cur && q > 1e-6) {
+                r = Math.max(r, q / 2)
+                var hh = Math.sqrt(Math.max(0, r * r - q * q / 4))
+                // The centre: on the chord's normal, to the side the sweep turns to (y down: sweep 1 = clockwise).
+                var sgn = sweep === 1 ? 1 : -1
+                var cx = (px + x) / 2 - sgn * hh * dy / q, cy = (py + y) / 2 + sgn * hh * dx / q
+                var a0 = Math.atan2(py - cy, px - cx), a1 = Math.atan2(y - cy, x - cx)
+                var da = a1 - a0
+                if (sweep === 1 && da < 0) da += 2 * Math.PI
+                if (sweep === 0 && da > 0) da -= 2 * Math.PI
+                var n = Math.max(2, Math.ceil(Math.abs(da) * r / 1.5))
+                for (var k = 1; k <= n; k++) {
+                    var a = a0 + da * k / n
+                    cur.pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) })
+                }
+            }
+            px = x; py = y
+        } else if (c === "Z") {
+            if (cur) cur.closed = true
+        }
+    }
+    return out
+}
+
+// A polyline resampled every ~`step` px of arc length: {pts: [{x, y, tx, ty}], L, step, closed}. A closed one joins
+// its last point to its first.
+function resample(src, step, closed) {
+    if (closed === undefined) closed = true
     var n = src.length, cum = [0], L = 0
-    for (var i = 0; i < n; i++) {
+    var segs = closed ? n : n - 1
+    for (var i = 0; i < segs; i++) {
         var a = src[i], b = src[(i + 1) % n]
         L += Math.hypot(b.x - a.x, b.y - a.y)
         cum.push(L)
     }
-    var N = Math.max(8, Math.round(L / step))
+    var N = Math.max(closed ? 8 : 1, Math.round(L / step))
     var du = L / N, pts = [], j = 0
-    for (var k = 0; k < N; k++) {
+    var count = closed ? N : N + 1
+    for (var k = 0; k < count; k++) {
         var s = k * du
-        while (j < n - 1 && cum[j + 1] < s) j++
+        while (j < segs - 1 && cum[j + 1] < s) j++
         var p = src[j], q = src[(j + 1) % n]
         var seg = cum[j + 1] - cum[j]
-        var t = seg > 0 ? (s - cum[j]) / seg : 0
+        var t = seg > 0 ? Math.min(1, (s - cum[j]) / seg) : 0
         pts.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t })
     }
-    for (var m = 0; m < N; m++) {
-        var pa = pts[(m + N - 1) % N], pb = pts[(m + 1) % N]
+    for (var m = 0; m < count; m++) {
+        var pa = closed ? pts[(m + count - 1) % count] : pts[Math.max(0, m - 1)]
+        var pb = closed ? pts[(m + 1) % count] : pts[Math.min(count - 1, m + 1)]
         var dx = pb.x - pa.x, dy = pb.y - pa.y, l = Math.hypot(dx, dy) || 1
         pts[m].tx = dx / l
         pts[m].ty = dy / l
     }
-    return { pts: pts, L: L, step: du }
+    return { pts: pts, L: L, step: du, closed: closed }
 }
 
-// The point at arc length s (any s: it wraps round the loop), interpolated between samples.
+// The point at arc length s, interpolated between samples: round the loop for a closed line, straight on past the
+// ends (along the end's direction) for an open one.
 function at(loop, s) {
     var N = loop.pts.length
-    var u = ((s % loop.L) + loop.L) % loop.L / loop.step
+    if (!loop.closed) {
+        var e = s < 0 ? loop.pts[0] : (s > loop.L ? loop.pts[N - 1] : null)
+        if (e) {
+            var o = s < 0 ? s : s - loop.L
+            return { x: e.x + e.tx * o, y: e.y + e.ty * o, tx: e.tx, ty: e.ty }
+        }
+    }
+    var u = loop.closed ? ((s % loop.L) + loop.L) % loop.L / loop.step : s / loop.step
     var i = Math.floor(u), t = u - i
-    var a = loop.pts[i % N], b = loop.pts[(i + 1) % N]
+    if (!loop.closed && i >= N - 1) { i = N - 2; t = 1 }
+    var a = loop.pts[((i % N) + N) % N], b = loop.pts[(i + 1) % N]
     var tx = a.tx + (b.tx - a.tx) * t, ty = a.ty + (b.ty - a.ty) * t
     var l = Math.hypot(tx, ty) || 1
     return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, tx: tx / l, ty: ty / l }
+}
+
+// A seed from a name (FNV-1a): a surface that knows who it is ("stage-card") seeds its line with it.
+function hashStr(str) {
+    var h = 0x811C9DC5
+    for (var i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619) >>> 0
+    return h & 0x7FFFFFFF
 }
 
 // The modifiers along a line `L` px long: off(s) the wobble (px along the normal), mult(s, θ) the pressure's width
@@ -246,12 +315,21 @@ function fade(ctx, W, H, amount, seed) {
     ctx.restore()
 }
 
-// Draws one outline. o: {pts (closed polyline, canvas coordinates), width, color, line, pressure, breaks, fade, wobble,
-// seed, W, H (the canvas, for the fade)}. The caller clears the canvas; the colour's alpha is the canvas's opacity.
+// Draws one outline and its ink's flow. As `stroke`, plus W, H (the canvas, for the fade). The caller clears the
+// canvas; the colour's alpha is the canvas's opacity.
 function outline(ctx, o) {
-    var loop = resample(o.pts, 1.5)
+    stroke(ctx, o)
+    fade(ctx, o.W, o.H, o.fade || 0, o.seed)
+}
+
+// Draws one line, no fade. o: {pts (polyline, canvas coordinates), closed (default true), width, color, line, pressure,
+// breaks, wobble, seed}. A closed line starts anywhere round its loop (seeded); an open one (a bar's rule, a card hung
+// from it) starts at its first point, and its dots and dashes end level at both ends.
+function stroke(ctx, o) {
+    var closed = o.closed === undefined ? true : o.closed
+    var loop = resample(o.pts, 1.5, closed)
     var L = loop.L
-    if (L < 8) return
+    if (L < (closed ? 8 : 2)) return
     var w = o.width
     var F = field(L, w, o, o.seed)
     var R = rng(o.seed ^ 0x7F4A7C15)
@@ -263,8 +341,8 @@ function outline(ctx, o) {
     if (line === "dotted") {
         var r0 = Math.max(1, 0.8 * w)
         var S = 2 * r0 + Math.max(2.2, 2.6 * r0)
-        var N = Math.max(6, Math.round(L / S)), unit = L / N, ph = R() * unit
-        for (var i = 0; i < N; i++) {
+        var N = Math.max(closed ? 6 : 1, Math.round(L / S)), unit = L / N, ph = closed ? R() * unit : 0
+        for (var i = 0; i < N + (closed ? 0 : 1); i++) {
             var s = ph + i * unit
             var ink = F.ink(s)
             if (ink <= 0) continue
@@ -276,21 +354,21 @@ function outline(ctx, o) {
         }
     } else if (line === "dashed") {
         var Ld = Math.max(5, 4 * w + 3), Gd = Math.max(3.5, 2.2 * w + 2.2)
-        var Nd = Math.max(4, Math.round(L / (Ld + Gd))), ud = L / Nd
-        var dash = Math.max(1, ud * Ld / (Ld + Gd) - w), phd = R() * ud
+        var Nd = Math.max(closed ? 4 : 1, Math.round(L / (Ld + Gd))), ud = L / Nd
+        var dash = Math.max(1, ud * Ld / (Ld + Gd) - w), phd = closed ? R() * ud : (ud - dash) / 2
         for (var j = 0; j < Nd; j++) {
             var a = phd + j * ud
             run(ctx, loop, F, w, a, a + dash, function (s) { return 1 })
         }
     } else if (line === "broken") {
         // Long strokes, each its own: the pen lifted and came down a little off the last one.
-        var s0 = R() * L, pos = s0, end = s0 + L
+        var s0 = closed ? R() * L : 0, pos = s0, end = s0 + L
         var scale = clamp(L / 360, 0.35, 1)
-        while (pos < end - 6) {
+        while (pos < end - (closed ? 6 : 0.5)) {
             var len = (45 + 95 * R()) * scale + 10
             var gap = 3.5 + 6 * R() + w
-            var b = Math.min(pos + len, end - gap)
-            if (b - pos < 6) break
+            var b = closed ? Math.min(pos + len, end - gap) : Math.min(pos + len, end)
+            if (b - pos < (closed ? 6 : 0.5)) break
             var d0 = (R() - 0.5) * 0.9, d1 = (R() - 0.5) * 0.9
             ;(function (sa, sb, da, db) {
                 run(ctx, loop, F, w, sa, sb,
@@ -298,23 +376,24 @@ function outline(ctx, o) {
                         // A landing blob, a lift that thins out.
                         return (1 + 0.22 * (1 - smooth(0, 2.5, s - sa))) * (0.5 + 0.5 * smooth(0, 6, sb - s))
                     },
-                    function (s) { return da + (db - da) * (s - sa) / (sb - sa) })
+                    function (s) { return da + (db - da) * (s - sa) / Math.max(1, sb - sa) })
             })(pos, b, d0, d1)
             pos = b + gap
         }
     } else if (line === "rough") {
-        // A very uneven hand: a strong wander, a loop that closes past its start a little off, a second faint pass.
+        // A very uneven hand: a strong wander, a loop that closes past its start a little off (an open line runs a
+        // little past its ends), a second faint pass.
         var RA = 1.6 * clamp(L / 600, 0.5, 1)
         var rn = loopNoise(R, L, 70), rj = loopNoise(R, L, 13), rn2 = loopNoise(R, L, 60)
-        var over = clamp(L * 0.03, 6, 16)
-        var sr = R() * L, sr2 = R() * L, side = R() < 0.5 ? -1 : 1, in2 = (R() < 0.5 ? -1 : 1) * 0.9
-        faint(ctx, loop, F, Math.max(0.5, 0.7 * w), sr2, sr2 + L * 0.96,
+        var over = closed ? clamp(L * 0.03, 6, 16) : clamp(L * 0.03, 2, 6)
+        var sr = closed ? R() * L : -over / 2, sr2 = closed ? R() * L : 0
+        var side = R() < 0.5 ? -1 : 1, in2 = (R() < 0.5 ? -1 : 1) * 0.9
+        faint(ctx, loop, F, Math.max(0.5, 0.7 * w), sr2, sr2 + L * (closed ? 0.96 : 1),
               function (s) { return RA * rn2(s) + in2 }, 0.42)
         run(ctx, loop, F, w * 1.1, sr, sr + L + over,
             function (s) { return 0.75 + 0.25 * smooth(0, 5, sr + L + over - s) },
-            function (s) { return RA * (0.8 * rn(s) + 0.2 * rj(s)) + side * 1.4 * (s - sr) / (L + over) })
+            function (s) { return RA * (0.8 * rn(s) + 0.2 * rj(s)) + (closed ? side * 1.4 * (s - sr) / (L + over) : 0) })
     } else {
         run(ctx, loop, F, w, 0, L)
     }
-    fade(ctx, o.W, o.H, o.fade || 0, o.seed)
 }

@@ -27,8 +27,22 @@ Rectangle {
     color: Theme.panel
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
-    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+    // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
+    border.width: pen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
+    Loader {
+        id: pen
+        z: 3
+        anchors.fill: parent
+        active: Theme.penOutline
+        sourceComponent: PenOutline {
+            radius: c.radius
+            color: c.border.color
+            lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+            // Salted by the notification's id: a card keeps its line while it is swiped, and two cards differ.
+            seed: c.item && c.item.id !== undefined ? (Math.imul(Number(c.item.id) | 0, 0x9E3779B1) >>> 1) : 0
+        }
+    }
     // K59: the card is a material area (the panel's fill); the relief lies under the content. K61: a swiped card carries its
     // sheet along (`texture.sheet = carried`), on top of its window's carry.
     Loader {
