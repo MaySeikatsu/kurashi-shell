@@ -16,7 +16,8 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/calendar/shots
 DECORS=${DECORS:-sekai none}
 PORT=${PORT:-8127}
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # Regions of the 2560 x 1440 output (layout px): the desk column, the bar's right end, the island's expanded card.
 DESK_GEOM=${DESK_GEOM:-"2200,30 360x900"}
 BAR_GEOM=${BAR_GEOM:-"1660,0 900x48"}
