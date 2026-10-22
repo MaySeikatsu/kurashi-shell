@@ -88,7 +88,8 @@ Scope {
             gate = false
             readFreeze("close")
             if (instant) { stopSprings(); mw = 0; mh = 0; held = false }
-            else { landed = false; driveTo(0) }
+            // (closed before its first frame: nothing moves, so it folds here)
+            else { landed = false; driveTo(0); folded() }
         }
     }
     onWantOutputChanged: if (wanted && held) screen = pick()
