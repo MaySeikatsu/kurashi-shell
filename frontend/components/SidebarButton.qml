@@ -17,6 +17,8 @@ Item {
     readonly property bool sheeted: !!(qsw && qsw.tileSheet)
     readonly property bool filled: sb.open || ma.pressed || hover.hovered
     readonly property bool ownRelief: Theme.texControls && sheeted && filled
+    // At rest the square is transparent: the glyph alone carries the relief, masked by its own alpha (row 285).
+    readonly property bool glyphRelief: Theme.texControls && sheeted && !filled
 
     width: Theme.barH
     height: Theme.barH
@@ -53,6 +55,7 @@ Item {
         }
     }
     Icon {
+        id: glyph
         anchors.centerIn: parent
         name: sb.side === "left" ? "left_panel_open" : "right_panel_open"
         glyph: sb.side === "left" ? "◧" : "◨"
@@ -65,6 +68,27 @@ Item {
         width: parent.width - 6
         height: parent.height - 6
         sourceComponent: Relief { anchors.fill: parent; radius: Theme.rSm }
+    }
+    // The glyph's relief at rest: a parked, non-live copy of the glyph is the mask (row 285), refreshed when its shape changes.
+    Loader {
+        active: sb.glyphRelief && glyph.visible
+        x: glyph.x; y: glyph.y; width: glyph.width; height: glyph.height
+        sourceComponent: Item {
+            anchors.fill: parent
+            ShaderEffectSource {
+                id: glyphMask
+                width: parent.width
+                height: parent.height
+                sourceItem: glyph
+                live: false
+                x: -100000
+                y: -100000
+                readonly property var key: [glyph.name, glyph.glyph, glyph.font.pixelSize, glyph.font.family, glyph.width, glyph.height]
+                onKeyChanged: scheduleUpdate()
+                Component.onCompleted: scheduleUpdate()
+            }
+            Relief { anchors.fill: parent; radius: 0; mask: glyphMask }
+        }
     }
     MouseArea {
         id: ma
