@@ -1,0 +1,5 @@
+# w33 scenario "none": the reference, no texture (theme.texture.kind = none).
+schema_version = 2
+
+[theme.texture]
+kind = "none"

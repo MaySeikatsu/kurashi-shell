@@ -1,0 +1,6 @@
+# w33 scenario "kami": the kami style (look kami: paper_dots at 0.55, tint, shadows on; pen pressure 0.35).
+# Its delta against "none" is the whole style (fonts, outline chrome, sketch frame), not the texture alone.
+schema_version = 2
+
+[theme]
+style = "kami"

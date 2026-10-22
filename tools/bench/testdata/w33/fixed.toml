@@ -1,0 +1,6 @@
+# w33 scenario "fixed": squared paper; the sheet stays put and surfaces slide over it.
+schema_version = 2
+
+[theme.texture]
+kind = "paper_grid"
+sheet = "fixed"
