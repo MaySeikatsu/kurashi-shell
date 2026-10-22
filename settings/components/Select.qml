@@ -19,6 +19,9 @@ Item {
     signal picked(var value)
     signal previewed(var value)
     signal cancelled()
+    // Escape is taken only while there is something to take back (the row binds its open preview); otherwise it goes on
+    // up, where the sheet closes on it (K63).
+    property bool cancellable: true
 
     readonly property int chosenIndex: indexOfValue(current)
     readonly property var chosen: chosenIndex >= 0 ? choices[chosenIndex] : null
@@ -94,7 +97,7 @@ Item {
     Keys.onSpacePressed: event => { s.open(); event.accepted = true }
     Keys.onDownPressed: event => { s.open(); event.accepted = true }
     Keys.onUpPressed: event => { s.open(); event.accepted = true }
-    Keys.onEscapePressed: event => { s.cancelled(); event.accepted = true }
+    Keys.onEscapePressed: event => { if (s.cancellable) s.cancelled(); event.accepted = s.cancellable }
     Keys.onPressed: event => {
         const printable = event.text.length === 1 && event.text >= " " && event.text !== "\x7f"
         if (!printable || (event.modifiers & ~Qt.ShiftModifier) !== 0) return

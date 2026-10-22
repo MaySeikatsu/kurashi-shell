@@ -22,6 +22,9 @@ Column {
     // The value whose row takes the focus once the daemon's list is shown: a value, null (the add control) or undefined (no
     // focus change). Set by a move or a removal, used by onItemsChanged.
     property var focusValue: undefined
+    // The list that change asked for (JSON): the focus waits for it, not for any other refresh of the same list that may come
+    // first (the row re-reads its value on every config change).
+    property string focusAfter: ""
 
     // The offer a chosen value stands for, or null: a value no offer names is shown as it is (not available now).
     function offer(v) {
@@ -51,6 +54,7 @@ Column {
         next[i] = items[j]
         next[j] = items[i]
         focusValue = v
+        focusAfter = JSON.stringify(next)
         edited(next)
     }
     function removeValue(v) {
@@ -59,6 +63,7 @@ Column {
         var next = items.slice()
         next.splice(i, 1)
         focusValue = i + 1 < items.length ? items[i + 1] : (i > 0 ? items[i - 1] : null)
+        focusAfter = JSON.stringify(next)
         edited(next)
     }
     // Not `add`: a Column is a Positioner, which already has an `add` transition.
@@ -70,9 +75,10 @@ Column {
     }
 
     onItemsChanged: {
-        if (focusValue !== undefined) {
+        if (focusValue !== undefined && (focusAfter === "" || JSON.stringify(items) === focusAfter)) {
             var f = focusValue
             focusValue = undefined
+            focusAfter = ""
             // After the rows show the daemon's list (a removed row's slot is gone only once the count has changed).
             Qt.callLater(function () { l.focusRow(f) })
         }

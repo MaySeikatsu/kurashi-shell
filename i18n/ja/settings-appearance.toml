@@ -21,3 +21,7 @@
 "settings.light.wallpaper.wallpaper" = "壁紙のいちばん明るい場所に、その色のランプ。ダイヤルは画面の中央への向きです。"
 "settings.light.wallpaper.wallpaper_flat" = "この壁紙には明るい場所がありません。光は上から来ます。"
 "settings.light.wallpaper.wallpaper_waiting" = "壁紙を待っています。画像を読むまで光は上から来ます。"
+# ウェーブ 32（K61）：光のダイヤルのスポットライト。
+"settings.light.numbers_beam" = "方向 {angle}° ・ 高さ {elevation}° ・ 光の幅 {beam}°"
+"settings.light.spotlight" = "この方向が画面の縁と交わる所に固定したランプ。光はシェルの上ではポインターを追い、ほかでは中央で休みます。小さな画面をクリックするとランプが動きます。"
+"settings.light.screen" = "{angle}° に固定したスポットライト、光の幅 {beam}°"
