@@ -8,7 +8,7 @@
 #   2. (between the rest and the drift) the notification centre grows out of the island pill: grims at MORPH_AT ms (40 120 250) after
 #      `notifications.center`, at rest, and at 40 120 after `ui.close`;
 #   3. I148 (first case only): no toast window while the right sidebar is open on the output (a toast sent then stays
-#      hidden), and the toast comes back once the sidebar closes;
+#      hidden), and the toast comes back once the sidebar closes; the same while the island card or the launcher is out;
 #   4. Ma (IDLE=0 skips it): with WAYLAND_DEBUG on the frontend, no Wayland commit in 5 s with the launcher open at rest
 #      (but its caret's blink), a toast at rest, the centre open at rest, and none in 10 s once all three are gone again.
 # The motion profile in effect is checked first (the theme document's `motion.profile`). Any FAIL, QML error or kurashid
@@ -194,6 +194,15 @@ for CASE in $MORPH_CASES; do
     check "$(wait_window up && echo 1 || echo 0)" "I148: the toast came back once the sidebar closed"
     sleep 1.2
     grim -g "$crop" "$OUT/toast-i148-back.png"
+    # The island's card out (it stands where the toasts hang): they wait for it too, and come back after it.
+    K act island.expand >/dev/null
+    check "$(wait_window down && echo 1 || echo 0)" "toasts: no toast window while the island card is out ($(last_window))"
+    K act ui.close >/dev/null
+    check "$(wait_window up && echo 1 || echo 0)" "toasts: the toast came back once the island card closed"
+    K act launcher.toggle >/dev/null
+    check "$(wait_window down && echo 1 || echo 0)" "toasts: no toast window while the launcher is open ($(last_window))"
+    K act ui.close >/dev/null
+    check "$(wait_window up && echo 1 || echo 0)" "toasts: the toast came back once the launcher closed"
     FIRST=0
   fi
   stop_shell
