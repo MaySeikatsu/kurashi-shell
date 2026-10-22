@@ -162,6 +162,7 @@ Scope {
 
                 // Panel: flush to the side, square outer corners, the two inner ones rounded.
                 Rectangle {
+                    id: panelRect
                     visible: !sb.floating
                     anchors.fill: parent
                     color: Theme.panel
@@ -169,8 +170,21 @@ Scope {
                     bottomLeftRadius: sb.side === "right" ? Theme.rLg : 0
                     topRightRadius: sb.side === "left" ? Theme.rLg : 0
                     bottomRightRadius: sb.side === "left" ? Theme.rLg : 0
-                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                    // K62: with a pen in effect the pen draws the panel's outline instead of the straight border.
+                    border.width: panelPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
                     border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+                    Loader {
+                        id: panelPen
+                        anchors.fill: parent
+                        active: Theme.penOutline && panelRect.visible
+                        sourceComponent: PenOutline {
+                            radii: [panelRect.topLeftRadius, panelRect.topRightRadius, panelRect.bottomRightRadius,
+                                    panelRect.bottomLeftRadius]
+                            color: panelRect.border.color
+                            lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
+                            seed: sb.side === "left" ? 0x51DE1 : 0x51DE2
+                        }
+                    }
                 }
                 // K59: the panel is a material area; the relief lies under the content (over it with texture.text). Its
                 // corners are the panel's (the outer ones square). Floating, the Block carries its own.
@@ -196,6 +210,8 @@ Scope {
                     radius: Theme.rLg
                     flatBorder: Theme.outline
                     animate: false
+                    // K62: the pen's salt for its outline: the side, not its place (it slides in).
+                    penSeed: sb.side === "left" ? 0x51DE1 : 0x51DE2
                 }
 
                 // The content, the column's one keyboard focus holder: Esc backs out of a page first, then closes.
