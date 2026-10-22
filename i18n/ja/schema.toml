@@ -379,3 +379,5 @@
 "config.settings.window.help" = "コンポジターが配置・タイル表示する普通のウィンドウ、または暗くしたデスクトップの上、画面の中央にシェルが描くシート。シートはシェルの素材でできていて、すべてのシェルの面と同じ光で照らされます。"
 "config.choice.settings_window.window" = "ウィンドウ"
 "config.choice.settings_window.sheet" = "デスクトップの上のシート"
+"config.theme.icon_theme.label" = "アプリのアイコン"
+"config.theme.icon_theme.help" = "シェルに従うアプリ（GTK、Qt、KDE）が使うアイコンテーマ。色と一緒に書き出します。「そのまま」は各アプリの設定を残します（I183）。"

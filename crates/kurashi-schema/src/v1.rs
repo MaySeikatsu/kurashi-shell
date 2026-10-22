@@ -148,6 +148,11 @@ pub struct Theme {
     /// needs one line in its own config to read the file; Settings shows it.
     #[kurashi(default = strings(&[]), choices_from = "theme.export", section = "colors")]
     pub export: Vec<String>,
+    /// Icons for apps
+    /// The icon theme the apps that follow use (GTK, Qt, KDE), written with their colours. "Leave as is" keeps each
+    /// app's own choice (I183).
+    #[kurashi(default = String::new(), choices_from = "icon_themes", section = "colors")]
+    pub icon_theme: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
