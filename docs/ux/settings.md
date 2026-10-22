@@ -108,3 +108,33 @@ colour above a group of rows on tonal slots), **Noctalia** `SettingsPanel/Tabs` 
   names. The document is watched only while the status shows (Ma). DMS writes the include itself
   (`IncludeSetupBanner`); kurashid never edits an app's own config (K49), so we show the one step and copy it.
 - Shots: `settings/shots/{28-cards-power,29-cards-desktop,30-theme-export,31-theme-export-copied,ja-cards-power}.png`.
+
+## Settings as a sheet (K63, wave 32)
+User (session 13): the menu "is currently not affected by the light source at all … toggle the menu between states of a
+'normal compositor window' (as it currently is) and a quickshell hosted settings window (that overlays in the center of
+the screen, kinda like other extended surfaces of the shell do)"; chosen: a modal sheet.
+
+**How others do it.** GNOME Settings, KDE System Settings, COSMIC Settings, macOS System Settings and Windows 11 Settings
+are ordinary app windows. macOS *sheets* (a dialog attached to its window, dimming it) and GNOME's modal dialogs are the
+model for "modal over what is behind". Quickshell shells draw their settings inside the shell: Noctalia's settings panel
+and DankMaterialShell's settings modal are centred shell surfaces over the desktop — themed exactly like the bar,
+movable they are not. Launchers (Spotlight, KRunner, our own launcher) set the interaction: centred, dim behind, Esc and
+a click outside close.
+
+**Design.** `settings.window = sheet`: the same on-demand process (K2) maps a layer-shell surface (layer Overlay,
+namespace `kurashi-settings`, exclusive keyboard) on the focused output: a backdrop dimmed with the scrim token (fades
+in with `motion.standard`), the sheet centred, about 1040 × 740 logical px or 90 % of the output when smaller, with the
+shell's chrome, corner radius, shadow, material and the texture/light/carried sheet like every shell surface (the window
+mode keeps a plain ground; its own sheet, unregistered). Esc closes (an open preview is put back first, as now), a click
+on the backdrop closes, Ctrl+F searches. Switching the key while Settings is open re-hosts it at once on the same page and
+scroll position. The window mode is unchanged.
+
+**States.** Opening (backdrop and sheet fade/scale in, 220 ms; reduce motion: instant), open, closing, a preview in
+progress when Esc comes (put back, then close), a second `kurashi settings <key>` while open (jumps, as now), no daemon
+(the existing veil), multi-output (the focused output; the sheet does not follow focus once open).
+
+**Keyboard, a11y.** Exclusive keyboard while the sheet is up: Tab order as the window; Esc closes; the backdrop is not
+focusable; screen readers see one dialog named "Settings".
+
+**Definition of done.** Both modes from the key, live switch; sheet textured and lit (shots kami light/dark, paint with
+spotlight); Esc/backdrop/close button; `settings/test.sh` green in both modes; idle 0 frames while open and still.
