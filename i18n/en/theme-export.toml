@@ -12,6 +12,7 @@
 "theme.export.unknown_target" = "Unknown app"
 "theme.export.no_template" = "No template for this app"
 "theme.export.write_failed" = "Could not write the file"
+"theme.export.unfilled" = "Not written: the template names a value the shell does not have; the last good file stays"
 "theme.export.no_gsettings" = "gsettings is not installed, so the desktop settings were not written"
 "theme.export.gsettings_failed" = "The desktop settings could not be written (gsettings)"
 "theme.export.settings_help" = "This writes the desktop's settings, not a file: GNOME, GTK 4 and libadwaita apps read them. Only the values that differ from the current ones are set."
