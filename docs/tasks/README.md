@@ -279,3 +279,4 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | [W35-audit](W35-audit.md) | read-only | haiku (max) |
 | [W35-keys](W35-keys.md) | kurashid keys.rs, settings keys page, keys i18n, niri-binds doc | opus |
 | [W35-perf](W35-perf.md) | tools/bench, BENCH.md, the frontend files its fixes need (after W34 merges) | opus |
+| [W35-webdock-polish](W35-webdock-polish.md) | mods/webdock/**, kurashi-mod-webdock, webdock i18n, test-dock webdock steps | haiku (max) |
