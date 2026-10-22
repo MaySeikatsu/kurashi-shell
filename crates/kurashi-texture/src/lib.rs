@@ -155,7 +155,8 @@ pub struct Tile {
     pub logical: f32,
     /// Row-major RGBA8, `size * size * 4` bytes, in the layout of the module docs.
     pub rgba: Vec<u8>,
-    /// K61: row-major heights, `size * size` bytes, 0 the lowest point of the tile and 255 its highest.
+    /// K61: row-major heights, `size * size` bytes: 0 the tile's low and 255 its high, taken as the 0.5th and 99.5th
+    /// percentile of its heights (clamped beyond), so one spike does not flatten the rest of the map.
     pub height: Vec<u8>,
     /// K61: the logical px between height 0 and 255 (the material's relief at `theme.texture.scale` 1).
     pub relief: f32,
@@ -662,9 +663,10 @@ pub fn material(kind: Kind) -> Material {
             shadow: 1.0,
             ..m(0.3, 24.0, InkRole::OnSurface, 0.06)
         },
+        // Wet acrylic: a little glossier and tighter than the oil, so the bristle ridges glint along their length.
         Kind::Brush => Material {
             shadow: 1.0,
-            ..m(0.25, 20.0, InkRole::OnSurface, 0.06)
+            ..m(0.35, 30.0, InkRole::OnSurface, 0.06)
         },
     }
 }

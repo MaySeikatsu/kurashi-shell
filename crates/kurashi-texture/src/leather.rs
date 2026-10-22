@@ -7,7 +7,7 @@ use crate::noise::{cells, fbm_xy, smoothstep};
 pub fn leather(f: &mut Field, seed: u64) {
     let (n, g) = (f.n, f.grid());
     rows(n, f.threads, &mut f.h, |iy, h| {
-        for ix in 0..n {
+        for (ix, out) in h.iter_mut().enumerate() {
             let (u, v) = (g.uv(ix), g.uv(iy));
             // Pebbles: one dome per cell of 40 across the tile, its radius set per cell, the gaps creased.
             let c = cells(u, v, 40, seed);
@@ -24,7 +24,7 @@ pub fn leather(f: &mut Field, seed: u64) {
             // A slow wrinkle: a soft ridge where the hide folds.
             let fold = fbm_xy(u, v, 3, 3, 3, seed ^ 0x51);
             let ridge = 1.0 - (2.0 * fold - 1.0).abs();
-            h[ix] = 0.8 * dome * (0.35 + 0.65 * crease) - 0.3 * pore + 0.3 * ridge * ridge;
+            *out = 0.8 * dome * (0.35 + 0.65 * crease) - 0.3 * pore + 0.3 * ridge * ridge;
         }
     });
 }
