@@ -1,0 +1,6 @@
+# w33 scenario "controls": leather, with the relief also over buttons, sliders, switches and icons.
+schema_version = 2
+
+[theme.texture]
+kind = "leather"
+controls = true

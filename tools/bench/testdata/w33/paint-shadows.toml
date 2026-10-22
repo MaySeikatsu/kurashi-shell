@@ -1,0 +1,7 @@
+# w33 scenario "paint-shadows": oil paint (brush strokes), relief shadows on, depth 2.
+schema_version = 2
+
+[theme.texture]
+kind = "paint"
+shadows = "on"
+depth = 2.0

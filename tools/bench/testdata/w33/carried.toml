@@ -1,0 +1,6 @@
+# w33 scenario "carried": squared paper; a moving surface takes its sheet along (sheet = carried, the default).
+schema_version = 2
+
+[theme.texture]
+kind = "paper_grid"
+sheet = "carried"

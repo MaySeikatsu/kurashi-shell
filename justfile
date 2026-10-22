@@ -45,6 +45,14 @@ bench-gate:
     python3 tools/bench/measure.py --name frontend-real --daemon real -- frontend/launch.sh
     python3 tools/bench/budget.py tools/bench/results/frontend-real.json
 
+# W33 (docs/BENCH.md "2026-10-22"): the textured shell on the real stack, nine scenarios × three runs, medians in
+# tools/bench/results/w33-<scenario>.json. Copies the binaries into tools/bench/bin (from $CARGO_TARGET_DIR or target/).
+bench-texture:
+    cargo build --workspace --release
+    mkdir -p tools/bench/bin
+    cp "${CARGO_TARGET_DIR:-target}/release/kurashid" "${CARGO_TARGET_DIR:-target}/release/kurashi" "${CARGO_TARGET_DIR:-target}/release/kurashi-mock" tools/bench/bin/
+    sh tools/bench/w33.sh
+
 # Golden screenshots of the core surfaces: `just golden` compares, `just golden --update` rewrites tools/golden/ref
 golden *ARGS:
     tools/golden/run.sh {{ARGS}}
