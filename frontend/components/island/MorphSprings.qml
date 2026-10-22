@@ -72,8 +72,10 @@ QtObject {
     }
 
     // Spring constants per axis and direction: [k, c] multipliers of Theme.spring / Theme.damping (the island's, K42).
-    function kOf(axis) { return Theme.spring * (expanding ? [0.75, 1.3, 1.0][axis] : [1.2, 1.2, 1.6][axis]) }
-    function cOf(axis) { return Math.min(0.95, Theme.damping * (expanding ? [1.05, 1.0, 1.25][axis] : [1.1, 1.25, 1.0][axis])) }
+    // `stiffness` scales every spring keeping its damping ratio (a small shape, a peek, settles sooner): k × s, c × √s.
+    property real stiffness: 1
+    function kOf(axis) { return stiffness * Theme.spring * (expanding ? [0.75, 1.3, 1.0][axis] : [1.2, 1.2, 1.6][axis]) }
+    function cOf(axis) { return Math.min(0.95, Math.sqrt(stiffness) * Theme.damping * (expanding ? [1.05, 1.0, 1.25][axis] : [1.1, 1.25, 1.0][axis])) }
 
     onCxToChanged: retarget(0)
     onWToChanged: retarget(1)

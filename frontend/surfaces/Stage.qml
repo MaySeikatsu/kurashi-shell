@@ -466,6 +466,7 @@ PanelWindow {
     property bool peekOut: false
     MorphSprings {
         id: peekSprings
+        stiffness: 2
         on: Theme.springOn && stage.peekHeld
         expanding: stage.peekOut
         cxTo: stage.peekOut ? stage.peekLeft + peekCard.width / 2 : stage.peekOriginCx
