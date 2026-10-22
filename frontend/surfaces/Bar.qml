@@ -429,7 +429,7 @@ PanelWindow {
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
 
-            Group { around: workspaceRow }
+            Group { id: wsGroup; around: workspaceRow; AnchorReport { target: wsGroup; key: "group:workspaces"; output: bar.outName; enabled: wsGroup.visible } }
             Row {
                 id: workspaceRow
                 anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
@@ -448,7 +448,7 @@ PanelWindow {
                 }
             }
             // The window list: after the workspaces, in a group of its own (keycap) — the focused window lit.
-            Group { around: taskRow }
+            Group { id: taskGroup; around: taskRow; AnchorReport { target: taskGroup; key: "group:tasks"; output: bar.outName; enabled: taskGroup.visible } }
             Row {
                 id: taskRow
                 visible: bar.tasks.length > 0
@@ -524,7 +524,7 @@ PanelWindow {
                 onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
             }
 
-            Group { around: rightRow }
+            Group { id: rightGroup; around: rightRow; AnchorReport { target: rightGroup; key: "group:right"; output: bar.outName; enabled: rightGroup.visible } }
             Row {
                 id: rightRow
                 anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }

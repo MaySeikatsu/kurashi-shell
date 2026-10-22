@@ -22,6 +22,10 @@ import "../pen.js" as Pen
 // `Theme.outlineW` in `Theme.outlineColor` (flat: a 1 px `Theme.outline` hairline), the ring `Theme.ringW` x `ringScale`,
 // the hard shadow `Theme.shadowDy`. A soft shadow is the Stage's (RectangularShadows under head and body). A path is
 // rebuilt only when a number changes: nothing runs while it stands (Ma).
+// W34 additions (all optional, defaults keep the above; see the properties): `headless` (grow out of the bar from under a
+// widget that stays drawn — hanging from a strip's edge, or budding from a block by a neck that can let go: `neckCx`,
+// `attach`), `neckScale` (the landing wobble), `headFill` (I160), `fade` (I161), `barCx` (an item not centred on its bar).
+// Its springs live in MorphSprings (same folder), which a surface can reuse with it.
 Shape {
     id: sh
     property real x0: 0
