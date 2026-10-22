@@ -57,6 +57,11 @@ pub fn role(p: &Palette, name: &str) -> Option<Rgb> {
         "surface_variant" => g("surface_container_highest")?,
         "inverse_surface" => g("on_surface")?,
         "inverse_on_surface" => g("surface")?,
+        // A palette without status roles still gives the templates that name them a colour (KDE's positive/neutral).
+        "success" => g("success").or_else(|| g("secondary"))?,
+        "warning" => g("warning")
+            .or_else(|| g("tertiary"))
+            .or_else(|| g("accent"))?,
         other => g(other)?,
     })
 }
