@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Widgets
 import "../core"
 
 // Settings as a sheet (K63, docs/ux/settings.md "Settings as a sheet"): a layer surface over the whole focused output —
@@ -10,8 +9,9 @@ import "../core"
 // radius, outline and shadow. The app's one content item is put into `slot` (shell.qml); this file knows nothing of
 // pages. The output is the compositor's focused one as the daemon reports it (`svc.workspaces`, the workspace marked
 // focused — the launcher's rule), read once when the sheet maps: the sheet does not follow the focus once open. Esc that
-// no control takes, a click on the backdrop and the header's close button all ask `closeRequested`; the process ends
-// after the sheet has faded out (`dismissed`).
+// no control takes, a click on the backdrop and the header's close button all close it (`close()`); the process ends
+// after the sheet has faded out (`dismissed`). The material and light (K63, phase 2): the shell's own Relief (linked from
+// frontend/), registered on the continuous sheet by this layer's place on the output, its tiles shared (`tileSheet`).
 PanelWindow {
     id: sh
     // Where the content goes (shell.qml reparents it here).
@@ -21,6 +21,18 @@ PanelWindow {
     // 0 → 1 while opening, back to 0 while closing; nothing animates in between (Ma).
     property real p: 0
     property bool closing: false
+    // The sheet's corners (the shell's large radius, a step rounder as the launcher's card).
+    readonly property real radius: Theme.rLg + 4
+    // The material (K63, K61): the sheet is a shell surface on the continuous sheet — its Reliefs register by this layer's
+    // place on the output (all four anchors: its origin is the output's), all sampling this one tile set (Relief reads
+    // `tileSheet` on its window). The pointer lamp and the spotlight's aim follow the pointer anywhere over the layer.
+    property var tileSheet: sheetTiles.item
+    Loader {
+        id: sheetTiles
+        active: Theme.texShell && Theme.texTilePx > 0
+        sourceComponent: TileSheet {}
+    }
+    LightSense {}
     signal dismissed()
 
     function focusedScreen() {
@@ -110,7 +122,7 @@ PanelWindow {
             y: Theme.shadowDy
             width: frame.width
             height: frame.height
-            radius: Theme.rLg + 4
+            radius: sh.radius
             color: Theme.line
         }
         Loader {
@@ -120,25 +132,27 @@ PanelWindow {
                 offset.y: Theme.softDy
                 blur: Theme.softR
                 spread: -1
-                radius: Theme.rLg + 4
+                radius: sh.radius
                 color: Theme.softColor
             }
         }
-        // The content, clipped to the sheet's corners (one static layer: no frame while still).
-        ClippingRectangle {
+        // The ground, then the content. Not a clipping layer: the relief registers by the window pixel it is drawn at, and an
+        // offscreen layer would move it off the shell's sheet. The content rounds its own corners instead (`radius`, read by
+        // shell.qml's header and sidebar), and the ground relief is the content's first child (shell.qml).
+        Rectangle {
             anchors.fill: parent
-            radius: Theme.rLg + 4
+            radius: sh.radius
             color: Theme.surface
-            Item {
-                id: slot
-                anchors.fill: parent
-            }
+        }
+        Item {
+            id: slot
+            anchors.fill: parent
         }
         // The outline over the content's edge: the chrome's ink, else a hairline that keeps the sheet off the scrim.
         Rectangle {
             anchors.fill: parent
             color: "transparent"
-            radius: Theme.rLg + 4
+            radius: sh.radius
             border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
             border.color: Theme.outlineW > 0 ? Theme.line : Theme.outline
         }

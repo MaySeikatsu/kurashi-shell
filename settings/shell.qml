@@ -33,14 +33,20 @@ ShellRoot {
     function quit(): void { Changes.putBack(); Qt.quit() }
     // A host takes the content: the item moves into it with its state; the keyboard focus goes where it was (else to the
     // list, where typing starts a search).
+    // The relief is made anew in each host (Theme.hosted): a Relief reads its layer window once it is in one, and a moved
+    // item would keep the window it left (its tiles, place and output).
     function adopt(slot: Item): void {
         const had = win.Window.activeFocusItem
+        Theme.hosted = false
         win.parent = slot
         Qt.callLater(function () {
+            Theme.hosted = true
             if (had && root.inside(had)) had.forceActiveFocus()
             else keys.forceActiveFocus()
         })
     }
+    // The sheet's corners, which the content draws itself (header, sidebar, ground); square in a window.
+    readonly property real cornerR: root.host === "sheet" && root.sheetHost ? root.sheetHost.radius : 0
     function release(slot: Item): void { if (win.parent === slot) win.parent = null }
     function inside(item: Item): bool {
         for (var it = item; it; it = it.parent) if (it === win) return true
@@ -55,6 +61,16 @@ ShellRoot {
             implicitHeight: 740
             minimumSize: Qt.size(640, 420)
             color: Theme.surface
+            // The material (K63): a window is not on the shell's continuous sheet (it has no place on the output the
+            // shell knows), so its relief is a sheet of its own from its top-left corner (Light.originOf gives a window
+            // without layer anchors the origin 0,0). One tile set for every Relief in it; the pointer lamp over it.
+            property var tileSheet: windowTiles.item
+            Loader {
+                id: windowTiles
+                active: Theme.texShell && Theme.texTilePx > 0
+                sourceComponent: TileSheet {}
+            }
+            LightSense {}
             Component.onCompleted: root.adopt(contentItem)
             Component.onDestruction: root.release(contentItem)
             // Closed by the compositor or the user; a re-host to the sheet (host changed first) does not end the app.
@@ -269,6 +285,17 @@ ShellRoot {
             function appearance(): string { return JSON.stringify(Store.theme.appearance || null) }
         }
 
+        // The material (K63; K59, K61): the shell's own Relief (linked from frontend/), under each opaque surface's content —
+        // the ground first, then the header, the output strip, the sidebar and the section cards (SectionCard) each on
+        // their fill — or, when the material runs through text and icons (`texture.text`), one layer over all of it
+        // (`textRelief` below). The sheet's corners are the content's own (`root.cornerR`): the host does not clip it, since
+        // an offscreen clip would move the relief off the shell's sheet.
+        Loader {
+            anchors.fill: parent
+            active: Theme.surfaceRelief
+            sourceComponent: Relief { radius: root.cornerR }
+        }
+
         Column {
             id: keys
             anchors.fill: parent
@@ -286,9 +313,17 @@ ShellRoot {
 
             // --- header ------------------------------------------------------------------------
             Rectangle {
+                id: header
                 width: parent.width
                 height: 52
                 color: Theme.container
+                topLeftRadius: root.cornerR
+                topRightRadius: root.cornerR
+                Loader {
+                    anchors.fill: parent
+                    active: Theme.surfaceRelief
+                    sourceComponent: Relief { topLeftRadius: root.cornerR; topRightRadius: root.cornerR }
+                }
                 // The sheet has no title bar: its own close button sits at the header's end (UX brief: Esc, the backdrop
                 // or this button).
                 Button {
@@ -388,7 +423,8 @@ ShellRoot {
                 visible: Store.outputNames().length > 0
                 width: parent.width
                 height: visible ? 40 : 0
-                color: Theme.surface
+                // On the ground (its colour, its relief).
+                color: "transparent"
                 Row {
                     anchors.fill: parent
                     anchors.margins: Theme.gap
@@ -421,6 +457,12 @@ ShellRoot {
                     width: 220
                     height: parent.height
                     color: Theme.container
+                    bottomLeftRadius: root.cornerR
+                    Loader {
+                        anchors.fill: parent
+                        active: Theme.surfaceRelief
+                        sourceComponent: Relief { bottomLeftRadius: root.cornerR }
+                    }
                     Column {
                         anchors.fill: parent
                         anchors.margins: Theme.gap
@@ -560,6 +602,13 @@ ShellRoot {
                     }
                 }
             }
+        }
+        // `texture.text`: the relief lies over everything Settings draws, text and icons included, as the shell's blocks
+        // do in that mode (the surfaces' own reliefs are off then).
+        Loader {
+            anchors.fill: parent
+            active: Theme.textRelief
+            sourceComponent: Relief { radius: root.cornerR }
         }
     }
 }

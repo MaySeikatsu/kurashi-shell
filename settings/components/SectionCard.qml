@@ -32,6 +32,13 @@ Item {
         color: Theme.container
         border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
         border.color: Theme.outlineW > 0 ? Theme.line : Theme.containerHigh
+        // The material on the card's fill, under its rows (K63), inside its outline.
+        Loader {
+            anchors.fill: parent
+            anchors.margins: face.border.width
+            active: Theme.surfaceRelief
+            sourceComponent: Relief { radius: Math.max(0, face.radius - face.border.width) }
+        }
         Column {
             id: col
             x: Theme.pad
