@@ -27,6 +27,8 @@ Item {
     readonly property bool shared: !!(qsw && qsw.tileSheet)
     readonly property bool squareRelief: Theme.texControls && shared && hover.hovered
     readonly property bool discRelief: Theme.texControls && shared && !hover.hovered && img.status !== Image.Ready
+    // The picture on its transparent square: its own relief, masked by its alpha (row 285); a hovered square carries it.
+    readonly property bool pictureRelief: Theme.texControls && shared && !hover.hovered && img.status === Image.Ready
 
     // action: "activate" (left), "secondary" (middle), "menu" (right, only with a menu); x and y are
     // in this item's coordinates.
@@ -72,6 +74,27 @@ Item {
         onStatusChanged: if (status === Image.Error) ti.idx++
     }
 
+    // The picture's relief: a parked, non-live copy of the picture is the mask (row 285), refreshed when the picture changes.
+    Loader {
+        active: ti.pictureRelief
+        x: img.x; y: img.y; width: img.width; height: img.height
+        sourceComponent: Item {
+            anchors.fill: parent
+            ShaderEffectSource {
+                id: pictureMask
+                width: parent.width
+                height: parent.height
+                sourceItem: img
+                live: false
+                x: -100000
+                y: -100000
+                readonly property var key: [img.status, img.source, img.width, img.height]
+                onKeyChanged: scheduleUpdate()
+                Component.onCompleted: scheduleUpdate()
+            }
+            Relief { anchors.fill: parent; radius: 0; mask: pictureMask }
+        }
+    }
     // The fallback glyph: shown until the picture is ready, and for good when none loads.
     Rectangle {
         id: disc
