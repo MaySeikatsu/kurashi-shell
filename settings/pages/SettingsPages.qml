@@ -82,7 +82,8 @@ Flickable {
         layout: "view_quilt", colors: "palette", shape: "rounded_corner", material: "blur_on", motion: "animation",
         typography: "text_fields", modes: "accessibility_new", main: "toggle_on", clock: "schedule",
         server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
-        recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode"
+        recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode",
+        pen: "ink_pen", settings_app: "web_asset"
     })
     function sectionIcon(pageId, id) {
         return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
@@ -91,7 +92,20 @@ Flickable {
     // each app's file went and what the app still needs (K49).
     readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus,
                                        "sidebar.bar_buttons": cSidebarOpen, "theme.texture.kind": cTextureCards,
-                                       "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches })
+                                       "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
+                                       "theme.light.color": cLightSwatches,
+                                       "theme.texture.wallpaper.kind": cWallpaperCards })
+    // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
+    // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
+    readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
+    function extraOf(key) {
+        var when = p.extraWhen[key]
+        // On and in effect: a switch that is on but inert (the wallpaper's own material with the scope "shell") hides them too.
+        var on = when === undefined ? null : Store.prov(when, "")
+        if (when !== undefined && (!on || on.value !== true || on.reason === "settings.inert.requires"))
+            return undefined
+        return p.extras[key]
+    }
     // The appearance blocks' icons, by the pack kind their row picks (W29). Display only.
     readonly property var packIcons: ({ styles: "style", looks: "category", palettes: "palette" })
     // Rows a pack block shows with it (K53 amendment): light or dark sits with the palette, as the palette cards are drawn
@@ -103,6 +117,8 @@ Flickable {
     Component { id: cTextureCards; TextureCards {} }
     Component { id: cLightDial; LightDial {} }
     Component { id: cInkSwatches; InkSwatches {} }
+    Component { id: cLightSwatches; LightSwatches {} }
+    Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -175,15 +191,49 @@ Flickable {
     }
     // After a jump the target page lays out on a later event: then the row is scrolled into view and
     // flashed once, and a keyboard jump moves the focus onto its control. Nothing repeats and no timer runs.
+    // The row stays pinned at the top while the page settles (cards and previews that arrive later change the height
+    // above it; a host that is still taking its size changes the layout); the user's hand on the page — a scroll, a
+    // press, a key that moves the focus — or another jump lets it go. No timer: it follows layout changes only.
+    property string pinKey: ""
+    function placeRow(key) {
+        var hit = findRow(col, key)
+        if (!hit) return null
+        var y = hit.mapToItem(p.contentItem, 0, 0).y
+        // The first row of a card brings its card's title along (the section names what the row is part of).
+        for (var c = hit.parent; c && c !== col; c = c.parent) {
+            if (!c.objectName || (c.objectName.indexOf("section:") !== 0 && c.objectName.indexOf("block:") !== 0)) continue
+            var top = c.mapToItem(p.contentItem, 0, 0).y
+            if (y - top < 80) y = top
+            break
+        }
+        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
+        return hit
+    }
     function reveal(key, focusIt) {
+        p.pinKey = ""
         Qt.callLater(function () {
-            var hit = findRow(col, key)
+            var hit = p.placeRow(key)
             if (!hit) return
-            var y = hit.mapToItem(p.contentItem, 0, 0).y
-            p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
             hit.flash()
             if (focusIt) hit.focusControl()
+            p.pinKey = key
         })
+    }
+    function replace() { if (pinKey !== "") Qt.callLater(function () { if (p.pinKey !== "") p.placeRow(p.pinKey) }) }
+    onContentHeightChanged: replace()
+    onWidthChanged: replace()
+    onHeightChanged: replace()
+    onMovementStarted: pinKey = ""
+    onPageIdChanged: pinKey = ""
+    onQueryChanged: pinKey = ""
+    PointHandler {
+        grabPermissions: PointerHandler.ApprovesTakeOverByAnything
+        onActiveChanged: if (active) p.pinKey = ""
+    }
+    Connections {
+        target: p.Window.window
+        enabled: p.pinKey !== ""
+        function onActiveFocusItemChanged() { p.pinKey = "" }
     }
     function findRow(item, key) {
         if (item.row && item.row.key === key) return item
@@ -249,6 +299,7 @@ Flickable {
     function resetToStyle() { var b = findNamed(col, "differs-reset"); if (b) b.press() }
     // The scroll position that brings an item named so into view (shots of a block).
     function scrollTo(name) {
+        p.pinKey = ""
         var it = findNamed(col, name)
         if (!it) return
         var y = it.mapToItem(p.contentItem, 0, 0).y
@@ -333,7 +384,7 @@ Flickable {
                             delegate: Column {
                                 required property var modelData
                                 required property int index
-                                readonly property var extra: p.extras[modelData]
+                                readonly property var extra: p.extraOf(modelData)
                                 width: blk.width - 2 * Theme.pad
                                 SettingRow {
                                     width: parent.width
@@ -376,7 +427,7 @@ Flickable {
                                 required property var modelData
                                 required property int index
                                 readonly property bool last: index === sec.modelData.rows.length - 1
-                                readonly property var extra: p.extras[modelData.row.key]
+                                readonly property var extra: p.extraOf(modelData.row.key)
                                 width: sec.width - 2 * Theme.pad
                                 spacing: 2
                                 // The breadcrumb of a search hit: a link to the row, reachable by Tab.

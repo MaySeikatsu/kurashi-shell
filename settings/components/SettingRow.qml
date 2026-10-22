@@ -346,6 +346,7 @@ Item {
             enabled: r.editable
             onCommitted: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
@@ -359,6 +360,7 @@ Item {
             enabled: r.editable
             onPicked: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
@@ -374,6 +376,7 @@ Item {
             previewOnMove: !r.packAction
             onPicked: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
@@ -388,6 +391,7 @@ Item {
             enabled: r.editable
             onPicked: v => r.setValue(v)
             onPreviewed: v => r.moveTo(v)
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
@@ -403,6 +407,7 @@ Item {
             enabled: r.editable
             onPicked: v => r.setValue(v)
             onPreviewed: v => { if (r.previewable) r.moveTo(v) }
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
@@ -444,6 +449,7 @@ Item {
             enabled: r.editable
             onEdited: v => { if (r.previewable) Changes.show(r.row.key, r.out, v, r.prov); else Store.setValue(r.row.key, v, r.out) }
             onKeepRequested: Changes.keep()
+            cancellable: r.previewing
             onCancelled: r.cancel()
         }
     }
