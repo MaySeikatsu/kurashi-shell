@@ -4237,9 +4237,33 @@ pub fn nightlight(hub: &Arc<Hub>, actions: &mut ActionRegistry, cfg: Option<Arc<
     );
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<NightConfig>();
     if let Some(store) = &cfg {
+        let on_config = tx.clone();
         store.on_change(move |c| {
-            let _ = tx.send(night_config(Some(c)));
+            let _ = on_config.send(night_config(Some(c)));
         });
+        // I187: a place added, moved or chosen in the weather mod changes the sun schedule without a config change:
+        // follow the mod's document (its places live in it), event-driven like the greeter cache.
+        if let Ok(rt) = tokio::runtime::Handle::try_current() {
+            let (mut events, store) = (hub.events(), Arc::downgrade(store));
+            rt.spawn(async move {
+                loop {
+                    match events.recv().await {
+                        Ok(msg) => match msg.as_ref() {
+                            kurashi_ipc::ServerMsg::Snap { doc, .. }
+                            | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                                if doc == "mod.weather" => {}
+                            _ => continue,
+                        },
+                        Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                        Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                    }
+                    let Some(store) = store.upgrade() else { break };
+                    if tx.send(night_config(Some(&store))).is_err() {
+                        break;
+                    }
+                }
+            });
+        }
     }
     let store = cfg.clone();
     let h = hub.clone();
