@@ -273,7 +273,8 @@ impl Entry {
 
 /// The entries of a rendered template. Comments (`#`, `;`) and blank lines are skipped; so is a line whose value is
 /// empty once its quotes are removed: a value the shell does not have (no icon theme chosen) is left to the app, not
-/// written over (Shōjiki, K49 amendment).
+/// written over (Shōjiki, K49 amendment). So is a value a placeholder did not fill (`{{…}}` left in it): the braces would
+/// go into the app's or the desktop's setting, and the placeholder is reported as unknown instead.
 pub fn entries(text: &str) -> Vec<Entry> {
     let mut out = Vec::new();
     let mut section = String::new();
@@ -290,7 +291,7 @@ pub fn entries(text: &str) -> Vec<Entry> {
             continue;
         };
         let (key, value) = (key.trim(), value.trim());
-        if value.trim_matches(['\'', '"']).trim().is_empty() {
+        if value.trim_matches(['\'', '"']).trim().is_empty() || value.contains("{{") {
             continue;
         }
         out.push(Entry {
@@ -612,7 +613,7 @@ mod tests {
     #[test]
     fn entries_keep_sections_and_drop_values_the_shell_does_not_have() {
         let text = "# comment\n[Appearance]\nicon_theme=\ncustom_palette=true\n\n[Fonts]\ngeneral=\"Inter,10\"\n\
-                    [org.gnome.desktop.interface]\nicon-theme=''\ncolor-scheme='prefer-dark'\n";
+                    [org.gnome.desktop.interface]\nicon-theme=''\ncolor-scheme='prefer-dark'\nfont-name='{{fonts.family}} 10'\n";
         let e = entries(text);
         let lines: Vec<String> = e
             .iter()
