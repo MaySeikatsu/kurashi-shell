@@ -31,6 +31,13 @@ import "../components/island"
 // shape keeps the island's bar block as its head and the card grows out from under it, joined by a neck: one outline
 // round both, which the keycap's ring and hard shadow and the soft shadow follow. Its fill is the panel's (I114:
 // translucent under glass), its layers never lie under one another.
+// W34 (docs/ux/motion.md, one motion language): under a top or bottom bar every panel morphs that way — the quick card
+// (the phone too), the session menu, a tray menu, a mod's panel and the hover peeks grow out of the bar widget they belong
+// to (IslandGeom's origins; the session menu, which has none, out of the bar's centre under the pill) and fold back into
+// it, their cards resting where they always did. The springs are MorphSprings (centre, width, foot; velocity kept across
+// every retarget; calm settles, lively bounces with squash & stretch and a neck wobble, none cuts). Switching panels while
+// one is open retargets the one shape (the view fades first, then the content swaps). The window is the box round origin
+// and card (left-anchored, `boxL`), fitted when the shape comes out and only grown while it is out.
 PanelWindow {
     id: stage
 
@@ -486,7 +493,21 @@ PanelWindow {
     readonly property real peekShapeCx: peekSprings.cxOut - peekBoxL
     readonly property real peekBodyTop: joined ? lerp(peekE, peekInset, peekGrow) : Theme.barH
     readonly property real peekNeckRoom: Math.max(0, peekShapeW / 2 - Theme.rSm - 8)
-    readonly property real peekNeckCx: Math.max(peekShapeCx - peekNeckRoom, Math.min(peekShapeCx + peekNeckRoom, peekOriginCx - peekBoxL))
+    // As the panels' neck: under the widget's group, as near the body's centre as the group's flat foot allows.
+    readonly property var peekHome: {
+        var rev = IslandGeom.revision
+        if (!joined || !peekMorph) return null
+        var keys = ["group:right", "group:workspaces", "group:tasks"]
+        for (var i = 0; i < keys.length; i++) {
+            var g = IslandGeom.rectOf(peekScreen, keys[i])
+            if (g && peekOriginCx >= g.x && peekOriginCx <= g.x + g.w) return g
+        }
+        return null
+    }
+    readonly property real peekNeckLo: peekHome ? peekHome.x + Math.min(Theme.rFull, (Theme.barH - 8) / 2) + Theme.rSm + 8 - peekBoxL : peekOriginCx - peekBoxL
+    readonly property real peekNeckHi: peekHome ? Math.max(peekNeckLo, peekHome.x + peekHome.w - Math.min(Theme.rFull, (Theme.barH - 8) / 2) - Theme.rSm - 8 - peekBoxL) : peekNeckLo
+    readonly property real peekNeckWant: Math.max(peekNeckLo, Math.min(peekNeckHi, peekShapeCx))
+    readonly property real peekNeckCx: Math.max(peekShapeCx - peekNeckRoom, Math.min(peekShapeCx + peekNeckRoom, peekNeckWant))
     Item {
         id: peekShapeBox
         visible: stage.peekMorph
@@ -511,7 +532,7 @@ PanelWindow {
             headless: true
             neckF: Theme.rSm
             neckCx: stage.peekNeckCx
-            attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - (stage.peekOriginCx - stage.peekBoxL)) / 32)
+            attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - stage.peekNeckWant) / 32)
             neckScale: peekSprings.neckScale
             x0: stage.peekShapeCx - stage.peekShapeW / 2
             y0: stage.peekBodyTop
@@ -765,12 +786,28 @@ PanelWindow {
     readonly property real stripA: Theme.surfaceAlpha.a
     readonly property real headA: stripA >= 0.999 ? Theme.panel.a : Math.max(0, (Theme.panel.a - stripA) / (1 - stripA))
     readonly property color headFill: Qt.alpha(shapeFill, lerp(Theme.panel.a, headA, tgrow))
-    // The neck of a headless joined shape: under the widget while the card is near it, sliding with the body, and letting
-    // go once the body has travelled away (the card then floats under the bar; it is caught again on the way back).
-    readonly property real neckWant: originCx - boxL
+    // The neck of a headless joined shape: under the block the origin stands in (its bar group, or the pill), as near the
+    // body's centre as the block's flat foot allows — so it slides along the block with the body — and letting go once
+    // the body has travelled past the block (the card then floats under the bar; it is caught again on the way back).
+    readonly property var homeBlock: {
+        var rev = IslandGeom.revision
+        if (!joined || !shown || headMode) return null
+        var R = Math.min(Theme.rFull, (Theme.barH - 8) / 2)
+        if (origin.kind === "pill") return { x: pillOutCx - pillW / 2, w: pillW, r: pillR }
+        var keys = ["group:right", "group:workspaces", "group:tasks"]
+        for (var i = 0; i < keys.length; i++) {
+            var g = IslandGeom.rectOf(outName, keys[i])
+            if (g && originCx >= g.x && originCx <= g.x + g.w) return { x: g.x, w: g.w, r: R }
+        }
+        return { x: origin.x, w: origin.w, r: 0 }
+    }
+    readonly property real neckInset: Theme.rLg / 2 + 10
+    readonly property real neckLo: homeBlock ? homeBlock.x + homeBlock.r + neckInset - boxL : originCx - boxL
+    readonly property real neckHi: homeBlock ? Math.max(neckLo, homeBlock.x + homeBlock.w - homeBlock.r - neckInset - boxL) : neckLo
+    readonly property real neckWant: Math.max(neckLo, Math.min(neckHi, shapeCx))
     readonly property real neckRoom: Math.max(0, shapeW / 2 - Theme.rLg / 2 - Math.min(Theme.rLg, shapeW / 2) - 12)
     readonly property real neckCx: Math.max(shapeCx - neckRoom, Math.min(shapeCx + neckRoom, neckWant))
-    readonly property real neckAttach: headMode ? 1 : clamp01(1 - Math.abs(neckCx - neckWant) / 48)
+    readonly property real neckAttach: headMode ? 1 : clamp01(1 - Math.abs(neckCx - neckWant) / 32)
     // The view comes in once the shape has nearly grown (fade + 0.98 -> 1, <= 160 ms) and leaves first (90 ms).
     // Once in, the view stays while the card only grows or shrinks a little (a slot filling): `reached` latches until the
     // panel closes or swaps.

@@ -15,14 +15,14 @@
 #   nix develop -c frontend/test-morph.sh
 #   MORPH_CASES="washi sekai" MORPH_SURFACES="quick session" MORPH_PHASES=real nix develop -c frontend/test-morph.sh
 # Cases: washi, sekai, kami (their own profiles: calm, lively, calm), washi-lively, sekai-calm, washi-bottom,
-# sekai-bottom, washi-none (motion off: cuts). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
+# sekai-bottom, washi-none (motion off: cuts), plain (no style: translucent flat strip, the I160 head). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${MORPH_SANDBOX:-w34-stage-morph}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/morph}
 AT=${MORPH_AT:-40 120 250}
-CASES=${MORPH_CASES:-washi sekai kami washi-lively sekai-calm washi-bottom sekai-bottom washi-none}
+CASES=${MORPH_CASES:-washi sekai kami washi-lively sekai-calm washi-bottom sekai-bottom washi-none plain}
 SURFACES=${MORPH_SURFACES:-island quick session mod peek retarget}
 PHASES=${MORPH_PHASES:-real mock}
 mkdir -p "$OUT"
@@ -132,10 +132,16 @@ surface() {  # surface <case> <name> <crop> <open act...> -- <close act...>
 # The case's config: look, profile, edge.
 apply_case() {
   local cs=$1 style=${1%%-*} prof="" edge=top
+  # plain: no style (the shell's own default: wa-iro, flat, translucent — the I160 head).
+  [ "$style" = plain ] && style=none
   case "$cs" in
     *-lively) prof=lively ;; *-calm) prof=calm ;; *-none) prof=none ;;
     *-bottom) edge=bottom ;;
   esac
+  # -slow anywhere in the name: springs at a quarter speed, to look at the mid-morph frames (MORPH_AT spread wider).
+  local speed=1.0
+  [[ "$cs" == *-slow* ]] && speed=0.25
+  K set theme.motion.speed "$speed" >/dev/null || fail "theme.motion.speed $speed refused"
   K set theme.style "$style" >/dev/null || fail "theme.style $style refused"
   # Each look's own profile unless the case names one (washi and kami calm, sekai lively).
   [ -n "$prof" ] || { [ "$style" = sekai ] && prof=lively || prof=calm; }
