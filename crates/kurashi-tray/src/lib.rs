@@ -712,12 +712,22 @@ pub async fn start(conn: Connection, sink: Arc<dyn DocSink>) -> Result<(ServiceH
 }
 
 async fn watch(conn: &Connection) -> Result<SelectAll<MessageStream>> {
+    // I16: not every name change on the bus — the watcher's own (any change), and names that lost their owner (the
+    // third argument empty: an item's connection closed or it released its name). A busy bus no longer wakes us.
     let rules = [
         MatchRule::builder()
             .msg_type(MsgType::Signal)
             .sender("org.freedesktop.DBus")?
             .interface("org.freedesktop.DBus")?
             .member("NameOwnerChanged")?
+            .arg(0, WATCHER)?
+            .build(),
+        MatchRule::builder()
+            .msg_type(MsgType::Signal)
+            .sender("org.freedesktop.DBus")?
+            .interface("org.freedesktop.DBus")?
+            .member("NameOwnerChanged")?
+            .arg(2, "")?
             .build(),
         MatchRule::builder()
             .msg_type(MsgType::Signal)
