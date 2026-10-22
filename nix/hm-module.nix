@@ -198,6 +198,14 @@ in
           (`include "kurashi-binds.kdl"`, niri 25.11 or later). Put the include after your own
           `binds {}` block: later binds override earlier ones. On older niri, paste the `binds`
           block into your config instead. Nothing is written while this is off.
+
+          The daemon can write the same file from the `keys.*` settings instead (K64), so the shortcuts can be
+          changed in Settings → Keys with a shortcut recorder. To move there: set this option to `false` (Home-Manager
+          then removes its link) and turn writing on — in Settings, or declaratively with
+          `programs.kurashi.settings.keys.write = true` (and `programs.kurashi.settings.keys.<action>` for combos other
+          than the defaults; the include line stays the same). There is no silent overlap: while this option is on,
+          the file is Home-Manager's store link, which kurashid never overwrites — Settings says so and names this
+          option — and setting both gives an evaluation warning.
         '';
       };
 
@@ -303,6 +311,14 @@ in
 
       # Defaults as entries with mkDefault: a user entry for the same key wins, the others merge in.
       programs.kurashi.niri.binds.keys = lib.mapAttrs (_: lib.mkDefault) niriDefaultKeys;
+
+      # K64: the daemon writes the same file from keys.* when keys.write is on; Home-Manager's link wins (kurashid never
+      # overwrites it), so asking for both is said here rather than left to surprise.
+      warnings = lib.optional (cfg.niri.binds.enable && ((cfg.settings.keys or { }).write or false) == true) ''
+        programs.kurashi.niri.binds.enable and programs.kurashi.settings.keys.write are both set: Home-Manager writes
+        niri/kurashi-binds.kdl, so kurashid leaves it alone and the keys.* settings have no effect. Turn
+        niri.binds.enable off to edit the shortcuts in Settings → Keys.
+      '';
 
       assertions = [
         {
