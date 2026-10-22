@@ -202,6 +202,10 @@ PanelWindow {
             else field.text = openQuery
             field.cursorPosition = field.text.length
             field.forceActiveFocus()
+        } else {
+            // Ma: a focused field keeps its cursor blinking, and the hidden window drew twice a second for it (before W34
+            // too): the field lets go of the focus when the launcher closes.
+            field.focus = false
         }
     }
     // `launcher.keys` while the launcher is already open: switch to the cheat sheet.
