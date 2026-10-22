@@ -388,7 +388,7 @@ Item {
             y: cutTop
             width: cutRight - cutLeft
             height: cutBottom - cutTop
-            clip: m.morph && m.contentP < 1
+            clip: m.morph
             Item {
                 id: inner
                 x: -reveal.cutLeft

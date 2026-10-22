@@ -197,16 +197,20 @@ Scope {
         }
         readonly property real chipH: root.extra > 0 ? 28 + Theme.gap : 0
         // The lowest thing any card draws (a leaving card keeps its place until it is gone, a drop pulls past its place).
-        readonly property real extent: {
-            var n = stack.count, b = 0
+        // The window's height is the stack's at rest plus a drop's pull, set when a card comes or goes and not while a drop
+        // grows: a bottom-anchored window that resized every frame put the drop's root off the bar for a frame each time.
+        readonly property real stackFull: {
+            var n = stack.count, h = 0, b = 0
             for (var j = 0; j < n; j++) {
                 var it = stack.itemAt(j)
-                if (it) b = Math.max(b, it.extent)
+                if (!it) continue
+                if (it.leaving) b = Math.max(b, it.extent)
+                else h += it.cardH + Theme.gap
             }
-            return b
+            return Math.max(h, b - top0)
         }
         implicitWidth: drip ? cardW + 2 * slackX : shade + cardW + Theme.shadowDy + padR
-        implicitHeight: Math.ceil(Math.max(top0 + stackH + chipH, extent) + Theme.shadowDy + Theme.softR + (drip ? 24 : shade))
+        implicitHeight: Math.ceil(top0 + stackFull + chipH + Theme.shadowDy + Theme.softR + (drip ? stretch + 24 : shade))
         // A local y (and height) in this window's frame.
         function wy(y, h) { return flip ? height - y - h : y }
 
@@ -404,7 +408,8 @@ Scope {
                 readonly property real ly: detached ? ry + dy : by0
                 // A drop makes room as it grows (and pulls past its place), so the stack is pushed down rather than covered.
                 readonly property real space: leaving ? 0 : (detached ? cardH : bh + Math.max(0, by0 - restY))
-                readonly property real extent: leaving ? frozenY + cardH : Math.max(ly + cardH * (detached ? 1 - Math.min(0, sqz) : 1), by0 + bh)
+                // Where a leaving card stays drawn until it is gone (the window keeps room for it).
+                readonly property real extent: leaving ? frozenY + cardH : 0
                 // A drop is drawn over the stack it pushes down.
                 z: drawn ? 1 : 0
                 // Leaving: flicked to the side (a dismiss here), or drifting off as it fades (expired, or dismissed elsewhere).
