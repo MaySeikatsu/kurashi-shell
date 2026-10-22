@@ -8,11 +8,14 @@
 # (the app's own geometry and the screenshot: the desktop around it dimmed by the scrim); 0 frames while open and still;
 # a deep link through the daemon (`kurashi settings <key>`) jumps the open sheet; a live switch to the window and back
 # keeps the page; Ctrl+F reaches the search before and after a re-host; a search landing on a row with its own picker
-# (material cards, ink swatches) focuses the picker; Esc on an open dropdown closes the dropdown only, Esc on a slider's preview puts it back only, the next
-# Esc closes the sheet (the process ends); a click on the backdrop closes it; the close button closes it.
-# Shots: the sheet over the desktop with the bar under the styles kami (line chrome; light and dark), sekai (keycap) and
-# aqua (soft), and the wave 32 rows (K61, K62) in the sheet: the spotlight on the Light dial, the light colours, the brush
-# card, the wallpaper's own material cards, the pen section.
+# (material cards, ink swatches) focuses the picker; Esc on an open dropdown closes the dropdown only, Esc on a slider's
+# preview puts it back only, the next Esc closes the sheet (the process ends); a click on the backdrop closes it; the close
+# button closes it. The material (K63 phase 2): the sidebar's ground varies under kami and is flat under a style without a
+# texture; the spotlight's beam follows the pointer over the sheet (a patch reads stronger with the pointer on it).
+# Shots: the sheet over the desktop with the bar under the styles kami (line chrome; light and dark), oil paint under the
+# spotlight, leather, sekai (keycap) and aqua (soft); the window host's own sheet (kami); and the wave 32 rows (K61, K62)
+# in the sheet: the spotlight on the Light dial, the light colours, the brush card, the wallpaper's own material cards,
+# the pen section.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ROOT=$PWD
@@ -135,6 +138,33 @@ dimmed = all(c < b * 0.8 for c, b in zip(corner, bg))
 print(f"desktop {bg} -> {corner} under the scrim; sheet ground {inside}")
 sys.exit(0 if dimmed and inside != corner else 1)
 PY
+# The material is on the sheet (K63): a patch of the sidebar's empty lower part varies (the style kami's dotted paper);
+# step 8 checks the same patch is flat under a style without a texture.
+grain() {   # <ppm> <x> <y>: the standard deviation of a 32×32 patch's luminance
+  python3 -I - "$@" <<'PY'
+import sys
+p, x0, y0 = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
+d = open(p, "rb").read()
+parts, pos = [], 0
+while len(parts) < 4:
+    while d[pos:pos + 1].isspace(): pos += 1
+    e = pos
+    while not d[e:e + 1].isspace(): e += 1
+    parts.append(d[pos:e]); pos = e
+pos += 1
+W = int(parts[1])
+v = []
+for yy in range(y0, y0 + 32):
+    for xx in range(x0, x0 + 32):
+        i = pos + 3 * (yy * W + xx)
+        v.append(0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2])
+m = sum(v) / len(v)
+print(f"{(sum((a - m) ** 2 for a in v) / len(v)) ** 0.5:.2f}")
+PY
+}
+g=$(grain "$R/open.ppm" $((x + 24)) $((y + h - 64)))
+python3 -I -c "import sys; sys.exit(0 if float('$g') > 0.5 else 1)" || fail "the sheet's sidebar shows no material (luminance deviation $g)"
+echo "material: the sidebar's ground varies by $g (kami's dotted paper)"
 echo "layer surface: kurashi-settings, Overlay, anchored on all edges, exclusive keyboard; ${w}x$h at $x,$y on $out ${sw}x$shh"
 shot kami-light
 
@@ -259,15 +289,55 @@ timeout 30 python3 -I tools/bench/wl_pointer.py click $((x + w - 12 - 16)) $((y 
 gone "the close button did not close the sheet"
 echo "backdrop click and close button: each closed the sheet"
 
-# --- 8. the sheet under other chrome and in dark ----------------------------------------------------------------------
+# --- 8. the material in the sheet (K63 phase 2): paint under the spotlight, leather, the window's own sheet; dark; other
+#        chrome. The spotlight's beam follows a pointer held over the sheet (one virtual pointer for the shot: a pointer
+#        that goes away is a leave, and the beam glides back to the middle).
 apply '[{"reset":"theme.texture.kind"},{"reset":"theme.light.mode"},{"reset":"theme.light.angle"},{"reset":"theme.light.beam"},{"reset":"theme.light.color"},{"reset":"theme.texture.scope"},{"reset":"theme.texture.wallpaper.own"},{"reset":"theme.texture.wallpaper.kind"}]'
-apply '[{"set":"theme.colors.scheme","value":"dark"}]'
 start_qs theme.texture.kind
+read -r x y w h out sw shh <<< "$(geom)"
+apply '[{"set":"theme.texture.kind","value":"paint"},{"set":"theme.light.mode","value":"spotlight"},{"set":"theme.light.angle","value":315},{"set":"theme.light.beam","value":30}]'
+rm -f "$R/pointer.fifo"; mkfifo "$R/pointer.fifo"
+timeout 120 python3 -I tools/bench/wl_pointer.py --serve < "$R/pointer.fifo" > "$R/pointer.log" 2>&1 & pids+=("$!")
+exec 4> "$R/pointer.fifo"
+# The beam follows the pointer: a patch of the sidebar's ground reads stronger with the pointer on it than with the pointer
+# on the other side of the sheet (outside the beam the relief keeps 30 %).
+px=$((x + 40)); py=$((y + h - 48))   # the sidebar's empty lower part: relief and nothing else
+echo "move $px $py" >&4
+sleep 1.5
+grim -t ppm -o HEADLESS-1 "$R/beam-on.ppm"
+echo "move $((x + w - 40)) $((y + 70))" >&4
+sleep 1.5
+grim -t ppm -o HEADLESS-1 "$R/beam-off.ppm"
+on=$(grain "$R/beam-on.ppm" $((px - 16)) $((py - 16))); off=$(grain "$R/beam-off.ppm" $((px - 16)) $((py - 16)))
+python3 -I -c "import sys; sys.exit(0 if float('$on') > 1.3 * float('$off') else 1)" \
+  || fail "the spotlight does not follow the pointer over the sheet (relief $on under the pointer, $off away from it)"
+echo "spotlight: the sidebar's relief reads $on under the pointer, $off with the pointer away"
+echo "move $((x + w * 2 / 3)) $((y + h / 2))" >&4
+sleep 1.5
+shot paint-spotlight
+exec 4>&-
+apply '[{"set":"theme.texture.kind","value":"leather"},{"reset":"theme.light.mode"},{"reset":"theme.light.angle"},{"reset":"theme.light.beam"}]'
+shot leather
+apply '[{"reset":"theme.texture.kind"}]'
+# The window host: a sheet of its own from the window's corner (it has no place on the shell's sheet).
+K set settings.window '"window"' | grep -q '^applied' || fail "settings.window window refused"
+for _ in $(seq 50); do [ "$(Q host)" = window ] && break; sleep 0.2; done
+[ "$(Q host)" = window ] || fail "no re-host to the window for its shot ($(Q host))"
+shot window-kami
+K set settings.window '"sheet"' | grep -q '^applied' || fail "settings.window sheet refused"
+for _ in $(seq 50); do [[ "$(Q host)" == sheet* ]] && break; sleep 0.2; done
+apply '[{"set":"theme.colors.scheme","value":"dark"}]'
 shot kami-dark
 for style in sekai aqua; do
   K raw "{\"t\":\"act\",\"id\":\"s\",\"action\":\"theme.style.apply\",\"args\":{\"name\":\"$style\"}}" | grep -q done || fail "style $style"
   sleep 1.5
   shot "$style"
+  if [ "$style" = sekai ]; then   # no texture in sekai: the same patch is flat
+    grim -t ppm -o HEADLESS-1 "$R/flat.ppm"
+    g=$(grain "$R/flat.ppm" $((x + 24)) $((y + h - 64)))
+    python3 -I -c "import sys; sys.exit(0 if float('$g') < 0.3 else 1)" || fail "the sidebar varies by $g under sekai, which has no texture"
+    echo "material: none under sekai (deviation $g)"
+  fi
 done
 apply '[{"set":"theme.colors.scheme","value":"light"}]'
 shot aqua-light

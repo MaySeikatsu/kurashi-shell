@@ -66,4 +66,40 @@ Singleton {
     // The dim layer behind a modal (the shell's Theme, row 130): the palette's scrim role at 40 %. The sheet's backdrop.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
+    readonly property int longMs: tok("motion.long_ms", 500)
+
+    // K59, K61 (docs/ux/texture.md): the material and its light, as the shell's Theme reads them — the same names, so the
+    // shell's own Relief, TileSheet, Light and LightSense (linked into components/ and core/) draw Settings with them.
+    readonly property string texMap: tok("texture.map", "")
+    readonly property string texInkMap: tok("texture.ink_map", "")
+    readonly property real texAmp: tok("texture.amp", 0)
+    readonly property bool texOn: texMap !== "" && texAmp > 0
+    readonly property bool texShell: texOn && tok("texture.shell", false) === true
+    readonly property bool texText: tok("texture.text", false) === true
+    readonly property real texTilePx: tok("texture.tile_px", 0)
+    readonly property real texTileLogical: tok("texture.tile_logical", 0)
+    readonly property real texScale: tok("texture.scale", 1)
+    readonly property real texGloss: tok("texture.gloss", 0)
+    readonly property real texShininess: tok("texture.shininess", 1)
+    readonly property color texInk: color("texture.ink", "#000000")
+    readonly property real texInkAlpha: tok("texture.ink_alpha", 0)
+    readonly property string lightMode: tok("light.mode", "static")
+    readonly property var lightDirToken: tok("light.dir", [0, 0, 1])
+    readonly property color lightColor: color("light.color", "#ffffff")
+    readonly property real lightHeight: tok("light.height_px", 60)
+    readonly property real texDepth: tok("texture.depth", 1)
+    readonly property real texShadow: tok("texture.shadow", 0)
+    readonly property string texHeightMap: tok("texture.height_map", "")
+    readonly property real texReliefPx: tok("texture.relief_px", 0)
+    readonly property real texLit: tok("texture.lit", 1)
+    readonly property bool texControls: texShell && tok("texture.controls", false) === true
+    readonly property string texSheet: tok("texture.sheet", "carried")
+    readonly property var lightPin: tok("light.pin", null)
+    readonly property real lightBeam: tok("light.beam", 35)
+    // Settings' own surfaces carry the relief under their content (`surfaceRelief`), or one layer lies over all of it when
+    // the material runs through text and icons (`textRelief`, `texture.text`). Only while a host holds the content
+    // (`hosted`, set by shell.qml around a re-host): a Relief binds to the window it is made in.
+    property bool hosted: false
+    readonly property bool surfaceRelief: hosted && texShell && !texText
+    readonly property bool textRelief: hosted && texShell && texText
 }
