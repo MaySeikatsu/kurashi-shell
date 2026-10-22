@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 import ".."
 
@@ -17,6 +18,10 @@ Block {
     property int iconSize: Theme.fs + 8
     signal clicked()
     readonly property color onSel: Theme.fgOnSelected
+    // K61 (docs/ux/texture.md "Controls"): an opaque key carries the relief over its fill and icon, under its label (Block's
+    // own is then left out: one relief per pixel), in a window that shares its sheet.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !Theme.texText && kb.fill.a >= 1 && !!(qsw && qsw.tileSheet)
 
     function press() { if (kb.enabled) kb.clicked() }
 
@@ -35,18 +40,33 @@ Block {
     Accessible.role: Accessible.Button
     Accessible.name: kb.a11y !== "" ? kb.a11y : kb.label
 
+    relief: !kb.ownRelief
+    // The icon lies under the relief and the label over it (K61): the icon sits at the row's slot for it.
+    Icon {
+        id: ic
+        visible: kb.icon !== "" || kb.glyph !== ""
+        name: kb.icon
+        glyph: kb.glyph
+        filled: true
+        size: kb.iconSize
+        color: kb.primary ? kb.onSel : Theme.fg
+        x: row.x + slot.x
+        y: row.y + (row.height - height) / 2
+    }
+    Loader {
+        active: kb.ownRelief
+        anchors.fill: parent
+        sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(kb.radius, kb.face.height / 2) - kb.inset) }
+    }
     Row {
+        id: row
         anchors.centerIn: parent
         spacing: Theme.xs
-        Icon {
-            id: ic
-            visible: kb.icon !== "" || kb.glyph !== ""
-            anchors.verticalCenter: parent.verticalCenter
-            name: kb.icon
-            glyph: kb.glyph
-            filled: true
-            size: kb.iconSize
-            color: kb.primary ? kb.onSel : Theme.fg
+        Item {
+            id: slot
+            visible: ic.visible
+            width: ic.implicitWidth
+            height: ic.implicitHeight
         }
         Text {
             id: txt
