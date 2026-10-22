@@ -83,7 +83,7 @@ Flickable {
         typography: "text_fields", modes: "accessibility_new", main: "toggle_on", clock: "schedule",
         server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
         recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode",
-        pen: "ink_pen", settings_app: "web_asset"
+        pen: "ink_pen", settings_app: "web_asset", shortcuts: "keyboard"
     })
     function sectionIcon(pageId, id) {
         return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
@@ -94,7 +94,7 @@ Flickable {
                                        "sidebar.bar_buttons": cSidebarOpen, "theme.texture.kind": cTextureCards,
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
                                        "theme.light.color": cLightSwatches,
-                                       "theme.texture.wallpaper.kind": cWallpaperCards })
+                                       "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus })
     // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
     // dropdown (SettingRow.picker), with the provenance line under them.
     readonly property var pickers: ({ "theme.texture.kind": true, "theme.colors.ink": true, "theme.light.color": true,
@@ -102,8 +102,12 @@ Flickable {
     // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
     // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
-    // The picker that stands in for a row's control, or null (the generic control).
-    function pickerOf(key) { return p.pickers[key] ? (p.extraOf(key) ?? null) : null }
+    // The picker that stands in for a row's control, or null (the generic control). Every shortcut (K64) is recorded by
+    // keys, not typed: the rows of `keys.*` but the switch (a schema control "shortcut" would say it: CONTRACT-CHANGE).
+    function pickerOf(key) {
+        if (key.indexOf("keys.") === 0 && key !== "keys.write") return cShortcut
+        return p.pickers[key] ? (p.extraOf(key) ?? null) : null
+    }
     function extraOf(key) {
         var when = p.extraWhen[key]
         // On and in effect: a switch that is on but inert (the wallpaper's own material with the scope "shell") hides them too.
@@ -125,6 +129,8 @@ Flickable {
     Component { id: cInkSwatches; InkSwatches {} }
     Component { id: cLightSwatches; LightSwatches {} }
     Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
+    Component { id: cKeysStatus; KeysStatus {} }
+    Component { id: cShortcut; ShortcutRecorder {} }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -281,6 +287,23 @@ Flickable {
         walk(col)
         return found
     }
+    // The keys test (K64): the shortcut recorder of a row — recording, a pending Replace, the lines under it — and the
+    // copy result of the include line.
+    function recorder(key) { return findNamed(col, "recorder:" + key) }
+    function keysRow(key) {
+        var r = recorder(key)
+        if (!r) return "none"
+        var lines = []
+        var walk = function (item) {
+            if (item.objectName === "keyline:" + key && item.visible) lines.push(item.children[0].text)
+            var kids = item.children || []
+            for (var i = 0; i < kids.length; i++) walk(kids[i])
+        }
+        walk(r)
+        return JSON.stringify({ recording: r.recording, pending: r.pending ? r.pending.combo + ">" + r.pending.key : "",
+                                notice: r.notice, inhibiting: r.inhibiting, lines: lines })
+    }
+    function keysCopied() { var s = findNamed(col, "keys-status"); return s ? s.copyState : "none" }
     // The settings test (W29): an item on the page by its objectName, or null.
     function findNamed(item, name) {
         if (item.objectName === name && item.visible) return item
