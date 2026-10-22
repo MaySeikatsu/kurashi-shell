@@ -6,7 +6,7 @@
 //! reuses the notebook sheet. Plain paper runs the same recipe with more fibre and formation relief (W31); the notebook
 //! stock keeps its bytes, so the printed kinds did not move.
 
-use crate::generate::Field;
+use crate::generate::{Field, rows, rows2};
 use crate::noise::{Rng, fbm_xy, value_xy};
 use crate::raster::{arc, band, bowl, bowl_at, tube};
 
@@ -56,6 +56,20 @@ pub fn sheet(f: &mut Field, seed: u64, pigment: bool) {
     stock(f, seed, pigment, NOTEBOOK);
 }
 
+/// The stock under the rulings (I169): the notebook stock with its fibres lower, so the rulings lead and the fibres do not
+/// read as busy squiggles on a dark page.
+pub fn ruled_sheet(f: &mut Field, seed: u64) {
+    stock(
+        f,
+        seed,
+        false,
+        Stock {
+            fibre_height: 0.55,
+            ..NOTEBOOK
+        },
+    );
+}
+
 /// Plain paper (`paper`): the same sheet on the plain stock, with more fibre and felt relief.
 pub fn plain(f: &mut Field, seed: u64, pigment: bool) {
     stock(f, seed, pigment, PLAIN);
@@ -65,15 +79,16 @@ fn stock(f: &mut Field, seed: u64, pigment: bool, s: Stock) {
     let (n, l) = (f.n, f.logical);
     let formation = |x: f32, y: f32| fbm_xy(x / l, y / l, 3, 3, 3, seed ^ 0xF0F0);
     // The felt: soft bumps a few px across, over the whole sheet, thicker where the formation is.
-    for iy in 0..n {
-        for ix in 0..n {
-            let (u, v) = (f.uv(ix), f.uv(iy));
+    let g = f.grid();
+    rows(n, f.threads, &mut f.h, |iy, h| {
+        for (ix, out) in h.iter_mut().enumerate() {
+            let (u, v) = (g.uv(ix), g.uv(iy));
             let felt = s.felt
                 * (0.22 * (value_xy(u, v, 96, 96, seed ^ 0xFE11) - 0.5)
                     + 0.1 * (value_xy(u, v, 224, 224, seed ^ 0xFE12) - 0.5));
-            f.h[iy * n + ix] = felt * (s.mottle.0 + s.mottle.1 * formation(f.at(ix), f.at(iy)));
+            *out = felt * (s.mottle.0 + s.mottle.1 * formation(g.at(ix), g.at(iy)));
         }
-    }
+    });
     let mut rng = Rng::new(seed ^ 0xF1B2);
     for _ in 0..(l * l / 105.0 * s.fibres) as usize {
         let (x, y) = (rng.range(0.0, l), rng.range(0.0, l));
@@ -122,11 +137,11 @@ pub fn rulings(f: &mut Field, which: Ruling, tint: bool) {
     const EMBOSS_LINE: f32 = 2.0;
     const EMBOSS_DOT: f32 = 2.6;
     const DEPTH: f32 = 1.2;
-    let (n, texel) = (f.n, 1.0 / f.scale);
-    for iy in 0..n {
-        let dy = ruling_dist(f.at(iy));
+    let (n, texel, g) = (f.n, 1.0 / f.scale, f.grid());
+    rows2(n, f.threads, &mut f.h, &mut f.ink, |iy, h, ink| {
+        let dy = ruling_dist(g.at(iy));
         for ix in 0..n {
-            let dx = ruling_dist(f.at(ix));
+            let dx = ruling_dist(g.at(ix));
             let (cov, dent) = match which {
                 Ruling::Lines => (band(dy, HALF_LINE, texel), bowl(dy / EMBOSS_LINE)),
                 Ruling::Grid => (
@@ -138,12 +153,11 @@ pub fn rulings(f: &mut Field, which: Ruling, tint: bool) {
                     (band(d, R_DOT, texel), bowl(d / EMBOSS_DOT))
                 }
             };
-            let k = iy * n + ix;
             if tint {
-                f.ink[k] = cov;
+                ink[ix] = cov;
             } else {
-                f.h[k] -= DEPTH * dent;
+                h[ix] -= DEPTH * dent;
             }
         }
-    }
+    });
 }

@@ -2,7 +2,7 @@
 //! grains about 5 px across with creased gaps between them, as in granite), a few round pits, a few hairline cracks, and
 //! mineral specks (the ink, tint on). Every noise is periodic and the warp is periodic too, so the tile wraps.
 
-use crate::generate::Field;
+use crate::generate::{Field, rows2};
 use crate::noise::{cells, fbm_xy, smoothstep, value_xy};
 
 /// The cells of the grains (96 across: 5 px), the pits (24: 20 px), the cracks (12: 40 px) and the specks (160: 3 px).
@@ -12,10 +12,10 @@ const CRACK_CELLS: u32 = 12;
 const SPECK_CELLS: u32 = 160;
 
 pub fn stone(f: &mut Field, seed: u64, tint: bool) {
-    let n = f.n;
-    for iy in 0..n {
+    let (n, g) = (f.n, f.grid());
+    rows2(n, f.threads, &mut f.h, &mut f.ink, |iy, h, ink| {
         for ix in 0..n {
-            let (u, v) = (f.uv(ix), f.uv(iy));
+            let (u, v) = (g.uv(ix), g.uv(iy));
             // Rock forms: the coordinates bend under a slow field, then a ridged fBm gives sharp rises and rounded hollows.
             let qx = fbm_xy(u, v, 3, 3, 3, seed ^ 0x11) - 0.5;
             let qy = fbm_xy(u, v, 3, 3, 3, seed ^ 0x22) - 0.5;
@@ -55,12 +55,11 @@ pub fn stone(f: &mut Field, seed: u64, tint: bool) {
             } else {
                 0.0
             };
-            let k = iy * n + ix;
-            f.h[k] = 0.8 * rock + 1.1 * dome * (0.4 + 0.6 * crease) - 0.9 * pit - 0.5 * crack
+            h[ix] = 0.8 * rock + 1.1 * dome * (0.4 + 0.6 * crease) - 0.9 * pit - 0.5 * crack
                 + 0.25 * speck;
             if tint {
-                f.ink[k] = speck;
+                ink[ix] = speck;
             }
         }
-    }
+    });
 }
