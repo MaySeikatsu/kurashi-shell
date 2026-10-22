@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../core"
 
 // Quick settings in the bar (K24): one glyph in a square as thick as the bar, so the pointer target is the
@@ -9,6 +10,13 @@ Item {
     id: q
     property bool open: false
     signal clicked()
+    // K61 (docs/ux/texture.md "Controls"): the relief lies over the square and the glyph while the square is filled (open,
+    // pressed or hovered), in a window that shares its sheet (Relief makes its own otherwise: a pair per control). A
+    // transparent square gets none: over the bar's own relief it would double the shading and show as a square.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool sheeted: !!(qsw && qsw.tileSheet)
+    readonly property bool filled: q.open || ma.pressed || hover.hovered
+    readonly property bool ownRelief: Theme.texControls && sheeted && filled
 
     width: Theme.barH
     height: Theme.barH
@@ -43,6 +51,14 @@ Item {
         font.pixelSize: Theme.fs + 2
         font.family: Theme.fam(text, Theme.families)
         text: "◐"
+    }
+    // The relief over the square and the glyph, under the focus ring (the square's own size, 3 px in).
+    Loader {
+        active: q.ownRelief
+        anchors.centerIn: parent
+        width: parent.width - 6
+        height: parent.height - 6
+        sourceComponent: Relief { anchors.fill: parent; radius: Theme.rSm }
     }
     MouseArea {
         id: ma

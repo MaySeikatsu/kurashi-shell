@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../core"
 
 // Optimistic slider: follows the pointer locally while dragging, sends at most one intent per
@@ -17,6 +18,10 @@ Item {
     property real step: 0.05
     property bool unavailable: false
     signal moved(real v)
+    // K61 (docs/ux/texture.md "Controls"): the track, its fill and the knob are opaque, so they carry the relief, in a
+    // window that shares its sheet (Relief makes its own otherwise). Nothing is drawn while unavailable.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !s.unavailable && !!(qsw && qsw.tileSheet)
 
     property bool dragging: false
     property real local: 0
@@ -73,8 +78,16 @@ Item {
             radius: Math.min(height / 2, Theme.rFull); color: s.fill
             visible: s.shown > 0
         }
+        // The relief over the track and its fill (the outline stays flat).
+        Loader {
+            active: s.ownRelief
+            anchors.fill: parent
+            anchors.margins: trackRect.border.width
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, trackRect.radius - trackRect.border.width) }
+        }
     }
     Rectangle {
+        id: handle
         width: Theme.ringW > 0 ? 18 : 12; height: width; radius: Math.min(width / 2, Theme.rFull)
         color: Theme.ringW > 0 ? Theme.ring : s.fill
         border.width: Theme.ringW > 0 ? Theme.outlineW : 0
@@ -82,6 +95,13 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         x: (s.width - width) * s.shown
         visible: !s.unavailable
+        // The relief over the knob (its ring stays flat).
+        Loader {
+            active: s.ownRelief
+            anchors.fill: parent
+            anchors.margins: handle.border.width
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, handle.radius - handle.border.width) }
+        }
     }
     // Stands in for the level (VolumeFace draws the same mark for no audio). Dim: it is not an input.
     Text {
