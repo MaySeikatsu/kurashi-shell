@@ -63,5 +63,7 @@ Singleton {
     readonly property real overshoot: tok("motion.spring.overshoot", 0.6)
     readonly property bool springOn: tok("motion.spring.on", true)
     readonly property int stdMs: tok("motion.standard_ms", 220)
+    // The dim layer behind a modal (the shell's Theme, row 130): the palette's scrim role at 40 %. The sheet's backdrop.
+    readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
 }

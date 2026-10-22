@@ -3,7 +3,7 @@
 //! flat stripe. Over it a few short light scratches run in nearly one direction, and a couple of tiny dings. Calm at a
 //! glance, rich up close. No ink: the material is its gloss (K59).
 
-use crate::generate::Field;
+use crate::generate::{Field, rows};
 use crate::noise::{Rng, value_xy};
 use crate::raster::{bowl_at, groove};
 
@@ -14,19 +14,19 @@ const DINGS: usize = 3;
 
 pub fn brushed(f: &mut Field, seed: u64) {
     let (n, l) = (f.n, f.logical);
-    let rows = n as u32;
-    for iy in 0..n {
+    let lines = n as u32;
+    rows(n, f.threads, &mut f.h, |iy, h| {
         // Evaluated at the row's own lattice point, so each pixel row takes its own level: that is what makes a brushing.
         let v = iy as f32 / n as f32;
-        for ix in 0..n {
+        for (ix, out) in h.iter_mut().enumerate() {
             let u = (ix as f32 + 0.5) / n as f32;
-            let row = value_xy(0.0, v, 1, rows, seed) - 0.5;
-            let seg = value_xy(u, v, 20, rows, seed ^ 0x51) - 0.5;
+            let row = value_xy(0.0, v, 1, lines, seed) - 0.5;
+            let seg = value_xy(u, v, 20, lines, seed ^ 0x51) - 0.5;
             // The brushing is stronger in some broad patches than in others, as a hand-brushed sheet is.
             let patch = 0.6 + 0.8 * value_xy(u, (iy as f32 + 0.5) / n as f32, 3, 2, seed ^ 0x52);
-            f.h[iy * n + ix] = patch * (0.7 * row + 0.7 * seg);
+            *out = patch * (0.7 * row + 0.7 * seg);
         }
-    }
+    });
     let mut rng = Rng::new(seed ^ 0x5C4A);
     // Scratches: short and light, nearly all in the brushing's direction.
     for _ in 0..SCRATCHES {

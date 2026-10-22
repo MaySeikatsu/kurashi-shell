@@ -351,6 +351,7 @@ Column {
                         invalid: fieldBox.err !== ""
                         onTyping: t => rec.setDraft(fieldBox.key, rec.typed(fieldBox.kind, t))
                         onSubmitted: rec.submit()
+                        escapeTaken: true
                         onEscaped: rec.cancelForm()
                     }
                     Select {

@@ -15,7 +15,8 @@ NAME=${1:-w28-ai-live}   # unique per run: other runs stop any sandbox that shar
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/ai/shots
 DECORS=${DECORS:-sekai none}
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The Stage card of a 560 px mod panel sits under the bar, centred on the 2560 px output.
 PANEL_GEOM=${PANEL_GEOM:-"980,30 600x760"}
 mkdir -p "$OUT"

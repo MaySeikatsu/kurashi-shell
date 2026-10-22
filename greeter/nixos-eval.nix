@@ -53,6 +53,7 @@ let
     [ "on: the greeter's directory belongs to the greeter" ((tmp on)."/var/lib/kurashi-greeter".d.user == "greeter") ]
     [ "on: a normal user gets their slots" ((tmp on)."/var/lib/kurashi-greeter/alice.json".f.user == "alice") ]
     [ "on: and the picture slot" ((tmp on) ? "/var/lib/kurashi-greeter/alice.wallpaper") ]
+    [ "on: and the texture slots (I166)" ((tmp on) ? "/var/lib/kurashi-greeter/alice.texture" && (tmp on) ? "/var/lib/kurashi-greeter/alice.texture-ink" && (tmp on) ? "/var/lib/kurashi-greeter/alice.texture-height") ]
     [ "on: a system user gets none" (!((tmp on) ? "/var/lib/kurashi-greeter/svc.json")) ]
     [ "on: the shell's fonts are installed" (lib.elem pkgs.material-symbols on.fonts.packages) ]
     [ "off: no greetd" (!off.services.greetd.enable) ]

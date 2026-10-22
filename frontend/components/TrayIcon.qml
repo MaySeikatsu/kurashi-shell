@@ -20,6 +20,13 @@ Item {
     // The hover peek (K35, B9): the Stage draws the item's title and tooltip on the output named here. "" offers none.
     property string peekSource: ""    // "tray:<item id>"
     property string peekOutput: ""
+    // K61 (docs/ux/texture.md "Controls"): the picture and the disc sit on a transparent square at rest, where a relief
+    // would halo over the bar's own relief; so the relief comes with the hover square (opaque, over the picture and the
+    // disc) and the disc carries its own while the square is not hovered. Only in a window that shares its sheet.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool shared: !!(qsw && qsw.tileSheet)
+    readonly property bool squareRelief: Theme.texControls && shared && hover.hovered
+    readonly property bool discRelief: Theme.texControls && shared && !hover.hovered && img.status !== Image.Ready
 
     // action: "activate" (left), "secondary" (middle), "menu" (right, only with a menu); x and y are
     // in this item's coordinates.
@@ -67,19 +74,35 @@ Item {
 
     // The fallback glyph: shown until the picture is ready, and for good when none loads.
     Rectangle {
+        id: disc
         anchors.centerIn: parent
         width: 20
         height: 20
         radius: 10
         color: Theme.containerHigh
         visible: img.status !== Image.Ready
-        Text {
-            anchors.centerIn: parent
-            color: Theme.fg
-            font.pixelSize: Theme.fsCaption
-            font.family: Theme.fam(text, Theme.families)
-            text: ti.title !== "" ? ti.title.charAt(0) : "•"
+        Loader {
+            active: ti.discRelief
+            anchors.fill: parent
+            sourceComponent: Relief { anchors.fill: parent; radius: 10 }
         }
+    }
+    // The relief over a hovered square: its picture and its disc, once (the disc carries none then).
+    Loader {
+        active: ti.squareRelief
+        anchors.centerIn: parent
+        width: parent.width - 6
+        height: parent.height - 6
+        sourceComponent: Relief { anchors.fill: parent; radius: Theme.rSm }
+    }
+    // The letter of the disc sits above the relief, as a label does.
+    Text {
+        anchors.centerIn: parent
+        visible: disc.visible
+        color: Theme.fg
+        font.pixelSize: Theme.fsCaption
+        font.family: Theme.fam(text, Theme.families)
+        text: ti.title !== "" ? ti.title.charAt(0) : "•"
     }
 
     Rectangle {

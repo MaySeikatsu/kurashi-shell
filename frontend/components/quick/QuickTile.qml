@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 import ".."
 
@@ -49,6 +50,11 @@ Item {
     readonly property color onFg: Theme.color("quick.tile.on.fg", Theme.color("color.on_selected", Theme.fg))
     // A Material Symbols name (Icon.qml); `glyph` is the text drawn without the font (and a mod tile's only mark).
     property string icon: ""
+    // K61 (docs/ux/texture.md "Controls"): the badge's icon lies under the relief, as the face's own Block relief lies under
+    // every control (Block's own badge relief is then left out: one per pixel), in a window that shares its sheet. The
+    // drill-down chevron sits outside the face and stays flat.
+    readonly property var qsw: Window.window ? QsWindow.window : null
+    readonly property bool ownRelief: Theme.texControls && !Theme.texText && badge.fill.a >= 1 && !!(qsw && qsw.tileSheet)
 
     function activate() {
         if (connecting) return
@@ -101,6 +107,7 @@ Item {
             radius: Theme.rFull
             ringScale: 0
             softScale: 0
+            relief: !tile.ownRelief
             animate: face.animate
             fill: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.container)
             Icon {
@@ -110,6 +117,12 @@ Item {
                 filled: tile.lit
                 size: 18
                 color: tile.failed ? Theme.surface : (tile.lit ? Theme.fgOnAccent : Theme.fg)
+            }
+            // The relief over the badge's fill and icon, inside its outline (the outline stays flat, as Block's).
+            Loader {
+                active: tile.ownRelief
+                anchors.fill: parent
+                sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(badge.radius, badge.face.height / 2) - badge.inset) }
             }
         }
         Column {

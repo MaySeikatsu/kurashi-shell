@@ -17,7 +17,8 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/wallpaper/shots
 PIXMAPS=/run/current-system/sw/share/pixmaps
 mkdir -p "$OUT"
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR

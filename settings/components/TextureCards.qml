@@ -6,21 +6,31 @@ import "../core"
 // A card is a pick (one undo step). While a look or style holds the material, "Back to …" brings the user's own back
 // (`theme.texture.restore`, as K55's light/dark). Keyboard: one Tab stop on the current card (WAI-ARIA radio group),
 // arrows move, Return/Space pick. The selection is a frame, a check and a bold caption, never colour alone.
+// `key` picks the row: the shell's material, or the wallpaper's own (`theme.texture.wallpaper.kind`, K61), whose cards
+// show the same swatches (each material in the shell's light; the wallpaper bakes it with its own strength). The row's
+// own offers decide whether "None" is a card; while the row is inert the cards are too.
 Column {
     id: tc
+    property string key: "theme.texture.kind"
+    readonly property bool main: tc.key === "theme.texture.kind"
+    readonly property var row: { Store.schema; var h = Store.rowOf(tc.key); return h ? h.row : ({}) }
+    readonly property var offered: (tc.row.choices || []).map(function (c) { return c.value })
     readonly property var cards: {
         var pv = Store.docs["theme.previews"]
         var list = (pv && pv.textures) || []
-        return [{ name: "none", image: "" }].concat(list)
+        var all = [{ name: "none", image: "" }].concat(list)
+        return tc.offered.length ? all.filter(function (c) { return tc.offered.indexOf(c.name) >= 0 }) : all
     }
-    readonly property string current: Store.valueOf("theme.texture.kind") || "none"
+    readonly property bool usable: { Store.config; return Store.live && !(tc.row.couplings && Store.inertReasons(tc.row, "").some(function (x) {
+        return x.kind !== "pending" && x.kind !== "unavailable" && x.kind !== "mod_off" })) }
+    readonly property string current: Store.valueOf(tc.key) || (tc.row.default ?? "none")
     readonly property var before: (Store.theme && Store.theme.appearance && Store.theme.appearance.texture_before) || null
     // The test hook: the cards' names in order, and how many show their swatch.
     function names() { return tc.cards.map(function (c) { return c.name }).join(",") }
     function drawn() { return tc.cards.filter(function (c) { return c.image !== "" }).length }
     function pick(name) {
-        if (name === tc.current || !Store.live) return
-        Store.apply([{ set: "theme.texture.kind", value: name }])
+        if (name === tc.current || !tc.usable) return
+        Store.apply([{ set: tc.key, value: name }])
     }
 
     Component.onCompleted: Store.watch("theme.previews")
@@ -28,14 +38,15 @@ Column {
 
     width: parent ? parent.width : 480
     spacing: Theme.gap
-    objectName: "texture-cards"
+    objectName: tc.main ? "texture-cards" : "texture-cards:" + tc.key
+    FontMetrics { id: capMetrics; font.pixelSize: Theme.fs - 2 }
 
     Flow {
         id: grid
         width: tc.width
         spacing: Theme.gap
         Accessible.role: Accessible.RadioButton
-        Accessible.name: I18n.tr("config.theme.texture.kind.label")
+        Accessible.name: I18n.tr(tc.row.label || "config.theme.texture.kind.label")
         Repeater {
             id: rep
             model: tc.cards
@@ -45,11 +56,12 @@ Column {
                 required property int index
                 readonly property bool on: modelData.name === tc.current
                 readonly property string caption: I18n.tr("config.choice.texture." + modelData.name)
-                objectName: "texture:" + modelData.name
-                width: 76
-                height: 76 + cap.height + 4
-                activeFocusOnTab: card.on
-                opacity: Store.live ? 1 : 0.5
+                objectName: (tc.main ? "texture:" : "wallpaper-texture:") + modelData.name
+                width: 84
+                // Two caption lines for every card, so the grid's rows line up ("Brush strokes (bristles)").
+                height: face.height + 4 + Math.ceil(capMetrics.lineSpacing * 2)
+                activeFocusOnTab: card.on && tc.usable
+                opacity: tc.usable ? 1 : 0.5
                 function step(d) {
                     var c = rep.itemAt(card.index + d)
                     if (c) c.forceActiveFocus()
@@ -67,8 +79,8 @@ Column {
 
                 Rectangle {
                     id: face
-                    width: 76
-                    height: 76
+                    width: 84
+                    height: 84
                     radius: Theme.rSm
                     color: Theme.containerHigh
                     border.width: card.on ? 2 : 1
@@ -125,6 +137,8 @@ Column {
                     anchors.topMargin: 4
                     width: card.width
                     horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
                     elide: Text.ElideRight
                     color: card.on ? Theme.fg : Theme.dim
                     font.pixelSize: Theme.fs - 2
@@ -135,7 +149,7 @@ Column {
                 HoverHandler { id: hov }
                 MouseArea {
                     anchors.fill: parent
-                    enabled: Store.live
+                    enabled: tc.usable
                     cursorShape: Qt.PointingHandCursor
                     onClicked: tc.pick(modelData.name)
                 }
@@ -149,7 +163,7 @@ Column {
     }
     Button {
         objectName: "texture-back"
-        visible: tc.before !== null && tc.before["theme.texture.kind"] !== undefined
+        visible: tc.main && tc.before !== null && tc.before["theme.texture.kind"] !== undefined
         label: tc.before ? I18n.fmt("theme.texture.back", { material: I18n.tr("config.choice.texture." + tc.before["theme.texture.kind"]) }) : ""
         enabled: Store.live
         onClicked: Store.act("theme.texture.restore", {})

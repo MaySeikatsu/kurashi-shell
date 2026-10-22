@@ -2,7 +2,7 @@
 //! (p, p) and (p, −p), so its period is 2p and the tile holds whole periods. Each dot's radius follows a slow tone field.
 //! Tint on: the dots are ink (A) and the relief is only the stock's; tint off: the dots are raised a little.
 
-use crate::generate::Field;
+use crate::generate::{Field, rows2};
 use crate::noise::{fbm_xy, smoothstep};
 use crate::paper;
 use crate::raster::band;
@@ -23,9 +23,10 @@ pub fn halftone(f: &mut Field, seed: u64, tint: bool) {
         *h *= 0.6;
     }
     let r_max = 0.5 * STEP * std::f32::consts::SQRT_2 * 0.84;
-    for iy in 0..n {
+    let g = f.grid();
+    rows2(n, f.threads, &mut f.h, &mut f.ink, |iy, h, ink| {
         for ix in 0..n {
-            let (x, y) = (f.at(ix), f.at(iy));
+            let (x, y) = (g.at(ix), g.at(iy));
             // The lattice in its own coordinates is the integer grid: round to the nearest dot.
             let (ui, vi) = (
                 ((x + y) / (2.0 * STEP)).round(),
@@ -34,15 +35,14 @@ pub fn halftone(f: &mut Field, seed: u64, tint: bool) {
             let (cx, cy) = (STEP * (ui + vi), STEP * (ui - vi));
             let d = (x - cx).hypot(y - cy);
             let r = r_max * tone(cx, cy, l, seed).sqrt();
-            let k = iy * n + ix;
             if r < 0.05 {
                 continue;
             }
             if tint {
-                f.ink[k] = band(d, r, texel);
+                ink[ix] = band(d, r, texel);
             } else if d < r {
-                f.h[k] += 1.0 * (1.0 - (d / r) * (d / r)).sqrt();
+                h[ix] += 1.0 * (1.0 - (d / r) * (d / r)).sqrt();
             }
         }
-    }
+    });
 }

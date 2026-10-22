@@ -21,7 +21,8 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 NAME=${1:-sysmon-states}   # unique per run: other agents' runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/sysmon/shots
-export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
+# Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
+[ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # Where the pointer clicks to give the card the keyboard: the panel's title, left of its Pause control (layout px).
 FOCUS_X=${FOCUS_X:-1090}
 FOCUS_Y=${FOCUS_Y:-88}

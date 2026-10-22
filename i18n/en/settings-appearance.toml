@@ -21,3 +21,7 @@
 "settings.light.wallpaper.wallpaper" = "A lamp where the wallpaper is brightest, in its colour; the dial shows the way it falls on the middle."
 "settings.light.wallpaper.wallpaper_flat" = "This wallpaper has no bright place of its own: the light comes from above."
 "settings.light.wallpaper.wallpaper_waiting" = "Waiting for the wallpaper: the light comes from above until its picture is read."
+# Wave 32 (K61): the spotlight on the Light dial.
+"settings.light.numbers_beam" = "From {angle}° · {elevation}° high · beam {beam}°"
+"settings.light.spotlight" = "A lamp pinned where this direction meets the screen's edge; its beam follows the pointer over the shell and rests on the middle elsewhere. Click the little screen to move the lamp."
+"settings.light.screen" = "The spotlight pinned at {angle}°, its beam {beam}° wide"

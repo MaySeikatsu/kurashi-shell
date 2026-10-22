@@ -401,6 +401,7 @@ PanelWindow {
                         }
                         // Text fallback: initial of the name; a calculation shows its icon.
                         Rectangle {
+                            id: fallback
                             anchors.fill: parent
                             visible: !img.visible
                             radius: Theme.rSm
@@ -430,6 +431,14 @@ PanelWindow {
                                 font.weight: Theme.wBold
                                 font.family: Theme.fam(text, Theme.families)
                                 text: (row.modelData.name || "?").charAt(0).toUpperCase()
+                            }
+                            // K61 (docs/ux/texture.md "Controls"): an opaque fallback tile carries the relief over its glyph,
+                            // in a window that shares its sheet (Relief makes its own otherwise). A picture stays flat.
+                            Loader {
+                                active: Theme.texControls && fallback.color.a >= 1 && !!(Window.window && QsWindow.window && QsWindow.window.tileSheet)
+                                anchors.fill: parent
+                                anchors.margins: fallback.border.width
+                                sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, fallback.radius - fallback.border.width) }
                             }
                         }
                     }
