@@ -1,0 +1,12 @@
+# w33 carried and fixed: the right sidebar opened and closed five times (ten toggles, 1.5 s apart; a slide is short).
+0.0 act sidebar.toggle '{"side":"right"}'
+1.5 act sidebar.toggle '{"side":"right"}'
+3.0 act sidebar.toggle '{"side":"right"}'
+4.5 act sidebar.toggle '{"side":"right"}'
+6.0 act sidebar.toggle '{"side":"right"}'
+7.5 act sidebar.toggle '{"side":"right"}'
+9.0 act sidebar.toggle '{"side":"right"}'
+10.5 act sidebar.toggle '{"side":"right"}'
+12.0 act sidebar.toggle '{"side":"right"}'
+13.5 act sidebar.toggle '{"side":"right"}'
+window 15

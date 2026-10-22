@@ -53,7 +53,9 @@ def idle_frames(r, budget):
 def idle_cpu(r, budget):
     limit = numbers(budget)[0]
     total = get(r, "pass_a", "idle_cpu_pct_total")
-    note = f"{get(r, 'pass_a', 'idle_window_s') or '?'} s window"
+    window = get(r, "pass_a", "idle_window_s")
+    # A short window is a screen, not the budget's measurement (the budget names 10 min): say so in the row.
+    note = f"{window or '?'} s window" + (" (the budget's window is 10 min)" if window and window < 600 else "")
     if total is None:
         v = get(r, "pass_a", "idle_cpu_pct")
         if v is None:
@@ -101,7 +103,9 @@ def cycles(r, budget):
     limit = numbers(budget)[0]
     v = get(r, "pass_a", "pss_mib_cycle_growth")
     if v is None:
-        return "-", f"≤ {limit:g} MiB", None, "needs --daemon real (no panel actions on the mock)"
+        why = ("not measured in this run (--cycles 0 or no pass A)" if r.get("daemon") == "real"
+               else "needs --daemon real (no panel actions on the mock)")
+        return "-", f"≤ {limit:g} MiB", None, why
     n = get(r, "pass_a", "cycle_count")
     return f"{v:+.2f} MiB / {n} cycles", f"≤ {limit:g} MiB", v <= limit, "island + center + launcher"
 

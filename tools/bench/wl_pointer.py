@@ -5,8 +5,10 @@
 # tools/bench/wl_keys.py).
 #   tools/bench/wl_pointer.py move <x> <y>                  → move, then settle
 #   tools/bench/wl_pointer.py click <x> <y> <left|middle|right>
+#   tools/bench/wl_pointer.py sweep <x0> <y0> <x1> <y1> <s> → travel in a straight line in s seconds (~60 motion events/s,
+#                                                             no settle between them: a pointer that really moves)
 #   tools/bench/wl_pointer.py --serve                       → one pointer for the whole run: every stdin line is
-#                                                             "move x y" or "click x y <button>"; EOF ends it
+#                                                             "move x y", "click x y <button>" or "sweep …"; EOF ends it
 # x and y are layout coordinates, the ones swaymsg's rects use. The layout box comes from xdg-output on the same
 # socket, so a caller needs no output size. Timing is what the frontend tests always used: 0.5 s after the pointer
 # appears, 0.2 s between motion and press, 0.5 s before the pointer goes away (closing the socket destroys it).
@@ -21,7 +23,7 @@ import time
 BUTTONS = {"left": 272, "middle": 274, "right": 273}   # evdev BTN_LEFT, BTN_MIDDLE, BTN_RIGHT
 SANDBOX_RUNTIME = re.compile(r"/tmp/kurashi-sb-[^/]+")
 USAGE = ("usage: wl_pointer.py move <x> <y> | wl_pointer.py click <x> <y> <left|middle|right> "
-         "| wl_pointer.py --serve")
+         "| wl_pointer.py sweep <x0> <y0> <x1> <y1> <seconds> | wl_pointer.py --serve")
 DISPLAY = 1
 
 
@@ -51,15 +53,19 @@ def ms():
 
 
 def command(parts):
-    # "move x y" or "click x y <button>" → (verb, x, y, button); anything else is a usage error.
+    # "move x y", "click x y <button>" or "sweep x0 y0 x1 y1 s" → (verb, x, y, rest); anything else is a usage
+    # error. rest: the button for a click, (x1, y1, seconds) for a sweep, None for a move.
     try:
         if len(parts) == 3 and parts[0] == "move":
             return "move", int(parts[1]), int(parts[2]), None
         if len(parts) == 4 and parts[0] == "click" and parts[3] in BUTTONS:
             return "click", int(parts[1]), int(parts[2]), parts[3]
+        if len(parts) == 6 and parts[0] == "sweep":
+            return "sweep", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]), float(parts[5]))
     except ValueError:
         pass
-    die("wl_pointer.py: want 'move <x> <y>' or 'click <x> <y> <left|middle|right>'")
+    die("wl_pointer.py: want 'move <x> <y>', 'click <x> <y> <left|middle|right>' or "
+        "'sweep <x0> <y0> <x1> <y1> <seconds>'")
 
 
 class Pointer:
@@ -195,12 +201,25 @@ class Pointer:
         self.send(self.pointer, 4)
         self.settle()
 
+    def sweep(self, x0, y0, x1, y1, seconds):
+        # Motion events about every 16 ms from (x0, y0) to (x1, y1), so the last one lands after `seconds`. No settle
+        # between events (a move waits 0.5 s), so the frontend gets a pointer that really travels.
+        steps = max(1, round(seconds * 60))
+        start = time.monotonic()
+        for i in range(steps + 1):
+            f = i / steps
+            self.motion(round(x0 + (x1 - x0) * f), round(y0 + (y1 - y0) * f))
+            time.sleep(max(0.0, start + (i + 1) * seconds / steps - time.monotonic()))
+        self.roundtrip()   # the compositor has handled every event before the next line is read
+
     def perform(self, cmd):
-        verb, x, y, button = cmd
+        verb, x, y, rest = cmd
         if verb == "move":
             self.move(x, y)
+        elif verb == "sweep":
+            self.sweep(x, y, *rest)
         else:
-            self.click(x, y, button)
+            self.click(x, y, rest)
 
 
 def main(argv):

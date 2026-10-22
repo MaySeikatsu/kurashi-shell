@@ -6,11 +6,12 @@ Invisible, reproducible measurements of frontends (K3 bake-off, milestone budget
 |---|---|
 | `sandbox.sh` | headless sway (gles2 by default → clients render on the GPU) with its own `XDG_RUNTIME_DIR` (`/tmp/kurashi-sb-<name>`) and private D-Bus; `start/env/stop/output-add` |
 | `wl_keys.py` | virtual keyboard on the sandbox seat (zwp_virtual_keyboard_v1, raw wire): `wl_keys.py tab space`, or `--serve` (one keyboard, one key line per stdin line); only the sandbox's own socket (eval `sandbox.sh start` first; refuses anything else) |
-| `wl_pointer.py` | virtual pointer on the sandbox seat (zwlr_virtual_pointer_v1, raw wire): `wl_pointer.py move x y`, `click x y left/middle/right`, or `--serve`; x, y are layout coordinates (the layout box comes from xdg-output); same sandbox-socket rule |
-| `measure.py` | 3 passes per frontend, each in a fresh sandbox, against `kurashi-mock` or the real `kurashid` (`--daemon real`) → `results/<name>.json` |
+| `wl_pointer.py` | virtual pointer on the sandbox seat (zwlr_virtual_pointer_v1, raw wire): `wl_pointer.py move x y`, `click x y left/middle/right`, `sweep x0 y0 x1 y1 s` (about 60 motion events a second), or `--serve`; x, y are layout coordinates (the layout box comes from xdg-output); same sandbox-socket rule |
+| `measure.py` | passes per frontend, each in a fresh sandbox, against `kurashi-mock` or the real `kurashid` (`--daemon real`) → `results/<name>.json`. `--config FILE` (real): the daemon's user config.toml. `--script FILE` (real): a motion script (`pre` lines, `<t> act …`, `<t> sweep …`, `window s`); pass `m` measures CPU and wakeups during it, pass `b` counts its frames. `--max-load F`: waits for the 1-minute load average below F and records it. `--sandbox-prefix`: sandbox names (default `bench-`) |
 | `budget.py` | the gate: compares a result with the budget table in `docs/BENCH.md`, exits 1 on any violation |
+| `w33.sh`, `w33-summary.py` | the textured-shell set (`just bench-texture`): 9 scenarios × 3 interleaved runs, medians → `results/w33-<scenario>.json` and a metric × scenario table |
 | `bin/` | untracked copies of `kurashid`, `kurashi`, `kurashi-mock` (the shared cargo target dir is overwritten by other worktrees, so copy right after building) |
-| `testdata/` | `fail.json` (budget.py must exit 1), `unmeasurable.json` (n/a handling) |
+| `testdata/` | `fail.json` (budget.py must exit 1), `unmeasurable.json` (n/a handling), `w33/` (the texture scenarios' configs and motion scripts) |
 
 ## The gate (budgets as acceptance, CLAUDE.md rule 9)
 ```sh
