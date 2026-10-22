@@ -2,14 +2,14 @@
 # The greeter (W28, docs/ux/greeter.md), invisibly, in the headless sway sandbox against a fake greetd
 # (greeter/fake_greetd.py) — never a real greetd, never /etc. Users come from a fake passwd, sessions from a fake
 # wayland-sessions folder, the power command is a script that only logs. The look is the real kurashid's greeter cache:
-# per decor (sekai, none) kurashid runs once with USER=tester and the shared slots the NixOS module would make
+# per decor (sekai, none, kami — a material: its maps go into the texture slots, I166) kurashid runs once with USER=tester and the shared slots the NixOS module would make
 # (KURASHI_GREETER_DIR), and must fill them.
 # Per decor: the greeter as it opens; a wrong password → greetd's auth error, the message, the field shakes and
 # clears; sekai: the user list open, the suspend key (logged by the fake command); none: the session chip set to Sway
 # by keyboard; then the right password → start_session with the chosen session's command, the memory file written,
 # the greeter quits.
-# Screenshots (greeter/shots/): greeter-{open,wrong}-{sekai,none}.png, greeter-users-sekai.png,
-# greeter-sessions-none.png.
+# Screenshots (greeter/shots/): greeter-{open,wrong}-{sekai,none,kami}.png, greeter-users-sekai.png,
+# greeter-sessions-{none,kami}.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid> \
 #     timeout 900 nix develop -c greeter/test.sh [sandbox-name]
 set -euo pipefail
@@ -17,7 +17,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-w28-grt-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/greeter/shots
-DECORS=${DECORS:-sekai none}
+DECORS=${DECORS:-sekai none kami}
 PASS=kurashi-test-pass
 # Machine B's iGPU when it exists; elsewhere sandbox.sh picks the display GPU (boot_vga).
 [ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
@@ -90,12 +90,15 @@ cache_for() { # cache_for <decor>: the real kurashid fills the greeter slots for
   rm -rf "$R/xdg" "$W/gdir"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$W/gdir"
   : > "$W/gdir/tester.json"
+  : > "$W/gdir/tester.texture"; : > "$W/gdir/tester.texture-ink"; : > "$W/gdir/tester.texture-height"
   printf 'theme.style = "%s"\n' "$1" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   env USER=tester KURASHI_GREETER_DIR="$W/gdir" KURASHI_SOCKET="$R/kurashi-cache.sock" \
     DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
   DPID=$!
   wait_for '[ -s "$W/gdir/tester.json" ]' 60 || true
+  # A material's tile is made on a blocking thread after the first theme: wait for its copy (I166).
+  [ "$1" = kami ] && { wait_for '[ -s "$W/gdir/tester.texture" ] && grep -q tester.texture "$W/gdir/tester.json"' 120 || true; }
   stop DPID
   check "$( [ -s "$W/gdir/tester.json" ] && python3 -I -c "
 import json, sys
@@ -103,6 +106,14 @@ d = json.load(open('$W/gdir/tester.json'))
 sys.exit(0 if d['user'] == 'tester' and d['tokens'].get('color.accent') and d['locale'] else 1)" && echo 1 || echo 0)" \
     "$1 kurashid filled the greeter slot (tokens, user, locale)"
   check "$( [ -s "$XDG_STATE_HOME/kurashi/greeter-theme.json" ] && echo 1 || echo 0)" "$1 kurashid wrote its own copy in XDG_STATE_HOME"
+  if [ "$1" = kami ]; then
+    check "$(python3 -I -c "
+import json, sys
+t = json.load(open('$W/gdir/tester.json'))['tokens']
+ok = t['texture.map'] == '$W/gdir/tester.texture' and t['texture.amp'] > 0 and t['texture.ink_map'] == '$W/gdir/tester.texture-ink'
+sys.exit(0 if ok else 1)" && [ -s "$W/gdir/tester.texture" ] && echo 1 || echo 0)" \
+      "kami the texture's maps are copied into the greeter's slots and the tokens point there (I166)"
+  fi
 }
 
 start_greeter() {
@@ -147,7 +158,7 @@ for DECOR in $DECORS; do
   else
     # The session chip by keyboard: Tab Tab, open, down to Sway, pick.
     keys tab tab return
-    shot "greeter-sessions-none"
+    shot "greeter-sessions-$DECOR"
     keys down return
     WANT='["sway", "--unsupported-gpu"]'
   fi

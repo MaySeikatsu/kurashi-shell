@@ -5,7 +5,9 @@
 //! - When the system asks for it: the NixOS module (`services.kurashi.greeter`) makes `/var/lib/kurashi-greeter/
 //!   <user>.json` (and `<user>.wallpaper`) owned by the user in a directory only the greeter may write. kurashid never
 //!   creates them: an existing, writable file is the request. They are written in place (no rename: the directory is
-//!   not the user's), the picture copied into the `.wallpaper` slot, since the greeter cannot read a home directory.
+//!   not the user's), the picture copied into the `.wallpaper` slot, since the greeter cannot read a home directory;
+//!   likewise the texture's maps into `.texture`, `.texture-ink` and `.texture-height` (I166). A map without its slot
+//!   is left out of the shared copy (no material, no ink, no shadows), never pointed at the user's cache.
 //!   `KURASHI_GREETER_DIR` names another directory (tests).
 
 use std::path::{Path, PathBuf};
@@ -53,13 +55,7 @@ pub fn wallpaper_of(doc: &Value) -> Option<PathBuf> {
 
 /// The cache's content (absent fields are left out, as in documents: B25).
 pub fn cache_doc(theme: &Value, locale: &str, wallpaper: Option<&Path>, user: &str) -> Value {
-    let mut tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
-    // K59: the texture's tile lives in the user's cache, which the greeter cannot read: no material there (I166).
-    for (k, v) in [("texture.map", json!("")), ("texture.amp", json!(0.0))] {
-        if tokens.contains_key(k) {
-            tokens.insert(k.into(), v);
-        }
-    }
+    let tokens = theme["tokens"].as_object().cloned().unwrap_or_default();
     let mut doc = json!({
         "v": 1,
         "user": user,
@@ -105,7 +101,27 @@ pub struct Written {
     pub local: bool,
     pub shared: bool,
     pub picture: bool,
+    /// I166: a texture map was copied into its slot.
+    pub texture: bool,
 }
+
+/// The texture's maps and their slots (I166): the token, the slot's suffix, and the tokens that go when the map cannot.
+/// A token, its slot's suffix, and the tokens set when the map has no slot.
+type TextureSlot = (&'static str, &'static str, &'static [(&'static str, f64)]);
+
+const TEXTURE_SLOTS: [TextureSlot; 3] = [
+    ("texture.map", "texture", &[("texture.amp", 0.0)]),
+    (
+        "texture.ink_map",
+        "texture-ink",
+        &[("texture.ink_alpha", 0.0)],
+    ),
+    (
+        "texture.height_map",
+        "texture-height",
+        &[("texture.shadow", 0.0)],
+    ),
+];
 
 /// Writes the local cache under `state` and, when its files exist, the shared copy under `shared`. `copied` remembers
 /// the picture last copied into the slot (path, length, mtime), so an unchanged picture is not read again.
@@ -136,6 +152,31 @@ pub fn write(
             *copied = Some(key);
         }
         doc["wallpaper"] = json!(slot_pic.to_string_lossy());
+    }
+    // I166: the texture's maps live in the user's cache; the greeter reads them from their slots (copied when their
+    // bytes changed), or does without them.
+    for (token, suffix, without) in TEXTURE_SLOTS {
+        let Some(src) = doc["tokens"][token]
+            .as_str()
+            .filter(|p| !p.is_empty())
+            .map(PathBuf::from)
+        else {
+            continue;
+        };
+        let slot = shared.join(format!("{user}.{suffix}"));
+        let copied_in = slot.is_file()
+            && std::fs::read(&src)
+                .and_then(|bytes| in_place_if_changed(&slot, &bytes))
+                .map(|changed| out.texture |= changed)
+                .is_ok();
+        doc["tokens"][token] = if copied_in {
+            json!(slot.to_string_lossy())
+        } else {
+            for (k, v) in without {
+                doc["tokens"][*k] = json!(v);
+            }
+            json!("")
+        };
     }
     out.shared = in_place_if_changed(&slot_json, format!("{doc:#}\n").as_bytes())?;
     Ok(out)
@@ -251,7 +292,8 @@ mod tests {
             Written {
                 local: false,
                 shared: true,
-                picture: true
+                picture: true,
+                texture: false,
             }
         );
         assert_eq!(
@@ -266,6 +308,49 @@ mod tests {
             shared.join("tester.wallpaper").to_string_lossy().as_ref()
         );
         assert_eq!(copy["tokens"]["color.accent"], "#c9404b");
+
+        // I166: the texture's maps go into their slots; a map without one is left out with what it drives.
+        let maps = dir.join("maps");
+        std::fs::create_dir_all(&maps).unwrap();
+        std::fs::write(maps.join("t.png"), b"RELIEF").unwrap();
+        std::fs::write(maps.join("t-ink.png"), b"INK").unwrap();
+        std::fs::write(maps.join("t-height.png"), b"HEIGHT").unwrap();
+        let textured = json!({"tokens": {
+            "texture.map": maps.join("t.png"), "texture.amp": 0.09,
+            "texture.ink_map": maps.join("t-ink.png"), "texture.ink_alpha": 0.4,
+            "texture.height_map": maps.join("t-height.png"), "texture.shadow": 1.0,
+        }});
+        let tdoc = cache_doc(&textured, "ja", Some(&pic), "tester");
+        std::fs::write(shared.join("tester.texture"), "").unwrap();
+        std::fs::write(shared.join("tester.texture-ink"), "").unwrap();
+        let w = write(&tdoc, &state, &shared, "tester", &mut copied).unwrap();
+        assert!(w.texture && w.shared, "{w:?}");
+        let copy: Value =
+            serde_json::from_str(&std::fs::read_to_string(shared.join("tester.json")).unwrap())
+                .unwrap();
+        let slot = |s: &str| shared.join(s).to_string_lossy().into_owned();
+        assert_eq!(copy["tokens"]["texture.map"], slot("tester.texture"));
+        assert_eq!(copy["tokens"]["texture.amp"], 0.09);
+        assert_eq!(
+            copy["tokens"]["texture.ink_map"],
+            slot("tester.texture-ink")
+        );
+        assert_eq!(copy["tokens"]["texture.height_map"], "", "no height slot");
+        assert_eq!(copy["tokens"]["texture.shadow"], 0.0);
+        assert_eq!(
+            std::fs::read(shared.join("tester.texture")).unwrap(),
+            b"RELIEF"
+        );
+        // The local copy keeps the user's own paths (the user can read them).
+        let local: Value = serde_json::from_str(
+            &std::fs::read_to_string(state.join("kurashi").join(FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            local["tokens"]["texture.height_map"],
+            maps.join("t-height.png").to_string_lossy().as_ref()
+        );
+        let doc = tdoc;
 
         // Unchanged: nothing is written again.
         let w = write(&doc, &state, &shared, "tester", &mut copied).unwrap();
