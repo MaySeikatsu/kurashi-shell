@@ -12,6 +12,7 @@
 "theme.export.unknown_target" = "不明なアプリ"
 "theme.export.no_template" = "このアプリのテンプレートがありません"
 "theme.export.write_failed" = "ファイルを書けませんでした"
+"theme.export.unfilled" = "書いていません：テンプレートにシェルにない値があります。前の正しいファイルを残します"
 "theme.export.no_gsettings" = "gsettings がないため、デスクトップの設定は書き込めませんでした"
 "theme.export.gsettings_failed" = "デスクトップの設定を書き込めませんでした（gsettings）"
 "theme.export.settings_help" = "ファイルではなく、デスクトップの設定を書き込みます。GNOME、GTK 4、libadwaita のアプリが読みます。現在の値と違うものだけを設定します。"
