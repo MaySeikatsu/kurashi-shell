@@ -24,8 +24,12 @@ import "../core"
 // `bandWeight` — the island's head, which stays registered with the bar it sits in (and, over a translucent strip whose
 // own relief shows through, is shaded about once, not twice).
 //
-// Shape: the sheet fills the item's own rounded rectangle (`radius`, antialiased), and, given a `mask` (a texture
-// provider over this item's rectangle: a ShaderEffectSource of a shape's fill), only where the mask's alpha is (I168).
+// Shape: the sheet fills the item's own rounded rectangle (`radius` or per corner, antialiased), and, given a `mask`, only
+// where the mask's alpha is: cover × mask.a (I168, generic). `mask` is any texture provider laid over exactly this item's
+// rectangle (qt_TexCoord0 samples it): a ShaderEffectSource of a shape's fill (the island: the MorphShape's `fillPath`
+// drawn in white, redrawn with scheduleUpdate() only when the path changes), or of an icon or glyph on a transparent face
+// (row 285: the relief then lies on the icon's own pixels and never halos its ground). Keep such a source `live: false`
+// and update it when its content changes (Ma), and park it outside the window or hide its source (`hideSource`).
 // Pictures never get the relief (I167): the ones registered with Light in this window are cut out (four at most), placed
 // once per frame the window draws anyway (afterAnimating), never on an idle window.
 // Tiles: the window's TileSheet, named as `tileSheet` on its layer window, so every Relief of a window samples one set of

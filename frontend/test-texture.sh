@@ -4,8 +4,11 @@
 # daemon's own tokens give the colour every plain pixel must have); the sheet is continuous across the bar and the island
 # card; text stays crisp unless asked, and shades when asked; the everything overlay lets clicks through and no shell
 # surface shades twice under it; the light moves the relief (four static angles, the pointer, daytime); no texture, no
-# relief. Shots go to frontend/shots/texture/shell/ and frontend/shots/look/kami{,-dark}/ (evidence to look at); the pixel
-# checks decide the exit code.
+# relief. K61 (wave 32): the relief fills the open island's whole shape (centre, corners, the neck's fillets: I168); the
+# formula with depth 2, relief shadows, lit 0.6, the spotlight at rest and a warm light is shade_at; the spotlight's beam
+# follows the pointer and glides back; a sidebar held mid-slide carries its material (`carried`) or not (`fixed`), and
+# at rest both are the continuous sheet. Shots go to frontend/shots/texture/shell/, frontend/shots/texture/w32/ and
+# frontend/shots/look/kami{,-dark}/ (evidence to look at); the pixel checks decide the exit code.
 #   nix develop -c frontend/test-texture.sh
 #   Machine B: export KURASHI_RENDER_NODE=/dev/dri/renderD129 first (the sandbox's gles2 renderer).
 # The tile is two files (contract rows 280-281): the opaque RGB normal map (`texture.map`) and, when the material prints
@@ -16,7 +19,8 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/texture/shell
 W32=$ROOT/frontend/shots/texture/w32
 TMP=${KEEP_TMP:-$(mktemp -d)}; mkdir -p "$TMP"
-trap '[ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"' EXIT
+PIDS=()
+trap '[ ${#PIDS[@]} -eq 0 ] || stop_session; [ -n "${KEEP_TMP:-}" ] || rm -rf "$TMP"' EXIT
 mkdir -p "$OUT"
 FAILS=0
 fail() { echo "test-texture: FAIL $*" >&2; FAILS=$((FAILS + 1)); }
@@ -539,6 +543,12 @@ while read -r name x0 y0 x1 y1 fx fy; do
   "${TEX[@]}" region "$TMP/normal-grid.png" "$TMP/tokens-grid.json" "$TMP/notex-island.png" "$OUT/grid-island.png" \
     "$name" "$x0" "$y0" "$x1" "$y1" $fx $fy || fail "island: the relief does not fill the shape at its $name"
 done < "$TMP/island-boxes.txt"
+# I172: the quick settings phone's screen is a material area too.
+ctl act ui.close
+sleep 1
+ctl act quick.toggle
+shot grid-phone 1.8
+cp "$OUT/grid-phone.png" "$W32/phone-frame.png"
 stop_session
 
 # ---- 2. text: untextured by default, shaded when asked (the glyph pixels of the reference, same layout) ----
@@ -589,6 +599,7 @@ say "light: the pointer"
 session pointer yes "$GRID" 'theme.light.mode = "pointer"'
 # One virtual pointer for the whole step, and it stays where it is put: a pointer that leaves glides the light back.
 PTR_FIFO=$TMP/pointer.fifo
+rm -f "$PTR_FIFO"
 mkfifo "$PTR_FIFO"
 python3 "$ROOT/tools/bench/wl_pointer.py" --serve < "$PTR_FIFO" >/dev/null 2>&1 &
 PTR_PID=$!
@@ -642,6 +653,7 @@ cp "$OUT/k61-rest.png" "$W32/spotlight-rest.png"
   || fail "k61: the bar's relief does not match shade_at"
 say "the spotlight: the beam follows the pointer and glides back to the middle"
 PTR_FIFO=$TMP/pointer-spot.fifo
+rm -f "$PTR_FIFO"
 mkfifo "$PTR_FIFO"
 python3 "$ROOT/tools/bench/wl_pointer.py" --serve < "$PTR_FIFO" >/dev/null 2>&1 &
 PTR_PID=$!
