@@ -59,6 +59,38 @@ come with the shape.
   shape narrows slightly as it lengthens fast and bulges back as it lands; the neck wobbles once.
 - `none` / reduce motion: cuts (no shape motion, content appears at once).
 
+## As built (W34, W36)
+- **One spring family.** Every shape that grows out of the bar — the Stage's panels and peeks, the launcher and the
+  notification centre (BarMorph), a toast's snap-back — runs on `components/island/MorphSprings.qml`: three axes in px
+  (the shape's centre along the bar, its width, its foot), each a damped spring from `motion.spring.spring/damping`
+  integrated as QML's SpringAnimation does; the travel and width lead on the way out, the foot on the way back (K42);
+  a new target keeps place and velocity (open, close, retarget); the overshoot is soft-limited to 3 % (calm) … 8 %
+  (lively) of the travel; `motion.spring.squash` (lively 0.06, else 0) narrows the shape while its foot moves fast and
+  lets it bulge as it lands, and the neck's fillets swell and thin once with the landing (`neckScale`). A small shape
+  (a peek) is stiffer (`stiffness`), same damping ratio. The sidebars keep their own two springs (width, height; the
+  free end cannot overshoot the screen's edge, so the rebound goes into the width) with the same constants and the same
+  lively squash; their origin is the sidebar button (`IslandGeom` registry, `sidebar:<side>`), see `sidebar.md`.
+- **Rest place.** A panel that grew out of a bar widget (quick settings and the phone, a tray menu, a mod's panel)
+  rests **under that widget**, centred on it and kept `space.pad` inside the output: the container transform — the
+  card is the button grown — and under keycap/soft chrome its neck stays on the widget's block instead of letting go
+  (before W36 the card rested centred and detached from its group mid-way). The island's views, the session menu (no
+  widget), the launcher and the centre rest centred under the pill. A widget not on this output: the old place.
+- **Toasts.** The drip keeps its designed timeline (grow out of the bar's edge, pull past the place, the thread
+  thins and snaps); from the snap on, the card's top and width are MorphSprings: it springs back up to its place and
+  from pulled-thin to its width (lively: past it into a bulge, the height following so the area stays), and the stub
+  and bump melt back. Without a top or bottom bar the card slides in 32 px from the screen's edge as it fades in
+  (`Theme.stdMs`), and leaves by the same flick and drift as on the bar (before W36 both were cuts).
+- **No wait before the first frame (I192).** The Stage makes its view asynchronously; the card takes the size that view
+  had the last time it was shown (per kind, a mod panel per name) until it is made, so the shape grows at once and the
+  view fades in when it is there. Only a view's very first open holds the growth (the shape stays at its origin) until
+  the view is made; a retarget to a view not made yet keeps the present card's size meanwhile. Quick settings: patch →
+  first Stage commit 102 → 12 ms (W36, machine A, load ~8).
+- **Polkit (I128).** While a polkit dialog is up (`runtime.ui.polkit`) the Stage steps aside: no panel or peek opens,
+  no keyboard focus; an open panel folds away and is closed at the daemon (`ui.close` keeps the polkit flag), so it does
+  not come back when the dialog goes; a panel asked for meanwhile is closed the same way.
+- **Known:** the first spring step lands ~3 frames (≈ 40 ms) after the shape's first frame on every surface — Qt's
+  animation timer starting, not the springs (the pre-W36 SpringAnimation shows the same).
+
 ## States
 Opening, open, retargeting, closing, closed; interrupted (close during open continues from the current value and
 velocity); a surface whose origin is gone (the widget hidden on this output) grows from the bar's centre; multi-output:

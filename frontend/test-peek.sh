@@ -286,7 +286,12 @@ phase_mock_one() {
   K act mock.island '{"detail":{"clock":"14:00 Standup"}}' >/dev/null
   sleep 1
   grab base-m1 HEADLESS-1
-  move 2482 17; sleep 0.9
+  # The tray icon is found, not assumed (W36: a fixed x landed on the sidebar button once that moved in beside it).
+  TRAY_X=$(scan x 17 2200 2550 8 "tray::1.42/StatusNotifierItem")
+  [ "$TRAY_X" -ge 0 ] || TRAY_X=2482
+  echo "tray icon at x=$TRAY_X"
+  move 1280 600; sleep 0.9
+  move "$TRAY_X" 17; sleep 0.9
   check "$([ "$(peek_src)" = "tray::1.42/StatusNotifierItem" ] && echo 1 || echo 0)" "the tray item asks for its tooltip peek"
   shot tray-tooltip HEADLESS-1
   check "$(drawn "$W/tray-tooltip.ppm" "$W/base-m1.ppm" 2380 40 2560 200)" "the tooltip's frame is drawn at the right edge (clamped inside the output)"
@@ -627,7 +632,7 @@ phase_two_outputs() {
   move 1280 600; sleep 1
   grab base-o1 HEADLESS-1
   grab base-o2 HEADLESS-2
-  move "$((X2 + 2482))" 17; sleep 0.9
+  move "$((X2 + ${TRAY_X:-2482}))" 17; sleep 0.9
   check "$([ "$(peek_out)" = "HEADLESS-2" ] && echo 1 || echo 0)" "the tray peek is asked on HEADLESS-2"
   shot tray-tooltip-output2 HEADLESS-2
   check "$(drawn "$W/tray-tooltip-output2.ppm" "$W/base-o2.ppm" 2380 40 2560 200)" "the peek is drawn on HEADLESS-2"
