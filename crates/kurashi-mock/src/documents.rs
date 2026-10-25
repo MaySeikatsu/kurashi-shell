@@ -436,6 +436,38 @@ pub fn power(profile: &str) -> Value {
     json!({"available": true, "present": false, "on_battery": false, "profile": profile, "profiles": PROFILES})
 }
 
+/// `svc.keys` (K64, W38-keys) for `config`'s `keys.*` values, judged by kurashid's own `evaluate` and `binds_json`, so the
+/// rows are the daemon's. The mock writes no file: it shows niri's document with writing on (`written`, the include line
+/// not in the config yet, so Settings shows the line to add) or off (`off`).
+pub fn keys(config: &Value) -> Value {
+    let value = |key: &str| config["values"][key]["value"].clone();
+    let write = value("keys.write") == json!(true);
+    let values: Vec<(&'static str, String)> = kurashid::keys::BINDS
+        .iter()
+        .map(|b| {
+            let combo = value(&format!("keys.{}", b.field));
+            (b.field, combo.as_str().unwrap_or("").to_owned())
+        })
+        .collect();
+    let entries = kurashid::keys::evaluate(&values);
+    let mut doc = json!({
+        "write": write,
+        "compositor": "niri",
+        "state": if write { "written" } else { "off" },
+        "file": "~/.config/niri/kurashi-binds.kdl",
+        "include": {
+            "file": "~/.config/niri/config.kdl",
+            "line": kurashid::keys::NIRI_INCLUDE,
+            "present": false,
+        },
+        "binds": kurashid::keys::binds_json(&entries),
+    });
+    if write {
+        doc["changed"] = json!(true);
+    }
+    doc
+}
+
 /// `svc.audio.spectrum` (K48): the 16 levels a playing track gives, as kurashid's cava reader publishes them (0..1, in
 /// hundredths). Still: the mock's track does not make sound, so its levels do not move.
 pub fn spectrum() -> Value {
@@ -702,6 +734,27 @@ pub const APPS: &[(&str, &str, &str, &str)] = &[
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn keys_document_judges_the_config_as_kurashid_does() {
+        let mut config = config(kurashi_schema::v1::registry());
+        // Off: the rows still say what each combo is; nothing is written.
+        let off = keys(&config);
+        assert_eq!(off["state"], "off");
+        assert_eq!(off["binds"][0]["key"], "keys.launcher");
+        assert_eq!(off["binds"][0]["combo"], "Mod+Space");
+        assert_eq!(off["binds"][0]["state"], "ok");
+        // On, with the quick settings on the launcher's combo: the first is written, the other row names it.
+        config["values"]["keys.write"]["value"] = json!(true);
+        config["values"]["keys.quick"]["value"] = json!("Mod+Space");
+        let on = keys(&config);
+        assert_eq!(on["state"], "written");
+        assert_eq!(on["include"]["present"], false);
+        assert_eq!(on["binds"][0]["state"], "ok");
+        assert_eq!(on["binds"][4]["key"], "keys.quick");
+        assert_eq!(on["binds"][4]["state"], "conflict");
+        assert_eq!(on["binds"][4]["reason"], "keys.conflict.taken");
+    }
 
     #[test]
     fn fixed_now_is_the_pinned_date_at_the_given_time() {
