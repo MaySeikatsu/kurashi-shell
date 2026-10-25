@@ -294,13 +294,24 @@ async fn power_waits_for_upower_on_name_owner_changed_without_retrying() {
         kurashi_services::power::start,
     ));
     let hub = Hub::new();
-    hub.register("svc.power", json!({"available": false}), Some(provider.clone()));
+    hub.register(
+        "svc.power",
+        json!({"available": false}),
+        Some(provider.clone()),
+    );
     let doc = |hub: &Hub| hub.snapshot("svc.power").unwrap().1;
 
     hub.subscribe("svc.power").unwrap();
-    until("the service to run", UNTIL, || provider.commands().is_some()).await;
+    until("the service to run", UNTIL, || {
+        provider.commands().is_some()
+    })
+    .await;
     tokio::time::sleep(PAST_BACKOFF).await;
-    assert_eq!(attempts.load(Ordering::SeqCst), 1, "no retry while UPower is absent");
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "no retry while UPower is absent"
+    );
     assert_eq!(doc(&hub)["available"], false);
 
     let upower = zbus::connection::Builder::address(scratch.addr().as_str())
@@ -322,10 +333,17 @@ async fn power_waits_for_upower_on_name_owner_changed_without_retrying() {
     })
     .await;
     assert_eq!(doc(&hub)["on_battery"], true);
-    assert_eq!(attempts.load(Ordering::SeqCst), 1, "read on appearance, not restarted");
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "read on appearance, not restarted"
+    );
 
     drop(upower);
-    until("the battery to go", RECOVERY, || doc(&hub)["available"] == false).await;
+    until("the battery to go", RECOVERY, || {
+        doc(&hub)["available"] == false
+    })
+    .await;
     assert_eq!(attempts.load(Ordering::SeqCst), 1);
     hub.unsubscribe("svc.power");
 }
@@ -343,12 +361,23 @@ async fn bluetooth_without_bluez_starts_once_and_follows_the_name() {
         kurashi_services::bluetooth::start,
     ));
     let hub = Hub::new();
-    hub.register("svc.bluetooth", json!({"available": false}), Some(provider.clone()));
+    hub.register(
+        "svc.bluetooth",
+        json!({"available": false}),
+        Some(provider.clone()),
+    );
 
     hub.subscribe("svc.bluetooth").unwrap();
-    until("the service to run", UNTIL, || provider.commands().is_some()).await;
+    until("the service to run", UNTIL, || {
+        provider.commands().is_some()
+    })
+    .await;
     tokio::time::sleep(PAST_BACKOFF).await;
-    assert_eq!(attempts.load(Ordering::SeqCst), 1, "no retry while BlueZ is absent");
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "no retry while BlueZ is absent"
+    );
 
     let bluez = zbus::connection::Builder::address(scratch.addr().as_str())
         .unwrap()
@@ -360,7 +389,11 @@ async fn bluetooth_without_bluez_starts_once_and_follows_the_name() {
     tokio::time::sleep(Duration::from_millis(500)).await;
     drop(bluez);
     tokio::time::sleep(Duration::from_millis(500)).await;
-    assert_eq!(attempts.load(Ordering::SeqCst), 1, "the name is followed, not restarted");
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "the name is followed, not restarted"
+    );
     assert!(provider.commands().is_some(), "the service still runs");
     hub.unsubscribe("svc.bluetooth");
 }
