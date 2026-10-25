@@ -262,3 +262,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W42.1 | Island faces follow-ups: dropped card closes, fallback face, profiles keep user values (card `W42-faces2`; K68; I212) | ✅ functional · UX 🟡 (Settings states partly shot, I215) | merged |
 | W42.2 | The last straight-down shadows: phone frame, web host key and card, Settings button; inert reason per chrome (card `W42-shadows3` + lead; K67; I206, I210) | ✅ functional · UX ✅ (shots in `frontend/shots/shadows/w42-*`) | merged |
 | W42.3 | The bare shell under 150 MiB: two jemalloc arenas, image plugins filtered (card `W42-memory`; K70; I194) | ✅ PSS @1 110.4/107.1 (pairs −16) · popup/launcher unchanged · idle 0 | merged |
+| W42.4 | A lighter QuickTile (one hit area, lazy chevron/rings), lazy snes frame, tile bench (card `W42-tiles`; I211) | ✅ identity 0 strong px · snes −35 %/Block · washi card 21 ms (≤ 18 ✗, I218) | merged |

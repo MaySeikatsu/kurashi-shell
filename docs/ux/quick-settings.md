@@ -38,7 +38,7 @@ the ◐ bar button or a key (`quick.toggle`, suggested `Super+S`).
 
 ## Design
 - Card 400 px. Rows: status sentence → tile grid (2 columns, 56 px tiles: glyph, label, subtitle = value in effect,
-  arrow zone on the right for drill-down) → sliders (output volume with device chip, brightness) → media mini row
+  arrow zone on the right for drill-down; a tile without a page toggles across its whole face, row 478) → sliders (output volume with device chip, brightness) → media mini row
   (if playing) → footer.
 - Drill-down: the card content slides to the page (`motion.emphasized`), header "← Wi-Fi" with Back; Escape goes
   back, then closes. Lists build (and scan) only while their page is shown.
