@@ -22,6 +22,10 @@ import "../pen.js" as Pen
 // `Theme.outlineW` in `Theme.outlineColor` (flat: a 1 px `Theme.outline` hairline), the ring `Theme.ringW` x `ringScale`,
 // the hard shadow `Theme.shadowDy`. A soft shadow is the Stage's (RectangularShadows under head and body). A path is
 // rebuilt only when a number changes: nothing runs while it stands (Ma).
+// W34 additions (all optional, defaults keep the above; see the properties): `headless` (grow out of the bar from under a
+// widget that stays drawn — hanging from a strip's edge, or budding from a block by a neck that can let go: `neckCx`,
+// `attach`), `neckScale` (the landing wobble), `headFill` (I160), `fade` (I161), `barCx` (an item not centred on its bar).
+// Its springs live in MorphSprings (same folder), which a surface can reuse with it.
 Shape {
     id: sh
     property real x0: 0
@@ -43,13 +47,33 @@ Shape {
     property real hh: 0
     property real hr: 0
     property real neckF: 0
+    // W34 (docs/ux/motion.md) — all optional; the defaults draw exactly what the island drew before:
+    // `headless`: no head — the shape grows out of the bar from under a widget that stays drawn. On a strip it hangs from
+    //   the strip's edge (`edgeY`) by its neck fillets, its outline one open U band from one fillet's tip to the other's
+    //   (as `hangs`, on any strip, with no rule copy and no opening of the bar's rule). Joined, `edgeY` is the foot of the
+    //   widget's block (its face's bottom): a neck centred on `neckCx`, `attach` (0..1) of its full width, with concave
+    //   fillets of `neckF` at both ends, joins the body below to the block, the outline open where it meets it and the
+    //   fill reaching `ow` px up over the block's own outline there; `attach` 0 leaves the body free (it has travelled
+    //   away from the widget).
+    // `neckScale`: the neck's fillets scaled (the landing wobble, MorphSprings.neckScale).
+    // `headFill`: the fill above `edgeY` on a strip with a head (I160: a translucent head over the bar's translucent strip
+    //   is drawn lighter, so the two make one layer); the default is `fill`, one fill.
+    // `fade`: the shape's opacity without the bar's rule copy (I161: a view with its own chrome takes over while the rule
+    //   must stay whole under the box the bar has opened).
+    property bool headless: false
+    property real neckCx: x0 + w / 2
+    property real attach: 1
+    property real neckScale: 1
+    property color headFill: fill
+    property real fade: 1
 
     readonly property real x1: x0 + w
     readonly property real y1: y0 + h
     // The neck forms once the bottom has room below the bar's edge for the fillet and the bottom corners.
     readonly property real rb: Math.max(0, Math.min(rBot, w / 2, h / 2))
     readonly property real rt: Math.max(0, Math.min(rTop, w / 2, h / 2, Math.max(0, edgeY - y0)))
-    readonly property real n: Math.max(0, Math.min(neck, y1 - edgeY - rb, (y1 - edgeY) / 2))
+    readonly property real n: Math.max(0, Math.min(neck * neckScale, y1 - edgeY - rb, (y1 - edgeY) / 2))
+    function fa(c, a) { return Qt.rgba(c.r, c.g, c.b, c.a * a) }
     readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
     readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
     readonly property real gw: Theme.ringW * ringScale
@@ -63,6 +87,14 @@ Shape {
         return "M " + f(X0 + r) + " " + f(Y0) + " L " + f(X1 - r) + " " + f(Y0) + arc(r, 1, X1, Y0 + r)
             + " L " + f(X1) + " " + f(Y1 - r) + arc(r, 1, X1 - r, Y1) + " L " + f(X0 + r) + " " + f(Y1) + arc(r, 1, X0, Y1 - r)
             + " L " + f(X0) + " " + f(Y0 + r) + arc(r, 1, X0 + r, Y0) + " Z"
+    }
+    // A rect with its own top and bottom corner radii.
+    function rrect2(X0, Y0, X1, Y1, t, b) {
+        if (X1 - X0 < 1 || Y1 - Y0 < 1) return ""
+        t = Math.min(t, (X1 - X0) / 2, (Y1 - Y0) / 2); b = Math.min(b, (X1 - X0) / 2, (Y1 - Y0) / 2)
+        return "M " + f(X0 + t) + " " + f(Y0) + " L " + f(X1 - t) + " " + f(Y0) + arc(t, 1, X1, Y0 + t)
+            + " L " + f(X1) + " " + f(Y1 - b) + arc(b, 1, X1 - b, Y1) + " L " + f(X0 + b) + " " + f(Y1) + arc(b, 1, X0, Y1 - b)
+            + " L " + f(X0) + " " + f(Y0 + t) + arc(t, 1, X0 + t, Y0) + " Z"
     }
     // The strip topology's outline inset by `d` (the sides and the free edges move in; the fillets keep their radius, so
     // the rings thin out towards the bar's edge and melt into it). `neckOn` false: the plain body (the shadow).
@@ -120,8 +152,9 @@ Shape {
     // the bar leaves its rule out under the shape's box (rulePath, IslandGeom.setOpening), so a translucent fill never
     // shows the rule through it and the card's side and the rule meet as one line in every frame, morphing or not.
     readonly property bool ruled: Theme.outlineW > 0
-    readonly property bool hangs: !joined && ruled && y1 - edgeY > rb + 1
-    readonly property real opened: hangs ? Math.max(0, Math.min(1, (y1 - edgeY - rb) / Math.max(1, edgeY))) : 0
+    // A headless shape on a strip hangs from the strip's edge on any strip (W34), always open.
+    readonly property bool hangs: !joined && (headless ? y1 - edgeY > 0.5 : ruled && y1 - edgeY > rb + 1)
+    readonly property real opened: hangs ? (headless ? 1 : Math.max(0, Math.min(1, (y1 - edgeY - rb) / Math.max(1, edgeY)))) : 0
     // Test only (KURASHI_ISLAND_DEBUG=1, frontend/test-island-join.sh): every change of `opened` with the card's foot, so
     // the pixel check can tell which grabbed frames caught the card mid-morph.
     readonly property bool debugLog: Quickshell.env("KURASHI_ISLAND_DEBUG") === "1"
@@ -160,12 +193,62 @@ Shape {
         s += " L " + f(x0 - n) + " " + f(R) + " L " + f(H0) + " " + f(R) + " L " + f(H0) + " " + f(Y0 + t) + arc(t, 1, H0 + t, Y0)
         return s + " Z"
     }
+    // W34, headless on a strip: the fill is the card and its fillets, and the rule's band between the fillets' tips (the
+    // card is open to the bar there; the bar's own rule and strip go on outside the tips).
+    function hangFill(d, dy) {
+        if (x1 - x0 - 2 * d < 1) return ""
+        var E = edgeY + dy, dd = Math.min(d, ow)
+        return "M " + f(x0 - n) + " " + f(E - ow) + " L " + f(x1 + n) + " " + f(E - ow) + " L " + f(x1 + n) + " " + f(E - dd)
+            + hangContour(d, dy, false) + " Z"
+    }
+    // W34, headless and joined: the neck's half width, centre and fillets (0 half width: no neck, the body is free).
+    readonly property real budGap: y0 - edgeY
+    readonly property real budFl: Math.max(0, Math.min(neckF * neckScale, budGap / 2))
+    // The neck takes what the body's width leaves it (a body as narrow as the widget hangs from the block by its whole
+    // top); the body's top corners round only where the neck leaves room.
+    readonly property real budHalf: Math.min(neckCx - x0, x1 - neckCx)
+    readonly property real budHn: {
+        if (budGap < -0.5 || h < 2 || attach <= 0.01) return 0
+        return Math.max(0, Math.min(Math.max(10, neckF * 1.5) * Math.min(1, attach), budHalf - budFl - 1))
+    }
+    readonly property real budBt: Math.max(0, Math.min(rTop, w / 2, h / 2, budHalf - budHn - budFl))
+    // The bud's contour inset by `d` from the right tip of the neck's top fillet (neckCx + hn + fl, edgeY − min(d, ow)),
+    // down the neck, round the body and up to the left tip; the fillets are concentric with the outside ones.
+    function budContour(d, dy) {
+        var dd = Math.min(d, ow), E = edgeY + dy, fl = budFl, fb = budFl, hn = budHn, cx = neckCx
+        var BX0 = x0 + d, BX1 = x1 - d, BY0 = y0 + d + dy, BY1 = y1 - d + dy
+        var bt = Math.max(0, budBt - d), bb = Math.max(0, Math.min(rBot - d, (BX1 - BX0) / 2, (BY1 - BY0) / 2))
+        var yB = y0 + dy - fb, yN = Math.min(E + fl + (d - dd), yB)
+        var s = arc(fl + dd, 0, cx + hn - dd, E + fl) + " L " + f(cx + hn - d) + " " + f(yN)
+        s += " L " + f(cx + hn - d) + " " + f(yB) + arc(fb + d, 0, cx + hn + fb, BY0)
+        s += " L " + f(BX1 - bt) + " " + f(BY0) + arc(bt, 1, BX1, BY0 + bt)
+        s += " L " + f(BX1) + " " + f(BY1 - bb) + arc(bb, 1, BX1 - bb, BY1)
+        s += " L " + f(BX0 + bb) + " " + f(BY1) + arc(bb, 1, BX0, BY1 - bb)
+        s += " L " + f(BX0) + " " + f(BY0 + bt) + arc(bt, 1, BX0 + bt, BY0)
+        s += " L " + f(cx - hn - fb) + " " + f(BY0) + arc(fb + d, 0, cx - hn + d, yB)
+        s += " L " + f(cx - hn + d) + " " + f(yN) + " L " + f(cx - hn + dd) + " " + f(E + fl)
+        s += arc(fl + dd, 0, cx - hn - fl, E - dd)
+        return s
+    }
+    // The bud closed: along the block's foot (`top` = edgeY + dy, the band's), or `ow` up into the block (the fill's).
+    function budPath(d, dy, top) {
+        var BX0 = x0 + d, BX1 = x1 - d, BY0 = y0 + d + dy, BY1 = y1 - d + dy
+        if (BX1 - BX0 < 1 || BY1 - BY0 < 1) return ""
+        if (budHn <= 0) return rrect(BX0, BY0, BX1, BY1, Math.max(0, Math.min(rTop, rBot) - d))
+        // A neck thinner than this inset has no inside: the inset is the body's alone (a thin neck is all outline).
+        if (budHn - d < 0.5) return rrect2(BX0, BY0, BX1, BY1, Math.max(0, budBt - d),
+            Math.max(0, Math.min(rBot - d, (BX1 - BX0) / 2, (BY1 - BY0) / 2)))
+        var dd = Math.min(d, ow), E = edgeY + dy, tl = neckCx - budHn - budFl, tr = neckCx + budHn + budFl
+        return "M " + f(tr) + " " + f(E - dd) + budContour(d, dy) + " L " + f(tl) + " " + f(top) + " L " + f(tr) + " " + f(top) + " Z"
+    }
     function path(d, dy) {
-        if (joined) return joinedPath(d, dy)
+        if (joined) return headless ? budPath(d, dy, edgeY + dy - ow) : joinedPath(d, dy)
+        if (headless) return hangs ? hangFill(d, dy) : ""
         return hangs ? openPath(d, dy) : stripPath(d, true, dy)
     }
     // A band between the insets a and b (the outline: 0 … ow; the ring: ow … ow + gw), for odd-even filling.
     function band(a, b) {
+        if (joined && headless) return budHn > 0 ? budPath(a, 0, edgeY) + " " + budPath(b, 0, edgeY) : path(a, 0) + " " + path(b, 0)
         if (!hangs || opened < 1) return path(a, 0) + " " + path(b, 0)
         if (x1 - x0 - 2 * b < 1) return ""
         return "M " + f(x1 + n) + " " + f(edgeY - Math.min(a, ow)) + hangContour(a, 0, false)
@@ -179,7 +262,7 @@ Shape {
     // tops (1 px into the fillet's band, so the two never leave a seam), never under the card. The bar opens its rule
     // under the box (2 px inside its edges, an overlap), which stands still while the box does: it changes only when the
     // shape comes out or goes (IslandGeom.takenOn) or the box is resized, never while the card morphs.
-    readonly property bool ruledStrip: !joined && ruled
+    readonly property bool ruledStrip: !joined && ruled && !headless
     function ruleRect(a, b) {
         var R = edgeY - ow
         return b - a < 0.5 ? "" : " M " + f(a) + " " + f(R) + " L " + f(b) + " " + f(R) + " L " + f(b) + " " + f(edgeY) + " L " + f(a) + " " + f(edgeY) + " Z"
@@ -188,10 +271,12 @@ Shape {
         if (!ruledStrip) return ""
         return hangs ? ruleRect(0, x0 - n + 1) + ruleRect(x1 + n - 1, width) : ruleRect(0, width)
     }
-    // Where the bar's rule opens under the shape, from the shape's centre (the Stage is centred on its bar); 0, 0 while
-    // the shape is not out on a ruled strip. Reported only on a change.
-    readonly property real openL: ruledStrip && visible && width > 8 ? -Math.floor(width / 2) + 2 : 0
-    readonly property real openR: ruledStrip && visible && width > 8 ? Math.floor(width / 2) - 2 : 0
+    // Where the bar's rule opens under the shape, from the bar's centre (`barCx`, in this item's px: its centre unless
+    // the owner places the item off the bar's centre, W34); 0, 0 while the shape is not out on a ruled strip. Reported
+    // only on a change.
+    property real barCx: width / 2
+    readonly property real openL: ruledStrip && visible && width > 8 ? -Math.floor(barCx) + 2 : 0
+    readonly property real openR: ruledStrip && visible && width > 8 ? Math.floor(width - barCx) - 2 : 0
     onOpenLChanged: IslandGeom.setOpening(openL, openR)
     onOpenRChanged: IslandGeom.setOpening(openL, openR)
     Component.onDestruction: IslandGeom.setOpening(0, 0)
@@ -214,8 +299,13 @@ Shape {
             for (var i = 0; i < subs.length; i++)
                 out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
         }
-        if (joined) {
+        if (joined && headless) {
+            if (budHn > 0) add("M " + f(neckCx + budHn + budFl) + " " + f(edgeY - c) + budContour(c, 0), ow, false)
+            else add(budPath(c, 0, 0), ow)
+        } else if (joined) {
             add(joinedPath(c, 0), ow)
+        } else if (headless) {
+            if (hangs) add("M " + f(x1 + n) + " " + f(edgeY - c) + hangContour(c, 0, false), ow, false)
         } else if (!hangs) {
             add(stripPath(c, true, 0), ow)
             if (ruledStrip) add("M 0 " + f(edgeY - c) + " L " + f(width) + " " + f(edgeY - c), ow, false)
@@ -234,6 +324,7 @@ Shape {
     Loader {
         anchors.fill: parent
         active: sh.penOn && sh.visible
+        opacity: sh.fade
         sourceComponent: PenOutline {
             color: sh.oc
             lineWidth: sh.ow
@@ -241,13 +332,52 @@ Shape {
             paths: sh.penPaths()
         }
     }
+    // I160: on a strip with a head, the fill above the bar's edge in `headFill` and below it in `fill`, each cut by a
+    // scissor at the edge (the edge is the bar's own, so the seam is the bar's).
+    readonly property bool splitFill: !joined && !headless && !Qt.colorEqual(headFill, fill)
+    Item {
+        visible: sh.splitFill && sh.visible
+        width: sh.width
+        height: Math.max(0, sh.edgeY)
+        clip: true
+        Shape {
+            width: sh.width
+            height: sh.height
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                fillColor: sh.fa(sh.headFill, sh.fade)
+                PathSvg { path: sh.splitFill ? sh.fillPath : "" }
+            }
+        }
+    }
+    Item {
+        visible: sh.splitFill && sh.visible
+        y: Math.max(0, sh.edgeY)
+        width: sh.width
+        height: Math.max(0, sh.height - y)
+        clip: true
+        Shape {
+            y: -parent.y
+            width: sh.width
+            height: sh.height
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                fillColor: sh.fa(sh.fill, sh.fade)
+                PathSvg { path: sh.splitFill ? sh.fillPath : "" }
+            }
+        }
+    }
 
     preferredRendererType: Shape.CurveRenderer
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
-        fillColor: Theme.shadowDy > 0 ? Theme.line : "transparent"
-        PathSvg { path: sh.visible && Theme.shadowDy > 0 ? (sh.joined ? sh.joinedPath(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
+        fillColor: Theme.shadowDy > 0 ? sh.fa(Theme.line, sh.fade) : "transparent"
+        PathSvg { path: sh.visible && Theme.shadowDy > 0 ? (sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
     }
     // The bar's rule, drawn by the shape (a ruled strip only; see rulePath), under the outline and the fill.
     ShapePath {
@@ -260,20 +390,20 @@ Shape {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.penOn ? "transparent" : sh.oc
+        fillColor: sh.penOn ? "transparent" : sh.fa(sh.oc, sh.fade)
         PathSvg { path: sh.visible && !sh.penOn ? sh.band(0, sh.ow) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
-        fillColor: sh.gw > 0 ? Theme.ring : "transparent"
+        fillColor: sh.gw > 0 ? sh.fa(Theme.ring, sh.fade) : "transparent"
         PathSvg { path: sh.visible && sh.gw > 0 ? sh.band(sh.ow, sh.ow + sh.gw) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
-        fillColor: sh.fill
-        PathSvg { path: sh.fillPath }
+        fillColor: sh.splitFill ? "transparent" : sh.fa(sh.fill, sh.fade)
+        PathSvg { path: sh.splitFill ? "" : sh.fillPath }
     }
 }
