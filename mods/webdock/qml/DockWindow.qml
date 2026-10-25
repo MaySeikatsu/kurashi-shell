@@ -33,6 +33,9 @@ PanelWindow {
     readonly property bool open: mode !== "hidden" && mine
     readonly property bool extended: open && mode === "extended"
     readonly property bool reduced: Theme.tok("motion.profile", "calm") === "none"
+    // Reduced motion fades (docs/ux/webdock.md "Motion": fade only), over a fixed short time: `motion.quick_ms` is 0
+    // under profile none, and a zero-length fade is a cut (I99).
+    readonly property int fadeMs: 120
     readonly property var geo: d.geometry || ({})
     readonly property int stripPx: geo.strip || 56
     readonly property int grace: geo.grace !== undefined ? geo.grace : 24
@@ -40,6 +43,8 @@ PanelWindow {
     readonly property int largePct: geo.large || 90
     readonly property bool large: d.size === "large"
     readonly property bool pinned: d.pinned === true
+    // I91: the settings the configuration forces, each with its source (`forced` on mod.webdock; absent when none is).
+    readonly property var forced: d.forced || ({})
     readonly property bool reserve: d.reserve === true
     readonly property bool wantFocus: d.engaged === true && open
 
@@ -103,16 +108,28 @@ PanelWindow {
     // The content held while a panel slides out (it stays until the slide ends, then unloads: Ma).
     property string held: ""
     onKindNowChanged: if (kindNow !== "") held = kindNow
-    onOpenChanged: if (!open) side = ""
+    onOpenChanged: { if (!open) side = ""; else pulseSpent = false }
     readonly property string kind: open ? kindNow : held
 
     // ---- geometry: WebCard's sizes (phone, large) and the strip's centred span, in the window's usable height ----
     readonly property real gap: Theme.gap
-    readonly property real cardW: large ? Math.round(outW * largePct / 100) : phoneW
-    // A side edge is limited by the window's own length; a top or bottom edge by the output's height (WebCard's rule).
+    // A reserved strip (`reserve` with a pinned strip) needs the zone's own anchors (layer shell ignores the zone with
+    // both ends anchored), so there the output's height stands in for a top or bottom edge, as before.
+    readonly property bool spans: !sideways && surfaceUp && !(reserve && pinned)
+    readonly property real spanH: spans ? height : outH
+    // The card's length along a top or bottom edge is the usable width (`along`), as a side edge's is the usable height.
+    readonly property real cardW: large ? Math.round((sideways ? outW : along) * largePct / 100) : phoneW
+    // A side edge is limited by the window's own length; a top or bottom edge by the usable height it spans, less the
+    // strip (the card stands beyond it, across the edge) and a gap at the far end, as WebCard leaves (I100).
     readonly property real cardH: sideways
         ? (large ? Math.round(along - 2 * gap) : Math.min(2 * phoneW, Math.round(along - 2 * gap)))
-        : (large ? Math.round(outH - 2 * gap) : Math.min(2 * phoneW, Math.round(outH - 2 * gap)))
+        : (large ? Math.round(spanH - stripPx - 2 * gap) : Math.min(2 * phoneW, Math.round(spanH - stripPx - 2 * gap)))
+    // Test-only (KURASHI_WEBDOCK_DEBUG=1, test-dock.sh): the card's height and the window's, to check it fills the area.
+    readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
+    function logGeometry() { if (debugLog) console.log("webdock-debug dock", edge, cardH, Math.round(height)) }
+    onCardHChanged: logGeometry()
+    onHeightChanged: logGeometry()
+    onEdgeChanged: logGeometry()
     readonly property real sideSize: 300
     readonly property bool kindSide: kind.indexOf("side") === 0
     // A panel across its edge (its thickness) and along it.
@@ -126,7 +143,7 @@ PanelWindow {
     // The strip and the card slide in and out: the strip 180 ms, the card 40 ms later (Theme standard); reduced motion
     // (profile none) fades instead of sliding. The window keeps its size until both have finished.
     property real reveal: open ? 1 : 0
-    Behavior on reveal { NumberAnimation { duration: dock.reduced ? Theme.quickMs : 180; easing.type: Easing.OutCubic } }
+    Behavior on reveal { NumberAnimation { duration: dock.reduced ? dock.fadeMs : 180; easing.type: Easing.OutCubic } }
     // The card rises on a spring (K42: the theme's overshoot) and leaves without one.
     property real cardReveal: panelUp ? 1 : 0
     readonly property bool springs: !reduced && Theme.springOn
@@ -134,7 +151,7 @@ PanelWindow {
         SequentialAnimation {
             PauseAnimation { duration: dock.reduced ? 0 : 40 }
             NumberAnimation {
-                duration: dock.reduced ? Theme.quickMs : (dock.panelUp && dock.springs ? 240 : 180)
+                duration: dock.reduced ? dock.fadeMs : (dock.panelUp && dock.springs ? 240 : 180)
                 easing.type: dock.panelUp && dock.springs ? Easing.OutBack : Easing.OutCubic
                 easing.overshoot: Theme.overshoot
             }
@@ -149,9 +166,14 @@ PanelWindow {
 
     // ---- the window ----
     implicitWidth: sideways ? thick : 0
-    implicitHeight: sideways ? 0 : thick
-    anchors.top: edge !== "bottom"
-    anchors.bottom: edge !== "top"
+    // Spanned, the compositor sets the height between the bars and ignores this request; a constant here keeps the
+    // window's height out of its own card's size (a binding loop otherwise, I100).
+    implicitHeight: sideways ? 0 : (spans ? outH : thick)
+    // A top or bottom edge spans the usable height while it is up (`spans`): anchored to both ends, the compositor
+    // stretches the window between the bars, as a side edge's window is stretched along its length, so the card keeps a
+    // bar on its axis clear (I100). Idle it is thin again (4 px), as it always was.
+    anchors.top: edge !== "bottom" || spans
+    anchors.bottom: edge !== "top" || spans
     anchors.left: edge !== "right"
     anchors.right: edge !== "left"
     color: "transparent"
@@ -160,7 +182,7 @@ PanelWindow {
     exclusiveZone: reserve && pinned && open ? stripPx : 0
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "kurashi-webdock-shell"
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: !open ? WlrKeyboardFocus.None : (asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand)
     mask: open ? activeRegion : emptyRegion
 
     Region { id: emptyRegion }
@@ -198,10 +220,31 @@ PanelWindow {
         if (panelUp && panelLoader.item) panelLoader.item.forceActiveFocus()
         else stripItem.focusFirst()
     }
+    // I98: a keybind reveal (`engaged`, with the mode) asks for the keyboard exclusively until the compositor has given the
+    // window the focus, then relaxes to on-demand, so a click elsewhere still moves the focus. An on-demand surface takes
+    // the focus only on a click, so the first keys after the reveal went to the window that had it. A pulse nobody answers
+    // is dropped after a second; it is spent once the window has been active in this reveal, so a click elsewhere is never
+    // taken back. The host card runs the same rule for a web pin (WebCard) while it is the front part.
+    property bool winActive: false
+    property bool pulseSpent: false
+    readonly property bool hostFront: extended && shownPin !== null && shownPin.kind === "web" && hostState === "ready"
+    readonly property bool asksKeys: open && wantFocus && !winActive && !pulseSpent && !hostFront
+    onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
+    Timer { id: pulseTimer; interval: 1000; onTriggered: dock.pulseSpent = true }
 
     FocusScope {
         id: scope
         anchors.fill: parent
+
+        // The window's keyboard focus as the compositor gives it (`Window.active`): the front part takes it at once, so a
+        // key that follows the grant does not wait for the next turn of the event loop (I98).
+        Item {
+            Window.onActiveChanged: {
+                dock.winActive = Window.active
+                if (Window.active) dock.pulseSpent = true
+                if (Window.active && dock.wantFocus) dock.focusFront()
+            }
+        }
 
         // The strip: slides in from the edge (reduced motion: fades). Its panel is the bar's surface, rounded.
         Box {
@@ -233,7 +276,8 @@ PanelWindow {
                 rows: dock.rowList
                 shownId: dock.shownId
                 pinned: dock.pinned
-                pinForced: false
+                pinForced: forced.pinned !== undefined && forced.pinned !== null
+                pinForcedBy: String(forced.pinned || "")
                 panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
                 onPinMenu: id => { dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }

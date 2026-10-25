@@ -500,6 +500,34 @@ cp "$R/sway.conf.base" "$R/sway.conf"
 swaymsg reload >/dev/null || fail "sway did not reload without the top bar"
 sleep 1
 ok "top bar: the card is centred in the usable area below it (phone), and large fills it"
+
+# I100: a top or bottom edge keeps a bar on its axis clear. Under a bar the window spans the usable area between the bar
+# and the far side, less the strip (1440 - 30 - 56 = 1354 here), and a large card fills it a gap short at each end; on the
+# bottom edge the card stands against the strip. The sway config gets the bar, and the base config goes back after.
+for case in bottom:top top:bottom; do
+  edge=${case%%:*}
+  bar=${case#*:}
+  cp "$R/sway.conf.base" "$R/sway.conf"
+  printf 'bar {\n  position %s\n  height 30\n  colors {\n    background #101014\n  }\n}\n' "$bar" >> "$R/sway.conf"
+  swaymsg reload >/dev/null || fail "sway did not reload with a $bar bar (I100)"
+  sleep 2
+  ipc act mock.webdock "{\"edge\":\"$edge\"}" >/dev/null || fail "mock.webdock refused the $edge edge (I100)"
+  ipc act webdock.size '{"size":"large"}' >/dev/null || fail "webdock.size large refused ($edge edge, I100)"
+  sleep 1
+  read -r cx cy cw ch aw ah <<< "$(card_geometry)"
+  [ "$ah" = 1354 ] || fail "the window on the $edge edge is $ah high under a $bar bar (expected 1354; I100)"
+  [ "$ch" = $(( ah - 16 )) ] || fail "the large card on the $edge edge is $ch high (expected $(( ah - 16 )); I100)"
+  if [ "$edge" = bottom ]; then want_y=$(( ah - ch )); else want_y=0; fi
+  [ "$cy" = "$want_y" ] || fail "the large card on the $edge edge is at y $cy (expected $want_y; I100)"
+  shot "large-$edge-$bar-bar"
+  ok "I100: under a $bar bar the large card on the $edge edge fills the usable area between the bar and the strip"
+done
+cp "$R/sway.conf.base" "$R/sway.conf"
+swaymsg reload >/dev/null || fail "sway did not reload without the bars (I100)"
+sleep 2
+ipc act webdock.size '{"size":"phone"}' >/dev/null || fail "webdock.size phone refused (I100)"
+ipc act mock.webdock '{"edge":"right"}' >/dev/null || fail "mock.webdock refused the right edge (I100)"
+sleep 1
 ipc act mock.webdock '{"geometry":{"width":412}}' >/dev/null || fail "mock.webdock refused the width"
 check_no_qml_problems
 ok "phase 1: no QML problems"

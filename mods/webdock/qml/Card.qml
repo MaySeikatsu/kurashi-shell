@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import qs.core
 import qs.components
 import qs.components.phone
@@ -27,8 +28,17 @@ Rectangle {
     Watch { doc: "svc.clock"; active: card.phoneLook }
     activeFocusOnTab: true
     Keys.onEscapePressed: card.escaped()
-    // Tab walks the header explicitly (size, collapse, and back to the card), not by the order of the focus chain.
-    KeyNavigation.tab: card.sizable ? sizeBtn : collapseBtn
+    // Tab follows the focus chain in tree order (I90): the header's size and collapse, then the view's own controls. The
+    // header's explicit Tab links used to close the loop at the header, so a view's controls were never reached.
+    readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"   // test-only: the focus, logged
+    // Test-only (KURASHI_WEBDOCK_DEBUG=1): each focus change of the window, by the focused control's name (event-driven).
+    Connections {
+        target: card.debugLog ? card.Window : null
+        function onActiveFocusItemChanged() {
+            var f = card.Window.activeFocusItem
+            console.log("webdock-debug focus", f ? (f.label || f.a11y || "") : "none")
+        }
+    }
 
     PhoneFrame {
         id: phone
@@ -85,7 +95,6 @@ Rectangle {
                 glyph: "×"
                 a11y: I18n.tr("webdock.nav.collapse")
                 onClicked: card.collapse()
-                KeyNavigation.tab: card
             }
         }
         // Phone: the title in a pill, as the host's phone has it (a keycap block: no press, so no sinking).
@@ -125,9 +134,11 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        // Phone: the view keeps clear of the screen's straight edges.
-        anchors.topMargin: card.phoneLook ? Theme.gap : 0
-        anchors.leftMargin: card.phoneLook ? Theme.pad : 0
-        anchors.rightMargin: card.phoneLook ? Theme.pad : 0
+        // The view keeps clear of the card's edges in both looks (I90): the large card's body had none, so the view's
+        // content touched the edge while the header's title sat inset. The sides line up with the title's inset.
+        anchors.topMargin: Theme.gap
+        anchors.bottomMargin: Theme.gap
+        anchors.leftMargin: Theme.pad
+        anchors.rightMargin: Theme.pad
     }
 }

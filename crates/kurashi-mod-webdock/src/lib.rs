@@ -118,7 +118,8 @@ impl NativeMod for Webdock {
             },
         )?;
         let writer = ctx.settings_writer();
-        let dock = Dock::new(&settings, self.dirs.profiles(), self.dirs.icons());
+        let dock = Dock::new(&settings, self.dirs.profiles(), self.dirs.icons())
+            .with_forced(forced_of(&settings));
         let initial = dock.doc();
         let (doc, _) = watch::channel(initial.clone());
         // Subscribed now, not in the supervisor: a state the daemon writes before the task first runs is still seen.
@@ -518,6 +519,12 @@ impl Shared {
         self.with_dock(|d| d.crashed(pin).map_err(dock_error))?;
         Ok(None)
     }
+}
+
+/// The settings the configuration forces, each with its source (I91). The settings feed carries no provenance yet
+/// (CONTRACT-CHANGE 374, a `Settings::forced_by` hook in kurashi-mod-api and the daemon's feed), so nothing is forced here.
+fn forced_of(_settings: &Settings) -> BTreeMap<String, String> {
+    BTreeMap::new()
 }
 
 fn dock_error(e: DockError) -> ActionError {

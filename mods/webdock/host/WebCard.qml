@@ -29,6 +29,13 @@ PanelWindow {
     property int grace: 24             // geometry.grace: the hover margin on the sides away from the strip
     property string newTabs: "dock"    // new_tabs: dock (a link loads in the pin's view) | browser (the default browser)
     property bool engaged: false       // `engaged`: the dock holds the keyboard, so the page takes the first keystroke
+    // I98: a keybind reveal (`engaged`, with the open) asks for the keyboard exclusively until the window has the focus,
+    // then relaxes to on-demand; the rule and its reasons are in DockWindow.
+    property bool winActive: false
+    property bool pulseSpent: false
+    readonly property bool asksKeys: open && engaged && !winActive && !pulseSpent
+    onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
+    Timer { id: pulseTimer; interval: 1000; onTriggered: card.pulseSpent = true }
     property string output: ""
     property var profiles: null        // Profiles (the view of each profile, the storage of each pin)
     property var report: null          // function(action, args): the reports and actions the card sends
@@ -55,19 +62,20 @@ PanelWindow {
         function onWidthChanged() { card.availW = Math.round(area.Window.width) }
         function onHeightChanged() { card.availH = Math.round(area.Window.height) }
     }
-    // The height the card is sized by: the usable height (the window, on a side). On a top or bottom edge the window has
-    // the card's height, so the output's height stands in for it (a top bar there is not seen: a known gap).
-    readonly property real basisH: sideways ? availH : screenH
+    // The height the card is sized by: the usable height the window is stretched to. A top or bottom edge's window spans
+    // the usable area across the edge too (anchored to all four sides, below), so a bar on that axis is kept clear (I100).
+    readonly property real basisH: availH
     // Phone: `width` wide, as tall as twice that or the usable height allows, less a gap at each end (the lead's rule);
     // large: `large` % of the output's width, the usable height less a gap at each end.
     // The phone look: the phone size drawn as a phone (the large size is a plain card).
     readonly property bool phoneLook: !isLarge
-    readonly property int cardW: isLarge ? Math.round(screenW * largePct / 100) : phoneWidth
+    readonly property int cardW: isLarge ? Math.round((sideways ? screenW : availW) * largePct / 100) : phoneWidth
     readonly property int cardH: Math.max(0, Math.round(isLarge ? basisH - 2 * gap : Math.min(2 * phoneWidth, basisH - 2 * gap)))
     // Where the card is in the window: a card on the right has its margin on its left (the window is card + margin wide),
     // one on the left on its right; a card on a top or bottom edge is centred across the usable width.
     readonly property int cardX: sideways ? (edge === "right" ? grace : 0) : Math.max(0, Math.round((availW - cardW) / 2))
-    readonly property int cardY: edge === "top" ? 0 : edge === "bottom" ? grace
+    // A bottom card stands against the strip: the window ends at the strip, so the card's top gap is what is left over.
+    readonly property int cardY: edge === "top" ? 0 : edge === "bottom" ? Math.max(0, availH - cardH)
         : (isLarge ? gap : Math.max(0, Math.round((availH - cardH) / 2)))
     // The input: the card plus `grace` on each side but the strip's (a margin over the strip would take its clicks). The
     // window's mask takes input here only; the rest of the usable area is the desktop's.
@@ -100,7 +108,10 @@ PanelWindow {
     // The theme's motion profile: `none` (reduced motion, the accessibility axis) fades instead of sliding.
     readonly property bool moves: (Theme.tokens["motion.profile"] || "calm") !== "none"
     readonly property bool springs: moves && Theme.springOn
-    readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : Theme.quickMs
+    // Under none the card fades over this fixed time (docs/ux/webdock.md "Motion": fade only); motion.quick_ms is 0
+    // there, and a zero-length fade is a cut (I99). The fade is the slide's `slide` value read as opacity below.
+    readonly property int fadeMs: 120
+    readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : fadeMs
     // The distance the body slides out by, toward its edge; none when the motion is reduced.
     readonly property int away: !moves ? 0 : edge === "right" ? cardW : edge === "left" ? -cardW
         : edge === "bottom" ? cardH : -cardH
@@ -210,7 +221,7 @@ PanelWindow {
         function onStorageRootChanged() { card.syncViews() }
     }
     onOpenChanged: {
-        if (open) mapped = true
+        if (open) { mapped = true; pulseSpent = false }
         else {
             reportHover(false)
             menuOpen = false
@@ -226,16 +237,16 @@ PanelWindow {
 
     screen: screenObj
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
-    // The window spans the card and its margin along the edge, and the usable area of the output across it: anchored to
-    // the edge's two ends (the compositor stretches it), with exclusiveZone 0 (kept clear of a top bar, reserving nothing;
-    // the default reserved the implicit size, 300 px, on the edge in the probe). A window of zero size is dropped by
-    // Quickshell, so the other axis is the card's size, not 0.
+    // The window spans the usable area of the output: anchored to all four sides, so the compositor stretches it between
+    // the bars, along a side edge's length and, on a top or bottom edge, across the usable width and height (I100).
+    // exclusiveZone 0 keeps it clear of a bar without reserving anything (the default reserved the implicit size, 300 px,
+    // on the edge in the probe). The margin of `strip` on the dock's own side keeps the card off the strip.
     exclusiveZone: 0
     color: "transparent"
-    anchors.top: edge !== "bottom"
-    anchors.bottom: edge === "bottom" || sideways
+    anchors.top: true
+    anchors.bottom: true
     anchors.left: edge === "left" || !sideways
     anchors.right: edge === "right" || !sideways
     margins.top: edge === "top" ? strip : 0
@@ -253,7 +264,7 @@ PanelWindow {
     }
 
     // Mapped (a layer surface) only while it shows: an unmapped card draws nothing (0 frames, Ma). The slide runs on
-    // Theme.stdMs (180 ms) under the calm and lively profiles; under none it is the theme's quick duration (0: a cut).
+    // Theme.stdMs (180 ms) under the calm and lively profiles; under none the fade's fixed `fadeMs` (120 ms).
     property real slide: 1
     property bool mapped: false
     visible: mapped
@@ -303,7 +314,12 @@ PanelWindow {
         HoverHandler {
             onHoveredChanged: card.reportHover(hovered)
         }
-        Window.onActiveChanged: card.reportEngage(Window.active)
+        Window.onActiveChanged: {
+            card.winActive = Window.active
+            if (Window.active) card.pulseSpent = true
+            card.reportEngage(Window.active)
+            if (Window.active && card.engaged && card.open) card.focusPage()
+        }
     }
     // Ctrl+L enters the header; the page is not told (it may take Ctrl+L for itself, but the card is the chrome's key).
     Shortcut {
@@ -451,7 +467,7 @@ PanelWindow {
                 // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
                 readonly property int count: 7 + (card.homeShown ? 1 : 0)
                 readonly property real spread: card.phoneLook
-                    ? Math.max(0, (width - 2 * 12 - count * 26) / (count - 1)) : 0
+                    ? Math.max(0, (width - 2 * 12 - count * 32) / (count - 1)) : 0
 
                 readonly property var page: card.activePage
                 readonly property string title: (page && page.engine.title) ? page.engine.title
