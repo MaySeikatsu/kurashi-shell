@@ -27,6 +27,10 @@ ShellRoot {
         implicitHeight: 900
         color: "transparent"
         WlrLayershell.namespace: "kurashi-blockbench"
+        // The window's tile set, as the Stage has it (K59, W42): a Relief here shares it, not a pair of its own (a window
+        // without one made a pair per Relief, which the shell's windows never pay).
+        property var tileSheet: tilesLoader.item
+        Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
         Flow {
             anchors.fill: parent
             Repeater {
