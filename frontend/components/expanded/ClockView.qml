@@ -52,6 +52,8 @@ Column {
     property date sel: today
     readonly property int year: sel.getFullYear()
     readonly property int month: sel.getMonth()             // 0..11
+    // The selected day as yyyy-mm-dd: the `date` the agenda slot is given (CONTRACT-CHANGE row 200), empty when not valid.
+    readonly property string selIso: valid ? isoDate(year, month, sel.getDate()) : ""
     readonly property date first: new Date(year, month, 1)
     readonly property int lead: (first.getDay() - firstDow + 7) % 7     // cells before day 1, counted from the week's first day
     readonly property int count: new Date(year, month + 1, 0).getDate()
@@ -166,7 +168,7 @@ Column {
             case Qt.Key_PageUp: view.shiftMonths(-1); break
             case Qt.Key_PageDown: view.shiftMonths(1); break
             case Qt.Key_Home: view.goToday(); break
-            default: return
+            default: event.accepted = false; return    // Escape and the rest go on to the card (the Stage closes on Escape)
             }
             event.accepted = true
         }
@@ -317,7 +319,7 @@ Column {
             font.family: Theme.fam(text, Theme.families)
             text: view.valid ? I18n.tr("island.clock.agenda") + " · " + view.loc.toString(view.sel, view.agendaFmt) : ""
         }
-        SlotHost { id: agendaHost; slot: "clock.expanded.day"; width: parent.width }
+        SlotHost { id: agendaHost; slot: "clock.expanded.day"; width: parent.width; extra: ({ date: view.selIso }) }
         Text {
             visible: agendaHost.entries.length === 0
             width: parent.width

@@ -194,6 +194,7 @@ pub fn parse_list(out: &str, pattern: &str, local: &TimeZone, win: &Window) -> V
                 uid: format!("khal:{title}:{start}"),
                 title,
                 location: Some(text(&o, "location")).filter(|l| !l.trim().is_empty()),
+                description: None,
                 start,
                 end,
                 all_day,

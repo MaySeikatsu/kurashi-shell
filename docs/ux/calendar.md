@@ -1,5 +1,6 @@
 # Calendar — UX brief (card W27-calendar, roadmap v0.2 "calendar")
-Status: v1 (W27). Functional and UX tracked separately in PROGRESS.
+Status: v2. v1 is W27; W37 adds the event details, the agenda's day from the host and the bar widget's face (the rows
+below marked W37). Functional and UX tracked separately in PROGRESS.
 
 ## Job
 "What is on today, and what is next?" — answered where the user already looks: the clock card's agenda (the
@@ -45,7 +46,7 @@ covers "soon"), week view, CalDAV login (vdirsyncer/khal do it; a feed's secret 
 
 ## Document `mod.calendar`
 `{available, state, reason?, today, from, to, sources:[{name, kind, state, reason?, events, color?, fetched_at?}],
-days: {"YYYY-MM-DD": [{id, title, start, end, all_day, location?, calendar, color?}]}}` for today −7 … +42 days,
+days: {"YYYY-MM-DD": [{id, title, start, end, all_day, location?, description? (W37, row 410), calendar, color?}]}}` for today −7 … +42 days,
 recomputed on a source change, a settings change and local midnight — **never per minute**: `start`/`end` are unix
 seconds and the views compute "now", "in 10 min", "ends 14:00" themselves while visible. All-day events carry the
 local midnights (end exclusive). A multi-day event is listed on every day it touches (DMS). `state`: `none` (no source
@@ -72,17 +73,37 @@ when `fetched_at` is set), `error` (unreadable / not a calendar / HTTP status), 
 ## Views
 - `slot:clock.expanded.day` — the selected day's agenda in the clock card (the card names this slot for the agenda;
   the card text said `aside`, which is 140 px and the weather's). Up to 6 rows `colour bar · time · title · location`,
-  "+ N more". The selected date comes from the host's `date` when it passes one (CONTRACT-CHANGE row 200), else from
-  the clock view itself.
+  "+ N more". The selected day is the host's `date` (CONTRACT-CHANGE row 200, W37: the clock card passes its selection on every
+  change), today when none is given. A row is a button: it opens the event's details (below).
 - `slot:clock.expanded.daymark` — one dot per day with events (the colour of the first event's calendar).
 - `desk:agenda` — "Up Next" card: the next (or running) event large with "in 25 min" / "now · until 11:00", then the
   rest of today and tomorrow's first events, max 6 rows; empty → "Nothing else today".
 - `widget:calendar` — bar: an event icon and "Standup · 12 min" while the next timed event starts within an hour (or
-  runs now: "Standup · now"); absent otherwise (Ma: nothing shown, nothing drawn). Click opens the clock card.
+  runs now: "Standup · now"); absent otherwise (Ma: nothing shown, nothing drawn). Click (or Return, Enter, Space) opens the clock card on its agenda: `island.expand {face: "clock"}` (W37, row 203), so
+  the agenda shows while another face, such as media, is current. Until W37-daemon's `face` is on main, the daemon ignores
+  the argument and the card opens on the current face; row 411 decides what an open card does with it.
 - `island-face:calendar` (optional, `peek`): transient peek at T − `peek_minutes`.
 
+## Event details (W37)
+A row's event opens in the card: the details take the place of the day's list (a drill-down, as the quick settings
+drill down; the island card has no room beside the list, and an overlay would be cut by the card's morph). Back returns
+to the list, with the focus on the row.
+- **Shows**: the calendar's colour bar and name (the colour is never the only sign); the title ("(No title)" when
+  empty); the span, in the clock card's day format: "Thu 14 Oct · 09:15–09:30", "Thu 14 Oct · All day", "Sat 2 Aug – Tue
+  5 Aug · All day" (an all-day end is exclusive, so the span ends on its last day), "Thu 14 Oct 22:00 – Fri 15 Oct
+  02:00" (timed, over a night); "Now · " in the accent while it runs; the location; the description as plain text, eight
+  lines at most, then elided (a link in it is text, not a button).
+- **Absent, not blank**: no location or description line when the event has none (row 410: khal events and events
+  without DESCRIPTION carry none); no colour bar's colour when the calendar has none (the accent stands in).
+- **Closes**: Escape or Back returns to the list. A change of day closes it, and so does a refresh that drops the event,
+  so it never shows an event for another day or one that was cancelled (Shōjiki).
+- **Motion**: none of its own; the swap is at once and the card's morph is the only motion.
+- **Read only**: no editing in v1, so Back is the only button.
+- Not re-researched for W37: the earlier "How others do it" notes stand. Event editors (GNOME Calendar) and calendar
+  apps (macOS, Outlook's widget) are the other shells' answers; neither fits a card, so the details stay read-only here.
+
 ## Keyboard + a11y
-Rows are `Accessible.StaticText` with "09:00–10:00, Standup, Room 4, Work"; the widget is a button ("Next event:
+Rows are buttons (`Accessible.Button`; Tab reaches each, Return, Enter or Space opens its details) named "09:00–10:00, Standup, Room 4, Work"; the widget is a button ("Next event:
 Standup in 12 minutes"); colour is never the only signal (the calendar name is in the accessible name, the time text
 says "now"). Desk cards take no focus (K43).
 
@@ -96,3 +117,7 @@ midnight, refresh). Idle with nothing subscribed and peek off: 0 wakeups.
 Crate tests: timezone, all-day, multi-day, weekly RRULE with EXDATE, malformed input, recurrence override, feed cache
 offline. `mods/calendar/test-calendar.sh` on the real kurashid with a fixture folder + a fixture HTTP feed: clock card
 agenda, day dots, desk card, bar widget under `sekai` and `none`; no QML warnings from the mod.
+W37 adds to it: the keyboard steps of `test-calendar.sh` (an all-day and a timed row's details; Escape out of the
+details, then out of the card; a multi-day all-day and a multi-day timed event; an empty day; tomorrow, which proves the
+agenda follows the selected day), the `description` in the document (row 410), the dark scheme and Japanese once. The
+widget's click with media current is not shot: no MPRIS player in the sandbox, and row 411 decides an open card's face.

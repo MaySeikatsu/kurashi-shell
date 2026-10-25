@@ -49,6 +49,19 @@ function timeLabel(tr, ev, k) {
     return hm(ev.start) + "–" + hm(ev.end)
 }
 
+// The span of an event for its details: "Thu 14 Oct · 09:15–09:30", "Thu 14 Oct · All day", "Sat 2 Aug – Tue 5 Aug · All
+// day" (an all-day end is the midnight after its last day), "Thu 14 Oct 22:00 – Fri 15 Oct 02:00" (timed, over a night).
+// `fmt` is the day format of the clock card (ja: M月d日（ddd）, en: ddd d MMM); `loc` is a Qt.locale.
+function span(tr, ev, loc, fmt) {
+    var first = new Date(ev.start * 1000)
+    var last = new Date((ev.all_day ? ev.end - 1 : ev.end) * 1000)
+    var sameDay = key(last) <= key(first)
+    var on = function (t) { return new Date(t * 1000).toLocaleDateString(loc, fmt) }
+    if (ev.all_day) return (sameDay ? on(ev.start) : on(ev.start) + " – " + on(ev.end - 1)) + " · " + tr("mod-calendar.all_day")
+    if (sameDay) return on(ev.start) + " · " + (ev.end > ev.start ? hm(ev.start) + "–" + hm(ev.end) : hm(ev.start))
+    return on(ev.start) + " " + hm(ev.start) + " – " + on(ev.end) + " " + hm(ev.end)
+}
+
 function isRunning(ev, now) { return !ev.all_day && ev.start <= now && now < ev.end }
 function isPast(ev, now) { return ev.end <= now && !(ev.end === ev.start && ev.start > now - 60) }
 
