@@ -6,10 +6,16 @@ import "../core"
 // of svc.notifications.items; signals out. Body is the daemon-sanitised b/i/u/a subset, so
 // StyledText is safe. Swipe right (or the close control) dismisses; actions are the app's own.
 // Keyboard: the close control and the actions take Tab focus; Return, Enter and Space press them.
+// W34: a budding toast's chrome (fill, outline, shadows, material) is drawn by its shape (Toasts.qml) until it stands
+// free: `bare` leaves only the content, `contentOpacity` fades it in late; `carryDy` is how far the card is from its
+// place at rest (K61: its relief carries the sheet along while the stack springs).
 Rectangle {
     id: c
     property var item: ({})
     property bool swipeable: true
+    property bool bare: false
+    property real contentOpacity: 1
+    property real carryDy: 0
     signal dismissed()
     signal invoked(string key)
 
@@ -24,17 +30,17 @@ Rectangle {
     width: 340
     implicitHeight: row.height + 2 * Theme.pad
     radius: Theme.rLg
-    color: Theme.panel
+    color: bare ? "transparent" : Theme.panel
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
     // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
-    border.width: pen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    border.width: pen.active || bare ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
     Loader {
         id: pen
         z: 3
         anchors.fill: parent
-        active: Theme.penOutline
+        active: Theme.penOutline && !c.bare
         sourceComponent: PenOutline {
             radius: c.radius
             color: c.border.color
@@ -48,11 +54,11 @@ Rectangle {
     Loader {
         anchors.fill: parent
         anchors.margins: Theme.outlineW
-        active: Theme.texShell && !Theme.texText
+        active: Theme.texShell && !Theme.texText && !c.bare
         sourceComponent: Relief {
             anchors.fill: parent
             radius: Math.max(0, c.radius - Theme.outlineW)
-            carry: Qt.point(windowCarry.x + c.x, windowCarry.y)
+            carry: Qt.point(windowCarry.x + c.x, windowCarry.y + c.carryDy)
         }
     }
     // With `texture.text` the relief lies over the card's text too.
@@ -60,25 +66,26 @@ Rectangle {
         z: 1
         anchors.fill: parent
         anchors.margins: Theme.outlineW
-        active: Theme.texShell && Theme.texText
+        active: Theme.texShell && Theme.texText && !c.bare
         sourceComponent: Relief {
             anchors.fill: parent
             radius: Math.max(0, c.radius - Theme.outlineW)
-            carry: Qt.point(windowCarry.x + c.x, windowCarry.y)
+            carry: Qt.point(windowCarry.x + c.x, windowCarry.y + c.carryDy)
         }
     }
-    SoftShadow { anchors.fill: parent; radius: c.radius }
+    SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare ? 0 : 1 }
     Rectangle {
         z: -1
-        visible: Theme.shadowDy > 0
+        visible: Theme.shadowDy > 0 && !c.bare
         y: Theme.shadowDy
         width: c.width
         height: c.height
         radius: c.radius
         color: Theme.line
     }
-    // Only a dragged or snapping card has opacity < 1, so static cards never pay for group opacity (K16).
-    opacity: drag.active || snap.running ? Math.max(0.3, 1 - Math.abs(x) / width) : 1
+    // Only a dragged, snapping or flicked card has opacity < 1, so static cards never pay for group opacity (K16). A card
+    // swiped past the threshold keeps its own while its stack flicks it away (W34).
+    opacity: x !== 0 ? Math.max(0.3, 1 - Math.abs(x) / width) : 1
 
     // A cancelled swipe slides back on the standard motion token (instant under motion none).
     NumberAnimation {
@@ -108,6 +115,8 @@ Rectangle {
         id: row
         x: Theme.pad
         y: Theme.pad
+        opacity: c.contentOpacity
+        visible: opacity > 0
         width: parent.width - 2 * Theme.pad
         spacing: Theme.gap
         // No picture from the app: its kind as an icon in a tonal disc, so every card has a face.

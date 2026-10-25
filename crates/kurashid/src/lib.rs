@@ -12,6 +12,7 @@ pub mod hub;
 pub mod i18n;
 pub mod intents;
 pub mod island;
+pub mod keys;
 pub mod native;
 pub mod os_scheme;
 pub mod server;

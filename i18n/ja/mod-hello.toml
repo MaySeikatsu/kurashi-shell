@@ -1,0 +1,5 @@
+# テスト用mod `hello`（crates/kurashi-mod-hello、配布しない）の設定・アクション・あいさつ（I49）。
+"mods.hello.greeting" = "あいさつ"
+"action.hello.ping" = "helloにpingを送る"
+"action.hello.raise" = "helloの表示を上げる"
+"action.hello.clear" = "helloの表示を消す"

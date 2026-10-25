@@ -4,6 +4,8 @@
 # K55: why light or dark is in effect (theme document `appearance.scheme_detail`), and the way back after a style.
 "theme.scheme.detail.os" = "Following the system: {scheme}"
 "theme.scheme.detail.os_unknown" = "The system states no preference (no desktop portal answers): dark"
+"theme.scheme.detail.os_unknown_sun" = "The system states no preference: light from sunrise to sunset at your weather place, dark at night"
+"theme.scheme.detail.os_unknown_day" = "The system states no preference: light from 06:00 to 18:00, dark at night (set a weather place to follow the sun)"
 "theme.scheme.detail.wallpaper" = "Following the wallpaper's brightness: {scheme}"
 "theme.scheme.detail.wallpaper_waiting" = "No wallpaper picture yet (the wallpaper mod applies one with its theme): dark until then"
 "theme.scheme.style" = "Follows the style {style}"

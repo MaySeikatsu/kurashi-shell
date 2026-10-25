@@ -643,3 +643,22 @@ centred on the focused output over a softly dimmed backdrop, exclusive keyboard,
 the Settings window was the one surface the texture and light never reached, because it is a compositor window; the
 user asked to toggle between "a normal compositor window" and "a quickshell hosted settings window that overlays in the
 center of the screen".
+
+**K49 amendment** (W34, session 13): `gsettings` is the one export target that writes settings instead of a file:
+`org.gnome.desktop.interface` colour-scheme, font-name and icon-theme from `templates/gsettings.ini`, only where the value
+differs; the values last applied are kept (an unchanged config patch runs nothing); a `gsettings` that does not answer
+within 3 s is stopped; opt-in like every target. Qt (qt6ct/qt5ct) and KDE (kdeglobals) get the lines their own configs
+need from `templates/lines/*.conf`, shown and never written; KDE apps get a colour scheme file (`Kurashi.colors` in
+`$XDG_DATA_HOME/color-schemes`). niri writes `niri/kurashi.kdl` (focus ring, border, shadow, corner radius, animations
+from the motion profile); the old `kurashi-colors.kdl` stays a stub while an include names it. A render that leaves a
+placeholder unfilled is never written — the last good file stays (an unfilled value in niri's KDL would break its
+whole config). Placeholders beyond colours: `templates/README.md`. *Why:* the user wants every app to follow the shell
+"by default", icons and fonts included, and the compositor to match the shell's shape and motion (I175, I183, I184).
+
+**K64** 🟢 Keyboard shortcuts are config (I72, user session 7 / 13): `keys.*` — one combo per shell action
+(launcher, notification centre, sidebars, quick settings, session menu, lock, Settings, web dock, volume, mute,
+brightness; `""` = none) and `keys.write` (default off). With `write` on, kurashid writes the compositor's binds file
+from them (niri: `$XDG_CONFIG_HOME/niri/kurashi-binds.kdl`, `spawn kurashi act …`), only when the content changes, and
+reports the include line (K49's pattern: our own file, never the user's config). A file Home-Manager manages (a store
+symlink) is not overwritten: the row says so. Settings shows the page "Keys" with a shortcut recorder and flags two
+actions on one combo. *Why:* the user wants to change shortcuts in Settings; until now only the HM module wrote them.

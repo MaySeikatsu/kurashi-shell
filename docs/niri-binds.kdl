@@ -2,6 +2,10 @@
 // Needs kurashid running: `kurashi act` talks to the daemon. `include` needs niri 25.11 or later;
 // on older niri, paste the binds block below into your config instead.
 //
+// Rather edit the keys in Settings → Keys? Turn on "Shortcuts for the compositor" (keys.write, K64) instead of
+// copying this file: kurashid then writes the same binds to ~/.config/niri/kurashi-binds.kdl from the keys.* settings
+// (same include line). A copy of this snippet already at that path is left alone — move it away first.
+//
 // Install: save as ~/.config/niri/kurashi-binds.kdl and add this line to ~/.config/niri/config.kdl
 // AFTER your own binds {} block (later binds override earlier ones for the same key):
 //     include "kurashi-binds.kdl"

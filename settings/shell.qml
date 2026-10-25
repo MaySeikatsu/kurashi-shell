@@ -272,6 +272,22 @@ ShellRoot {
                 }).join(",")
             }
             function exportCopied(name: string): string { return settingsPages.copyState(name) }
+            // Keys (K64): the binds file as `state:include` (written:missing, written:included, managed, foreign,
+            // unsupported, off, error; "none" before the document), one shortcut row as JSON (recording, a pending
+            // Replace "combo>key", the notice, whether the compositor's shortcuts are inhibited, the lines under it), a
+            // bind's state as the daemon says it, and the include line's copy result.
+            function keysState(): string {
+                const d = Store.docs["svc.keys"]
+                if (!d || !d.state) return "none"
+                return d.state + (d.state === "written" ? ":" + (d.include && d.include.present ? "included" : "missing") : "")
+            }
+            function keysRow(key: string): string { return settingsPages.keysRow(key) }
+            function keyBind(key: string): string {
+                const d = Store.docs["svc.keys"]
+                const b = d && Array.isArray(d.binds) ? d.binds.find(function (x) { return x.key === key }) : null
+                return b ? b.state + (b.config ? ":" + b.config : "") : "none"
+            }
+            function keysCopied(): string { return settingsPages.keysCopied() }
             // Appearance (W29, K53): a card picked (JSON value; a style or a look by its action), the category chips of a
             // row and the open one, a chip opened, the "differs from the style" line and its Reset, and a scroll to a
             // named item (a block, "block:<key>"; the line, "differs").
@@ -510,7 +526,7 @@ ShellRoot {
                                     readonly property string icon: ({
                                         bar: "toolbar", appearance: "palette", accessibility: "accessibility_new",
                                         island: "toggle_on", notifications: "notifications", launcher: "apps",
-                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", "@changed": "history",
+                                        clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", keys: "keyboard", "@changed": "history",
                                         "@mods": "extension", "@profiles": "person"
                                     })[navEntry.modelData.id] || ""
                                     activeFocusOnTab: true

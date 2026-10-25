@@ -21,6 +21,8 @@ Column {
     readonly property bool enabled: d.enabled === true
     readonly property int temperature: Number(d.temperature || 4000)
     readonly property string schedule: String(d.schedule || "manual")
+    // I130: "22:00–06:30", the night `svc.nightlight` has in effect ("" while it has none).
+    readonly property string span: d.start && d.end ? String(d.start) + "–" + String(d.end) : ""
     readonly property string reason: d.available === false && d.reason ? I18n.tr(String(d.reason)) : ""
     // The warmth slider runs warm to the right: 6500 K (none) at 0, 1500 K at 1.
     readonly property real warmth: Math.max(0, Math.min(1, (6500 - temperature) / 5000))
@@ -124,7 +126,8 @@ Column {
         checked: np.schedule === "manual"
         inert: checked
         title: I18n.tr("power.night.schedule.manual")
-        sub: I18n.tr("power.night.schedule.manual_sub")
+        // I130: the night in effect, when the daemon knows it (the times by hand).
+        sub: (checked && np.span !== "" ? np.span + " · " : "") + I18n.tr("power.night.schedule.manual_sub")
         onActivated: np.apply("night_light.schedule", "manual")
     }
     ChoiceRow {
@@ -133,7 +136,8 @@ Column {
         checked: np.schedule === "sun"
         inert: checked
         title: I18n.tr("power.night.schedule.sun")
-        sub: I18n.tr("power.night.schedule.sun_sub")
+        // I130: today's sunset to sunrise at the place.
+        sub: (checked && np.span !== "" ? np.span + " · " : "") + I18n.tr("power.night.schedule.sun_sub")
         onActivated: np.apply("night_light.schedule", "sun")
     }
     ChoiceRow {
