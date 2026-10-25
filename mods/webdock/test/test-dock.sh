@@ -658,6 +658,20 @@ phase_large() {
   r=0; [ "$edge" = top ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
   check "$r" "large, top edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
   shot large-top
+  # Known limit (docs/ux/webdock.md "Pinned + reserve", I191): with reserve and pinned on a top or bottom edge the window is
+  # anchored to one end (the layer shell ignores the zone when both ends are anchored), so the card is sized to the output's
+  # height, not the usable one: it runs past the far edge (top) or over the bar (bottom). A note, until the shell hands the
+  # dock its usable area.
+  setdoc '{"reserve":true,"pinned":true}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  echo "note: reserve and pinned, top edge, large: the card is ${ch:-?} high (sized to the output; the usable height fits 1332): it runs past the bottom edge (I191)"
+  shot large-top-reserved
+  setdoc '{"edge":"bottom"}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  echo "note: reserve and pinned, bottom edge, large: the card is ${ch:-?} high (the same size): its top covers the top bar (I191)"
+  shot large-bottom-reserved
   stop_phase
 }
 
