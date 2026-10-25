@@ -139,6 +139,11 @@ impl State {
                 documents::network_scan(true, Some("home-wifi")),
             ),
             ("svc.tray", documents::tray()),
+            // K64 (W38-keys): the shortcuts as kurashid judges them; recomputed on each config change (`apply`).
+            (
+                "svc.keys",
+                documents::keys(&documents::config(kurashi_schema::v1::registry())),
+            ),
             ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
             // The wallpaper mod's document (W18: its quick tile is a contribution the mock serves).
@@ -252,6 +257,11 @@ impl State {
             ops,
             origin,
         });
+        // svc.keys follows the keys.* values (K64): a config change judges the shortcuts again.
+        if doc == "config" {
+            let keys = documents::keys(self.data("config"));
+            self.patch("svc.keys", keys, None);
+        }
     }
 
     /// Intents: fire-and-forget, coalesced by the client. `audio.volume` and `brightness.set` (W18, I50: the
@@ -2317,6 +2327,26 @@ mod tests {
         assert_eq!(days.len(), 7);
         assert_eq!(days[0]["date"], "2026-10-09");
         assert_eq!(days[6]["date"], "2026-10-15");
+    }
+
+    /// K64 (W38-keys): a config change judges `svc.keys` again, so a combo another action holds is a conflict at once
+    /// (the recompute in `apply`, on the config path that Settings and the CLI take).
+    #[test]
+    fn svc_keys_follows_a_config_change() {
+        let mut st = state();
+        assert_eq!(st.data("svc.keys")["binds"][4]["key"], "keys.quick");
+        assert_eq!(st.data("svc.keys")["binds"][4]["state"], "none");
+        st.act(
+            "mock.doc",
+            &json!({"doc": "config", "patch": {"values": {"keys.quick": {"value": "Mod+Space"}}}}),
+        )
+        .unwrap();
+        assert_eq!(st.data("svc.keys")["binds"][4]["state"], "conflict");
+        assert_eq!(
+            st.data("svc.keys")["binds"][4]["reason"],
+            "keys.conflict.taken"
+        );
+        assert_eq!(st.data("svc.keys")["binds"][0]["state"], "ok");
     }
 
     /// K28/K26 parity: `runtime.slots` has the fixture's shape, and `mod.panel.open` toggles the fake
