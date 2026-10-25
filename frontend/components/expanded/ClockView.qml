@@ -173,103 +173,111 @@ Column {
         // The day marks' contributions (row 71). The host draws none itself: each day cell below places one ModLoader
         // per contribution, so this host only lists them.
         SlotHost { id: marks; slot: "clock.expanded.daymark"; layout: "cells" }
-        Grid {
+        // B37 (W35): the 42 day cells, a Block each, took ~65 ms to make, all of it before the island's first frame (the
+        // view is made when the card opens). They are made asynchronously in a box of their final size: the card has its
+        // height at once, so the shape grows straight to it, and the cells are there before the view fades in.
+        Loader {
             id: grid
             x: Math.round((cal.width - view.weekW - width) / 2 + view.weekW)
-            columns: 7
-            Repeater {
-                model: 7
-                delegate: Text {
-                    required property int index
-                    width: view.cell
-                    height: view.cell / 2
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    color: Theme.dim
-                    font.pixelSize: Theme.fsCaption
-                    font.family: Theme.fam(text, Theme.families)
-                    // Column 0 is the week's first day. Qt numbers Monday 1 to Sunday 7, JS numbers Sunday 0.
-                    text: {
-                        var dow = (view.firstDow + index) % 7
-                        return view.loc.standaloneDayName(dow === 0 ? 7 : dow, Locale.ShortFormat)
-                    }
-                }
-            }
-            Repeater {
-                model: view.valid ? 42 : 0
-                // W21: each day is a small block (a keycap under keycap chrome); today is lit in the accent, the selected
-                // day is tonal (Theme.selected) and ringed while the grid has the keyboard.
-                delegate: Item {
-                    id: dayCell
-                    required property int index
-                    readonly property int day: index - view.lead + 1
-                    readonly property bool inMonth: day >= 1 && day <= view.count
-                    readonly property bool isToday: inMonth && view.todayInView && day === view.todayDay
-                    readonly property bool isSel: inMonth && day === view.sel.getDate()
-                    // The cell's date (yyyy-mm-dd) for the day marks; empty outside the month.
-                    readonly property string iso: inMonth ? view.isoDate(view.year, view.month, day) : ""
-                    width: view.cell
-                    height: view.cell
-                    Accessible.role: Accessible.Cell
-                    Accessible.name: inMonth ? view.loc.toString(new Date(view.year, view.month, day), view.headerFmt) : ""
-                    Block {
-                        id: dayBlock
-                        visible: dayCell.inMonth
-                        // A grid of 31 keys: no soft shadow each (the card has one).
-                        softScale: 0
-                        x: 2
-                        y: 2 - Math.round(Theme.shadowDy / 2)
-                        width: parent.width - 4
-                        height: parent.height - 4
-                        radius: Theme.rSm + 2
-                        ringScale: 0
-                        animate: view.visible
-                        fill: dayCell.isToday ? Theme.accent : (dayCell.isSel ? Theme.selected : Theme.containerHigh)
-                        flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
-                        pressed: dayTap.pressed
-                    }
-                    FocusRing {
-                        anchors.fill: dayBlock
-                        anchors.bottomMargin: Theme.shadowDy
-                        anchors.margins: -1
-                        shown: dayCell.isSel && cal.activeFocus
-                        corner: Theme.rSm + 3
-                    }
-                    Text {
-                        anchors.centerIn: dayBlock
-                        anchors.verticalCenterOffset: (view.marked ? -7 : 0) - Theme.shadowDy / 2 + (dayTap.pressed ? Theme.shadowDy : 0)
-                        visible: parent.inMonth
-                        color: parent.isToday ? Theme.fgOnAccent
-                            : (parent.isSel ? Theme.fgOnSelected : Theme.fg)
-                        font.pixelSize: Theme.fs
-                        font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
+            width: 7 * view.cell
+            height: view.cell / 2 + (view.valid ? 6 * view.cell : 0)
+            asynchronous: true
+            sourceComponent: Grid {
+                columns: 7
+                Repeater {
+                    model: 7
+                    delegate: Text {
+                        required property int index
+                        width: view.cell
+                        height: view.cell / 2
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        color: Theme.dim
+                        font.pixelSize: Theme.fsCaption
                         font.family: Theme.fam(text, Theme.families)
-                        font.features: { "tnum": 1 }
-                        text: parent.day
-                    }
-                    // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number.
-                    // Each gets the cell's date; a cell outside the month gets none.
-                    Row {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 1
-                        spacing: 2
-                        Repeater {
-                            model: dayCell.inMonth ? marks.entries.slice(0, 3) : []
-                            delegate: ModLoader {
-                                required property var modelData
-                                url: modelData.qml
-                                extra: ({ date: dayCell.iso })
-                            }
+                        // Column 0 is the week's first day. Qt numbers Monday 1 to Sunday 7, JS numbers Sunday 0.
+                        text: {
+                            var dow = (view.firstDow + index) % 7
+                            return view.loc.standaloneDayName(dow === 0 ? 7 : dow, Locale.ShortFormat)
                         }
                     }
-                    MouseArea {
-                        id: dayTap
-                        anchors.fill: parent
-                        enabled: parent.inMonth
-                        onClicked: {
-                            view.select(new Date(view.year, view.month, parent.day))
-                            cal.forceActiveFocus()
+                }
+                Repeater {
+                    model: view.valid ? 42 : 0
+                    // W21: each day is a small block (a keycap under keycap chrome); today is lit in the accent, the selected
+                    // day is tonal (Theme.selected) and ringed while the grid has the keyboard.
+                    delegate: Item {
+                        id: dayCell
+                        required property int index
+                        readonly property int day: index - view.lead + 1
+                        readonly property bool inMonth: day >= 1 && day <= view.count
+                        readonly property bool isToday: inMonth && view.todayInView && day === view.todayDay
+                        readonly property bool isSel: inMonth && day === view.sel.getDate()
+                        // The cell's date (yyyy-mm-dd) for the day marks; empty outside the month.
+                        readonly property string iso: inMonth ? view.isoDate(view.year, view.month, day) : ""
+                        width: view.cell
+                        height: view.cell
+                        Accessible.role: Accessible.Cell
+                        Accessible.name: inMonth ? view.loc.toString(new Date(view.year, view.month, day), view.headerFmt) : ""
+                        Block {
+                            id: dayBlock
+                            visible: dayCell.inMonth
+                            // A grid of 31 keys: no soft shadow each (the card has one).
+                            softScale: 0
+                            x: 2
+                            y: 2 - Math.round(Theme.shadowDy / 2)
+                            width: parent.width - 4
+                            height: parent.height - 4
+                            radius: Theme.rSm + 2
+                            ringScale: 0
+                            animate: view.visible
+                            fill: dayCell.isToday ? Theme.accent : (dayCell.isSel ? Theme.selected : Theme.containerHigh)
+                            flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
+                            pressed: dayTap.pressed
+                        }
+                        FocusRing {
+                            anchors.fill: dayBlock
+                            anchors.bottomMargin: Theme.shadowDy
+                            anchors.margins: -1
+                            shown: dayCell.isSel && cal.activeFocus
+                            corner: Theme.rSm + 3
+                        }
+                        Text {
+                            anchors.centerIn: dayBlock
+                            anchors.verticalCenterOffset: (view.marked ? -7 : 0) - Theme.shadowDy / 2 + (dayTap.pressed ? Theme.shadowDy : 0)
+                            visible: parent.inMonth
+                            color: parent.isToday ? Theme.fgOnAccent
+                                : (parent.isSel ? Theme.fgOnSelected : Theme.fg)
+                            font.pixelSize: Theme.fs
+                            font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
+                            font.family: Theme.fam(text, Theme.families)
+                            font.features: { "tnum": 1 }
+                            text: parent.day
+                        }
+                        // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number.
+                        // Each gets the cell's date; a cell outside the month gets none.
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 1
+                            spacing: 2
+                            Repeater {
+                                model: dayCell.inMonth ? marks.entries.slice(0, 3) : []
+                                delegate: ModLoader {
+                                    required property var modelData
+                                    url: modelData.qml
+                                    extra: ({ date: dayCell.iso })
+                                }
+                            }
+                        }
+                        MouseArea {
+                            id: dayTap
+                            anchors.fill: parent
+                            enabled: parent.inMonth
+                            onClicked: {
+                                view.select(new Date(view.year, view.month, parent.day))
+                                cal.forceActiveFocus()
+                            }
                         }
                     }
                 }

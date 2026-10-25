@@ -22,10 +22,13 @@ ROWS = [
     ("idle CPU, daemon + frontend (%)", "pass_a.idle_cpu_pct_total", "{:.3f}"),
     ("wakeups/s, frontend", "pass_a.wakeups_per_s", "{:g}"),
     ("wakeups/s, daemon", "pass_a.daemon_wakeups_per_s", "{:g}"),
-    ("PSS frontend @1 output (MiB)", "pass_a.pss_mib_1out", "{:.1f}"),
+    ("PSS frontend @1 output (MiB; GPU device mappings left out, I93)", "pass_a.pss_mib_1out", "{:.1f}"),
+    ("USS frontend @1 output (MiB)", "pass_a.uss_mib_1out", "{:.1f}"),
+    ("PSS frontend after the popup was open once (MiB)", "pass_a.pss_mib_popup_closed", "{:.1f}"),
     ("PSS per extra output (MiB, vs popup closed)", "pass_a.pss_per_output_mib", "{:+.2f}"),
+    ("USS per extra output (MiB, vs popup closed)", "pass_a.uss_per_output_mib", "{:+.2f}"),
     ("PSS daemon (MiB)", "pass_a.daemon_pss_mib", "{:.1f}"),
-    ("popup input to first commit (ms)", "pass_b.popup_latency_ms_median", "{:.1f}"),
+    ("popup input to first commit (ms; from rest, the Stage's own commit, W35)", "pass_b.popup_latency_ms_median", "{:.1f}"),
     ("mapped layer surfaces, idle, 1 output", "pass_b.mapped_layer_surfaces_idle", "{:g}"),
     ("motion window (s)", "pass_m.motion_window_s", "{:.1f}"),
     ("motion frames (commits/s, all surfaces)", "pass_b.motion_commits_per_s", "{:.1f}"),
@@ -56,6 +59,8 @@ def with_derived(r: dict) -> dict:
     if "pss_mib_3out" in a and "pss_mib_popup_closed" in a:
         # The mean of the two hotplugged outputs, against the popup-closed reading (budget.py takes the same delta).
         a["pss_per_output_mib"] = round((a["pss_mib_3out"] - a["pss_mib_popup_closed"]) / 2, 3)
+    if "uss_mib_3out" in a and "uss_mib_popup_closed" in a:
+        a["uss_per_output_mib"] = round((a["uss_mib_3out"] - a["uss_mib_popup_closed"]) / 2, 3)
     return r
 
 
