@@ -1,15 +1,23 @@
 #!/usr/bin/env bash
-# The desk's order and edit mode in the REAL shell (W24-desk-settings, K48 (4)), invisibly: the real kurashid and the real
-# Quickshell frontend in the headless sway sandbox, `desktop.enabled = true`, the tasks mod on (its two desk cards). Per
-# decor (sekai, none):
+# The desk's order, edit mode and hidden cards in the REAL shell (W24-desk-settings, K48 (4); W36, K65), invisibly: the real
+# kurashid and the real Quickshell frontend in the headless sway sandbox, `desktop.enabled = true`, the tasks mod on (its
+# two desk cards). Per decor (sekai, none):
 #   1. the column follows `desktop.order` set with `kurashi set` (calendar first), unlisted cards after;
-#   2. the "Edit" key under the pointer opens edit mode: every card shows (placeholders for those with nothing to show);
+#   2. the "Edit" key above the first card opens edit mode: every card shows (placeholders for those with nothing to show);
 #      by keys only from there — Alt+Down moves the focused card (clock) below the next, Down moves the focus, Space hides
 #      a card (media), Return is Done: `desktop.order` and `desktop.media` are written as ONE change (one undo puts both
 #      back);
-#   3. edit mode again, Alt+Down, then Escape: nothing is written.
+#   3. edit mode again, Alt+Down, then Escape: nothing is written;
+#   4. hidden cards (W36): Tab to the clock's eye and Space (a core card: its switch), Down ×4 and Tab ×3 to the tasks
+#      card's eye and Space (a mod card: `desktop.hidden`), Up, Return: the switch and the list are written as ONE change;
+#      one undo puts both back;
+#   5. a value forced above the user (managed.toml with `_managed.enforce`: desktop.hidden = the notes card): its eye is
+#      off and the edit bar says why;
+#   6. kurashid stopped in edit mode, a change made, Return: the bar says the save did not happen;
+#   7. the Japanese copy (ja_JP.UTF-8): the desk's titles in edit mode.
 # Checks print ok / FAIL; any FAIL, QML error or kurashid panic makes the run exit 1.
-# Shots: frontend/shots/desk/{ordered,hover,edit,edit-moved,saved}-{sekai,none}.png (the desk column).
+# Shots: frontend/shots/desk/{ordered,hover,edit,edit-moved,saved,hidden-edit,hidden-desk,forced-edit,offline-edit,ja-hover,
+# ja-edit}-{sekai,none}.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c frontend/test-desk.sh [sandbox-name]
 set -euo pipefail
@@ -104,6 +112,8 @@ desktop.enabled = true
 file = "$VAULT/Tasks.md"
 notes_file = "$VAULT/Note.md"
 TOML
+  # A layer above the user (step 5): `managed.toml` with `_managed.enforce = true` forces every value in it (K15).
+  [ -z "${TEST_MANAGED:-}" ] || printf '%s\n' "$TEST_MANAGED" > "$XDG_CONFIG_HOME/kurashi/managed.toml"
   rm -f "$KURASHI_SOCKET"
   env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
@@ -128,14 +138,15 @@ TOML
   PPID_=$!
   exec 4> "$R/pointer.fifo"
 }
-# The Edit key: on the column's top-right corner while the pointer is over the desk. The pointer moves there first (the
-# hover shows the key; a name given takes a shot of that), then presses; then it leaves the desk.
+# The Edit key: above the column's first card, on its right, while the pointer is over the desk (the key spans the bar's
+# bottom + 8 px to about +46 px on sekai, +12 to +40 on none). The pointer moves there first (the hover shows the key; a
+# name given takes a shot of that), then presses; then it leaves the desk.
 edit_key() {
-  local top; top=$(( $(bar_h) + 28 ))
-  echo "move 2490 $(( top + 22 ))" >&4
+  local y; y=$(( $(bar_h) + 24 ))
+  echo "move 2490 $y" >&4
   sleep 1
   [ -z "${1:-}" ] || shot "$1"
-  echo "click 2490 $(( top + 22 )) left" >&4
+  echo "click 2490 $y left" >&4
   sleep 0.8
   echo "move 1200 700" >&4
   sleep 0.5
@@ -158,8 +169,8 @@ for DECOR in $DECORS; do
   shot "edit-moved-$DECOR"
   kp return
   wait_val desktop.media false
-  # The mod cards come after, in the order the mods document lists them (row 123): both are there, once.
-  check "$(val desktop.order | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:4] == ["calendar","clock","media","weather"] and sorted(o[4:]) == ["mod:tasks:notes","mod:tasks:tasks"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar ($(val desktop.order))"
+  # The mod cards come after, in the manifest's `provides` order (W36: tasks, then notes; the qml map would sort them the other way).
+  check "$(val desktop.order | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:4] == ["calendar","clock","media","weather"] and o[4:] == ["mod:tasks:tasks","mod:tasks:notes"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar and the mod cards in manifest order ($(val desktop.order))"
   check "$([ "$(val desktop.media)" = false ] && echo 1 || echo 0)" "$DECOR Space hid the media card (desktop.media = $(val desktop.media))"
   shot "saved-$DECOR"
   K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo was refused"
@@ -171,6 +182,52 @@ for DECOR in $DECORS; do
   kp alt+down escape
   sleep 1
   check "$([ "$(val desktop.order)" = "$DEFAULT" ] && echo 1 || echo 0)" "$DECOR Escape wrote nothing ($(val desktop.order))"
+
+  echo "== $DECOR: hidden cards by Tab and Space, Done, undo"
+  edit_key
+  kp tab tab space          # the clock: Tab to its down key, then its eye; Space hides it (its switch)
+  kp down down down down    # focus to the tasks card, the fifth card (the eye key keeps Down for the card)
+  kp tab tab tab space      # the tasks card: its up and down keys, then its eye; Space hides it (desktop.hidden)
+  shot "hidden-edit-$DECOR"
+  kp up return              # Up moves the focus off the eye onto a card; Return is Done from a card
+  wait_val desktop.clock false
+  wait_val desktop.hidden '["mod:tasks:tasks"]'
+  check "$([ "$(val desktop.clock)" = false ] && [ "$(val desktop.hidden)" = '["mod:tasks:tasks"]' ] && echo 1 || echo 0)" "$DECOR the eyes wrote the clock switch and the hidden list ($(val desktop.clock) $(val desktop.hidden))"
+  shot "hidden-desk-$DECOR"
+  K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo of the hidden cards was refused"
+  wait_val desktop.clock true
+  wait_val desktop.hidden '[]'
+  check "$([ "$(val desktop.clock)" = true ] && [ "$(val desktop.hidden)" = '[]' ] && echo 1 || echo 0)" "$DECOR one undo put the switch and the hidden list back"
+
+  echo "== $DECOR: a value forced above the user: its eye is off, and the bar says why"
+  TEST_MANAGED=$'[_managed]\nenforce = true\n\n[desktop]\nhidden = ["mod:tasks:notes"]\n'
+  start_all "$DECOR"
+  unset TEST_MANAGED
+  edit_key
+  shot "forced-edit-$DECOR"
+  check "$([ "$(val desktop.hidden)" = '["mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR the forced list is in effect ($(val desktop.hidden))"
+  kp escape
+  sleep 1
+
+  echo "== $DECOR: kurashid stopped in edit mode: Done is refused, and the bar says the save did not happen"
+  start_all "$DECOR"
+  edit_key
+  stop_daemon
+  sleep 1
+  kp space return
+  sleep 2
+  shot "offline-edit-$DECOR"
+  kp escape
+  sleep 1
+
+  echo "== $DECOR: the Japanese copy (ja_JP.UTF-8): the desk's titles"
+  export LC_ALL=ja_JP.UTF-8
+  start_all "$DECOR"
+  edit_key "ja-hover-$DECOR"
+  shot "ja-edit-$DECOR"
+  kp escape
+  sleep 1
+  export LC_ALL=C.UTF-8
 done
 stop_pointer
 stop_keys
