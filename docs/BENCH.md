@@ -37,6 +37,106 @@ baseline.
 
 ## Results
 
+### 2026-10-25 — W39 block: a lighter Block, the quick card's build, idle windows, the icon font (machine A; I199, I204, I194)
+Real `kurashid` (release, built from `2b2e682a`), headless sway gles2 on renderD128, one 2560×1440 output, sandboxes
+`w39-block-*`. "Before" is the frontend of `2b2e682a` (`git archive`), "after" this branch, run in the same invocation
+(ref and new interleaved where the tool allows), so both see the same load and the same other processes. **PSS across
+days is not comparable here:** pages a file shares with another process (a Quickshell in the user's session, another
+agent's sandbox: Qt's libraries, Material Symbols) split their PSS, so one frontend read 124–171 MiB PSS @1 output today
+depending on what else ran (USS 99–144); before/after pairs below always ran back to back. New tools (tools/bench/README):
+`block.sh`, `block-identity.sh`, `quick-open.sh`, and `*_rss_by` in measure.py's readings.
+
+**Block (`tools/bench/block.sh`: 100 quick-tile pairs — a pill Block with a badge Block in it — made 15 times per look,
+median of the warm rounds; anonymous memory with 500 pairs held minus none, rough).** Where the 135 µs went (HEAD, sekai /
+glass, a piece removed each): the five Behaviors 17 / 20 µs, the four Loaders and FrameHost 34 / 35 µs, the `layer.*` lines
+0, an inactive SoftShadow 7 µs (an active one, glass: 40 µs). The new Block keeps the stacking order and makes what only
+some looks draw in two Loaders — under the content (the line chrome's press flash, the relief) and over it (the relief
+with `texture.text`, the pen's outline, the decor frame) — and has two Behaviors (one eased press value for the sink and
+the shrink, one colour animation for the fill).
+
+| look (chrome) | before µs / Block | after µs / Block | anon KiB / Block before → after |
+|---|---|---|---|
+| sekai (keycap) | 135 | **95** | 86 → 67 |
+| glass (soft) | 165 | **130** | 91 → 71 |
+| kanso (flat) | 130 | **98** | 69 → 50 |
+| terminal (line) | 135 | **125** | 58 → 50 |
+| kami (line + sketch frame) | 775–802 | 828–830 (+3–7 %) | 418–458 → 467–470 |
+| washi (line + paper frame, the default style) | 1342 | 1375 (+2 %) | 337 → 343 |
+| snes (keycap + frame) | 750 | 765 (+2 %) | 179 → 177 |
+
+**Not improved:** in a look with a decor frame the frame costs 5–10× the Block itself (washi's Paper frame builds its grain
+SVG in JS once per block: ~1.2 ms), and the extra Loader level adds 2–7 % there. Row 447 asks for the grain to be memoised.
+
+**Pixel identity (`tools/bench/block-identity.sh`, HEAD vs this branch):** 11 scenarios — kanso, sekai, glass, terminal,
+washi, kami, snes, sekai with a 2× shadow at 135°, sekai on paper, glass on paper with `texture.text`, terminal with a
+rough pen and a text modifier — × the bar, the island card (the month grid), quick settings, the launcher, the session
+menu and the card's Close key held down (the sink, the shrink, the flash): **0 strongly different pixels in all 66 pairs**;
+up to 122 faint ones per shot (text and blur rasterisation; the same frontend against itself with only the icon font
+changed reads up to 94). The first run failed only where the minute turned between the two frontends (the clock's width
+moves the bar groups): the tool now shoots both inside one wall-clock minute and retries.
+
+**Quick settings card (`tools/bench/quick-open.sh`, W37's method: a synchronous view Loader on sandbox copies, runtime.ui
+patch → view made; first open | median of 7 warm).**
+
+| | before | after |
+|---|---|---|
+| default style (washi, Paper frame) | 60 \| 48 ms | 60–61 \| 48–50 ms |
+| … with the Paper grain memoised (row 447, scratch variant) | — | 44 \| **21 ms** |
+| sekai (W37's 14 ms) | 21 \| 14 ms | 19 \| **12 ms** |
+
+Attribution (sekai, after): without the ten tiles 10 | 5 ms, without their badge Blocks 17 | 11, with the icon font off
+26 | 13 — the tiles are ~0.7 ms each and the two Blocks are ~0.2 of it; the rest is QuickTile's own tree (texts, icons, two
+MouseAreas, the focus ring, bindings), not QuickPanel's. Washi (before): without the tiles 19 | 10, without the badges
+40 | 34. **Not met:** the card's ≤ 8 ms warm target — 12 ms in sekai, 48–50 in the default style (21 with row 447). Nothing in
+QuickPanel.qml itself was worth cutting; a lighter QuickTile (one hit area, the chevron and focus ring made lazily) is the
+next step, outside this card's paths.
+
+**Idle windows (pass a only, PSS @1 output, two runs each, this branch's frontend with one part left out).** All of it: 170.7 /
+168.8; without the peek's shape and shadow 169.2 / 171.3; without the island's shape, relief and head face 169.1 / 169.3;
+without the tray column 171.2 / 171.2; without the Stage window 162.9 / 162.0 (−7.3); without the Launcher window 163.2 /
+163.1 (−6.6). The anonymous class moves in 2.0 MiB steps between runs, so a hidden part under ~2 MiB does not show: the
+Stage's and the Launcher's hidden trees are not where their cost is — it is the windows themselves (W35: ~3.5 MiB each)
+and their first-use state. A Loader for the peek's shape (self-contained, made only while a peek morphs) was built and
+measured, gained nothing visible, and was **reverted**; the island shape (on every popup's first frame, ≤ 16.7 ms gated)
+and the launcher card (its field and list referenced by the window's handlers; W37-daemon's ≤ 40 ms cold-open gap) were
+left as they are. K16's persistent Stage window stays.
+
+**Icon font (I194).** Material Symbols keeps ~4300 ligatures; the shell's sources name 411 (`nix/icon-names.txt`, from
+`nix/icon-names.py`). `nix/icon-font.nix` builds "Kurashi Symbols Rounded/Sharp" from them with every axis and the
+FILL alternates (`settings.fill`): Sharp 8.9 MB → 0.68 MB, Rounded 15.2 → 1.18 MB. Measured with the same subset under the
+original family name (fontconfig pointed at it; pass a, two runs each, the ref frontend):
+
+| | font RSS @1 out | font RSS after the popup | PSS @1 out |
+|---|---|---|---|
+| Material Symbols (today) | 22.5 MiB | 24.5 | 129.1 / 129.7 |
+| subset, every axis (the derivation) | **13.9** | **13.9** | 125.9 / 128.1 |
+| subset, GRAD 0 and opsz 24 pinned | 12.8 | 12.8 | 124.0 / 127.7 |
+
+The PSS saving here is smaller than the RSS saving because another process mapped the same Material Symbols file during
+these runs (its pages were split); with the shell the only one mapping it, PSS falls by about the RSS amount (I194's
+8.2 MiB). A static instance was not pursued: Icon.qml sets FILL and wght per icon (`filled`, `icon.weight` 300/400/600),
+so it would need several instances and an Icon.qml change; the pinned variant saves 1 MiB more but rounds outlines, the
+every-axis subset draws pixel for pixel (identity run: kanso, sekai, glass, terminal, 0 strong pixels). Not wired yet:
+kurashi-theme must prefer the new families and the modules install the package (row 445); a name the subset lacks would
+draw as letters (third-party mods' icons): row 446.
+
+**`just bench-gate` (measure.py + budget.py, `--max-load 2.5`, load 0.6–1.1, before/after interleaved, two runs each).**
+
+| metric (gate) | before r1 / r2 | after r1 / r2 | budget |
+|---|---|---|---|
+| idle frames, 30 s (fps) | 1.2 / 0.67 (the minute flip) | 0 / 0 | ≤ 1 |
+| idle CPU, daemon + frontend (%) | 0.067 / 0.033 | 0 / 0 | < 0.5 ✔ |
+| PSS frontend @1 output (MiB; USS) | 167.3 (140.7) / 169.0 (142.4) | 167.3 (140.9) / 170.5 (143.9) | ≤ 150 ✘ |
+| PSS per extra output (MiB, mean of 2) | +0.7 / +2.2 | +2.3 / +0.5 | ≤ +6 ✔ |
+| popup input → first commit (ms) | 14.8 / 14.8 | 15.1 / 15.4 | ≤ 16.7 ✔ |
+| PSS growth over 20 cycles (MiB) | +4.00 / +5.28 | +0.37 / +0.75 | ≤ 2 (scatters, W35) |
+| mapped surfaces, idle | 3 / 3 | 3 / 3 | ≤ 4 ✔ |
+
+The idle frame and cycle rows differ by chance (the bar's minute flip fell into the before runs' windows; the cycle row
+scatters as W35 described). **PSS @1 output did not move** (167.3 → 167.3, 169.0 → 170.5): the idle shell holds a few dozen
+Blocks (~18 KiB less each is ~0.5 MiB, inside the run-to-run spread). What would move it: the icon font subset (row 445,
+up to ~8–9 MiB where the shell is the font's only user), not the Block. The badge token (I204) changed only colours.
+
 ### 2026-10-25 — W35 perf: popup latency, idle frames, memory (machine A; B37, B34, B35/B7, I93)
 Real stack (`kurashid` release build of `2bbc8f7`, no crate changed since), headless sway gles2 on renderD128, one
 2560×1440 output, `frontend/launch.sh`. **Load:** the user's live session runs an installed `kurashid` that burns ~1 core

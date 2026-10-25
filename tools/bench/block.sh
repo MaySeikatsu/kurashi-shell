@@ -44,14 +44,19 @@ anon_kib() { awk '/^Pss_Anon:/ {print $2}' "/proc/$1/smaps_rollup"; }
 i=0
 for fe in "${FRONTENDS[@]}"; do
   i=$((i + 1))
-  H=$W/h$i
-  rm -rf "$H"; mkdir -p "$H"
-  cp "$ROOT/tools/bench/block/shell.qml" "$H/"
-  cp -r "$fe" "$H/frontend"
-  for look in $LOOKS; do
-    K set theme.style="$look" >/dev/null || fail "theme.style=$look refused"
-    K set theme.motion.profile=calm >/dev/null || true
-    sleep 1
+  rm -rf "$W/h$i"; mkdir -p "$W/h$i"
+  cp "$ROOT/tools/bench/block/shell.qml" "$W/h$i/"
+  cp -r "$fe" "$W/h$i/frontend"
+done
+# Per look the frontends one after the other, so a change in the machine's load hits all of them alike.
+for look in $LOOKS; do
+  K set theme.style="$look" >/dev/null || fail "theme.style=$look refused"
+  K set theme.motion.profile=calm >/dev/null || true
+  sleep 1
+  i=0
+  for fe in "${FRONTENDS[@]}"; do
+    i=$((i + 1))
+    H=$W/h$i
     log=$W/qs-$i-$look.log
     env -u KURASHI_SOCKET KURASHI_SOCKET="$KURASHI_SOCKET" qs -p "$H" > "$log" 2>&1 &
     qs=$!
