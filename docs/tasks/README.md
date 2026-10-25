@@ -288,3 +288,11 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W36-bar | workspaces.rs + niri adapter, Bar/Dock, bar faces, test-tasks/dock, docs/ux/tasks + dock | opus |
 | W36-core | crates/kurashid (rest), kurashi-mod-api, schema __private/generate, settings/, mods/wallpaper | opus |
 | W36-desk | Desktop.qml + desk components, test-desk, docs/ux/desktop | haiku |
+
+## Wave 37 (2026-10-25, session 13) — terminal material, daemon follow-ups, calendar, quick settings (contracts: K66)
+| Card | Owner paths | Model |
+|---|---|---|
+| W37-ghostty | kurashi-theme export (ghostty), theme_export.rs, docs/ux/terminal-texture, tools/test-ghostty | opus |
+| W37-daemon | crates/kurashid (not theme_export.rs), kurashi-mock, CLI, Launcher/Stage.qml | opus |
+| W37-calendar | mods/calendar, SlotHost, ClockView, docs/ux/calendar | haiku |
+| W37-quick | QuickPanel, components/quick, kurashi-theme tokens.rs, wallpaper tile, docs/ux/quick-settings | haiku |
