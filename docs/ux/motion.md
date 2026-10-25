@@ -89,7 +89,10 @@ come with the shape.
   no keyboard focus; an open panel folds away and is closed at the daemon (`ui.close` keeps the polkit flag), so it does
   not come back when the dialog goes; a panel asked for meanwhile is closed the same way.
 - **Known:** the first spring step lands ~3 frames (≈ 40 ms) after the shape's first frame on every surface — Qt's
-  animation timer starting, not the springs (the pre-W36 SpringAnimation shows the same).
+  animation timer starting, not the springs (the pre-W36 SpringAnimation shows the same). The quick card's view
+  (QuickPanel, ~60 ms of work) is made in slices between the shape's first frames on the same thread, so under load
+  (machine A at load ~8) its visible growth starts ~100 ms after the first commit even with a cached size; the first
+  open of a session holds at the button until the view is made (≥ 120 ms). A lighter QuickPanel is the real fix.
 
 ## States
 Opening, open, retargeting, closing, closed; interrupted (close during open continues from the current value and
