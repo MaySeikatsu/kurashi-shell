@@ -1382,6 +1382,36 @@ mod tests {
         let _ = std::fs::remove_dir_all(root);
     }
 
+    /// K68: picking the default three faces is still a choice. The config store keeps a value equal to the default as the
+    /// user's, so the list restricts and a mod's face it leaves out is hidden (a Settings "remove" must not do nothing).
+    #[tokio::test]
+    async fn choosing_the_default_faces_still_restricts() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "");
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        {
+            let h = h.clone();
+            cfg.on_change(move |c| h.apply_config(c));
+        }
+        h.apply_config(&cfg);
+        assert!(offered(&hub).iter().any(|f| f == "weather"));
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.faces".into(),
+            value: json!(["clock", "media", "notifications"]),
+            output: None,
+        }])
+        .unwrap();
+        let listed = cfg.get("island.main.faces", None).unwrap();
+        assert_eq!(listed.source, kurashi_core::Source::User, "{listed:?}");
+        assert!(
+            !offered(&hub).iter().any(|f| f == "weather"),
+            "{:?}",
+            offered(&hub)
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     /// K68 and K65: the system events are exempt from the list. A volume change shows its OSD whatever the list names.
     #[test]
     fn the_list_does_not_hide_the_system_events() {
