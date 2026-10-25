@@ -10,9 +10,9 @@
 # not exist: the agent's registration result is logged ("polkit: agent not registered").
 # Corners: the real shell with theme.shape.screen_corners = 24: black fillets at the output's corners, the background at
 # 14 px in; set to 0 live: gone.
-# I128 (W36), with the real shell: while runtime.ui.polkit is true no Stage panel opens (quick.toggle, island.expand
-# leave runtime.ui.panel empty, nothing drawn), an open quick card folds away when it turns true and does not come back
-# when it turns false.
+# I128 (W36), with the real shell: while runtime.ui.polkit is true no Stage panel opens (row 381: kurashid refuses
+# quick.toggle and island.expand with ui.error.polkit, runtime.ui.panel stays empty, nothing drawn), an open quick card is
+# closed by the daemon and folds away when it turns true, and does not come back when it turns false.
 # Screenshots (frontend/shots/): polkit-{prompt,wrong}-{sekai,none}.png, polkit-identities-sekai.png,
 # corners-24-{tl,br}.png, polkit-stage-aside.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
@@ -243,13 +243,13 @@ pixels "corners at 0: the background at the output's corners" 1,1438,bg 2558,143
 panel_is() { ui_is "d.get('panel', '') == '$1'"; }
 K act ui.polkit '{"active":true}' >/dev/null || fail "ui.polkit true refused"
 wait_ui 'd.get("polkit") is True' 20
-K act quick.toggle >/dev/null
+# Row 381: the daemon refuses the Stage's panel actions (kurashi act exits non-zero and names the key).
+refused_by_polkit() { local out; if out=$(K act "$@" 2>&1); then return 1; fi; grep -q 'ui.error.polkit\|authentication dialog' <<<"$out"; }
+check "$(refused_by_polkit quick.toggle && echo 1 || echo 0)" "polkit up: quick.toggle is refused with ui.error.polkit"
 sleep 0.5
-wait_ui 'd.get("panel", "") == ""' 20
-check "$(panel_is "" && echo 1 || echo 0)" "polkit up: quick settings asked for is closed again at once (runtime.ui.panel empty)"
-K act island.expand >/dev/null
+check "$(panel_is "" && echo 1 || echo 0)" "polkit up: quick settings stays closed (runtime.ui.panel empty)"
+check "$(refused_by_polkit island.expand && echo 1 || echo 0)" "polkit up: island.expand is refused with ui.error.polkit"
 sleep 0.5
-wait_ui 'd.get("panel", "") == ""' 20
 check "$(panel_is "" && echo 1 || echo 0)" "polkit up: the island does not expand (runtime.ui.panel empty)"
 sleep 1
 pixels "polkit up: no card drawn" 2350,300,bg 1280,300,bg

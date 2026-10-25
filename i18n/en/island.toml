@@ -190,3 +190,5 @@
 "island.quick.tile.dark" = "Dark mode"
 "island.quick.tile.dark.auto" = "Follows the system"
 "island.quick.tile.dark.wallpaper" = "Follows the wallpaper"
+# island.expand {face} (K66, row 203): a face the island does not show.
+"island.error.unknown_face" = "The island has no such face."

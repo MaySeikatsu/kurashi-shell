@@ -160,8 +160,9 @@ PanelWindow {
         }
         if (!r.id) return
         var id = r.id
-        // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first.
-        if (id.indexOf("cmd:") === 0) {
+        // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first. So does
+        // a Settings link (`settings:<page>`, row 387): Settings is a window of its own.
+        if (id.indexOf("cmd:") === 0 || id.indexOf("settings:") === 0) {
             Store.act("ui.close", {}, function () { Store.act("launcher.launch", { id: id }) })
             return
         }
@@ -170,40 +171,6 @@ PanelWindow {
             if (e) { lp.err = lp.errorText(e); return }
             Store.act("ui.close")
         })
-    }
-    // W36 (I190): the first open of a session held its morph ~200 ms on the icon theme: Quickshell.iconPath takes ~20 ms
-    // the first time it looks a name up (cached by Qt after), and the first rows' apps were all new. So the names the
-    // empty query shows first are looked up once, a few seconds after the daemon is reachable, one per 60 ms tick (no
-    // frame, nothing kept but Qt's own icon cache); a launcher opened meanwhile stops it. Runs once per frontend.
-    property var warmQueue: []
-    property bool warmed: false
-    Timer {
-        id: warmStart
-        interval: 3000
-        running: Store.live && !lp.warmed
-        onTriggered: {
-            lp.warmed = true
-            if (lp.want) return
-            Store.query("launcher", "", function (items) {
-                if (lp.want || !items) return
-                var names = []
-                for (var i = 0; i < items.length && names.length < lp.maxRows; i++)
-                    if (items[i].kind === "app" && items[i].icon) names.push(String(items[i].icon))
-                lp.warmQueue = names
-                if (names.length > 0) warmTick.start()
-            })
-        }
-    }
-    Timer {
-        id: warmTick
-        interval: 60
-        repeat: true
-        onTriggered: {
-            if (lp.want || lp.warmQueue.length === 0) { stop(); lp.warmQueue = []; return }
-            var q = lp.warmQueue.slice()
-            Quickshell.iconPath(q.shift(), true)
-            lp.warmQueue = q
-        }
     }
     onSelChanged: confirmClear = false
     onModeChanged: confirmClear = false
@@ -427,7 +394,11 @@ PanelWindow {
                             x: 10; anchors.verticalCenter: parent.verticalCenter
                             anchors.verticalCenterOffset: -Theme.shadowDy / 2
                             width: 30; height: 30
-                            property string src: row.kind === "app" && row.modelData.icon ? Quickshell.iconPath(row.modelData.icon, true) : ""
+                            // Row 380 (I190): the file the daemon resolved from the icon theme, loaded asynchronously (off the GUI
+                            // thread). Only a name it found no file for asks Qt's icon theme (~20 ms on the GUI thread per new name).
+                            property string src: row.kind !== "app" ? ""
+                                : (row.modelData.icon_path ? "file://" + row.modelData.icon_path
+                                : (row.modelData.icon ? Quickshell.iconPath(row.modelData.icon, true) : ""))
                             Image {
                                 id: img
                                 anchors.fill: parent
