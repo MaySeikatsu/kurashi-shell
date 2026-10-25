@@ -9,6 +9,7 @@ check:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace
     sh frontend/test-launch.sh
+    sh tools/check-icon-names.sh
 
 fmt:
     cargo fmt --all
