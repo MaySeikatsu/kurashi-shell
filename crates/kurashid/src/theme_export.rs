@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 
 use serde_json::{Value, json};
 
-use kurashi_theme::export::{self, Entry, Inputs, Output, Target, Values};
+use kurashi_theme::export::{self, Entry, Inputs, Output, Target, Values, ghostty_shader};
 
 use crate::config::ConfigStore;
 use crate::hub::Hub;
@@ -221,6 +221,8 @@ pub struct Run<'a> {
     /// `theme.motion.speed`.
     pub motion_speed: f64,
     pub desktop: &'a Desktop,
+    /// The material's tile parameters (`theme.texture.kind`, …) for a target's generated shader (ghostty, W37).
+    pub material: &'a ghostty_shader::Material,
 }
 
 /// Renders and applies every chosen target; returns the `svc.theme_export` document.
@@ -250,9 +252,45 @@ pub fn export(run: &Run) -> Value {
     json!({"targets": out})
 }
 
+/// A target's generated shader (ghostty, W37), written before the file that names it: the material on for the shell →
+/// the shader, and `{{ghostty.shader}}` names it; off → no line, and a shader file still there becomes a pass-through,
+/// so a config that still names it keeps loading (as K49's legacy stub).
+fn shader(run: &Run, rel: &str, values: &mut Values) {
+    let dest = run.home.join(rel);
+    let tokens = run.theme["tokens"].as_object().cloned().unwrap_or_default();
+    let line = match ghostty_shader::generate(&tokens, run.material) {
+        Ok(glsl) => match write_if_changed(&dest, &glsl) {
+            Ok(_) => ghostty_shader::lines(&dest.to_string_lossy()),
+            Err(e) => {
+                tracing::warn!(error = %e, path = %dest.display(), "terminal shader not written");
+                String::new()
+            }
+        },
+        Err(why) => {
+            tracing::debug!(?why, "no terminal shader");
+            if dest.exists()
+                && let Err(e) = write_if_changed(&dest, ghostty_shader::PASS_THROUGH)
+            {
+                tracing::warn!(error = %e, path = %dest.display(), "terminal shader stub not written");
+            }
+            String::new()
+        }
+    };
+    values.insert(ghostty_shader::PLACEHOLDER.into(), line);
+}
+
 fn one(run: &Run, t: &Target, p: &kurashi_theme::Palette, values: &Values) -> Value {
     let mut entry = json!({"name": t.name});
     let mut unknown = BTreeSet::new();
+    let mut own;
+    let values = match t.shader {
+        Some(rel) => {
+            own = values.clone();
+            shader(run, rel, &mut own);
+            &own
+        }
+        None => values,
+    };
     match &t.output {
         Output::File { template, path } => {
             let dest = match path.strip_prefix("@data/") {
@@ -365,6 +403,29 @@ fn config_and_data() -> (PathBuf, PathBuf) {
     (config_home(), crate::xdg_dir("data"))
 }
 
+/// The material's tile parameters as resolved (a11y forcing applied) for the ghostty shader (W37): the theme document
+/// carries the light and the amplitude, not the kind (CONTRACT-CHANGE row 400).
+fn material_of(store: &ConfigStore) -> ghostty_shader::Material {
+    let text = |k: &str| {
+        store
+            .get(k, None)
+            .and_then(|p| p.value.as_str().map(str::to_owned))
+            .unwrap_or_default()
+    };
+    let num = |k: &str| {
+        store
+            .get(k, None)
+            .and_then(|p| p.value.as_f64())
+            .unwrap_or(0.0)
+    };
+    ghostty_shader::Material {
+        kind: text("theme.texture.kind"),
+        wrinkles: num("theme.texture.wrinkles"),
+        cracks: num("theme.texture.cracks"),
+        crack_style: text("theme.texture.crack_style"),
+    }
+}
+
 /// `svc.theme_export`, kept current after each theme document or config change.
 pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
     hub.register(DOC, json!({"targets": []}), None);
@@ -396,6 +457,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     .unwrap_or(1.0);
                 let (home, data) = config_and_data();
                 let bundled = crate::i18n::data_dir().join("templates");
+                let material = material_of(&store);
                 export(&Run {
                     theme: &theme,
                     targets: &targets,
@@ -405,6 +467,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
                     icon_theme: &icon_theme,
                     motion_speed,
                     desktop: &desktop,
+                    material: &material,
                 })
             };
             let _ = hub.set(DOC, doc, None);
@@ -470,6 +533,25 @@ mod tests {
         icon: &str,
         desktop: &Desktop,
     ) -> Value {
+        export_with(
+            home,
+            theme,
+            targets,
+            icon,
+            desktop,
+            &ghostty_shader::Material::default(),
+        )
+    }
+
+    /// [`export_into`] with the material's tile parameters (the ghostty shader, W37).
+    fn export_with(
+        home: &Path,
+        theme: &Value,
+        targets: &[&str],
+        icon: &str,
+        desktop: &Desktop,
+        material: &ghostty_shader::Material,
+    ) -> Value {
         let targets: Vec<String> = targets.iter().map(|s| (*s).to_owned()).collect();
         let (data, bundled) = (home.join("data"), bundled());
         export(&Run {
@@ -481,6 +563,7 @@ mod tests {
             icon_theme: icon,
             motion_speed: 1.0,
             desktop,
+            material,
         })
     }
 
@@ -979,5 +1062,206 @@ mod tests {
             "{:?}",
             started.elapsed()
         );
+    }
+
+    /// The texture tokens of a theme with the material on for the shell (W37).
+    fn textured(mut theme: Value) -> Value {
+        let t = theme["tokens"].as_object_mut().unwrap();
+        for (k, v) in [
+            (
+                "texture.map",
+                json!("/cache/paper_dots-w000-c000-ink-s100-v9.png"),
+            ),
+            ("texture.tile_px", json!(480)),
+            ("texture.tile_logical", json!(480.0)),
+            ("texture.scale", json!(1.0)),
+            ("texture.amp", json!(0.09)),
+            ("texture.ink", json!("#5b7fa6")),
+            ("texture.ink_alpha", json!(0.45)),
+            ("texture.shell", json!(true)),
+            ("texture.overlay", json!(false)),
+            ("light.dir", json!([-0.54, -0.54, 0.64])),
+            ("light.color", json!("#ffffff")),
+        ] {
+            t.insert(k.into(), v);
+        }
+        theme
+    }
+
+    fn kind(name: &str) -> ghostty_shader::Material {
+        ghostty_shader::Material {
+            kind: name.into(),
+            ..ghostty_shader::Material::default()
+        }
+    }
+
+    /// Whether a ghostty config sets a custom shader (comments aside).
+    fn names_shader(text: &str) -> bool {
+        text.lines()
+            .any(|l| l.trim_start().starts_with("custom-shader"))
+    }
+
+    fn ghostty_theme(home: &Path) -> String {
+        std::fs::read_to_string(home.join("ghostty/themes/kurashi")).unwrap()
+    }
+
+    /// W37: while the material is on for the shell, ghostty's theme names a generated shader (absolute path, no
+    /// animation) written beside it; once it is off the line goes and the shader becomes a pass-through, so a config
+    /// that still names it keeps loading. A fresh config never gets a shader file.
+    #[test]
+    fn ghostty_writes_its_shader_while_the_material_is_on() {
+        let dir = tempfile::tempdir().unwrap();
+        let home = dir.path();
+        let desktop = Desktop::new("/nonexistent/gsettings", vec![]);
+        let on = textured(theme("dark", 18, "calm"));
+        let dots = kind("paper_dots");
+        let doc = export_with(home, &on, &["ghostty"], "", &desktop, &dots);
+        let g = entry(&doc, "ghostty");
+        assert_eq!(g["written"], true, "{doc}");
+        assert!(g.get("unknown").is_none(), "{doc}");
+        let shader = home.join(ghostty_shader::PATH);
+        let text = ghostty_theme(home);
+        assert!(
+            text.contains(&format!("custom-shader = {}\n", shader.display())),
+            "{text}"
+        );
+        assert!(text.contains("custom-shader-animation = false"), "{text}");
+        let glsl = std::fs::read_to_string(&shader).unwrap();
+        assert!(glsl.contains("void mainImage("), "{glsl}");
+        assert!(glsl.contains("kind paper_dots"), "{glsl}");
+        // The same theme again writes nothing.
+        let again = export_with(home, &on, &["ghostty"], "", &desktop, &dots);
+        assert_eq!(entry(&again, "ghostty")["written"], false);
+        // Off (the style dropped its texture): no line, the shader a pass-through.
+        let doc = export_with(home, &on, &["ghostty"], "", &desktop, &kind("none"));
+        assert_eq!(entry(&doc, "ghostty")["written"], true, "{doc}");
+        let text = ghostty_theme(home);
+        assert!(!names_shader(&text), "{text}");
+        assert_eq!(
+            std::fs::read_to_string(&shader).unwrap(),
+            ghostty_shader::PASS_THROUGH
+        );
+        // Scope wallpaper: the material is not the shell's, so the terminal gets none either.
+        let mut wall = on.clone();
+        wall["tokens"]["texture.shell"] = json!(false);
+        export_with(home, &wall, &["ghostty"], "", &desktop, &kind("paper"));
+        let text = ghostty_theme(home);
+        assert!(!names_shader(&text), "{text}");
+        // A fresh config with the material off: no shader file at all.
+        let fresh = tempfile::tempdir().unwrap();
+        let plain = theme("dark", 18, "calm");
+        export_with(
+            fresh.path(),
+            &plain,
+            &["ghostty"],
+            "",
+            &desktop,
+            &kind("paper"),
+        );
+        assert!(!fresh.path().join(ghostty_shader::PATH).exists());
+    }
+
+    /// W37: every material kind has a procedural recipe in the terminal shader.
+    #[test]
+    fn every_texture_kind_has_a_terminal_recipe() {
+        let on = textured(theme("dark", 18, "calm"));
+        let tokens = on["tokens"].as_object().unwrap();
+        for k in kurashi_texture::Kind::ALL {
+            assert!(ghostty_shader::KINDS.contains(&k.name()), "{}", k.name());
+            assert!(
+                ghostty_shader::generate(tokens, &kind(k.name())).is_ok(),
+                "{}",
+                k.name()
+            );
+        }
+        assert_eq!(
+            ghostty_shader::KINDS.len(),
+            kurashi_texture::Kind::ALL.len()
+        );
+    }
+
+    /// tools/test-ghostty.sh: the ghostty export of real themes (the daemon's pipeline, tiles and legibility cap
+    /// included) into `$KURASHI_GHOSTTY_SHOTS/<case>-{textured,plain}/`.
+    #[test]
+    #[ignore = "run by tools/test-ghostty.sh"]
+    fn ghostty_shot_exports() {
+        let out = std::env::var_os("KURASHI_GHOSTTY_SHOTS")
+            .map(PathBuf::from)
+            .expect("set KURASHI_GHOSTTY_SHOTS");
+        crate::texture::set_cache_dir(out.join("cache"));
+        let fonts = kurashi_theme::FakeFonts::new(&["Inter"]);
+        let desktop = Desktop::new("/nonexistent/gsettings", vec![]);
+        // (case, [theme] lines, [theme.texture] lines, the kind)
+        let cases = [
+            (
+                "kami-light",
+                "style = \"kami\"\n[theme.colors]\nscheme = \"light\"\n",
+                "",
+                "paper_dots",
+            ),
+            (
+                "kami-dark",
+                "style = \"kami\"\n[theme.colors]\nscheme = \"dark\"\n",
+                "",
+                "paper_dots",
+            ),
+            (
+                "stone-light",
+                "[theme.colors]\nscheme = \"light\"\n",
+                "strength = 1.0\ncracks = 0.4\n",
+                "stone",
+            ),
+            (
+                "stone-dark",
+                "[theme.colors]\nscheme = \"dark\"\n",
+                "strength = 1.0\ncracks = 0.4\n",
+                "stone",
+            ),
+        ];
+        for (name, theme_lines, texture_lines, k) in cases {
+            for (variant, kind_name) in [("textured", k), ("plain", "none")] {
+                let root = out.join("cfg").join(format!("{name}-{variant}"));
+                let _ = std::fs::remove_dir_all(&root);
+                std::fs::create_dir_all(root.join("config")).unwrap();
+                let toml = format!(
+                    "schema_version = 2\n[theme]\n{theme_lines}[theme.texture]\nkind = \"{kind_name}\"\n{texture_lines}"
+                );
+                std::fs::write(root.join("config/config.toml"), &toml).unwrap();
+                let store = ConfigStore::open(
+                    crate::hub::Hub::new(),
+                    kurashi_schema::v1::registry(),
+                    kurashi_config::Paths::rooted(&root),
+                    kurashi_config::Options::default(),
+                );
+                let doc = crate::theme::document(&store, &fonts, None);
+                assert!(doc.get("error").is_none(), "{name}: {}", doc["error"]);
+                let home = out.join(format!("{name}-{variant}"));
+                let _ = std::fs::remove_dir_all(&home);
+                let res = export_with(
+                    &home,
+                    &doc,
+                    &["ghostty"],
+                    "",
+                    &desktop,
+                    &material_of(&store),
+                );
+                assert!(
+                    entry(&res, "ghostty").get("error").is_none(),
+                    "{name}: {res}"
+                );
+                let shader = home.join(ghostty_shader::PATH).exists();
+                assert_eq!(
+                    shader,
+                    variant == "textured",
+                    "{name}-{variant}: shader {shader}, tokens {}",
+                    doc["tokens"]
+                );
+                std::fs::write(
+                    home.join("tokens.json"),
+                    serde_json::to_string_pretty(&doc["tokens"]).unwrap(),
+                )
+                .unwrap();
+            }
+        }
     }
 }

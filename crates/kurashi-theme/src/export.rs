@@ -18,6 +18,11 @@ use serde_json::Value;
 use crate::color::{BLACK, Rgb, WHITE};
 use crate::palette::Palette;
 
+/// The ghostty target's second file: the shell's material as a custom shader (W37). Declared here so the export owns
+/// it (lib.rs stays as it is).
+#[path = "ghostty_shader.rs"]
+pub mod ghostty_shader;
+
 /// A matugen role name as one of ours, or a colour derived from ours.
 pub fn role(p: &Palette, name: &str) -> Option<Rgb> {
     let g = |r: &str| p.roles.get(r).copied();
@@ -334,6 +339,9 @@ pub struct Target {
     /// A file an earlier version wrote (the include line that named it): kurashid keeps it as a stub, so the old
     /// include still loads, and reports the old line as stale.
     pub legacy: Option<(&'static str, &'static str)>,
+    /// A generated shader written beside the file, under `$XDG_CONFIG_HOME` (ghostty, W37: [`ghostty_shader`]). The
+    /// template names it with `{{ghostty.shader}}`: the shader lines while the material is on, nothing otherwise.
+    pub shader: Option<&'static str>,
 }
 
 /// Written in place of a superseded file (see [`Target::legacy`]). Comments only: an empty include is valid for niri.
@@ -350,6 +358,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("gtk-3.0/gtk.css", "@import 'kurashi-colors.css';")),
         lines: None,
         legacy: None,
+        shader: None,
     },
     Target {
         name: "gtk4",
@@ -361,6 +370,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("gtk-4.0/gtk.css", "@import 'kurashi-colors.css';")),
         lines: None,
         legacy: None,
+        shader: None,
     },
     Target {
         name: "qt",
@@ -371,6 +381,7 @@ pub const TARGETS: &[Target] = &[
         include: None,
         lines: Some(("qt6ct/qt6ct.conf", "lines/qt6ct.conf")),
         legacy: None,
+        shader: None,
     },
     Target {
         name: "qt5",
@@ -381,6 +392,7 @@ pub const TARGETS: &[Target] = &[
         include: None,
         lines: Some(("qt5ct/qt5ct.conf", "lines/qt5ct.conf")),
         legacy: None,
+        shader: None,
     },
     // KDE apps take their colours from a KDE colour scheme over the Qt palette: one for them to pick, in
     // `$XDG_DATA_HOME` (the `@data/` prefix), where their Window Color Scheme menu lists it. kdeglobals names it.
@@ -393,6 +405,7 @@ pub const TARGETS: &[Target] = &[
         include: None,
         lines: Some(("kdeglobals", "lines/kdeglobals.conf")),
         legacy: None,
+        shader: None,
     },
     Target {
         name: "foot",
@@ -403,6 +416,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("foot/foot.ini", "include=~/.config/foot/kurashi-colors.ini")),
         lines: None,
         legacy: None,
+        shader: None,
     },
     Target {
         name: "kitty",
@@ -413,6 +427,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("kitty/kitty.conf", "include kurashi-colors.conf")),
         lines: None,
         legacy: None,
+        shader: None,
     },
     Target {
         name: "alacritty",
@@ -426,6 +441,7 @@ pub const TARGETS: &[Target] = &[
         )),
         lines: None,
         legacy: None,
+        shader: None,
     },
     Target {
         name: "ghostty",
@@ -436,6 +452,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("ghostty/config", "theme = kurashi")),
         lines: None,
         legacy: None,
+        shader: Some(ghostty_shader::PATH),
     },
     Target {
         name: "niri",
@@ -446,6 +463,7 @@ pub const TARGETS: &[Target] = &[
         include: Some(("niri/config.kdl", "include \"kurashi.kdl\"")),
         lines: None,
         legacy: Some(("niri/kurashi-colors.kdl", "include \"kurashi-colors.kdl\"")),
+        shader: None,
     },
     Target {
         name: "gsettings",
@@ -455,6 +473,7 @@ pub const TARGETS: &[Target] = &[
         include: None,
         lines: None,
         legacy: None,
+        shader: None,
     },
 ];
 
