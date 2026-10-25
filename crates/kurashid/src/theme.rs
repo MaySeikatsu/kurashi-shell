@@ -322,6 +322,45 @@ fn inks(dark: bool) -> Value {
         .into()
 }
 
+/// A switch that is on and in effect: not waiting on its `requires` (K21), so a value the UI shows as inert never acts.
+fn on_in_effect(store: &ConfigStore, key: &str) -> bool {
+    store.get(key, None).is_some_and(|p| {
+        p.value.as_bool() == Some(true) && p.reason.as_deref() != Some("settings.inert.requires")
+    })
+}
+
+/// K67: the shadow vector with the user's strength and direction, or — `theme.material.shadow_follow`, in effect only
+/// with a material — away from the light in effect (`light.dir`, already in `t`: for a pointer or spotlight that is
+/// where the lamp rests, so shadows never move with the pointer). After the texture tokens; a theme override of a
+/// `shadow.*` key keeps its value.
+fn shadow_tokens(store: &ConfigStore, t: &mut serde_json::Map<String, Value>, input: &ThemeInput) {
+    let light = on_in_effect(store, "theme.material.shadow_follow")
+        .then(|| t.get("light.dir").and_then(Value::as_array).cloned())
+        .flatten()
+        .and_then(|a| {
+            let v: Vec<f64> = a.iter().filter_map(Value::as_f64).collect();
+            (v.len() == 3).then(|| [v[0], v[1], v[2]])
+        });
+    let spec = kurashi_theme::tokens::Shadow {
+        strength: f(store, "theme.material.shadow", 1.0),
+        angle: f(store, "theme.material.shadow_angle", 180.0),
+        light,
+    };
+    let mut map: kurashi_theme::TokenMap = t
+        .iter()
+        .filter(|(k, _)| k.starts_with("chrome."))
+        .map(|(k, v)| (k.clone(), v.clone()))
+        .collect();
+    kurashi_theme::tokens::shadow_tokens(&mut map, &spec);
+    for k in ["shadow.dx", "shadow.dy", "shadow.alpha_scale"] {
+        if !input.overrides.contains_key(k)
+            && let Some(v) = map.remove(k)
+        {
+            t.insert(k.into(), v);
+        }
+    }
+}
+
 /// Document value; on a pipeline error (e.g. unknown palette) the previous theme stays and the
 /// error is reported in `error` — never a half-applied theme.
 pub fn document(store: &ConfigStore, fonts: &dyn FontProvider, previous: Option<&Value>) -> Value {
@@ -364,6 +403,7 @@ pub fn document_with(
                 );
             }
             let texture_notes = crate::texture::tokens(store, &mut tokens, chrono::Local::now());
+            shadow_tokens(store, &mut tokens, &input);
             let mut notes: Vec<Value> = out
                 .notes
                 .iter()
@@ -668,6 +708,62 @@ mod tests {
         assert!(shown["styles"].as_array().unwrap().len() > 10);
         assert_eq!(shown["looks"].as_array().unwrap().len(), 18);
         assert!(shown["palettes"].as_array().unwrap().len() > 10);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// K67: the shadow vector — today's at the defaults; the user's strength and direction; away from the light (its
+    /// resting direction for the pointer) only while following is in effect (a material is on).
+    #[test]
+    fn theme_shadow_tokens_follow_the_settings_and_the_light() {
+        let root = std::env::temp_dir().join(format!("kurashid-shadow-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let fonts = kurashi_theme::FakeFonts::new(&["Inter"]);
+        let tok = |toml: &str| {
+            let doc = document(
+                &store_with(
+                    &root,
+                    &format!("schema_version = 2\n[theme]\nstyle = \"none\"\n{toml}"),
+                ),
+                &fonts,
+                None,
+            );
+            let t = &doc["tokens"];
+            let n = |k: &str| t[k].as_f64().unwrap_or_else(|| panic!("{k}: {}", t[k]));
+            (n("shadow.dx"), n("shadow.dy"), n("shadow.alpha_scale"))
+        };
+        // Defaults: straight down at the look's own length (keycap 4 px, soft 6 px, flat none).
+        assert_eq!(tok("chrome = \"keycap\"\n"), (0.0, 4.0, 1.0));
+        assert_eq!(tok("chrome = \"soft\"\n"), (0.0, 6.0, 1.0));
+        assert_eq!(tok(""), (0.0, 0.0, 1.0));
+        // Down to the right, twice as strong.
+        let (dx, dy, a) =
+            tok("chrome = \"keycap\"\n[theme.material]\nshadow = 2.0\nshadow_angle = 135\n");
+        assert!(
+            (dx - 5.66).abs() < 0.01 && (dy - 5.66).abs() < 0.01 && a == 2.0,
+            "{dx} {dy}"
+        );
+        assert_eq!(
+            tok("chrome = \"keycap\"\n[theme.material]\nshadow = 0.0\n"),
+            (0.0, 0.0, 0.0)
+        );
+        // Following without a material is inert: the static direction stays.
+        let follow =
+            "chrome = \"keycap\"\n[theme.material]\nshadow_follow = true\nshadow_angle = 90\n";
+        assert_eq!(tok(follow), (4.0, 0.0, 1.0));
+        // With one, away from the light: from the top right (45°) the shadow falls down to the left.
+        let lit = |mode: &str, angle: u32, elevation: u32| {
+            tok(&format!(
+                "{follow}[theme.texture]\nkind = \"paper\"\n[theme.light]\nmode = \"{mode}\"\nangle = {angle}\nelevation = {elevation}\n"
+            ))
+        };
+        let (dx, dy, _) = lit("static", 45, 40);
+        assert!(dx < -2.8 && dy > 2.8, "{dx} {dy}");
+        let (dx, dy, _) = lit("static", 315, 40);
+        assert!(dx > 2.8 && dy > 2.8, "{dx} {dy}");
+        // A low light lengthens it (capped at twice); the pointer's lamp casts from where it rests.
+        let (_, low, _) = lit("static", 0, 10);
+        assert!((low - 8.0).abs() < 0.01, "{low}");
+        assert_eq!(lit("pointer", 315, 40), lit("static", 315, 40));
         let _ = std::fs::remove_dir_all(&root);
     }
 

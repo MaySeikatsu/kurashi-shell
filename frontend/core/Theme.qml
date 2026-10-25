@@ -61,7 +61,17 @@ Singleton {
     readonly property color outlineColor: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
     readonly property int softR: tok("chrome.soft", 0)
     readonly property int softDy: tok("chrome.soft_dy", 0)
-    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"), tok("chrome.soft_alpha", 0))
+    // K67 (docs/ux/shadows.md): the vector every shadow falls along — the user's strength and direction, or away from the
+    // light — for the hard shadow and its sink as for the soft shadow's offset. `shadowDy`/`softDy` stay the look's own
+    // lengths: the room a block keeps for its shadow (layout), which never moves with the setting. Fallbacks are today's.
+    readonly property real shadowX: tok("shadow.dx", 0)
+    readonly property real shadowY: tok("shadow.dy", shadowDy + softDy)
+    readonly property real shadowAlpha: tok("shadow.alpha_scale", 1)
+    // The hard shadow's vector in whole px (a crisp edge), 0, 0 for a chrome without one (or strength 0: no sink then).
+    readonly property int sinkX: shadowDy > 0 ? Math.round(shadowX) : 0
+    readonly property int sinkY: shadowDy > 0 ? Math.round(shadowY) : 0
+    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"),
+        Math.min(1, tok("chrome.soft_alpha", 0) * shadowAlpha))
     readonly property real pressScale: tok("chrome.press_scale", 1)
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)
