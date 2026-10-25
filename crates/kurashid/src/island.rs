@@ -14,7 +14,7 @@ use kurashi_island::signals::{
 use kurashi_island::{
     Annotation, Arbiter, Face, FaceSignal, IslandConfig, Ms, Source, Transient, doc,
 };
-use serde_json::Value;
+use serde_json::{Value, json};
 
 use crate::actions::ActionRegistry;
 use crate::config::ConfigStore;
@@ -364,17 +364,40 @@ impl IslandHost {
         }
     }
 
-    /// Apply an input, re-decide, publish, re-arm the single deadline timer.
+    /// Apply an input, re-decide, publish, close a card the list dropped, re-arm the single deadline timer.
     fn with(self: &Arc<Self>, f: impl FnOnce(&mut Arbiter, Ms)) {
         let now = now_ms();
-        let (value, deadline) = {
+        let (value, deadline, faces) = {
             let mut arb = lock(&self.arb);
             f(&mut arb, now);
             let d = arb.decide(now);
-            (doc(&d, arb.pinned()), arb.next_deadline())
+            (doc(&d, arb.pinned()), arb.next_deadline(), d.faces)
         };
         let _ = self.hub.set(&self.doc, value, None);
+        self.close_dropped_card(&faces);
         self.arm(deadline, now);
+    }
+
+    /// K68 (row 451): a card open on a face the island no longer offers closes, as a collapse does, so it never shows a
+    /// face the list may not show. `runtime.ui` is wiring.rs's document; its collapse (`close_panel`) is private there, so
+    /// this writes the same fields (row 470 asks for one helper for both). Called outside the arbiter's lock; an unchanged
+    /// `runtime.ui` sends nothing.
+    fn close_dropped_card(&self, faces: &[String]) {
+        let _ = self.hub.update("runtime.ui", None, |ui| {
+            let face = ui["face"].as_str().unwrap_or("");
+            if ui["panel"].as_str() == Some("island")
+                && !face.is_empty()
+                && !faces.iter().any(|f| f == face)
+            {
+                ui["panel"] = json!("");
+                ui["popup"] = json!(false);
+                ui["tray"] = json!("");
+                ui["face"] = json!("");
+                if let Some(o) = ui.as_object_mut() {
+                    o.remove("peek");
+                }
+            }
+        });
     }
 
     /// Re-arms the one expiry timer on the runtime captured at construction, so it works from any
@@ -1423,6 +1446,70 @@ mod tests {
         h.observe_audio(&audio(0.4));
         h.observe_audio(&audio(0.6));
         assert_eq!(face(&hub)["face"], "volume");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68 (row 452): a list that names only a mod that is off shows the clock, and the document says so: the clock leads
+    /// `faces`, and the faces the list leaves out come back as `unlisted`, which Settings offers.
+    #[test]
+    fn a_list_of_mods_that_are_off_shows_the_clock() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "[island.main]\nfaces = [\"weather\"]\n");
+        let h = daemon_host(&hub);
+        h.apply_config(&cfg);
+        assert_eq!(face(&hub)["face"], "clock");
+        assert_eq!(face(&hub)["reason"], "default");
+        assert_eq!(offered(&hub)[0], "clock");
+        assert_eq!(face(&hub)["unlisted"], json!(["media", "notifications"]));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68 (row 451): a card open on a face the list drops closes, and one open on a face the list keeps stays open. A
+    /// mod's face that goes away (its mod is off) closes its card the same way.
+    #[tokio::test]
+    async fn a_card_open_on_a_dropped_face_closes() {
+        let hub = Hub::new();
+        let card = |face: &str| json!({"popup": true, "panel": "island", "launcher": false, "tray": "", "face": face});
+        hub.register("runtime.ui", card("media"), None);
+        let (cfg, root) = store(
+            &hub,
+            "[island.main]\nfaces = [\"clock\", \"media\", \"notifications\"]\n",
+        );
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        {
+            let h = h.clone();
+            cfg.on_change(move |c| h.apply_config(c));
+        }
+        h.apply_config(&cfg);
+        let ui = || hub.snapshot("runtime.ui").unwrap().1;
+        let set_faces = |v: Value| {
+            cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+                set: "island.main.faces".into(),
+                value: v,
+                output: None,
+            }])
+            .unwrap();
+        };
+        set_faces(json!(["clock", "media"]));
+        assert_eq!(
+            ui()["panel"],
+            "island",
+            "the list keeps media: the card stays"
+        );
+        set_faces(json!(["clock", "notifications"]));
+        assert_eq!(ui()["panel"], "", "the list drops media: the card closes");
+        assert_eq!(ui()["face"], "");
+        assert_eq!(ui()["popup"], json!(false));
+        set_faces(json!(["clock", "weather"]));
+        hub.set("runtime.ui", card("weather"), None).unwrap();
+        h.unregister_face("weather");
+        assert_eq!(
+            ui()["panel"],
+            "",
+            "a mod that is off takes its card with it"
+        );
+        assert_eq!(ui()["face"], "");
         let _ = std::fs::remove_dir_all(root);
     }
 }

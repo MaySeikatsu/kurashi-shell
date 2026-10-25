@@ -608,6 +608,32 @@ fn save_profile_snapshots_non_defaults_and_shadows_bundled() {
     ));
 }
 
+/// K68: a value the user set is saved even when it equals the default, so a profile saved with the default faces keeps
+/// the list, and loading it gives the list back as the profile's (the island restricts again). A default nobody set is
+/// still left out.
+#[test]
+fn save_profile_keeps_a_user_value_that_equals_the_default() {
+    let (_dir, mut cfg) = profile_setup();
+    cfg.apply(&[Op::set("island.faces", json!(["media", "clock"]))])
+        .unwrap();
+    let p = cfg.save_profile("mine", Some(&["island"])).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(&p).unwrap(),
+        "schema_version = 1\n\n[island]\nfaces = [\"media\", \"clock\"]\n"
+    );
+    cfg.apply(&[Op::reset("island.faces")]).unwrap();
+    let bare = cfg.save_profile("bare", Some(&["island"])).unwrap();
+    assert!(
+        !std::fs::read_to_string(&bare).unwrap().contains("faces"),
+        "a default nobody set stays out"
+    );
+    cfg.load_profile("mine", Some(&["island"])).unwrap();
+    assert_eq!(
+        val(&cfg, "island.faces", None),
+        (json!(["media", "clock"]), Source::Profile("mine".into()))
+    );
+}
+
 // --- per-mod profile sections (K7, K18, K22; card C-mod-sections) ---------------------------
 
 const MOD_KEYS: &[&str] = &[
