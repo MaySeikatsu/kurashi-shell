@@ -1020,16 +1020,35 @@ fi
 shot 31-theme-export-copied
 K '{"t":"apply","id":"te2","ops":[{"reset":"theme.export"}]}' | grep -q applied || fail "export: theme.export reset was refused"
 
-# S3. keyboard shortcuts (K64, W35-keys). The sandbox runs sway, and writing the binds is niri's so far: with
-#     keys.write on, the page says so and no file is written.
+# S3. keyboard shortcuts (K64, W35-keys; Sway W38-keys). The sandbox runs sway: with keys.write on, Sway's own binds file is
+#     written (sway/kurashi-binds.conf) and the page says its include is missing; no niri file is made. The include line
+#     added by hand to sway/config shows at once (the sway directory is watched while the page shows), and sway's own
+#     checker takes the file as a config of its own.
 mkdir -p "$SHOTS/keys"
 K '{"t":"apply","id":"k0","ops":[{"set":"keys.write","value":true}]}' | grep -q applied || fail "keys: keys.write was refused"
 Q goto keys
-for _ in $(seq 50); do [ "$(Q keysState)" = unsupported ] && break; sleep 0.2; done
-[ "$(Q keysState)" = unsupported ] || fail "keys: under sway the page must say writing is niri's so far ($(Q keysState))"
-[ ! -e "$R/cfg/niri/kurashi-binds.kdl" ] || fail "keys: a binds file was written under sway"
-shot keys/unsupported
-echo "keys S3: under sway the page says the shortcuts are written for niri only, and no file is written"
+for _ in $(seq 50); do [ "$(Q keysState)" = written:missing ] && break; sleep 0.2; done
+[ "$(Q keysState)" = written:missing ] || fail "keys: under sway the binds file is not reported written with its include missing ($(Q keysState))"
+SKF=$R/cfg/sway/kurashi-binds.conf
+[ -s "$SKF" ] || fail "keys: no sway binds file was written"
+[ ! -e "$R/cfg/niri/kurashi-binds.kdl" ] || fail "keys: a niri binds file was written under sway"
+grep -qF "bindsym --no-repeat Mod4+Space exec $BIN/kurashi act launcher.toggle" "$SKF" \
+  || fail "keys: the launcher's bindsym (the kurashi binary's absolute path) is not in $SKF"
+grep -qF "bindsym --locked --no-repeat XF86AudioMute exec $BIN/kurashi act audio.mute.toggle" "$SKF" \
+  || fail "keys: the mute bindsym is not in $SKF"
+if command -v sway >/dev/null; then
+  sway -C -c "$SKF" > "$R/sway-check.log" 2>&1 && ! grep -q 'Error(s) loading config' "$R/sway-check.log" \
+    || { cat "$R/sway-check.log"; fail "keys: sway -C refused $SKF"; }
+  echo "keys: sway -C accepts the written file"
+else
+  echo "keys: SKIPPED sway -C: no sway on PATH"
+fi
+Q scroll 0
+shot keys/sway-written
+printf 'include kurashi-binds.conf\n' >> "$R/cfg/sway/config"
+for _ in $(seq 25); do [ "$(Q keysState)" = written:included ] && break; sleep 0.2; done
+[ "$(Q keysState)" = written:included ] || fail "keys: the include line added to sway's config is not seen ($(Q keysState))"
+echo "keys S3: under sway the file is written with its bindsym lines; the include line added by hand shows at once"
 # The niri pass: the daemon starts again as under niri (its adapter finds no niri socket; the keys need none), and
 # Settings with it, opened on the row by its deep link. The Japanese pass below starts both again as before.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
@@ -1041,8 +1060,8 @@ for _ in $(seq 100); do [ "$(Q current 2>/dev/null)" = keys ] && break; sleep 0.
 KF=$R/cfg/niri/kurashi-binds.kdl
 for _ in $(seq 50); do [ "$(Q keysState)" = written:missing ] && break; sleep 0.2; done
 [ "$(Q keysState)" = written:missing ] || fail "keys: the binds file is not reported written with its include missing ($(Q keysState))"
-grep -qF "Mod+Space repeat=false { spawn \"$BIN/kurashi\" \"act\" \"launcher.toggle\"; }" "$KF" \
-  || fail "keys: the launcher's bind (the kurashi binary's absolute path) is not in $KF"
+grep -qF "Mod+Space hotkey-overlay-title=\"kurashi: Launcher\" repeat=false { spawn \"$BIN/kurashi\" \"act\" \"launcher.toggle\"; }" "$KF" \
+  || fail "keys: the launcher's bind (its overlay title, the kurashi binary's absolute path) is not in $KF"
 # niri itself reads the file, as a config that includes it (skipped loudly without niri).
 niri_check() {
   if command -v niri >/dev/null; then
@@ -1076,39 +1095,40 @@ kp escape
 [ "$(val keys.launcher)" = '"Mod+Space"' ] || fail "keys: Esc changed the launcher's shortcut ($(val keys.launcher))"
 [ "$(Q focused)" = "shortcut:keys.launcher" ] || fail "keys: the focus left the field on Esc ($(Q focused))"
 echo "keyboard K16: Return records with the compositor's shortcuts inhibited, Esc cancels and keeps the focus"
-# K17. a key that types text needs a modifier: K alone is not taken (the line says why), Ctrl+Alt+K is; the file follows.
+# K17. a key that types text needs a modifier: K alone is not taken (the line says why), Super+Alt+K is; the file follows.
+#      Super is the recorder's Mod (W38-keys): the combo is Mod+Alt+K, and Super reaches the field while it records.
 kp return
 kp k
 [ "$(krow keys.launcher recording)" = true ] || fail "keys: K alone ended the recording"
 [ -n "$(krow keys.launcher notice)" ] || fail "keys: K alone did not say it needs a modifier"
 shot keys/needs-modifier
-kp ctrl+alt+k
-wait_val keys.launcher '"Ctrl+Alt+K"'
-for _ in $(seq 25); do grep -qF 'Ctrl+Alt+K repeat=false' "$KF" && break; sleep 0.2; done
-grep -qF 'Ctrl+Alt+K repeat=false' "$KF" || fail "keys: the recorded combo is not in $KF"
-echo "keyboard K17: K alone asks for a modifier; Ctrl+Alt+K recorded and written"
+kp super+alt+k
+wait_val keys.launcher '"Mod+Alt+K"'
+for _ in $(seq 25); do grep -qF 'Mod+Alt+K hotkey-overlay-title="kurashi: Launcher" repeat=false' "$KF" && break; sleep 0.2; done
+grep -qF 'Mod+Alt+K hotkey-overlay-title="kurashi: Launcher" repeat=false' "$KF" || fail "keys: the recorded combo is not in $KF"
+echo "keyboard K17: K alone asks for a modifier; Super+Alt+K recorded (Mod+Alt+K) and written with its overlay title"
 # K18. a combo another action has asks first: on the quick settings' field Ctrl+Alt+K names the launcher, with Replace
 #      focused; Esc keeps both. Again, and Replace: quick settings take it, the launcher has none — one change, so one Undo
 #      brings both back.
 tab_to "shortcut:keys.quick" 60
 kp return
-kp ctrl+alt+k
-for _ in $(seq 15); do [ "$(krow keys.quick pending)" = "Ctrl+Alt+K>keys.launcher" ] && break; sleep 0.2; done
-[ "$(krow keys.quick pending)" = "Ctrl+Alt+K>keys.launcher" ] || fail "keys: the taken combo did not ask ($(Q keysRow keys.quick))"
+kp super+alt+k
+for _ in $(seq 15); do [ "$(krow keys.quick pending)" = "Mod+Alt+K>keys.launcher" ] && break; sleep 0.2; done
+[ "$(krow keys.quick pending)" = "Mod+Alt+K>keys.launcher" ] || fail "keys: the taken combo did not ask ($(Q keysRow keys.quick))"
 focus_on "keys-replace" || fail "keys: Replace does not have the focus ($(Q focused))"
 shot keys/conflict-ask
 kp escape
 [ -z "$(krow keys.quick pending)" ] || fail "keys: Esc did not drop the question"
-[ "$(val keys.quick)" = '""' ] && [ "$(val keys.launcher)" = '"Ctrl+Alt+K"' ] || fail "keys: Esc on the question changed a shortcut"
+[ "$(val keys.quick)" = '""' ] && [ "$(val keys.launcher)" = '"Mod+Alt+K"' ] || fail "keys: Esc on the question changed a shortcut"
 focus_on "shortcut:keys.quick" || fail "keys: the focus did not go back to the field ($(Q focused))"
 kp return
-kp ctrl+alt+k
+kp super+alt+k
 focus_on "keys-replace" || fail "keys: Replace does not have the focus the second time ($(Q focused))"
 kp return
-wait_val keys.quick '"Ctrl+Alt+K"'
+wait_val keys.quick '"Mod+Alt+K"'
 wait_val keys.launcher '""'
 Q undo
-wait_val keys.launcher '"Ctrl+Alt+K"'
+wait_val keys.launcher '"Mod+Alt+K"'
 wait_val keys.quick '""'
 echo "keyboard K18: a taken combo asks (Replace focused); Esc keeps both; Replace moves it in one change (one Undo)"
 # K19. Backspace while recording removes the shortcut.
