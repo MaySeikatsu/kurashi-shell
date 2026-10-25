@@ -275,8 +275,9 @@ async fn preview_lists_a_nix_forced_key_as_not_applied() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// A fake `qs`: `ipc` succeeds only while `running` exists in its directory (a window runs);
-/// a launch records `KURASHI_SETTINGS_KEY` in `launched`.
+/// A fake `qs`: `ipc` succeeds only while `running` exists in its directory (a window runs), and
+/// records its call in `ipc`; a launch records `KURASHI_SETTINGS_KEY` in `launched` and
+/// `KURASHI_SETTINGS_PAGE` in `launched-page`.
 fn fake_qs(root: &Path) -> (PathBuf, PathBuf) {
     use std::os::unix::fs::PermissionsExt;
     let settings = root.join("settings");
@@ -289,9 +290,11 @@ fn fake_qs(root: &Path) -> (PathBuf, PathBuf) {
         &qs,
         "#!/bin/sh\n\
          if [ \"$3\" = \"ipc\" ]; then\n\
-           [ -e \"$(dirname \"$0\")/running\" ] && exit 0\n\
-           exit 1\n\
+           [ -e \"$(dirname \"$0\")/running\" ] || exit 1\n\
+           printf '%s' \"$6 $7\" > \"$(dirname \"$0\")/ipc\"\n\
+           exit 0\n\
          fi\n\
+         printf '%s' \"$KURASHI_SETTINGS_PAGE\" > \"$(dirname \"$0\")/launched-page\"\n\
          printf '%s' \"$KURASHI_SETTINGS_KEY\" > \"$(dirname \"$0\")/launched\"\n",
     )
     .unwrap();
@@ -342,6 +345,77 @@ async fn settings_open_launches_the_window_with_the_key_or_jumps_a_running_one()
         .await
         .unwrap_err();
     assert_eq!(err, ActionError::Invalid("error.config.unknown_key".into()));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// I40 (K65): `settings.open {page}` opens Settings on a schema page or a loaded mod's page
+/// (`mod:<id>`): a new window gets `KURASHI_SETTINGS_PAGE`, a running one `ipc call settings page`.
+/// A page Settings does not have is refused before anything starts; a key wins over a page.
+#[tokio::test]
+async fn settings_open_takes_a_page_and_refuses_one_settings_does_not_have() {
+    let dir = root("page");
+    let (settings, bin) = fake_qs(&dir);
+    let app = SettingsApp {
+        dir: settings,
+        path: bin.clone().into_os_string(),
+    };
+    let fx = open(&dir, app);
+
+    let opened = fx
+        .call("settings.open", json!({"page": "keys"}))
+        .await
+        .unwrap();
+    assert_eq!(opened, json!({"opened": "launched"}));
+    assert_eq!(wait_for(&bin.join("launched")).await, "");
+    assert_eq!(wait_for(&bin.join("launched-page")).await, "keys");
+
+    for bad in ["bogus", "@mods", "mod:", "mod:media", "mods.media", ""] {
+        let err = fx
+            .call("settings.open", json!({"page": bad}))
+            .await
+            .unwrap_err();
+        let want = if bad.is_empty() {
+            "error.args.invalid"
+        } else {
+            "error.settings.unknown_page"
+        };
+        assert_eq!(err, ActionError::Invalid(want.into()), "page {bad:?}");
+    }
+    let err = fx
+        .call("settings.open", json!({"page": 3}))
+        .await
+        .unwrap_err();
+    assert_eq!(err, ActionError::Invalid("error.args.invalid".into()));
+
+    // A loaded mod has a page (K25), `mods.<id>` in `schema.settings`, linked as `mod:<id>`.
+    let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
+    let mut reg = kurashi_mods::Registry::discover(
+        &[PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods")],
+        &version,
+    );
+    reg.load("media").unwrap();
+    fx.store.sync_mods(&reg);
+
+    // A running window takes the page through IPC, with the id as given.
+    std::fs::write(bin.join("running"), "").unwrap();
+    let opened = fx
+        .call("settings.open", json!({"page": "mod:media"}))
+        .await
+        .unwrap();
+    assert_eq!(opened, json!({"opened": "jumped"}));
+    assert_eq!(wait_for(&bin.join("ipc")).await, "page mod:media");
+
+    // Key and page: the key wins (PROTOCOL §6, the page only when no key is given).
+    std::fs::remove_file(bin.join("ipc")).unwrap();
+    let opened = fx
+        .call(
+            "settings.open",
+            json!({"key": "bar.height", "page": "bogus"}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(opened, json!({"opened": "jumped"}));
+    assert_eq!(wait_for(&bin.join("ipc")).await, "jump bar.height");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
