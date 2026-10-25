@@ -141,3 +141,7 @@
 "action.island.pin" = "アイランドの表示を固定"
 "action.island.prev" = "前のアイランド表示"
 "action.island.next" = "次のアイランド表示"
+
+# Row 387, I40: the `>` rows that open Settings on a page ("Shortcut settings" = the Keys page; the cheat sheet is "Keyboard shortcuts").
+"launcher.cmd.shortcuts" = "ショートカットの設定"
+"launcher.cmd.settings_page" = "設定: {page}"

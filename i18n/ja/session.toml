@@ -62,5 +62,9 @@
 "action.settings.open" = "設定を開く"
 "error.settings.not_installed" = "設定が見つからないため、開けません。"
 "error.settings.no_runtime" = "Quickshell（qs）が使えないため、設定を開けません。"
+# settings.open {page} (I40): a page Settings does not have.
+"error.settings.unknown_page" = "設定にそのページはありません。"
+# Row 381: a Stage panel or peek asked for while a polkit dialog is up.
+"ui.error.polkit" = "認証ダイアログが開いています。先に済ませてください。"
 "action.workspace.focus" = "ワークスペースへ移動"
 "action.window.focus" = "ウィンドウへ移動"

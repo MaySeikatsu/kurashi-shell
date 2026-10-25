@@ -141,3 +141,7 @@
 "action.island.pin" = "Pin the island's face"
 "action.island.prev" = "Previous island face"
 "action.island.next" = "Next island face"
+
+# Row 387, I40: the `>` rows that open Settings on a page ("Shortcut settings" = the Keys page; the cheat sheet is "Keyboard shortcuts").
+"launcher.cmd.shortcuts" = "Shortcut settings"
+"launcher.cmd.settings_page" = "Settings: {page}"

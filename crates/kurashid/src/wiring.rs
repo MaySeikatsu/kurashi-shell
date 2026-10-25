@@ -40,7 +40,12 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         move |_| {
             let hub = hub.clone();
             async move {
+                let mut refused = false;
                 hub.update("runtime.ui", None, |d| {
+                    if polkit_up(d) {
+                        refused = true;
+                        return;
+                    }
                     let open = d["panel"].as_str() == Some(name);
                     d["panel"] = json!(if open { "" } else { name });
                     d["popup"] = json!(!open);
@@ -52,7 +57,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["launcher"] = json!(false);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
-                Ok(None)
+                refuse_under_polkit(refused)
             }
         }
     };
@@ -60,6 +65,9 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     // latched while open, so the card never switches under the pointer when the arbiter moves on.
     // `{island?}` names the instance (default `main`); an island without a document opens with
     // face `""` (the frontend's generic card).
+    // K66 (row 203): `{face}` opens the card on that face, one of the island's `faces`, even while another face is
+    // current (the calendar's bar widget lands on the agenda). The same face again closes the card; another face
+    // switches the open card to it.
     let expand = |hub: Arc<Hub>| {
         move |a: Value| {
             let hub = hub.clone();
@@ -72,13 +80,33 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                         .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?
                         .to_string(),
                 };
-                let face = match hub.snapshot(&format!("runtime.island.{island}")) {
-                    Ok((_, d)) => d["face"].as_str().unwrap_or("").to_string(),
-                    Err(_) if a.get("island").is_none() => String::new(),
-                    Err(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                let asked = match a.get("face") {
+                    None | Some(Value::Null) => None,
+                    Some(v) => Some(
+                        v.as_str()
+                            .filter(|s| !s.is_empty())
+                            .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?
+                            .to_string(),
+                    ),
                 };
+                let doc = hub.snapshot(&format!("runtime.island.{island}"));
+                if doc.is_err() && a.get("island").is_some() {
+                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
+                }
+                let face = match (&asked, &doc) {
+                    (Some(f), Ok((_, d))) if offers_face(d, f) => f.clone(),
+                    (Some(_), _) => return Err(ActionError::Invalid(UNKNOWN_FACE.into())),
+                    (None, Ok((_, d))) => d["face"].as_str().unwrap_or("").to_string(),
+                    (None, Err(_)) => String::new(),
+                };
+                let mut refused = false;
                 hub.update("runtime.ui", None, |d| {
-                    let open = d["panel"].as_str() == Some("island");
+                    if polkit_up(d) {
+                        refused = true;
+                        return;
+                    }
+                    let open = d["panel"].as_str() == Some("island")
+                        && (asked.is_none() || d["face"].as_str() == Some(face.as_str()));
                     d["panel"] = json!(if open { "" } else { "island" });
                     d["popup"] = json!(!open);
                     d["tray"] = json!("");
@@ -89,7 +117,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                     d["launcher"] = json!(false);
                 })
                 .map_err(|e| ActionError::Internal(e.to_string()))?;
-                Ok(None)
+                refuse_under_polkit(refused)
             }
         }
     };
@@ -122,7 +150,12 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 return Err(ActionError::Invalid(PANEL_UNAVAILABLE.into()));
             }
             let name = format!("mod:{id}:{panel}");
+            let mut refused = false;
             hub.update("runtime.ui", None, |d| {
+                if polkit_up(d) {
+                    refused = true;
+                    return;
+                }
                 let open = d["panel"].as_str() == Some(name.as_str());
                 d["panel"] = json!(if open { "" } else { name.as_str() });
                 d["popup"] = json!(!open);
@@ -134,7 +167,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["launcher"] = json!(false);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
-            Ok(None)
+            refuse_under_polkit(refused)
         }
     });
     actions.register(
@@ -157,7 +190,12 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             if id.is_empty() {
                 return Err(ActionError::Invalid(ARGS_INVALID.into()));
             }
+            let mut refused = false;
             hub.update("runtime.ui", None, |d| {
+                if polkit_up(d) {
+                    refused = true;
+                    return;
+                }
                 let open = d["panel"].as_str() == Some("tray") && d["tray"].as_str() == Some(&id);
                 d["panel"] = json!(if open { "" } else { "tray" });
                 d["popup"] = json!(!open);
@@ -169,7 +207,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 d["launcher"] = json!(false);
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
-            Ok(None)
+            refuse_under_polkit(refused)
         }
     });
     let h = hub.clone();
@@ -272,7 +310,13 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
         async move {
             let peek = peek_of(&hub, &a)?;
             let mut refused = false;
+            let mut under_polkit = false;
             hub.update("runtime.ui", None, |d| {
+                // Row 381: no peek while a polkit dialog is up; clearing one (`{}`) always works.
+                if peek.is_some() && polkit_up(d) {
+                    under_polkit = true;
+                    return;
+                }
                 if peek.is_some() && d["panel"].as_str().is_some_and(|p| !p.is_empty()) {
                     refused = true;
                     return;
@@ -283,6 +327,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
                 }
             })
             .map_err(|e| ActionError::Internal(e.to_string()))?;
+            refuse_under_polkit(under_polkit)?;
             if refused {
                 return Err(ActionError::Invalid(PEEK_UNDER_CARD.into()));
             }
@@ -291,6 +336,8 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
     });
     // K47 (5): the frontend's polkit agent says a dialog is up (`{active: true}`) or gone (`{active: false}`), so the
     // island and the Stage can stay out of its way. UI state only: the flow itself is Quickshell's. Absent = false.
+    // Row 381: the Stage steps aside — a dialog coming up closes its open panel and peek (the launcher and a sidebar
+    // stay), and while it is up the Stage's panel and peek actions are refused (`ui.error.polkit`).
     let h = hub.clone();
     actions.register("ui.polkit", "action.ui.polkit", move |a| {
         let hub = h.clone();
@@ -298,8 +345,13 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             let active = a["active"]
                 .as_bool()
                 .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
-            hub.update("runtime.ui", None, |d| d["polkit"] = json!(active))
-                .map_err(|e| ActionError::Internal(e.to_string()))?;
+            hub.update("runtime.ui", None, |d| {
+                d["polkit"] = json!(active);
+                if active {
+                    close_panel(d);
+                }
+            })
+            .map_err(|e| ActionError::Internal(e.to_string()))?;
             Ok(None)
         }
     });
@@ -326,6 +378,31 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
 /// `runtime.ui` with nothing open.
 fn ui_closed() -> Value {
     json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": ""})
+}
+
+/// Whether a polkit dialog is up in a `runtime.ui` value (K47 (5)).
+fn polkit_up(d: &Value) -> bool {
+    d["polkit"].as_bool() == Some(true)
+}
+
+/// A Stage panel or peek action that found a polkit dialog up (row 381): refused, nothing changed.
+fn refuse_under_polkit(refused: bool) -> ActionResult {
+    if refused {
+        return Err(ActionError::Invalid(UI_POLKIT.into()));
+    }
+    Ok(None)
+}
+
+/// A Stage panel or peek asked for while a polkit dialog is up (row 381).
+pub const UI_POLKIT: &str = "ui.error.polkit";
+/// `island.expand {face}` of a face the island does not show (K66, row 203).
+pub const UNKNOWN_FACE: &str = "island.error.unknown_face";
+
+/// Whether an island document lists `face` among its `faces`.
+fn offers_face(island: &Value, face: &str) -> bool {
+    island["faces"]
+        .as_array()
+        .is_some_and(|faces| faces.iter().any(|f| f == face))
 }
 
 /// Removes the peek from a `runtime.ui` value (K35); absence is "no peek".
@@ -565,6 +642,85 @@ fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
     });
 }
 
+/// The `>` mode's texts (I126) for one revision of `i18n` and `schema.settings`: the commands' labels, and the
+/// Settings links (row 387, I40) — "Shortcuts" for the Keys page, and "Settings: <page>" for each page of the schema.
+#[derive(Clone, Default)]
+struct CommandLabels {
+    revs: (u64, u64),
+    actions: std::collections::HashMap<String, String>,
+    shortcuts: String,
+    /// `(page argument, row name)`: `bar` or `mod:<id>`, "Settings: Bar".
+    pages: Vec<(String, String)>,
+}
+
+impl CommandLabels {
+    fn new(revs: (u64, u64), strings: &Value, pages: &Value) -> Self {
+        let tr = |k: &str| strings[k].as_str().map(str::to_owned);
+        let actions = kurashi_launcher::commands::COMMANDS
+            .iter()
+            .filter_map(|(id, _)| tr(&format!("action.{id}")).map(|t| ((*id).to_owned(), t)))
+            .collect();
+        let format = tr("launcher.cmd.settings_page").unwrap_or_else(|| "Settings: {page}".into());
+        let pages = pages
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|p| {
+                let id = p["id"].as_str()?;
+                // A mod's page is `mods.<id>` in the document and `mod:<id>` in `settings.open` (K65).
+                let arg = match id.strip_prefix("mods.") {
+                    Some(m) => format!("mod:{m}"),
+                    None => id.to_owned(),
+                };
+                // The Keys page has its own row, "Shortcuts".
+                if arg == "keys" {
+                    return None;
+                }
+                let label = p["label"].as_str().unwrap_or(id);
+                let shown = tr(label).unwrap_or_else(|| label.to_owned());
+                Some((arg, format.replace("{page}", &shown)))
+            })
+            .collect();
+        CommandLabels {
+            revs,
+            actions,
+            shortcuts: tr("launcher.cmd.shortcuts").unwrap_or_else(|| "Shortcut settings".into()),
+            pages,
+        }
+    }
+
+    /// Adds the Settings links that match `q` after the "Open Settings" row (or at the end when the query hid it):
+    /// "Shortcuts" always, a page only for a query that names it (an empty `>` stays a short list).
+    fn add_settings_rows(&self, rows: &mut Vec<Value>, q: &str) {
+        let words: Vec<String> = q.split_whitespace().map(str::to_lowercase).collect();
+        let hits = |hay: &str| words.iter().all(|w| hay.contains(w.as_str()));
+        let row = |arg: &str, name: &str, icon: &str| {
+            json!({"id": format!("settings:{arg}"), "name": name, "generic": format!("> settings.open {arg}"),
+                   "icon": icon, "kind": "command", "score": 1.0})
+        };
+        let mut links = Vec::new();
+        if hits(&format!(
+            "{} settings keys shortcuts keyboard",
+            self.shortcuts.to_lowercase()
+        )) {
+            links.push(row("keys", &self.shortcuts, "keyboard"));
+        }
+        if !words.is_empty() {
+            links.extend(
+                self.pages
+                    .iter()
+                    .filter(|(arg, name)| hits(&format!("{} settings {arg}", name.to_lowercase())))
+                    .map(|(arg, name)| row(arg, name, "settings")),
+            );
+        }
+        let at = rows
+            .iter()
+            .position(|r| r["id"] == "cmd:settings.open")
+            .map_or(rows.len(), |i| i + 1);
+        rows.splice(at..at, links);
+    }
+}
+
 /// Puts `text` on the Wayland clipboard with `wl-copy` (wl-clipboard); unavailable without it.
 async fn copy_text(text: &str) -> Result<(), ActionError> {
     use tokio::io::AsyncWriteExt;
@@ -655,9 +811,9 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         daemon.config.clone(),
     );
     let (q_clip, q_emoji) = (clip.clone(), emoji.clone());
-    // The `>` commands' labels in the session language, kept per revision of the `i18n` document (one copy, not
-    // one per keystroke).
-    let labels: Arc<Mutex<(u64, std::collections::HashMap<String, String>)>> = Arc::default();
+    // The `>` commands' labels in the session language and the Settings pages they link to, kept per revision of the
+    // `i18n` and `schema.settings` documents (one copy, not one per keystroke).
+    let labels: Arc<Mutex<CommandLabels>> = Arc::default();
     // A query that is arithmetic gets its value as the first row (kind `calc`, id `calc:<value>`); launching it
     // copies the value (Capsule's inline calculator, K42 session).
     let query: QueryFn = Arc::new(move |q: &str| {
@@ -687,24 +843,35 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         }
         if let Some(rest) = q.strip_prefix('>') {
             let mut cache = labels.lock().expect("labels lock");
-            if let Ok((rev, doc)) = hub.snapshot("i18n")
-                && (cache.0 != rev || cache.1.is_empty())
-            {
-                cache.1 = kurashi_launcher::commands::COMMANDS
-                    .iter()
-                    .filter_map(|(id, _)| {
-                        doc["strings"][format!("action.{id}")]
-                            .as_str()
-                            .map(|t| ((*id).to_owned(), t.to_owned()))
-                    })
-                    .collect();
-                cache.0 = rev;
+            let revs = (
+                hub.rev("i18n").unwrap_or(0),
+                hub.rev(crate::config::SETTINGS_DOC).unwrap_or(0),
+            );
+            if cache.revs != revs || cache.actions.is_empty() {
+                let strings = hub
+                    .snapshot("i18n")
+                    .map(|(_, d)| d["strings"].clone())
+                    .unwrap_or_default();
+                let pages = hub
+                    .snapshot(crate::config::SETTINGS_DOC)
+                    .map(|(_, d)| d["pages"].clone())
+                    .unwrap_or_default();
+                *cache = CommandLabels::new(revs, &strings, &pages);
             }
-            let names = cache.1.clone();
-            drop(cache);
-            let label = |id: &str| names.get(id).cloned().unwrap_or_else(|| id.to_owned());
+            let cache = cache.clone();
+            let label = |id: &str| {
+                cache
+                    .actions
+                    .get(id)
+                    .cloned()
+                    .unwrap_or_else(|| id.to_owned())
+            };
             let registered = |id: &str| actions.contains(id);
-            return kurashi_launcher::commands::command_rows(rest, &label, &registered);
+            let mut rows = kurashi_launcher::commands::command_rows(rest, &label, &registered);
+            if registered("settings.open") {
+                cache.add_settings_rows(&mut rows, rest);
+            }
+            return rows;
         }
         let calc = kurashi_launcher::calc::eval(q)
             .map(|v| {
@@ -858,6 +1025,12 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
                 // A `>` command runs its action; the web row opens its address in the default browser.
                 if let Some(action) = id.strip_prefix("cmd:") {
                     return actions.invoke(action, json!({})).await;
+                }
+                // A Settings page link (row 387, I40): `settings.open {page}` checks the page.
+                if let Some(page) = id.strip_prefix("settings:") {
+                    return actions
+                        .invoke("settings.open", json!({ "page": page }))
+                        .await;
                 }
                 if let Some(url) = id.strip_prefix("web:") {
                     return tokio::process::Command::new("xdg-open")
@@ -3064,6 +3237,193 @@ mod tests {
             );
         }
         assert_eq!(ui_doc(), ui_closed(), "a refused expand changes nothing");
+    }
+
+    /// K66 (row 203): `island.expand {face}` opens the card on one of the island's faces even while another is
+    /// current; the same face again closes it, another face switches the open card; a face the island does not
+    /// list (or no island document) is refused with `island.error.unknown_face`.
+    #[tokio::test]
+    async fn island_expand_opens_the_asked_face() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+
+        assert_eq!(
+            actions
+                .invoke("island.expand", json!({"face": "clock"}))
+                .await,
+            Err(ActionError::Invalid(UNKNOWN_FACE.into())),
+            "no island document: no face to check against"
+        );
+        hub.register(
+            "runtime.island.main",
+            json!({"face": "media", "faces": ["clock", "media"], "reason": "live"}),
+            None,
+        );
+        actions
+            .invoke("island.expand", json!({"face": "clock"}))
+            .await
+            .unwrap();
+        assert_eq!(
+            ui_doc(),
+            json!({"popup": true, "panel": "island", "launcher": false, "tray": "", "face": "clock"}),
+            "the asked face, not the current one"
+        );
+        actions
+            .invoke("island.expand", json!({"face": "media"}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["panel"], "island");
+        assert_eq!(ui_doc()["face"], "media", "another face switches the card");
+        actions
+            .invoke("island.expand", json!({"face": "media"}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc(), ui_closed(), "the same face again closes it");
+
+        for (bad, key) in [
+            (json!({"face": "weather"}), UNKNOWN_FACE),
+            (json!({"face": "volume"}), UNKNOWN_FACE),
+            (json!({"face": ""}), ARGS_INVALID),
+            (json!({"face": 3}), ARGS_INVALID),
+            (json!({"island": "nope", "face": "clock"}), ARGS_INVALID),
+        ] {
+            assert_eq!(
+                actions.invoke("island.expand", bad).await,
+                Err(ActionError::Invalid(key.into()))
+            );
+        }
+        assert_eq!(ui_doc(), ui_closed(), "a refused expand changes nothing");
+    }
+
+    /// Row 387, I40: the `>` mode's Settings links. "Shortcuts" (the Keys page) follows "Open Settings" in an empty
+    /// `>`; a page row comes only for a query that names it, with the page's label in the session language; a mod's
+    /// page links as `mod:<id>`; the Keys page has no second row.
+    #[test]
+    fn settings_links_in_the_command_mode() {
+        let strings = json!({
+            "launcher.cmd.shortcuts": "Shortcut settings",
+            "launcher.cmd.settings_page": "Settings: {page}",
+            "settings.page.bar": "Bar",
+            "settings.page.keys": "Keys",
+            "action.settings.open": "Open Settings",
+        });
+        let pages = json!([
+            {"id": "bar", "label": "settings.page.bar"},
+            {"id": "keys", "label": "settings.page.keys"},
+            {"id": "mods.weather", "label": "Weather", "mod": "weather"},
+        ]);
+        let labels = CommandLabels::new((1, 1), &strings, &pages);
+        let ids = |rows: &[Value]| {
+            rows.iter()
+                .map(|r| r["id"].as_str().unwrap().to_owned())
+                .collect::<Vec<_>>()
+        };
+        let open = json!({"id": "cmd:settings.open", "name": "Open Settings"});
+        let mut rows = vec![
+            json!({"id": "cmd:session.lock"}),
+            open.clone(),
+            json!({"id": "cmd:x"}),
+        ];
+        labels.add_settings_rows(&mut rows, "");
+        assert_eq!(
+            ids(&rows),
+            [
+                "cmd:session.lock",
+                "cmd:settings.open",
+                "settings:keys",
+                "cmd:x"
+            ]
+        );
+        assert_eq!(rows[2]["name"], "Shortcut settings");
+        assert_eq!(rows[2]["kind"], "command");
+
+        let mut rows = vec![open];
+        labels.add_settings_rows(&mut rows, "settings");
+        assert_eq!(
+            ids(&rows),
+            [
+                "cmd:settings.open",
+                "settings:keys",
+                "settings:bar",
+                "settings:mod:weather"
+            ]
+        );
+        assert_eq!(rows[2]["name"], "Settings: Bar");
+        assert_eq!(rows[3]["name"], "Settings: Weather");
+
+        let mut rows = vec![];
+        labels.add_settings_rows(&mut rows, "weath");
+        assert_eq!(
+            ids(&rows),
+            ["settings:mod:weather"],
+            "at the end when Open Settings is not listed"
+        );
+        let mut rows = vec![];
+        labels.add_settings_rows(&mut rows, "keys");
+        assert_eq!(ids(&rows), ["settings:keys"], "one row for the Keys page");
+    }
+
+    /// Row 381: while `runtime.ui.polkit` is true the Stage's panel and peek actions are refused with
+    /// `ui.error.polkit` and change nothing; the dialog coming up closes an open panel and its peek but keeps the
+    /// launcher; clearing a peek still works; once the dialog is gone the panels open again.
+    #[tokio::test]
+    async fn the_stage_steps_aside_for_polkit() {
+        let hub = Hub::new();
+        let mut actions = ActionRegistry::default();
+        ui(&hub, &mut actions);
+        hub.register(
+            "runtime.island.main",
+            json!({"face": "clock", "faces": ["clock"], "reason": "default"}),
+            None,
+        );
+        let ui_doc = || hub.snapshot("runtime.ui").unwrap().1;
+
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
+        actions
+            .invoke("ui.polkit", json!({"active": true}))
+            .await
+            .unwrap();
+        let mut closed = ui_closed();
+        closed["polkit"] = json!(true);
+        assert_eq!(ui_doc(), closed, "the dialog closes the open panel");
+
+        let peek = json!({"source": "island:main", "output": "DP-1", "x": 10, "w": 20});
+        for (action, args) in [
+            ("island.expand", json!({})),
+            ("island.expand", json!({"face": "clock"})),
+            ("quick.toggle", json!({})),
+            ("notifications.center", json!({})),
+            ("session.menu", json!({})),
+            ("tray.menu.open", json!({"id": "a"})),
+            ("ui.peek", peek.clone()),
+        ] {
+            assert_eq!(
+                actions.invoke(action, args).await,
+                Err(ActionError::Invalid(UI_POLKIT.into())),
+                "{action} under a polkit dialog"
+            );
+        }
+        assert_eq!(ui_doc(), closed, "a refused action changes nothing");
+        actions.invoke("ui.peek", json!({})).await.unwrap();
+        actions.invoke("launcher.toggle", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["launcher"], true, "the launcher is not the Stage");
+
+        actions
+            .invoke("ui.polkit", json!({"active": false}))
+            .await
+            .unwrap();
+        actions.invoke("ui.peek", peek).await.unwrap();
+        assert!(ui_doc().get("peek").is_some());
+        actions.invoke("quick.toggle", json!({})).await.unwrap();
+        assert_eq!(ui_doc()["panel"], "quick", "gone: panels open again");
+        actions
+            .invoke("ui.polkit", json!({"active": true}))
+            .await
+            .unwrap();
+        assert_eq!(ui_doc()["panel"], "");
+        assert!(ui_doc().get("peek").is_none());
     }
 
     /// The tray runs only while subscribed: the first subscribe takes the watcher name on the

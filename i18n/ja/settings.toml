@@ -261,7 +261,3 @@
 "settings.export.copied" = "コピーしました"
 "settings.export.copy_failed" = "コピーできませんでした"
 
-# settings.open {page} (I40): a page Settings does not have.
-"error.settings.unknown_page" = "設定にそのページはありません。"
-# パスのリストにパスでない項目（I54）。
-"error.config.not_a_path" = "完全なパスではありません。/ か ~/ で始めてください。"

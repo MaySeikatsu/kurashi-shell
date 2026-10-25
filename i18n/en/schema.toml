@@ -390,6 +390,8 @@
 "error.config.record_slug" = "“{key}” must be a slug: a-z, 0-9 and hyphens, 1 to 32 characters."
 "error.config.record_url" = "“{key}” must be an absolute URL."
 "error.config.record_scheme" = "“{key}” uses a scheme that is not allowed here."
+# A path list entry that is not a path (I54; kurashid SchemaAdapter).
+"error.config.not_a_path" = "Not a full path: start it with / or ~/."
 "error.config.record_choice" = "“{key}” must be one of the choices."
 "error.config.record_out_of_range" = "“{key}” is outside the allowed range."
 "error.config.record_duplicate" = "“{key}” repeats another row’s value."
