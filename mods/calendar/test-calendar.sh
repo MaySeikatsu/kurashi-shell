@@ -6,12 +6,17 @@
 # bar widget (an event starts in ~25 min) and the clock card (agenda + day dots); then the feed goes away and a refresh
 # makes it `offline` with its copy kept (desk card); then a restart without sources: the agenda's call to action.
 # Checks: each step's document says what it should; no QML error or warning from the mod; no panic in kurashid's log.
-# Screenshots (mods/calendar/shots/): {desk,bar,clock,desk-offline,clock-nosource}-{sekai,none}.png.
+# The clock card's keyboard (W37-calendar, docs/ux/calendar.md "Event details"): an all-day row's details, a timed one's,
+# Escape out of them and out of the card, a multi-day event (all-day "Trip to Kyoto", timed "Night train"), an empty
+# day, tomorrow (the agenda follows the selected day), then the dark scheme and Japanese once (sekai).
+# Screenshots (mods/calendar/shots/): {desk,bar,clock,desk-offline,clock-nosource,clock-tomorrow,clock-empty,
+# popover-allday,popover-timed,popover-trip,popover-night}-{sekai,none}.png, popover-timed-sekai-dark.png,
+# popover-timed-ja.png, popover-night-ja.png, clock-ja.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c mods/calendar/test-calendar.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-NAME=${1:-w27-cal-live}   # unique per run: other runs stop any sandbox that shares a name
+NAME=${1:-w37-cal-live}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/calendar/shots
 DECORS=${DECORS:-sekai none}
@@ -39,6 +44,13 @@ cp "$BIN/kurashid" "$BIN/kurashi" "$W/"
 rm -f "$R/qs.log" "$R/kurashid.log"
 for _ in $(seq 150); do timeout 5 swaymsg -t get_outputs >/dev/null 2>&1 && break; sleep 0.2; done
 timeout 5 swaymsg -t get_outputs >/dev/null 2>&1 || fail "the headless compositor does not answer (see $R/sway.log)"
+# One virtual keyboard for the whole run: a keyboard that goes away drops the window's focus (as the desk and stage tests).
+rm -f "$R/keys.fifo"
+mkfifo "$R/keys.fifo"
+KPID=""
+python3 -I "$ROOT/tools/bench/wl_keys.py" --serve < "$R/keys.fifo" >> "$R/keys.log" 2>&1 &
+KPID=$!
+exec 3> "$R/keys.fifo"
 
 DPID=""
 SHPID=""
@@ -46,10 +58,12 @@ HPID=""
 stop_daemon() { if [ -n "$DPID" ]; then kill "$DPID" 2>/dev/null || true; wait "$DPID" 2>/dev/null || true; fi; DPID=""; }
 stop_shell() { if [ -n "$SHPID" ]; then kill "$SHPID" 2>/dev/null || true; wait "$SHPID" 2>/dev/null || true; fi; SHPID=""; }
 stop_feed() { if [ -n "$HPID" ]; then kill "$HPID" 2>/dev/null || true; wait "$HPID" 2>/dev/null || true; fi; HPID=""; }
+stop_keys() { exec 3>&- 2>/dev/null || true; if [ -n "$KPID" ]; then kill "$KPID" 2>/dev/null || true; wait "$KPID" 2>/dev/null || true; fi; KPID=""; }
 cleanup() {
   stop_shell
   stop_daemon
   stop_feed
+  stop_keys
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
@@ -79,12 +93,14 @@ write_fixtures() {
       printf 'END:VEVENT\r\nEND:VCALENDAR\r\n'; } > "$f"
   }
   ev "$CALS/work/past.ics" past "Inbox zero" "DTSTART:$(ts '-2 hours')" "DTEND:$(ts '-90 min')"
-  ev "$CALS/work/next.ics" next "Design review" "DTSTART:$(ts '+25 min')" "DTEND:$(ts '+85 min')" "LOCATION:Room 4"
+  ev "$CALS/work/next.ics" next "Design review" "DTSTART:$(ts '+25 min')" "DTEND:$(ts '+85 min')" "LOCATION:Room 4" \
+    'DESCRIPTION:Bring the Q4 deck.\nLink: https://example.test/q4\, see the agenda'
   ev "$CALS/work/standup.ics" standup "Standup" "DTSTART:$(d8 '-14 days')T091500" "DTEND:$(d8 '-14 days')T093000" \
     "RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR" "EXDATE:$(d8 '+1 day')T091500"
   ev "$CALS/work/late.ics" late "1:1 with Aiko" "DTSTART:$(ts '+3 hours')" "DTEND:$(ts '+210 min')"
   ev "$CALS/home/holiday.ics" holiday "Bunka no hi" "DTSTART;VALUE=DATE:$(d8 today)" "DTEND;VALUE=DATE:$(d8 '+1 day')"
   ev "$CALS/home/trip.ics" trip "Trip to Kyoto" "DTSTART;VALUE=DATE:$(d8 '+2 days')" "DTEND;VALUE=DATE:$(d8 '+5 days')"
+  ev "$CALS/home/night.ics" night "Night train" "DTSTART:$(d8 '+3 days')T223000" "DTEND:$(d8 '+4 days')T063000" "LOCATION:Platform 9"
   ev "$CALS/home/dinner.ics" dinner "Dinner at Ume" "DTSTART:$(d8 '+1 day')T190000" "DTEND:$(d8 '+1 day')T210000"
   { printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-WR-CALNAME:Team\r\nBEGIN:VEVENT\r\nUID:feed-1\r\nSUMMARY:Team lunch\r\n'
     printf 'DTSTART:%s\r\nDTEND:%s\r\nEND:VEVENT\r\n' "$(ts '+40 min')" "$(ts '+70 min')"   # still today in an evening run
@@ -153,14 +169,14 @@ start_all() { # start_all <decor> <with sources: 1|0>
   rm -rf "$R/xdg"
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   {
-    printf 'theme.style = "%s"\ndesktop.enabled = true\n\n[mods.calendar]\n' "$1"
+    printf 'theme.style = "%s"\ndesktop.enabled = true\n%s\n[mods.calendar]\n' "$1" "${EXTRA_CFG:-}"
     if [ "$2" = 1 ]; then
       printf 'sources = [\n  { name = "", location = "%s", color = "", enabled = true },\n' "$CALS"
       printf '  { name = "Team", location = "http://127.0.0.1:%s/team.ics", color = "#4caf7d", enabled = true },\n]\n' "$PORT"
     fi
   } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
-  env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
+  env LC_ALL="${KLOCALE:-C.UTF-8}" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
     PULSE_RUNTIME_PATH="$R/no-pulse" "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
   DPID=$!
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
@@ -172,6 +188,90 @@ start_all() { # start_all <decor> <with sources: 1|0>
   sleep "${SHELL_WAIT:-5}"
 }
 
+# The keys of the clock card: `key <names…>` presses them a quarter second apart (the frontend takes each before the next).
+key() { local k; for k in "$@"; do echo "$k" >&3; sleep 0.25; done; }
+repeat_key() { local n=$1 k=$2 i; for ((i = 0; i < n; i++)); do key "$k"; done; }
+day_key() { date -d "+$1 days" +%Y-%m-%d; }
+panel() { ipc runtime.ui | jq -r .panel; }
+# row_index <yyyy-mm-dd> <title>: the event's place in that day's agenda (the document's order), -1 when it is not there.
+row_index() {
+  ipc mod.calendar | python3 -c "
+import json, sys
+d = json.load(sys.stdin) or {}
+t = [e['title'] for e in (d.get('days') or {}).get(sys.argv[1], [])]
+print(t.index(sys.argv[2]) if sys.argv[2] in t else -1)" "$1" "$2"
+}
+# A point of the clock card in layout px: x from the crop's origin (CLOCK_GEOM), y as the crop shows it.
+card_xy() { echo "$(( ${CLOCK_GEOM%%,*} + $1 )) $2"; }
+# The centre of today's cell in the month grid: 36 px cells, the first column centred at x 212 and the first row at y 155 of
+# the crop; FIRST_DOW is the first column (1 Monday, 0 Sunday). The grid must show today's month first (agenda_open).
+today_cell() {
+  local w1 i
+  w1=$(date -d "$(date +%Y-%m-01)" +%w)
+  i=$(( (w1 - ${FIRST_DOW:-1} + 7) % 7 + $(date +%-d) - 1 ))
+  card_xy $(( 212 + 36 * (i % 7) )) $(( 155 + 36 * (i / 7) ))
+}
+# The card opens through the bar widget's own argument (`face: clock`) unless it is open already. The view outlives the card,
+# so the grid may show an earlier month: the Today button comes first, then a click on today's cell selects today and gives
+# the month grid the focus (the day cells do both). The keys that follow act on the grid: the arrows move the selected day,
+# and Tab goes on to the agenda's rows.
+agenda_open() {
+  if [ "$(panel)" != island ]; then
+    K act island.expand '{"face": "clock"}' >/dev/null || fail "island.expand {face: clock} failed"
+  fi
+  sleep 1.5
+  timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click $(card_xy 475 96) left >/dev/null 2>&1 || true
+  sleep 0.3
+  timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click $(today_cell) left >/dev/null 2>&1 || true
+  sleep 0.5
+}
+agenda_close() { K act ui.close '{}' >/dev/null 2>&1 || true; sleep 0.5; }
+agenda_steps() { # agenda_steps <decor>
+  local dec=$1 today ix n x
+  today=$(ipc mod.calendar | jq -r .today)
+  agenda_open
+  check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "$dec: island.expand {face: clock} opens the island card"
+  key tab return               # row 0: today's all-day event
+  shot "popover-allday-$dec" "$CLOCK_GEOM"
+  key escape                   # out of the details, the card stays
+  check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "$dec: Escape in the details leaves the card open"
+  ix=$(row_index "$today" "Design review")
+  [ "$ix" -ge 0 ] || fail "Design review is not on today"
+  repeat_key "$ix" tab         # on to the timed row (it has a location and a description)
+  key return
+  shot "popover-timed-$dec" "$CLOCK_GEOM"
+  key escape escape            # out of the details, then the list's Escape closes the card
+  check "$([ "$(panel)" = "" ] && echo 1 || echo 0)" "$dec: Escape from the list closes the card"
+  agenda_open
+  repeat_key 2 right           # two days on: the all-day "Trip to Kyoto" (a multi-day event)
+  ix=$(row_index "$(day_key 2)" "Trip to Kyoto")
+  [ "$ix" -ge 0 ] || fail "Trip to Kyoto is not on $(day_key 2)"
+  repeat_key "$((ix + 1))" tab
+  key return
+  shot "popover-trip-$dec" "$CLOCK_GEOM"
+  key escape escape
+  agenda_open
+  repeat_key 3 right           # three days on: the timed "Night train", which runs over a night
+  ix=$(row_index "$(day_key 3)" "Night train")
+  [ "$ix" -ge 0 ] || fail "Night train is not on $(day_key 3)"
+  repeat_key "$((ix + 1))" tab
+  key return
+  shot "popover-night-$dec" "$CLOCK_GEOM"
+  key escape escape
+  n=13                         # an empty day: the first weekend day from eight days on (sprint planning is on +7)
+  for x in 8 9 10 11 12 13; do n=$x; [ "$(date -d "+$x days" +%u)" -ge 6 ] && break; done
+  agenda_open
+  repeat_key "$n" right
+  shot "clock-empty-$dec" "$CLOCK_GEOM"
+  agenda_close
+  agenda_open
+  key right                    # tomorrow: the agenda follows the selected day (dinner at 19:00)
+  shot "clock-tomorrow-$dec" "$CLOCK_GEOM"
+  key escape                   # from the month grid, Escape goes on to the card, which closes
+  check "$([ "$(panel)" = "" ] && echo 1 || echo 0)" "$dec: Escape from the month grid closes the card"
+  agenda_close
+}
+
 for DECOR in $DECORS; do
   echo "== $DECOR: folder + feed"
   write_fixtures
@@ -181,11 +281,14 @@ for DECOR in $DECORS; do
   check "$(doc_is 'd.get("state") == "ready" and src[0].get("kind") == "folder" and src[1].get("kind") == "feed" and src[1].get("name") == "Team"' && echo 1 || echo 0)" "$DECOR: both sources ready"
   check "$(doc_is '"Bunka no hi" in t and "Design review" in t and "Team lunch" in t and t[0] == "Bunka no hi"' && echo 1 || echo 0)" "$DECOR: today lists the folder's and the feed's events, all-day first"
   check "$(doc_is 'not any("127.0.0.1" in json.dumps(s) for s in src)' && echo 1 || echo 0)" "$DECOR: the feed address is not in the document"
+  check "$(doc_is '[e for e in d["days"][d["today"]] if e["title"] == "Design review"][0].get("description", "").startswith("Bring the Q4 deck.\nLink:")' && echo 1 || echo 0)" "$DECOR: the event's description is in the document (row 410)"
+  check "$(doc_is '"description" not in [e for e in d["days"][d["today"]] if e["title"] == "Bunka no hi"][0]' && echo 1 || echo 0)" "$DECOR: an event without a description has none in the document"
   shot "desk-$DECOR" "$DESK_GEOM"
   shot "bar-$DECOR" "$BAR_GEOM"
   K act island.expand >/dev/null || fail "island.expand failed"
   shot "clock-$DECOR" "$CLOCK_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true
+  agenda_steps "$DECOR"
 
   echo "== $DECOR: the feed goes away"
   stop_feed
@@ -202,6 +305,39 @@ for DECOR in $DECORS; do
   shot "clock-nosource-$DECOR" "$CLOCK_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true
 done
+
+# The dark scheme, then Japanese (the locale of kurashid's environment, as test-stage does it): the timed event's
+# details in each, and the night train's in Japanese, plus the agenda.
+echo "== dark, then ja (sekai)"
+write_fixtures
+start_feed
+EXTRA_CFG='theme.colors.scheme = "dark"' start_all sekai 1
+wait_doc 'd.get("state") == "ready"' 30
+ix=$(row_index "$(ipc mod.calendar | jq -r .today)" "Design review")
+agenda_open
+repeat_key "$((ix + 1))" tab
+key return
+shot "popover-timed-sekai-dark" "$CLOCK_GEOM"
+key escape escape
+unset EXTRA_CFG
+KLOCALE=ja_JP.UTF-8 start_all sekai 1
+wait_doc 'd.get("state") == "ready"' 30
+check "$([ "$(ipc i18n | jq -r .locale)" = ja ] && echo 1 || echo 0)" "ja: the frontend's locale is ja"
+FIRST_DOW=0   # Japanese weeks start on Sunday (clock.week_start auto)
+ix=$(row_index "$(ipc mod.calendar | jq -r .today)" "Design review")
+agenda_open
+shot "clock-ja" "$CLOCK_GEOM"
+repeat_key "$((ix + 1))" tab
+key return
+shot "popover-timed-ja" "$CLOCK_GEOM"
+key escape escape
+agenda_open
+repeat_key 3 right
+ix=$(row_index "$(day_key 3)" "Night train")
+repeat_key "$((ix + 1))" tab
+key return
+shot "popover-night-ja" "$CLOCK_GEOM"
+key escape escape
 stop_shell
 stop_daemon
 

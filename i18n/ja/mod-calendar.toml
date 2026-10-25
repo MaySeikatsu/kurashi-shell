@@ -16,7 +16,6 @@
 "mods.calendar.peek" = "次の予定をアイランドに表示"
 "mods.calendar.peek.help" = "予定が始まる少し前に、アイランドがお知らせします。"
 "mods.calendar.peek_minutes" = "何分前に表示するか"
-"mods.running.calendar_peek" = "次の予定を見守り中"
 
 # デーモン：アクション。
 "mod-calendar.action.refresh" = "カレンダーを更新"
@@ -63,3 +62,7 @@
 "mod-calendar.a11y.has_events" = "予定 {n} 件"
 "mod-calendar.a11y.widget" = "次の予定：{title}、{n} 分後"
 "mod-calendar.a11y.widget_now" = "進行中：{title}"
+
+# 予定の詳細（時計カード。docs/ux/calendar.md「予定の詳細」）。
+"mod-calendar.details.back" = "予定一覧に戻る"
+"mod-calendar.a11y.details" = "予定：{title}"

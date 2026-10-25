@@ -1,6 +1,6 @@
 //! The `mod.calendar` document (docs/ux/calendar.md "Document"): `{available, state, reason?, today, from, to,
 //! sources: [{name, kind, state, reason?, events, color?, fetched_at?}], days: {"YYYY-MM-DD": [{id, title, start, end,
-//! all_day, location?, calendar, color?}]}}`. Times are unix seconds; the views compute "now" themselves, so the
+//! all_day, location?, description?, calendar, color?}]}}`. Times are unix seconds; the views compute "now" themselves, so the
 //! document changes only when the events or the day do. A multi-day event is listed on each day it touches
 //! (DankMaterialShell's `_rebuildEventsByDate`), with its whole span.
 
@@ -66,6 +66,10 @@ fn event(e: &Entry) -> Value {
     m.insert("all_day".into(), json!(e.occ.all_day));
     if let Some(l) = &e.occ.location {
         m.insert("location".into(), json!(l));
+    }
+    // CONTRACT-CHANGE row 410: the event's own text, plain, for the details in the clock card; absent when it has none.
+    if let Some(d) = &e.occ.description {
+        m.insert("description".into(), json!(d));
     }
     m.insert("calendar".into(), json!(e.calendar));
     if let Some(c) = &e.color {

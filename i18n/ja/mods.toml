@@ -16,6 +16,7 @@
 # 実行中 (K25, I23): モッドが動いている理由。モッドの画面と一覧に、`running_reasons` として表示されます。
 "mods.running.subscribed" = "ライブのデータを表示中"
 "mods.running.rain_alerts" = "雨の予報を監視中"
+"mods.running.calendar_peek" = "次の予定を見守り中"
 "mods.running.watch" = "続いている負荷を監視中"
 
 # モッドの一覧の操作 (K25): mod.load / mod.unload / mod.enable / mod.disable が断られた理由。

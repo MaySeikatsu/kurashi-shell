@@ -14,6 +14,15 @@ Item {
     property string layout: "column"
     property real cellWidth: 0
     property real cellHeight: 0
+    // Values for every contribution's own properties (row 200: the clock's agenda gets the selected day as `date`). They
+    // are merged under the daemon's `reason`, which a host never replaces: extraOf writes the reason last.
+    property var extra: ({})
+    function extraOf(c) {
+        var o = {}
+        for (var k in host.extra) o[k] = host.extra[k]
+        o.reason = c.reason
+        return o
+    }
 
     // One grid cell per contribution (layout "cells"): a ModLoader in an Item of the cell's size, clipped to it, so a
     // contribution that is not a tile is drawn inside its cell and never grows the grid. `tile` is the loaded root.
@@ -41,7 +50,7 @@ Item {
                 anchors.margins: cellItem.plain ? Theme.outlineW + Theme.ringW + Theme.xs : 0
                 anchors.bottomMargin: cellItem.plain ? Theme.outlineW + Theme.ringW + Theme.xs + Theme.shadowDy : 0
                 url: cellItem.modelData.qml
-                extra: ({ reason: cellItem.modelData.reason })
+                extra: host.extraOf(cellItem.modelData)
             }
         }
     }
@@ -109,7 +118,7 @@ Item {
                     required property var modelData
                     anchors.fill: parent
                     url: modelData.qml
-                    extra: ({ reason: modelData.reason })
+                    extra: host.extraOf(modelData)
                 }
             }
         }
@@ -121,7 +130,7 @@ Item {
             required property var modelData
             url: modelData.qml
             // W19 (row 72): the daemon's reason, for a contribution that declares `reason` (QuickTile does, the aside does).
-            extra: ({ reason: modelData.reason })
+            extra: host.extraOf(modelData)
             width: host.layout === "column" ? host.width : implicitWidth
             height: implicitHeight
         }

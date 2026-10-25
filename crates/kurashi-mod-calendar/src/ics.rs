@@ -48,6 +48,7 @@ pub struct Event {
     pub uid: String,
     pub summary: String,
     pub location: Option<String>,
+    pub description: Option<String>,
     pub start: Stamp,
     pub end: Option<Stamp>,
     pub duration: Option<Duration>,
@@ -342,6 +343,7 @@ struct EventDraft {
     uid: Option<String>,
     summary: Option<String>,
     location: Option<String>,
+    description: Option<String>,
     start: Option<Stamp>,
     end: Option<Stamp>,
     duration: Option<Duration>,
@@ -466,6 +468,9 @@ pub fn parse(text: &str) -> Result<Calendar, Error> {
                 "UID" => d.uid = Some(value.to_owned()),
                 "SUMMARY" => d.summary = Some(unescape(value)),
                 "LOCATION" => d.location = Some(unescape(value)).filter(|l| !l.trim().is_empty()),
+                "DESCRIPTION" => {
+                    d.description = Some(unescape(value)).filter(|s| !s.trim().is_empty())
+                }
                 "DTSTART" => d.start = stamp_of(&line),
                 "DTEND" => d.end = stamp_of(&line),
                 "DURATION" => d.duration = parse_duration(value),
@@ -512,6 +517,7 @@ fn finish_event(cal: &mut Calendar, d: EventDraft, anon: &mut usize) {
         uid,
         summary: d.summary.unwrap_or_default(),
         location: d.location,
+        description: d.description,
         start,
         end: d.end,
         duration: d.duration,
@@ -540,12 +546,16 @@ mod tests {
 
     #[test]
     fn unfolds_unescapes_and_reads_params() {
-        let text = "BEGIN:VCALENDAR\r\nX-WR-CALNAME:Work\r\nBEGIN:VEVENT\r\nUID:1\r\nSUMMARY:Lunch\\, then a\r\n  long walk\\nbye\r\nDTSTART;TZID=\"Europe/Berlin\":20261021T120000\r\nDTEND;TZID=Europe/Berlin:20261021T130000\r\nLOCATION:Café \"Ume\"\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+        let text = "BEGIN:VCALENDAR\r\nX-WR-CALNAME:Work\r\nBEGIN:VEVENT\r\nUID:1\r\nSUMMARY:Lunch\\, then a\r\n  long walk\\nbye\r\nDTSTART;TZID=\"Europe/Berlin\":20261021T120000\r\nDTEND;TZID=Europe/Berlin:20261021T130000\r\nLOCATION:Café \"Ume\"\r\nDESCRIPTION:Bring the deck\\nsee https://example.test/a\\, b\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
         let c = parse(text).unwrap();
         assert_eq!(c.name.as_deref(), Some("Work"));
         let e = &c.events[0];
         assert_eq!(e.summary, "Lunch, then a long walk\nbye");
         assert_eq!(e.location.as_deref(), Some("Café \"Ume\""));
+        assert_eq!(
+            e.description.as_deref(),
+            Some("Bring the deck\nsee https://example.test/a, b")
+        );
         assert_eq!(
             e.start,
             Stamp::Time {

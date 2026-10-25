@@ -17,7 +17,6 @@
 "mods.calendar.peek" = "Upcoming event in the island"
 "mods.calendar.peek.help" = "The island shows the next event shortly before it starts."
 "mods.calendar.peek_minutes" = "Show it this early"
-"mods.running.calendar_peek" = "watching for upcoming events"
 
 # Daemon: actions.
 "mod-calendar.action.refresh" = "Refresh calendars"
@@ -64,3 +63,7 @@
 "mod-calendar.a11y.has_events" = "{n} events"
 "mod-calendar.a11y.widget" = "Next event: {title} in {n} minutes"
 "mod-calendar.a11y.widget_now" = "Now: {title}"
+
+# Event details, in the clock card (docs/ux/calendar.md "Event details").
+"mod-calendar.details.back" = "Back to the agenda"
+"mod-calendar.a11y.details" = "Event: {title}"
