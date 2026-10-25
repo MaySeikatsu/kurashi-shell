@@ -14,6 +14,8 @@ import ".."
 // the focus with the arrows. The secondary action (W37, I86) is a right click on the main zone, or the Menu key: the page
 // when the tile has one, else `secondaryRequested` (QuickPanel opens the Settings page that holds the tile's setting). It
 // never toggles, so a right click cannot start a recording or a dark mode by accident.
+// W42: one hit area for the whole tile (the arrow zone is its right `arrowW` px); the chevron, the focus ring and the failed
+// ring are made only while they show. The drawing and the keys are the same as before (tools/bench/block-identity.sh).
 Item {
     id: tile
     implicitWidth: 160
@@ -35,6 +37,10 @@ Item {
     signal secondaryRequested()      // a tile with no page: its secondary action goes to the host (Settings, see above)
     signal activated()
     readonly property bool isTile: true   // the grid's arrows move between tiles only (a plain contribution is no tile)
+
+    // The arrow zone's width: the chevron's, reserved with or without a page (the texts keep the same width, W42).
+    readonly property real arrowW: 22
+    function inArrow(x) { return hasPage && x >= width - arrowW }
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
     readonly property bool connecting: req !== null && req.pending
@@ -99,16 +105,19 @@ Item {
         anchors.fill: parent
         radius: Theme.rFull
         fill: tile.lit ? tile.onBg : Theme.containerHigh
-        pressed: (mainArea.pressed || arrowArea.pressed) && !tile.connecting
+        pressed: hit.pressed && !tile.connecting
         opacity: tile.reason !== "" ? 0.5 : 1
-        // The failed state: a ring in the error colour over the face, the one state that asks for attention.
-        Rectangle {
-            visible: tile.failed
+        // The failed state: a ring in the error colour over the face, the one state that asks for attention (made only then).
+        Loader {
+            active: tile.failed
             anchors.fill: parent
-            radius: height / 2
-            color: "transparent"
-            border.width: 2
-            border.color: Theme.error
+            sourceComponent: Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.error
+            }
         }
         Block {
             id: badge
@@ -139,7 +148,7 @@ Item {
         }
         Column {
             x: badge.x + badge.width + 6
-            width: face.width - 2 * face.inset - x - arrow.width
+            width: face.width - 2 * face.inset - x - tile.arrowW
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 width: parent.width
@@ -164,15 +173,15 @@ Item {
             }
         }
     }
-    // The arrow zone: the drill-down. Its own hit area, so a click here never toggles.
-    Item {
-        id: arrow
-        width: 22
+    // The arrow zone: the drill-down's chevron, made only while the tile has a page (its width is `arrowW` either way). The
+    // zone is `hit`'s, below, so the chevron takes no click of its own.
+    Loader {
+        active: tile.hasPage
+        width: tile.arrowW
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: parent.right
-        visible: tile.hasPage
-        Icon {
+        sourceComponent: Icon {
             anchors.centerIn: parent
             anchors.verticalCenterOffset: -Theme.shadowDy / 2
             name: "chevron_right"
@@ -180,29 +189,38 @@ Item {
             size: 18
             color: tile.lit ? tile.onFg : Theme.dim
         }
-        MouseArea {
-            id: arrowArea
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            onClicked: tile.pageRequested()
-        }
     }
+    // The one hit area (W42, was two): the arrow zone (the right `arrowW` px, with a page) opens the page with either button;
+    // the main zone toggles on a left click and takes the secondary action on a right one. A click needs its press and its
+    // release in one zone, as the two areas gave: a drag across the seam is no click.
     MouseArea {
-        id: mainArea
+        id: hit
+        property bool fromArrow: false
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
-        anchors.right: arrow.left
+        // A tile with no page: its right `arrowW` px are no hit area, as before W42 (the old main area stopped at the
+        // chevron's place, which such a tile never shows). Kept as it was; a backlog row asks whether it should act.
+        width: tile.hasPage ? tile.width : tile.width - tile.arrowW
         acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onPressed: mouse => { fromArrow = tile.inArrow(mouse.x) }
         onClicked: mouse => {
-            if (mouse.button === Qt.RightButton) tile.secondary()
+            var arrowed = tile.inArrow(mouse.x)
+            if (arrowed !== fromArrow) return
+            if (arrowed) tile.pageRequested()
+            else if (mouse.button === Qt.RightButton) tile.secondary()
             else tile.activate()
         }
     }
-    FocusRing {
+    // The keyboard focus ring (DESIGN-SYSTEM §7): made only while the tile holds the focus, in the same place (W42).
+    Loader {
+        active: tile.activeFocus
         width: parent.width
         height: face.faceH
-        shown: tile.activeFocus
-        corner: height / 2
+        sourceComponent: FocusRing {
+            anchors.fill: parent
+            shown: true
+            corner: height / 2
+        }
     }
 }
