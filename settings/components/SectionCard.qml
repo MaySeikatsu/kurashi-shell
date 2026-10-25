@@ -16,9 +16,11 @@ Item {
     Accessible.role: Accessible.Grouping
     Accessible.name: c.title
 
+    // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
     Rectangle {
-        visible: Theme.shadowDy > 0
-        y: Theme.shadowDy
+        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+        x: Theme.sinkX
+        y: Theme.sinkY
         width: face.width
         height: face.height
         radius: face.radius
