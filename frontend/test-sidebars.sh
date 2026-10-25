@@ -789,14 +789,16 @@ PY
     || check 0 "a click outside the left sidebar did not close it ($(uidoc))"
   exec 7>&-
 
-  # K16: 20 open/close cycles; the frontend's USS after them against after the first.
+  # K16: 20 open/close cycles after 5 to warm up (the heap settles there: measured +70 MiB over the first five, then
+  # flat within ±6 MiB); the frontend's USS after them against after the warm-up. The Stage's map/unmap leak was ~5 MiB
+  # a cycle (100 MiB here); 10 MiB allows the allocator's noise.
   uss() { awk '/^Private_(Clean|Dirty):/ { s += $2 } END { print s }' "/proc/$QS_PID/smaps_rollup"; }
-  open_rest right; close_down right
+  for i in $(seq 5); do open_rest right || break; close_down right || break; done
   sleep 1; U0=$(uss)
   for i in $(seq 20); do open_rest right || break; close_down right || break; done
   sleep 2; U1=$(uss)
-  echo "test-sidebars: USS after 1 cycle $((U0 / 1024)) MiB, after 21 cycles $((U1 / 1024)) MiB ($(( (U1 - U0) / 1024 )) MiB)"
-  [ $((U1 - U0)) -le $((6 * 1024)) ] && check 1 "20 open/close cycles: USS $(( (U1 - U0) / 1024 )) MiB (≤ 6 MiB)" \
+  echo "test-sidebars: USS after 5 warm-up cycles $((U0 / 1024)) MiB, after 20 more $((U1 / 1024)) MiB ($(( (U1 - U0) / 1024 )) MiB)"
+  [ $((U1 - U0)) -le $((10 * 1024)) ] && check 1 "20 open/close cycles: USS $(( (U1 - U0) / 1024 )) MiB (≤ 10 MiB)" \
     || check 0 "20 open/close cycles grew the USS by $(( (U1 - U0) / 1024 )) MiB"
 
   # Ma: an open sidebar at rest commits no frame.
@@ -804,7 +806,11 @@ PY
   open_rest right
   sleep 1
   s=$(stat -c %s "$R/qs.log"); sleep 5
-  c=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -c 'wl_surface#[0-9]*\.commit(' || true)
+  # The sidebar's own surface (the bar's clock flips once a minute, which a 5 s window may catch: not the sidebar's).
+  SBS=$(grep -oE 'get_layer_surface\(new id zwlr_layer_surface_v1#[0-9]+, wl_surface#[0-9]+, [^"]*"kurashi-sidebar"' "$R/qs.log" \
+    | tail -1 | grep -oE 'wl_surface#[0-9]+')
+  [ -n "$SBS" ] || check 0 "idle: the sidebar's surface was not found in the Wayland log"
+  c=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -c "${SBS:-none}\.commit(" || true)
   [ "$c" = 0 ] && check 1 "the open sidebar at rest commits no frame in 5 s" || {
     tail -c +"$((s + 1))" "$R/qs.log" | grep -oE 'wl_surface#[0-9]+\.commit\(' | sort | uniq -c | head
     grep -E "sidebar-|kurashi-" "$R/qs.log" | tail -5
