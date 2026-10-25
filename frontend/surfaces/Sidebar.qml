@@ -415,6 +415,9 @@ Scope {
                     height: shape.bodyRect.height
                     radius: Theme.rLg
                     direction: sb.flipY ? -1 : 1
+                    // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x back so it
+                    // falls the way the light says on both sides (K67, row 421).
+                    mirror: sb.side === "left" ? -1 : 1
                 }
                 ColumnShape {
                     id: shape
@@ -427,6 +430,7 @@ Scope {
                     joinSide: sb.joinSide
                     neck: sb.neckNow
                     squareOuter: !sb.floating
+                    flipX: sb.side === "left"
                     ruled: sb.barStrip && Theme.outlineW > 0
                     chrome: sb.floating
                     flipY: sb.flipY
