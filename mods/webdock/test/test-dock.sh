@@ -5,7 +5,8 @@
 #   intents    the pointer and the keys reach the dock, and each intent the frontend sends is logged (hover, engage, select,
 #              pin, add, move, remove, size, collapse, back, toggle); the menu and the add form take the keyboard;
 #   focus      Tab from the card reaches the view's own controls (Places) and the header's size control (Large) (I90);
-#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, and works without it (I91);
+#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, shows why in a tip on a rest or
+#              on keyboard focus (Tip.qml; shots dock-forced-tip*.png), and works without it (I91);
 #   keys       the first key after a keybind reveal (`engaged`) reaches the strip at 50, 100 and 150 ms; 0 ms is a note (I98);
 #   large      a large card on the bottom and the top edge fills the usable height between the bar and the strip (I100);
 #   ja         the Japanese copy (the mock's i18n document follows LC_ALL);
@@ -537,22 +538,59 @@ phase_focus() {
   stop_phase
 }
 
-# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2) ----
+# tip_count: how many reason tips the dock has made so far (Tip.qml logs one per tip with KURASHI_WEBDOCK_DEBUG=1).
+tip_count() { grep -c -F "webdock-debug tip" "$R/qs.log" || true; }
+
+# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2); the reason is a tip ----
 phase_forced() {
-  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, and works without it"
+  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, shows why (a tip), and works without it"
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
-  start_frontend
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
   setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='compact'; d['forced']={'pinned':'nix'}; print(json.dumps(d))" "$BASE" "$PINS2")"
   start_input
   sleep 2
-  click 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  # A rest on the inert toggle shows the reason: the pointer enters the strip, then rests on the toggle (its tip names the source).
+  move 2531 701
+  sleep 1
+  tips=$(tip_count)
+  move 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  sleep 1.5
+  r=0; [ "$(tip_count)" -gt "$tips" ] && r=1
+  check "$r" "forced: a rest on the inert pin toggle shows why (the tip)"
+  shot forced-tip
+  move 1800 300
+  sleep 0.5
+  click 2531 768
   sleep 0.5
   if seen "i['action']=='webdock.pin'"; then r=0; else r=1; fi
   check "$r" "forced: a click on the pin toggle sends no webdock.pin while the configuration sets pinned"
+  # Keyboard: a keybind reveal gives the strip the keyboard; Down walks to the toggle, whose tip shows on focus.
+  setdoc '{"mode":"hidden","engaged":false}'
+  sleep 1
+  setdoc '{"mode":"compact","engaged":true}'
+  sleep 1
+  tips=$(tip_count)
+  r=0
+  for _ in $(seq 1 10); do
+    press down
+    if [ "$(tip_count)" -gt "$tips" ]; then r=1; break; fi
+  done
+  check "$r" "forced: the keyboard reaching the inert pin toggle shows why (the tip)"
+  sleep 1
+  shot forced-tip-focus
   setdoc '{"forced":null}'   # a merge patch: null removes the field (an empty object would keep `pinned`)
   sleep 1
+  move 1800 300
+  sleep 0.5
+  tips=$(tip_count)
+  move 2531 701
+  sleep 1
+  move 2531 768
+  sleep 1.5
+  r=0; [ "$(tip_count)" -eq "$tips" ] && r=1
+  check "$r" "forced: without the force a rest on the pin toggle shows no tip (nothing to say)"
   click 2531 768
   seen "i['action']=='webdock.pin'" && r=1 || r=0
   check "$r" "forced: without the force the same click sends webdock.pin (the control is live)"
@@ -620,6 +658,20 @@ phase_large() {
   r=0; [ "$edge" = top ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
   check "$r" "large, top edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
   shot large-top
+  # Known limit (docs/ux/webdock.md "Pinned + reserve", I191): with reserve and pinned on a top or bottom edge the window is
+  # anchored to one end (the layer shell ignores the zone when both ends are anchored), so the card is sized to the output's
+  # height, not the usable one: it runs past the far edge (top) or over the bar (bottom). A note, until the shell hands the
+  # dock its usable area.
+  setdoc '{"reserve":true,"pinned":true}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  echo "note: reserve and pinned, top edge, large: the card is ${ch:-?} high (sized to the output; the usable height fits 1332): it runs past the bottom edge (I191)"
+  shot large-top-reserved
+  setdoc '{"edge":"bottom"}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  echo "note: reserve and pinned, bottom edge, large: the card is ${ch:-?} high (the same size): its top covers the top bar (I191)"
+  shot large-bottom-reserved
   stop_phase
 }
 

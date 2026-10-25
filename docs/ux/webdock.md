@@ -218,6 +218,13 @@ the focused output) and stays there while open (latched, like the Stage).
   toggle (sites only), phone/large, overflow menu (open in browser, **replace pin with this page** — shown with home),
   collapse. Body: the page or the view.
 - Pinned + *reserve space* (setting, off): the strip claims its width as an exclusive zone; the card always overlays.
+- **Reserve on a top or bottom edge (known limit, I191; CONTRACT-CHANGE 432):** the layer shell ignores an exclusive
+  zone when both ends of a surface are anchored, so a pinned strip that reserves keeps a single-end anchor, and the card
+  is sized to the output's height instead of the usable one (I100's span is off in that mode). On a bottom edge the card's
+  top covers the top bar; on a top edge its far end runs past the output's bottom (about 20 px at 1440 px with a 36 px
+  bar). Shown by the large phase's notes (`mods/webdock/shots/dock-large-{top,bottom}-reserved.png`). The fix needs the
+  output's usable area from the shell or the compositor; the app dock derives its own from the bar config
+  (`frontend/surfaces/Dock.qml`). Until then the dock is right without reserve, and with reserve on the side edges.
 
 ### Sites
 - **Mobile view** (default for new pins: setting `default_view`): mobile user agent + phone width; **desktop view**:
@@ -270,7 +277,10 @@ installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.cras
 - **Offline:** the page's own offline state; the header shows a no-network chip from `svc.network`.
 - **Unavailable:** host not installed (mod page says why, sites inert, view pins still work); no default browser
   ("open in browser" disabled with the reason).
-- **Forced/inert** (Nix-set pins or edge): provenance chips; the strip's pin toggle disabled with the reason.
+- **Forced/inert** (Nix-set pins or edge): provenance chips; the strip's pin toggle disabled with the reason. The reason is a
+  tip beside the toggle on a rest or on keyboard focus (`Tip.qml`, copy `webdock.dock.forced.tip`), and the toggle's
+  accessible description says the same (W38). Shots `mods/webdock/shots/dock-forced-tip*.png`. The source is set by the
+  daemon's provenance feed (CONTRACT-CHANGE 430, 431); until it lands the tip shows in the mock only.
 - **Many pins:** strip scrolls; 30 pins tested. **Tiny output** (≤ 768 px high): phone height clamps, large = 95 %.
 - **Several outputs:** reveal per output edge, shared edges need the longer dwell; the card never spans outputs.
 - **ja copy length:** header actions are icons with tooltips; the title elides.
@@ -297,7 +307,10 @@ installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.cras
 - [ ] Typing reaches the page on reveal by click and by keybind (first keystroke included); Escape rules as above.
 - [ ] Unload: the host exits after `unload_after` (test with seconds), the icons stay, reopening reloads.
 - [ ] Idle: 0 commits with the mod on and the dock hidden; host memory for 0/1/5 shown sites in BENCH.
-- [ ] niri: verified in a nested niri (layer surfaces, on-demand keyboard focus) before "UX ✅".
+- [ ] niri: verified in a nested niri (layer surfaces, on-demand keyboard focus) before "UX ✅". **W38: not met.** In a nested
+      niri 26.04 inside the sandbox the dock's large card geometry passes (I100's span), but no shell surface is drawn in the
+      captures, and the dock's layer surface reports keyboard interactivity none, so I98's keys and the Tab order fail there
+      (they pass on sway with the same tree). Blocker and the recipe: CONTRACT-CHANGE 434.
 - [ ] "Open in browser" runs the configured command (default: the system's default browser via `xdg-open`).
 - [ ] Privacy: the net-log test sees no request the fixture pages did not make; push service off.
 

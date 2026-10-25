@@ -17,6 +17,7 @@
 "webdock.add.url" = "Site address"
 "webdock.pin.dock" = "Keep the dock open"
 "webdock.pin.undock" = "Let the dock hide"
+"webdock.dock.forced.tip" = "Set by {by} in the configuration. Change it there."
 "webdock.view.mobile" = "Mobile"
 "webdock.view.desktop" = "Desktop"
 "webdock.size.phone" = "Phone"

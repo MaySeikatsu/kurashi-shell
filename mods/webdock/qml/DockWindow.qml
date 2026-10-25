@@ -278,6 +278,7 @@ PanelWindow {
                 pinned: dock.pinned
                 pinForced: forced.pinned !== undefined && forced.pinned !== null
                 pinForcedBy: String(forced.pinned || "")
+                edge: dock.edge
                 panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
                 onPinMenu: id => { dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }

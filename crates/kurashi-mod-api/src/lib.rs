@@ -427,25 +427,60 @@ pub struct Job {
     pub run: JobFn,
 }
 
-/// The settings of a mod that is enabled. Reads never block. `changed` resolves on the next
-/// change of any setting and is `false` once the mod is disabled.
+/// The settings the configuration forces (I91, CONTRACT-CHANGE 374): each key with the source that forces it
+/// (`nix`, `managed`, …). A key absent here is not forced.
+pub type Forced = BTreeMap<String, String>;
+
+/// The settings of a mod that is enabled. Reads never block. `changed` resolves on the next change of any
+/// setting or of a forced source, and is `false` once the mod is disabled.
 #[derive(Clone)]
 pub struct Settings {
     rx: watch::Receiver<Values>,
+    /// `None` when the daemon sends no provenance: nothing is forced.
+    forced: Option<watch::Receiver<Forced>>,
 }
 
 impl Settings {
-    /// For the daemon: the receiving end of the mod's settings feed.
+    /// For the daemon (and tests): the receiving end of the mod's settings feed, with no provenance feed.
     pub fn new(rx: watch::Receiver<Values>) -> Self {
-        Self { rx }
+        Self { rx, forced: None }
+    }
+
+    /// For the daemon: the settings feed and its provenance feed, which says which settings are forced and by what.
+    pub fn with_forced(rx: watch::Receiver<Values>, forced: watch::Receiver<Forced>) -> Self {
+        Self {
+            rx,
+            forced: Some(forced),
+        }
     }
 
     pub fn get(&self, key: &str) -> Option<Value> {
         self.rx.borrow().get(key).cloned()
     }
 
+    /// The source that forces `key`, or `None` when the configuration does not force it. Read from the feed now;
+    /// `changed` wakes the mod when it moves. (Row 374 wrote `Option<&str>`: a borrow cannot outlive the feed's guard.)
+    pub fn forced_by(&self, key: &str) -> Option<String> {
+        self.forced.as_ref()?.borrow().get(key).cloned()
+    }
+
     pub async fn changed(&mut self) -> bool {
-        self.rx.changed().await.is_ok()
+        let Self { rx, forced } = self;
+        loop {
+            let Some(f) = forced.as_mut() else {
+                return rx.changed().await.is_ok();
+            };
+            tokio::select! {
+                r = rx.changed() => return r.is_ok(),
+                r = f.changed() => {
+                    if r.is_ok() {
+                        return true;
+                    }
+                    // The daemon dropped the provenance feed while the values live: wait on the values alone.
+                    *forced = None;
+                }
+            }
+        }
     }
 }
 
@@ -1079,6 +1114,60 @@ mod tests {
             SettingsError::Unknown("x".into()).i18n_key(),
             "mods.error.not_declared"
         );
+    }
+
+    #[test]
+    fn nothing_is_forced_without_a_provenance_feed() {
+        let (_, rx) = watch::channel(Values::new());
+        assert_eq!(Settings::new(rx).forced_by("pinned"), None);
+    }
+
+    /// `changed` with a deadline: `Some(true)` on a change, `None` when nothing came within 5 s.
+    async fn wait(s: &mut Settings) -> Option<bool> {
+        tokio::time::timeout(Duration::from_secs(5), s.changed())
+            .await
+            .ok()
+    }
+
+    #[tokio::test]
+    async fn forced_by_reads_the_feed_and_changed_wakes_on_provenance_too() {
+        let (values, rx) = watch::channel(Values::new());
+        let (forced, frx) = watch::channel(Forced::new());
+        let mut settings = Settings::with_forced(rx, frx);
+        assert_eq!(settings.forced_by("pinned"), None);
+
+        // A forced source alone (the values unchanged) wakes `changed`, and the answer is the current one.
+        forced
+            .send(Forced::from([("pinned".to_string(), "nix".to_string())]))
+            .unwrap();
+        assert_eq!(wait(&mut settings).await, Some(true));
+        assert_eq!(settings.forced_by("pinned").as_deref(), Some("nix"));
+        assert_eq!(settings.forced_by("pins"), None);
+
+        // A value change still wakes it.
+        values
+            .send(Values::from([("pinned".to_string(), json!(true))]))
+            .unwrap();
+        assert_eq!(wait(&mut settings).await, Some(true));
+        assert_eq!(settings.get("pinned"), Some(json!(true)));
+
+        // The provenance feed ends while the values live: nothing is forced any more, and `changed` waits for
+        // the values rather than returning at once on the closed feed.
+        drop(forced);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), settings.changed())
+                .await
+                .is_err()
+        );
+        assert_eq!(settings.forced_by("pinned"), None);
+        values
+            .send(Values::from([("pinned".to_string(), json!(false))]))
+            .unwrap();
+        assert_eq!(wait(&mut settings).await, Some(true));
+
+        // The mod is disabled: the values feed ends too, and `changed` says so.
+        drop(values);
+        assert!(!settings.changed().await);
     }
 
     async fn noop_action(_: Value) -> Result<Option<Value>, ActionError> {
