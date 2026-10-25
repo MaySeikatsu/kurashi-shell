@@ -508,9 +508,34 @@ fn component_pairs_meet_aa() {
                 ("button.primary.fg", "button.primary.bg.hover"),
                 ("button.primary.fg", "button.primary.bg.pressed"),
                 ("tooltip.fg", "tooltip.bg"),
+                ("quick.tile.on.fg", "quick.tile.on.bg"),
             ] {
                 let r = contrast(c(fg), c(bg));
                 assert!(r >= 4.5, "{name} {scheme:?}: {fg}/{bg} = {r:.2}");
+            }
+        }
+    }
+}
+
+/// K66 (row 104): a quick tile's on state reads at AA on its container at every contrast level, not only the default.
+#[test]
+fn quick_tile_on_state_meets_aa_at_every_contrast_level() {
+    for name in bundled_names() {
+        for scheme in [Scheme::Dark, Scheme::Light] {
+            for level in [
+                ContrastLevel::Standard,
+                ContrastLevel::Medium,
+                ContrastLevel::High,
+            ] {
+                let mut i = input(name, scheme);
+                i.contrast = level;
+                let t = resolve(&i, &fonts()).unwrap().tokens;
+                let c = |k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+                let r = contrast(c("quick.tile.on.fg"), c("quick.tile.on.bg"));
+                assert!(
+                    r >= 4.5,
+                    "{name} {scheme:?} {level:?}: on-state label {r:.2}"
+                );
             }
         }
     }

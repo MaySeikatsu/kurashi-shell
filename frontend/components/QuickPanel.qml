@@ -6,8 +6,9 @@ import "quick"
 import "phone"
 
 // The quick settings card (K24, W13; docs/ux/quick-settings.md): the `quick` panel of runtime.ui, opened by the bar's button or
-// `quick.toggle`. The tiles are the view: a status sentence, six tiles (Wi-Fi, Bluetooth, Focus, Audio, Power, Display), the
-// mod tiles of `quick.tiles`, the output and brightness levels, the media row while something plays, and the session footer.
+// `quick.toggle`. The tiles are the view: a status sentence, ten core tiles (Wi-Fi, Bluetooth, Focus, Audio, Power, Display,
+// keep awake, night light, record, dark mode), the mod tiles of `quick.tiles`, the output and brightness levels, the media
+// row while something plays, and the session footer.
 // A tile's arrow, a status segment, or Right opens its page in the same card: the content slides, Esc or ← goes back, and Esc
 // on the tiles closes the card (through the Stage). Every document the card shows is watched while it is up (Ma); a page
 // watches what it lists only while it is on screen. Requests are owned here, so a tile and its page show one state.
@@ -306,6 +307,11 @@ Item {
         page = ""
         if (back !== null) back.forceActiveFocus()
     }
+    // A tile without a page of its own (keep awake, record, dark mode): its right click or Menu key opens the Settings page
+    // that holds its setting. The daemon checks the page id; nothing waits for the answer, and a refusal shows nowhere.
+    function openSettings(page) {
+        Store.act("settings.open", {page: page}, function () {})
+    }
     onPageChanged: {
         if (page !== "") shownPage = page
         slideAnim.stop()
@@ -323,11 +329,14 @@ Item {
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (quick.page === "") quick.shownPage = ""
     }
-    Component.onCompleted: if (startPage !== "") {
-        page = startPage
-        shownPage = startPage
-        slideAnim.stop()    // it opens on the page: no slide in from the tiles
-        slide = 1
+    Component.onCompleted: {
+        syncTiles()
+        if (startPage !== "") {
+            page = startPage
+            shownPage = startPage
+            slideAnim.stop()    // it opens on the page: no slide in from the tiles
+            slide = 1
+        }
     }
     // Esc and Left go back from a page (a slider takes Left for itself). On the tiles they pass on, to close the card.
     Keys.onPressed: event => {
@@ -347,7 +356,46 @@ Item {
         cellWidth: (quick.innerW - Theme.gap) / 2
         cellHeight: 56
     }
-    // The grid's cells in visual order: the six core tiles, then one per contribution. A cell that is not a tile (a plain
+    // The core tiles are the first `coreCount` cells; the contributions follow.
+    readonly property int coreCount: 10
+    // The contributions the cells show. runtime.slots changes for every slot, so the host's `entries` is a new array each
+    // time: a Repeater over it would rebuild every mod cell, and the focused one with it. The list changes only when a
+    // contribution appears, leaves or changes (its file or reason); then the focus stays on its tile, or moves to the tile
+    // before it when that one is gone (W37, I86).
+    property var tileList: []
+    function sameTiles(a, b) {
+        if (a.length !== b.length) return false
+        for (var i = 0; i < a.length; i++)
+            if (a[i].qml !== b[i].qml || a[i].reason !== b[i].reason) return false
+        return true
+    }
+    function syncTiles() {
+        var next = tileSlot.entries
+        if (sameTiles(tileList, next)) return
+        var cells = tileCells()
+        var at = -1
+        for (var k = 0; k < cells.length; k++) if (cells[k] !== null && cells[k].activeFocus) at = k
+        var key = at >= coreCount && at - coreCount < tileList.length ? tileList[at - coreCount].qml : ""
+        tileList = next
+        if (at >= 0) Qt.callLater(function () { quick.refocus(at, key) })
+    }
+    function refocus(at, key) {
+        var cells = tileCells()
+        var to = -1
+        if (key !== "") {
+            for (var i = 0; i < tileList.length; i++) if (tileList[i].qml === key) to = coreCount + i
+        }
+        if (to < 0) {   // the same place, or the tile before it (a cell is a tile or null)
+            to = Math.min(at, cells.length - 1)
+            while (to > 0 && cells[to] === null) to--
+        }
+        if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
+    }
+    Connections {
+        target: tileSlot
+        function onEntriesChanged() { quick.syncTiles() }
+    }
+    // The grid's cells in visual order: the core tiles, then one per contribution. A cell that is not a tile (a plain
     // contribution) is null, so the arrows keep their places and never land on it.
     function tileCells() {
         var out = [tWifi, tBt, tFocus, tAudio, tPower, tDisplay, tCaffeine, tNight, tRecord, tDark]
@@ -661,6 +709,7 @@ Item {
                         on: quick.caffeine
                         req: rqCaffeine
                         hasPage: false
+                        onSecondaryRequested: quick.openSettings("power")
                         pendingText: I18n.tr("island.quick.changing")
                     }
                     QuickTile {
@@ -690,6 +739,7 @@ Item {
                         on: quick.recording
                         req: rqRecord
                         hasPage: false
+                        onSecondaryRequested: quick.openSettings("power")
                         pendingText: I18n.tr("power.quick.record.starting")
                     }
                     QuickTile {
@@ -702,13 +752,14 @@ Item {
                         on: quick.darkOn
                         req: rqDark
                         hasPage: false
+                        onSecondaryRequested: quick.openSettings("appearance")
                         pendingText: I18n.tr("island.quick.changing")
                     }
                     // K28 `quick.tiles` (W18): one cell per ready contribution, after the core tiles, in the same 2-column flow. A
                     // cell is a tile's size (SlotHost's cell: half the card less the gap, 56 px) and clips what is not a tile.
                     Repeater {
                         id: modCells
-                        model: tileSlot.entries
+                        model: quick.tileList
                         delegate: tileSlot.cell
                     }
                 }
@@ -768,22 +819,36 @@ Item {
                         corner: pill.radius
                     }
                 }
-                LevelRow {
-                    visible: quick.brOk
+                // The rows that are not always there are made only while they show (W37, I199): a card with no backlight
+                // and nothing playing builds neither. A Loader that is not visible takes no space and no spacing.
+                Loader {
                     width: quick.innerW
-                    glyph: "☼"
-                    icon: "light_mode"
-                    value: quick.brLevel
-                    readout: quick.brOk ? quick.displayValue : ""
-                    a11y: I18n.tr("island.brightness.heading")
-                    onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
+                    visible: quick.brOk
+                    active: quick.brOk
+                    sourceComponent: Component {
+                        LevelRow {
+                            width: quick.innerW
+                            glyph: "☼"
+                            icon: "light_mode"
+                            value: quick.brLevel
+                            readout: quick.brOk ? quick.displayValue : ""
+                            a11y: I18n.tr("island.brightness.heading")
+                            onMoved: v => Store.intent("brightness.set", v, quick.intentOrigin)
+                        }
+                    }
                 }
-                QuickMedia {
+                Loader {
                     width: quick.innerW
                     visible: quick.mediaPlaying
-                    d: quick.mediaDoc
-                    // The island's media view: its expanded card, with the transport in it.
-                    onOpenRequested: Store.act("island.expand")
+                    active: quick.mediaPlaying
+                    sourceComponent: Component {
+                        QuickMedia {
+                            width: quick.innerW
+                            d: quick.mediaDoc
+                            // The island's media view: its expanded card, with the transport in it.
+                            onOpenRequested: Store.act("island.expand")
+                        }
+                    }
                 }
                 QuickFooter {
                     width: quick.innerW

@@ -4,8 +4,10 @@ import qs.components.quick
 
 // The wallpaper tile in quick settings (K28 slot `quick.tiles`, W18): a QuickTile, so it has the core tiles' size and look.
 // Its subtitle is the picture on the output (by name); its main zone moves every output to the next picture
-// (`wallpaper.next`); its arrow, or Right, opens the picker panel. The slot shows it only while the daemon says the mod is
-// available; the tile subscribes to `mod.wallpaper` for its own line, and that subscription is all it does.
+// (`wallpaper.next`); its arrow, Right, a right click or the Menu key opens the picker panel, where the rotation's state and
+// the Random order are. The tile has no menu: its Random/Pause/Resume keys went in W19, and W37 kept it that way (I86). The
+// slot shows it only while the daemon says the mod is available; the tile subscribes to `mod.wallpaper` for its own line,
+// and that subscription is all it does.
 QuickTile {
     // Handed in by ModLoader (K26 loader contract; the core singletons are imported too).
     required property var store
