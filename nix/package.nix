@@ -1,7 +1,10 @@
-{ lib, rustPlatform, dbus, python3, pkg-config, libpulseaudio, linux-pam }:
+{ lib, rustPlatform, dbus, python3, pkg-config, libpulseaudio, linux-pam, callPackage }:
 
 let
   fs = lib.fileset;
+  # The shell's icon font subset (W39-block, I194; W41, row 445): installed with the package, so every profile that
+  # has it gets the fonts kurashi-theme prefers (font.icons). The modules' font defaults take the same derivation.
+  iconFont = callPackage ./icon-font.nix { };
 in
 rustPlatform.buildRustPackage {
   pname = "kurashi";
@@ -48,7 +51,11 @@ rustPlatform.buildRustPackage {
   # The build sandbox has no /usr/bin/env, so the fake host's `#!/usr/bin/env python3` must point at
   # the store's python3 before the tests start it. patchShebangs only touches executable files, and
   # the tracked script is 0644 (the test makes its copy executable).
+  # The tests read the i18n tables through KURASHI_DATA_DIR (crates/kurashid/src/i18n.rs), which the binary takes at compile
+  # time as $out/share/kurashi, and $out has no data until installPhase: the keys tests found no strings there (W41 check
+  # run). The check phase reads the source tree's i18n/ instead, as a `cargo test` in the checkout does.
   preCheck = ''
+    export KURASHI_DATA_DIR=$PWD
     chmod +x crates/kurashid/tests/data/hosts/fake-host.py
     patchShebangs crates/kurashid/tests/data/hosts
   '';
@@ -58,6 +65,8 @@ rustPlatform.buildRustPackage {
   postInstall = ''
     mkdir -p $out/share/kurashi
     cp -r i18n palettes profiles templates frontend settings mods greeter $out/share/kurashi/
+    mkdir -p $out/share/fonts/truetype
+    cp ${iconFont}/share/fonts/truetype/*.ttf $out/share/fonts/truetype/
   '';
 
   meta = {

@@ -333,3 +333,8 @@ that does not declare it is clipped to its slot, row 107) · peeks (`peek:<name>
 hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · island faces · panels (stage) · settings · actions · launcher
 providers · services · decor packs (slots + recipe) · lock scenes · palettes · app-theme
 templates · i18n strings.
+
+**Icon names.** A mod names icons by Material Symbols ligature. The shell draws them from its subset
+(`nix/icon-names.txt`, the names the bundled code uses; `tools/check-icon-names.sh` in `just check` keeps it current);
+a name the subset lacks is drawn from the full Material Symbols family when installed (`font.icons_fallback`), and a
+name neither family has draws the component's glyph, or a bullet (K69). There is no manifest list of icons.

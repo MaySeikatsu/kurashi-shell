@@ -39,6 +39,58 @@ baseline.
 
 ## Results
 
+### 2026-10-25 — W41 icons: the subset installed and preferred, a per-name fallback, the grain memoised (machine A; I194, I199, rows 445–447)
+"Before" is `caa335c8` (this branch's start: its daemon and frontend), "after" this branch. Real `kurashid` (release) and the frontend
+in a headless sway sandbox (gles2, one 2560×1440 output, sandboxes `w41-icons-*`); paired runs back to back.
+
+**Quick settings card (`tools/bench/quick-open.sh`, washi, the default style; first open | median of 7 warm, ms). Card target: warm ≤ 25 ms.**
+
+| daemon (icon fonts it sees) | frontend | first | warm median (range) |
+|---|---|---|---|
+| before (Material Symbols) | before | 57 | 50.0 (48–54) |
+| after (Material Symbols) | after | 29 | **22.0** (20–22) |
+| after (subset installed) | before | 61 | 48.0 (43–49) |
+| after (subset installed) | after | 29 | **22.0** (21–25) |
+
+The grain memo (row 447) does the work: in a first pass with the memo alone the same method gave 48 → 26 ms.
+
+**Pixel identity (`tools/bench/block-identity.sh`: kanso, sekai, glass, terminal, washi × bar, card, quick, launcher, session, held; 30 pairs per run).**
+
+| run | compared | strong px | faint px (largest channel step) |
+|---|---|---|---|
+| C (one invocation, the W39 method) | before's frontend with Material Symbols vs after's frontend with the subset under the Material Symbols family names; the daemon sees only Material Symbols | 0 | 975 (1) |
+| control | before vs before, same daemon | 0 | 824 (2) |
+| A | before's daemon: before vs after frontend (both Material Symbols) | 0 | up to 114 px in one shot |
+| B | after's daemon (subset installed): before vs after frontend | 0 | up to 94 px in one shot |
+
+Run C is the test of the subset itself: `fc-match` resolved the renamed file for both names, the frontend draws only it, and the glyphs
+match the full family pixel for pixel but for ±1 rounding. Run A tests the QML changes (Icon.qml, the memo), run B the shipped
+configuration. Comparing shots across separate runs (before with Material Symbols against after with the subset) was not usable: the
+minute turned between them, and the only differences were the clock digits (checked on crops: 13:34 against 13:40).
+
+**PSS (`tools/bench/measure.py --daemon real` with the bench gate's flags and `budget.py`; @1 output; pairs back to back).**
+
+| run | PSS frontend, core (MiB) | per extra output | popup commit (ms) | 20-cycle growth (MiB) |
+|---|---|---|---|---|
+| before 1 | 157.5 | +2.8 | 15.1 | +16.7 ✘ |
+| after 1 | 152.3 | +0.5 | 14.9 | +1.1 |
+| before 2 | 158.2 | +1.5 | 15.2 | −1.6 |
+| after 2 | 152.4 | +0.6 | 15.9 | +0.4 |
+
+Budget (≤ 150 MiB @1 output, ≤ +6 MiB per extra output): **not met** before (157.9 mean) and after (152.4 mean). The −5.5 MiB is in both
+pairs. Where the −5.8 MiB of pair 2 went (per-path PSS of the 1-output reading, `--smaps-dump`): anonymous memory −4.0 MiB, the JS GC
+heap −0.9 MiB, the icon font −0.9 MiB (Material Symbols Sharp 1342 KiB → Kurashi Symbols Sharp 411 KiB). The icon font's PSS saving is
+small because the sandbox shares the Material Symbols pages with another process (PSS splits a shared page); a user without that sharing
+sees the RSS saving (W39: 22.5 → 13.9 MiB). The anonymous drop is most likely the grain memo: each block's Image held its own copy of the
+grain strings; the memo shares one. That is inferred, not isolated.
+
+**Not improved, not met:** PSS @1 output is 152.4 MiB against 150 (budget not met; this card gives 5.5 MiB of it). The 20-cycle growth row
+is noisy (+16.7 in one run, −1.6 in the next; W39 saw −12…+26) and this card does not touch it. The quick card was measured for washi
+only; the other looks were not re-measured. The icon font's RSS was not measured here (W39's number stands).
+
+**`tools/bench/budget.py`:** the PSS checker matched the K68 material and web-dock allowance rows (`PSS allowance…`) and crashed on their
+`+ ≤ N MiB` text, so `just bench-gate` failed on HEAD too. It now matches `pss frontend` only; the allowance rows show n/a.
+
 ### 2026-10-25 — W39 block: a lighter Block, the quick card's build, idle windows, the icon font (machine A; I199, I204, I194)
 Real `kurashid` (release, built from `2b2e682a`), headless sway gles2 on renderD128, one 2560×1440 output, sandboxes
 `w39-block-*`. "Before" is the frontend of `2b2e682a` (`git archive`), "after" this branch, run in the same invocation
@@ -410,6 +462,10 @@ Bar + Stage + island faces + toasts/center + launcher + lock, real `kurashid`, s
 | 0.03 | 0 % | 137.9 MiB | +4.0 | 3.9 ms | 3 | **0 violations** (headroom 12 MiB) |
 Earlier "exited early / 6.4 fps" readings came from parallel agents sharing sandbox names — fixed
 (sandbox names carry the pid).
+
+Lead check after the merge (Icon retries when the theme family changes; `Theme.iconFamilyFallback`): quick card, washi,
+9 warm opens each, one run — merged 29.0 / 28.0 ms, the agent's frontend 28.0 ms. Machine load average 6–10 during the
+run (the agent's 22.0 ms was measured quieter); the edit costs nothing measurable.
 
 ## Mods (K41: an enabled mod's own cost, mod on vs off)
 | Mod | Machine / renderer | Idle frames | Per output | Once | 20-cycle growth | Note |

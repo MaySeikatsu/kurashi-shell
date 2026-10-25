@@ -110,7 +110,9 @@ def cycles(r, budget):
     return f"{v:+.2f} MiB / {n} cycles", f"≤ {limit:g} MiB", v <= limit, "island + center + launcher"
 
 
-CHECKS = [("open/close", cycles), ("idle frames", idle_frames), ("idle cpu", idle_cpu), ("pss", pss),
+# "pss frontend" only: the material and web dock allowances (K68) are PSS rows too, with "+ ≤ N MiB" budgets that
+# `pss` cannot read (W41: the gate crashed on them). Those rows have no checker, so they show n/a, never green.
+CHECKS = [("open/close", cycles), ("idle frames", idle_frames), ("idle cpu", idle_cpu), ("pss frontend", pss),
           ("popup", popup), ("mapped surfaces", mapped)]
 
 

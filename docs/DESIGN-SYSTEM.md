@@ -91,8 +91,12 @@ A decor pack = **typed slots + recipe**:
 (`chrome.shadow` px down, `chrome.line`). Pressed = the face sinks by the shadow and springs back
 (`motion.spring.overshoot`). Flat chrome sets every width to 0. Components draw blocks through `Block.qml` only.
 `theme.decor = sekai` recommends palette `sekai` (light), keycap chrome, lively motion, solid material, radius ×1.25
-and Nunito, at the `theme:sekai` layer. Icons come from `Icon.qml` (Material Symbols Rounded ligatures, text-glyph
-fallback).
+and Nunito, at the `theme:sekai` layer. Icons come from `Icon.qml` by ligature name (K69): `font.icons` is the shell's
+subset "Kurashi Symbols Rounded" (line chrome: "Kurashi Symbols Sharp" first) when installed, else the full Material
+Symbols family of that cut, else "" and components draw their text glyph. When `font.icons` is the subset,
+`font.icons_fallback` names the full family of the same cut ("" otherwise). Icon draws in three tiers: the theme's
+family; a name that renders wider than 1.5 × size (letters, not one ligature) moves to the fallback family; a name
+neither draws shows its glyph, or a bullet when it has none, never a word.
 
 K45 adds two chromes and makes every decor a whole look that never touches layout:
 

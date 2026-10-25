@@ -14,6 +14,11 @@ use crate::palette::{Palette, ROLES};
 pub const ICON_FAMILY: &str = "Material Symbols Rounded";
 /// Line chrome's icons (K45): the square-cornered cut of the same set, when installed.
 pub const ICON_FAMILY_SHARP: &str = "Material Symbols Sharp";
+/// The shell's subset of the two cuts (nix/icon-font.nix, W39-block; installed by the package, W41 row 445): the same
+/// glyphs for the names in nix/icon-names.txt, a fraction of the file. Preferred when installed.
+pub const ICON_SUBSET: &str = "Kurashi Symbols Rounded";
+/// The sharp cut of the subset (line chrome).
+pub const ICON_SUBSET_SHARP: &str = "Kurashi Symbols Sharp";
 
 /// Flat dotted-key map; the `theme` document's `tokens` object.
 pub type TokenMap = BTreeMap<String, Value>;
@@ -175,16 +180,39 @@ pub fn build(
     notes.extend(n2);
     t.insert("font.family".into(), json!(fam));
     t.insert("font.family_jp".into(), json!(fam_jp));
-    // Icons (K42): Material Symbols Rounded when installed, else "" and components draw their
-    // text glyph instead (Shōjiki: no tofu boxes for a font that is not there).
-    let icons = if axes.chrome == Chrome::Line && fonts.is_installed(ICON_FAMILY_SHARP) {
-        ICON_FAMILY_SHARP
-    } else if fonts.is_installed(ICON_FAMILY) {
-        ICON_FAMILY
+    // Icons (K42, W41): the shell's subset when installed, else Material Symbols, else "" and components draw their
+    // text glyph instead (Shōjiki: no tofu boxes for a font that is not there). Line chrome takes the sharp cut first,
+    // so a subset of the other cut never beats the full family of this one.
+    let (chain, full): (&[&str], &[&str]) = if axes.chrome == Chrome::Line {
+        (
+            &[
+                ICON_SUBSET_SHARP,
+                ICON_FAMILY_SHARP,
+                ICON_SUBSET,
+                ICON_FAMILY,
+            ],
+            &[ICON_FAMILY_SHARP, ICON_FAMILY],
+        )
+    } else {
+        (&[ICON_SUBSET, ICON_FAMILY], &[ICON_FAMILY])
+    };
+    let icons = chain
+        .iter()
+        .copied()
+        .find(|f| fonts.is_installed(f))
+        .unwrap_or("");
+    // `font.icons_fallback` (row 446): the full family of the same cut, where a name the subset lacks is drawn
+    // (Icon.qml). "" when the theme's family is the full one already, or no full family is installed.
+    let fallback = if icons == ICON_SUBSET || icons == ICON_SUBSET_SHARP {
+        full.iter()
+            .copied()
+            .find(|f| fonts.is_installed(f))
+            .unwrap_or("")
     } else {
         ""
     };
     t.insert("font.icons".into(), json!(icons));
+    t.insert("font.icons_fallback".into(), json!(fallback));
     // Icon cut per chrome (K45): keycaps take filled, heavier symbols; line chrome hairline ones.
     let (icon_fill, icon_weight) = match axes.chrome {
         Chrome::Keycap => (1, 600),
@@ -716,5 +744,54 @@ mod badge_tests {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod icon_font_tests {
+    use super::*;
+    use crate::{FakeFonts, ThemeInput, resolve};
+
+    fn icon_tokens(chrome: Chrome, installed: &[&str]) -> TokenMap {
+        let mut i = ThemeInput::default();
+        i.axes.chrome = chrome;
+        resolve(&i, &FakeFonts::new(installed)).unwrap().tokens
+    }
+
+    /// W41 (rows 445, 446): the subset is preferred and its cut comes first under line chrome; the full family of the same
+    /// cut is the fallback for a name the subset lacks, and the full family itself names no fallback.
+    #[test]
+    fn icon_font_prefers_the_subset_and_names_a_full_fallback() {
+        let all = [
+            ICON_SUBSET,
+            ICON_FAMILY,
+            ICON_SUBSET_SHARP,
+            ICON_FAMILY_SHARP,
+        ];
+        let t = icon_tokens(Chrome::Soft, &all[..]);
+        assert_eq!(t["font.icons"], ICON_SUBSET);
+        assert_eq!(t["font.icons_fallback"], ICON_FAMILY);
+        let t = icon_tokens(Chrome::Line, &all[..]);
+        assert_eq!(t["font.icons"], ICON_SUBSET_SHARP);
+        assert_eq!(t["font.icons_fallback"], ICON_FAMILY_SHARP);
+        // A subset of the other cut never beats the full family of this one.
+        let t = icon_tokens(
+            Chrome::Line,
+            &[ICON_SUBSET, ICON_FAMILY_SHARP, ICON_FAMILY][..],
+        );
+        assert_eq!(t["font.icons"], ICON_FAMILY_SHARP);
+        assert_eq!(t["font.icons_fallback"], "");
+        // The full families alone: as before the subset, nothing to fall back to.
+        let t = icon_tokens(Chrome::Flat, &[ICON_FAMILY][..]);
+        assert_eq!(t["font.icons"], ICON_FAMILY);
+        assert_eq!(t["font.icons_fallback"], "");
+        // The subset alone: a name it lacks has no family to fall back to (Icon.qml draws the glyph).
+        let t = icon_tokens(Chrome::Flat, &[ICON_SUBSET][..]);
+        assert_eq!(t["font.icons"], ICON_SUBSET);
+        assert_eq!(t["font.icons_fallback"], "");
+        // No icon font: components draw their glyphs.
+        let t = icon_tokens(Chrome::Line, &[][..]);
+        assert_eq!(t["font.icons"], "");
+        assert_eq!(t["font.icons_fallback"], "");
     }
 }

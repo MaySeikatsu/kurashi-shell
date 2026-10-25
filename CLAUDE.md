@@ -53,7 +53,7 @@ just dev          # run kurashid + frontend against the real session
 just mock         # run kurashi-mock (fake daemon for frontend work)
 just sandbox      # headless sway sandbox (invisible) for frontend smoke tests
 just bench <cmd>  # idle frames, PSS, CPU, wakeups → tools/bench/results/
-nix build .#kurashid   # packaged daemon
+nix build .#kurashi    # packaged daemon + frontend + icon font
 ```
 
 ## Docs map

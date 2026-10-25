@@ -72,6 +72,7 @@
   "font.family": "Inter",
   "font.family_jp": "Noto Sans CJK JP",
   "font.icons": "",
+  "font.icons_fallback": "",
   "font.size.body": 13,
   "font.size.caption": 11,
   "font.size.display": 24,
