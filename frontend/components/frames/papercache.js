@@ -1,8 +1,7 @@
 .pragma library
 // The paper frame's grain (W29 washi; W41, row 447, I199): one SVG data URL per (ink, size, fibres, specks, seed, reach),
-// made the first time a block asks for it and shared by every block after. The frame used to build the same string in JS
-// per block: ~1 ms each in washi, about half of the quick card's warm build (tools/bench/quick-open.sh). Tokens only (rule 4):
-// the ink is the caller's, the rest are the frame's constants.
+// made the first time a block asks for it and shared by every block after. Frames used to build the same string in JS
+// once per block; the cost is in docs/BENCH.md ("W41 icons"). The ink is the caller's token; the rest are constants.
 var tiles = {}
 
 // The tile for these arguments, made once (the key carries every argument, so a new ink or size is a new entry).
