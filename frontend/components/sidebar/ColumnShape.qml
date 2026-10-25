@@ -33,15 +33,19 @@ Shape {
     property bool ruled: false
     property bool chrome: false        // ring and hard shadow (the floating style's block)
     property bool flipY: false         // the frame is mirrored vertically: the hard shadow still falls down on screen
+    property bool flipX: false         // the frame is mirrored horizontally (a left sidebar): it still falls the screen's way
     property color fill: Theme.panel
 
     readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
     readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
     readonly property real gw: chrome ? Theme.ringW * 0.5 : 0
-    readonly property real sdy: chrome ? Theme.shadowDy : 0
+    // The hard shadow's vector (K67; `Theme.shadowDy` straight down by default), in the canonical frame.
+    readonly property real sdx: chrome ? (flipX ? -1 : 1) * Theme.sinkX : 0
+    readonly property real sdy: chrome ? Theme.sinkY : 0
     readonly property real sd: (flipY ? -1 : 1) * sdy
-    // How far a joined edge lies past the window: further than every inset and the shadow.
-    readonly property real k: ow + gw + Math.abs(sdy) + 4
+    readonly property bool casts: sdx !== 0 || sdy !== 0
+    // How far a joined edge lies past the window: further than every inset and the shadow (either way it falls).
+    readonly property real k: ow + gw + Math.max(Math.abs(sdx), Math.abs(sdy), chrome ? Theme.shadowDy : 0) + 4
     readonly property real bw: x1 - x0
     readonly property real bh: y1 - y0
     readonly property bool shown: visible && bw >= 1 && bh >= 1
@@ -140,11 +144,21 @@ Shape {
     }
 
     preferredRendererType: Shape.CurveRenderer
-    ShapePath {
-        strokeWidth: -1
-        strokeColor: "transparent"
-        fillColor: sh.sdy > 0 ? Theme.line : "transparent"
-        PathSvg { path: sh.sdy > 0 ? sh.path(0, false, sh.sd) : "" }
+    // The hard shadow: the outline moved along the vector — down the path, across by this layer's place (z −1: under the
+    // shape's own layers).
+    Shape {
+        z: -1
+        x: sh.sdx
+        width: sh.width
+        height: sh.height
+        visible: sh.casts
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeWidth: -1
+            strokeColor: "transparent"
+            fillColor: sh.casts ? Theme.line : "transparent"
+            PathSvg { path: sh.casts ? sh.path(0, false, sh.sd) : "" }
+        }
     }
     ShapePath {
         strokeWidth: -1

@@ -637,9 +637,21 @@ fn every_chrome_has_its_own_token_set() {
             "chrome.outline_color",
             "icon.fill",
             "icon.weight",
+            "shadow.dx",
+            "shadow.dy",
+            "shadow.alpha_scale",
         ] {
             assert!(t.contains_key(k), "{chrome:?} lacks {k}");
         }
+        // K67: at the defaults the shadow is today's — straight down, the hard shadow's or the soft one's length.
+        let n = |k: &str| t[k].as_f64().unwrap();
+        assert_eq!(n("shadow.dx"), 0.0, "{chrome:?}");
+        assert_eq!(
+            n("shadow.dy"),
+            n("chrome.shadow").max(n("chrome.soft_dy")),
+            "{chrome:?}"
+        );
+        assert_eq!(n("shadow.alpha_scale"), 1.0, "{chrome:?}");
         seen.insert(t["chrome.style"].as_str().unwrap().to_owned());
     }
     assert_eq!(seen.len(), 4);

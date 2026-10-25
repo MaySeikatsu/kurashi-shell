@@ -460,6 +460,10 @@ pub fn build(
         at_least(g("warning"), surface, 4.5, fg),
     );
 
+    // K67: the shadow vector at the look's own strength, straight down; the daemon resolves it again with the user's
+    // strength, direction and light (`shadow_tokens`), so a theme without those (previews, the mock) still has all three.
+    shadow_tokens(&mut t, &Shadow::default());
+
     // --- overrides (per-surface / per-output); unknown keys are errors, not silent ---
     for (k, v) in overrides {
         if !t.contains_key(k) {
@@ -469,4 +473,200 @@ pub fn build(
         t.insert(k.clone(), v.clone());
     }
     Ok((t, notes))
+}
+
+/// K67: how a theme's drop shadows fall — the user's strength (0 none, 1 the look's own, 2 twice as long and dark), the
+/// direction they fall in (degrees round the screen, 180 straight down, 135 down to the right), and, when they follow the
+/// light, the light's direction (`light.dir`: toward the light, x right, y down, z toward the viewer).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Shadow {
+    pub strength: f64,
+    pub angle: f64,
+    pub light: Option<[f64; 3]>,
+}
+
+impl Default for Shadow {
+    fn default() -> Self {
+        Shadow {
+            strength: 1.0,
+            angle: 180.0,
+            light: None,
+        }
+    }
+}
+
+/// The light's height (degrees) at which a shadow that follows it is the look's own length (the light's default).
+const SHADOW_REST_ELEVATION: f64 = 40.0;
+/// How much shorter (a high light) and longer (a low one) a followed shadow gets than at [`SHADOW_REST_ELEVATION`].
+const SHADOW_FOLLOW_RANGE: (f64, f64) = (0.5, 2.0);
+/// A soft shadow's opacity never passes this, whatever the strength (a shadow, never a solid blot).
+const SOFT_ALPHA_MAX: f64 = 0.9;
+
+/// The unit vector (x right, y down) of a shadow falling at `angle` degrees round the screen (0 up, 90 right, 180 down).
+pub fn shadow_unit(angle: f64) -> [f64; 2] {
+    let a = angle.to_radians();
+    [a.sin(), -a.cos()]
+}
+
+/// A shadow that follows the light: its unit direction (away from the light) and how much longer than the look's own it
+/// is (`tan 40° / tan elevation`, within 0.5…2). `None` for a light straight overhead (no direction to fall in).
+pub fn shadow_from_light(dir: [f64; 3]) -> Option<([f64; 2], f64)> {
+    let len = dir[0].hypot(dir[1]);
+    if len < 1e-3 {
+        return None;
+    }
+    let elevation = dir[2].atan2(len).max(1f64.to_radians());
+    let k = (SHADOW_REST_ELEVATION.to_radians().tan() / elevation.tan())
+        .clamp(SHADOW_FOLLOW_RANGE.0, SHADOW_FOLLOW_RANGE.1);
+    Some(([-dir[0] / len, -dir[1] / len], k))
+}
+
+/// The shadow's vector in px for a shadow of the look's own `length` (`chrome.shadow` or `chrome.soft_dy`).
+pub fn shadow_vector(length: f64, s: &Shadow) -> [f64; 2] {
+    let strength = s.strength.clamp(0.0, 2.0);
+    let (u, k) = s
+        .light
+        .and_then(shadow_from_light)
+        .unwrap_or_else(|| (shadow_unit(s.angle), 1.0));
+    // Two decimals (renderers round where a hard edge needs whole px); never a -0.
+    let r = |v: f64| {
+        let v = (v * 100.0).round() / 100.0;
+        if v == 0.0 { 0.0 } else { v }
+    };
+    [
+        r(u[0] * length * k * strength),
+        r(u[1] * length * k * strength),
+    ]
+}
+
+/// K67: `shadow.dx`, `shadow.dy` — the vector every block and surface casts its shadow along: the keycap's hard shadow
+/// and its press sink, or the soft shadow's offset — and `shadow.alpha_scale` (the soft shadow's opacity × this, kept
+/// under [`SOFT_ALPHA_MAX`]). Read from the chrome tokens already in `t`; a chrome without a shadow gets 0, 0.
+pub fn shadow_tokens(t: &mut TokenMap, s: &Shadow) {
+    let num = |k: &str| t.get(k).and_then(Value::as_f64).unwrap_or(0.0);
+    let (hard, soft_dy, soft_alpha) = (
+        num("chrome.shadow"),
+        num("chrome.soft_dy"),
+        num("chrome.soft_alpha"),
+    );
+    let length = if hard > 0.0 { hard } else { soft_dy };
+    let [dx, dy] = shadow_vector(length, s);
+    let strength = s.strength.clamp(0.0, 2.0);
+    let alpha = if soft_alpha > 0.0 {
+        strength.min(SOFT_ALPHA_MAX / soft_alpha)
+    } else {
+        strength
+    };
+    t.insert("shadow.dx".into(), json!(dx));
+    t.insert("shadow.dy".into(), json!(dy));
+    t.insert(
+        "shadow.alpha_scale".into(),
+        json!((alpha * 100.0).round() / 100.0),
+    );
+}
+
+#[cfg(test)]
+mod shadow_tests {
+    use super::*;
+
+    fn close(a: [f64; 2], b: [f64; 2]) -> bool {
+        (a[0] - b[0]).abs() < 0.011 && (a[1] - b[1]).abs() < 0.011
+    }
+
+    #[test]
+    fn the_default_is_todays_shadow_straight_down() {
+        assert_eq!(shadow_vector(4.0, &Shadow::default()), [0.0, 4.0]);
+        assert_eq!(shadow_vector(6.0, &Shadow::default()), [0.0, 6.0]);
+        assert_eq!(shadow_vector(0.0, &Shadow::default()), [0.0, 0.0]);
+        let mut t = TokenMap::new();
+        t.insert("chrome.shadow".into(), json!(4));
+        t.insert("chrome.soft_dy".into(), json!(0));
+        shadow_tokens(&mut t, &Shadow::default());
+        assert_eq!(t["shadow.dx"], json!(0.0));
+        assert_eq!(t["shadow.dy"], json!(4.0));
+        assert_eq!(t["shadow.alpha_scale"], json!(1.0));
+    }
+
+    #[test]
+    fn angle_and_strength_turn_and_scale_the_vector() {
+        let at = |angle, strength| {
+            shadow_vector(
+                4.0,
+                &Shadow {
+                    strength,
+                    angle,
+                    light: None,
+                },
+            )
+        };
+        let d = 4.0 * std::f64::consts::FRAC_1_SQRT_2;
+        assert!(close(at(135.0, 1.0), [d, d]), "{:?}", at(135.0, 1.0));
+        assert!(close(at(225.0, 1.0), [-d, d]));
+        assert!(close(at(90.0, 1.0), [4.0, 0.0]));
+        assert!(close(at(0.0, 1.0), [0.0, -4.0]));
+        assert_eq!(at(180.0, 2.0), [0.0, 8.0]);
+        assert_eq!(at(180.0, 0.5), [0.0, 2.0]);
+        assert_eq!(at(135.0, 0.0), [0.0, 0.0]);
+        // Out of range strengths are clamped, as the schema's range is.
+        assert_eq!(at(180.0, 5.0), [0.0, 8.0]);
+    }
+
+    #[test]
+    fn a_followed_shadow_falls_away_from_the_light_and_lengthens_as_it_sinks() {
+        let light = |angle: f64, elevation: f64| {
+            let (a, e) = (angle.to_radians(), elevation.to_radians());
+            [a.sin() * e.cos(), -a.cos() * e.cos(), e.sin()]
+        };
+        let follow = |angle, elevation| Shadow {
+            strength: 1.0,
+            angle: 180.0,
+            light: Some(light(angle, elevation)),
+        };
+        let d = 4.0 * std::f64::consts::FRAC_1_SQRT_2;
+        // The light from the top left (315) casts down to the right (135); from the top right (45) down to the left.
+        assert!(close(shadow_vector(4.0, &follow(315.0, 40.0)), [d, d]));
+        assert!(close(shadow_vector(4.0, &follow(45.0, 40.0)), [-d, d]));
+        // From the top at the rest height: exactly the static default.
+        assert!(close(shadow_vector(4.0, &follow(0.0, 40.0)), [0.0, 4.0]));
+        // Low light: longer, capped at twice; high light: shorter, at least half.
+        let low = shadow_vector(4.0, &follow(0.0, 10.0));
+        let lower = shadow_vector(4.0, &follow(0.0, 5.0));
+        let high = shadow_vector(4.0, &follow(0.0, 80.0));
+        assert!(
+            close(low, [0.0, 8.0]) && close(lower, [0.0, 8.0]),
+            "{low:?}"
+        );
+        assert!(close(high, [0.0, 2.0]), "{high:?}");
+        let mid = shadow_vector(4.0, &follow(0.0, 25.0))[1];
+        assert!(mid > 4.0 && mid < 8.0, "{mid}");
+        // Straight overhead there is no direction: the static angle decides.
+        let over = Shadow {
+            light: Some([0.0, 0.0, 1.0]),
+            angle: 135.0,
+            ..Shadow::default()
+        };
+        assert!(close(shadow_vector(4.0, &over), [d, d]));
+    }
+
+    #[test]
+    fn soft_alpha_scales_with_strength_and_stays_a_shadow() {
+        let mut t = TokenMap::new();
+        t.insert("chrome.shadow".into(), json!(0));
+        t.insert("chrome.soft_dy".into(), json!(6));
+        t.insert("chrome.soft_alpha".into(), json!(0.45));
+        let mut s = Shadow {
+            strength: 2.0,
+            ..Shadow::default()
+        };
+        shadow_tokens(&mut t, &s);
+        assert_eq!(t["shadow.dy"], json!(12.0));
+        assert_eq!(t["shadow.alpha_scale"], json!(2.0));
+        t.insert("chrome.soft_alpha".into(), json!(0.6));
+        shadow_tokens(&mut t, &s);
+        assert_eq!(t["shadow.alpha_scale"], json!(1.5));
+        s.strength = 0.0;
+        shadow_tokens(&mut t, &s);
+        assert_eq!(t["shadow.dy"], json!(0.0));
+        assert_eq!(t["shadow.alpha_scale"], json!(0.0));
+    }
 }

@@ -20,7 +20,7 @@ import "../pen.js" as Pen
 // Every layer is one closed path; the outline and the ring are bands (the path less its inset, odd-even), so no layer
 // lies under another and the fill may be translucent (I114: Theme.panel). Chrome comes from tokens only: the outline
 // `Theme.outlineW` in `Theme.outlineColor` (flat: a 1 px `Theme.outline` hairline), the ring `Theme.ringW` x `ringScale`,
-// the hard shadow `Theme.shadowDy`. A soft shadow is the Stage's (RectangularShadows under head and body). A path is
+// the hard shadow along `Theme.sinkX/Y` (K67; `Theme.shadowDy` straight down by default). A soft shadow is the Stage's (RectangularShadows under head and body). A path is
 // rebuilt only when a number changes: nothing runs while it stands (Ma).
 // W34 additions (all optional, defaults keep the above; see the properties): `headless` (grow out of the bar from under a
 // widget that stays drawn — hanging from a strip's edge, or budding from a block by a neck that can let go: `neckCx`,
@@ -77,7 +77,9 @@ Shape {
     readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
     readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
     readonly property real gw: Theme.ringW * ringScale
-    readonly property real sd: (flip ? -1 : 1) * Theme.shadowDy
+    // The hard shadow's vector (K67): `sd` down the path (mirrored with the frame), `Theme.sinkX` across by moving its layer.
+    readonly property real sd: (flip ? -1 : 1) * Theme.sinkY
+    readonly property bool casts: Theme.sinkX !== 0 || Theme.sinkY !== 0
 
     function f(v) { return Math.round(v * 100) / 100 }
     function arc(r, sweep, x, y) { return r > 0.05 ? " A " + f(r) + " " + f(r) + " 0 0 " + sweep + " " + f(x) + " " + f(y) : " L " + f(x) + " " + f(y) }
@@ -373,11 +375,21 @@ Shape {
     }
 
     preferredRendererType: Shape.CurveRenderer
-    ShapePath {
-        strokeWidth: -1
-        strokeColor: "transparent"
-        fillColor: Theme.shadowDy > 0 ? sh.fa(Theme.line, sh.fade) : "transparent"
-        PathSvg { path: sh.visible && Theme.shadowDy > 0 ? (sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
+    // The hard shadow: the outline moved along the shadow vector, in a layer of its own under the shape's (z −1) so the
+    // vector's x is the layer's place and no path is rebuilt for it.
+    Shape {
+        z: -1
+        x: Theme.sinkX
+        width: sh.width
+        height: sh.height
+        visible: sh.visible && sh.casts
+        preferredRendererType: Shape.CurveRenderer
+        ShapePath {
+            strokeWidth: -1
+            strokeColor: "transparent"
+            fillColor: sh.casts ? sh.fa(Theme.line, sh.fade) : "transparent"
+            PathSvg { path: sh.visible && sh.casts ? (sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
+        }
     }
     // The bar's rule, drawn by the shape (a ruled strip only; see rulePath), under the outline and the fill.
     ShapePath {
