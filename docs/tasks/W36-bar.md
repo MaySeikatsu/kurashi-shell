@@ -3,7 +3,7 @@
 **Why:** the user wants the current widgets and bar modules refined and polished. The open rows: the window list (I102),
 the layout chip and REC dot on side bars (I131), dock follow-ups (I137).
 
-**Read first:** `CLAUDE.md`; `docs/tasks/README.md`; `docs/ux/tasks.md`, `docs/ux/dock.md`, `docs/ux/sidebar.md` (side bars);
+**Read first:** `CLAUDE.md`; `docs/tasks/README.md`; `docs/ux/window-list.md` (written by the card; `tasks.md` is the to-do mod), `docs/ux/dock.md`, `docs/ux/sidebar.md` (side bars);
 BACKLOG I102, I131, I137; PROTOCOL rows `svc.workspaces` (tasks) and the window actions; `crates/kurashid/src/workspaces.rs`,
 the niri adapter (`crates/kurashi-compositor*` or where `focus_window` lives — find it with one grep);
 `frontend/surfaces/{Bar,Dock}.qml` and the window-list widget it uses.
