@@ -532,6 +532,28 @@ phase_focus() {
   stop_phase
 }
 
+# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2) ----
+phase_forced() {
+  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, and works without it"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='compact'; d['forced']={'pinned':'nix'}; print(json.dumps(d))" "$BASE" "$PINS2")"
+  start_input
+  sleep 2
+  click 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  sleep 0.5
+  if seen "i['action']=='webdock.pin'"; then r=0; else r=1; fi
+  check "$r" "forced: a click on the pin toggle sends no webdock.pin while the configuration sets pinned"
+  setdoc '{"forced":null}'   # a merge patch: null removes the field (an empty object would keep `pinned`)
+  sleep 1
+  click 2531 768
+  seen "i['action']=='webdock.pin'" && r=1 || r=0
+  check "$r" "forced: without the force the same click sends webdock.pin (the control is live)"
+  stop_phase
+}
+
 # ---- keys: a keybind reveal (the daemon's toggle: the mode and `engaged` together) takes the keyboard at once (I98) ----
 phase_keys() {
   echo "== phase keys: the first keys after a keybind reveal reach the dock"
@@ -694,6 +716,7 @@ phase_measure() {
 want states && phase_states
 want intents && phase_intents
 want focus && phase_focus
+want forced && phase_forced
 want keys && phase_keys
 want large && phase_large
 want ja && phase_ja

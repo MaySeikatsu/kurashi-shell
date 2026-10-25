@@ -356,6 +356,8 @@ pub struct Dock {
     host: HostState,
     profiles: PathBuf,
     icons: PathBuf,
+    /// The settings the configuration forces, each with the source that forces it (I91: `forced` on `mod.webdock`).
+    forced: BTreeMap<String, String>,
 }
 
 impl Dock {
@@ -378,9 +380,17 @@ impl Dock {
             host: HostState::Off,
             profiles,
             icons,
+            forced: BTreeMap::new(),
         };
         dock.apply_settings(settings, Instant::now());
         dock
+    }
+
+    /// The settings the configuration forces, with the source that forces each (I91). The settings feed carries no
+    /// provenance yet (CONTRACT-CHANGE 374), so the caller passes what it knows; nothing is forced without it.
+    pub fn with_forced(mut self, forced: BTreeMap<String, String>) -> Self {
+        self.forced = forced;
+        self
     }
 
     /// Takes the settings in effect: pins, and the values the dock reads. A pin that is gone takes its state with it.
@@ -812,6 +822,10 @@ impl Dock {
         if let Some(output) = &self.output {
             doc["output"] = json!(output);
         }
+        // I91: the settings the configuration forces and their sources; absent when nothing is forced (no nulls).
+        if !self.forced.is_empty() {
+            doc["forced"] = json!(self.forced);
+        }
         // W30: the sidebar's pin and, while the panel is at rest in an open sidebar, its page area (absent otherwise).
         if self.side_pin.is_some() || self.place.is_some() {
             let mut side = json!({});
@@ -839,6 +853,10 @@ impl Dock {
             Kind::View => "view",
         };
         let mut out = json!({"id": p.id, "kind": kind, "title": p.title, "target": p.target});
+        // I91: the pins are one setting (`pins`); a forced list names its source on each pin (the strip's menu reads it).
+        if let Some(source) = self.forced.get("pins") {
+            out["forced_by"] = json!(source);
+        }
         if p.kind == Kind::Web {
             let view = views
                 .get(&p.profile)
@@ -1638,6 +1656,32 @@ mod tests {
         assert!(!d.select("weather", None).unwrap(), "a view starts no host");
         assert_eq!(d.doc()["mode"], "extended");
         assert_eq!(d.select("zzz", None), Err(DockError::UnknownPin));
+    }
+
+    #[test]
+    fn forced_settings_are_published_with_their_source() {
+        let forced =
+            dock(&[]).with_forced(BTreeMap::from([("pinned".to_string(), "nix".to_string())]));
+        assert_eq!(
+            forced.doc()["forced"]["pinned"],
+            "nix",
+            "the forced pinned names its source"
+        );
+        assert!(
+            dock(&[]).doc().get("forced").is_none(),
+            "nothing forced: no block (no nulls)"
+        );
+    }
+
+    #[test]
+    fn forced_pins_name_their_source_on_each_pin() {
+        let d = dock(&[]).with_forced(BTreeMap::from([("pins".to_string(), "nix".to_string())]));
+        let pins = d.doc()["pins"].clone();
+        assert!(pins.as_array().is_some_and(|p| !p.is_empty()));
+        for pin in pins.as_array().into_iter().flatten() {
+            assert_eq!(pin["forced_by"], "nix");
+        }
+        assert!(dock(&[]).doc()["pins"][0].get("forced_by").is_none());
     }
 
     #[test]
