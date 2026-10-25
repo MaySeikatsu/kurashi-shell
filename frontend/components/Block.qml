@@ -6,11 +6,12 @@ import "../core"
 //   outline  `Theme.outlineW` px in `Theme.outlineColor` (keycap ink, line chrome's outline role, soft chrome's faint
 //            light rim; 0 under flat chrome, where `flatBorder` may still draw a hairline);
 //   ring     `Theme.ringW` px in `Theme.ring` between outline and fill (keycap only), `ringScale` of it;
-//   shadow   a hard one `Theme.shadowDy` px straight down in `Theme.line` (keycap), or a soft one — `Theme.softR` blur,
-//            `Theme.softDy` down, `Theme.softColor` — under the face (soft chrome; `softScale` of it, 0 for none). The soft
+//   shadow   a hard one in `Theme.line` along the shadow vector `Theme.sinkX/Y` (keycap; K67: the user's strength and
+//            direction, `Theme.shadowDy` straight down by default), or a soft one — `Theme.softR` blur, offset along
+//            `Theme.shadowX/Y`, `Theme.softColor` — under the face (soft chrome; `softScale` of it, 0 for none). The soft
 //            shadow is one RectangularShadow, made only while the chrome has one: static, nothing runs per frame;
-//   press    the face sinks onto its hard shadow and springs back with Theme.overshoot; or it shrinks to
-//            `Theme.pressScale`; a chrome with neither (line) flashes its fill instead.
+//   press    the face sinks onto its hard shadow, along the vector, and springs back with Theme.overshoot; or it shrinks
+//            to `Theme.pressScale`; a chrome with neither (line, a keycap at strength 0) flashes its fill instead.
 // Children land on the fill. The block's size includes the hard shadow: the face is `height - Theme.shadowDy` tall
 // (`faceH`); centre content on `face` (anchors.centerIn: blk.face), not on the block.
 // K59 (docs/ux/texture.md): a block with a fill of its own (`fill.a > 0`) carries the material's relief under its content,
@@ -37,17 +38,21 @@ Item {
     readonly property real faceH: height - Theme.shadowDy
     readonly property alias face: face
     default property alias content: fillRect.data
-    // The press a chrome has: a sink (hard shadow), a shrink (press scale), else a flash of the fill.
-    readonly property bool flashes: Theme.shadowDy <= 0 && Theme.pressScale >= 1
+    // The press a chrome has: a sink (hard shadow), a shrink (press scale), else a flash of the fill (also a keycap whose
+    // shadow is set to nothing: K67, nothing to sink onto).
+    readonly property bool flashes: Theme.sinkX === 0 && Theme.sinkY === 0 && Theme.pressScale >= 1
     // The outline this block draws (0: none): the chrome's, else the flat hairline.
     readonly property real outlineWidth: Theme.outlineW > 0 ? Theme.outlineW : (flatBorder.a > 0 ? 1 : 0)
     readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 
+    // The hard shadow along the shadow vector (K67: `Theme.sinkX/Y`, straight down by `Theme.shadowDy` by default). The
+    // block keeps `Theme.shadowDy` of room below its face whatever the vector; a longer or sideways shadow reaches past it.
     Rectangle {
-        visible: Theme.shadowDy > 0
-        y: Theme.shadowDy
+        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+        x: Theme.sinkX
+        y: Theme.sinkY
         width: blk.width
         height: blk.faceH
         radius: Math.min(blk.radius, height / 2)
@@ -58,8 +63,18 @@ Item {
         id: face
         width: blk.width
         height: blk.faceH
-        y: blk.pressed ? Theme.shadowDy : 0
+        // The press sinks the face onto its shadow, along the vector.
+        x: blk.pressed ? Theme.sinkX : 0
+        y: blk.pressed ? Theme.sinkY : 0
         scale: blk.pressed ? Theme.pressScale : 1
+        Behavior on x {
+            enabled: blk.animate && Theme.springOn
+            NumberAnimation {
+                duration: blk.pressed ? 70 : Theme.stdMs + 60
+                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
+                easing.overshoot: Theme.overshoot
+            }
+        }
         Behavior on y {
             enabled: blk.animate && Theme.springOn
             NumberAnimation {

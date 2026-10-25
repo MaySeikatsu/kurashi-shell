@@ -93,7 +93,7 @@ Flickable {
     readonly property var extras: ({ "theme.export": cThemeExport, "theme.colors.scheme": cSchemeStatus,
                                        "sidebar.bar_buttons": cSidebarOpen, "theme.texture.kind": cTextureCards,
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
-                                       "theme.light.color": cLightSwatches,
+                                       "theme.light.color": cLightSwatches, "theme.material.shadow": cShadowPreview,
                                        "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus })
     // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
     // dropdown (SettingRow.picker), with the provenance line under them.
@@ -128,6 +128,7 @@ Flickable {
     Component { id: cLightDial; LightDial {} }
     Component { id: cInkSwatches; InkSwatches {} }
     Component { id: cLightSwatches; LightSwatches {} }
+    Component { id: cShadowPreview; ShadowPreview {} }
     Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
     Component { id: cKeysStatus; KeysStatus {} }
     Component { id: cShortcut; ShortcutRecorder {} }
