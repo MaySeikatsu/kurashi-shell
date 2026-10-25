@@ -14,6 +14,7 @@
 pub mod signals;
 
 use serde_json::{Value, json};
+use std::borrow::Cow;
 use std::cmp::Reverse;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -67,8 +68,8 @@ pub struct IslandConfig {
     /// them back.
     pub faces: Vec<String>,
     /// The list decides which faces show (K68): with it on and non-empty, a registered face it does not name is never
-    /// offered, not as the default, by relevance or by cycling, and cannot be pinned. Off (the default list), `faces`
-    /// only orders them, so every face shows.
+    /// offered, not as the default, by relevance or by cycling, and cannot be pinned. A list that names no registered
+    /// face shows its fallback face alone (row 452). Off (the default list), `faces` only orders them, so every face shows.
     pub restrict: bool,
     pub default: String,
     /// Trigger kinds whose transients may interrupt a manual hold.
@@ -305,8 +306,7 @@ impl Arbiter {
 
     fn rank(&self, id: &str) -> (usize, String) {
         let i = self
-            .cfg
-            .faces
+            .effective_list()
             .iter()
             .position(|f| f == id)
             .unwrap_or(usize::MAX);
@@ -324,7 +324,36 @@ impl Arbiter {
         self.faces.contains_key(id)
             && (!self.cfg.restricts()
                 || self.cfg.transient_only.contains(id)
-                || self.cfg.faces.iter().any(|f| f == id))
+                || self.effective_list().iter().any(|f| f == id))
+    }
+
+    /// Registered, and not a face only a transient may show: a face the list can name (K65, K68).
+    fn usable(&self, id: &str) -> bool {
+        self.faces.contains_key(id) && !self.cfg.transient_only.contains(id)
+    }
+
+    /// The faces the list names, as the island reads them (K68, row 452). A list that restricts and names no usable face
+    /// (every face it names is a mod that is off) reads as its fallback face alone: the island shows that face, and the
+    /// document is what a list of that one face gives.
+    fn effective_list(&self) -> Cow<'_, [String]> {
+        if self.cfg.restricts() && !self.cfg.faces.iter().any(|f| self.usable(f)) {
+            if let Some(f) = self.fallback() {
+                return Cow::Owned(vec![f.to_string()]);
+            }
+        }
+        Cow::Borrowed(&self.cfg.faces)
+    }
+
+    /// The face a list with no usable face falls back to: the default face when it is usable, else the first usable face
+    /// by id. Exempt faces never fall back (they show on their events only, K65).
+    fn fallback(&self) -> Option<&str> {
+        if self.usable(&self.cfg.default) {
+            return Some(self.cfg.default.as_str());
+        }
+        self.faces
+            .keys()
+            .find(|f| self.usable(f))
+            .map(String::as_str)
     }
 
     /// The registered faces `keep` accepts, in configured order (unlisted ones by id).
@@ -1022,6 +1051,48 @@ mod tests {
         assert_eq!(d.face, "weather");
         assert_eq!(d.faces, ["clock", "media", "weather"]);
         assert!(d.unlisted.is_empty());
+    }
+
+    /// K68 (row 452): a list whose every face is a mod that is off reads as its fallback face alone, the default when that
+    /// is registered. The island shows it, and the document is the one a list of that face gives.
+    #[test]
+    fn a_list_of_faces_that_are_off_falls_back_to_the_default() {
+        let two = |faces: &[&str]| {
+            let mut a = Arbiter::new(IslandConfig {
+                faces: faces.iter().map(|f| f.to_string()).collect(),
+                restrict: true,
+                default: "clock".into(),
+                ..Default::default()
+            });
+            for (f, p) in [("clock", 0), ("media", 1)] {
+                a.register_face(face(f, p));
+            }
+            a
+        };
+        let mut off = two(&["weather"]);
+        let d = off.decide(0);
+        assert_eq!((d.face.as_str(), d.reason.as_str()), ("clock", "default"));
+        assert_eq!(d.faces, ["clock"]);
+        assert_eq!(d.unlisted, ["media"]);
+        assert_eq!(doc(&d, false), doc(&two(&["clock"]).decide(0), false));
+        assert!(
+            !off.pin("media"),
+            "the fallback is the only face the list gives"
+        );
+        // No usable default: the first usable face by id. An exempt face never falls back, though it sorts first.
+        let mut c = IslandConfig {
+            faces: vec!["weather".into()],
+            restrict: true,
+            ..Default::default()
+        };
+        c.transient_only.insert("bluetooth".into());
+        let mut bare = Arbiter::new(c);
+        for (f, p) in [("clock", 0), ("media", 1), ("bluetooth", 2)] {
+            bare.register_face(face(f, p));
+        }
+        let d = bare.decide(0);
+        assert_eq!(d.face, "clock");
+        assert_eq!(d.faces, ["clock", "bluetooth"]);
     }
 
     /// The default list does not restrict: `faces` only orders, so every registered face shows, the listed ones first.
