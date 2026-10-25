@@ -22,10 +22,13 @@ Rectangle {
     // Keycap chrome (K42): ink outline and a hard shadow below (a child behind the button).
     border.width: Theme.outlineW > 0 ? Theme.outlineW : (hover.hovered && enabled ? 1 : 0)
     border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.fg
+    // Keycap chrome: the hard shadow along the shadow vector (K67). Pressed, it stands 1 px off the face along each axis
+    // (the sign of the step: straight down at the defaults, as before), so the key reads as sunk onto it.
     Rectangle {
         z: -1
-        visible: Theme.shadowDy > 0
-        y: area.pressed ? 1 : Theme.shadowDy
+        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+        x: area.pressed ? Math.sign(Theme.sinkX) : Theme.sinkX
+        y: area.pressed ? Math.sign(Theme.sinkY) : Theme.sinkY
         width: b.width
         height: b.height
         radius: b.radius
