@@ -130,6 +130,63 @@ scratch `qs` shim, since the test runs `qs -p` itself — row 462): ok, 270 shot
 eglcore 5.3), Qt (Qml 4.8, Quick 4.3, Gui 2.3, Widgets 2.2 — quickshell links Widgets), the QML GC heap 3.0, Inter.ttc 3.0, and
 fontconfig's serif fallbacks NotoSerif 0.8 and FreeSerif 0.7 (some text asks for a family fontconfig resolves to a serif); the
 user's qt6ct platform theme and fcitx5 input context ~0.5. Not changed.
+||||||| 8598d57b
+### 2026-10-25 — W42 tiles: one hit area, the Snes frame builds its own part, a tile bench, the bench windows get the tile sheet (machine A, loaded; I211, I199, I192; rows 475–478)
+"HEAD" is `8598d57b` (this branch's start: the daemon, the frontend copied with `git archive`); "W42" the branch's frontend, the same daemon binary (no Rust changed). Release binaries in `$CARGO_TARGET_DIR/release`, sandboxes `w42-tiles-*`. The machine ran at load 5–16 (the user's session and other agents): wall-clock medians moved by ±10–20 % between runs of the same frontend, so every comparison below is a pair or an ABBA run in one invocation. **CPU** per tile or Block (the process's utime + stime over the rounds, `tile.sh` and `block.sh`) moved far less than the wall clock and is the figure to read first.
+
+**Quick card (`quick-open.sh`, HEAD → W42, 9 warm opens, one run per look; first open in brackets).** The final run:
+
+| look | HEAD | W42 | first open |
+|---|---|---|---|
+| washi (default) | 22.0 | 21.0 | 30 → 31 |
+| sekai | 12.0 | 12.0 | 19 → 20 |
+| kami | 25.0 | 23.0 | 32 → 32 |
+| snes | 30.0 | 23.0 | 39 → 32 |
+| kanso | 13.0 | 20.0 (reversed order: 11.0 vs 11.0) | 18 → 19 |
+
+An earlier run (before the pageless strip was restored, higher load): washi 24 → 22, sekai 12 → 13, kami 26 → 26, snes 37 → 33, kanso 17 → 16. **Target washi ≤ 18 ms: not met** (21–22 ms). The washi card is the Blocks: see the tile bench (the paper frame is about 0.5 ms CPU per Block; contract row 475).
+
+**Tile bench (`tile.sh`, 120 QuickTiles × 31 rounds per look, CPU per tile, mean of two frontend runs, ABBA order; kami 41 rounds).**
+
+| look | HEAD CPU µs | W42 CPU µs | Δ CPU | Δ wall |
+|---|---|---|---|---|
+| washi | 2252 | 2210 | −2 % | −3 % |
+| sekai | 1058 | 961 | −9 % | −10 % |
+| kami | 4238 | 4028 | −5 % | −5 % |
+| snes | 3852 | 2594 | −33 % | −35 % |
+| kanso | 978 | 849 | −13 % | −9 % |
+| terminal | 1300 | 1278 | −2 % | −13 % (noisy) |
+
+Attribution of a washi tile (one run, CPU per tile, 31 rounds, the variants of HEAD): the two Blocks with the paper frame 2159–2339; the same Blocks with the frame drawing nothing 1191; the Blocks alone 2339 (both Blocks with paper), with a badge Icon 2718 (+379), with the two Texts 2761 (+422); no visuals at all 137. So a washi tile is mostly its two Blocks (the frame about 0.5 ms per Block), then the Texts and the badge Icon (about 0.4 ms each); QuickTile's own tree is small, and the W42 changes take 30–60 µs off it.
+
+**Block bench (`block.sh`, 100 pairs × 15 rounds per look, per Block; the bench window holds a tile sheet as the Stage does).** The first Sketch runs of this session had no tile sheet in the window, so every Relief made its own pair: kami's relief read about 3 ms CPU per Block there. With the sheet, the same relief is about 0.5 ms CPU:
+
+| look | build | wall µs | CPU µs | anon KiB |
+|---|---|---|---|---|
+| snes | HEAD | 922 | 1227 | 176 |
+| snes | W42 | **605** | **770** | **118** |
+| kami | HEAD | 665 | 1533 | 226 |
+| kami | W42 | 670 | 1513 | 233 |
+
+kami attribution (HEAD variants, the same method): relief off (`Block.qml`) 338 / 970 / 193; frame host off, relief on 428 / 707 / 137; Sketch's paint skipped 558 / 977 / 230; the paint's arithmetic without any canvas call 525 / 1090 / 229, against HEAD's 525–530 / 1187–1263 / 231 in the same runs. The Canvas item itself costs about 75 KiB anon per block (HEAD without it: 160 KiB against 217–235). snes attribution: frame host off 110 / 173 / 41, so the frame host plus the Snes frame cost about 0.5 ms wall per small snes block after W42 (contract row 476).
+
+**Sketch (kami): no change, and why.** The outline's per-block cost is the canvas (75 KiB anon) and the stroke calls (about 0.2 ms CPU); the arithmetic (the random walk, the field) is about 0.1 ms CPU per block and no wall time. A geometry memo (`papercache`-style) would save at most that, so it was not built. The variants below were measured in the first block runs, whose window had no tile sheet (the relief is the same in all of them, so the comparison between them holds): an SVG Image per key (`sketchcache`-style) was worse, +97 KiB anon per block and +18 % CPU; a framebuffer canvas (`renderTarget: FramebufferObject`) and a threaded one (`renderStrategy: Threaded`) showed no gain.
+
+**Snes frame (the W42 change):** a `visible` tree was built for every block (a small block built about 30 hidden items); each part is now a `Loader` on its block kind. Snes tiles: −33 % CPU per tile (above); snes Blocks: −34 % wall, −37 % CPU (above).
+
+**Pixel identity (`block-identity.sh`, HEAD vs W42, 11 scenarios × bar, card, quick, launcher, session, held):** every pair identical within the noise rule, 0 strongly different pixels (a channel off by more than 64) in all 66 comparisons; faint differences 1–140 px per shot. The same tool with HEAD against itself (kami) gives faint counts of the same size (card 132, quick 115, launcher 67, session 8, held 51, bar 1): the faint ones are the noise floor. The snes frame's ground (the lock's and the polkit dialog's backdrop) is none of these scenes: a scratch check (not committed) drew the snes frame's three kinds, ground, card and small, in one shot each, HEAD against W42: 0 differing pixels (the shot holds 112 colours, so the frames drew). The tile states have no scene either: a scratch check (not committed) drew a focused tile, a failed tile and a pageless tile, HEAD against W42, twice (focus set, and not set): 0 differing pixels in both; the focused and the unfocused W42 shots differ by 89 px, so the focus ring is drawn. The failed ring is in `quick-failed` of the keyboard run (the Wi-Fi tile's red ring, "No answer in 30 s").
+
+**Keyboard and pointer (`frontend/test-quick-sections.sh`, release binaries, `kurashi-mock`):** exit 0; every check ok, including the arrows, Tab and Return on the tiles, Right and Escape, the Menu key, a right click on a tile (no toggle), the mod tiles, focus across contribution changes, the forced, connecting and failed tiles, and the scan subscription. The test rewrites tracked PNGs under `frontend/shots/quick-sections`; they are restored after the run.
+
+**Not done / not met**
+- washi ≤ 18 ms: not met (21–22 ms). The card's cost is its Blocks (the paper frame, the frame host and the Block base) and its Texts and icons: contract rows 475, 476, 477.
+- kami per-Block: not reduced. Its relief (about 0.33 ms wall) and its frame (about 0.24 ms wall: the frame host, Sketch and its canvas) are in `Block.qml` and `FrameHost.qml`: row 476.
+- Sketch memo: not built (see above). The Canvas per block is the cost, and a shared outline sheet would be the next step (a design change).
+- The pageless tile's right 22 px stay dead, as before (row 478; kept by the MouseArea's width, by construction: no test clicks there). A right click on the arrow zone shares the left-click branch; no test exercises it either.
+- The sidebar's toggles (`TogglesSection.qml`) use QuickTile too; the identity run covers the quick card, not the sidebar, and no sidebar test was run for this change.
+- quick-open at this load is noisy (±2 ms over 9 opens; the kanso pair flipped between runs).
+
+**Backlog-worthy:** the pageless strip (row 478); the badge Icon and the Texts (row 477); FrameHost's frame load for kinds a frame does not draw (row 476); the Sketch canvas per block (75 KiB anon); the bench windows now carry a tile sheet, so block and tile numbers from before this entry are not comparable with it.
 
 ### 2026-10-25 — W41 icons: the subset installed and preferred, a per-name fallback, the grain memoised (machine A; I194, I199, rows 445–447)
 "Before" is `caa335c8` (this branch's start: its daemon and frontend), "after" this branch. Real `kurashid` (release) and the frontend
