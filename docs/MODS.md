@@ -39,7 +39,7 @@ choices_from = "wallpaper.backends"   # string settings only; exclusive with `ch
 key = "show"
 type = "list"
 default = ["cpu", "mem"]
-choices = ["cpu", "mem", "temp", "load"]   # required for a list; the Settings page shows a pick list
+choices = ["cpu", "mem", "temp", "load"]   # a pick list; without `choices` it is a free list (I54)
 ```
 Settings are ordinary config keys `mods.<id>.<key>` (K22): they live in the user config under
 `[mods.<id>]`, travel with provenance like core keys, get one settings page per enabled mod
@@ -49,7 +49,9 @@ values; they are reported inert with `reason: "mods.disabled"`.
 **Setting types:** `bool`, `int` (`range`, `unit`), `float` (`range`), `string` (`choices_from` for a
 dropdown from a source), `enum` (`choices`, one of them), `color` (`#rrggbb[aa]`), `list` (a string list
 of `choices`, in the order picked; a default lists members once each, and a member outside the choices
-is refused by the validator), `records` (row 89, K38: a list of tables whose fields the manifest declares, below).
+is refused by the validator; without `choices` and `choices_from` a free list of strings the user types, added,
+removed and reordered in Settings — `unit = "path"` requires absolute or `~` entries, and an old `:`-joined string is
+read as the list, I54/row 385), `records` (row 89, K38: a list of tables whose fields the manifest declares, below).
 
 **Records** (`type = "records"`): `default` is an array of tables (usually `[]`); optional `unique = "<field>"` (no two
 rows share that field's value) and `item_label = "<field>"` (what a row shows in Settings; the first string field
