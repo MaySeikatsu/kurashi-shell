@@ -33,9 +33,14 @@ COMMIT = re.compile(r"wl_surface#?@?(\d+)\.commit\(")
 # libwayland prefixes lines with "[sec.usec]" or "[HH:MM:SS.usec] {queue}" depending on version.
 WL_DEBUG = re.compile(r"^\[[\d:. ]+\].*?\w+[#@]\d+\.\w+\(")
 ATTACH = re.compile(r"wl_surface#?@?(\d+)\.attach\((nil|wl_buffer)")
-LAYER = re.compile(r"get_layer_surface\(.*?wl_surface#?@?(\d+)")
+LAYER = re.compile(r"get_layer_surface\(.*?wl_surface#?@?(\d+)(?:.*?\"([^\"]*)\")?")
 # Set by main(): sandbox name prefix, the real daemon's user config, the motion script (--config, --script).
 SANDBOX_PREFIX, CONFIG, SCRIPT = "bench-", None, None
+# --latency N: popup rounds through our own open IPC connection (pass b, real daemon); --wl-log FILE: pass b's
+# WAYLAND_DEBUG lines with their arrival time (seconds since launch), for attributing commits to windows and items.
+LATENCY, WL_LOG = 0, None
+SMAPS_DUMP = None   # --smaps-dump DIR: each PSS reading's mappings, PSS per path in KiB (B35 attribution)
+SETTLE_S, SETTLE_CAP_S = 0.3, 3.0   # a popup round starts once the popup's window has been still this long (B37)
 
 
 def sh(*args, env=None, check=True, capture=True):
@@ -105,16 +110,81 @@ def ctx_switches(pids):
     return n
 
 
-def pss_kib(pids):
-    total = 0
+SMAPS_HEAD = re.compile(r"^[0-9a-f]+-[0-9a-f]+ ")
+# I93: mappings of the GPU driver's device files. Under gles2 the NVIDIA driver maps its device (and the DRM node) into
+# the client, and on two outputs one such mapping reads ~1.9 TiB in the PSS sum (W20): device memory, not the process's
+# RAM. They are left out of PSS and USS, and reported on their own (`gpu_map`).
+GPU_MAP = re.compile(r"^/dev/(dri/|nvidia|kfd)")
+
+
+def map_class(path: str) -> str:
+    """The class of one mapping, for the breakdown (B35): gpu_map, heap/anon, stack, a shared library, a font, or other
+    files."""
+    if GPU_MAP.search(path):
+        return "gpu_map"
+    if path.startswith("/memfd:"):
+        return "shm"   # wl_shm pools and Qt's shared buffers: RAM, counted
+    if path in ("", "[heap]") or path.startswith("[anon"):
+        return "anon"
+    if path.startswith("[stack"):
+        return "stack"
+    if path.startswith("["):
+        return "special"
+    if ".so" in path:
+        return "lib"
+    if path.endswith((".ttf", ".otf", ".ttc", ".otc", ".pcf", ".pcf.gz", ".woff", ".woff2")) or "/fonts/" in path:
+        return "font"
+    if path.endswith(".qmlc") or "/qmlcache" in path or path.endswith(".qml"):
+        return "qml"
+    return "file"
+
+
+def mem_kib(pids, per_path=None):
+    """PSS and USS of the processes, the GPU driver's mappings left out (I93), and a PSS breakdown by mapping class
+    (all in KiB). USS = private clean + private dirty: what goes away with the process. `per_path` (a dict), when given,
+    collects PSS per mapped path (anonymous mappings as "[anon]")."""
+    pss = uss = 0
+    by: dict[str, int] = {}
+    path = ""
     for p in pids:
         try:
-            for line in Path(f"/proc/{p}/smaps_rollup").read_text().splitlines():
-                if line.startswith("Pss:"):
-                    total += int(line.split()[1])
+            text = Path(f"/proc/{p}/smaps").read_text(errors="replace")
         except OSError:
-            pass
-    return total
+            continue
+        cls = "anon"
+        for line in text.splitlines():
+            if SMAPS_HEAD.match(line):
+                parts = line.split(None, 5)
+                path = parts[5].strip() if len(parts) > 5 else ""
+                cls = map_class(path)
+            elif line.startswith("Pss:"):
+                v = int(line.split()[1])
+                by[cls] = by.get(cls, 0) + v
+                if per_path is not None:
+                    key = path or "[anon]"
+                    per_path[key] = per_path.get(key, 0) + v
+                if cls != "gpu_map":
+                    pss += v
+            elif line.startswith(("Private_Clean:", "Private_Dirty:")) and cls != "gpu_map":
+                uss += int(line.split()[1])
+    return {"pss": pss, "uss": uss, "by": by}
+
+
+def pss_kib(pids):
+    """PSS without the GPU driver's mappings (I93; was smaps_rollup's Pss, which counts them)."""
+    return mem_kib(pids)["pss"]
+
+
+def mem_fields(prefix, pids):
+    """`<prefix>` PSS in MiB plus its USS and breakdown beside it (I93, B35)."""
+    paths = {} if SMAPS_DUMP else None
+    m = mem_kib(pids, paths)
+    if SMAPS_DUMP:
+        SMAPS_DUMP.mkdir(parents=True, exist_ok=True)
+        top = sorted(paths.items(), key=lambda kv: -kv[1])
+        (SMAPS_DUMP / f"{prefix}.txt").write_text("".join(f"{v:9d} {k}\n" for k, v in top))
+    return {prefix: round(m["pss"] / 1024, 1), prefix.replace("pss", "uss"): round(m["uss"] / 1024, 1),
+            prefix + "_by": {k: round(v / 1024, 1) for k, v in sorted(m["by"].items(), key=lambda kv: -kv[1])}}
 
 
 def gpu_mib(pids):
@@ -156,6 +226,80 @@ def kurashi(env, *args):
 
 def popup(env):
     return kurashi(env, *POPUP_ACTION[DAEMON])
+
+
+class IpcProbe:
+    """One IPC connection of our own (PROTOCOL v1, NDJSON), opened once (B37): an action sent through it does not pay the
+    `kurashi` CLI's start-up and handshake, and every line that arrives is timestamped on arrival. It subscribes to
+    `runtime.ui`, so the moment the daemon publishes the change an action made is seen too (the frontend receives the
+    same patch on its own connection at about the same time)."""
+
+    def __init__(self, env, docs=("runtime.ui",)):
+        import socket
+        self.sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.sock.connect(env["KURASHI_SOCKET"])
+        self.lines: list[tuple[float, dict]] = []
+        self.cv = threading.Condition()
+        self.seq = 0
+        threading.Thread(target=self._reader, daemon=True).start()
+        self.send({"t": "hello", "v": 1, "client": "bench-probe", "caps": []})
+        self.wait(lambda m: m.get("t") == "welcome", 5)
+        for d in docs:
+            self.send({"t": "sub", "id": "s:" + d, "doc": d})
+            self.wait(lambda m, d=d: m.get("t") == "snap" and m.get("doc") == d, 5)
+
+    def _reader(self):
+        buf = b""
+        while True:
+            try:
+                chunk = self.sock.recv(65536)
+            except OSError:
+                return
+            if not chunk:
+                return
+            now = time.monotonic()
+            buf += chunk
+            *full, buf = buf.split(b"\n")
+            with self.cv:
+                for raw in full:
+                    try:
+                        m = json.loads(raw)
+                    except ValueError:
+                        continue
+                    if m.get("t") == "ping":
+                        self.send({"t": "pong"})
+                    self.lines.append((now, m))
+                self.cv.notify_all()
+
+    def send(self, m):
+        self.sock.sendall((json.dumps(m) + "\n").encode())
+
+    def wait(self, pred, timeout, since=0.0):
+        """The arrival time of the first line since `since` that matches, or None after `timeout` s."""
+        end = time.monotonic() + timeout
+        with self.cv:
+            while True:
+                for t, m in self.lines:
+                    if t >= since and pred(m):
+                        return t
+                left = end - time.monotonic()
+                if left <= 0:
+                    return None
+                self.cv.wait(left)
+
+    def act(self, action, args=None):
+        """Sends the action; returns (send time, its id)."""
+        self.seq += 1
+        aid = f"p{self.seq}"
+        t = time.monotonic()
+        self.send({"t": "act", "id": aid, "action": action, "args": args or {}})
+        return t, aid
+
+    def close(self):
+        try:
+            self.sock.close()
+        except OSError:
+            pass
 
 
 def morph(env):
@@ -417,10 +561,10 @@ def pass_a(name, cmd, warmup, idle, cycles=20):
         r = {
             "idle_cpu_pct": round(100 * (cpu_ticks(pids) - c0) / CLK_TCK / dt, 3),
             "wakeups_per_s": max(0.0, round((ctx_switches(pids) - s0) / dt, 1)),
-            "pss_mib_1out": round(pss_kib(pids) / 1024, 1),
             "gpu_mib": gpu_mib(set(pids)),
             "processes": len(pids),
             "idle_window_s": round(dt, 1),
+            **mem_fields("pss_mib_1out", pids),
         }
         if DAEMON == "real":
             # Reported separately; the "daemon + frontend" CPU budget uses the sum.
@@ -430,20 +574,20 @@ def pass_a(name, cmd, warmup, idle, cycles=20):
             r["idle_cpu_pct_total"] = round(r["idle_cpu_pct"] + r["daemon_idle_cpu_pct"], 3)
         popup(sb.env)
         time.sleep(2)
-        r["pss_mib_popup"] = round(pss_kib(tree(app.pid)) / 1024, 1)
+        r.update(mem_fields("pss_mib_popup", tree(app.pid)))
         popup(sb.env)
         time.sleep(2)
         # Baseline for the per-output delta: popup memory that stays resident after closing must
         # not be charged to the second output.
-        r["pss_mib_popup_closed"] = round(pss_kib(tree(app.pid)) / 1024, 1)
+        r.update(mem_fields("pss_mib_popup_closed", tree(app.pid)))
         sb.add_output()
         time.sleep(4)
-        r["pss_mib_2out"] = round(pss_kib(tree(app.pid)) / 1024, 1)
+        r.update(mem_fields("pss_mib_2out", tree(app.pid)))
         # A third output: one hotplug delta scatters by about ±1 MiB (heap growth that is not
         # per output), so the gate takes the mean of two (budget.py, B7).
         sb.add_output()
         time.sleep(4)
-        r["pss_mib_3out"] = round(pss_kib(tree(app.pid)) / 1024, 1)
+        r.update(mem_fields("pss_mib_3out", tree(app.pid)))
         r["survived_hotplug"] = app.poll() is None
         if DAEMON == "real" and cycles > 0:
             r.update(cycle_test(sb.env, app, cycles))
@@ -469,15 +613,21 @@ def pass_b(name, cmd, warmup, idle):
     debug_lines = [0]          # any libwayland debug line at all
     mapped: dict[int, bool] = {}   # layer-shell wl_surface id -> last attach had a buffer
     layer_surfaces: set[int] = set()
+    names: dict[int, str] = {}     # layer-shell wl_surface id -> its namespace (which window commits)
     lock = threading.Lock()
     try:
         t_launch = time.monotonic()
-        app = subprocess.Popen(cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+        # With --wl-log the frontend's stdout (its log lines) joins the stderr pipe, so they are timestamped alike.
+        app = subprocess.Popen(["sh", "-c", 'exec "$@" 1>&2', "sh", *cmd] if WL_LOG else cmd, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
                                text=True, errors="replace", bufsize=1)
+
+        wl_log = open(WL_LOG, "w") if WL_LOG else None
 
         def reader():
             for line in app.stderr:
                 now = time.monotonic()
+                if wl_log:
+                    wl_log.write(f"{now - t_launch:.4f} {line}")
                 with lock:
                     if WL_DEBUG.match(line):
                         debug_lines[0] += 1
@@ -488,6 +638,7 @@ def pass_b(name, cmd, warmup, idle):
                     m = LAYER.search(line)
                     if m:
                         layer_surfaces.add(int(m.group(1)))
+                        names[int(m.group(1))] = m.group(2) or "?"
                         continue
                     m = ATTACH.search(line)
                     if m:
@@ -524,17 +675,115 @@ def pass_b(name, cmd, warmup, idle):
         per_surface: dict[int, int] = {}
         for _, sid in idle_events:
             per_surface[sid] = per_surface.get(sid, 0) + 1
+        # B34: which window commits at idle, and when (wall clock): a burst at hh:mm:00 is the bar clock's minute flip.
+        wall = time.time() - time.monotonic()
+        bursts, open_burst = [], {}
+        with lock:
+            idle_named = {f"{names.get(s, '?')}#{s}": n for s, n in per_surface.items()}
+            for t, sid in idle_events:
+                b = open_burst.get(sid)
+                if b is None or t - b["_last"] > 0.2:
+                    b = {"surface": f"{names.get(sid, '?')}#{sid}", "_first": t, "_last": t, "commits": 0}
+                    bursts.append(b)
+                    open_burst[sid] = b
+                b["_last"], b["commits"] = t, b["commits"] + 1
+        idle_bursts = [{"surface": b["surface"], "commits": b["commits"],
+                        "at": time.strftime("%H:%M:%S", time.localtime(wall + b["_first"]))
+                        + f".{int((wall + b['_first']) % 1 * 1000):03d}",
+                        "span_ms": round((b["_last"] - b["_first"]) * 1000)} for b in bursts]
 
-        latencies = []
+        # B37 (W35): popup input → first commit of the popup's own window (kurashi-stage; any window for a frontend that has
+        # none, e.g. the bake-off probes), each round from rest: the Stage must have committed nothing for SETTLE_S first,
+        # else "the first commit after the input" is the next frame of the previous close still folding (W33 measured
+        # those). The gated number stays the CLI path (`kurashi act`: process start, handshake, daemon, frontend), as
+        # before; our own connection (IpcProbe) timestamps the daemon's runtime.ui patch in the same rounds, and --latency
+        # adds rounds sent through that open connection, so the parts can be told apart: CLI → patch, patch → commit.
+        probe = None
+        try:
+            probe = IpcProbe(sb.env) if DAEMON == "real" else None
+        except OSError:
+            probe = None
+
+        def is_ui_patch(m):
+            return m.get("t") in ("patch", "snap") and m.get("doc") == "runtime.ui"
+
+        def stage_ids():
+            with lock:
+                ids = {i for i, n in names.items() if n == "kurashi-stage"}
+            return ids or None   # None: count every window
+
+        def settle():
+            """Waits until the popup's window has been still for SETTLE_S (at most SETTLE_CAP_S); True if it was."""
+            end = time.monotonic() + SETTLE_CAP_S
+            while True:
+                ids = stage_ids()
+                with lock:
+                    last = max([t for t, sid in events if ids is None or sid in ids] or [0.0])
+                now = time.monotonic()
+                if now - last >= SETTLE_S:
+                    return True
+                if now >= end:
+                    return False
+                time.sleep(0.05)
+
+        def first_commit(since):
+            ids = stage_ids()
+            return next(((t, sid) for t, sid in commits_since(since) if ids is None or sid in ids), None)
+
+        latencies, cli_patch, patch_commit, unsettled = [], [], [], 0
         for _ in range(5):
+            unsettled += not settle()
             t = time.monotonic()
             popup(sb.env)
             time.sleep(0.6)
-            after = commits_since(t)
-            if after:
-                latencies.append((after[0][0] - t) * 1000)
+            fc = first_commit(t)
+            if fc:
+                latencies.append((fc[0] - t) * 1000)
+            tp = probe.wait(is_ui_patch, 0, since=t) if probe else None
+            if tp is not None:
+                cli_patch.append((tp - t) * 1000)
+                if fc and fc[0] >= tp:
+                    patch_commit.append((fc[0] - tp) * 1000)
             popup(sb.env)
-            time.sleep(0.6)
+        settle()
+
+        def med(xs, nd=1):
+            return round(statistics.median(xs), nd) if xs else None
+        ipc = {"popup_rounds_unsettled": unsettled}
+        if probe and LATENCY > 0:
+            send_commit, send_done, send_patch, ipc_patch_commit, sent_at, ipc_unsettled = [], [], [], [], [], 0
+            action = POPUP_ACTION[DAEMON][1]
+            for _ in range(LATENCY):
+                ipc_unsettled += not settle()
+                t, aid = probe.act(action)
+                sent_at.append(round(t - t_launch, 4))
+                time.sleep(0.6)
+                fc = first_commit(t)
+                td = probe.wait(lambda m, aid=aid: m.get("id") == aid and m.get("t") in ("done", "err"), 0, since=t)
+                tp = probe.wait(is_ui_patch, 0, since=t)
+                if fc:
+                    send_commit.append((fc[0] - t) * 1000)
+                if td is not None:
+                    send_done.append((td - t) * 1000)
+                if tp is not None:
+                    send_patch.append((tp - t) * 1000)
+                    if fc and fc[0] >= tp:
+                        ipc_patch_commit.append((fc[0] - tp) * 1000)
+                probe.act(action)
+            settle()
+            ipc.update({"latency_rounds": LATENCY, "latency_rounds_unsettled": ipc_unsettled,
+                        "ipc_send_to_commit_ms_median": med(send_commit, 2),
+                        "ipc_send_to_commit_ms_all": [round(x, 1) for x in send_commit],
+                        "ipc_send_to_done_ms_median": med(send_done, 2),
+                        "ipc_send_to_patch_ms_median": med(send_patch, 2),
+                        "ipc_patch_to_commit_ms_median": med(ipc_patch_commit, 2),
+                        "ipc_patch_to_commit_ms_all": [round(x, 1) for x in ipc_patch_commit],
+                        "ipc_sent_at_s": sent_at})   # since launch, as the --wl-log timestamps
+        if probe:
+            ipc["cli_to_patch_ms_median"] = med(cli_patch)
+            ipc["cli_to_patch_ms_all"] = [round(x, 1) for x in cli_patch]
+            ipc["cli_patch_to_commit_ms_median"] = med(patch_commit)
+            probe.close()
 
         t = time.monotonic()
         morph(sb.env)
@@ -560,8 +809,11 @@ def pass_b(name, cmd, warmup, idle):
             "startup_ms": startup_ms,
             "idle_commits_per_s": round(len(idle_events) / idle, 2),
             "idle_commits_by_surface": per_surface,
+            "idle_commits_by_layer": idle_named,
+            "idle_bursts": idle_bursts,
             "popup_latency_ms_median": round(statistics.median(latencies), 1) if latencies else None,
             "popup_latency_ms_all": [round(x, 1) for x in latencies],
+            **ipc,
             "mapped_layer_surfaces_idle": len(mapped_now),   # 1 sandbox output
             "morph_commits": len(morph_t),
             "morph_frame_ms_p50": round(gaps[len(gaps) // 2], 1) if gaps else None,
@@ -686,10 +938,18 @@ def main():
                     help="seconds --max-load may wait; the run goes ahead after that, marked quiet: false")
     ap.add_argument("--sandbox-prefix", default="bench-",
                     help="sandbox names are <prefix><name>-<pass>-<pid> (default bench-)")
+    ap.add_argument("--latency", type=int, default=0,
+                    help="pass b, real daemon: N more popup rounds sent through one open IPC connection (B37)")
+    ap.add_argument("--wl-log", type=Path, help="pass b: write the frontend's WAYLAND_DEBUG lines, timestamped, here")
+    ap.add_argument("--smaps-dump", type=Path, help="pass a: write each PSS reading's mappings (KiB per path) to DIR")
+    ap.add_argument("--popup-action", help="real daemon: the action that toggles the popup (default island.expand)")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    global DAEMON, SANDBOX_PREFIX, CONFIG, SCRIPT
+    global DAEMON, SANDBOX_PREFIX, CONFIG, SCRIPT, LATENCY, WL_LOG, SMAPS_DUMP
     DAEMON = a.daemon
+    LATENCY, WL_LOG, SMAPS_DUMP = a.latency, a.wl_log, a.smaps_dump
+    if a.popup_action:
+        POPUP_ACTION["real"] = ["act", a.popup_action]
     SANDBOX_PREFIX = a.sandbox_prefix
     if (a.config or a.script) and DAEMON != "real":
         sys.exit("--config and --script need --daemon real (the mock has no such actions)")
