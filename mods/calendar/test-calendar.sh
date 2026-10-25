@@ -9,6 +9,10 @@
 # The clock card's keyboard (W37-calendar, docs/ux/calendar.md "Event details"): an all-day row's details, a timed one's,
 # Escape out of them and out of the card, a multi-day event (all-day "Trip to Kyoto", timed "Night train"), an empty
 # day, tomorrow (the agenda follows the selected day), then the dark scheme and Japanese once (sekai).
+# I203 (W38): the month grid's next month (clock-next-{sekai,none,washi}.png, clock-ja-next.png: six rows from a Monday, five
+# from a Sunday, the number centred in the keycap above the day mark), the grid easing into a sixth row and back (bursts
+# clock-grow-<decor>-{40,120,250}.png and clock-collapse-<decor>-{40,120,250}.png), and the bar widget's click opening the clock
+# card (widget-click-sekai.png; the row 412 fallback is not reached, see the script).
 # Screenshots (mods/calendar/shots/): {desk,bar,clock,desk-offline,clock-nosource,clock-tomorrow,clock-empty,
 # popover-allday,popover-timed,popover-trip,popover-night}-{sekai,none}.png, popover-timed-sekai-dark.png,
 # popover-timed-ja.png, popover-night-ja.png, clock-ja.png.
@@ -192,6 +196,24 @@ start_all() { # start_all <decor> <with sources: 1|0>
 key() { local k; for k in "$@"; do echo "$k" >&3; sleep 0.25; done; }
 repeat_key() { local n=$1 k=$2 i; for ((i = 0; i < n; i++)); do key "$k"; done; }
 day_key() { date -d "+$1 days" +%Y-%m-%d; }
+# The days from today to the first of next month (I203: November 2026 has six weeks from a Monday and five from a Sunday, so
+# the grid's sixth row comes and goes with the month).
+days_to_next_month() { echo $(( ( $(date -d "$(date +%Y-%m-01) +1 month" +%s) - $(date -d today +%s) + 3600 ) / 86400 )); }
+# burst <file prefix> <ms list> <crop> <command ...>: the command, and one grim per offset, each on its own clock (as test-toasts).
+burst() {
+  local pre=$1 at=$2 crop=$3 gp=() t t0 cp
+  shift 3
+  t0=$(date +%s%N)
+  "$@" >/dev/null &
+  cp=$!
+  for t in $at; do
+    ( now=$(date +%s%N); w=$(( t - (now - t0) / 1000000 )); [ "$w" -gt 0 ] && sleep "$(printf '%d.%03d' $((w / 1000)) $((w % 1000)))"
+      grim -g "$crop" "$pre-$t.png" ) &
+    gp+=("$!")
+  done
+  for p in "${gp[@]}"; do wait "$p" || fail "grim failed ($pre)"; done
+  wait "$cp" || fail "command failed ($pre: $*)"
+}
 panel() { ipc runtime.ui | jq -r .panel; }
 # row_index <yyyy-mm-dd> <title>: the event's place in that day's agenda (the document's order), -1 when it is not there.
 row_index() {
@@ -267,6 +289,16 @@ agenda_steps() { # agenda_steps <decor>
   agenda_open
   key right                    # tomorrow: the agenda follows the selected day (dinner at 19:00)
   shot "clock-tomorrow-$dec" "$CLOCK_GEOM"
+  # I203: the sixth row comes and goes with the month. A week's press (down) from tomorrow crosses into next month, and a day's
+  # press (up) from its first week crosses back; the bursts show the grid's box and the agenda easing together.
+  c=$(( ( $(days_to_next_month) + 5 ) / 7 ))
+  repeat_key $(( c - 1 )) down
+  burst "$OUT/clock-grow-$dec" "40 120 250" "$CLOCK_GEOM" key down
+  sleep 1.5
+  shot "clock-next-$dec" "$CLOCK_GEOM"
+  burst "$OUT/clock-collapse-$dec" "40 120 250" "$CLOCK_GEOM" key up
+  sleep 1.5
+  shot "clock-back-$dec" "$CLOCK_GEOM"
   key escape                   # from the month grid, Escape goes on to the card, which closes
   check "$([ "$(panel)" = "" ] && echo 1 || echo 0)" "$dec: Escape from the month grid closes the card"
   agenda_close
@@ -338,6 +370,26 @@ repeat_key "$((ix + 1))" tab
 key return
 shot "popover-night-ja" "$CLOCK_GEOM"
 key escape escape
+# I203: the next month in Japanese weeks (they start on Sunday, so November 2026 has five rows; the card's agenda is below).
+agenda_open
+repeat_key "$(( ( $(days_to_next_month) + 6 ) / 7 ))" down
+shot "clock-ja-next" "$CLOCK_GEOM"
+key escape
+stop_shell
+stop_daemon
+
+# The bar widget's click opens the clock card (CONTRACT-CHANGE row 203). Row 412's fallback (a refused {face: clock} falls back to
+# island.expand {}) is not reached in this build: the island offers every registered face, the clock among them, and
+# island.main.faces only orders them (kurashi-island's Decision.faces), so the refusal never comes. The widget keeps the fallback.
+echo "== the bar widget's click opens the clock card"
+start_all sekai 1
+sleep 1.5
+timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click 2300 15 left >/dev/null 2>&1 || true
+sleep 1.5
+check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "the bar widget's click opens the island card (panel $(panel))"
+face=$(ipc runtime.ui | jq -r .face)
+check "$([ "$face" = clock ] && echo 1 || echo 0)" "the bar widget's click shows the clock face (got $face)"
+shot "widget-click-sekai" "880,0 800x720"
 stop_shell
 stop_daemon
 
