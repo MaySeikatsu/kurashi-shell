@@ -8,6 +8,7 @@
 #   2. the REAL kurashid: the dock with its pins; dragging Files before Firefox writes the new order (`dock.pinned`);
 #      right-click Firefox → "Unpin from dock" writes `dock.pinned` (one cfg.apply), and the tile goes;
 #   3. looks: the dock under the decors sekai, glass, terminal and none (the real daemon's theme worn by the mock);
+#   (after 3) the first decor in the light scheme: look, urgent, left edge, empty -> shots/dock/<decor>-light/;
 #   5. (after 4) a second output to the right: a right-edge dock on HEADLESS-1 waits 500 ms to reveal (the shared edge),
 #      HEADLESS-2's own right edge 250 ms;
 #   4. with DOCK_MEASURE=1: idle commits of the dock's surfaces (hidden and shown, 10 s each) and its USS per output
@@ -216,6 +217,12 @@ for d in $DECORS; do
   K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$d.json"
   stop_phase
 done
+# The first decor in the light scheme too (W36: the dock's states in light and dark).
+FIRST0=${DECORS%% *}
+printf 'theme.style = "%s"\n[theme.colors]\nscheme = "light"\n' "$FIRST0" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+start_kurashid
+K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$FIRST0-light.json"
+stop_phase
 rm -f "$XDG_CONFIG_HOME/kurashi/config.toml"
 
 # 1. The mock: tiles, focus by click and the cycle, the menu, close, autohide.
@@ -415,6 +422,34 @@ if [ "${DOCK_MEASURE:-0}" = 1 ]; then
   echo "measure: USS dock on (hidden, edge window only) ${m_on} MiB, off ${m_off} MiB: per output $(python3 -I -c "print(round(${m_on} - ${m_off}, 2))") MiB (runs on:${on_u} off:${off_u})"
   echo "measure: the first show (run 1): +$(python3 -I -c "print(round(${shown_u} - $(echo $on_u | awk '{print $1}'), 2))") MiB USS over hidden (the dock window, made then kept)"
 fi
+# The first decor in the light scheme: the dock, an urgent app, the left edge and the empty state.
+LOUT=$OUT/$FIRST-light
+mkdir -p "$LOUT"
+start_mock
+mockdoc "$(cat "$W/theme-$FIRST-light.json")"
+start_frontend
+mock_scene
+wait_geom 'net.example.noentry@'
+ptr move $(( SW / 2 )) $(( SH / 2 ))
+sleep 0.6
+timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$LOUT/look.png" && echo "shot $LOUT/look.png"
+mockdoc "{\"doc\":\"svc.workspaces\",\"patch\":{\"windows\":$(echo "$WINDOWS" | jq -c '[.[] | .urgent = (.id == 14)]')}}"
+wait_geom 'urgent net.example.noentry '
+sleep 1.4
+timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$LOUT/urgent.png" && echo "shot $LOUT/urgent.png"
+cfgval dock.edge '"left"'
+wait_geom 'win [0-9]* [0-9]* firefox@'
+sleep 0.6
+timeout 20 grim -g "0,$(( SH / 2 - 300 )) 300x600" "$LOUT/left.png" && echo "shot $LOUT/left.png"
+cfgval dock.edge '"bottom"'
+cfgval dock.pinned '[]'
+mockdoc '{"doc":"svc.workspaces","patch":{"windows":[]}}'
+wait_geom 'win [0-9]* [0-9]* +@[^ ]*$'
+sleep 0.6
+timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$LOUT/empty.png" && echo "shot $LOUT/empty.png"
+qml_errors
+stop_phase
+
 # 5. A shared edge (I137): HEADLESS-2 comes to the right of HEADLESS-1; a right-edge dock on HEADLESS-1 reveals after
 # 500 ms (the pointer crosses that edge on its way to the other output), HEADLESS-2's outer edge after 250 ms.
 timeout 20 "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "output-add failed"
