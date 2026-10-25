@@ -296,3 +296,8 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W37-daemon | crates/kurashid (not theme_export.rs), kurashi-mock, CLI, Launcher/Stage.qml | opus |
 | W37-calendar | mods/calendar, SlotHost, ClockView, docs/ux/calendar | haiku |
 | W37-quick | QuickPanel, components/quick, kurashi-theme tokens.rs, wallpaper tile, docs/ux/quick-settings | haiku |
+
+## Wave 38 (2026-10-25, session 13) — drop shadows (contracts: K67)
+| Card | Owner paths | Model |
+|---|---|---|
+| W38-shadows | kurashi-theme tokens, kurashid theme.rs (shadow), Theme.qml, Block/SoftShadow, MorphShape/ColumnShape, Bar shadow, settings material | opus |
