@@ -1,0 +1,2 @@
+# デスクのウィジェット (ja)：W36 で増えた文言（それ以前のキーは frontend.toml）。
+"frontend.desktop.edit.switch_locked" = "一部は設定より上の層（Nix）で決まっています。その目は動かせません。"

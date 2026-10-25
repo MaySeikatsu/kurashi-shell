@@ -67,5 +67,44 @@ References: **SekaiPop** "Edit Desktop" (Super+Shift+E: a full-screen editor, dr
   is off.
 - **Multi-output**: each output's desk has its own edit mode; the order is global, so the other outputs follow on Done.
 - Shots: `frontend/shots/desk/{ordered,edit,edit-moved,saved}-{sekai,none}.png` (`frontend/test-desk.sh`).
-- Not yet: per-card hide for mod cards (needs a key, backlog); free placement and sizes (SekaiPop); a "+" shelf for cards
-  of mods that are off.
+- Not yet (v3): free placement and sizes (SekaiPop); a "+" shelf for cards of mods that are off. Per-card hide for mod
+  cards came in v4.
+
+## v4 — hidden cards for every card, titles, order, the Edit key (W36; K65 `desktop.hidden`; I136, I119)
+- **Hidden.** Every card has an eye in edit mode (Space on the card or on its eye does the same). A core card's eye writes
+  its own switch (`desktop.<card>`, the one Settings shows). A mod card has no switch, so its eye writes `desktop.hidden`
+  (K65). The desk leaves out a card whose switch is off or whose id is listed in `desktop.hidden` (a core id may be listed
+  by hand too). Done writes the order, the switches and the list as ONE apply: one undo puts all of it back; Escape writes
+  nothing.
+- **Hidden, shown in place.** A hidden card takes no room outside edit mode, and it is not made: a mod card's documents are
+  not watched (Ma). In edit mode it keeps its place, with a "Hidden" chip (words, not dimming alone): dimmed content when
+  it has some, else its placeholder, which says when it shows.
+- **Set above the user (Shōjiki).** When a layer above the user (Nix) forces a card's switch, or the list for a mod card,
+  that card's eye is off, and the edit bar says why in words: "Some of these are set above your config (Nix): their eyes
+  are off."
+- **Titles.** A mod card's name (placeholder, accessible name) is `mod-<id>.desk.<name>` in en and ja (the tasks mod:
+  "Tasks" / "タスク", "Note" / "メモ", in `i18n/*/mod-tasks.toml`). Without a key it is the manifest name, followed by the
+  card's name when that differs from the mod's id. A card with content draws its own caption, which the mod translates.
+- **Order.** A mod's cards follow the manifest's `provides` order, which the mods document carries. The `qml` map is sorted
+  by key, so it cannot give the order; the note used to sit above the list.
+- **Edit key.** On hover, above the first card: its bottom sits 2 px above the keycaps, which start at the card's padding, so
+  it covers no content (it used to cover the clock's last digit). The first card sits 28 px under the bar; where the key
+  is taller (sekai) 36 px, so the key keeps 8 px from the bar.
+- **Keyboard.** In edit mode the cards' own controls (the tasks checkbox, "+ Add") are out of the Tab order: each card's
+  keys are the stops (up, down, eye). Space toggles, Alt+Up/Down moves, Up/Down move the focus. Return is Done from a card;
+  from a focused card key Return presses that key (the Button convention), so Done is also a Tab stop, and Escape always
+  cancels.
+- **Shots:** `frontend/shots/desk/{ordered,hover,edit,edit-moved,saved,hidden-edit,hidden-desk,forced-edit,offline-edit,ja-hover,ja-edit}-{sekai,none}.png`
+  (`frontend/test-desk.sh`). `forced-edit`: a value forced by `managed.toml` (the eye is off, the bar says why);
+  `offline-edit`: kurashid stopped, Done refused, the bar says the save did not happen.
+- **Definition of done (v4, W36).** Met, by `frontend/test-desk.sh` (16 checks, both decors) or the shots named above:
+  hide and show for every card, staged, one apply, one undo; hidden cards left out of the desk and "Hidden" in edit mode;
+  Tab to a card's eye and Space (the clock and the tasks card are driven; the other cards use the same key chain); Escape
+  writes nothing; Return is Done from a card; titles in en and ja; the order of a mod's cards is the manifest's; the Edit
+  key clear of the digits; a forced value shows its eye off and the reason in words; a refused save says so.
+  Not met, or not checked: the eyes of the other four cards are not driven by a test; ThemeExportStatus's `~` change has
+  code only (no test or shot); the hidden mod card's loader is not made outside edit mode by construction (Ma), not
+  measured; the screen-reader names are in the code, not checked with a reader; no multi-output run; no all-hidden desk shot.
+- **Not yet:** Return on a focused card key presses that key, not Done (the shared Button and IconButton take Return first;
+  fixing it means a change in `components/`); titles of third-party mods (contract row 397); the `provides` order as a
+  documented contract (row 396).
