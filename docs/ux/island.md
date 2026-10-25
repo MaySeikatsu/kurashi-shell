@@ -182,3 +182,43 @@ the rule met the card in a T (square) or a fork (rounded), never as one line (`j
   `join-mid-{washi-open,washi-close,terminal-bottom-open}.png`, the other cases under `target/island-join/`.
 - Known edge: a view with its own chrome (the phone) fades the shape out before it hands the bar its pill back; during
   that fade the shape's rule copy fades with it while the bar's rule is still open under the box.
+
+## Session 13: the faces list restricts (W40, K68, I209)
+The user chose (K68) that `island.main.faces` restricts which faces the island may show, as its label says.
+- **The list governs.** The island shows the faces its list names, in cycling order. A registered face the list does not
+  name is never offered: not by relevance, not as the default, not by an interrupting transient, not by `island.next` or
+  `prev`, and not pinned. `island.expand {face}` for it is refused with `island.error.unknown_face`, and the calendar's
+  bar widget then opens the island's own face (I203). Its name stays taken, so a second mod cannot register it.
+- **System events are exempt** (K65): volume, brightness, power and Bluetooth show on their events whatever the list says,
+  governed by `island.main.system_events`, and are never cycled.
+- **An empty list is every face** (a safe fallback, not "nothing").
+- **Until a list is chosen, nothing is restricted.** While `island.main.faces` holds its schema default (no user, Nix,
+  profile or forced value), every face the island has shows: the core three first, in their order, then the rest by id
+  (the system events and each enabled mod's face among them). A newly enabled mod's face joins without any write. Nothing is written to the user's config. The first
+  choice in Settings writes a list, and from then on the list governs; a mod enabled later is not added to it.
+- **A change of the list takes effect at once.** A pin or a manual hold on a face the list drops is dropped; listing the
+  face again does not pin it. A default face the list does not name falls back to the first face it names.
+- **A list that names no available face** (every named face is a mod that is off) leaves the island with its system
+  events only. Island.qml then draws the clock for the empty face (row 452): a known gap.
+- **Settings.** The faces control shows the faces in effect. At the default that is every face the island has, with the
+  provenance chip "Default" (the stored three are not what shows). After a choice it shows the chosen list, in order. The
+  add control lists the faces the list leaves out, labelled with their provenance (the mod's name, I37; a core face its
+  catalogue name). Offering them needs the daemon to publish the unlisted faces: row 450. Keys: Alt+Up and Alt+Down move a
+  row, Delete removes it, the add control is a select (unchanged).
+- **Help text** (en, from the schema comment): "Faces this island may show, in cycling order." The default's sentence is
+  proposed in row 453.
+- **States.** default (every face, chip "Default") · a chosen list · a listed face not available now (an inert row, "not
+  available now"; the island does not show it) · the empty list (every face) · a list with no available face (system
+  events only; row 452) · a card open on a face the list drops (stays open until closed; row 451) · a face listed again
+  (shows at once).
+- **Motion and budget.** Nothing new. A hidden face's transient arms no timer (Ma); a hidden face renders nothing.
+- **Definition of done.**
+  - [x] arbiter tests for each rule: unlisted never shows, system events exempt, empty list, a list that only orders,
+    fallback of the default, pin and hold dropped by a list change, no timer for a hidden face, registered names.
+  - [x] daemon tests: the default keeps every face and writes nothing; a chosen list hides an unlisted mod face and
+    keeps the system faces; a list change applies at once; the default face falls back; system events not hidden.
+  - [x] mock: the island steps through its faces only; `island.expand` refuses a face the list leaves out.
+  - [ ] Settings adds an unlisted face: blocked on row 450 (config.rs offers).
+  - [ ] Power and Bluetooth are not offered as choices: they are exempt (K65), so unchecking them does nothing. config.rs
+    `TRANSIENT_FACES` lists only volume and brightness; it should list the four system faces (lead, one line).
+  - [ ] screenshots of the faces control in its states: not taken (no sandbox run in this card).

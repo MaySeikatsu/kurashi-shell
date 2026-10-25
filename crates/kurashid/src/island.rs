@@ -243,24 +243,24 @@ impl IslandHost {
         self.with(|arb, _| arb.clear(id));
     }
 
-    /// Whether a face is registered, read from the published island document: the same answer the
-    /// frontend and the settings get, and no lock of the arbiter (a registration checks it first).
+    /// Whether a face is registered, shown or not (K68): a mod's face the list leaves out still holds its name, so a
+    /// second mod cannot take it. Read under the arbiter's lock; no caller holds it (a registration checks first,
+    /// outside `with`).
     pub fn has_face(&self, id: &str) -> bool {
-        self.hub.snapshot(&self.doc).is_ok_and(|(_, d)| {
-            d["faces"]
-                .as_array()
-                .is_some_and(|faces| faces.iter().any(|f| f == id))
-        })
+        lock(&self.arb).registered(id)
     }
 
     /// Map `island.main.{faces,default,ttl}` onto the arbiter and re-publish. Re-register on
     /// every change with `ConfigStore::on_change`. The OSD and notice faces (`volume`, `brightness`,
     /// `power`, `bluetooth`) are always transient-only, whatever `faces` says, and `ttl` sets how
-    /// long they stay (K9).
+    /// long they stay (K9). A list somebody chose restricts the island to it (K68); the schema
+    /// default restricts nothing, so a user who never chose one keeps every face, a mod's included.
     pub fn apply_config(self: &Arc<Self>, cfg: &ConfigStore) {
-        let faces = cfg
-            .get("island.main.faces", None)
-            .and_then(|p| serde_json::from_value::<Vec<String>>(p.value).ok());
+        let listed = cfg.get("island.main.faces", None);
+        let restrict = listed
+            .as_ref()
+            .is_some_and(|p| p.source != kurashi_core::Source::Default);
+        let faces = listed.and_then(|p| serde_json::from_value::<Vec<String>>(p.value).ok());
         let default = cfg
             .get("island.main.default", None)
             .and_then(|p| p.value.as_str().map(String::from));
@@ -275,6 +275,7 @@ impl IslandHost {
             let mut c = arb.config().clone();
             if let Some(f) = faces {
                 c.faces = f;
+                c.restrict = restrict;
             }
             if let Some(d) = default {
                 c.default = d;
@@ -1234,5 +1235,194 @@ mod tests {
             "power",
             "an edge after that shows again"
         );
+    }
+
+    /// A mod's weather face, as `native.rs` registers one.
+    fn weather() -> Face {
+        Face {
+            id: "weather".into(),
+            source: Source::Mod("weather".into()),
+            default_priority: 0,
+        }
+    }
+
+    /// The island of the daemon (main.rs): its core faces registered, the schema's defaults until a config is applied.
+    fn daemon_host(hub: &Arc<Hub>) -> Arc<IslandHost> {
+        IslandHost::new(
+            hub.clone(),
+            "main",
+            IslandConfig::default(),
+            &[
+                "clock",
+                "media",
+                "notifications",
+                "volume",
+                "brightness",
+                "power",
+                "bluetooth",
+            ],
+        )
+    }
+
+    /// The faces the island offers (`runtime.island.main.faces`), in cycling order.
+    fn offered(hub: &Hub) -> Vec<String> {
+        face(hub)["faces"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|f| f.as_str().map(String::from))
+            .collect()
+    }
+
+    /// K68: a user who never chose a list keeps every face they see: a mod's face the default list does not name still
+    /// shows, after the listed ones. Nothing is written to the user's config.
+    #[tokio::test]
+    async fn the_default_list_keeps_every_face() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "");
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        h.apply_config(&cfg);
+        let shown = offered(&hub);
+        assert_eq!(&shown[..3], ["clock", "media", "notifications"]);
+        assert!(shown.iter().any(|f| f == "weather"), "{shown:?}");
+        assert!(h.has_face("weather"));
+        assert!(!kurashi_config::Paths::rooted(&root).user_file().exists());
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68: a list the user chose restricts. A face it does not name is not offered (so `island.expand {face}` finds no
+    /// face to open), cannot win by relevance, is not cycled, and keeps its name. The system faces stay exempt.
+    #[tokio::test]
+    async fn a_chosen_list_hides_the_faces_it_does_not_name() {
+        let hub = Hub::new();
+        let (cfg, root) = store(
+            &hub,
+            "[island.main]\nfaces = [\"clock\", \"media\", \"notifications\"]\n",
+        );
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        h.apply_config(&cfg);
+        let shown = offered(&hub);
+        assert_eq!(&shown[..3], ["clock", "media", "notifications"]);
+        assert!(!shown.iter().any(|f| f == "weather"), "{shown:?}");
+        assert!(shown.iter().any(|f| f == "volume"), "exempt: {shown:?}");
+        assert!(h.has_face("weather"), "the name is still taken");
+        h.signal(FaceSignal {
+            face: "weather".into(),
+            relevance: 90,
+            condition: true,
+            transient: None,
+        });
+        assert_eq!(face(&hub)["face"], "clock");
+        let mut actions = ActionRegistry::default();
+        h.register_actions(&mut actions);
+        for _ in 0..5 {
+            actions.invoke("island.next", Value::Null).await.unwrap();
+            assert_ne!(face(&hub)["face"], "weather");
+        }
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68: the list takes effect at once, both ways. Listing a face shows it again; unlisting the face a pin holds drops
+    /// the pin, and a face the list gives back is not pinned again.
+    #[tokio::test]
+    async fn a_change_of_the_list_takes_effect_at_once() {
+        let hub = Hub::new();
+        let (cfg, root) = store(
+            &hub,
+            "[island.main]\nfaces = [\"clock\", \"media\", \"notifications\"]\n",
+        );
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        {
+            let h = h.clone();
+            cfg.on_change(move |c| h.apply_config(c));
+        }
+        h.apply_config(&cfg);
+        let mut actions = ActionRegistry::default();
+        h.register_actions(&mut actions);
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.faces".into(),
+            value: json!(["clock", "media", "notifications", "weather"]),
+            output: None,
+        }])
+        .unwrap();
+        assert!(offered(&hub).iter().any(|f| f == "weather"));
+        h.signal(FaceSignal {
+            face: "weather".into(),
+            relevance: 90,
+            condition: true,
+            transient: None,
+        });
+        assert_eq!(face(&hub)["face"], "weather");
+        actions.invoke("island.pin", Value::Null).await.unwrap();
+        assert_eq!(face(&hub)["pinned"], json!(true));
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.faces".into(),
+            value: json!(["clock", "media", "notifications"]),
+            output: None,
+        }])
+        .unwrap();
+        assert_eq!(face(&hub)["face"], "clock");
+        assert_eq!(face(&hub)["pinned"], json!(false));
+        assert_eq!(face(&hub)["reason"], "default");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68: a default face the list does not name falls back to the first face it names.
+    #[test]
+    fn the_default_face_falls_back_to_the_first_listed_one() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "[island.main]\nfaces = [\"media\"]\n");
+        let h = daemon_host(&hub);
+        h.apply_config(&cfg);
+        assert_eq!(face(&hub)["face"], "media");
+        assert_eq!(face(&hub)["reason"], "default");
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68: picking the default three faces is still a choice. The config store keeps a value equal to the default as the
+    /// user's, so the list restricts and a mod's face it leaves out is hidden (a Settings "remove" must not do nothing).
+    #[tokio::test]
+    async fn choosing_the_default_faces_still_restricts() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "");
+        let h = daemon_host(&hub);
+        h.register_face(weather());
+        {
+            let h = h.clone();
+            cfg.on_change(move |c| h.apply_config(c));
+        }
+        h.apply_config(&cfg);
+        assert!(offered(&hub).iter().any(|f| f == "weather"));
+        cfg.apply(&[kurashi_ipc::ApplyOp::Set {
+            set: "island.main.faces".into(),
+            value: json!(["clock", "media", "notifications"]),
+            output: None,
+        }])
+        .unwrap();
+        let listed = cfg.get("island.main.faces", None).unwrap();
+        assert_eq!(listed.source, kurashi_core::Source::User, "{listed:?}");
+        assert!(
+            !offered(&hub).iter().any(|f| f == "weather"),
+            "{:?}",
+            offered(&hub)
+        );
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// K68 and K65: the system events are exempt from the list. A volume change shows its OSD whatever the list names.
+    #[test]
+    fn the_list_does_not_hide_the_system_events() {
+        let hub = Hub::new();
+        let (cfg, root) = store(&hub, "[island.main]\nfaces = [\"clock\"]\n");
+        let h = daemon_host(&hub);
+        h.apply_config(&cfg);
+        let audio = |volume: f64| json!({"available": true, "volume": volume, "muted": false, "sink": {"name": "a"}});
+        h.observe_audio(&audio(0.4));
+        h.observe_audio(&audio(0.6));
+        assert_eq!(face(&hub)["face"], "volume");
+        let _ = std::fs::remove_dir_all(root);
     }
 }

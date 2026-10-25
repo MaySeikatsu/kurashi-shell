@@ -426,6 +426,11 @@ Item {
             onCancelled: r.cancel()
         }
     }
+    // K68: at the default, the island's faces list shows every face the island has (no list of its own is in effect, and
+    // the island offers each registered face), so the rows show the offers, not the stored default (Shōjiki). A list the
+    // user chose restricts the island, and its rows show that list.
+    readonly property bool everyFace: r.row.key === "island.main.faces" && r.prov !== undefined && !!r.prov.source
+        && r.prov.source.kind === "default"
     // An ordered subset of the offers (a string list with choices_from): one row per item, in order.
     Component {
         id: cPickList
@@ -433,7 +438,7 @@ Item {
             objectName: "pick:" + r.row.key
             label: I18n.tr(r.row.label)
             choices: r.offers
-            items: Array.isArray(r.value) ? r.value : []
+            items: r.everyFace ? r.offers.map(function (o) { return o.value }) : (Array.isArray(r.value) ? r.value : [])
             enabled: r.editable
             refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)
