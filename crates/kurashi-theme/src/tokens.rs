@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 use serde_json::{Value, json};
 
 use crate::ThemeError;
-use crate::color::{BLACK, Rgb, WHITE, contrast};
+use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
 use crate::input::{Axes, Chrome, Density, Material, MotionProfile, Shape};
 use crate::palette::{Palette, ROLES};
@@ -364,16 +364,26 @@ pub fn build(
     // Deeper on dark grounds, so the text on it stays the light on_surface.
     let sel = g("accent").mix(g("surface_container_high"), if p.dark { 0.8 } else { 0.72 });
     col(&mut t, "color.selected", sel);
-    col(
-        &mut t,
-        "color.on_selected",
+    // `at_least` picks the ink's extreme by the container's lightness and can fall short of AA when that extreme is the
+    // weaker one (yorha light: 2.99 before this); `ensure_contrast` then nudges it to the other extreme. A passing ink is
+    // returned as it was, so the palettes that met AA keep their values.
+    let on_sel = ensure_contrast(
         at_least(
             g("on_surface"),
             sel,
             4.5,
             if sel.luminance() > 0.4 { BLACK } else { WHITE },
         ),
+        sel,
+        4.5,
     );
+    col(&mut t, "color.on_selected", on_sel);
+    // K66 (row 104, DESIGN-SYSTEM §7): a quick tile's on state as components. The container is the selected role, the badge
+    // the accent, and the label's ink meets AA on the container (as color.on_selected does). The frontend's fallbacks are
+    // these same roles, so a palette that sends none looks as it did before.
+    col(&mut t, "quick.tile.on.bg", sel);
+    col(&mut t, "quick.tile.on.badge", g("accent"));
+    col(&mut t, "quick.tile.on.fg", on_sel);
     col(&mut t, "color.data.1", g("secondary"));
     col(&mut t, "color.data.2", g("tertiary"));
     col(&mut t, "color.data.3", g("warning"));
