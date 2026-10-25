@@ -92,12 +92,44 @@ pub struct SchemaAdapter {
     offers: BTreeMap<String, Vec<Offer>>,
 }
 
+/// A mod's free string list (I54): `type = "list"` with neither choices nor a choice source.
+fn is_free_list(meta: &KeyMeta) -> bool {
+    meta.ty == Ty::StringList
+        && meta.constraints.choices.is_empty()
+        && meta.constraints.choices_from.is_none()
+}
+
+/// I54: a free list stored the way such settings were written before manifests had lists — one
+/// `:`-joined string (the wallpaper's `folders`) — reads as that list; blank parts are dropped.
+fn legacy_list(v: &Value) -> Option<Value> {
+    let joined = v.as_str()?;
+    let parts: Vec<&str> = joined
+        .split(':')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    Some(json!(parts))
+}
+
+/// An entry of a path list (`unit = "path"`, I54): absolute, or under the home directory (`~`,
+/// `~/…`). Whether it exists is the mod's to say; a relative path has no meaning for the daemon.
+fn is_path(entry: &str) -> bool {
+    entry.starts_with('/') || entry == "~" || entry.starts_with("~/")
+}
+
+/// A path list entry that is not a path (catalogue: settings domain, next to the schema's errors).
+const NOT_A_PATH: &str = "error.config.not_a_path";
+
 impl SchemaAdapter {
     /// `v` as a `records` setting keeps it (K38): every row with every declared field, absent optional
-    /// fields filled from their defaults. `None` for any other key and for a value with problems:
-    /// kurashi-config rejects what is wrong, and [`SchemaAdapter::record_path`] names the field.
+    /// fields filled from their defaults; a free list given as its old `:`-joined string, as the list
+    /// (I54). `None` for any other key and for a value with problems: kurashi-config rejects what is
+    /// wrong, and [`SchemaAdapter::record_path`] names the field.
     fn normalised(&self, key: &str, v: &Value) -> Option<Value> {
         let (_, meta) = self.mods.find(key)?;
+        if is_free_list(meta) {
+            return legacy_list(v);
+        }
         if meta.ty != Ty::Records {
             return None;
         }
@@ -136,6 +168,22 @@ impl SchemaView for SchemaAdapter {
     }
     fn validate(&self, key: &str, v: &Value) -> Result<(), String> {
         let checked = match self.mods.find(key) {
+            Some((_, meta)) if is_free_list(meta) => {
+                // I54: the old `:`-joined form is the list it stands for; a path list holds paths.
+                let list = legacy_list(v).unwrap_or_else(|| v.clone());
+                validate_value(meta, &list).map_err(|e| e.i18n_key().to_owned())?;
+                let paths = meta.constraints.unit.as_deref() == Some("path");
+                let entries = list
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str);
+                return if paths && entries.into_iter().any(|e| !is_path(e)) {
+                    Err(NOT_A_PATH.into())
+                } else {
+                    Ok(())
+                };
+            }
             Some((_, meta)) => validate_value(meta, v),
             None if self.lists.get(key).is_some() => self.lists.validate(key, v),
             None => self.core.validate(key, v),
@@ -741,6 +789,8 @@ const UNKNOWN_KEY: &str = "error.config.unknown_key";
 /// `settings.open` without a Settings directory (`shell.qml` missing) or without `qs` on the PATH.
 const SETTINGS_NOT_INSTALLED: &str = "error.settings.not_installed";
 const SETTINGS_NO_RUNTIME: &str = "error.settings.no_runtime";
+/// `settings.open {page}` naming no page of the published `schema.settings` (I40, K65).
+const SETTINGS_UNKNOWN_PAGE: &str = "error.settings.unknown_page";
 
 /// The profile review as the actions answer it: the effective changes, the entries a forced layer
 /// holds back (`not_applied`, PROTOCOL §6), and how many of your changes a load keeps (B13,
@@ -1244,6 +1294,23 @@ impl ConfigStore {
             .is_some_and(|p| matches!(p.source, Source::Forced(_)))
     }
 
+    /// Whether Settings has the page `page` (I40, K65): a page id of the published `schema.settings`
+    /// (what Settings shows, Shōjiki), or `mod:<id>` for a loaded mod's page `mods.<id>`. Settings'
+    /// own views (`@changed`, `@mods`, `@profiles`) are not pages.
+    pub fn has_settings_page(&self, page: &str) -> bool {
+        let id = match page.strip_prefix("mod:") {
+            Some(m) if !m.is_empty() => format!("mods.{m}"),
+            Some(_) => return false,
+            None if page.starts_with("mods.") => return false,
+            None => page.to_owned(),
+        };
+        self.hub.snapshot(SETTINGS_DOC).is_ok_and(|(_, d)| {
+            d["pages"]
+                .as_array()
+                .is_some_and(|pages| pages.iter().any(|p| p["id"] == id.as_str()))
+        })
+    }
+
     fn publish(&self) {
         self.apply_couplings();
         self.apply_appearance();
@@ -1679,22 +1746,26 @@ impl ConfigStore {
             let me = me.clone();
             let app = app.clone();
             async move {
-                let key = match v.get("key") {
-                    None | Some(Value::Null) => None,
-                    Some(Value::String(k)) if !k.is_empty() => Some(k.clone()),
-                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                let text = |field: &str| match v.get(field) {
+                    None | Some(Value::Null) => Ok(None),
+                    Some(Value::String(t)) if !t.is_empty() => Ok(Some(t.clone())),
+                    Some(_) => Err(ActionError::Invalid(ARGS_INVALID.into())),
                 };
-                // A page link needs Settings to read a page at start, which it cannot yet (PROTOCOL §6).
-                if v.get("page").is_some() {
-                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
-                }
-                if let Some(k) = &key
-                    && me.get(k, None).is_none()
-                {
-                    return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
-                }
+                let (key, page) = (text("key")?, text("page")?);
+                // A key wins over a page (PROTOCOL §6: the page only "when no key is given").
+                let target = match (key, page) {
+                    (Some(k), _) if me.get(&k, None).is_none() => {
+                        return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
+                    }
+                    (Some(k), _) => SettingsTarget::Key(k),
+                    (None, Some(p)) if !me.has_settings_page(&p) => {
+                        return Err(ActionError::Invalid(SETTINGS_UNKNOWN_PAGE.into()));
+                    }
+                    (None, Some(p)) => SettingsTarget::Page(p),
+                    (None, None) => SettingsTarget::Window,
+                };
                 // Probing and starting block (a `qs` call that waits for its reply): off the runtime.
-                let how = tokio::task::spawn_blocking(move || app.open(key.as_deref()))
+                let how = tokio::task::spawn_blocking(move || app.open(&target))
                     .await
                     .map_err(|e| ActionError::Internal(e.to_string()))??;
                 Ok(Some(json!({"opened": how})))
@@ -1725,19 +1796,24 @@ impl SettingsApp {
         }
     }
 
-    /// Opens Settings on `key`, or shows it without one. Answers `jumped` (a running window moved
-    /// to `key`), `open` (a running window, no key) or `launched` (a new window, with
-    /// `KURASHI_SETTINGS_KEY` set to `key`).
-    pub fn open(&self, key: Option<&str>) -> Result<&'static str, ActionError> {
+    /// Opens Settings on `target`. Answers `jumped` (a running window moved to the key or page),
+    /// `open` (a running window, no target) or `launched` (a new window, with
+    /// `KURASHI_SETTINGS_KEY` or `KURASHI_SETTINGS_PAGE` set).
+    pub fn open(&self, target: &SettingsTarget) -> Result<&'static str, ActionError> {
         if !self.dir.join("shell.qml").is_file() {
             return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
         }
         let qs = find_program("qs", &self.path)
             .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
-        match key {
-            Some(key) if probe(&qs, &self.dir, &["jump", key]) => return Ok("jumped"),
-            None if probe(&qs, &self.dir, &["current"]) => return Ok("open"),
-            _ => {}
+        let running = match target {
+            SettingsTarget::Key(key) => probe(&qs, &self.dir, &["jump", key]).then_some("jumped"),
+            SettingsTarget::Page(page) => {
+                probe(&qs, &self.dir, &["page", page]).then_some("jumped")
+            }
+            SettingsTarget::Window => probe(&qs, &self.dir, &["current"]).then_some("open"),
+        };
+        if let Some(how) = running {
+            return Ok(how);
         }
         let mut cmd = Command::new(&qs);
         cmd.arg("-p")
@@ -1745,10 +1821,13 @@ impl SettingsApp {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .process_group(0);
-        match key {
-            Some(key) => cmd.env("KURASHI_SETTINGS_KEY", key),
-            None => cmd.env_remove("KURASHI_SETTINGS_KEY"),
+            .process_group(0)
+            .env_remove("KURASHI_SETTINGS_KEY")
+            .env_remove("KURASHI_SETTINGS_PAGE");
+        match target {
+            SettingsTarget::Key(key) => cmd.env("KURASHI_SETTINGS_KEY", key),
+            SettingsTarget::Page(page) => cmd.env("KURASHI_SETTINGS_PAGE", page),
+            SettingsTarget::Window => &mut cmd,
         };
         let child = cmd.spawn().map_err(|e| {
             tracing::warn!(error = %e, "settings window did not start");
@@ -1757,6 +1836,15 @@ impl SettingsApp {
         reap(child);
         Ok("launched")
     }
+}
+
+/// Where `settings.open` takes Settings: a setting's row, a page (`keys`, `mod:<id>`; I40), or
+/// just the window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SettingsTarget {
+    Window,
+    Key(String),
+    Page(String),
 }
 
 /// The first executable `name` on `path`.
@@ -1813,6 +1901,90 @@ fn reap(mut child: Child) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A schema with one loaded mod `pics` and its free lists (I54): `folders` holds paths
+    /// (`unit = "path"`), `tags` any strings; `pick` has fixed choices.
+    fn free_lists() -> SchemaAdapter {
+        let list = |name: &str, default: Value| {
+            KeyMeta::new(format!("mods.pics.{name}"), Ty::StringList, default)
+        };
+        let mut folders = list("folders", json!(["~/Pictures"]));
+        folders.constraints.unit = Some("path".into());
+        let mut pick = list("pick", json!([]));
+        pick.constraints.choices = vec![Choice {
+            value: "a".into(),
+            label: "a".into(),
+            text: String::new(),
+        }];
+        SchemaAdapter {
+            core: kurashi_schema::v1::registry(),
+            lists: list_keys(1),
+            mods: ModTable {
+                mods: vec![ModSettings {
+                    id: "pics".into(),
+                    name: "Pics".into(),
+                    loaded: true,
+                    enabled: true,
+                    keys: vec![folders, list("tags", json!([])), pick],
+                    faces: Vec::new(),
+                    panels: Vec::new(),
+                }],
+            },
+            offers: BTreeMap::new(),
+        }
+    }
+
+    /// I54: a free list takes any strings; a path list only absolute and `~` paths.
+    #[test]
+    fn a_path_list_refuses_entries_that_are_not_paths() {
+        let s = free_lists();
+        let ok = |key: &str, v: Value| s.validate(key, &v);
+        assert_eq!(
+            ok(
+                "mods.pics.folders",
+                json!(["/srv/pics", "~", "~/Wallpapers"])
+            ),
+            Ok(())
+        );
+        assert_eq!(ok("mods.pics.folders", json!([])), Ok(()));
+        assert_eq!(
+            ok("mods.pics.folders", json!(["~/a", "Pictures/b"])),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(
+            ok("mods.pics.folders", json!(["~user/x"])),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(ok("mods.pics.tags", json!(["Pictures", "x y"])), Ok(()));
+        assert_eq!(
+            ok("mods.pics.tags", json!([1])),
+            Err("error.config.wrong_type".into())
+        );
+        // A list with choices keeps its member check and is not read from a string.
+        assert_eq!(
+            ok("mods.pics.pick", json!("a")),
+            Err("error.config.wrong_type".into())
+        );
+    }
+
+    /// I54: the old `:`-joined string of a free list (the wallpaper's `folders` before lists)
+    /// passes as the list it stands for and is read as that list; a bad part is still refused.
+    #[test]
+    fn a_free_list_reads_its_old_colon_string_as_the_list() {
+        let s = free_lists();
+        let old = json!("~/Pictures/Wallpapers: /srv/pics ::");
+        assert_eq!(s.validate("mods.pics.folders", &old), Ok(()));
+        assert_eq!(
+            s.normalised("mods.pics.folders", &old),
+            Some(json!(["~/Pictures/Wallpapers", "/srv/pics"]))
+        );
+        assert_eq!(
+            s.validate("mods.pics.folders", &json!("~/a:relative")),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(s.normalised("mods.pics.folders", &json!(["/a"])), None);
+        assert_eq!(s.normalised("mods.pics.pick", &json!("a")), None);
+    }
 
     #[test]
     fn a_mod_face_is_labelled_with_the_mod_name() {

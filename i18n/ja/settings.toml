@@ -33,6 +33,10 @@
 "settings.ui.pick_none_left" = "すべての選択肢が並んでいます"
 "settings.ui.pick_up" = "{item} を上に移動"
 "settings.ui.pick_down" = "{item} を下に移動"
+"settings.ui.list_add_to" = "{list} に追加"
+"settings.ui.list_add_path" = "パスを追加: /… または ~/…"
+"settings.ui.list_empty" = "まだ何もありません。"
+"settings.ui.list_empty_paths" = "まだパスがありません。/ か ~/ で始まるパスを追加してください。"
 "settings.ui.changed_count" = "変更済み · {n}"
 "settings.ui.reset" = "リセット"
 "settings.pending.restart" = "保存済み。シェルを再起動すると反映されます。"
@@ -137,6 +141,7 @@
 "settings.err.error.config.invalid_color" = "色として正しくありません"
 "settings.err.error.config.invalid_action" = "アクション ID の形式ではありません（例: island.expand）"
 "settings.err.error.config.empty_list" = "リストを空にはできません"
+"settings.err.error.config.not_a_path" = "完全なパスではありません。/ か ~/ で始めてください"
 "settings.err.rejected_value" = "この値は受け付けられませんでした"
 "settings.err.undo" = "元に戻せませんでした"
 "settings.err.redo" = "やり直せませんでした"
@@ -255,3 +260,8 @@
 "settings.export.copy" = "コピー"
 "settings.export.copied" = "コピーしました"
 "settings.export.copy_failed" = "コピーできませんでした"
+
+# settings.open {page} (I40): a page Settings does not have.
+"error.settings.unknown_page" = "設定にそのページはありません。"
+# パスのリストにパスでない項目（I54）。
+"error.config.not_a_path" = "完全なパスではありません。/ か ~/ で始めてください。"

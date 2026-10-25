@@ -26,10 +26,12 @@ choices_from = "wallpaper.backends"
 label = "mods.wallpaper.backend"
 help = "mods.wallpaper.backend.help"
 
+# A path list (I54): absolute or ~ paths, in order. A value saved before lists (one :-joined string) reads as its parts.
 [[setting]]
 key = "folders"
-type = "string"
-default = "~/Pictures/Wallpapers"
+type = "list"
+default = ["~/Pictures/Wallpapers"]
+unit = "path"
 label = "mods.wallpaper.folders"
 help = "mods.wallpaper.folders.help"
 

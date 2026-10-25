@@ -815,8 +815,9 @@ pub fn parse(
                 }
             },
         };
+        // A `list` without choices is a free string list (I54); an `enum` always has its choices.
         let fixed = matches!(ty, SettingType::Enum | SettingType::List);
-        if fixed && s.choices.is_empty() {
+        if ty == SettingType::Enum && s.choices.is_empty() {
             err("setting_choices_missing", &at("choices"), "");
         } else if !fixed && !s.choices.is_empty() {
             err("setting_choices_not_enum", &at("choices"), &s.ty);
@@ -869,13 +870,16 @@ pub fn parse(
                 }
                 Some(SettingValue::Str(t.clone()))
             }
-            // Members of the choices, each once, in the order the default lists them.
+            // Members of the choices (any strings for a free list), each once, in the order the
+            // default lists them.
             (SettingType::List, toml::Value::Array(items)) => {
                 let mut members = Vec::new();
                 let mut valid = true;
                 for item in items {
                     match item {
-                        toml::Value::String(t) if !s.choices.contains(t) => {
+                        toml::Value::String(t)
+                            if !s.choices.is_empty() && !s.choices.contains(t) =>
+                        {
                             err("setting_default_not_in_choices", &at("default"), t);
                             valid = false;
                         }
@@ -1093,10 +1097,19 @@ mod tests {
                 ),
             )
         };
+        // Without choices it is a free list (I54): any strings, each once; `unit = "path"` marks paths.
+        let free = list("[\"~/Pictures\", \"/srv/pics\"]", "unit = \"path\"");
+        let m = parse("demo", &free, &Version::new(0, 1, 0)).unwrap();
         assert_eq!(
-            codes(&list("[]", "")),
-            ["setting_choices_missing"],
-            "fixed choices are required"
+            m.settings[0].default,
+            SettingValue::List(vec!["~/Pictures".into(), "/srv/pics".into()])
+        );
+        assert!(m.settings[0].choices.is_empty());
+        assert_eq!(m.settings[0].unit.as_deref(), Some("path"));
+        assert!(codes(&list("[]", "")).is_empty(), "an empty free list");
+        assert_eq!(
+            codes(&list("[\"a\", \"a\"]", "")),
+            ["setting_default_duplicate"]
         );
         assert_eq!(
             codes(&list("[\"gpu\"]", "choices = [\"cpu\"]")),
@@ -1116,7 +1129,7 @@ mod tests {
         );
         assert_eq!(
             codes(&list("[]", "choices_from = \"demo.pick\"")),
-            ["setting_choices_missing", "setting_choices_from_type"]
+            ["setting_choices_from_type"]
         );
     }
 

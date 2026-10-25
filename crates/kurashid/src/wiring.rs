@@ -1827,7 +1827,8 @@ impl BrightnessWriter {
         if self.provider.commands().is_some() {
             let _ = self.hub.set("svc.brightness", doc, origin);
         }
-        if let Some(island) = &self.island {
+        // The OSD is a system event: none while `island.main.system_events` is off (K65).
+        if let Some(island) = self.island.as_ref().filter(|i| i.system_events()) {
             island.signal(kurashi_island::FaceSignal {
                 face: "brightness".into(),
                 relevance: 0,
@@ -3499,6 +3500,32 @@ mod tests {
             Err(ActionError::Invalid(STEP_RANGE.into()))
         );
         assert_eq!(level(), "45", "a refused step writes nothing");
+        let _ = std::fs::remove_dir_all(&sysfs);
+    }
+
+    /// K65: with `island.main.system_events` off the key still sets the level, but shows no OSD.
+    #[tokio::test]
+    async fn brightness_keys_show_no_osd_while_system_events_are_off() {
+        let (_bus, _srv, sysfs, connect) = backlight_rig().await;
+        let dev = sysfs.join("intel_backlight");
+        let hub = Hub::new();
+        let island = island_host(&hub, &["clock", "brightness"]);
+        island.set_system_events(false);
+        let mut actions = ActionRegistry::default();
+        brightness_with(
+            &hub,
+            &mut actions,
+            &mut crate::Intents::default(),
+            Some(island),
+            sysfs.clone(),
+            connect,
+        );
+        actions.invoke("brightness.up", Value::Null).await.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dev.join("brightness")).unwrap(),
+            "55"
+        );
+        assert_eq!(island_face(&hub), "clock");
         let _ = std::fs::remove_dir_all(&sysfs);
     }
 
