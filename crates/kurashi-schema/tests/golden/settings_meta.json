@@ -2013,6 +2013,19 @@
               "unit": "s"
             },
             {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": true,
+              "help": "config.island.main.system_events.help",
+              "key": "island.main.system_events",
+              "label": "config.island.main.system_events.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
               "advanced": true,
               "choices": [],
               "choices_from": "actions",
@@ -2443,6 +2456,27 @@
               "help": "config.desktop.order.help",
               "key": "desktop.order",
               "label": "config.desktop.order.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string_list"
+            },
+            {
+              "advanced": true,
+              "control": "list",
+              "couplings": [
+                {
+                  "key": "desktop.enabled",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": [],
+              "help": "config.desktop.hidden.help",
+              "key": "desktop.hidden",
+              "label": "config.desktop.hidden.label",
               "per_output": false,
               "restart": false,
               "since": 1,

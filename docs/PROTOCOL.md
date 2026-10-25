@@ -175,9 +175,11 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   `{name, diff, not_applied, diagnostics}` (`diagnostics`: the file's skipped entries, `file`, `key`, `reason`).
   `apply: true` loads it as one undoable transaction (`{name, rev, undo, not_applied, diagnostics}`); a file
   that is not there or not a file is `config.error.profile_unreadable`, a relative path `config.error.profile_path`.
-- `settings.open {key?}`: opens Settings (the Quickshell window in `settings/`) on the setting `key`. A window
-  that runs jumps to the row (`qs -p <dir> ipc call settings jump <key>`); otherwise one starts with
-  `KURASHI_SETTINGS_KEY=<key>` (detached, no shell). Answers `{opened: "launched"|"jumped"|"open"}`; `open`
+- `settings.open {key?, page?}`: opens Settings (the Quickshell window in `settings/`) on the setting `key`, or on
+  the page `page` (a schema page id such as `keys`, or `mod:<id>`; I40) when no `key` is given. A window
+  that runs jumps to the row (`qs -p <dir> ipc call settings jump <key>`, or `… settings page <page>`); otherwise one
+  starts with `KURASHI_SETTINGS_KEY=<key>` (or `KURASHI_SETTINGS_PAGE=<page>`) (detached, no shell). An unknown page is
+  `invalid` with `error.settings.unknown_page` (`{page}`). Answers `{opened: "launched"|"jumped"|"open"}`; `open`
   is a running window and no key. An unknown key is `invalid` with `error.config.unknown_key` (the schema's
   message, `{key}` filled in). `unavailable` with `error.settings.not_installed` (no `shell.qml` in the
   package's `settings/`) or `error.settings.no_runtime` (no `qs` on the daemon's PATH). A `page` argument is

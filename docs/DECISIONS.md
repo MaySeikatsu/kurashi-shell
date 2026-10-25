@@ -671,3 +671,12 @@ reports per shortcut whether the user's own niri config binds the same combo bef
 (`overridden`) the include. Settings records shortcuts with Quickshell's shortcut inhibitor active, so the compositor's
 own binds reach the field.
 
+
+## K65 — wave 36 contracts: island system events, hidden desk cards, Settings by page (2026-10-25, session 13)
+Three small contract additions ahead of wave 36. (1) `island.main.system_events` (default on, refines K30): off, kurashid
+drops the island's permanent `svc.power`/`svc.bluetooth`/volume/brightness subscriptions and their transients — Ma for
+users who never want them (I18). (2) `desktop.hidden` (list, refines K48): the desk's edit mode hides a card instead of
+the user disabling a whole mod; a hidden card keeps its place in `desktop.order` (I136, I119). (3) `settings.open {page}`
+(refines I25): opens Settings on a page (`keys`, `mod:<id>`) for links that are not one key, e.g. "Set up shortcuts" or a
+mod's tile menu (I40). *Why:* each was a frontend stand-in or a missing deep link reported by an earlier card; none
+changes an existing shape.
