@@ -145,6 +145,20 @@ fn apply(arb: &mut Arbiter, now: Ms, pings: Vec<Ping>) {
     }
 }
 
+/// The system sources the island holds subscribed itself (K30): without the hold the shell could not
+/// announce a plugged charger or a connected headset while no panel reads them.
+const CORE_DOCS: [&str; 2] = ["svc.power", "svc.bluetooth"];
+/// The faces of the system events (`island.main.system_events`, K65): the OSDs and the notices.
+const SYSTEM_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
+
+/// The island's own hold on [`CORE_DOCS`]: held while the daemon asked for it (`follow_core`, once
+/// the documents exist) and `island.main.system_events` is on (K65, I18).
+struct CoreHold {
+    wanted: bool,
+    events: bool,
+    held: Vec<&'static str>,
+}
+
 /// What a core source looked like at its last report; the edges are between two of these.
 #[derive(Default)]
 struct Watch {
@@ -166,6 +180,8 @@ pub struct IslandHost {
     /// Edge state of the core sources. Taken before `arb` when both are needed, never the reverse.
     watch: Mutex<Watch>,
     texts: Mutex<Texts>,
+    /// Taken alone: subscribing may start a service, whose first document reaches `observe_*`.
+    core: Mutex<CoreHold>,
 }
 
 impl IslandHost {
@@ -190,6 +206,11 @@ impl IslandHost {
             rt: tokio::runtime::Handle::try_current().ok(),
             watch: Mutex::new(Watch::default()),
             texts: Mutex::new(Texts::default()),
+            core: Mutex::new(CoreHold {
+                wanted: false,
+                events: true,
+                held: Vec::new(),
+            }),
         })
     }
 
@@ -246,6 +267,10 @@ impl IslandHost {
         let ttl = cfg
             .get("island.main.ttl", None)
             .and_then(|p| p.value.as_u64());
+        let events = cfg
+            .get("island.main.system_events", None)
+            .and_then(|p| p.value.as_bool())
+            .unwrap_or(true);
         self.with(|arb, _| {
             let mut c = arb.config().clone();
             if let Some(f) = faces {
@@ -266,11 +291,76 @@ impl IslandHost {
                     c.ttl_overrides.insert(kind.into(), s * 1000);
                 }
             }
-            for face in ["volume", "brightness", "power", "bluetooth"] {
+            for face in SYSTEM_FACES {
                 c.transient_only.insert(face.into());
             }
             arb.set_config(c);
         });
+        self.set_system_events(events);
+    }
+
+    /// Whether the system events reach the island (`island.main.system_events`, K65): the volume
+    /// and brightness OSDs, the charger, the battery and Bluetooth connections.
+    pub fn system_events(&self) -> bool {
+        lock(&self.core).events
+    }
+
+    /// Turns the system events on or off. Off drops the island's own subscriptions to the power and
+    /// Bluetooth documents (their services stop unless a panel reads them: Ma, I18) and takes back
+    /// any of their transients on show; on subscribes again, and the next reports start afresh, as
+    /// at startup (nothing that changed meanwhile is news).
+    pub fn set_system_events(self: &Arc<Self>, on: bool) {
+        {
+            let mut core = lock(&self.core);
+            if core.events == on {
+                return;
+            }
+            core.events = on;
+        }
+        self.reconcile_core();
+        if !on {
+            let mut w = lock(&self.watch);
+            w.power = None;
+            w.connected = None;
+            w.audio = None;
+            drop(w);
+            self.with(|arb, _| {
+                for face in SYSTEM_FACES {
+                    arb.clear(face);
+                }
+            });
+        }
+    }
+
+    /// Subscribes or unsubscribes [`CORE_DOCS`] so the island holds them exactly while it wants them
+    /// and the system events are on. The hub calls are made outside the lock: a subscribe may start
+    /// a service whose first document comes straight back through `observe_*`.
+    fn reconcile_core(&self) {
+        let (take, release) = {
+            let mut core = lock(&self.core);
+            if core.wanted && core.events && core.held.is_empty() {
+                core.held = CORE_DOCS.to_vec();
+                (CORE_DOCS.to_vec(), Vec::new())
+            } else if !(core.wanted && core.events) && !core.held.is_empty() {
+                (Vec::new(), std::mem::take(&mut core.held))
+            } else {
+                return;
+            }
+        };
+        for doc in release {
+            self.hub.unsubscribe(doc);
+        }
+        let mut failed = Vec::new();
+        for doc in take {
+            if let Err(e) = self.hub.subscribe(doc) {
+                tracing::warn!(doc, error = %e, "island cannot follow a core source");
+                failed.push(doc);
+            }
+        }
+        // A document that is not registered holds nothing, so it is never unsubscribed either.
+        if !failed.is_empty() {
+            lock(&self.core).held.retain(|d| !failed.contains(d));
+        }
     }
 
     /// Apply an input, re-decide, publish, re-arm the single deadline timer.
@@ -311,14 +401,13 @@ impl IslandHost {
     /// The core sources run only while someone subscribes (Ma), and the frontend's readers of the
     /// power and Bluetooth documents (quick settings, the island panel) subscribe only while open.
     /// The Island keeps its own subscription, so a charger or a headset is seen whenever it changes
-    /// (Ma trade-off, CONTRACT-CHANGE 35). Both services are event-driven (no polling); while their
-    /// bus is absent they retry with the usual backoff.
+    /// (Ma trade-off, CONTRACT-CHANGE 35) — unless `island.main.system_events` is off (K65). Both
+    /// services are event-driven (no polling), and follow their bus names' owners themselves. Call
+    /// once the documents are registered, after the config was applied (so a user who turned the
+    /// events off never starts the services at all).
     pub fn follow_core(&self) {
-        for doc in ["svc.power", "svc.bluetooth"] {
-            if let Err(e) = self.hub.subscribe(doc) {
-                tracing::warn!(doc, error = %e, "island cannot follow a core source");
-            }
-        }
+        lock(&self.core).wanted = true;
+        self.reconcile_core();
     }
 
     /// `svc.media`: relevance while something plays; the artist (else the player) as the peek line.
@@ -391,7 +480,7 @@ impl IslandHost {
     /// `svc.power`: the charger and the battery level are edges; each shows the `power` face (the
     /// charger) or its `battery` kind (low, critical) with the charge or the time left.
     pub fn observe_power(self: &Arc<Self>, doc: &Value) {
-        if doc["available"].as_bool() != Some(true) {
+        if doc["available"].as_bool() != Some(true) || !self.system_events() {
             return;
         }
         let sample = PowerSample {
@@ -460,7 +549,7 @@ impl IslandHost {
     /// `svc.bluetooth`: a device that becomes connected shows the `bluetooth` face with its name and
     /// battery. Devices connected when the watch starts are not news.
     pub fn observe_bluetooth(self: &Arc<Self>, doc: &Value) {
-        if doc["available"].as_bool() != Some(true) {
+        if doc["available"].as_bool() != Some(true) || !self.system_events() {
             return;
         }
         let devices: &[Value] = doc["devices"].as_array().map(Vec::as_slice).unwrap_or(&[]);
@@ -507,7 +596,7 @@ impl IslandHost {
     /// `svc.audio`: a moved default output names the device; a level or mute change shows the
     /// `volume` OSD, naming the device when it is not the one the session began on.
     pub fn observe_audio(self: &Arc<Self>, doc: &Value) {
-        if doc["available"].as_bool() != Some(true) {
+        if doc["available"].as_bool() != Some(true) || !self.system_events() {
             return;
         }
         let sink = &doc["sink"];
@@ -1006,5 +1095,126 @@ mod tests {
         h.follow_core();
         assert_eq!(hub.subscribers("svc.power"), 1);
         assert_eq!(hub.subscribers("svc.bluetooth"), 1);
+    }
+
+    /// A provider that counts how often its service started and stopped.
+    #[derive(Default)]
+    struct Counted {
+        starts: std::sync::atomic::AtomicUsize,
+        stops: std::sync::atomic::AtomicUsize,
+    }
+
+    impl crate::hub::Provider for Counted {
+        fn start(&self, _: Arc<Hub>) {
+            self.starts
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+        fn stop(&self) {
+            self.stops.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        }
+    }
+
+    impl Counted {
+        fn counts(&self) -> (usize, usize) {
+            use std::sync::atomic::Ordering::SeqCst;
+            (self.starts.load(SeqCst), self.stops.load(SeqCst))
+        }
+    }
+
+    /// The core host with counted power and Bluetooth services.
+    fn counted_core() -> (Arc<Hub>, Arc<IslandHost>, Arc<Counted>, Arc<Counted>) {
+        let (hub, h) = core(60_000);
+        let power = Arc::new(Counted::default());
+        let bt = Arc::new(Counted::default());
+        hub.register(
+            "svc.power",
+            json!({"available": false}),
+            Some(power.clone()),
+        );
+        hub.register(
+            "svc.bluetooth",
+            json!({"available": false}),
+            Some(bt.clone()),
+        );
+        (hub, h, power, bt)
+    }
+
+    /// I18 (K65): `island.main.system_events = false` drops the island's own power and Bluetooth
+    /// subscriptions, so their services stop when nothing else reads them; on subscribes again.
+    #[test]
+    fn system_events_off_stops_the_services_the_island_held() {
+        let (hub, h, power, bt) = counted_core();
+        h.follow_core();
+        assert_eq!(power.counts(), (1, 0));
+        assert_eq!(bt.counts(), (1, 0));
+
+        h.set_system_events(false);
+        assert_eq!(hub.subscribers("svc.power"), 0);
+        assert_eq!(hub.subscribers("svc.bluetooth"), 0);
+        assert_eq!(power.counts(), (1, 1), "nothing else reads power: it stops");
+        assert_eq!(bt.counts(), (1, 1));
+        h.set_system_events(false);
+        assert_eq!(power.counts(), (1, 1), "a repeated off changes nothing");
+
+        h.set_system_events(true);
+        assert_eq!(hub.subscribers("svc.power"), 1);
+        assert_eq!(power.counts(), (2, 1));
+        assert_eq!(bt.counts(), (2, 1));
+    }
+
+    /// Another reader (quick settings open) keeps its service running when the island lets go.
+    #[test]
+    fn system_events_off_leaves_other_readers_running() {
+        let (hub, h, power, _) = counted_core();
+        h.follow_core();
+        hub.subscribe("svc.power").unwrap();
+        h.set_system_events(false);
+        assert_eq!(hub.subscribers("svc.power"), 1);
+        assert_eq!(power.counts(), (1, 0));
+        hub.unsubscribe("svc.power");
+        assert_eq!(power.counts(), (1, 1));
+    }
+
+    /// The config is applied before the island follows its sources: with the events off at
+    /// startup, the services never start.
+    #[test]
+    fn system_events_off_from_the_start_never_starts_the_services() {
+        let (hub, h, power, bt) = counted_core();
+        let (cfg, root) = store(&hub, "[island.main]\nsystem_events = false\n");
+        h.apply_config(&cfg);
+        h.follow_core();
+        assert!(!h.system_events());
+        assert_eq!(power.counts(), (0, 0));
+        assert_eq!(bt.counts(), (0, 0));
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// Off, no system transient shows (the charger, a headset, the volume OSD), and one on show is
+    /// taken back. Back on, the first report is a baseline again: what changed meanwhile is not news.
+    #[test]
+    fn system_events_off_shows_no_transients_and_on_starts_afresh() {
+        let (hub, h) = core(60_000);
+        h.observe_power(&power(false, 80.0, json!({})));
+        h.observe_power(&power(true, 79.0, json!({})));
+        assert_eq!(face(&hub)["face"], "power");
+
+        h.set_system_events(false);
+        assert_eq!(face(&hub)["face"], "clock", "the shown notice is taken back");
+        h.observe_power(&power(false, 79.0, json!({})));
+        h.observe_power(&power(true, 9.0, json!({})));
+        h.observe_bluetooth(&json!({"available": true, "devices": []}));
+        h.observe_bluetooth(&json!({"available": true, "devices": [
+            {"address": "AA", "name": "Headset", "connected": true}
+        ]}));
+        h.observe_audio(&json!({"available": true, "volume": 0.4, "muted": false, "sink": {"name": "a"}}));
+        h.observe_audio(&json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}));
+        assert_eq!(face(&hub)["face"], "clock", "no system event while off");
+
+        h.set_system_events(true);
+        h.observe_power(&power(false, 50.0, json!({})));
+        h.observe_audio(&json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}));
+        assert_eq!(face(&hub)["face"], "clock", "the first reports are baselines");
+        h.observe_power(&power(true, 50.0, json!({})));
+        assert_eq!(face(&hub)["face"], "power", "an edge after that shows again");
     }
 }
