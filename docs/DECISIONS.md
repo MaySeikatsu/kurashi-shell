@@ -680,3 +680,12 @@ the user disabling a whole mod; a hidden card keeps its place in `desktop.order`
 (refines I25): opens Settings on a page (`keys`, `mod:<id>`) for links that are not one key, e.g. "Set up shortcuts" or a
 mod's tile menu (I40). *Why:* each was a frontend stand-in or a missing deep link reported by an earlier card; none
 changes an existing shape.
+
+## K66 — wave 37 contracts: island face, forced services, quick tile tokens, the agenda's day (2026-10-25, session 13)
+Four rows deferred by earlier cards, accepted now. (1) `island.expand {face?}` (row 203, refines K24): the calendar's
+bar widget opens the clock card on its agenda even while media is current. (2) Additive `forced_by` on the six service
+documents the quick card shows (row 103, refines I50): a forced key that holds a service switch is now visible on its
+tile (Shōjiki), not only in Settings. (3) `quick.tile.on.{bg,badge,fg}` component tokens (row 104, rule 4): a palette
+tunes the on state without a frontend change. (4) The `clock.expanded.day` slot gets `extra: {date}` (row 200): the
+agenda no longer walks up its parents to find the selected day. *Why:* each replaces a frontend stand-in; all four are
+additive.

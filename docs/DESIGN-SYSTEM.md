@@ -235,6 +235,9 @@ Button, IconButton, Toggle, Slider, Chip, SegmentedControl, List/ListItem, Card,
 Tooltip, TextField, SettingRow (label · control · provenance chip · reset · reason), Island.
 Every interactive component supports the universal input slots (left/right/middle/hover/scroll).
 Focus ring only on keyboard focus (`focus-visible`). Touch targets ≥ 32 px.
+Quick tile on state (K66/row 104): `quick.tile.on.bg` (the tonal container), `quick.tile.on.badge` (the glyph's
+badge), `quick.tile.on.fg` (the glyph), resolved by kurashi-theme from the palette's accent and `selected` roles;
+absent tokens fall back to the frontend's tonal look (accent at 22 % / 30 % alpha, accent glyph).
 
 ## 8. The Island (島)
 One container, many **faces**; shows one at a time. Morph = width/height tween + content
