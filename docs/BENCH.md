@@ -37,7 +37,136 @@ baseline.
 
 ## Results
 
-### 2026-10-22 — wave 32, textured shell (machine A, quiet)
+### 2026-10-25 — W35 perf: popup latency, idle frames, memory (machine A; B37, B34, B35/B7, I93)
+Real stack (`kurashid` release build of `2bbc8f7`, no crate changed since), headless sway gles2 on renderD128, one
+2560×1440 output, `frontend/launch.sh`. **Load:** the user's live session runs an installed `kurashid` that burns ~1 core
+around the clock (cputime 8 h 45 min over 2 d 7 h; most likely the B36 config-watch loop, fixed on main but not deployed;
+observed read-only), so the 1-minute load never fell below 1.5 and every W35 run used `--max-load 2.5` (W33: 1.5); the
+load at the start of each run is in its JSON (1.5–2.5). "Before" is the frontend of `2bbc8f7` (main), "after" this
+branch, both measured by this branch's `measure.py`; gate passes `abc`, 30 s idle, 20 cycles, plus `--latency 10`.
+
+**Method changes (tools/bench, see README).** (1) I93: PSS is summed from `smaps` without the GPU driver's device
+mappings (`/dev/nvidia*`, `/dev/dri/*`); USS (private clean + dirty) and a per-class breakdown are reported beside it. Here
+the left-out part is `/dev/nvidiactl`: 8.1 MiB at one output, 15.1 once the popup has been open — add it to compare with
+earlier rows (before: 174.8 + 8.1 = 182.9 the old way; W33's gate read 174.8 the old way on `191fd68`, before the W34
+morphs). (2) B37: a popup round starts only once the Stage has committed nothing for
+0.3 s and counts only the Stage's own first commit. Before, a round could start while the previous close still folded
+(the fold outlasts the 0.6 s gap), and then "the first commit after the input" was its next frame: W33's 45–118 ms mixed
+such ~1 ms readings with the real ~80 ms ones. (3) `--latency` sends the same action through one open IPC connection and
+timestamps the daemon's `runtime.ui` patch, so the time splits into parts.
+
+| metric (gate) | before | after | budget |
+|---|---|---|---|
+| idle frames, 30 s (fps) | 0.80 | 0.67 | ≤ 1 ✔ |
+| idle CPU, daemon + frontend (%) | 0.033 | 0.033 | < 0.5 ✔ |
+| PSS frontend @1 output (MiB; USS) | 174.8 (148.4) | **154.2** (132.4) | ≤ 150 ✘ |
+| PSS after the popup was open once (MiB) | 194.8 | 175.8 | — |
+| PSS per extra output (MiB, mean of 2) | +9.0 | **+0.4** | ≤ +6 ✔ |
+| popup input → first commit (ms, CLI path, median of 5) | 88.9 | **13.7** | ≤ 16.7 ✔ |
+| — CLI start + handshake → daemon patch (ms) | 2.1 | 2.2 | |
+| — daemon: act → done / patch (ms) | 0.14 | 0.14 | |
+| — frontend: patch → first Stage commit (ms, 10 IPC rounds) | 84.7 | 8.5 | |
+| PSS growth over 20 cycles (MiB) | +4.63 | −0.56 | ≤ 2 (scatters, see below) |
+| mapped surfaces, idle | 3 | 3 | ≤ 4 ✔ |
+| violations | 3 | **1** (PSS @1 output) | |
+
+**The plain `just bench-gate` at the end** (no load gate; load 1.7–1.9): idle frames 0 fps, idle CPU 0 %, PSS 151.7 MiB
+with −0.0 per extra output, popup 13.3 ms, mapped 3 — and the cycle row +16.48 MiB (fail): two violations. **The cycle
+row is noise on this branch, no leak shown:** eleven 20-cycle runs read −12.0 to +25.7 MiB (this branch: −0.6, +16.5,
+−3.2, +10.1, +3.0, −7.7, +9.4, +25.7; with the old, synchronous clock grid put back: −12.0, −2.4, +16.3 — so not the
+async grid), while main's frontend read −2.6 to +4.6 at a ~45 MiB higher level (274–281). Each reading stays flat for
+12 s after its phase (sampled every 2 s in three of the runs), so it is not memory still on its way back to the system.
+The reading after 40 rounds spans 217.7–231.6 MiB across runs; after 80 rounds one run read 231.7, after 200 one read
+234.3 — inside that spread, so no trend shows, though a slow leak under ~2 MiB per 100 rounds is not ruled out.
+A hypothesis, not measured: the QML engine collects the destroyed views on allocation, not on time, so a reading lands
+before or after a collection by chance; main's extra resident objects may make collections more frequent. The gate needs a steadier reading before this row means anything (a forced
+collection before each reading through a bench-only hook, or the median of several cycle blocks).
+
+**B37 popup latency — cause and fix.** CLI start-up is 2 ms and the daemon answers in 0.14 ms: the time was the
+frontend's. Timestamps logged in `Store.handle` and the Stage's view Loader (temporary, removed) show it: patch in at
+19.0297 s → clock view made at 19.0999 s → first `set_size` at 19.1009 s. The island card's view is made synchronously
+when the card opens, inside the patch handler, and the clock view took 73–84 ms, ~65–70 of them for the month grid's 42
+day cells (a Block each, W21; with the cells' Repeater at 0 the view took ~11 ms and the popup 12.4 ms). Fix
+(`ClockView.qml`): the cells are made asynchronously in a box of their final size (the grid always has 7 × 6 cells), so the
+card has its height at once and the shape grows straight to it; the cells are there before the view fades in
+(test-stage, test-morph, test-desk and test-texture pass; their shots differ from the committed ones by anti-aliasing
+noise only, as do views this branch does not touch, so they were not re-committed). The open also makes the generic view
+first and then the clock view (`onOpenChanged` reads `wantedKind` before it follows `runtime.ui`): ~1 ms, left as is.
+**Not fixed:** the quick settings card (`quick.toggle`, not in the gate) takes 67 ms (QuickPanel made in 62–65 ms, the
+phone's whole tree), same cause. A general fix belongs in the Stage: make the view Loader asynchronous and let the shape
+grow to the card size the view had last time (per kind), holding the growth only on a view's very first open.
+
+**B34 idle frames — cause.** Every idle commit in the gate and in `none`/`kami` (65 s windows) is the bar
+(`quickshell#34`, the Bar has no namespace of its own) at hh:mm:00: the clock face's minute flip (FlipText, W21) — 20
+commits over 305 ms in the default theme, 40 over 657 ms in kami (its longer motion), 0 commits outside it. W33's 10 s
+windows made that 2.0 and 3.1 commits/s when they held a minute turn and 0 when not; over the budget's 30 s it is
+0.67 fps (pass), and in kami 1.33 fps (over) for a window that holds the flip. Not changed (a designed animation, the
+lead's and the user's call): the options are a shorter flip (≤ 300 ms ≈ ≤ 20 frames), no flip at idle, or a budget that
+names the minute. Acceptance "0 idle frames in every scenario" is not met for that reason only.
+
+**B35/B7 memory — attribution (A/B: copies of the frontend with parts of `shell.qml` left out; pass a, 5 s idle, no
+cycles; medians of three).**
+
+| variant | PSS @1 out | per extra output | Δ @1 out |
+|---|---|---|---|
+| main (before) | 175.4 | +11.15 | |
+| without the hidden Desktop and TextureOverlay windows | 159.5 | +0.55 | −15.9 |
+| after the lazy windows (this branch's first cut) | 159.9 | +0.75 | |
+| … without the Stage window | 144.5 | +7.65 * | −15.4 |
+| … without the Launcher window | 152.4 | +0.75 | −7.5 |
+| … without Lock / Toasts / Sidebars / mod surfaces, Dock, corners | 159.2–160.3 | +0.35–1.45 | ≤ 0.7 |
+| … session keys made only while the menu shows (second cut) | 152.3 (USS −3.0) | +1.25 | −7.5 |
+| bar only (main, nothing else) | 127.1 | +7.4 * | |
+| Quickshell floor (one PanelWindow + Text per output) | 88.5 | +2.7 | |
+\* without the Stage there is no popup before the hotplug, so first-use costs land on the outputs.
+
+The per-output cost was almost all the Desktop and TextureOverlay windows: both were made per output and kept hidden
+(`visible: false` makes no surface, but the window and its whole item tree exist). Cut 1 (`shell.qml`): each is made by a
+LazyLoader only while `desktop.enabled` (per output) or the everything scope is on. Cut 2 (`SessionMenu.qml`): the five
+session keys exist only while the menu is on screen; their glyphs had pulled Kochi Mincho, Adwaita Mono and Symbola in
+as fallback fonts (−3.2, −0.4, −0.2 MiB of file pages). By class after both: anon 82.2, libs 51.5 (floor 40.4), fonts
+11.6 — Material Symbols Sharp alone 8.2 MiB (the variable font is resident almost whole, 8.9 MB file), Inter 1.6,
+fallbacks ~2 — shm/QML heap 4.1, files 4.6. The first popup leaves +21 MiB resident (anon +18.3, JS heap +3.1); further
+opens add nothing beyond the cycle row's scatter.
+
+**What remains over budget, with numbers:** PSS @1 output 151.7–154.2 against 150 (USS 132.4); the quick card's open,
+67 ms against 16.7 (not gated). Candidates, not done (each
+touches W34's surfaces or the font setup, so they are the lead's to schedule): the Stage window's idle cost (~8 MiB after
+cut 2, ~3.5 of it the window itself, I11; the rest its hidden tree — peek shape, tray column, close key — which could be
+made only while shown, at a cost to the first frame), the Launcher window (7.5 MiB idle, ~3.5 the window, the rest its
+hidden card), a subset or static instance of the icon font (up to ~7 MiB), the image
+plugins Qt loads (kimageformats, libheif, OpenEXR, libraw, x265: ~3 MiB of libraries).
+
+**`just bench-texture` after (W33's nine scenarios × three runs, `W33_MAX_LOAD=2.5`, sandboxes `w35-perf-w33-*`; medians;
+W33's values of 2026-10-22 in brackets — older tree, GPU mappings counted, popup rounds not from rest):**
+
+| metric | none | kami | paint-shadows | spotlight | pen-text | controls | carried | fixed | everything |
+|---|---|---|---|---|---|---|---|---|---|
+| idle frames, 10 s (commits/s) | 0 (2) | 0 (3.1) | 0 | 0 | 0 | 0 | 2 * (0) | 0 | 0 |
+| idle CPU, daemon + frontend (%) | 0 (8.3) | 0 (8.7) | 0 (8.4) | 0 (8.5) | 0 (8.8) | 0 (8.5) | 0 (8.3) | 0 (8.4) | 0.199 † (8.3) |
+| PSS @1 output (MiB) | 152.3 (177.6) | 174.5 (201.0) | 186.6 (227.8) | 186.6 (221.9) | 177.5 (203.8) | 170.6 (211.9) | 184.5 (225.8) | 184.6 (225.8) | 205.1 (249.9) |
+| USS @1 output (MiB) | 130.4 | 153.3 | 164.7 | 164.7 | 156.2 | 148.7 | 162.6 | 162.7 | 183.2 |
+| PSS after the popup was open once | 173.9 | 206.2 | 206.0 | 206.2 | 212.1 | 192.1 | 204.1 | 203.9 | 221.9 |
+| PSS per extra output (MiB) | +0.25 (+10.5) | +4.05 (+10.6) | +10.70 (+19.8) | +11.30 (+20.05) | +5.15 (+10.6) | +9.75 (+18.9) | +10.05 (+17.85) | +10.10 (+19.05) | +30.55 (+42.4) |
+| popup → first commit (ms) | 12.8 (85.1) | 11.0 (45.0) | 13.7 (104.1) | 12.9 (101.7) | 11.5 (48.4) | 15.2 (104.3) | 13.4 (102.4) | 13.7 (102.6) | 11.9 (81.8) |
+| mapped surfaces | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 3 | 4 |
+| motion frames (commits/s) | – | – | – | 135.7 (140.1) | 9.4 (3.6) | – | 27.1 (30.5) | 27.5 (30.5) | – |
+| motion CPU, frontend (%) | – | – | – | 14.45 (7.64) | 4.22 (1.24) | – | 12.09 (13.94) | 12.35 (13.08) | – |
+| PSS after motion (MiB) | – | – | – | 183.6 (223.0) | 211.6 (219.2) | – | 233.8 (278.4) | 234.1 (275.1) | – |
+
+\* `carried`: two of three runs held the minute flip (20 bar commits at hh:mm:00); the third read 0. † Four of the 27
+runs (none r3, kami r2, everything r2 and r3) read 0.2–0.4 % frontend CPU and 20–39 wakeups/s with 0 commits; the other
+23 read 0 and 0.1. Not attributed: in four interleaved idle runs each of main's and this branch's frontend (`none`) all
+eight read 0 and 0.1, and an strace pass of the same tree saw 0.1 syscalls/s. The daemon's idle 8 % of W33 is gone (B36,
+fixed on main). Every scenario still fails PSS @1 output (152–205 MiB against 150); the textures add +18 to +53 MiB at one
+output and +4 to +11 per extra output (per window tile sheets, K59), the overlay +30. Motion CPU: `spotlight`'s 14.5 % (13.2–14.4 in all three
+runs) did not reproduce — four later runs, main's and this branch's frontend interleaved, read 7.4–7.8 % (main) and
+7.4–7.6 % (branch), W33's level; not attributed (the machine's state during the set is the suspect). `pen-text` reads
+4.0–4.5 % on main's frontend and 4.6–5.6 % on this branch's in the same interleaved runs (9.3 and 9.6 frames/s), against
+W33's 1.2 % and 3.6 frames/s: the held quick card commits ~8 frames/s on main too (W34), so the rise is not this
+branch's; the branch's extra ~0.5 % over main in two runs is within their scatter.
+
+
 `just bench-texture` = `tools/bench/w33.sh` on the real stack: nine scenarios × three interleaved runs (`measure.py --daemon real --config <scenario> --passes abm --idle 10 --warmup 10 --cycles 0 --max-load 1.5`, `frontend/launch.sh`), medians by `w33-summary.py` (`tools/bench/results/w33-<scenario>.json`, raw runs `-r1` to `-r3`; results are gitignored). Measured tree: `191fd68` (the driver's pass selection is the only change after `72db4d6`, which the first run of the set recorded; the measuring code is the same). Binaries: release build of `8cbce81` (no crate changed). Machine A: 12 cores, GTX 1060 (driver 580.178), headless sway on renderD128 (gles2), one 2560×1440 output. Load (1 min) at the start of each run was 0.36–1.10: all 27 runs quiet, none waited. The idle window is 10 s, not the budgets' windows (idle CPU is a 10 min budget, frames 30 s), so those rows are screens.
 
 | scenario | theme in effect (checked in each run) | motion, after the rest measurements |

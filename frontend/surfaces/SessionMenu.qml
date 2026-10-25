@@ -90,7 +90,9 @@ Item {
         Row {
             spacing: Theme.gap
             Repeater {
-                model: menu.entries
+                // Made only while the menu is on screen (B35): five hidden keys and their glyphs' fallback fonts cost ~7 MiB
+                // PSS in the Stage at idle (W35 bench). The closing fold keeps them: the card stays visible until it is in.
+                model: menu.visible ? menu.entries : []
                 delegate: Block {
                     id: row
                     required property var modelData
