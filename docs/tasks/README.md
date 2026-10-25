@@ -304,3 +304,9 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W38-keys | keys.rs, schema __private/generate, settings keys page, mock svc.keys, wl_keys | haiku |
 | W38-webdock | kurashi-mod-api, mods/webdock, BENCH append | haiku |
 | W38-polish | ClockView, calendar Widget, Button/IconButton, test-toasts, DND wiring | haiku |
+
+## Wave 39 (2026-10-25, session 13) — shadows everywhere, a lighter Block
+| Card | Owner paths | Model |
+|---|---|---|
+| W39-shadows2 | notification/lock/polkit/toast/centre shadow lines, ClockView day keys, settings Theme + SheetHost/SectionCard, test-shadows | haiku |
+| W39-block | Block/SoftShadow/FocusRing, QuickPanel, Stage/Launcher lazy parts, icon font subset, badge token, bench | opus |
