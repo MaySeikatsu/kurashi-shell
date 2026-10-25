@@ -142,9 +142,11 @@ def map_class(path: str) -> str:
 def mem_kib(pids, per_path=None):
     """PSS and USS of the processes, the GPU driver's mappings left out (I93), and a PSS breakdown by mapping class
     (all in KiB). USS = private clean + private dirty: what goes away with the process. `per_path` (a dict), when given,
-    collects PSS per mapped path (anonymous mappings as "[anon]")."""
+    collects PSS per mapped path (anonymous mappings as "[anon]"). W39: `rss_by`, the resident size by class, beside it — a
+    file another process maps too (a font the user's own session has open) halves its PSS, not its RSS."""
     pss = uss = 0
     by: dict[str, int] = {}
+    rss_by: dict[str, int] = {}
     path = ""
     for p in pids:
         try:
@@ -165,9 +167,11 @@ def mem_kib(pids, per_path=None):
                     per_path[key] = per_path.get(key, 0) + v
                 if cls != "gpu_map":
                     pss += v
+            elif line.startswith("Rss:"):
+                rss_by[cls] = rss_by.get(cls, 0) + int(line.split()[1])
             elif line.startswith(("Private_Clean:", "Private_Dirty:")) and cls != "gpu_map":
                 uss += int(line.split()[1])
-    return {"pss": pss, "uss": uss, "by": by}
+    return {"pss": pss, "uss": uss, "by": by, "rss_by": rss_by}
 
 
 def pss_kib(pids):
@@ -184,7 +188,8 @@ def mem_fields(prefix, pids):
         top = sorted(paths.items(), key=lambda kv: -kv[1])
         (SMAPS_DUMP / f"{prefix}.txt").write_text("".join(f"{v:9d} {k}\n" for k, v in top))
     return {prefix: round(m["pss"] / 1024, 1), prefix.replace("pss", "uss"): round(m["uss"] / 1024, 1),
-            prefix + "_by": {k: round(v / 1024, 1) for k, v in sorted(m["by"].items(), key=lambda kv: -kv[1])}}
+            prefix + "_by": {k: round(v / 1024, 1) for k, v in sorted(m["by"].items(), key=lambda kv: -kv[1])},
+            prefix + "_rss_by": {k: round(v / 1024, 1) for k, v in sorted(m["rss_by"].items(), key=lambda kv: -kv[1])}}
 
 
 def gpu_mib(pids):
