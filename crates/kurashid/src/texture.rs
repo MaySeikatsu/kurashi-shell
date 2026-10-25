@@ -150,7 +150,7 @@ pub struct Light {
 }
 
 /// The weather mod's place, as the night light reads it.
-fn place(store: &ConfigStore) -> Option<(f64, f64)> {
+pub(crate) fn place(store: &ConfigStore) -> Option<(f64, f64)> {
     let places =
         kurashi_mod_weather::places::load(&crate::xdg_dir("state").join("weather/places.json"));
     let configured = s(store, "mods.weather.place");
@@ -165,6 +165,30 @@ fn local(now: chrono::DateTime<chrono::Local>) -> (f64, u32, i32) {
         now.ordinal(),
         now.offset().local_minus_utc() / 60,
     )
+}
+
+/// I156: whether it is day now — between sunrise and sunset at the weather mod's place (`sun`), else 06:00–18:00
+/// (`day`) — and which of the two decided.
+pub fn is_day(store: &ConfigStore, now: chrono::DateTime<chrono::Local>) -> (bool, &'static str) {
+    day_at(place(store), now)
+}
+
+/// [`is_day`] for a known place (or none).
+fn day_at(place: Option<(f64, f64)>, now: chrono::DateTime<chrono::Local>) -> (bool, &'static str) {
+    let (minute, day, offset) = local(now);
+    match place {
+        Some((lat, lon)) => {
+            let (rise, set) = kurashi_services::nightlight::sun_times(lat, lon, day, offset)
+                .map_or((360.0, 1080.0), |(r, s)| (f64::from(r), f64::from(s)));
+            let up = if set > rise {
+                minute >= rise && minute < set
+            } else {
+                minute >= rise || minute < set
+            };
+            (up, "sun")
+        }
+        None => ((360.0..1080.0).contains(&minute), "day"),
+    }
 }
 
 /// The sun as a light (K59): across the screen from sunrise (left) over noon (top) to sunset (right), its height from
@@ -1090,6 +1114,23 @@ mod tests {
         assert_eq!(t["light.beam"], 25.0);
         assert_eq!(t["light.color"], "#ffdba8");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// I156: without a place the day runs 06:00–18:00.
+    #[test]
+    fn the_day_without_a_place_is_six_to_six() {
+        // A pure function of the place: the user's own weather place never leaks into the test.
+        let at = |h: u32| {
+            chrono::Local
+                .with_ymd_and_hms(2026, 6, 21, h, 0, 0)
+                .unwrap()
+        };
+        assert_eq!(day_at(None, at(12)), (true, "day"));
+        assert_eq!(day_at(None, at(5)), (false, "day"));
+        assert_eq!(day_at(None, at(23)), (false, "day"));
+        // Berlin at midsummer: day at 13:00, night at 23:00.
+        assert!(day_at(Some((52.5, 13.4)), at(13)).0);
+        assert!(!day_at(Some((52.5, 13.4)), at(23)).0);
     }
 
     /// The wallpaper's light: a lamp at the picture's bright corner, warm like it; from above while there is no picture.

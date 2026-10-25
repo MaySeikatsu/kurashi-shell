@@ -585,41 +585,49 @@ How long a transient face (volume, brightness, notification) stays before fallin
 #### `island.main.input.left` — Left click
 
 - type: `action` · default: `"island.expand"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.right` — Right click
 
 - type: `action` · default: `"island.pin"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.middle` — Middle click
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.hover` — Hover
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.scroll_up` — Scroll up
 
 - type: `action` · default: `"island.prev"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.scroll_down` — Scroll down
 
 - type: `action` · default: `"island.next"`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.shift_scroll_up` — Shift + scroll up
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 #### `island.main.input.shift_scroll_down` — Shift + scroll down
 
 - type: `action` · default: `""`
+- choices: from `actions` (resolved at runtime)
 - advanced
 
 ### Clock
@@ -939,3 +947,83 @@ The bar's quick settings button opens the right sidebar instead of the quick set
 A button at each end of the bar opens that side's sidebar: the left one at the start, the right one at the end (left out while the quick settings button opens the right sidebar). The launcher's "> sidebar" and the keys open them too.
 
 - type: `bool` · default: `true`
+
+## Keys
+
+### Shortcuts
+
+#### `keys.write` — Shortcuts for the compositor
+
+Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config). Off: your compositor's own config keeps the keys, as now.
+
+- type: `bool` · default: `false`
+
+#### `keys.launcher` — Launcher
+
+- type: `string` · default: `"Mod+Space"`
+- only while `keys.write == true`
+
+#### `keys.notifications` — Notification centre
+
+- type: `string` · default: `"Mod+N"`
+- only while `keys.write == true`
+
+#### `keys.sidebar_right` — Right sidebar
+
+- type: `string` · default: `"Mod+Shift+N"`
+- only while `keys.write == true`
+
+#### `keys.sidebar_left` — Left sidebar
+
+- type: `string` · default: `"Mod+A"`
+- only while `keys.write == true`
+
+#### `keys.quick` — Quick settings
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.session_menu` — Session menu
+
+- type: `string` · default: `"Mod+Shift+E"`
+- only while `keys.write == true`
+
+#### `keys.lock` — Lock the screen
+
+- type: `string` · default: `"Super+Alt+L"`
+- only while `keys.write == true`
+
+#### `keys.settings` — Settings
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.webdock` — Web dock
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.volume_up` — Volume up
+
+- type: `string` · default: `"XF86AudioRaiseVolume"`
+- only while `keys.write == true`
+
+#### `keys.volume_down` — Volume down
+
+- type: `string` · default: `"XF86AudioLowerVolume"`
+- only while `keys.write == true`
+
+#### `keys.mute` — Mute
+
+- type: `string` · default: `"XF86AudioMute"`
+- only while `keys.write == true`
+
+#### `keys.brightness_up` — Brightness up
+
+- type: `string` · default: `"XF86MonBrightnessUp"`
+- only while `keys.write == true`
+
+#### `keys.brightness_down` — Brightness down
+
+- type: `string` · default: `"XF86MonBrightnessDown"`
+- only while `keys.write == true`

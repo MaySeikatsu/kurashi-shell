@@ -272,3 +272,11 @@ Sandbox names: `w32-gen-…`, `w32-rel-…`, `w32-pen-…`, `w32-set-…`, `w32-
 | [W34-morph-surfaces](W34-morph-surfaces.md) | Launcher, NotificationCenter, Toasts, NotificationCard, launcher components, toast/launcher tests | opus |
 | [W34-app-follow](W34-app-follow.md) | theme export (kurashi-theme export.rs, kurashid theme_export.rs), templates, ThemeExportStatus, theme-export i18n, HM themeExport | haiku (max) |
 Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
+
+## Wave 35 (session 13, machine A)
+| Card | Owner paths | Model |
+|---|---|---|
+| [W35-audit](W35-audit.md) | read-only | haiku (max) |
+| [W35-keys](W35-keys.md) | kurashid keys.rs, settings keys page, keys i18n, niri-binds doc | opus |
+| [W35-perf](W35-perf.md) | tools/bench, BENCH.md, the frontend files its fixes need (after W34 merges) | opus |
+| [W35-webdock-polish](W35-webdock-polish.md) | mods/webdock/**, kurashi-mod-webdock, webdock i18n, test-dock webdock steps | haiku (max) |
