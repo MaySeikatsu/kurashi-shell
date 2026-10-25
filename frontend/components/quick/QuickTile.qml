@@ -11,7 +11,9 @@ import ".."
 // States: off; on (the tonal selected pill, its icon filled on an accent badge); connecting (glyph swap, "Connecting…"); failed (the reason in
 // red and a solid badge, the one state that asks for attention; Enter or a click retries); unavailable (dim, the reason);
 // forced (inert, who sets the value). Keys: Enter and Space toggle or open, Right opens the page; QuickPanel's grid moves
-// the focus with the arrows.
+// the focus with the arrows. The secondary action (W37, I86) is a right click on the main zone, or the Menu key: the page
+// when the tile has one, else `secondaryRequested` (QuickPanel opens the Settings page that holds the tile's setting). It
+// never toggles, so a right click cannot start a recording or a dark mode by accident.
 Item {
     id: tile
     implicitWidth: 160
@@ -30,6 +32,7 @@ Item {
     property bool hasPage: true
     property bool acts: false        // the main zone runs a one-step action (`activated`) when the tile has no switch
     signal pageRequested()
+    signal secondaryRequested()      // a tile with no page: its secondary action goes to the host (Settings, see above)
     signal activated()
     readonly property bool isTile: true   // the grid's arrows move between tiles only (a plain contribution is no tile)
 
@@ -65,10 +68,19 @@ Item {
         else if (hasPage) pageRequested()
     }
 
+    // The secondary action: the page, or the host's fallback for a tile without one. Never nothing (W37, I86).
+    function secondary() {
+        if (hasPage) pageRequested()
+        else secondaryRequested()
+    }
+
     activeFocusOnTab: true
     Keys.onPressed: event => {
         if (event.key === Qt.Key_Right && hasPage) {
             tile.pageRequested()
+            event.accepted = true
+        } else if (event.key === Qt.Key_Menu) {
+            tile.secondary()
             event.accepted = true
         } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
             tile.activate()
@@ -171,6 +183,7 @@ Item {
         MouseArea {
             id: arrowArea
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: tile.pageRequested()
         }
     }
@@ -180,7 +193,11 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         anchors.right: arrow.left
-        onClicked: tile.activate()
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: mouse => {
+            if (mouse.button === Qt.RightButton) tile.secondary()
+            else tile.activate()
+        }
     }
     FocusRing {
         width: parent.width

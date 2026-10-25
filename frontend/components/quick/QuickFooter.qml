@@ -6,7 +6,7 @@ import ".."
 // The session footer (docs/ux/quick-settings.md, Design 4). Lock and suspend appear only while the session service answers
 // (svc.session `available`, the capability the daemon serves). Lock runs at once; suspend needs a second press within 3 s,
 // as the session menu does (the daemon refuses it without `confirm`). The power menu is the existing session panel. There
-// is no settings button: no daemon action opens the settings app yet (docs/CONTRACT-CHANGE.md).
+// is no settings button yet: the brief's footer lists one, and `settings.open` (PROTOCOL §6) is there to build it on.
 Column {
     id: foot
     property bool sessionOk: false
