@@ -689,3 +689,14 @@ tile (Shōjiki), not only in Settings. (3) `quick.tile.on.{bg,badge,fg}` compone
 tunes the on state without a frontend change. (4) The `clock.expanded.day` slot gets `extra: {date}` (row 200): the
 agenda no longer walks up its parents to find the selected day. *Why:* each replaces a frontend stand-in; all four are
 additive.
+
+## K67 — drop shadows you can set, and shadows that follow the light (2026-10-25, session 13; I173b)
+`theme.material.shadow` (strength 0–2, default 1 = the look's own), `shadow_angle` (degrees, default 180 = straight down,
+today's look) and `shadow_follow` (default off; needs a material, since the light lives there). kurashi-theme resolves
+one shadow vector for every block and surface — tokens `shadow.dx`, `shadow.dy` (unit direction × the look's length ×
+strength; with `shadow_follow` the direction is away from `light.dir` and the length grows as `light.elevation` falls)
+and `shadow.alpha_scale` — and the keycap's hard shadow, the soft shadow and the press sink all use it. A light that
+moves with the pointer (pointer, spotlight) casts from its rest direction: shadows never repaint on pointer motion (Ma,
+rule 5). *Why:* the user (session 13, item d): "static shadow by default but option to adjust it to the light source
+dynamically"; the lead's review in I173: drop shadows from the light are cheap and coherent, true cast shadows across
+windows need the compositor (out of scope).
