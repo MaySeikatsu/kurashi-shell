@@ -1199,22 +1199,40 @@ mod tests {
         assert_eq!(face(&hub)["face"], "power");
 
         h.set_system_events(false);
-        assert_eq!(face(&hub)["face"], "clock", "the shown notice is taken back");
+        assert_eq!(
+            face(&hub)["face"],
+            "clock",
+            "the shown notice is taken back"
+        );
         h.observe_power(&power(false, 79.0, json!({})));
         h.observe_power(&power(true, 9.0, json!({})));
         h.observe_bluetooth(&json!({"available": true, "devices": []}));
         h.observe_bluetooth(&json!({"available": true, "devices": [
             {"address": "AA", "name": "Headset", "connected": true}
         ]}));
-        h.observe_audio(&json!({"available": true, "volume": 0.4, "muted": false, "sink": {"name": "a"}}));
-        h.observe_audio(&json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}));
+        h.observe_audio(
+            &json!({"available": true, "volume": 0.4, "muted": false, "sink": {"name": "a"}}),
+        );
+        h.observe_audio(
+            &json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}),
+        );
         assert_eq!(face(&hub)["face"], "clock", "no system event while off");
 
         h.set_system_events(true);
         h.observe_power(&power(false, 50.0, json!({})));
-        h.observe_audio(&json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}));
-        assert_eq!(face(&hub)["face"], "clock", "the first reports are baselines");
+        h.observe_audio(
+            &json!({"available": true, "volume": 0.6, "muted": false, "sink": {"name": "a"}}),
+        );
+        assert_eq!(
+            face(&hub)["face"],
+            "clock",
+            "the first reports are baselines"
+        );
         h.observe_power(&power(true, 50.0, json!({})));
-        assert_eq!(face(&hub)["face"], "power", "an edge after that shows again");
+        assert_eq!(
+            face(&hub)["face"],
+            "power",
+            "an edge after that shows again"
+        );
     }
 }

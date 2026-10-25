@@ -173,7 +173,11 @@ impl SchemaView for SchemaAdapter {
                 let list = legacy_list(v).unwrap_or_else(|| v.clone());
                 validate_value(meta, &list).map_err(|e| e.i18n_key().to_owned())?;
                 let paths = meta.constraints.unit.as_deref() == Some("path");
-                let entries = list.as_array().into_iter().flatten().filter_map(Value::as_str);
+                let entries = list
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str);
                 return if paths && entries.into_iter().any(|e| !is_path(e)) {
                     Err(NOT_A_PATH.into())
                 } else {
@@ -1803,7 +1807,9 @@ impl SettingsApp {
             .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
         let running = match target {
             SettingsTarget::Key(key) => probe(&qs, &self.dir, &["jump", key]).then_some("jumped"),
-            SettingsTarget::Page(page) => probe(&qs, &self.dir, &["page", page]).then_some("jumped"),
+            SettingsTarget::Page(page) => {
+                probe(&qs, &self.dir, &["page", page]).then_some("jumped")
+            }
             SettingsTarget::Window => probe(&qs, &self.dir, &["current"]).then_some("open"),
         };
         if let Some(how) = running {
@@ -1933,7 +1939,13 @@ mod tests {
     fn a_path_list_refuses_entries_that_are_not_paths() {
         let s = free_lists();
         let ok = |key: &str, v: Value| s.validate(key, &v);
-        assert_eq!(ok("mods.pics.folders", json!(["/srv/pics", "~", "~/Wallpapers"])), Ok(()));
+        assert_eq!(
+            ok(
+                "mods.pics.folders",
+                json!(["/srv/pics", "~", "~/Wallpapers"])
+            ),
+            Ok(())
+        );
         assert_eq!(ok("mods.pics.folders", json!([])), Ok(()));
         assert_eq!(
             ok("mods.pics.folders", json!(["~/a", "Pictures/b"])),
