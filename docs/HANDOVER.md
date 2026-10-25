@@ -17,12 +17,15 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material, icon subset — K61–K69, waves 32–42
-**State:** `main` green (`just check`), pushed. Wave 42 is running (four agents: W42-memory opus, W42-shadows3, W42-faces2,
-W42-tiles haiku; cards in `docs/tasks/`, CONTRACT-CHANGE rows 460–479). If this session ended before their merge, their
-branches `worktree-agent-*` live under `.claude/worktrees/` — review each against its card, merge `--no-ff`, union the
-CONTRACT-CHANGE rows. Lead build dir `~/.cache/kurashi-agents-target/lead` is kept. The user's live session still runs an
-old installed `kurashid` that burns ~1 core (B36, fixed on main) — suggest reinstalling (`nix build .#kurashi`).
+## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material, icon subset — K61–K69, waves 32–42 (K70)
+**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dir
+`~/.cache/kurashi-agents-target/lead` is kept. The user's NixOS config (`~/.config/nixos`, uncommitted there) now runs
+kurashi as the niri shell: the NixOS and HM modules from the `kurashi-shell` input (`git+file`, not `path:` — a path
+input copies cargo's 47 GB target/), `modules/home-manager/desktop/kurashi.nix` (user services, HM niri binds with the
+user's Mod+N/Mod+Shift+N/Mod+A kept, idle off), `include "kurashi-binds.kdl"` in niri/config.kdl, noctalia and
+plasma-polkit-agent no longer spawned from niri/init.kdl. Its flake.lock was empty; restored from git with nixpkgs pinned
+to the running system's 6510408. After the user's first rebuild into kurashi, check the live session (bar, notifications,
+polkit, lock) and pick up anything that breaks first.
 
 **User decisions (session 13):** spotlight over a steered direction; Settings as a modal sheet (window stays default);
 carried sheet by default; relief shadows on for kami/paint; everything that comes out of the bar morphs like the island
@@ -53,8 +56,9 @@ material, the pen K62, Settings sheet, morph everywhere, apps follow, K64 shortc
 - Wave 42 contracts (lead): the three shadow rows are inert under flat and line chrome (row 423, K67 amendment).
 
 **Next steps (ordered):**
-1. Merge wave 42 (W42-memory: core PSS ≤ 148 with pairs; W42-shadows3: last straight-down shadows; W42-faces2: I212 incl.
-   `save_profile` keeping user-set defaults; W42-tiles: lighter QuickTile, Sketch/Snes frame memo).
+1. Wave 42 merged (K70 memory: PSS @1 ~110 in pairs; last shadows; faces follow-ups; lighter QuickTile). Next: the
+   user's live session on kurashi (see State); I216 first-launcher-open burst; I218 quick card ≤ 18 ms (paper frame on small
+   blocks is a design call); I217 tests through launch.sh.
 2. Follow-ups by area: I197 (window list), I202 (ghostty tokens/BENCH), I205/I208 (daemon, keys), I207 (web dock on niri),
    I213 (bench tooling), I214 (icon fallback edge cases), I195 (mods' own i18n), I134 (secret settings), I140 rest (CalDAV).
 3. Ideas: I176 mixed fonts (try `calt` first), I173 rays/bloom, I174 kitty/WezTerm baked background.
