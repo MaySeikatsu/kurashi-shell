@@ -17,47 +17,49 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-22…25 — session 13 (machine A): textures deepened, the pen, Settings as a sheet, one motion language, shortcuts, apps follow — K61–K64, waves 32–35
-**State:** `main` green (`just check`; 18 sandbox suites at the end of wave 32; wave 34/35 suites per card), pushed. One
-agent may still be running: **W35-perf** (`docs/tasks/W35-perf.md`, worktree under `.claude/worktrees/`) — if its
-branch exists unmerged, review its report/commits and merge (`--no-ff`); delete `~/.cache/kurashi-agents-target/w35-perf`
-after. Lead build dir `~/.cache/kurashi-agents-target/lead` (debug daemon with test-mods) is kept for sandbox runs.
+## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material — K61–K67, waves 32–38
+**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dir
+`~/.cache/kurashi-agents-target/lead` is kept for sandbox runs. The user's live session still runs an old installed
+`kurashid` that burns ~1 core (B36 symptoms, fixed on main) — suggest reinstalling.
 
-**User decisions (session 13):** spotlight (pinned lamp, beam aimed by the pointer) over a steered direction; Settings as a
-modal sheet (window stays default); carried sheet by default; relief shadows on for kami/paint; everything that comes
-out of the bar morphs like the island (calm and lively stay); toasts/centre now hang under the island (placement change
-made by W34-morph-surfaces — confirm with the user); apps follow the shell incl. icons and fonts.
+**User decisions (session 13):** spotlight over a steered direction; Settings as a modal sheet (window stays default);
+carried sheet by default; relief shadows on for kami/paint; everything that comes out of the bar morphs like the island
+(calm and lively stay); apps follow the shell incl. icons and fonts.
 
-**Built and merged:** wave 32 (K61–K63: depth, relief shadows + height maps, spotlight, light colour, controls (masked on
-icons), carried/fixed/separate sheet, cracks, brush, wallpaper material, the island disc bug, I166–I172; the pen K62:
-outline styles + fountain-pen modifiers for outlines, text and surfaces; Settings sheet + material in Settings);
-wave 33 (texture benches, I181); wave 34 (morph everywhere: Stage panels with retarget + MorphSprings, sidebars merged
-into the bar, launcher/centre/toasts from the pill; apps follow: gsettings, Qt/KDE lines, KDE colour scheme, niri
-shape/motion; squash token); wave 35 (backlog audit; K64 shortcuts in Settings; web dock polish). Lead fixes: B36 config
-reload loop (~8 % idle CPU), I156, I39, I14, I130, I63, I124, I16, I59, I49, I187, rows 340/341b/362/363, B38, theme
-export never writes unfilled renders, render-node default only where it exists, greeter texture slots (I166).
-The user's own desktop: their `~/.config/gtk-{3,4}.0/gtk.css` now only import kurashi's colours (backups
-`*.bak-20261022-173753`), qt5ct/qt6ct style Fusion (backups too), `~/.local/share/color-schemes/Kurashi.colors` rendered
-once by hand (the daemon writes it once `"kde"` is in `theme.export` after the next package update).
+**Built and merged:** waves 32–35 (texture depth/relief shadows/spotlight/light colour/controls/sheet/cracks/brush/wallpaper
+material, the pen K62, Settings sheet, morph everywhere, apps follow, K64 shortcuts, web dock polish; see PROGRESS) and:
+- W35-perf: popup 88.9 → 13.7 ms (ClockView cells async), PSS reader without GPU mappings (I93), lazy desktop/overlay
+  windows and session keys (per output +9.0 → +0.4 MiB; one output 174.8 → 154.2 MiB).
+- Wave 36 (K65): one spring family for every surface, async Stage views with a size cache (quick 14.6 ms), panels rest
+  under their widget, polkit steps aside; window list in both bar layouts (middle-click close, drag to workspace, title
+  peek, urgent), dock pin reorder; Settings by page, island system events switch, free string lists; desk hide/titles/order.
+- Wave 37 (K66): ghostty custom shader with the material (background pixels only; glslang in the devShell); island face
+  switch, forced services overlay (`Hub::set_overlay`), polkit refusals, daemon icon paths, `kurashi settings --page`,
+  no-bus wait; calendar event details + agenda day; quick tile tokens, right-click → page, focus across changes.
+- Wave 38 (K67): drop shadows (strength, direction, follow the light; defaults pixel-identical); keys for Sway/Hyprland +
+  niri overlay titles; web dock forced tip + the daemon's forced feed for native mods (lead); clock grid centred and
+  five-week months, Return saves desk edits, side-bar toast tests, DND follows the config live.
 
 **Next steps (ordered):**
-1. Finish/merge W35-perf (B37 popup latency 45–118 ms vs 16.7, B34 idle frames, B35 memory 178 MiB vs 150 — the budget
-   needs a decision with the user, I93 PSS reader). Re-run `just bench-gate` / `just bench-texture` on a quiet machine.
-2. I190 motion follow-ups (BarMorph onto MorphSprings, sidebar origin from the anchor registry, quick card rest under
-   keycap/soft, side bars, first cold launcher open stall, `docs/ux/sidebar.md` motion text, bench rows per surface).
-3. I189 keys follow-ups, I191 web dock (row 374 settings provenance for mods), I173 dynamic drop shadows.
-4. Bar modules polish: I102 window list, I131 recording face, I140 calendar, I137 dock urgent/reorder, I111 bench row.
-5. Core: I17 supervisor waits for NameOwnerChanged, I18, I128 polkit step-aside, I86 forced_by in service docs, I40/I54/I134
-   settings types, I136/I119 desk cards hide.
+1. Ask the open decisions below, then act on them (I193 minute flip, I194 memory budget, I209 island faces semantics).
+2. I206 shadow follow-ups (the surfaces still casting straight down, settings Theme, inert under flat/line chrome,
+   `sidebar.style = floating` drew flush in the sandbox).
+3. I194/I199/I204 memory and build cost: a lighter Block (most of QuickPanel's build), idle Stage/Launcher windows,
+   Material Symbols subset; I204 badge contrast in dark wa-iro.
+4. Follow-ups by area: I197 (window list), I202 (ghostty tokens/BENCH), I205/I208 (daemon, keys), I207 (web dock on niri),
+   I195 (mods' own i18n), I134 (secret settings), I140 rest (CalDAV create).
+5. Ideas: I176 mixed fonts (try `calt` first), I173 rays/bloom, I174 kitty/WezTerm baked background.
 
-**Open decisions (ask):** the memory budget (B35); toasts/centre placement under the island (keep?); I176 mixed fonts
-(idea). MangoWM and isekai/mirai stay deferred.
+**Open decisions (ask):** I194 memory budget (one output 152–154 MiB vs 150 — cut more or raise); I193 the clock's minute
+flip is the only idle commit (cap ~300 ms, no flip at idle, or a budget that names it); I209 `island.main.faces` restricts
+or only orders; toasts/centre under the island (keep?); panels now rest under their widget (sysmon hugs the right edge).
 
 **Gotchas (new):** a `&& grep` chain hides a failing cargo test — use `set -o pipefail`; tests must not read the user's
-real `~/.local/state` (the I156 test did); agents share the scratchpad (prefix logs); Quickshell hot-reloads the config
-while a suite runs (do not edit frontend files mid-suite); `git worktree remove --force` drops uncommitted changes —
-check before; machine A has one GPU (`/dev/dri/renderD128`); weekly usage limits can stop agents mid-card — resume them
-with SendMessage, their work is kept.
+real `~/.local/state`; Quickshell hot-reloads the config while a suite runs; machine A has one GPU (`renderD128`);
+CONTRACT-CHANGE.md conflicts on every merge — give each card a row range up front and union both sides; a card whose
+API needs a daemon half must own that half (W38-webdock didn't); agent worktrees are locked — `git worktree remove -f -f`
+after checking the branch is merged and clean; the auto-mode classifier can drop out for minutes — agents then stop
+mid-commit, so check `git status` in their worktree.
 
 ---
 
