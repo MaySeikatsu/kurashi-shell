@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The quick settings card (K24, W12, W13; docs/ux/quick-settings.md) against kurashi-mock, invisibly (headless sway sandbox):
 # the tiles, every page, the toggle states the mock can produce, the keyboard, and the Wi-Fi scan's subscription. Checks:
-#   - quick.toggle opens the card (runtime.ui panel "quick"); its shot is 400 px wide and centred on the output;
+#   - quick.toggle opens the card (runtime.ui panel "quick"); its shot is 400 px wide (the card grows from its bar button);
 #   - a pointer click on the Wi-Fi tile sends network.wifi (svc.network.wifi_enabled flips, and flips back); its arrow opens
 #     the Wi-Fi page and the page's Back control returns to the tiles;
 #   - the scan document is subscribed while the Wi-Fi page is open and unsubscribed when it closes (the relay's log, Ma);
@@ -20,6 +20,11 @@
 #     forced tiles (tiles-battery, tiles-unavailable, tiles-forced), the wallpaper tile with its backend down
 #     (tiles-wallpaper-down), brightness.set moves the Display level; no contribution is the six core tiles (tiles-no-mods);
 #     the wallpaper tile's document is subscribed while the card shows it and unsubscribed after it closes (Ma).
+#   - W37 (K66, I86): a right click on a tile's main zone is its secondary action, never a toggle: the Wi-Fi tile opens its
+#     page; the Menu key on keep awake and on dark mode (tiles with no page of their own) asks Settings for their pages (the
+#     relay logs `act settings.open`); the focus stays on the wallpaper tile while another contribution leaves and returns,
+#     and when the focused tile leaves the focus moves to the tile before it; every tile a service document can force draws
+#     "Set by" and is inert (tiles-forced); the footer without a session service (footer-no-session);
 #   nix develop -c frontend/test-quick-sections.sh [sandbox-name]
 # The mock must serve svc.network, svc.audio, svc.power, svc.notifications, svc.brightness and svc.network.scan with the
 # actions network.{wifi,connect,disconnect}, audio.{sink.default,source.default}, power.profile, notify.dnd, and (W18)
@@ -46,9 +51,9 @@ MOCK_SOCK=$R/kurashi/mock.sock
 mkdir -p "$W" "$R/kurashi"
 cp "$BIN/kurashi" "$W/"
 cp "$MOCK_BIN" "$W/kurashi-mock"
-# The shared key helper has no Escape key: this test runs a copy with it (KEY_ESC, code 1).
-sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
-grep -q '"escape"' "$W/wl_keys.py" || fail "could not add Escape to the key helper"
+# The shared key helper has no Escape key or Menu key: this test runs a copy with them (KEY_ESC 1, KEY_MENU 139).
+sed 's/"left": (105, "Left")/"escape": (1, "Escape"), "menu": (139, "Menu"), "left": (105, "Left")/' "$ROOT/tools/bench/wl_keys.py" > "$W/wl_keys.py"
+grep -q '"escape"' "$W/wl_keys.py" && grep -q '"menu"' "$W/wl_keys.py" || fail "could not add Escape and Menu to the key helper"
 
 pids=()
 MOCK_PID=""
@@ -79,7 +84,7 @@ import json, sys
 
 SURFACE = tuple(int(sys.argv[2][i:i + 2], 16) for i in (0, 2, 4))
 TOL = 3
-X0, X1, Y0, Y1 = 960, 1600, 40, 1000   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
+X0, X1, Y0, Y1 = 0, 2560, 40, 1000   # the output is 2560 wide; the card grows from its bar button (W36), under the 36 px bar
 
 
 def read_ppm(data):
@@ -145,6 +150,8 @@ async def pump(src, dst, to_mock, state):
                     state["frontend"] = m.get("client") == "frontend"
                 elif state.get("frontend") and m.get("t") in ("sub", "unsub"):
                     note(f"{m['t']} {m.get('doc', '')}")
+                elif state.get("frontend") and m.get("t") == "act":
+                    note(f"act {m.get('action', '')} {json.dumps(m.get('args', {}), sort_keys=True)}")
             dst.write(line)
             await dst.drain()
     except OSError:
@@ -186,9 +193,8 @@ card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 
     || fail "$1: analysis failed"
   echo "$1: $res"
   jq -e '.surface >= 15000 and .bbox != null
-      and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4
-      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
-    || fail "$1: no card 400 px wide centred on the output ($res)"
+      and (((.bbox[2] - .bbox[0] + 1) - 398) | fabs) <= 4' <<<"$res" >/dev/null \
+    || fail "$1: no card 400 px wide ($res)"
   read -r cx0 cy0 cx1 cy1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   timeout 20 grim -g "$((cx0 - 24)),$((cy0 - 24)) $((cx1 - cx0 + 49))x$((cy1 - cy0 + 49))" "$OUT/$1.png" \
     || fail "grim failed on $1"
@@ -343,6 +349,27 @@ sleep 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "the Back control did not unsubscribe the scan"
 echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control returns (unsubscribed)"
 
+# 3b. W37 (I86): a right click on a tile's main zone is its secondary action, never a toggle. The Wi-Fi tile opens its page;
+#     the Menu key on keep awake and on dark mode (no page of their own) asks Settings for the page that holds their setting.
+right_click() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" right || fail "right click at $1,$2 failed"; }
+wifi0=$(doc svc.network | jq -r '.wifi_enabled')
+right_click "$((cx0 + WIFI_TILE[0]))" "$((cy0 + WIFI_TILE[1]))"
+sleep 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi0" ] || fail "a right click on the Wi-Fi tile toggled the radio"
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "a right click on the Wi-Fi tile did not open its page"
+press escape
+sleep 1.5
+[ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not return from the Wi-Fi page"
+press down down down menu       # wifi, focus, power, keep awake: no page of its own, so Settings' power page
+sleep 1
+grep -q 'act settings.open {"page": "power"}' "$R/subs.log" || fail "the Menu key on keep awake did not ask Settings for the power page"
+press down right menu           # record, dark mode: Settings' appearance page
+sleep 1
+grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" || fail "the Menu key on dark mode did not ask Settings for the appearance page"
+press up up up up left         # back to the Wi-Fi tile, where the keyboard steps below start
+sleep 1
+echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key on keep awake and dark mode asks Settings"
+
 # 4. Audio: Tab to the Audio tile, Right opens the page; Tab walks to the other output, Return makes it the default, and the
 #    focus stays on the row chosen (the rows update in place).
 press tab tab tab right
@@ -481,6 +508,38 @@ pic1=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
 card_shot tiles-mods-next 0.5
 echo "ok: keyboard: Tab reaches the mod tiles, Down reaches the wallpaper tile, Return moves its picture ($pic0 -> $pic1)"
 
+# 13b. Focus across contribution changes (W37, I86). The focus is on the wallpaper tile (the grid's cell 12, after the core
+#      tiles, the test mod's tile at 10 and the plain contribution at 11). The contribution list is the mock's runtime.slots
+#      patch: the test mod's tile leaves and comes back while the wallpaper tile keeps the focus (its Return moves the picture);
+#      then the test mod's tile, focused, leaves: the focus moves to the tile before it (dark mode, whose Menu key asks Settings
+#      for the appearance page, logged by the relay); the test mod's tile comes back and the wallpaper tile is reached again.
+full=$(doc runtime.slots | jq -c '."quick.tiles"')
+[ "$(jq 'length' <<<"$full")" = 3 ] || fail "precondition: the mock serves three contributions ($full)"
+without() { jq -c --arg m "$1" '[.[] | select(.mod != $m)]' <<<"$full"; }
+set_tiles() {
+  K act mock.doc "$(jq -cn --argjson v "$1" '{doc: "runtime.slots", patch: {"quick.tiles": $v}}')" >/dev/null \
+    || fail "mock.doc refused the contribution list"
+  sleep 1.5
+}
+pic_now() { doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty'; }
+set_tiles "$(without hello)"
+p0=$(pic_now); press return; sleep 1.5; p1=$(pic_now)
+[ -n "$p0" ] && [ "$p1" != "$p0" ] || fail "the focus left the wallpaper tile when another contribution left ($p0 -> $p1)"
+set_tiles "$full"
+p2=$(pic_now); press return; sleep 1.5; p3=$(pic_now)
+[ -n "$p2" ] && [ "$p3" != "$p2" ] || fail "the focus left the wallpaper tile when another contribution came back ($p2 -> $p3)"
+press up                        # the test mod's tile (cell 10) has the focus now
+set_tiles "$(without hello)"    # ... and leaves: the focus moves to the tile before it, dark mode (cell 9)
+press menu
+sleep 1.5
+grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" \
+  || fail "the focus did not move to the tile before the removed one (dark mode's Menu key sent no appearance page)"
+set_tiles "$full"
+press left down down return     # dark mode, left (8), down (10), down (12): the wallpaper tile again
+sleep 1.5
+[ "$(pic_now)" != "$p3" ] || fail "the wallpaper tile was not reached again after the test mod's tile came back"
+echo "ok: focus: stays on the wallpaper tile when a contribution leaves or comes back; moves to the tile before a removed one"
+
 # 14. States the mock makes on demand (W18, I50): a battery, a tile unavailable, a tile forced; and the Display slider's
 #     intent (brightness.set, a fraction of full scale). The states are the documents' own, as a daemon would send them.
 K act mock.doc '{"doc":"svc.power","patch":{"present":true,"on_battery":true,"percent":64,"state":"discharging","time_to_empty_s":7800}}' >/dev/null || fail "mock.doc refused the battery"
@@ -489,10 +548,27 @@ card_shot tiles-battery 0.8
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the unavailable tile"
 sleep 1
 card_shot tiles-unavailable 0.8
-K act mock.doc '{"doc":"svc.network","patch":{"forced_by":"nix"}}' >/dev/null || fail "mock.doc refused the forced tile"
+# W37 (I86, row 103): each of the six tiles whose service document can carry `forced_by` draws "Set by" and is inert. A forced
+# Wi-Fi tile still opens its page (the inert rule of QuickTile), and the radio stays as it is. The Bluetooth adapter is back
+# first: an unavailable tile shows why it is unavailable, not who sets it (the reason outranks the forced state).
+K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":true}}' >/dev/null || fail "mock.doc refused the Bluetooth adapter"
+sleep 1
+for d in svc.network svc.bluetooth svc.notifications svc.audio svc.power svc.brightness; do
+  K act mock.doc "$(jq -cn --arg d "$d" '{doc: $d, patch: {forced_by: "nix"}}')" >/dev/null || fail "mock.doc refused the forced tile $d"
+done
 sleep 1
 card_shot tiles-forced 0.8
-K act mock.doc '{"doc":"svc.network","patch":{"forced_by":null}}' >/dev/null
+wifi_forced=$(doc svc.network | jq -r '.wifi_enabled')
+at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
+sleep 1.5
+[ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi_forced" ] || fail "a click on the forced Wi-Fi tile changed the radio"
+[ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "a click on the forced Wi-Fi tile did not open its page"
+press escape
+sleep 1.5
+for d in svc.network svc.bluetooth svc.notifications svc.audio svc.power svc.brightness; do
+  K act mock.doc "$(jq -cn --arg d "$d" '{doc: $d, patch: {forced_by: null}}')" >/dev/null
+done
+echo "ok: forced: the six tiles draw Set by nix; a click on the forced Wi-Fi tile opens its page and does not toggle"
 # The mod's own tile unavailable: its backend is down, so the tile says why (the mod's i18n key) and dims.
 K act mock.doc '{"doc":"mod.wallpaper","patch":{"backend":{"available":false,"reason":"mod-wallpaper.backend.down"}}}' >/dev/null || fail "mock.doc refused the wallpaper backend"
 sleep 1
@@ -504,6 +580,13 @@ K intent brightness.set 0.3 >/dev/null || fail "brightness.set refused"
 sleep 1
 [ "$(doc svc.brightness | jq -r '.percent == 30')" = true ] || fail "brightness.set 0.3 did not set 30 % ($(doc svc.brightness))"
 echo "ok: states: a battery, an unavailable tile, a forced tile; brightness.set 0.3 makes 30 %"
+# W37 (I50, brief DoD): the footer's lock and suspend appear only while the session service answers.
+K act mock.doc '{"doc":"svc.session","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the session service's absence"
+sleep 1
+card_shot footer-no-session 0.8
+K act mock.doc '{"doc":"svc.session","patch":{"available":true}}' >/dev/null
+sleep 1
+echo "ok: footer without a session service (footer-no-session.png)"
 
 # 15. The picker: Right on the wallpaper tile opens its panel (the mod's Stage panel; the card gives way to it). The card is
 #     reopened, so the keyboard starts where it starts for a user: on the card, with nothing focused.
@@ -519,6 +602,20 @@ press down right
 sleep 1.5
 [ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "Right on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
 echo "ok: Right on the wallpaper tile opens its picker panel (mod:wallpaper:wallpaper)"
+
+# 15b. W37: the Menu key on the wallpaper tile is the same secondary action as a right click: its picker panel.
+K act ui.close >/dev/null
+sleep 1
+K act quick.toggle >/dev/null
+for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
+[ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the Menu key check"
+sleep 1
+click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
+press tab tab tab tab tab tab tab tab tab tab tab tab tab tab
+press down menu
+sleep 1.5
+[ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "the Menu key on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
+echo "ok: the Menu key on the wallpaper tile opens its picker panel (mod:wallpaper:wallpaper)"
 
 # 16. No contribution (the empty state, W18): with no `quick.tiles` entry the grid is the six core tiles and no cell is drawn.
 K act ui.close >/dev/null

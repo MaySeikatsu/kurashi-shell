@@ -218,6 +218,12 @@ start_frontend
 # The accessible name comes from the daemon's i18n document (I18n.tr returns the bare key when it is missing).
 [ "$(K sub i18n --count 0 --json | jq -r '.data.strings["frontend.quick.open"]')" = "Quick settings" ] \
   || fail "the daemon's i18n document lacks frontend.quick.open"
+# K66 (row 104): the daemon's theme carries the quick tile's on-state tokens (kurashi-theme tokens.rs), as hex colours.
+for k in quick.tile.on.bg quick.tile.on.badge quick.tile.on.fg; do
+  v=$(token "$k")
+  [[ "$v" =~ ^#[0-9a-f]{6}$ ]] || fail "the daemon's theme has no $k (got \"$v\")"
+done
+echo "ok: the daemon's theme carries quick.tile.on.{bg,badge,fg}"
 BARH=$(num "$(token bar.height)")
 PH=$(( BARH - 6 ))
 PAD=$(num "$(token space.md)")
