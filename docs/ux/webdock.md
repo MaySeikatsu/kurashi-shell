@@ -307,7 +307,10 @@ installed (programs.kurashi.webdock)", `webdock.error.load`, `webdock.error.cras
 - [ ] Typing reaches the page on reveal by click and by keybind (first keystroke included); Escape rules as above.
 - [ ] Unload: the host exits after `unload_after` (test with seconds), the icons stay, reopening reloads.
 - [ ] Idle: 0 commits with the mod on and the dock hidden; host memory for 0/1/5 shown sites in BENCH.
-- [ ] niri: verified in a nested niri (layer surfaces, on-demand keyboard focus) before "UX ✅".
+- [ ] niri: verified in a nested niri (layer surfaces, on-demand keyboard focus) before "UX ✅". **W38: not met.** In a nested
+      niri 26.04 inside the sandbox the dock's large card geometry passes (I100's span), but no shell surface is drawn in the
+      captures, and the dock's layer surface reports keyboard interactivity none, so I98's keys and the Tab order fail there
+      (they pass on sway with the same tree). Blocker and the recipe: CONTRACT-CHANGE 434.
 - [ ] "Open in browser" runs the configured command (default: the system's default browser via `xdg-open`).
 - [ ] Privacy: the net-log test sees no request the fixture pages did not make; push service off.
 
