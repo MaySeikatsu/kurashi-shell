@@ -143,7 +143,9 @@ tiles, bar groups: a restrained edge or nothing), `ground` (the lock's backdrop,
 A material is a relief, not a picture (`docs/ux/texture.md`). The daemon generates a seamless tile per material
 (`crates/kurashi-texture`), resolves the light and publishes tokens; renderers sample and shade with one function,
 `kurashi_texture::shade` on the CPU (wallpaper bake, Settings swatches) and `frontend/shaders/relief.frag` on the GPU —
-the two are kept identical.
+the two are kept identical. A third consumer (I174, row 404): `crates/kurashi-theme/src/ghostty_shader.rs` mirrors
+`shade_with` without the beam and the relief shadows, on a procedural relief per kind instead of the tile, with the
+light baked in as constants (ghostty's `custom-shader`, background pixels only; `docs/ux/terminal-texture.md`).
 
 **Tile:** square, seamless, `texture.tile_px` device px covering `texture.tile_logical` logical px; in memory RGBA8, on
 disk two PNGs (rows 280–281: Qt premultiplies textures, so normals cannot share texels with a mostly-zero alpha):

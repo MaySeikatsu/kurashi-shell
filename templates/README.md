@@ -20,6 +20,7 @@ so matugen templates work unchanged), and:
 | `{{motion.ms}}` | the standard motion duration in ms |
 | `{{motion.curve}}` | the continuous easing as `cubic-bezier(…)` |
 | `{{motion.niri}}` | niri's `animations {}` block for the motion profile and speed (calm, lively: springs; none: `off`) |
+| `{{ghostty.shader}}` | the ghostty target only: `custom-shader = <abs path>` and `custom-shader-animation = false` while the material is on for the shell (scope shell / shell_wallpaper, a known kind), else empty; the shader is `ghostty/shaders/kurashi.glsl` (I174, row 403) |
 | `{{material.opacity}}` | the surface opacity in effect (1.00 when solid) |
 | `{{paths.config}}` | `$XDG_CONFIG_HOME`, absolute |
 | `{{gsettings.color_scheme}}` | `prefer-dark` or `default` (GNOME's colour scheme) |

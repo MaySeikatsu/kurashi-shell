@@ -36,6 +36,8 @@
             cargo rustc clippy rustfmt rust-analyzer cargo-nextest
             # Workflow
             just jq python3 git
+            # Shader checks (the ghostty material shader, W37 row 402)
+            glslang
             # Frontend default (K3 candidate 1) + headless test compositor
             quickshell sway grim wayland-utils
             # Shaders (K59): `qsb` compiles frontend/shaders/*.frag
