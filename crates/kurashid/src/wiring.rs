@@ -1242,10 +1242,11 @@ pub fn notifications_with_facts(
     });
 }
 
-/// K66 (row 103): the config keys that hold the switch of each service document the quick card shows. A document
-/// whose key is forced (`source` forced, by `nix`/`managed`, a mode such as `accessibility`, a capability) carries
-/// `forced_by` = that layer; absent otherwise. Only `notifications.dnd` holds a switch today: Wi-Fi, Bluetooth, the
-/// mute, the power profile and the backlight are the system's own state, with no config key over them.
+/// K66 (row 103; row 417 adds idle, night light and recorder): the config keys that hold the switch of each service
+/// document the quick card shows. A document whose key is forced (`source` forced, by `nix`/`managed`, a mode such as
+/// `accessibility`, a capability) carries `forced_by` = that layer; absent otherwise. `notifications.dnd` and
+/// `night_light.enabled` hold a tile's switch today; Wi-Fi, Bluetooth, the mute, the power profile, the backlight, keep
+/// awake (`idle.caffeine`) and recording are runtime state with no config key over them.
 pub const SERVICE_SWITCH_KEYS: &[(&str, &[&str])] = &[
     (NETWORK_DOC, &[]),
     (BLUETOOTH_DOC, &[]),
@@ -1253,6 +1254,9 @@ pub const SERVICE_SWITCH_KEYS: &[(&str, &[&str])] = &[
     (POWER_DOC, &[]),
     ("svc.brightness", &[]),
     ("svc.notifications", &["notifications.dnd"]),
+    (IDLE_DOC, &[]),
+    (NIGHT_DOC, &["night_light.enabled"]),
+    (RECORDER_DOC, &[]),
 ];
 
 /// Lays `forced_by` over the service documents of [`SERVICE_SWITCH_KEYS`] and keeps it with the config. Call after

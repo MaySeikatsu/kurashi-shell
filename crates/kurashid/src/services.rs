@@ -426,8 +426,7 @@ async fn socket_created(socket: &Path, max: Duration) -> bool {
             .skip(1)
             .find(|d| d.is_dir())
             .map(Path::to_path_buf);
-        if dir.is_some() && watch.as_ref().map(|(d, _)| d) != dir.as_ref() {
-            let dir = dir.expect("checked");
+        if let Some(dir) = dir.filter(|d| watch.as_ref().map(|(w, _)| w) != Some(d)) {
             let (target, tx) = (socket.to_path_buf(), tx.clone());
             let armed = notify::recommended_watcher(move |res: notify::Result<notify::Event>| {
                 if let Ok(ev) = res

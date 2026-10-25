@@ -21,7 +21,7 @@ fn a_forced_switch_key_marks_its_service_document() {
     let managed = dir.join("config").join("managed.toml");
     std::fs::write(
         &managed,
-        "[notifications]\ndnd = true\n[_managed]\nenforce = true\n",
+        "[notifications]\ndnd = true\n[night_light]\nenabled = false\n[_managed]\nenforce = true\n",
     )
     .unwrap();
     let hub = Hub::new();
@@ -37,6 +37,7 @@ fn a_forced_switch_key_marks_its_service_document() {
     forced_services(&hub, &store);
     let doc = |name: &str| hub.snapshot(name).unwrap().1;
     assert_eq!(doc("svc.notifications")["forced_by"], "nix");
+    assert_eq!(doc("svc.nightlight")["forced_by"], "nix");
     for (name, keys) in SERVICE_SWITCH_KEYS {
         if keys.is_empty() {
             assert!(

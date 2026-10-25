@@ -282,7 +282,7 @@ fn ordered_subdirs(index: &str) -> Vec<(String, bool)> {
             (rank, d, scalable)
         })
         .collect();
-    ranked.sort_by(|a, b| a.0.cmp(&b.0));
+    ranked.sort_by_key(|r| r.0);
     ranked.into_iter().map(|(_, d, s)| (d, s)).collect()
 }
 
