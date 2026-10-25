@@ -4,13 +4,18 @@
 #              and every edge (right, left, top, bottom); the shots are mods/webdock/shots/dock-*.png (read them);
 #   intents    the pointer and the keys reach the dock, and each intent the frontend sends is logged (hover, engage, select,
 #              pin, add, move, remove, size, collapse, back, toggle); the menu and the add form take the keyboard;
+#   focus      Tab from the card reaches the view's own controls (Places) and the header's size control (Large) (I90);
+#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, and works without it (I91);
+#   keys       the first key after a keybind reveal (`engaged`) reaches the strip at 50, 100 and 150 ms; 0 ms is a note (I98);
+#   large      a large card on the bottom and the top edge fills the usable height between the bar and the strip (I100);
 #   ja         the Japanese copy (the mock's i18n document follows LC_ALL);
-#   measure    idle cost: no commit of a dock surface in 10 s while hidden; PSS with the mod on and off, one and two outputs.
+#   measure    idle cost: no commit of a dock surface in 10 s while hidden; USS with the mod on and off, one and two outputs.
 # The daemon's state machine is not here (W20-webdock-daemon): `mod.webdock` is set with `mock.webdock`. A relay in front of
 # the mock serves the `mods` document (the mock serves none) and logs every act and intent the frontend sends; the mock
 # refuses the actions it does not know, and the logged intent is what is asserted.
 #   timeout 900 bash mods/webdock/test/test-dock.sh [sandbox-name]
-#   DOCK_PHASES="states intents" selects phases; KURASHI_SB_RENDERER=pixman on a machine without a render node.
+#   DOCK_PHASES="states intents focus forced keys large ja measure" (the default: all) selects phases;
+#   KURASHI_SB_RENDERER=pixman on a machine without a render node.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 NAME=${1:-w20-shell-dock-$$}   # unique per run: other agents' runs stop any sandbox that shares a name
