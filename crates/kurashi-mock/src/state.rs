@@ -1428,6 +1428,8 @@ fn launcher_rows(q: &str) -> Vec<Value> {
                 "name": name,
                 "generic": generic,
                 "icon": icon,
+                // Row 380, as kurashid: the resolved icon file; the mock has none, so the frontend asks Qt.
+                "icon_path": null,
                 "kind": "app",
                 "score": score,
             });

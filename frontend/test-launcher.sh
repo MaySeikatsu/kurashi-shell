@@ -12,10 +12,14 @@
 #   4. W34 (docs/ux/motion.md): the launcher grows out of the island pill and folds back into it. Per look x profile x bar
 #      edge (MORPH_CASES), three grims at MORPH_AT ms (40 120 250) after `launcher.toggle`, the card at rest, and two
 #      grims after the close; the motion profile in effect is checked first (the theme document's `motion.profile`).
+#   5. W37 (row 380, row 387): app rows carry `icon_path`, the file kurashid resolved from the icon theme (a fixture theme
+#      of its own: scalable and 64 px icons, one app whose icon no theme has → null); the first open of a fresh shell
+#      holds no frame longer than COLD_GAP_MS (the frame log of KURASHI_MORPH_DEBUG=1); the `>` mode lists the Settings
+#      links ("Shortcut settings", "Settings: <page>") and a link to a page Settings lacks is refused.
 # Checks print ok / FAIL; any FAIL, QML error or kurashid panic makes the run exit 1.
 # Shots: frontend/shots/launcher/w26/{clip,clip-confirm,emoji,keys}-{sekai,none}.png (the launcher card);
 #   frontend/shots/morph/launcher-<look>-<profile>-<edge>-{open-40,open-120,open-250,rest,close-40,close-120}.png.
-# LAUNCHER_PHASES=modes|morph|"modes morph" picks the phases (both by default).
+# LAUNCHER_PHASES=modes|morph|icons (any of them, space-separated) picks the phases (all three by default).
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c frontend/test-launcher.sh [sandbox-name]
 set -euo pipefail
@@ -28,7 +32,8 @@ DECORS=${DECORS:-sekai none}
 [ -e /dev/dri/renderD129 ] && export KURASHI_RENDER_NODE=${KURASHI_RENDER_NODE:-/dev/dri/renderD129}
 # The launcher card, hanging from the top bar under the island (W34) on the 2560 x 1440 output.
 CARD_GEOM=${CARD_GEOM:-"930,0 700x720"}
-PHASES=${LAUNCHER_PHASES:-modes morph}
+PHASES=${LAUNCHER_PHASES:-modes morph icons}
+COLD_GAP_MS=${COLD_GAP_MS:-100}
 MOUT=$ROOT/frontend/shots/morph
 AT=${MORPH_AT:-40 120 250}
 # <look>:<profile>:<edge>; each look in its own profile on both edges and in the other one on top; `none` cuts.
@@ -172,6 +177,7 @@ start_all() { # start_all <decor> [config line ...]
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
   fill_history
   niri_fixture
+  if [ -n "${PRE_START:-}" ]; then "$PRE_START"; fi
   { printf 'theme.style = "%s"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env PATH="$FAKE:$PATH" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
@@ -307,6 +313,99 @@ if [[ " $PHASES " == *" morph "* ]]; then
     check "$(K raw '{"t":"sub","id":"s","doc":"runtime.ui"}' | head -1 | grep -q '"launcher":false' && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the launcher closed"
     echo "shots $base-*.png"
   done
+fi
+# W37 (row 380): a theme of its own with eight apps' icons (odd ones scalable svg, even ones 64 px png) and a ninth app whose
+# icon no theme has; the theme inherits hicolor (the system's).
+icon_fixture() {
+  local th=$XDG_DATA_HOME/icons/kurashi-test-icons apps=$XDG_DATA_HOME/applications
+  mkdir -p "$th/scalable/apps" "$th/64x64/apps" "$apps"
+  printf '[Icon Theme]\nName=Kurashi test\nInherits=hicolor\nDirectories=64x64/apps,scalable/apps\n\n[64x64/apps]\nSize=64\nContext=Applications\nType=Fixed\n\n[scalable/apps]\nSize=64\nContext=Applications\nType=Scalable\n' > "$th/index.theme"
+  python3 -I - "$th/64x64/apps" <<'PY'
+import struct, sys, zlib
+def png(path, rgb):
+    raw = b"".join(b"\0" + bytes(rgb) * 64 for _ in range(64))
+    chunk = lambda t, d: struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xffffffff)
+    open(path, "wb").write(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 64, 64, 8, 2, 0, 0, 0))
+                           + chunk(b"IDAT", zlib.compress(raw)) + chunk(b"IEND", b""))
+for i in (2, 4, 6, 8):
+    png(f"{sys.argv[1]}/kurashi-test-{i}.png", (30 * i, 40, 255 - 25 * i))
+PY
+  for i in 1 3 5 7; do
+    printf '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><circle cx="32" cy="32" r="28" fill="#%02x7050"/></svg>\n' $((30 * i)) \
+      > "$th/scalable/apps/kurashi-test-$i.svg"
+  done
+  for i in 1 2 3 4 5 6 7 8 missing; do
+    printf '[Desktop Entry]\nType=Application\nName=Kurashi Test %s\nExec=true\nIcon=kurashi-test-%s\n' "$i" "$i" > "$apps/kurashi-test-$i.desktop"
+  done
+}
+if [[ " $PHASES " == *" icons "* ]]; then
+  echo "== icons: icon_path from the daemon, the cold first open"
+  export KURASHI_MORPH_DEBUG=1
+  PRE_START=icon_fixture start_all sekai 'theme.icon_theme = "kurashi-test-icons"'
+  unset KURASHI_MORPH_DEBUG
+  TH=$XDG_DATA_HOME/icons/kurashi-test-icons
+  # The first open of this shell: the frames the morph presented in its first 900 ms, and the longest gap between two.
+  from=$(wc -l < "$R/qs.log")
+  K act launcher.toggle >/dev/null
+  sleep 2
+  gaps=$(tail -n +"$((from + 1))" "$R/qs.log" | grep -o 'bar-morph frame +[0-9]* ms' | grep -o '[0-9]*' | awk 'NR>1{g=$1-p; if(g>m)m=g} {p=$1; n++} END{printf "%d %d", n, m}')
+  read -r frames maxgap <<< "${gaps:-0 0}"
+  gate=$(tail -n +"$((from + 1))" "$R/qs.log" | grep -o 'bar-morph gate [^ ]* +[0-9]* ms' | head -1)
+  check "$([ "$frames" -ge 5 ] && [ "$maxgap" -le "$COLD_GAP_MS" ] && echo 1 || echo 0)" "cold first open: $frames frames, the longest gap ${maxgap} ms (≤ $COLD_GAP_MS), ${gate:-no gate line}"
+  grim -g "$CARD_GEOM" "$OUT/icons-cold.png"
+  rows 'kurashi test' > "$R/icon-rows.json"
+  check "$(python3 -I - "$R/icon-rows.json" "$TH" <<'PY'
+import json, os, sys
+rows = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+apps = {r["name"]: r for r in rows if r.get("kind") == "app"}
+ok = len(apps) == 9
+for i in range(1, 9):
+    r = apps.get(f"Kurashi Test {i}", {})
+    want = f"{sys.argv[2]}/" + (f"scalable/apps/kurashi-test-{i}.svg" if i % 2 else f"64x64/apps/kurashi-test-{i}.png")
+    ok = ok and r.get("icon_path") == want and os.path.isfile(want)
+m = apps.get("Kurashi Test missing", {})
+ok = ok and "icon_path" in m and m["icon_path"] is None
+print(1 if ok else 0)
+PY
+)" "app rows carry icon_path: svg from the scalable directory, png from 64 px, null for an icon no theme has"
+  check "$(rows '' | python3 -I -c 'import json,sys; r=[json.loads(l) for l in sys.stdin if l.strip()]; a=[x for x in r if x.get("kind")=="app"]; print(1 if a and all("icon_path" in x for x in a) else 0)')" "every app row of the empty query carries icon_path"
+  K act ui.close >/dev/null; sleep 1
+  K act launcher.toggle >/dev/null; sleep 1
+  for k in k u r a s h i space t e s t; do echo "$k" >&3; sleep 0.08; done
+  WAIT=1.5 shot "icons-sekai"
+  check "$(python3 -I - "$OUT/icons-sekai.png" <<'PY'
+import struct, sys, zlib
+# The fixture's icons are saturated colours the card never is: count such pixels in the shot.
+data = open(sys.argv[1], "rb").read()
+pos, idat, w, h, ct = 8, b"", 0, 0, 0
+while pos < len(data):
+    n, t = struct.unpack(">I4s", data[pos:pos + 8]); body = data[pos + 8:pos + 8 + n]; pos += 12 + n
+    if t == b"IHDR": w, h, _, ct = struct.unpack(">IIBB", body[:10])
+    elif t == b"IDAT": idat += body
+bpp = 4 if ct == 6 else 3
+raw, rows, prev = zlib.decompress(idat), [], bytearray(w * bpp)
+for y in range(h):
+    f, line = raw[y * (w * bpp + 1)], bytearray(raw[y * (w * bpp + 1) + 1:(y + 1) * (w * bpp + 1)])
+    for x in range(len(line)):
+        a = line[x - bpp] if x >= bpp else 0; b = prev[x]; c = prev[x - bpp] if x >= bpp else 0
+        if f == 1: line[x] = (line[x] + a) & 255
+        elif f == 2: line[x] = (line[x] + b) & 255
+        elif f == 3: line[x] = (line[x] + (a + b) // 2) & 255
+        elif f == 4:
+            p = a + b - c; pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+            line[x] = (line[x] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
+    rows.append(line); prev = line
+vivid = sum(1 for line in rows for x in range(0, len(line), bpp) if max(line[x:x + 3]) - min(line[x:x + 3]) > 110)
+print(1 if vivid > 2000 else 0)
+PY
+)" "the fixture icons are drawn in the launcher (screenshot icons-sekai)"
+  K act ui.close >/dev/null; sleep 0.5
+  # Row 387, I40: the Settings links in the `>` mode.
+  check "$(rows '>' | grep -q '"id": "settings:keys"' && echo 1 || echo 0)" "> lists Shortcut settings (settings:keys)"
+  check "$(rows '>settings bar' | python3 -I -c 'import json,sys; print(1 if any(r.get("id") == "settings:bar" and r.get("name") == "Settings: Bar" for r in map(json.loads, filter(str.strip, sys.stdin))) else 0)')" ">settings bar lists Settings: Bar"
+  check "$(rows '>' | grep -q '"id": "settings:bar"' && echo 0 || echo 1)" "an empty > lists no page rows"
+  out=$(K act launcher.launch '{"id":"settings:nope"}' 2>&1) && st=0 || st=$?
+  check "$([ "$st" != 0 ] && grep -qi 'page' <<<"$out" && echo 1 || echo 0)" "a link to a page Settings lacks is refused ($out)"
 fi
 stop_keys
 stop_shell

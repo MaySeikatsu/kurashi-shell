@@ -553,6 +553,8 @@ pub struct LauncherWatch {
     launcher: kurashi_launcher::Launcher,
     state: Mutex<WatchState>,
     debounce: std::time::Duration,
+    /// Runs after each reindex on open (the icon cache forgets its misses: a new app may have brought its icon).
+    on_reindex: Mutex<Option<Box<dyn Fn() + Send + Sync>>>,
 }
 
 struct WatchState {
@@ -578,7 +580,13 @@ impl LauncherWatch {
                 stale: true,
             }),
             debounce,
+            on_reindex: Mutex::new(None),
         })
+    }
+
+    /// `f` runs after each reindex the launcher's opening does.
+    pub fn on_reindex(&self, f: impl Fn() + Send + Sync + 'static) {
+        *self.on_reindex.lock().expect("watch lock") = Some(Box::new(f));
     }
 
     pub fn is_watching(&self) -> bool {
@@ -599,6 +607,9 @@ impl LauncherWatch {
                 if st.stale {
                     self.launcher.reindex();
                     st.stale = false;
+                    if let Some(f) = self.on_reindex.lock().expect("watch lock").as_ref() {
+                        f();
+                    }
                 }
             }
             (false, true) => {
@@ -640,6 +651,19 @@ fn watch_while_open(hub: Arc<Hub>, watch: Arc<LauncherWatch>) {
             }
         }
     });
+}
+
+/// Row 380: an `app` row's `icon_path`, the file its `icon` resolves to in the icon theme (`theme.icon_theme`, or the
+/// desktop's), `null` when there is none (the frontend then asks Qt for the name, as before).
+fn with_icon_path(icons: &crate::icons::IconResolver, theme: &str, row: &mut Value) {
+    if row["kind"] != "app" {
+        return;
+    }
+    let path = row["icon"]
+        .as_str()
+        .and_then(|name| icons.resolve(theme, name))
+        .map(|p| p.to_string_lossy().into_owned());
+    row["icon_path"] = json!(path);
 }
 
 /// The `>` mode's texts (I126) for one revision of `i18n` and `schema.settings`: the commands' labels, and the
@@ -766,7 +790,14 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         opts,
         state_dir.join("launcher.json"),
     );
-    watch_while_open(daemon.hub.clone(), LauncherWatch::new(launcher.clone()));
+    // Row 380: the app rows' icon files, resolved here (off the frontend's GUI thread) and cached.
+    let icons = Arc::new(crate::icons::IconResolver::default());
+    let watch = LauncherWatch::new(launcher.clone());
+    {
+        let icons = icons.clone();
+        watch.on_reindex(move || icons.forget_misses());
+    }
+    watch_while_open(daemon.hub.clone(), watch);
     // The clipboard mode (W26): thumbnails in the cache, pins in the state dir; recent emoji (frecency) in the state
     // dir; the niri binds re-read only when their files change.
     let clip = Arc::new(Clip::new(
@@ -810,7 +841,7 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
         daemon.actions.clone(),
         daemon.config.clone(),
     );
-    let (q_clip, q_emoji) = (clip.clone(), emoji.clone());
+    let (q_clip, q_emoji, q_icons) = (clip.clone(), emoji.clone(), icons.clone());
     // The `>` commands' labels in the session language and the Settings pages they link to, kept per revision of the
     // `i18n` and `schema.settings` documents (one copy, not one per keystroke).
     let labels: Arc<Mutex<CommandLabels>> = Arc::default();
@@ -894,11 +925,20 @@ pub fn launcher(daemon: &mut Daemon, cfg: Option<&ConfigStore>, state_dir: std::
             .and_then(|c| c.get("launcher.web_search", None))
             .and_then(|p| p.value.as_str().map(String::from))
             .unwrap_or_default();
+        let icon_theme = store
+            .as_ref()
+            .and_then(|c| c.get("theme.icon_theme", None))
+            .and_then(|p| p.value.as_str().map(String::from))
+            .unwrap_or_default();
         calc.into_iter()
             .chain(
                 l.query(q, 30)
                     .into_iter()
-                    .filter_map(|r| serde_json::to_value(r).ok()),
+                    .filter_map(|r| serde_json::to_value(r).ok())
+                    .map(|mut row| {
+                        with_icon_path(&q_icons, &icon_theme, &mut row);
+                        row
+                    }),
             )
             .chain(kurashi_launcher::commands::web_row(q, &template))
             .collect()
@@ -2324,18 +2364,42 @@ fn system_bus() -> ConnectFn {
     Bus::System.connect()
 }
 
+/// A provider that waits for `socket` (its bus's socket file) while it is absent, when one is known (I200).
+fn with_socket<C: Clone + Send + 'static, H: ServiceTask>(
+    p: ServiceProvider<C, H>,
+    socket: Option<std::path::PathBuf>,
+) -> ServiceProvider<C, H> {
+    match socket {
+        Some(s) => p.bus_socket(s),
+        None => p,
+    }
+}
+
 /// `svc.tray` (StatusNotifierItem host on the session bus) and the `tray.*` actions.
 pub fn tray(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    tray_with(hub, actions, session_bus());
+    tray_on(hub, actions, session_bus(), Bus::Session.socket_path());
 }
 
 /// [`tray`] with the bus injected (tests run it on a private dbus-daemon).
 pub fn tray_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
+    tray_on(hub, actions, connect, None);
+}
+
+/// `socket`: the bus's socket file, waited for while it is absent (I200).
+fn tray_on(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    socket: Option<std::path::PathBuf>,
+) {
     // The tray's task does not mark its own outage, so the provider shows this when it ends.
     let idle = json!({"available": false, "items": []});
     let service = Arc::new(
-        ServiceProvider::with_connect(TRAY_DOC, connect, kurashi_tray::start)
-            .unavailable(idle.clone()),
+        with_socket(
+            ServiceProvider::with_connect(TRAY_DOC, connect, kurashi_tray::start),
+            socket,
+        )
+        .unavailable(idle.clone()),
     );
     hub.register(TRAY_DOC, idle, Some(service.clone()));
     service_action(
@@ -2388,22 +2452,31 @@ pub fn bluetooth(
     actions: &mut ActionRegistry,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    bluetooth_observed(hub, actions, system_bus(), island);
+    bluetooth_observed(
+        hub,
+        actions,
+        system_bus(),
+        Bus::System.socket_path(),
+        island,
+    );
 }
 
 /// [`bluetooth`] with the bus injected (tests).
 pub fn bluetooth_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    bluetooth_observed(hub, actions, connect, None);
+    bluetooth_observed(hub, actions, connect, None, None);
 }
 
 fn bluetooth_observed(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     connect: ConnectFn,
+    socket: Option<std::path::PathBuf>,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    let mut service =
-        ServiceProvider::with_connect(BLUETOOTH_DOC, connect, kurashi_services::bluetooth::start);
+    let mut service = with_socket(
+        ServiceProvider::with_connect(BLUETOOTH_DOC, connect, kurashi_services::bluetooth::start),
+        socket,
+    );
     if let Some(island) = island {
         service = service.observe(move |doc| island.observe_bluetooth(doc));
     }
@@ -2461,7 +2534,13 @@ fn bluetooth_observed(
 /// `svc.network` and `svc.network.scan` (NetworkManager on the system bus, both refcounted), and the
 /// quick settings actions `network.{wifi,airplane,connect,disconnect}`.
 pub fn network(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
-    network_with(hub, actions, system_bus());
+    network_on(
+        hub,
+        actions,
+        system_bus(),
+        Bus::System.socket_path(),
+        kurashi_services::network::SCAN_EVERY,
+    );
 }
 
 /// [`network`] with the bus injected (tests run it on a private bus with a fake NetworkManager).
@@ -2476,10 +2555,23 @@ pub fn network_paced(
     connect: ConnectFn,
     scan_every: std::time::Duration,
 ) {
-    let service = Arc::new(ServiceProvider::with_connect(
-        NETWORK_DOC,
-        connect.clone(),
-        kurashi_services::network::start,
+    network_on(hub, actions, connect, None, scan_every);
+}
+
+fn network_on(
+    hub: &Arc<Hub>,
+    actions: &mut ActionRegistry,
+    connect: ConnectFn,
+    socket: Option<std::path::PathBuf>,
+    scan_every: std::time::Duration,
+) {
+    let service = Arc::new(with_socket(
+        ServiceProvider::with_connect(
+            NETWORK_DOC,
+            connect.clone(),
+            kurashi_services::network::start,
+        ),
+        socket.clone(),
     ));
     hub.register(
         NETWORK_DOC,
@@ -2488,9 +2580,12 @@ pub fn network_paced(
     );
     // Nothing is known before the first scan: the document is empty until it answers (rule 2).
     let scan = Arc::new(
-        ServiceProvider::with_connect(NETWORK_SCAN_DOC, connect, move |c, s| {
-            kurashi_services::network::start_scan_every(c, s, scan_every)
-        })
+        with_socket(
+            ServiceProvider::with_connect(NETWORK_SCAN_DOC, connect, move |c, s| {
+                kurashi_services::network::start_scan_every(c, s, scan_every)
+            }),
+            socket,
+        )
         .unavailable(json!({"available": false, "reason": NETWORK_UNAVAILABLE})),
     );
     hub.register(NETWORK_SCAN_DOC, json!({}), Some(scan));
@@ -2551,22 +2646,31 @@ pub fn power(
     actions: &mut ActionRegistry,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    power_observed(hub, actions, system_bus(), island);
+    power_observed(
+        hub,
+        actions,
+        system_bus(),
+        Bus::System.socket_path(),
+        island,
+    );
 }
 
 /// [`power`] with the bus injected (tests run it on a private bus with fake daemons).
 pub fn power_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    power_observed(hub, actions, connect, None);
+    power_observed(hub, actions, connect, None, None);
 }
 
 fn power_observed(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     connect: ConnectFn,
+    socket: Option<std::path::PathBuf>,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    let mut service =
-        ServiceProvider::with_connect(POWER_DOC, connect, kurashi_services::power::start);
+    let mut service = with_socket(
+        ServiceProvider::with_connect(POWER_DOC, connect, kurashi_services::power::start),
+        socket,
+    );
     if let Some(island) = island {
         service = service.observe(move |doc| island.observe_power(doc));
     }
@@ -2674,22 +2778,31 @@ pub fn media(
     actions: &mut ActionRegistry,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    media_observed(hub, actions, session_bus(), island);
+    media_observed(
+        hub,
+        actions,
+        session_bus(),
+        Bus::Session.socket_path(),
+        island,
+    );
 }
 
 /// [`media`] with the bus injected (tests run it on a private bus with a fake player).
 pub fn media_with(hub: &Arc<Hub>, actions: &mut ActionRegistry, connect: ConnectFn) {
-    media_observed(hub, actions, connect, None);
+    media_observed(hub, actions, connect, None, None);
 }
 
 fn media_observed(
     hub: &Arc<Hub>,
     actions: &mut ActionRegistry,
     connect: ConnectFn,
+    socket: Option<std::path::PathBuf>,
     island: Option<Arc<crate::island::IslandHost>>,
 ) {
-    let mut service =
-        ServiceProvider::with_connect(MEDIA_DOC, connect, kurashi_services::media::start);
+    let mut service = with_socket(
+        ServiceProvider::with_connect(MEDIA_DOC, connect, kurashi_services::media::start),
+        socket,
+    );
     if let Some(island) = island {
         service = service.observe(move |doc| island.observe_media(doc));
     }
