@@ -2,14 +2,15 @@ import QtQuick
 import QtQuick.Effects
 import "core"
 
-// A control of the web host's card (docs/ux/webdock.md "Layout per edge", "Keyboard and a11y"): a 26 px glyph button of
-// the header (quiet: a tint on hover, no fill), a drawn device (`shape`: the view and size toggles), or a text button
+// A control of the web host's card (docs/ux/webdock.md "Layout per edge", "Keyboard and a11y"): a 32 px glyph button of
+// the header (quiet: a tint on hover, no fill; DESIGN-SYSTEM's 32 px touch target, I99), a drawn device (`shape`: the view and
+// size toggles), or a text button
 // (`label`; `primary` is the one accent action of a view, `flat` a menu item, `start` puts its label at the left).
 // The shell's kit (frontend/components IconButton, Button) is the same look; the host draws its own copy because it
 // cannot import the components (they reach the core through "../core", a second copy of the singletons here).
 // `keyed` (the phone's bottom bar, I109): a glyph button drawn as a block of the theme's chrome, from tokens only (rule
 // 4) — a keycap with its outline and hard shadow that sinks while pressed, a soft disc with its rim and shadow that
-// shrinks, an outlined box that flashes (line), a quiet disc (flat). Its size stays 26 px, so the bar's spread holds.
+// shrinks, an outlined box that flashes (line), a quiet disc (flat). Its size is 32 px; WebCard's bar spreads by the same.
 // Reachable by Tab; Return, Enter and Space press it. The focus ring shows for keyboard focus only. `tipFn(item, on)`
 // is the card's tooltip, shown on hover and on keyboard focus; the tip is the accessible name (or the label).
 Rectangle {
@@ -39,8 +40,8 @@ Rectangle {
     readonly property bool block: keyed && !texted
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
     readonly property bool down: tap.pressed && b.enabled
-    implicitWidth: texted ? txt.implicitWidth + 2 * Theme.pad : 26
-    implicitHeight: texted ? 28 : 26
+    implicitWidth: texted ? txt.implicitWidth + 2 * Theme.pad : 32
+    implicitHeight: 32
     radius: texted ? Theme.rSm : Math.min(height / 2, Theme.rFull)
     color: texted
         ? (primary ? Theme.accent : (flat ? (hover.hovered && enabled ? Theme.containerHigh : "transparent") : Theme.containerHigh))

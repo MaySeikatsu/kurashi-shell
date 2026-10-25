@@ -33,6 +33,9 @@ PanelWindow {
     readonly property bool open: mode !== "hidden" && mine
     readonly property bool extended: open && mode === "extended"
     readonly property bool reduced: Theme.tok("motion.profile", "calm") === "none"
+    // Reduced motion fades (docs/ux/webdock.md "Motion": fade only), over a fixed short time: `motion.quick_ms` is 0
+    // under profile none, and a zero-length fade is a cut (I99).
+    readonly property int fadeMs: 120
     readonly property var geo: d.geometry || ({})
     readonly property int stripPx: geo.strip || 56
     readonly property int grace: geo.grace !== undefined ? geo.grace : 24
@@ -126,7 +129,7 @@ PanelWindow {
     // The strip and the card slide in and out: the strip 180 ms, the card 40 ms later (Theme standard); reduced motion
     // (profile none) fades instead of sliding. The window keeps its size until both have finished.
     property real reveal: open ? 1 : 0
-    Behavior on reveal { NumberAnimation { duration: dock.reduced ? Theme.quickMs : 180; easing.type: Easing.OutCubic } }
+    Behavior on reveal { NumberAnimation { duration: dock.reduced ? dock.fadeMs : 180; easing.type: Easing.OutCubic } }
     // The card rises on a spring (K42: the theme's overshoot) and leaves without one.
     property real cardReveal: panelUp ? 1 : 0
     readonly property bool springs: !reduced && Theme.springOn
@@ -134,7 +137,7 @@ PanelWindow {
         SequentialAnimation {
             PauseAnimation { duration: dock.reduced ? 0 : 40 }
             NumberAnimation {
-                duration: dock.reduced ? Theme.quickMs : (dock.panelUp && dock.springs ? 240 : 180)
+                duration: dock.reduced ? dock.fadeMs : (dock.panelUp && dock.springs ? 240 : 180)
                 easing.type: dock.panelUp && dock.springs ? Easing.OutBack : Easing.OutCubic
                 easing.overshoot: Theme.overshoot
             }
