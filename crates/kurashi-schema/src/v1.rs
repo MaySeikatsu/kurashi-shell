@@ -58,7 +58,8 @@ pub struct Config {
 #[kurashi(page = "keys", section = "shortcuts")]
 pub struct Keys {
     /// Shortcuts for the compositor
-    /// Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config).
+    /// Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config;
+    /// Sway: `kurashi-binds.conf`, read on `swaymsg reload`; Hyprland: `kurashi-binds.conf`, sourced from `hyprland.conf`).
     /// Off: your compositor's own config keeps the keys, as now.
     #[kurashi(default = false)]
     pub write: bool,
