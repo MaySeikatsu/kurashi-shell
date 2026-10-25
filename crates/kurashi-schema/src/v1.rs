@@ -771,6 +771,11 @@ pub struct IslandInstance {
     /// How long a transient face (volume, brightness, notification) stays before falling back.
     #[kurashi(default = 5, range = 1..=60, unit = "s")]
     pub ttl: u32,
+    /// System events
+    /// Volume, brightness, power and Bluetooth changes show on the island for a moment. Off, the island does not
+    /// listen to them at all.
+    #[kurashi(default = true)]
+    pub system_events: bool,
 }
 
 // --- notifications ---------------------------------------------------------------------------
@@ -856,6 +861,10 @@ pub struct Desktop {
     #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), advanced,
               requires = "desktop.enabled == true")]
     pub order: Vec<String>,
+    /// Hidden cards
+    /// Cards the desk leaves out, named as in Order. The desk's edit mode writes it.
+    #[kurashi(default = strings(&[]), advanced, requires = "desktop.enabled == true")]
+    pub hidden: Vec<String>,
 }
 
 // --- launcher --------------------------------------------------------------------------------
