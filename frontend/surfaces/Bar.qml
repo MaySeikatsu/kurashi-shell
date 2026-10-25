@@ -62,7 +62,11 @@ PanelWindow {
         if (JSON.stringify(w) !== JSON.stringify(modWidgets)) modWidgets = w
     }
     onModsDocChanged: refreshWidgets()
-    Component.onCompleted: { refreshWidgets(); Peeks.setEdge(screen ? screen.name : "", barEdge) }
+    Component.onCompleted: {
+        refreshWidgets()
+        Peeks.setEdge(screen ? screen.name : "", barEdge)
+        Light.setZone(bar, screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0)
+    }
     // The quick button (K24), or with `sidebar.from_bar` the right sidebar on this output (W29): its open state and its click.
     readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
     readonly property bool quickOpen: cfg.sidebarFromBar
@@ -201,6 +205,10 @@ PanelWindow {
     implicitWidth: vertical ? Theme.barH : 0
     visible: cfg.enabled
     color: "transparent"       // exclusionMode Auto -> exclusive zone = the bar's thickness
+    // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf).
+    readonly property var zoneKey: [screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0].join("|")
+    onZoneKeyChanged: Light.setZone(bar, screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0)
+    Component.onDestruction: Light.setZone(bar, "", cfg.edge, 0)
 
     // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol)
     BackgroundEffect.blurRegion: Region { item: bg }
