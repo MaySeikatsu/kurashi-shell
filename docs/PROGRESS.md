@@ -245,4 +245,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W36.1 | Every extended surface on MorphSprings; async Stage views; polkit steps aside (card `W36-motion`; I190, I192, I128) | 🟡 in progress | agent running |
 | W36.2 | Window list, urgent, side-bar chips, dock reorder (card `W36-bar`; I102, I131, I137) | 🟡 in progress | agent running |
 | W36.3 | Supervisor waits for bus names, island system events, Settings by page, free lists (card `W36-core`; K65; I17, I18, I40, I54) | 🟡 in progress | agent running |
-| W36.4 | Desk cards: hide, titles, order (card `W36-desk`; I136, I119) | 🟡 in progress | agent running |
+| W36.4 | Desk cards: hide, titles, order (card `W36-desk`; I136, I119) | ✅ functional · UX ✅ (`frontend/shots/desk/`; I196 open) | merged |

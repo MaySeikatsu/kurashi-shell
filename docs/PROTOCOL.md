@@ -119,6 +119,8 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
   `notifications.expanded.header`, `quick.tiles`, `lock.aside`. A mod face (`island-face:<name>`) appears in
   `runtime.island.main.faces` like a core face; the `mods` doc `qml` map names `island-face:<name>` →
   `qml/Face.qml` and `island-face:<name>:expanded` → `qml/FaceExpanded.qml`.
+  Order (row 396): `mods[].provides` keeps the manifest's order; the `qml` map's keys are sorted and carry none, so a
+  consumer that lists a mod's contributions (the desk's cards) orders them by `provides`.
 - **Choices from the daemon (I9)**: a `schema.settings` row whose key declares
   `#[kurashi(choices_from = "<source>")]` carries `choices_from` and the resolved
   `choices: [{value, label, enabled?, reason?, group?}]` (`group`: a style's or look's category, K53) (`enabled:false` + `reason` (i18n key) for an option that
