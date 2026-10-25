@@ -133,6 +133,8 @@ for CASE in $MORPH_CASES; do
   check "$([ "$got" = "$PROFILE" ] && echo 1 || echo 0)" "$LOOK the motion profile in effect is $PROFILE ($got)"
   crop="880,0 800x720"
   [ "$EDGE" = bottom ] && crop="880,720 800x720"
+  # A side bar leaves no top or bottom bar, so the stack stands at the top right of the output (Toasts.qml, no drip).
+  case "$EDGE" in left|right) crop="1280,0 1280x720" ;; esac
   base=$OUT/toast-$LOOK-$PROFILE-$EDGE
   # A first toast and its dismissal: the first of a fresh shell also loads what the cards need.
   id=$(notify Warmup "Warming up" "…" 8000)
@@ -173,7 +175,20 @@ for CASE in $MORPH_CASES; do
   read -r cid ctop ch <<< "$(grep -oE 'toast-card [0-9]+ [0-9]+ [0-9]+' "$R/qs.case.log" | tail -1 | cut -d' ' -f2-)"
   cy=$(( ctop + pad + 12 ))
   [ "$EDGE" = bottom ] && cy=$(( 1440 - ctop - ch + pad + 12 ))
-  burst "$base-flick" "800 900" "$crop" timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click $(( 1280 + 170 - pad - 12 )) "$cy" left
+  cx=$(( 1280 + 170 - pad - 12 ))
+  if [ "$EDGE" = left ] || [ "$EDGE" = right ]; then
+    # A side bar's window is anchored top right, with the gap (less the soft shade) as its margins (Toasts.qml: topInset,
+    # rightInset = the bar's height + 4 at the right edge, else the gap). The card's right edge lies rightInset + the hard
+    # shadow in from the output's edge; the log's top is the window's, so the top margin is added.
+    tk=$(K sub theme --count 0 --json)
+    tok() { echo "$tk" | jq -r --arg k "$1" --arg d "$2" '(.data.tokens[$k]) // ($d | tonumber) | floor'; }
+    gp=$(tok space.sm 8); sh=$(tok chrome.soft 0); sd=$(tok chrome.shadow 0); bh=$(tok bar.height 36)
+    ri=$gp; [ "$EDGE" = right ] && ri=$(( bh + 4 ))
+    cx=$(( 2560 - ri - sd - pad - 12 ))
+    [ "$sh" -lt "$gp" ] && top_m=$(( gp - sh )) || top_m=0
+    cy=$(( top_m + ctop + pad + 12 ))
+  fi
+  burst "$base-flick" "800 900" "$crop" timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$cx" "$cy" left
   sleep 1
   check "$(K sub svc.notifications --count 0 --json | jq -e '.data.toasts | length == 0' >/dev/null && echo 1 || echo 0)" "$LOOK $PROFILE $EDGE: the close control dismissed the last toast"
 
