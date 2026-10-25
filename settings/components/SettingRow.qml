@@ -204,6 +204,13 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: r.row.control === "toggle" ? 40
                         : (r.cards || r.picker !== null ? slot.width : (r.wide ? Math.min(slot.width, 360) : ctl.implicitWidth))
+                    // A picker shared by many rows (the shortcut recorder, K64) learns its row's key, and its links open
+                    // rows as the reasons' do.
+                    onLoaded: {
+                        if (r.picker === null || !item) return
+                        if (item.rowKey !== undefined) item.rowKey = Qt.binding(function () { return r.rowKey })
+                        if (item.openKey !== undefined) item.openKey.connect(r.openKey)
+                    }
                     sourceComponent: {
                         if (r.picker !== null) return r.picker
                         switch (r.row.control) {

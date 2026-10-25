@@ -150,6 +150,7 @@ async fn run() -> anyhow::Result<()> {
                     }
                 };
             kurashid::theme::register(&hub, &store, fonts);
+            kurashid::keys::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
             Some(store)
         }
         None => {
