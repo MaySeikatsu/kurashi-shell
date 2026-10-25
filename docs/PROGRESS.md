@@ -247,6 +247,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W36.3 | Supervisor waits for bus names, island system events, Settings by page, free lists (card `W36-core`; K65; I17, I18, I40, I54) | ✅ functional · UX ✅ (`settings/shots/freelist-*`) | merged |
 | W36.4 | Desk cards: hide, titles, order (card `W36-desk`; I136, I119) | ✅ functional · UX ✅ (`frontend/shots/desk/`; I196 open) | merged |
 | W37.1 | The material in ghostty: a generated custom shader (card `W37-ghostty`; I174) | ✅ functional · UX ✅ (`tools/shots/ghostty/`; GPU cost unmeasured, I202) | merged |
-| W37.2 | Daemon follow-ups: island face, forced services, polkit refusal, launcher icons, Settings links, no-bus wait (card `W37-daemon`; K66; I198, I200) | 🟡 in progress | agent running |
+| W37.2 | Daemon follow-ups: island face, forced services, polkit refusal, launcher icons, Settings links, no-bus wait (card `W37-daemon`; K66; I198, I200) | ✅ functional · UX ✅ (`shots/launcher/w26/icons-*`) | merged |
 | W37.3 | Calendar: widget opens the agenda, event details, the agenda's day (card `W37-calendar`; K66; I140) | ✅ functional · UX 🟡 (media-current click unshot, I203) | merged |
 | W37.4 | Quick settings: tile tokens, right-click → page, focus, lighter panel (card `W37-quick`; K66; I86) | ✅ functional · UX ✅ (`frontend/shots/quick-sections/`; I204 open) | merged |

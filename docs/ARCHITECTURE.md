@@ -58,6 +58,10 @@ The result carries `{value, source, forced_by?, reason?}`. Removing a user key r
 resolution (it never "sticks"). Couplings (`requires`, `capability`, `overridden_by`) are schema
 data, evaluated in the daemon — never `&&` chains in renderers.
 
+**Services and absent buses** (I17, I200): a stock service follows its bus name itself (`NameOwnerChanged`), so a
+missing BlueZ/UPower never fails it; a service whose bus *socket* is absent waits for the file (inotify on the deepest
+existing directory, safety cap 30 min, no wakeups), and a socket nobody answers on backs off to 10 min.
+
 **Transactions**: every mutation is `apply(batch)`; validated atomically; recorded on a global
 undo stack (bounded); profile loads are a single transaction with a diff preview.
 
