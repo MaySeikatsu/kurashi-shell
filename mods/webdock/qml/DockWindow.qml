@@ -43,6 +43,8 @@ PanelWindow {
     readonly property int largePct: geo.large || 90
     readonly property bool large: d.size === "large"
     readonly property bool pinned: d.pinned === true
+    // I91: the settings the configuration forces, each with its source (`forced` on mod.webdock; absent when none is).
+    readonly property var forced: d.forced || ({})
     readonly property bool reserve: d.reserve === true
     readonly property bool wantFocus: d.engaged === true && open
 
@@ -274,7 +276,8 @@ PanelWindow {
                 rows: dock.rowList
                 shownId: dock.shownId
                 pinned: dock.pinned
-                pinForced: false
+                pinForced: forced.pinned !== undefined && forced.pinned !== null
+                pinForcedBy: String(forced.pinned || "")
                 panelOpen: dock.panelUp
                 onPinSelected: id => dock.send("webdock.select", { pin: id, output: dock.outName })
                 onPinMenu: id => { dock.menuId = id; dock.sideOwner = id; dock.side = "menu" }
