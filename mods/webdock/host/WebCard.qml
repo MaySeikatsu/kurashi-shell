@@ -55,19 +55,20 @@ PanelWindow {
         function onWidthChanged() { card.availW = Math.round(area.Window.width) }
         function onHeightChanged() { card.availH = Math.round(area.Window.height) }
     }
-    // The height the card is sized by: the usable height (the window, on a side). On a top or bottom edge the window has
-    // the card's height, so the output's height stands in for it (a top bar there is not seen: a known gap).
-    readonly property real basisH: sideways ? availH : screenH
+    // The height the card is sized by: the usable height the window is stretched to. A top or bottom edge's window spans
+    // the usable area across the edge too (anchored to all four sides, below), so a bar on that axis is kept clear (I100).
+    readonly property real basisH: availH
     // Phone: `width` wide, as tall as twice that or the usable height allows, less a gap at each end (the lead's rule);
     // large: `large` % of the output's width, the usable height less a gap at each end.
     // The phone look: the phone size drawn as a phone (the large size is a plain card).
     readonly property bool phoneLook: !isLarge
-    readonly property int cardW: isLarge ? Math.round(screenW * largePct / 100) : phoneWidth
+    readonly property int cardW: isLarge ? Math.round((sideways ? screenW : availW) * largePct / 100) : phoneWidth
     readonly property int cardH: Math.max(0, Math.round(isLarge ? basisH - 2 * gap : Math.min(2 * phoneWidth, basisH - 2 * gap)))
     // Where the card is in the window: a card on the right has its margin on its left (the window is card + margin wide),
     // one on the left on its right; a card on a top or bottom edge is centred across the usable width.
     readonly property int cardX: sideways ? (edge === "right" ? grace : 0) : Math.max(0, Math.round((availW - cardW) / 2))
-    readonly property int cardY: edge === "top" ? 0 : edge === "bottom" ? grace
+    // A bottom card stands against the strip: the window ends at the strip, so the card's top gap is what is left over.
+    readonly property int cardY: edge === "top" ? 0 : edge === "bottom" ? Math.max(0, availH - cardH)
         : (isLarge ? gap : Math.max(0, Math.round((availH - cardH) / 2)))
     // The input: the card plus `grace` on each side but the strip's (a margin over the strip would take its clicks). The
     // window's mask takes input here only; the rest of the usable area is the desktop's.
@@ -231,14 +232,14 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
-    // The window spans the card and its margin along the edge, and the usable area of the output across it: anchored to
-    // the edge's two ends (the compositor stretches it), with exclusiveZone 0 (kept clear of a top bar, reserving nothing;
-    // the default reserved the implicit size, 300 px, on the edge in the probe). A window of zero size is dropped by
-    // Quickshell, so the other axis is the card's size, not 0.
+    // The window spans the usable area of the output: anchored to all four sides, so the compositor stretches it between
+    // the bars, along a side edge's length and, on a top or bottom edge, across the usable width and height (I100).
+    // exclusiveZone 0 keeps it clear of a bar without reserving anything (the default reserved the implicit size, 300 px,
+    // on the edge in the probe). The margin of `strip` on the dock's own side keeps the card off the strip.
     exclusiveZone: 0
     color: "transparent"
-    anchors.top: edge !== "bottom"
-    anchors.bottom: edge === "bottom" || sideways
+    anchors.top: true
+    anchors.bottom: true
     anchors.left: edge === "left" || !sideways
     anchors.right: edge === "right" || !sideways
     margins.top: edge === "top" ? strip : 0
