@@ -39,6 +39,87 @@ baseline.
 
 ## Results
 
+### 2026-10-25 — W42 memory: the image plugins the shell draws, two jemalloc arenas; the launcher window stays (machine A; K68, I194, I11)
+"Before" is `8598d57b`'s frontend (`git archive`), "after" this branch; both against one real `kurashid` (release, this branch,
+from the card's own target dir via the new `KURASHI_BIN_DIR`), headless sway gles2, one 2560×1440 output, sandboxes
+`w42-memory-*`. Every table is interleaved runs in one invocation (variant by variant, round by round); the 1-minute load was
+4–20 (the user's session), so no `--max-load`. **Absolute PSS is lower today than in W41** (before reads 123–139 MiB @1 output
+against W41's 152–158): which other processes map the same Qt and driver files moves PSS by tens of MiB (I211); compare the pairs,
+and files by RSS (`*_rss_by`).
+
+**What was found.** (1) Qt maps every image format plugin it can find as soon as it probes an image by its content, and a NixOS
+session hands it the system profile's: kimageformats with libheif, x265, libde265, OpenEXR, libraw, libjxl, libavif, libaom, dav1d,
+and qtimageformats (tiff, jasper, mng, …) — 9.9 MiB resident. They come **two ways**: `QT_PLUGIN_PATH` and nixpkgs' Qt patch that
+adds `<entry>/../lib/qt-6/plugins` for every `PATH` entry (`/run/current-system/sw/bin` → `/run/current-system/sw/lib/qt-6/plugins`;
+`QT_DEBUG_PLUGINS=1` shows the dir searched after `QT_PLUGIN_PATH` no longer names it). Putting a filtered dir first would not
+help — Qt merges every dir it is given — so `frontend/launch.sh` *replaces* each such dir by a copy made of symlinks under
+`$XDG_RUNTIME_DIR/kurashi/qt-plugins-<pid>` whose `imageformats/` keeps svg, jpeg, webp and gif (png, bmp, xpm are built into Qt;
+quickshell's own plugin dirs keep ico); a `PATH` entry becomes `<farm>/b<n>/bin`, a link to the same dir, so commands still resolve
+and the patch's lexical `../lib/qt-6/plugins` lands in the copy. Wallpapers: kurashi-mod-wallpaper lists png jpg jpeg webp gif bmp
+(`library.rs` EXTENSIONS, `wallhaven.rs`), so AVIF/HEIF/JXL are never offered and are dropped; `KURASHI_IMAGE_FORMATS` adds formats
+back (`… avif` keeps `kimg_avif.so`), `all` turns the filter off. (2) Quickshell links **jemalloc**: 48 arenas on 12 cores, no
+background purging, 10 s dirty decay that only runs when an arena allocates again — an idle window's render thread (I11) keeps its
+freed pages. `MALLOC_CONF=narenas:2` (set by launch.sh unless the user sets their own) is the larger cut.
+
+**Each option on its own (pass a, `--idle 10 --cycles 0`, three interleaved rounds, @1 output; MiB).**
+
+| variant | PSS | USS | RSS lib | RSS anon |
+|---|---|---|---|---|
+| before | 136.3 / 138.6 / 123.4 | 108.8 / 107.1 / 96.5 | 115.3 / 115.5 / 115.5 | 83.5 / 92.3 / 72.5 |
+| image plugins filtered | 124.4 / 126.8 / 126.0 | 97.8 / 100.1 / 99.3 | **105.5 / 105.6 / 105.6** | 84.9 / 82.8 / 84.8 |
+| launcher window made on first open, kept | 124.8 / 137.1 / 130.3 | 93.9 / 110.3 / 103.7 | 115.3 / 115.5 / 115.5 | 80.5 / 87.1 / 80.5 |
+| `MALLOC_CONF=narenas:2` | 115.1 / 118.4 / 111.4 | 88.3 / 92.1 / 91.9 | 115.2 / 115.4 / 115.5 | **64.4 / 67.0 / 68.2** |
+| `narenas:2,dirty_decay_ms:1000` | 118.8 / 116.5 / 98.5 | 92.0 / 90.4 / 78.5 | 115.4 / 115.4 / 115.6 | 63.9 / 64.5 / 68.1 |
+
+The plugin filter is −9.9 MiB RSS of libraries, the same in every run; two arenas −15…−20 MiB anonymous; a faster decay adds
+nothing over two arenas (not kept). The lazy launcher saves ~3 MiB anonymous, inside the spread.
+
+**Launcher first open** (`measure.py --passes b --popup-action launcher.toggle --popup-window kurashi-launcher`: action → the
+launcher window's first commit; the first round is the shell's first launcher open; ms, three interleaved rounds).
+
+| variant | first open | median of 5 |
+|---|---|---|
+| before | 7.9 / 7.9 / 6.0 | 5.3 / 5.3 / 4.6 |
+| plugins + two arenas | 7.6 / 7.5 / 8.1 | 4.7 / 6.0 / 5.4 |
+| plugins + two arenas + launcher made on first open | **13.8 / 17.0 / 24.3** | 4.6 / 6.4 / 6.2 |
+
+Making the window on first open costs its first open +6…+17 ms (QML instantiation, a new layer surface and GL context before the
+first commit); the card's bar is "no worse", so the launcher window **stays persistent** (K16) and its ~3 MiB was not taken.
+test-launcher.sh's cold-open check (`bar-morph frame` gaps from the open) would not have seen this: its clock starts once the
+window exists. The Stage cannot be made lazily either: it also carries the hover peeks and the island's first frame (≤ 16.7 ms).
+
+**K16's leak re-measured** (the launcher made per open and released once folded back, against the kept window; both with plugins +
+two arenas; pass a with the 20 + 20 cycle test, three interleaved rounds): growth +16.9 / −28.6 / +7.3 MiB per open-made window
+against −6.8 / +1.8 / +2.2 kept. The per-open window scatters three to four times wider; with the row's own scatter (W35, W41)
+this neither proves nor clears a leak, and nothing here argues for re-made windows. "One window for Launcher and Stage" was not
+built: the launcher's exclusive keyboard focus against the Stage's, two morph owners in one window — a large change for at most the
+~3.5 MiB of one window (W39), which the budget no longer needs.
+
+**Acceptance: the gate (`measure.py --daemon real`, default passes abc and the 20-cycle test, `budget.py`), two interleaved pairs.**
+
+| metric | before r1 / r2 | after r1 / r2 | budget |
+|---|---|---|---|
+| PSS frontend @1 output (MiB; USS) | 126.3 (102.3) / 123.8 (98.9) | **110.4 (84.6) / 107.1 (80.1)** | ≤ 150 ✔ (card: ≤ 148) |
+| RSS lib / anon @1 output (MiB) | 115.6 / 86.6, 115.9 / 84.1 | 105.8 / 67.5, 105.9 / 63.5 | — |
+| PSS per extra output (MiB, mean of 2) | +1.0 / +0.2 | −0.8 / +2.5 | ≤ +6 ✔ |
+| popup input → first commit (ms, median of 5) | 18.6 / 16.8 | 17.3 / 16.1 | ≤ 16.7 (both sides at the line under load) |
+| popup daemon patch → first commit (ms) | 14.0 / 14.4 | 14.4 / 13.5 | — |
+| island morph: commits, frame p50 / p99 (ms) | 38, 16.6 / 22.4 · 40, 16.3 / 18.2 | 40, 16.4 / 18.6 · 40, 16.3 / 18.4 | — |
+| PSS growth, 20 cycles (MiB) | +7.96 / −0.76 | +9.64 / −0.22 | ≤ 2 (scatters both sides, W35) |
+| idle frames, 30 s (fps) | 0 / 0.67 (the minute flip at 16:52:00) | 0 / 0 | ≤ 1 ✔ |
+| idle CPU, daemon + frontend (%) | 0 / 0.1 | 0.53 / 0 (load 10 in r1) | < 0.5 |
+| mapped surfaces, idle | 3 / 3 | 3 / 3 | ≤ 4 ✔ |
+
+Pair for pair the bare shell is **−16 MiB PSS / −18 MiB USS** at one output; on W41's day that would read ~136 MiB. The popup and
+morph rows do not move (the popup's first commit sits at the 16.7 ms line on both sides at load 5–10; W41 read 14.9–15.9 quieter).
+**Start-up:** launch.sh takes 60–66 ms before the exec instead of 10 (a few `mkdir`/`ln` per plugin dir; a first version with one
+`ln` per entry took 520–640 ms and was rewritten), once per session.
+
+**Large and not shell-owned (per-path `--smaps-dump`, before, @1 output):** the NVIDIA driver (libnvidia-gpucomp 10.3 MiB,
+eglcore 5.3), Qt (Qml 4.8, Quick 4.3, Gui 2.3, Widgets 2.2 — quickshell links Widgets), the QML GC heap 3.0, Inter.ttc 3.0, and
+fontconfig's serif fallbacks NotoSerif 0.8 and FreeSerif 0.7 (some text asks for a family fontconfig resolves to a serif); the
+user's qt6ct platform theme and fcitx5 input context ~0.5. Not changed.
+
 ### 2026-10-25 — W41 icons: the subset installed and preferred, a per-name fallback, the grain memoised (machine A; I194, I199, rows 445–447)
 "Before" is `caa335c8` (this branch's start: its daemon and frontend), "after" this branch. Real `kurashid` (release) and the frontend
 in a headless sway sandbox (gles2, one 2560×1440 output, sandboxes `w41-icons-*`); paired runs back to back.
