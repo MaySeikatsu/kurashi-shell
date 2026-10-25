@@ -219,4 +219,6 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
     keeps the system faces; a list change applies at once; the default face falls back; system events not hidden.
   - [x] mock: the island steps through its faces only; `island.expand` refuses a face the list leaves out.
   - [ ] Settings adds an unlisted face: blocked on row 450 (config.rs offers).
+  - [ ] Power and Bluetooth are not offered as choices: they are exempt (K65), so unchecking them does nothing. config.rs
+    `TRANSIENT_FACES` lists only volume and brightness; it should list the four system faces (lead, one line).
   - [ ] screenshots of the faces control in its states: not taken (no sandbox run in this card).
