@@ -297,6 +297,18 @@ click() { echo "click $1 $2 ${3:-left}" >&3; sleep 0.9; }
 # press <key tokens...>: tab, return, escape, down, space, or a character token. The virtual keyboard takes about 0.3 s a key,
 # so the pause grows with the tokens: a later pointer click or key must not overtake them.
 press() { echo "$*" >&4; sleep "$(awk -v n="$#" 'BEGIN { print 0.5 + 0.3 * n }')"; }
+# focus_to <name>: Tab until the card reports that control has the focus (KURASHI_WEBDOCK_DEBUG=1 logs each focus change), at
+# most 12 presses. It counts the reports, so an earlier visit to the same control does not count.
+focus_to() {
+  local before after i
+  before=$(grep -c -F "webdock-debug focus $1" "$R/qs.log" || true)
+  for i in $(seq 1 12); do
+    press tab
+    after=$(grep -c -F "webdock-debug focus $1" "$R/qs.log" || true)
+    [ "$after" -gt "$before" ] && return 0
+  done
+  return 1
+}
 drv() { timeout 10 python3 -I "$W/drive.py" "$@"; }
 setdoc() { drv act mock.webdock "$1" > /dev/null || fail "mock.webdock refused: $1"; }
 seen() { timeout 10 python3 -I "$W/seen.py" "$1"; }
@@ -403,7 +415,7 @@ phase_intents() {
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
-  start_frontend
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
   setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
   start_input
   sleep 1
@@ -459,14 +471,19 @@ phase_intents() {
   check "$r" "menu: Move up (the first enabled) restores the order"
   setdoc '{"mode":"compact","shown":null,"size":"phone"}'; sleep 1.2
   click 2531 701
-  press tab tab return
+  # Tab walks the view's own controls first (Refresh, Places, the settings), then the header's size and collapse (I90).
+  focus_to Large && r=1 || r=0
+  check "$r" "card: Tab reaches the size button (Large) after the view's controls"
+  press return
   seen "i['action']=='webdock.size' and i['args']['size']=='large'" && r=1 || r=0
-  check "$r" "card: Tab reaches the size button, Return sends webdock.size large"
+  check "$r" "card: Return on the size button sends webdock.size large"
   docq "d.get('size')=='large'" && r=1 || r=0
   check "$r" "size: the mock makes the card large"
-  press tab return
+  focus_to Collapse && r=1 || r=0
+  check "$r" "card: Tab reaches the collapse button (Collapse)"
+  press return
   seen "i['action']=='webdock.collapse'" && r=1 || r=0
-  check "$r" "card: Tab reaches the collapse button, Return sends webdock.collapse"
+  check "$r" "card: Return on the collapse button sends webdock.collapse"
   docq "d['mode']=='compact' and d.get('shown') is None" && r=1 || r=0
   check "$r" "collapse: the mock puts the card away"
   click 2531 701 right
@@ -512,6 +529,46 @@ phase_focus() {
   check "$r" "focus: Tab from the card reaches the view's own control (Places)"
   grep -q -F 'webdock-debug focus Large' "$R/qs.log" && r=1 || r=0
   check "$r" "focus: Tab cycles back to the header's size control (Large)"
+  stop_phase
+}
+
+# ---- keys: a keybind reveal (the daemon's toggle: the mode and `engaged` together) takes the keyboard at once (I98) ----
+phase_keys() {
+  echo "== phase keys: the first keys after a keybind reveal reach the dock"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); print(json.dumps(d))" "$BASE" "$PINS2")"
+  start_input
+  sleep 2
+  # The first key after the reveal, at 0, 50, 100 and 150 ms after it: Return opens the first pin when it reaches the strip.
+  mail_selects() {  # the webdock.select intents for the mail pin so far (the log exists once the first intent arrived)
+    python3 -I -c "import json,os,sys
+n = 0
+if os.path.exists(sys.argv[1]):
+    for line in open(sys.argv[1]):
+        i = json.loads(line)
+        n += i.get('action') == 'webdock.select' and i.get('args', {}).get('pin') == 'mail'
+print(n)" "$INTENTS"
+  }
+  for ms in 0 50 100 150; do
+    setdoc '{"mode":"hidden","engaged":false}'
+    sleep 1
+    before=$(mail_selects)
+    setdoc '{"mode":"compact","engaged":true}'
+    [ "$ms" = 0 ] || sleep "$(awk -v m="$ms" 'BEGIN { print m / 1000 }')"
+    press return
+    sleep 0.3
+    after=$(mail_selects)
+    r=0; [ "$after" -gt "$before" ] && r=1
+    if [ "$ms" = 0 ]; then
+      # A key sent at once can beat the frontend's handling of the reveal (the daemon's doc arrives after it): a residual, not counted.
+      echo "note: Return 0 ms after the reveal: $([ "$r" = 1 ] && echo reached || echo lost) (the reveal reaches the frontend after the key; residual, I98)"
+    else
+      check "$r" "keybind reveal: Return $ms ms after the reveal reaches the strip (the first pin opens) (I98)"
+    fi
+  done
   stop_phase
 }
 
@@ -637,6 +694,7 @@ phase_measure() {
 want states && phase_states
 want intents && phase_intents
 want focus && phase_focus
+want keys && phase_keys
 want large && phase_large
 want ja && phase_ja
 want measure && phase_measure

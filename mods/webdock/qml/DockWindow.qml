@@ -106,7 +106,7 @@ PanelWindow {
     // The content held while a panel slides out (it stays until the slide ends, then unloads: Ma).
     property string held: ""
     onKindNowChanged: if (kindNow !== "") held = kindNow
-    onOpenChanged: if (!open) side = ""
+    onOpenChanged: { if (!open) side = ""; else pulseSpent = false }
     readonly property string kind: open ? kindNow : held
 
     // ---- geometry: WebCard's sizes (phone, large) and the strip's centred span, in the window's usable height ----
@@ -180,7 +180,7 @@ PanelWindow {
     exclusiveZone: reserve && pinned && open ? stripPx : 0
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "kurashi-webdock-shell"
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: !open ? WlrKeyboardFocus.None : (asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand)
     mask: open ? activeRegion : emptyRegion
 
     Region { id: emptyRegion }
@@ -218,10 +218,31 @@ PanelWindow {
         if (panelUp && panelLoader.item) panelLoader.item.forceActiveFocus()
         else stripItem.focusFirst()
     }
+    // I98: a keybind reveal (`engaged`, with the mode) asks for the keyboard exclusively until the compositor has given the
+    // window the focus, then relaxes to on-demand, so a click elsewhere still moves the focus. An on-demand surface takes
+    // the focus only on a click, so the first keys after the reveal went to the window that had it. A pulse nobody answers
+    // is dropped after a second; it is spent once the window has been active in this reveal, so a click elsewhere is never
+    // taken back. The host card runs the same rule for a web pin (WebCard) while it is the front part.
+    property bool winActive: false
+    property bool pulseSpent: false
+    readonly property bool hostFront: extended && shownPin !== null && shownPin.kind === "web" && hostState === "ready"
+    readonly property bool asksKeys: open && wantFocus && !winActive && !pulseSpent && !hostFront
+    onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
+    Timer { id: pulseTimer; interval: 1000; onTriggered: dock.pulseSpent = true }
 
     FocusScope {
         id: scope
         anchors.fill: parent
+
+        // The window's keyboard focus as the compositor gives it (`Window.active`): the front part takes it at once, so a
+        // key that follows the grant does not wait for the next turn of the event loop (I98).
+        Item {
+            Window.onActiveChanged: {
+                dock.winActive = Window.active
+                if (Window.active) dock.pulseSpent = true
+                if (Window.active && dock.wantFocus) dock.focusFront()
+            }
+        }
 
         // The strip: slides in from the edge (reduced motion: fades). Its panel is the bar's surface, rounded.
         Box {
