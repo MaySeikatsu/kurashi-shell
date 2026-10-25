@@ -1,5 +1,5 @@
 # App dock — UX brief (K51, card W25-dock)
-Status: v1 built (W25-dock). Shots `frontend/shots/dock/<decor>/*.png`; test `frontend/test-dock.sh`.
+Status: v1 built (W25-dock); W36-bar: urgent, pin reorder by drag, shared-edge reveal, icon chain (I137). Shots `frontend/shots/dock/<decor>/*.png`; test `frontend/test-dock.sh`.
 
 ## Job
 Start the apps you keep and get back to the ones that run, from one edge, without a bar's window list per workspace.
@@ -31,9 +31,12 @@ the truth about what runs (a dot per window, the focused one lit; an app without
 - Per output while `dock.enabled` there; `dock.edge` bottom | left | right. Pinned (`dock.pinned`, desktop ids) in
   order, then — while `dock.show_running` — running apps that are not pinned, in first-window order. A thin rule
   separates the two groups when both exist.
-- Windows from `svc.workspaces.windows` (every window, `{id, app_id, workspace, output, focused}`), grouped by app:
-  an app's desktop entry is `DesktopEntries.heuristicLookup(app_id)` (the bar's lookup); a pinned id matches a window
-  whose entry id or app id equals it (case-insensitive).
+- Windows from `svc.workspaces.windows` (every window, `{id, app_id, workspace, output, focused, urgent}`), grouped by
+  app: an app's desktop entry is `DesktopEntries.heuristicLookup(app_id)`, then an entry whose `StartupWMClass` equals
+  the app id (case-insensitive; `components/bar/appicon.js`, shared with the bar's window list); a pinned id matches a
+  window whose entry id or app id equals it (case-insensitive). The icon: the entry's, else one named after the app id
+  (as is, lower case, the last part of a reverse-DNS id), else the first letter; a window without app id gets a
+  generic window symbol.
 - Tile = a `Block` (decor chrome: keycap tiles, soft glass pill, line boxes) of `dock.icon_size`; the dock body is a
   Block too. Under each tile: one dot per window (max 4), the focused one in the accent and wider (focus not by colour
   alone). Hover: the tile lifts (a light fill); with `Theme.springOn` the icon magnifies 1.15 with the theme spring.
@@ -46,7 +49,14 @@ the truth about what runs (a dot per window, the focused one lit; an app without
   each). A press outside or Escape closes it; a left click on the dock while it is open only closes it. A rejected write
   changes nothing in the dock (no optimistic pin, Shōjiki) and the menu shows `dock.error.write` — once Store passes an
   `err` reply to an `apply` callback (it drops it today; backlog).
-- Autohide (`dock.autohide`): a 4 px edge window (2 px input zone) along the edge; a rest of 250 ms reveals, the dock
+- Reorder (W36): a pinned tile dragged along the dock lands among the pins (an accent bar marks the place); the drop is
+  one `cfg.apply` of `dock.pinned` in the new order; the tiles move when the config answers (a refused write changes
+  nothing); inert while the list is forced. Running tiles do not drag.
+- Urgent (W36): when a window of the app starts asking for attention the tile hops three times (up from a bottom dock,
+  inward from a side one; ≈ 1 s), then keeps a dot in the warning colour on its corner until no window asks;
+  "needs attention" in the tile's description. Reduced motion (`motion.spring.on` false) or a hidden dock: the dot alone.
+- Autohide (`dock.autohide`): a 4 px edge window (2 px input zone) along the edge; a rest of 250 ms reveals (500 ms on
+  an edge another output touches: the pointer crosses it on its way there, W36), the dock
   hides 400 ms after the pointer left the edge, the dock and the menu. Also shown while the output's active workspace
   is empty (ii) and while its menu is open. Exclusive zone only when autohide is off.
 - Layer `top`: a fullscreen window covers it (niri and sway draw fullscreen over the top layer), so it never covers
@@ -60,7 +70,8 @@ the truth about what runs (a dot per window, the focused one lit; an app without
 | empty (nothing pinned, nothing runs) | a small body with one hint tile ("Right-click an app to keep it here") — never a 0-px dock |
 | only pinned | the pinned tiles, no dots, no separator |
 | many apps | tiles shrink to fit the output (min 24 px), past that the list scrolls (wheel) inside the body |
-| urgent window | not in the document yet (CONTRACT-CHANGE row 160 asks for `urgent`); no faked state |
+| urgent window | the hop, then the steady dot (row 390: `urgent` per window) |
+| reorder | the dragged tile follows the pointer along the dock, an accent bar marks where it lands |
 | no desktop entry | the app id's first letter on the tile, the app id as the name; Pin is offered (a desktop id may exist) |
 | daemon away | last state, dimmed (`Theme.staleOpacity`), clicks refused by Store |
 | multi-output | one dock per output where enabled; each shows every app (the windows of all outputs), like macOS/Windows |
@@ -81,5 +92,5 @@ and kept (unmapped while hidden). Measured (`DOCK_MEASURE=1 frontend/test-dock.s
 first show. The tooltip and the menu exist only while shown.
 
 ## Later (backlog)
-Drag to reorder pins (DMS long-press drag), window previews in the tooltip (needs screencopy per window), urgent
-bounce (needs `urgent`), a launcher tile, per-output "only this output's windows", focus key.
+Window previews in the tooltip (needs screencopy per window), a launcher tile, per-output "only this output's
+windows", focus key; pin reorder by keyboard (the menu could offer "Move left/right").
