@@ -10,7 +10,8 @@
 # Fails on any shot that differs strongly (a channel off by > 64) outside clock-sized clusters (the minute may turn
 # between the runs); faint scattered differences (text and blur rasterisation) are reported, not failed.
 # IDENTITY_SCENARIOS limits the scenarios (names below); IDENTITY_OUT keeps the shots (default: the sandbox, removed);
-# IDENTITY_KEY_X/Y: where the held key is (the Close key of the default card at 2560×1440).
+# IDENTITY_KEY_X/Y: where the held key is (the Close key of the default card at 2560×1440); IDENTITY_NEW_ENV: ENV=VALUE
+# words for the new frontend only (e.g. FONTCONFIG_FILE=… to compare an icon font).
 # Binaries from $KURASHI_BIN_DIR, else $CARGO_TARGET_DIR/release.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -78,10 +79,11 @@ time.sleep(secs)
 p.send(p.pointer, 2, struct.pack("<III", wp.ms(), wp.BUTTONS["left"], 0)); p.send(p.pointer, 4); p.settle()
 PY
 
-start_frontend() {  # start_frontend <frontend dir>
+start_frontend() {  # start_frontend <frontend dir> [ENV=VALUE …]
   if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; fi
   local n0; n0=$(grep -c 'hello.*frontend' "$R/server.log" || true)
-  env -u KURASHI_SOCKET qs -p "$1" >> "$R/qs.log" 2>&1 &
+  local dir=$1; shift
+  env -u KURASHI_SOCKET "$@" qs -p "$dir" >> "$R/qs.log" 2>&1 &
   QS_PID=$!; pids+=("$QS_PID")
   for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] && break; sleep 0.1; done
   [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] || fail "frontend $1 never said hello (see $R/qs.log)"
@@ -94,8 +96,8 @@ open_shot() {  # open_shot <action> <geometry> <file> [settle]
   K act ui.close >/dev/null 2>&1 || true
   sleep 1.2
 }
-shots() {  # shots <frontend dir> <tag> <scenario>: one frontend, started fresh on the look already set
-  start_frontend "$1"
+shots() {  # shots <frontend dir> <tag> <scenario> [ENV=VALUE …]: one frontend, started fresh on the look already set
+  start_frontend "$1" "${@:4}"
   grim -g "0,0 2560x52" "$OUT/$2-$3-bar.png"
   open_shot island.expand "860,0 840x620" "$OUT/$2-$3-card.png"
   open_shot quick.toggle "1040,0 1520x900" "$OUT/$2-$3-quick.png"
@@ -129,7 +131,8 @@ for sc in "${SCENARIOS[@]}"; do
     K set $args theme.motion.profile=calm >/dev/null || fail "kurashi set $args refused"
     sleep 1
     shots "$REF" ref "$n"
-    shots "$NEW" new "$n"
+    # shellcheck disable=SC2086
+    shots "$NEW" new "$n" ${IDENTITY_NEW_ENV:-}
     [ "$(date +%H%M)" = "$m0" ] && break
     say "$n: the minute turned during the pair (try $try)"
   done
