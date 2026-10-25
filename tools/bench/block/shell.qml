@@ -1,10 +1,10 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../../frontend/core"
-import "../../../frontend/components"
+import "frontend/core"
+import "frontend/components"
 
-// W39-block: what a Block costs. A Quickshell config that `tools/bench/block.sh` runs against the real kurashid in a
+// W39-block: what a Block costs. A Quickshell config that `tools/bench/block.sh` copies next to a frontend dir and runs against the real kurashid in a
 // sandbox. Once the theme document is in, it makes BLOCK_N quick-tile pairs (a pill Block with a badge Block inside, as
 // QuickTile has) BLOCK_ROUNDS times and logs each round's creation time; then it holds BLOCK_HOLD pairs and logs marks for
 // the outer script's PSS readings. Every line it logs starts with "BLOCKBENCH".

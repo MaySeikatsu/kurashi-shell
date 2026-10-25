@@ -45,15 +45,15 @@ i=0
 for fe in "${FRONTENDS[@]}"; do
   i=$((i + 1))
   H=$W/h$i
-  rm -rf "$H"; mkdir -p "$H/tools/bench/block"
-  cp "$ROOT/tools/bench/block/shell.qml" "$H/tools/bench/block/"
+  rm -rf "$H"; mkdir -p "$H"
+  cp "$ROOT/tools/bench/block/shell.qml" "$H/"
   cp -r "$fe" "$H/frontend"
   for look in $LOOKS; do
     K set theme.style="$look" >/dev/null || fail "theme.style=$look refused"
     K set theme.motion.profile=calm >/dev/null || true
     sleep 1
     log=$W/qs-$i-$look.log
-    env -u KURASHI_SOCKET KURASHI_SOCKET="$KURASHI_SOCKET" qs -p "$H/tools/bench/block" > "$log" 2>&1 &
+    env -u KURASHI_SOCKET KURASHI_SOCKET="$KURASHI_SOCKET" qs -p "$H" > "$log" 2>&1 &
     qs=$!
     pids+=("$qs")
     empty= held=

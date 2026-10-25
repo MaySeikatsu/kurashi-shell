@@ -9,7 +9,8 @@
 # e.g. `git archive HEAD frontend | tar -x -C /tmp/ref` for the ref. Pass the ref twice for the noise floor.
 # Fails on any shot that differs strongly (a channel off by > 64) outside clock-sized clusters (the minute may turn
 # between the runs); faint scattered differences (text and blur rasterisation) are reported, not failed.
-# IDENTITY_SCENARIOS limits the scenarios (names below); IDENTITY_OUT keeps the shots (default: the sandbox, removed).
+# IDENTITY_SCENARIOS limits the scenarios (names below); IDENTITY_OUT keeps the shots (default: the sandbox, removed);
+# IDENTITY_KEY_X/Y: where the held key is (the Close key of the default card at 2560×1440).
 # Binaries from $KURASHI_BIN_DIR, else $CARGO_TARGET_DIR/release.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -93,38 +94,46 @@ open_shot() {  # open_shot <action> <geometry> <file> [settle]
   K act ui.close >/dev/null 2>&1 || true
   sleep 1.2
 }
-shots() {  # shots <frontend dir> <tag>
+shots() {  # shots <frontend dir> <tag> <scenario>: one frontend, started fresh on the look already set
   start_frontend "$1"
-  for sc in "${SCENARIOS[@]}"; do
-    local n=${sc%%|*} args=${sc#*|}
-    [ -z "$WANT" ] || [[ " $WANT " == *" $n "* ]] || continue
+  grim -g "0,0 2560x52" "$OUT/$2-$3-bar.png"
+  open_shot island.expand "860,0 840x620" "$OUT/$2-$3-card.png"
+  open_shot quick.toggle "1040,0 1520x900" "$OUT/$2-$3-quick.png"
+  K act launcher.toggle >/dev/null || fail "act launcher.toggle"
+  sleep 1.8; grim -g "560,0 1440x1000" "$OUT/$2-$3-launcher.png"
+  K act launcher.toggle >/dev/null || true; sleep 1.2
+  open_shot session.menu "780,200 1000x700" "$OUT/$2-$3-session.png"
+  # The island card's Close key held down: the sink, the shrink or the flash at rest (its release closes the card).
+  K act island.expand >/dev/null || fail "island.expand"
+  sleep 1.8
+  timeout 20 python3 -I "$W/hold.py" "$ROOT/tools/bench/wl_pointer.py" "${IDENTITY_KEY_X:-1125}" "${IDENTITY_KEY_Y:-392}" 2.5 &
+  local hp=$!
+  sleep 1.8
+  grim -g "860,300 840x320" "$OUT/$2-$3-held.png"
+  wait "$hp" || fail "the held press failed"
+  sleep 1.2
+  K act ui.close >/dev/null 2>&1 || true
+  sleep 1
+}
+
+# Per scenario both frontends inside one wall-clock minute: a turned minute changes the clock's width, and every bar group
+# with it. A pair that straddles a minute is shot again (up to three times).
+for sc in "${SCENARIOS[@]}"; do
+  n=${sc%%|*} args=${sc#*|}
+  [ -z "$WANT" ] || [[ " $WANT " == *" $n "* ]] || continue
+  for try in 1 2 3; do
+    while [ "$(date +%S)" -gt 2 ]; do sleep 0.5; done
+    m0=$(date +%H%M)
     K reset theme >/dev/null 2>&1 || true
     # shellcheck disable=SC2086
     K set $args theme.motion.profile=calm >/dev/null || fail "kurashi set $args refused"
-    sleep 2.5
-    grim -g "0,0 2560x52" "$OUT/$2-$n-bar.png"
-    open_shot island.expand "860,0 840x620" "$OUT/$2-$n-card.png"
-    open_shot quick.toggle "1040,0 1520x900" "$OUT/$2-$n-quick.png"
-    K act launcher.toggle >/dev/null || fail "act launcher.toggle"
-    sleep 1.8; grim -g "560,0 1440x1000" "$OUT/$2-$n-launcher.png"
-    K act launcher.toggle >/dev/null || true; sleep 1.2
-    open_shot session.menu "780,200 1000x700" "$OUT/$2-$n-session.png"
-    # The island card's Close key held down: the sink, the shrink or the flash at rest (its release closes the card).
-    K act island.expand >/dev/null || fail "island.expand"
-    sleep 1.8
-    timeout 20 python3 -I "$W/hold.py" "$ROOT/tools/bench/wl_pointer.py" 1125 425 2.5 &
-    local hp=$!
-    sleep 1.8
-    grim -g "860,300 840x320" "$OUT/$2-$n-held.png"
-    wait "$hp" || fail "the held press failed"
-    sleep 1.2
-    K act ui.close >/dev/null 2>&1 || true
-    sleep 1.2
+    sleep 1
+    shots "$REF" ref "$n"
+    shots "$NEW" new "$n"
+    [ "$(date +%H%M)" = "$m0" ] && break
+    say "$n: the minute turned during the pair (try $try)"
   done
-}
-
-shots "$REF" ref
-shots "$NEW" new
+done
 
 errs=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign|Cannot read property" "$R/qs.log" || true)
 
