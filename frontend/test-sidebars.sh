@@ -13,8 +13,11 @@
 # item's box lies inside the bar, the bottom column is in order and does not overlap the island, and the mod slots and tray
 # icons drawn are the ones the column's fit gives, with the count of the rest. The frontend logs no QML error or warning.
 # Shots: frontend/shots/sidebars/<scene>.png (the output) and <scene>-bar.png (the bar's strip): read them, not just the exit code.
+# Part two (W34, `morph`, below): the edge sidebars grow out of the bar and fold back into it — frozen mid-morph frames,
+# the join's pixels, click outside, 20 cycles' USS, idle frames; shots in frontend/shots/sidebar/morph/.
+# SIDEBARS_PARTS="bars morph" (default) picks the parts; without a test-mods daemon the side-bar scenes are skipped (said so).
 #   KURASHI_BIN_DIR=<dir with kurashid (--features test-mods) and kurashi> \
-#     timeout 900 nix develop -c frontend/test-sidebars.sh [sandbox-name]
+#     timeout 1800 nix develop -c frontend/test-sidebars.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-w19-side-bars-$$}   # the w19-side-bars prefix: other runs never stop this sandbox
@@ -25,7 +28,7 @@ HELLO=$ROOT/crates/kurashid/tests/data/mods/hello
 mkdir -p "$OUT"
 fail() { echo "test-sidebars: $*" >&2; exit 1; }
 [ -x "$BIN/kurashid" ] && [ -x "$BIN/kurashi" ] || fail "no kurashid and kurashi in $BIN (KURASHI_BIN_DIR)"
-grep -aq 'hello.raise' "$BIN/kurashid" || fail "$BIN/kurashid links no test mod: build it with --features test-mods"
+TEST_MODS=0; grep -aq 'hello.raise' "$BIN/kurashid" && TEST_MODS=1   # the side-bar scenes need the test mod (--features test-mods)
 WEATHER_TOKYO='{"place":{"id":"1850147","name":"Tokyo","country_code":"JP","lat":35.6895,"lon":139.69171,"tz":"Asia/Tokyo"}}'
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
@@ -524,17 +527,300 @@ scene() {
   fi
 }
 
-# The weather fixture (Tokyo's forecast and search) on 8099 for the whole run.
-python3 -I -m http.server 8099 --bind 127.0.0.1 --directory "$R/weather" > "$R/fixture.log" 2>&1 &
-FIX_PID=$!
-sleep 1
+want_part() { [[ " ${SIDEBARS_PARTS:-bars morph} " == *" $1 "* ]]; }
 
-scene left-default left 1080 0 0 C.UTF-8 0
-scene left-long left 1080 3 12 C.UTF-8 1
-scene left-720 left 720 3 12 C.UTF-8 1
-scene right-long right 1080 3 12 C.UTF-8 1
-scene right-default right 1080 0 0 C.UTF-8 0
-scene left-ja left 1080 3 12 ja_JP.UTF-8 1
-stop_scene
+if want_part bars; then
+  if [ "$TEST_MODS" = 1 ]; then
+    # The weather fixture (Tokyo's forecast and search) on 8099 for the whole run.
+    python3 -I -m http.server 8099 --bind 127.0.0.1 --directory "$R/weather" > "$R/fixture.log" 2>&1 &
+    FIX_PID=$!
+    sleep 1
+
+    scene left-default left 1080 0 0 C.UTF-8 0
+    scene left-long left 1080 3 12 C.UTF-8 1
+    scene left-720 left 720 3 12 C.UTF-8 1
+    scene right-long right 1080 3 12 C.UTF-8 1
+    scene right-default right 1080 0 0 C.UTF-8 0
+    scene left-ja left 1080 3 12 ja_JP.UTF-8 1
+    stop_scene
+  else
+    echo "test-sidebars: SKIP the side-bar scenes: $BIN/kurashid links no test mod (build it with --features test-mods)"
+  fi
+fi
+
+# ---- W34 (docs/ux/motion.md "the bar reaches out"): the sidebars grow out of the bar and fold back into it ----
+# One daemon and frontend (KURASHI_SIDEBAR_FREEZE: the morph holds still N ms after it starts, for a shot; the frontend
+# logs it). For each bar edge (top, bottom), look (washi, sekai, kami), profile (calm, lively) and side (left, right):
+# frames at 40/120/250 ms of the opening, the column at rest and 40/120/250 ms of the closing, as one sheet
+# frontend/shots/sidebar/morph/<edge>-<look>-<profile>-<side>.png (half size; read them). Asserted: every frozen frame
+# is mid-morph (opening: the shape has not reached rest at 40 ms; closing: it has left it) and the window comes and goes;
+# at rest the fillet's pixels at the column's inner top corner are the column's colour and, where the bar draws a strip,
+# the bar's (one sheet); `none` cuts (the column is whole the frame after its window maps); a click outside the column
+# closes it and one on the column does not (I152); 20 open/close cycles leave the frontend's USS where it was (K16);
+# an open sidebar at rest commits no frame (Ma). MORPH_EDGES / MORPH_LOOKS / MORPH_PROFILES / MORPH_SIDES narrow it.
+MOUT=$ROOT/frontend/shots/sidebar/morph
+MBG='#8fb8c8'
+nlines() { grep -c -- "$1" "$R/qs.log" || true; }
+wait_more() { # wait_more <pattern> <count before> [tries of 50 ms]
+  local i
+  for i in $(seq "${3:-100}"); do [ "$(nlines "$1")" -gt "$2" ] && return 0; sleep 0.05; done
+  return 1
+}
+last_window_of() { grep -oE "sidebar-window (up|down) $1" "$R/qs.log" | tail -1 | awk '{print $2}'; }
+toggle() { K act sidebar.toggle "{\"side\":\"$1\",\"output\":\"HEADLESS-1\"}" >/dev/null; }
+uidoc() { ipc runtime.ui; }
+morph_frontend() { # morph_frontend [env assignments…]: a fresh frontend with the sidebar's test hooks
+  local p
+  for p in ${QS_PID:-}; do kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; done
+  : > "$R/qs.log"
+  : > "$W/freeze"
+  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_SIDEBAR_FREEZE="$W/freeze" "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  QS_PID=$!
+  SCENE_PIDS+=("$QS_PID")
+  sleep 4
+}
+# open_rest <side> / close_down <side>: one toggle, waiting for the column at rest or the window gone.
+open_rest() {
+  local n; n=$(nlines "sidebar-rest $1 ")
+  toggle "$1"
+  wait_more "sidebar-rest $1 " "$n" 80 || { check 0 "$TAG: the $1 sidebar did not come to rest"; return 1; }
+  sleep 0.35   # the content's fade (160 ms) and a frame
+}
+close_down() {
+  local n; n=$(nlines "sidebar-window down $1")
+  toggle "$1"
+  wait_more "sidebar-window down $1" "$n" 80 || { check 0 "$TAG: the $1 sidebar's window did not go"; return 1; }
+}
+# frozen <side> <open|close> <ms> <file>: the toggle with a freeze at <ms>; the frame half size into <file>.
+FROZEN=""
+frozen() {
+  local n x=0; n=$(nlines "sidebar-frozen $1 ")
+  [ "$1" = right ] && x=$((SW - 600))
+  echo "$2 $3 900" > "$W/freeze"
+  toggle "$1"
+  if ! wait_more "sidebar-frozen $1 " "$n" 60; then
+    : > "$W/freeze"
+    # A lively fold can be over before a late freeze: then the window must be gone.
+    if [ "$2" = close ] && [ "$(last_window_of "$1")" = down ]; then
+      check 1 "$TAG: folded before $3 ms (its window is gone)"
+      timeout 20 grim -s 0.5 -g "$x,0 600x$SH" "$4" || fail "grim failed"
+    else
+      check 0 "$TAG: no frozen frame at $2 $3 ms"
+    fi
+    return 1
+  fi
+  timeout 20 grim -s 0.5 -g "$x,0 600x$SH" "$4" || fail "grim failed"
+  : > "$W/freeze"
+  FROZEN=$(grep "sidebar-frozen $1 " "$R/qs.log" | tail -1 | sed 's/.*sidebar-frozen //')
+}
+# The column at rest: its rect in the window (geometry log) and where the window sits on the output.
+geom_rest() { grep "sidebar-geom HEADLESS-1 $1 " "$R/qs.log" | tail -1 | sed 's/.*sidebar-geom //'; }
+cat > "$W/join.py" <<'PY'
+# join.py PPM EDGE SIDE X Y W H WINY BARH OW STRIP: the join of a column at rest. PPM is the whole output. The column's
+# rect (X, Y, W, H) is in its window, whose top lies at WINY on the output. The fillet's pixels (just outside the column's
+# inner top corner, on the bar's edge), the column's own (just inside its edge) and, with STRIP 1, the bar strip's (just
+# past its rule): medians of three, compared channel by channel. Prints "ok …" / "FAIL …".
+import sys
+ppm, edge, side = sys.argv[1], sys.argv[2], sys.argv[3]
+X, Y, W, H, winy, barh, ow, strip = (int(v) for v in sys.argv[4:12])
+data = open(ppm, "rb").read()
+fields, i = [], 0
+while len(fields) < 4:
+    while data[i:i + 1].isspace():
+        i += 1
+    j = i
+    while not data[j:j + 1].isspace():
+        j += 1
+    fields.append(data[i:j])
+    i = j
+sw, sh = int(fields[1]), int(fields[2])
+px = data[i + 1:]
+def at(x, y):
+    o = (y * sw + x) * 3
+    return tuple(px[o:o + 3])
+def med(pts):
+    cs = [at(x, y) for x, y in pts]
+    return tuple(sorted(c[k] for c in cs)[len(cs) // 2] for k in range(3))
+# The bar's edge on the output and the direction into the column (down under a top bar, up over a bottom one).
+if edge == "top":
+    e, d = winy, 1
+else:
+    e, d = winy + Y + H, -1
+# Into the column from its inner side: right sidebar's inner side is its left edge.
+if side == "right":
+    xi, s = X, -1
+else:
+    xi, s = X + W - 1, 1
+fil = med([(xi + s * 1, e + d * 1 if d > 0 else e - 2), (xi + s * 2, e + d * 1 if d > 0 else e - 2), (xi + s * 1, e + d * 2 if d > 0 else e - 3)])
+col = med([(xi - s * k, e + (1 if d > 0 else -2)) for k in (8, 9, 10)])
+bar = med([(xi + s * k, e - (ow + 3) if d > 0 else e + ow + 2) for k in (40, 41, 42)])
+def close(a, b, tol=14):
+    return max(abs(a[k] - b[k]) for k in range(3)) <= tol
+bad = False
+print(("ok" if close(fil, col) else "FAIL") + " the fillet %s is the column's colour %s" % (fil, col))
+bad |= not close(fil, col)
+if strip:
+    print(("ok" if close(fil, bar) else "FAIL") + " the fillet %s is the bar strip's colour %s" % (fil, bar))
+    bad |= not close(fil, bar)
+sys.exit(1 if bad else 0)
+PY
+cat > "$W/mid.py" <<'PY'
+# mid.py PHASE MS LINE: whether a frozen frame (the frontend's "sidebar-frozen" line: side, phase, ms, mw=…, mh=…) is
+# mid-morph: opening at 40 ms both springs are short of rest; closing, the shape has left its rest.
+import re, sys
+phase, ms, line = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+mw = float(re.search(r"mw=(-?[0-9.]+)", line).group(1))
+mh = float(re.search(r"mh=(-?[0-9.]+)", line).group(1))
+if phase == "open":
+    ok = (mw < 0.95 and mh < 0.95) if ms <= 40 else (mw > 0.05 and mh > 0.05)
+else:
+    ok = mw < 0.999 or mh < 0.999
+print(("ok" if ok else "FAIL") + " %s %d ms: mw=%.3f mh=%.3f" % (phase, ms, mw, mh))
+sys.exit(0 if ok else 1)
+PY
+morph_config() { # morph_config <edge> <look> <profile>
+  K set bar.edge="$1" theme.style="$2" theme.motion.profile="$3" >/dev/null || fail "config $1 $2 $3 was refused"
+  sleep 1.5
+}
+if want_part morph; then
+  echo "== morph: the sidebars grow out of the bar"
+  stop_scene
+  mkdir -p "$MOUT"
+  timeout 20 swaymsg output HEADLESS-1 resolution 1920x1080 >/dev/null || fail "the output did not take 1920x1080"
+  swaymsg output '*' bg "$MBG" solid_color >/dev/null 2>&1 || true
+  SW=1920 SH=1080
+  start_daemon C.UTF-8
+  morph_frontend
+  HAVE_MAGICK=0; command -v magick >/dev/null && HAVE_MAGICK=1
+  for edge in ${MORPH_EDGES-top bottom}; do
+    for look in ${MORPH_LOOKS:-washi sekai kami}; do
+      for prof in ${MORPH_PROFILES:-calm lively}; do
+        morph_config "$edge" "$look" "$prof"
+        for side in ${MORPH_SIDES:-right left}; do
+          TAG="$edge-$look-$prof-$side"
+          frames=()
+          for t in 40 120 250; do
+            f="$R/m-$TAG-open-$t.png"
+            n=$(nlines "sidebar-rest $side ")
+            if frozen "$side" open "$t" "$f"; then
+              frames+=("$f")
+              line=$(python3 -I "$W/mid.py" open "$t" "$FROZEN") && check 1 "$TAG: $line" || check 0 "$TAG: $line"
+            fi
+            wait_more "sidebar-rest $side " "$n" 80 || check 0 "$TAG: the opening did not come to rest after its freeze"
+            sleep 0.2
+            close_down "$side" || true
+          done
+          open_rest "$side" || continue
+          f="$R/m-$TAG-rest.png"
+          timeout 20 grim -s 0.5 -g "$([ "$side" = right ] && echo $((SW - 600)) || echo 0),0 600x$SH" "$f" && frames+=("$f")
+          # The join at rest: the fillet's pixels against the column's and the bar strip's.
+          read -r _ _ _ _ WW WH _ FR _ BEDGE BARH _ <<< "$(geom_rest "$side")"
+          IFS=, read -r FX FY FW FH <<< "$FR"
+          WINY=0; [ "$BEDGE" = top ] && WINY=$((SH - WH))
+          STRIP=1; [ "$look" = sekai ] && STRIP=0   # keycap groups float on the desk: no strip
+          if [ "$BEDGE" = top ] || [ "$BEDGE" = bottom ]; then
+          timeout 20 grim -t ppm "$R/rest.ppm" || fail "grim failed"
+          while IFS= read -r line; do
+            case "$line" in ok*) check 1 "$TAG: ${line#ok }" ;; FAIL*) check 0 "$TAG: ${line#FAIL }" ;; esac
+          done < <(python3 -I "$W/join.py" "$R/rest.ppm" "$BEDGE" "$side" "$FX" "$FY" "$FW" "$FH" "$WINY" "$BARH" 3 "$STRIP" || true)
+          [ "$look" = washi ] && [ "$prof" = calm ] && cp "$R/rest.ppm" "$R/rest-$TAG.ppm"
+          else echo "test-sidebars: $TAG: a side bar — at rest the column lies along it, no fillet to check"; fi
+          close_down "$side" || true
+          for t in 40 120 250; do
+            open_rest "$side" || break
+            f="$R/m-$TAG-close-$t.png"
+            n=$(nlines "sidebar-window down $side")
+            rm -f "$f"
+            rc=0; frozen "$side" close "$t" "$f" || rc=$?
+            [ -f "$f" ] && frames+=("$f")
+            if [ "$rc" = 0 ]; then
+              line=$(python3 -I "$W/mid.py" close "$t" "$FROZEN") && check 1 "$TAG: $line" || check 0 "$TAG: $line"
+            fi
+            wait_more "sidebar-window down $side" "$n" 80 || check 0 "$TAG: the window stayed after the fold"
+            sleep 0.2
+          done
+          if [ "$HAVE_MAGICK" = 1 ] && [ "${#frames[@]}" -gt 0 ]; then
+            magick "${frames[@]}" +append "$MOUT/$TAG.png" && echo "shot $MOUT/$TAG.png"
+          else
+            for f in "${frames[@]}"; do cp "$f" "$MOUT/$(basename "${f#"$R"/m-}")"; done
+          fi
+        done
+      done
+    done
+  done
+
+  # `none` cuts: the column is whole on the first frames after its window maps, and goes with its window.
+  TAG=none
+  morph_config top washi none
+  n=$(nlines "sidebar-window up right")
+  toggle right
+  wait_more "sidebar-window up right" "$n" 60 || check 0 "none: no window"
+  sleep 0.12
+  timeout 20 grim -s 0.5 -g "$((SW - 600)),0 600x$SH" "$MOUT/none-right-open.png"
+  timeout 20 grim -g "$((SW - 410)),$((SH - 2)) 1x1" -t ppm "$R/px.ppm"
+  [ "$(python3 -I - "$R/px.ppm" "$MBG" <<'PY'
+import sys
+data = open(sys.argv[1], "rb").read()
+p = data[-3:]
+B = tuple(int(sys.argv[2].lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+print("desk" if max(abs(p[k] - B[k]) for k in range(3)) <= 24 else "ink")
+PY
+)" = ink ] && check 1 "none: the column reaches the screen's bottom at once" || check 0 "none: the column is not whole at once"
+  close_down right && check 1 "none: the window goes with the close" || true
+
+  # I152: a click outside closes, one on the column does not.
+  morph_config top washi calm
+  rm -f "$W/ptr"; mkfifo "$W/ptr"
+  python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve < "$W/ptr" >> "$W/ptr.log" 2>&1 &
+  SCENE_PIDS+=("$!")
+  exec 7> "$W/ptr"
+  open_rest right
+  echo "click $((SW - 420 + 4)) $((SH / 2)) left" >&7; sleep 0.8
+  uidoc | jq -e '.sidebar == "right"' >/dev/null && check 1 "a click on the column keeps it open" \
+    || check 0 "a click on the column closed it ($(uidoc))"
+  n=$(nlines "sidebar-window down right")
+  echo "click 400 $((SH / 2)) left" >&7; sleep 0.8
+  uidoc | jq -e 'has("sidebar") | not' >/dev/null && check 1 "a click outside the column closes it" \
+    || check 0 "a click outside did not close it ($(uidoc))"
+  wait_more "sidebar-window down right" "$n" 40 && check 1 "… and its window goes" || check 0 "the window stayed after a click outside"
+  open_rest left
+  echo "click $((SW - 300)) $((SH / 2)) left" >&7; sleep 0.8
+  uidoc | jq -e 'has("sidebar") | not' >/dev/null && check 1 "a click outside the left sidebar closes it" \
+    || check 0 "a click outside the left sidebar did not close it ($(uidoc))"
+  exec 7>&-
+
+  # K16: 20 open/close cycles after 5 to warm up (the heap settles there: measured +70 MiB over the first five, then
+  # flat within ±6 MiB); the frontend's USS after them against after the warm-up. The Stage's map/unmap leak was ~5 MiB
+  # a cycle (100 MiB here); 10 MiB allows the allocator's noise.
+  uss() { awk '/^Private_(Clean|Dirty):/ { s += $2 } END { print s }' "/proc/$QS_PID/smaps_rollup"; }
+  for i in $(seq 5); do open_rest right || break; close_down right || break; done
+  sleep 1; U0=$(uss)
+  for i in $(seq 20); do open_rest right || break; close_down right || break; done
+  sleep 2; U1=$(uss)
+  echo "test-sidebars: USS after 5 warm-up cycles $((U0 / 1024)) MiB, after 20 more $((U1 / 1024)) MiB ($(( (U1 - U0) / 1024 )) MiB)"
+  [ $((U1 - U0)) -le $((10 * 1024)) ] && check 1 "20 open/close cycles: USS $(( (U1 - U0) / 1024 )) MiB (≤ 10 MiB)" \
+    || check 0 "20 open/close cycles grew the USS by $(( (U1 - U0) / 1024 )) MiB"
+
+  # Ma: an open sidebar at rest commits no frame.
+  morph_frontend WAYLAND_DEBUG=1
+  open_rest right
+  sleep 1
+  s=$(stat -c %s "$R/qs.log"); sleep 5
+  # The sidebar's own surface (the bar's clock flips once a minute, which a 5 s window may catch: not the sidebar's).
+  SBS=$(grep -oE 'get_layer_surface\(new id zwlr_layer_surface_v1#[0-9]+, wl_surface#[0-9]+, [^"]*"kurashi-sidebar"' "$R/qs.log" \
+    | tail -1 | grep -oE 'wl_surface#[0-9]+')
+  [ -n "$SBS" ] || check 0 "idle: the sidebar's surface was not found in the Wayland log"
+  c=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -c "${SBS:-none}\.commit(" || true)
+  [ "$c" = 0 ] && check 1 "the open sidebar at rest commits no frame in 5 s" || {
+    tail -c +"$((s + 1))" "$R/qs.log" | grep -oE 'wl_surface#[0-9]+\.commit\(' | sort | uniq -c | head
+    grep -E "sidebar-|kurashi-" "$R/qs.log" | tail -5
+    check 0 "the open sidebar at rest committed $c frames in 5 s"; }
+  close_down right
+
+  problems=$(qs_problems | grep -v "wl_\|zwlr\|xdg_\|wp_\|ext_" || true)
+  [ -z "$problems" ] && check 1 "morph: the frontend logs no QML error or warning" \
+    || { echo "$problems" | head -5; check 0 "morph: the frontend logs QML errors or warnings"; }
+  stop_scene
+fi
 [ "$FAILS" = 0 ] || fail "$FAILS check(s) failed"
 echo "test-sidebars: all checks passed"
