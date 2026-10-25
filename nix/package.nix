@@ -1,7 +1,10 @@
-{ lib, rustPlatform, dbus, python3, pkg-config, libpulseaudio, linux-pam }:
+{ lib, rustPlatform, dbus, python3, pkg-config, libpulseaudio, linux-pam, callPackage }:
 
 let
   fs = lib.fileset;
+  # The shell's icon font subset (W39-block, I194; W41, row 445): installed with the package, so every profile that
+  # has it gets the fonts kurashi-theme prefers (font.icons). The modules' font defaults take the same derivation.
+  iconFont = callPackage ./icon-font.nix { };
 in
 rustPlatform.buildRustPackage {
   pname = "kurashi";
@@ -58,6 +61,8 @@ rustPlatform.buildRustPackage {
   postInstall = ''
     mkdir -p $out/share/kurashi
     cp -r i18n palettes profiles templates frontend settings mods greeter $out/share/kurashi/
+    mkdir -p $out/share/fonts/truetype
+    cp ${iconFont}/share/fonts/truetype/*.ttf $out/share/fonts/truetype/
   '';
 
   meta = {
