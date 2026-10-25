@@ -52,10 +52,22 @@ PanelWindow {
     // Room for the soft chrome's shadow round the card (K45; 0 under every other chrome), taken out of the margins so the
     // card stays where it was. Floating chromes (bar groups) keep a gap from the bar.
     readonly property int shade: Theme.softR
-    readonly property int padL: shade
-    readonly property int padR: Math.min(shade, bars.rightInset)
-    readonly property int padT: bars.atBottom ? shade : Math.min(shade, bars.topInset)
-    readonly property int padB: bars.atBottom ? Math.min(shade, bars.bottomInset) : shade
+    // K67 (docs/ux/shadows.md, CONTRACT row 422): the shadow vector's reach past the card, per side (px): the hard shadow's
+    // whole px and the soft shadow's offset. Where the reach is more than the room the look keeps (`shade`, and `shadowDy`
+    // on the right and bottom), the window takes the slack on that side. The margins and the card's offset take the same
+    // room, so the card stays where it was.
+    readonly property real reachR: Math.max(0, Theme.sinkX, Theme.shadowX)
+    readonly property real reachL: Math.max(0, -Theme.sinkX, -Theme.shadowX)
+    readonly property real reachB: Math.max(0, Theme.sinkY, Theme.shadowY)
+    readonly property real reachT: Math.max(0, -Theme.sinkY, -Theme.shadowY)
+    readonly property int slackR: Math.max(0, Math.ceil(reachR - Theme.shadowDy - shade))
+    readonly property int slackL: Math.max(0, Math.ceil(reachL - shade))
+    readonly property int slackB: Math.max(0, Math.ceil(reachB - Theme.shadowDy - shade))
+    readonly property int slackT: Math.max(0, Math.ceil(reachT - shade))
+    readonly property int padL: shade + slackL
+    readonly property int padR: Math.min(shade + slackR, bars.rightInset)
+    readonly property int padT: bars.atBottom ? shade + slackT : Math.min(shade + slackT, bars.topInset)
+    readonly property int padB: bars.atBottom ? Math.min(shade + slackB, bars.bottomInset) : shade + slackB
     readonly property int lead: Theme.groups ? Theme.gap : 0
     margins {
         top: morphing ? 0 : bars.topInset - padT
@@ -111,10 +123,12 @@ PanelWindow {
                 active: Theme.texShell && card.chrome
                 sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
             }
+            // The hard shadow along the shadow vector (K67): none at strength 0 or in the morph (the shape casts its own).
             Rectangle {
                 z: -1
-                visible: Theme.shadowDy > 0 && card.chrome
-                y: Theme.shadowDy
+                visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && card.chrome
+                x: Theme.sinkX
+                y: Theme.sinkY
                 width: card.width
                 height: card.height
                 radius: card.radius

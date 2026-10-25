@@ -148,10 +148,24 @@ Scope {
         readonly property bool springing: Theme.springOn && visible
         // Without one: below a top edge, at the right, clear of a right bar (as before W34).
         readonly property int shade: Theme.softR
-        readonly property int padR: Math.min(shade, bars.rightInset)
+        // K67 (docs/ux/shadows.md, CONTRACT row 422): the shadow vector's reach past a card, per side (px). Where it is more
+        // than the room the look keeps (`shade`; `shadowDy` on the right; the bottom's two rooms), the window takes the slack
+        // on that side. The margins and the card's place take the same room, so the card stays where it was. Not for a drip:
+        // its shadow falls inside the room it has.
+        readonly property real reachR: Math.max(0, Theme.sinkX, Theme.shadowX)
+        readonly property real reachL: Math.max(0, -Theme.sinkX, -Theme.shadowX)
+        readonly property real reachT: Math.max(0, -Theme.sinkY, -Theme.shadowY)
+        readonly property real reachB: Math.max(0, Theme.sinkY, Theme.shadowY)
+        readonly property int slackR: drip ? 0 : Math.max(0, Math.ceil(reachR - Theme.shadowDy - shade))
+        readonly property int slackL: drip ? 0 : Math.max(0, Math.ceil(reachL - shade))
+        readonly property int slackT: drip ? 0 : Math.max(0, Math.ceil(reachT - shade))
+        readonly property int slackB: drip ? 0 : Math.max(0, Math.ceil(reachB - Theme.shadowDy - 2 * shade))
+        readonly property int padL: shade + slackL
+        readonly property int padR: Math.min(shade + slackR, bars.rightInset)
+        readonly property int padT: Math.min(shade + slackT, bars.topInset)
         anchors { top: !bars.atBottom; bottom: bars.atBottom; right: !drip }
         margins {
-            top: drip ? 0 : bars.topInset - Math.min(shade, bars.topInset)
+            top: drip ? 0 : bars.topInset - padT
             right: drip ? 0 : bars.rightInset - padR
         }
 
@@ -163,13 +177,15 @@ Scope {
         readonly property real pillW: pill ? pill.w : 96
         readonly property real pillH: pill ? pill.h : Theme.barH - 10
         readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
-        // The hard shadow falls towards the screen's bottom on either edge (the drip's layer is mirrored for a bottom bar).
-        readonly property real shadowSy: (flip ? -1 : 1) * Theme.shadowDy
+        // The hard shadow's vector on the screen (K67): `Theme.sinkX/Y` in whole px. The drip's layer is mirrored for a bottom
+        // bar, so there its y flips (the shadow falls to the screen's bottom on either edge); x is the same on both.
+        readonly property real shadowSx: Theme.sinkX
+        readonly property real shadowSy: (flip ? -1 : 1) * Theme.sinkY
         // The bar's groups float as blocks (no strip under the island): the drip leaves the pill's foot; else the strip's edge.
         readonly property bool joined: Theme.groups && (Theme.shadowDy > 0 || Theme.softR > 0)
         readonly property real rootY: joined ? pillTop + pillH : Theme.barH
-        readonly property real top0: drip ? Theme.barH + Theme.gap + 4 : Math.min(shade, bars.topInset) + (Theme.groups ? Theme.gap : 0)
-        readonly property real cardX: drip ? (width - cardW) / 2 : shade
+        readonly property real top0: drip ? Theme.barH + Theme.gap + 4 : padT + (Theme.groups ? Theme.gap : 0)
+        readonly property real cardX: drip ? (width - cardW) / 2 : padL
         readonly property real neckCx: width / 2 + (pill ? Math.max(-cardW / 2 + 40, Math.min(cardW / 2 - 40, pill.dx)) : 0)
         // The width the drip leaves the bar with: a strip lets the whole body hang from it; a pill only its flat foot, and the
         // body grows out from under it (as the island's joined shape), so the neck and its fillets stay on that foot.
@@ -216,8 +232,8 @@ Scope {
             }
             return Math.max(h, b - top0)
         }
-        implicitWidth: drip ? cardW + 2 * slackX : shade + cardW + Theme.shadowDy + padR
-        implicitHeight: Math.ceil(top0 + stackFull + chipH + Theme.shadowDy + Theme.softR + (drip ? stretch + 24 : shade))
+        implicitWidth: drip ? cardW + 2 * slackX : padL + cardW + Theme.shadowDy + padR
+        implicitHeight: Math.ceil(top0 + stackFull + chipH + Theme.shadowDy + Theme.softR + (drip ? stretch + 24 : shade + slackB))
         // A local y (and height) in this window's frame.
         function wy(y, h) { return flip ? height - y - h : y }
 
@@ -426,7 +442,7 @@ Scope {
                 readonly property bool drawn: !freed && !leaving && win.drip
                 readonly property string fillPath: !drawn ? "" : (detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true))
                 readonly property string linePath: !drawn ? "" : (detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false))
-                readonly property string shadowPath: !drawn || Theme.shadowDy <= 0 ? ""
+                readonly property string shadowPath: !drawn || (win.shadowSx === 0 && win.shadowSy === 0) ? ""
                     : (detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z")
                 readonly property color lineColor: card.urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
 
@@ -478,15 +494,22 @@ Scope {
                         amount: d.drawn ? 1 : 0
                         direction: win.flip ? -1 : 1
                     }
+                    // The hard shadow (K67): its own layer, moved across by the vector's x (its path carries the y).
                     Shape {
-                        anchors.fill: parent
+                        x: win.shadowSx
+                        width: win.width
+                        height: win.height
                         preferredRendererType: Shape.CurveRenderer
                         ShapePath {
                             strokeWidth: -1
                             strokeColor: "transparent"
-                            fillColor: Theme.shadowDy > 0 ? Theme.line : "transparent"
+                            fillColor: Theme.line
                             PathSvg { path: d.shadowPath }
                         }
+                    }
+                    Shape {
+                        anchors.fill: parent
+                        preferredRendererType: Shape.CurveRenderer
                         ShapePath {
                             strokeWidth: -1
                             strokeColor: "transparent"
