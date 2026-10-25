@@ -157,6 +157,8 @@ Column {
         id: cal
         width: view.width
         height: grid.height
+        // The box clips the grid and the week numbers while the grid eases to its height (I203).
+        clip: true
         activeFocusOnTab: view.valid
         Accessible.role: Accessible.Table
         Accessible.name: I18n.tr("island.clock.grid")
@@ -185,6 +187,12 @@ Column {
             width: 7 * view.cell
             height: view.cell / 2 + view.weeks * view.cell
             asynchronous: true
+            // I203: the sixth row comes and goes with the month. The box eases to its new height, so the agenda below it (and the
+            // card, which follows the view's height) glide instead of jumping. Off while the card is away or the month not dated.
+            Behavior on height {
+                enabled: view.visible && view.valid && Theme.springOn
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            }
             sourceComponent: Grid {
                 columns: 7
                 Repeater {
