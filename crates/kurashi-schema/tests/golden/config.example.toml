@@ -370,6 +370,10 @@
 # before falling back.
 #   range: 1..=60 (s)
 # ttl = 5
+#
+# System events — Volume, brightness, power and Bluetooth changes show on the island for a
+# moment. Off, the island does not listen to them at all.
+# system_events = true
 
 # [island.main.input]
 #
@@ -475,6 +479,11 @@
 # desk's edit mode writes it (K48).
 #   only while desktop.enabled == true · advanced
 # order = ["clock", "calendar", "media", "weather"]
+#
+# Hidden cards — Cards the desk leaves out, named as in Order. The desk's edit mode writes
+# it.
+#   only while desktop.enabled == true · advanced
+# hidden = []
 
 # [idle]
 #

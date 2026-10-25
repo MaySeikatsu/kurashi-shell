@@ -582,6 +582,12 @@ How long a transient face (volume, brightness, notification) stays before fallin
 - type: `int` · default: `5`
 - range: `1..=60` (s)
 
+#### `island.main.system_events` — System events
+
+Volume, brightness, power and Bluetooth changes show on the island for a moment. Off, the island does not listen to them at all.
+
+- type: `bool` · default: `true`
+
 #### `island.main.input.left` — Left click
 
 - type: `action` · default: `"island.expand"`
@@ -749,6 +755,14 @@ Today's weather, while the weather mod is on and has a place.
 The cards from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`. A card that is not listed comes after the listed ones. The desk's edit mode writes it (K48).
 
 - type: `string_list` · default: `["clock", "calendar", "media", "weather"]`
+- only while `desktop.enabled == true`
+- advanced
+
+#### `desktop.hidden` — Hidden cards
+
+Cards the desk leaves out, named as in Order. The desk's edit mode writes it.
+
+- type: `string_list` · default: `[]`
 - only while `desktop.enabled == true`
 - advanced
 
