@@ -78,8 +78,8 @@ async grid), while main's frontend read −2.6 to +4.6 at a ~45 MiB higher level
 12 s after its phase (sampled every 2 s in three of the runs), so it is not memory still on its way back to the system.
 The reading after 40 rounds spans 217.7–231.6 MiB across runs; after 80 rounds one run read 231.7, after 200 one read
 234.3 — inside that spread, so no trend shows, though a slow leak under ~2 MiB per 100 rounds is not ruled out.
-The likely cause is when the QML engine collects the destroyed views (it runs on allocation, not on time), which main's
-extra resident objects made more frequent. The gate needs a steadier reading before this row means anything (a forced
+A hypothesis, not measured: the QML engine collects the destroyed views on allocation, not on time, so a reading lands
+before or after a collection by chance; main's extra resident objects may make collections more frequent. The gate needs a steadier reading before this row means anything (a forced
 collection before each reading through a bench-only hook, or the median of several cycle blocks).
 
 **B37 popup latency — cause and fix.** CLI start-up is 2 ms and the daemon answers in 0.14 ms: the time was the
@@ -159,9 +159,12 @@ runs (none r3, kami r2, everything r2 and r3) read 0.2–0.4 % frontend CPU and 
 23 read 0 and 0.1. Not attributed: in four interleaved idle runs each of main's and this branch's frontend (`none`) all
 eight read 0 and 0.1, and an strace pass of the same tree saw 0.1 syscalls/s. The daemon's idle 8 % of W33 is gone (B36,
 fixed on main). Every scenario still fails PSS @1 output (152–205 MiB against 150); the textures add +18 to +53 MiB at one
-output and +4 to +11 per extra output (per window tile sheets, K59), the overlay +30. Motion CPU in `spotlight` and
-`pen-text` is higher than W33's (14.5 vs 7.6 %, 4.2 vs 1.2 %): not investigated here (the spotlight follows the pointer
-in every window; W34 changed the surfaces since).
+output and +4 to +11 per extra output (per window tile sheets, K59), the overlay +30. Motion CPU: `spotlight`'s 14.5 % (13.2–14.4 in all three
+runs) did not reproduce — four later runs, main's and this branch's frontend interleaved, read 7.4–7.8 % (main) and
+7.4–7.6 % (branch), W33's level; not attributed (the machine's state during the set is the suspect). `pen-text` reads
+4.0–4.5 % on main's frontend and 4.6–5.6 % on this branch's in the same interleaved runs (9.3 and 9.6 frames/s), against
+W33's 1.2 % and 3.6 frames/s: the held quick card commits ~8 frames/s on main too (W34), so the rise is not this
+branch's; the branch's extra ~0.5 % over main in two runs is within their scatter.
 
 
 `just bench-texture` = `tools/bench/w33.sh` on the real stack: nine scenarios × three interleaved runs (`measure.py --daemon real --config <scenario> --passes abm --idle 10 --warmup 10 --cycles 0 --max-load 1.5`, `frontend/launch.sh`), medians by `w33-summary.py` (`tools/bench/results/w33-<scenario>.json`, raw runs `-r1` to `-r3`; results are gitignored). Measured tree: `191fd68` (the driver's pass selection is the only change after `72db4d6`, which the first run of the set recorded; the measuring code is the same). Binaries: release build of `8cbce81` (no crate changed). Machine A: 12 cores, GTX 1060 (driver 580.178), headless sway on renderD128 (gles2), one 2560×1440 output. Load (1 min) at the start of each run was 0.36–1.10: all 27 runs quiet, none waited. The idle window is 10 s, not the budgets' windows (idle CPU is a 10 min budget, frames 30 s), so those rows are screens.
