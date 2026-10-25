@@ -488,6 +488,10 @@ pub fn doc(d: &Decision, pinned: bool) -> Value {
         "pinned": pinned,
         "overflow": d.overflow,
     });
+    // K68 (row 450): the registered faces the list leaves out, so Settings can offer them back; absent when empty.
+    if !d.unlisted.is_empty() {
+        v["unlisted"] = json!(d.unlisted);
+    }
     if let Some(u) = d.until {
         v["until"] = json!(u);
     }
@@ -963,6 +967,8 @@ mod tests {
         assert_eq!(d.faces, ["clock", "media"]);
         assert_eq!(d.unlisted, ["weather"]);
         assert_eq!(d.overflow, 0);
+        // Row 450: the document names the left-out face so Settings can offer it back.
+        assert_eq!(doc(&d, false)["unlisted"], json!(["weather"]));
         let mut c = a.cfg.clone();
         c.interruptible_by.insert("volume".into());
         a.set_config(c);
