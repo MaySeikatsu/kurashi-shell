@@ -10,8 +10,11 @@
 # not exist: the agent's registration result is logged ("polkit: agent not registered").
 # Corners: the real shell with theme.shape.screen_corners = 24: black fillets at the output's corners, the background at
 # 14 px in; set to 0 live: gone.
+# I128 (W36), with the real shell: while runtime.ui.polkit is true no Stage panel opens (quick.toggle, island.expand
+# leave runtime.ui.panel empty, nothing drawn), an open quick card folds away when it turns true and does not come back
+# when it turns false.
 # Screenshots (frontend/shots/): polkit-{prompt,wrong}-{sekai,none}.png, polkit-identities-sekai.png,
-# corners-24-{tl,br}.png.
+# corners-24-{tl,br}.png, polkit-stage-aside.png.
 #   KURASHI_RENDER_NODE=/dev/dri/renderD129 KURASHI_BIN_DIR=<dir with kurashid and kurashi> \
 #     timeout 900 nix develop -c frontend/test-polkit.sh [sandbox-name]
 set -euo pipefail
@@ -184,7 +187,8 @@ for arg in sys.argv[2:]:
     p = tuple(raster[o:o + 3])
     black = max(p) < 16
     bg = all(abs(a - b) <= 8 for a, b in zip(p, BG))
-    good = {"black": black, "bg": bg, "dim": not black and not bg and all(a < b for a, b in zip(p, BG))}[want]
+    good = {"black": black, "bg": bg, "dim": not black and not bg and all(a < b for a, b in zip(p, BG)),
+            "card": not bg}[want]
     print(f"({x},{y}) {p} {want}: {'ok' if good else 'FAIL'}")
     ok &= good
 sys.exit(0 if ok else 1)
@@ -232,6 +236,39 @@ grim -g "2440,1320 120x120" "$OUT/corners-24-br.png"
 K set theme.shape.screen_corners=0 >/dev/null || fail "set screen_corners failed"
 sleep 1.5
 pixels "corners at 0: the background at the output's corners" 1,1438,bg 2558,1438,bg
+
+# I128 (W36): while runtime.ui.polkit is true the Stage and the island step aside. The flag is set through the daemon's
+# own action (the agent is not registered here). (2350,300) lies in the quick card at rest (under its button at the
+# bar's right end), (1280,300) in an island card (centred under the pill).
+panel_is() { ui_is "d.get('panel', '') == '$1'"; }
+K act ui.polkit '{"active":true}' >/dev/null || fail "ui.polkit true refused"
+wait_ui 'd.get("polkit") is True' 20
+K act quick.toggle >/dev/null
+sleep 0.5
+wait_ui 'd.get("panel", "") == ""' 20
+check "$(panel_is "" && echo 1 || echo 0)" "polkit up: quick settings asked for is closed again at once (runtime.ui.panel empty)"
+K act island.expand >/dev/null
+sleep 0.5
+wait_ui 'd.get("panel", "") == ""' 20
+check "$(panel_is "" && echo 1 || echo 0)" "polkit up: the island does not expand (runtime.ui.panel empty)"
+sleep 1
+pixels "polkit up: no card drawn" 2350,300,bg 1280,300,bg
+K act ui.polkit '{"active":false}' >/dev/null || fail "ui.polkit false refused"
+K act quick.toggle >/dev/null
+sleep 1.5
+check "$(panel_is quick && echo 1 || echo 0)" "polkit gone: quick settings opens again"
+pixels "polkit gone: the quick card stands under its button" 2350,300,card
+K act ui.polkit '{"active":true}' >/dev/null
+sleep 0.5
+wait_ui 'd.get("panel", "") == ""' 20
+check "$(panel_is "" && echo 1 || echo 0)" "polkit comes up over an open quick card: the panel is closed"
+sleep 1.5
+pixels "polkit up: the quick card folded away" 2350,300,bg
+grim -g "1040,0 1520x700" "$OUT/polkit-stage-aside.png"
+K act ui.polkit '{"active":false}' >/dev/null
+sleep 1.5
+check "$(panel_is "" && echo 1 || echo 0)" "polkit gone: the folded panel does not come back by itself"
+pixels "polkit gone: still no card" 2350,300,bg
 stop_shell
 stop_daemon
 cat "$R/qs-real.log" >> "$R/qs.log"

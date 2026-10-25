@@ -5,7 +5,10 @@
 #   real   the REAL kurashid, per case (a look, a motion profile, the bar's edge; `kurashi set`, no restart): the island's
 #          view (island.expand), quick settings (quick.toggle; the phone), the session menu (session.menu), a mod's panel
 #          (sysmon: mod.panel.open), the sysmon peek (ui.peek with the widget's box), a retarget quick → session → sysmon
-#          → quick without a close (mid shots), and the island's view → quick;
+#          → quick without a close (mid shots), and the island's view → quick; W36: the launcher (launcher.toggle) and the
+#          notification centre (notifications.center), out of the pill on the same springs; a toast budding off the bar
+#          (a Notify on the sandbox's own session bus) and drifting away (notify.dismiss); the right and the left sidebar
+#          out of their bar buttons (sidebar.toggle);
 #   mock   kurashi-mock (its tray has two items): a tray item's menu out of its icon, and quick → session → tray.
 # Files: frontend/shots/morph/<case>-<surface>-{open,close}-<ms>.png, <case>-<surface>-rest.png, retarget shots
 # <case>-retarget-<step>-<ms>.png. Fails on a server or frontend that does not come up, a panel the daemon did not open,
@@ -23,7 +26,7 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/morph}
 AT=${MORPH_AT:-40 120 250}
 CASES=${MORPH_CASES:-washi sekai kami washi-lively sekai-calm washi-bottom sekai-bottom washi-none plain glass}
-ALL_SURFACES="island quick session mod peek retarget"
+ALL_SURFACES="island quick session mod peek retarget launcher centre toast sidebars"
 PHASES=${MORPH_PHASES:-real mock}
 mkdir -p "$OUT"
 fail() { echo "test-morph: $*" >&2; exit 1; }
@@ -91,7 +94,8 @@ burst() {
   local pre=$1 crop=$2; shift 2
   local gp=() t t0 ap
   t0=$(date +%s%N)
-  K act "$@" >/dev/null &
+  # BURST_CMD names a function that does the action instead of `kurashi act` (a toast: a Notify call).
+  if [ -n "${BURST_CMD:-}" ]; then "$BURST_CMD" "$@" >/dev/null & else K act "$@" >/dev/null & fi
   ap=$!
   for t in $AT; do
     ( now=$(date +%s%N); wait_ms=$(( t - (now - t0) / 1000000 )); [ "$wait_ms" -gt 0 ] && sleep "$(printf '%d.%03d' $((wait_ms / 1000)) $((wait_ms % 1000)))"
@@ -106,12 +110,24 @@ rest() { grim -g "$2" "$OUT/$1.png"; echo "test-morph: $OUT/$1.png"; }
 # card's region against the same region before the open (the frontend may tint nothing else there).
 empty_check() {  # empty_check <tag> <crop> <baseline ppm>
   grim -t ppm -g "$2" "$W/after.ppm"
+  # The bar's own strip (its first BAR_SKIP rows from the bar's edge) is left out: the clock's minute may turn between
+  # the two grabs (W36: a false "stuck morph" at hh:mm:00). A stuck shape always reaches below the bar.
   python3 -I -c '
 import sys
-a = open(sys.argv[1], "rb").read(); b = open(sys.argv[2], "rb").read()
+def rows(p):
+    d = open(p, "rb").read()
+    parts = d.split(b"\n", 3)  # P6, "w h", maxval, pixels (grim writes no comments)
+    w, h = map(int, parts[1].split())
+    px = parts[3]
+    return [px[i * w * 3:(i + 1) * w * 3] for i in range(h)]
+a, b = rows(sys.argv[1]), rows(sys.argv[2])
 if len(a) != len(b): sys.exit(1)
+skip = int(sys.argv[3])
+keep = range(len(a) - skip) if sys.argv[4] == "bottom" else range(skip, len(a))
+a = b"".join(a[i] for i in keep); b = b"".join(b[i] for i in keep)
 n = sum(1 for x, y in zip(a, b) if abs(x - y) > 24)
-sys.exit(0 if n < len(a) // 600 else 1)' "$3" "$W/after.ppm" || fail "$1: a panel is still drawn after its close (stuck morph?)"
+sys.exit(0 if n < max(1, len(a)) // 600 else 1)' "$3" "$W/after.ppm" "${BAR_SKIP:-44}" "${EDGE:-top}" \
+    || fail "$1: a panel is still drawn after its close (stuck morph?)"
 }
 
 # One surface: open, rest, close, then the Stage must be empty again.
@@ -121,10 +137,10 @@ surface() {  # surface <case> <name> <crop> <open act...> -- <close act...>
   while [ "$1" != "--" ]; do op+=("$1"); shift; done; shift
   cl=("$@")
   grim -t ppm -g "$crop" "$W/base.ppm"
-  burst "$cs-$nm-open" "$crop" "${op[@]}"
+  BURST_CMD=${OPEN_CMD:-} burst "$cs-$nm-open" "$crop" "${op[@]}"
   sleep 1.4
   rest "$cs-$nm-rest" "$crop"
-  burst "$cs-$nm-close" "$crop" "${cl[@]}"
+  BURST_CMD= burst "$cs-$nm-close" "$crop" "${cl[@]}"
   sleep 1.4
   empty_check "$cs-$nm" "$crop" "$W/base.ppm"
 }
@@ -178,8 +194,9 @@ if want real "$PHASES"; then
     if [ -n "${MORPH_SURFACES:-}" ]; then SURFACES=$MORPH_SURFACES
     else case "$cs" in
       washi|sekai|kami) SURFACES=$ALL_SURFACES ;;
-      *-bottom) SURFACES="island quick session peek" ;;
+      *-bottom) SURFACES="island quick session peek launcher toast" ;;
       plain) SURFACES="island quick" ;;
+      *-none) SURFACES="island quick session launcher centre" ;;
       *) SURFACES="island quick session" ;;
     esac; fi
     if want island "$SURFACES"; then
@@ -203,6 +220,26 @@ if want real "$PHASES"; then
       px=$((ox - 3)); pw=$((ow + 6))
       surface "$cs" peek "$(crop $((px - 300 > 0 ? px - 300 : 0)) 0 760 360)" \
         ui.peek "{\"source\":\"mod:sysmon:sysmon\",\"output\":\"$OUTPUT\",\"x\":$px,\"w\":$pw,\"edge\":\"$EDGE\"}" -- ui.peek '{}'
+    fi
+    if want launcher "$SURFACES"; then
+      surface "$cs" launcher "$(crop 900 0 760 560)" launcher.toggle -- ui.close
+    fi
+    if want centre "$SURFACES"; then
+      surface "$cs" centre "$(crop 980 0 600 640)" notifications.center -- ui.close
+    fi
+    if want toast "$SURFACES"; then
+      # Sent on the sandbox's own session bus only (kurashid's notification server there); dismissed by the daemon: it
+      # drifts and fades away, never back into the bar.
+      notify_one() { timeout 10 gdbus call --session --dest org.freedesktop.Notifications \
+        --object-path /org/freedesktop/Notifications --method org.freedesktop.Notifications.Notify \
+        "Calendar" 0 "" "Standup in 5 minutes" "Room 3 · bring the notes from Monday" '[]' '{}' 30000; }
+      OPEN_CMD=notify_one surface "$cs" toast "$(crop 980 0 600 360)" toast -- notify.dismiss '{}'
+    fi
+    if want sidebars "$SURFACES"; then
+      surface "$cs" sidebar-right "$(crop 1860 0 700 900)" sidebar.toggle "{\"side\":\"right\",\"output\":\"$OUTPUT\"}" \
+        -- sidebar.toggle "{\"side\":\"right\",\"output\":\"$OUTPUT\"}"
+      surface "$cs" sidebar-left "$(crop 0 0 700 900)" sidebar.toggle "{\"side\":\"left\",\"output\":\"$OUTPUT\"}" \
+        -- sidebar.toggle "{\"side\":\"left\",\"output\":\"$OUTPUT\"}"
     fi
     if want retarget "$SURFACES"; then
       c=$(crop 760 0 1800 900)
@@ -232,8 +269,8 @@ if want real "$PHASES"; then
   if [ "${frames_total:-0}" -gt 0 ]; then
     echo "test-morph: qs CPU per morph frame (upper bound: the phase's whole CPU over its morph frames): $(( (cpu1 - cpu0) * 1000000 / hz / frames_total )) us"
   fi
-  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
-    grep -E 'Error|error|TypeError|ReferenceError' "$R/qs.log" | head -20 >&2
+  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Binding loop' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
+    grep -E 'Error|error|TypeError|ReferenceError|Binding loop' "$R/qs.log" | head -20 >&2
     fail "QML errors (see $R/qs.log)"
   fi
   cp "$R/qs.log" "$R/qs-real.log"
@@ -261,8 +298,8 @@ if want mock "$PHASES"; then
   [ "$(panel)" = tray ] || fail "mock: the retarget to the tray did not open it ($(panel))"
   K act ui.close >/dev/null; sleep 1.4
   empty_check mock-retarget "$c" "$W/base.ppm"
-  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
-    grep -E 'Error|error|TypeError|ReferenceError' "$R/qs.log" | head -20 >&2
+  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Binding loop' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
+    grep -E 'Error|error|TypeError|ReferenceError|Binding loop' "$R/qs.log" | head -20 >&2
     fail "QML errors (see $R/qs.log)"
   fi
   stop_phase

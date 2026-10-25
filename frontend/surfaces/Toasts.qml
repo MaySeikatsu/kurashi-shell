@@ -18,7 +18,11 @@ import "../components/pen.js" as Pen
 // chrome (fill, outline, hard and soft shadow, material), the card's content fades in late. One drip at a time: a newer
 // toast waits until the one before has snapped off. The stack moves on springs; a dismissed card is flicked away to the
 // side (a swipe goes on in its direction), an expired one drifts and fades — never back into the bar. Without a top or
-// bottom bar the stack stands at the top right and cards just appear. Theme.springOn false (motion none) cuts.
+// bottom bar the stack stands at the top right; a card slides in from the screen's edge as it fades in (W36: it used to
+// just appear), and leaves as on the bar. Theme.springOn false (motion none) cuts.
+// W36: once the thread snaps, the card springs back to its place on MorphSprings (the island's springs and tokens): its
+// top towards its place, its width from the pulled-thin drop back to the card's (lively: it overshoots into a bulge and
+// settles; the height follows the width, area kept, so it stretches and squashes as one body).
 // I148: no toasts while the notification center is open, or the right sidebar is open on the toasts' output (it lists
 // them); they stay in the stack and come back when it closes (if the daemon still shows them). The same while something
 // else grows out of the island — the launcher, an island card or a Stage panel (W34: the toasts hang under the island
@@ -56,7 +60,7 @@ Scope {
     property var cache: ({})
     // A drip has not snapped off yet: newer toasts wait for it.
     property bool budBusy: false
-    readonly property bool animated: Theme.springOn && win.drip
+    readonly property bool animated: Theme.springOn
     onWantedChanged: sync()
     onHeldChanged: sync()
     function rowOf(id) {
@@ -93,7 +97,7 @@ Scope {
             if (rowOf(id) >= 0) continue
             if (budBusy) break
             var at = slotFor(top[k])
-            var bud = animated && !held && at === 0
+            var bud = animated && !held && at === 0 && win.drip
             cards.insert(at, { nid: id, leaving: false, flick: false, bud: bud })
             if (bud) budBusy = true
         }
@@ -259,21 +263,25 @@ Scope {
 
                 // ---- the drip: `t` 0 … 1 (snaps at 0.8), started on the first presented frame; then the spring back.
                 property real t: bud ? 0 : 1
-                property bool waiting: bud
+                // Without a drip (a side bar, no bar): the card slides in from the screen's edge as it fades in (W36).
+                property real enter: !bud && !win.drip && root.animated && Theme.stdMs > 0 ? 0 : 1
+                property bool waiting: bud || enter < 1
                 property bool detached: !bud
                 property bool freed: !bud
                 // Test only (KURASHI_MORPH_DEBUG=1): once it stands free, the card's top from the bar's screen edge and its height.
                 onFreedChanged: if (freed && Quickshell.env("KURASHI_MORPH_DEBUG") === "1")
                     console.log("toast-card " + nid + " " + Math.round(ly) + " " + Math.round(cardH))
-                property real dy: 0
-                property real sqz: 0
-                Behavior on dy {
-                    enabled: d.detached && win.springing
-                    SpringAnimation { spring: Theme.spring * 1.6; damping: Theme.damping; epsilon: 0.2 }
-                }
-                Behavior on sqz {
-                    enabled: d.detached && win.springing
-                    SpringAnimation { spring: Theme.spring * 2.2; damping: Math.max(0.15, Theme.damping * 0.8); epsilon: 0.002 }
+                // After the snap (W36): the card's top and width on the island's springs (see the header). They run only
+                // from the snap until the card stands at rest (Ma).
+                MorphSprings {
+                    id: back
+                    stiffness: 1.6
+                    on: d.detached && !d.freed && win.springing
+                    expanding: false
+                    cxTo: win.width / 2
+                    wTo: win.cardW
+                    hTo: d.detached && !d.freed ? d.ry : 0
+                    onSettledChanged: d.checkFree()
                 }
                 NumberAnimation {
                     id: budAnim
@@ -283,16 +291,30 @@ Scope {
                     to: 1
                     duration: Math.max(1, Theme.emphMs * 1.6)
                 }
+                NumberAnimation {
+                    id: enterAnim
+                    target: d
+                    property: "enter"
+                    to: 1
+                    duration: Theme.stdMs
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Theme.enterCurve
+                }
                 Connections {
                     target: d.waiting ? d.Window.window : null
-                    function onFrameSwapped() { d.waiting = false; budAnim.start() }
+                    function onFrameSwapped() {
+                        d.waiting = false
+                        if (d.bud) budAnim.start()
+                        else enterAnim.start()
+                    }
                 }
                 Component.onDestruction: if (!d.detached) root.detached()
                 onTChanged: {
                     if (!detached && t >= 0.8) detach()
                     if (t >= 1) checkFree()
                 }
-                // The thread snaps: the card is where the drop pulled it, squashed (lively); both spring back.
+                // The thread snaps: the card is where the drop pulled it, pulled thin (lively: the squash token); it springs
+                // back to its place and its width.
                 property real snapF1: 0
                 property real snapF2: 0
                 property real snapCx: 0
@@ -300,17 +322,18 @@ Scope {
                     snapF1 = f1R
                     snapF2 = f2R
                     snapCx = ncx
-                    dy = by0 - ry
-                    sqz = -win.squash * 2.5
                     // The stack's springs first: the room the drop took while it pulled is given back on a spring.
                     root.detached()
                     detached = true
-                    dy = 0
-                    sqz = 0
+                    // From where the drop is, still; then towards the card's place and width.
+                    back.place(win.width / 2, win.cardW * (1 - 1.25 * win.squash), by0)
+                    back.retarget(1)
+                    back.retarget(2)
                 }
-                function checkFree() { if (t >= 1 && Math.abs(dy) < 0.5 && Math.abs(sqz) < 0.003) freed = true }
-                onDyChanged: if (detached && !freed) checkFree()
-                onSqzChanged: if (detached && !freed) checkFree()
+                function checkFree() { if (detached && !freed && t >= 1 && back.settled) freed = true }
+                // The width as the spring has it (its rebound unclipped: that is the bulge), the height keeping the area.
+                readonly property real sw: freed ? win.cardW : Math.max(win.cardW * 0.5, back.w)
+                readonly property real dy: freed ? 0 : back.hOut - ry
 
                 // ---- the drip's geometry (local): the body grows out of the bar's edge, pulls down, the neck pinches.
                 function clamp01(x) { return Math.max(0, Math.min(1, x)) }
@@ -322,8 +345,8 @@ Scope {
                 readonly property real fmax: win.fillet * (1 + 0.8 * pc)
                 // After the snap: the stub on the bar and the bump on the card melt back.
                 readonly property real melt: detached ? 1 - Math.pow(1 - clamp01((t - 0.8) / 0.2), 2) : 0
-                readonly property real bw: detached ? win.cardW * (1 + sqz * 0.5) : lerp(win.rootW, win.cardW, u)
-                readonly property real bh: detached ? cardH * (1 - sqz) : lerp(4, cardH, u)
+                readonly property real bw: detached ? sw : lerp(win.rootW, win.cardW, u)
+                readonly property real bh: detached ? cardH * win.cardW / sw : lerp(4, cardH, u)
                 readonly property real bcx: detached ? win.width / 2 : lerp(win.neckCx, win.width / 2, u)
                 readonly property real by0: detached ? ry + dy : lerp(win.rootY + win.startGap, ry + win.stretch, v)
                 readonly property real bx0: bcx - bw / 2
@@ -511,15 +534,15 @@ Scope {
 
                 // The card's slot (its place); the card itself moves only when it is swiped (NotificationCard's x).
                 Item {
-                    x: win.cardX + d.fx
+                    x: win.cardX + d.fx + (1 - d.enter) * 32
                     y: win.wy(d.leaving ? d.frozenY : d.ly, card.height)
                     width: win.cardW
                     height: card.height
                     transform: Scale {
                         origin.x: win.cardW / 2
                         origin.y: win.flip ? card.height : 0
-                        xScale: d.detached ? 1 + d.sqz * 0.5 : 1
-                        yScale: d.detached ? 1 - d.sqz : 1
+                        xScale: d.detached ? d.sw / win.cardW : 1
+                        yScale: d.detached ? win.cardW / d.sw : 1
                     }
                     NotificationCard {
                         id: card
@@ -533,8 +556,8 @@ Scope {
                         onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
                     }
                 }
-                // A leaving card's chrome fades with it (group opacity only while it leaves, K16).
-                opacity: d.leaving ? d.fade : 1
+                // A leaving card's chrome fades with it, an entering one's comes in (group opacity only while it moves, K16).
+                opacity: d.leaving ? d.fade : d.enter
             }
         }
         Chip {
