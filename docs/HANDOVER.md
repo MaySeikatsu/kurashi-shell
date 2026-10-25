@@ -17,6 +17,50 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-22…25 — session 13 (machine A): textures deepened, the pen, Settings as a sheet, one motion language, shortcuts, apps follow — K61–K64, waves 32–35
+**State:** `main` green (`just check`; 18 sandbox suites at the end of wave 32; wave 34/35 suites per card), pushed. One
+agent may still be running: **W35-perf** (`docs/tasks/W35-perf.md`, worktree under `.claude/worktrees/`) — if its
+branch exists unmerged, review its report/commits and merge (`--no-ff`); delete `~/.cache/kurashi-agents-target/w35-perf`
+after. Lead build dir `~/.cache/kurashi-agents-target/lead` (debug daemon with test-mods) is kept for sandbox runs.
+
+**User decisions (session 13):** spotlight (pinned lamp, beam aimed by the pointer) over a steered direction; Settings as a
+modal sheet (window stays default); carried sheet by default; relief shadows on for kami/paint; everything that comes
+out of the bar morphs like the island (calm and lively stay); toasts/centre now hang under the island (placement change
+made by W34-morph-surfaces — confirm with the user); apps follow the shell incl. icons and fonts.
+
+**Built and merged:** wave 32 (K61–K63: depth, relief shadows + height maps, spotlight, light colour, controls (masked on
+icons), carried/fixed/separate sheet, cracks, brush, wallpaper material, the island disc bug, I166–I172; the pen K62:
+outline styles + fountain-pen modifiers for outlines, text and surfaces; Settings sheet + material in Settings);
+wave 33 (texture benches, I181); wave 34 (morph everywhere: Stage panels with retarget + MorphSprings, sidebars merged
+into the bar, launcher/centre/toasts from the pill; apps follow: gsettings, Qt/KDE lines, KDE colour scheme, niri
+shape/motion; squash token); wave 35 (backlog audit; K64 shortcuts in Settings; web dock polish). Lead fixes: B36 config
+reload loop (~8 % idle CPU), I156, I39, I14, I130, I63, I124, I16, I59, I49, I187, rows 340/341b/362/363, B38, theme
+export never writes unfilled renders, render-node default only where it exists, greeter texture slots (I166).
+The user's own desktop: their `~/.config/gtk-{3,4}.0/gtk.css` now only import kurashi's colours (backups
+`*.bak-20261022-173753`), qt5ct/qt6ct style Fusion (backups too), `~/.local/share/color-schemes/Kurashi.colors` rendered
+once by hand (the daemon writes it once `"kde"` is in `theme.export` after the next package update).
+
+**Next steps (ordered):**
+1. Finish/merge W35-perf (B37 popup latency 45–118 ms vs 16.7, B34 idle frames, B35 memory 178 MiB vs 150 — the budget
+   needs a decision with the user, I93 PSS reader). Re-run `just bench-gate` / `just bench-texture` on a quiet machine.
+2. I190 motion follow-ups (BarMorph onto MorphSprings, sidebar origin from the anchor registry, quick card rest under
+   keycap/soft, side bars, first cold launcher open stall, `docs/ux/sidebar.md` motion text, bench rows per surface).
+3. I189 keys follow-ups, I191 web dock (row 374 settings provenance for mods), I173 dynamic drop shadows.
+4. Bar modules polish: I102 window list, I131 recording face, I140 calendar, I137 dock urgent/reorder, I111 bench row.
+5. Core: I17 supervisor waits for NameOwnerChanged, I18, I128 polkit step-aside, I86 forced_by in service docs, I40/I54/I134
+   settings types, I136/I119 desk cards hide.
+
+**Open decisions (ask):** the memory budget (B35); toasts/centre placement under the island (keep?); I176 mixed fonts
+(idea). MangoWM and isekai/mirai stay deferred.
+
+**Gotchas (new):** a `&& grep` chain hides a failing cargo test — use `set -o pipefail`; tests must not read the user's
+real `~/.local/state` (the I156 test did); agents share the scratchpad (prefix logs); Quickshell hot-reloads the config
+while a suite runs (do not edit frontend files mid-suite); `git worktree remove --force` drops uncommitted changes —
+check before; machine A has one GPU (`/dev/dri/renderD128`); weekly usage limits can stop agents mid-card — resume them
+with SendMessage, their work is kept.
+
+---
+
 ## 2026-10-21 — session 12, part 2 (machine B): material textures and their light, 紙 kami, text colour — K59, K60, wave 31
 **State:** `main` green, pushed (merge of `feat/k59-texture-light`). Four agent cards merged (W31-texture-gen,
 W31-texture-polish, W31-relief, W31-paint); no agent worktrees left; their build dirs deleted. Nothing is half-done.
