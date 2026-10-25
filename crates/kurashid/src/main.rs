@@ -239,6 +239,9 @@ async fn run() -> anyhow::Result<()> {
         b.register_actions(&mut actions);
         b
     });
+    // The charger and Bluetooth edges need their services running: the island holds them from here,
+    // after the config was applied, so `island.main.system_events = false` never starts them (K65).
+    island.follow_core();
     let mut daemon = Daemon::new(hub, actions, intents);
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     kurashid::doctor::register(&mut daemon, facts);
@@ -305,6 +308,4 @@ fn register_services(
     kurashid::wiring::network(hub, actions);
     kurashid::wiring::tray(hub, actions);
     kurashid::wiring::bluetooth(hub, actions, Some(island.clone()));
-    // Last: the documents exist now. The charger and Bluetooth edges need the services running.
-    island.follow_core();
 }
