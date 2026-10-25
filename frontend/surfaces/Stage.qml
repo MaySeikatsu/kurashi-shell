@@ -232,7 +232,6 @@ PanelWindow {
                     p = 1; gate = true; shown = true
                     fitBox(true)
                     springs.place(originCx, closedW, closedFoot)
-                    if (debugLog) console.log("stage-morph open " + contentKind + " origin=" + Math.round(origin.x) + "," + Math.round(origin.w) + "," + origin.kind + " t0=" + Date.now())
                 }
             } else if (!shown) { p = 0; gate = true; shown = true }
             else { anim.from = p; anim.to = 1; anim.start() }
@@ -260,7 +259,11 @@ PanelWindow {
             if (stage.gate) {
                 // The shape starts at its origin, read now (runtime.ui may name the panel a moment after the Stage
                 // opened), and grows from here on.
-                if (stage.morphMode) springs.place(stage.originCx, stage.closedW, stage.closedFoot)
+                if (stage.morphMode) {
+                    springs.place(stage.originCx, stage.closedW, stage.closedFoot)
+                    if (stage.debugLog) console.log("stage-morph open " + stage.contentKind + " origin=" + Math.round(stage.origin.x) + ","
+                        + Math.round(stage.origin.w) + "," + stage.origin.kind + " t0=" + Date.now())
+                }
                 stage.gate = false
                 if (stage.morphMode) stage.taken = stage.headMode
                 else { anim.from = stage.p; anim.to = 1; anim.start() }

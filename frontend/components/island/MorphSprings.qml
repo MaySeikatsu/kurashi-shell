@@ -148,7 +148,11 @@ QtObject {
         vcx = v0; vw = v1; vh = v2
         cx = x0; w = x1; h = x2
         publish()
-        if (debugLog) { frames++; stepMs += Date.now() - t0 }
+        if (debugLog) {
+            frames++; stepMs += Date.now() - t0
+            if (frames % 120 === 0) console.log("morph-springs running frames=" + frames + " d=" + (cxTo - cx).toFixed(2) + "," + (wTo - w).toFixed(2)
+                + "," + (hTo - h).toFixed(2) + " v=" + vcx.toFixed(1) + "," + vw.toFixed(1) + "," + vh.toFixed(1))
+        }
         if (done) {
             driver.running = false
             if (debugLog) { console.log("morph-springs settled frames=" + frames + " stepMs=" + stepMs); frames = 0; stepMs = 0 }
