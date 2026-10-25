@@ -5,7 +5,8 @@
 #   intents    the pointer and the keys reach the dock, and each intent the frontend sends is logged (hover, engage, select,
 #              pin, add, move, remove, size, collapse, back, toggle); the menu and the add form take the keyboard;
 #   focus      Tab from the card reaches the view's own controls (Places) and the header's size control (Large) (I90);
-#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, and works without it (I91);
+#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, shows why in a tip on a rest or
+#              on keyboard focus (Tip.qml; shots dock-forced-tip*.png), and works without it (I91);
 #   keys       the first key after a keybind reveal (`engaged`) reaches the strip at 50, 100 and 150 ms; 0 ms is a note (I98);
 #   large      a large card on the bottom and the top edge fills the usable height between the bar and the strip (I100);
 #   ja         the Japanese copy (the mock's i18n document follows LC_ALL);
@@ -537,22 +538,59 @@ phase_focus() {
   stop_phase
 }
 
-# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2) ----
+# tip_count: how many reason tips the dock has made so far (Tip.qml logs one per tip with KURASHI_WEBDOCK_DEBUG=1).
+tip_count() { grep -c -F "webdock-debug tip" "$R/qs.log" || true; }
+
+# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2); the reason is a tip ----
 phase_forced() {
-  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, and works without it"
+  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, shows why (a tip), and works without it"
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
-  start_frontend
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
   setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='compact'; d['forced']={'pinned':'nix'}; print(json.dumps(d))" "$BASE" "$PINS2")"
   start_input
   sleep 2
-  click 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  # A rest on the inert toggle shows the reason: the pointer enters the strip, then rests on the toggle (its tip names the source).
+  move 2531 701
+  sleep 1
+  tips=$(tip_count)
+  move 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  sleep 1.5
+  r=0; [ "$(tip_count)" -gt "$tips" ] && r=1
+  check "$r" "forced: a rest on the inert pin toggle shows why (the tip)"
+  shot forced-tip
+  move 1800 300
+  sleep 0.5
+  click 2531 768
   sleep 0.5
   if seen "i['action']=='webdock.pin'"; then r=0; else r=1; fi
   check "$r" "forced: a click on the pin toggle sends no webdock.pin while the configuration sets pinned"
+  # Keyboard: a keybind reveal gives the strip the keyboard; Down walks to the toggle, whose tip shows on focus.
+  setdoc '{"mode":"hidden","engaged":false}'
+  sleep 1
+  setdoc '{"mode":"compact","engaged":true}'
+  sleep 1
+  tips=$(tip_count)
+  r=0
+  for _ in $(seq 1 10); do
+    press down
+    if [ "$(tip_count)" -gt "$tips" ]; then r=1; break; fi
+  done
+  check "$r" "forced: the keyboard reaching the inert pin toggle shows why (the tip)"
+  sleep 1
+  shot forced-tip-focus
   setdoc '{"forced":null}'   # a merge patch: null removes the field (an empty object would keep `pinned`)
   sleep 1
+  move 1800 300
+  sleep 0.5
+  tips=$(tip_count)
+  move 2531 701
+  sleep 1
+  move 2531 768
+  sleep 1.5
+  r=0; [ "$(tip_count)" -eq "$tips" ] && r=1
+  check "$r" "forced: without the force a rest on the pin toggle shows no tip (nothing to say)"
   click 2531 768
   seen "i['action']=='webdock.pin'" && r=1 || r=0
   check "$r" "forced: without the force the same click sends webdock.pin (the control is live)"

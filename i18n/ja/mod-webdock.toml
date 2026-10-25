@@ -17,6 +17,7 @@
 "webdock.add.url" = "サイトのアドレス"
 "webdock.pin.dock" = "ドックを開いたままにする"
 "webdock.pin.undock" = "ドックを自動で隠す"
+"webdock.dock.forced.tip" = "設定元: {by}（変更は設定で行います）"
 "webdock.view.mobile" = "モバイル表示"
 "webdock.view.desktop" = "デスクトップ表示"
 "webdock.size.phone" = "スマホ"
