@@ -66,7 +66,14 @@ PanelWindow {
     readonly property var modsDoc: Store.docs["mods"]
     readonly property var panelRef: Mods.panelOf(ui.panel)
     readonly property bool modWanted: panelRef !== null && Mods.qmlOf(modsDoc, "panel:" + panelRef.panel, panelRef.mod) !== ""
-    readonly property bool open: want || quickWanted || modWanted
+    // I128 (W36): while a polkit dialog is up (runtime.ui.polkit, K47 (5)) the Stage steps aside: no panel opens, no peek,
+    // no keyboard focus. A panel that was open folds away and is closed at the daemon (`ui.close` keeps the polkit flag),
+    // so it does not come back by itself when the dialog goes; a panel asked for meanwhile is closed the same way.
+    readonly property bool polkit: ui.polkit === true
+    readonly property bool asked: want || quickWanted || modWanted
+    readonly property bool open: asked && !polkit
+    readonly property bool refused: asked && polkit
+    onRefusedChanged: if (refused) Store.act("ui.close")
     // K24: the island card shows the expanded view of the face the daemon latched when it opened. A core face
     // without one gets the generic card; a mod face loads its `island-face:<name>:expanded` (K28), or the generic card.
     // power and bluetooth open their quick settings pages, not the generic card (I44).
@@ -74,6 +81,18 @@ PanelWindow {
     readonly property string islandKind: expandedFaces.indexOf(ui.face) >= 0 ? ui.face : (ui.face ? "modface" : "island")
     readonly property string wantedKind: sessionWanted ? "session" : (trayWanted ? "tray"
         : (quickWanted ? "quick" : (modWanted ? "mod" : (want ? islandKind : ""))))
+    // The same, read from the document itself at the moment it is called (I192): `onOpenChanged` runs while the bindings
+    // above may still hold the previous runtime.ui, and a stale "" made the generic view first and then the face's.
+    function kindNow() {
+        var u = Store.docs["runtime.ui"] || ({})
+        if (u.panel === "session") return "session"
+        if (u.panel === "tray") return "tray"
+        if (u.panel === "quick") return "quick"
+        var p = Mods.panelOf(u.panel)
+        if (p !== null && Mods.qmlOf(modsDoc, "panel:" + p.panel, p.mod) !== "") return "mod"
+        if (!want) return ""
+        return expandedFaces.indexOf(u.face) >= 0 ? u.face : (u.face ? "modface" : "island")
+    }
     // Latched while the card slides out, as contentKind is: which mod panel, and which mod face's view, it shows.
     property string shownPanelMod: ""
     property string shownPanel: ""
@@ -110,7 +129,12 @@ PanelWindow {
     Timer {
         id: swap
         interval: 90
-        onTriggered: if (stage.pendingKind !== "") { stage.contentKind = stage.pendingKind; stage.pendingKind = "" }
+        onTriggered: if (stage.pendingKind !== "") {
+            // A view not made yet keeps the card's present size meanwhile (I192): the shape stays out, never folds back.
+            stage.bridgeSize = { w: card.width, h: card.height }
+            stage.contentKind = stage.pendingKind
+            stage.pendingKind = ""
+        }
     }
     // The card keeps the Stage's one keyboard focus across content changes and reopenings (the menus
     // are driven from it), so it takes focus back whenever the content swaps or the Stage opens.
@@ -125,8 +149,29 @@ PanelWindow {
     })
     readonly property bool viewing: views[contentKind] !== undefined
     // A view that draws its own chrome (`ownChrome`, the quick settings phone): no card fill, border, padding or Close row
-    // around it; the island's shape (or the slide) still brings it in.
-    readonly property bool ownChrome: viewing && view.item !== null && view.item.ownChrome === true
+    // around it; the island's shape (or the slide) still brings it in. Known per kind before the view is made (I192: the
+    // view loads asynchronously, and the card's padding must not jump when it arrives).
+    readonly property bool ownChrome: viewing && (["quick", "power", "bluetooth"].indexOf(contentKind) >= 0
+        || (view.item !== null && view.item.ownChrome === true))
+    // I192 (W36): the view is made asynchronously, so the patch that opens a panel is answered by a frame at once. The
+    // card takes the size that view had the last time it was shown (per kind; a mod panel and a mod face's view per
+    // name) until the view is ready, so the shape grows straight to it; only a view's very first open holds the growth
+    // until it is made. The content fades in only once it is there.
+    readonly property bool viewReady: !viewing || view.status === Loader.Ready
+    readonly property string sizeKey: contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel
+        : (contentKind === "modface" ? shownFaceView : contentKind)
+    property var sizeCache: ({})
+    property var bridgeSize: null
+    readonly property var cachedSize: viewing ? (sizeCache[sizeKey] || bridgeSize) : null
+    readonly property bool sizeKnown: viewReady || cachedSize !== null
+    function recordSize() {
+        if (!viewing || !viewReady || !open || gate || !reached) return
+        var c = sizeCache[sizeKey]
+        if (c && c.w === card.width && c.h === card.height) return
+        var n = Object.assign({}, sizeCache)
+        n[sizeKey] = { w: card.width, h: card.height }
+        sizeCache = n
+    }
     readonly property int cardPad: ownChrome ? 0 : Theme.pad + 4
     // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
     // takes it within 360..720 px and the output's width; the panel gets the card's content width.
@@ -205,7 +250,7 @@ PanelWindow {
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: open && !polkit ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     WlrLayershell.namespace: "kurashi-stage"
     color: "transparent"
     mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
@@ -218,9 +263,11 @@ PanelWindow {
     onOpenChanged: {
         if (open) {
             // Content first: a menu closed a moment ago must not show for a frame.
+            bridgeSize = null
             swap.stop()
             pendingKind = ""
-            contentKind = wantedKind === "" ? "island" : wantedKind
+            var k = kindNow()
+            contentKind = k === "" ? "island" : k
             pillGeom = IslandGeom.pillOf(outName)
             Qt.callLater(function () { card.forceActiveFocus() })
             anim.stop()
@@ -347,7 +394,7 @@ PanelWindow {
     readonly property bool peekAvailable: peekMod !== null
         ? Mods.qmlOf(modsDoc, "peek:" + peekMod.panel, peekMod.mod) !== "" : peekLinesOf(peekSourceId).length > 0
     // Asked for now: available, on this Stage's output, and on an enabled bar of any edge (I67: side bars too).
-    readonly property bool peekWanted: peekAvailable && !open && bars.enabled && !!screen && screen.name === peekOutput
+    readonly property bool peekWanted: peekAvailable && !open && !polkit && bars.enabled && !!screen && screen.name === peekOutput
     // Held while the peek is asked for and while it fades out (I67): the Stage keeps the peek's output and place until the
     // fade is over. Set when a peek is wanted; cleared when the fade ends, or at once when there is no fade to play.
     property bool peekHeld: false
@@ -674,14 +721,23 @@ PanelWindow {
     // The shape closed: the pill (head), or a sliver at the line it hangs from.
     readonly property real closedW: origin.w
     readonly property real closedFoot: headMode ? pillTop + pillH : origin.e
-    // The card at rest: centred on the output, a tray menu at the bar's tray end (Theme.pad in, as before).
-    readonly property real cardOutX: aligned ? outW - Theme.pad - card.width : Math.round((outW - card.width) / 2)
+    // The card at rest (W36): a panel that grew out of a bar widget (quick settings, a tray menu, a mod's panel) rests
+    // under that widget, centred on it and kept Theme.pad inside the output — the container transform: the card is the
+    // button grown, and its neck stays on the button's block where the groups float. The island's views and the session
+    // menu (no widget) rest centred under the pill. A tray menu without its icon on this output keeps the tray's end.
+    readonly property bool restsUnder: panelKinds.indexOf(contentKind) >= 0 && origin.kind === "widget"
+    readonly property real cardOutX: restsUnder
+        ? Math.round(Math.max(Theme.pad, Math.min(outW - Theme.pad - card.width, originCx - card.width / 2)))
+        : (aligned ? outW - Theme.pad - card.width : Math.round((outW - card.width) / 2))
     readonly property real cardFoot: cardTop + card.height
 
     // The box the window covers along the bar (out px) and its height: the origin and the card with the neck's and the
     // springs' slack. It only grows while the shape is out (a retarget adds the new card to it, never a resize mid-morph
     // that would cut the shape), and is fitted anew when the shape comes out.
+    // The springs' room past origin and card: the width's soft-limited overshoot and the landing's bulge on each side, the
+    // centre's overshoot past its travel (MorphSprings.cap, .squash), the neck's fillets and the soft shadow.
     readonly property int slackX: 16 + Theme.softR
+        + Math.ceil(card.width * (springs.cap + springs.squash) / 2 + Math.abs(cardOutX + card.width / 2 - originCx) * springs.cap)
     readonly property int slackY: 40
     readonly property real needL: Math.floor(Math.min(origin.x, cardOutX) - neckR - slackX)
     readonly property real needR: Math.ceil(Math.max(origin.x + origin.w, cardOutX + card.width) + neckR + slackX)
@@ -706,7 +762,8 @@ PanelWindow {
 
     // The springs (MorphSprings): the shape's centre along the bar, its width and its foot, towards the card while the
     // panel is open and has shown its first frame, else towards the origin.
-    readonly property bool extended: shown && !gate && (open || contentP > 0.4)
+    // A view's first open holds the growth until the view is made (I192: else the size it had last time).
+    readonly property bool extended: shown && !gate && (open || contentP > 0.4) && sizeKnown
     MorphSprings {
         id: springs
         on: Theme.springOn && stage.shown
@@ -822,10 +879,12 @@ PanelWindow {
     // panel closes or swaps.
     readonly property bool near: Math.abs(springs.hTo - cardFoot) < 1 && Math.abs(springs.wTo - card.width) < 1 && springs.pw > 0.92 && springs.ph > 0.6 && (springs.pcx > 0.97 || Math.abs(springs.cx - springs.cxTo) < 16)
     property bool reached: false
-    onNearChanged: if (near && open && shown && !gate && !swapping) reached = true
+    onNearChanged: if (near && open && shown && !gate && !swapping && viewReady) reached = true
+    onViewReadyChanged: if (viewReady && near && open && shown && !gate && !swapping) reached = true
+    onReachedChanged: recordSize()
     onSwappingChanged: reached = false
     onGateChanged: reached = false
-    readonly property bool contentWanted: open && shown && !gate && !swapping && (reached || near)
+    readonly property bool contentWanted: open && shown && !gate && !swapping && viewReady && (reached || near)
     property real contentP: 0
     onContentWantedChanged: {
         contentP = contentWanted ? 1 : 0
@@ -976,17 +1035,22 @@ PanelWindow {
         visible: stage.shown
         // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel
         // asks for its card width (contract row 66); the session menu is as wide as its row of tiles; the rest keep 360 px.
-        width: ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
+        // I192: while the view is being made, the size it had last time (see `cachedSize`).
+        readonly property bool fromCache: !stage.viewReady && stage.cachedSize !== null
+        width: fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
-        height: (stage.viewing ? col.implicitHeight
+        height: fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
             : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad
-        // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the first frame has
-        // shown (the reveal is the slide), so opening the card does not animate its height from the closed size.
+        onWidthChanged: stage.recordSize()
+        onHeightChanged: stage.recordSize()
+        // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the view is in (the reveal is
+        // the shape's growth, or the slide), so opening the card does not animate its height from the closed size, nor
+        // from the size it had last time to the view's when it arrives (I192: the springs take that up).
         // Clipped, so a grown row is revealed by the card's edge rather than drawn over its margin.
         clip: true
         Behavior on height {
-            enabled: stage.open && !stage.gate
+            enabled: stage.open && !stage.gate && stage.viewReady && (stage.morphMode ? stage.reached : stage.p >= 1)
             NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
         }
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
@@ -1074,6 +1138,7 @@ PanelWindow {
                 id: view
                 width: col.width
                 active: stage.shown && stage.viewing
+                asynchronous: true
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
             // The one close action of the island and quick cards (Esc closes them too).
