@@ -280,3 +280,11 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | [W35-keys](W35-keys.md) | kurashid keys.rs, settings keys page, keys i18n, niri-binds doc | opus |
 | [W35-perf](W35-perf.md) | tools/bench, BENCH.md, the frontend files its fixes need (after W34 merges) | opus |
 | [W35-webdock-polish](W35-webdock-polish.md) | mods/webdock/**, kurashi-mod-webdock, webdock i18n, test-dock webdock steps | haiku (max) |
+
+## Wave 36 (2026-10-25, session 13) — motion, bar modules, core, desk (contracts: K65)
+| Card | Owner paths | Model |
+|---|---|---|
+| W36-motion | Stage/Launcher/Toasts/NotificationCenter/Sidebar, components/island + sidebar + launcher, ClockView, QuickPanel, docs/ux/motion + sidebar | opus |
+| W36-bar | workspaces.rs + niri adapter, Bar/Dock, bar faces, test-tasks/dock, docs/ux/tasks + dock | opus |
+| W36-core | crates/kurashid (rest), kurashi-mod-api, schema __private/generate, settings/, mods/wallpaper | opus |
+| W36-desk | Desktop.qml + desk components, test-desk, docs/ux/desktop | haiku |
