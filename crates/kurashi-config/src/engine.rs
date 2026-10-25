@@ -1082,11 +1082,12 @@ impl<S: SchemaView> Config<S> {
                 continue;
             }
             let global = self.resolve(key, None);
-            // A value the user set is saved even when it equals the default: a profile of the default faces keeps the
-            // list, and the list restricts again on load (K68). Other layers keep the non-default rule.
+            // A value the user or a profile set is saved even when it equals the default: a profile of the default faces
+            // keeps the list, and the list restricts again on load (K68, row 473). Nix (the machine) and the look's values
+            // keep the non-default rule.
             if let Some(g) = &global
                 && keep(g)
-                && (matches!(g.source, Source::User)
+                && (matches!(g.source, Source::User | Source::Profile(_))
                     || Some(&g.value) != self.schema.default(key).as_ref())
                 && let Some(v) = json_to_value(&g.value)
             {

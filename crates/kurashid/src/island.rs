@@ -14,7 +14,7 @@ use kurashi_island::signals::{
 use kurashi_island::{
     Annotation, Arbiter, Face, FaceSignal, IslandConfig, Ms, Source, Transient, doc,
 };
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use crate::actions::ActionRegistry;
 use crate::config::ConfigStore;
@@ -378,9 +378,8 @@ impl IslandHost {
         self.arm(deadline, now);
     }
 
-    /// K68 (row 451): a card open on a face the island no longer offers closes, as a collapse does, so it never shows a
-    /// face the list may not show. `runtime.ui` is wiring.rs's document; its collapse (`close_panel`) is private there, so
-    /// this writes the same fields (row 470 asks for one helper for both). Called outside the arbiter's lock; an unchanged
+    /// K68 (row 451): a card open on a face the island no longer offers closes, as a collapse does (wiring.rs
+    /// `close_panel`), so it never shows a face the list may not show. Called outside the arbiter's lock; an unchanged
     /// `runtime.ui` sends nothing.
     fn close_dropped_card(&self, faces: &[String]) {
         let _ = self.hub.update("runtime.ui", None, |ui| {
@@ -389,13 +388,7 @@ impl IslandHost {
                 && !face.is_empty()
                 && !faces.iter().any(|f| f == face)
             {
-                ui["panel"] = json!("");
-                ui["popup"] = json!(false);
-                ui["tray"] = json!("");
-                ui["face"] = json!("");
-                if let Some(o) = ui.as_object_mut() {
-                    o.remove("peek");
-                }
+                crate::wiring::close_panel(ui);
             }
         });
     }

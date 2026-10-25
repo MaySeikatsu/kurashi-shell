@@ -408,7 +408,9 @@ fn offers_face(island: &Value, face: &str) -> bool {
 
 /// Removes the peek from a `runtime.ui` value (K35); absence is "no peek".
 /// Row 362: no Stage panel (the island's card, quick, session, tray, a mod panel) and no peek.
-fn close_panel(d: &mut Value) {
+/// The closed card in a `runtime.ui` value: the `island.expand` collapse, and island.rs when the list drops the card's face
+/// (K68, row 451).
+pub(crate) fn close_panel(d: &mut Value) {
     d["panel"] = json!("");
     d["popup"] = json!(false);
     d["tray"] = json!("");

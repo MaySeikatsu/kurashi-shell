@@ -723,6 +723,11 @@ the island may show, as its label says; an unlisted face never shows and `island
 newly enabled mod's face joins the default list (the card decides how, without writing the user's config behind their back). *Why:* the user chose "raise and split", "shorter
 flip" and "restricts" (session 13); placement stays as built (toasts/centre under the island, panels under their widget).
 
+*K68 follow-ups (wave 42, rows 451, 452, 473):* a list that names no registered face falls back to the default face (else
+the first registered one) alone; a card open on a face the island stops offering closes; `save_profile` keeps a value the
+user or a profile set even when it equals the schema default (forced, Nix and the look's values keep the non-default
+rule), so a saved list restricts again on load (K7).
+
 ## K69 — the shell ships its own icon subset; a missing name falls back to the full family (2026-10-25, session 13; I194)
 The kurashi package installs "Kurashi Symbols Rounded" and "Kurashi Symbols Sharp" (`nix/icon-font.nix`: Material
 Symbols cut to the ligatures in `nix/icon-names.txt`, every axis kept) under `share/fonts/truetype`; the Home-Manager and
