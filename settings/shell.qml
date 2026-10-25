@@ -14,7 +14,9 @@ import "pages"
 // comes after a moment, with the disconnected veil. The process ends when the window closes or the sheet is dismissed.
 // `KURASHI_SETTINGS_KEY=<key> qs -p settings` opens that setting's row at start; a running app takes the same link
 // through `qs -p settings ipc call settings jump <key>`; `kurashi settings <key>` and the daemon action `settings.open
-// {key}` do either for you (K32).
+// {key}` do either for you (K32). A page link (I40, K65) works the same way: `KURASHI_SETTINGS_PAGE=<page>` at start,
+// `ipc call settings page <page>` while open, `settings.open {page}` for either; `<page>` is a schema page id (`keys`) or
+// `mod:<id>` for a mod's page.
 ShellRoot {
     id: root
     readonly property bool configIn: Store.config.values !== undefined
@@ -164,6 +166,21 @@ ShellRoot {
             const h = Store.rowOf(key)
             if (h) win.jump(h.pageId, h.row, false)
         }
+        // A page link (I40): `mod:<id>` names a mod's page (`mods.<id>` in the schema), anything else a page id. The page
+        // opens at its top, out of a search; unknown pages open nothing (the daemon refuses them first).
+        function pageIdOf(link: string): string {
+            const id = link.indexOf("mod:") === 0 ? "mods." + link.slice(4) : link
+            return win.pages.some(function (x) { return x.id === id }) ? id : ""
+        }
+        function openPage(link: string): bool {
+            const id = win.pageIdOf(link)
+            if (id === "") return false
+            win.query = ""
+            win.page = id
+            settingsPages.pinKey = ""
+            settingsPages.contentY = 0
+            return true
+        }
         // Leaving a page, searching or closing ends a preview (Changes): it is put back. A query the app cleared (a jump, a
         // page change) clears the field too, even while the field has the focus (its text follows the query only then).
         onPageChanged: Changes.putBack()
@@ -183,11 +200,21 @@ ShellRoot {
                 win.openKey(win.startKey)
             }
         }
-        onParentChanged: openStartKey()
-        onWidthChanged: openStartKey()
+        // The same for a page link given at start (a key, if both were given, wins: it names a page too).
+        property bool startPageDone: false
+        readonly property string startPage: Quickshell.env("KURASHI_SETTINGS_PAGE") || ""
+        function openStartPage(): void {
+            if (!win.startPageDone && win.startKey === "" && win.startPage !== "" && win.parent !== null && win.width > 0
+                    && win.pageIdOf(win.startPage) !== "") {
+                win.startPageDone = true
+                win.openPage(win.startPage)
+            }
+        }
+        onParentChanged: { openStartKey(); openStartPage() }
+        onWidthChanged: { openStartKey(); openStartPage() }
         Connections {
             target: Store
-            function onSchemaChanged() { win.openStartKey() }
+            function onSchemaChanged() { win.openStartKey(); win.openStartPage() }
         }
 
         // Test/automation hook: `qs -p settings ipc call settings <fn> ...`. Goes through the same paths as the controls
@@ -218,10 +245,13 @@ ShellRoot {
             function dbg(): string {
                 return "startKey=" + win.startKey + ",done=" + win.startKeyDone + ",schemaPages=" + win.pages.length
                     + ",rowOf=" + (Store.rowOf(win.startKey) ? "yes" : "no")
+                    + ",startPage=" + win.startPage + ",pageDone=" + win.startPageDone
             }
             function advanced(on: bool): void { win.advanced = on }
             function preview(name: string): void { win.page = "@profiles"; profiles.select(name) }
             function jump(key: string): void { win.openKey(key) }
+            // A page link (I40): `keys`, `mod:<id>`; the daemon's `settings.open {page}` calls it on a running window.
+            function page(link: string): void { win.openPage(link) }
             function mod(id: string, on: bool): void { modsPage.setEnabled(id, on) }
             function modLoad(id: string): void { modsPage.load(id) }
             function modUnload(id: string): void { modsPage.unload(id) }

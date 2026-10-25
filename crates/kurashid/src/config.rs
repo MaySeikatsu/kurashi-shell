@@ -741,6 +741,8 @@ const UNKNOWN_KEY: &str = "error.config.unknown_key";
 /// `settings.open` without a Settings directory (`shell.qml` missing) or without `qs` on the PATH.
 const SETTINGS_NOT_INSTALLED: &str = "error.settings.not_installed";
 const SETTINGS_NO_RUNTIME: &str = "error.settings.no_runtime";
+/// `settings.open {page}` naming no page of the published `schema.settings` (I40, K65).
+const SETTINGS_UNKNOWN_PAGE: &str = "error.settings.unknown_page";
 
 /// The profile review as the actions answer it: the effective changes, the entries a forced layer
 /// holds back (`not_applied`, PROTOCOL §6), and how many of your changes a load keeps (B13,
@@ -1244,6 +1246,23 @@ impl ConfigStore {
             .is_some_and(|p| matches!(p.source, Source::Forced(_)))
     }
 
+    /// Whether Settings has the page `page` (I40, K65): a page id of the published `schema.settings`
+    /// (what Settings shows, Shōjiki), or `mod:<id>` for a loaded mod's page `mods.<id>`. Settings'
+    /// own views (`@changed`, `@mods`, `@profiles`) are not pages.
+    pub fn has_settings_page(&self, page: &str) -> bool {
+        let id = match page.strip_prefix("mod:") {
+            Some(m) if !m.is_empty() => format!("mods.{m}"),
+            Some(_) => return false,
+            None if page.starts_with("mods.") => return false,
+            None => page.to_owned(),
+        };
+        self.hub.snapshot(SETTINGS_DOC).is_ok_and(|(_, d)| {
+            d["pages"]
+                .as_array()
+                .is_some_and(|pages| pages.iter().any(|p| p["id"] == id.as_str()))
+        })
+    }
+
     fn publish(&self) {
         self.apply_couplings();
         self.apply_appearance();
@@ -1679,22 +1698,26 @@ impl ConfigStore {
             let me = me.clone();
             let app = app.clone();
             async move {
-                let key = match v.get("key") {
-                    None | Some(Value::Null) => None,
-                    Some(Value::String(k)) if !k.is_empty() => Some(k.clone()),
-                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                let text = |field: &str| match v.get(field) {
+                    None | Some(Value::Null) => Ok(None),
+                    Some(Value::String(t)) if !t.is_empty() => Ok(Some(t.clone())),
+                    Some(_) => Err(ActionError::Invalid(ARGS_INVALID.into())),
                 };
-                // A page link needs Settings to read a page at start, which it cannot yet (PROTOCOL §6).
-                if v.get("page").is_some() {
-                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
-                }
-                if let Some(k) = &key
-                    && me.get(k, None).is_none()
-                {
-                    return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
-                }
+                let (key, page) = (text("key")?, text("page")?);
+                // A key wins over a page (PROTOCOL §6: the page only "when no key is given").
+                let target = match (key, page) {
+                    (Some(k), _) if me.get(&k, None).is_none() => {
+                        return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
+                    }
+                    (Some(k), _) => SettingsTarget::Key(k),
+                    (None, Some(p)) if !me.has_settings_page(&p) => {
+                        return Err(ActionError::Invalid(SETTINGS_UNKNOWN_PAGE.into()));
+                    }
+                    (None, Some(p)) => SettingsTarget::Page(p),
+                    (None, None) => SettingsTarget::Window,
+                };
                 // Probing and starting block (a `qs` call that waits for its reply): off the runtime.
-                let how = tokio::task::spawn_blocking(move || app.open(key.as_deref()))
+                let how = tokio::task::spawn_blocking(move || app.open(&target))
                     .await
                     .map_err(|e| ActionError::Internal(e.to_string()))??;
                 Ok(Some(json!({"opened": how})))
@@ -1725,19 +1748,22 @@ impl SettingsApp {
         }
     }
 
-    /// Opens Settings on `key`, or shows it without one. Answers `jumped` (a running window moved
-    /// to `key`), `open` (a running window, no key) or `launched` (a new window, with
-    /// `KURASHI_SETTINGS_KEY` set to `key`).
-    pub fn open(&self, key: Option<&str>) -> Result<&'static str, ActionError> {
+    /// Opens Settings on `target`. Answers `jumped` (a running window moved to the key or page),
+    /// `open` (a running window, no target) or `launched` (a new window, with
+    /// `KURASHI_SETTINGS_KEY` or `KURASHI_SETTINGS_PAGE` set).
+    pub fn open(&self, target: &SettingsTarget) -> Result<&'static str, ActionError> {
         if !self.dir.join("shell.qml").is_file() {
             return Err(ActionError::Unavailable(SETTINGS_NOT_INSTALLED.into()));
         }
         let qs = find_program("qs", &self.path)
             .ok_or_else(|| ActionError::Unavailable(SETTINGS_NO_RUNTIME.into()))?;
-        match key {
-            Some(key) if probe(&qs, &self.dir, &["jump", key]) => return Ok("jumped"),
-            None if probe(&qs, &self.dir, &["current"]) => return Ok("open"),
-            _ => {}
+        let running = match target {
+            SettingsTarget::Key(key) => probe(&qs, &self.dir, &["jump", key]).then_some("jumped"),
+            SettingsTarget::Page(page) => probe(&qs, &self.dir, &["page", page]).then_some("jumped"),
+            SettingsTarget::Window => probe(&qs, &self.dir, &["current"]).then_some("open"),
+        };
+        if let Some(how) = running {
+            return Ok(how);
         }
         let mut cmd = Command::new(&qs);
         cmd.arg("-p")
@@ -1745,10 +1771,13 @@ impl SettingsApp {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .process_group(0);
-        match key {
-            Some(key) => cmd.env("KURASHI_SETTINGS_KEY", key),
-            None => cmd.env_remove("KURASHI_SETTINGS_KEY"),
+            .process_group(0)
+            .env_remove("KURASHI_SETTINGS_KEY")
+            .env_remove("KURASHI_SETTINGS_PAGE");
+        match target {
+            SettingsTarget::Key(key) => cmd.env("KURASHI_SETTINGS_KEY", key),
+            SettingsTarget::Page(page) => cmd.env("KURASHI_SETTINGS_PAGE", page),
+            SettingsTarget::Window => &mut cmd,
         };
         let child = cmd.spawn().map_err(|e| {
             tracing::warn!(error = %e, "settings window did not start");
@@ -1757,6 +1786,15 @@ impl SettingsApp {
         reap(child);
         Ok("launched")
     }
+}
+
+/// Where `settings.open` takes Settings: a setting's row, a page (`keys`, `mod:<id>`; I40), or
+/// just the window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SettingsTarget {
+    Window,
+    Key(String),
+    Page(String),
 }
 
 /// The first executable `name` on `path`.

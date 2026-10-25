@@ -256,3 +256,6 @@
 "settings.export.copy" = "Copy"
 "settings.export.copied" = "Copied"
 "settings.export.copy_failed" = "Could not copy"
+
+# settings.open {page} (I40): a page Settings does not have.
+"error.settings.unknown_page" = "Settings has no such page."

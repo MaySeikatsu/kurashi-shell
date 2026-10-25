@@ -118,6 +118,7 @@
 "mod-wallpaper.target.span.short" = "まだ使えません"
 "mod-wallpaper.more" = "その他"
 "mod-wallpaper.cache.size" = "キャッシュ: {size}"
+"mod-wallpaper.settings" = "壁紙の設定"
 "mod-wallpaper.empty.looks.title" = "まだ見た目がありません"
 "mod-wallpaper.empty.looks.hint" = "画像で F を押すか「★ 見た目として保存」を押すと、壁紙とテーマを一緒に保存できます。"
 "mod-wallpaper.favourites.all" = "すべての画像"

@@ -118,6 +118,7 @@
 "mod-wallpaper.target.span.short" = "not available yet"
 "mod-wallpaper.more" = "More"
 "mod-wallpaper.cache.size" = "Cache: {size}"
+"mod-wallpaper.settings" = "Wallpaper settings"
 "mod-wallpaper.empty.looks.title" = "No looks yet"
 "mod-wallpaper.empty.looks.hint" = "Press F on a picture, or ★ Keep as look, to save its wallpaper and theme together."
 "mod-wallpaper.favourites.all" = "All pictures"

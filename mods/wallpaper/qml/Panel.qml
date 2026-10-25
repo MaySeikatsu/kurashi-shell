@@ -339,7 +339,7 @@ Item {
             if (g.open) picker.resetRows()
         })
     }
-    // The overflow menu: opened from its button (focus goes to its one item), closed by Escape, a click outside, or
+    // The overflow menu: opened from its button (focus goes to its first item), closed by Escape, a click outside, or
     // the item; closing returns the focus to the button.
     function toggleMenu() { if (menuOpen) closeMenu(); else openMenu() }
     function openMenu() {
@@ -405,7 +405,7 @@ Item {
             return parts.join(" · ")
         }
     }
-    // Maintenance is not in the main view (I83): the thumbnail cache, and what clearing it frees, sit in this menu.
+    // Maintenance is not in the main view (I83): the thumbnail cache, what clearing it frees, and the mod's Settings page.
     IconButton {
         id: moreButton
         anchors.top: parent.top
@@ -456,6 +456,17 @@ Item {
                 font.family: Theme.fam(text, Theme.families)
                 visible: picker.cacheBytes >= 0
                 text: picker.tr2("mod-wallpaper.cache.size", { size: picker.sizeText(picker.cacheBytes) })
+            }
+            // The mod's whole Settings page (I40: `settings.open {page}`), for what the picker does not show: the
+            // folders, fit, transitions, rotation.
+            Button {
+                objectName: "wallpaper-settings"
+                width: parent.width
+                label: I18n.tr("mod-wallpaper.settings")
+                onClicked: {
+                    picker.closeMenu()
+                    Store.act("settings.open", { page: "mod:wallpaper" })
+                }
             }
         }
     }
