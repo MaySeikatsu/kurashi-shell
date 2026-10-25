@@ -38,7 +38,8 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 8] = [
+pub const CORE_SOURCES: [&str; 9] = [
+    "actions",
     "palettes",
     "icon_themes",
     "island.faces",
@@ -261,6 +262,14 @@ fn icon_themes() -> Vec<String> {
     names.into_iter().collect()
 }
 
+/// I39: the daemon's action registry, for the binding keys' choices (`choices_from = "actions"`). The registry's table
+/// is shared, so actions a native mod registers later are offered from its next refresh on.
+static ACTIONS: OnceLock<crate::actions::ActionRegistry> = OnceLock::new();
+
+pub fn set_action_registry(actions: crate::actions::ActionRegistry) {
+    let _ = ACTIONS.set(actions);
+}
+
 fn offers_now(
     hub: &Hub,
     mod_faces: &BTreeMap<String, String>,
@@ -307,6 +316,17 @@ fn offers_now(
             all(Kind::Look)
                 .into_iter()
                 .map(|d| Offer::on(&d.name, d.label).in_group(&d.category))
+                .collect(),
+        );
+    }
+    // I39: what a binding slot can run — every registered action, by id; unbound ("") first.
+    if let Some(reg) = ACTIONS.get() {
+        let mut list = reg.list();
+        list.sort_by(|a, b| a.id.cmp(&b.id));
+        offers.insert(
+            "actions".to_string(),
+            std::iter::once(Offer::on("", "config.choice.action.none".into()))
+                .chain(list.into_iter().map(|m| Offer::on(&m.id, m.label)))
                 .collect(),
         );
     }

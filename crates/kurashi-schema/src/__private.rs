@@ -110,6 +110,8 @@ pub fn input_slots(prefix: &str, ctx: &Ctx, defaults: &[(&str, &str)], out: &mut
         // Slot labels are the same for every component: one i18n key per slot.
         m.label = format!("config.input.{slot}");
         m.flags.advanced = true;
+        // I39: a slot runs a registered action; the daemon offers them (a value outside is inert with its reason).
+        m.constraints.choices_from = Some("actions".into());
         out.push(m);
     }
 }

@@ -1,0 +1,6 @@
+# The test mod `hello` (crates/kurashi-mod-hello; never shipped): its setting, actions and greetings, so the live
+# test sees no raw keys (I49).
+"mods.hello.greeting" = "Greeting"
+"action.hello.ping" = "Ping the hello mod"
+"action.hello.raise" = "Raise the hello face"
+"action.hello.clear" = "Clear the hello face"

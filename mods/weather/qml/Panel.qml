@@ -558,7 +558,7 @@ Item {
                                 width: 12
                                 height: W.has(modelData.pop) ? modelData.pop / 100 * 22 : 0
                                 radius: 2
-                                color: Theme.accent
+                                color: Theme.dataColor(1)   // I63: precipitation in the first data colour
                                 opacity: W.has(modelData.pop) ? 0.35 + 0.65 * modelData.pop / 100 : 0
                             }
                         }
@@ -649,7 +649,7 @@ Item {
                             width: Math.max(6, (modelData.max - modelData.min) / Math.max(1, p.scaleHi - p.scaleLo) * parent.width)
                             height: 6
                             radius: 3
-                            color: Theme.accent
+                            color: Theme.dataColor(3)   // I63: the day's temperature range in the warm data colour
                         }
                     }
                     Text {

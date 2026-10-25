@@ -374,35 +374,35 @@
 # [island.main.input]
 #
 # Left click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # left = "island.expand"
 #
 # Right click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # right = "island.pin"
 #
 # Middle click
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # middle = ""
 #
 # Hover
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # hover = ""
 #
 # Scroll up
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # scroll_up = "island.prev"
 #
 # Scroll down
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # scroll_down = "island.next"
 #
 # Shift + scroll up
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # shift_scroll_up = ""
 #
 # Shift + scroll down
-#   advanced
+#   choices: from `actions` (resolved at runtime) · advanced
 # shift_scroll_down = ""
 
 # [notifications]
@@ -602,3 +602,66 @@
 # material and lit by its light, like every shell surface.
 #   choices: "window" | "sheet"
 # window = "window"
+
+# [keys]
+#
+# Shortcuts for the compositor — Write these shortcuts into a file the compositor reads
+# (niri: `kurashi-binds.kdl`, included from its config). Off: your compositor's own config
+# keeps the keys, as now.
+# write = false
+#
+# Launcher
+#   only while keys.write == true
+# launcher = "Mod+Space"
+#
+# Notification centre
+#   only while keys.write == true
+# notifications = "Mod+N"
+#
+# Right sidebar
+#   only while keys.write == true
+# sidebar_right = "Mod+Shift+N"
+#
+# Left sidebar
+#   only while keys.write == true
+# sidebar_left = "Mod+A"
+#
+# Quick settings
+#   only while keys.write == true
+# quick = ""
+#
+# Session menu
+#   only while keys.write == true
+# session_menu = "Mod+Shift+E"
+#
+# Lock the screen
+#   only while keys.write == true
+# lock = "Super+Alt+L"
+#
+# Settings
+#   only while keys.write == true
+# settings = ""
+#
+# Web dock
+#   only while keys.write == true
+# webdock = ""
+#
+# Volume up
+#   only while keys.write == true
+# volume_up = "XF86AudioRaiseVolume"
+#
+# Volume down
+#   only while keys.write == true
+# volume_down = "XF86AudioLowerVolume"
+#
+# Mute
+#   only while keys.write == true
+# mute = "XF86AudioMute"
+#
+# Brightness up
+#   only while keys.write == true
+# brightness_up = "XF86MonBrightnessUp"
+#
+# Brightness down
+#   only while keys.write == true
+# brightness_down = "XF86MonBrightnessDown"
