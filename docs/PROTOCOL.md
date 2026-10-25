@@ -184,8 +184,9 @@ Profile and Settings actions (session 5, W14; I25, I35, I36):
   `invalid` with `error.settings.unknown_page` (`{page}`). Answers `{opened: "launched"|"jumped"|"open"}`; `open`
   is a running window and no key. An unknown key is `invalid` with `error.config.unknown_key` (the schema's
   message, `{key}` filled in). `unavailable` with `error.settings.not_installed` (no `shell.qml` in the
-  package's `settings/`) or `error.settings.no_runtime` (no `qs` on the daemon's PATH). A `page` argument is
-  refused (`error.args.invalid`): Settings cannot start on a page yet.
+  package's `settings/`) or `error.settings.no_runtime` (no `qs` on the daemon's PATH). With both, `key` wins. A page
+  is checked against the page ids of the published `schema.settings`; `mod:<id>` needs the page `mods.<id>` (the mod
+  is loaded); `@`-pages and a bare `mods.<id>` are unknown; a page that is not a string is `error.args.invalid` (row 386).
 - Island face offers (`schema.settings`, `island.main.faces` and the like): each face carries a label, the
   catalogue key `config.face.<id>` for a core face and the providing mod's name for a mod's face (I37).
 
