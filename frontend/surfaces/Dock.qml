@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/bar/appicon.js" as AppIcons
 
 // The app dock (K51, docs/ux/dock.md) of one output: pinned apps (`dock.pinned`, desktop ids) then the running ones
 // grouped by app id, at `dock.edge`, while `dock.enabled` is on for this output. A pure view: the windows come from
@@ -13,6 +14,8 @@ import "../components"
 // `modules/ii/dock/Dock.qml`; the 4 px edge window with a 2 px zone from our web dock (K40).
 // Ma: no surface while off; hidden = the edge window only (the dock window unmapped); nothing animates idle — the
 // slide and the hover magnify run only on a change, timers only while the pointer is on the dock or its edge.
+// W36 (I137): an urgent window's app hops once, then keeps a mark; pinned tiles reorder by drag (one `dock.pinned`
+// write on the drop); the reveal waits 500 ms on an edge another output touches (the pointer crosses it on its way).
 Scope {
     id: dk
     required property var modelData
@@ -72,7 +75,7 @@ Scope {
                     var id = pinned[i], k = norm(id)
                     if (out[k]) continue
                     var e = DesktopEntries.byId(id) || DesktopEntries.heuristicLookup(id)
-                    out[k] = { key: k, id: e ? e.id : id, entry: e, name: e ? e.name : id, pinned: true, windows: [] }
+                    out[k] = { key: k, id: e ? e.id : id, entry: e, name: e ? e.name : id, appId: id, pinned: true, windows: [] }
                     // Windows find the pin by their entry's id too (a pin found heuristically has another id).
                     if (e && !out[norm(e.id)]) out[norm(e.id)] = out[k]
                     order.push(k)
@@ -80,13 +83,13 @@ Scope {
                 for (var j = 0; j < windows.length; j++) {
                     var w = windows[j]
                     var appId = String(w.app_id || "")
-                    var en = appId !== "" ? DesktopEntries.heuristicLookup(appId) : null
+                    var en = appId !== "" ? AppIcons.entryFor(DesktopEntries, appId) : null
                     var key = en ? norm(en.id) : (appId !== "" ? norm(appId) : "?" + w.id)
                     var g = out[key] || out[norm(appId)]
                     if (!g) {
                         if (!showRunning) continue
                         g = { key: key, id: en ? en.id : appId, entry: en, name: en ? en.name : (appId || "?"),
-                              pinned: false, windows: [] }
+                              appId: appId, pinned: false, windows: [] }
                         out[key] = g
                         running.push(key)
                     }
@@ -108,7 +111,7 @@ Scope {
             property var lastFocus: ({})
             onWindowsChanged: {
                 for (var i = 0; i < windows.length; i++) if (windows[i].focused) {
-                    var en = DesktopEntries.heuristicLookup(String(windows[i].app_id || ""))
+                    var en = AppIcons.entryFor(DesktopEntries, String(windows[i].app_id || ""))
                     lastFocus[en ? norm(en.id) : norm(windows[i].app_id)] = windows[i].id
                 }
             }
@@ -147,6 +150,32 @@ Scope {
                     else dock.menuKey = ""
                 })
             }
+            // A pinned tile dropped at another pinned place (W36, I137): the list in its new order, one write. The tiles
+            // move when the config answers (a refused write changes nothing, Shōjiki).
+            function movePin(key, to) {
+                var list = pinned.slice()
+                var from = -1
+                for (var i = 0; i < list.length; i++) if (norm(list[i]) === key) { from = i; break }
+                var targetKey = keys[to]
+                var at = -1
+                for (var j = 0; j < list.length; j++) if (norm(list[j]) === targetKey) { at = j; break }
+                if (from < 0 || at < 0 || from === at) return
+                var item = list.splice(from, 1)[0]
+                list.splice(at, 0, item)
+                Store.apply([{ set: "dock.pinned", value: list }], function (errors) {
+                    if (errors) dock.flash(key, I18n.tr("dock.error.write"))
+                })
+                if (geomLog) console.log("dock-reorder " + JSON.stringify(list))
+            }
+            readonly property bool geomLog: Quickshell.env("KURASHI_DOCK_GEOMETRY") === "1"
+            // The pinned tiles are the first keys (up to the rule): a drag stays among them.
+            readonly property int pinnedN: {
+                var n = 0
+                for (var i = 0; i < keys.length; i++) { if (keys[i] === "|" || keys[i] === "+") break; var g = groups.map[keys[i]]; if (!g || !g.pinned) break; n++ }
+                return n
+            }
+            property string dragKey: ""
+            property int dragTo: -1
             function closeAll(g) {
                 for (var i = 0; i < g.windows.length; i++) Store.act("window.close", { id: g.windows[i].id })
                 menuKey = ""
@@ -206,7 +235,24 @@ Scope {
                 }
             }
             onEdgeInChanged: if (edgeIn && !wantShown) revealTimer.restart()
-            Timer { id: revealTimer; interval: 250; onTriggered: if (dock.edgeIn) dock.revealed = true }
+            // An edge another output touches (I137): the pointer crosses it on its way there, so the reveal waits longer.
+            readonly property bool sharedEdge: {
+                var s = scr
+                if (!s) return false
+                var all = Quickshell.screens
+                for (var i = 0; i < all.length; i++) {
+                    var o = all[i]
+                    if (!o || o.name === s.name) continue
+                    var overlapX = o.x < s.x + s.width && o.x + o.width > s.x
+                    var overlapY = o.y < s.y + s.height && o.y + o.height > s.y
+                    if (edge === "bottom" && overlapX && o.y === s.y + s.height) return true
+                    if (edge === "left" && overlapY && o.x + o.width === s.x) return true
+                    if (edge === "right" && overlapY && o.x === s.x + s.width) return true
+                }
+                return false
+            }
+            readonly property int revealMs: sharedEdge ? 500 : 250
+            Timer { id: revealTimer; interval: dock.revealMs; onTriggered: if (dock.edgeIn) dock.revealed = true }
             Timer { id: hideTimer; interval: 400; onTriggered: if (!dock.pointerIn) dock.revealed = false }
             onAutohideChanged: { revealed = false; hideTimer.stop(); revealTimer.stop() }
 
@@ -241,6 +287,16 @@ Scope {
                 return Qt.point(edge === "left" ? left : w - right - winW, y)
             }
             readonly property var menuGroup: menuKey !== "" ? (groups.map[menuKey] || null) : null
+            // The apps with an urgent window (the geometry log's; the tiles read their own).
+            readonly property string urgentKeys: {
+                var out = []
+                for (var i = 0; i < windows.length; i++) if (windows[i].urgent === true) {
+                    var en = AppIcons.entryFor(DesktopEntries, String(windows[i].app_id || ""))
+                    var k = en ? norm(en.id) : norm(windows[i].app_id)
+                    if (out.indexOf(k) < 0) out.push(k)
+                }
+                return out.join(",")
+            }
             // The rows: {text, on (enabled), run}, built from the app the menu is about.
             readonly property var menuRows: {
                 var g = menuGroup
@@ -337,13 +393,14 @@ Scope {
                     // the dock stands after a change. Off without the variable.
                     readonly property bool geometryLog: Quickshell.env("KURASHI_DOCK_GEOMETRY") === "1"
                     readonly property string geomKey: geometryLog && dock.shownAmt === 1
-                        ? dock.keysJson + "/" + dock.icon + "/" + dock.winW + "x" + dock.winH + "/" + dock.edge : ""
+                        ? dock.keysJson + "/" + dock.icon + "/" + dock.winW + "x" + dock.winH + "/" + dock.edge + "/" + dock.revealMs
+                            + "/" + dock.urgentKeys : ""
                     onGeomKeyChanged: if (geomKey !== "") geomTimer.restart()
                     Timer {
                         id: geomTimer
                         interval: 300
                         onTriggered: {
-                            var parts = ["dock-geom", dock.outName, "win", dock.winW, dock.winH]
+                            var parts = ["dock-geom", dock.outName, "win", dock.winW, dock.winH, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-"]
                             for (var i = 0; i < dock.keys.length; i++) {
                                 var it = list.itemAtIndex(i)
                                 if (!it || dock.keys[i] === "|") continue
@@ -408,14 +465,30 @@ Scope {
                                         for (var i = 0; i < wins.length; i++) if (wins[i].focused) return true
                                         return false
                                     }
-                                    readonly property string src: g && g.entry && g.entry.icon ? Quickshell.iconPath(g.entry.icon, true) : ""
+                                    readonly property bool urgentApp: {
+                                        for (var i = 0; i < wins.length; i++) if (wins[i].urgent === true) return true
+                                        return false
+                                    }
+                                    // The icon chain (W36): the entry's icon, else one named after the app id; else a letter.
+                                    readonly property string src: g && modelData !== "+" ? AppIcons.iconSource(Quickshell, g.entry, g.appId || "") : ""
+                                    readonly property bool draggable: !isSep && g !== null && g.pinned === true && index < dock.pinnedN
+                                        && dock.pinForcedBy === "" && dock.pinnedN > 1
+                                    required property int index
+                                    // Only a change to urgent hops; reduced motion or a hidden dock: the mark alone.
+                                    onUrgentAppChanged: {
+                                        if (!urgentApp) { hop.stop(); hopT.x = 0; hopT.y = 0; return }
+                                        var moves = Theme.springOn && win.visible
+                                        if (moves) hop.restart()
+                                        if (dock.geomLog) console.log("dock-urgent " + modelData + " " + (moves ? "hop" : "still"))
+                                    }
                                     width: dock.horiz ? (isSep ? dock.sepW : dock.icon) : dock.cellAcross
                                     height: dock.horiz ? dock.cellAcross : (isSep ? dock.sepW : dock.tileAlong)
 
                                     Accessible.role: isSep ? Accessible.Separator : Accessible.Button
                                     Accessible.name: g ? g.name : ""
-                                    Accessible.description: wins.length > 0
-                                        ? I18n.tr("dock.a11y.windows").replace("{n}", wins.length) : ""
+                                    Accessible.description: (wins.length > 0 ? I18n.tr("dock.a11y.windows").replace("{n}", wins.length) : "")
+                                        + (urgentApp ? " · " + I18n.tr("dock.a11y.urgent") : "")
+                                        + (draggable ? " · " + I18n.tr("dock.a11y.reorder") : "")
 
                                     // The rule between pinned and running apps.
                                     Rectangle {
@@ -426,10 +499,30 @@ Scope {
                                         color: Theme.outline
                                     }
 
+                                    // The drop place while a pinned tile is dragged (a bar before the tile it lands on).
+                                    Rectangle {
+                                        visible: dock.dragKey !== "" && dock.dragTo === cell.index && dock.dragKey !== cell.modelData
+                                        color: Theme.accent
+                                        radius: 1.5
+                                        x: dock.horiz ? (dock.dragTo < cell.dragFrom ? -dock.spacing / 2 - 1.5 : cell.width + dock.spacing / 2 - 1.5) : 0
+                                        y: dock.horiz ? 0 : (dock.dragTo < cell.dragFrom ? -dock.spacing / 2 - 1.5 : cell.height + dock.spacing / 2 - 1.5)
+                                        width: dock.horiz ? 3 : cell.width
+                                        height: dock.horiz ? dock.icon : 3
+                                    }
+                                    readonly property int dragFrom: dock.dragKey !== "" ? dock.keys.indexOf(dock.dragKey) : -1
                                     Block {
                                         id: tile
                                         visible: !cell.isSep
                                         x: dock.edge === "left" ? dock.dotRoom : 0
+                                        z: tileDrag.active ? 5 : 0
+                                        opacity: tileDrag.active ? 0.85 : 1
+                                        transform: [
+                                            Translate { id: hopT },
+                                            Translate {
+                                                x: tileDrag.active && dock.horiz ? tileDrag.translation.x : 0
+                                                y: tileDrag.active && !dock.horiz ? tileDrag.translation.y : 0
+                                            }
+                                        ]
                                         width: dock.icon
                                         height: dock.icon + Theme.shadowDy
                                         radius: Math.min(Theme.rLg, dock.icon / 2)
@@ -448,6 +541,13 @@ Scope {
                                             // next commit).
                                             : (hover.hovered || dock.menuKey === cell.modelData ? Theme.containerHigh
                                                 : (Theme.groups && Theme.lifted ? Theme.container : "transparent"))
+                                        // The hop of an app that asks for attention: up from a bottom dock, inward from a side one.
+                                        SequentialAnimation {
+                                            id: hop
+                                            loops: 3
+                                            NumberAnimation { target: hopT; property: dock.horiz ? "y" : "x"; to: dock.horiz ? -10 : (dock.edge === "left" ? 8 : -8); duration: 140; easing.type: Easing.OutQuad }
+                                            NumberAnimation { target: hopT; property: dock.horiz ? "y" : "x"; to: 0; duration: 180; easing.type: Easing.InQuad }
+                                        }
                                         Image {
                                             id: img
                                             anchors.centerIn: parent
@@ -495,20 +595,41 @@ Scope {
                                             glyph: "+"
                                             size: Math.round(dock.icon * 0.5)
                                         }
+                                        // A window without an app id: a generic window symbol (never a "?").
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            visible: !img.visible && cell.g !== null && cell.modelData.charAt(0) === "?"
+                                            name: "web_asset"
+                                            glyph: "▢"
+                                            color: cell.focusedApp ? Theme.fgOnSelected : Theme.fg
+                                            size: Math.round(dock.icon * 0.5)
+                                        }
                                         Text {
                                             anchors.centerIn: parent
-                                            visible: !img.visible && cell.modelData !== "+"
+                                            visible: !img.visible && cell.modelData !== "+" && cell.modelData.charAt(0) !== "?"
                                             color: cell.focusedApp ? Theme.fgOnSelected : Theme.fg
                                             font.pixelSize: Math.round(dock.icon * 0.42)
                                             font.weight: Theme.wBold
                                             font.family: Theme.fam(text, Theme.families)
-                                            text: cell.g ? String(cell.g.name || "?").charAt(0).toUpperCase() : ""
+                                            text: cell.g ? AppIcons.letterOf(cell.g.entry, cell.g.appId || cell.g.name) : ""
                                         }
                                         // The relief over the picture and the glyph, when the tile carries it (see `relief`).
                                         Loader {
                                             active: !tile.relief
                                             anchors.fill: parent
                                             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(tile.radius, tile.face.height / 2) - tile.inset) }
+                                        }
+                                        // Urgent: a steady dot at the tile's corner after the hop (its place says it, not only its colour).
+                                        Rectangle {
+                                            visible: cell.urgentApp
+                                            width: Math.max(8, Math.round(dock.icon * 0.22))
+                                            height: width
+                                            radius: width / 2
+                                            x: tile.width - width - 1
+                                            y: 1
+                                            color: Theme.warning
+                                            border.width: 1.5
+                                            border.color: Theme.surface
                                         }
                                     }
                                     // One dot per window (max four, DMS), toward the screen edge; the focused one wider and
@@ -546,6 +667,27 @@ Scope {
                                         enabled: !cell.isSep
                                         acceptedButtons: Qt.LeftButton
                                         onTapped: dock.activate(cell.g)
+                                    }
+                                    // Drag a pinned tile along the dock to reorder the pins (DMS); only among the pins.
+                                    DragHandler {
+                                        id: tileDrag
+                                        enabled: cell.draggable
+                                        target: null
+                                        acceptedButtons: Qt.LeftButton
+                                        xAxis.enabled: dock.horiz
+                                        yAxis.enabled: !dock.horiz
+                                        onActiveChanged: {
+                                            if (active) { dock.tipKey = ""; dock.dragKey = cell.modelData; dock.dragTo = cell.index; return }
+                                            var to = dock.dragTo, key = dock.dragKey
+                                            dock.dragKey = ""; dock.dragTo = -1
+                                            if (to >= 0 && to !== cell.index) dock.movePin(key, to)
+                                        }
+                                        onTranslationChanged: {
+                                            if (!active) return
+                                            var step = dock.tileAlong + dock.spacing
+                                            var d = dock.horiz ? translation.x : translation.y
+                                            dock.dragTo = Math.max(0, Math.min(dock.pinnedN - 1, cell.index + Math.round(d / step)))
+                                        }
                                     }
                                     TapHandler {
                                         enabled: !cell.isSep && cell.g !== null && cell.modelData !== "+"

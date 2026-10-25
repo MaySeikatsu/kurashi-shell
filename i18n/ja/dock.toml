@@ -12,3 +12,5 @@
 "dock.error.write" = "ドックを変更できませんでした。もう一度お試しください。"
 "dock.error.launch" = "このアプリを起動できませんでした。"
 "dock.error.no_entry" = "この名前のアプリはインストールされていません。"
+"dock.a11y.urgent" = "注意が必要"
+"dock.a11y.reorder" = "ドラッグで並べ替え"

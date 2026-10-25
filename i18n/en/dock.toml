@@ -12,3 +12,5 @@
 "dock.error.write" = "The dock could not be changed. Try again."
 "dock.error.launch" = "Could not start this app."
 "dock.error.no_entry" = "No app is installed under this name."
+"dock.a11y.urgent" = "needs attention"
+"dock.a11y.reorder" = "drag to reorder"
