@@ -47,8 +47,8 @@ from the card's own target dir via the new `KURASHI_BIN_DIR`), headless sway gle
 against W41's 152–158): which other processes map the same Qt and driver files moves PSS by tens of MiB (I211); compare the pairs,
 and files by RSS (`*_rss_by`).
 
-**What was found.** (1) Qt maps every image format plugin it can find as soon as it probes an image by its content, and a NixOS
-session hands it the system profile's: kimageformats with libheif, x265, libde265, OpenEXR, libraw, libjxl, libavif, libaom, dav1d,
+**What was found.** (1) Qt maps every image format plugin it can find (most likely when it probes an image by its content — a
+`data:` URL or a name without a suffix; inferred, not isolated), and a NixOS session hands it the system profile's: kimageformats with libheif, x265, libde265, OpenEXR, libraw, libjxl, libavif, libaom, dav1d,
 and qtimageformats (tiff, jasper, mng, …) — 9.9 MiB resident. They come **two ways**: `QT_PLUGIN_PATH` and nixpkgs' Qt patch that
 adds `<entry>/../lib/qt-6/plugins` for every `PATH` entry (`/run/current-system/sw/bin` → `/run/current-system/sw/lib/qt-6/plugins`;
 `QT_DEBUG_PLUGINS=1` shows the dir searched after `QT_PLUGIN_PATH` no longer names it). Putting a filtered dir first would not
@@ -57,9 +57,11 @@ help — Qt merges every dir it is given — so `frontend/launch.sh` *replaces* 
 quickshell's own plugin dirs keep ico); a `PATH` entry becomes `<farm>/b<n>/bin`, a link to the same dir, so commands still resolve
 and the patch's lexical `../lib/qt-6/plugins` lands in the copy. Wallpapers: kurashi-mod-wallpaper lists png jpg jpeg webp gif bmp
 (`library.rs` EXTENSIONS, `wallhaven.rs`), so AVIF/HEIF/JXL are never offered and are dropped; `KURASHI_IMAGE_FORMATS` adds formats
-back (`… avif` keeps `kimg_avif.so`), `all` turns the filter off. (2) Quickshell links **jemalloc**: 48 arenas on 12 cores, no
-background purging, 10 s dirty decay that only runs when an arena allocates again — an idle window's render thread (I11) keeps its
-freed pages. `MALLOC_CONF=narenas:2` (set by launch.sh unless the user sets their own) is the larger cut.
+back (`… avif` keeps `kimg_avif.so`), `all` turns the filter off. (2) Quickshell links **jemalloc** (`MALLOC_CONF=stats_print:true`):
+48 arenas on 12 cores, no background thread, 10 s dirty decay. `MALLOC_CONF=narenas:2` (set by launch.sh unless the user sets their
+own) is the larger cut. Why it pays is inferred, not isolated: many arenas each holding partly used extents and freed pages that a
+quiet thread's arena does not purge — but a 1 s decay on top of two arenas added nothing, so fragmentation across arenas, not decay,
+looks like most of it.
 
 **Each option on its own (pass a, `--idle 10 --cycles 0`, three interleaved rounds, @1 output; MiB).**
 
@@ -110,9 +112,18 @@ built: the launcher's exclusive keyboard focus against the Stage's, two morph ow
 | idle CPU, daemon + frontend (%) | 0 / 0.1 | 0.53 / 0 (load 10 in r1) | < 0.5 |
 | mapped surfaces, idle | 3 / 3 | 3 / 3 | ≤ 4 ✔ |
 
-Pair for pair the bare shell is **−16 MiB PSS / −18 MiB USS** at one output; on W41's day that would read ~136 MiB. The popup and
-morph rows do not move (the popup's first commit sits at the 16.7 ms line on both sides at load 5–10; W41 read 14.9–15.9 quieter).
-**Start-up:** launch.sh takes 60–66 ms before the exec instead of 10 (a few `mkdir`/`ln` per plugin dir; a first version with one
+Pair for pair the bare shell is **−16 MiB PSS / −18 MiB USS** at one output. **Attribution caveat:** in these two pairs the
+libraries' *PSS* did not fall (29.9 / 29.7 → 31.5 / 31.1) while their RSS fell 9.9 — some other process was mapping the same
+kimageformats/libheif pages then, so dropping them freed little PSS; in the option runs an hour earlier (40.3 / 35.4 / 40.1 →
+29.9 / 31.4 / 30.5) and in a last pair with `--smaps-dump` (31.1 → 22.7) it did. The plugin filter saves 9.9 MiB RSS; its PSS share
+depends on who else maps those libraries (a KDE session does). The −16 here is the arenas'; they alone would take W41's 152.4 to
+~137. The last pair's per-path diff: only image plugins and their libraries (x265, libheif, OpenEXR, libraw, libjxl, libaom, libde265,
+libmng, libavif, libyuv, libvmaf, libtiff, jasper, KF6Archive, lcms2, …) and libQt6PrintSupport left the map — 59 files; fcitx5's
+input context, qt6ct and the wayland shell integration plugins are mapped on both sides. **Quick card** (`quick-open.sh`, washi, each
+frontend through its own launch.sh, two interleaved runs): first 31 / 30 → 32 / 31 ms, warm median 22.0 / 22.0 → 22.0 / 22.0 ms —
+the arenas cost nothing measurable on the most allocation-heavy open. The popup and morph rows do not move (the popup's first commit sits at the 16.7 ms line on both sides at load 5–10; W41 read 14.9–15.9 quieter).
+`frontend/test-morph.sh` (washi, sekai, washi-bottom, sekai-bottom; real + mock phases; the frontend started through launch.sh by a
+scratch `qs` shim, since the test runs `qs -p` itself — row 462): ok, 270 shots, 45 spring runs. **Start-up:** launch.sh takes 60–66 ms before the exec instead of 10 (a few `mkdir`/`ln` per plugin dir; a first version with one
 `ln` per entry took 520–640 ms and was rewritten), once per session.
 
 **Large and not shell-owned (per-path `--smaps-dump`, before, @1 output):** the NVIDIA driver (libnvidia-gpucomp 10.3 MiB,
