@@ -65,6 +65,16 @@ the user's config file is the source), Klipper's QR codes.
   the raw action (`spawn kurashi act launcher.toggle`) so a label never hides what the key does. Typing filters by
   label, keys and action. Footer: "Read-only: niri's keys from its config, and the shell's own".
 - Motion: none new — the list is replaced, the highlight moves (spring per the decor); no animation in the grid.
+- **App icons (W37, row 380)**: each `app` row carries `icon_path`, the file kurashid resolved from the row's icon name
+  (`theme.icon_theme`, else the desktop's Qt/GTK theme; inherited themes, hicolor, pixmaps; scalable first, then from
+  60 px up), cached in the daemon. The row loads it with an asynchronous `Image` (off the GUI thread), so the first open
+  of a session no longer holds its morph on icon lookups (W36's `warmQueue` is gone). `icon_path: null` (no theme has
+  the name): the row asks Qt for the name as before, and the initial-letter tile stands in while nothing loads.
+- **`>` Settings links (W37, row 387, I40)**: "Shortcut settings" (Settings on the Keys page — named apart from the
+  cheat sheet's "Keyboard shortcuts") follows "Open Settings" in every `>` list; "Settings: <page>" rows (each schema
+  page and each enabled mod's page) appear only for a query that names them (`>settings bar`, `>weather`), so an empty
+  `>` stays short. Enter closes the launcher first (Settings is its own window), then sends `settings.open {page}`; a
+  page Settings lacks is refused with `error.settings.unknown_page`.
 
 ## States
 - **cliphist missing**: a note row "Clipboard history needs cliphist (…)"; pins still listed above it.
@@ -80,6 +90,8 @@ the user's config file is the source), Klipper's QR codes.
 - **many items**: the clipboard lists 60 history entries (cliphist keeps more; type to search all of them), the emoji
   grid 240 (160 for a search), the cheat sheet everything.
 - **ja**: every string has a ja key; key caps are symbols or English key names in both.
+- **icon missing** (W37): `icon_path` null → Qt's lookup, then the initial-letter tile; a file that fails to load shows
+  the tile too (the Image is only visible once `Ready`).
 
 ## Fit and constraints
 - Ma: nothing runs while the launcher is closed (no list, no watcher, no decode); the cheat sheet re-reads niri's files
@@ -95,6 +107,9 @@ the user's config file is the source), Klipper's QR codes.
 - [x] `?` and `launcher.keys`: grouped, searchable, the shell's binds labelled, includes followed, `=null` and `/-`
   respected; `launcher.keys` again closes.
 - [ ] Lead review of the shots; a niri bind for `launcher.keys` in `docs/niri-binds.kdl` (row 193).
+- [x] W37: app rows carry `icon_path` (svg from scalable, png from 64 px, null for an unknown name), drawn in the list
+  (`shots/launcher/w26/icons-sekai.png`); the cold first open holds no frame longer than 100 ms (measured 26–39 ms,
+  W36 measured ~200 ms before); `>` lists the Settings links and refuses an unknown page (`test-launcher.sh` icons).
 
 ## Later
 Paste-after-copy; a preview pane for large images; Hyprland/Sway bind readers; running a bind from the sheet; skin
