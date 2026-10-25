@@ -57,15 +57,15 @@ the shrink, one colour animation for the fill).
 | look (chrome) | before µs / Block | after µs / Block | anon KiB / Block before → after |
 |---|---|---|---|
 | sekai (keycap) | 135 | **95** | 86 → 67 |
-| glass (soft) | 165 | **130** | 91 → 71 |
-| kanso (flat) | 130 | **98** | 69 → 50 |
+| glass (soft) | 165–168 | **130** | 91 → 70 |
+| kanso (flat) | 130–135 | **95–98** | 70 → 50 |
 | terminal (line) | 135 | **125** | 58 → 50 |
-| kami (line + sketch frame) | 775–802 | 828–830 (+3–7 %) | 418–458 → 467–470 |
-| washi (line + paper frame, the default style) | 1342 | 1375 (+2 %) | 337 → 343 |
+| kami (line + sketch frame) | 775–810 | 828–835 (+3–7 %) | 418–458 → 461–470 |
+| washi (line + paper frame, the default style) | 1342–1352 | 1375–1435 (+2–6 %) | 334–337 → 343–348 |
 | snes (keycap + frame) | 750 | 765 (+2 %) | 179 → 177 |
 
 **Not improved:** in a look with a decor frame the frame costs 5–10× the Block itself (washi's Paper frame builds its grain
-SVG in JS once per block: ~1.2 ms), and the extra Loader level adds 2–7 % there. Row 447 asks for the grain to be memoised.
+SVG in JS once per block: ~1.2 ms), and the extra Loader level adds 2–7 % there. (Two runs; the second interleaves the frontends per look.) Row 447 asks for the grain to be memoised.
 
 **Pixel identity (`tools/bench/block-identity.sh`, HEAD vs this branch):** 11 scenarios — kanso, sekai, glass, terminal,
 washi, kami, snes, sekai with a 2× shadow at 135°, sekai on paper, glass on paper with `texture.text`, terminal with a
