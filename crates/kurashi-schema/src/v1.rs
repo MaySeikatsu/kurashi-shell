@@ -671,16 +671,23 @@ pub struct Material {
     pub blur: bool,
     /// Shadows
     /// How strong the shadows under blocks and surfaces are: 0 draws none, 1 is the look's own, 2 twice as long and dark.
-    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05)]
+    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05,
+              requires = "theme.chrome != flat", requires = "theme.chrome != line")]
     pub shadow: f64,
     /// Shadow direction
     /// Where shadows fall, in degrees round the screen: 180 straight down, 135 down to the right.
-    #[kurashi(default = 180, range = 0..=359, step = 1, unit = "°", requires = "theme.material.shadow_follow == false")]
+    #[kurashi(default = 180, range = 0..=359, step = 1, unit = "°", requires = "theme.material.shadow_follow == false",
+              requires = "theme.chrome != flat", requires = "theme.chrome != line")]
     pub shadow_angle: u32,
     /// Shadows follow the light
     /// Shadows fall away from the material's light, longer when it stands low. A light that follows the pointer casts
     /// them from where it rests, so they never move with the pointer.
-    #[kurashi(default = false, requires = "theme.texture.kind != none")]
+    #[kurashi(
+        default = false,
+        requires = "theme.texture.kind != none",
+        requires = "theme.chrome != flat",
+        requires = "theme.chrome != line"
+    )]
     pub shadow_follow: bool,
 }
 

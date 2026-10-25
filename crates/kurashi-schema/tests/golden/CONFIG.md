@@ -190,6 +190,8 @@ How strong the shadows under blocks and surfaces are: 0 draws none, 1 is the loo
 
 - type: `float` · default: `1.0`
 - range: `0.0..=2.0`, step `0.05`
+- only while `theme.chrome != "flat"`
+- only while `theme.chrome != "line"`
 
 #### `theme.material.shadow_angle` — Shadow direction
 
@@ -198,6 +200,8 @@ Where shadows fall, in degrees round the screen: 180 straight down, 135 down to 
 - type: `int` · default: `180`
 - range: `0..=359`, step `1` (°)
 - only while `theme.material.shadow_follow == false`
+- only while `theme.chrome != "flat"`
+- only while `theme.chrome != "line"`
 
 #### `theme.material.shadow_follow` — Shadows follow the light
 
@@ -205,6 +209,8 @@ Shadows fall away from the material's light, longer when it stands low. A light 
 
 - type: `bool` · default: `false`
 - only while `theme.texture.kind != "none"`
+- only while `theme.chrome != "flat"`
+- only while `theme.chrome != "line"`
 
 ### Motion
 
