@@ -16,6 +16,7 @@
 # Running now (K25, I23): why a mod runs, as its page and Mods row say it (`running_reasons`).
 "mods.running.subscribed" = "showing live data"
 "mods.running.rain_alerts" = "watching for rain"
+"mods.running.calendar_peek" = "watching for upcoming events"
 "mods.running.watch" = "watching for sustained trouble"
 
 # Mod list actions (K25): refusals of mod.load / mod.unload / mod.enable / mod.disable.
