@@ -766,6 +766,9 @@ fn run_check(kind: Kind, program: &Path, file: &Path) -> Option<Result<(), Strin
         .args(flags)
         .arg(file)
         .env("NO_COLOR", "1")
+        // `sway -C` opens a backend on `$WAYLAND_DISPLAY` when it is set (a nested output on the user's compositor, or a
+        // refusal when the socket is gone); checking a file needs no display (W42-faces2, row 471).
+        .env_remove("WAYLAND_DISPLAY")
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -1308,22 +1311,6 @@ mod tests {
         c
     }
 
-    /// `sway -C` opens a backend on `$WAYLAND_DISPLAY` under `$XDG_RUNTIME_DIR`, so its answer depended on the session the
-    /// tests ran in: a sandbox's runtime dir refused every file (`keys.error.refused`). Checking a file needs no display,
-    /// so the sway tests run the checker through this wrapper, which clears the variable for the checker alone. `run_check`
-    /// is not the tests' to change (row 471), and this process's environment stays as it is (the workspace forbids unsafe).
-    fn sway_without_display(sway: &Path, dir: &Path) -> PathBuf {
-        use std::os::unix::fs::PermissionsExt;
-        let wrapper = dir.join("sway-check");
-        let script = format!(
-            "#!/bin/sh\nunset WAYLAND_DISPLAY\nexec '{}' \"$@\"\n",
-            sway.display()
-        );
-        std::fs::write(&wrapper, script).unwrap();
-        std::fs::set_permissions(&wrapper, std::fs::Permissions::from_mode(0o755)).unwrap();
-        wrapper
-    }
-
     #[test]
     fn keys_combos_parse_and_compare() {
         let c = Combo::parse("ctrl+alt+k").unwrap();
@@ -1790,8 +1777,6 @@ mod tests {
         let Some(sway) = checker(Kind::Sway) else {
             return;
         };
-        let bin = tempfile::tempdir().unwrap();
-        let sway = sway_without_display(&sway, bin.path());
         let dir = tempfile::tempdir().unwrap();
         let t = titles("en");
         let all = with(&[("quick", "Mod+Q"), ("settings", "Ctrl+Alt+Comma")]);
@@ -1809,8 +1794,6 @@ mod tests {
         let Some(sway) = checker(Kind::Sway) else {
             return;
         };
-        let bin = tempfile::tempdir().unwrap();
-        let sway = sway_without_display(&sway, bin.path());
         let dir = tempfile::tempdir().unwrap();
         let t = titles("en");
         let doc = run_as(
