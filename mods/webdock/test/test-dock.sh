@@ -4,13 +4,18 @@
 #              and every edge (right, left, top, bottom); the shots are mods/webdock/shots/dock-*.png (read them);
 #   intents    the pointer and the keys reach the dock, and each intent the frontend sends is logged (hover, engage, select,
 #              pin, add, move, remove, size, collapse, back, toggle); the menu and the add form take the keyboard;
+#   focus      Tab from the card reaches the view's own controls (Places) and the header's size control (Large) (I90);
+#   forced     the strip's pin toggle sends nothing while the configuration forces `pinned`, and works without it (I91);
+#   keys       the first key after a keybind reveal (`engaged`) reaches the strip at 50, 100 and 150 ms; 0 ms is a note (I98);
+#   large      a large card on the bottom and the top edge fills the usable height between the bar and the strip (I100);
 #   ja         the Japanese copy (the mock's i18n document follows LC_ALL);
-#   measure    idle cost: no commit of a dock surface in 10 s while hidden; PSS with the mod on and off, one and two outputs.
+#   measure    idle cost: no commit of a dock surface in 10 s while hidden; USS with the mod on and off, one and two outputs.
 # The daemon's state machine is not here (W20-webdock-daemon): `mod.webdock` is set with `mock.webdock`. A relay in front of
 # the mock serves the `mods` document (the mock serves none) and logs every act and intent the frontend sends; the mock
 # refuses the actions it does not know, and the logged intent is what is asserted.
 #   timeout 900 bash mods/webdock/test/test-dock.sh [sandbox-name]
-#   DOCK_PHASES="states intents" selects phases; KURASHI_SB_RENDERER=pixman on a machine without a render node.
+#   DOCK_PHASES="states intents focus forced keys large ja measure" (the default: all) selects phases;
+#   KURASHI_SB_RENDERER=pixman on a machine without a render node.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 NAME=${1:-w20-shell-dock-$$}   # unique per run: other agents' runs stop any sandbox that shares a name
@@ -297,6 +302,18 @@ click() { echo "click $1 $2 ${3:-left}" >&3; sleep 0.9; }
 # press <key tokens...>: tab, return, escape, down, space, or a character token. The virtual keyboard takes about 0.3 s a key,
 # so the pause grows with the tokens: a later pointer click or key must not overtake them.
 press() { echo "$*" >&4; sleep "$(awk -v n="$#" 'BEGIN { print 0.5 + 0.3 * n }')"; }
+# focus_to <name>: Tab until the card reports that control has the focus (KURASHI_WEBDOCK_DEBUG=1 logs each focus change), at
+# most 12 presses. It counts the reports, so an earlier visit to the same control does not count.
+focus_to() {
+  local before after i
+  before=$(grep -c -F "webdock-debug focus $1" "$R/qs.log" || true)
+  for i in $(seq 1 12); do
+    press tab
+    after=$(grep -c -F "webdock-debug focus $1" "$R/qs.log" || true)
+    [ "$after" -gt "$before" ] && return 0
+  done
+  return 1
+}
 drv() { timeout 10 python3 -I "$W/drive.py" "$@"; }
 setdoc() { drv act mock.webdock "$1" > /dev/null || fail "mock.webdock refused: $1"; }
 seen() { timeout 10 python3 -I "$W/seen.py" "$1"; }
@@ -403,7 +420,7 @@ phase_intents() {
   start_mock HEADLESS-1
   mods_json "$W/mods-on.json" on
   start_relay "$W/mods-on.json"
-  start_frontend
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
   setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['indicator']=True; print(json.dumps(d))" "$BASE" "$PINS2")"
   start_input
   sleep 1
@@ -459,14 +476,19 @@ phase_intents() {
   check "$r" "menu: Move up (the first enabled) restores the order"
   setdoc '{"mode":"compact","shown":null,"size":"phone"}'; sleep 1.2
   click 2531 701
-  press tab tab return
+  # Tab walks the view's own controls first (Refresh, Places, the settings), then the header's size and collapse (I90).
+  focus_to Large && r=1 || r=0
+  check "$r" "card: Tab reaches the size button (Large) after the view's controls"
+  press return
   seen "i['action']=='webdock.size' and i['args']['size']=='large'" && r=1 || r=0
-  check "$r" "card: Tab reaches the size button, Return sends webdock.size large"
+  check "$r" "card: Return on the size button sends webdock.size large"
   docq "d.get('size')=='large'" && r=1 || r=0
   check "$r" "size: the mock makes the card large"
-  press tab return
+  focus_to Collapse && r=1 || r=0
+  check "$r" "card: Tab reaches the collapse button (Collapse)"
+  press return
   seen "i['action']=='webdock.collapse'" && r=1 || r=0
-  check "$r" "card: Tab reaches the collapse button, Return sends webdock.collapse"
+  check "$r" "card: Return on the collapse button sends webdock.collapse"
   docq "d['mode']=='compact' and d.get('shown') is None" && r=1 || r=0
   check "$r" "collapse: the mock puts the card away"
   click 2531 701 right
@@ -486,6 +508,118 @@ phase_intents() {
   click 2256 17   # W23: the keyboard layout chip sits right of the widget (was 2338); K58: the sidebar button too (was 2304)
   seen "i['action']=='webdock.toggle' and i['args'].get('output')=='HEADLESS-1'" && r=1 || r=0
   check "$r" "bar widget: a click sends webdock.toggle for the output the bar is on"
+  stop_phase
+}
+
+# ---- focus: Tab from the view card's header reaches the view's own controls (I90) ----
+phase_focus() {
+  echo "== phase focus: Tab walks the view card's header, the view's controls, then the card"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='extended'; d['shown']='weather'; print(json.dumps(d))" "$BASE" "$PINS2")"
+  sleep 2
+  start_input
+  sleep 1
+  click 2300 520   # into the card's body: the dock holds the keyboard
+  # Tab walks the strip, the card, the view's own controls (Refresh, Places), then the header's size control (Large):
+  # press until Large has focus again, one cycle.
+  for _ in $(seq 1 30); do
+    press tab
+    grep -q -F 'webdock-debug focus Large' "$R/qs.log" && break
+  done
+  shot focus-tab
+  grep -q -F 'webdock-debug focus Places' "$R/qs.log" && r=1 || r=0
+  check "$r" "focus: Tab from the card reaches the view's own control (Places)"
+  grep -q -F 'webdock-debug focus Large' "$R/qs.log" && r=1 || r=0
+  check "$r" "focus: Tab cycles back to the header's size control (Large)"
+  stop_phase
+}
+
+# ---- forced: the strip's pin toggle is inert while the configuration sets `pinned` (I91, rule 2) ----
+phase_forced() {
+  echo "== phase forced: the pin toggle sends nothing while the configuration sets pinned, and works without it"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='compact'; d['forced']={'pinned':'nix'}; print(json.dumps(d))" "$BASE" "$PINS2")"
+  start_input
+  sleep 2
+  click 2531 768   # the dock's pin control (compact strip, bottom of the column)
+  sleep 0.5
+  if seen "i['action']=='webdock.pin'"; then r=0; else r=1; fi
+  check "$r" "forced: a click on the pin toggle sends no webdock.pin while the configuration sets pinned"
+  setdoc '{"forced":null}'   # a merge patch: null removes the field (an empty object would keep `pinned`)
+  sleep 1
+  click 2531 768
+  seen "i['action']=='webdock.pin'" && r=1 || r=0
+  check "$r" "forced: without the force the same click sends webdock.pin (the control is live)"
+  stop_phase
+}
+
+# ---- keys: a keybind reveal (the daemon's toggle: the mode and `engaged` together) takes the keyboard at once (I98) ----
+phase_keys() {
+  echo "== phase keys: the first keys after a keybind reveal reach the dock"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); print(json.dumps(d))" "$BASE" "$PINS2")"
+  start_input
+  sleep 2
+  # The first key after the reveal, at 0, 50, 100 and 150 ms after it: Return opens the first pin when it reaches the strip.
+  mail_selects() {  # the webdock.select intents for the mail pin so far (the log exists once the first intent arrived)
+    python3 -I -c "import json,os,sys
+n = 0
+if os.path.exists(sys.argv[1]):
+    for line in open(sys.argv[1]):
+        i = json.loads(line)
+        n += i.get('action') == 'webdock.select' and i.get('args', {}).get('pin') == 'mail'
+print(n)" "$INTENTS"
+  }
+  for ms in 0 50 100 150; do
+    setdoc '{"mode":"hidden","engaged":false}'
+    sleep 1
+    before=$(mail_selects)
+    setdoc '{"mode":"compact","engaged":true}'
+    [ "$ms" = 0 ] || sleep "$(awk -v m="$ms" 'BEGIN { print m / 1000 }')"
+    press return
+    sleep 0.3
+    after=$(mail_selects)
+    r=0; [ "$after" -gt "$before" ] && r=1
+    if [ "$ms" = 0 ]; then
+      # A key sent at once can beat the frontend's handling of the reveal (the daemon's doc arrives after it): a residual, not counted.
+      echo "note: Return 0 ms after the reveal: $([ "$r" = 1 ] && echo reached || echo lost) (the reveal reaches the frontend after the key; residual, I98)"
+    else
+      check "$r" "keybind reveal: Return $ms ms after the reveal reaches the strip (the first pin opens) (I98)"
+    fi
+  done
+  stop_phase
+}
+
+# ---- large: a large card on a top or bottom edge fills the usable area, between the shell's bar and the far side (I100) ----
+phase_large() {
+  echo "== phase large: a large card on the bottom and the top edge fills the usable height"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='extended'; d['shown']='weather'; d['size']='large'; d['edge']='bottom'; print(json.dumps(d))" "$BASE" "$PINS2")"
+  sleep 2
+  # The card's height and the window's, as the dock logged them last: the card fills the window less a gap at each end.
+  dock_geometry() { sed 's/\x1b\[[0-9;]*m//g' "$R/qs.log" | grep -F 'webdock-debug dock ' | tail -1 | sed 's/.*webdock-debug dock //'; }
+  read -r edge ch hh <<< "$(dock_geometry)"
+  r=0; [ "$edge" = bottom ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
+  check "$r" "large, bottom edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
+  shot large-bottom
+  setdoc '{"edge":"top"}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  r=0; [ "$edge" = top ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
+  check "$r" "large, top edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
+  shot large-top
   stop_phase
 }
 
@@ -586,6 +720,10 @@ phase_measure() {
 
 want states && phase_states
 want intents && phase_intents
+want focus && phase_focus
+want forced && phase_forced
+want keys && phase_keys
+want large && phase_large
 want ja && phase_ja
 want measure && phase_measure
 echo "test-dock: $FAILS failed"
