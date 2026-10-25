@@ -401,12 +401,15 @@ fi
 if command -v magick >/dev/null && [ -f "$OUT/sekai-a180-s1-card.png" ]; then
   # The contact sheet: per chrome, rows of angle, columns of strength (the card with the bar's groups above it).
   tiles=()
+  # ImageMagick's default font may not exist here: the labels use fontconfig's sans file.
+  FONT=$(fc-match -f '%{file}' sans 2>/dev/null || true)
+  [ -n "$FONT" ] || FONT=DejaVu-Sans
   for st in sekai glass; do
     for a in 180 135 225; do
       for s in 0.5 1 2; do
         [ -f "$OUT/$st-a$a-s$s-card.png" ] || continue
         magick "$OUT/$st-a$a-s$s-bar.png" -resize 840x "$OUT/$st-a$a-s$s-card.png" -append \
-          -gravity north -background '#202020' -splice 0x44 -fill white -pointsize 34 \
+          -gravity north -background '#202020' -splice 0x44 -fill white -font "$FONT" -pointsize 34 \
           -annotate +0+4 "$st  angle $a  strength $s" "$W/t-$st-$a-$s.png"
         tiles+=("$W/t-$st-$a-$s.png")
       done
@@ -419,7 +422,7 @@ if command -v magick >/dev/null && [ -f "$OUT/sekai-a180-s1-card.png" ]; then
       f="$OUT/$st-follow-l$1-e$2-card.png"
       [ -f "$f" ] || continue
       magick "$OUT/$st-follow-l$1-e$2-bar.png" -resize 840x "$f" -append \
-        -gravity north -background '#202020' -splice 0x44 -fill white -pointsize 34 \
+        -gravity north -background '#202020' -splice 0x44 -fill white -font "$FONT" -pointsize 34 \
         -annotate +0+4 "$st  follow: light $1°  height $2°" "$W/f-$st-$1-$2.png"
       tiles+=("$W/f-$st-$1-$2.png")
     done
