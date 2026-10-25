@@ -198,8 +198,9 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
   choice in Settings writes a list, and from then on the list governs; a mod enabled later is not added to it.
 - **A change of the list takes effect at once.** A pin or a manual hold on a face the list drops is dropped; listing the
   face again does not pin it. A default face the list does not name falls back to the first face it names.
-- **A list that names no available face** (every named face is a mod that is off) leaves the island with its system
-  events only. Island.qml then draws the clock for the empty face (row 452): a known gap.
+- **A list that names no available face** (every named face is a mod that is off) falls back to the default face (the
+  clock, unless the user set another default): the island shows it, and `faces` says so, as a list of that one face
+  would (row 452). The system events are unchanged.
 - **Settings.** The faces control shows the faces in effect. At the default that is every face the island has, with the
   provenance chip "Default" (the stored three are not what shows). After a choice it shows the chosen list, in order. The
   add control lists the faces the list leaves out, labelled with their provenance (the mod's name, I37; a core face its
@@ -208,9 +209,9 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
 - **Help text** (en, from the schema comment): "Faces this island may show, in cycling order." The default's sentence is
   proposed in row 453.
 - **States.** default (every face, chip "Default") · a chosen list · a listed face not available now (an inert row, "not
-  available now"; the island does not show it) · the empty list (every face) · a list with no available face (system
-  events only; row 452) · a card open on a face the list drops (stays open until closed; row 451) · a face listed again
-  (shows at once).
+  available now"; the island does not show it) · the empty list (every face) · a list with no available face (the clock
+  alone, as a list of the clock; row 452) · a card open on a face the list drops (closes, as a collapse does; row 451) ·
+  a face listed again (shows at once).
 - **Motion and budget.** Nothing new. A hidden face's transient arms no timer (Ma); a hidden face renders nothing.
 - **Definition of done.**
   - [x] arbiter tests for each rule: unlisted never shows, system events exempt, empty list, a list that only orders,
@@ -218,7 +219,12 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
   - [x] daemon tests: the default keeps every face and writes nothing; a chosen list hides an unlisted mod face and
     keeps the system faces; a list change applies at once; the default face falls back; system events not hidden.
   - [x] mock: the island steps through its faces only; `island.expand` refuses a face the list leaves out.
-  - [ ] Settings adds an unlisted face: blocked on row 450 (config.rs offers).
-  - [ ] Power and Bluetooth are not offered as choices: they are exempt (K65), so unchecking them does nothing. config.rs
-    `TRANSIENT_FACES` lists only volume and brightness; it should list the four system faces (lead, one line).
-  - [ ] screenshots of the faces control in its states: not taken (no sandbox run in this card).
+  - [x] Settings adds an unlisted face: the add control offers the mod face the list leaves out (row 450, config.rs
+    `unlisted`); the sandbox run (W42-faces2) shows "System monitor" offered back, en and ja.
+  - [x] Power and Bluetooth are not offered as choices: they are exempt (K65), and config.rs `TRANSIENT_FACES` lists the
+    four system faces (W42-faces2 found the list already complete); `a_mod_face_is_labelled_with_the_mod_name` checks it.
+  - [x] screenshots of the faces control, card scope (W42-faces2, sandbox): the default list (every face, chip "Default",
+    the add control "Every option is already listed"), and a chosen list (the closed row, then the add control open
+    offering a mod face), en and ja. Not shot yet: the inert "not available now" row, the empty list, a list with no
+    available face as Settings draws it, the card closing, and a face listed again. The calendar's row 454 step
+    (test-calendar.sh) passed 27 of 27 in its sandbox run.

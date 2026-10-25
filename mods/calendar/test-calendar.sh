@@ -12,7 +12,7 @@
 # I203 (W38): the month grid's next month (clock-next-{sekai,none,washi}.png, clock-ja-next.png: six rows from a Monday, five
 # from a Sunday, the number centred in the keycap above the day mark), the grid easing into a sixth row and back (bursts
 # clock-grow-<decor>-{40,120,250}.png and clock-collapse-<decor>-{40,120,250}.png), and the bar widget's click opening the clock
-# card (widget-click-sekai.png; the row 412 fallback is not reached, see the script).
+# card (widget-click-sekai.png), and with a list that leaves the clock out the row 412 fallback opens the shown face (row 454).
 # Screenshots (mods/calendar/shots/): {desk,bar,clock,desk-offline,clock-nosource,clock-tomorrow,clock-empty,
 # popover-allday,popover-timed,popover-trip,popover-night}-{sekai,none}.png, popover-timed-sekai-dark.png,
 # popover-timed-ja.png, popover-night-ja.png, clock-ja.png.
@@ -379,8 +379,7 @@ stop_shell
 stop_daemon
 
 # The bar widget's click opens the clock card (CONTRACT-CHANGE row 203). Row 412's fallback (a refused {face: clock} falls back to
-# island.expand {}) is not reached in this build: the island offers every registered face, the clock among them, and
-# island.main.faces only orders them (kurashi-island's Decision.faces), so the refusal never comes. The widget keeps the fallback.
+# island.expand {}) is reached when the list leaves the clock out (K68; the step after this one, row 454).
 echo "== the bar widget's click opens the clock card"
 start_all sekai 1
 sleep 1.5
@@ -390,6 +389,20 @@ check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "the bar widget's click o
 face=$(ipc runtime.ui | jq -r .face)
 check "$([ "$face" = clock ] && echo 1 || echo 0)" "the bar widget's click shows the clock face (got $face)"
 shot "widget-click-sekai" "880,0 800x720"
+stop_shell
+stop_daemon
+
+# Row 454 (K68): a list that leaves the clock out refuses `island.expand {face: clock}` (`invalid`), so the widget's click
+# opens the island's own face instead, and the card shows the face the island shows.
+echo "== a list without the clock: the widget's click opens the island's own face"
+EXTRA_CFG=$'[island.main]\nfaces = ["media"]' start_all sekai 1
+sleep 1.5
+timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click 2300 15 left >/dev/null 2>&1 || true
+sleep 1.5
+shown=$(ipc runtime.island.main | jq -r .face)
+card=$(ipc runtime.ui | jq -r .face)
+check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "the widget's click opens the island card without the clock (panel $(panel))"
+check "$([ "$shown" != clock ] && [ "$card" = "$shown" ] && echo 1 || echo 0)" "the card opens on the shown face (shown $shown, card $card)"
 stop_shell
 stop_daemon
 
