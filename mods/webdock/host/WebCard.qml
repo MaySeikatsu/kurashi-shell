@@ -408,9 +408,9 @@ PanelWindow {
                 width: parent.width
                 height: card.phoneLook ? 40 : 0
                 Rectangle {
-                    visible: Theme.shadowDy > 0
-                    x: pill.x
-                    y: pill.y + Theme.shadowDy
+                    visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                    x: pill.x + Theme.sinkX
+                    y: pill.y + Theme.sinkY
                     width: pill.width
                     height: pill.height
                     radius: height / 2

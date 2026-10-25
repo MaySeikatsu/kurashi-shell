@@ -5,7 +5,8 @@ import QtQuick.Effects
 // with its bezel, a rounded screen, a pill cut-out at the top of the screen (dynamic-island style), a status row beside
 // the cut-out, side buttons (a volume rocker on the left, power on the right) and a home indicator at the bottom. The
 // content goes on the screen between the status row and the home indicator (`area`). Drawn from tokens only (rule 4):
-//   keycap chrome  an outline in `line`, a rim in `ring`, a dark glass bezel in `line`, the hard shadow straight down;
+//   keycap chrome  an outline in `line`, a rim in `ring`, a dark glass bezel in `line`, the hard shadow along the shadow
+//                  vector (K67: straight down by default);
 //   soft chrome    a thin dark bezel with the faint light rim (`outlineColor`) and the soft drop shadow (K45);
 //   line chrome    a drawing: the body in the screen's colour, outlined, the screen and the cut-out outlined too (K45);
 //   flat chrome    a thin dark bezel in `line` with a hairline in `outline`; no rim, no shadow.
@@ -35,7 +36,12 @@ Item {
     readonly property bool keycap: theme ? theme.ringW > 0 : false
     readonly property bool drawn: theme ? theme.outlineW > 0 && theme.shadowDy <= 0 && theme.softR <= 0 : false
     readonly property real stick: buttons ? (keycap ? 4 : 2) : 0
+    // The room below the body (layout: it never moves with the shadow setting, K67). The hard shadow is drawn along the
+    // shadow vector (`castX/castY`, the blocks' whole-px vector times 1.5: the phone's own length); a sideways or longer
+    // one reaches past the room.
     readonly property real dropY: keycap ? Math.round(theme.shadowDy * 1.5) : 0
+    readonly property real castX: keycap ? Math.round(theme.sinkX * 1.5) : 0
+    readonly property real castY: keycap ? Math.round(theme.sinkY * 1.5) : 0
     readonly property real softPad: theme && theme.softR > 0 ? Math.round(theme.softR * 0.6) : 0
     readonly property real softFoot: theme && theme.softR > 0 ? softPad + theme.softDy : 0
     // The body's left edge: the side buttons' room and the soft shadow's.
@@ -83,7 +89,8 @@ Item {
         height: ph.bodyH
         active: ph.theme !== null && ph.theme.softR > 0
         sourceComponent: RectangularShadow {
-            offset.y: ph.theme.softDy
+            offset.x: ph.theme.shadowX
+            offset.y: ph.theme.shadowY
             blur: ph.theme.softR
             spread: -1
             radius: ph.radius
@@ -91,9 +98,9 @@ Item {
         }
     }
     Rectangle {
-        visible: ph.dropY > 0
-        x: ph.side
-        y: ph.dropY
+        visible: ph.castX !== 0 || ph.castY !== 0
+        x: ph.side + ph.castX
+        y: ph.castY
         width: ph.bodyW
         height: ph.bodyH
         radius: ph.radius

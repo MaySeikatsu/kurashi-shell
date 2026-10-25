@@ -247,14 +247,20 @@ Singleton {
         var p = prov(row.key, output)
         if (p && p.forced_by) out.push({ kind: "forced", text: forcedText(p), key: rowOf(p.forced_by) ? p.forced_by : "" })
         if (p && p.reason === "settings.inert.requires") {
+            // Of the couplings on the blocking key, name the one that blocks now (two `requires` on one key, e.g. chrome
+            // not flat and not line, row 467); the first on the key when none reads as blocking.
+            var hit = null
             for (var j = 0; j < row.couplings.length; j++) {
                 var req = row.couplings[j]
                 if (req.kind !== "requires" || req.key !== p.inert_by) continue
-                out.push({ kind: "requires", key: req.key, text: I18n.fmt(
-                    req.op === "eq" ? req.reason : "settings.ui.requires_ne",
-                    { key: I18n.tr(labelOf(req.key)), value: displayValue(req.value) }) })
-                break
+                if (hit === null) hit = req
+                var same = JSON.stringify(valueOf(req.key, output)) === JSON.stringify(req.value)
+                if (req.op === "eq" ? !same : same) { hit = req; break }
             }
+            if (hit !== null)
+                out.push({ kind: "requires", key: hit.key, text: I18n.fmt(
+                    hit.op === "eq" ? hit.reason : "settings.ui.requires_ne",
+                    { key: I18n.tr(labelOf(hit.key)), value: displayValue(hit.value) }) })
         } else if (p && p.reason === "settings.pending.restart") {
             out.push({ kind: "pending", key: "", text: I18n.tr("settings.pending.restart") })
         } else if (p && p.reason === "settings.choice.unavailable") {

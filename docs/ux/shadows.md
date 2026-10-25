@@ -54,7 +54,8 @@ One vector for the whole shell, resolved by the daemon (`kurashi_theme::tokens::
 | Following, light overhead | No direction: the static angle decides |
 | Following without a material | Inert (`requires theme.texture.kind != none`); Settings says why; the static angle is in effect |
 | Direction while following | Inert; Settings says "Only applies while Shadows follow the light is off" |
-| Flat or line chrome | No shadow whatever the rows say (tokens 0, 0; CONTRACT row 423 asks for an inert reason) |
+| Flat or line chrome | No shadow; the three rows are inert and Settings names the chrome that blocks (row 423, row 467) |
+| Settings' own controls (Button, SectionCard) | The hard shadow only: under soft chrome they cast none (a decision since W39, not a gap) |
 | No theme yet (daemon away) | Theme.qml's fallbacks are today's shadows |
 
 ## Settings
@@ -99,6 +100,6 @@ light and the pointer's lamp), one repaint and then 0 frames after a light chang
 - [x] Pressed key sinks along the vector (`sheet-press.png`).
 - [x] Ma: 0 frames while the pointer moves; a light change repaints once.
 - [x] Settings rows with provenance and a live preview block.
-- [ ] Surfaces outside W38 that draw their own straight-down shadow follow the vector (CONTRACT row 422).
+- [x] Surfaces outside W38 that draw their own straight-down shadow follow the vector (CONTRACT row 422; W39-shadows2, W42-shadows3 + lead row 465).
 - [ ] A left sidebar's sideways shadow (CONTRACT row 421).
 - [ ] Inert reason under flat/line chrome (CONTRACT row 423).
