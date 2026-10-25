@@ -215,6 +215,66 @@ async fn first_connect_is_retried_until_the_bus_is_up() {
     bus.kill();
 }
 
+/// I200: a bus that is not there at all (no socket file) is waited for, not polled: one attempt, then nothing until
+/// the socket appears, and then the service is up at once. Unsubscribing while waiting ends the wait.
+#[tokio::test]
+async fn an_absent_bus_is_waited_for_not_polled() {
+    let scratch = Scratch::new("absent-bus");
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let provider = Arc::new(
+        ServiceProvider::with_connect(
+            TRAY_DOC,
+            counting_bus(scratch.addr(), attempts.clone()),
+            kurashi_tray::start,
+        )
+        .unavailable(idle())
+        .bus_socket(scratch.0.join("bus")),
+    );
+    let hub = Hub::new();
+    hub.register(TRAY_DOC, idle(), Some(provider.clone()));
+
+    hub.subscribe(TRAY_DOC).unwrap();
+    until("the first attempt", RECOVERY, || {
+        attempts.load(Ordering::SeqCst) >= 1
+    })
+    .await;
+    // The backoff alone would have retried at 250 ms, 750 ms, 1.75 s and 3.75 s by now.
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "no retry while the bus socket is absent"
+    );
+
+    let mut bus = PrivateBus::start(&scratch);
+    until(
+        "the tray to come up once the bus is there",
+        RECOVERY,
+        || available(&hub),
+    )
+    .await;
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        2,
+        "one attempt when it appeared"
+    );
+
+    // The bus goes and its socket with it: waiting again; unsubscribing ends the wait, and a bus that comes back
+    // later is not connected to.
+    bus.kill();
+    let _ = std::fs::remove_file(scratch.0.join("bus"));
+    until("the tray to be unavailable", UNTIL, || !available(&hub)).await;
+    hub.unsubscribe(TRAY_DOC);
+    let at_unsubscribe = attempts.load(Ordering::SeqCst);
+    let _bus = PrivateBus::start(&scratch);
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        at_unsubscribe,
+        "nothing waits after the last unsubscribe"
+    );
+}
+
 #[tokio::test]
 async fn unsubscribe_cancels_a_pending_retry() {
     let scratch = Scratch::new("cancel-retry");
