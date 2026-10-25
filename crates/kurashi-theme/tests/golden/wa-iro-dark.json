@@ -121,6 +121,7 @@
   "motion.spring.on": true,
   "motion.spring.overshoot": 0.6,
   "motion.spring.spring": 4.0,
+  "motion.spring.squash": 0.0,
   "motion.standard_ms": 220,
   "osd.bg": "#383638",
   "osd.fg": "#e9e4d8",
