@@ -106,12 +106,24 @@ rest() { grim -g "$2" "$OUT/$1.png"; echo "test-morph: $OUT/$1.png"; }
 # card's region against the same region before the open (the frontend may tint nothing else there).
 empty_check() {  # empty_check <tag> <crop> <baseline ppm>
   grim -t ppm -g "$2" "$W/after.ppm"
+  # The bar's own strip (its first BAR_SKIP rows from the bar's edge) is left out: the clock's minute may turn between
+  # the two grabs (W36: a false "stuck morph" at hh:mm:00). A stuck shape always reaches below the bar.
   python3 -I -c '
 import sys
-a = open(sys.argv[1], "rb").read(); b = open(sys.argv[2], "rb").read()
+def rows(p):
+    d = open(p, "rb").read()
+    parts = d.split(b"\n", 3)  # P6, "w h", maxval, pixels (grim writes no comments)
+    w, h = map(int, parts[1].split())
+    px = parts[3]
+    return [px[i * w * 3:(i + 1) * w * 3] for i in range(h)]
+a, b = rows(sys.argv[1]), rows(sys.argv[2])
 if len(a) != len(b): sys.exit(1)
+skip = int(sys.argv[3])
+keep = range(len(a) - skip) if sys.argv[4] == "bottom" else range(skip, len(a))
+a = b"".join(a[i] for i in keep); b = b"".join(b[i] for i in keep)
 n = sum(1 for x, y in zip(a, b) if abs(x - y) > 24)
-sys.exit(0 if n < len(a) // 600 else 1)' "$3" "$W/after.ppm" || fail "$1: a panel is still drawn after its close (stuck morph?)"
+sys.exit(0 if n < max(1, len(a)) // 600 else 1)' "$3" "$W/after.ppm" "${BAR_SKIP:-44}" "${EDGE:-top}" \
+    || fail "$1: a panel is still drawn after its close (stuck morph?)"
 }
 
 # One surface: open, rest, close, then the Stage must be empty again.

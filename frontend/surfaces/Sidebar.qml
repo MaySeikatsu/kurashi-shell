@@ -5,6 +5,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/island"
 import "../components/sidebar"
 
 // An edge sidebar (card W29, docs/ux/sidebar.md): `side` left or right, open while runtime.ui.sidebar names it (the daemon
@@ -80,7 +81,7 @@ Scope {
             return
         }
         if (wanted) {
-            if (!held) { screen = pick(); stopSprings(); mw = 0; mh = 0; landed = false; vh = 0; gate = !instant; held = true }
+            if (!held) { screen = pick(); readOrigin(); stopSprings(); mw = 0; mh = 0; landed = false; vh = 0; gate = !instant; held = true }
             readFreeze("open")
             if (instant) { stopSprings(); mw = 1; mh = 1; landed = true; settled() }
             else if (!gate) driveTo(1)
@@ -255,7 +256,20 @@ Scope {
     // Where the morph starts: the sidebar button's place at the bar's end (Bar.qml: the bar's padding and its group's
     // inset; a side bar's button heads or ends its column), as thick as the bar. Without a bar: the screen's corner.
     readonly property real barEnd: Theme.pad + (Theme.groups ? Theme.gap + 2 + Theme.xs : 0)
-    readonly property real nubW: joinSide ? 0 : Theme.barH
+    // W36: on a top or bottom bar the column grows out of its sidebar button's own box (IslandGeom's registry, row 364;
+    // SidebarButton registers `sidebar:<side>`), as an island card grows out of the pill: read when the column comes out
+    // (and again on its first frame), latched while it is out. Kept as its distance from the column's own screen edge (the
+    // window is anchored to it) and its width, 3 px in like the Stage's origins (the button's drawn square). No button
+    // on this output (hidden, or a side bar): the bar's end, as before.
+    property var origin: null
+    function readOrigin() {
+        var out = screen ? screen.name : ""
+        var r = joinTop && out !== "" ? IslandGeom.rectOf(out, "sidebar:" + side) : null
+        if (r === null || !screen) { origin = null; return }
+        var near = side === "right" ? screen.width - (r.x + r.w) : r.x
+        origin = { near: Math.max(0, near + 3), w: Math.max(8, r.w - 6) }
+    }
+    readonly property real nubW: joinSide ? 0 : (origin ? origin.w : Theme.barH)
 
     LazyLoader {
         active: sb.held
@@ -292,7 +306,7 @@ Scope {
             readonly property real ry0: (sb.joinTop ? 0 : inset) + (sb.flipY && !sb.joinTop ? sdy : 0)
             readonly property real ry1: boxH - inset - (sb.flipY ? 0 : sdy)
             // The origin.
-            readonly property real nX1: sb.joinTop ? boxW - sb.barEnd : rx1
+            readonly property real nX1: sb.joinTop ? Math.max(sb.nubW, boxW - (sb.origin ? sb.origin.near : sb.barEnd)) : rx1
             readonly property real nY0: sb.joinSide ? Theme.pad : ry0
             readonly property real nY1: sb.joinSide ? Theme.pad + Theme.barH : ry0
             // The shape now.
@@ -346,6 +360,7 @@ Scope {
                 target: shapeRect.Window.window
                 function onFrameSwapped() {
                     if (!sb.gate) return
+                    sb.readOrigin()
                     sb.gate = false
                     if (sb.wanted) sb.driveTo(1)
                 }
