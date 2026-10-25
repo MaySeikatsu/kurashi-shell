@@ -7,8 +7,9 @@ use std::path::PathBuf;
 use kurashi_mod_api::Settings;
 #[cfg(test)]
 use kurashi_mod_api::Values;
+use serde_json::Value;
 #[cfg(test)]
-use serde_json::{Value, json};
+use serde_json::json;
 
 pub const DEFAULT_BACKEND: &str = "awww";
 pub const DEFAULT_FOLDERS: &str = "~/Pictures/Wallpapers";
@@ -31,8 +32,8 @@ pub const TRANSITIONS: &[&str] = &["none", "fade", "wipe", "wave", "grow", "rand
 pub struct Config {
     /// The `backend` value as stored; a value that is not a known backend is reported as such.
     pub backend: String,
-    /// `folders`, `:`-separated (the manifest has no list type; see the report), unexpanded.
-    pub folders: String,
+    /// `folders`, a path list (I54), unexpanded. An old `:`-joined string is read as its parts.
+    pub folders: Vec<String>,
     pub fit: String,
     pub crop_anchor: String,
     pub transition: String,
@@ -52,7 +53,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             backend: DEFAULT_BACKEND.into(),
-            folders: DEFAULT_FOLDERS.into(),
+            folders: vec![DEFAULT_FOLDERS.into()],
             fit: "crop".into(),
             crop_anchor: "center".into(),
             transition: "fade".into(),
@@ -86,7 +87,7 @@ impl Config {
         };
         Self {
             backend: text("backend", &d.backend),
-            folders: text("folders", &d.folders),
+            folders: folders(settings.get("folders").as_ref()).unwrap_or(d.folders),
             fit: choice("fit", FITS, &d.fit),
             crop_anchor: choice("crop_anchor", ANCHORS, &d.crop_anchor),
             transition: choice("transition", TRANSITIONS, &d.transition),
@@ -118,12 +119,12 @@ impl Config {
         }
     }
 
-    /// `folders` split at `:`, `~` expanded, empty entries dropped.
+    /// `folders` with `~` expanded, empty entries dropped.
     pub fn roots(&self) -> Vec<PathBuf> {
         let home = std::env::var_os("HOME").map(PathBuf::from);
         self.folders
-            .split(':')
-            .map(str::trim)
+            .iter()
+            .map(|f| f.trim())
             .filter(|f| !f.is_empty())
             .map(|f| expand_home(f, home.as_deref()))
             .collect()
@@ -161,6 +162,28 @@ pub fn default_values() -> Values {
         v.insert(k.clone(), val.clone());
     }
     v
+}
+
+/// `folders` as stored: a list of paths (I54), or the `:`-joined string it was before manifests had
+/// free lists (the daemon reads that as the list too; a mod run against an older daemon may not).
+fn folders(v: Option<&Value>) -> Option<Vec<String>> {
+    match v? {
+        Value::Array(items) => Some(
+            items
+                .iter()
+                .filter_map(|i| i.as_str().map(str::to_string))
+                .collect(),
+        ),
+        Value::String(joined) => Some(
+            joined
+                .split(':')
+                .map(str::trim)
+                .filter(|f| !f.is_empty())
+                .map(str::to_string)
+                .collect(),
+        ),
+        _ => None,
+    }
 }
 
 fn expand_home(path: &str, home: Option<&std::path::Path>) -> PathBuf {
@@ -202,10 +225,13 @@ mod tests {
 
     #[test]
     fn folders_split_at_colons_and_expand_home() {
-        let c = Config {
-            folders: "/a/b: ~/Pics ::/c".into(),
-            ..Config::default()
-        };
+        let mut v = default_values();
+        v.insert("folders".into(), json!("/a/b: ~/Pics ::/c"));
+        let c = Config::read(&settings(v));
+        assert_eq!(c.folders, ["/a/b", "~/Pics", "/c"], "the old colon string");
+        let mut v = default_values();
+        v.insert("folders".into(), json!(["/a/b", "~/Pics", " ", "/c"]));
+        let c = Config::read(&settings(v));
         let home = std::path::Path::new("/home/u");
         assert_eq!(
             expand_home("~/Pics", Some(home)),

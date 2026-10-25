@@ -949,6 +949,22 @@ for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] && 
 K '{"t":"apply","id":"flr","ops":[{"reset":"launcher.terminal"}]}' | grep -q applied || fail "free list: the terminal command was not reset"
 echo "keyboard L3: typed 'bash' + Return added it, 'sh' again was not added twice, Delete removed 'bash'"
 
+# L3b. a path list (I54): the wallpaper mod's folders (loaded, so its page is shown; not on). The field hints at the form;
+#      an entry that is neither absolute nor under ~ is refused: the row says why, the field keeps the typed text, its edge
+#      marked, and the list stays as it was.
+Q modLoad wallpaper
+for _ in $(seq 20); do [ "$(Q navOrder | tr ',' '\n' | grep -c mods.wallpaper)" -ge 1 ] && break; sleep 0.2; done
+Q goto mods.wallpaper
+Q focusList >/dev/null
+tab_to "Add to Folders" 150
+kp p i c s / w a l l s return
+sleep 1
+[ "$(val mods.wallpaper.folders)" = '["~/Pictures/Wallpapers"]' ] || fail "path list: a relative path was stored ($(val mods.wallpaper.folders))"
+[ -n "$(Q rowError mods.wallpaper.folders)" ] || fail "path list: the row shows no refusal for a relative path"
+shot freelist-invalid-path
+Q modUnload wallpaper
+echo "path list L3b: 'pics/walls' typed into the wallpaper folders was refused and stays in the field"
+
 # L4. a page link (I40, K65): the daemon's `settings.open {page}` jumps the running window to the page (`keys`, a mod's
 #     page as `mod:<id>`); a page Settings does not have is refused, and the window stays where it is.
 Q goto bar

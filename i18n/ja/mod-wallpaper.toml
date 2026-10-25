@@ -7,7 +7,7 @@
 "mods.wallpaper.backend" = "バックエンド"
 "mods.wallpaper.backend.help" = "既定は awww です。インストールされていないバックエンドは、理由を添えて淡色で表示されます。"
 "mods.wallpaper.folders" = "フォルダー"
-"mods.wallpaper.folders.help" = "画像のフォルダーをコロンで区切って指定します。その下のフォルダーも4階層まで検索します。"
+"mods.wallpaper.folders.help" = "画像のフォルダーを1行に1つ、/ か ~/ で始めて指定します。その下のフォルダーも4階層まで検索します。"
 "mods.wallpaper.fit" = "フィット"
 "mods.wallpaper.fit.crop" = "塗りつぶし（切り抜き）"
 "mods.wallpaper.fit.fit" = "全体を収める"
