@@ -15,7 +15,8 @@ Flickable {
     property string shownId: ""
     property bool pinned: false
     property bool pinForced: false      // set by the configuration: the dock's pin toggle is inert
-    property string pinForcedBy: ""     // the source that forces it (I91), named in the toggle's accessible name
+    property string pinForcedBy: ""     // the source that forces it (I91), named in the toggle's tip and description
+    property string edge: "right"      // the dock's edge: an inert control's tip stands on the screen side of the strip
     property bool panelOpen: false      // a card or a panel is up: Tab goes to it
     readonly property int tile: thick - 8
     // The length the content takes along the edge (dock.qml sizes the strip to it, up to the output).
@@ -139,8 +140,10 @@ Flickable {
                         readonly property string icon: isPin ? "push_pin" : (name === "add" ? "add" : "settings")
                         readonly property string a11yName: isPin
                             ? I18n.tr(lit ? "webdock.pin.undock" : "webdock.pin.dock")
-                                + (strip.pinForced ? ". " + I18n.tr("webdock.dock.forced") + " " + strip.pinForcedBy : "")
                             : (name === "add" ? I18n.tr("webdock.dock.add") : I18n.tr("webdock.dock.settings"))
+                        // Why an inert control is inert (rule 2): the tip shows it, and the accessible description says it.
+                        readonly property string reason: isPin && strip.pinForced
+                            ? I18n.tr("webdock.dock.forced.tip").replace("{by}", strip.pinForcedBy) : ""
 
                         function press() {
                             if (!ctl.live) return
@@ -156,6 +159,7 @@ Flickable {
                         Keys.onBacktabPressed: strip.tabFrom(true)
                         Accessible.role: Accessible.Button
                         Accessible.name: ctl.a11yName
+                        Accessible.description: ctl.reason
 
                         // A round key (K42): the dock's own controls, quieter than the pins' app icons.
                         Block {
@@ -190,6 +194,13 @@ Flickable {
                             height: ctl.width - 12
                             shown: ctl.activeFocus
                             corner: width / 2
+                        }
+                        // The reason an inert control is inert: on a rest over it, or while it has the keyboard (Tip.qml).
+                        Tip {
+                            target: ctl
+                            text: ctl.reason
+                            shown: (hov.hovered || ctl.activeFocus) && ctl.reason !== ""
+                            edge: strip.edge
                         }
                     }
                 }
