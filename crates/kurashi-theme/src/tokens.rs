@@ -243,7 +243,11 @@ pub fn build(
     // W34 (rows 360, 363): squash and stretch mid-morph and the neck's wobble on landing — lively only (docs/ux/motion.md).
     t.insert(
         "motion.spring.squash".into(),
-        json!(if axes.motion == MotionProfile::Lively { 0.06 } else { 0.0 }),
+        json!(if axes.motion == MotionProfile::Lively {
+            0.06
+        } else {
+            0.0
+        }),
     );
 
     // --- controls (touch targets stay >= 32 px even when compact) ---
