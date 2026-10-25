@@ -382,7 +382,13 @@ pub fn build(
     // the accent, and the label's ink meets AA on the container (as color.on_selected does). The frontend's fallbacks are
     // these same roles, so a palette that sends none looks as it did before.
     col(&mut t, "quick.tile.on.bg", sel);
-    col(&mut t, "quick.tile.on.badge", g("accent"));
+    // The badge is a graphic on the container (WCAG 1.4.11, I204): the accent, nudged to 3:1 where it falls short (dark
+    // wa-iro read 2.39:1); a passing accent is returned as it was, so the looks keep their badge.
+    col(
+        &mut t,
+        "quick.tile.on.badge",
+        ensure_contrast(g("accent"), sel, 3.0),
+    );
     col(&mut t, "quick.tile.on.fg", on_sel);
     col(&mut t, "color.data.1", g("secondary"));
     col(&mut t, "color.data.2", g("tertiary"));
@@ -668,5 +674,47 @@ mod shadow_tests {
         shadow_tokens(&mut t, &s);
         assert_eq!(t["shadow.dy"], json!(0.0));
         assert_eq!(t["shadow.alpha_scale"], json!(0.0));
+    }
+}
+
+#[cfg(test)]
+mod badge_tests {
+    use crate::color::{Rgb, contrast};
+    use crate::{ContrastLevel, FakeFonts, Scheme, Source, ThemeInput, bundled_names, resolve};
+
+    /// I204: a quick tile's accent badge is a graphic on its on-state container, so it reaches 3:1 there in every palette,
+    /// scheme and contrast level.
+    #[test]
+    fn quick_tile_badge_reaches_3_to_1_on_its_container() {
+        let fonts = FakeFonts::new(&["Inter", "Noto Sans CJK JP"]);
+        for name in bundled_names() {
+            for scheme in [Scheme::Dark, Scheme::Light] {
+                for contrast_level in [
+                    ContrastLevel::Standard,
+                    ContrastLevel::Medium,
+                    ContrastLevel::High,
+                ] {
+                    let input = ThemeInput {
+                        source: Source::Palette(name.into()),
+                        scheme,
+                        contrast: contrast_level,
+                        ..Default::default()
+                    };
+                    let t = resolve(&input, &fonts).unwrap().tokens;
+                    let c = |k: &str| Rgb::parse(t[k].as_str().unwrap()).unwrap();
+                    let r = contrast(c("quick.tile.on.badge"), c("quick.tile.on.bg"));
+                    assert!(
+                        r >= 3.0,
+                        "{name} {scheme:?} {contrast_level:?}: badge {r:.2}"
+                    );
+                    // Its icon (the on-accent ink, filled) stays a readable graphic on the nudged badge.
+                    let i = contrast(c("color.on_accent"), c("quick.tile.on.badge"));
+                    assert!(
+                        i >= 3.0,
+                        "{name} {scheme:?} {contrast_level:?}: badge icon {i:.2}"
+                    );
+                }
+            }
+        }
     }
 }
