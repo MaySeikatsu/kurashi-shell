@@ -100,7 +100,10 @@ PanelWindow {
     // The theme's motion profile: `none` (reduced motion, the accessibility axis) fades instead of sliding.
     readonly property bool moves: (Theme.tokens["motion.profile"] || "calm") !== "none"
     readonly property bool springs: moves && Theme.springOn
-    readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : Theme.quickMs
+    // Under none the card fades over this fixed time (docs/ux/webdock.md "Motion": fade only); motion.quick_ms is 0
+    // there, and a zero-length fade is a cut (I99). The fade is the slide's `slide` value read as opacity below.
+    readonly property int fadeMs: 120
+    readonly property int slideMs: moves ? (Theme.stdMs > 0 ? 180 : 0) : fadeMs
     // The distance the body slides out by, toward its edge; none when the motion is reduced.
     readonly property int away: !moves ? 0 : edge === "right" ? cardW : edge === "left" ? -cardW
         : edge === "bottom" ? cardH : -cardH
@@ -253,7 +256,7 @@ PanelWindow {
     }
 
     // Mapped (a layer surface) only while it shows: an unmapped card draws nothing (0 frames, Ma). The slide runs on
-    // Theme.stdMs (180 ms) under the calm and lively profiles; under none it is the theme's quick duration (0: a cut).
+    // Theme.stdMs (180 ms) under the calm and lively profiles; under none the fade's fixed `fadeMs` (120 ms).
     property real slide: 1
     property bool mapped: false
     visible: mapped
@@ -451,7 +454,7 @@ PanelWindow {
                 // Phone: the controls spread evenly across the bottom bar (the title is in its pill on top).
                 readonly property int count: 7 + (card.homeShown ? 1 : 0)
                 readonly property real spread: card.phoneLook
-                    ? Math.max(0, (width - 2 * 12 - count * 26) / (count - 1)) : 0
+                    ? Math.max(0, (width - 2 * 12 - count * 32) / (count - 1)) : 0
 
                 readonly property var page: card.activePage
                 readonly property string title: (page && page.engine.title) ? page.engine.title
