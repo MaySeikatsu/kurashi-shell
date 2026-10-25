@@ -197,7 +197,7 @@ if want real "$PHASES"; then
     if want peek "$SURFACES"; then
       # The sysmon widget's box: the Stage logs the origin it opened the panel from.
       K act mod.panel.open '{"id":"sysmon","panel":"sysmon"}' >/dev/null; sleep 1.2; K act ui.close >/dev/null; sleep 1.2
-      o=$(grep -o 'stage-morph open mod origin=[0-9]*,[0-9]*,widget' "$R/qs.log" | tail -1 | sed 's/.*origin=//')
+      o=$(grep -o 'stage-morph open mod origin=[0-9]*,[0-9]*,widget' "$R/qs.log" | tail -1 | sed 's/.*origin=//' || true)
       [ -n "$o" ] || fail "$cs: the sysmon widget's origin is not logged"
       ox=${o%%,*}; ow=${o#*,}; ow=${ow%%,*}
       px=$((ox - 3)); pw=$((ow + 6))
