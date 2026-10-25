@@ -247,9 +247,11 @@ async fn run() -> anyhow::Result<()> {
     // after the config was applied, so `island.main.system_events = false` never starts them (K65).
     island.follow_core();
     let mut daemon = Daemon::new(hub, actions, intents);
+    // Before the launcher: its query reads the config store from the daemon (`launcher.web_search`,
+    // `theme.icon_theme`), which was not there yet when it was set after (W37).
+    daemon.config = config.clone();
     kurashid::wiring::launcher(&mut daemon, config.as_deref(), kurashid::xdg_dir("state"));
     kurashid::doctor::register(&mut daemon, facts);
-    daemon.config = config;
     daemon.caps = vec!["undo".into(), "profiles".into(), "island".into()];
     let daemon = Arc::new(daemon);
     if let Some(b) = &bindings {
