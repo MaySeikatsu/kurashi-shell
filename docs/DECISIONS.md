@@ -719,3 +719,16 @@ the island may show, as its label says; an unlisted face never shows and `island
 `island.main.system_events`, not by the list; and a user on the default list must not lose a face they see today — a
 newly enabled mod's face joins the default list (the card decides how, without writing the user's config behind their back). *Why:* the user chose "raise and split", "shorter
 flip" and "restricts" (session 13); placement stays as built (toasts/centre under the island, panels under their widget).
+
+## K69 — the shell ships its own icon subset; a missing name falls back to the full family (2026-10-25, session 13; I194)
+The kurashi package installs "Kurashi Symbols Rounded" and "Kurashi Symbols Sharp" (`nix/icon-font.nix`: Material
+Symbols cut to the ligatures in `nix/icon-names.txt`, every axis kept) under `share/fonts/truetype`; the Home-Manager and
+NixOS `fonts` defaults and the devShell list the same derivation first, Material Symbols after it. `font.icons` prefers
+the subset (line chrome: the sharp cut, then the full sharp family, before the rounded subset), else Material Symbols,
+else ""; the new token `font.icons_fallback` names the full family of the same cut when `font.icons` is the subset.
+`Icon.qml` moves a name that renders wider than 1.5 × size to the fallback family, and a name neither family draws to
+its glyph or a bullet, so an icon never shows as a word. `nix/icon-names.txt` is the one list of names;
+`tools/check-icon-names.sh` regenerates it from the sources in `just check`. Mods declare no icon list (MODS.md): their
+names fall back at run time. *Evidence:* BENCH "2026-10-25 — W41 icons" — pixel identity 0 strong pixels (30 pairs);
+icon font resident 22.5 → 13.9 MiB RSS (W39); with the washi grain memo, PSS @1 output 157.5/158.2 → 152.3/152.4 MiB and
+the quick card 48–50 → 22 ms warm. The core budget (150, K68) is still 2.4 MiB away.

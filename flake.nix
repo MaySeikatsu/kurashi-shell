@@ -35,7 +35,8 @@
             # Rust
             cargo rustc clippy rustfmt rust-analyzer cargo-nextest
             # Workflow
-            just jq python3 git
+            # python3 with fontTools: tools/check-icon-names.sh (W41, row 446) regenerates nix/icon-names.txt from the font
+            just jq (python3.withPackages (ps: [ ps.fonttools ])) git
             # Shader checks (the ghostty material shader, W37 row 402)
             glslang
             # Frontend default (K3 candidate 1) + headless test compositor
@@ -50,8 +51,9 @@
           RUST_BACKTRACE = "1";
           # The fonts the shell draws with (HM `programs.kurashi.fonts`), visible to fontconfig through its
           # xdg data dirs, so sandbox screenshots show icons and every decor look without a system install.
+          # The icon subset first (W41, row 445): the theme prefers it, and Material Symbols is the fallback.
           shellHook = ''
-            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ (callPackage ./nix/icon-font.nix { }) material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
             echo "kurashi dev shell — 'just' lists tasks"
           '';
         };

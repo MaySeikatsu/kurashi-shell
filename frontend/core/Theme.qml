@@ -95,8 +95,10 @@ Singleton {
     readonly property int wMedium: tok("font.weight.medium", 500)
     readonly property int wBold: tok("font.weight.bold", 700)
     readonly property int fsDisplay: tok("font.size.display", 24)
-    // Icons: Material Symbols Rounded by ligature name when installed ("" otherwise: Icon draws its glyph).
+    // Icons: the shell's subset (Kurashi Symbols), else Material Symbols, by ligature name ("" otherwise: Icon draws its
+    // glyph). The fallback is the full family of the same cut, for a name the subset lacks (W41, rows 445/446/458).
     readonly property string iconFamily: tok("font.icons", "")
+    readonly property string iconFamilyFallback: tok("font.icons_fallback", "")
     // Springs: arrivals overshoot by `overshoot` (Easing.OutBack amplitude); morphs that retarget mid-flight use
     // SpringAnimation with `spring`/`damping`. `springOn` false = motion off: snap.
     readonly property real overshoot: tok("motion.spring.overshoot", 0.6)

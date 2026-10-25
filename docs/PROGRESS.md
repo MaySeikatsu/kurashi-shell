@@ -258,3 +258,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W39.2 | A lighter Block, idle windows, icon font subset, badge contrast (card `W39-block`; I199, I204, I194) | ✅ Block −20–40 µs, pixel-identical; font subset built, not yet installed (W41) · PSS unchanged | merged |
 | W39.3 | Minute flip capped at 300 ms; split memory budgets (lead; K68; I193, I194) | ✅ | merged |
 | W40.1 | `island.main.faces` restricts (card `W40-faces`; K68; I209) | ✅ functional · UX 🟡 (faces control unshot, I212) | merged |
+| W41.1 | Icon subset installed, full-family fallback, washi grain memo (card `W41-icons`; K69; I194, I199) | ✅ identity 0 strong px · quick card 22 ms · PSS @1 152.4 MiB (budget 150 ✗, I194) | merged |
