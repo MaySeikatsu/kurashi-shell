@@ -30,7 +30,15 @@ Column {
     // Copies by row (an app's include is keyed by the app's name, its lines by `name#index`): the line copied, or {error}.
     property var copied: ({})
     readonly property string home: Quickshell.env("HOME") || ""
-    function tilde(p) { return ex.home !== "" && String(p).indexOf(ex.home + "/") === 0 ? "~" + String(p).substring(ex.home.length) : String(p) }
+    readonly property string xdg: Quickshell.env("XDG_CONFIG_HOME") || ""
+    // Under $HOME a path reads `~/…`. Under $XDG_CONFIG_HOME (when that lies outside $HOME) it reads `$XDG_CONFIG_HOME/…`:
+    // a `~` there would name the wrong folder (W36).
+    function tilde(p) {
+        var s = String(p)
+        if (ex.home !== "" && s.indexOf(ex.home + "/") === 0) return "~" + s.substring(ex.home.length)
+        if (ex.xdg !== "" && s.indexOf(ex.xdg + "/") === 0) return "$XDG_CONFIG_HOME" + s.substring(ex.xdg.length)
+        return s
+    }
     function appName(n) { return I18n.has("config.choice.export." + n) ? I18n.tr("config.choice.export." + n) : n }
     function setList(v) { return Array.isArray(v) ? v.join(", ") : "" }
     // The rows of an app: its include (when it has one), then its lines.

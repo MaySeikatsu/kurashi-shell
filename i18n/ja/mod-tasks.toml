@@ -38,6 +38,9 @@
 
 # デスクのカード、パネル、ウィジェット。
 "mod-tasks.title" = "タスク"
+# デスクの編集モードがカードの名前に使う（Desktop.qml cardTitle: mod-<id>.desk.<name>）。何も表示していないとき。
+"mod-tasks.desk.tasks" = "タスク"
+"mod-tasks.desk.notes" = "メモ"
 "mod-tasks.panel.title" = "タスク"
 "mod-tasks.loading" = "読み込み中…"
 "mod-tasks.open_count" = "未完了 {n}"

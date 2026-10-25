@@ -4,7 +4,6 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/island"
-import "../core/mods.js" as Mods
 
 // Desktop widgets (K43; SekaiPop's desk): cards on the bottom layer, under the windows, on one side of each output —
 // the time as four keys with the date and the day's progress, this month with today marked, what is playing (hidden
@@ -14,12 +13,16 @@ import "../core/mods.js" as Mods
 // Ma: no surface while off; the documents are watched only while the surface is shown; nothing animates on its own —
 // the clock changes when svc.clock's minute patch arrives. Content-sized (K16): the window is the column of cards.
 // Mods add cards (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only while the desk is
-// shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say).
+// shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say). A mod's cards follow
+// the manifest's `provides` order: the `qml` map is sorted by key, so it cannot give one (W36).
 // Order (K48 (4)): the column follows `desktop.order` — core ids and `mod:<id>:<name>` — and the cards it does not list
-// come after, core ones first. Edit mode (SekaiPop "Edit Desktop", macOS "Edit Widgets"; docs/ux/desktop.md v3): the
-// "Edit" key on hover lifts the column over the windows with the keyboard, every card shows (a placeholder says when it
-// shows), drag or Alt+Up/Down reorders, the eye (or Space) hides a core card, and Done writes the order and the
-// switches as one `apply` (one undo step); Escape puts everything back. Nothing is written while editing.
+// come after, core ones first. Hidden (K65, W36): a card is left out while its switch is off (core: `desktop.<card>`,
+// the switch Settings shows) or its id is in `desktop.hidden` (a mod card has no switch of its own).
+// Edit mode (SekaiPop "Edit Desktop", macOS "Edit Widgets"; docs/ux/desktop.md v3–v4): the "Edit" key on hover lifts the
+// column over the windows with the keyboard, every card shows (a placeholder says when it shows; a hidden one says
+// "Hidden"), drag or Alt+Up/Down reorders, the eye (or Space) shows or hides any card, and Done writes the order, the
+// switches and the hidden list as one `apply` (one undo step); Escape puts everything back. Nothing is written while
+// editing.
 PanelWindow {
     id: desk
     required property var modelData
@@ -44,18 +47,23 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
     anchors { top: true; left: desk.onLeft; right: !desk.onLeft }
+    // The Edit key sits above the first card's padding, its bottom 2 px above the keycaps' top (they start at the padding),
+    // so it covers no content of the clock's keys (W36). The window starts `keyLift` above the cards; the cards keep 28 px
+    // under the bar, or the key's clearance from the bar when that is more.
+    readonly property int keyLift: Math.max(0, editKey.height - Theme.pad + 2)
+    readonly property int colTop: Math.max(28, keyLift + 8)
     margins {
-        top: (bars.atTop ? Theme.barH : 0) + 28
+        top: (bars.atTop ? Theme.barH : 0) + colTop - keyLift
         left: (bars.enabled && bars.edge === "left" ? Theme.barH : 0) + 32
         right: (bars.atRight ? Theme.barH : 0) + 32
     }
     implicitWidth: cards.width
-    implicitHeight: Math.max(1, cards.height)
+    implicitHeight: Math.max(1, cards.height + keyLift)
     onOnChanged: if (!on) cancelEdit()
 
     Watch { doc: "svc.clock"; active: desk.visible }
-    Watch { doc: "svc.media"; active: desk.visible && (desk.want("media") || desk.editing) }
-    Watch { doc: "mod.weather"; active: desk.visible && (desk.want("weather") || desk.editing) && desk.weatherMod }
+    Watch { doc: "svc.media"; active: desk.visible && (desk.showsNow("media") || desk.editing) }
+    Watch { doc: "mod.weather"; active: desk.visible && (desk.showsNow("weather") || desk.editing) && desk.weatherMod }
     Watch { doc: "mods"; active: desk.visible }
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var media: Store.docs["svc.media"] || ({})
@@ -72,13 +80,27 @@ PanelWindow {
         for (var i = 0; i < m.length; i++) if (m[i].id === id) return I18n.tr(m[i].name || id)
         return id
     }
+    // The desk cards of enabled mods as [{mod, provide, url}] in the manifest's `provides` order (the `qml` map is sorted
+    // by key, so it cannot give that order; the mods document lists `provides` as the manifest does). A card with no file
+    // is not listed.
+    function deskCardsOf(doc) {
+        var out = []
+        var list = (doc && doc.mods) || []
+        for (var i = 0; i < list.length; i++) {
+            var m = list[i], q = m.qml || ({}), p = m.provides || []
+            for (var j = 0; j < p.length; j++)
+                if (String(p[j]).indexOf("desk:") === 0 && typeof q[p[j]] === "string" && q[p[j]] !== "")
+                    out.push({ mod: m.id, provide: p[j], url: q[p[j]] })
+        }
+        return out
+    }
 
     // The desk cards of enabled mods as [{id: "mod:<mod>:<name>", url, mod}]. The list is rebuilt only when the URLs
     // change: the `mods` document also changes when a mod starts or stops running (a card's own subscription does that),
     // and a new list would remake every card, which would unsubscribe and resubscribe it, without end.
     readonly property var modsDoc: Store.docs["mods"]
     readonly property string deskKey: desk.visible
-        ? JSON.stringify(Mods.deskCards(desk.modsDoc).map(function (c) {
+        ? JSON.stringify(desk.deskCardsOf(desk.modsDoc).map(function (c) {
             return { id: "mod:" + c.mod + ":" + c.provide.substring(5), url: c.url, mod: c.mod }
         })) : "[]"
     property var modCards: []
@@ -128,13 +150,26 @@ PanelWindow {
     // A layer above the user's (Nix, a forced value) holds the order: edit mode says so and moves nothing (Shōjiki).
     readonly property bool orderLocked: !!orderProv && (!!orderProv.forced_by || (orderProv.source || {}).kind === "forced"
                                                         || (orderProv.source || {}).kind === "nix")
+    // Hidden (K65): a listed id is left out whatever its switch says. A mod card has no switch, so the list is its only
+    // hide; a core card keeps its switch (the one Settings shows), and the list may name it as well.
+    readonly property var hiddenList: { var h = bars.valueOf("desktop.hidden", []); return Array.isArray(h) ? h : [] }
+    function hiddenIn(id) {
+        if (hiddenList.indexOf(id) >= 0) return true
+        return id.indexOf("mod:") !== 0 && !want(id)
+    }
+    // What the desk shows now, not the staged edit: the watches and the loaders follow it (a hidden card is not made).
+    function showsNow(id) { return !hiddenIn(id) }
+    // The eye is locked when a layer above the user sets what it writes: the card's switch, or the list for a mod card.
     function switchLocked(id) {
-        var p = bars.entry("desktop." + id)
+        var p = bars.entry(id.indexOf("mod:") === 0 ? "desktop.hidden" : "desktop." + id)
         return !!p && (!!p.forced_by || (p.source || {}).kind === "forced" || (p.source || {}).kind === "nix")
     }
+    readonly property bool anySwitchLocked: {
+        for (var i = 0; i < available.length; i++) if (switchLocked(available[i])) return true
+        return false
+    }
     function shown(id) {
-        if (id.indexOf("mod:") === 0) return true
-        return editing && staged[id] !== undefined ? staged[id] : want(id)
+        return editing && staged[id] !== undefined ? staged[id] : !hiddenIn(id)
     }
     function startEdit() {
         if (editing) return
@@ -146,13 +181,15 @@ PanelWindow {
     }
     function cancelEdit() {
         if (!editing) return
+        // The focus leaves the card first: a card with the focus cannot drop out of the Tab order (Qt warns).
+        root.forceActiveFocus()
         editing = false
         staged = ({})
         editError = ""
         sync()
     }
     function toggleShown(id) {
-        if (id.indexOf("mod:") === 0 || switchLocked(id)) return
+        if (switchLocked(id)) return
         var s = Object.assign({}, staged)
         s[id] = !shown(id)
         staged = s
@@ -168,12 +205,23 @@ PanelWindow {
         var ids = modelIds()
         if (!orderLocked && JSON.stringify(ids) !== JSON.stringify(arrange(configOrder)))
             ops.push({ set: "desktop.order", value: ids })
-        for (var id in staged)
-            if (staged[id] !== want(id)) ops.push({ set: "desktop." + id, value: staged[id] })
+        // A core card's switch is its own key; a mod card's hide is its entry in the list. The list goes out once, in the
+        // same apply, so one undo puts it back with the rest.
+        var hidden = hiddenList.slice()
+        var listed = false
+        for (var id in staged) {
+            var s = staged[id]
+            var mod = id.indexOf("mod:") === 0
+            if (!mod && s !== want(id)) ops.push({ set: "desktop." + id, value: s })
+            var at = hidden.indexOf(id)
+            if (s && at >= 0) { hidden.splice(at, 1); listed = true }
+            else if (!s && at < 0 && mod) { hidden.push(id); listed = true }
+        }
+        if (listed) ops.push({ set: "desktop.hidden", value: hidden })
         if (ops.length === 0) { cancelEdit(); return }
         editError = ""
         Store.apply(ops, function (errors) {
-            if (!errors) { editing = false; staged = ({}); return }
+            if (!errors) { root.forceActiveFocus(); editing = false; staged = ({}); return }
             var c = errors.length ? (errors[0].code || "") : ""
             editError = c === "disconnected" ? I18n.tr("frontend.desktop.edit.disconnected")
                 : I18n.tr("frontend.desktop.edit.refused") + (c !== "" ? " (" + I18n.tr(c) + ")" : "")
@@ -512,13 +560,14 @@ PanelWindow {
     Item {
         id: root
         width: cards.width
-        height: cards.height
+        height: cards.height + desk.keyLift
         focus: true
         Keys.onEscapePressed: event => { desk.cancelEdit(); event.accepted = true }
         HoverHandler { id: deskHover }
 
         Column {
             id: cards
+            y: desk.keyLift
             width: desk.cardW
             spacing: Theme.pad + 4
             move: Transition {
@@ -570,6 +619,15 @@ PanelWindow {
                                                : I18n.tr("frontend.desktop.edit.hint")
                     }
                     Text {
+                        visible: desk.anySwitchLocked
+                        width: parent.width
+                        wrapMode: Text.WordWrap
+                        color: Theme.dim
+                        font.pixelSize: Theme.fs - 2
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr("frontend.desktop.edit.switch_locked")
+                    }
+                    Text {
                         visible: desk.editError !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -593,7 +651,7 @@ PanelWindow {
                     readonly property bool wanted: desk.shown(cid)
                     readonly property bool hasContent: real.item ? real.item.hasContent === true : false
                     readonly property bool showReal: hasContent && (wanted || desk.editing)
-                    readonly property bool locked: !isMod && desk.switchLocked(cid)
+                    readonly property bool locked: desk.switchLocked(cid)
                     // Pointer drag (edit mode): the card follows the pointer; crossing a neighbour's middle moves it there.
                     property bool dragging: false
                     property real grabY: 0
@@ -644,12 +702,14 @@ PanelWindow {
                         event.accepted = true
                     }
 
-                    // The card itself. A mod's card stays loaded while the desk is shown, so it keeps its subscriptions
-                    // (it says itself when it has nothing to show); a core card the user hid is made only while editing.
+                    // The card itself: made while it is shown (a mod's card keeps its subscriptions for as long as it shows, and
+                    // says itself when it has nothing to show) and while editing. A hidden card is not made outside edit mode
+                    // (Ma). In edit mode the card's own controls are out of the Tab order: the card keys are the tab stops.
                     Loader {
                         id: real
-                        active: slot.isMod || slot.wanted || desk.editing
+                        active: slot.wanted || desk.editing
                         visible: slot.showReal
+                        enabled: !desk.editing
                         opacity: slot.wanted ? 1 : 0.45
                         sourceComponent: slot.isMod ? cMod
                             : slot.cid === "clock" ? cClock
@@ -735,7 +795,6 @@ PanelWindow {
                             onClicked: desk.moveCard(slot.index, slot.index + 1)
                         }
                         IconButton {
-                            visible: !slot.isMod
                             icon: slot.wanted ? "visibility" : "visibility_off"; glyph: slot.wanted ? "◉" : "◌"
                             a11y: I18n.tr(slot.wanted ? "frontend.desktop.edit.hide" : "frontend.desktop.edit.show")
                             lit: slot.wanted
@@ -770,14 +829,14 @@ PanelWindow {
             }
         }
 
-        // The way in: a small key on the column's corner while the pointer is over the desk (or Tab reaches it).
+        // The way in: a key above the column's first card while the pointer is over the desk (or Tab reaches it). Above the
+        // card's padding, it covers no card content (W36: it used to sit over the clock's last digit).
         Button {
             id: editKey
             objectName: "desk-edit"
             visible: !desk.editing && (deskHover.hovered || editKey.activeFocus)
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: Theme.gap
             anchors.rightMargin: Theme.gap
             icon: "edit"
             label: I18n.tr("frontend.desktop.edit.start")

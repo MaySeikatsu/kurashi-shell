@@ -38,6 +38,9 @@
 
 # Desk cards, panel, widget.
 "mod-tasks.title" = "Tasks"
+# The desk's edit mode names the cards by these (Desktop.qml cardTitle: mod-<id>.desk.<name>), when nothing is shown.
+"mod-tasks.desk.tasks" = "Tasks"
+"mod-tasks.desk.notes" = "Note"
 "mod-tasks.panel.title" = "Tasks"
 "mod-tasks.loading" = "Loading…"
 "mod-tasks.open_count" = "{n} open"
