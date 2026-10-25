@@ -662,3 +662,12 @@ from them (niri: `$XDG_CONFIG_HOME/niri/kurashi-binds.kdl`, `spawn kurashi act â
 reports the include line (K49's pattern: our own file, never the user's config). A file Home-Manager manages (a store
 symlink) is not overwritten: the row says so. Settings shows the page "Keys" with a shortcut recorder and flags two
 actions on one combo. *Why:* the user wants to change shortcuts in Settings; until now only the HM module wrote them.
+
+**K64 amendment** (W35-keys): a file at the path without kurashid's header (`foreign`, e.g. a pasted copy of the
+snippet) is never written, nor a Home-Manager symlink (`managed`); with writing off kurashid's own file becomes an empty
+`binds {}` stub, because niri refuses a config whose include is missing; a changed file is checked with `niri validate`
+before it is written (a key niri refuses is left out with its reason, any other refusal writes nothing); `svc.keys`
+reports per shortcut whether the user's own niri config binds the same combo before (`replaces`) or after
+(`overridden`) the include. Settings records shortcuts with Quickshell's shortcut inhibitor active, so the compositor's
+own binds reach the field.
+
