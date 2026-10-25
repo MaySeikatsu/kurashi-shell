@@ -9,6 +9,9 @@
 # The clock card's keyboard (W37-calendar, docs/ux/calendar.md "Event details"): an all-day row's details, a timed one's,
 # Escape out of them and out of the card, a multi-day event (all-day "Trip to Kyoto", timed "Night train"), an empty
 # day, tomorrow (the agenda follows the selected day), then the dark scheme and Japanese once (sekai).
+# I203 (W38): the month grid's next month (clock-next-{sekai,none,washi}.png, clock-ja-next.png: six rows from a Monday, five
+# from a Sunday, the number centred in the keycap above the day mark), and the bar widget's click with no clock face in the
+# island (row 412: the card opens on its own face, widget-fallback-sekai.png).
 # Screenshots (mods/calendar/shots/): {desk,bar,clock,desk-offline,clock-nosource,clock-tomorrow,clock-empty,
 # popover-allday,popover-timed,popover-trip,popover-night}-{sekai,none}.png, popover-timed-sekai-dark.png,
 # popover-timed-ja.png, popover-night-ja.png, clock-ja.png.
@@ -192,6 +195,10 @@ start_all() { # start_all <decor> <with sources: 1|0>
 key() { local k; for k in "$@"; do echo "$k" >&3; sleep 0.25; done; }
 repeat_key() { local n=$1 k=$2 i; for ((i = 0; i < n; i++)); do key "$k"; done; }
 day_key() { date -d "+$1 days" +%Y-%m-%d; }
+# Down presses (a week each) that land the selection in next month, one press to spare: a press the frontend misses still
+# leaves the grid in next month (I203: November 2026 has six weeks from a Monday and five from a Sunday, so the sixth row
+# comes and goes). Counted from today; from tomorrow the same count still lands in next month.
+weeks_to_next_month() { local d=$(( ( $(date -d "$(date +%Y-%m-01) +1 month" +%s) - $(date -d today +%s) + 3600 ) / 86400 )); echo $(( (d + 6) / 7 + 1 )); }
 panel() { ipc runtime.ui | jq -r .panel; }
 # row_index <yyyy-mm-dd> <title>: the event's place in that day's agenda (the document's order), -1 when it is not there.
 row_index() {
@@ -267,6 +274,8 @@ agenda_steps() { # agenda_steps <decor>
   agenda_open
   key right                    # tomorrow: the agenda follows the selected day (dinner at 19:00)
   shot "clock-tomorrow-$dec" "$CLOCK_GEOM"
+  repeat_key "$(weeks_to_next_month)" down   # a week on each, from tomorrow: into next month
+  shot "clock-next-$dec" "$CLOCK_GEOM"
   key escape                   # from the month grid, Escape goes on to the card, which closes
   check "$([ "$(panel)" = "" ] && echo 1 || echo 0)" "$dec: Escape from the month grid closes the card"
   agenda_close
@@ -338,6 +347,22 @@ repeat_key "$((ix + 1))" tab
 key return
 shot "popover-night-ja" "$CLOCK_GEOM"
 key escape escape
+# I203: the next month in Japanese weeks (they start on Sunday, so November 2026 has five rows; the card's agenda is below).
+agenda_open
+repeat_key "$(weeks_to_next_month)" down
+shot "clock-ja-next" "$CLOCK_GEOM"
+key escape
+stop_shell
+stop_daemon
+
+# I203 (row 412): the bar widget asks for the clock face; an island without it opens its own face instead of refusing.
+echo "== no clock face: the widget's click opens the island's own face"
+EXTRA_CFG=$'island.main.faces = ["media", "notifications"]\nisland.main.default = "media"' start_all sekai 1
+sleep 1.5
+timeout 20 python3 -I "$ROOT/tools/bench/wl_pointer.py" click 2300 15 left >/dev/null 2>&1 || true
+sleep 1.5
+check "$([ "$(panel)" = island ] && echo 1 || echo 0)" "no clock face: the widget's click opens the island's own face (row 412, panel $(panel))"
+shot "widget-fallback-sekai" "880,0 800x720"
 stop_shell
 stop_daemon
 

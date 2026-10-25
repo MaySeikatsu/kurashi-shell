@@ -54,8 +54,13 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: !has ? "" : C.fill(I18n.tr(running ? "mod-calendar.a11y.widget_now" : "mod-calendar.a11y.widget"),
         { title: ev.title || I18n.tr("mod-calendar.untitled"), n: Math.max(0, Math.ceil((ev.start - nowS) / 60)) })
-    // CONTRACT-CHANGE row 203: the clock card opens on its agenda even while another face (media) is current.
-    function open() { Store.act("island.expand", { face: "clock" }) }
+    // CONTRACT-CHANGE row 203: the clock card opens on its agenda even while another face (media) is current. Row 412: an
+    // island that does not show the clock face refuses it (`invalid`); the card then opens on its own face (I203).
+    function open() {
+        Store.act("island.expand", { face: "clock" }, function (done, err) {
+            if (err && err.kind === "invalid") Store.act("island.expand", {})
+        })
+    }
     Keys.onReturnPressed: w.open()
     Keys.onEnterPressed: w.open()
     Keys.onSpacePressed: w.open()
