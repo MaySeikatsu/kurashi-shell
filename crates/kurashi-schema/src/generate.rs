@@ -19,6 +19,9 @@ pub fn control_kind(m: &KeyMeta) -> &'static str {
         Ty::Int | Ty::Float if c.min.is_some() && c.max.is_some() => "slider",
         Ty::Int | Ty::Float => "number",
         Ty::Choice => "select",
+        // K64: every `keys.*` string is a shortcut, recorded by keys (`keys.write` is a bool). A stand-in until the derive
+        // takes `#[kurashi(control = "shortcut")]` (CONTRACT-CHANGE 425): the check moved here from Settings' `pickerOf`.
+        Ty::String if m.key.starts_with("keys.") => "shortcut",
         Ty::String if !c.choices.is_empty() || c.choices_from.is_some() => "select",
         Ty::String => "text",
         // Fixed choices (a mod's `list` setting, I26) or a choice source: an ordered pick list.

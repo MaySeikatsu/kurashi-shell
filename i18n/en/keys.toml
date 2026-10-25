@@ -1,30 +1,39 @@
-# Keyboard shortcuts (K64, W35-keys): svc.keys reasons (kurashid keys.rs) and the Settings "Keys" page.
+# Keyboard shortcuts (K64, W38-keys): svc.keys reasons (kurashid keys.rs) and the Settings "Keys" page.
 
 # Why a combo is not written (svc.keys binds[].reason).
-"keys.invalid.syntax" = "Not a key combination niri reads. Write it like Mod+Shift+E."
-"keys.invalid.modifier" = "Unknown modifier. niri knows Mod, Super, Ctrl, Alt and Shift."
-"keys.invalid.key" = "niri knows no key of that name, so it is left out of the file."
+"keys.invalid.syntax" = "Not a key combination. Write it like Mod+Shift+E."
+"keys.invalid.modifier" = "Unknown modifier. Use Mod, Super, Ctrl, Alt or Shift."
+"keys.invalid.key" = "No key has that name, so it is left out of the file."
 "keys.invalid.only_modifiers" = "Only modifiers: add a key to press with them."
 "keys.invalid.needs_modifier" = "This key types text: hold Super, Ctrl or Alt with it, or it could not be typed any more. Left out of the file."
 "keys.invalid.niri" = "niri refused this key name, so it is left out of the file."
+"keys.invalid.sway" = "Sway refused this key name, so it is left out of the file."
+"keys.invalid.hyprland" = "Hyprland refused this key, so it is left out of the file."
+"keys.invalid.modifier_here" = "This compositor has no name for that modifier, so it is left out of the file."
 "keys.conflict.taken" = "Not written: {combo} is already the shortcut of {action}."
 "keys.conflict.shared" = "{actions} chose this combination too. Only this one is written."
 "keys.config.replaces" = "Replaces the {combo} bind of your niri config (the include comes after it)."
 "keys.config.overridden" = "Not in effect: your niri config binds {combo} again after the include line, and the later bind wins."
 
+# The title niri's own hotkey overlay shows for a bind: this template with the action's label (config.keys.<key>.label).
+"keys.overlay.title" = "kurashi: {action}"
+
 # The file (the status under "Shortcuts for the compositor").
 "keys.status.waiting" = "Waiting for the daemon…"
 "keys.status.written" = "Written to {path}."
 "keys.status.same" = "{path} is up to date."
-"keys.status.add_include" = "niri reads it once {file} includes it. Add this line after your own binds {} block:"
-"keys.status.included" = "Included from {file}: niri reloads it by itself."
-"keys.status.managed" = "Home-Manager writes {path} (programs.kurashi.niri.binds), so those keys are in effect and Settings leaves the file alone. To change the keys here, turn programs.kurashi.niri.binds.enable off and switch your home configuration."
+"keys.status.add_include.niri" = "niri reads it once {file} includes it. Add this line after your own binds {} block:"
+"keys.status.add_include.sway" = "Sway reads it once {file} includes it. Add this line:"
+"keys.status.add_include.hyprland" = "Hyprland reads it once {file} sources it. Add this line:"
+"keys.status.included" = "Included from {file}."
+"keys.status.reload.sway" = "Sway reads the file on reload: run swaymsg reload to put the shortcuts in effect."
+"keys.status.managed" = "{path} is a link to a file another tool writes (Home-Manager; for niri, programs.kurashi.niri.binds). Its shortcuts are in effect and Settings leaves it alone. To change the shortcuts here, remove the link."
 "keys.status.foreign" = "{path} is a file kurashi did not write (a copy of the snippet?). It stays as it is: move it away and Settings writes the shortcuts there."
-"keys.status.unsupported" = "Writing shortcuts works with niri so far. {compositor} keeps the keys of its own config."
+"keys.status.unsupported" = "Writing shortcuts is not supported for {compositor} yet. Its own config keeps the keys."
 "keys.status.no_compositor" = "No compositor found, so nothing is written."
 "keys.status.left_out" = "{n} of the shortcuts are left out of the file: their rows say why."
 "keys.error.write_failed" = "The file could not be written."
-"keys.error.niri_refused" = "niri refused the file, so it was not written: {detail}"
+"keys.error.refused" = "The compositor refused the file, so it was not written: {detail}"
 "keys.not_written" = "Not in effect: the shortcuts file is not written (see above)."
 "keys.copy" = "Copy"
 "keys.copied" = "Copied"
