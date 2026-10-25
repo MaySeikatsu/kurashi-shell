@@ -5,6 +5,7 @@ import "../core"
 import "../core/mods.js" as Mods
 import "../components"
 import "../components/island"
+import "../components/sidebar"
 
 // One bar per output, on the edge that output's config names (bar.edge). bar.enabled false: no
 // surface, no exclusive zone and no subscriptions held for it (Ma). Everything shown comes from
@@ -222,6 +223,27 @@ PanelWindow {
         // opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
         readonly property bool opened: !bar.vertical && IslandGeom.openR > IslandGeom.openL
             && IslandGeom.takenOn !== "" && IslandGeom.takenOn === (bar.screen ? bar.screen.name : "")
+        // Row 363 (W34): an open sidebar at rest on this edge leaves the rule out over the span its column covers
+        // (SidebarGeom), so the column's outline runs round its fillet into the rule's end — one sheet, no seam.
+        readonly property var sideOpen: {
+            var o = SidebarGeom.openingOf(bar.screen ? bar.screen.name : "")
+            return o && o.edge === cfg.edge ? o : null
+        }
+        // The rule as segments along the edge: everything but the island's opening and the sidebar's span.
+        readonly property real ruleLen: bar.vertical ? height : width
+        readonly property var ruleSegs: {
+            var gaps = []
+            if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
+            if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
+            gaps.sort(function (x, y) { return x[0] - y[0] })
+            var segs = [], at = 0
+            for (var i = 0; i < gaps.length; i++) {
+                if (gaps[i][0] > at) segs.push([at, gaps[i][0]])
+                at = Math.max(at, gaps[i][1])
+            }
+            if (at < ruleLen) segs.push([at, ruleLen])
+            return segs
+        }
         // K59: the strip's material, under its rules (flat chrome; floating groups stand on their own blocks).
         Loader {
             anchors.fill: parent
@@ -238,32 +260,25 @@ PanelWindow {
                 readonly property real ow: Theme.outlineW
                 readonly property real cy: cfg.edge === "top" ? height - ow / 2 : ow / 2
                 readonly property real cx: cfg.edge === "left" ? width - ow / 2 : ow / 2
-                readonly property real openA: bg.opened ? Math.max(0, width / 2 + IslandGeom.openL) : width
-                readonly property real openB: width / 2 + IslandGeom.openR
                 color: Theme.outlineColor
                 lineWidth: ow
                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
-                paths: bar.vertical ? [{ points: [{ x: cx, y: 0 }, { x: cx, y: height }], closed: false }]
-                    : (bg.opened ? [{ points: [{ x: 0, y: cy }, { x: openA, y: cy }], closed: false },
-                                    { points: [{ x: openB, y: cy }, { x: width, y: cy }], closed: false }]
-                                 : [{ points: [{ x: 0, y: cy }, { x: width, y: cy }], closed: false }])
+                paths: bg.ruleSegs.map(function (g) {
+                    return bar.vertical ? { points: [{ x: cx, y: g[0] }, { x: cx, y: g[1] }], closed: false }
+                                        : { points: [{ x: g[0], y: cy }, { x: g[1], y: cy }], closed: false }
+                })
             }
         }
-        Rectangle {
-            visible: !bar.floating && Theme.outlineW > 0 && !rulePen.active
-            color: Theme.outlineColor
-            x: cfg.edge === "left" ? parent.width - width : 0
-            y: cfg.edge === "top" ? parent.height - height : 0
-            width: bar.vertical ? Theme.outlineW : (bg.opened ? Math.max(0, parent.width / 2 + IslandGeom.openL) : parent.width)
-            height: bar.vertical ? parent.height : Theme.outlineW
-        }
-        Rectangle {
-            visible: !bar.floating && Theme.outlineW > 0 && bg.opened && !rulePen.active
-            color: Theme.outlineColor
-            x: parent.width / 2 + IslandGeom.openR
-            y: cfg.edge === "top" ? parent.height - height : 0
-            width: Math.max(0, parent.width - x)
-            height: Theme.outlineW
+        Repeater {
+            model: !bar.floating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
+            Rectangle {
+                required property var modelData
+                color: Theme.outlineColor
+                x: bar.vertical ? (cfg.edge === "left" ? bg.width - width : 0) : modelData[0]
+                y: bar.vertical ? modelData[0] : (cfg.edge === "top" ? bg.height - height : 0)
+                width: bar.vertical ? Theme.outlineW : Math.max(0, modelData[1] - modelData[0])
+                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.outlineW
+            }
         }
     }
     // K47 (W23-system, docs/ux/power.md): the keyboard layout's short name (svc.keyboard), shown only while the compositor
