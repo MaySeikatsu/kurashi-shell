@@ -230,6 +230,10 @@ async fn run() -> anyhow::Result<()> {
         compositor.clone().map(adapter_focused_output),
     );
     kurashid::wiring::spectrum(&hub);
+    // K66 (row 103): the quick card's service documents say when a forced key holds their switch.
+    if let Some(store) = config.as_deref() {
+        kurashid::wiring::forced_services(&hub, store);
+    }
     // Island faces/default/ttl follow config; input-slot bindings resolved daemon-side (M5.11).
     let bindings = config.clone().map(|store| {
         let h = island.clone();

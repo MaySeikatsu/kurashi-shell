@@ -66,5 +66,7 @@
 "error.settings.unknown_page" = "設定にそのページはありません。"
 # Row 381: a Stage panel or peek asked for while a polkit dialog is up.
 "ui.error.polkit" = "認証ダイアログが開いています。先に済ませてください。"
+# K66 (row 103): notify.dnd while a forced notifications.dnd holds the switch.
+"error.notify.dnd_forced" = "おやすみモードは設定で固定されているため、ここでは変更できません。"
 "action.workspace.focus" = "ワークスペースへ移動"
 "action.window.focus" = "ウィンドウへ移動"

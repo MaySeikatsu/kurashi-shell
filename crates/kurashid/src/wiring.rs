@@ -1176,9 +1176,79 @@ pub fn notifications_with_facts(
             }
         });
     }
+    // K66 (row 103): a forced `notifications.dnd` holds the switch. Its value is put in effect when the force comes
+    // (or changes) while the server runs, and `notify.dnd` is refused while it lasts, so the tile never shows a
+    // do-not-disturb the config does not have (Shōjiki).
+    let held: Arc<Mutex<Option<bool>>> = Arc::default();
+    if let Some(store) = cfg {
+        *held.lock().expect("dnd lock") = forced_value(store, "notifications.dnd");
+        let (held, commands) = (held.clone(), commands.clone());
+        store.on_change(move |c| {
+            let now = forced_value(c, "notifications.dnd");
+            let mut was = held.lock().expect("dnd lock");
+            if *was != now {
+                if let (Some(on), Some(cmds)) =
+                    (now, commands.lock().expect("notify lock").as_ref())
+                {
+                    cmds.set_dnd(on);
+                }
+                *was = now;
+            }
+        });
+    }
     let get = move || commands.lock().expect("notify lock").clone();
-    notify_actions(actions, get);
+    notify_actions_held(actions, get, move || {
+        held.lock().expect("dnd lock").is_some()
+    });
 }
+
+/// K66 (row 103): the config keys that hold the switch of each service document the quick card shows. A document
+/// whose key is forced (`source` forced, by `nix`/`managed`, a mode such as `accessibility`, a capability) carries
+/// `forced_by` = that layer; absent otherwise. Only `notifications.dnd` holds a switch today: Wi-Fi, Bluetooth, the
+/// mute, the power profile and the backlight are the system's own state, with no config key over them.
+pub const SERVICE_SWITCH_KEYS: &[(&str, &[&str])] = &[
+    (NETWORK_DOC, &[]),
+    (BLUETOOTH_DOC, &[]),
+    ("svc.audio", &[]),
+    (POWER_DOC, &[]),
+    ("svc.brightness", &[]),
+    ("svc.notifications", &["notifications.dnd"]),
+];
+
+/// Lays `forced_by` over the service documents of [`SERVICE_SWITCH_KEYS`] and keeps it with the config. Call after
+/// the documents are registered.
+pub fn forced_services(hub: &Arc<Hub>, store: &ConfigStore) {
+    let apply = {
+        let hub = hub.clone();
+        move |c: &ConfigStore| {
+            for (doc, keys) in SERVICE_SWITCH_KEYS {
+                let by = keys.iter().find_map(|k| forced_by(c, k));
+                // A document that is not there (a service left out of this build) has nothing to say.
+                let _ = hub.set_overlay(doc, "forced_by", by.map(Value::from));
+            }
+        }
+    };
+    apply(store);
+    store.on_change(apply);
+}
+
+/// The layer that forces `key`, when one does: the value's `forced_by`, or the forced layer's own name.
+fn forced_by(c: &ConfigStore, key: &str) -> Option<String> {
+    let p = c.get(key, None)?;
+    match p.source {
+        kurashi_core::Source::Forced(layer) => Some(p.forced_by.unwrap_or(layer)),
+        _ => None,
+    }
+}
+
+/// The boolean value a forced `key` holds, `None` while it is not forced.
+fn forced_value(c: &ConfigStore, key: &str) -> Option<bool> {
+    forced_by(c, key)?;
+    c.get(key, None).and_then(|p| p.value.as_bool())
+}
+
+/// `notify.dnd` while a forced `notifications.dnd` holds the switch (K66, row 103).
+pub const DND_FORCED: &str = "error.notify.dnd_forced";
 
 /// The current wall-clock time in ms since the epoch (the `until` of `notify.dnd` is compared with it).
 fn unix_ms() -> u64 {
@@ -1192,6 +1262,15 @@ fn unix_ms() -> u64 {
 pub fn notify_actions(
     actions: &mut ActionRegistry,
     get: impl Fn() -> Option<kurashi_notify::Commands> + Clone + Send + Sync + 'static,
+) {
+    notify_actions_held(actions, get, || false);
+}
+
+/// [`notify_actions`], with `notify.dnd` refused while `held` says a forced key holds the switch (K66).
+pub fn notify_actions_held(
+    actions: &mut ActionRegistry,
+    get: impl Fn() -> Option<kurashi_notify::Commands> + Clone + Send + Sync + 'static,
+    held: impl Fn() -> bool + Send + Sync + 'static,
 ) {
     let id_of = |v: &Value| v["id"].as_u64().map(|n| n as u32);
     let g = get.clone();
@@ -1225,7 +1304,11 @@ pub fn notify_actions(
     let g = get.clone();
     actions.register("notify.dnd", "action.notify.dnd", move |v| {
         let c = g();
+        let held = held();
         async move {
+            if held {
+                return Err(ActionError::Invalid(DND_FORCED.into()));
+            }
             let c = c.ok_or_else(|| {
                 ActionError::Unavailable("notification server not running".into())
             })?;
