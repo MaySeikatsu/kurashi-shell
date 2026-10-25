@@ -39,6 +39,7 @@ SANDBOX_PREFIX, CONFIG, SCRIPT = "bench-", None, None
 # --latency N: popup rounds through our own open IPC connection (pass b, real daemon); --wl-log FILE: pass b's
 # WAYLAND_DEBUG lines with their arrival time (seconds since launch), for attributing commits to windows and items.
 LATENCY, WL_LOG = 0, None
+POPUP_WINDOW = "kurashi-stage"   # --popup-window NAME: the layer namespace whose first commit ends a popup round (W42)
 SMAPS_DUMP = None   # --smaps-dump DIR: each PSS reading's mappings, PSS per path in KiB (B35 attribution)
 SETTLE_S, SETTLE_CAP_S = 0.3, 3.0   # a popup round starts once the popup's window has been still this long (B37)
 
@@ -211,9 +212,10 @@ def gpu_mib(pids):
 
 
 def binary(name: str) -> str:
-    """tools/bench/bin/<name> (copied right after building: the shared target dir is overwritten
-    by other worktrees), else target/release."""
-    for d in (ROOT / "tools/bench/bin", ROOT / "target/release"):
+    """$KURASHI_BIN_DIR/<name> (a card's own target dir, I213), else tools/bench/bin/<name> (copied right after
+    building: the shared target dir is overwritten by other worktrees), else target/release."""
+    dirs = [Path(os.environ["KURASHI_BIN_DIR"])] if os.environ.get("KURASHI_BIN_DIR") else []
+    for d in (*dirs, ROOT / "tools/bench/bin", ROOT / "target/release"):
         if (d / name).exists():
             return str(d / name)
     sys.exit(f"{name} not found: build it and copy it to tools/bench/bin/")
@@ -716,8 +718,10 @@ def pass_b(name, cmd, warmup, idle):
 
         def stage_ids():
             with lock:
-                ids = {i for i, n in names.items() if n == "kurashi-stage"}
-            return ids or None   # None: count every window
+                ids = {i for i, n in names.items() if n == POPUP_WINDOW}
+            # None: count every window (a frontend without a Stage). A window named with --popup-window counts only once it
+            # exists: one made on first use (W42) has no surface before the first round.
+            return ids if ids or POPUP_WINDOW != "kurashi-stage" else None
 
         def settle():
             """Waits until the popup's window has been still for SETTLE_S (at most SETTLE_CAP_S); True if it was."""
@@ -820,6 +824,7 @@ def pass_b(name, cmd, warmup, idle):
             "idle_bursts": idle_bursts,
             "popup_latency_ms_median": round(statistics.median(latencies), 1) if latencies else None,
             "popup_latency_ms_all": [round(x, 1) for x in latencies],
+            "popup_window": POPUP_WINDOW,
             **ipc,
             "mapped_layer_surfaces_idle": len(mapped_now),   # 1 sandbox output
             "morph_commits": len(morph_t),
@@ -950,10 +955,14 @@ def main():
     ap.add_argument("--wl-log", type=Path, help="pass b: write the frontend's WAYLAND_DEBUG lines, timestamped, here")
     ap.add_argument("--smaps-dump", type=Path, help="pass a: write each PSS reading's mappings (KiB per path) to DIR")
     ap.add_argument("--popup-action", help="real daemon: the action that toggles the popup (default island.expand)")
+    ap.add_argument("--popup-window", help="pass b: the popup's layer namespace (default kurashi-stage; e.g. kurashi-launcher "
+                    "with --popup-action launcher.toggle); the first of popup_latency_ms_all is then the window's first open")
     ap.add_argument("cmd", nargs=argparse.REMAINDER)
     a = ap.parse_args()
-    global DAEMON, SANDBOX_PREFIX, CONFIG, SCRIPT, LATENCY, WL_LOG, SMAPS_DUMP
+    global DAEMON, SANDBOX_PREFIX, CONFIG, SCRIPT, LATENCY, WL_LOG, SMAPS_DUMP, POPUP_WINDOW
     DAEMON = a.daemon
+    if a.popup_window:
+        POPUP_WINDOW = a.popup_window
     LATENCY, WL_LOG, SMAPS_DUMP = a.latency, a.wl_log, a.smaps_dump
     if a.popup_action:
         POPUP_ACTION["real"] = ["act", a.popup_action]

@@ -68,6 +68,11 @@ Four ways, from the safest to the most committed:
    };
    ```
 
+   The frontend (`frontend/launch.sh`) lets Qt load only the image formats the shell draws (SVG, JPEG, WebP, GIF;
+   PNG, BMP and XPM are built in) and gives quickshell's allocator two arenas (`MALLOC_CONF=narenas:2`; K70). To
+   show other formats in a mod or theme, set `programs.kurashi.extraEnvironment.KURASHI_IMAGE_FORMATS =
+   "gif jpeg svg webp avif";` (`"all"` turns the filter off); your own `MALLOC_CONF` replaces the shell's.
+
    The lock screen authenticates through the PAM service `kurashi`, which only the NixOS module
    defines (`security.pam.services.kurashi`). Enable `programs.kurashi.enable` at system level even
    when the shell itself runs under Home-Manager.

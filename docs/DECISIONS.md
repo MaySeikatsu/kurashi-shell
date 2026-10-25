@@ -740,3 +740,17 @@ its glyph or a bullet, so an icon never shows as a word. `nix/icon-names.txt` is
 names fall back at run time. *Evidence:* BENCH "2026-10-25 — W41 icons" — pixel identity 0 strong pixels (30 pairs);
 icon font resident 22.5 → 13.9 MiB RSS (W39); with the washi grain memo, PSS @1 output 157.5/158.2 → 152.3/152.4 MiB and
 the quick card 48–50 → 22 ms warm. The core budget (150, K68) is still 2.4 MiB away.
+
+## K70 — the frontend loads the image formats it draws, and two allocator arenas (2026-10-25, session 13; I194)
+`frontend/launch.sh` replaces every Qt plugin dir that has `imageformats/` — those on `QT_PLUGIN_PATH` and those
+nixpkgs' Qt patch derives from each PATH entry (`<entry>/../lib/qt-6/plugins`) — by a symlink copy under
+`$XDG_RUNTIME_DIR/kurashi/qt-plugins-<pid>` that keeps SVG, JPEG, WebP and GIF (the icon themes, the wallpaper library's
+png/jpg/webp/gif/bmp, clipboard PNGs); PATH entries point at links to the same dirs, so commands resolve as before.
+`KURASHI_IMAGE_FORMATS` names the kept formats, `all` disables the filter. It also sets `MALLOC_CONF=narenas:2` for
+quickshell's jemalloc (48 arenas on 12 cores by default; an idle window's arena keeps its freed pages) unless the user
+sets one. The launcher window stays persistent (K16): made on first open it cost +6…+17 ms on that open, and a window
+re-made per open scattered the 20-cycle growth 3–4× wider. *Evidence:* BENCH "2026-10-25 — W42 memory": PSS @1 output
+126.3/123.8 → 110.4/107.1 MiB in same-run pairs (−16, the arenas); the plugin filter −9.9 MiB RSS of libraries in every
+run (PSS only where no other process shares them); idle frames 0; popup and launcher first open unchanged; start-up
++50 ms in launch.sh. The tests start `qs -p` directly and do not exercise this yet (row 462, I217).
+
