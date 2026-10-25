@@ -31,6 +31,13 @@ import "../components/island"
 // shape keeps the island's bar block as its head and the card grows out from under it, joined by a neck: one outline
 // round both, which the keycap's ring and hard shadow and the soft shadow follow. Its fill is the panel's (I114:
 // translucent under glass), its layers never lie under one another.
+// W34 (docs/ux/motion.md, one motion language): under a top or bottom bar every panel morphs that way — the quick card
+// (the phone too), the session menu, a tray menu, a mod's panel and the hover peeks grow out of the bar widget they belong
+// to (IslandGeom's origins; the session menu, which has none, out of the bar's centre under the pill) and fold back into
+// it, their cards resting where they always did. The springs are MorphSprings (centre, width, foot; velocity kept across
+// every retarget; calm settles, lively bounces with squash & stretch and a neck wobble, none cuts). Switching panels while
+// one is open retargets the one shape (the view fades first, then the content swaps). The window is the box round origin
+// and card (left-anchored, `boxL`), fitted when the shape comes out and only grown while it is out.
 PanelWindow {
     id: stage
 
@@ -77,12 +84,34 @@ PanelWindow {
         var p = Mods.panelOf(ui.panel)
         if (p !== null) { shownPanelMod = p.mod; shownPanel = "panel:" + p.panel }
         if (ui.face) shownFaceView = "island-face:" + ui.face + ":expanded"
+        if (ui.tray) shownTray = String(ui.tray)
     }
+    // The tray item whose menu is (or was last) shown: its icon is where the menu folds back to (W34).
+    property string shownTray: ""
     // Content the card shows. Latched while the card slides out, so a closing menu does not flash other content.
     property string contentKind: "island"
     // Not while the panel is being closed: runtime.ui loses its face a moment before shell.qml drops `want`, and the generic
     // card must not flash in the closing island (W21).
-    onWantedKindChanged: if (wantedKind !== "" && (wantedKind !== "island" || !!ui.panel || ui.popup === true)) contentKind = wantedKind
+    // W34: switching panels while one is open (quick → session → tray, mod → mod, a face's view → quick) is a retarget:
+    // the view fades out first, then the content swaps and the shape springs from where it is to the new card.
+    onWantedKindChanged: {
+        if (wantedKind === "" || (wantedKind === "island" && !ui.panel && ui.popup !== true)) return
+        if (shown && open && morphLayout && !gate && contentKind !== wantedKind && contentP > 0.01 && Theme.quickMs > 0) {
+            pendingKind = wantedKind
+            if (!swap.running) swap.start()
+        } else {
+            swap.stop()
+            pendingKind = ""
+            contentKind = wantedKind
+        }
+    }
+    property string pendingKind: ""
+    readonly property bool swapping: pendingKind !== ""
+    Timer {
+        id: swap
+        interval: 90
+        onTriggered: if (stage.pendingKind !== "") { stage.contentKind = stage.pendingKind; stage.pendingKind = "" }
+    }
     // The card keeps the Stage's one keyboard focus across content changes and reopenings (the menus
     // are driven from it), so it takes focus back whenever the content swaps or the Stage opens.
     onContentKindChanged: Qt.callLater(function () { card.forceActiveFocus() })
@@ -155,23 +184,25 @@ PanelWindow {
 
     // Only one vertical edge anchored -> the compositor centres the surface horizontally. A peek is anchored to the side of
     // its own bar instead (K35, I67): at its own x under a top bar or above a bottom bar, at its own y beside a side bar.
+    // W34: while a shape morphs under a top or bottom bar the window is the box round its origin and its card (`boxL`,
+    // from the output's left edge), so it is anchored to the left with that margin, as a peek is.
     anchors {
-        top: peekLayout ? shownEdge !== "bottom" : (!bars.atBottom && !menuBeside)
-        bottom: peekLayout ? shownEdge === "bottom" : (bars.atBottom || menuBeside)
-        left: peekLayout ? shownEdge !== "right" : (menuBeside && bars.edge === "left")
-        right: peekLayout ? shownEdge === "right" : (aligned && (!bars.vertical || bars.edge === "right"))
+        top: peekLayout ? shownEdge !== "bottom" : (morphLayout ? !flip : (!bars.atBottom && !menuBeside))
+        bottom: peekLayout ? shownEdge === "bottom" : (morphLayout ? flip : (bars.atBottom || menuBeside))
+        left: peekLayout ? shownEdge !== "right" : (morphLayout || (menuBeside && bars.edge === "left"))
+        right: peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!bars.vertical || bars.edge === "right"))
     }
     margins {
-        top: peekLayout ? (shownEdge === "top" ? peekInset : (peekSide ? peekTop : 0)) : (morphLayout ? 0 : bars.topInset)
-        bottom: peekLayout ? (shownEdge === "bottom" ? peekInset : 0)
+        top: peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0)) : (morphLayout ? 0 : bars.topInset)
+        bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
             : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset))
-        left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : peekLeft))
-            : (menuBeside ? Theme.barH + Theme.gap : 0)
+        left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
+            : (morphLayout ? boxL : (menuBeside ? Theme.barH + Theme.gap : 0))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
-            : (aligned ? (menuBeside ? Theme.barH + Theme.gap : Theme.pad) : 0)
+            : (morphLayout ? 0 : (aligned ? (menuBeside ? Theme.barH + Theme.gap : Theme.pad) : 0))
     }
-    implicitWidth: peekLayout ? peekCard.width : (morphLayout ? morphW : card.width)
-    implicitHeight: peekLayout ? peekCard.height : (morphLayout ? morphH : card.height)
+    implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width)
+    implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height)
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: open ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -187,22 +218,32 @@ PanelWindow {
     onOpenChanged: {
         if (open) {
             // Content first: a menu closed a moment ago must not show for a frame.
+            swap.stop()
+            pendingKind = ""
             contentKind = wantedKind === "" ? "island" : wantedKind
             pillGeom = IslandGeom.pillOf(outName)
             Qt.callLater(function () { card.forceActiveFocus() })
             anim.stop()
             handBack.stop()
             if (morphMode) {
-                // The shape starts as the pill (no spring yet) and grows from the first presented frame on; reopened
-                // while it folds back, it grows again from where it is, with its velocity.
-                if (!shown) { mw = 0; mh = 0; p = 1; gate = true; shown = true }
-                else { expanding = true; mw = 1; mh = 1 }
+                // The shape starts as its origin (no spring yet) and grows from the first presented frame on; reopened
+                // while it folds back, it grows again from where it is, with its velocity (the targets move, MorphSprings).
+                if (!shown) {
+                    p = 1; gate = true; shown = true
+                    fitBox(true)
+                    springs.place(originCx, closedW, closedFoot)
+                }
             } else if (!shown) { p = 0; gate = true; shown = true }
             else { anim.from = p; anim.to = 1; anim.start() }
         } else if (shown) {
             gate = false
-            if (morphMode) { expanding = false; mw = 0; mh = 0; checkFolded() }
-            else { anim.stop(); anim.from = p; anim.to = 0; anim.start() }
+            reached = false
+            swap.stop()
+            pendingKind = ""
+            if (morphMode) {
+                if (debugLog) console.log("stage-morph close " + contentKind + " t0=" + Date.now())
+                Qt.callLater(checkFolded)
+            } else { anim.stop(); anim.from = p; anim.to = 0; anim.start() }
         }
     }
     NumberAnimation {
@@ -216,11 +257,28 @@ PanelWindow {
         target: card.Window.window
         function onFrameSwapped() {
             if (stage.gate) {
+                // The shape starts at its origin, read now (runtime.ui may name the panel a moment after the Stage
+                // opened), and grows from here on.
+                if (stage.morphMode) {
+                    springs.place(stage.originCx, stage.closedW, stage.closedFoot)
+                    if (stage.debugLog) console.log("stage-morph open " + stage.contentKind + " origin=" + Math.round(stage.origin.x) + ","
+                        + Math.round(stage.origin.w) + "," + stage.origin.kind + " t0=" + Date.now())
+                }
                 stage.gate = false
-                if (stage.morphMode) { stage.taken = true; stage.expanding = true; stage.mw = 1; stage.mh = 1 }
+                if (stage.morphMode) stage.taken = stage.headMode
                 else { anim.from = stage.p; anim.to = 1; anim.start() }
             }
-            if (stage.peekGate) { stage.peekGate = false; peekAnim.from = stage.peekP; peekAnim.to = 1; peekAnim.start() }
+            if (stage.peekGate) {
+                stage.peekGate = false
+                // W34: a peek on a top or bottom bar grows out of its widget first; its lines fade in once it has.
+                // Its start is read now: the latched place may have followed the request after the peek was asked for.
+                if (stage.peekMorph) {
+                    if (!stage.peekOut && Math.abs(peekSprings.h - stage.peekE) < 1) peekSprings.place(stage.peekOriginCx, stage.peekOriginW, stage.peekE)
+                    stage.peekOut = true
+                    stage.peekFadeIn()
+                }
+                else { peekAnim.from = stage.peekP; peekAnim.to = 1; peekAnim.start() }
+            }
         }
     }
 
@@ -246,6 +304,8 @@ PanelWindow {
     onTrayKeyChanged: loadTray()
     function loadTray() {
         var req = ++trayReq
+        // Closed: the menu folds back with the tree it showed (W34: no "loading" flash while it goes).
+        if (trayKey === "") return
         trayTree = null
         trayErr = ""
         trayMenu.cursor = -1
@@ -370,24 +430,133 @@ PanelWindow {
         target: stage; property: "peekP"
         duration: Theme.quickMs
         easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve
-        onFinished: if (stage.peekP <= 0 && !stage.peekWanted) stage.peekHeld = false
+        onFinished: if (stage.peekP <= 0 && !stage.peekWanted && !stage.peekMorph) stage.peekHeld = false
     }
     onPeekWantedChanged: {
         peekAnim.stop()
         if (peekWanted) {
             // A new peek comes at once and fades in from wherever the last one stood, even in the middle of a fade out.
+            var fresh = !peekHeld
             peekHeld = true
             if (peekInstant) { peekP = 1; peekGate = false }
             else peekGate = peekP < 1
+            // W34: a fresh peek's shape starts at its widget; one that is still folding grows again from where it is.
+            if (fresh && peekMorph) { peekOut = false; peekSprings.place(peekOriginCx, peekOriginW, peekE) }
+            else if (peekMorph && !peekGate) peekOut = true
         } else if (peekHeld && peekP > 0 && !peekInstant && !open) {
-            // Gone: the fade out, with the latched place kept until it ends (peekAnim releases the hold then).
+            // Gone: the fade out, with the latched place kept until it ends (peekAnim releases the hold then; a peek's
+            // shape folds back into its widget, which releases it, W34).
             peekGate = false
             peekAnim.from = peekP; peekAnim.to = 0; peekAnim.start()
+            peekOut = false
+        } else if (peekHeld && peekMorph && peekOut && !open) {
+            peekGate = false
+            peekOut = false
         } else {
             // Gone at once: a card is open, motion is off, or nothing was drawn yet.
             peekHeld = false; peekP = 0; peekGate = false
         }
     }
+    // ---- W34: the peek's shape. On a top or bottom bar (springs on) a peek grows out of its widget's box (the request's x
+    // and w) as the panels do — headless, out of the strip's edge or the widget's block — and its lines fade in once it
+    // has; it folds back into the widget when it goes. The window covers the bar's strip, the widget and the card.
+    readonly property bool peekMorph: peekLayout && !peekSide && Theme.springOn
+    property real shownW: 0
+    Binding { target: stage; property: "shownW"; value: stage.peekReq && stage.peekReq.w !== undefined ? Number(stage.peekReq.w) : 0; when: stage.peekWanted; restoreMode: Binding.RestoreNone }
+    readonly property bool peekFlip: shownEdge === "bottom"
+    readonly property real peekE: joined ? (peekFlip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2) : Theme.barH
+    readonly property real peekOriginW: Math.max(8, shownW - 6)
+    readonly property real peekOriginCx: shownX + shownW / 2
+    readonly property int peekSlackX: 16 + Theme.softR
+    readonly property real peekBoxL: Math.max(0, Math.floor(Math.min(shownX, peekLeft) - Theme.rLg - peekSlackX))
+    readonly property real peekBoxR: Math.ceil(Math.max(shownX + shownW, peekLeft + peekCard.width) + Theme.rLg + peekSlackX)
+    readonly property real peekBoxH: Math.ceil(peekInset + peekCard.height + Theme.shadowDy + 24)
+    property bool peekOut: false
+    MorphSprings {
+        id: peekSprings
+        stiffness: 2
+        on: Theme.springOn && stage.peekHeld
+        expanding: stage.peekOut
+        cxTo: stage.peekOut ? stage.peekLeft + peekCard.width / 2 : stage.peekOriginCx
+        wTo: stage.peekOut ? peekCard.width : stage.peekOriginW
+        hTo: stage.peekOut ? stage.peekInset + peekCard.height : stage.peekE
+    }
+    readonly property bool peekNear: peekSprings.pw > 0.9 && peekSprings.ph > 0.6 && peekSprings.pcx > 0.9
+    onPeekNearChanged: peekFadeIn()
+    function peekFadeIn() {
+        if (!peekMorph || !peekNear || !peekOut || !peekWanted || peekP >= 1 || peekAnim.running && peekAnim.to === 1) return
+        peekAnim.stop(); peekAnim.from = peekP; peekAnim.to = 1; peekAnim.start()
+    }
+    // Folded back into the widget: the peek is gone (the Stage is idle at its end).
+    Connections {
+        target: peekSprings
+        function onHChanged() {
+            if (stage.peekMorph && !stage.peekOut && !stage.peekWanted && Math.abs(peekSprings.h - stage.peekE) <= 1
+                    && Math.abs(peekSprings.w - stage.peekOriginW) <= 3) {
+                peekAnim.stop(); stage.peekP = 0; stage.peekHeld = false
+            }
+        }
+    }
+    readonly property real peekGrow: clamp01((peekSprings.hOut - peekE) / Math.max(1, peekInset + peekCard.height - peekE))
+    readonly property real peekShapeW: Math.max(0, peekSprings.wOut * (1 - peekSprings.squeeze))
+    readonly property real peekShapeCx: peekSprings.cxOut - peekBoxL
+    readonly property real peekBodyTop: joined ? lerp(peekE, peekInset, peekGrow) : Theme.barH
+    readonly property real peekNeckRoom: Math.max(0, peekShapeW / 2 - Theme.rSm - 8)
+    // As the panels' neck: under the widget's group, as near the body's centre as the group's flat foot allows.
+    readonly property var peekHome: {
+        var rev = IslandGeom.revision
+        if (!joined || !peekMorph) return null
+        var keys = ["group:right", "group:workspaces", "group:tasks"]
+        for (var i = 0; i < keys.length; i++) {
+            var g = IslandGeom.rectOf(peekScreen, keys[i])
+            if (g && peekOriginCx >= g.x && peekOriginCx <= g.x + g.w) return g
+        }
+        return null
+    }
+    readonly property real peekNeckLo: peekHome ? peekHome.x + Math.min(Theme.rFull, (Theme.barH - 8) / 2) + Theme.rSm + 8 - peekBoxL : peekOriginCx - peekBoxL
+    readonly property real peekNeckHi: peekHome ? Math.max(peekNeckLo, peekHome.x + peekHome.w - Math.min(Theme.rFull, (Theme.barH - 8) / 2) - Theme.rSm - 8 - peekBoxL) : peekNeckLo
+    readonly property real peekNeckWant: Math.max(peekNeckLo, Math.min(peekNeckHi, peekShapeCx))
+    readonly property real peekNeckCx: Math.max(peekShapeCx - peekNeckRoom, Math.min(peekShapeCx + peekNeckRoom, peekNeckWant))
+    Item {
+        id: peekShapeBox
+        visible: stage.peekMorph
+        width: stage.peekBoxR - stage.peekBoxL
+        height: stage.peekBoxH
+        transform: Scale { yScale: stage.peekFlip ? -1 : 1; origin.y: stage.peekBoxH / 2 }
+        SoftShadow {
+            visible: peekShape.h > 1
+            x: peekShape.x0
+            y: peekShape.y0
+            width: peekShape.w
+            height: peekShape.h
+            radius: Theme.rSm
+            amount: 0.6
+            direction: stage.peekFlip ? -1 : 1
+        }
+        MorphShape {
+            id: peekShape
+            visible: peekShapeBox.visible
+            anchors.fill: parent
+            joined: stage.joined
+            headless: true
+            neckF: Theme.rSm
+            neckCx: stage.peekNeckCx
+            attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - stage.peekNeckWant) / 32)
+            neckScale: peekSprings.neckScale
+            x0: stage.peekShapeCx - stage.peekShapeW / 2
+            y0: stage.peekBodyTop
+            w: stage.peekShapeW
+            h: Math.max(0, peekSprings.hOut - stage.peekBodyTop)
+            rTop: Theme.rSm
+            rBot: Theme.rSm
+            edgeY: stage.joined ? stage.peekE : Theme.barH
+            neck: stage.joined ? 0 : Theme.rSm
+            fill: Theme.containerHigh
+            ringScale: 0.5
+            flip: stage.peekFlip
+        }
+    }
+
     // The frame: the content and the card's padding, at most the output's width less a gap. The Stage anchors it (see
     // anchors). The pointer on it keeps it (Peeks.hold); a click dismisses it. Its content is loaded only while it is held (Ma).
     Rectangle {
@@ -396,16 +565,16 @@ PanelWindow {
         width: Math.max(160, Math.min(stage.peekMaxW, peekLoader.implicitWidth + 2 * Theme.pad))
         height: peekLoader.implicitHeight + 2 * Theme.pad
         radius: Theme.rSm
-        color: Theme.containerHigh
+        color: stage.peekMorph ? "transparent" : Theme.containerHigh
         // K62: with a pen in effect the pen draws the outline (1 px further in: the frame clips its children).
-        border.width: peekPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        border.width: peekPen.active || stage.peekMorph ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         clip: true
         Loader {
             id: peekPen
             z: 5
             anchors.fill: parent
-            active: Theme.penOutline && peekCard.visible
+            active: Theme.penOutline && peekCard.visible && !stage.peekMorph
             sourceComponent: PenOutline {
                 radius: peekCard.radius
                 inset: 1
@@ -416,8 +585,10 @@ PanelWindow {
         }
         opacity: stage.peekP
         // It slides in from its bar: down from a top bar, up from a bottom bar, out from a side bar.
-        x: (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
-        y: (stage.peekSide ? 0 : (stage.shownEdge === "bottom" ? 1 : -1)) * stage.peekSlide * (1 - stage.peekP)
+        x: stage.peekMorph ? stage.peekLeft - stage.peekBoxL
+            : (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
+        y: stage.peekMorph ? (stage.peekFlip ? stage.peekBoxH - stage.peekInset - height : stage.peekInset)
+            : (stage.peekSide ? 0 : (stage.shownEdge === "bottom" ? 1 : -1)) * stage.peekSlide * (1 - stage.peekP)
         HoverHandler { onHoveredChanged: hovered ? Peeks.hold() : Peeks.leave() }
         TapHandler { onTapped: Peeks.dismiss() }
         Loader {
@@ -437,11 +608,19 @@ PanelWindow {
         PeekLines { lines: stage.peekLinesOf(stage.shownSource); maxWidth: stage.peekMaxW - 2 * Theme.pad }
     }
 
-    // ---- the island's one shape (W21, see the header). Everything here is in a top bar's frame ("local": y from the
-    // screen edge the bar is on); for a bottom bar the shape is mirrored and the content placed from the Stage's bottom.
+    // ---- the one shape (W21, W34; see the header). Everything here is in a top bar's frame ("local": y from the screen
+    // edge the bar is on; for a bottom bar the shape is mirrored and the content placed from the Stage's bottom) and, along
+    // the bar, in the output's px ("out": x from the output's left edge) until it is placed in the window (`boxL`).
+    // W34 (docs/ux/motion.md): every panel of a top or bottom bar grows out of its origin — the island's views out of the
+    // pill (the head: the pill is taken, `headMode`), the quick card, the tray menu and a mod's panel out of the bar widget
+    // that opened them (IslandGeom's origins), the session menu (no widget) out of the bar's centre under the pill — and
+    // folds back into it. Headless origins stay drawn in the bar: the shape grows out of the strip's edge under them, or,
+    // where the groups float as blocks, out of the widget's block by a neck that lets go once the card has travelled away.
     readonly property var islandKinds: ["island", "modface", "media", "notifications", "clock", "volume", "brightness",
         "power", "bluetooth"]
+    readonly property var panelKinds: ["quick", "session", "tray", "mod"]
     readonly property string outName: screen ? screen.name : ""
+    readonly property real outW: screen ? screen.width : 1920
     // The pill's rect, read when the card opens and followed only while the shape is out: idle, a pill that grows under the
     // pointer must not touch the Stage at all (Ma; test-peek counts the Stage's commits per peek).
     property var pillGeom: null
@@ -452,140 +631,226 @@ PanelWindow {
         when: stage.shown
         restoreMode: Binding.RestoreNone
     }
-    readonly property bool morphMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null
-        && (bars.atTop || bars.atBottom)
+    readonly property bool headMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null
+    readonly property bool morphMode: (bars.atTop || bars.atBottom)
+        && (headMode || panelKinds.indexOf(contentKind) >= 0)
     readonly property bool flip: bars.atBottom
-    // The window takes the morph's geometry (the bar's strip and the slack) only while the shape is out; idle, it keeps the
-    // card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
+    // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
+    // keeps the card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
     readonly property bool morphLayout: morphMode && shown
+    readonly property bool debugLog: Quickshell.env("KURASHI_STAGE_DEBUG") === "1"
     // The pill at rest: its face's top from the screen edge (a bottom bar's face ends a keycap shadow above the edge).
     readonly property real pillW: pillGeom ? pillGeom.w : 120
     readonly property real pillH: pillGeom ? pillGeom.h : Theme.barH - 10
     readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
+    readonly property real pillOutCx: outW / 2 + (pillGeom ? pillGeom.dx : 0)
     // The card's content sits where it always did: past the bar and 4 px (BarConfig's inset); the shape ends at its foot.
     readonly property real cardTop: Theme.barH + 4
     // The bar's groups float as blocks (a chrome with groups and a shadow of either kind: no strip under them, Bar.qml):
-    // the card joins the island's own block (I115). Else the neck joins the card to the bar's strip.
+    // the card joins the island's own block (I115), or a widget's block. Else the neck joins the card to the bar's strip.
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
     readonly property bool joined: Theme.groups && lifted
     // An outlined chrome with no shadow draws the island as a box on the strip, with no fill of its own (Bar.qml).
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
     readonly property real neckR: joined ? 0 : Theme.rLg
-    // Room round the card for the springs' overshoot (soft-limited to 8 %, see soft()) and for a soft shadow.
+
+    // The origin (out x, width; `e`: the line the shape hangs from, local). A widget's drawn square is 3 px in from its
+    // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
+    // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
+    readonly property real groupFoot: flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2
+    readonly property string originKey: contentKind === "quick" ? "quick"
+        : (contentKind === "tray" ? "tray:" + shownTray
+        : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
+    readonly property var origin: {
+        var rev = IslandGeom.revision
+        if (!shown || headMode) return { x: pillOutCx - pillW / 2, w: pillW, e: pillTop + pillH, kind: "pill" }
+        var r = originKey === "" ? null : IslandGeom.rectOf(outName, originKey)
+        if (r === null && contentKind === "mod") r = IslandGeom.rectOf(outName, "mod:" + shownPanelMod + ":")
+        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : Theme.barH, kind: "widget" }
+        if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined ? pillTop + pillH : Theme.barH, kind: "pill" }
+        return { x: outW / 2 - 40, w: 80, e: joined ? groupFoot : Theme.barH, kind: "centre" }
+    }
+    readonly property real originCx: origin.x + origin.w / 2
+    // The shape closed: the pill (head), or a sliver at the line it hangs from.
+    readonly property real closedW: origin.w
+    readonly property real closedFoot: headMode ? pillTop + pillH : origin.e
+    // The card at rest: centred on the output, a tray menu at the bar's tray end (Theme.pad in, as before).
+    readonly property real cardOutX: aligned ? outW - Theme.pad - card.width : Math.round((outW - card.width) / 2)
+    readonly property real cardFoot: cardTop + card.height
+
+    // The box the window covers along the bar (out px) and its height: the origin and the card with the neck's and the
+    // springs' slack. It only grows while the shape is out (a retarget adds the new card to it, never a resize mid-morph
+    // that would cut the shape), and is fitted anew when the shape comes out.
     readonly property int slackX: 16 + Theme.softR
     readonly property int slackY: 40
-    readonly property real morphW: 2 * Math.ceil(Math.max(card.width / 2 + neckR + slackX,
-        Math.abs(pillGeom ? pillGeom.dx : 0) + pillW / 2 + 8))
-    readonly property real morphH: Math.ceil(cardTop + card.height + Theme.shadowDy + slackY)
-    // The springs' progress, 0 = the pill, 1 = the card: width and height apart (Capsule). `expanding` picks which leads.
-    property real mw: 0
-    property real mh: 0
-    property bool expanding: true
+    readonly property real needL: Math.floor(Math.min(origin.x, cardOutX) - neckR - slackX)
+    readonly property real needR: Math.ceil(Math.max(origin.x + origin.w, cardOutX + card.width) + neckR + slackX)
+    readonly property real needH: Math.ceil(cardFoot + Theme.shadowDy + slackY)
+    property real boxL: 0
+    property real boxR: 0
+    property real boxH: 0
+    onNeedLChanged: fitBox(false)
+    onNeedRChanged: fitBox(false)
+    onNeedHChanged: fitBox(false)
+    function fitBox(reset) {
+        if (!morphMode) return
+        var l = Math.max(0, needL), r = Math.min(outW, needR)
+        if (reset || !shown) { boxL = l; boxR = r; boxH = needH; return }
+        if (l < boxL) boxL = l
+        if (r > boxR) boxR = r
+        // A card that grows while it is out (a view filling in) grows the box in steps, not every frame.
+        if (needH > boxH) boxH = needH + 48
+    }
+    readonly property real morphW: Math.max(1, boxR - boxL)
+    readonly property real morphH: boxH
+
+    // The springs (MorphSprings): the shape's centre along the bar, its width and its foot, towards the card while the
+    // panel is open and has shown its first frame, else towards the origin.
+    readonly property bool extended: shown && !gate && (open || contentP > 0.4)
+    MorphSprings {
+        id: springs
+        on: Theme.springOn && stage.shown
+        expanding: stage.extended
+        cxTo: stage.extended ? stage.cardOutX + card.width / 2 : stage.originCx
+        wTo: stage.extended ? card.width : stage.closedW
+        hTo: stage.extended ? stage.cardFoot : stage.closedFoot
+    }
     // Set on the first presented frame of the shape; the bar's pill is hidden while it is (one island on screen).
     property bool taken: false
     Binding {
         target: IslandGeom
         property: "takenOn"
         value: stage.outName
-        when: stage.taken && stage.morphMode && !stage.handedToView
+        when: stage.taken && stage.morphMode && stage.headMode && !stage.handedToView
     }
     // A view with its own chrome (the phone) takes over from the shape once it is in: the shape dissolves into it and the
     // bar gets its pill back while the view stands; closing brings the shape back to fold into the pill.
     readonly property bool handedToView: ownChrome && contentP >= 0.99
-    readonly property bool springing: stage.shown && !stage.gate && Theme.springOn
-    Behavior on mw {
-        enabled: stage.springing
-        SpringAnimation {
-            spring: Theme.spring * (stage.expanding ? 1.3 : 1.2)
-            damping: Math.min(1, Theme.damping * (stage.expanding ? 1 : 1.25))
-            epsilon: 0.002
-        }
-    }
-    Behavior on mh {
-        enabled: stage.springing
-        SpringAnimation {
-            spring: Theme.spring * (stage.expanding ? 1.0 : 1.6)
-            damping: Math.min(1, Theme.damping * (stage.expanding ? 1.25 : 1))
-            epsilon: 0.002
-        }
-    }
-    // The open card turns into the island's (the quick card gave way to a face's view): it grows out of the pill now.
-    onMorphModeChanged: {
-        if (!morphMode) { taken = false; return }
-        if (shown && open && !gate) { taken = true; expanding = true; mw = 1; mh = 1 }
-    }
+    // The open card turns into the island's (the quick card gave way to a face's view): its head takes the pill now; the
+    // other way round the pill goes back to the bar.
+    onHeadModeChanged: taken = headMode && shown && open && !gate
     // Folded back: the pill is handed back to the bar first, and the shape goes a moment later, so neither surface ever
-    // shows no island.
-    onMwChanged: checkFolded()
-    onMhChanged: checkFolded()
+    // shows no island. A headless shape just goes once it is back in the bar.
+    Connections {
+        target: springs
+        function onHChanged() { stage.checkFolded() }
+        function onWChanged() { stage.checkFolded() }
+    }
     function checkFolded() {
-        if (open || !shown || !morphMode || handBack.running) return
-        if (mw <= 0.02 && mh <= 0.02) { taken = false; handBack.start() }
+        if (open || !shown || !morphMode || handBack.running || Math.abs(springs.hTo - closedFoot) > 0.5) return
+        if (Math.abs(springs.h - springs.hTo) <= 1.5 && Math.abs(springs.w - springs.wTo) <= 3) {
+            taken = false
+            handBack.start()
+        }
     }
     Timer {
         id: handBack
-        interval: 80
+        interval: stage.headMode ? 80 : 0
         onTriggered: {
             if (stage.open) return
             stage.shown = false
-            stage.mw = 0
-            stage.mh = 0
         }
     }
     // Test only: the morph's state twice a second while the shape is out (KURASHI_STAGE_DEBUG=1).
     Timer {
         interval: 500
         repeat: true
-        running: Quickshell.env("KURASHI_STAGE_DEBUG") === "1" && stage.shown && stage.morphMode
-        onTriggered: console.log("stage-morph mw=" + stage.mw.toFixed(3) + " mh=" + stage.mh.toFixed(3) + " content=" + stage.contentP.toFixed(2)
-            + " open=" + stage.open + " gate=" + stage.gate + " card=" + card.width + "x" + card.height + " win=" + stage.width + "x" + stage.height)
+        running: stage.debugLog && stage.shown && stage.morphMode
+        onTriggered: console.log("stage-morph cx=" + springs.cx.toFixed(1) + " w=" + springs.w.toFixed(1) + " h=" + springs.h.toFixed(1)
+            + " to=" + springs.cxTo.toFixed(1) + "," + springs.wTo.toFixed(1) + "," + springs.hTo.toFixed(1)
+            + " running=" + !springs.settled + " content=" + stage.contentP.toFixed(2) + " open=" + stage.open + " gate=" + stage.gate
+            + " kind=" + stage.contentKind + " origin=" + stage.origin.kind + " card=" + card.width + "x" + card.height
+            + " win=" + stage.width + "x" + stage.height + "+" + stage.boxL)
     }
-    // A spring past its target is soft-limited (8 %), so the shape stays inside the Stage's slack; below 0 it is held.
-    function soft(v) { return v > 1 ? 1 + Math.min((v - 1) * 0.6, 0.08) : Math.max(0, v) }
     function lerp(a, b, t) { return a + (b - a) * t }
-    readonly property real ew: soft(mw)
-    readonly property real eh: soft(mh)
-    readonly property real tw: Math.max(0, Math.min(1, mw))
-    readonly property real th: Math.max(0, Math.min(1, mh))
-    readonly property real shapeW: lerp(pillW, card.width, ew)
-    readonly property real shapeH: lerp(pillH, cardTop + card.height - pillTop, eh)
-    readonly property real shapeCx: morphW / 2 + lerp(pillGeom ? pillGeom.dx : 0, 0, tw)
+    function clamp01(v) { return Math.max(0, Math.min(1, v)) }
+    // How far the shape has grown out of its origin, 0..1 (the foot against the card's): corners, tint and ring follow it.
+    readonly property real tgrow: clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
+    // The drawn shape, in window px: squash & stretch narrows it while its foot moves fast (I113).
+    readonly property real shapeW: Math.max(0, springs.wOut * (1 - springs.squeeze))
+    readonly property real shapeCx: springs.cxOut - boxL
+    readonly property real shapeFoot: springs.hOut
+    readonly property real cardCx: cardOutX + card.width / 2 - boxL
     // K61: how far the shape's body is from its place at rest, in output axes: its centre and its foot against the
-    // card's (0 once grown), so the island's sheet comes out with the body as it grows.
-    readonly property point shapeCarry: Qt.point(shapeCx - morphW / 2,
-        (flip ? -1 : 1) * (bodyTop + bodyH - cardTop - card.height))
+    // card's (0 once grown), so the panel's sheet comes out with the body as it grows.
+    readonly property point shapeCarry: Qt.point(shapeCx - cardCx, (flip ? -1 : 1) * (shapeFoot - cardFoot))
     // The pill's corners (square corners: radius.full 0) and its centre at rest.
     readonly property real pillR: Math.min(Theme.rFull, pillH / 2)
-    readonly property real pillCx: morphW / 2 + (pillGeom ? pillGeom.dx : 0)
-    // The body: the whole shape on a strip; in the joined topology what grows out from under the head (the pill), from
-    // its foot to the card's rect. The view is cut to it.
-    readonly property real bodyTop: joined ? lerp(pillTop + pillH, cardTop, eh) : pillTop
-    readonly property real bodyH: joined ? Math.max(0, lerp(0, card.height, eh)) : shapeH
-    // The shape's fill: the pill's at first, the card's once grown, at the panel's opacity (I114); a boxed pill has the
-    // strip under it.
+    readonly property real pillCx: pillOutCx - boxL
+    // The line the body hangs from: the pill's foot (the joined head), the strip's edge, or the widget's block's foot.
+    readonly property real hangE: headMode ? pillTop + pillH : origin.e
+    // The body: the whole shape on a strip with a head; in the joined topologies what grows out from under the head or
+    // the block, from its foot to the card's rect; headless on a strip, from the strip's edge. The view is cut to it.
+    readonly property real bodyTop: joined ? lerp(hangE, cardTop, tgrow)
+        : (headMode ? pillTop : Theme.barH)
+    readonly property real bodyH: Math.max(0, shapeFoot - bodyTop)
+    // The shape's fill: the pill's at first (a head), the card's once grown, at the panel's opacity (I114); a boxed pill
+    // has the strip under it. A headless shape is the card's from the start.
     readonly property color shapeFill: {
-        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tw))
+        var c = headMode ? Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tgrow)) : Theme.container
         return Qt.alpha(c, Theme.panel.a)
     }
+    // I160: the head over the bar's strip, translucent over translucent, made one layer as the card grows: lighter by the
+    // strip's own opacity (0 when the two are equal; the strip's colour shows there, as the rest of the bar's).
+    readonly property real stripA: Theme.surfaceAlpha.a
+    readonly property real headA: stripA >= 0.999 ? Theme.panel.a : Math.max(0, (Theme.panel.a - stripA) / (1 - stripA))
+    readonly property color headFill: Qt.alpha(shapeFill, lerp(Theme.panel.a, headA, tgrow))
+    // The neck of a headless joined shape: under the block the origin stands in (its bar group, or the pill), as near the
+    // body's centre as the block's flat foot allows — so it slides along the block with the body — and letting go once
+    // the body has travelled past the block (the card then floats under the bar; it is caught again on the way back).
+    readonly property var homeBlock: {
+        var rev = IslandGeom.revision
+        if (!joined || !shown || headMode) return null
+        var R = Math.min(Theme.rFull, (Theme.barH - 8) / 2)
+        if (origin.kind === "pill") return { x: pillOutCx - pillW / 2, w: pillW, r: pillR }
+        var keys = ["group:right", "group:workspaces", "group:tasks"]
+        for (var i = 0; i < keys.length; i++) {
+            var g = IslandGeom.rectOf(outName, keys[i])
+            if (g && originCx >= g.x && originCx <= g.x + g.w) return { x: g.x, w: g.w, r: R }
+        }
+        return { x: origin.x, w: origin.w, r: 0 }
+    }
+    readonly property real neckInset: Theme.rLg / 2 + 10
+    readonly property real neckLo: homeBlock ? homeBlock.x + homeBlock.r + neckInset - boxL : originCx - boxL
+    readonly property real neckHi: homeBlock ? Math.max(neckLo, homeBlock.x + homeBlock.w - homeBlock.r - neckInset - boxL) : neckLo
+    readonly property real neckWant: Math.max(neckLo, Math.min(neckHi, shapeCx))
+    readonly property real neckRoom: Math.max(0, shapeW / 2 - Theme.rLg / 2 - Math.min(Theme.rLg, shapeW / 2) - 12)
+    readonly property real neckCx: Math.max(shapeCx - neckRoom, Math.min(shapeCx + neckRoom, neckWant))
+    readonly property real neckAttach: headMode ? 1 : clamp01(1 - Math.abs(neckCx - neckWant) / 32)
     // The view comes in once the shape has nearly grown (fade + 0.98 -> 1, <= 160 ms) and leaves first (90 ms).
-    readonly property bool contentWanted: open && shown && !gate && mw > 0.72 && mh > 0.6
+    // Once in, the view stays while the card only grows or shrinks a little (a slot filling): `reached` latches until the
+    // panel closes or swaps.
+    readonly property bool near: Math.abs(springs.hTo - cardFoot) < 1 && Math.abs(springs.wTo - card.width) < 1 && springs.pw > 0.92 && springs.ph > 0.6 && (springs.pcx > 0.97 || Math.abs(springs.cx - springs.cxTo) < 16)
+    property bool reached: false
+    onNearChanged: if (near && open && shown && !gate && !swapping) reached = true
+    onSwappingChanged: reached = false
+    onGateChanged: reached = false
+    readonly property bool contentWanted: open && shown && !gate && !swapping && (reached || near)
     property real contentP: 0
-    onContentWantedChanged: contentP = contentWanted ? 1 : 0
+    onContentWantedChanged: {
+        contentP = contentWanted ? 1 : 0
+        if (debugLog) console.log("stage-morph content=" + contentWanted + " pw=" + springs.pw.toFixed(2) + " ph=" + springs.ph.toFixed(2)
+            + " pcx=" + springs.pcx.toFixed(2) + " h=" + springs.h.toFixed(1) + "/" + springs.hTo.toFixed(1) + " sh=" + springs.sh.toFixed(1)
+            + " swapping=" + swapping + " t=" + Date.now())
+    }
     Behavior on contentP {
         enabled: stage.shown && Theme.quickMs > 0
         NumberAnimation { duration: stage.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
+    // A view with its own chrome: the shape dissolves into it (all of it but the bar's rule copy, I161).
+    readonly property real shapeFade: ownChrome ? 1 - contentP : 1
 
     Item {
         id: shapeBox
-        visible: stage.shown && stage.morphMode && opacity > 0
-        opacity: stage.ownChrome ? 1 - stage.contentP : 1
+        visible: stage.shown && stage.morphMode && stage.shapeFade > 0.001
         width: stage.morphW
         height: stage.morphH
         transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
-        // The soft chrome's shadow under the head and the body (static RectangularShadows that follow the springs).
+        // The soft chrome's shadow under the head and the body (static RectangularShadows that follow the springs; I122:
+        // every morphing panel casts it).
         SoftShadow {
-            visible: stage.joined
+            visible: stage.joined && stage.headMode
+            opacity: stage.shapeFade
             x: stage.pillCx - stage.pillW / 2
             y: stage.pillTop
             width: stage.pillW
@@ -595,6 +860,7 @@ PanelWindow {
         }
         SoftShadow {
             visible: shape.h > 1
+            opacity: stage.shapeFade
             x: shape.x0
             y: shape.y0
             width: shape.w
@@ -607,23 +873,30 @@ PanelWindow {
             visible: shapeBox.visible
             anchors.fill: parent
             joined: stage.joined
+            headless: !stage.headMode
             hx0: stage.pillCx - stage.pillW / 2
             hy0: stage.pillTop
             hw: stage.pillW
             hh: stage.pillH
             hr: stage.pillR
             neckF: Theme.rLg / 2
+            neckCx: stage.neckCx
+            attach: stage.neckAttach
+            neckScale: springs.neckScale
             x0: stage.shapeCx - stage.shapeW / 2
             y0: stage.bodyTop
             w: stage.shapeW
             h: stage.bodyH
-            rTop: stage.joined ? Theme.rLg : stage.lerp(stage.pillR, Theme.rLg, stage.th)
-            rBot: stage.lerp(stage.pillR, Theme.rLg, stage.th)
-            edgeY: Theme.barH
+            rTop: stage.joined || !stage.headMode ? Theme.rLg : stage.lerp(stage.pillR, Theme.rLg, stage.tgrow)
+            rBot: stage.headMode ? stage.lerp(stage.pillR, Theme.rLg, stage.tgrow) : Math.min(Theme.rLg, stage.lerp(Theme.rSm, Theme.rLg, stage.tgrow))
+            edgeY: stage.joined ? stage.hangE : Theme.barH
             neck: stage.neckR
             fill: stage.shapeFill
-            ringScale: 0.5 + 0.5 * stage.tw
+            headFill: stage.headMode ? stage.headFill : stage.shapeFill
+            fade: stage.shapeFade
+            ringScale: 0.5 + 0.5 * stage.tgrow
             flip: stage.flip
+            barCx: stage.outW / 2 - stage.boxL
         }
         // The shape's fill as a mask for its relief (I168): the fill path alone, in white, drawn only into `shapeMask`'s
         // texture, which is redrawn when the path changes (while the shape morphs) and never at rest.
@@ -654,7 +927,7 @@ PanelWindow {
             function onFillPathChanged() { shapeMask.scheduleUpdate() }
         }
     }
-    // K59, K61 (I168): the island's material — one relief over the shape's whole box, clipped to the shape's own fill path
+    // K59, K61 (I168): the panel's material — one relief over the shape's whole box, clipped to the shape's own fill path
     // (head, neck fillets and body; the outline and ring stay flat), under the views; with `texture.text` over them. The
     // head stays registered with the bar it sits in (no carry above its foot; on a strip, whose own relief shows through
     // the translucent fill, weighed by the fill's opacity so it is shaded about once); the body carries its sheet as it
@@ -665,7 +938,7 @@ PanelWindow {
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
-        opacity: shapeBox.opacity
+        opacity: stage.shapeFade
         width: stage.morphW
         height: stage.morphH
         transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
@@ -676,7 +949,7 @@ PanelWindow {
                 anchors.fill: parent
                 mask: shapeMask
                 carry: stage.shapeCarry
-                bandEdge: stage.joined ? shape.hy0 + shape.hh : shape.edgeY
+                bandEdge: stage.joined ? shape.edgeY : Theme.barH
                 bandWeight: stage.joined ? 1 : Theme.panel.a
             }
         }
@@ -684,12 +957,12 @@ PanelWindow {
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).
     CompactFace {
         id: headFace
-        active: stage.shown && stage.morphMode
+        active: stage.shown && stage.morphMode && stage.headMode
         // Not visible while idle: its geometry follows the pill (hover), and a visible item that moves costs a frame (Ma).
         visible: active
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
         animate: stage.shown
-        opacity: shapeBox.opacity
+        opacity: stage.shapeFade
         // Joined: the face stays in the head, the island's block; on a strip it rides the shape's centre.
         x: Math.round((stage.joined ? stage.pillCx : stage.shapeCx) - width / 2)
         y: stage.flip ? stage.morphH - stage.pillTop - stage.pillH : stage.pillTop
@@ -718,7 +991,7 @@ PanelWindow {
         }
         // Slide, not fade: group opacity over a text-heavy card cost ~4 MiB of retained heap (K16).
         // The island's card (W21): the shape draws it; this holds the view where the grown shape will be, fading in after it.
-        x: stage.morphMode ? Math.round((stage.morphW - width) / 2) : 0
+        x: stage.morphMode ? stage.cardOutX - stage.boxL : 0
         y: stage.morphMode ? (stage.flip ? stage.morphH - stage.cardTop - height : stage.cardTop)
             : -stage.slide * (1 - stage.p)   // above the surface edge = clipped away
         opacity: stage.morphMode ? stage.contentP : 1

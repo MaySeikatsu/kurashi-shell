@@ -5,3 +5,5 @@ LevelBars 1.0 LevelBars.qml
 FlipText 1.0 FlipText.qml
 LevelMeter 1.0 LevelMeter.qml
 KeyButton 1.0 KeyButton.qml
+AnchorReport 1.0 AnchorReport.qml
+MorphSprings 1.0 MorphSprings.qml
