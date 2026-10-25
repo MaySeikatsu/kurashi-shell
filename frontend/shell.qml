@@ -84,10 +84,20 @@ ShellRoot {
             }
         }
     }
-    // Desktop widgets (K43): one per output, on the bottom layer; no surface while desktop.enabled is off.
+    // Desktop widgets (K43): one per output, on the bottom layer; no window at all while desktop.enabled is off there (B35:
+    // a hidden window still made its whole tree of cards — with the overlay below, ~16 MiB at one output and ~10.6 MiB per
+    // extra output, W35 bench).
     Variants {
         model: Quickshell.screens
-        delegate: Desktop {}
+        delegate: Scope {
+            id: deskScope
+            required property var modelData
+            BarConfig { id: deskCfg; screen: deskScope.modelData }
+            LazyLoader {
+                active: deskCfg.valueOf("desktop.enabled", false) === true
+                Desktop { modelData: deskScope.modelData }
+            }
+        }
     }
     // The app dock (K51): per output, only while dock.enabled is on there (no surface otherwise).
     Variants {
@@ -103,10 +113,18 @@ ShellRoot {
     Sidebar { side: "right"; focusedScreen: root.focusedScreen() }
     Sidebar { side: "left"; focusedScreen: root.focusedScreen() }
     Lock {}
-    // The material's relief over every output, apps included (K59, scope everything): a window only while that scope is on.
+    // The material's relief over every output, apps included (K59, scope everything): a window only while that scope is on
+    // (made then, not kept hidden: B35).
     Variants {
         model: Quickshell.screens
-        delegate: TextureOverlay {}
+        delegate: Scope {
+            id: overlayScope
+            required property var modelData
+            LazyLoader {
+                active: Theme.texOverlay
+                TextureOverlay { modelData: overlayScope.modelData }
+            }
+        }
     }
     // One Stage for the whole shell, retargeted to the focused output (K16). Destroying and
     // re-creating it per open leaked ~5 MiB of heap per cycle (measured), a persistent unmapped
