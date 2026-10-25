@@ -593,7 +593,22 @@
             {
               "advanced": false,
               "control": "slider",
-              "couplings": [],
+              "couplings": [
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "flat"
+                },
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "line"
+                }
+              ],
               "default": 1.0,
               "help": "config.theme.material.shadow.help",
               "key": "theme.material.shadow",
@@ -616,6 +631,20 @@
                   "op": "eq",
                   "reason": "settings.inert.requires",
                   "value": false
+                },
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "flat"
+                },
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "line"
                 }
               ],
               "default": 180,
@@ -641,6 +670,20 @@
                   "op": "ne",
                   "reason": "settings.inert.requires",
                   "value": "none"
+                },
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "flat"
+                },
+                {
+                  "key": "theme.chrome",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "line"
                 }
               ],
               "default": false,
