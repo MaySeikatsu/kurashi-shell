@@ -33,6 +33,10 @@
 "settings.ui.pick_none_left" = "Every option is already listed"
 "settings.ui.pick_up" = "Move {item} up"
 "settings.ui.pick_down" = "Move {item} down"
+"settings.ui.list_add_to" = "Add to {list}"
+"settings.ui.list_add_path" = "Add a path: /… or ~/…"
+"settings.ui.list_empty" = "Nothing listed yet."
+"settings.ui.list_empty_paths" = "No paths yet. Add one that starts with / or ~/."
 "settings.ui.changed_count" = "Changed · {n}"
 "settings.ui.reset" = "Reset"
 "settings.pending.restart" = "Saved; takes effect after the shell restarts."
@@ -138,6 +142,7 @@
 "settings.err.error.config.invalid_color" = "not a valid colour"
 "settings.err.error.config.invalid_action" = "not an action id: lowercase words joined by dots, like island.expand"
 "settings.err.error.config.empty_list" = "the list cannot be empty"
+"settings.err.error.config.not_a_path" = "not a full path: start it with / or ~/"
 "settings.err.rejected_value" = "This value was not accepted"
 "settings.err.undo" = "Undo failed"
 "settings.err.redo" = "Redo failed"
@@ -259,3 +264,5 @@
 
 # settings.open {page} (I40): a page Settings does not have.
 "error.settings.unknown_page" = "Settings has no such page."
+# A path list entry that is not a path (I54; kurashid SchemaAdapter, next to the schema's error.config.* keys).
+"error.config.not_a_path" = "Not a full path: start it with / or ~/."

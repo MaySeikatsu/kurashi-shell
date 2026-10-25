@@ -6,6 +6,11 @@ import "../core"
 // on the moved row; a removed row hands it to the next one. The add control under the rows lists the offers not chosen yet.
 // Every change emits the full new list, which the daemon keeps or refuses as one value; the rows show the daemon's list
 // only (Shōjiki: nothing is shown before it is in effect). The list has one provenance: its row's chip.
+// `free` (I54): a free string list — a mod's `list` without choices, the launcher's command, the dock's pins. The same rows,
+// in order, and a text field to add one: Return adds the typed entry (an entry already listed is not added twice). The
+// field keeps a refused entry with its edge marked, so it can be corrected (the row says why under the control); it clears
+// once the daemon lists the entry. `paths` (a list whose `unit` is `path`): the field and the empty line say what a path
+// looks like, and the daemon refuses an entry that is not an absolute or `~` path.
 Column {
     id: l
     // Offers {value, label (i18n key), enabled?, reason? (i18n key)}; items: the chosen values, in order.
@@ -16,6 +21,11 @@ Column {
     property string label: ""
     // The daemon refused the last change (the row's refusal line says why): the focus stays where it was.
     property bool refused: false
+    // A free list (no offers: a text field adds entries), and one of paths (the field hints at the form).
+    property bool free: false
+    property bool paths: false
+    // The entry typed into the free list's field and sent; the field clears once the daemon lists it.
+    property string pending: ""
     signal edited(var items)
 
     spacing: Theme.gap / 2
@@ -32,7 +42,7 @@ Column {
         return null
     }
     function nameOf(v) {
-        var o = offer(v)
+        var o = l.free ? null : offer(v)
         return o ? I18n.tr(o.label) : String(v)
     }
     function remaining() {
@@ -40,7 +50,11 @@ Column {
     }
     // The row of `v` takes the focus; null means the add control.
     function focusRow(v) {
-        if (v === null) { adder.forceActiveFocus(); return }
+        if (v === null) {
+            if (l.free) freeAdder.focusInput()
+            else adder.forceActiveFocus()
+            return
+        }
         var i = items.indexOf(v)
         var row = i >= 0 ? rep.itemAt(i) : null
         if (row) row.forceActiveFocus()
@@ -73,8 +87,20 @@ Column {
             edited(items.concat([v]))
         }
     }
+    // A free list's typed entry: trimmed; blank adds nothing, one already listed only clears the field.
+    function addTyped(t) {
+        var v = String(t).trim()
+        if (v === "") return
+        if (items.indexOf(v) >= 0) { freeAdder.clear(); pending = ""; return }
+        pending = v
+        addOffer(v)
+    }
 
     onItemsChanged: {
+        if (pending !== "" && items.indexOf(pending) >= 0) {
+            pending = ""
+            freeAdder.clear()
+        }
         if (focusValue !== undefined && (focusAfter === "" || JSON.stringify(items) === focusAfter)) {
             var f = focusValue
             focusValue = undefined
@@ -96,7 +122,7 @@ Column {
             required property int index
             readonly property var chosen: entry.index < l.items.length ? l.items[entry.index] : undefined
             readonly property string name: l.nameOf(entry.chosen)
-            readonly property bool known: l.offer(entry.chosen) !== null
+            readonly property bool known: l.free || l.offer(entry.chosen) !== null
             width: l.width
             height: Theme.controlH
             radius: Theme.rSm
@@ -128,7 +154,8 @@ Column {
                 anchors.right: buttons.left
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
-                elide: Text.ElideRight
+                // A path keeps its start and its last folder in view.
+                elide: l.paths ? Text.ElideMiddle : Text.ElideRight
                 color: entry.known ? Theme.fg : Theme.dim
                 font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
@@ -170,8 +197,31 @@ Column {
         }
     }
 
+    // A free list with no entries says so (and, for paths, what one looks like).
+    Text {
+        visible: l.free && l.items.length === 0
+        width: l.width
+        wrapMode: Text.WordWrap
+        color: Theme.dim
+        font.pixelSize: Theme.fs
+        font.family: Theme.fam(text, Theme.families)
+        text: I18n.tr(l.paths ? "settings.ui.list_empty_paths" : "settings.ui.list_empty")
+    }
+    TextField {
+        id: freeAdder
+        visible: l.free
+        objectName: "listadd"
+        width: Math.min(l.width, 360)
+        label: l.label !== "" ? I18n.fmt("settings.ui.list_add_to", { list: l.label }) : I18n.tr("settings.ui.list_add")
+        placeholder: I18n.tr(l.paths ? "settings.ui.list_add_path" : "settings.ui.list_add")
+        mono: l.paths
+        enabled: l.enabled
+        invalid: l.refused && l.pending !== ""
+        onSubmitted: t => l.addTyped(t)
+    }
     Select {
         id: adder
+        visible: !l.free
         width: Math.min(l.width, 360)
         choices: l.remaining()
         current: undefined

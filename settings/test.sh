@@ -10,6 +10,9 @@
 # Needs: nix develop (qs, grim, sway, python3); kurashid + kurashi from KURASHI_BIN_DIR, or built with
 # `cargo build -p kurashid -p kurashi`. KURASHI_RENDER_NODE picks the GPU (tools/bench/sandbox.sh).
 #
+# W36-core (I54, I40): a free string list (the terminal command) empty, with three entries, moved by Alt+Down/Up, added to
+# and removed from by keyboard; the wallpaper's folders as a path list with an entry that is not a path refused; page links
+# by `settings.open {page}` on the running window and by KURASHI_SETTINGS_PAGE at start.
 # Coverage (UX brief docs/ux/settings.md, States and Definition of done). Shots: default, user, profile (after a profile
 # load), Nix-forced and its chip's stack (managed.toml), inert (requires, overridden, mods off, restart pending, choice
 # unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
@@ -149,8 +152,8 @@ src() { K "{\"t\":\"cfg.get\",\"id\":\"s\",\"key\":\"$1\"}" | python3 -c 'import
 
 # Without KURASHI_SOCKET, as in a live session: the protocol default must be found. The deep link (UX brief, settings 4):
 # KURASHI_SETTINGS_KEY opens that row at start.
-start_qs() {
-  env -u KURASHI_SOCKET KURASHI_SETTINGS_KEY="${1:-}" qs -p settings > "$R/settings.log" 2>&1 & qs_pid=$!; pids+=("$qs_pid")
+start_qs() {   # [<key> [<page>]]: the deep links at start (KURASHI_SETTINGS_KEY, KURASHI_SETTINGS_PAGE; I40)
+  env -u KURASHI_SOCKET KURASHI_SETTINGS_KEY="${1:-}" KURASHI_SETTINGS_PAGE="${2:-}" qs -p settings > "$R/settings.log" 2>&1 & qs_pid=$!; pids+=("$qs_pid")
 }
 Q() { qs -p settings ipc call settings "$@"; }
 start_qs theme.colors.palette
@@ -905,6 +908,61 @@ sleep 0.5
 [[ "$(val mods.records.pins)" == '[{"id":"home"'* ]] || fail "records: the edit form changed the list on Escape ($(val mods.records.pins))"
 echo "keyboard R4: the remove button removed the second entry and was set back; the edit button opened the form, Escape closed it"
 
+# L1. a free string list (I54; UX brief settings, "Design": ordered lists are vertical): the launcher's terminal command.
+#     Empty, the row says so; three entries are three rows in order, each with move up, move down and remove.
+K '{"t":"apply","id":"fl0","ops":[{"set":"launcher.terminal","value":[]}]}' | grep -q applied || fail "free list: the empty list was not applied"
+Q goto launcher
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '[]' ] && break; sleep 0.2; done
+shot freelist-empty
+K '{"t":"apply","id":"fl3","ops":[{"set":"launcher.terminal","value":["foot","-e","sh"]}]}' | grep -q applied || fail "free list: the three entries were not applied"
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] && break; sleep 0.2; done
+shot freelist-three
+echo "free list L1: the terminal command empty (the row says so) and with three entries, one row each"
+
+# L2. by keyboard: Alt+Down moves the focused entry below the next one and the focus follows it; Alt+Up moves it back.
+Q focusList >/dev/null
+tab_to "pickrow:foot" 150
+kp alt+down
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["-e","foot","sh"]' ] && break; sleep 0.2; done
+[ "$(val launcher.terminal)" = '["-e","foot","sh"]' ] || fail "free list: Alt+Down did not move the entry ($(val launcher.terminal))"
+focus_on "pickrow:foot" || fail "free list: the focus did not follow the moved entry ($(Q focused))"
+kp alt+up
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] && break; sleep 0.2; done
+[ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] || fail "free list: Alt+Up did not move the entry back ($(val launcher.terminal))"
+echo "keyboard L2: Alt+Down and Alt+Up moved the first entry down and back up, the focus with it"
+
+# L3. add and remove by keyboard: Tab to the add field, type an entry and Return adds it as the last one (the field clears
+#     once the daemon lists it); an entry already listed is not added twice; Delete on a row removes it.
+tab_to "Add to Terminal command" 40
+kp b a s h return
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["foot","-e","sh","bash"]' ] && break; sleep 0.2; done
+[ "$(val launcher.terminal)" = '["foot","-e","sh","bash"]' ] || fail "free list: Return did not add the typed entry ($(val launcher.terminal))"
+kp s h return
+sleep 0.5
+[ "$(val launcher.terminal)" = '["foot","-e","sh","bash"]' ] || fail "free list: an entry already listed was added again ($(val launcher.terminal))"
+shot freelist-added
+Q focusList >/dev/null
+tab_to "pickrow:bash" 150
+kp delete
+for _ in $(seq 20); do [ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] && break; sleep 0.2; done
+[ "$(val launcher.terminal)" = '["foot","-e","sh"]' ] || fail "free list: Delete did not remove the entry ($(val launcher.terminal))"
+K '{"t":"apply","id":"flr","ops":[{"reset":"launcher.terminal"}]}' | grep -q applied || fail "free list: the terminal command was not reset"
+echo "keyboard L3: typed 'bash' + Return added it, 'sh' again was not added twice, Delete removed 'bash'"
+
+# L4. a page link (I40, K65): the daemon's `settings.open {page}` jumps the running window to the page (`keys`, a mod's
+#     page as `mod:<id>`); a page Settings does not have is refused, and the window stays where it is.
+Q goto bar
+K '{"t":"act","id":"pg1","action":"settings.open","args":{"page":"keys"}}' | grep -q '"jumped"' || fail "page link: settings.open {page: keys} did not jump the running window"
+for _ in $(seq 20); do [ "$(Q current)" = keys ] && break; sleep 0.2; done
+[ "$(Q current)" = keys ] || fail "page link: the window did not open the keys page ($(Q current))"
+shot page-link-keys
+K '{"t":"act","id":"pg2","action":"settings.open","args":{"page":"mod:records"}}' | grep -q '"jumped"' || fail "page link: settings.open {page: mod:records} did not jump"
+for _ in $(seq 20); do [ "$(Q current)" = mods.records ] && break; sleep 0.2; done
+[ "$(Q current)" = mods.records ] || fail "page link: mod:records did not open the mod's page ($(Q current))"
+K '{"t":"act","id":"pg3","action":"settings.open","args":{"page":"nope"}}' | grep -q 'error.settings.unknown_page' || fail "page link: an unknown page was not refused"
+[ "$(Q current)" = mods.records ] || fail "page link: a refused page moved the window ($(Q current))"
+echo "page link L4: settings.open {page} jumped to keys and to mod:records; 'nope' was refused"
+
 # S1. section cards (K48 (5), I104): each section of a page is a card with its icon and title, in the schema's order.
 Q goto power
 for _ in $(seq 20); do [ "$(Q sections)" = "power.idle,power.night_light,power.recorder" ] && break; sleep 0.2; done
@@ -1096,9 +1154,14 @@ K '{"t":"apply","id":"k3","ops":[{"reset":"keys.quick"},{"reset":"keys.write"}]}
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
 start_daemon ja_JP.UTF-8
-start_qs ""
-for _ in $(seq 100); do Q goto appearance >/dev/null 2>&1 && break; sleep 0.2; done
+# The page link at start (I40): KURASHI_SETTINGS_PAGE=mod:records opens the mod's page once the schema is in.
+start_qs "" mod:records
+for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+for _ in $(seq 50); do [ "$(Q current)" = mods.records ] && break; sleep 0.2; done
+[ "$(Q current)" = mods.records ] || fail "page link: KURASHI_SETTINGS_PAGE did not open the mod's page ($(Q current); $(Q dbg))"
+echo "page link: KURASHI_SETTINGS_PAGE=mod:records opened page mods.records at start"
 sleep 1.5
+shot ja-page-link-records
 Q goto appearance
 shot ja-appearance
 Q goto power
