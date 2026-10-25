@@ -316,3 +316,11 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 |---|---|---|
 | W40-faces | kurashi-island, kurashid island.rs, mock island, settings faces control, docs/ux/island | haiku |
 | W41-icons | nix icon font install, font token, Icon.qml fallback, Paper grain memo, icon-name check | haiku |
+
+## Wave 42 (2026-10-25, session 13) — core memory, last shadows, faces follow-ups, lighter tiles
+| Card | Owner paths | Model |
+|---|---|---|
+| W42-memory | shell.qml window lifetimes, Launcher/Stage windows, launch.sh/package wrapper plugins, bench | opus |
+| W42-shadows3 | SessionMenu, KeyClock, PhoneFrame, webdock HostButton/Card/Box, Settings Button, shadow test | haiku |
+| W42-faces2 | kurashi-island, kurashid island/faces, save_profile, keys tests, calendar comments, docs/ux/island | haiku |
+| W42-tiles | QuickTile, Sketch/Snes frames + cache, bench | haiku |
