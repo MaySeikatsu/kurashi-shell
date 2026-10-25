@@ -156,6 +156,112 @@ hybrid 0 1
 rm -f "$mesa"
 check "pinned vendor file not installed: nothing" "" amd
 
+# W42: the image format plugin filter. Fake plugin dirs: sys has imageformats (Qt's and kimageformats') beside other
+# plugin kinds, plain has none, qt5 another imageformats dir. Each case runs under `env -i` with its own runtime dir.
+machine no
+pl=$t/plugins
+mkdir -p "$pl/sys/imageformats" "$pl/sys/platformthemes" "$pl/sys/platforminputcontexts" "$pl/plain/platforms" \
+    "$pl/qt5/imageformats"
+for f in libqgif libqico libqjpeg libqsvg libqwebp libqtiff kimg_avif kimg_heif kimg_exr kimg_jxl kimg_raw; do
+    : > "$pl/sys/imageformats/$f.so"
+done
+: > "$pl/sys/top_level_plugin.so"
+: > "$pl/qt5/imageformats/libqjpeg.so"
+: > "$pl/qt5/imageformats/libqtga.so"
+qpp=$pl/sys:$pl/plain::$pl/qt5
+
+# plugins <name> <wanted QT_PLUGIN_PATH, with @F for the farm> <wanted: entry=listing;...> [VAR=value ...]
+# A listing is the sorted names in that farm entry's imageformats/ (or "-" for an entry the farm must not have).
+plugins() {
+    name=$1 want=$2 lists=$3
+    shift 3
+    rm -f "$t/out"
+    env -i PATH="$PATH" KURASHI_ROOT="$root" KURASHI_QS="$t/qs" FAKE_OUT="$t/out" "$@" sh "$launch" --marker
+    got=$(sed -n 's/^QT_PLUGIN_PATH=//p' "$t/out" 2>/dev/null)
+    rt=$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$t/out" 2>/dev/null)
+    farm=$(ls -d "$rt"/kurashi/qt-plugins-* 2>/dev/null | head -n 1)
+    ok=yes
+    [ "$got" = "$(printf '%s' "$want" | sed "s|@F|$farm|g")" ] || ok=no
+    detail=
+    old_ifs=$IFS
+    IFS=';'
+    for l in $lists; do
+        IFS=$old_ifs
+        e=${l%%=*} wantl=${l#*=}
+        if [ "$wantl" = - ]; then
+            gotl=-
+            [ -e "$farm/$e" ] && gotl=present
+        else
+            gotl=$(ls "$farm/$e/imageformats" 2>/dev/null | tr '\n' ' ' | sed 's/ $//')
+        fi
+        [ "$gotl" = "$wantl" ] || { ok=no; detail="$detail [$e: '$gotl' want '$wantl']"; }
+    done
+    IFS=$old_ifs
+    if [ "$ok" = yes ]; then
+        echo "ok    $name"
+    else
+        echo "FAIL  $name: QT_PLUGIN_PATH='$got' (want '$want', farm '$farm')$detail"
+        fails=$((fails + 1))
+    fi
+}
+
+rt1=$t/rt1
+mkdir -p "$rt1"
+plugins "image plugins: the kept four, other kinds linked, order kept" "@F/1:$pl/plain:@F/2" \
+    "1=libqgif.so libqjpeg.so libqsvg.so libqwebp.so;2=libqjpeg.so;3=-" XDG_RUNTIME_DIR="$rt1" QT_PLUGIN_PATH="$qpp"
+farm1=$(ls -d "$rt1"/kurashi/qt-plugins-*)
+plugins "image plugins: other plugin kinds stay reachable" "@F/1:$pl/plain:@F/2" "1=libqgif.so libqjpeg.so libqsvg.so libqwebp.so" \
+    XDG_RUNTIME_DIR="$rt1" QT_PLUGIN_PATH="$qpp"
+for k in platformthemes platforminputcontexts top_level_plugin.so; do
+    farm=$(ls -d "$rt1"/kurashi/qt-plugins-* | head -n 1)
+    if [ -L "$farm/1/$k" ] && [ "$(readlink "$farm/1/$k")" = "$pl/sys/$k" ]; then
+        echo "ok    image plugins: $k linked"
+    else
+        echo "FAIL  image plugins: $k not linked in $farm/1"
+        fails=$((fails + 1))
+    fi
+done
+if [ -e "$farm1" ]; then
+    echo "FAIL  image plugins: the farm of a gone shell ($farm1) was not removed"
+    fails=$((fails + 1))
+else
+    echo "ok    image plugins: the farm of a gone shell is removed"
+fi
+rm -rf "$rt1"/kurashi
+plugins "image plugins: KURASHI_IMAGE_FORMATS adds avif" "@F/1:$pl/plain:@F/2" \
+    "1=kimg_avif.so libqgif.so libqjpeg.so libqsvg.so libqwebp.so" XDG_RUNTIME_DIR="$rt1" QT_PLUGIN_PATH="$qpp" \
+    KURASHI_IMAGE_FORMATS="gif jpeg svg webp avif"
+rm -rf "$rt1"/kurashi
+plugins "image plugins: KURASHI_IMAGE_FORMATS=all keeps the path" "$qpp" "1=-" XDG_RUNTIME_DIR="$rt1" \
+    QT_PLUGIN_PATH="$qpp" KURASHI_IMAGE_FORMATS=all
+plugins "image plugins: no runtime dir keeps the path" "$qpp" "" QT_PLUGIN_PATH="$qpp"
+plugins "image plugins: no QT_PLUGIN_PATH stays unset" "" "1=-" XDG_RUNTIME_DIR="$rt1"
+
+# nixpkgs' Qt adds <PATH entry>/../lib/qt-6/plugins: a PATH entry whose prefix has image plugins becomes <farm>/b<n>/bin,
+# a link to the same dir (its commands still run), and <farm>/b<n>/lib/qt-6/plugins the filtered copy.
+mkdir -p "$pl/prof/bin" "$pl/prof/lib/qt-6/plugins/imageformats" "$pl/prof/lib/qt-6/plugins/platformthemes" "$pl/bare/bin"
+printf '#!/bin/sh\necho tool-ran\n' > "$pl/prof/bin/kurashi-test-tool"
+chmod +x "$pl/prof/bin/kurashi-test-tool"
+for f in libqjpeg libqsvg kimg_heif kimg_jxl; do : > "$pl/prof/lib/qt-6/plugins/imageformats/$f.so"; done
+rm -rf "$rt1"/kurashi
+rm -f "$t/out"
+env -i PATH="$pl/prof/bin/:$pl/bare/bin:relative/bin:$PATH" KURASHI_ROOT="$root" KURASHI_QS="$t/qs" FAKE_OUT="$t/out" \
+    XDG_RUNTIME_DIR="$rt1" sh "$launch" --marker
+got=$(sed -n 's/^PATH=//p' "$t/out")
+farm=$(ls -d "$rt1"/kurashi/qt-plugins-* 2>/dev/null | head -n 1)
+fmts=$(ls "$farm/b1/lib/qt-6/plugins/imageformats" 2>/dev/null | tr '\n' ' ')
+case $got in
+    "$farm/b1/bin:$pl/bare/bin:relative/bin:"*) path_ok=yes ;;
+    *) path_ok=no ;;
+esac
+if [ "$path_ok" = yes ] && [ "$(readlink "$farm/b1/bin")" = "$pl/prof/bin/" ] && [ "$fmts" = "libqjpeg.so libqsvg.so " ] \
+    && [ -L "$farm/b1/lib/qt-6/plugins/platformthemes" ] && [ "$(PATH=$got kurashi-test-tool)" = tool-ran ]; then
+    echo "ok    image plugins: a PATH prefix's plugins filtered, its commands still found"
+else
+    echo "FAIL  image plugins: PATH='$got' farm '$farm' formats '$fmts'"
+    fails=$((fails + 1))
+fi
+
 echo
 if [ "$fails" -eq 0 ]; then
     echo "launch.sh tests: all passed"
