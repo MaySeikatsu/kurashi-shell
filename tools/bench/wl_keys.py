@@ -4,7 +4,7 @@
 # tools/bench/sandbox.sh runtime dir (/tmp/kurashi-sb-<name>), so eval the sandbox's env lines first.
 #   tools/bench/wl_keys.py tab space  → one keyboard for this call: press Tab, then Space
 #   tools/bench/wl_keys.py alt+up shift+tab escape → chords: Alt held while Up, Shift while Tab, then Escape
-#                                       (modifiers: shift, ctrl, alt; ctrl+shift+tab holds both)
+#                                       (modifiers: shift, ctrl, alt, super; ctrl+shift+tab holds both)
 #   tools/bench/wl_keys.py colon slash period 0    → characters, one token each: `:` `/` `.` and the digits, and
 #                                       the other punctuation of CHAR_TOKENS (`-`, `_`, `+`, `?`, `&`, `#`, …)
 #   tools/bench/wl_keys.py --serve    → one keyboard for the whole run: every stdin line is keys to press
@@ -25,11 +25,12 @@ import time
 SPECIAL = {"tab": (15, "Tab"), "return": (28, "Return"), "space": (57, "space"), "escape": (1, "Escape"),
            "backspace": (14, "BackSpace"), "delete": (111, "Delete"),
            "left": (105, "Left"), "right": (106, "Right"), "up": (103, "Up"), "down": (108, "Down")}
-# Modifiers: evdev code, keysym and the XKB real modifier they set (Alt is Mod1).
+# Modifiers: evdev code, keysym and the XKB real modifier they set (Alt is Mod1, Super is Mod4 — the Mod of kurashi's
+# combos, W38-keys).
 MODIFIERS = {"shift": (42, "Shift_L", "Shift"), "ctrl": (29, "Control_L", "Control"),
-             "alt": (56, "Alt_L", "Mod1")}
-# The bit each modifier is in the modifier state (xkb's real modifiers in order: Shift, Lock, Control, Mod1).
-MODIFIER_BITS = {"shift": 1 << 0, "ctrl": 1 << 2, "alt": 1 << 3}
+             "alt": (56, "Alt_L", "Mod1"), "super": (125, "Super_L", "Mod4")}
+# The bit each modifier is in the modifier state (xkb's real modifiers in order: Shift, Lock, Control, Mod1 … Mod4).
+MODIFIER_BITS = {"shift": 1 << 0, "ctrl": 1 << 2, "alt": 1 << 3, "super": 1 << 6}
 # Letters a-z (evdev codes in QWERTY order), for typing into text fields.
 LETTER_CODES = [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 36, 37, 38,
                 44, 45, 46, 47, 48, 49, 50]
