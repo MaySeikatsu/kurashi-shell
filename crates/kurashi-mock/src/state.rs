@@ -305,17 +305,25 @@ impl State {
             return Err(Fail::invalid(UI_POLKIT));
         }
         match action {
+            // K68, as kurashid: the island steps through the faces its list shows (`faces`), never one it leaves out.
             "island.next" | "island.prev" => {
-                let next = if self.data("runtime.island.main")["face"] == "clock" {
-                    "media"
-                } else {
-                    "clock"
-                };
-                self.patch(
-                    "runtime.island.main",
-                    json!({"face": next, "reason": "user"}),
-                    None,
-                );
+                let island = self.data("runtime.island.main").clone();
+                let faces: Vec<Value> = island["faces"].as_array().cloned().unwrap_or_default();
+                let n = faces.len() as isize;
+                if n > 0 {
+                    let step = if action == "island.next" { 1 } else { -1 };
+                    let at = match faces.iter().position(|f| *f == island["face"]) {
+                        Some(i) => i as isize,
+                        None if step > 0 => -1,
+                        None => 0,
+                    };
+                    let next = faces[(at + step).rem_euclid(n) as usize].clone();
+                    self.patch(
+                        "runtime.island.main",
+                        json!({"face": next, "reason": "user"}),
+                        None,
+                    );
+                }
             }
             "island.pin" => {
                 let pinned = !self.data("runtime.island.main")["pinned"]
@@ -1641,6 +1649,41 @@ mod tests {
         assert_eq!(
             key(st.act("island.expand", &json!({"face": 1}))).as_deref(),
             Some(ARGS_INVALID)
+        );
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+    }
+
+    /// K68, as kurashid: the island steps through the faces its list shows, both ways, and `island.expand` refuses a
+    /// face the list leaves out (a mod's face that is not listed is one of them).
+    #[test]
+    fn the_island_steps_through_the_faces_its_list_shows() {
+        let mut st = state();
+        st.act("island.next", &none()).unwrap();
+        st.act("island.next", &none()).unwrap();
+        assert_eq!(
+            st.data("runtime.island.main")["face"],
+            "clock",
+            "two steps round the two faces"
+        );
+        st.act("island.prev", &none()).unwrap();
+        assert_eq!(
+            st.data("runtime.island.main")["face"],
+            "media",
+            "back is the other way round"
+        );
+        st.act("mock.island", &json!({"faces": ["clock"]})).unwrap();
+        st.act("island.next", &none()).unwrap();
+        assert_eq!(
+            st.data("runtime.island.main")["face"],
+            "clock",
+            "a list of one stays on it"
+        );
+        st.act("island.prev", &none()).unwrap();
+        assert_eq!(st.data("runtime.island.main")["face"], "clock");
+        let key = |r: Result<Option<Value>, Fail>| r.err().map(|f| f.msg);
+        assert_eq!(
+            key(st.act("island.expand", &json!({"face": "media"}))).as_deref(),
+            Some(UNKNOWN_FACE)
         );
         assert_eq!(st.data("runtime.ui")["panel"], "");
     }
