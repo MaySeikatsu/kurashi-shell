@@ -1,15 +1,22 @@
 //! Keyboard shortcuts as config (K64, I72): `keys.*` names one combo per shell action. With `keys.write` on, kurashid
-//! writes the compositor's binds file from them (niri: `$XDG_CONFIG_HOME/niri/kurashi-binds.kdl`) — only when the
-//! content changes — and `svc.keys` reports the file, the include line the compositor's config needs and whether it is
-//! there, and each shortcut's state: a combo the compositor would not take, or one that two actions share, is left out
-//! of the file and says why (Shōjiki). K49's pattern: our own file, never the user's config. A file we did not write (a
-//! Home-Manager store symlink, a copy of `docs/niri-binds.kdl`) is never overwritten: the document says whose it is.
-//! niri reloads included files by itself; a niri on PATH checks the file before it is written.
+//! writes the binds file of the session's compositor from them — only when the content changes — and `svc.keys` reports
+//! the file, the include line that compositor's config needs and whether it is there, and each shortcut's state: a combo
+//! the compositor would not take, or one that two actions share, is left out of the file and says why (Shōjiki). K49's
+//! pattern: our own file, never the user's config. A file we did not write (a Home-Manager store symlink, a copy of
+//! `docs/niri-binds.kdl`) is never overwritten: the document says whose it is.
+//!
+//! Three compositors (W38-keys). niri writes a `binds {}` block, each bind named by `hotkey-overlay-title` in niri's own
+//! cheat sheet. Sway writes `bindsym` lines and reads them on `swaymsg reload` only. Hyprland writes `bind` lines and
+//! reloads by itself. A checker on PATH (`niri validate`, `sway -C`, `hyprland --verify-config`) checks the file before it
+//! is written. Only niri's own binds are compared with the user's binds (`config`): for Sway and Hyprland the document says
+//! nothing about a collision, because `$mod` variables are not expanded there (docs/ux/keys.md, Limits).
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -21,13 +28,23 @@ use crate::config::ConfigStore;
 use crate::hub::{Hub, Provider};
 
 pub const DOC: &str = "svc.keys";
-/// The binds file, under `$XDG_CONFIG_HOME`.
+/// The binds file of each compositor and the config that includes it, under `$XDG_CONFIG_HOME`.
 pub const NIRI_FILE: &str = "niri/kurashi-binds.kdl";
 /// niri's own config, which includes it.
 pub const NIRI_CONFIG: &str = "niri/config.kdl";
 pub const NIRI_INCLUDE: &str = "include \"kurashi-binds.kdl\"";
-/// The first line of every file we write: a file at that path without it is not ours.
+pub const SWAY_FILE: &str = "sway/kurashi-binds.conf";
+pub const SWAY_CONFIG: &str = "sway/config";
+/// Sway includes a file relative to the config that names it.
+pub const SWAY_INCLUDE: &str = "include kurashi-binds.conf";
+pub const HYPR_FILE: &str = "hypr/kurashi-binds.conf";
+pub const HYPR_CONFIG: &str = "hypr/hyprland.conf";
+/// The first line of every niri file we write: a file at that path without it is not ours.
 const HEADER: &str = "// Written by kurashid from the keys.* settings (Settings → Keys).";
+/// The same line in the `#` comments of Sway and Hyprland.
+const HEADER_HASH: &str = "# Written by kurashid from the keys.* settings (Settings → Keys).";
+/// One bind's niri title: the locale's `keys.overlay.title` with the action's label (`config.keys.<field>.label`).
+const OVERLAY_TITLE: &str = "keys.overlay.title";
 
 /// One shortcut: the config field, the action it runs, and how niri treats the key (as `docs/niri-binds.kdl`).
 pub struct Bind {
@@ -266,6 +283,19 @@ impl Combo {
     pub fn key(&self) -> &str {
         &self.key
     }
+
+    /// The modifiers as `kind` spells them in a bind, in the order written (`Mod` and `Super` are one there); `None`
+    /// when one of them has no name in that compositor.
+    fn spelled_mods(&self, kind: Kind) -> Option<Vec<&'static str>> {
+        let mut out: Vec<&'static str> = Vec::new();
+        for &i in &self.mods {
+            let name = spelled_mod(kind, i)?;
+            if out.last() != Some(&name) {
+                out.push(name);
+            }
+        }
+        Some(out)
+    }
 }
 
 fn modifier(name: &str) -> Option<usize> {
@@ -319,8 +349,8 @@ pub struct Entry {
     pub reason: Option<String>,
     /// The other `keys.*` on the same combo.
     pub with: Vec<String>,
-    /// The user's niri config binds the same combo: `replaces` (ours comes later and wins) or `overridden` (theirs
-    /// comes later: ours is not in effect).
+    /// niri only: the user's niri config binds the same combo: `replaces` (ours comes later and wins) or `overridden`
+    /// (theirs comes later: ours is not in effect).
     pub config: Option<&'static str>,
 }
 
@@ -378,7 +408,7 @@ pub fn evaluate(values: &[(&'static str, String)]) -> Vec<Entry> {
 
 /// The binds the user's own niri config holds (canon → line), and the line of our include. A light reading: lines of
 /// a top-level `binds {}` block, comments skipped. niri lets a later bind of the same key replace an earlier one.
-fn scan_config(text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
+fn scan_niri(text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
     let mut binds = BTreeMap::new();
     let mut include = None;
     let mut depth = 0usize;
@@ -405,7 +435,7 @@ fn scan_config(text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
         if line.is_empty() || line.starts_with("/-") {
             continue;
         }
-        if depth == 0 && is_our_include(line) {
+        if depth == 0 && is_our_include(Kind::Niri, line) {
             include = Some(n);
         }
         if depth == 0 && line.starts_with("binds") && line.contains('{') {
@@ -427,29 +457,167 @@ fn scan_config(text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
     (binds, include)
 }
 
-fn is_our_include(line: &str) -> bool {
-    line.starts_with("include") && line.contains("kurashi-binds.kdl\"")
+/// The include line of a Sway or Hyprland config (`#` comments skipped). Their binds are not compared (see the module
+/// doc), so only the include is read.
+fn scan_hash(kind: Kind, text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
+    let include = text
+        .lines()
+        .enumerate()
+        .filter(|(_, raw)| {
+            let line = raw.trim();
+            !line.starts_with('#') && is_our_include(kind, line)
+        })
+        .map(|(n, _)| n)
+        .next();
+    (BTreeMap::new(), include)
 }
 
-// --- niri ----------------------------------------------------------------------------------------
-
-fn kdl_string(s: &str) -> String {
-    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+fn scan_config(kind: Kind, text: &str) -> (BTreeMap<String, usize>, Option<usize>) {
+    match kind {
+        Kind::Niri => scan_niri(text),
+        Kind::Sway | Kind::Hyprland => scan_hash(kind, text),
+    }
 }
 
-/// The binds file for niri (as `docs/niri-binds.kdl`): the entries in state `ok`, each spawning `kurashi act`.
-pub fn render_niri(entries: &[Entry], kurashi: &Path) -> String {
+/// Whether a (comment-free) line of the compositor's config is our include.
+fn is_our_include(kind: Kind, line: &str) -> bool {
+    match kind {
+        Kind::Niri => line.starts_with("include") && line.contains("kurashi-binds.kdl\""),
+        Kind::Sway => line.starts_with("include") && line.contains("kurashi-binds.conf"),
+        Kind::Hyprland => line.starts_with("source") && line.contains("kurashi-binds.conf"),
+    }
+}
+
+// --- compositors ---------------------------------------------------------------------------------
+
+/// The file a compositor reads our binds from, and the config that includes it (both under `$XDG_CONFIG_HOME`).
+fn files(kind: Kind) -> (&'static str, &'static str) {
+    match kind {
+        Kind::Niri => (NIRI_FILE, NIRI_CONFIG),
+        Kind::Sway => (SWAY_FILE, SWAY_CONFIG),
+        Kind::Hyprland => (HYPR_FILE, HYPR_CONFIG),
+    }
+}
+
+/// The first line of a file of ours for `kind` (the comment syntax is the compositor's).
+fn header(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Niri => HEADER,
+        Kind::Sway | Kind::Hyprland => HEADER_HASH,
+    }
+}
+
+/// The programs that check a file of `kind`, in the order looked for on PATH.
+fn checkers(kind: Kind) -> &'static [&'static str] {
+    match kind {
+        Kind::Niri => &["niri"],
+        Kind::Sway => &["sway"],
+        Kind::Hyprland => &["hyprland", "Hyprland"],
+    }
+}
+
+/// The line that makes the compositor read our file. Sway includes it relative to its config; Hyprland gets the absolute
+/// path, which needs no assumption about where its config looks for `source`.
+fn include_line(kind: Kind, file: &Path) -> String {
+    match kind {
+        Kind::Niri => NIRI_INCLUDE.to_owned(),
+        Kind::Sway => SWAY_INCLUDE.to_owned(),
+        Kind::Hyprland => format!("source = {}", file.to_string_lossy()),
+    }
+}
+
+/// A modifier as the compositor spells it in a bind. Sway knows Mod4 (Super), Mod1 (Alt) and Mod5 (ISO Level 3); it
+/// has no ISO Level 5 name. Hyprland has the same set under its own names. `Mod` is Super on a TTY.
+fn spelled_mod(kind: Kind, index: usize) -> Option<&'static str> {
+    let name = MODIFIERS[index].0;
+    match kind {
+        Kind::Niri => Some(name),
+        Kind::Sway => Some(match name {
+            "Mod" | "Super" => "Mod4",
+            "Ctrl" => "Control",
+            "Alt" => "Mod1",
+            "Shift" => "Shift",
+            "ISO_Level3_Shift" => "Mod5",
+            _ => return None,
+        }),
+        Kind::Hyprland => Some(match name {
+            "Mod" | "Super" => "SUPER",
+            "Ctrl" => "CTRL",
+            "Alt" => "ALT",
+            "Shift" => "SHIFT",
+            "ISO_Level3_Shift" => "MOD5",
+            _ => return None,
+        }),
+    }
+}
+
+/// The reason a checker's refusal of a key is shown with.
+fn refused_reason(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Niri => "keys.invalid.niri",
+        Kind::Sway => "keys.invalid.sway",
+        Kind::Hyprland => "keys.invalid.hyprland",
+    }
+}
+
+/// The stub a file of ours becomes while `keys.write` is off: an include that names it keeps working (niri refuses a
+/// config whose include is missing), and binds nothing.
+fn stub(kind: Kind) -> String {
+    let c = if kind == Kind::Niri { "//" } else { "#" };
+    let mut s = format!(
+        "{}\n{c} keys.write is off: your compositor's own config keeps the keys. Kept so an include of it still works.\n",
+        header(kind)
+    );
+    if kind == Kind::Niri {
+        s.push_str("binds {\n}\n");
+    }
+    s
+}
+
+/// A word for `sh`: the command Sway's and Hyprland's `exec` run through it. Plain words stay as they are.
+fn sh_word(s: &str) -> String {
+    if !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/._-+:@%=".contains(c))
+    {
+        s.to_owned()
+    } else {
+        sh_quote(s)
+    }
+}
+
+/// A single-quoted word for `sh`. Sway passes single quotes through to the shell untouched, so JSON in them arrives
+/// whole (the probe that fixed this: `'{"side":"right"}'` as one argument; the escaped-quote forms did not).
+fn sh_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\\''"))
+}
+
+/// The command a bind runs: `<kurashi> act <action> '<args>'`.
+fn act_command(b: &Bind, program: &str) -> String {
+    let args = b
+        .args
+        .map(|a| format!(" {}", sh_quote(a)))
+        .unwrap_or_default();
+    format!("{program} act {}{args}", b.action)
+}
+
+/// The binds file for niri (as `docs/niri-binds.kdl`): the entries in state `ok`, each spawning `kurashi act`, named by
+/// their overlay title (`titles` in [`BINDS`] order).
+fn render_niri(entries: &[Entry], kurashi: &Path, titles: &[String]) -> String {
     let mut s = String::new();
     s.push_str(HEADER);
     s.push_str("\n// Change them there, not here: this file is written again when they change.\n");
     s.push_str("// niri reads it once ~/.config/niri/config.kdl includes it, after your own binds {} block:\n");
     s.push_str(&format!("//     {NIRI_INCLUDE}\n\nbinds {{\n"));
     let program = kdl_string(&kurashi.to_string_lossy());
-    for (e, b) in entries.iter().zip(BINDS.iter()) {
+    for (i, (e, b)) in entries.iter().zip(BINDS.iter()).enumerate() {
         let Some(c) = e.parsed.as_ref().filter(|_| e.state == "ok") else {
             continue;
         };
         let mut lhs = vec![c.text()];
+        if let Some(title) = titles.get(i) {
+            lhs.push(format!("hotkey-overlay-title={}", kdl_string(title)));
+        }
         if b.always {
             lhs.push("allow-inhibiting=false".into());
         }
@@ -473,31 +641,129 @@ pub fn render_niri(entries: &[Entry], kurashi: &Path) -> String {
     s
 }
 
-/// The stub a file of ours becomes while `keys.write` is off: an include that names it keeps working (niri refuses a
-/// config whose include is missing), and binds nothing.
-fn stub_niri() -> String {
+fn kdl_string(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// The header of a `#`-commented file: where the compositor reads it from.
+fn hash_header(include: &str) -> String {
     format!(
-        "{HEADER}\n// keys.write is off: your compositor's own config keeps the keys. Kept so an include of it still works.\nbinds {{\n}}\n"
+        "{HEADER_HASH}\n# Change them there, not here: this file is written again when they change.\n# The compositor reads it where its config includes it:\n#     {include}\n"
     )
 }
 
-/// `niri validate` of a file's text: `None` without a niri on PATH (or one that does not answer in time), else its
-/// verdict with the message.
-pub fn niri_validate(program: &Path, text: &str) -> Option<Result<(), String>> {
+/// The binds file for Sway: `bindsym` lines. `--locked` for a bind that works while locked, `--inhibited` for one that
+/// works while an app inhibits shortcuts, `--no-repeat` for every bind that does not repeat while held.
+fn render_sway(entries: &[Entry], kurashi: &Path, include: &str) -> String {
+    let mut s = hash_header(include);
+    s.push('\n');
+    let program = sh_word(&kurashi.to_string_lossy());
+    for (e, b) in entries.iter().zip(BINDS.iter()) {
+        let Some(c) = e.parsed.as_ref().filter(|_| e.state == "ok") else {
+            continue;
+        };
+        let Some(mods) = c.spelled_mods(Kind::Sway) else {
+            continue;
+        };
+        let mut flags = String::new();
+        if b.locked {
+            flags.push_str("--locked ");
+        }
+        if b.always {
+            flags.push_str("--inhibited ");
+        }
+        if !b.repeat {
+            flags.push_str("--no-repeat ");
+        }
+        let combo: Vec<&str> = mods.iter().copied().chain([c.key()]).collect();
+        s.push_str(&format!(
+            "bindsym {flags}{} exec {}\n",
+            combo.join("+"),
+            act_command(b, &program)
+        ));
+    }
+    s
+}
+
+/// The binds file for Hyprland: `bind` lines (`binde` repeats while held, `bindl` works while locked), the modifiers
+/// space-separated before the key. Hyprland has no inhibit bypass, so `allow-inhibiting=false` is not in its file.
+fn render_hypr(entries: &[Entry], kurashi: &Path, include: &str) -> String {
+    let mut s = hash_header(include);
+    s.push('\n');
+    let program = sh_word(&kurashi.to_string_lossy());
+    for (e, b) in entries.iter().zip(BINDS.iter()) {
+        let Some(c) = e.parsed.as_ref().filter(|_| e.state == "ok") else {
+            continue;
+        };
+        let Some(mods) = c.spelled_mods(Kind::Hyprland) else {
+            continue;
+        };
+        let flags = format!(
+            "{}{}",
+            if b.repeat { "e" } else { "" },
+            if b.locked { "l" } else { "" }
+        );
+        s.push_str(&format!(
+            "bind{flags} = {}, {}, exec, {}\n",
+            mods.join(" "),
+            c.key(),
+            act_command(b, &program)
+        ));
+    }
+    s
+}
+
+/// The file for `kind`: the entries in state `ok`, each bound to `kurashi act <action>`.
+fn render(
+    kind: Kind,
+    entries: &[Entry],
+    kurashi: &Path,
+    include: &str,
+    titles: &[String],
+) -> String {
+    match kind {
+        Kind::Niri => render_niri(entries, kurashi, titles),
+        Kind::Sway => render_sway(entries, kurashi, include),
+        Kind::Hyprland => render_hypr(entries, kurashi, include),
+    }
+}
+
+/// Modifiers a compositor has no name for leave the file, with the reason (the file is written without them).
+fn mark_unspellable(kind: Kind, entries: &mut [Entry]) {
+    for e in entries.iter_mut().filter(|e| e.state == "ok") {
+        let unspellable = e
+            .parsed
+            .as_ref()
+            .is_some_and(|c| c.spelled_mods(kind).is_none());
+        if unspellable {
+            e.state = "invalid";
+            e.reason = Some("keys.invalid.modifier_here".into());
+        }
+    }
+}
+
+/// The checker's verdict on a file's text: `None` when it does not answer in time (or the checker is not there), else
+/// `Ok`, or the messages it gave.
+pub fn check(kind: Kind, program: &Path, text: &str) -> Option<Result<(), String>> {
     // One name per check: two runs at once (tests in parallel) must not read each other's file.
-    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let tmp = std::env::temp_dir().join(format!("kurashid-keys-{}-{n}.kdl", std::process::id()));
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let n = SEQ.fetch_add(1, Ordering::Relaxed);
+    let ext = if kind == Kind::Niri { "kdl" } else { "conf" };
+    let tmp = std::env::temp_dir().join(format!("kurashid-keys-{}-{n}.{ext}", std::process::id()));
     std::fs::write(&tmp, text).ok()?;
-    let result = run_validate(program, &tmp);
+    let result = run_check(kind, program, &tmp);
     let _ = std::fs::remove_file(&tmp);
     result
 }
 
-fn run_validate(program: &Path, file: &Path) -> Option<Result<(), String>> {
+fn run_check(kind: Kind, program: &Path, file: &Path) -> Option<Result<(), String>> {
+    let flags: &[&str] = match kind {
+        Kind::Niri => &["validate", "-c"],
+        Kind::Sway => &["-C", "-c"],
+        Kind::Hyprland => &["--verify-config", "-c"],
+    };
     let mut child = Command::new(program)
-        .arg("validate")
-        .arg("-c")
+        .args(flags)
         .arg(file)
         .env("NO_COLOR", "1")
         .stdin(Stdio::null())
@@ -505,7 +771,7 @@ fn run_validate(program: &Path, file: &Path) -> Option<Result<(), String>> {
         .stderr(Stdio::piped())
         .spawn()
         .ok()?;
-    let deadline = Instant::now() + Duration::from_secs(3);
+    let deadline = Instant::now() + Duration::from_secs(5);
     let status = loop {
         match child.try_wait() {
             Ok(Some(s)) => break s,
@@ -513,7 +779,7 @@ fn run_validate(program: &Path, file: &Path) -> Option<Result<(), String>> {
             _ => {
                 let _ = child.kill();
                 let _ = child.wait();
-                tracing::warn!("niri validate did not answer in time");
+                tracing::warn!("keys: the compositor's checker did not answer in time");
                 return None;
             }
         }
@@ -522,15 +788,66 @@ fn run_validate(program: &Path, file: &Path) -> Option<Result<(), String>> {
     if let Some(mut e) = child.stderr.take() {
         let _ = e.read_to_string(&mut err);
     }
-    Some(if status.success() { Ok(()) } else { Err(err) })
+    // `sway -C` exits 0 when only an included file has an error, so its own message decides too.
+    let failed = !status.success() || err.contains("Error(s) loading config");
+    Some(if failed { Err(err) } else { Ok(()) })
 }
 
-/// The key niri named in "invalid key: X", if that is what it refused.
-fn refused_key(message: &str) -> Option<String> {
-    let i = message.find("invalid key: ")?;
-    let rest = &message[i + "invalid key: ".len()..];
-    let key: String = rest.chars().take_while(|c| !c.is_whitespace()).collect();
+/// The key a checker refused, named in its message: niri's `invalid key: X`, Sway's `Unknown key or button 'X'`.
+/// Hyprland names no key in its errors (it does not check key names), so its refusals leave the file unwritten.
+fn refused_key(kind: Kind, message: &str) -> Option<String> {
+    let (marker, end) = match kind {
+        Kind::Niri => ("invalid key: ", None),
+        Kind::Sway => ("Unknown key or button '", Some('\'')),
+        Kind::Hyprland => return None,
+    };
+    let i = message.find(marker)?;
+    let rest = &message[i + marker.len()..];
+    let key: String = match end {
+        Some(stop) => rest.chars().take_while(|c| *c != stop).collect(),
+        None => rest.chars().take_while(|c| !c.is_whitespace()).collect(),
+    };
     (!key.is_empty()).then_some(key)
+}
+
+/// What a checker's refusal says, for the document: the lines without colour and debug noise.
+fn detail_of(kind: Kind, message: &str) -> String {
+    let lines: Vec<String> = message
+        .lines()
+        .map(|l| strip_ansi(l).trim().to_owned())
+        .filter(|l| !l.is_empty())
+        .collect();
+    if kind == Kind::Niri {
+        return lines.join(" ");
+    }
+    let errors: Vec<&str> = lines
+        .iter()
+        .map(String::as_str)
+        .filter(|l| l.to_lowercase().contains("error") && !l.contains("Nvidia"))
+        .collect();
+    if errors.is_empty() {
+        lines.join(" ")
+    } else {
+        errors.join(" ")
+    }
+}
+
+/// Removes the terminal colour codes a checker prints (`ESC [ … m`).
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            for d in chars.by_ref() {
+                if d.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// A program on PATH, as `Command` would find it.
@@ -578,8 +895,10 @@ pub struct Run<'a> {
     pub compositor: Option<Kind>,
     /// What the binds spawn.
     pub kurashi: &'a Path,
-    /// `niri` for `niri validate`, when there is one.
-    pub niri: Option<&'a Path>,
+    /// The compositor's checker, when one is on PATH.
+    pub checker: Option<&'a Path>,
+    /// The niri overlay titles, in [`BINDS`] order (the locale's, see [`overlay_titles`]).
+    pub titles: &'a [String],
 }
 
 /// Judges the combos, writes the file when it is ours to write and changed, and returns the `svc.keys` document.
@@ -589,19 +908,21 @@ pub fn apply(run: &Run) -> Value {
         "write": run.write,
         "compositor": run.compositor.map(Kind::name),
     });
-    if run.compositor != Some(Kind::Niri) {
+    let Some(kind) = run.compositor else {
         doc["state"] = json!(if run.write { "unsupported" } else { "off" });
         doc["binds"] = binds_json(&entries);
         return doc;
-    }
-    let file = run.home.join(NIRI_FILE);
-    let cfg = run.home.join(NIRI_CONFIG);
+    };
+    let (file_rel, config_rel) = files(kind);
+    let file = run.home.join(file_rel);
+    let cfg = run.home.join(config_rel);
     let cfg_text = std::fs::read_to_string(&cfg).unwrap_or_default();
-    let (theirs, include_at) = scan_config(&cfg_text);
+    let (theirs, include_at) = scan_config(kind, &cfg_text);
+    let include = include_line(kind, &file);
     doc["file"] = json!(file.to_string_lossy());
     doc["include"] = json!({
         "file": cfg.to_string_lossy(),
-        "line": NIRI_INCLUDE,
+        "line": include,
         "present": include_at.is_some(),
     });
     let meta = std::fs::symlink_metadata(&file).ok();
@@ -613,7 +934,7 @@ pub fn apply(run: &Run) -> Value {
     };
     let ours = existing
         .as_deref()
-        .is_none_or(|t| t.starts_with(HEADER) || t.trim().is_empty());
+        .is_none_or(|t| t.starts_with(header(kind)) || t.trim().is_empty());
     if link {
         // Home-Manager's file (programs.kurashi.niri.binds) is a link into the store: its keys are in effect, not ours.
         doc["state"] = json!("managed");
@@ -625,14 +946,14 @@ pub fn apply(run: &Run) -> Value {
     } else if !run.write {
         doc["state"] = json!("off");
         if existing.is_some()
-            && let Err(e) = write_if_changed(&file, &stub_niri())
+            && let Err(e) = write_if_changed(&file, &stub(kind))
         {
             tracing::warn!(error = %e, "keys: could not empty the binds file");
         }
     } else {
-        write_niri(run, &file, &mut entries, &mut doc);
+        write_file(run, kind, &file, &include, &mut entries, &mut doc);
     }
-    // Only a file niri reads can collide with the user's own binds.
+    // Only a file the compositor reads can collide with the user's own binds (niri's config: see the module doc).
     if include_at.is_some() && doc["state"] == "written" {
         for e in entries.iter_mut().filter(|e| e.state == "ok") {
             let canon = e.parsed.as_ref().map(Combo::canon).unwrap_or_default();
@@ -645,21 +966,30 @@ pub fn apply(run: &Run) -> Value {
     doc
 }
 
-/// Renders, lets niri check it (a key it does not know is left out and named), and writes it when it changed.
-fn write_niri(run: &Run, file: &Path, entries: &mut [Entry], doc: &mut Value) {
-    let mut text = render_niri(entries, run.kurashi);
+/// Renders, lets the checker judge it (a key it refuses is left out and named, when the message names one), and writes
+/// it when it changed.
+fn write_file(
+    run: &Run,
+    kind: Kind,
+    file: &Path,
+    include: &str,
+    entries: &mut [Entry],
+    doc: &mut Value,
+) {
+    mark_unspellable(kind, entries);
+    let mut text = render(kind, entries, run.kurashi, include, run.titles);
     let unchanged = std::fs::read_to_string(file).is_ok_and(|old| old == text);
-    if !unchanged && let Some(niri) = run.niri {
+    if !unchanged && let Some(program) = run.checker {
         let mut checked = false;
         for _ in 0..=BINDS.len() {
-            match niri_validate(niri, &text) {
+            match check(kind, program, &text) {
                 None => break,
                 Some(Ok(())) => {
                     checked = true;
                     break;
                 }
                 Some(Err(msg)) => {
-                    let bad = refused_key(&msg).map(|k| k.to_lowercase());
+                    let bad = refused_key(kind, &msg).map(|k| k.to_lowercase());
                     let hit = entries.iter_mut().filter(|e| e.state == "ok").find(|e| {
                         bad.as_deref().is_some_and(|b| {
                             e.parsed
@@ -670,18 +1000,13 @@ fn write_niri(run: &Run, file: &Path, entries: &mut [Entry], doc: &mut Value) {
                     match hit {
                         Some(e) => {
                             e.state = "invalid";
-                            e.reason = Some("keys.invalid.niri".into());
-                            text = render_niri(entries, run.kurashi);
+                            e.reason = Some(refused_reason(kind).into());
+                            text = render(kind, entries, run.kurashi, include, run.titles);
                         }
                         None => {
-                            let detail = msg
-                                .lines()
-                                .map(str::trim)
-                                .filter(|l| !l.is_empty())
-                                .collect::<Vec<_>>();
                             doc["state"] = json!("error");
-                            doc["error"] = json!("keys.error.niri_refused");
-                            doc["detail"] = json!(detail.join(" "));
+                            doc["error"] = json!("keys.error.refused");
+                            doc["detail"] = json!(detail_of(kind, &msg));
                             return;
                         }
                     }
@@ -703,7 +1028,8 @@ fn write_niri(run: &Run, file: &Path, entries: &mut [Entry], doc: &mut Value) {
     }
 }
 
-fn binds_json(entries: &[Entry]) -> Value {
+/// The document's `binds`: one row per shortcut, in [`BINDS`] order (`pub` for the mock's copy of the document).
+pub fn binds_json(entries: &[Entry]) -> Value {
     let list: Vec<Value> = entries
         .iter()
         .zip(BINDS.iter())
@@ -735,6 +1061,33 @@ fn binds_json(entries: &[Entry]) -> Value {
     Value::Array(list)
 }
 
+/// The overlay title of each bind, in [`BINDS`] order: the template `keys.overlay.title` with the action's label
+/// (`config.keys.<field>.label`, the Settings row's own name). A key missing from `strings` shows the field name.
+pub fn overlay_titles(strings: &BTreeMap<String, String>) -> Vec<String> {
+    let template = strings
+        .get(OVERLAY_TITLE)
+        .map_or("{action}", String::as_str);
+    BINDS
+        .iter()
+        .map(|b| {
+            let label = strings
+                .get(&format!("config.keys.{}.label", b.field))
+                .map_or(b.field, String::as_str);
+            template.replace("{action}", label)
+        })
+        .collect()
+}
+
+/// The strings of `locale` over English, as the daemon's i18n document holds them.
+fn strings_of(locale: &str) -> BTreeMap<String, String> {
+    let root = crate::i18n::data_dir().join("i18n");
+    let mut out = crate::i18n::load_locale(&root, crate::i18n::FALLBACK);
+    if locale != crate::i18n::FALLBACK {
+        out.extend(crate::i18n::load_locale(&root, locale));
+    }
+    out
+}
+
 // --- wiring --------------------------------------------------------------------------------------
 
 fn config_home() -> PathBuf {
@@ -750,9 +1103,12 @@ struct Keys {
     store: Arc<ConfigStore>,
     compositor: Option<Kind>,
     kurashi: PathBuf,
+    /// The overlay titles in the session's language, read once (the locale is the session's).
+    titles: Vec<String>,
     /// One run at a time: the last one reads the latest values.
     turn: Mutex<()>,
-    /// niri's config directory watched while Settings shows the document: an include line added by hand shows at once.
+    /// The compositor's config directory watched while Settings shows the document: an include line added by hand shows
+    /// at once.
     watcher: Mutex<Option<notify::RecommendedWatcher>>,
 }
 
@@ -769,7 +1125,9 @@ impl Keys {
             .store
             .get("keys.write", None)
             .is_some_and(|p| p.value == Value::Bool(true));
-        let niri = on_path("niri");
+        let checker = self
+            .compositor
+            .and_then(|kind| checkers(kind).iter().find_map(|n| on_path(n)));
         let home = config_home();
         let doc = apply(&Run {
             home: &home,
@@ -777,31 +1135,37 @@ impl Keys {
             values: BINDS.iter().map(|b| (b.field, text(b.field))).collect(),
             compositor: self.compositor,
             kurashi: &self.kurashi,
-            niri: niri.as_deref(),
+            checker: checker.as_deref(),
+            titles: &self.titles,
         });
         let _ = self.hub.set(DOC, doc, None);
     }
 }
 
-/// The provider: a run when the first viewer subscribes (a file edited by hand since shows as it is now), and niri's
-/// config directory watched while one does (Ma: nothing runs while nobody looks; config changes run regardless).
+/// The provider: a run when the first viewer subscribes (a file edited by hand since shows as it is now), and the
+/// compositor's config directory watched while one does (Ma: nothing runs while nobody looks; config changes run
+/// regardless).
 struct KeysProvider(Arc<Keys>);
 
 impl Provider for KeysProvider {
     fn start(&self, _hub: Arc<Hub>) {
         self.0.run();
-        if self.0.compositor != Some(Kind::Niri) {
+        let Some(kind) = self.0.compositor else {
             return;
-        }
+        };
         use notify::Watcher;
         let keys = self.0.clone();
-        let dir = config_home().join("niri");
+        let (file_rel, config_rel) = files(kind);
+        let dir = config_home().join(Path::new(config_rel).parent().unwrap_or(Path::new("")));
+        let names: Vec<OsString> = [file_rel, config_rel]
+            .iter()
+            .filter_map(|p| Path::new(p).file_name().map(OsString::from))
+            .collect();
         let watcher = notify::recommended_watcher(move |ev: notify::Result<notify::Event>| {
             let ours = ev.is_ok_and(|e| {
-                e.paths.iter().any(|p| {
-                    p.file_name()
-                        .is_some_and(|n| n == "config.kdl" || n == "kurashi-binds.kdl")
-                })
+                e.paths
+                    .iter()
+                    .any(|p| p.file_name().is_some_and(|n| names.iter().any(|x| x == n)))
             });
             if ours {
                 keys.run();
@@ -813,7 +1177,7 @@ impl Provider for KeysProvider {
                     *self.0.watcher.lock().unwrap_or_else(|e| e.into_inner()) = Some(w);
                 }
             }
-            Err(e) => tracing::debug!(error = %e, "keys: no watcher for niri's config"),
+            Err(e) => tracing::debug!(error = %e, "keys: no watcher for the compositor's config"),
         }
     }
 
@@ -824,11 +1188,13 @@ impl Provider for KeysProvider {
 
 /// `svc.keys`, kept current after each config change.
 pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>, compositor: Option<Kind>) {
+    let locale = crate::i18n::locale_from_env();
     let keys = Arc::new(Keys {
         hub: hub.clone(),
         store: store.clone(),
         compositor,
         kurashi: kurashi_binary(),
+        titles: overlay_titles(&strings_of(&locale)),
         turn: Mutex::new(()),
         watcher: Mutex::new(None),
     });
@@ -840,7 +1206,7 @@ pub fn register(hub: &Arc<Hub>, store: &Arc<ConfigStore>, compositor: Option<Kin
     keys.run();
     store.on_change(move |_| {
         let k = keys.clone();
-        // A changed file is checked by niri (a subprocess): off the caller's thread.
+        // A changed file is checked by the compositor's checker (a subprocess): off the caller's thread.
         match tokio::runtime::Handle::try_current() {
             Ok(rt) => {
                 rt.spawn_blocking(move || k.run());
@@ -887,20 +1253,38 @@ mod tests {
         v
     }
 
-    fn run<'a>(
+    /// The English overlay titles (the shipped strings) and the Japanese ones, which carry non-ASCII into the KDL.
+    fn titles(locale: &str) -> Vec<String> {
+        overlay_titles(&strings_of(locale))
+    }
+
+    fn run_as<'a>(
+        kind: Kind,
         home: &'a Path,
         write: bool,
         values: Vec<(&'static str, String)>,
-        niri: Option<&'a Path>,
+        checker: Option<&'a Path>,
+        titles: &'a [String],
     ) -> Value {
         apply(&Run {
             home,
             write,
             values,
-            compositor: Some(Kind::Niri),
+            compositor: Some(kind),
             kurashi: Path::new("/run/current-system/sw/bin/kurashi"),
-            niri,
+            checker,
+            titles,
         })
+    }
+
+    fn run<'a>(
+        home: &'a Path,
+        write: bool,
+        values: Vec<(&'static str, String)>,
+        checker: Option<&'a Path>,
+        titles: &'a [String],
+    ) -> Value {
+        run_as(Kind::Niri, home, write, values, checker, titles)
     }
 
     fn bind_of<'a>(doc: &'a Value, key: &str) -> &'a Value {
@@ -912,15 +1296,16 @@ mod tests {
             .unwrap_or_else(|| panic!("no {key} in {doc}"))
     }
 
-    /// niri on PATH, or the test says it skips that part (it never fails on a machine without niri).
-    fn niri() -> Option<PathBuf> {
-        let n = on_path("niri");
-        if n.is_none() {
+    /// The checker of `kind` on PATH, or the test says it skips that part (it never fails on a machine without it).
+    fn checker(kind: Kind) -> Option<PathBuf> {
+        let c = checkers(kind).iter().find_map(|n| on_path(n));
+        if c.is_none() {
             eprintln!(
-                "SKIPPED: `niri` is not on PATH here — the rendered file was not checked by niri validate"
+                "SKIPPED: no {} on PATH — the rendered file was not checked",
+                kind.name()
             );
         }
-        n
+        c
     }
 
     #[test]
@@ -987,9 +1372,31 @@ mod tests {
     }
 
     #[test]
+    fn keys_titles_come_from_the_locale_and_name_each_action() {
+        let en = titles("en");
+        assert_eq!(en[0], "kurashi: Launcher");
+        assert_eq!(en[2], "kurashi: Right sidebar");
+        assert_eq!(en.len(), BINDS.len());
+        let ja = titles("ja");
+        assert!(ja[0].starts_with("暮らし: "), "{}", ja[0]);
+        // Every bind has a label of its own in both locales (a missing one would show the field name).
+        for b in BINDS.iter() {
+            for locale in ["en", "ja"] {
+                let strings = strings_of(locale);
+                assert!(
+                    strings.contains_key(&format!("config.keys.{}.label", b.field)),
+                    "no {locale} label for keys.{}",
+                    b.field
+                );
+            }
+        }
+    }
+
+    #[test]
     fn keys_render_matches_the_snippet() {
         let dir = tempfile::tempdir().unwrap();
-        let doc = run(dir.path(), true, defaults(), None);
+        let t = titles("en");
+        let doc = run(dir.path(), true, defaults(), None, &t);
         assert_eq!(doc["state"], "written", "{doc}");
         assert_eq!(doc["changed"], true);
         assert_eq!(doc["include"]["present"], false);
@@ -997,18 +1404,20 @@ mod tests {
         let text = std::fs::read_to_string(dir.path().join(NIRI_FILE)).unwrap();
         let k = "\"/run/current-system/sw/bin/kurashi\" \"act\"";
         for line in [
-            format!("Mod+Space repeat=false {{ spawn {k} \"launcher.toggle\"; }}"),
             format!(
-                "Mod+Shift+N repeat=false {{ spawn {k} \"sidebar.toggle\" \"{{\\\"side\\\":\\\"right\\\"}}\"; }}"
+                "Mod+Space hotkey-overlay-title=\"kurashi: Launcher\" repeat=false {{ spawn {k} \"launcher.toggle\"; }}"
             ),
             format!(
-                "Mod+Shift+E allow-inhibiting=false repeat=false {{ spawn {k} \"session.menu\"; }}"
+                "Mod+Shift+N hotkey-overlay-title=\"kurashi: Right sidebar\" repeat=false {{ spawn {k} \"sidebar.toggle\" \"{{\\\"side\\\":\\\"right\\\"}}\"; }}"
             ),
             format!(
-                "XF86AudioRaiseVolume allow-when-locked=true {{ spawn {k} \"audio.volume.up\"; }}"
+                "Mod+Shift+E hotkey-overlay-title=\"kurashi: Session menu\" allow-inhibiting=false repeat=false {{ spawn {k} \"session.menu\"; }}"
             ),
             format!(
-                "XF86AudioMute allow-when-locked=true repeat=false {{ spawn {k} \"audio.mute.toggle\"; }}"
+                "XF86AudioRaiseVolume hotkey-overlay-title=\"kurashi: Volume up\" allow-when-locked=true {{ spawn {k} \"audio.volume.up\"; }}"
+            ),
+            format!(
+                "XF86AudioMute hotkey-overlay-title=\"kurashi: Mute\" allow-when-locked=true repeat=false {{ spawn {k} \"audio.mute.toggle\"; }}"
             ),
         ] {
             assert!(text.contains(&line), "missing `{line}` in\n{text}");
@@ -1021,11 +1430,13 @@ mod tests {
     #[test]
     fn keys_bad_and_duplicate_combos_stay_out_of_the_file() {
         let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
         let doc = run(
             dir.path(),
             true,
             with(&[("quick", "Mod+N"), ("settings", "Mod+Foo")]),
             None,
+            &t,
         );
         let text = std::fs::read_to_string(dir.path().join(NIRI_FILE)).unwrap();
         assert_eq!(text.matches("Mod+N ").count(), 1, "{text}");
@@ -1047,12 +1458,13 @@ mod tests {
     #[test]
     fn keys_write_only_on_change_and_stub_when_off() {
         let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
         let file = dir.path().join(NIRI_FILE);
-        assert_eq!(run(dir.path(), true, defaults(), None)["changed"], true);
-        let again = run(dir.path(), true, defaults(), None);
+        assert_eq!(run(dir.path(), true, defaults(), None, &t)["changed"], true);
+        let again = run(dir.path(), true, defaults(), None, &t);
         assert_eq!(again["state"], "written");
         assert_eq!(again["changed"], false);
-        let changed = run(dir.path(), true, with(&[("quick", "Mod+Q")]), None);
+        let changed = run(dir.path(), true, with(&[("quick", "Mod+Q")]), None, &t);
         assert_eq!(changed["changed"], true);
         assert!(
             std::fs::read_to_string(&file)
@@ -1060,7 +1472,7 @@ mod tests {
                 .contains("quick.toggle")
         );
         // Off: the file stays (an include of it must keep working) but binds nothing.
-        let off = run(dir.path(), false, defaults(), None);
+        let off = run(dir.path(), false, defaults(), None, &t);
         assert_eq!(off["state"], "off");
         let text = std::fs::read_to_string(&file).unwrap();
         assert!(
@@ -1069,18 +1481,22 @@ mod tests {
         );
         // Off with no file: none is made.
         let fresh = tempfile::tempdir().unwrap();
-        assert_eq!(run(fresh.path(), false, defaults(), None)["state"], "off");
+        assert_eq!(
+            run(fresh.path(), false, defaults(), None, &t)["state"],
+            "off"
+        );
         assert!(!fresh.path().join(NIRI_FILE).exists());
     }
 
     #[test]
     fn keys_leave_a_managed_symlink_and_a_foreign_file_alone() {
+        let t = titles("en");
         let dir = tempfile::tempdir().unwrap();
         let store = dir.path().join("store-binds.kdl");
         std::fs::write(&store, "binds {\n}\n").unwrap();
         std::fs::create_dir_all(dir.path().join("niri")).unwrap();
         std::os::unix::fs::symlink(&store, dir.path().join(NIRI_FILE)).unwrap();
-        let doc = run(dir.path(), true, defaults(), None);
+        let doc = run(dir.path(), true, defaults(), None, &t);
         assert_eq!(doc["state"], "managed", "{doc}");
         assert_eq!(doc["target"], json!(store.to_string_lossy()));
         assert_eq!(std::fs::read_to_string(&store).unwrap(), "binds {\n}\n");
@@ -1091,7 +1507,10 @@ mod tests {
                 .is_symlink()
         );
         // Off changes nothing either.
-        assert_eq!(run(dir.path(), false, defaults(), None)["state"], "managed");
+        assert_eq!(
+            run(dir.path(), false, defaults(), None, &t)["state"],
+            "managed"
+        );
         assert_eq!(std::fs::read_to_string(&store).unwrap(), "binds {\n}\n");
 
         let other = tempfile::tempdir().unwrap();
@@ -1099,7 +1518,7 @@ mod tests {
         let copy = "// my copy of the snippet\nbinds {\n    Mod+Space { spawn \"fuzzel\"; }\n}\n";
         std::fs::write(other.path().join(NIRI_FILE), copy).unwrap();
         assert_eq!(
-            run(other.path(), true, defaults(), None)["state"],
+            run(other.path(), true, defaults(), None, &t)["state"],
             "foreign"
         );
         assert_eq!(
@@ -1110,6 +1529,7 @@ mod tests {
 
     #[test]
     fn keys_report_the_include_and_binds_of_the_users_config() {
+        let t = titles("en");
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(dir.path().join("niri")).unwrap();
         // Mod+Space bound before the include (ours replaces it), Mod+N after it (theirs wins); a commented include
@@ -1120,7 +1540,7 @@ mod tests {
              include \"kurashi-binds.kdl\"\nbinds {\n    mod+n { spawn \"mako\"; }\n}\n",
         )
         .unwrap();
-        let doc = run(dir.path(), true, defaults(), None);
+        let doc = run(dir.path(), true, defaults(), None, &t);
         assert_eq!(doc["include"]["present"], true, "{doc}");
         assert_eq!(bind_of(&doc, "keys.launcher")["config"], "replaces");
         assert_eq!(bind_of(&doc, "keys.notifications")["config"], "overridden");
@@ -1131,39 +1551,193 @@ mod tests {
             "binds {\n    Mod+N { spawn \"mako\"; }\n}\n",
         )
         .unwrap();
-        let doc = run(dir.path(), true, defaults(), None);
+        let doc = run(dir.path(), true, defaults(), None, &t);
         assert_eq!(doc["include"]["present"], false);
         assert!(bind_of(&doc, "keys.notifications").get("config").is_none());
     }
 
     #[test]
-    fn keys_other_compositors_write_nothing() {
+    fn keys_no_compositor_writes_nothing() {
         let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
         let doc = apply(&Run {
             home: dir.path(),
             write: true,
             values: defaults(),
-            compositor: Some(Kind::Sway),
+            compositor: None,
             kurashi: Path::new("kurashi"),
-            niri: None,
+            checker: None,
+            titles: &t,
         });
         assert_eq!(doc["state"], "unsupported");
-        assert_eq!(doc["compositor"], "sway");
         assert!(doc.get("file").is_none());
         assert_eq!(bind_of(&doc, "keys.launcher")["canon"], "mod+space");
         assert!(!dir.path().join(NIRI_FILE).exists());
+        assert!(!dir.path().join(SWAY_FILE).exists());
+    }
+
+    #[test]
+    fn keys_sway_renders_bindsym_lines_with_the_json_quoted_for_sh() {
+        let k = "/run/current-system/sw/bin/kurashi";
+        let text = render(
+            Kind::Sway,
+            &evaluate(&defaults()),
+            Path::new(k),
+            SWAY_INCLUDE,
+            &[],
+        );
+        assert!(text.starts_with(HEADER_HASH), "{text}");
+        assert!(text.contains(&format!("#     {SWAY_INCLUDE}\n")), "{text}");
+        for line in [
+            format!("bindsym --no-repeat Mod4+Space exec {k} act launcher.toggle"),
+            format!(
+                "bindsym --no-repeat Mod4+Shift+N exec {k} act sidebar.toggle '{{\"side\":\"right\"}}'"
+            ),
+            format!("bindsym --inhibited --no-repeat Mod4+Shift+E exec {k} act session.menu"),
+            format!("bindsym --inhibited --no-repeat Mod4+Mod1+L exec {k} act session.lock"),
+            format!("bindsym --locked XF86AudioRaiseVolume exec {k} act audio.volume.up"),
+            format!("bindsym --locked --no-repeat XF86AudioMute exec {k} act audio.mute.toggle"),
+        ] {
+            assert!(
+                text.lines().any(|l| l == line),
+                "missing `{line}` in\n{text}"
+            );
+        }
+        // Empty fields bind nothing.
+        assert!(!text.contains("quick.toggle"), "{text}");
+    }
+
+    #[test]
+    fn keys_hyprland_renders_bind_lines() {
+        let k = "/run/current-system/sw/bin/kurashi";
+        let text = render(
+            Kind::Hyprland,
+            &evaluate(&defaults()),
+            Path::new(k),
+            "source = /x/hypr/kurashi-binds.conf",
+            &[],
+        );
+        for line in [
+            format!("bind = SUPER, Space, exec, {k} act launcher.toggle"),
+            format!("bind = SUPER SHIFT, N, exec, {k} act sidebar.toggle '{{\"side\":\"right\"}}'"),
+            format!("bind = SUPER SHIFT, E, exec, {k} act session.menu"),
+            format!("bind = SUPER ALT, L, exec, {k} act session.lock"),
+            format!("bindel = , XF86AudioRaiseVolume, exec, {k} act audio.volume.up"),
+            format!("bindl = , XF86AudioMute, exec, {k} act audio.mute.toggle"),
+        ] {
+            assert!(
+                text.lines().any(|l| l == line),
+                "missing `{line}` in\n{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn keys_sway_and_hyprland_write_their_files_and_name_the_include() {
+        let t = titles("en");
+        for kind in [Kind::Sway, Kind::Hyprland] {
+            let dir = tempfile::tempdir().unwrap();
+            let doc = run_as(kind, dir.path(), true, defaults(), None, &t);
+            assert_eq!(doc["state"], "written", "{doc}");
+            assert_eq!(doc["compositor"], kind.name());
+            assert_eq!(doc["include"]["present"], false);
+            let (file, config) = files(kind);
+            assert_eq!(
+                doc["file"],
+                json!(dir.path().join(file).to_string_lossy()),
+                "{doc}"
+            );
+            assert!(doc["include"]["file"].as_str().unwrap().ends_with(config));
+            // Off keeps a stub that binds nothing; the include of it keeps working.
+            let off = run_as(kind, dir.path(), false, defaults(), None, &t);
+            assert_eq!(off["state"], "off");
+            let text = std::fs::read_to_string(dir.path().join(file)).unwrap();
+            assert!(
+                text.starts_with(HEADER_HASH) && !text.contains("exec"),
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn keys_sway_and_hyprland_see_their_include_lines() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("sway")).unwrap();
+        std::fs::create_dir_all(dir.path().join("hypr")).unwrap();
+        let t = titles("en");
+        std::fs::write(
+            dir.path().join(SWAY_CONFIG),
+            "# include kurashi-binds.conf\n",
+        )
+        .unwrap();
+        let doc = run_as(Kind::Sway, dir.path(), true, defaults(), None, &t);
+        assert_eq!(
+            doc["include"]["present"], false,
+            "a commented include counts: {doc}"
+        );
+        std::fs::write(dir.path().join(SWAY_CONFIG), "include kurashi-binds.conf\n").unwrap();
+        let doc = run_as(Kind::Sway, dir.path(), true, defaults(), None, &t);
+        assert_eq!(doc["include"]["present"], true, "{doc}");
+        // Hyprland: the absolute path it is sourced by.
+        let source = format!(
+            "source = {}\n",
+            dir.path().join(HYPR_FILE).to_string_lossy()
+        );
+        std::fs::write(dir.path().join(HYPR_CONFIG), &source).unwrap();
+        let doc = run_as(Kind::Hyprland, dir.path(), true, defaults(), None, &t);
+        assert_eq!(doc["include"]["line"], json!(source.trim_end()), "{doc}");
+        assert_eq!(doc["include"]["present"], true, "{doc}");
+    }
+
+    #[test]
+    fn keys_sway_foreign_file_and_modifiers_it_cannot_name() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("sway")).unwrap();
+        let copy = "bindsym Mod4+Space exec fuzzel\n";
+        std::fs::write(dir.path().join(SWAY_FILE), copy).unwrap();
+        let t = titles("en");
+        assert_eq!(
+            run_as(Kind::Sway, dir.path(), true, defaults(), None, &t)["state"],
+            "foreign"
+        );
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(SWAY_FILE)).unwrap(),
+            copy
+        );
+        // ISO Level 5 has no name in Sway or Hyprland: the bind is left out with the reason.
+        let other = tempfile::tempdir().unwrap();
+        let doc = run_as(
+            Kind::Sway,
+            other.path(),
+            true,
+            with(&[("quick", "ISO_Level5_Shift+A")]),
+            None,
+            &t,
+        );
+        assert_eq!(doc["state"], "written", "{doc}");
+        assert_eq!(bind_of(&doc, "keys.quick")["state"], "invalid");
+        assert_eq!(
+            bind_of(&doc, "keys.quick")["reason"],
+            "keys.invalid.modifier_here"
+        );
+        let text = std::fs::read_to_string(other.path().join(SWAY_FILE)).unwrap();
+        assert!(!text.contains("quick.toggle"), "{text}");
     }
 
     #[test]
     fn keys_rendered_file_passes_niri_validate() {
-        let Some(niri) = niri() else { return };
+        let Some(niri) = checker(Kind::Niri) else {
+            return;
+        };
         let dir = tempfile::tempdir().unwrap();
+        // Japanese titles: the KDL strings carry non-ASCII, and niri must take them.
+        let t = titles("ja");
         let all = with(&[
             ("quick", "Mod+Q"),
             ("settings", "Ctrl+Alt+Comma"),
             ("webdock", "Mod+B"),
         ]);
-        let doc = run(dir.path(), true, all, Some(&niri));
+        let doc = run(dir.path(), true, all, Some(&niri), &t);
         assert_eq!(doc["state"], "written", "{doc}");
         assert_eq!(doc["checked"], true, "{doc}");
         // As the user's config would: a niri config that includes the rendered file.
@@ -1181,7 +1755,7 @@ mod tests {
             String::from_utf8_lossy(&out.stderr)
         );
         // The stub too: an include of it keeps working while keys.write is off.
-        run(dir.path(), false, defaults(), Some(&niri));
+        run(dir.path(), false, defaults(), Some(&niri), &t);
         let out = Command::new(&niri)
             .arg("validate")
             .arg("-c")
@@ -1196,14 +1770,86 @@ mod tests {
     }
 
     #[test]
-    fn keys_niri_refusing_a_key_leaves_it_out_and_says_so() {
-        let Some(niri) = niri() else { return };
+    fn keys_sway_config_validates_the_written_file() {
+        let Some(sway) = checker(Kind::Sway) else {
+            return;
+        };
         let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
+        let all = with(&[("quick", "Mod+Q"), ("settings", "Ctrl+Alt+Comma")]);
+        let doc = run_as(Kind::Sway, dir.path(), true, all, Some(&sway), &t);
+        assert_eq!(doc["state"], "written", "{doc}");
+        assert_eq!(doc["checked"], true, "{doc}");
+        // Sway's own parser, as a config of its own, accepts the file.
+        let file = dir.path().join(SWAY_FILE);
+        let verdict = check(Kind::Sway, &sway, &std::fs::read_to_string(&file).unwrap());
+        assert!(matches!(verdict, Some(Ok(()))), "{verdict:?}");
+    }
+
+    #[test]
+    fn keys_sway_refused_key_is_left_out_and_says_so() {
+        let Some(sway) = checker(Kind::Sway) else {
+            return;
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
+        let doc = run_as(
+            Kind::Sway,
+            dir.path(),
+            true,
+            with(&[("quick", "Mod+WheelScrollDown")]),
+            Some(&sway),
+            &t,
+        );
+        assert_eq!(doc["state"], "written", "{doc}");
+        assert_eq!(bind_of(&doc, "keys.quick")["state"], "invalid");
+        assert_eq!(bind_of(&doc, "keys.quick")["reason"], "keys.invalid.sway");
+        let text = std::fs::read_to_string(dir.path().join(SWAY_FILE)).unwrap();
+        assert!(
+            !text.contains("WheelScroll") && text.contains("launcher.toggle"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn keys_hyprland_config_verifies_the_written_file() {
+        let Some(hypr) = checker(Kind::Hyprland) else {
+            return;
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
+        let doc = run_as(
+            Kind::Hyprland,
+            dir.path(),
+            true,
+            defaults(),
+            Some(&hypr),
+            &t,
+        );
+        assert_eq!(doc["state"], "written", "{doc}");
+        assert_eq!(doc["checked"], true, "{doc}");
+        let file = dir.path().join(HYPR_FILE);
+        let verdict = check(
+            Kind::Hyprland,
+            &hypr,
+            &std::fs::read_to_string(&file).unwrap(),
+        );
+        assert!(matches!(verdict, Some(Ok(()))), "{verdict:?}");
+    }
+
+    #[test]
+    fn keys_niri_refusing_a_key_leaves_it_out_and_says_so() {
+        let Some(niri) = checker(Kind::Niri) else {
+            return;
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let t = titles("en");
         let doc = run(
             dir.path(),
             true,
             with(&[("quick", "Mod+XF86Bogus")]),
             Some(&niri),
+            &t,
         );
         assert_eq!(doc["state"], "written", "{doc}");
         assert_eq!(bind_of(&doc, "keys.quick")["state"], "invalid");
@@ -1213,5 +1859,46 @@ mod tests {
             !text.contains("Bogus") && text.contains("launcher.toggle"),
             "{text}"
         );
+    }
+
+    #[test]
+    fn keys_the_refusals_name_their_key_and_the_strings_exist() {
+        assert_eq!(
+            refused_key(
+                Kind::Sway,
+                "x Unknown key or button 'WheelScrollDown' (file)"
+            ),
+            Some("WheelScrollDown".into())
+        );
+        assert_eq!(refused_key(Kind::Hyprland, "Invalid mod: FOO"), None);
+        assert_eq!(
+            refused_key(Kind::Niri, "error: invalid key: Bogus\n"),
+            Some("Bogus".into())
+        );
+        assert_eq!(kdl_string("a\"b\\c"), "\"a\\\"b\\\\c\"");
+        assert_eq!(sh_quote("it's"), "'it'\\''s'");
+        assert_eq!(strip_ansi("\u{1b}[1;31mERR\u{1b}[0m x"), "ERR x");
+        // Every reason and message the code names is shipped in both locales.
+        let reasons = [
+            "keys.invalid.syntax",
+            "keys.invalid.modifier",
+            "keys.invalid.key",
+            "keys.invalid.only_modifiers",
+            "keys.invalid.needs_modifier",
+            "keys.invalid.niri",
+            "keys.invalid.sway",
+            "keys.invalid.hyprland",
+            "keys.invalid.modifier_here",
+            "keys.conflict.taken",
+            "keys.error.write_failed",
+            "keys.error.refused",
+            OVERLAY_TITLE,
+        ];
+        for locale in ["en", "ja"] {
+            let strings = strings_of(locale);
+            for key in reasons {
+                assert!(strings.contains_key(key), "no {locale} string for {key}");
+            }
+        }
     }
 }
