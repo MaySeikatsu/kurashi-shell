@@ -371,7 +371,7 @@
 "config.choice.settings_window.window" = "A window"
 "config.choice.settings_window.sheet" = "A sheet over the desktop"
 "config.keys.write.label" = "Shortcuts for the compositor"
-"config.keys.write.help" = "Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config). Off: your compositor's own config keeps the keys, as now."
+"config.keys.write.help" = "Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config; Sway: `kurashi-binds.conf`, read on `swaymsg reload`; Hyprland: `kurashi-binds.conf`, sourced from `hyprland.conf`). Off: your compositor's own config keeps the keys, as now."
 "config.keys.launcher.label" = "Launcher"
 "config.keys.notifications.label" = "Notification centre"
 "config.keys.sidebar_right.label" = "Right sidebar"

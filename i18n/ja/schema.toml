@@ -394,7 +394,7 @@
 "settings.page.keys" = "キー"
 "settings.section.shortcuts" = "ショートカット"
 "config.keys.write.label" = "コンポジターのショートカット"
-"config.keys.write.help" = "これらのショートカットをコンポジターが読むファイルに書きます（niri：設定から include する `kurashi-binds.kdl`）。オフ：今まで通りコンポジター自身の設定がキーを持ちます。"
+"config.keys.write.help" = "これらのショートカットをコンポジターが読むファイルに書きます（niri：設定から include する `kurashi-binds.kdl`／Sway：`swaymsg reload` で読まれる `kurashi-binds.conf`／Hyprland：`hyprland.conf` から source する `kurashi-binds.conf`）。オフ：今まで通りコンポジター自身の設定がキーを持ちます。"
 "config.keys.launcher.label" = "ランチャー"
 "config.keys.notifications.label" = "通知センター"
 "config.keys.sidebar_right.label" = "右サイドバー"

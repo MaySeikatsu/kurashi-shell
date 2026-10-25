@@ -990,7 +990,7 @@ A button at each end of the bar opens that side's sidebar: the left one at the s
 
 #### `keys.write` — Shortcuts for the compositor
 
-Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config). Off: your compositor's own config keeps the keys, as now.
+Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config; Sway: `kurashi-binds.conf`, read on `swaymsg reload`; Hyprland: `kurashi-binds.conf`, sourced from `hyprland.conf`). Off: your compositor's own config keeps the keys, as now.
 
 - type: `bool` · default: `false`
 

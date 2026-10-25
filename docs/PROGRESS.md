@@ -251,6 +251,6 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W37.3 | Calendar: widget opens the agenda, event details, the agenda's day (card `W37-calendar`; K66; I140) | ✅ functional · UX 🟡 (media-current click unshot, I203) | merged |
 | W37.4 | Quick settings: tile tokens, right-click → page, focus, lighter panel (card `W37-quick`; K66; I86) | ✅ functional · UX ✅ (`frontend/shots/quick-sections/`; I204 open) | merged |
 | W38.1 | Drop shadows you can set; shadows that follow the light (card `W38-shadows`; K67; I173b) | ✅ functional · UX ✅ (`frontend/shots/shadows/`; I206 open) | merged |
-| W38.2 | Keys follow-ups: shortcut control, mock svc.keys, overlay titles, Sway/Hyprland binds (card `W38-keys`; I189) | 🟡 in progress | agent running |
+| W38.2 | Keys follow-ups: shortcut control, mock svc.keys, overlay titles, Sway/Hyprland binds (card `W38-keys`; I189) | ✅ functional · UX 🟡 (some states unshot, I208) | merged |
 | W38.3 | Web dock follow-ups: forced_by from the store, inert reason, nested-niri checks (card `W38-webdock`; I191) | ✅ functional · UX 🟡 (niri unverified, I207) | merged |
 | W38.4 | Polish: clock grid, calendar fallback, desk Return, side-bar toasts, DND live (card `W38-polish`; I203, I196, I201, I205) | 🟡 in progress | agent running |

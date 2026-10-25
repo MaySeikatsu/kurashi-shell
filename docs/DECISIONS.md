@@ -700,3 +700,10 @@ moves with the pointer (pointer, spotlight) casts from its rest direction: shado
 rule 5). *Why:* the user (session 13, item d): "static shadow by default but option to adjust it to the light source
 dynamically"; the lead's review in I173: drop shadows from the light are cheap and coherent, true cast shadows across
 windows need the compositor (out of scope).
+
+**K64 amendment 2** (W38-keys, I189): Sway and Hyprland get binds files of their own (`sway/kurashi-binds.conf`,
+`hypr/kurashi-binds.conf`) under the same header/foreign/managed/stub rules. Each is judged by the compositor's checker
+before it is written (`sway -C` — which exits 0 for an error inside an included file, so its error text decides;
+`hyprland --verify-config`; `niri validate`). Sandbox probes with real key presses showed single-quoted JSON is the only
+`exec` argument form that reaches `kurashi act` intact under Sway. niri binds carry `hotkey-overlay-title` so niri's own
+cheat sheet names kurashi's shortcuts.
