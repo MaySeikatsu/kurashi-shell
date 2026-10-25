@@ -49,7 +49,16 @@ Singleton {
     readonly property color outlineColor: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
     readonly property int softR: tok("chrome.soft", 0)
     readonly property int softDy: tok("chrome.soft_dy", 0)
-    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"), tok("chrome.soft_alpha", 0))
+    // K67 (docs/ux/shadows.md), as the shell's Theme: the vector every shadow falls along (`shadow.dx/dy`, the user's
+    // strength and direction or away from the light), its strength (`shadow.alpha_scale`), and the hard shadow's whole-px
+    // vector (none under flat and line chrome). Fallbacks are today's shadows.
+    readonly property real shadowX: tok("shadow.dx", 0)
+    readonly property real shadowY: tok("shadow.dy", shadowDy + softDy)
+    readonly property real shadowAlpha: tok("shadow.alpha_scale", 1)
+    readonly property int sinkX: shadowDy > 0 ? Math.round(shadowX) : 0
+    readonly property int sinkY: shadowDy > 0 ? Math.round(shadowY) : 0
+    readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"),
+        Math.min(1, tok("chrome.soft_alpha", 0) * shadowAlpha))
     readonly property real pressScale: tok("chrome.press_scale", 1)
     readonly property int iconFill: tok("icon.fill", 0)
     readonly property int iconWeight: tok("icon.weight", 400)

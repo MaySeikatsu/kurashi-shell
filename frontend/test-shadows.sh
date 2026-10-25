@@ -12,17 +12,24 @@
 #   settings the Look/material rows with the preview, static and following (the direction inert);
 #   ma       follow on with the pointer's lamp: the pointer sweeping the desktop for 3 s commits no frame of any shell
 #            surface, and a light change (a new direction) repaints and settles again.
+#   surfaces2 (W39, I206) the surfaces that cast their own hard shadow, at 135° strength 2 under sekai (keycap) and glass
+#            (soft): the floating sidebar's column, a toast under the bar and beside it (the bar on the right), the
+#            notification centre, the polkit dialog's field (a harness copy of the frontend), Settings' section cards and
+#            sheet, the lock screen's field (kurashi-mock serves the tokens: the real daemon refuses to lock without PAM).
 # Files: frontend/shots/shadows/*.png and sheet.png (a contact sheet, with ImageMagick). Fails on a server or frontend
 # that does not come up, a token that disagrees with the math, a frame committed while the pointer moves, a QML error.
+# SHADOW_REF=<a frontend dir from before the change, with its settings/ beside it> (e.g. `git archive HEAD frontend settings`
+# into a scratch dir): the defaults must draw pixel for pixel what that frontend draws, for bar, card, quick, and every
+# surfaces2 surface.
 #   nix develop -c frontend/test-shadows.sh
 #   SHADOW_PARTS="tokens matrix" nix develop -c frontend/test-shadows.sh
-# Binaries from $KURASHI_BIN_DIR (kurashid, kurashi), else $CARGO_TARGET_DIR/debug.
+# Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${SHADOW_SANDBOX:-w38-shadows}
+NAME=${SHADOW_SANDBOX:-w39-sh2-shadows}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHADOW_OUT:-$ROOT/frontend/shots/shadows}
-PARTS=${SHADOW_PARTS:-tokens matrix follow press surfaces settings ma}
+PARTS=${SHADOW_PARTS:-tokens matrix follow press surfaces settings ma surfaces2}
 mkdir -p "$OUT"
 fail() { echo "test-shadows: FAIL: $*" >&2; exit 1; }
 say() { echo "test-shadows: $*"; }
@@ -32,9 +39,10 @@ eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
-cp "$BIN/kurashid" "$BIN/kurashi" "$W/"
+cp "$BIN/kurashid" "$BIN/kurashi" "$BIN/kurashi-mock" "$W/"
 pids=()
 QS_PID=
+DPID=
 cleanup() {
   for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
   for p in "${pids[@]}"; do wait "$p" 2>/dev/null || true; done
@@ -93,27 +101,35 @@ r = math.radians(a + 180)
 print("%.4f %.4f" % (math.sin(r) * l * k * s, -math.cos(r) * l * k * s))' "$@"; }
 reason() { K --json get "$1" | python3 -I -c 'import json,sys; print(json.load(sys.stdin).get("reason") or "")'; }
 
-: > "$R/server.log"
-env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
+start_daemon() {  # the real kurashid on the sandbox's socket; its config is whatever `kurashi set` has written so far
+  env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
     PULSE_SERVER="unix:$R/no-pulse/native" PULSE_RUNTIME_PATH="$R/no-pulse" \
     "$W/kurashid" >> "$R/server.log" 2>&1 &
-pids+=("$!")
-for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
-K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
+  DPID=$!
+  pids+=("$DPID")
+  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
+  K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
+}
+stop_daemon() { kill "$DPID" 2>/dev/null || true; wait "$DPID" 2>/dev/null || true; rm -f "$KURASHI_SOCKET"; }
+: > "$R/server.log"
+start_daemon
 swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
 
-start_frontend() {  # start_frontend [ENV=VALUE …]
+# start_frontend_dir <frontend dir> [ENV=VALUE …]: the shell from that directory, once its hello is in the daemon's log.
+start_frontend_dir() {
+  local dir=$1 n0
+  shift
   if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; fi
   : > "$R/qs.log"
-  local n0
   n0=$(grep -c 'hello.*frontend' "$R/server.log" || true)
-  env -u KURASHI_SOCKET "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  env -u KURASHI_SOCKET "$@" qs -p "$dir" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   pids+=("$QS_PID")
   for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] && break; sleep 0.1; done
-  [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] || fail "frontend never said hello (see $R/qs.log)"
+  [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] || fail "frontend never said hello from $dir (see $R/qs.log)"
   sleep 3
 }
+start_frontend() { start_frontend_dir "$ROOT/frontend" "$@"; }  # start_frontend [ENV=VALUE …]
 qml_errors() {
   grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign|Cannot read property" "$R/qs.log" \
     | grep -v "^\s*$" || true
@@ -136,6 +152,188 @@ card() {  # card <name>: the island's card at rest, then closed
   shot "$1" "$CARD"
   K act ui.close >/dev/null || true
   sleep 1.2
+}
+
+# notify <app> <summary> <body> [ms]: one notification on the sandbox's own bus (the daemon serves it).
+notify() {
+  case "${DBUS_SESSION_BUS_ADDRESS:-}" in *"$R"*) ;; *) fail "no sandbox session bus: a notification would reach the real one" ;; esac
+  timeout 10 gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
+    --method org.freedesktop.Notifications.Notify "$1" 0 "" "$2" "$3" '[]' '{}' "${4:-8000}" >/dev/null
+}
+# sq <name> [settings dir] [file]: Settings opened on the shadow rows (its section cards and sheet), the whole output.
+sq() {
+  local dir=${2:-$ROOT/settings} file=${3:-$OUT/settings-$1.png} sp e
+  env -u KURASHI_SOCKET KURASHI_SETTINGS_KEY=theme.material.shadow qs -p "$dir" > "$R/settings-$1.log" 2>&1 &
+  sp=$!
+  pids+=("$sp")
+  for _ in $(seq 100); do qs -p "$dir" ipc call settings current >/dev/null 2>&1 && break; sleep 0.2; done
+  sleep 2
+  grim -o HEADLESS-1 "$file"; say "$file"
+  kill "$sp" 2>/dev/null || true; wait "$sp" 2>/dev/null || true
+  e=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign" "$R/settings-$1.log" || true)
+  [ -z "$e" ] || { echo "$e"; fail "QML errors in Settings ($1)"; }
+}
+# same_px <a.png> <b.png> <label>: ok when the two draw the same pixels, or differ only inside clock-sized boxes (the clocks
+# may turn their minute between two runs). A strong difference (a channel off by more than 64) outside those fails.
+same_px() {
+  python3 -I -c '
+import subprocess, sys
+def px(p):
+    d = subprocess.run(["magick", p, "rgb:-"], capture_output=True, check=True).stdout
+    w, h = map(int, subprocess.run(["magick", "identify", "-format", "%w %h", p], capture_output=True, check=True).stdout.split())
+    return d, w, h
+a, w, h = px(sys.argv[1]); b, _, _ = px(sys.argv[2])
+diff = [i // 3 for i in range(0, len(a), 3) if a[i:i+3] != b[i:i+3]]
+if not diff:
+    print("ok   identical: " + sys.argv[3]); sys.exit(0)
+# Two runs of one frontend differ in a few hundred scattered, faint px (text and blur rasterisation): what counts is a
+# strong difference (a channel off by more than 64), which a moved shadow edge makes along its whole length.
+strong = [i for i in diff if max(abs(a[3*i+c] - b[3*i+c]) for c in range(3)) > 64]
+# Strong px are grouped into blobs (strong px within 3 px of each other, chains included). A clock digit, a glyph or a clock
+# layout shift is a small blob or a few; a moved shadow edge or card is one long one. Every blob must be clock-sized.
+pts = sorted((i % w, i // w) for i in strong)
+cells = {}
+for p in pts:
+    cells.setdefault((p[0] // 4, p[1] // 4), []).append(p)
+parent = {p: p for p in pts}
+def find(p):
+    while parent[p] != p:
+        parent[p] = parent[parent[p]]
+        p = parent[p]
+    return p
+for p in pts:
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for q in cells.get((p[0] // 4 + dx, p[1] // 4 + dy), []):
+                if max(abs(q[0] - p[0]), abs(q[1] - p[1])) <= 3 and find(p) != find(q):
+                    parent[find(p)] = find(q)
+blobs = {}
+for p in pts:
+    blobs.setdefault(find(p), []).append(p)
+sizes = [(max(x for x, _ in g) - min(x for x, _ in g) + 1, max(y for _, y in g) - min(y for _, y in g) + 1, min(x for x, _ in g), min(y for _, y in g)) for g in blobs.values()]
+ok = all(bw <= 80 and bh <= 30 for bw, bh, _, _ in sizes)
+big = sorted(sizes, key=lambda s: -(s[0] * s[1]))[:4]
+print(("ok   " if ok else "FAIL ") + "%s: %d px differ, %d strongly in %d blobs, largest %s" % (sys.argv[3], len(diff), len(strong),
+      len(sizes), " ".join("%dx%d@%d,%d" % s for s in big)))
+sys.exit(0 if ok else 1)' "$1" "$2" "$3"
+}
+# lock_shot <frontend dir> <file>: the lock screen with the tokens in effect. kurashi-mock serves them (the real daemon
+# refuses to lock without its PAM service); the real daemon is started again afterwards, with the same config.
+lock_shot() {
+  local dir=$1 file=$2 mp e
+  K sub theme --count 0 --json | jq -c '{doc: "theme", patch: {tokens: .data.tokens}}' > "$W/lock-theme.json" \
+    || fail "lock: no theme tokens"
+  stop_daemon
+  "$W/kurashi-mock" --outputs HEADLESS-1 --socket "$KURASHI_SOCKET" >> "$R/server.log" 2>&1 &
+  mp=$!
+  pids+=("$mp")
+  for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
+  K act mock.doc "$(cat "$W/lock-theme.json")" >/dev/null || fail "lock: mock.doc theme"
+  if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; fi
+  env -u KURASHI_SOCKET qs -p "$dir" > "$R/qs-lock.log" 2>&1 &
+  QS_PID=$!
+  pids+=("$QS_PID")
+  sleep 4
+  K act mock.doc '{"doc":"runtime.lock","patch":{"locked":true}}' >/dev/null || fail "lock: mock.doc runtime.lock"
+  sleep 2
+  # The field and its shadow (the clock is larger and changes every minute, so it is outside the crop).
+  grim -g "${SHADOW_LOCK_CROP:-1060,740 440x120}" "$file"; say "$file"
+  # Unlock through the daemon before the lock client goes: a session whose lock client dies stays locked (sway paints it
+  # red), and every later shot of the run would be red.
+  K act mock.doc '{"doc":"runtime.lock","patch":{"locked":false}}' >/dev/null || fail "lock: mock.doc unlock"
+  sleep 2
+  kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; QS_PID=
+  kill "$mp" 2>/dev/null || true; wait "$mp" 2>/dev/null || true
+  e=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign" "$R/qs-lock.log" || true)
+  [ -z "$e" ] || { echo "$e"; fail "QML errors in the lock screen"; }
+  start_daemon
+}
+# surf2 <frontend dir> <file prefix> <look> [angle strength]: the surfaces that cast their own hard shadow (I206), one shot
+# each under the look, with the shadow at that angle and strength (none: the defaults). The bar goes to the right for the
+# toasts and the centre, so their own cards (not the bar's shape) cast there.
+surf2() {
+  local dir=$1 pre=$2 lk=$3 pf pp e
+  look "$lk"
+  if [ -n "${4:-}" ]; then set_ theme.material.shadow "$5"; set_ theme.material.shadow_angle "$4"; fi
+  sleep 1
+  set_ sidebar.style floating
+  start_frontend_dir "$dir"
+  K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || fail "sidebar.toggle"
+  sleep 1.8
+  grim -g "2000,0 560x1440" "$pre-sidebar.png"
+  K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || true
+  sleep 1.4
+  K reset sidebar.style >/dev/null 2>&1 || true
+  notify Calendar "Standup in 5 minutes" "Room 3 · bring the notes from Monday" 20000
+  sleep 2.2
+  grim -g "880,0 800x720" "$pre-toast-drip.png"
+  K act notify.dismiss '{}' >/dev/null || true
+  sleep 1.5
+  set_ bar.edge right
+  sleep 2
+  notify Mail "Aiko Tanaka" "The photos from Saturday are in the shared folder." 20000
+  sleep 2.2
+  grim -g "1960,0 600x640" "$pre-toast-slide.png"
+  K act notifications.center >/dev/null || fail "notifications.center"
+  sleep 2
+  grim -g "1960,0 600x900" "$pre-centre.png"
+  K act ui.close >/dev/null || true
+  sleep 1.2
+  K act notify.dismiss '{}' >/dev/null || true
+  sleep 1
+  set_ bar.edge top
+  sleep 2
+  e=$(qml_errors)
+  [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors (see $R/qs.log)"; }
+  kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; QS_PID=
+  # The polkit dialog: a copy of this frontend whose root is the dialog with a fake flow (test-polkit.sh's harness). Its
+  # system bus does not exist, so it never registers an agent.
+  pf=$W/fe-$(basename "$pre")
+  rm -rf "$pf"
+  cp -r "$dir" "$pf"
+  cat > "$pf/polkit-harness.qml" <<'QML'
+import QtQuick
+import Quickshell
+import "core"
+import "surfaces"
+
+ShellRoot {
+    Watch { doc: "theme" }
+    Watch { doc: "i18n" }
+    Watch { doc: "svc.workspaces" }
+    QtObject {
+        id: fake
+        property string message: "Authentication is needed to run the test program as the super user."
+        property string actionId: "org.freedesktop.policykit.exec"
+        property var identities: [{ id: 0, string: "root", displayName: "root", isGroup: false }]
+        property var selectedIdentity: identities[0]
+        property bool isResponseRequired: true
+        property string inputPrompt: "Password: "
+        property bool responseVisible: false
+        property string supplementaryMessage: ""
+        property bool supplementaryIsError: false
+        property bool isCompleted: false
+        signal authenticationFailed()
+        signal authenticationRequestCancelled()
+        function submit(value) { isResponseRequired = false; failLater.start() }
+        function cancelAuthenticationRequest() { isCompleted = true; authenticationRequestCancelled(); dialog.fakeFlow = null }
+    }
+    Timer { id: failLater; interval: 300; onTriggered: { fake.authenticationFailed(); fake.isResponseRequired = true } }
+    Timer { interval: 1500; running: true; onTriggered: dialog.fakeFlow = fake }
+    PolkitDialog { id: dialog }
+}
+QML
+  env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" qs -p "$pf/polkit-harness.qml" \
+    > "$R/qs-polkit.log" 2>&1 &
+  pp=$!
+  pids+=("$pp")
+  sleep 4.5
+  grim -g "980,420 600x600" "$pre-polkit.png"; say "$pre-polkit.png"
+  kill "$pp" 2>/dev/null || true; wait "$pp" 2>/dev/null || true
+  e=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign" "$R/qs-polkit.log" || true)
+  [ -z "$e" ] || { echo "$e"; fail "QML errors in the polkit dialog"; }
+  sq surf2 "$(dirname "$dir")/settings" "$pre-settings.png"
+  lock_shot "$dir" "$pre-lock.png"
 }
 
 start_frontend
@@ -267,17 +465,6 @@ if want settings; then
   say "== settings"
   look sekai
   set_ theme.material.shadow 1.5; set_ theme.material.shadow_angle 135; sleep 1
-  sq() {  # sq <name>: Settings opened on the shadow rows, the whole output
-    env -u KURASHI_SOCKET KURASHI_SETTINGS_KEY=theme.material.shadow qs -p "$ROOT/settings" > "$R/settings-$1.log" 2>&1 &
-    local sp=$!
-    pids+=("$sp")
-    for _ in $(seq 100); do qs -p "$ROOT/settings" ipc call settings current >/dev/null 2>&1 && break; sleep 0.2; done
-    sleep 2
-    grim -o HEADLESS-1 "$OUT/settings-$1.png"; say "$OUT/settings-$1.png"
-    kill "$sp" 2>/dev/null || true; wait "$sp" 2>/dev/null || true
-    e=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign" "$R/settings-$1.log" || true)
-    [ -z "$e" ] || { echo "$e"; fail "QML errors in Settings ($1)"; }
-  }
   sq static
   set_ theme.texture.kind paper; set_ theme.material.shadow_follow true; set_ theme.light.angle 45; sleep 1.5
   sq follow
@@ -335,8 +522,21 @@ fi
 e=$(qml_errors)
 [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors (see $R/qs.log)"; }
 
-# identity (SHADOW_REF=<a frontend dir from before K67>, e.g. `git archive main frontend`): at the defaults every look
-# draws pixel for pixel what it drew before — the bar, the island's card and quick settings, keycap, soft, flat, line.
+if want surfaces2; then
+  say "== surfaces2"
+  for lk in sekai glass; do
+    surf2 "$ROOT/frontend" "$OUT/surf2-$lk-a135-s2" "$lk" 135 2
+    say "ok   $lk: the surfaces at 135 strength 2 (surf2-$lk-a135-s2-*.png)"
+  done
+  # The left and the upward reach (the windows take the slack there too): sekai at 225 and at 0, strength 2.
+  for ang in 225 0; do
+    surf2 "$ROOT/frontend" "$OUT/surf2-sekai-a$ang-s2" sekai "$ang" 2
+    say "ok   sekai: the surfaces at $ang strength 2 (surf2-sekai-a$ang-s2-*.png)"
+  done
+fi
+
+# identity (SHADOW_REF, see the header): at the defaults every look draws pixel for pixel what the reference draws — the
+# bar, the island's card and quick settings (keycap, soft, flat, line), and the surfaces2 shots under sekai and glass.
 if [ -n "${SHADOW_REF:-}" ]; then
   say "== identity against $SHADOW_REF"
   idshots() {  # idshots <frontend dir> <tag>
@@ -350,14 +550,6 @@ if [ -n "${SHADOW_REF:-}" ]; then
       K act ui.close >/dev/null; sleep 1.2
     done
   }
-  start_frontend_dir() {
-    if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; fi
-    local n0; n0=$(grep -c 'hello.*frontend' "$R/server.log" || true)
-    env -u KURASHI_SOCKET qs -p "$1" >> "$R/qs.log" 2>&1 &
-    QS_PID=$!; pids+=("$QS_PID")
-    for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] && break; sleep 0.1; done
-    sleep 3
-  }
   K reset theme >/dev/null 2>&1 || true
   idshots "$SHADOW_REF" ref
   # SHADOW_NEW=<the same ref dir>: the noise floor (two runs of one frontend).
@@ -365,37 +557,19 @@ if [ -n "${SHADOW_REF:-}" ]; then
   bad=0
   for st in sekai glass washi terminal; do
     for part in bar card quick; do
-      # The clock's minute may turn between the two runs: differences inside one clock-sized box are reported, not failed.
-      python3 -I -c '
-import subprocess, sys
-def px(p):
-    d = subprocess.run(["magick", p, "rgb:-"], capture_output=True, check=True).stdout
-    w, h = map(int, subprocess.run(["magick", "identify", "-format", "%w %h", p], capture_output=True, check=True).stdout.split())
-    return d, w, h
-a, w, h = px(sys.argv[1]); b, _, _ = px(sys.argv[2])
-diff = [i // 3 for i in range(0, len(a), 3) if a[i:i+3] != b[i:i+3]]
-if not diff:
-    print("ok   identical: " + sys.argv[3]); sys.exit(0)
-# Two runs of one frontend differ in a few hundred scattered, faint px (text and blur rasterisation): what counts is a
-# strong difference (a channel off by > 64), which a moved shadow edge makes along its whole length.
-strong = [i for i in diff if max(abs(a[3*i+c] - b[3*i+c]) for c in range(3)) > 64]
-# The clocks (the island pill, the bar, quick settings) may turn their minute between the runs: strong px that fall in
-# clock-sized clusters (split where 100 px of x hold none) are allowed.
-pts = sorted((i % w, i // w) for i in strong)
-boxes, cur = [], []
-for p in pts:
-    if cur and p[0] - cur[-1][0] > 100:
-        boxes.append(cur); cur = []
-    cur.append(p)
-if cur: boxes.append(cur)
-sizes = [(max(x for x, _ in b) - min(x for x, _ in b) + 1, max(y for _, y in b) - min(y for _, y in b) + 1, min(x for x, _ in b), min(y for _, y in b)) for b in boxes]
-ok = all(bw <= 80 and bh <= 30 for bw, bh, _, _ in sizes)
-print(("ok   " if ok else "FAIL ") + "%s: %d px differ, %d strongly %s" % (sys.argv[3], len(diff), len(strong),
-      " ".join("%dx%d@%d,%d" % s for s in sizes)))
-sys.exit(0 if ok else 1)' "$W/id-ref-$st-$part.png" "$W/id-new-$st-$part.png" "$st $part" || bad=1
+      same_px "$W/id-ref-$st-$part.png" "$W/id-new-$st-$part.png" "$st $part" || bad=1
     done
   done
-  [ "$bad" = 0 ] || fail "the defaults do not draw what they drew before K67 (shots in $W/id-*.png)"
+  # The surfaces at the defaults (I206): the same shots from the reference frontend and from this one, under two looks.
+  for st in sekai glass; do
+    mkdir -p "$W/id2-ref-$st" "$W/id2-new-$st"
+    surf2 "$SHADOW_REF" "$W/id2-ref-$st/surf2" "$st"
+    surf2 "${SHADOW_NEW:-$ROOT/frontend}" "$W/id2-new-$st/surf2" "$st"
+    for part in sidebar toast-drip toast-slide centre polkit settings lock; do
+      same_px "$W/id2-ref-$st/surf2-$part.png" "$W/id2-new-$st/surf2-$part.png" "$st $part" || bad=1
+    done
+  done
+  [ "$bad" = 0 ] || fail "the defaults do not draw what they drew before W39 (shots in $W/id-*.png, $W/id2-*/)"
 fi
 
 if command -v magick >/dev/null && [ -f "$OUT/sekai-a180-s1-card.png" ]; then

@@ -74,10 +74,12 @@ Rectangle {
         }
     }
     SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare ? 0 : 1 }
+    // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
     Rectangle {
         z: -1
-        visible: Theme.shadowDy > 0 && !c.bare
-        y: Theme.shadowDy
+        visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && !c.bare
+        x: Theme.sinkX
+        y: Theme.sinkY
         width: c.width
         height: c.height
         radius: c.radius
