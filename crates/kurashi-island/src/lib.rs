@@ -63,15 +63,21 @@ pub struct Annotation {
 
 #[derive(Clone, Debug)]
 pub struct IslandConfig {
-    /// Face order: also the tie-break and the cycling order. Unlisted faces follow, by id.
+    /// Face order: also the tie-break and the cycling order. Unlisted faces follow, by id, unless `restrict` holds
+    /// them back.
     pub faces: Vec<String>,
+    /// The list decides which faces show (K68): with it on and non-empty, a registered face it does not name is never
+    /// offered, not as the default, by relevance or by cycling, and cannot be pinned. Off (the default list), `faces`
+    /// only orders them, so every face shows.
+    pub restrict: bool,
     pub default: String,
     /// Trigger kinds whose transients may interrupt a manual hold.
     pub interruptible_by: BTreeSet<String>,
     /// Per-kind TTL replacing the signal's own.
     pub ttl_overrides: BTreeMap<String, Ms>,
     pub manual_hold_ms: Ms,
-    /// Faces only a transient may show (the volume OSD): never reachable by cycling.
+    /// Faces only a transient may show (the volume OSD): never reachable by cycling, and exempt from the list (the
+    /// system events govern them, K65).
     pub transient_only: BTreeSet<String>,
 }
 
@@ -79,12 +85,20 @@ impl Default for IslandConfig {
     fn default() -> Self {
         Self {
             faces: Vec::new(),
+            restrict: false,
             default: String::new(),
             interruptible_by: BTreeSet::new(),
             ttl_overrides: BTreeMap::new(),
             manual_hold_ms: 10_000,
             transient_only: BTreeSet::new(),
         }
+    }
+}
+
+impl IslandConfig {
+    /// Whether the list decides what shows: it restricts and it is not empty (an empty list shows every face).
+    fn restricts(&self) -> bool {
+        self.restrict && !self.faces.is_empty()
     }
 }
 
@@ -116,8 +130,11 @@ pub struct Decision {
     pub reason: Reason,
     /// When this decision stops being valid on its own (transient/manual expiry).
     pub until: Option<Ms>,
-    /// Registered faces in cycling order.
+    /// The faces the island may show, in cycling order.
     pub faces: Vec<String>,
+    /// Registered faces the list leaves out (K68), in cycling order: Settings offers them, the island never shows them.
+    /// Empty unless the list restricts.
+    pub unlisted: Vec<String>,
     /// The next live activity of a face other than `face`, shown minimal beside the pill.
     pub secondary: Option<String>,
     /// Live activities beyond `face` and `secondary`.
@@ -225,7 +242,7 @@ impl Arbiter {
     }
 
     pub fn pin(&mut self, face: &str) -> bool {
-        let ok = self.faces.contains_key(face);
+        let ok = self.offered(face);
         if ok {
             self.pinned = Some(face.to_string());
             self.manual = None;
@@ -270,12 +287,19 @@ impl Arbiter {
         self.decide(now)
     }
 
-    /// Earliest stored expiry (transient or manual hold); the daemon arms one timer for it.
+    /// Earliest stored expiry of a face the list offers (transient or manual hold); the daemon arms one timer for it.
+    /// A hidden face's timer would wake the daemon for nothing (Ma).
     pub fn next_deadline(&self) -> Option<Ms> {
         self.transients
-            .values()
-            .map(|(u, _)| *u)
-            .chain(self.manual.as_ref().map(|(_, u)| *u))
+            .iter()
+            .filter(|(f, _)| self.offered(f))
+            .map(|(_, (u, _))| *u)
+            .chain(
+                self.manual
+                    .as_ref()
+                    .filter(|(f, _)| self.offered(f))
+                    .map(|(_, u)| *u),
+            )
             .min()
     }
 
@@ -289,19 +313,57 @@ impl Arbiter {
         (i, id.to_string())
     }
 
-    fn ordered(&self) -> Vec<String> {
-        let mut v: Vec<String> = self.faces.keys().cloned().collect();
+    /// Whether `id` is registered, shown or not: the island's own answer to "is this face known" (K68).
+    pub fn registered(&self, id: &str) -> bool {
+        self.faces.contains_key(id)
+    }
+
+    /// Whether the face may show now: registered, and named by the list when the list restricts. Faces only a
+    /// transient may show are exempt (K65).
+    fn offered(&self, id: &str) -> bool {
+        self.faces.contains_key(id)
+            && (!self.cfg.restricts()
+                || self.cfg.transient_only.contains(id)
+                || self.cfg.faces.iter().any(|f| f == id))
+    }
+
+    /// The registered faces `keep` accepts, in configured order (unlisted ones by id).
+    fn sorted(&self, keep: impl Fn(&str) -> bool) -> Vec<String> {
+        let mut v: Vec<String> = self
+            .faces
+            .keys()
+            .filter(|f| keep(f.as_str()))
+            .cloned()
+            .collect();
         v.sort_by_key(|f| self.rank(f));
         v
     }
 
-    /// Deterministic for a given set of inputs and `now`. Prunes expired timers first.
+    /// The faces the island offers, in cycling order.
+    fn ordered(&self) -> Vec<String> {
+        self.sorted(|f| self.offered(f))
+    }
+
+    /// Registered faces the list leaves out, in cycling order (K68).
+    fn unlisted(&self) -> Vec<String> {
+        self.sorted(|f| !self.offered(f))
+    }
+
+    /// Deterministic for a given set of inputs and `now`. Prunes expired timers first, and drops a pin or a manual
+    /// hold that the list no longer offers: the island never stays on a face it may not show.
     pub fn decide(&mut self, now: Ms) -> Decision {
         self.transients.retain(|_, (u, _)| *u > now);
         if self.manual.as_ref().is_some_and(|(_, u)| *u <= now) {
             self.manual = None;
         }
+        if self.pinned.as_deref().is_some_and(|p| !self.offered(p)) {
+            self.pinned = None;
+        }
+        if self.manual.as_ref().is_some_and(|(f, _)| !self.offered(f)) {
+            self.manual = None;
+        }
         let faces = self.ordered();
+        let unlisted = self.unlisted();
         let (face, reason, until) = self.primary(&faces);
         let live = self.activities(now);
         let secondary = live.iter().find(|f| **f != face).cloned();
@@ -326,6 +388,7 @@ impl Arbiter {
             reason,
             until,
             faces,
+            unlisted,
             secondary,
             overflow: live.len() - shown,
             detail,
@@ -344,9 +407,10 @@ impl Arbiter {
         let best_transient = |only_interrupting: bool| {
             self.transients
                 .iter()
-                .filter(|(_, (_, t))| {
-                    !only_interrupting
-                        || (t.may_interrupt && self.cfg.interruptible_by.contains(&t.kind))
+                .filter(|(f, (_, t))| {
+                    self.offered(f)
+                        && (!only_interrupting
+                            || (t.may_interrupt && self.cfg.interruptible_by.contains(&t.kind)))
                 })
                 .max_by(|(a, (ua, _)), (b, (ub, _))| {
                     ua.cmp(ub).then_with(|| self.rank(b).cmp(&self.rank(a)))
@@ -367,7 +431,7 @@ impl Arbiter {
         let live = self
             .rel
             .iter()
-            .filter(|(_, r)| r.condition && r.relevance > 0)
+            .filter(|(f, r)| r.condition && r.relevance > 0 && self.offered(f))
             .max_by(|(a, ra), (b, rb)| {
                 let pa = self.faces[*a].default_priority;
                 let pb = self.faces[*b].default_priority;
@@ -379,7 +443,7 @@ impl Arbiter {
             return (f.clone(), Reason::Relevance { score: r.relevance }, None);
         }
 
-        let d = if self.faces.contains_key(&self.cfg.default) {
+        let d = if faces.contains(&self.cfg.default) {
             self.cfg.default.clone()
         } else {
             faces.first().cloned().unwrap_or_default()
@@ -393,7 +457,7 @@ impl Arbiter {
     fn activities(&self, now: Ms) -> Vec<String> {
         type Key = (u8, Ms, u8, u8, Reverse<(usize, String)>);
         let mut v: Vec<(String, Key)> = Vec::new();
-        for f in self.faces.keys() {
+        for f in self.faces.keys().filter(|f| self.offered(f)) {
             let key: Key = if let Some((u, _)) = self.transients.get(f).filter(|(u, _)| *u > now) {
                 (2, *u, 0, 0, Reverse(self.rank(f)))
             } else if let Some(r) = self.rel.get(f).filter(|r| r.condition && r.relevance > 0) {
@@ -872,6 +936,167 @@ mod tests {
             },
         );
         assert!(a.decide(300).stale_at.is_empty());
+    }
+
+    /// Clock, media and a mod's weather face registered; the list names `faces` and restricts.
+    fn listed(faces: &[&str]) -> Arbiter {
+        let mut a = Arbiter::new(IslandConfig {
+            faces: faces.iter().map(|f| f.to_string()).collect(),
+            restrict: true,
+            default: "clock".into(),
+            ..Default::default()
+        });
+        for (f, p) in [("clock", 0), ("media", 1), ("weather", 2)] {
+            a.register_face(face(f, p));
+        }
+        a
+    }
+
+    /// K68: a face the list does not name never shows: not by relevance, not as the default, not by a transient
+    /// (even one that may interrupt), not by cycling, and it cannot be pinned.
+    #[test]
+    fn an_unlisted_face_never_shows() {
+        let mut a = listed(&["clock", "media"]);
+        a.signal(0, sig("weather", 90));
+        let d = a.decide(0);
+        assert_eq!((d.face.as_str(), d.reason.as_str()), ("clock", "default"));
+        assert_eq!(d.faces, ["clock", "media"]);
+        assert_eq!(d.unlisted, ["weather"]);
+        assert_eq!(d.overflow, 0);
+        let mut c = a.cfg.clone();
+        c.interruptible_by.insert("volume".into());
+        a.set_config(c);
+        a.clear("weather");
+        a.signal(0, osd("weather", 1000, true));
+        assert_eq!(
+            a.decide(0).face,
+            "clock",
+            "an interrupting transient of an unlisted face is no face"
+        );
+        let seen: Vec<String> = (0..4).map(|_| a.next(0).face).collect();
+        assert!(!seen.iter().any(|f| f == "weather"), "{seen:?}");
+        assert!(!a.pin("weather"));
+        assert!(!a.pinned());
+    }
+
+    /// K68: the list keeps the transient-only faces (the system events, K65) whatever it names: they show on a
+    /// transient, are listed after the list, and are never cycled.
+    #[test]
+    fn transient_only_faces_are_exempt_from_the_list() {
+        let mut c = IslandConfig {
+            faces: vec!["clock".into(), "media".into()],
+            restrict: true,
+            default: "clock".into(),
+            ..Default::default()
+        };
+        c.transient_only.insert("volume".into());
+        c.interruptible_by.insert("volume".into());
+        let mut a = Arbiter::new(c);
+        for (f, p) in [("clock", 0), ("media", 1), ("volume", 2)] {
+            a.register_face(face(f, p));
+        }
+        a.signal(0, osd("volume", 1000, true));
+        let d = a.decide(0);
+        assert_eq!(
+            (d.face.as_str(), d.reason.as_str()),
+            ("volume", "transient")
+        );
+        assert_eq!(d.faces, ["clock", "media", "volume"]);
+        assert!(d.unlisted.is_empty());
+        let seen: Vec<String> = (0..3).map(|_| a.next(2000).face).collect();
+        assert!(!seen.iter().any(|f| f == "volume"), "{seen:?}");
+    }
+
+    /// K68: an empty list offers every face, whatever `restrict` says (a safe fallback).
+    #[test]
+    fn an_empty_list_offers_every_face() {
+        let mut a = listed(&[]);
+        a.signal(0, sig("weather", 90));
+        let d = a.decide(0);
+        assert_eq!(d.face, "weather");
+        assert_eq!(d.faces, ["clock", "media", "weather"]);
+        assert!(d.unlisted.is_empty());
+    }
+
+    /// The default list does not restrict: `faces` only orders, so every registered face shows, the listed ones first.
+    #[test]
+    fn a_list_that_does_not_restrict_only_orders() {
+        let mut a = Arbiter::new(IslandConfig {
+            faces: vec!["media".into()],
+            default: "media".into(),
+            ..Default::default()
+        });
+        for (f, p) in [("clock", 0), ("media", 1), ("weather", 2)] {
+            a.register_face(face(f, p));
+        }
+        let d = a.decide(0);
+        assert_eq!(d.faces, ["media", "clock", "weather"]);
+        assert!(d.unlisted.is_empty());
+        a.signal(0, sig("weather", 90));
+        assert_eq!(
+            a.decide(0).face,
+            "weather",
+            "an unlisted face still wins by relevance"
+        );
+    }
+
+    /// The default face that the list does not offer falls back to the first face it offers. A live face the list
+    /// leaves out is neither the secondary nor counted in the overflow.
+    #[test]
+    fn the_default_falls_back_and_hidden_activities_do_not_count() {
+        let mut a = listed(&["media"]);
+        let d = a.decide(0);
+        assert_eq!((d.face.as_str(), d.reason.as_str()), ("media", "default"));
+        a.signal(0, sig("media", 60));
+        a.signal(0, sig("weather", 80));
+        let d = a.decide(0);
+        assert_eq!(
+            (d.face.as_str(), d.secondary, d.overflow),
+            ("media", None, 0)
+        );
+    }
+
+    /// A pin or a manual hold that the list stops offering is dropped: the island never stays on a face it may not show,
+    /// and a face the list gives back is not pinned again.
+    #[test]
+    fn a_pin_or_hold_drops_out_with_the_list() {
+        let mut a = listed(&["clock", "media"]);
+        a.pin("media");
+        assert_eq!(a.decide(0).reason, Reason::Pinned);
+        let mut c = a.cfg.clone();
+        c.faces = vec!["clock".into()];
+        a.set_config(c);
+        let d = a.decide(0);
+        assert_eq!((d.face.as_str(), d.reason.as_str()), ("clock", "default"));
+        assert!(!a.pinned());
+
+        let mut a = listed(&["clock", "media"]);
+        assert_eq!(a.next(0).face, "media", "a manual hold on media");
+        let mut c = a.cfg.clone();
+        c.faces = vec!["clock".into()];
+        a.set_config(c);
+        let d = a.decide(1);
+        assert_eq!((d.face.as_str(), d.reason.as_str()), ("clock", "default"));
+        assert_eq!(a.next_deadline(), None, "the dropped hold has no expiry");
+    }
+
+    /// A hidden face arms no timer: its transient expires unseen, and the daemon need not wake for it (Ma).
+    #[test]
+    fn a_hidden_face_arms_no_timer() {
+        let mut a = listed(&["clock"]);
+        a.signal(0, osd("weather", 1000, false));
+        assert_eq!(a.next_deadline(), None);
+        assert_eq!(a.decide(0).face, "clock");
+    }
+
+    /// `registered` knows every face the island has, shown or not, so a mod cannot take a name it holds; the
+    /// unlisted ones come in cycling order.
+    #[test]
+    fn registered_knows_the_unlisted_faces() {
+        let mut a = listed(&["clock"]);
+        assert!(a.registered("weather"));
+        assert!(!a.registered("ghost"));
+        assert_eq!(a.decide(0).unlisted, ["media", "weather"]);
     }
 
     proptest! {
