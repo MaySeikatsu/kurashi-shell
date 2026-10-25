@@ -67,14 +67,34 @@ Singleton {
         else k = 0
     }
 
+    // The exclusive zones other layer windows hold on each output (the bars): `{ "<output>": [{win, edge, size}] }`.
+    // A window that respects exclusive zones (not ExclusionMode.Ignore) is placed by the compositor inside what they
+    // leave; its origin must count them, or its sheet sits a bar's thickness off everyone else's (W34 sidebar report).
+    property var zones: ({})
+    function setZone(win, output, edge, size) {
+        var n = Object.assign({}, zones)
+        for (var k in n) n[k] = n[k].filter(function (z) { return z.win !== win })
+        if (output !== "" && size > 0) n[output] = (n[output] || []).concat([{ win: win, edge: edge, size: size }])
+        zones = n
+    }
+    function zoneOf(w, edge) {
+        if (!w || !w.screen || w.exclusionMode === ExclusionMode.Ignore) return 0
+        var list = zones[w.screen.name] || []
+        var sum = 0
+        for (var i = 0; i < list.length; i++)
+            if (list[i].win !== w && list[i].edge === edge) sum += list[i].size
+        return sum
+    }
     // The top-left corner of layer window `w` on its output (logical px). Layer surfaces are placed by their anchors:
     // a left or top anchor pins the margin; a right or bottom anchor pins the margin from the far edge; neither
     // centres the window on that axis (the layer-shell rule).
+    // Inside the exclusive zones it respects.
     function originOf(w) {
         if (!w || !w.screen || !w.anchors || !w.margins) return Qt.point(0, 0)
         var s = w.screen, a = w.anchors, m = w.margins
-        var ox = a.left ? m.left : (a.right ? s.width - w.width - m.right : (s.width - w.width) / 2)
-        var oy = a.top ? m.top : (a.bottom ? s.height - w.height - m.bottom : (s.height - w.height) / 2)
+        var zl = zoneOf(w, "left"), zr = zoneOf(w, "right"), zt = zoneOf(w, "top"), zb = zoneOf(w, "bottom")
+        var ox = a.left ? zl + m.left : (a.right ? s.width - zr - w.width - m.right : zl + (s.width - zl - zr - w.width) / 2)
+        var oy = a.top ? zt + m.top : (a.bottom ? s.height - zb - w.height - m.bottom : zt + (s.height - zt - zb - w.height) / 2)
         return Qt.point(ox, oy)
     }
 }
