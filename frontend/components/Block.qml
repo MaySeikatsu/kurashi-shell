@@ -17,6 +17,11 @@ import "../core"
 // K59 (docs/ux/texture.md): a block with a fill of its own (`fill.a > 0`) carries the material's relief under its content,
 // and over it with `Theme.texText`; the outline and the ring stay flat. A transparent block lies on the material beneath
 // it, so the sheet is shaded once. `relief: false` for a picture (album art, a wallpaper thumbnail, an avatar) or a web page.
+// W39 (I199, I204): a Block is in every key, tile and card, so it is kept light — a quick card makes ~30, a month grid 42.
+// What only some looks draw (the press flash, the reliefs, the pen's outline, the decor frame) is made by two Loaders, one
+// under the content and one over it, only while the look has any of it; the sink and the shrink share one eased value and
+// the fill one colour animation (two Behaviors, not five). The stacking order is the same as before, so every chrome
+// draws what it drew (tools/bench/block-identity.sh).
 Item {
     id: blk
     property color fill: Theme.containerHigh
@@ -55,42 +60,36 @@ Item {
         y: Theme.sinkY
         width: blk.width
         height: blk.faceH
-        radius: Math.min(blk.radius, height / 2)
+        radius: face.r
         color: Theme.line
         antialiasing: true
     }
     Item {
         id: face
+        // The face's corner, and the fill's inside the outline and the ring.
+        readonly property real r: Math.min(blk.radius, blk.faceH / 2)
+        readonly property real innerR: Math.max(0, r - blk.inset)
+        // The fill as drawn: it follows `fill` through one colour animation (the ring's colour never animates).
+        property color shownFill: blk.fill
+        Behavior on shownFill { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
+        // 0 at rest, 1 pressed: the sink along the vector and the shrink to the press scale, one eased value (a chrome
+        // has one or the other). At the ends it is exactly what it stands for, so a block at rest or held is unchanged.
+        property real pressP: blk.pressed ? 1 : 0
+        readonly property bool shrinks: Theme.sinkX === 0 && Theme.sinkY === 0
+        Behavior on pressP {
+            enabled: blk.animate && Theme.springOn
+            NumberAnimation {
+                duration: blk.pressed ? (face.shrinks ? 80 : 70) : (face.shrinks ? Theme.stdMs : Theme.stdMs + 60)
+                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
+                easing.overshoot: Theme.overshoot
+            }
+        }
         width: blk.width
         height: blk.faceH
         // The press sinks the face onto its shadow, along the vector.
-        x: blk.pressed ? Theme.sinkX : 0
-        y: blk.pressed ? Theme.sinkY : 0
-        scale: blk.pressed ? Theme.pressScale : 1
-        Behavior on x {
-            enabled: blk.animate && Theme.springOn
-            NumberAnimation {
-                duration: blk.pressed ? 70 : Theme.stdMs + 60
-                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
-                easing.overshoot: Theme.overshoot
-            }
-        }
-        Behavior on y {
-            enabled: blk.animate && Theme.springOn
-            NumberAnimation {
-                duration: blk.pressed ? 70 : Theme.stdMs + 60
-                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
-                easing.overshoot: Theme.overshoot
-            }
-        }
-        Behavior on scale {
-            enabled: blk.animate && Theme.springOn
-            NumberAnimation {
-                duration: blk.pressed ? 80 : Theme.stdMs
-                easing.type: blk.pressed ? Easing.OutQuad : Easing.OutBack
-                easing.overshoot: Theme.overshoot
-            }
-        }
+        x: Theme.sinkX * pressP
+        y: Theme.sinkY * pressP
+        scale: 1 - (1 - Theme.pressScale) * pressP
         // The soft shadow (soft chrome): made only while the theme has one and this block casts it.
         SoftShadow {
             anchors.fill: parent
@@ -100,47 +99,53 @@ Item {
         Rectangle {
             id: rim
             anchors.fill: parent
-            radius: Math.min(blk.radius, height / 2)
-            color: blk.ringW > 0 ? Theme.ring : blk.fill
+            radius: face.r
+            color: blk.ringW > 0 ? Theme.ring : face.shownFill
             // A frame that draws the outline itself (kami's pen), or the pen (K62), replaces the straight line.
-            border.width: frameHost.drawsOutline || pen.active ? 0 : blk.outlineWidth
+            border.width: over.item !== null && over.item.hidesOutline ? 0 : blk.outlineWidth
             border.color: blk.outlineInk
             antialiasing: true
-            Behavior on color { enabled: blk.animate && blk.ringW <= 0; ColorAnimation { duration: Theme.quickMs } }
         }
-        // The press of a chrome without sink or shrink (line): the face lights at once and fades back on release (under
-        // the content).
-        Rectangle {
-            anchors.fill: parent
-            anchors.margins: Theme.outlineW
-            radius: Math.max(0, Math.min(blk.radius, rim.height / 2) - Theme.outlineW)
-            color: Theme.fg
-            visible: blk.flashes && opacity > 0
-            opacity: blk.pressed && blk.flashes ? 0.16 : 0
-            Behavior on opacity {
-                enabled: blk.animate && !blk.pressed
-                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutQuad }
-            }
-        }
-        // K59: the material's relief over the fill and under the content (the outline and ring stay flat). A picture
-        // or a web page opts out (`relief: false`); nothing is made while the theme has no shell texture.
+        // Under the content: the press flash of a chrome without sink or shrink (line), and the material's relief (K59).
         Loader {
-            active: blk.relief && blk.fill.a > 0 && Theme.texShell && !Theme.texText
+            id: under
+            readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && !Theme.texText
+            active: blk.flashes || relief
             anchors.fill: parent
-            anchors.margins: blk.inset
-            sourceComponent: Relief {
-                anchors.fill: parent
-                radius: Math.max(0, Math.min(blk.radius, face.height / 2) - blk.inset)
+            sourceComponent: Item {
+                // The flash: the face lights at once and fades back on release.
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: Theme.outlineW
+                    radius: Math.max(0, face.r - Theme.outlineW)
+                    color: Theme.fg
+                    visible: blk.flashes && opacity > 0
+                    opacity: blk.pressed && blk.flashes ? 0.16 : 0
+                    Behavior on opacity {
+                        enabled: blk.animate && !blk.pressed
+                        NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutQuad }
+                    }
+                }
+                // K59: the relief over the fill and under the content (the outline and ring stay flat). A picture or a
+                // web page opts out (`relief: false`); nothing is made while the theme has no shell texture.
+                Loader {
+                    active: under.relief
+                    anchors.fill: parent
+                    anchors.margins: blk.inset
+                    sourceComponent: Relief {
+                        anchors.fill: parent
+                        radius: face.innerR
+                    }
+                }
             }
         }
         Rectangle {
             id: fillRect
             anchors.fill: parent
             anchors.margins: blk.inset
-            radius: Math.max(0, Math.min(blk.radius, rim.height / 2) - blk.inset)
-            color: blk.ringW > 0 ? blk.fill : "transparent"
+            radius: face.innerR
+            color: blk.ringW > 0 ? face.shownFill : "transparent"
             antialiasing: true
-            Behavior on color { enabled: blk.animate; ColorAnimation { duration: Theme.quickMs } }
             // K62: the pen's text modifiers draw the content (text, icons) through one layer while any is in effect;
             // not over a picture or a web page (`relief: false`).
             layer.enabled: Theme.penText && blk.relief
@@ -150,39 +155,50 @@ Item {
                 seed: blk.penSeed
             }
         }
-        // With `texture.text` the relief is drawn over the content too: ink and icons sink into the same sheet.
+        // Over the content: the relief with `texture.text`, the pen's outline (K62) and the decor pack's frame (W25).
         Loader {
-            active: blk.relief && blk.fill.a > 0 && Theme.texShell && Theme.texText
+            id: over
+            readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && Theme.texText
+            active: relief || Theme.frame !== "" || (Theme.penOutline && blk.outlineWidth > 0)
             anchors.fill: parent
-            anchors.margins: blk.inset
-            sourceComponent: Relief {
-                anchors.fill: parent
-                radius: Math.max(0, Math.min(blk.radius, face.height / 2) - blk.inset)
+            sourceComponent: Item {
+                // The frame or the pen draws the outline: the rim leaves its straight line out.
+                readonly property bool hidesOutline: frameHost.drawsOutline || pen.active
+                // With `texture.text` the relief is drawn over the content too: ink and icons sink into the same sheet.
+                Loader {
+                    active: over.relief
+                    anchors.fill: parent
+                    anchors.margins: blk.inset
+                    sourceComponent: Relief {
+                        anchors.fill: parent
+                        radius: face.innerR
+                    }
+                }
+                // The pen draws the outline (a line style, fountain-pen modifiers) when one is in effect and the frame
+                // does not draw its own; flat like the straight line it replaces.
+                Loader {
+                    id: pen
+                    active: Theme.penOutline && !frameHost.drawsOutline && blk.outlineWidth > 0
+                    anchors.fill: parent
+                    sourceComponent: PenOutline {
+                        radius: face.r
+                        color: blk.outlineInk
+                        lineWidth: blk.outlineWidth
+                        seed: blk.penSeed
+                        anchor: blk
+                    }
+                }
+                // The decor pack's frame over the face's edge: nothing is made while the pack has none.
+                FrameHost {
+                    id: frameHost
+                    anchors.fill: parent
+                    radius: face.r
+                    pressed: blk.pressed
+                    animate: blk.animate
+                    anchor: blk
+                    penSeed: blk.penSeed
+                }
             }
-        }
-        // K62: the pen draws the outline (a line style, fountain-pen modifiers) when one is in effect and the frame does
-        // not draw its own; flat like the straight line it replaces. Nothing is made otherwise.
-        Loader {
-            id: pen
-            active: Theme.penOutline && !frameHost.drawsOutline && blk.outlineWidth > 0
-            anchors.fill: parent
-            sourceComponent: PenOutline {
-                radius: Math.min(blk.radius, rim.height / 2)
-                color: blk.outlineInk
-                lineWidth: blk.outlineWidth
-                seed: blk.penSeed
-                anchor: blk
-            }
-        }
-        // The decor pack's frame over the face's edge (W25): nothing is made while the pack has none.
-        FrameHost {
-            id: frameHost
-            anchors.fill: parent
-            radius: Math.min(blk.radius, rim.height / 2)
-            pressed: blk.pressed
-            animate: blk.animate
-            anchor: blk
-            penSeed: blk.penSeed
         }
     }
 }
