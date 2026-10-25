@@ -315,3 +315,4 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | Card | Owner paths | Model |
 |---|---|---|
 | W40-faces | kurashi-island, kurashid island.rs, mock island, settings faces control, docs/ux/island | haiku |
+| W41-icons | nix icon font install, font token, Icon.qml fallback, Paper grain memo, icon-name check | haiku |
