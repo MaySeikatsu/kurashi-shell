@@ -241,4 +241,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W35.1 | Backlog audit (card `W35-audit`): 16 done, 1 obsolete, 29 partly; statuses fixed | ✅ | merged |
 | W35.2 | Keyboard shortcuts editable in Settings, written for niri (card `W35-keys`, K64, I72) | ✅ functional · UX ✅ (`settings/shots/keys/`) | merged |
 | W35.3 | Web dock polish (card `W35-webdock-polish`; I90, I98, I99, I100, I91 partly) | ✅ functional · UX 🟡 (niri not verified) | merged |
-| W35.4 | Performance: popup latency, idle frames, memory (card `W35-perf`; B37, B34, B35, I93) | 🟡 in progress | agent running |
+| W35.4 | Performance: popup latency, idle frames, memory (card `W35-perf`; B37, B34, B35, I93) | ✅ popup 13.7 ms, per output +0.4 MiB · 🟡 PSS 154 MiB (I194), minute flip (I193) | merged |
