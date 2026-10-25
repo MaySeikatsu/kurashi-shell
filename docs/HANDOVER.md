@@ -17,14 +17,18 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material — K61–K67, waves 32–38
-**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dir
-`~/.cache/kurashi-agents-target/lead` is kept for sandbox runs. The user's live session still runs an old installed
-`kurashid` that burns ~1 core (B36 symptoms, fixed on main) — suggest reinstalling.
+## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material, icon subset — K61–K69, waves 32–42
+**State:** `main` green (`just check`), pushed. Wave 42 is running (four agents: W42-memory opus, W42-shadows3, W42-faces2,
+W42-tiles haiku; cards in `docs/tasks/`, CONTRACT-CHANGE rows 460–479). If this session ended before their merge, their
+branches `worktree-agent-*` live under `.claude/worktrees/` — review each against its card, merge `--no-ff`, union the
+CONTRACT-CHANGE rows. Lead build dir `~/.cache/kurashi-agents-target/lead` is kept. The user's live session still runs an
+old installed `kurashid` that burns ~1 core (B36, fixed on main) — suggest reinstalling (`nix build .#kurashi`).
 
 **User decisions (session 13):** spotlight over a steered direction; Settings as a modal sheet (window stays default);
 carried sheet by default; relief shadows on for kami/paint; everything that comes out of the bar morphs like the island
-(calm and lively stay); apps follow the shell incl. icons and fonts.
+(calm and lively stay); apps follow the shell incl. icons and fonts. K68: split memory budgets (core 150 MiB @1; material
+and web dock have allowances); the minute flip ≤ 300 ms is the one idle commit; `island.main.faces` restricts (system
+transients exempt; default users keep every face); toasts/centre under the island and panels under their widget stay.
 
 **Built and merged:** waves 32–35 (texture depth/relief shadows/spotlight/light colour/controls/sheet/cracks/brush/wallpaper
 material, the pen K62, Settings sheet, morph everywhere, apps follow, K64 shortcuts, web dock polish; see PROGRESS) and:
@@ -39,27 +43,34 @@ material, the pen K62, Settings sheet, morph everywhere, apps follow, K64 shortc
 - Wave 38 (K67): drop shadows (strength, direction, follow the light; defaults pixel-identical); keys for Sway/Hyprland +
   niri overlay titles; web dock forced tip + the daemon's forced feed for native mods (lead); clock grid centred and
   five-week months, Return saves desk edits, side-bar toast tests, DND follows the config live.
+- Wave 39: shadows on notifications/lock/polkit/toasts/centre/Settings; a lighter Block (−20–40 µs, pixel-identical);
+  badge contrast ≥ 3:1; minute flip capped at 300 ms and split budgets (lead, K68).
+- Wave 40 (K68): island faces restrict; the faces a list leaves out are offered back in Settings (lead fix, row 450).
+- Wave 41 (K69): the package installs the icon subset (Kurashi Symbols); `font.icons_fallback` + Icon.qml tiers (a name the
+  subset lacks draws from Material Symbols, else glyph/bullet); `tools/check-icon-names.sh` in `just check`; washi grain
+  memo (quick card 48–50 → 22 ms warm); PSS @1 157.5/158.2 → 152.3/152.4 MiB (budget 150 still ✗); `nix build .#kurashi`
+  (CLAUDE.md fixed); the nix check phase reads i18n from the source tree.
+- Wave 42 contracts (lead): the three shadow rows are inert under flat and line chrome (row 423, K67 amendment).
 
 **Next steps (ordered):**
-1. Ask the open decisions below, then act on them (I193 minute flip, I194 memory budget, I209 island faces semantics).
-2. I206 shadow follow-ups (the surfaces still casting straight down, settings Theme, inert under flat/line chrome,
-   `sidebar.style = floating` drew flush in the sandbox).
-3. I194/I199/I204 memory and build cost: a lighter Block (most of QuickPanel's build), idle Stage/Launcher windows,
-   Material Symbols subset; I204 badge contrast in dark wa-iro.
-4. Follow-ups by area: I197 (window list), I202 (ghostty tokens/BENCH), I205/I208 (daemon, keys), I207 (web dock on niri),
-   I195 (mods' own i18n), I134 (secret settings), I140 rest (CalDAV create).
-5. Ideas: I176 mixed fonts (try `calt` first), I173 rays/bloom, I174 kitty/WezTerm baked background.
+1. Merge wave 42 (W42-memory: core PSS ≤ 148 with pairs; W42-shadows3: last straight-down shadows; W42-faces2: I212 incl.
+   `save_profile` keeping user-set defaults; W42-tiles: lighter QuickTile, Sketch/Snes frame memo).
+2. Follow-ups by area: I197 (window list), I202 (ghostty tokens/BENCH), I205/I208 (daemon, keys), I207 (web dock on niri),
+   I213 (bench tooling), I214 (icon fallback edge cases), I195 (mods' own i18n), I134 (secret settings), I140 rest (CalDAV).
+3. Ideas: I176 mixed fonts (try `calt` first), I173 rays/bloom, I174 kitty/WezTerm baked background.
 
-**Open decisions (ask):** I194 memory budget (one output 152–154 MiB vs 150 — cut more or raise); I193 the clock's minute
-flip is the only idle commit (cap ~300 ms, no flip at idle, or a budget that names it); I209 `island.main.faces` restricts
-or only orders; toasts/centre under the island (keep?); panels now rest under their widget (sysmon hugs the right edge).
+**Open decisions:** none pending from the user. If W42-memory cannot reach 150 without latency cost, ask the user again
+(raise to ~155 or accept the latency).
 
 **Gotchas (new):** a `&& grep` chain hides a failing cargo test — use `set -o pipefail`; tests must not read the user's
 real `~/.local/state`; Quickshell hot-reloads the config while a suite runs; machine A has one GPU (`renderD128`);
 CONTRACT-CHANGE.md conflicts on every merge — give each card a row range up front and union both sides; a card whose
 API needs a daemon half must own that half (W38-webdock didn't); agent worktrees are locked — `git worktree remove -f -f`
 after checking the branch is merged and clean; the auto-mode classifier can drop out for minutes — agents then stop
-mid-commit, so check `git status` in their worktree.
+mid-commit, so check `git status` in their worktree. Run `just check` before merging a lead fix into main, not after
+(W40). `target/release` goes stale — rebuild before a bench (`cargo build --release -p kurashid -p kurashi`). The machine's
+load average sits at 6–10 from the user's session: only same-run pairs are comparable. The shared agents target dir grew
+to 52 GB once — delete per-card dirs after each merge.
 
 ---
 
