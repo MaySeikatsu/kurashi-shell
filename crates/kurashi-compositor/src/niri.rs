@@ -207,6 +207,7 @@ impl NiriState {
                 workspace_id: w.workspace_id,
                 focused: w.is_focused,
                 floating: w.is_floating,
+                urgent: w.is_urgent,
             })
             .collect();
         windows.sort_by_key(|w| w.id);

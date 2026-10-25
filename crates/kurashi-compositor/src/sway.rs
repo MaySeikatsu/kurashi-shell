@@ -136,6 +136,7 @@ struct TreeWindow {
     workspace_id: Option<u64>,
     focused: bool,
     floating: bool,
+    urgent: bool,
     rect: (i32, i32, u32, u32),
 }
 
@@ -276,6 +277,7 @@ impl SwayState {
                 workspace_id: w.workspace_id,
                 focused: w.focused,
                 floating: w.floating,
+                urgent: w.urgent,
             })
             .collect();
         windows.sort_by_key(|w| w.id);
@@ -343,6 +345,7 @@ fn walk(node: &Value, workspace: Option<u64>, floating: bool, out: &mut Vec<Tree
             workspace_id: ws,
             focused: node["focused"].as_bool().unwrap_or(false),
             floating: floating || kind == "floating_con",
+            urgent: node["urgent"].as_bool().unwrap_or(false),
             rect: (r.x, r.y, r.width.max(0) as u32, r.height.max(0) as u32),
         });
     }
