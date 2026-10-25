@@ -36,7 +36,8 @@ Row {
                 property: "p"
                 from: 0
                 to: 1
-                duration: Theme.stdMs + 80
+                // I193 (user, session 13): the minute flip is the only idle commit, so it is capped at 300 ms (BENCH names it).
+                duration: Math.min(300, Theme.stdMs + 80)
                 easing.type: Easing.OutBack
                 easing.overshoot: Theme.overshoot
                 onFinished: cell.prev = cell.ch
