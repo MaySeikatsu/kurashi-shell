@@ -208,6 +208,8 @@ impl Shared {
     fn reload(&self, settings: &Settings) {
         let mut dock = self.dock.lock().expect("dock lock");
         dock.apply_settings(settings, Instant::now());
+        // A force that starts or ends wakes `changed()` too (row 374): the strip's inert marks follow it.
+        dock.set_forced(forced_of(settings));
         self.refresh(&mut dock);
     }
 
@@ -521,10 +523,29 @@ impl Shared {
     }
 }
 
-/// The settings the configuration forces, each with its source (I91). The settings feed carries no provenance yet
-/// (CONTRACT-CHANGE 374, a `Settings::forced_by` hook in kurashi-mod-api and the daemon's feed), so nothing is forced here.
-fn forced_of(_settings: &Settings) -> BTreeMap<String, String> {
-    BTreeMap::new()
+/// The settings the configuration forces, each with its source (I91), from the daemon's provenance feed (row 374).
+const SETTING_KEYS: [&str; 14] = [
+    "pins",
+    "default_view",
+    "width",
+    "large",
+    "edge",
+    "unload_after",
+    "max_loaded",
+    "hover",
+    "reopen_last",
+    "pinned",
+    "reserve",
+    "indicator",
+    "strip",
+    "new_tabs",
+];
+
+fn forced_of(settings: &Settings) -> BTreeMap<String, String> {
+    SETTING_KEYS
+        .iter()
+        .filter_map(|k| Some(((*k).to_string(), settings.forced_by(k)?)))
+        .collect()
 }
 
 fn dock_error(e: DockError) -> ActionError {

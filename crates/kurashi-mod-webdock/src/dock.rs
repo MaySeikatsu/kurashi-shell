@@ -393,6 +393,11 @@ impl Dock {
         self
     }
 
+    /// The forced settings changed (a layer started or stopped forcing one, row 374).
+    pub fn set_forced(&mut self, forced: BTreeMap<String, String>) {
+        self.forced = forced;
+    }
+
     /// Takes the settings in effect: pins, and the values the dock reads. A pin that is gone takes its state with it.
     /// A changed `hover` or `pinned` brings the pending deadline in line with the state (K40).
     pub fn apply_settings(&mut self, settings: &Settings, now: Instant) {

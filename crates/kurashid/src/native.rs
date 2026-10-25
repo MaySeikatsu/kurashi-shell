@@ -16,8 +16,8 @@ use hosts::{HostCore, HostParams};
 use kurashi_ipc::ApplyOp;
 use kurashi_island::{Face, FaceSignal, Source, Transient};
 use kurashi_mod_api::{
-    ActiveFn, Choice, ChoicesFn, FaceUpdate, Hooks, JobCtx, JobFn, ModCtx, ModError, NativeMod,
-    Publish, Registration, ServiceFn, Settings, SettingsError, Values,
+    ActiveFn, Choice, ChoicesFn, FaceUpdate, Forced, Hooks, JobCtx, JobFn, ModCtx, ModError,
+    NativeMod, Publish, Registration, ServiceFn, Settings, SettingsError, Values,
 };
 use kurashi_mods::{
     Manifest, ModEntry, ModState, Provide, Registry, SettingType, SettingValue, Tier,
@@ -174,7 +174,7 @@ struct Service {
     mod_id: String,
     doc: String,
     run: ServiceFn,
-    settings: Arc<watch::Sender<Values>>,
+    settings: Arc<Feed>,
     running: Arc<Running>,
     hub: Weak<Hub>,
     /// Set while the service runs. The publish handle drops its updates otherwise.
@@ -203,7 +203,7 @@ struct BackgroundJob {
     reason: String,
     wanted_by: String,
     body: JobFn,
-    settings: Arc<watch::Sender<Values>>,
+    settings: Arc<Feed>,
     running: Arc<Running>,
     hub: Weak<Hub>,
     runtime: Handle,
@@ -248,10 +248,7 @@ impl BackgroundJob {
         let start = run.starts;
         self.running
             .start_job(&self.mod_id, &self.name, start, &self.reason);
-        let ctx = JobCtx::with_active(
-            Settings::new(self.settings.subscribe()),
-            self.active_sink(start),
-        );
+        let ctx = JobCtx::with_active(self.settings.settings(), self.active_sink(start));
         let body = (self.body)(ctx);
         let end = RunEnd {
             job: self.clone(),
@@ -339,7 +336,7 @@ impl Provider for Service {
                 }
             })
         };
-        let settings = Settings::new(self.settings.subscribe());
+        let settings = self.settings.settings();
         let task = tokio::spawn((self.run)(publish, settings));
         if let Some(old) = self.task.lock().expect("task lock").replace(task) {
             old.abort();
@@ -562,7 +559,7 @@ struct Ledger {
     /// The host processes (K38); `deactivate` stops them.
     hosts: Vec<Arc<HostCore>>,
     /// The settings feed; the services hold receivers of it.
-    settings: Arc<watch::Sender<Values>>,
+    settings: Arc<Feed>,
     /// (key, config key, default) of each setting the manifest declares.
     keys: Vec<(String, String, SettingValue)>,
     link: Arc<Link>,
@@ -682,7 +679,10 @@ impl Native {
                 (key.clone(), setting_value(store, config_key, default))
             })
             .collect();
-        let settings = Arc::new(watch::channel(values).0);
+        let settings = Arc::new(Feed {
+            values: watch::channel(values).0,
+            forced: watch::channel(forced_of(store, &keys)).0,
+        });
         let provides: Vec<String> = manifest.provides.iter().map(ToString::to_string).collect();
         let link = Arc::new(Link {
             island: self.island.clone(),
@@ -693,7 +693,7 @@ impl Native {
             slot_reasons: Mutex::default(),
             state: Mutex::default(),
         });
-        let mut ctx = ModCtx::new(&provides, Settings::new(settings.subscribe()), link.clone())
+        let mut ctx = ModCtx::new(&provides, settings.settings(), link.clone())
             .with_capabilities(&manifest.capabilities)
             .with_picture_filter(Some(crate::texture::picture_filter()));
         module.enable(&mut ctx)?;
@@ -861,7 +861,7 @@ impl Native {
         }
         // A job whose setting wants it runs from the enable on (I23).
         for job in &ledger.jobs {
-            let wanted = job.wants(&settings.borrow());
+            let wanted = job.wants(&settings.values.borrow());
             if wanted {
                 job.start();
             }
@@ -910,7 +910,17 @@ impl Native {
                     (key.clone(), setting_value(Some(store), config_key, default))
                 })
                 .collect();
-            ledger.settings.send_if_modified(|current| {
+            let forced = forced_of(Some(store), &ledger.keys);
+            // The provenance first: a mod woken by the values reads the forced state that goes with them.
+            ledger.settings.forced.send_if_modified(|current| {
+                if *current == forced {
+                    false
+                } else {
+                    *current = forced;
+                    true
+                }
+            });
+            ledger.settings.values.send_if_modified(|current| {
                 if *current == values {
                     false
                 } else {
@@ -920,7 +930,7 @@ impl Native {
             });
             // After the send: a job started now reads the settings in effect.
             for job in &ledger.jobs {
-                let wanted = job.wants(&ledger.settings.borrow());
+                let wanted = job.wants(&ledger.settings.values.borrow());
                 if wanted {
                     job.start();
                 } else {
@@ -1048,6 +1058,29 @@ fn needs_daemon_code(m: &Manifest) -> bool {
 
 /// `setting_value`: the value in effect for a `mods.<id>.<key>`, or the manifest default when the
 /// config store does not know it (no store, or before the mod's keys were added to it).
+/// The settings feed of an enabled mod: the values in effect and which of them a layer forces (row 374,
+/// `Settings::forced_by`). Services, jobs and host processes hold receivers of both.
+struct Feed {
+    values: watch::Sender<Values>,
+    forced: watch::Sender<Forced>,
+}
+
+impl Feed {
+    fn settings(&self) -> Settings {
+        Settings::with_forced(self.values.subscribe(), self.forced.subscribe())
+    }
+}
+
+/// The mod's own keys a layer forces (`forced_by` of each `mods.<id>.<key>`), by the manifest's key.
+fn forced_of(store: Option<&ConfigStore>, keys: &[(String, String, SettingValue)]) -> Forced {
+    keys.iter()
+        .filter_map(|(key, config_key, _)| {
+            let by = store?.get(config_key, None)?.forced_by?;
+            Some((key.clone(), by))
+        })
+        .collect()
+}
+
 fn setting_value(store: Option<&ConfigStore>, config_key: &str, default: &SettingValue) -> Value {
     store.and_then(|s| s.get(config_key, None)).map_or_else(
         || serde_json::to_value(default).unwrap_or(Value::Null),
@@ -1126,6 +1159,50 @@ fn action_error(e: kurashi_mod_api::ActionError) -> ActionError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Row 374: the feed names each setting a layer forces, by the manifest's key, and a mod's `Settings` reads it.
+    #[test]
+    fn the_feed_carries_which_settings_a_layer_forces() {
+        let dir = std::env::temp_dir().join(format!("kurashid-feed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("config")).unwrap();
+        std::fs::write(
+            dir.join("config").join("managed.toml"),
+            "[notifications]\ndnd = true\n[_managed]\nenforce = true\n",
+        )
+        .unwrap();
+        let store = ConfigStore::open(
+            Hub::new(),
+            kurashi_schema::v1::registry(),
+            kurashi_config::Paths::rooted(&dir),
+            kurashi_config::Options::default(),
+        );
+        // Any config key stands in for a mod's own: the lookup is the store's provenance either way.
+        let keys = vec![
+            (
+                "held".to_string(),
+                "notifications.dnd".to_string(),
+                SettingValue::Bool(false),
+            ),
+            (
+                "free".to_string(),
+                "notifications.server".to_string(),
+                SettingValue::Bool(true),
+            ),
+        ];
+        let forced = forced_of(Some(&store), &keys);
+        assert_eq!(forced.get("held").map(String::as_str), Some("nix"));
+        assert!(!forced.contains_key("free"));
+        assert!(forced_of(None, &keys).is_empty());
+
+        let feed = Feed {
+            values: watch::channel(Values::new()).0,
+            forced: watch::channel(forced).0,
+        };
+        assert_eq!(feed.settings().forced_by("held").as_deref(), Some("nix"));
+        assert_eq!(feed.settings().forced_by("free"), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// Row 72: a reason lands on the mod's entry in that slot only, and `None` takes it back.
     #[test]
