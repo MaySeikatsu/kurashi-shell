@@ -219,7 +219,8 @@ Item {
                         case "select": return r.cards ? cCards : (r.dropdown ? cDropdown : (r.switchChoice ? cSwitch : cSegmented))
                         case "pick_list": return cPickList
                         case "records": return cRecords
-                        case "list": case "font": return cList
+                        case "list": return cFreeList
+                        case "font": return cList
                         default: return cText   // number, text, color, action_binding
                         }
                     }
@@ -453,7 +454,22 @@ Item {
             onCancelled: Store.clearRefusal(r.row.key)
         }
     }
-    // A string list (chips), or the font chain (a list too; its edits are previews, UX brief settings 3).
+    // A free string list (I54: a mod's `list` without choices, the launcher's command, the dock's pins): the pick list's
+    // ordered rows with a text field to add; a path list (`unit = "path"`) hints at the form, the daemon refuses non-paths.
+    Component {
+        id: cFreeList
+        PickList {
+            objectName: "freelist:" + r.row.key
+            free: true
+            paths: r.row.unit === "path"
+            label: I18n.tr(r.row.label)
+            items: Array.isArray(r.value) ? r.value : []
+            enabled: r.editable
+            refused: r.error !== ""
+            onEdited: v => Store.setValue(r.row.key, v, r.out)
+        }
+    }
+    // The font chain as chips (a list too; its edits are previews, UX brief settings 3).
     Component {
         id: cList
         ListEdit {

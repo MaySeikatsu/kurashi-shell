@@ -92,12 +92,44 @@ pub struct SchemaAdapter {
     offers: BTreeMap<String, Vec<Offer>>,
 }
 
+/// A mod's free string list (I54): `type = "list"` with neither choices nor a choice source.
+fn is_free_list(meta: &KeyMeta) -> bool {
+    meta.ty == Ty::StringList
+        && meta.constraints.choices.is_empty()
+        && meta.constraints.choices_from.is_none()
+}
+
+/// I54: a free list stored the way such settings were written before manifests had lists — one
+/// `:`-joined string (the wallpaper's `folders`) — reads as that list; blank parts are dropped.
+fn legacy_list(v: &Value) -> Option<Value> {
+    let joined = v.as_str()?;
+    let parts: Vec<&str> = joined
+        .split(':')
+        .map(str::trim)
+        .filter(|p| !p.is_empty())
+        .collect();
+    Some(json!(parts))
+}
+
+/// An entry of a path list (`unit = "path"`, I54): absolute, or under the home directory (`~`,
+/// `~/…`). Whether it exists is the mod's to say; a relative path has no meaning for the daemon.
+fn is_path(entry: &str) -> bool {
+    entry.starts_with('/') || entry == "~" || entry.starts_with("~/")
+}
+
+/// A path list entry that is not a path (catalogue: settings domain, next to the schema's errors).
+const NOT_A_PATH: &str = "error.config.not_a_path";
+
 impl SchemaAdapter {
     /// `v` as a `records` setting keeps it (K38): every row with every declared field, absent optional
-    /// fields filled from their defaults. `None` for any other key and for a value with problems:
-    /// kurashi-config rejects what is wrong, and [`SchemaAdapter::record_path`] names the field.
+    /// fields filled from their defaults; a free list given as its old `:`-joined string, as the list
+    /// (I54). `None` for any other key and for a value with problems: kurashi-config rejects what is
+    /// wrong, and [`SchemaAdapter::record_path`] names the field.
     fn normalised(&self, key: &str, v: &Value) -> Option<Value> {
         let (_, meta) = self.mods.find(key)?;
+        if is_free_list(meta) {
+            return legacy_list(v);
+        }
         if meta.ty != Ty::Records {
             return None;
         }
@@ -136,6 +168,18 @@ impl SchemaView for SchemaAdapter {
     }
     fn validate(&self, key: &str, v: &Value) -> Result<(), String> {
         let checked = match self.mods.find(key) {
+            Some((_, meta)) if is_free_list(meta) => {
+                // I54: the old `:`-joined form is the list it stands for; a path list holds paths.
+                let list = legacy_list(v).unwrap_or_else(|| v.clone());
+                validate_value(meta, &list).map_err(|e| e.i18n_key().to_owned())?;
+                let paths = meta.constraints.unit.as_deref() == Some("path");
+                let entries = list.as_array().into_iter().flatten().filter_map(Value::as_str);
+                return if paths && entries.into_iter().any(|e| !is_path(e)) {
+                    Err(NOT_A_PATH.into())
+                } else {
+                    Ok(())
+                };
+            }
             Some((_, meta)) => validate_value(meta, v),
             None if self.lists.get(key).is_some() => self.lists.validate(key, v),
             None => self.core.validate(key, v),
@@ -1851,6 +1895,84 @@ fn reap(mut child: Child) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A schema with one loaded mod `pics` and its free lists (I54): `folders` holds paths
+    /// (`unit = "path"`), `tags` any strings; `pick` has fixed choices.
+    fn free_lists() -> SchemaAdapter {
+        let list = |name: &str, default: Value| {
+            KeyMeta::new(format!("mods.pics.{name}"), Ty::StringList, default)
+        };
+        let mut folders = list("folders", json!(["~/Pictures"]));
+        folders.constraints.unit = Some("path".into());
+        let mut pick = list("pick", json!([]));
+        pick.constraints.choices = vec![Choice {
+            value: "a".into(),
+            label: "a".into(),
+            text: String::new(),
+        }];
+        SchemaAdapter {
+            core: kurashi_schema::v1::registry(),
+            lists: list_keys(1),
+            mods: ModTable {
+                mods: vec![ModSettings {
+                    id: "pics".into(),
+                    name: "Pics".into(),
+                    loaded: true,
+                    enabled: true,
+                    keys: vec![folders, list("tags", json!([])), pick],
+                    faces: Vec::new(),
+                    panels: Vec::new(),
+                }],
+            },
+            offers: BTreeMap::new(),
+        }
+    }
+
+    /// I54: a free list takes any strings; a path list only absolute and `~` paths.
+    #[test]
+    fn a_path_list_refuses_entries_that_are_not_paths() {
+        let s = free_lists();
+        let ok = |key: &str, v: Value| s.validate(key, &v);
+        assert_eq!(ok("mods.pics.folders", json!(["/srv/pics", "~", "~/Wallpapers"])), Ok(()));
+        assert_eq!(ok("mods.pics.folders", json!([])), Ok(()));
+        assert_eq!(
+            ok("mods.pics.folders", json!(["~/a", "Pictures/b"])),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(
+            ok("mods.pics.folders", json!(["~user/x"])),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(ok("mods.pics.tags", json!(["Pictures", "x y"])), Ok(()));
+        assert_eq!(
+            ok("mods.pics.tags", json!([1])),
+            Err("error.config.wrong_type".into())
+        );
+        // A list with choices keeps its member check and is not read from a string.
+        assert_eq!(
+            ok("mods.pics.pick", json!("a")),
+            Err("error.config.wrong_type".into())
+        );
+    }
+
+    /// I54: the old `:`-joined string of a free list (the wallpaper's `folders` before lists)
+    /// passes as the list it stands for and is read as that list; a bad part is still refused.
+    #[test]
+    fn a_free_list_reads_its_old_colon_string_as_the_list() {
+        let s = free_lists();
+        let old = json!("~/Pictures/Wallpapers: /srv/pics ::");
+        assert_eq!(s.validate("mods.pics.folders", &old), Ok(()));
+        assert_eq!(
+            s.normalised("mods.pics.folders", &old),
+            Some(json!(["~/Pictures/Wallpapers", "/srv/pics"]))
+        );
+        assert_eq!(
+            s.validate("mods.pics.folders", &json!("~/a:relative")),
+            Err(NOT_A_PATH.into())
+        );
+        assert_eq!(s.normalised("mods.pics.folders", &json!(["/a"])), None);
+        assert_eq!(s.normalised("mods.pics.pick", &json!("a")), None);
+    }
 
     #[test]
     fn a_mod_face_is_labelled_with_the_mod_name() {
