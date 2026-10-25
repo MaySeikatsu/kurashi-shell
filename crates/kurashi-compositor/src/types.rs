@@ -35,6 +35,9 @@ pub struct Window {
     pub workspace_id: Option<u64>,
     pub focused: bool,
     pub floating: bool,
+    /// The window asks for attention (niri `is_urgent`, sway `urgent`, Hyprland's `urgent` event).
+    #[serde(default)]
+    pub urgent: bool,
 }
 
 /// Everything the daemon mirrors. Lists are sorted (outputs by name, workspaces by output then

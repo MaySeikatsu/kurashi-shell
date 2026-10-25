@@ -509,6 +509,8 @@ impl State {
             "mock.doc" => return self.mock_doc(args),
             "mock.focus" => return self.mock_focus(args),
             "window.focus" | "window.close" => return self.window_act(action, args),
+            "window.move" => return self.window_move(args),
+            "window.title" => return self.window_title(args),
             // The web dock (MODS.md "Web dock"): the rules are in webdock.rs; `mock.webdock` sets fields.
             "mock.webdock" => return self.mock_webdock(args),
             // Logged, never spawned: the mock has no processes to start, and it answers no pid.
@@ -516,7 +518,10 @@ impl State {
                 let id = args["id"]
                     .as_str()
                     .ok_or_else(|| Fail::invalid("launcher.launch needs id"))?;
-                if !documents::APPS.iter().any(|app| app.0 == id) {
+                // kurashid's ids are desktop ids without the suffix (`firefox`, kurashi-launcher's index); the
+                // mock's table names files. Both forms are taken (I137).
+                let bare = |s: &str| s.strip_suffix(".desktop").unwrap_or(s).to_owned();
+                if !documents::APPS.iter().any(|app| bare(app.0) == bare(id)) {
                     return Err(Fail::unavailable(format!("no app {id}")));
                 }
                 tracing::info!(%id, "launcher.launch: not spawned in the mock");
@@ -1198,6 +1203,81 @@ impl State {
         }
         self.patch("svc.workspaces", patch, None);
         Ok(None)
+    }
+
+    /// `window.move {id, workspace}` (W36, row 391) on the windows a test set: the window goes to that workspace and,
+    /// as niri's `MoveWindowToWorkspace {focus: true}` does, the view follows it — the workspace is focused, the
+    /// window focused alone, and every `tasks` list becomes that workspace's windows (on its output; all for `*`).
+    fn window_move(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        let (Some(id), Some(ws)) = (args["id"].as_u64(), args["workspace"].as_u64()) else {
+            return Err(Fail::invalid("window.move needs id and workspace"));
+        };
+        let doc = self.data("svc.workspaces");
+        let mut windows = doc["windows"].as_array().cloned().unwrap_or_default();
+        if !windows.iter().any(|w| w["id"] == json!(id)) {
+            return Err(Fail::unavailable(format!("no window {id}")));
+        }
+        let idx = u32::try_from(ws)
+            .ok()
+            .filter(|i| (1..=5).contains(i))
+            .ok_or_else(|| Fail::unavailable(format!("no workspace {ws}")))?;
+        for w in &mut windows {
+            let hit = w["id"] == json!(id);
+            if hit {
+                w["workspace"] = json!(ws);
+            }
+            w["focused"] = json!(hit);
+        }
+        let task = |w: &Value| {
+            let mut t = json!({"id": w["id"], "app_id": w["app_id"], "focused": w["focused"]});
+            if let Some(u) = w.get("urgent") {
+                t["urgent"] = u.clone();
+            }
+            t
+        };
+        let mut tasks = serde_json::Map::new();
+        if let Some(old) = doc["tasks"].as_object() {
+            for key in old.keys() {
+                let list: Vec<Value> = windows
+                    .iter()
+                    .filter(|w| {
+                        w["workspace"] == json!(ws) && (key == "*" || w["output"] == json!(key))
+                    })
+                    .map(task)
+                    .collect();
+                tasks.insert(key.clone(), Value::Array(list));
+            }
+        }
+        self.patch(
+            "svc.workspaces",
+            json!({"windows": windows, "tasks": tasks}),
+            None,
+        );
+        self.mock_workspace(idx);
+        Ok(None)
+    }
+
+    /// `window.title {id}` (W36, row 392): the mock keeps no titles (they stay out of the document), so it answers a
+    /// fixed one per app id — a long one for `firefox`, so a peek's elision shows; `null` for a window without app id.
+    fn window_title(&mut self, args: &Value) -> Result<Option<Value>, Fail> {
+        let id = args["id"]
+            .as_u64()
+            .ok_or_else(|| Fail::invalid("window.title needs id"))?;
+        let doc = self.data("svc.workspaces");
+        let app = doc["windows"]
+            .as_array()
+            .and_then(|l| l.iter().find(|w| w["id"] == json!(id)))
+            .map(|w| w["app_id"].as_str().unwrap_or_default().to_owned())
+            .ok_or_else(|| Fail::unavailable(format!("no window {id}")))?;
+        let title = match app.as_str() {
+            "" => Value::Null,
+            "firefox" => json!(
+                "Kurashi-shell — a calm Wayland desktop shell for niri, with an island and a dock — Mozilla Firefox"
+            ),
+            "foot" => json!("~/Projects/kurashi-shell — hx"),
+            other => json!(other),
+        };
+        Ok(Some(json!({"title": title})))
     }
 
     fn publish_workspaces(&mut self) {
@@ -1952,6 +2032,8 @@ mod tests {
             st.act("launcher.launch", &json!({"id": "foot.desktop"})),
             Ok(None)
         );
+        // kurashid's form (I137): the desktop id without the suffix, as the dock sends it.
+        assert_eq!(st.act("launcher.launch", &json!({"id": "foot"})), Ok(None));
         assert!(rx.try_recv().is_err(), "a launch emits nothing");
     }
 
@@ -2631,6 +2713,60 @@ mod tests {
             st.act("window.focus", &json!({"id": 1})).unwrap_err().kind,
             "unavailable",
             "a closed window is gone"
+        );
+    }
+
+    /// W36 (rows 391–392): `window.move` sends the window to the workspace and the view follows (the workspace focused,
+    /// `tasks` its windows); `window.title` answers a fixed title and never writes one into the document.
+    #[test]
+    fn window_move_follows_and_window_title_answers() {
+        let mut st = State::new(&["HEADLESS-1".to_owned()], None);
+        let w = |id: u64, app: &str, ws: u64, focused: bool| json!({"id": id, "app_id": app, "workspace": ws, "output": "HEADLESS-1", "focused": focused});
+        let t = |id: u64, app: &str, focused: bool| json!({"id": id, "app_id": app, "focused": focused});
+        st.act(
+            "mock.doc",
+            &json!({"doc": "svc.workspaces", "patch": {
+                "windows": [w(1, "firefox", 1, true), w(2, "foot", 1, false), w(3, "mpv", 2, false)],
+                "tasks": {"*": [t(1, "firefox", true), t(2, "foot", false)], "HEADLESS-1": [t(1, "firefox", true), t(2, "foot", false)]},
+            }}),
+        )
+        .unwrap();
+        assert_eq!(
+            st.act("window.move", &json!({"id": 2, "workspace": 2})),
+            Ok(None)
+        );
+        let d = st.data("svc.workspaces").clone();
+        assert_eq!(d["windows"][1], w(2, "foot", 2, true));
+        assert_eq!(d["windows"][0]["focused"], json!(false));
+        assert_eq!(
+            d["tasks"]["*"],
+            json!([t(2, "foot", true), t(3, "mpv", false)])
+        );
+        assert_eq!(d["tasks"]["HEADLESS-1"], d["tasks"]["*"]);
+        let focused: Vec<_> = d["outputs"]["HEADLESS-1"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|p| p["focused"] == json!(true))
+            .map(|p| p["idx"].clone())
+            .collect();
+        assert_eq!(focused, [json!(2)]);
+        assert_eq!(
+            st.act("window.move", &json!({"id": 2})).unwrap_err().kind,
+            "invalid"
+        );
+        assert_eq!(
+            st.act("window.move", &json!({"id": 9, "workspace": 1}))
+                .unwrap_err()
+                .kind,
+            "unavailable"
+        );
+        let title = st.act("window.title", &json!({"id": 2})).unwrap().unwrap();
+        assert_eq!(title["title"], json!("~/Projects/kurashi-shell — hx"));
+        assert!(!st.data("svc.workspaces").to_string().contains("hx"));
+        assert_eq!(
+            st.act("window.title", &json!({"id": 9})).unwrap_err().kind,
+            "unavailable"
         );
     }
 
