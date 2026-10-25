@@ -148,7 +148,7 @@ File Search (folders to index or skip, one per row, Add…); **macOS** Spotlight
   trimmed text as the last entry; an entry already listed is not added twice; blank adds nothing. The list is one value
   with one provenance (the row's chip). The font chain keeps its chips (its edits are previews).
 - **Path lists** (`unit = "path"`, e.g. the wallpaper's `folders`): the field's placeholder says "Add a path: /… or ~/…",
-  the empty line says what a path looks like, the entries are monospace and elide in the middle (start and last folder
+  the empty line says what a path looks like, the field is monospace and the entries elide in the middle (start and last folder
   stay visible). kurashid refuses an entry that is neither absolute nor under `~` (`error.config.not_a_path`); whether
   the folder exists is the mod's to say (the wallpaper picker names a missing folder). A refused entry stays in the field
   with its edge marked and the reason under the row, so it can be corrected. No file picker yet: the shell has no portal

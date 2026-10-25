@@ -975,7 +975,9 @@ shot page-link-keys
 K '{"t":"act","id":"pg2","action":"settings.open","args":{"page":"mod:records"}}' | grep -q '"jumped"' || fail "page link: settings.open {page: mod:records} did not jump"
 for _ in $(seq 20); do [ "$(Q current)" = mods.records ] && break; sleep 0.2; done
 [ "$(Q current)" = mods.records ] || fail "page link: mod:records did not open the mod's page ($(Q current))"
-K '{"t":"act","id":"pg3","action":"settings.open","args":{"page":"nope"}}' | grep -q 'error.settings.unknown_page' || fail "page link: an unknown page was not refused"
+# A refusal makes `kurashi raw` exit 1 after printing it (pipefail would fail the pipe): read its output instead.
+refusal=$(K '{"t":"act","id":"pg3","action":"settings.open","args":{"page":"nope"}}' || true)
+[[ "$refusal" == *error.settings.unknown_page* ]] || fail "page link: an unknown page was not refused ($refusal)"
 [ "$(Q current)" = mods.records ] || fail "page link: a refused page moved the window ($(Q current))"
 echo "page link L4: settings.open {page} jumped to keys and to mod:records; 'nope' was refused"
 
