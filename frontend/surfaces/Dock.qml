@@ -400,7 +400,7 @@ Scope {
                         id: geomTimer
                         interval: 300
                         onTriggered: {
-                            var parts = ["dock-geom", dock.outName, "win", dock.winW, dock.winH, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-"]
+                            var parts = ["dock-geom", dock.outName, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-", "win", dock.winW, dock.winH]
                             for (var i = 0; i < dock.keys.length; i++) {
                                 var it = list.itemAtIndex(i)
                                 if (!it || dock.keys[i] === "|") continue
@@ -619,18 +619,20 @@ Scope {
                                             anchors.fill: parent
                                             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, Math.min(tile.radius, tile.face.height / 2) - tile.inset) }
                                         }
-                                        // Urgent: a steady dot at the tile's corner after the hop (its place says it, not only its colour).
-                                        Rectangle {
-                                            visible: cell.urgentApp
-                                            width: Math.max(8, Math.round(dock.icon * 0.22))
-                                            height: width
-                                            radius: width / 2
-                                            x: tile.width - width - 1
-                                            y: 1
-                                            color: Theme.warning
-                                            border.width: 1.5
-                                            border.color: Theme.surface
-                                        }
+                                    }
+                                    // Urgent: a steady dot in the tile's corner after the hop (its place says it, not only its
+                                    // colour); over the tile's face (not in it, so nothing inside the face covers it), hopping with it.
+                                    Rectangle {
+                                        visible: cell.urgentApp
+                                        z: 6
+                                        width: Math.max(10, Math.round(dock.icon * 0.26))
+                                        height: width
+                                        radius: width / 2
+                                        x: tile.x + tile.width - width - 1 + hopT.x
+                                        y: tile.y + 1 + hopT.y
+                                        color: Theme.warning
+                                        border.width: 2
+                                        border.color: Theme.surface
                                     }
                                     // One dot per window (max four, DMS), toward the screen edge; the focused one wider and
                                     // in the accent, so focus is not colour alone.
