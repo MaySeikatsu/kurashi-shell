@@ -139,6 +139,45 @@ fn incremental_events_emit_only_real_changes() {
     assert_eq!(s.windows.iter().filter(|w| w.focused).count(), 1);
 }
 
+/// W36 (I137): a window's urgency follows niri's `WindowUrgencyChanged` into `Window::urgent`, as a windows change;
+/// the same value again is silent, and an unknown id is ignored.
+#[test]
+fn window_urgency_follows_the_stream() {
+    let mut st = replayed_head();
+    let id = st.state().windows[0].id;
+    assert!(!st.state().windows[0].urgent);
+    let evs = st.apply(niri_ipc::Event::WindowUrgencyChanged { id, urgent: true });
+    assert!(matches!(evs.as_slice(), [Event::Windows(_)]), "{evs:?}");
+    assert!(
+        st.state()
+            .windows
+            .iter()
+            .find(|w| w.id == id)
+            .unwrap()
+            .urgent
+    );
+    assert!(
+        st.apply(niri_ipc::Event::WindowUrgencyChanged { id, urgent: true })
+            .is_empty()
+    );
+    assert!(
+        st.apply(niri_ipc::Event::WindowUrgencyChanged {
+            id: 999_999,
+            urgent: true
+        })
+        .is_empty()
+    );
+    st.apply(niri_ipc::Event::WindowUrgencyChanged { id, urgent: false });
+    assert!(
+        !st.state()
+            .windows
+            .iter()
+            .find(|w| w.id == id)
+            .unwrap()
+            .urgent
+    );
+}
+
 #[test]
 fn keyboard_layouts_follow_the_stream() {
     let mut st = replayed_head();
