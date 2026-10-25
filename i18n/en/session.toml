@@ -66,5 +66,7 @@
 "error.settings.unknown_page" = "Settings has no such page."
 # Row 381: a Stage panel or peek asked for while a polkit dialog is up.
 "ui.error.polkit" = "An authentication dialog is open. Finish it first."
+# K66 (row 103): notify.dnd while a forced notifications.dnd holds the switch.
+"error.notify.dnd_forced" = "Do not disturb is set by your configuration, so it cannot be changed here."
 "action.workspace.focus" = "Focus workspace"
 "action.window.focus" = "Focus window"
