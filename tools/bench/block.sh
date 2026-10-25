@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # What a Block costs (W39-block, I199/I204): `tools/bench/block/shell.qml` makes quick-tile pairs (two Blocks each) in a
 # headless sway sandbox against the real kurashid, per look, and this script reports the creation time per round
-# (median) and the anonymous memory per pair (PSS_Anon with 500 pairs held minus none, from smaps_rollup).
+# (median), the CPU per Block (W42: utime + stime of the process over the rounds, steadier than the wall clock on a loaded
+# machine) and the anonymous memory per pair (PSS_Anon with 500 pairs held minus none, from smaps_rollup).
 #   nix develop -c tools/bench/block.sh [frontend dir …]      (default: this checkout's frontend)
 # BLOCK_LOOKS (default "sekai glass washi terminal kami"), BLOCK_N (pairs per round, 100), BLOCK_ROUNDS (15),
 # BLOCK_HOLD (500), BLOCK_SANDBOX (sandbox name, w39-block-bench). Binaries from $KURASHI_BIN_DIR, else
@@ -40,6 +41,8 @@ for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && br
 K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
 
 anon_kib() { awk '/^Pss_Anon:/ {print $2}' "/proc/$1/smaps_rollup"; }
+# utime + stime of a process in clock ticks (W42): the rounds' CPU, from the theme line to the rounds' end (see below).
+cpu_ticks() { sed 's/.*) //' "/proc/$1/stat" | awk '{print $12 + $13}'; }
 
 i=0
 for fe in "${FRONTENDS[@]}"; do
@@ -61,8 +64,10 @@ for look in $LOOKS; do
     env -u KURASHI_SOCKET KURASHI_SOCKET="$KURASHI_SOCKET" qs -p "$H" > "$log" 2>&1 &
     qs=$!
     pids+=("$qs")
-    empty= held=
+    empty= held= c0= c1=
     for _ in $(seq 600); do
+      if [ -z "$c0" ] && grep -q "BLOCKBENCH theme" "$log"; then c0=$(cpu_ticks "$qs"); fi
+      if [ -z "$c1" ] && grep -q "BLOCKBENCH mark empty" "$log"; then c1=$(cpu_ticks "$qs"); fi
       if [ -z "$empty" ] && grep -q "BLOCKBENCH mark empty" "$log"; then sleep 2.5; empty=$(anon_kib "$qs"); fi
       if [ -z "$held" ] && grep -q "BLOCKBENCH mark held" "$log"; then sleep 2.5; held=$(anon_kib "$qs"); fi
       grep -q "BLOCKBENCH done" "$log" && break
@@ -72,17 +77,20 @@ for look in $LOOKS; do
     kill "$qs" 2>/dev/null || true; wait "$qs" 2>/dev/null || true
     grep -q "BLOCKBENCH done" "$log" || { tail -20 "$log"; fail "the harness did not finish ($log)"; }
     hold=$(grep -o "mark held [0-9]*" "$log" | awk '{print $3}')
-    python3 -I - "$fe" "$look" "$empty" "$held" "$hold" "$log" <<'PY'
+    python3 -I - "$fe" "$look" "$empty" "$held" "$hold" "$log" "${c0:-0}" "${c1:-0}" "$(getconf CLK_TCK)" <<'PY'
 import re, statistics, sys
-fe, look, empty, held, hold, log = sys.argv[1:]
+fe, look, empty, held, hold, log, c0, c1, hz = sys.argv[1:]
 text = open(log).read()
 ms = [int(m) for m in re.findall(r"BLOCKBENCH round \d+ ms (\d+)", text)]
 theme = re.search(r"BLOCKBENCH theme (.*)", text).group(1)
 warm = ms[3:] or ms
 n = int(re.search(r"n=(\d+)", theme).group(1))
 per = (int(held) - int(empty)) / int(hold)
-print("%-10s %-40s rounds %s | median %.1f ms / %d pairs = %.0f us per Block | anon %.2f KiB per Block  [%s]" % (
-    look, fe[-40:], ms, statistics.median(warm), n, statistics.median(warm) * 1000 / n / 2, per / 2, theme))
+# The CPU of the rounds (the process's utime + stime, theme line to the rounds' end) per Block: steadier than the wall clock
+# under a loaded machine (W42).
+cpu_us = (int(c1) - int(c0)) * 1e6 / int(hz) / (len(ms) * n * 2)
+print("%-10s %-40s rounds %s | median %.1f ms / %d pairs = %.0f us per Block | CPU %.0f us per Block | anon %.2f KiB per Block  [%s]" % (
+    look, fe[-40:], ms, statistics.median(warm), n, statistics.median(warm) * 1000 / n / 2, cpu_us, per / 2, theme))
 PY
   done
 done
