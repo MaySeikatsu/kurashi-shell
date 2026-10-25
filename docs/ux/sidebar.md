@@ -75,8 +75,23 @@ first, then closes. Left: Ctrl+PageUp/PageDown switch tabs; the tab buttons are 
 Every control has an accessible name; state is never colour alone (switch knob side, tile badge, text).
 
 ## Motion
-Slides in from its edge on the theme's spring (`motion.spring.*`), out on the standard curve; `Theme.springOn` false
-(motion none, reduced motion) → it appears and goes at once. Only the slide animates; idle open = 0 frames.
+As built (W34 ColumnShape, W36 origin; `docs/ux/motion.md` "the bar reaches out"): the column is one shape that grows
+out of the bar and folds back into it — no slide.
+- **Origin.** Under a top or bottom bar: the sidebar button's own box (the anchor registry, `sidebar:<side>`, 3 px in
+  like the Stage's origins), read when the column comes out and again on its first frame, latched while it is out. No
+  button on that output (hidden, or a side bar): the bar's end (its padding and group inset). Beside a side bar on the
+  sidebar's own side: the button's place at that bar's end, and the column grows along the bar.
+- **Springs.** Width and height on their own springs from `motion.spring.*` (the island's constants: width leads on the
+  way out, height on the way back); interruptible — a toggle mid-way turns it round with its velocity. The free end
+  stops at the screen's edge (it cannot overshoot there): `lively` puts the rebound into the width instead — the column
+  narrows a little while it lengthens fast and squashes wider as it lands, the neck's fillets swelling once; `calm`
+  settles softly; `Theme.springOn` false (motion none, reduce motion) cuts.
+- **Join.** Concave fillets (the island's neck turned to the bar's end) join the column to the bar's edge, in the bar's
+  own colour, so bar and column read as one sheet; under a ruled bar (line chrome) the outline runs round the fillet
+  into the rule and the bar leaves its rule out under the column at rest (`SidebarGeom`).
+- **Content.** Stands where it rests, cut to the shape while it moves; fades in once the shape has nearly grown
+  (≤ 160 ms) and out first (90 ms). The material comes with the column's leading edges (K61).
+- Idle open = 0 frames; the springs run only while it moves.
 
 ## Multi-output
 One window, on the asking output, never one per output. A per-output bar edge is honoured (the compositor's zones).

@@ -1139,6 +1139,8 @@ PanelWindow {
                 width: col.width
                 active: stage.shown && stage.viewing
                 asynchronous: true
+                // Test only: one line per view made (an open must make one view, I192).
+                onLoaded: if (stage.debugLog) console.log("stage-view made " + stage.contentKind + " t=" + Date.now())
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
             // The one close action of the island and quick cards (Esc closes them too).

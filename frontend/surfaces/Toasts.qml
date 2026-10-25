@@ -280,7 +280,7 @@ Scope {
                     expanding: false
                     cxTo: win.width / 2
                     wTo: win.cardW
-                    hTo: d.ry
+                    hTo: d.detached && !d.freed ? d.ry : 0
                     onSettledChanged: d.checkFree()
                 }
                 NumberAnimation {
