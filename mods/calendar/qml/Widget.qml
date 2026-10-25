@@ -55,8 +55,8 @@ Item {
     Accessible.name: !has ? "" : C.fill(I18n.tr(running ? "mod-calendar.a11y.widget_now" : "mod-calendar.a11y.widget"),
         { title: ev.title || I18n.tr("mod-calendar.untitled"), n: Math.max(0, Math.ceil((ev.start - nowS) / 60)) })
     // CONTRACT-CHANGE row 203: the clock card opens on its agenda even while another face (media) is current. Row 412: an
-    // island that refuses the clock face (`invalid`) opens its own face instead (I203). The island offers every registered
-    // face, so this build does not refuse it: the fallback is in place and not reached (see test-calendar.sh).
+    // island whose list leaves the clock out refuses the clock face (`invalid`, K68), and the card then opens the island's
+    // own face instead (I203; test-calendar.sh, row 454).
     function open() {
         Store.act("island.expand", { face: "clock" }, function (done, err) {
             if (err && err.kind === "invalid") Store.act("island.expand", {})
