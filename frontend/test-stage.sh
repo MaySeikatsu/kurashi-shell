@@ -102,6 +102,8 @@ SURFACE = (0x25, 0x23, 0x29)   # color.surface_container in the mock's theme
 ALPHA = 0.82                   # color.surface_alpha in the mock's theme
 TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 720   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
+if len(sys.argv) > 3:                  # W36: a card resting under its bar widget is looked for across this x range
+    X0, X1 = int(sys.argv[2]), int(sys.argv[3])
 
 
 def read_ppm(data):
@@ -156,26 +158,43 @@ if n:
         x0, x1 = max(seen, key=seen.get)
 print(json.dumps({"surface": n, "bbox": [x0, y0, x1, y1] if n else None}))
 PY
-analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm"; }
+analyse() { timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" ${ANALYSE_X:-}; }
 
 # ppm_shot <name> <settle s>: the PPM for the pixel check only (a closed Stage needs no look).
 ppm_shot() {
   sleep "$2"
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
 }
-# open_card <name> <panel> <face> <card width>: the panel and face in runtime.ui, the card drawn at the
-# width its view asks for and centred on the output; then the crop of the card as the evidence shot.
+# placed_ok <analysis json> <centre want>: the card's box is centred on the output (want "" or a number: that centre),
+# or (want "under") rests under the bar widget it grew out of (W36): centred on the widget's centre — the origin the
+# Stage logs (KURASHI_STAGE_DEBUG) for its last open — or, near the output's edge, kept inside it (the card's far edge
+# within 32 px of the output's, its centre on the widget's side of the output's centre).
+placed_ok() {
+  local want=${2:-1280} ow=${3:-2560} o ox owid
+  if [ "$want" = under ]; then
+    o=$(grep -o 'stage-morph open [a-z]* origin=[0-9-]*,[0-9]*,widget' "$R/qs.log" | tail -1 | sed 's/.*origin=//')
+    [ -n "$o" ] || { echo "no widget origin logged" >&2; return 1; }
+    ox=${o%%,*}; owid=${o#*,}; owid=${owid%%,*}
+    jq -e --argjson c "$((ox + owid / 2))" --argjson ow "$ow" '(.bbox[0] + .bbox[2]) / 2 as $m
+      | ((($m - $c) | fabs) <= 4) or ($c > $ow / 2 and ($ow - .bbox[2]) <= 32 and $m < $c)
+        or ($c < $ow / 2 and .bbox[0] <= 32 and $m > $c)' <<<"$1" >/dev/null
+    return
+  fi
+  jq -e --argjson c "$want" '(((.bbox[0] + .bbox[2]) / 2 - $c) | fabs) <= 4' <<<"$1" >/dev/null
+}
+# open_card <name> <panel> <face> <card width> [centre: "" (the output's) or "under"]: the panel and face in runtime.ui,
+# the card drawn at the width its view asks for, centred on the output (an island view) or under its widget (quick
+# settings, W36); then the crop of the card as the evidence shot.
 open_card() {  # also sets card_x0 card_y0 card_x1 card_y1 (the card's surface, layout coordinates)
   local ui res cx cy
   ui=$(ipc runtime.ui) || fail "$1: runtime.ui not served"
   jq -e --arg p "$2" --arg f "$3" '.panel == $p and .face == $f' <<<"$ui" >/dev/null \
     || fail "$1: runtime.ui is $ui, not panel $2 face $3"
-  res=$(analyse "$1") || fail "$1: analysis failed"
+  res=$(ANALYSE_X=$([ "${5:-}" = under ] && echo "0 2560") analyse "$1") || fail "$1: analysis failed"
   echo "$1: $ui $res"
   jq -e --argjson w "$4" '.surface >= 15000 and .bbox != null
-      and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
-      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
-    || fail "$1: no card of width $4 centred on the output ($res)"
+      and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4' <<<"$res" >/dev/null && placed_ok "$res" "${5:-}" \
+    || fail "$1: no card of width $4 ${5:+($5) }in its place ($res)"
   read -r card_x0 card_y0 card_x1 card_y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   # -g takes layout coordinates (one output at 0,0 in the sandbox); -o and -g do not combine.
   cx=$((card_x0 - 24))
@@ -190,7 +209,7 @@ open_card() {  # also sets card_x0 card_y0 card_x1 card_y1 (the card's surface, 
 # closed_card <name>: no card is drawn after ui.close.
 closed_card() {
   local res
-  res=$(analyse "$1") || fail "$1: analysis failed"
+  res=$(ANALYSE_X=$([ "${2:-}" = wide ] && echo "0 2560") analyse "$1") || fail "$1: analysis failed"
   echo "$1: $res"
   jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$1: a card is still drawn after ui.close ($res)"
 }
@@ -205,7 +224,7 @@ start_mock() {  # MOCK_LC: the locale the mock reads from its environment (kuras
 }
 start_frontend() {
   # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
-  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
@@ -237,7 +256,7 @@ done
 
 K act quick.toggle >/dev/null
 ppm_shot quick 2.5
-open_card quick quick "" "$PHONE_W"
+open_card quick quick "" "$PHONE_W" under
 # Keyboard (docs/ux/quick-settings.md): a click on the card's inert left padding gives the Stage its keyboard focus;
 # Tab five times reaches the Bluetooth tile (three status segments, then the Wi-Fi tile), Enter toggles it, so the mock's
 # adapter goes off.
@@ -253,7 +272,7 @@ jq -e '.powered == false' <<<"$bt" >/dev/null \
 echo "keyboard: Tab x5 then Return toggled the Bluetooth tile: $bt"
 K act ui.close >/dev/null
 ppm_shot closed-quick 1.2
-closed_card closed-quick
+closed_card closed-quick wide
 
 # ---- W13 island views (docs/ux/island.md). The pill first; then the views, each state drawn and read.
 ISL=$ROOT/frontend/shots/island
@@ -414,7 +433,7 @@ clock_card() {
 start_frontend_again() {
   local before
   before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
-  env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
   [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"
@@ -482,15 +501,15 @@ focus_on() {
   for _ in $(seq 25); do [ "$(holder)" = "$1" ] && return 0; sleep 0.2; done
   fail "svc.workspaces holds the focus on '$(holder)', not on $1"
 }
-# card_on <output> <name>: the quick card (400 px, centred) is drawn on that output; its crop is the evidence shot.
+# card_on <output> <name>: the quick card (400 px, under its button) is drawn on that output; its crop is the evidence shot.
 card_on() {
   local res x0 y0 x1 y1 off
   timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
-  res=$(analyse "$2") || fail "$2: analysis failed"
+  res=$(ANALYSE_X="0 2560" analyse "$2") || fail "$2: analysis failed"
   echo "$2 on $1: $res"
-  jq -e --argjson w "$PHONE_W" '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4
-      and (((.bbox[0] + .bbox[2]) / 2 - 1280) | fabs) <= 4' <<<"$res" >/dev/null \
-    || fail "$2: no quick card of width 400 centred on $1 ($res)"
+  jq -e --argjson w "$PHONE_W" '.surface >= 15000 and .bbox != null and (((.bbox[2] - .bbox[0] + 1) - ($w - 2)) | fabs) <= 4' \
+      <<<"$res" >/dev/null && placed_ok "$res" under \
+    || fail "$2: no quick card of width 400 under its button on $1 ($res)"
   read -r x0 y0 x1 y1 < <(jq -r '.bbox | "\(.[0]) \(.[1]) \(.[2]) \(.[3])"' <<<"$res")
   off=$(timeout 10 swaymsg -t get_outputs -r | jq -r --arg o "$1" '.[] | select(.name == $o) | .rect.x')
   timeout 20 grim -g "$((off + x0 - 24)),$((y0 - 24)) $((x1 - x0 + 49))x$((y1 - y0 + 49))" "$OUT/$2.png" \
@@ -500,7 +519,7 @@ card_on() {
 none_on() {
   local res
   timeout 20 grim -o "$1" -t ppm "$W/$2.ppm" || fail "grim failed on $1"
-  res=$(analyse "$2") || fail "$2: analysis failed"
+  res=$(ANALYSE_X="0 2560" analyse "$2") || fail "$2: analysis failed"
   jq -e '.surface < 500' <<<"$res" >/dev/null || fail "$2: a card is drawn on $1 ($res)"
 }
 
@@ -521,7 +540,7 @@ pids+=("$!")
 for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && break; sleep 0.1; done
 ipc svc.clock >/dev/null 2>&1 || fail "mock did not come up with two outputs (see $R/server.log)"
 before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
-env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
 [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"

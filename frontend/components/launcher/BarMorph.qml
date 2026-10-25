@@ -7,25 +7,24 @@ import "../island"
 
 // One surface that grows out of the bar (W34, docs/ux/motion.md "the bar reaches out"): the launcher and the notification
 // centre. The island's own machinery (Stage, W21/K42) — one MorphShape from the island pill's rect (IslandGeom) to the
-// card's, width and height on their own springs (width leads on the way out, height on the way back, Capsule), the liquid
-// neck at the bar's edge (strip) or the neck under the island's block (joined, keycap and soft chrome), the pill's face in
-// the shape's head, the content cut to the shape and faded in late, out first — for a surface that is not the Stage.
+// card's, the liquid neck at the bar's edge (strip) or the neck under the island's block (joined, keycap and soft chrome),
+// the pill's face in the shape's head, the content cut to the shape and faded in late, out first — for a surface that is
+// not the Stage. W36: its springs are the Stage's own (MorphSprings: the shape's centre, width and foot in px, each a
+// spring from `motion.spring.*`; the travel and width lead on the way out, the foot on the way back; velocity kept across
+// every retarget; the overshoot soft-limited, squash & stretch and the neck's wobble from `motion.spring.squash`), so the
+// launcher and the centre move exactly as an island view does in every profile.
 //
 // The owner is a layer window that, while `layout` (the shape is out), anchors one bar edge only (the compositor centres it
 // on its output, so the shape's box is centred on the bar: MorphShape opens the bar's rule from its own centre) with
 // margin 0 on that edge, and takes this item's size: the window covers the bar's strip above the card only while the
-// shape is out (K16; idle it keeps the card's size, or is unmapped). Its content goes in as children: they land in a `cardW` x `cardH` box where the grown
-// card stands, cut to the shape while it moves. Without a top or bottom bar (`morph` false) the card slides in instead and
-// the owner draws its own chrome (`morph` tells it which).
+// shape is out (K16; idle it keeps the card's size, or is unmapped). Its content goes in as children: they land in a
+// `cardW` x `cardH` box where the grown card stands, cut to the shape while it moves. Without a top or bottom bar (`morph`
+// false) the card slides in instead and the owner draws its own chrome (`morph` tells it which).
 //
 // While the shape is out it holds the island (IslandGeom.takenOn — set here imperatively, the Stage binds it: never both
 // at once, and released only while it still names this output), so the bar hides its pill and opens its rule under the
 // shape, and the shape's head shows the pill's face: one island on screen. A pill already held by the Stage is left alone
 // (the shape then grows without a face). No pill on this output: the shape grows from the bar's centre.
-//
-// Profiles from tokens only (rule 4): the springs are Theme.spring/damping (calm settles, lively bounces, soft-limited to
-// 8 %); `squash` (motion.spring.squash, else derived from the damping: 0 for calm, ~7 % for lively) narrows the shape while
-// it lengthens fast and lets it bulge as it lands, and the neck swells and thins once with the landing's overshoot.
 // Theme.springOn false (motion none, reduce motion) cuts. Ma: nothing runs at rest; paths change only while it morphs.
 Item {
     id: m
@@ -53,15 +52,13 @@ Item {
     // On screen: opening, open or folding back.
     property bool shown: false
     property bool gate: false
-    // The window's size while shown in the morph (the bar's strip, the card, the springs' slack).
-    readonly property real winW: morphW
-    readonly property real winH: morphH
     // The fallback's progress (0 hidden … 1 in).
     property real p: 0
     // The content's fade (late in, first out).
     property real contentP: 0
-    // At rest open: the springs have arrived (the owner turns its blur on only then: the shape changes size every frame).
-    readonly property bool settled: !morph ? (shown && p >= 1) : (shown && open && !gate && Math.abs(mw - 1) < 0.004 && Math.abs(mh - 1) < 0.004)
+    // At rest open: the springs have arrived and the content is in (the owner turns its blur on only then: the shape
+    // changes size every frame).
+    readonly property bool settled: !morph ? (shown && p >= 1) : (shown && open && !gate && springs.settled && contentWanted)
     // How far the card's body is from its rest place, in output axes (K61: the owner publishes it as its window's carry
     // while the card slides; the shape's own relief carries `shapeCarry`).
     readonly property point carry: morph ? Qt.point(0, 0) : Qt.point(0, -slide * (1 - p))
@@ -86,34 +83,31 @@ Item {
     readonly property bool joined: Theme.groups && lifted
     readonly property bool boxed: Theme.outlineW > 0 && !lifted
     readonly property real neckR: joined ? 0 : Theme.rLg
-    readonly property int slackX: 16 + Theme.softR
+    // Room round the card for the springs: the width's soft-limited overshoot and the landing's bulge (squash) on each
+    // side, the centre's overshoot past its travel, the neck's fillets and the soft shadow.
+    readonly property int slackX: 16 + Theme.softR + Math.ceil(cardW * (springs.cap + springs.squash) / 2 + Math.abs(pillDx) * springs.cap)
     readonly property int slackY: 40
     readonly property real morphW: 2 * Math.ceil(Math.max(cardW / 2 + neckR + slackX, Math.abs(pillDx) + pillW / 2 + 8))
     readonly property real morphH: Math.ceil(cardTop + cardH + Theme.shadowDy + slackY)
 
-    // ---- the springs (0 = the pill, 1 = the card), as the Stage's.
-    property real mw: 0
-    property real mh: 0
-    property bool expanding: true
+    // ---- the springs (MorphSprings, the Stage's): in this item's px (its box is centred on the bar), towards the card
+    // while the surface is open and has shown its first frame, else towards the pill. They stay towards the card while the
+    // content fades out (it leaves first), then fold.
+    readonly property real pillCx: morphW / 2 + pillDx
+    readonly property real cardCx: morphW / 2
+    readonly property real closedFoot: pillTop + pillH
+    readonly property real cardFoot: cardTop + cardH
+    readonly property bool extended: shown && !gate && (open || contentP > 0.4)
+    MorphSprings {
+        id: springs
+        on: Theme.springOn && m.shown && m.morph
+        expanding: m.extended
+        cxTo: m.extended ? m.cardCx : m.pillCx
+        wTo: m.extended ? m.cardW : m.pillW
+        hTo: m.extended ? m.cardFoot : m.closedFoot
+    }
     // This shape holds the island (see the header).
     property bool holds: false
-    readonly property bool springing: shown && !gate && Theme.springOn
-    Behavior on mw {
-        enabled: m.springing
-        SpringAnimation {
-            spring: Theme.spring * (m.expanding ? 1.3 : 1.2)
-            damping: Math.min(1, Theme.damping * (m.expanding ? 1 : 1.25))
-            epsilon: 0.002
-        }
-    }
-    Behavior on mh {
-        enabled: m.springing
-        SpringAnimation {
-            spring: Theme.spring * (m.expanding ? 1.0 : 1.6)
-            damping: Math.min(1, Theme.damping * (m.expanding ? 1.25 : 1))
-            epsilon: 0.002
-        }
-    }
     function take() {
         if (outName !== "" && IslandGeom.takenOn === "") { IslandGeom.takenOn = outName; holds = true }
     }
@@ -130,14 +124,16 @@ Item {
         interval: 500
         repeat: true
         running: m.debugLog && m.shown
-        onTriggered: console.log("bar-morph mw=" + m.mw.toFixed(3) + " mh=" + m.mh.toFixed(3) + " content=" + m.contentP.toFixed(2)
-            + " open=" + m.open + " gate=" + m.gate + " holds=" + m.holds + " card=" + m.cardW + "x" + m.cardH)
+        onTriggered: console.log("bar-morph cx=" + springs.cx.toFixed(1) + " w=" + springs.w.toFixed(1) + " h=" + springs.h.toFixed(1)
+            + " to=" + springs.cxTo.toFixed(1) + "," + springs.wTo.toFixed(1) + "," + springs.hTo.toFixed(1)
+            + " content=" + m.contentP.toFixed(2) + " open=" + m.open + " gate=" + m.gate + " holds=" + m.holds
+            + " card=" + m.cardW + "x" + m.cardH)
     }
     Connections {
         target: m.debugLog && m.shown ? m.Window.window : null
         function onFrameSwapped() {
             var t = Date.now() - m.openedAt
-            if (t < 900) console.log("bar-morph frame +" + t + " ms mw=" + m.mw.toFixed(3) + " mh=" + m.mh.toFixed(3))
+            if (t < 900) console.log("bar-morph frame +" + t + " ms w=" + springs.w.toFixed(1) + " h=" + springs.h.toFixed(1))
         }
     }
     onOpenChanged: { openedAt = Date.now(); follow() }
@@ -146,8 +142,9 @@ Item {
             pillGeom = IslandGeom.pillOf(outName)
             handBack.stop()
             if (morph) {
-                if (!shown) { mw = 0; mh = 0; gate = true; shown = true }
-                else { expanding = true; mw = 1; mh = 1 }
+                // The shape starts as the pill (no spring yet) and grows from the first presented frame on; reopened while
+                // it folds back, it grows again from where it is, with its velocity (the targets move, MorphSprings).
+                if (!shown) { gate = true; shown = true; springs.place(pillCx, pillW, closedFoot) }
             } else {
                 anim.stop()
                 if (!shown) { p = 0; gate = true; shown = true }
@@ -155,14 +152,16 @@ Item {
             }
         } else if (shown) {
             gate = false
-            if (morph) { expanding = false; mw = 0; mh = 0; checkFolded() }
+            reached = false
+            if (morph) Qt.callLater(checkFolded)
             else { anim.stop(); anim.from = p; anim.to = 0; anim.start() }
         }
     }
     // The bar moved while the card is out: no morph across edges, the card goes and comes back in the new manner.
     onMorphChanged: if (shown) {
         handBack.stop(); anim.stop(); release()
-        shown = false; gate = false; mw = 0; mh = 0; p = 0
+        shown = false; gate = false; p = 0
+        springs.snap()
         if (open) follow(); else m.hidden()
     }
     NumberAnimation {
@@ -174,23 +173,28 @@ Item {
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (m.p <= 0 && !m.open) { m.shown = false; m.hidden() }
     }
-    // The growth starts on the first presented frame (the window is mapped and sized by then), not on the request.
+    // The growth starts on the first presented frame (the window is mapped and sized by then), not on the request. The
+    // start is read again then: the pill may have been reported after the request.
     Connections {
         target: m.gate ? m.Window.window : null
         function onFrameSwapped() {
             if (!m.gate) return
+            if (m.morph) springs.place(m.pillCx, m.pillW, m.closedFoot)
             m.gate = false
             if (m.debugLog) console.log("bar-morph gate " + m.outName + " +" + (Date.now() - m.openedAt) + " ms")
-            if (m.morph) { m.take(); m.expanding = true; m.mw = 1; m.mh = 1 }
+            if (m.morph) m.take()
             else { anim.from = m.p; anim.to = 1; anim.start() }
         }
     }
     // Folded back: the pill goes back to the bar first and the shape a moment later, so the screen never shows no island.
-    onMwChanged: checkFolded()
-    onMhChanged: { trackSpeed(); checkFolded() }
+    Connections {
+        target: springs
+        function onHChanged() { m.checkFolded() }
+        function onWChanged() { m.checkFolded() }
+    }
     function checkFolded() {
-        if (open || !shown || !morph || handBack.running) return
-        if (mw <= 0.02 && mh <= 0.02) { release(); handBack.start() }
+        if (open || !shown || !morph || handBack.running || Math.abs(springs.hTo - closedFoot) > 0.5) return
+        if (Math.abs(springs.h - springs.hTo) <= 1.5 && Math.abs(springs.w - springs.wTo) <= 3) { release(); handBack.start() }
     }
     Timer {
         id: handBack
@@ -198,54 +202,40 @@ Item {
         onTriggered: {
             if (m.open) return
             m.shown = false
-            m.mw = 0
-            m.mh = 0
             m.hidden()
         }
     }
 
-    // ---- squash and stretch (I113), from tokens: the height's speed (progress per second, smoothed) narrows the shape as
-    // it lengthens; the overshoot past 1 widens it as it lands.
-    readonly property real squash: Theme.springOn
-        ? Theme.tok("motion.spring.squash", Math.max(0, Math.min(0.08, (0.45 - Theme.damping) * 0.4))) : 0
-    property real speed: 0
-    property real lastMh: 0
-    property double lastT: 0
-    function trackSpeed() {
-        if (squash <= 0 || !shown) { speed = 0; return }
-        var t = Date.now(), dt = t - lastT
-        if (dt > 0 && dt < 100) speed = speed * 0.5 + 0.5 * (mh - lastMh) * 1000 / dt
-        else speed = 0
-        lastMh = mh
-        lastT = t
-    }
-
-    // ---- the shape's geometry, in a top bar's frame (the box is mirrored for a bottom bar).
-    function soft(v) { return v > 1 ? 1 + Math.min((v - 1) * 0.6, 0.08) : Math.max(0, v) }
+    // ---- the shape's geometry, in a top bar's frame (the box is mirrored for a bottom bar), as the Stage's head mode.
     function lerp(a, b, t) { return a + (b - a) * t }
-    readonly property real ew: soft(mw)
-    readonly property real eh: soft(mh)
-    readonly property real tw: Math.max(0, Math.min(1, mw))
-    readonly property real th: Math.max(0, Math.min(1, mh))
-    // Narrower while it lengthens fast, wider while the height overshoots (both 0 without squash).
-    readonly property real squashK: squash <= 0 ? 0
-        : Math.max(-1.5 * squash, Math.min(squash, -squash * Math.max(0, speed) / 6 + 4 * squash * Math.max(0, eh - 1)))
-    readonly property real shapeW: lerp(pillW, cardW, ew) * (1 + squashK * tw)
-    readonly property real shapeH: lerp(pillH, cardTop + cardH - pillTop, eh)
-    readonly property real shapeCx: morphW / 2 + lerp(pillDx, 0, tw)
+    function clamp01(v) { return Math.max(0, Math.min(1, v)) }
+    // How far the shape has grown out of the pill, 0..1 (the foot against the card's): corners, tint and ring follow it.
+    readonly property real tgrow: clamp01((springs.h - closedFoot) / Math.max(1, cardFoot - closedFoot))
+    // The drawn shape: squash & stretch narrows it while its foot moves fast, and it bulges as it lands (I113).
+    readonly property real shapeW: Math.max(0, springs.wOut * (1 - springs.squeeze))
+    readonly property real shapeCx: springs.cxOut
+    readonly property real shapeFoot: springs.hOut
     readonly property real pillR: Math.min(Theme.rFull, pillH / 2)
-    readonly property real pillCx: morphW / 2 + pillDx
-    readonly property real bodyTop: joined ? lerp(pillTop + pillH, cardTop, eh) : pillTop
-    readonly property real bodyH: joined ? Math.max(0, lerp(0, cardH, eh)) : shapeH
-    readonly property point shapeCarry: Qt.point(shapeCx - morphW / 2, (flip ? -1 : 1) * (bodyTop + bodyH - cardTop - cardH))
-    // The neck swells once as the card lands (the height's overshoot) — lively only, through `squash`.
-    readonly property real wobble: squash > 0 ? Math.max(-0.5, Math.min(1, (eh - 1) * 12)) : 0
+    // The body: the whole shape on a strip (the head is its top); joined, what grows out from under the island's block.
+    readonly property real bodyTop: joined ? lerp(closedFoot, cardTop, tgrow) : pillTop
+    readonly property real bodyH: Math.max(0, shapeFoot - bodyTop)
+    readonly property point shapeCarry: Qt.point(shapeCx - cardCx, (flip ? -1 : 1) * (shapeFoot - cardFoot))
     readonly property color shapeFill: {
-        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tw))
+        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tgrow))
         return Qt.alpha(c, Theme.panel.a)
     }
-    // The content comes in once the shape has nearly grown (fade + 0.98 → 1) and leaves first.
-    readonly property bool contentWanted: morph ? (open && shown && !gate && mw > 0.72 && mh > 0.6) : true
+    // I160 (as the Stage): the head over the bar's translucent strip is made one layer with it as the card grows.
+    readonly property real stripA: Theme.surfaceAlpha.a
+    readonly property real headA: stripA >= 0.999 ? Theme.panel.a : Math.max(0, (Theme.panel.a - stripA) / (1 - stripA))
+    readonly property color headFill: Qt.alpha(shapeFill, lerp(Theme.panel.a, headA, tgrow))
+    // The content comes in once the shape has nearly grown (fade + 0.98 → 1, ≤ 160 ms) and leaves first (90 ms); once in it
+    // stays while the card only grows or shrinks a little (a list filling): `reached` latches until the surface closes.
+    readonly property bool near: Math.abs(springs.hTo - cardFoot) < 1 && Math.abs(springs.wTo - cardW) < 1 && springs.pw > 0.92
+        && springs.ph > 0.6 && (springs.pcx > 0.97 || Math.abs(springs.cx - springs.cxTo) < 16)
+    property bool reached: false
+    onNearChanged: if (near && open && shown && !gate) reached = true
+    onGateChanged: reached = false
+    readonly property bool contentWanted: morph ? (open && shown && !gate && (reached || near)) : true
     onContentWantedChanged: contentP = contentWanted ? 1 : 0
     Behavior on contentP {
         enabled: m.morph && m.shown && Theme.quickMs > 0
@@ -291,17 +281,19 @@ Item {
             hw: m.pillW
             hh: m.pillH
             hr: m.pillR
-            neckF: Theme.rLg / 2 * (1 + 0.6 * m.wobble)
+            neckF: Theme.rLg / 2
+            neckScale: springs.neckScale
             x0: m.shapeCx - m.shapeW / 2
             y0: m.bodyTop
             w: m.shapeW
             h: m.bodyH
-            rTop: m.joined ? Theme.rLg : m.lerp(m.pillR, Theme.rLg, m.th)
-            rBot: m.lerp(m.pillR, Theme.rLg, m.th)
+            rTop: m.joined ? Theme.rLg : m.lerp(m.pillR, Theme.rLg, m.tgrow)
+            rBot: m.lerp(m.pillR, Theme.rLg, m.tgrow)
             edgeY: m.barHt
-            neck: m.neckR * (1 + 0.6 * m.wobble)
+            neck: m.neckR
             fill: m.shapeFill
-            ringScale: 0.5 + 0.5 * m.tw
+            headFill: m.headFill
+            ringScale: 0.5 + 0.5 * m.tgrow
             flip: m.flip
         }
         // The fill alone, in white, as the relief's mask (I168), redrawn only when the path changes.

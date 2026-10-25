@@ -104,7 +104,8 @@ QtObject {
             return to - start
         return to - v
     }
-    function snapIfOff() { if (!on) snap() }
+    // (Called later: the object may be gone by then, a toast whose card was removed.)
+    function snapIfOff() { if (typeof snap === "function" && !on) snap() }
     function snap() {
         driver.running = false
         cx = cxTo; w = wTo; h = hTo
