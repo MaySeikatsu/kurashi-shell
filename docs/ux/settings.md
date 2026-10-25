@@ -138,3 +138,31 @@ focusable; screen readers see one dialog named "Settings".
 
 **Definition of done.** Both modes from the key, live switch; sheet textured and lit (shots kami light/dark, paint with
 spotlight); Esc/backdrop/close button; `settings/test.sh` green in both modes; idle 0 frames while open and still.
+
+## Free lists and page links (W36-core; I54, I40, K65)
+References: **GNOME** Settings › Search › Search Locations (a list of folders, add and remove); **KDE** System Settings ›
+File Search (folders to index or skip, one per row, Add…); **macOS** Spotlight › Privacy (a folder list with + and −). Each shows one entry per row.
+- **Free string lists** (a mod's `type = "list"` without choices, and core lists such as the launcher's terminal command or
+  the dock's pins) use the pick list's vertical rows: number, entry, move up / move down / remove, Alt+Up/Down and
+  Delete on a focused row, the focus following a moved row. Under the rows a text field adds an entry: Return adds the
+  trimmed text as the last entry; an entry already listed is not added twice; blank adds nothing. The list is one value
+  with one provenance (the row's chip). The font chain keeps its chips (its edits are previews).
+- **Path lists** (`unit = "path"`, e.g. the wallpaper's `folders`): the field's placeholder says "Add a path: /… or ~/…",
+  the empty line says what a path looks like, the field is monospace and the entries elide in the middle (start and last folder
+  stay visible). kurashid refuses an entry that is neither absolute nor under `~` (`error.config.not_a_path`); whether
+  the folder exists is the mod's to say (the wallpaper picker names a missing folder). A refused entry stays in the field
+  with its edge marked and the reason under the row, so it can be corrected. No file picker yet: the shell has no portal
+  client, and a picker that is a Process in the frontend would break rule 1 (later: an `xdg-desktop-portal` FileChooser
+  through the daemon).
+- **Old values**: a free list saved as one `:`-joined string (the wallpaper's folders before lists) reads as its parts; the
+  first edit writes the list.
+- **States**: empty ("Nothing listed yet." / "No paths yet …"), entries, refused entry (invalid path), Nix-forced (rows and
+  field disabled, the chip names the layer), inert (requires) like any row.
+- **Page links**: `settings.open {page}` opens Settings on a page — a schema page id (`keys`) or `mod:<id>` for a loaded mod's
+  page — at start (`KURASHI_SETTINGS_PAGE`) or on a running window (`ipc call settings page <page>`); the page opens at its
+  top and out of a search. A key link wins when both are given. kurashid refuses a page Settings does not have
+  (`error.settings.unknown_page`), so a link never opens an empty window. First link: the wallpaper picker's overflow menu,
+  "Wallpaper settings" (`mod:wallpaper`).
+- Shots: `settings/shots/{freelist-empty,freelist-three,freelist-added,freelist-invalid-path,page-link-keys,ja-page-link-records}.png`.
+- Definition of done: free list add / remove / reorder by keyboard and pointer ✓; path hint and refusal ✓; old colon
+  string read ✓; page link at start and while running ✓; en + ja copy ✓; a native file picker ✗ (later, needs a portal client).
