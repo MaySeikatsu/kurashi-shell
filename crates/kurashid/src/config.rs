@@ -33,9 +33,9 @@ pub const REASON_MOD_DISABLED: &str = "mods.disabled";
 pub const REASON_CHOICE_UNAVAILABLE: &str = "settings.choice.unavailable";
 /// The island instance the `island.main.*` keys configure; its document lists the faces.
 const ISLAND_DOC: &str = "runtime.island.main";
-/// OSD faces: transient-only, never in the cycle, so they are no option of `island.*.faces`
-/// (island.rs `apply_config`, K9).
-const TRANSIENT_FACES: [&str; 2] = ["volume", "brightness"];
+/// System faces: transient-only, governed by `island.main.system_events` and never by the list, so they are no
+/// option of `island.*.faces` (island.rs `apply_config`, K9, K68).
+const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
 pub const CORE_SOURCES: [&str; 9] = [
@@ -397,10 +397,12 @@ fn offers_now(
             .collect(),
     );
     if let Ok((_, doc)) = hub.snapshot(ISLAND_DOC) {
+        // The faces in effect, then the ones the list leaves out (K68, row 450): a removed face can be added back.
         let faces = doc["faces"]
             .as_array()
             .into_iter()
             .flatten()
+            .chain(doc["unlisted"].as_array().into_iter().flatten())
             .filter_map(Value::as_str)
             .filter(|f| !TRANSIENT_FACES.contains(f))
             .map(|f| {
@@ -1991,7 +1993,7 @@ mod tests {
         let hub = Hub::new();
         hub.register(
             "runtime.island.main",
-            json!({"faces": ["clock", "weather", "bluetooth", "volume"]}),
+            json!({"faces": ["clock", "weather", "bluetooth", "volume"], "unlisted": ["media"]}),
             None,
         );
         let mods = BTreeMap::from([("weather".to_string(), "mods.weather.name".to_string())]);
@@ -1999,8 +2001,11 @@ mod tests {
         let faces = &offers["island.faces"];
         let label = |v: &str| faces.iter().find(|o| o.value == v).map(|o| o.label.clone());
         assert_eq!(label("weather").as_deref(), Some("mods.weather.name"));
-        assert_eq!(label("bluetooth").as_deref(), Some("config.face.bluetooth"));
+        // K68: system faces follow `island.main.system_events`, never the list, so they are no option.
+        assert_eq!(label("bluetooth"), None, "system faces are not offered");
         assert_eq!(label("volume"), None, "OSD faces are not offered");
+        // Row 450: a face the list leaves out is offered, so it can be added back.
+        assert_eq!(label("media").as_deref(), Some("config.face.media"));
     }
 
     /// W29: the right sidebar offers the core sections, then the mods' panels; the left one the panels only. A panel of a
