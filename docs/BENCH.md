@@ -315,3 +315,16 @@ Earlier "exited early / 6.4 fps" readings came from parallel agents sharing sand
 | webdock (shell side, W20) | B, gles2 renderD129 | 0 commits / 10 s hidden | +6.2 MiB USS (median of 3; runs swing ~40 MiB) | +3.8 MiB USS (shared dock window, first reveal) | −0.9 MiB | PSS unusable on 2 outputs under gles2 (a ~1.9 TiB mapping, I93); bar widget +0.8 MiB PSS. Web host process: not yet measured (I79/BENCH) |
 | webdock (web host process tree, W20) | B, sandbox | 0 commits / 10 s | — | 405–417 MiB PSS with 1 site kept; 409–434 MiB with 5 (two runs each); 0 sites: not measured | — | Own process (K38), gone after `unload_after`; Phase 0 was 255–262 MiB for one view in the hosting process alone |
 | app dock (core, opt-in `dock.enabled`, W25-dock, K51) | B, gles2 renderD129, 1 output | 0 commits / 10 s hidden (autohide), 0 / 10 s shown | +6.9 MiB USS hidden (dock on vs off, medians of three: 152.5 vs 145.7; one output, so this includes the once-per-shell component load; the 4 px edge window is the only surface) | +2.2 MiB USS on the first show (the dock window, made then kept) | not measured | `DOCK_MEASURE=1 frontend/test-dock.sh`; absolute USS swung ~50 MiB between sessions on this shared machine (106 vs 152 MiB), deltas held |
+
+### 2026-10-25 — web dock follow-ups (W38-webdock; I191's measure numbers, re-measured once)
+The webdock mod's shell side, mod on and off, from the dock test's measure phase (`mods/webdock/test/test-dock.sh`,
+`DOCK_PHASES=measure`; I191 quoted W35's run of the same phase). Machine A (session 13, its only GPU is `renderD128`,
+gles2). The re-measure is one run of the phase: its own numbers, not a replacement for the quoted row.
+| Measure | Machine / renderer | Idle frames | Per output | Once | 20-cycle growth | Note |
+|---|---|---|---|---|---|---|
+| I191, as quoted (W35 measure phase) | A (session 13); renderer not restated in I191 | 0 commits / 10 s hidden | +2.86 MiB USS | +2.89 MiB USS (first reveal) | — | +5.08 MiB USS mod on, one output (quoted, not re-run here) |
+| W38 re-measure (this run) | A, gles2 renderD128 | 0 commits / 10 s hidden | +8.0 MiB USS (median of 3 at two outputs; off 146–175, on 153–178 MiB) | +4.89 MiB USS (first reveal; +16.8 MiB PSS) | −0.46 MiB USS | one run each at one output: mod on 246.4, off 154.1 MiB PSS (delta 92.2; the bar widget alone 9.7). Not medians, not repeated: open. Run-to-run spread is ±15 MiB, so the per-output figure is not a trend |
+
+PSS is unusable with two outputs under gles2 (a ~1.9 TiB mapping, I93), as in the W20 row. The phase's checks pass:
+per-output USS at most 10 MiB, and 20 reveal/hide cycles add at most 1 MiB of USS. The W38 changes (the forced tip, a
+`PopupWindow` made only while shown, and the notes' shots) add no window while the dock is hidden; the idle check is 0 commits.
