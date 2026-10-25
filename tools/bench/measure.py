@@ -368,6 +368,8 @@ def cycle_test(env, app, n):
             kurashi(env, *CYCLE_CLOSE)
             time.sleep(0.25)
 
+    # W35: on a frontend without the hidden per-output windows these two readings scatter by up to ±15 MiB from run to
+    # run (each stays flat for 12 s after its phase, so it is not memory on its way back to the system; docs/BENCH.md).
     for _ in range(n):
         one_round()
     time.sleep(2)
