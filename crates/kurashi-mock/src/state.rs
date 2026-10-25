@@ -2329,6 +2329,26 @@ mod tests {
         assert_eq!(days[6]["date"], "2026-10-15");
     }
 
+    /// K64 (W38-keys): a config change judges `svc.keys` again, so a combo another action holds is a conflict at once
+    /// (the recompute in `apply`, on the config path that Settings and the CLI take).
+    #[test]
+    fn svc_keys_follows_a_config_change() {
+        let mut st = state();
+        assert_eq!(st.data("svc.keys")["binds"][4]["key"], "keys.quick");
+        assert_eq!(st.data("svc.keys")["binds"][4]["state"], "none");
+        st.act(
+            "mock.doc",
+            &json!({"doc": "config", "patch": {"values": {"keys.quick": {"value": "Mod+Space"}}}}),
+        )
+        .unwrap();
+        assert_eq!(st.data("svc.keys")["binds"][4]["state"], "conflict");
+        assert_eq!(
+            st.data("svc.keys")["binds"][4]["reason"],
+            "keys.conflict.taken"
+        );
+        assert_eq!(st.data("svc.keys")["binds"][0]["state"], "ok");
+    }
+
     /// K28/K26 parity: `runtime.slots` has the fixture's shape, and `mod.panel.open` toggles the fake
     /// mod's panel as kurashid does; any other panel is refused with the daemon's key.
     #[test]
