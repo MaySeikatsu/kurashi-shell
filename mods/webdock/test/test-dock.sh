@@ -489,6 +489,32 @@ phase_intents() {
   stop_phase
 }
 
+# ---- focus: Tab from the view card's header reaches the view's own controls (I90) ----
+phase_focus() {
+  echo "== phase focus: Tab walks the view card's header, the view's controls, then the card"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='extended'; d['shown']='weather'; print(json.dumps(d))" "$BASE" "$PINS2")"
+  sleep 2
+  start_input
+  sleep 1
+  click 2300 520   # into the card's body: the dock holds the keyboard
+  # Tab walks the strip, the card, the view's own controls (Refresh, Places), then the header's size control (Large):
+  # press until Large has focus again, one cycle.
+  for _ in $(seq 1 30); do
+    press tab
+    grep -q -F 'webdock-debug focus Large' "$R/qs.log" && break
+  done
+  shot focus-tab
+  grep -q -F 'webdock-debug focus Places' "$R/qs.log" && r=1 || r=0
+  check "$r" "focus: Tab from the card reaches the view's own control (Places)"
+  grep -q -F 'webdock-debug focus Large' "$R/qs.log" && r=1 || r=0
+  check "$r" "focus: Tab cycles back to the header's size control (Large)"
+  stop_phase
+}
+
 # ---- ja: the Japanese copy, the view card, on the right edge ----
 phase_ja() {
   echo "== phase ja: the copy in Japanese"
@@ -586,6 +612,7 @@ phase_measure() {
 
 want states && phase_states
 want intents && phase_intents
+want focus && phase_focus
 want ja && phase_ja
 want measure && phase_measure
 echo "test-dock: $FAILS failed"
