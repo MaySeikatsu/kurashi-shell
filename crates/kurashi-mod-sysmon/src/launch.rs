@@ -35,8 +35,27 @@ impl Launcher for Spawn {
     }
 
     fn spawn(&self, program: &str, args: &[&str]) -> io::Result<()> {
-        let mut child = Command::new(program)
-            .args(args)
+        use std::os::unix::process::CommandExt;
+        // I59: started the way the launcher starts apps — in a systemd user scope of its own when systemd-run is
+        // there, in its own process group, without the daemon's KURASHI_* variables — so it outlives a daemon
+        // restart and is not counted as part of the shell.
+        let mut cmd = if self.on_path("systemd-run") {
+            let mut c = Command::new("systemd-run");
+            c.args(["--user", "--scope", "--quiet", "--collect", "--", program])
+                .args(args);
+            c
+        } else {
+            let mut c = Command::new(program);
+            c.args(args);
+            c
+        };
+        for (k, _) in std::env::vars_os() {
+            if k.to_string_lossy().starts_with("KURASHI_") {
+                cmd.env_remove(&k);
+            }
+        }
+        cmd.process_group(0);
+        let mut child = cmd
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())

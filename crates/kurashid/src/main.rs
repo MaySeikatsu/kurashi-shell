@@ -53,6 +53,8 @@ async fn run() -> anyhow::Result<()> {
         None,
     );
     let mut actions = ActionRegistry::default();
+    // I39: binding keys offer the registered actions (a shared table: later registrations included).
+    kurashid::config::set_action_registry(actions.clone());
     // W26 (ARCHITECTURE §7): the adapter for this session — `KURASHI_COMPOSITOR`, else `NIRI_SOCKET`,
     // `HYPRLAND_INSTANCE_SIGNATURE`, `SWAYSOCK`. Without one the document stays empty rather than pretending (Shōjiki).
     let compositor = kurashi_compositor::any::detect();
@@ -148,6 +150,7 @@ async fn run() -> anyhow::Result<()> {
                     }
                 };
             kurashid::theme::register(&hub, &store, fonts);
+            kurashid::keys::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
             Some(store)
         }
         None => {

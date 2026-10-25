@@ -238,3 +238,31 @@ async fn reading_the_config_file_does_not_reload_it() {
         "reading config.toml republished the config document"
     );
 }
+
+/// I39: a binding slot offers the registered actions; one that names no action is kept but reported unavailable.
+#[tokio::test]
+async fn a_binding_to_an_unknown_action_is_inert_with_its_reason() {
+    let (store, _hub, mut actions, root) = open();
+    actions.register("island.expand", "action.island.expand", |_| async {
+        Ok(None)
+    });
+    kurashid::config::set_action_registry(actions.clone());
+    let user = store.paths().user_file();
+    std::fs::create_dir_all(user.parent().unwrap()).unwrap();
+    std::fs::write(
+        &user,
+        "schema_version = 2\n[island.main.input]\nleft = \"island.expand\"\nright = \"no.such.action\"\n",
+    )
+    .unwrap();
+    store.reload();
+    store.refresh_choices();
+    let known = store.get("island.main.input.left", None).expect("left");
+    let unknown = store.get("island.main.input.right", None).expect("right");
+    assert_eq!(known.reason, None, "{known:?}");
+    assert_eq!(
+        unknown.reason.as_deref(),
+        Some(kurashid::config::REASON_CHOICE_UNAVAILABLE),
+        "{unknown:?}"
+    );
+    let _ = std::fs::remove_dir_all(root);
+}

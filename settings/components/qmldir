@@ -33,3 +33,5 @@ LightSwatches 1.0 LightSwatches.qml
 Relief 1.0 Relief.qml
 TileSheet 1.0 TileSheet.qml
 LightSense 1.0 LightSense.qml
+ShortcutRecorder 1.0 ShortcutRecorder.qml
+KeysStatus 1.0 KeysStatus.qml

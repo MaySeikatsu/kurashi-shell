@@ -31,7 +31,7 @@ FaceBase {
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: "☂"
-            color: Theme.accent
+            color: Theme.dataColor(1)   // I63: rain is data, not an alarm
             font.pixelSize: Theme.fs
         }
         Text {

@@ -48,6 +48,62 @@ pub struct Config {
     pub sidebar: Sidebar,
     #[kurashi(nested)]
     pub settings: SettingsApp,
+    #[kurashi(nested)]
+    pub keys: Keys,
+}
+
+// --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "keys", section = "shortcuts")]
+pub struct Keys {
+    /// Shortcuts for the compositor
+    /// Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl`, included from its config).
+    /// Off: your compositor's own config keeps the keys, as now.
+    #[kurashi(default = false)]
+    pub write: bool,
+    /// Launcher
+    #[kurashi(default = "Mod+Space".to_owned(), requires = "keys.write == true")]
+    pub launcher: String,
+    /// Notification centre
+    #[kurashi(default = "Mod+N".to_owned(), requires = "keys.write == true")]
+    pub notifications: String,
+    /// Right sidebar
+    #[kurashi(default = "Mod+Shift+N".to_owned(), requires = "keys.write == true")]
+    pub sidebar_right: String,
+    /// Left sidebar
+    #[kurashi(default = "Mod+A".to_owned(), requires = "keys.write == true")]
+    pub sidebar_left: String,
+    /// Quick settings
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub quick: String,
+    /// Session menu
+    #[kurashi(default = "Mod+Shift+E".to_owned(), requires = "keys.write == true")]
+    pub session_menu: String,
+    /// Lock the screen
+    #[kurashi(default = "Super+Alt+L".to_owned(), requires = "keys.write == true")]
+    pub lock: String,
+    /// Settings
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub settings: String,
+    /// Web dock
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub webdock: String,
+    /// Volume up
+    #[kurashi(default = "XF86AudioRaiseVolume".to_owned(), requires = "keys.write == true")]
+    pub volume_up: String,
+    /// Volume down
+    #[kurashi(default = "XF86AudioLowerVolume".to_owned(), requires = "keys.write == true")]
+    pub volume_down: String,
+    /// Mute
+    #[kurashi(default = "XF86AudioMute".to_owned(), requires = "keys.write == true")]
+    pub mute: String,
+    /// Brightness up
+    #[kurashi(default = "XF86MonBrightnessUp".to_owned(), requires = "keys.write == true")]
+    pub brightness_up: String,
+    /// Brightness down
+    #[kurashi(default = "XF86MonBrightnessDown".to_owned(), requires = "keys.write == true")]
+    pub brightness_down: String,
 }
 
 // --- the Settings app (K63) ------------------------------------------------------------------------

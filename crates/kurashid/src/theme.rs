@@ -83,7 +83,13 @@ pub fn effective_scheme(
         "auto" => match get() {
             Pref::Light => (Scheme::Light, "os"),
             Pref::Dark => (Scheme::Dark, "os"),
-            Pref::Unknown => (Scheme::Dark, "os_unknown"),
+            // I156: no preference anywhere — light by day, dark at night.
+            Pref::Unknown => match crate::texture::is_day(store, chrono::Local::now()) {
+                (true, "sun") => (Scheme::Light, "os_unknown_sun"),
+                (false, "sun") => (Scheme::Dark, "os_unknown_sun"),
+                (true, _) => (Scheme::Light, "os_unknown_day"),
+                (false, _) => (Scheme::Dark, "os_unknown_day"),
+            },
         },
         "wallpaper" => match picture.and_then(|p| kurashi_theme::stages::wallpaper_file(p).ok()) {
             Some(x) if x.is_light() => (Scheme::Light, "wallpaper"),
@@ -92,6 +98,13 @@ pub fn effective_scheme(
         },
         _ => (Scheme::Dark, ""),
     }
+}
+
+/// The theme's 5-minute tick is wanted: the daytime light, or scheme `auto` following the day (I156).
+fn wants_tick(store: &ConfigStore) -> bool {
+    crate::texture::wants_sun(store)
+        || (s(store, "theme.colors.scheme") == "auto"
+            && crate::os_scheme::get() == crate::os_scheme::Pref::Unknown)
 }
 
 fn scheme_name(s: Scheme) -> &'static str {
@@ -474,14 +487,15 @@ pub fn register(
             }
         }));
     }
-    // K59: the daytime light moves with the sun — a 5-minute tick, only while that light is chosen (Ma).
-    let (sun_tx, mut sun_rx) = tokio::sync::watch::channel(crate::texture::wants_sun(store));
+    // K59: the daytime light moves with the sun — a 5-minute tick, only while that light is chosen (Ma); I156: also
+    // while scheme `auto` has no system preference and follows the day.
+    let (sun_tx, mut sun_rx) = tokio::sync::watch::channel(wants_tick(store));
     {
         let (hub, fonts) = (hub.clone(), fonts.clone());
         store.on_change(move |store| {
             follow(store);
             sun_tx.send_if_modified(|on| {
-                let want = crate::texture::wants_sun(store);
+                let want = wants_tick(store);
                 std::mem::replace(on, want) != want
             });
             republish(&hub, store, fonts.as_ref());
@@ -696,7 +710,7 @@ mod tests {
         }
         // No portal in a test: `auto` is dark and says the system has no preference (unless the portal test runs).
         let (_, why) = effective_scheme(&with("auto"), None);
-        assert!(why == "os_unknown" || why == "os", "{why}");
+        assert!(why.starts_with("os_unknown") || why == "os", "{why}");
         // Schema default with no style: auto.
         let store = store_with(&root, "schema_version = 2\n[theme]\nstyle = \"none\"\n");
         assert_eq!(s(&store, "theme.colors.scheme"), "auto");
