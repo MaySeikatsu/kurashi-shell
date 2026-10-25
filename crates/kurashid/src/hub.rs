@@ -128,6 +128,14 @@ impl Hub {
         Ok((d.rev, d.data.clone()))
     }
 
+    /// A document's current revision, without copying its data (a cache keyed by revision checks it).
+    pub fn rev(&self, name: &str) -> Result<Rev, UnknownDoc> {
+        let docs = self.docs.lock().expect("hub lock");
+        docs.get(name)
+            .map(|d| d.rev)
+            .ok_or_else(|| UnknownDoc(name.into()))
+    }
+
     /// Replace a document's data; broadcasts the merge-patch diff (nothing if unchanged).
     pub fn set(&self, name: &str, new: Value, origin: Option<String>) -> Result<(), UnknownDoc> {
         let mut docs = self.docs.lock().expect("hub lock");

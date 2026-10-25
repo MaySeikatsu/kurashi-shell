@@ -12,7 +12,7 @@ use kurashi_ipc::{ServerMsg, merge_patch};
 use kurashid::wiring::{
     ARGS_INVALID, CONFIRM_REQUIRED, MEDIA_CANNOT_SEEK, MEDIA_NO_SUCH_PLAYER, NETWORK_NEEDS_SECRET,
     NETWORK_NOT_FOUND, NETWORK_NOT_SAVED, NETWORK_UNAVAILABLE, NO_SUCH_PROFILE, NO_SUCH_SINK,
-    NO_SUCH_SOURCE, NO_SUCH_STREAM, SERVICE_CALL_FAILED,
+    NO_SUCH_SOURCE, NO_SUCH_STREAM, SERVICE_CALL_FAILED, UI_POLKIT, UNKNOWN_FACE,
 };
 use serde_json::{Value, json};
 use tokio::sync::broadcast;
@@ -279,6 +279,21 @@ impl State {
     /// Actions with the daemon's semantics. `Ok` carries `done.data`; nothing here returns data
     /// itself, but `input.dispatch` passes its bound action's result on.
     pub fn act(&mut self, action: &str, args: &Value) -> Result<Option<Value>, Fail> {
+        // Row 381, as kurashid: while a polkit dialog is up the Stage's panel and peek actions are refused.
+        let stage = matches!(
+            action,
+            "island.expand"
+                | "probe.popup.toggle"
+                | "notifications.center"
+                | "session.menu"
+                | "quick.toggle"
+                | "mod.panel.open"
+                | "tray.menu.open"
+        ) || (action == "ui.peek"
+            && args["source"].as_str().is_some_and(|s| !s.is_empty()));
+        if stage && self.data("runtime.ui")["polkit"] == true {
+            return Err(Fail::invalid(UI_POLKIT));
+        }
         match action {
             "island.next" | "island.prev" => {
                 let next = if self.data("runtime.island.main")["face"] == "clock" {
@@ -298,10 +313,25 @@ impl State {
                     .unwrap_or(false);
                 self.patch("runtime.island.main", json!({"pinned": pinned}), None);
             }
-            // K24, as kurashid: the island panel latches the face shown when it opens.
+            // K24, as kurashid: the island panel latches the face shown when it opens. K66 (row 203): `{face}`, one of
+            // the island's `faces`, opens it on that face; the same face again closes it, another one switches to it.
             "island.expand" | "probe.popup.toggle" => {
-                let face = self.data("runtime.island.main")["face"].clone();
-                self.toggle_panel("island");
+                let asked = match args.get("face") {
+                    None | Some(Value::Null) => None,
+                    Some(Value::String(f)) if !f.is_empty() => Some(f.clone()),
+                    Some(_) => return Err(Fail::invalid(ARGS_INVALID)),
+                };
+                let island = self.data("runtime.island.main").clone();
+                let face = match &asked {
+                    Some(f) if island["faces"].as_array().is_some_and(|l| l.iter().any(|x| x == f)) => json!(f),
+                    Some(_) => return Err(Fail::invalid(UNKNOWN_FACE)),
+                    None => island["face"].clone(),
+                };
+                let ui = self.data("runtime.ui");
+                let switch = asked.is_some() && ui["panel"] == "island" && ui["face"] != face;
+                if !switch {
+                    self.toggle_panel("island");
+                }
                 if self.data("runtime.ui")["panel"] == "island" {
                     self.patch("runtime.ui", json!({"face": face}), None);
                 }
@@ -397,7 +427,13 @@ impl State {
                 let active = args["active"]
                     .as_bool()
                     .ok_or_else(|| Fail::invalid(ARGS_INVALID))?;
-                self.patch("runtime.ui", json!({"polkit": active}), None);
+                // Row 381, as kurashid: the dialog coming up closes the Stage's panel and peek.
+                let ops = if active {
+                    json!({"polkit": true, "panel": "", "popup": false, "tray": "", "face": "", "peek": null})
+                } else {
+                    json!({"polkit": false})
+                };
+                self.patch("runtime.ui", ops, None);
             }
             // K35, as kurashid: `{}` clears the peek; none over an open card; mod peeks of `hello` only.
             "ui.peek" => {
@@ -465,6 +501,26 @@ impl State {
             "wallpaper.prev" => self.wallpaper_step(-1),
             // Needs no confirmation (wiring.rs `session.lock`, M5-ui-session); a no-op here.
             "session.lock" => tracing::info!("session.lock: no-op in the mock"),
+            // I40/K65, as kurashid: `{key?, page?}` checked like the daemon checks them (a key of the config, a page of
+            // the schema or `mod:<id>` of a mock mod with settings); nothing is started, the answer says `launched`.
+            "settings.open" => {
+                let text = |field: &str| match args.get(field) {
+                    None | Some(Value::Null) => Ok(None),
+                    Some(Value::String(t)) if !t.is_empty() => Ok(Some(t.clone())),
+                    Some(_) => Err(Fail::invalid(ARGS_INVALID)),
+                };
+                let (key, page) = (text("key")?, text("page")?);
+                match (key, page) {
+                    (Some(k), _) if self.data("config")["values"].get(&k).is_none() => {
+                        return Err(Fail::invalid("error.config.unknown_key"));
+                    }
+                    (None, Some(p)) if !settings_page(&p) => {
+                        return Err(Fail::invalid("error.settings.unknown_page"));
+                    }
+                    (key, page) => tracing::info!(?key, ?page, "settings.open: not started in the mock"),
+                }
+                return Ok(Some(json!({"opened": "launched"})));
+            }
             // Without a confirm the daemon refuses; with one it acts, and the mock does nothing.
             "session.suspend" | "session.reboot" | "session.poweroff" | "session.logout" => {
                 if args["confirm"].as_bool() != Some(true) {
@@ -1337,6 +1393,16 @@ fn note_id(args: &Value) -> Option<u32> {
     args["id"].as_u64().and_then(|id| u32::try_from(id).ok())
 }
 
+/// Whether `settings.open {page}` names a page: a schema page id, or `mod:wallpaper` (the mock's mod with settings).
+fn settings_page(page: &str) -> bool {
+    if page == "mod:wallpaper" {
+        return true;
+    }
+    kurashi_schema::settings_meta(kurashi_schema::v1::registry())["pages"]
+        .as_array()
+        .is_some_and(|pages| pages.iter().any(|p| p["id"] == page))
+}
+
 /// Launcher rows for `q`, in kurashi-launcher's `QueryResult` shape with `kind` always `app`. A
 /// case-insensitive substring match over name, generic name and desktop id; name-prefix matches
 /// rank first. An empty query lists the index.
@@ -1532,11 +1598,113 @@ mod tests {
     }
 
     #[test]
+    fn island_expand_opens_the_asked_face() {
+        let mut st = state();
+        st.act("island.next", &none()).unwrap();
+        assert_eq!(st.data("runtime.island.main")["face"], "media");
+        st.act("island.expand", &json!({"face": "clock"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "island");
+        assert_eq!(
+            st.data("runtime.ui")["face"],
+            "clock",
+            "the asked face, not the shown one"
+        );
+        st.act("island.expand", &json!({"face": "media"})).unwrap();
+        assert_eq!(
+            st.data("runtime.ui")["face"],
+            "media",
+            "another face switches the card"
+        );
+        st.act("island.expand", &json!({"face": "media"})).unwrap();
+        assert_eq!(
+            st.data("runtime.ui")["panel"],
+            "",
+            "the same face closes it"
+        );
+        let key = |r: Result<Option<Value>, Fail>| r.err().map(|f| f.msg);
+        assert_eq!(
+            key(st.act("island.expand", &json!({"face": "weather"}))).as_deref(),
+            Some(UNKNOWN_FACE)
+        );
+        assert_eq!(
+            key(st.act("island.expand", &json!({"face": 1}))).as_deref(),
+            Some(ARGS_INVALID)
+        );
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+    }
+
+    #[test]
+    fn the_stage_steps_aside_for_polkit() {
+        let mut st = state();
+        st.act("quick.toggle", &none()).unwrap();
+        st.act("ui.polkit", &json!({"active": true})).unwrap();
+        assert_eq!(
+            st.data("runtime.ui")["panel"],
+            "",
+            "the dialog closes the open panel"
+        );
+        let peek = json!({"source": "island:main", "output": "DP-1", "x": 0, "w": 1});
+        for (action, args) in [
+            ("island.expand", none()),
+            ("quick.toggle", none()),
+            ("session.menu", none()),
+            ("notifications.center", none()),
+            ("tray.menu.open", json!({"id": "a"})),
+            ("mod.panel.open", json!({"id": "hello", "panel": "hello"})),
+            ("ui.peek", peek.clone()),
+        ] {
+            assert_eq!(
+                st.act(action, &args).err().map(|f| f.msg).as_deref(),
+                Some(UI_POLKIT),
+                "{action}"
+            );
+        }
+        assert!(
+            st.act("ui.peek", &json!({})).is_ok(),
+            "clearing a peek still works"
+        );
+        st.act("ui.polkit", &json!({"active": false})).unwrap();
+        st.act("quick.toggle", &none()).unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "quick");
+    }
+
+    #[test]
+    fn settings_open_checks_the_key_and_the_page_as_kurashid() {
+        let mut st = state();
+        let msg = |r: Result<Option<Value>, Fail>| r.err().map(|f| f.msg);
+        assert_eq!(
+            st.act("settings.open", &json!({"page": "keys"})).unwrap(),
+            Some(json!({"opened": "launched"}))
+        );
+        assert!(
+            st.act("settings.open", &json!({"page": "mod:wallpaper"}))
+                .is_ok()
+        );
+        assert!(
+            st.act("settings.open", &json!({"key": "clock.week_start"}))
+                .is_ok()
+        );
+        assert!(st.act("settings.open", &none()).is_ok());
+        assert_eq!(
+            msg(st.act("settings.open", &json!({"page": "nope"}))).as_deref(),
+            Some("error.settings.unknown_page")
+        );
+        assert_eq!(
+            msg(st.act("settings.open", &json!({"key": "bar.hieght"}))).as_deref(),
+            Some("error.config.unknown_key")
+        );
+        assert_eq!(
+            msg(st.act("settings.open", &json!({"page": 3}))).as_deref(),
+            Some(ARGS_INVALID)
+        );
+    }
+
+    #[test]
     fn the_polkit_flag_follows_the_agent_and_outlives_ui_close() {
         let mut st = state();
         st.act("ui.polkit", &json!({"active": true})).unwrap();
         assert_eq!(st.data("runtime.ui")["polkit"], true);
-        st.act("island.expand", &none()).unwrap();
+        st.act("launcher.toggle", &none()).unwrap();
         st.act("ui.close", &none()).unwrap();
         assert_eq!(st.data("runtime.ui")["polkit"], true);
         st.act("ui.polkit", &json!({"active": false})).unwrap();

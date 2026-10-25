@@ -160,8 +160,9 @@ PanelWindow {
         }
         if (!r.id) return
         var id = r.id
-        // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first.
-        if (id.indexOf("cmd:") === 0) {
+        // A `>` command may open a panel of its own (quick settings, the session keys): the launcher closes first. So does
+        // a Settings link (`settings:<page>`, row 387): Settings is a window of its own.
+        if (id.indexOf("cmd:") === 0 || id.indexOf("settings:") === 0) {
             Store.act("ui.close", {}, function () { Store.act("launcher.launch", { id: id }) })
             return
         }

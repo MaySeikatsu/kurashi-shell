@@ -190,3 +190,5 @@
 "island.quick.tile.dark" = "ダークモード"
 "island.quick.tile.dark.auto" = "システムに従う"
 "island.quick.tile.dark.wallpaper" = "壁紙に従う"
+# island.expand {face} (K66, row 203): a face the island does not show.
+"island.error.unknown_face" = "アイランドにその表示はありません。"

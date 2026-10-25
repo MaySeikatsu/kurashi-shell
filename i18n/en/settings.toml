@@ -262,7 +262,3 @@
 "settings.export.copied" = "Copied"
 "settings.export.copy_failed" = "Could not copy"
 
-# settings.open {page} (I40): a page Settings does not have.
-"error.settings.unknown_page" = "Settings has no such page."
-# A path list entry that is not a path (I54; kurashid SchemaAdapter, next to the schema's error.config.* keys).
-"error.config.not_a_path" = "Not a full path: start it with / or ~/."

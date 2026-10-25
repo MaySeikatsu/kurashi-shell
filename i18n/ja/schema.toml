@@ -118,6 +118,8 @@
 "error.config.record_slug" = "「{key}」は英小文字・数字・ハイフンの 1 から 32 字にしてください。"
 "error.config.record_url" = "「{key}」は絶対アドレスにしてください。"
 "error.config.record_scheme" = "「{key}」はこの種類のアドレスを使えません。"
+# パスのリストにパスでない項目（I54）。
+"error.config.not_a_path" = "完全なパスではありません。/ か ~/ で始めてください。"
 "error.config.record_choice" = "「{key}」は選択肢のいずれかにしてください。"
 "error.config.record_out_of_range" = "「{key}」は許容範囲の外です。"
 "error.config.record_duplicate" = "「{key}」は別の項目と同じ値です。"
