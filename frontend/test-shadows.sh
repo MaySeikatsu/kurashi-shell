@@ -16,20 +16,32 @@
 #            (soft): the floating sidebar's column, a toast under the bar and beside it (the bar on the right), the
 #            notification centre, the polkit dialog's field (a harness copy of the frontend), Settings' section cards and
 #            sheet, the lock screen's field (kurashi-mock serves the tokens: the real daemon refuses to lock without PAM).
+#   surfaces3 (W42, K67, I206) the surfaces that cast a hard or a soft shadow of their own, at rest, one shot per look and
+#            angle: the session keys, the key clock, the quick settings' phone frame, the dock's phone card, the web host's
+#            key and Settings' button — the real files, loaded by path beside a copy of the shell (a harness with fixed
+#            content, so no clock minute moves a shot). At 135 and 225 the shadow of each falls to its side (the centroid
+#            of the shadow's pixels off the face lies right of or left of the face's centre, and below it); at 180 it falls
+#            straight down. Held (keycap, 135°): the web host's key sinks by the vector, Settings' button keeps its face and
+#            shows 1 px along it. At the defaults every crop matches the reference frontend (SHADOW_REF) with no strong pixel.
+#            Not covered: the web host's card (WebCard.qml, its pill still casts straight down until CONTRACT row 465 lands).
+#            Settings' button is checked under keycap only: it has no soft shadow, as SectionCard has none (W39).
+#   inert    (W42, row 423) Settings' three shadow rows under flat and line chrome: inert, with the reason, in en and ja. The
+#            words name the first `requires` on theme.chrome, so under line they say "not flat", which holds there (CONTRACT
+#            row 467); the test checks the reason key, and the shots (frontend/shots/shadows/w42-inert-*) show the words.
 # Files: frontend/shots/shadows/*.png and sheet.png (a contact sheet, with ImageMagick). Fails on a server or frontend
 # that does not come up, a token that disagrees with the math, a frame committed while the pointer moves, a QML error.
-# SHADOW_REF=<a frontend dir from before the change, with its settings/ beside it> (e.g. `git archive HEAD frontend settings`
-# into a scratch dir): the defaults must draw pixel for pixel what that frontend draws, for bar, card, quick, and every
-# surfaces2 surface.
+# SHADOW_REF=<a frontend dir from before the change, with its settings/ and mods/ beside it> (e.g. `git archive HEAD frontend
+# settings mods i18n` into a scratch dir): the defaults must draw pixel for pixel what that frontend draws, for bar, card,
+# quick, every surfaces2 surface and every surfaces3 crop (the harnesses' surfaces at 180, with no strong pixel).
 #   nix develop -c frontend/test-shadows.sh
 #   SHADOW_PARTS="tokens matrix" nix develop -c frontend/test-shadows.sh
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${SHADOW_SANDBOX:-w39-sh2-shadows}
+NAME=${SHADOW_SANDBOX:-w42-shadows3-shadows}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHADOW_OUT:-$ROOT/frontend/shots/shadows}
-PARTS=${SHADOW_PARTS:-tokens matrix follow press surfaces settings ma surfaces2}
+PARTS=${SHADOW_PARTS:-tokens matrix follow press surfaces settings ma surfaces2 surfaces3 inert}
 mkdir -p "$OUT"
 fail() { echo "test-shadows: FAIL: $*" >&2; exit 1; }
 say() { echo "test-shadows: $*"; }
@@ -190,7 +202,10 @@ if not diff:
 # strong difference (a channel off by more than 64), which a moved shadow edge makes along its whole length.
 strong = [i for i in diff if max(abs(a[3*i+c] - b[3*i+c]) for c in range(3)) > 64]
 # Strong px are grouped into blobs (strong px within 3 px of each other, chains included). A clock digit, a glyph or a clock
-# layout shift is a small blob or a few; a moved shadow edge or card is one long one. Every blob must be clock-sized.
+# layout shift is a small blob or a few; a moved shadow edge or card is one long one. Every blob longer side must be at most
+# 48 px (W42, I210): the clock and text churn between two runs measures up to 35×10 (the bar clock group at a minute change,
+# 19×16 beside it) and 3×14 for a digit stroke. The old 80×30 let an 80×2 sliver pass; so does an edge up to 48 px long, which
+# is why the small blocks (keys, the web host key, the Settings button) are checked strictly by surfaces3 instead.
 pts = sorted((i % w, i // w) for i in strong)
 cells = {}
 for p in pts:
@@ -211,7 +226,7 @@ blobs = {}
 for p in pts:
     blobs.setdefault(find(p), []).append(p)
 sizes = [(max(x for x, _ in g) - min(x for x, _ in g) + 1, max(y for _, y in g) - min(y for _, y in g) + 1, min(x for x, _ in g), min(y for _, y in g)) for g in blobs.values()]
-ok = all(bw <= 80 and bh <= 30 for bw, bh, _, _ in sizes)
+ok = all(max(bw, bh) <= 48 for bw, bh, _, _ in sizes)
 big = sorted(sizes, key=lambda s: -(s[0] * s[1]))[:4]
 print(("ok   " if ok else "FAIL ") + "%s: %d px differ, %d strongly in %d blobs, largest %s" % (sys.argv[3], len(diff), len(strong),
       len(sizes), " ".join("%dx%d@%d,%d" % s for s in big)))
@@ -334,6 +349,232 @@ QML
   [ -z "$e" ] || { echo "$e"; fail "QML errors in the polkit dialog"; }
   sq surf2 "$(dirname "$dir")/settings" "$pre-settings.png"
   lock_shot "$dir" "$pre-lock.png"
+}
+
+# ---- surfaces3 and inert (W42) ----
+# The harnesses: the real components loaded by path (Loader), at fixed places, with fixed content (no clock). A tree is a copy
+# of the shell's files the harnesses load; tar keeps the links (the host's core and PhoneFrame resolve inside the copy).
+cat > "$W/harness-frontend.qml" <<'QML'
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import "core"
+
+// Surfaces that cast a shadow at rest, placed where the test's crops are (frontend/test-shadows.sh, surfaces3).
+ShellRoot {
+    Watch { doc: "theme" }
+    Watch { doc: "i18n" }
+    PanelWindow {
+        anchors { left: true; top: true; right: true; bottom: true }
+        color: "transparent"
+        WlrLayershell.namespace: "kurashi-shadows3"
+        Loader { x: 80; y: 80; source: "surfaces/SessionMenu.qml" }
+        Loader {
+            x: 80; y: 380; source: "components/KeyClock.qml"
+            onLoaded: { item.hh = "10"; item.mm = "24" }
+        }
+        Loader {
+            x: 800; y: 80; source: "components/phone/PhoneFrame.qml"
+            onLoaded: { item.theme = Theme; item.width = 260; item.contentHeight = 240 }
+        }
+        Loader {
+            x: 1200; y: 80; source: "harness/Card.qml"
+            onLoaded: { item.title = "Mail"; item.width = 280; item.height = 380 }
+        }
+        Loader {
+            x: 80; y: 900; source: "harness/HostButton.qml"
+            onLoaded: { item.keyed = true; item.glyph = "⏻" }
+        }
+    }
+}
+QML
+cat > "$W/harness-settings.qml" <<'QML'
+import QtQuick
+import Quickshell
+import Quickshell.Wayland
+import "components"
+
+// Settings' button (keycap: its hard shadow), placed where the test's crop is.
+ShellRoot {
+    PanelWindow {
+        anchors { left: true; top: true; right: true; bottom: true }
+        color: "transparent"
+        WlrLayershell.namespace: "kurashi-shadows3-settings"
+        Button { x: 80; y: 80; label: "Reset" }
+    }
+}
+QML
+# The analysis (python, -I): `side` checks a shadow's side against the face; `strict` counts strong px between two shots.
+cat > "$W/px.py" <<'PY'
+import subprocess, sys
+from collections import Counter
+
+def load(path, x, y, w, h):
+    d = subprocess.run(["magick", path, "-crop", "%dx%d+%d+%d" % (w, h, x, y), "+repage", "rgb:-"],
+                       capture_output=True, check=True).stdout
+    return [d[i:i + 3] for i in range(0, len(d), 3)]
+
+def dif(p, q):
+    return max(abs(p[c] - q[c]) for c in range(3))
+
+def side(base, shot, angle, x, y, w, h, label):
+    # The face: what differs from the crop's background (the mode of its edge) in the strength-0 shot. The shadow: what
+    # differs from that shot off the face. Its centroid, against the face's centre, says where the shadow falls.
+    b = load(base, x, y, w, h)
+    s = load(shot, x, y, w, h)
+    edge = [b[i] for i in range(w * h) if i < w or i >= (h - 1) * w or i % w in (0, w - 1)]
+    bg = Counter(edge).most_common(1)[0][0]
+    face = [dif(p, bg) > 10 for p in b]
+    fx = [i % w for i in range(w * h) if face[i]]
+    fy = [i // w for i in range(w * h) if face[i]]
+    if not fx:
+        return False, "%s: no face in the crop" % label
+    cx = (min(fx) + max(fx)) / 2.0
+    cy = (min(fy) + max(fy)) / 2.0
+    n = sx = sy = 0
+    for i in range(w * h):
+        if not face[i] and dif(s[i], b[i]) > 8:
+            n += 1
+            sx += i % w
+            sy += i // w
+    if n < 40:
+        return False, "%s %d: no shadow off the face (%d px changed): the shadow does not follow the setting" % (label, angle, n)
+    dx = sx / float(n) - cx
+    dy = sy / float(n) - cy
+    still = max(1.0, 0.05 * (max(fx) - min(fx)))
+    ok = dy > 1 and ((angle == 135 and dx > 1) or (angle == 225 and dx < -1) or (angle == 180 and abs(dx) <= still))
+    return ok, "%s %d: shadow centroid %+.1f,%+.1f px from the face centre (%d px off the face)" % (label, angle, dx, dy, n)
+
+def strict(a, b, x, y, w, h, label):
+    pa = load(a, x, y, w, h)
+    pb = load(b, x, y, w, h)
+    differ = sum(1 for p, q in zip(pa, pb) if p != q)
+    strong = sum(1 for p, q in zip(pa, pb) if dif(p, q) > 64)
+    return strong == 0, "%s: %d px differ, %d strong (> 64)" % (label, differ, strong)
+
+def face_box(path, x, y, w, h):
+    b = load(path, x, y, w, h)
+    edge = [b[i] for i in range(w * h) if i < w or i >= (h - 1) * w or i % w in (0, w - 1)]
+    bg = Counter(edge).most_common(1)[0][0]
+    pts = [i for i in range(w * h) if dif(b[i], bg) > 10]
+    if not pts:
+        return None
+    return min(i % w for i in pts), min(i // w for i in pts), max(i % w for i in pts), max(i // w for i in pts)
+
+def shift(base, held, x, y, w, h, label, ex, ey):
+    # A held key: its face (the corner of what differs from the background) moves by the shadow vector, whole px.
+    a = face_box(base, x, y, w, h)
+    b = face_box(held, x, y, w, h)
+    if a is None or b is None:
+        return False, "%s: no face in the crop" % label
+    sx, sy = b[0] - a[0], b[1] - a[1]
+    ok = abs(sx - ex) <= 1 and abs(sy - ey) <= 1
+    return ok, "%s: the face moved %+d,%+d px while held (the shadow vector %+d,%+d)" % (label, sx, sy, ex, ey)
+
+if __name__ == "__main__":
+    if sys.argv[1] == "side":
+        ok, msg = side(sys.argv[2], sys.argv[3], int(sys.argv[4]), *[int(v) for v in sys.argv[5:9]], sys.argv[9])
+    elif sys.argv[1] == "shift":
+        ok, msg = shift(sys.argv[2], sys.argv[3], *[int(v) for v in sys.argv[4:8]], sys.argv[8], int(sys.argv[9]), int(sys.argv[10]))
+    else:
+        ok, msg = strict(sys.argv[2], sys.argv[3], *[int(v) for v in sys.argv[4:8]], sys.argv[8])
+    print(("ok   " if ok else "FAIL ") + msg)
+    sys.exit(0 if ok else 1)
+PY
+# A tree of the shell's files for the harnesses: <frontend dir> → <tree dir>/{frontend,settings}, shots left out. Quickshell
+# loads only what sits under the config root (frontend/), so the two webdock files the harness shows (the dock's card and the
+# host's key) are copied into frontend/harness/. The copies import the root's core (`qs.core`, the harness's own Theme and
+# Store): a second `core` beside them would have a Store that never gets the theme.
+harness_tree() {
+  local root
+  root=$(dirname "$(cd "$1" && pwd)")
+  rm -rf "$2"
+  mkdir -p "$2"
+  tar -C "$root" --exclude=shots -cf - frontend settings/core settings/components | tar -C "$2" -xf -
+  mkdir -p "$2/frontend/harness"
+  # The dock card's status row reads the live clock: its text is fixed in the copy, so a minute cannot move a shot.
+  sed 's|text: card.clock.hh !== undefined ? card.clock.hh + ":" + card.clock.mm : ""|text: "10:24"|' "$root/mods/webdock/qml/Card.qml" > "$2/frontend/harness/Card.qml"
+  grep -q 'text: "10:24"' "$2/frontend/harness/Card.qml" || fail "the dock card's clock line changed: update harness_tree"
+  sed 's|^import "core"$|import qs.core|' "$root/mods/webdock/host/HostButton.qml" > "$2/frontend/harness/HostButton.qml"
+  cp "$W/harness-frontend.qml" "$2/frontend/shadow-harness.qml"
+  cp "$W/harness-settings.qml" "$2/settings/shadow-harness.qml"
+}
+full() { grim -o HEADLESS-1 "$1"; }
+# start_qs_file <file>: a shell from one file (a harness; Settings' store needs no hello from the frontend).
+start_qs_file() {
+  if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; QS_PID=; fi
+  env -u KURASHI_SOCKET qs -p "$1" > "$R/qs-file.log" 2>&1 &
+  QS_PID=$!
+  pids+=("$QS_PID")
+  sleep 4
+}
+# The current look, four full shots: the defaults (180), 135 and 225 at strength 2, and strength 0 (no shadow).
+s3_look_shots() {  # s3_look_shots <prefix>
+  set_ theme.material.shadow 1; set_ theme.material.shadow_angle 180; sleep 1
+  full "$1-180.png"
+  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+  full "$1-135.png"
+  set_ theme.material.shadow_angle 225; sleep 1
+  full "$1-225.png"
+  set_ theme.material.shadow 0; sleep 1
+  full "$1-base.png"
+}
+# s3_press <prefix> <x> <y>: the pointer holds (x,y) for 2.5 s; the shot at 135° strength 2 is taken while it is down. The
+# vector the daemon gives for that setting goes to <prefix>-held.vec (whole px: a held key sinks by it).
+s3_press() {
+  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+  toks shadow.dx shadow.dy | python3 -I -c 'import json,sys; v = json.load(sys.stdin); print(int(round(v[0])), int(round(v[1])))' > "$1-held.vec"
+  timeout 20 python3 -I "$W/hold.py" "$ROOT/tools/bench/wl_pointer.py" "$2" "$3" 2.5 &
+  local hp=$!
+  sleep 1.6
+  full "$1-held.png"
+  wait "$hp" || fail "the held press at $2,$3 failed"
+}
+# s3_run <tree dir> <tag>: both harnesses, sekai (keycap) and glass (soft), into $W/s3-<tag>-<look>-<front|settings>-*.png.
+s3_run() {
+  local tree=$1 tag=$2 lk
+  start_frontend_dir "$tree/frontend/shadow-harness.qml"
+  for lk in sekai glass; do
+    look "$lk"
+    s3_look_shots "$W/s3-$tag-$lk-front"
+    s3_press "$W/s3-$tag-$lk-front" 96 916
+  done
+  start_qs_file "$tree/settings/shadow-harness.qml"
+  for lk in sekai glass; do
+    look "$lk"
+    s3_look_shots "$W/s3-$tag-$lk-settings"
+    s3_press "$W/s3-$tag-$lk-settings" 110 96
+  done
+  kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; QS_PID=
+}
+# The crops (name x y w h, output px): each surface's place in its harness with 40 px to spare for its shadow.
+S3_FRONT="session 40 40 540 240
+keyclock 40 340 320 140
+phone 760 40 380 400
+dockcard 1160 40 380 420
+hostkey 40 860 120 120"
+S3_SETTINGS="settingsbutton 40 40 240 120"
+S3_FAIL=0
+s3_side() {  # s3_side <prefix> <angle> <crops>: each crop's shadow falls to the side the angle names
+  local name x y w h
+  while read -r name x y w h; do
+    python3 -I "$W/px.py" side "$1-base.png" "$1-$2.png" "$2" "$x" "$y" "$w" "$h" "$name" || S3_FAIL=1
+  done <<< "$3"
+}
+s3_same() {  # s3_same <ref prefix> <new prefix> <crops>: the defaults, pixel for pixel (no strong px) in each crop
+  local name x y w h
+  while read -r name x y w h; do
+    python3 -I "$W/px.py" strict "$1-180.png" "$2-180.png" "$x" "$y" "$w" "$h" "$name" || S3_FAIL=1
+  done <<< "$3"
+}
+
+s3_sheet() {  # s3_sheet <prefix> <out> <crops> <angle>: the crops of one shot side by side, for the eye
+  local name x y w h tiles=()
+  while read -r name x y w h; do
+    magick "$1-$4.png" -crop "${w}x${h}+${x}+${y}" +repage "$W/tile-$name-$4.png"
+    tiles+=("$W/tile-$name-$4.png")
+  done <<< "$3"
+  magick "${tiles[@]}" -background '#202020' -gravity center +append "$2"
 }
 
 start_frontend
@@ -522,6 +763,57 @@ fi
 e=$(qml_errors)
 [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors (see $R/qs.log)"; }
 
+if want surfaces3; then
+  say "== surfaces3"
+  harness_tree "$ROOT/frontend" "$W/tree-new"
+  s3_run "$W/tree-new" new
+  e=$(qml_errors)
+  [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors in the surfaces3 harness (see $R/qs.log)"; }
+  e=$(grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign|Cannot read property" "$R/qs-file.log" || true)
+  [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors in the Settings harness (see $R/qs-file.log)"; }
+  # Settings' button has a hard shadow only (as SectionCard does): under soft chrome it casts none, so only keycap is checked.
+  for a in 135 225 180; do
+    s3_side "$W/s3-new-sekai-front" "$a" "$S3_FRONT"
+    s3_side "$W/s3-new-glass-front" "$a" "$S3_FRONT"
+    s3_side "$W/s3-new-sekai-settings" "$a" "$S3_SETTINGS"
+  done
+  for lk in sekai glass; do
+    for a in 135 225; do
+      s3_sheet "$W/s3-new-$lk-front" "$OUT/surfaces3-$lk-$a.png" "$S3_FRONT" "$a"
+    done
+  done
+  # Held (keycap, 135°, strength 2): the web host's key sinks onto its shadow, so its face moves by the vector; Settings'
+  # button keeps its face and shows a 1 px shadow, still down and to the right.
+  read -r ex ey < "$W/s3-new-sekai-front-held.vec"
+  python3 -I "$W/px.py" shift "$W/s3-new-sekai-front-base.png" "$W/s3-new-sekai-front-held.png" 40 860 120 120 hostkey-held "$ex" "$ey" || S3_FAIL=1
+  python3 -I "$W/px.py" side "$W/s3-new-sekai-settings-base.png" "$W/s3-new-sekai-settings-held.png" 135 40 40 240 120 settingsbutton-held || S3_FAIL=1
+  [ "$S3_FAIL" = 0 ] || fail "surfaces3: a shadow is not on the side its angle names, or a held key does not sink (see above)"
+  say "ok   surfaces3: every surface's shadow falls to its side at 135 and 225, straight down at 180 ($OUT/surfaces3-*.png)"
+fi
+
+if want inert; then
+  say "== inert"
+  # Flat (none) and line (kami) chrome: the three shadow rows are inert, and say why (K67 amendment, row 423).
+  for lk in none kami; do
+    look "$lk"
+    for row in shadow shadow_angle shadow_follow; do
+      [ "$(reason theme.material.$row)" = settings.inert.requires ] || fail "theme.material.$row is not inert under $lk"
+    done
+    sq "inert-$lk-en" "$ROOT/settings" "$OUT/settings-inert-$lk-en.png"
+  done
+  # Japanese: the daemon reads its locale from the environment (LC_ALL first, kurashid i18n.rs); the same two looks.
+  stop_daemon
+  export LC_ALL=ja_JP.UTF-8
+  start_daemon
+  for lk in none kami; do
+    look "$lk"
+    sq "inert-$lk-ja" "$ROOT/settings" "$OUT/settings-inert-$lk-ja.png"
+  done
+  stop_daemon
+  export LC_ALL=C.UTF-8
+  start_daemon
+fi
+
 if want surfaces2; then
   say "== surfaces2"
   for lk in sekai glass; do
@@ -569,6 +861,16 @@ if [ -n "${SHADOW_REF:-}" ]; then
       same_px "$W/id2-ref-$st/surf2-$part.png" "$W/id2-new-$st/surf2-$part.png" "$st $part" || bad=1
     done
   done
+  # The surfaces3 harnesses at the defaults (W42): the reference's crops against this shell's, pixel for pixel (0 strong px).
+  harness_tree "$SHADOW_REF" "$W/tree-ref"
+  s3_run "$W/tree-ref" ref
+  [ -f "$W/s3-new-sekai-front-180.png" ] || { harness_tree "${SHADOW_NEW:-$ROOT/frontend}" "$W/tree-new"; s3_run "$W/tree-new" new; }
+  S3_FAIL=0
+  for lk in sekai glass; do
+    s3_same "$W/s3-ref-$lk-front" "$W/s3-new-$lk-front" "$S3_FRONT"
+    s3_same "$W/s3-ref-$lk-settings" "$W/s3-new-$lk-settings" "$S3_SETTINGS"
+  done
+  [ "$S3_FAIL" = 0 ] || bad=1
   [ "$bad" = 0 ] || fail "the defaults do not draw what they drew before W39 (shots in $W/id-*.png, $W/id2-*/)"
 fi
 

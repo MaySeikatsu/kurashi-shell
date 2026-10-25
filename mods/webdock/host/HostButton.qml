@@ -39,23 +39,27 @@ Rectangle {
     readonly property bool texted: label !== ""
     readonly property bool block: keyed && !texted
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
+    // The hard shadow along the shadow vector (K67): the key sinks onto it while held, and a keycap at strength 0 has
+    // nothing to sink onto, so it flashes (as a Block does).
+    readonly property bool casts: Theme.sinkX !== 0 || Theme.sinkY !== 0
     readonly property bool down: tap.pressed && b.enabled
     implicitWidth: texted ? txt.implicitWidth + 2 * Theme.pad : 32
     implicitHeight: 32
     radius: texted ? Theme.rSm : Math.min(height / 2, Theme.rFull)
     color: texted
         ? (primary ? Theme.accent : (flat ? (hover.hovered && enabled ? Theme.containerHigh : "transparent") : Theme.containerHigh))
-        : (block && down && !lifted && Theme.pressScale >= 1 ? Qt.alpha(Theme.fg, 0.16)
+        : (block && down && !casts && Theme.pressScale >= 1 ? Qt.alpha(Theme.fg, 0.16)
             : (hover.hovered && enabled ? Theme.containerHigh : (block && lifted ? Theme.container : "transparent")))
     border.width: block ? Theme.outlineW : 0
     border.color: Theme.outlineColor
     scale: block && down ? Theme.pressScale : 1
-    transform: Translate { y: b.block && b.down ? Theme.shadowDy : 0 }
-    // The block's shadow: hard (keycap; it stays put while the key sinks onto it) or soft.
+    transform: Translate { x: b.block && b.down ? Theme.sinkX : 0; y: b.block && b.down ? Theme.sinkY : 0 }
+    // The block's shadow: hard (keycap; it stays put while the key sinks onto it) or soft, along the shadow vector.
     Rectangle {
         z: -1
-        visible: b.block && Theme.shadowDy > 0
-        y: Theme.shadowDy - (b.down ? Theme.shadowDy : 0)
+        visible: b.block && b.casts
+        x: Theme.sinkX - (b.down ? Theme.sinkX : 0)
+        y: Theme.sinkY - (b.down ? Theme.sinkY : 0)
         width: b.width
         height: b.height
         radius: b.radius
@@ -66,7 +70,8 @@ Rectangle {
         anchors.fill: parent
         active: b.block && Theme.softR > 0
         sourceComponent: RectangularShadow {
-            offset.y: Theme.softDy * 0.4
+            offset.x: Theme.shadowX * 0.4
+            offset.y: Theme.shadowY * 0.4
             blur: Theme.softR * 0.4
             spread: -1
             radius: b.radius
