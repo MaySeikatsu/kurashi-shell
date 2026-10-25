@@ -496,8 +496,8 @@ async fn island_face_offers_have_labels_in_both_catalogues() {
     offered.sort();
     assert_eq!(
         offered,
-        vec!["bluetooth", "clock", "media", "notifications", "power"],
-        "the transient OSD faces are not offered"
+        vec!["clock", "media", "notifications"],
+        "the system faces (OSDs, power, Bluetooth) are not offered (K68)"
     );
 
     let catalogue = |lang: &str| -> toml::Table {
