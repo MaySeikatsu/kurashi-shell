@@ -707,3 +707,13 @@ before it is written (`sway -C` — which exits 0 for an error inside an include
 `hyprland --verify-config`; `niri validate`). Sandbox probes with real key presses showed single-quoted JSON is the only
 `exec` argument form that reaches `kurashi act` intact under Sway. niri binds carry `hotkey-overlay-title` so niri's own
 cheat sheet names kurashi's shortcuts.
+
+## K68 — split memory budgets; the minute flip is the one idle commit; island faces restrict (2026-10-25, session 13)
+User decisions after W35-perf. (1) **Memory:** the core budget stays ≤ 150 MiB PSS at one output (+6 per extra output)
+for the bare shell (no material, no web dock); the material and the web dock get allowances of their own (BENCH
+budgets: material + ≤ 55 / + ≤ 12 per output, overlay + ≤ 35; web dock + ≤ 10 USS / + ≤ 4 per output), sized just above
+the W33/W35/W38 measurements (+18…53, +4…11, +30; +4.9…8). (2) **Idle:** the bar clock's minute flip is capped at 300 ms
+and is the only idle commit the budget allows (B34, I193). (3) **Island faces:** `island.main.faces` restricts which faces
+the island may show, as its label says; an unlisted face never shows and `island.expand {face}` for it is refused
+(`island.error.unknown_face`; I209 — today the list only orders). *Why:* the user chose "raise and split", "shorter
+flip" and "restricts" (session 13); placement stays as built (toasts/centre under the island, panels under their widget).

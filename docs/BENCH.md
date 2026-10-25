@@ -19,9 +19,11 @@ baseline.
 ## Budgets (v0.1)
 | Metric | Budget |
 |---|---|
-| Idle frames, all windows, 30 s | ≤ 1 fps total |
+| Idle frames, all windows, 30 s | ≤ 1 fps total; the only idle commits allowed are the bar clock's minute flip (≤ 300 ms, once a minute; K68) |
 | Idle CPU, daemon + frontend, 10 min | < 0.5 % |
 | PSS frontend, core profile | ≤ 150 MiB @1 output, ≤ +6 MiB per extra output, measured vs. popup-closed (K16, K19; was ≤ 50 % of shellseikatsu) |
+| PSS allowance, material on (K68) | + ≤ 55 MiB @1 output, + ≤ 12 MiB per extra output (per-window tile sheets, K59); scope `everything` (the overlay) + ≤ 35 MiB more |
+| USS allowance, web dock on and hidden (K68) | + ≤ 10 MiB @1 output, + ≤ 4 MiB per extra output (its `qs-webengine` host is a separate process, measured on its own) |
 | Popup input → first frame | ≤ 1 frame after map |
 | PSS growth over 20 panel open/close cycles (island, notification center, launcher; after 20 warm-up rounds) | ≤ 2 MiB |
 | Mapped surfaces per output at idle | ≤ 4 |
