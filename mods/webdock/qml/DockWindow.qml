@@ -111,11 +111,23 @@ PanelWindow {
 
     // ---- geometry: WebCard's sizes (phone, large) and the strip's centred span, in the window's usable height ----
     readonly property real gap: Theme.gap
-    readonly property real cardW: large ? Math.round(outW * largePct / 100) : phoneW
-    // A side edge is limited by the window's own length; a top or bottom edge by the output's height (WebCard's rule).
+    // A reserved strip (`reserve` with a pinned strip) needs the zone's own anchors (layer shell ignores the zone with
+    // both ends anchored), so there the output's height stands in for a top or bottom edge, as before.
+    readonly property bool spans: !sideways && surfaceUp && !(reserve && pinned)
+    readonly property real spanH: spans ? height : outH
+    // The card's length along a top or bottom edge is the usable width (`along`), as a side edge's is the usable height.
+    readonly property real cardW: large ? Math.round((sideways ? outW : along) * largePct / 100) : phoneW
+    // A side edge is limited by the window's own length; a top or bottom edge by the usable height it spans, less the
+    // strip (the card stands beyond it, across the edge) and a gap at the far end, as WebCard leaves (I100).
     readonly property real cardH: sideways
         ? (large ? Math.round(along - 2 * gap) : Math.min(2 * phoneW, Math.round(along - 2 * gap)))
-        : (large ? Math.round(outH - 2 * gap) : Math.min(2 * phoneW, Math.round(outH - 2 * gap)))
+        : (large ? Math.round(spanH - stripPx - 2 * gap) : Math.min(2 * phoneW, Math.round(spanH - stripPx - 2 * gap)))
+    // Test-only (KURASHI_WEBDOCK_DEBUG=1, test-dock.sh): the card's height and the window's, to check it fills the area.
+    readonly property bool debugLog: Quickshell.env("KURASHI_WEBDOCK_DEBUG") === "1"
+    function logGeometry() { if (debugLog) console.log("webdock-debug dock", edge, cardH, Math.round(height)) }
+    onCardHChanged: logGeometry()
+    onHeightChanged: logGeometry()
+    onEdgeChanged: logGeometry()
     readonly property real sideSize: 300
     readonly property bool kindSide: kind.indexOf("side") === 0
     // A panel across its edge (its thickness) and along it.
@@ -152,9 +164,14 @@ PanelWindow {
 
     // ---- the window ----
     implicitWidth: sideways ? thick : 0
-    implicitHeight: sideways ? 0 : thick
-    anchors.top: edge !== "bottom"
-    anchors.bottom: edge !== "top"
+    // Spanned, the compositor sets the height between the bars and ignores this request; a constant here keeps the
+    // window's height out of its own card's size (a binding loop otherwise, I100).
+    implicitHeight: sideways ? 0 : (spans ? outH : thick)
+    // A top or bottom edge spans the usable height while it is up (`spans`): anchored to both ends, the compositor
+    // stretches the window between the bars, as a side edge's window is stretched along its length, so the card keeps a
+    // bar on its axis clear (I100). Idle it is thin again (4 px), as it always was.
+    anchors.top: edge !== "bottom" || spans
+    anchors.bottom: edge !== "top" || spans
     anchors.left: edge !== "right"
     anchors.right: edge !== "left"
     color: "transparent"

@@ -515,6 +515,30 @@ phase_focus() {
   stop_phase
 }
 
+# ---- large: a large card on a top or bottom edge fills the usable area, between the shell's bar and the far side (I100) ----
+phase_large() {
+  echo "== phase large: a large card on the bottom and the top edge fills the usable height"
+  start_mock HEADLESS-1
+  mods_json "$W/mods-on.json" on
+  start_relay "$W/mods-on.json"
+  start_frontend KURASHI_WEBDOCK_DEBUG=1
+  setdoc "$(python3 -I -c "import json,sys; d=json.loads(sys.argv[1]); d['pins']=json.loads(sys.argv[2]); d['mode']='extended'; d['shown']='weather'; d['size']='large'; d['edge']='bottom'; print(json.dumps(d))" "$BASE" "$PINS2")"
+  sleep 2
+  # The card's height and the window's, as the dock logged them last: the card fills the window less a gap at each end.
+  dock_geometry() { sed 's/\x1b\[[0-9;]*m//g' "$R/qs.log" | grep -F 'webdock-debug dock ' | tail -1 | sed 's/.*webdock-debug dock //'; }
+  read -r edge ch hh <<< "$(dock_geometry)"
+  r=0; [ "$edge" = bottom ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
+  check "$r" "large, bottom edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
+  shot large-bottom
+  setdoc '{"edge":"top"}'
+  sleep 2
+  read -r edge ch hh <<< "$(dock_geometry)"
+  r=0; [ "$edge" = top ] && [ -n "$hh" ] && [ "$ch" = $(( hh - 56 - 16 )) ] && r=1
+  check "$r" "large, top edge: the card (${ch:-?} high) fills the window's usable height (${hh:-?}) less the strip and a gap"
+  shot large-top
+  stop_phase
+}
+
 # ---- ja: the Japanese copy, the view card, on the right edge ----
 phase_ja() {
   echo "== phase ja: the copy in Japanese"
@@ -613,6 +637,7 @@ phase_measure() {
 want states && phase_states
 want intents && phase_intents
 want focus && phase_focus
+want large && phase_large
 want ja && phase_ja
 want measure && phase_measure
 echo "test-dock: $FAILS failed"
