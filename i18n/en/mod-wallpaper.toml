@@ -7,7 +7,7 @@
 "mods.wallpaper.backend" = "Backend"
 "mods.wallpaper.backend.help" = "awww is the default. A backend that is not installed is shown greyed out with its reason."
 "mods.wallpaper.folders" = "Folders"
-"mods.wallpaper.folders.help" = "Folders of images, separated by colons. Subfolders are searched too, four levels deep."
+"mods.wallpaper.folders.help" = "Folders of images, one per row, each starting with / or ~/. Subfolders are searched too, four levels deep."
 "mods.wallpaper.fit" = "Fit"
 "mods.wallpaper.fit.crop" = "Crop to fill"
 "mods.wallpaper.fit.fit" = "Fit inside"

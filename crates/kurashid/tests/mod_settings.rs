@@ -267,3 +267,32 @@ async fn profiles_carry_mod_values_with_their_source() {
         (json!(12), Source::Profile("mine".into()))
     );
 }
+
+/// I54: the wallpaper's `folders` is a free path list. A value saved before (one `:`-joined string)
+/// reads as its parts; the row is a list with the path unit; an entry that is not a path is refused.
+#[test]
+fn wallpaper_folders_are_a_path_list_and_read_the_old_colon_string() {
+    let key = "mods.wallpaper.folders";
+    let (store, hub, mut reg) = open(Some("[mods.wallpaper]\nfolders = \"~/a: /b\"\n"));
+    store.sync_mods(&reg);
+    let p = store.get(key, None).unwrap();
+    assert_eq!(p.value, json!(["~/a", "/b"]));
+    assert_eq!(p.source, Source::User);
+
+    reg.load("wallpaper").unwrap();
+    store.sync_mods(&reg);
+    let r = row(&page(&hub, "mods.wallpaper").unwrap(), key);
+    assert_eq!(r["control"], "list");
+    assert_eq!(r["unit"], "path");
+    assert_eq!(r["default"], json!(["~/Pictures/Wallpapers"]));
+
+    assert_eq!(
+        rejected(&store, key, json!(["~/a", "pics"])),
+        "error.config.not_a_path"
+    );
+    set(&store, key, json!(["/srv/walls", "~/a"])).unwrap();
+    assert_eq!(
+        store.get(key, None).unwrap().value,
+        json!(["/srv/walls", "~/a"])
+    );
+}
