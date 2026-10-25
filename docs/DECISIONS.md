@@ -715,5 +715,7 @@ budgets: material + ≤ 55 / + ≤ 12 per output, overlay + ≤ 35; web dock + �
 the W33/W35/W38 measurements (+18…53, +4…11, +30; +4.9…8). (2) **Idle:** the bar clock's minute flip is capped at 300 ms
 and is the only idle commit the budget allows (B34, I193). (3) **Island faces:** `island.main.faces` restricts which faces
 the island may show, as its label says; an unlisted face never shows and `island.expand {face}` for it is refused
-(`island.error.unknown_face`; I209 — today the list only orders). *Why:* the user chose "raise and split", "shorter
+(`island.error.unknown_face`; I209 — today the list only orders). Two limits: system transients (volume, brightness, power, Bluetooth) stay governed by
+`island.main.system_events`, not by the list; and a user on the default list must not lose a face they see today — a
+newly enabled mod's face joins the default list (the card decides how, without writing the user's config behind their back). *Why:* the user chose "raise and split", "shorter
 flip" and "restricts" (session 13); placement stays as built (toasts/centre under the island, panels under their widget).
