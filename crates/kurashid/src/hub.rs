@@ -23,6 +23,9 @@ struct Doc {
     rev: Rev,
     data: Value,
     provider: Option<Arc<dyn Provider>>,
+    /// Fields the daemon lays over whatever the document's writer publishes (K66: a service's `forced_by`, which its
+    /// service knows nothing of). Every write keeps them; see [`Hub::set_overlay`].
+    overlay: serde_json::Map<String, Value>,
     subs: usize,
     /// Serialises subscriber-count changes with the provider's start and stop. Otherwise a stop
     /// (1 -> 0) and a start (0 -> 1) can interleave and leave the provider off with a subscriber
@@ -75,6 +78,7 @@ impl Hub {
                 rev,
                 data: initial,
                 provider,
+                overlay: serde_json::Map::new(),
                 subs: 0,
                 lifecycle: Arc::default(),
             },
@@ -128,6 +132,14 @@ impl Hub {
         Ok((d.rev, d.data.clone()))
     }
 
+    /// A document's current revision, without copying its data (a cache keyed by revision checks it).
+    pub fn rev(&self, name: &str) -> Result<Rev, UnknownDoc> {
+        let docs = self.docs.lock().expect("hub lock");
+        docs.get(name)
+            .map(|d| d.rev)
+            .ok_or_else(|| UnknownDoc(name.into()))
+    }
+
     /// Replace a document's data; broadcasts the merge-patch diff (nothing if unchanged).
     pub fn set(&self, name: &str, new: Value, origin: Option<String>) -> Result<(), UnknownDoc> {
         let mut docs = self.docs.lock().expect("hub lock");
@@ -153,8 +165,36 @@ impl Hub {
         Ok(())
     }
 
+    /// Lays `field` over the document from now on (`Some`), or takes it away (`None`): every later write keeps it, as
+    /// if its writer had sent it. For daemon facts about a document its writer does not know (K66: a service document's
+    /// `forced_by`, from the config). An unchanged value sends nothing.
+    pub fn set_overlay(
+        &self,
+        name: &str,
+        field: &str,
+        value: Option<Value>,
+    ) -> Result<(), UnknownDoc> {
+        let mut docs = self.docs.lock().expect("hub lock");
+        let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
+        let mut new = d.data.clone();
+        match value {
+            Some(v) => {
+                d.overlay.insert(field.to_owned(), v);
+            }
+            None => {
+                d.overlay.remove(field);
+                if let Some(o) = new.as_object_mut() {
+                    o.remove(field);
+                }
+            }
+        }
+        self.commit(name, d, new, None);
+        Ok(())
+    }
+
     /// Store `new` as the document's data and broadcast the merge-patch from the old data.
-    fn commit(&self, name: &str, d: &mut Doc, new: Value, origin: Option<String>) {
+    fn commit(&self, name: &str, d: &mut Doc, mut new: Value, origin: Option<String>) {
+        overlay(&d.overlay, &mut new);
         let Some(ops) = diff_patch(&d.data, &new) else {
             return;
         };
@@ -170,9 +210,10 @@ impl Hub {
 
     /// Rebuild a document from scratch (provider restart, compositor resync): clients get a
     /// `snap` without `id` and replace their state (PROTOCOL §3).
-    pub fn push_snapshot(&self, name: &str, data: Value) -> Result<(), UnknownDoc> {
+    pub fn push_snapshot(&self, name: &str, mut data: Value) -> Result<(), UnknownDoc> {
         let mut docs = self.docs.lock().expect("hub lock");
         let d = docs.get_mut(name).ok_or_else(|| UnknownDoc(name.into()))?;
+        overlay(&d.overlay, &mut data);
         d.data = data;
         d.rev += 1;
         let _ = self.tx.send(Arc::new(ServerMsg::Snap {
@@ -237,5 +278,53 @@ impl Hub {
             .get(name)
             .map(|d| d.lifecycle.clone())
             .ok_or_else(|| UnknownDoc(name.into()))
+    }
+}
+
+/// Lays a document's overlay fields over `data` (an object; anything else is left as it is).
+fn overlay(fields: &serde_json::Map<String, Value>, data: &mut Value) {
+    if let Some(o) = data.as_object_mut() {
+        for (k, v) in fields {
+            o.insert(k.clone(), v.clone());
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// K66: an overlay field survives every write of the document's own writer and goes when it is taken away; an
+    /// unchanged overlay sends nothing (Ma).
+    #[test]
+    fn overlay_fields_outlive_the_writer_and_go_when_taken_away() {
+        let hub = Hub::new();
+        let mut rx = hub.events();
+        hub.register("svc.x", json!({"dnd": false}), None);
+        hub.set_overlay("svc.x", "forced_by", Some(json!("nix")))
+            .unwrap();
+        assert_eq!(
+            hub.snapshot("svc.x").unwrap().1,
+            json!({"dnd": false, "forced_by": "nix"})
+        );
+        hub.set("svc.x", json!({"dnd": true}), None).unwrap();
+        assert_eq!(
+            hub.snapshot("svc.x").unwrap().1,
+            json!({"dnd": true, "forced_by": "nix"})
+        );
+        hub.update("svc.x", None, |d| d["dnd"] = json!(false))
+            .unwrap();
+        hub.push_snapshot("svc.x", json!({"dnd": false})).unwrap();
+        assert_eq!(hub.snapshot("svc.x").unwrap().1["forced_by"], "nix");
+        while rx.try_recv().is_ok() {}
+        hub.set_overlay("svc.x", "forced_by", Some(json!("nix")))
+            .unwrap();
+        assert!(rx.try_recv().is_err(), "unchanged: no patch");
+        hub.set_overlay("svc.x", "forced_by", None).unwrap();
+        assert_eq!(hub.snapshot("svc.x").unwrap().1, json!({"dnd": false}));
+        hub.set("svc.x", json!({"dnd": true}), None).unwrap();
+        assert_eq!(hub.snapshot("svc.x").unwrap().1, json!({"dnd": true}));
+        assert!(hub.set_overlay("nope", "f", None).is_err());
     }
 }

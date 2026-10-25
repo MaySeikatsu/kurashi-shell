@@ -54,9 +54,12 @@ pub enum ConfigCmd {
         #[arg(long)]
         output: Option<String>,
     },
-    /// Open Settings, on a setting when one is given (jumps a window that already runs)
+    /// Open Settings, on a setting or a page when one is given (jumps a window that already runs)
     Settings {
         key: Option<String>,
+        /// A page instead of a setting: a schema page id such as `keys`, or `mod:<id>`
+        #[arg(long, conflicts_with = "key")]
+        page: Option<String>,
     },
     #[command(subcommand)]
     Profile(ProfileCmd),
@@ -370,7 +373,7 @@ pub async fn run(conn: &mut Conn, cmd: ConfigCmd, json: bool) -> Result<Output, 
             let r = conn.request(ClientMsg::Redo { id: "cli".into() }).await?;
             Ok(committed(r, json))
         }
-        ConfigCmd::Settings { key } => settings(conn, key, json).await,
+        ConfigCmd::Settings { key, page } => settings(conn, key, page, json).await,
         ConfigCmd::Profile(p) => profile(conn, p, json).await,
     }
 }
@@ -523,25 +526,33 @@ fn absolute(path: &std::path::Path) -> Result<String, CliError> {
         .ok_or_else(|| other("the path is not valid UTF-8"))
 }
 
-/// `kurashi settings [<key>]`: the daemon jumps a running Settings window to the key, or launches
-/// one with it. An unknown key is refused with the schema's message.
-async fn settings(conn: &mut Conn, key: Option<String>, json: bool) -> Result<Output, CliError> {
-    let args = match &key {
-        Some(k) => json!({"key": k}),
-        None => json!({}),
+/// `kurashi settings [<key>] [--page <page>]`: the daemon jumps a running Settings window to the key
+/// or page (I40), or launches one with it. An unknown key or page is refused with its message.
+async fn settings(
+    conn: &mut Conn,
+    key: Option<String>,
+    page: Option<String>,
+    json: bool,
+) -> Result<Output, CliError> {
+    let args = match (&key, &page) {
+        (Some(k), _) => json!({"key": k}),
+        (None, Some(p)) => json!({"page": p}),
+        (None, None) => json!({}),
     };
+    let target = key.as_deref().or(page.as_deref()).unwrap_or("");
     match act(conn, "settings.open", args).await? {
         Reply::Done(data) if json => Ok(Output::ok(data.to_string())),
         Reply::Done(data) => Ok(Output::ok(match data["opened"].as_str() {
-            Some("jumped") => format!("settings: moved to {}", key.as_deref().unwrap_or("")),
+            Some("jumped") => format!("settings: moved to {target}"),
             Some("open") => "settings: already open".into(),
             _ => "settings: opened".into(),
         })),
         Reply::Failed { kind, msg } => {
             let strings = catalogue(conn).await?;
-            if msg == "error.config.unknown_key" {
-                let name = key.as_deref().unwrap_or("");
-                let shown = text(&strings, &msg).replace("{key}", name);
+            if msg == "error.config.unknown_key" || msg == "error.settings.unknown_page" {
+                let shown = text(&strings, &msg)
+                    .replace("{key}", target)
+                    .replace("{page}", target);
                 return Ok(Output {
                     code: EXIT_REJECTED,
                     text: shown,
@@ -681,6 +692,7 @@ mod tests {
             "i18n",
             json!({"locale": "en", "fallback": "en", "strings": {
                 "error.config.unknown_key": "Unknown setting “{key}”.",
+                "error.settings.unknown_page": "Settings has no page “{page}”.",
                 "config.forced.nix_enforced": "enforced by your Nix configuration",
             }}),
             None,
@@ -717,6 +729,7 @@ mod tests {
             &mut conn,
             ConfigCmd::Settings {
                 key: Some("bar.hieght".into()),
+                page: None,
             },
             false,
         )
@@ -727,13 +740,42 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// I40: `--page` sends `settings.open {page}`. An unknown page is refused with its message; a page of the
+    /// schema passes the check and reaches the launch, which fails here because Settings is not installed.
+    #[tokio::test]
+    async fn settings_page_is_checked_against_the_schema_pages() {
+        let dir = root("page");
+        let mut conn = connect(&dir).await;
+        let page = |p: &str| ConfigCmd::Settings {
+            key: None,
+            page: Some(p.into()),
+        };
+        let out = run(&mut conn, page("nope"), false).await.unwrap();
+        assert_eq!(out.code, EXIT_REJECTED);
+        assert_eq!(out.text, "Settings has no page “nope”.");
+        let out = run(&mut conn, page("keys"), false).await.unwrap();
+        assert_eq!(out.code, EXIT_ERR);
+        assert_eq!(
+            out.text,
+            "error (unavailable): error.settings.not_installed"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[tokio::test]
     async fn settings_says_when_settings_is_not_installed() {
         let dir = root("missing");
         let mut conn = connect(&dir).await;
-        let out = run(&mut conn, ConfigCmd::Settings { key: None }, false)
-            .await
-            .unwrap();
+        let out = run(
+            &mut conn,
+            ConfigCmd::Settings {
+                key: None,
+                page: None,
+            },
+            false,
+        )
+        .await
+        .unwrap();
         assert_eq!(out.code, EXIT_ERR);
         assert_eq!(
             out.text, "error (unavailable): error.settings.not_installed",

@@ -67,13 +67,11 @@ PanelWindow {
     readonly property var panelRef: Mods.panelOf(ui.panel)
     readonly property bool modWanted: panelRef !== null && Mods.qmlOf(modsDoc, "panel:" + panelRef.panel, panelRef.mod) !== ""
     // I128 (W36): while a polkit dialog is up (runtime.ui.polkit, K47 (5)) the Stage steps aside: no panel opens, no peek,
-    // no keyboard focus. A panel that was open folds away and is closed at the daemon (`ui.close` keeps the polkit flag),
-    // so it does not come back by itself when the dialog goes; a panel asked for meanwhile is closed the same way.
+    // no keyboard focus. The daemon closes an open panel when the dialog comes up and refuses the Stage's panel and peek
+    // actions while it is up (row 381, `ui.error.polkit`); these gates only cover the frame before its patch arrives.
     readonly property bool polkit: ui.polkit === true
     readonly property bool asked: want || quickWanted || modWanted
     readonly property bool open: asked && !polkit
-    readonly property bool refused: asked && polkit
-    onRefusedChanged: if (refused) Store.act("ui.close")
     // K24: the island card shows the expanded view of the face the daemon latched when it opened. A core face
     // without one gets the generic card; a mod face loads its `island-face:<name>:expanded` (K28), or the generic card.
     // power and bluetooth open their quick settings pages, not the generic card (I44).

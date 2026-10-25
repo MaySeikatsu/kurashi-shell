@@ -10,6 +10,7 @@ pub mod doctor;
 pub mod greeter_cache;
 pub mod hub;
 pub mod i18n;
+pub mod icons;
 pub mod intents;
 pub mod island;
 pub mod keys;
