@@ -196,6 +196,7 @@ if want real "$PHASES"; then
       washi|sekai|kami) SURFACES=$ALL_SURFACES ;;
       *-bottom) SURFACES="island quick session peek launcher toast" ;;
       plain) SURFACES="island quick" ;;
+      *-none) SURFACES="island quick session launcher centre" ;;
       *) SURFACES="island quick session" ;;
     esac; fi
     if want island "$SURFACES"; then
@@ -268,8 +269,8 @@ if want real "$PHASES"; then
   if [ "${frames_total:-0}" -gt 0 ]; then
     echo "test-morph: qs CPU per morph frame (upper bound: the phase's whole CPU over its morph frames): $(( (cpu1 - cpu0) * 1000000 / hz / frames_total )) us"
   fi
-  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
-    grep -E 'Error|error|TypeError|ReferenceError' "$R/qs.log" | head -20 >&2
+  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Binding loop' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
+    grep -E 'Error|error|TypeError|ReferenceError|Binding loop' "$R/qs.log" | head -20 >&2
     fail "QML errors (see $R/qs.log)"
   fi
   cp "$R/qs.log" "$R/qs-real.log"
@@ -297,8 +298,8 @@ if want mock "$PHASES"; then
   [ "$(panel)" = tray ] || fail "mock: the retarget to the tray did not open it ($(panel))"
   K act ui.close >/dev/null; sleep 1.4
   empty_check mock-retarget "$c" "$W/base.ppm"
-  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
-    grep -E 'Error|error|TypeError|ReferenceError' "$R/qs.log" | head -20 >&2
+  if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Binding loop' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
+    grep -E 'Error|error|TypeError|ReferenceError|Binding loop' "$R/qs.log" | head -20 >&2
     fail "QML errors (see $R/qs.log)"
   fi
   stop_phase
