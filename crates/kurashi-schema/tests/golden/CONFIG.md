@@ -184,6 +184,28 @@ Blur what is behind glass surfaces. Forced off when the compositor cannot blur.
 - needs compositor capability `blur`
 - forced to `false` while `a11y.reduce_transparency` is on
 
+#### `theme.material.shadow` — Shadows
+
+How strong the shadows under blocks and surfaces are: 0 draws none, 1 is the look's own, 2 twice as long and dark.
+
+- type: `float` · default: `1.0`
+- range: `0.0..=2.0`, step `0.05`
+
+#### `theme.material.shadow_angle` — Shadow direction
+
+Where shadows fall, in degrees round the screen: 180 straight down, 135 down to the right.
+
+- type: `int` · default: `180`
+- range: `0..=359`, step `1` (°)
+- only while `theme.material.shadow_follow == false`
+
+#### `theme.material.shadow_follow` — Shadows follow the light
+
+Shadows fall away from the material's light, longer when it stands low. A light that follows the pointer casts them from where it rests, so they never move with the pointer.
+
+- type: `bool` · default: `false`
+- only while `theme.texture.kind != "none"`
+
 ### Motion
 
 #### `theme.motion.profile` — Motion
