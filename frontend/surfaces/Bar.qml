@@ -6,6 +6,7 @@ import "../core/mods.js" as Mods
 import "../components"
 import "../components/island"
 import "../components/sidebar"
+import "../components/bar"
 
 // One bar per output, on the edge that output's config names (bar.edge). bar.enabled false: no
 // surface, no exclusive zone and no subscriptions held for it (Ma). Everything shown comes from
@@ -111,6 +112,37 @@ PanelWindow {
         var t = workspaces.tasks || {}
         var n = screen ? screen.name : ""
         return t[n] || t["*"] || []
+    }
+    // The workspace chip a window is dragged over (TaskList), ringed until the drop; -1 while nothing is dragged.
+    property int dragWs: -1
+    // The chip under a scene point for a window's drop (`items`: the chips' delegates): the chip's slot along the bar
+    // (half the spacing on each side) across the bar's whole thickness, so a thin dot is still a target.
+    function pillAtIn(items, sx, sy) {
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i]
+            if (!it || !it.modelData) continue
+            var p = it.mapToItem(null, 0, 0)
+            var slack = Theme.gap / 2 + 1
+            var hit = vertical ? (sy >= p.y - slack && sy < p.y + it.height + slack)
+                : (sx >= p.x - slack && sx < p.x + it.width + slack)
+            if (hit) return it.modelData
+        }
+        return null
+    }
+    function boxesOf(items) {
+        var out = []
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i]
+            if (!it || !it.modelData) continue
+            var p = it.mapToItem(null, 0, 0)
+            out.push({ id: it.modelData.id, x: Math.round(p.x), y: Math.round(p.y), w: Math.round(it.width), h: Math.round(it.height) })
+        }
+        return out
+    }
+    function repItems(r) {
+        var a = []
+        for (var i = 0; i < r.count; i++) a.push(r.itemAt(i))
+        return a
     }
     readonly property var pills: {
         var o = workspaces.outputs || {}
@@ -292,14 +324,19 @@ PanelWindow {
     // K47 (W23-system, docs/ux/power.md): the keyboard layout's short name (svc.keyboard), shown only while the compositor
     // names more than one layout; a click switches to the next (`keyboard.next`). Its document is watched
     // while the chip exists, i.e. while the bar is shown (the compositor stream behind it is refcounted, Ma).
+    // W36 (I131): on a side bar the chip is the bar's width less a margin, the short name cut to three letters (the full
+    // name is the accessible one); `allowed` is the side bar's fit.
     component KeyboardChip: Item {
         id: kb
         Watch { doc: "svc.keyboard" }
+        property bool vertical: false
+        property bool allowed: true
         readonly property var d: Store.docs["svc.keyboard"] || ({})
         readonly property var layouts: d.layouts || []
         readonly property var cur: layouts.length > 0 ? layouts[Math.max(0, Math.min(layouts.length - 1, Number(d.current || 0)))] : null
-        visible: layouts.length > 1
-        width: visible ? kbText.implicitWidth + 2 * Theme.xs : 0
+        readonly property bool wanted: layouts.length > 1
+        visible: wanted && allowed
+        width: vertical ? Theme.barH - 8 : (visible ? kbText.implicitWidth + 2 * Theme.xs : 0)
         height: Theme.barH - 12
         Accessible.role: Accessible.Button
         Accessible.name: I18n.tr("power.bar.layout").replace("{name}", kb.cur ? String(kb.cur.name) : "")
@@ -315,35 +352,40 @@ PanelWindow {
             font.pixelSize: Theme.fsCaption
             font.weight: Theme.wBold
             font.family: Theme.fam(text, Theme.families)
-            text: kb.cur ? String(kb.cur.short).toUpperCase() : ""
+            text: kb.cur ? String(kb.cur.short).toUpperCase().substring(0, kb.vertical ? 3 : 8) : ""
         }
         HoverHandler { id: kbHover }
         TapHandler { onTapped: Store.act("keyboard.next") }
     }
     // K47: a recording runs (svc.recorder) — a red dot and its label; a click stops it (`recorder.stop`). Nothing at all while
     // nothing records; the dot does not blink (no animation, Ma).
+    // W36 (I131): on a side bar the dot stands over the label, both centred in the bar's width.
     component RecordDot: Item {
         id: rd
         Watch { doc: "svc.recorder" }
+        property bool vertical: false
+        property bool allowed: true
         readonly property bool recording: (Store.docs["svc.recorder"] || ({})).recording === true
-        visible: recording
-        width: visible ? dotRow.implicitWidth + 2 * Theme.xs : 0
-        height: Theme.barH - 12
+        readonly property bool wanted: recording
+        visible: wanted && allowed
+        width: vertical ? Theme.barH : (visible ? dotRow.implicitWidth + 2 * Theme.xs : 0)
+        height: vertical ? Theme.barH - 6 : Theme.barH - 12
         Accessible.role: Accessible.Button
         Accessible.name: I18n.tr("power.bar.recording")
-        Row {
+        Grid {
             id: dotRow
             anchors.centerIn: parent
-            spacing: Theme.xs
+            columns: rd.vertical ? 1 : 2
+            spacing: rd.vertical ? 2 : Theme.xs
+            horizontalItemAlignment: Grid.AlignHCenter
+            verticalItemAlignment: Grid.AlignVCenter
             Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
                 width: 10
                 height: 10
                 radius: 5
                 color: Theme.error
             }
             Text {
-                anchors.verticalCenter: parent.verticalCenter
                 color: Theme.error
                 font.pixelSize: Theme.fsCaption
                 font.weight: Theme.wBold
@@ -406,6 +448,17 @@ PanelWindow {
                 enabled: bar.visible
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
             }
+            // A window dragged over this workspace (W36): a ring round the dot.
+            Rectangle {
+                visible: bar.dragWs === modelData.id
+                anchors.centerIn: parent
+                width: parent.width + 8
+                height: parent.height + 8
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+            }
         }
     }
     Component {
@@ -438,6 +491,16 @@ PanelWindow {
                 text: kp.modelData.idx ?? ""
             }
             TapHandler { id: wsTap; onTapped: Store.act("workspace.focus", {id: kp.modelData.id}) }
+            // A window dragged over this workspace (W36): a ring round the key.
+            Rectangle {
+                visible: bar.dragWs === kp.modelData.id
+                anchors.fill: parent
+                anchors.margins: -3
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+            }
         }
     }
 
@@ -466,64 +529,28 @@ PanelWindow {
                     onClicked: bar.toggleSidebar("left")
                 }
                 Repeater {
+                    id: wsRepH
                     model: bar.pills
                     delegate: Theme.groups ? keyPill : dotPill
                 }
             }
-            // The window list: after the workspaces, in a group of its own (keycap) — the focused window lit.
+            // The window list (W36, docs/ux/window-list.md): after the workspaces, in a group of its own (keycap), up to
+            // the island; the rest as "+N".
             Group { id: taskGroup; around: taskRow; AnchorReport { target: taskGroup; key: "group:tasks"; output: bar.outName; enabled: taskGroup.visible } }
-            Row {
+            TaskList {
                 id: taskRow
                 visible: bar.tasks.length > 0
                 anchors { left: workspaceRow.right; leftMargin: Theme.pad + 2 * bar.groupInset; verticalCenter: parent.verticalCenter }
                 anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                spacing: Theme.xs
-                Repeater {
-                    model: bar.tasks.slice(0, 12)
-                    delegate: Rectangle {
-                        id: task
-                        required property var modelData
-                        readonly property var entry: DesktopEntries.heuristicLookup(modelData.app_id)
-                        readonly property string src: entry && entry.icon ? Quickshell.iconPath(entry.icon, true) : ""
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Theme.barH - 12
-                        height: width
-                        radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
-                        color: modelData.focused ? Theme.selected : (taskHover.hovered ? Theme.containerHigh : "transparent")
-                        border.width: modelData.focused ? Theme.outlineW : 0
-                        border.color: Theme.outlineColor
-                        Accessible.role: Accessible.Button
-                        Accessible.name: entry ? entry.name : modelData.app_id
-                        Image {
-                            id: taskImg
-                            anchors.centerIn: parent
-                            width: parent.width - 8
-                            height: width
-                            source: task.src
-                            sourceSize: Qt.size(48, 48)
-                            asynchronous: true
-                            visible: task.src !== "" && status === Image.Ready
-                        }
-                        Text {
-                            anchors.centerIn: parent
-                            visible: !taskImg.visible
-                            color: Theme.fg
-                            font.pixelSize: Theme.fsCaption
-                            font.weight: Theme.wBold
-                            font.family: Theme.fam(text, Theme.families)
-                            text: (task.modelData.app_id || "?").charAt(0).toUpperCase()
-                        }
-                        // The focused window's mark under its icon, so focus is not colour alone.
-                        Rectangle {
-                            visible: task.modelData.focused
-                            anchors { horizontalCenter: parent.horizontalCenter; top: parent.bottom; topMargin: 1 }
-                            width: 10; height: 3; radius: 1.5
-                            color: Theme.accent
-                        }
-                        HoverHandler { id: taskHover }
-                        TapHandler { onTapped: Store.act("window.focus", {id: task.modelData.id}) }
-                    }
-                }
+                tasks: bar.tasks
+                edge: cfg.edge
+                screen: bar.screen
+                pills: bar.pills
+                live: bar.visible
+                maxCount: Math.max(1, Math.floor((islandH.x - x - Theme.pad - 2 * bar.groupInset + spacing) / (btn + spacing)))
+                pillAt: function (sx, sy) { return bar.pillAtIn(bar.repItems(wsRepH), sx, sy) }
+                pillBoxes: function () { return bar.boxesOf(bar.repItems(wsRepH)) }
+                onDragWsChanged: bar.dragWs = dragWs
             }
             // Disconnected glyph: instantiated only while stale (nothing at idle), after the workspaces.
             Loader {
@@ -538,6 +565,7 @@ PanelWindow {
             }
 
             Island {
+                id: islandH
                 anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
                 face: bar.island.face || "clock"
                 reason: bar.island.reason || "default"
@@ -651,6 +679,10 @@ PanelWindow {
             readonly property int modSlotH: Theme.barH
             readonly property int modN: bar.modWidgets.length
             readonly property int trayN: bar.trayItems.length
+            // The recording mark and the layout chip (I131): a slot each, only while they have something to say.
+            readonly property int recN: recV.wanted ? 1 : 0
+            readonly property int kbN: kbV.wanted ? 1 : 0
+            readonly property int extraN: recN + kbN
             // The mod slots' heights, by mod index, as each widget reports them (see setModSlot): a plain list, so the
             // fit never reads the Repeater (a binding that creates delegates while it is read is a loop).
             property var modSlotsH: []
@@ -668,6 +700,8 @@ PanelWindow {
             readonly property var slotH: {
                 var h = [sliderH]
                 for (var i = 0; i < modN; i++) h.push(modSlotOf(i))
+                if (recN) h.push(recV.height)
+                if (kbN) h.push(kbV.height)
                 h.push(clockH)
                 h.push(Theme.barH)
                 for (var j = 0; j < trayN; j++) h.push(Theme.barH)
@@ -681,11 +715,12 @@ PanelWindow {
             TextMetrics { id: markM; text: "+0"; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(text, Theme.families) }
             readonly property int fit: bar.fitCount(slotH, columnAvail, Theme.pad, markM.height)
             readonly property int hiddenN: slotH.length - fit
-            // The tray icons this column holds: the slots after the slider, the mods, the clock and the quick button.
+            // The tray icons this column holds: the slots after the slider, the mods, the recording mark and layout chip, the
+            // clock and the quick button.
             Binding {
                 target: bar
                 property: "trayFit"
-                value: Math.max(0, Math.min(vlayout.trayN, vlayout.fit - 3 - vlayout.modN))
+                value: Math.max(0, Math.min(vlayout.trayN, vlayout.fit - 3 - vlayout.modN - vlayout.extraN))
             }
 
             Column {
@@ -701,6 +736,7 @@ PanelWindow {
                     onClicked: bar.toggleSidebar("left")
                 }
                 Repeater {
+                    id: wsRepV
                     model: bar.pills
                     delegate: Item {
                         required property var modelData
@@ -715,12 +751,39 @@ PanelWindow {
                             border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
                             border.color: Theme.dim
                         }
+                        // A window dragged over this workspace (W36): a ring round the dot.
+                        Rectangle {
+                            visible: bar.dragWs === modelData.id
+                            anchors.centerIn: parent
+                            width: 18
+                            height: parent.height + 8
+                            radius: width / 2
+                            color: "transparent"
+                            border.width: 2
+                            border.color: Theme.accent
+                        }
                     }
                 }
             }
-            // Disconnected glyph under the workspaces; the label does not fit a bar this thin.
+            // The window list in a column under the workspaces (W36, I102), down to the island; the rest as "+N".
+            TaskList {
+                id: taskColV
+                visible: bar.tasks.length > 0
+                vertical: true
+                anchors { top: workspaceCol.bottom; topMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
+                tasks: bar.tasks
+                edge: cfg.edge
+                screen: bar.screen
+                pills: bar.pills
+                live: bar.visible
+                maxCount: Math.max(1, Math.floor((isl.y - y - Theme.gap + spacing) / (btn + spacing)))
+                pillAt: function (sx, sy) { return bar.pillAtIn(bar.repItems(wsRepV), sx, sy) }
+                pillBoxes: function () { return bar.boxesOf(bar.repItems(wsRepV)) }
+                onDragWsChanged: bar.dragWs = dragWs
+            }
+            // Disconnected glyph under the workspaces (and the windows); the label does not fit a bar this thin.
             Loader {
-                anchors { top: workspaceCol.bottom; topMargin: Theme.gap; horizontalCenter: parent.horizontalCenter }
+                anchors { top: taskColV.visible ? taskColV.bottom : workspaceCol.bottom; topMargin: Theme.gap; horizontalCenter: parent.horizontalCenter }
                 active: bar.stale
                 sourceComponent: Text {
                     color: Theme.accent
@@ -818,9 +881,20 @@ PanelWindow {
                         }
                     }
                 }
+                RecordDot {
+                    id: recV
+                    vertical: true
+                    allowed: vlayout.fit > 1 + vlayout.modN
+                }
+                KeyboardChip {
+                    id: kbV
+                    vertical: true
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    allowed: vlayout.fit > 1 + vlayout.modN + vlayout.recN
+                }
                 Text {
                     id: clockT
-                    visible: vlayout.fit > 1 + vlayout.modN
+                    visible: vlayout.fit > 1 + vlayout.modN + vlayout.extraN
                     width: Theme.barH
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.fg
@@ -830,7 +904,7 @@ PanelWindow {
                 }
                 QuickButton {
                     id: quickB
-                    visible: vlayout.fit > 2 + vlayout.modN
+                    visible: vlayout.fit > 2 + vlayout.modN + vlayout.extraN
                     open: bar.quickOpen
                     onClicked: bar.quickClicked()
                 }
@@ -889,6 +963,9 @@ PanelWindow {
                 out.push("BARGEO fit " + fit + " hidden " + hiddenN + " trays " + trayN + " shown " + bar.trayFit)
                 function add(name, it) { if (shownOf(it)) out.push("BARGEO " + name + " " + boxOf(it)) }
                 add("workspaces", workspaceCol)
+                add("tasks", taskColV)
+                add("rec", recV)
+                add("layout", kbV)
                 add("island", isl)
                 add("slider", sliderV)
                 add("clock", clockT)

@@ -342,6 +342,7 @@ impl HyprState {
                 workspace_id: ws,
                 focused: self.active == Some(id),
                 floating: c.floating,
+                urgent: self.urgent.contains(&id),
             });
         }
         windows.sort_by_key(|w| w.id);
