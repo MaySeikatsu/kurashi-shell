@@ -238,7 +238,8 @@ Tooltip, TextField, SettingRow (label · control · provenance chip · reset · 
 Every interactive component supports the universal input slots (left/right/middle/hover/scroll).
 Focus ring only on keyboard focus (`focus-visible`). Touch targets ≥ 32 px.
 Quick tile on state (K66/row 104): `quick.tile.on.bg` (the tonal container), `quick.tile.on.badge` (the glyph's
-badge), `quick.tile.on.fg` (the glyph), resolved by kurashi-theme from the palette's accent and `selected` roles;
+badge), `quick.tile.on.fg` (the label ink on the container, AA at every contrast level; row 415), resolved by
+kurashi-theme as `color.selected` / accent / `color.on_selected`;
 absent tokens fall back to the frontend's tonal look (accent at 22 % / 30 % alpha, accent glyph).
 
 ## 8. The Island (島)

@@ -249,4 +249,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W37.1 | The material in ghostty: a generated custom shader (card `W37-ghostty`; I174) | ✅ functional · UX ✅ (`tools/shots/ghostty/`; GPU cost unmeasured, I202) | merged |
 | W37.2 | Daemon follow-ups: island face, forced services, polkit refusal, launcher icons, Settings links, no-bus wait (card `W37-daemon`; K66; I198, I200) | 🟡 in progress | agent running |
 | W37.3 | Calendar: widget opens the agenda, event details, the agenda's day (card `W37-calendar`; K66; I140) | ✅ functional · UX 🟡 (media-current click unshot, I203) | merged |
-| W37.4 | Quick settings: tile tokens, wallpaper tile menu, focus, lighter panel (card `W37-quick`; K66; I86) | 🟡 in progress | agent running |
+| W37.4 | Quick settings: tile tokens, right-click → page, focus, lighter panel (card `W37-quick`; K66; I86) | ✅ functional · UX ✅ (`frontend/shots/quick-sections/`; I204 open) | merged |
