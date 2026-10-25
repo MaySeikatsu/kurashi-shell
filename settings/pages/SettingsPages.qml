@@ -102,10 +102,11 @@ Flickable {
     // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
     // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
-    // The picker that stands in for a row's control, or null (the generic control). Every shortcut (K64) is recorded by
-    // keys, not typed: the rows of `keys.*` but the switch (a schema control "shortcut" would say it: CONTRACT-CHANGE).
+    // The picker that stands in for a row's control, or null (the generic control). A row whose schema control is
+    // "shortcut" (K64: each `keys.*` shortcut) is recorded by keys, not typed; the schema says which rows those are.
     function pickerOf(key) {
-        if (key.indexOf("keys.") === 0 && key !== "keys.write") return cShortcut
+        var r = Store.rowOf(key)
+        if (r && r.row.control === "shortcut") return cShortcut
         return p.pickers[key] ? (p.extraOf(key) ?? null) : null
     }
     function extraOf(key) {

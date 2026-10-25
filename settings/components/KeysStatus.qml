@@ -2,11 +2,12 @@ import QtQuick
 import Quickshell
 import "../core"
 
-// Under "Shortcuts for the compositor" (K64): what became of the binds file, from `svc.keys` — where it went, whether
-// niri's config includes it (the line with Copy, as the theme export's status: kurashid never edits niri's config), how
-// many shortcuts are left out and why in short (each row says its own reason), and the cases where the file is not
-// ours to write: Home-Manager's link (programs.kurashi.niri.binds), a file the user put there, another compositor. The
-// document is watched only while this shows (Ma).
+// Under "Shortcuts for the compositor" (K64, W38-keys): what became of the binds file, from `svc.keys` — where it went,
+// whether the compositor's config includes it (the line with Copy, as the theme export's status: kurashid never edits
+// the compositor's config), how many shortcuts are left out and why in short (each row says its own reason), Sway's
+// reload (it reads the file on `swaymsg reload` only), and the cases where the file is not ours to write: a link another
+// tool made (Home-Manager's, for niri), a file the user put there, a compositor without writing. The document is watched
+// only while this shows (Ma).
 Column {
     id: ks
     objectName: "keys-status"
@@ -63,6 +64,8 @@ Column {
         if (ks.leftOut > 0) out.push(ks.line("error", "⊘ " + I18n.fmt("keys.status.left_out", { n: ks.leftOut })))
         if (d.include && d.include.present)
             out.push(ks.line("ok", "✓ " + I18n.fmt("keys.status.included", { file: ks.tilde(d.include.file) })))
+        // Sway applies a changed config only on reload (no watcher of its own): said, so the keys are not taken for live.
+        if (ks.st === "written" && d.compositor === "sway") out.push(ks.line("dim", I18n.tr("keys.status.reload.sway")))
         return out
     }
     readonly property bool needsInclude: ks.on && ks.st === "written" && !!ks.doc.include && ks.doc.include.present !== true
@@ -87,7 +90,7 @@ Column {
         color: Theme.fg
         font.pixelSize: Theme.fs - 2
         font.family: Theme.fam(text, Theme.families)
-        text: ks.needsInclude ? "↳ " + I18n.fmt("keys.status.add_include", { file: ks.tilde(ks.doc.include.file) }) : ""
+        text: ks.needsInclude ? "↳ " + I18n.fmt("keys.status.add_include." + (ks.doc.compositor || "niri"), { file: ks.tilde(ks.doc.include.file) }) : ""
     }
     Row {
         visible: ks.needsInclude
