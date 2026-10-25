@@ -782,16 +782,19 @@ PanelWindow {
                         anchors.topMargin: -Math.round(height / 2)
                         anchors.rightMargin: Theme.pad
                         spacing: Theme.xs
+                        // Return on a key is Done, as on the card (I196): the keys hand it on.
                         IconButton {
                             icon: "arrow_upward"; glyph: "↑"
                             a11y: I18n.tr("frontend.desktop.edit.up")
                             enabled: !desk.orderLocked && slot.index > 0
+                            acceptsReturn: false
                             onClicked: desk.moveCard(slot.index, slot.index - 1)
                         }
                         IconButton {
                             icon: "arrow_downward"; glyph: "↓"
                             a11y: I18n.tr("frontend.desktop.edit.down")
                             enabled: !desk.orderLocked && slot.index < order.count - 1
+                            acceptsReturn: false
                             onClicked: desk.moveCard(slot.index, slot.index + 1)
                         }
                         IconButton {
@@ -799,6 +802,7 @@ PanelWindow {
                             a11y: I18n.tr(slot.wanted ? "frontend.desktop.edit.hide" : "frontend.desktop.edit.show")
                             lit: slot.wanted
                             enabled: !slot.locked
+                            acceptsReturn: false
                             onClicked: desk.toggleShown(slot.cid)
                         }
                     }

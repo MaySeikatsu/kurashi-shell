@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 use std::future::Future;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use kurashi_ipc::ApplyOp;
@@ -1184,9 +1185,10 @@ pub fn notifications_with_facts(
     {
         nc.history_max = n as usize;
     }
-    let commands: Arc<Mutex<Option<kurashi_notify::Commands>>> = Arc::default();
+    // The server's commands once it is up; a do-not-disturb the config moves to before then waits in the slot (I205).
+    let slot: Arc<Mutex<DndSlot>> = Arc::default();
     {
-        let (hub, commands) = (hub.clone(), commands.clone());
+        let (hub, slot) = (hub.clone(), slot.clone());
         tokio::spawn(async move {
             let conn = match zbus::Connection::session().await {
                 Ok(c) => c,
@@ -1205,7 +1207,13 @@ pub fn notifications_with_facts(
                     // it), so ask the bus who owns it instead of assuming.
                     let owned = name_owned_by(&conn, "org.freedesktop.Notifications").await;
                     facts.update(|f| f.notification_name_owned = Some(owned));
-                    *commands.lock().expect("notify lock") = Some(cmds);
+                    {
+                        let mut s = slot.lock().expect("notify lock");
+                        if let Some(on) = s.wanted.take() {
+                            cmds.set_dnd(on);
+                        }
+                        s.cmds = Some(cmds);
+                    }
                     // The server runs until the daemon exits.
                     std::mem::forget(handle);
                 }
@@ -1216,30 +1224,22 @@ pub fn notifications_with_facts(
             }
         });
     }
-    // K66 (row 103): a forced `notifications.dnd` holds the switch. Its value is put in effect when the force comes
-    // (or changes) while the server runs, and `notify.dnd` is refused while it lasts, so the tile never shows a
-    // do-not-disturb the config does not have (Shōjiki).
-    let held: Arc<Mutex<Option<bool>>> = Arc::default();
-    if let Some(store) = cfg {
-        *held.lock().expect("dnd lock") = forced_value(store, "notifications.dnd");
-        let (held, commands) = (held.clone(), commands.clone());
-        store.on_change(move |c| {
-            let now = forced_value(c, "notifications.dnd");
-            let mut was = held.lock().expect("dnd lock");
-            if *was != now {
-                if let (Some(on), Some(cmds)) =
-                    (now, commands.lock().expect("notify lock").as_ref())
-                {
-                    cmds.set_dnd(on);
-                }
-                *was = now;
+    // I205 (K66, row 103): `notifications.dnd` follows the config while the server runs, forced or not. A force holds
+    // the switch: `notify.dnd` is refused while it lasts, so the tile never shows a do-not-disturb the config does not
+    // have (Shōjiki).
+    let apply_slot = slot.clone();
+    let held = match cfg {
+        Some(store) => follow_dnd(store, move |on| {
+            let mut s = apply_slot.lock().expect("notify lock");
+            match s.cmds.clone() {
+                Some(c) => c.set_dnd(on),
+                None => s.wanted = Some(on),
             }
-        });
-    }
-    let get = move || commands.lock().expect("notify lock").clone();
-    notify_actions_held(actions, get, move || {
-        held.lock().expect("dnd lock").is_some()
-    });
+        }),
+        None => Arc::default(),
+    };
+    let get = move || slot.lock().expect("notify lock").cmds.clone();
+    notify_actions_held(actions, get, move || held.load(Ordering::Relaxed));
 }
 
 /// K66 (row 103; row 417 adds idle, night light and recorder): the config keys that hold the switch of each service
@@ -1289,6 +1289,42 @@ fn forced_by(c: &ConfigStore, key: &str) -> Option<String> {
 fn forced_value(c: &ConfigStore, key: &str) -> Option<bool> {
     forced_by(c, key)?;
     c.get(key, None).and_then(|p| p.value.as_bool())
+}
+
+/// The notification server's commands once it is up, and a do-not-disturb the config moved to before that (I205).
+#[derive(Default)]
+struct DndSlot {
+    cmds: Option<kurashi_notify::Commands>,
+    wanted: Option<bool>,
+}
+
+/// I205: the `notifications.dnd` the config holds now, as (its value, whether a force holds it).
+fn dnd_in_effect(c: &ConfigStore) -> (bool, bool) {
+    let value = cfg_bool(Some(c), "notifications.dnd", false);
+    (value, forced_value(c, "notifications.dnd").is_some())
+}
+
+/// I205: `notifications.dnd` follows the config while the daemon runs, forced or not. `apply` gets the value in effect
+/// each time it moves (an edit, a reload, a force that comes or goes); a change that leaves it where it was calls
+/// nothing, so a do-not-disturb switched on from the tile stays until the config says something else. The returned
+/// flag is set while a force holds the switch (K66).
+pub fn follow_dnd(
+    store: &ConfigStore,
+    apply: impl Fn(bool) + Send + Sync + 'static,
+) -> Arc<AtomicBool> {
+    let now = dnd_in_effect(store);
+    let held = Arc::new(AtomicBool::new(now.1));
+    let (flag, last) = (held.clone(), Mutex::new(now));
+    store.on_change(move |c| {
+        let now = dnd_in_effect(c);
+        flag.store(now.1, Ordering::Relaxed);
+        let mut was = last.lock().expect("dnd lock");
+        if *was != now {
+            *was = now;
+            apply(now.0);
+        }
+    });
+    held
 }
 
 /// `notify.dnd` while a forced `notifications.dnd` holds the switch (K66, row 103).

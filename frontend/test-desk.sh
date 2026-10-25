@@ -183,6 +183,15 @@ for DECOR in $DECORS; do
   sleep 1
   check "$([ "$(val desktop.order)" = "$DEFAULT" ] && echo 1 || echo 0)" "$DECOR Escape wrote nothing ($(val desktop.order))"
 
+  # I196: a card key takes Return on to its card, so Return on a focused key is Done too (not the key's press).
+  echo "== $DECOR: Return on a card key is Done (I196)"
+  edit_key
+  kp alt+down tab return    # the clock moves below the calendar; Tab lands on its up key, which now is enabled
+  wait_val desktop.order '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]'
+  check "$([ "$(val desktop.order)" = '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR Return on the up key saved the edit ($(val desktop.order))"
+  K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo of the Return save was refused"
+  wait_val desktop.order "$DEFAULT"
+
   echo "== $DECOR: hidden cards by Tab and Space, Done, undo"
   edit_key
   kp tab tab space          # the clock: Tab to its down key, then its eye; Space hides it (its switch)

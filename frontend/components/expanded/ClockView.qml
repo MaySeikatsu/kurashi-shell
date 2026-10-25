@@ -57,11 +57,12 @@ Column {
     readonly property date first: new Date(year, month, 1)
     readonly property int lead: (first.getDay() - firstDow + 7) % 7     // cells before day 1, counted from the week's first day
     readonly property int count: new Date(year, month + 1, 0).getDate()
+    // The grid's weeks: five for most months, six when the month reaches a sixth row (I203: no empty row above the agenda).
+    // Synchronous from the props, so the grid's box has its final height before its cells are made (B37).
+    readonly property int weeks: valid ? Math.ceil((lead + count) / 7) : 0
     readonly property bool todayInView: valid && today.getFullYear() === year && today.getMonth() === month
     readonly property int todayDay: today.getDate()
     readonly property int cell: 36
-    // Some contribution marks a day (row 71): the numbers move up to leave the marks their place under them.
-    readonly property bool marked: marks.entries.length > 0
 
     function select(date) { sel = new Date(date.getFullYear(), date.getMonth(), date.getDate()) }
     function shiftDays(n) { select(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + n)) }
@@ -156,6 +157,8 @@ Column {
         id: cal
         width: view.width
         height: grid.height
+        // The box clips the grid and the week numbers while the grid eases to its height (I203).
+        clip: true
         activeFocusOnTab: view.valid
         Accessible.role: Accessible.Table
         Accessible.name: I18n.tr("island.clock.grid")
@@ -182,8 +185,14 @@ Column {
             id: grid
             x: Math.round((cal.width - view.weekW - width) / 2 + view.weekW)
             width: 7 * view.cell
-            height: view.cell / 2 + (view.valid ? 6 * view.cell : 0)
+            height: view.cell / 2 + view.weeks * view.cell
             asynchronous: true
+            // I203: the sixth row comes and goes with the month. The box eases to its new height, so the agenda below it (and the
+            // card, which follows the view's height) glide instead of jumping. Off while the card is away or the month not dated.
+            Behavior on height {
+                enabled: view.visible && view.valid && Theme.springOn
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
+            }
             sourceComponent: Grid {
                 columns: 7
                 Repeater {
@@ -205,7 +214,7 @@ Column {
                     }
                 }
                 Repeater {
-                    model: view.valid ? 42 : 0
+                    model: view.weeks * 7
                     // W21: each day is a small block (a keycap under keycap chrome); today is lit in the accent, the selected
                     // day is tonal (Theme.selected) and ringed while the grid has the keyboard.
                     delegate: Item {
@@ -217,6 +226,13 @@ Column {
                         readonly property bool isSel: inMonth && day === view.sel.getDate()
                         // The cell's date (yyyy-mm-dd) for the day marks; empty outside the month.
                         readonly property string iso: inMonth ? view.isoDate(view.year, view.month, day) : ""
+                        // The keycap's face (Block.face: the block less its hard shadow; a press sinks it, and the number and the
+                        // marks sink with it) and the middle of the band above the day mark (I203). The mark is a 5 px dot centred
+                        // in its row, the row's foot on the face's foot; with no mark the number is centred on the face.
+                        readonly property real faceTop: dayBlock.y + dayBlock.face.y
+                        readonly property real faceBot: faceTop + dayBlock.face.height
+                        readonly property real dotTop: marksRow.height > 0 ? faceBot - (marksRow.height + 5) / 2 : faceBot
+                        readonly property real numberMid: (faceTop + dotTop) / 2
                         width: view.cell
                         height: view.cell
                         Accessible.role: Accessible.Cell
@@ -246,7 +262,7 @@ Column {
                         }
                         Text {
                             anchors.centerIn: dayBlock
-                            anchors.verticalCenterOffset: (view.marked ? -7 : 0) - Theme.shadowDy / 2 + (dayTap.pressed ? Theme.shadowDy : 0)
+                            anchors.verticalCenterOffset: dayCell.numberMid - (dayBlock.y + dayBlock.height / 2)
                             visible: parent.inMonth
                             color: parent.isToday ? Theme.fgOnAccent
                                 : (parent.isSel ? Theme.fgOnSelected : Theme.fg)
@@ -256,12 +272,12 @@ Column {
                             font.features: { "tnum": 1 }
                             text: parent.day
                         }
-                        // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number.
-                        // Each gets the cell's date; a cell outside the month gets none.
+                        // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number, on the
+                        // keycap's foot (I203). Each gets the cell's date; a cell outside the month gets none.
                         Row {
+                            id: marksRow
                             anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 1
+                            y: dayCell.faceBot - height
                             spacing: 2
                             Repeater {
                                 model: dayCell.inMonth ? marks.entries.slice(0, 3) : []
@@ -287,7 +303,7 @@ Column {
         }
         // ISO week numbers beside the rows (W19, I46), when clock.week_numbers is on. Not focus stops: the grid's keys do it.
         Repeater {
-            model: view.weekNumbers && view.valid ? 6 : 0
+            model: view.weekNumbers ? view.weeks : 0
             delegate: Text {
                 required property int index
                 readonly property string week: String(view.isoWeekOfRow(index))

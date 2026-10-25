@@ -34,9 +34,12 @@ Item {
     implicitHeight: side + Theme.shadowDy
     opacity: enabled ? 1 : 0.5
 
+    // I196: a key in a row of card keys (the desk's edit mode) passes Return on to its card (`acceptsReturn: false`), where it
+    // means Done; Enter and Space still press it. Default unchanged everywhere else.
+    property bool acceptsReturn: true
     activeFocusOnTab: b.enabled
-    Keys.onReturnPressed: b.press()
-    Keys.onEnterPressed: b.press()
+    Keys.onReturnPressed: event => { if (b.acceptsReturn) b.press(); else event.accepted = false }
+    Keys.onEnterPressed: event => { if (b.acceptsReturn) b.press(); else event.accepted = false }
     Keys.onSpacePressed: b.press()
     Accessible.role: Accessible.Button
     Accessible.name: b.a11y
