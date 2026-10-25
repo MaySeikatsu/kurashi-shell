@@ -139,6 +139,11 @@ impl State {
                 documents::network_scan(true, Some("home-wifi")),
             ),
             ("svc.tray", documents::tray()),
+            // K64 (W38-keys): the shortcuts as kurashid judges them; recomputed on each config change (`apply`).
+            (
+                "svc.keys",
+                documents::keys(&documents::config(kurashi_schema::v1::registry())),
+            ),
             ("svc.bluetooth", documents::bluetooth()),
             ("svc.brightness", documents::brightness(BRIGHTNESS_START)),
             // The wallpaper mod's document (W18: its quick tile is a contribution the mock serves).
@@ -252,6 +257,11 @@ impl State {
             ops,
             origin,
         });
+        // svc.keys follows the keys.* values (K64): a config change judges the shortcuts again.
+        if doc == "config" {
+            let keys = documents::keys(self.data("config"));
+            self.patch("svc.keys", keys, None);
+        }
     }
 
     /// Intents: fire-and-forget, coalesced by the client. `audio.volume` and `brightness.set` (W18, I50: the
