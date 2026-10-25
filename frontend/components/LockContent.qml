@@ -169,11 +169,12 @@ Rectangle {
             border.color: c.isError ? Theme.error : (Theme.ringW > 0 ? Theme.line
                 : (field.activeFocus ? Theme.fg : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)))
             SoftShadow { anchors.fill: parent; radius: box.radius }
-            // Keycap chrome: the field's hard shadow (a child below the field, drawn behind it).
+            // Keycap chrome: the field's hard shadow along the shadow vector (K67; a child below the field, drawn behind it).
             Rectangle {
                 z: -1
-                visible: Theme.shadowDy > 0
-                y: Theme.shadowDy
+                visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                x: Theme.sinkX
+                y: Theme.sinkY
                 width: box.width
                 height: box.height
                 radius: box.radius

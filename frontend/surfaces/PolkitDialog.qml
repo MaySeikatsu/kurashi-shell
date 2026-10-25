@@ -282,10 +282,12 @@ Scope {
                             border.color: win.failed ? Theme.error : (Theme.ringW > 0 ? Theme.line
                                 : (field.activeFocus ? Theme.fg : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)))
                             opacity: win.busy ? 0.6 : 1
+                            // The field's hard shadow along the shadow vector (K67; LockContent's field, the same shadow).
                             Rectangle {
                                 z: -1
-                                visible: Theme.shadowDy > 0
-                                y: Theme.shadowDy
+                                visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                                x: Theme.sinkX
+                                y: Theme.sinkY
                                 width: box.width
                                 height: box.height
                                 radius: box.radius

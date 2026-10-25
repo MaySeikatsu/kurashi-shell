@@ -116,10 +116,12 @@ PanelWindow {
 
         // A click on the sheet never reaches the backdrop.
         MouseArea { anchors.fill: parent }
-        // Shadows from the chrome: keycap's hard one straight down, soft's blurred one; flat has none.
+        // Shadows from the chrome (K67, docs/ux/shadows.md): keycap's hard one along the shadow vector, soft's blurred one
+        // offset along it (`softColor` carries the strength); flat and line have none (the vector is 0 there).
         Rectangle {
-            visible: Theme.shadowDy > 0
-            y: Theme.shadowDy
+            visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+            x: Theme.sinkX
+            y: Theme.sinkY
             width: frame.width
             height: frame.height
             radius: sh.radius
@@ -127,9 +129,10 @@ PanelWindow {
         }
         Loader {
             anchors.fill: parent
-            active: Theme.softR > 0
+            active: Theme.softR > 0 && Theme.shadowAlpha > 0
             sourceComponent: RectangularShadow {
-                offset.y: Theme.softDy
+                offset.x: Theme.shadowX
+                offset.y: Theme.shadowY
                 blur: Theme.softR
                 spread: -1
                 radius: sh.radius
