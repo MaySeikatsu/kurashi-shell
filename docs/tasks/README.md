@@ -297,7 +297,10 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W37-calendar | mods/calendar, SlotHost, ClockView, docs/ux/calendar | haiku |
 | W37-quick | QuickPanel, components/quick, kurashi-theme tokens.rs, wallpaper tile, docs/ux/quick-settings | haiku |
 
-## Wave 38 (2026-10-25, session 13) — drop shadows (contracts: K67)
+## Wave 38 (2026-10-25, session 13) — drop shadows, keys, web dock, polish (contracts: K67)
 | Card | Owner paths | Model |
 |---|---|---|
 | W38-shadows | kurashi-theme tokens, kurashid theme.rs (shadow), Theme.qml, Block/SoftShadow, MorphShape/ColumnShape, Bar shadow, settings material | opus |
+| W38-keys | keys.rs, schema __private/generate, settings keys page, mock svc.keys, wl_keys | haiku |
+| W38-webdock | kurashi-mod-api, mods/webdock, BENCH append | haiku |
+| W38-polish | ClockView, calendar Widget, Button/IconButton, test-toasts, DND wiring | haiku |
