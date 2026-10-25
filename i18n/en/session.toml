@@ -64,6 +64,8 @@
 "error.settings.no_runtime" = "The Quickshell runtime (qs) is not available, so Settings cannot open."
 # settings.open {page} (I40): a page Settings does not have.
 "error.settings.unknown_page" = "Settings has no such page."
+# A path list entry that is not a path (I54; kurashid SchemaAdapter). Its error.config.* siblings are generated into schema.toml.
+"error.config.not_a_path" = "Not a full path: start it with / or ~/."
 # Row 381: a Stage panel or peek asked for while a polkit dialog is up.
 "ui.error.polkit" = "An authentication dialog is open. Finish it first."
 # K66 (row 103): notify.dnd while a forced notifications.dnd holds the switch.
