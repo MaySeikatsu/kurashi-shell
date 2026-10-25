@@ -29,6 +29,13 @@ PanelWindow {
     property int grace: 24             // geometry.grace: the hover margin on the sides away from the strip
     property string newTabs: "dock"    // new_tabs: dock (a link loads in the pin's view) | browser (the default browser)
     property bool engaged: false       // `engaged`: the dock holds the keyboard, so the page takes the first keystroke
+    // I98: a keybind reveal (`engaged`, with the open) asks for the keyboard exclusively until the window has the focus,
+    // then relaxes to on-demand; the rule and its reasons are in DockWindow.
+    property bool winActive: false
+    property bool pulseSpent: false
+    readonly property bool asksKeys: open && engaged && !winActive && !pulseSpent
+    onAsksKeysChanged: if (asksKeys) pulseTimer.restart(); else pulseTimer.stop()
+    Timer { id: pulseTimer; interval: 1000; onTriggered: card.pulseSpent = true }
     property string output: ""
     property var profiles: null        // Profiles (the view of each profile, the storage of each pin)
     property var report: null          // function(action, args): the reports and actions the card sends
@@ -214,7 +221,7 @@ PanelWindow {
         function onStorageRootChanged() { card.syncViews() }
     }
     onOpenChanged: {
-        if (open) mapped = true
+        if (open) { mapped = true; pulseSpent = false }
         else {
             reportHover(false)
             menuOpen = false
@@ -230,7 +237,7 @@ PanelWindow {
 
     screen: screenObj
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: asksKeys ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "kurashi-webdock"
     // The window spans the usable area of the output: anchored to all four sides, so the compositor stretches it between
     // the bars, along a side edge's length and, on a top or bottom edge, across the usable width and height (I100).
@@ -307,7 +314,12 @@ PanelWindow {
         HoverHandler {
             onHoveredChanged: card.reportHover(hovered)
         }
-        Window.onActiveChanged: card.reportEngage(Window.active)
+        Window.onActiveChanged: {
+            card.winActive = Window.active
+            if (Window.active) card.pulseSpent = true
+            card.reportEngage(Window.active)
+            if (Window.active && card.engaged && card.open) card.focusPage()
+        }
     }
     // Ctrl+L enters the header; the page is not told (it may take Ctrl+L for itself, but the card is the chrome's key).
     Shortcut {
