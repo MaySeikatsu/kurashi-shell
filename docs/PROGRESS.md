@@ -254,3 +254,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W38.2 | Keys follow-ups: shortcut control, mock svc.keys, overlay titles, Sway/Hyprland binds (card `W38-keys`; I189) | ✅ functional · UX 🟡 (some states unshot, I208) | merged |
 | W38.3 | Web dock follow-ups: forced_by from the store, inert reason, nested-niri checks (card `W38-webdock`; I191) | ✅ functional · UX 🟡 (niri unverified, I207) | merged |
 | W38.4 | Polish: clock grid, calendar fallback, desk Return, side-bar toasts, DND live (card `W38-polish`; I203, I196, I201, I205) | ✅ functional · UX ✅ (`mods/calendar/shots/clock-*`, side-bar toast shots) | merged |
+| W39.1 | Every surface follows the shadow vector (card `W39-shadows2`; I206) | ✅ functional · UX ✅ (`frontend/shots/shadows/surf2-*`; I210 open) | merged |
+| W39.2 | A lighter Block, idle windows, icon font subset, badge contrast (card `W39-block`; I199, I204, I194) | 🟡 in progress | agent running |
+| W39.3 | Minute flip capped at 300 ms; split memory budgets (lead; K68; I193, I194) | ✅ | merged |
+| W40.1 | `island.main.faces` restricts (card `W40-faces`; K68; I209) | 🟡 in progress | agent running |

@@ -310,3 +310,8 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 |---|---|---|
 | W39-shadows2 | notification/lock/polkit/toast/centre shadow lines, ClockView day keys, settings Theme + SheetHost/SectionCard, test-shadows | haiku |
 | W39-block | Block/SoftShadow/FocusRing, QuickPanel, Stage/Launcher lazy parts, icon font subset, badge token, bench | opus |
+
+## Wave 40 (2026-10-25, session 13) — island faces restrict (K68)
+| Card | Owner paths | Model |
+|---|---|---|
+| W40-faces | kurashi-island, kurashid island.rs, mock island, settings faces control, docs/ux/island | haiku |
