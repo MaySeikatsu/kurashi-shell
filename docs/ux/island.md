@@ -198,9 +198,9 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
   choice in Settings writes a list, and from then on the list governs; a mod enabled later is not added to it.
 - **A change of the list takes effect at once.** A pin or a manual hold on a face the list drops is dropped; listing the
   face again does not pin it. A default face the list does not name falls back to the first face it names.
-- **A list that names no available face** (every named face is a mod that is off) falls back to the default face, the
-  clock: the island shows it and `faces` says so, exactly as a list of that one face would (row 452). The system events
-  are unchanged.
+- **A list that names no available face** (every named face is a mod that is off) falls back to the default face (the
+  clock, unless the user set another default): the island shows it, and `faces` says so, as a list of that one face
+  would (row 452). The system events are unchanged.
 - **Settings.** The faces control shows the faces in effect. At the default that is every face the island has, with the
   provenance chip "Default" (the stored three are not what shows). After a choice it shows the chosen list, in order. The
   add control lists the faces the list leaves out, labelled with their provenance (the mod's name, I37; a core face its
@@ -223,6 +223,8 @@ The user chose (K68) that `island.main.faces` restricts which faces the island m
     `unlisted`); the sandbox run (W42-faces2) shows "System monitor" offered back, en and ja.
   - [x] Power and Bluetooth are not offered as choices: they are exempt (K65), and config.rs `TRANSIENT_FACES` lists the
     four system faces (W42-faces2 found the list already complete); `a_mod_face_is_labelled_with_the_mod_name` checks it.
-  - [x] screenshots of the faces control in its states (W42-faces2, sandbox): the default list (every face, chip
-    "Default", the add control "Every option is already listed"), a chosen list with the add control open offering a mod
-    face, en and ja. The calendar's row 454 step (test-calendar.sh) passed 27 of 27 in its sandbox run.
+  - [x] screenshots of the faces control, card scope (W42-faces2, sandbox): the default list (every face, chip "Default",
+    the add control "Every option is already listed"), and a chosen list (the closed row, then the add control open
+    offering a mod face), en and ja. Not shot yet: the inert "not available now" row, the empty list, a list with no
+    available face as Settings draws it, the card closing, and a face listed again. The calendar's row 454 step
+    (test-calendar.sh) passed 27 of 27 in its sandbox run.
