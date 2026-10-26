@@ -25,6 +25,8 @@ Item {
     readonly property bool running: showing && nearest.state === "running"
     readonly property bool paused: showing && nearest.state === "paused"
     readonly property bool ended: showing && nearest.state === "ended"
+    // A pomodoro's break: its arc takes the tertiary colour, a focus the accent.
+    readonly property bool onBreak: showing && nearest.kind === "pomodoro" && nearest.phase !== "focus"
 
     Tick { id: clock; wanted: w.visible && w.running }
     readonly property string timeText: showing && !ended ? T.clock(T.left(nearest, clock.now)) : ""
@@ -61,7 +63,7 @@ Item {
             width: Theme.fs + 4
             height: Theme.fs + 4
             share: w.share
-            stroke: w.paused ? Theme.dim : Theme.fg
+            stroke: w.paused ? Theme.dim : (w.onBreak ? Theme.tertiary : Theme.accent)
             track: Theme.outline
         }
         Icon {
@@ -92,7 +94,7 @@ Item {
             width: Theme.barH - 12
             height: Theme.barH - 12
             share: w.share
-            stroke: w.paused ? Theme.dim : Theme.fg
+            stroke: w.paused ? Theme.dim : (w.onBreak ? Theme.tertiary : Theme.accent)
             track: Theme.outline
         }
         Icon {
