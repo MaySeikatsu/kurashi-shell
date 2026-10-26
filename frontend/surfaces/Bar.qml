@@ -190,10 +190,12 @@ Scope {
     // Also the window's content item and its place on the output, so the Stage can tell which bar an origin stands in and
     // where (row 512: a floating bar's window does not start at the output's corner).
     readonly property point winOrigin: winL.item ? winL.item.sheetOrigin : Qt.point(0, 0)
-    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped, winOrigin.x, winOrigin.y].join("|")
+    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped, winOrigin.x, winOrigin.y,
+                                       scr ? scr.width : 0].join("|")
     function report() {
         IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped,
-                                               root: winL.item ? winL.item.contentItem : null, ox: winOrigin.x, oy: winOrigin.y } : null)
+                                               root: winL.item ? winL.item.contentItem : null, ox: winOrigin.x, oy: winOrigin.y,
+                                               sw: scr ? scr.width : 0 } : null)
     }
     onGeomKeyChanged: report()
     Component.onDestruction: IslandGeom.setBar(outName, edge, null)
