@@ -160,7 +160,17 @@ Scope {
                 enabled: col.hoverOn && !col.toggledHere && col.out !== ""
                 from: col.spanStart
                 to: col.sh - col.spanEnd
-                holdIn: col.pointerIn || col.focusHeld || col.resizing
+                holdIn: col.pointerIn || col.focusHeld || col.resizing || edgeHold.held
+            }
+            EdgeHold {
+                id: edgeHold
+                output: col.out
+                edge: sb.side
+                key: "sidebar:" + sb.side + ":hold"
+                claim: reveal.enabled
+                active: reveal.revealed
+                from: col.spanStart
+                to: col.sh - col.spanEnd
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
             // The window exists: out, sliding in or out.
@@ -307,7 +317,7 @@ Scope {
                     WlrLayershell.keyboardFocus: col.wanted ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
                     mask: Region {
                         item: catchArea
-                        Region { item: shapeRect }
+                        Region { item: inputRect }
                         Region { item: grip }
                     }
                     BackgroundEffect.blurRegion: Region { item: shapeRect }
@@ -411,6 +421,16 @@ Scope {
                         width: col.colW
                         height: Math.max(0, win.y1 - win.y0)
                         HoverHandler { id: shapeHover; onHoveredChanged: col.pointerIn = hovered || gripHover.hovered }
+                    }
+                    // The column's input: all of it, but the 2 px on the screen's edge while it came out on hover (the
+                    // shared strip keeps the pointer there: EdgeHold).
+                    Item {
+                        id: inputRect
+                        readonly property int cut: edgeHold.active && col.inset < 2 ? 2 - col.inset : 0
+                        x: shapeRect.x + (sb.side === "left" ? cut : 0)
+                        y: shapeRect.y
+                        width: Math.max(0, shapeRect.width - cut)
+                        height: shapeRect.height
                     }
                     // While a toggle holds it open: the usable area takes clicks (the catcher; the bars keep theirs).
                     Item {
