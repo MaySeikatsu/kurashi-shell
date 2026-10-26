@@ -18,7 +18,8 @@
 # to …), a problem entry (an id the file names that no module answers to) is removed by Delete, an inert keep-space row names
 # the document's reason, the preset's line, the sidebar width's drag hint and Reset; I241: no "*" in the output picker and
 # settings.open {page: "bar"} opens layout. Shots: settings/shots/layout/ (sekai and washi, light and dark; the moved, unplaced,
-# problem, inert, preset and sidebar states; ja-layout-top).
+# problem, inert, preset, sidebar and empty-bar states; ja-layout-top). A strip toggles an edge's bar; a zone takes a module
+# from its Add… list, moves it with Alt+Up and removes it with Delete.
 # Coverage (UX brief docs/ux/settings.md, States and Definition of done). Shots: default, user, profile (after a profile
 # load), Nix-forced and its chip's stack (managed.toml), inert (requires, overridden, mods off, restart pending, choice
 # unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
@@ -1313,6 +1314,27 @@ lfocus "pickrow:windows"
 kp delete
 wait_val edges.left.start '["workspaces"]'
 echo "layout W5b: a strip toggles its edge's bar; a module is added from Add…, moved up with Alt+Up and removed with Delete"
+
+# W5c. a bar with no modules in any zone is an empty strip, and the note under its edge's header says so (UX brief, States).
+#      The right edge has no zones: its bar, switched on, is empty; switched off, the note goes. The left edge is picked again.
+lfocus "Right edge"
+kp space
+[ "$(Q layoutEdge)" = right ] || fail "radio: Space on the right edge did not pick its section ($(Q layoutEdge))"
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar true
+for _ in $(seq 25); do [ "$(Q present empty-bar:right)" = yes ] && break; sleep 0.2; done
+[ "$(Q present empty-bar:right)" = yes ] || fail "empty bar: the right edge's bar has no modules, and Settings does not say so"
+lshot washi-dark-empty-bar
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar false
+for _ in $(seq 25); do [ "$(Q present empty-bar:right)" = no ] && break; sleep 0.2; done
+[ "$(Q present empty-bar:right)" = no ] || fail "empty bar: the note stayed after the bar was switched off"
+lfocus "Left edge"
+kp space
+[ "$(Q layoutEdge)" = left ] || fail "radio: Space on the left edge did not pick its section ($(Q layoutEdge))"
+echo "layout W5c: a bar with no modules says so under its edge's header; switched off, the note goes"
 
 # W6. an inert keep-space row names the document's reason (a hidden part never keeps space) and the setting that hides it.
 lfocus "Hidden (opens by key)"

@@ -22,3 +22,4 @@
 "settings.layout.auto_keeps" = "自動（場所を空ける）"
 "settings.layout.auto_none" = "自動（場所を空けない）"
 "settings.layout.draw_modes" = "フローティング：全体から離れて浮く。ダイナミック：辺にぴたりと付き、丸いつなぎでつながる。コネクテッド：辺にぴたりと付き、直線でつながる。"
+"settings.layout.empty_bar" = "このバーにはモジュールがありません。空の帯として表示されます。モジュールを追加するか、バーをオフにしてください。"
