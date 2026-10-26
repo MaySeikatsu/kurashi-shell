@@ -195,9 +195,22 @@ impl Service {
     }
 }
 
+/// Whether a job's gate lets it run under `values`: an empty `wanted_by` has no gate, so the job runs
+/// while its mod is on (row 500, K73); a named gate is a bool setting that must be true.
+fn gate_open(wanted_by: &str, values: &Values) -> bool {
+    wanted_by.is_empty() || values.get(wanted_by).and_then(Value::as_bool) == Some(true)
+}
+
+/// Whether a job's `wanted_by` names a gate its mod can have: none (empty, row 500), or one of the mod's
+/// bool settings (`bool_keys`, I23).
+fn gate_is_a_bool_setting<'a>(bool_keys: impl Iterator<Item = &'a str>, wanted_by: &str) -> bool {
+    wanted_by.is_empty() || bool_keys.into_iter().any(|key| key == wanted_by)
+}
+
 /// A background job of a mod (I23, `ModCtx::background`). It runs on the daemon's runtime while the
-/// mod is on and its `wanted_by` setting is true: `feed` starts and stops it as the setting changes,
-/// `deactivate` cancels it. A job that ends by itself stops running and says so in the document.
+/// mod is on and its `wanted_by` setting is true (or at once, with no `wanted_by`): `feed` starts and
+/// stops it as the setting changes, `deactivate` cancels it. A job that ends by itself stops running
+/// and says so in the document.
 struct BackgroundJob {
     mod_id: String,
     name: String,
@@ -233,9 +246,9 @@ impl Drop for RunEnd {
 }
 
 impl BackgroundJob {
-    /// Whether the setting in effect wants the job running.
+    /// Whether the setting in effect wants the job running (no gate: always).
     fn wants(&self, values: &Values) -> bool {
-        values.get(&self.wanted_by).and_then(Value::as_bool) == Some(true)
+        gate_open(&self.wanted_by, values)
     }
 
     /// Starts the job unless it runs. Its reason joins `running_reasons` until it stops, or until the run
@@ -705,13 +718,17 @@ impl Native {
             .get(module.id())
             .map(|e| e.dir.clone())
             .unwrap_or_default();
-        // A job waits for a bool setting of its own mod (I23); without a runtime it could never run.
+        // A job waits for a bool setting of its own mod (I23), or for none (row 500); without a runtime it could never run.
         for job in &declared_jobs {
-            let bool_setting = manifest
-                .settings
-                .iter()
-                .any(|s| s.key == job.wanted_by && s.ty == SettingType::Bool);
-            if !bool_setting {
+            let gate_ok = gate_is_a_bool_setting(
+                manifest
+                    .settings
+                    .iter()
+                    .filter(|s| s.ty == SettingType::Bool)
+                    .map(|s| s.key.as_str()),
+                &job.wanted_by,
+            );
+            if !gate_ok {
                 return Err(ModError::Failed(format!(
                     "job {} waits for {}, which is not a bool setting",
                     job.name, job.wanted_by
@@ -1226,5 +1243,30 @@ mod tests {
         assert!(doc["quick.tiles"][0].get("reason").is_none());
         set_reason(&mut doc, "clock.expanded.aside", "weather", None);
         assert!(doc["clock.expanded.aside"][0].get("reason").is_none());
+    }
+
+    /// Row 500 (K73): a job with an empty `wanted_by` has no gate and runs with no setting at all; a named gate
+    /// is a bool setting of the mod, and runs only while it is true.
+    #[test]
+    fn a_job_with_no_gate_runs_without_a_setting_and_a_named_gate_must_be_a_bool() {
+        let mut values = Values::new();
+        assert!(gate_open("", &values), "no gate: the job runs with no setting at all");
+        values.insert("watch".into(), json!(false));
+        assert!(gate_open("", &values), "no gate: a setting does not stop it either");
+        assert!(!gate_open("watch", &values), "a named gate that is off stops the job");
+        values.insert("watch".into(), json!(true));
+        assert!(gate_open("watch", &values));
+
+        let bools = ["watch"];
+        assert!(gate_is_a_bool_setting(bools.iter().copied(), ""), "no gate is always allowed");
+        assert!(gate_is_a_bool_setting(bools.iter().copied(), "watch"));
+        assert!(
+            !gate_is_a_bool_setting(bools.iter().copied(), "missing"),
+            "a gate the mod does not declare refuses the enable"
+        );
+        assert!(
+            !gate_is_a_bool_setting(std::iter::empty(), "watch"),
+            "a gate that is not a bool setting refuses the enable"
+        );
     }
 }
