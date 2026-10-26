@@ -127,12 +127,9 @@ fn fixture_dp1() -> OutputConfig {
 
 #[test]
 fn the_fixture_comes_out_byte_equal() {
-    // The fixture's two outputs describe different mod sets (row 480): weather is on for DP-1 only.
-    let star = [
-        widget_mod("sysmon", true, &["sysmon"]),
-        widget_mod("timer", true, &["timer"]),
-    ];
-    let dp1 = [
+    // One mod set for every output (row 480): `"*"` keeps the default zones, so `mods` brings sysmon and weather into the
+    // top bar's end; DP-1 names its zones without `mods`, so weather is offered back as unplaced.
+    let mods = [
         widget_mod("sysmon", true, &["sysmon"]),
         widget_mod("timer", true, &["timer"]),
         widget_mod("weather", true, &["weather"]),
@@ -145,8 +142,8 @@ fn the_fixture_comes_out_byte_equal() {
         join_radius: g.join_radius,
         bar_size: g.bar_size,
         outputs: BTreeMap::from([
-            ("*".to_string(), output(&g, &star, &fixture_star())),
-            ("DP-1".to_string(), output(&g, &dp1, &fixture_dp1())),
+            ("*".to_string(), output(&g, &mods, &fixture_star())),
+            ("DP-1".to_string(), output(&g, &mods, &fixture_dp1())),
         ]),
     };
     let got = format!(

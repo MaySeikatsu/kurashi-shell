@@ -83,6 +83,17 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   entries with a `reason` (`layout.unplaced.not_listed`), so Settings can offer them back (W40 pattern); `problems`: zone
   entries that cannot be drawn (`id`, `zone`, `reason`: `layout.module.unknown`, `layout.module.mod_off`,
   `layout.module.no_glance`).
+- Rules the layout step settles (`crates/kurashi-layout`, unit-tested; row 481): `band(e)` is 0 under a docked
+  (dynamic/connected) bar of any visibility; a surface that keeps space reserves `inset + size` (bar and edge-module
+  group: `bar_size`; dock: `dock.icon_size + 16`; sidebar: `width`); `edges.<e>.reserve` is the largest of the frame's
+  band (frame on and reserving), the edge's bar or module group, the dock and the sidebar there; `holder` is `frame` on
+  every edge while the frame is on and reserves (even where its zone is 0), else the first of bar > dock > sidebar >
+  module that keeps space, else `none`; every component whose visibility is `hidden` carries `reserve_reason:
+  layout.reserve.hidden`; the dock `joins` `bar:<edge>` whenever its edge has a bar; floating components carry
+  `radius: 0`; `unplaced` lists core modules before mod glances (K72 order); a floating bar's inset is `band + gap` and
+  the sidebars beside it reach the band. Mapping order matters on wlroots and niri alike (W43-frame probe): a zone
+  holder is placed inside the zones of holders mapped before it, and its margin adds to its zone — holders keep margin 0
+  on their own edge.
 - `runtime.ui.shown` (K71): the `hidden` components a `layout.toggle` brought out, as `"<target>@<output>"` (`bar:<edge>`,
   `dock`, `sidebar:<side>`, `module:<edge>:<zone>`); absent when none.
 
