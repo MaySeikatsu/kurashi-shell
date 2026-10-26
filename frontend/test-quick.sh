@@ -3,7 +3,7 @@
 #   - top bar, kurashi-mock: a click on the button makes runtime.ui.panel "quick", a second click closes
 #     it; while open the button is drawn pressed (the primary fill), where the row puts it (before the tray);
 #   - the REAL kurashid, the same on its top bar (its own theme) and then on the left bar (the vertical
-#     layout: the button is in the bottom column, before the tray; the mock has no config to set bar.edge);
+#     layout: the button is in the bottom column, before the tray; the mock has no config to move the bar with);
 #   - the frontend logs no QML error.
 #   nix develop -c frontend/test-quick.sh [sandbox-name]
 # Binaries: kurashid, kurashi and kurashi-mock from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or
@@ -39,7 +39,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-rm -rf "$R/xdg"   # hermetic: the sandbox dir outlives a run, and a bar.edge set by one run would skew the next
+rm -rf "$R/xdg"   # hermetic: the sandbox dir outlives a run, and a bar moved by one run would skew the next
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
@@ -47,6 +47,17 @@ mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 mkdir -p "$XDG_CONFIG_HOME/kurashi"
 printf 'theme.style = "none"\n[theme.colors]\nscheme = "dark"\n' > "$XDG_CONFIG_HOME/kurashi/config.toml"
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 
 # The pressed button's fill in a P6 PPM crop: the primary button's colours (rest, hover, pressed; the pointer
 # may still be over the button). The fill is a rounded square of the bar's thickness less 6 px; the glyph cuts
@@ -246,7 +257,7 @@ sleep 1
 grab quick-real-closed "$CROP_X" 0 400 "$BARH"
 check_pill quick-real-closed closed 0 0
 
-K set bar.edge left >/dev/null
+bar_edge left || fail "the bar did not move to the left"
 sleep 3   # the bar re-lays out on the left edge
 BARH=$(num "$(token bar.height)")
 PH=$(( BARH - 6 ))

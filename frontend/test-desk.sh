@@ -2,10 +2,10 @@
 # The desk's order, edit mode and hidden cards in the REAL shell (W24-desk-settings, K48 (4); W36, K65), invisibly: the real
 # kurashid and the real Quickshell frontend in the headless sway sandbox, `desktop.enabled = true`, the tasks mod on (its
 # two desk cards). Per decor (sekai, none):
-#   1. the column follows `desktop.order` set with `kurashi set` (calendar first), unlisted cards after;
+#   1. the column follows `desktop.right` set with `kurashi set` (calendar first), unlisted cards after;
 #   2. the "Edit" key above the first card opens edit mode: every card shows (placeholders for those with nothing to show);
 #      by keys only from there — Alt+Down moves the focused card (clock) below the next, Down moves the focus, Space hides
-#      a card (media), Return is Done: `desktop.order` and `desktop.media` are written as ONE change (one undo puts both
+#      a card (media), Return is Done: `desktop.right` and `desktop.media` are written as ONE change (one undo puts both
 #      back);
 #   3. edit mode again, Alt+Down, then Escape: nothing is written;
 #   4. hidden cards (W36): Tab to the clock's eye and Space (a core card: its switch), Down ×4 and Tab ×3 to the tasks
@@ -155,12 +155,12 @@ edit_key() {
 for DECOR in $DECORS; do
   echo "== $DECOR: the order from kurashi set"
   start_all "$DECOR"
-  K set desktop.order '["calendar","mod:tasks:tasks","clock"]' | grep -q '^applied' || fail "kurashi set desktop.order was not applied"
-  wait_val desktop.order '["calendar","mod:tasks:tasks","clock"]'
-  check "$([ "$(val desktop.order)" = '["calendar","mod:tasks:tasks","clock"]' ] && echo 1 || echo 0)" "$DECOR kurashi set wrote the order"
+  K set desktop.right '["calendar","mod:tasks:tasks","clock"]' | grep -q '^applied' || fail "kurashi set desktop.right was not applied"
+  wait_val desktop.right '["calendar","mod:tasks:tasks","clock"]'
+  check "$([ "$(val desktop.right)" = '["calendar","mod:tasks:tasks","clock"]' ] && echo 1 || echo 0)" "$DECOR kurashi set wrote the order"
   shot "ordered-$DECOR"
-  K raw '{"t":"apply","id":"r","ops":[{"reset":"desktop.order"}]}' | grep -q applied || fail "the order reset was refused"
-  wait_val desktop.order "$DEFAULT"
+  K raw '{"t":"apply","id":"r","ops":[{"reset":"desktop.right"}]}' | grep -q applied || fail "the order reset was refused"
+  wait_val desktop.right "$DEFAULT"
 
   echo "== $DECOR: edit mode by keys, Done"
   edit_key "hover-$DECOR"
@@ -170,27 +170,27 @@ for DECOR in $DECORS; do
   kp return
   wait_val desktop.media false
   # The mod cards come after, in the manifest's `provides` order (W36: tasks, then notes; the qml map would sort them the other way).
-  check "$(val desktop.order | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:4] == ["calendar","clock","media","weather"] and o[4:] == ["mod:tasks:tasks","mod:tasks:notes"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar and the mod cards in manifest order ($(val desktop.order))"
+  check "$(val desktop.right | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if o[:4] == ["calendar","clock","media","weather"] and o[4:] == ["mod:tasks:tasks","mod:tasks:notes"] else 1)' && echo 1 || echo 0)" "$DECOR Done wrote the order with the clock below the calendar and the mod cards in manifest order ($(val desktop.right))"
   check "$([ "$(val desktop.media)" = false ] && echo 1 || echo 0)" "$DECOR Space hid the media card (desktop.media = $(val desktop.media))"
   shot "saved-$DECOR"
   K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo was refused"
   wait_val desktop.media true
-  check "$([ "$(val desktop.order)" = "$DEFAULT" ] && [ "$(val desktop.media)" = true ] && echo 1 || echo 0)" "$DECOR one undo put the order and the switch back (one change)"
+  check "$([ "$(val desktop.right)" = "$DEFAULT" ] && [ "$(val desktop.media)" = true ] && echo 1 || echo 0)" "$DECOR one undo put the order and the switch back (one change)"
 
   echo "== $DECOR: edit mode, Escape"
   edit_key
   kp alt+down escape
   sleep 1
-  check "$([ "$(val desktop.order)" = "$DEFAULT" ] && echo 1 || echo 0)" "$DECOR Escape wrote nothing ($(val desktop.order))"
+  check "$([ "$(val desktop.right)" = "$DEFAULT" ] && echo 1 || echo 0)" "$DECOR Escape wrote nothing ($(val desktop.right))"
 
   # I196: a card key takes Return on to its card, so Return on a focused key is Done too (not the key's press).
   echo "== $DECOR: Return on a card key is Done (I196)"
   edit_key
   kp alt+down tab return    # the clock moves below the calendar; Tab lands on its up key, which now is enabled
-  wait_val desktop.order '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]'
-  check "$([ "$(val desktop.order)" = '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR Return on the up key saved the edit ($(val desktop.order))"
+  wait_val desktop.right '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]'
+  check "$([ "$(val desktop.right)" = '["calendar","clock","media","weather","mod:tasks:tasks","mod:tasks:notes"]' ] && echo 1 || echo 0)" "$DECOR Return on the up key saved the edit ($(val desktop.right))"
   K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo of the Return save was refused"
-  wait_val desktop.order "$DEFAULT"
+  wait_val desktop.right "$DEFAULT"
 
   echo "== $DECOR: hidden cards by Tab and Space, Done, undo"
   edit_key

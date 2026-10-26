@@ -2,7 +2,7 @@ import Quickshell
 import QtQuick
 import "../core"
 
-// The bar of one output as the config document has it (bar.enabled, bar.edge). The lookup is the
+// The bar of one output as the config document has it (`edges.<edge>.bar`, K71). The lookup is the
 // one settings/core/Store.qml prov() uses: an output's own entry wins over the global value, so the
 // shell shows what the daemon has in effect. Overlays take their clearance from here.
 Scope {
@@ -45,22 +45,40 @@ Scope {
         return p && p.value !== undefined ? p.value : dflt
     }
 
-    // Schema defaults until the daemon says otherwise: a bar, on top. An unknown edge reads as top.
-    readonly property bool enabled: valueOf("bar.enabled", true) === true
-    readonly property string edge: {
-        var e = valueOf("bar.edge", "top")
-        return e === "bottom" || e === "left" || e === "right" ? e : "top"
+    // Schema v3 (K71): a bar per edge (`edges.<edge>.bar`). The shell draws one bar for now: the first edge that has one,
+    // top, bottom, left, right; none, no bar. Schema defaults until the daemon says otherwise: a bar, on top.
+    readonly property string barEdge: {
+        var order = ["top", "bottom", "left", "right"]
+        for (var i = 0; i < order.length; i++)
+            if (valueOf("edges." + order[i] + ".bar", order[i] === "top") === true) return order[i]
+        return ""
     }
+    readonly property bool enabled: barEdge !== ""
+    readonly property string edge: barEdge !== "" ? barEdge : "top"
     readonly property bool atTop: enabled && edge === "top"
     readonly property bool atBottom: enabled && edge === "bottom"
     readonly property bool atRight: enabled && edge === "right"
     readonly property bool vertical: enabled && (edge === "left" || edge === "right")
     // W29 `sidebar.from_bar`: the quick settings button opens the right sidebar instead of the quick card.
     readonly property bool sidebarFromBar: valueOf("sidebar.from_bar", false) === true
-    // I154 `sidebar.bar_buttons`: a button at each end of the bar opens that side's sidebar; the left one only while the
-    // left sidebar has tabs configured (the daemon refuses it otherwise).
-    readonly property bool sidebarButtons: valueOf("sidebar.bar_buttons", true) === true
-    readonly property bool leftSidebarTabs: { var t = valueOf("sidebar.left", []); return Array.isArray(t) && t.length > 0 }
+    // I154: a button at each end of the bar opens that side's sidebar; the left one only while the left sidebar has tabs
+    // configured (the daemon refuses it otherwise). K71: the buttons are the modules `sidebar_left` / `sidebar_right` in
+    // the bar's zones (`sidebar.bar_buttons = false` migrated to zones without them).
+    function zoneHas(id) {
+        var zones = ["start", "center", "end"]
+        // The top edge's schema defaults until the daemon says otherwise (the buttons at both ends).
+        var top = [["sidebar_left"], [], ["sidebar_right"]]
+        for (var i = 0; i < zones.length; i++) {
+            var z = valueOf("edges." + edge + "." + zones[i], edge === "top" ? top[i] : [])
+            if (Array.isArray(z) && z.indexOf(id) >= 0) return true
+        }
+        return false
+    }
+    readonly property bool sidebarButtons: zoneHas("sidebar_left") || zoneHas("sidebar_right")
+    readonly property bool leftSidebarTabs: {
+        var t = valueOf("sidebar.left.sections", [])
+        return Array.isArray(t) && t.length > 0
+    }
 
     // Clearance for something that hugs an edge: past the bar when this output's bar sits there,
     // else the screen-edge margin.

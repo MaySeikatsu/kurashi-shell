@@ -6,7 +6,7 @@ import ".."
 import "../island"
 
 // The left sidebar's column (docs/ux/sidebar.md; ii `sidebarLeft/SidebarLeftContent.qml`: a tab bar over the panes):
-// one tab per `sidebar.left` entry `mod:<id>:<panel>` whose mod is on and has that panel, the tab bar on top, the panel
+// one tab per `sidebar.left.sections` entry `mod:<id>:<panel>` whose mod is on and has that panel, the tab bar on top, the panel
 // under it (ModLoader: made while its tab is shown, so a hidden tab holds no subscription; it scrolls when taller). A tab
 // whose mod is not loaded or off is skipped; with none left, the column says which tabs are missing and why, with the
 // way to the setting (Shōjiki). Ctrl+PageUp / Ctrl+PageDown switch tabs; the tabs are Tab stops with their names.
@@ -147,7 +147,7 @@ Item {
             side: 30
             icon: "settings"
             label: I18n.tr("sidebar.left.settings")
-            onClicked: Store.act("settings.open", {key: "sidebar.left"})
+            onClicked: Store.act("settings.open", {key: "sidebar.left.sections"})
         }
     }
 }

@@ -171,7 +171,7 @@ shot_now() { grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
 [ "$(Q current)" = appearance ] || fail "deep link: KURASHI_SETTINGS_KEY did not open the palette's page ($(Q current); $(Q dbg))"
 echo "deep link: KURASHI_SETTINGS_KEY=theme.colors.palette opened page appearance"
-Q goto bar
+Q goto layout
 
 # 0b. history (K27): the daemon's history is pushed with the config, so Undo is on as soon as Settings opens (the seed
 #     above is the only change this daemon has seen). Redo is off: nothing was undone.
@@ -201,7 +201,7 @@ rehost "$other" "{\"set\":\"settings.window\",\"value\":\"$other\"}"
 if [ "$HOST" = sheet ]; then rehost sheet '{"set":"settings.window","value":"sheet"}'
 else rehost window '{"reset":"settings.window"}'; fi
 echo "host: $HOST; re-hosted to $other and back on the appearance page at scroll $y0"
-Q goto bar
+Q goto layout
 
 # 1. a user value: chip "you", with Reset on the same line (bar.height = 40 from config.toml)
 shot 1-user-value
@@ -292,7 +292,7 @@ Q pick theme.style '"none"'
 wait_ap style none
 K '{"t":"apply","id":"ap4","ops":[{"reset":"theme.colors.scheme"},{"reset":"theme.colors.contrast"}]}' | grep -q applied || fail "appearance: baseline reset refused"
 wait_ap look kanso
-Q goto bar
+Q goto layout
 
 # 2. inert rows with reasons and their links: a11y override + the enforced (forced) blur value (Advanced on)
 K '{"t":"apply","id":"a1","ops":[{"set":"a11y.reduce_transparency","value":true}]}' | grep -q applied || fail "a11y override not applied"
@@ -309,7 +309,7 @@ shot 2b-nix-forced
 Q find zzzz
 shot 2c-empty-search
 Q find ""
-Q goto bar
+Q goto layout
 
 # 3. a rejected value, shown inline under its row (goes through the same path as the controls)
 Q set bar.height 500
@@ -374,29 +374,32 @@ focus_on() {
   return 1
 }
 
-# K1. Tab walks the window's focus order to the bar's "show bar" switch; Space flips it. The daemon confirms the flip,
-#     and the shot shows the focus ring on that switch (outside the track, not on the ON fill).
-Q goto bar
+# K1. Tab walks the window's focus order to the layout's "screen frame" switch; Space flips it. The daemon confirms the
+#     flip, and the shot shows the focus ring on that switch (outside the track, not on the ON fill).
+Q goto layout
 Q focusList >/dev/null
-tab_to "toggle:bar.enabled"
-[ "$(val bar.enabled)" = true ] || fail "keyboard: bar.enabled not on before the test"
+tab_to "toggle:layout.frame.enabled"
+[ "$(val layout.frame.enabled)" = false ] || fail "keyboard: layout.frame.enabled not off before the test"
 kp space
-[ "$(val bar.enabled)" = false ] || fail "keyboard: Space did not flip bar.enabled"
+[ "$(val layout.frame.enabled)" = true ] || fail "keyboard: Space did not flip layout.frame.enabled"
 shot 8-keyboard-focus
-echo "keyboard K1: Tab to toggle:bar.enabled, Space flipped it (inert rows of the bar now show their reason)"
+echo "keyboard K1: Tab to toggle:layout.frame.enabled, Space flipped it (the frame's rows are no longer inert)"
 
-# K2. the sidebar, keyboard only: Tab to the first entry, then Return opens each page in turn (every page, mods included)
-Q goto bar
+# K2. the sidebar, keyboard only: Tab to the Layout entry, then Return opens each page in turn from there (every page,
+#     mods included; a mod whose name sorts before "Layout" sits above it and is opened in step 19)
+Q goto layout
 Q focusList >/dev/null
-tab_to "Bar"
-IFS=, read -ra nav <<< "$(Q navOrder)"
+tab_to "Layout"
+IFS=, read -ra all <<< "$(Q navOrder)"
+nav=()
+for id in "${all[@]}"; do [ "$id" = layout ] || [ ${#nav[@]} -gt 0 ] && nav+=("$id"); done
 for id in "${nav[@]}"; do
   kp return
   [ "$(Q current)" = "$id" ] || fail "keyboard K2: Return on the sidebar did not open $id ($(Q current))"
   kp tab
 done
 echo "keyboard K2: every sidebar page opened with Tab and Return (${#nav[@]} entries)"
-Q goto bar
+Q goto layout
 
 # K3. the palette as preview cards (K45, I104; it was a dropdown): one Tab stop, the chosen card; Down previews the next
 #     palette, Return keeps it (one change)
@@ -440,14 +443,14 @@ Q putBack
 echo "keyboard K4: Right previewed wallpaper; Put back restored auto; Redo stayed off"
 
 # K5. a preview moved several times and kept is ONE undo step: Undo takes back the scheme only, and the step before
-#     (the bar switched off in K1) stays.
+#     (the frame switched on in K1) stays.
 kp right left right return
 # The kept step may still be on its way to the daemon (each move is a round trip; a loaded machine takes a moment).
 for _ in $(seq 25); do [ "$(val theme.colors.scheme)" = '"dark"' ] && [ "$(Q previewState)" = none ] && break; sleep 0.2; done
 [ "$(val theme.colors.scheme)" = '"dark"' ] || fail "preview: the kept scheme is not dark ($(val theme.colors.scheme))"
 Q undo
 [ "$(val theme.colors.scheme)" = '"auto"' ] || fail "preview: one Undo did not take back the whole preview ($(val theme.colors.scheme))"
-[ "$(val bar.enabled)" = false ] || fail "preview: Undo took back more than the preview (bar.enabled)"
+[ "$(val layout.frame.enabled)" = true ] || fail "preview: Undo took back more than the preview (layout.frame.enabled)"
 echo "keyboard K5: a moved-and-kept preview is one undo step"
 
 # K6. the dropdown without preview: a letter opens it on the matching offer (type-ahead), nothing changes until Return
@@ -547,7 +550,7 @@ echo "keyboard K11: Delete on a font family previewed the chain; Put back restor
 
 # K12. search by keyboard (UX brief, settings 4): typing starts the search, Return lands on the first hit, and the row
 #      flashes; the shot is taken at once, inside the flash.
-Q goto bar
+Q goto layout
 Q focusList >/dev/null
 kp p a l e t t e return
 [ "$(Q current)" = appearance ] || fail "search: Return on 'palette' did not land on its page ($(Q current))"
@@ -604,7 +607,7 @@ shot 10-undo-redo
 "$BIN/kurashi" set bar.height 44 | grep -q '^applied' || fail "cli: set bar.height was not applied"
 for _ in $(seq 50); do [ "$(Q undoState)" = "undo=on,redo=off" ] && break; sleep 0.2; done
 [ "$(Q undoState)" = "undo=on,redo=off" ] || fail "history: CLI change not followed ($(Q undoState))"
-Q goto bar
+Q goto layout
 shot 10b-cli-change
 
 # 11. mod pages (K25): media is loaded and off (nothing is on by default — K33 —, demo-blur on from step 6). The sidebar
@@ -612,10 +615,10 @@ shot 10b-cli-change
 Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
-want="bar,appearance,accessibility,mods.demo-blur,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
+want="mods.demo-blur,layout,appearance,accessibility,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
-Q goto bar
+Q goto layout
 shot 11-sidebar-mods
 
 # 12. a mod's page (K25): its switch (off), the running line, and its settings, each with the reason they are not in effect
@@ -967,7 +970,7 @@ echo "path list L3b: 'pics/walls' typed into the wallpaper folders was refused a
 
 # L4. a page link (I40, K65): the daemon's `settings.open {page}` jumps the running window to the page (`keys`, a mod's
 #     page as `mod:<id>`); a page Settings does not have is refused, and the window stays where it is.
-Q goto bar
+Q goto layout
 K '{"t":"act","id":"pg1","action":"settings.open","args":{"page":"keys"}}' | grep -q '"jumped"' || fail "page link: settings.open {page: keys} did not jump the running window"
 for _ in $(seq 20); do [ "$(Q current)" = keys ] && break; sleep 0.2; done
 [ "$(Q current)" = keys ] || fail "page link: the window did not open the keys page ($(Q current))"

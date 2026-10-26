@@ -146,7 +146,7 @@ in
     settings = lib.mkOption {
       inherit (toml) type;
       default = { };
-      example = lib.literalExpression ''{ theme.palette = "wa-iro"; bar.main.edge = "top"; }'';
+      example = lib.literalExpression ''{ theme.colors.palette = "wa-iro"; edges.top.bar = false; edges.bottom.bar = true; }'';
       description = ''
         Declarative settings, written to {file}`~/.config/kurashi/managed.toml`.
         They form the `nix` provenance layer (K15): above schema defaults, below theme

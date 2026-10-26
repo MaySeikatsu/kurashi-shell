@@ -200,6 +200,8 @@ run_case() {
   echo "test-island-join: $tag ok"
 }
 
+# K71: a bottom bar with today's modules, none on top (what `layout.bar.move` writes).
+BOTTOM_BAR="edges.top.bar = false|edges.top.start = []|edges.top.center = []|edges.top.end = []|edges.bottom.bar = true|edges.bottom.start = [\"sidebar_left\", \"workspaces\", \"windows\"]|edges.bottom.center = [\"island\"]|edges.bottom.end = [\"volume\", \"mods\", \"recorder\", \"keyboard\", \"clock\", \"quick\", \"tray\", \"sidebar_right\"]"
 declare -A CASES=(
   [washi]='top 1 theme.style = "washi"'
   [terminal]='top 1 theme.style = "terminal"'
@@ -209,10 +211,10 @@ declare -A CASES=(
   [line-squircle]='top 0 theme.style = "washi"|theme.shape.corners = "squircle"'
   [line-r05]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 0.5'
   [line-r2]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 2.0'
-  [washi-bottom]='bottom 0 theme.style = "washi"|bar.edge = "bottom"'
-  [terminal-bottom]='bottom 0 theme.style = "terminal"|bar.edge = "bottom"'
+  [washi-bottom]="bottom 0 theme.style = \"washi\"|$BOTTOM_BAR"
+  [terminal-bottom]="bottom 0 theme.style = \"terminal\"|$BOTTOM_BAR"
   [washi-mid]='top 0 theme.style = "washi"|theme.motion.speed = 0.25'
-  [terminal-bottom-mid]='bottom 0 theme.style = "terminal"|bar.edge = "bottom"|theme.motion.speed = 0.25'
+  [terminal-bottom-mid]="bottom 0 theme.style = \"terminal\"|$BOTTOM_BAR|theme.motion.speed = 0.25"
 )
 # Mid-morph cases: the springs at a quarter speed and dense grabs, so frames land while the card is still short (the
 # shape logs `opened`, KURASHI_ISLAND_DEBUG); the check fails unless one checked frame has 0 < opened < 1.

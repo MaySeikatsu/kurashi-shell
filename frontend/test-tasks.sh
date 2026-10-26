@@ -300,7 +300,8 @@ for sc in $SCHEMES; do
   qml_errors
 
   # ---- 2. the left bar ----
-  cfgval bar.edge '"left"'
+  # K71: the bar on the left edge with its modules, none on top (what `layout.bar.move` writes), in one change.
+  mockdoc '{"doc":"config","patch":{"values":{"edges.top.bar":{"value":false,"source":"user"},"edges.left.bar":{"value":true,"source":"user"},"edges.top.start":{"value":[],"source":"user"},"edges.top.center":{"value":[],"source":"user"},"edges.top.end":{"value":[],"source":"user"},"edges.left.start":{"value":["sidebar_left","workspaces","windows"],"source":"user"},"edges.left.center":{"value":["island"],"source":"user"},"edges.left.end":{"value":["volume","mods","recorder","keyboard","clock","quick","tray","sidebar_right"],"source":"user"}}}}'
   mockdoc '{"doc":"svc.recorder","patch":{"recording":true}}'
   URGENT=""
   scene "$BASE"
