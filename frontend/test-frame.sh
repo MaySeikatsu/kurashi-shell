@@ -256,7 +256,12 @@ for ds in washi-paper:top kami:top kami:off; do
   MOCK_ARGS="--fixed-time 12:00" QS_ENV=WAYLAND_DEBUG=client scene "$d" "$sc"
   # The bar clock's minute flip is the one idle commit the budget allows (K68): measure between two minutes.
   sleep 4; while [ "$(date +%-S)" -gt 35 ]; do sleep 1; done
-  s=$(stat -c %s "$R/qs.log"); sleep 10; c=$(commits "$s")
+  s=$(stat -c %s "$R/qs.log")
+  # Documents patched meanwhile that nothing on this output shows (another output's layout and workspaces): every
+  # patch re-reads the layout, and that must redraw nothing.
+  sleep 3; K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"DP-9":{"frame":{"on":true}}}}}' >/dev/null
+  sleep 3; K act mock.doc '{"doc":"svc.workspaces","patch":{"outputs":{"DP-9":[]}}}' >/dev/null
+  sleep 4; c=$(commits "$s")
   # Which surfaces committed, by namespace (the frame's strips must never; another surface's commit is reported).
   per=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -o 'wl_surface#[0-9]*\.commit(' | sort | uniq -c | while read -r k sid; do
     sid=${sid%.commit(}
@@ -265,7 +270,7 @@ for ds in washi-paper:top kami:top kami:off; do
   done | xargs || true)
   say "idle, $sc ($d): $c commits in 10 s ${per:+($per)}"
   [[ "$per" != *kurashi-frame* ]] || fail "idle with the frame on ($d): the frame's strips committed ($per)"
-  [ "$c" = 0 ] || say "NOTE idle ($d): $c commits from surfaces other than the frame"
+  [ "$c" = 0 ] || fail "idle ($d, $sc): $c commits from other surfaces ($per)"
 done
 
 # ---- one sheet: an untextured flat look, the docked bar's fill and the band's are the same pixel ----

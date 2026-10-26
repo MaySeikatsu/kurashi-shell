@@ -57,10 +57,15 @@ kurashid's theme tokens for the look. Frontend `qs -p` directly (not launch.sh).
   material's per-output allowance (K68: ≤ +12) is missed in two of six pairs.
 - Two frontends differ by +14…36 MiB: a frontend started with the frame on keeps more than one that turns it on later (start-up
   arenas); the spread between runs elsewhere in BENCH is of that order (I211), so the toggled pairs are the frame's own cost.
+- The acceptance run after the last change (pieces that notify only on change): kanso toggled +5.6 / +2.8 / +1.9, washi +
+  paper toggled +11.5 / +9.5 / +13.4.
 - Earlier runs of the same test: kanso toggled +3.8, −5.8, +1.0, +1.6 (noise of ± 6); two-frontend pairs from −24.8 to +39.6.
-- **Idle: 0 commits in 10 s** for the four strips and every other surface (washi + paper, kami with its pen; the mock's clock
-  pinned with `--fixed-time`: with a ticking clock the bar's minute flip landed inside the window in some runs). The strips are
-  static: drawn once, a pen line painted once per change. The frame adds 4 mapped surfaces per output (budget "≤ 4 mapped
+- **Idle: 0 commits in 10 s** for the four strips and every other surface (washi + paper and kami with its pen, frame on; kami
+  frame off), also while two documents nothing on the output shows are patched in the window (another output's layout and
+  workspaces: every patch re-reads the layout; the strips' pieces and the bar's rule notify only when their values change).
+  The mock's clock is pinned (`--fixed-time`): with a ticking clock the bar's own surface (namespace `quickshell`, not the
+  strips) committed 14–27 times in 10 s in 2 of 5 runs although the window lay between two minutes — not isolated further.
+  The strips are static: drawn once, a pen line painted once per change. The frame adds 4 mapped surfaces per output (budget "≤ 4 mapped
   surfaces per output" — row 492).
 
 ### 2026-10-25 — W42 memory: the image plugins the shell draws, two jemalloc arenas; the launcher window stays (machine A; K68, I194, I11)

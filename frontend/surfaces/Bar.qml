@@ -57,7 +57,14 @@ PanelWindow {
     // corner rounded. Docked (dynamic, connected): flush, the frame's band on this edge.
     readonly property bool drawFloating: layoutEdge.draw === "floating"
     readonly property int sideInset: drawFloating ? ShellLayout.gap : 0
-    function bandBeside(e) { return ShellLayout.bandOf(outName, e) }
+    // Plain numbers (they notify only when they change): every document patch re-reads the layout, and a rebuilt rule
+    // list would remake the rule's items, a frame drawn for nothing (Ma).
+    readonly property int bandTop: ShellLayout.bandOf(outName, "top")
+    readonly property int bandBottom: ShellLayout.bandOf(outName, "bottom")
+    readonly property int bandLeft: ShellLayout.bandOf(outName, "left")
+    readonly property int bandRight: ShellLayout.bandOf(outName, "right")
+    readonly property int frameRadius: Math.max(0, Math.round(frameDoc.radius || 0))
+    function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
     // A docked bar on a framed output is the band: its strip is drawn even where the groups float (keycap, soft), so
     // bar and band are one sheet.
     readonly property bool clearStrip: floating && !(frameOn && !drawFloating)
@@ -309,7 +316,7 @@ PanelWindow {
             // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
             // round it into the band beside (Frame.qml).
             if (bar.frameOn && !bar.drawFloating) {
-                var fr = Math.max(0, Math.round(bar.frameDoc.radius || 0))
+                var fr = bar.frameRadius
                 gaps.push([0, bar.bandBeside(bar.vertical ? "top" : "left") + fr])
                 gaps.push([ruleLen - bar.bandBeside(bar.vertical ? "bottom" : "right") - fr, ruleLen])
             }

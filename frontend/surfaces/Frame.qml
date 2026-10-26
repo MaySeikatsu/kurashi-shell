@@ -82,8 +82,20 @@ Scope {
         left: bands.left + (docked("left") ? Theme.barH : 0),
         right: bands.right + (docked("right") ? Theme.barH : 0)
     })
-    function holds(e) { var ed = ShellLayout.edgeOf(out, e); return on && ed.holder === "frame" && (ed.reserve || 0) > 0 }
-    function reserveOf(e) { return holds(e) ? Math.round(ShellLayout.edgeOf(out, e).reserve) : 0 }
+    // The zones the strips keep, per edge (0: none). Through a string so it notifies only when a zone changes: every
+    // document patch re-reads the layout, and rebuilt piece lists would remake the strips' items (a frame for nothing).
+    readonly property string zonesKey: {
+        var z = {}
+        var es = ["top", "bottom", "left", "right"]
+        for (var i = 0; i < es.length; i++) {
+            var ed = ShellLayout.edgeOf(out, es[i])
+            z[es[i]] = on && ed.holder === "frame" && (ed.reserve || 0) > 0 ? Math.round(ed.reserve) : 0
+        }
+        return JSON.stringify(z)
+    }
+    readonly property var zones: JSON.parse(zonesKey)
+    function holds(e) { return zones[e] > 0 }
+    function reserveOf(e) { return zones[e] || 0 }
 
     // Turning the frame on or off shows the band once over `motion.std` (cut when motion is off): the strips stay made
     // for the fade out and go with it.
