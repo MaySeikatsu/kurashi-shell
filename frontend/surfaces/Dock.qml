@@ -34,7 +34,8 @@ Scope {
                 return e === "left" || e === "right" ? e : "bottom"
             }
             readonly property bool horiz: edge === "bottom"
-            readonly property bool autohide: cfg.valueOf("dock.autohide", true) === true
+            // K71 `dock.visibility`: anything but always shown hides as autohide did (the reveal rules are W44's).
+            readonly property bool autohide: cfg.valueOf("dock.visibility", "empty_desktop") !== "always"
             readonly property bool showRunning: cfg.valueOf("dock.show_running", true) === true
             readonly property var pinnedEntry: cfg.entry("dock.pinned")
             readonly property var pinned: {

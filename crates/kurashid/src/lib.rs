@@ -49,6 +49,20 @@ pub struct Daemon {
 
 impl Daemon {
     pub fn new(hub: Arc<Hub>, actions: ActionRegistry, intents: Intents) -> Self {
+        let mut queries: std::collections::BTreeMap<String, QueryFn> = Default::default();
+        // PROTOCOL §6: the action registry is a query (`kurashi act --list`). The table is shared, so a listing sees
+        // the actions registered after this, a native mod's included.
+        let (reg, h) = (actions.clone(), hub.clone());
+        queries.insert(
+            "actions".into(),
+            Arc::new(move |q: &str| {
+                let strings = h
+                    .snapshot("i18n")
+                    .map(|(_, d)| d["strings"].clone())
+                    .unwrap_or_default();
+                reg.query(q, &strings)
+            }),
+        );
         Daemon {
             hub,
             actions,
@@ -56,7 +70,7 @@ impl Daemon {
             caps: Vec::new(),
             instance: new_instance_id(),
             config: None,
-            queries: Default::default(),
+            queries,
         }
     }
 }

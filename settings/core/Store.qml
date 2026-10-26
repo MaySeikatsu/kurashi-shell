@@ -440,7 +440,7 @@ Singleton {
     // The page a contribution shows on, when Settings has one ("" when none): a face sits on the Island's page.
     function addsPage(p) {
         var kind = p.split(":")[0]
-        return kind === "island-face" ? "island" : (kind === "widget" ? "bar" : "")
+        return kind === "island-face" ? "island" : (kind === "widget" ? "layout" : "")
     }
 
     // --- writes --------------------------------------------------------------------------------

@@ -374,6 +374,18 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             Ok(None)
         }
     });
+    // What `kurashi act --list` shows for the ones that take arguments (PROTOCOL §6).
+    for (id, args) in [
+        ("island.expand", "{island?, face?}"),
+        ("mod.panel.open", "{id, panel}"),
+        ("tray.menu.open", "{id}"),
+        ("sidebar.toggle", "{side, output?}"),
+        ("sidebar.open", "{side, output?}"),
+        ("ui.peek", "{source?, output, x, w}"),
+        ("ui.polkit", "{active}"),
+    ] {
+        actions.describe(id, args);
+    }
 }
 
 /// `runtime.ui` with nothing open.
@@ -430,6 +442,7 @@ fn clear_sidebar(d: &mut Value) {
         o.remove("sidebar");
         o.remove("sidebar_output");
     }
+    clear_shown_sidebars(d);
 }
 
 /// `{side, output?}` of `sidebar.toggle` / `sidebar.open`: the side, and the output when one is named.
@@ -448,16 +461,16 @@ fn sidebar_args(a: &Value) -> Result<(&'static str, Option<String>), ActionError
     Ok((side, output))
 }
 
-/// Whether `sidebar.left` lists no tab in effect (the `config` document's value; unknown counts as not empty).
+/// Whether `sidebar.left.sections` lists no tab in effect (the `config` document's value; unknown counts as not empty).
 fn left_sidebar_empty(hub: &Hub) -> bool {
     hub.snapshot(crate::config::DOC).is_ok_and(|(_, d)| {
-        d["values"]["sidebar.left"]["value"]
+        d["values"]["sidebar.left.sections"]["value"]
             .as_array()
             .is_some_and(Vec::is_empty)
     })
 }
 
-/// `sidebar.toggle` / `sidebar.open` of the left side while `sidebar.left` names no tab.
+/// `sidebar.toggle` / `sidebar.open` of the left side while `sidebar.left.sections` names no tab.
 const SIDEBAR_NO_TABS: &str = "sidebar.error.no_tabs";
 
 /// The peek `ui.peek` asks for (K35): `None` clears it (no `source`, or an empty one). A source is
@@ -2937,6 +2950,420 @@ fn media_error(e: kurashi_services::media::CommandError) -> ActionError {
     }
 }
 
+// --- layout (K71, K72) ---------------------------------------------------------------------------------------------
+
+pub const LAYOUT_DOC: &str = "runtime.layout";
+/// `layout.toggle` of a target the output does not have (a bar on an edge without one, an empty module zone).
+pub const LAYOUT_TARGET: &str = "layout.error.target";
+/// `layout.bar.move` to an edge that has a bar already.
+pub const LAYOUT_EDGE_TAKEN: &str = "layout.error.edge_taken";
+
+/// The docs whose change can move an edge surface: the values, the tokens (`space.sm`, `radius.lg`), the mods' widgets
+/// and the outputs.
+const LAYOUT_INPUTS: [&str; 4] = [crate::config::DOC, "theme", "mods", crate::workspaces::DOC];
+
+/// What the layout step reads for one output (`None`: the global values, the `"*"` entry).
+fn layout_output(store: &ConfigStore, output: Option<&str>) -> kurashi_layout::OutputConfig {
+    layout_config(&|k: &str| store.get(k, output).map(|p| p.value).unwrap_or(Value::Null))
+}
+
+/// The layout step's input for one output from the values in effect there (`val`: a key's value, `Null` when unknown).
+/// Shared with the mock, which reads them from its `config` document.
+pub fn layout_config(val: &dyn Fn(&str) -> Value) -> kurashi_layout::OutputConfig {
+    use kurashi_layout::{
+        DockConfig, Draw, Edge, EdgeConfig, FrameConfig, OutputConfig, Reserve, SidebarConfig,
+        Visibility,
+    };
+    let text = |k: &str| val(k).as_str().unwrap_or_default().to_owned();
+    let num = |k: &str, d: u32| {
+        val(k)
+            .as_u64()
+            .and_then(|n| u32::try_from(n).ok())
+            .unwrap_or(d)
+    };
+    let flag = |k: &str, d: bool| val(k).as_bool().unwrap_or(d);
+    let list = |k: &str| -> Vec<String> {
+        val(k)
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .map(str::to_owned)
+            .collect()
+    };
+    let vis = |k: &str, d| Visibility::parse(&text(k)).unwrap_or(d);
+    let res = |k: &str| Reserve::parse(&text(k)).unwrap_or(Reserve::Auto);
+    let draw = |k: &str| Draw::parse(&text(k));
+    let edge = |e: Edge| {
+        let p = format!("edges.{}", e.name());
+        EdgeConfig {
+            bar: flag(&format!("{p}.bar"), e == Edge::Top),
+            visibility: vis(&format!("{p}.visibility"), Visibility::Always),
+            reserve: res(&format!("{p}.reserve")),
+            draw: draw(&format!("{p}.draw")),
+            zones: kurashi_layout::ZONES.map(|z| list(&format!("{p}.{z}"))),
+        }
+    };
+    let sidebar = |side: &str| SidebarConfig {
+        width: num(&format!("sidebar.{side}.width"), 420),
+        visibility: vis(&format!("sidebar.{side}.visibility"), Visibility::Hidden),
+        reserve: res(&format!("sidebar.{side}.reserve")),
+        draw: draw(&format!("sidebar.{side}.draw")),
+    };
+    OutputConfig {
+        bar_size: num("bar.height", 32),
+        frame: FrameConfig {
+            enabled: flag("layout.frame.enabled", false),
+            thickness: num("layout.frame.thickness", 8),
+            radius: num("layout.frame.radius", 16),
+            reserve: flag("layout.frame.reserve", true),
+        },
+        edges: Edge::ALL.map(edge),
+        dock: DockConfig {
+            enabled: flag("dock.enabled", false),
+            edge: Edge::parse(&text("dock.edge")).unwrap_or(Edge::Bottom),
+            visibility: vis("dock.visibility", Visibility::EmptyDesktop),
+            reserve: res("dock.reserve"),
+            draw: draw("dock.draw"),
+            // The dock's body across its edge: the icons and their padding (Dock.qml's `bodyAcross`, near enough for
+            // the space it keeps; the frontend sizes the window itself).
+            size: num("dock.icon_size", 44) + 16,
+        },
+        sidebar_right: sidebar("right"),
+        sidebar_left: sidebar("left"),
+        island_draw: draw("island.main.draw"),
+    }
+}
+
+/// The outputs the layout names: those the config has entries for and those the compositor reports (`"*"` aside).
+fn layout_outputs(hub: &Hub) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for doc in [crate::config::DOC, crate::workspaces::DOC] {
+        if let Ok((_, d)) = hub.snapshot(doc)
+            && let Some(o) = d["outputs"].as_object()
+        {
+            names.extend(o.keys().filter(|k| *k != "*").cloned());
+        }
+    }
+    names
+}
+
+/// The mods as the layout sees them (the `mods` document, in registry order).
+fn layout_mods(hub: &Hub) -> Vec<kurashi_layout::ModWidgets> {
+    hub.snapshot("mods")
+        .map(|(_, d)| layout_mods_of(&d))
+        .unwrap_or_default()
+}
+
+/// The mods of a `mods` document (`{mods: [{id, state, provides}]}`) as the layout sees them.
+pub fn layout_mods_of(d: &Value) -> Vec<kurashi_layout::ModWidgets> {
+    d["mods"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|m| {
+            Some(kurashi_layout::ModWidgets {
+                id: m["id"].as_str()?.to_owned(),
+                enabled: m["state"] == "enabled",
+                widgets: m["provides"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|p| p.as_str()?.strip_prefix("widget:"))
+                    .map(str::to_owned)
+                    .collect(),
+            })
+        })
+        .collect()
+}
+
+fn layout_globals(store: &ConfigStore, hub: &Hub) -> kurashi_layout::Globals {
+    let theme = hub.snapshot("theme").map(|(_, t)| t).unwrap_or_default();
+    layout_globals_of(
+        &|k: &str| store.get(k, None).map(|p| p.value).unwrap_or(Value::Null),
+        &theme,
+    )
+}
+
+/// The values every output shares, from the global values (`get`) and the `theme` document's tokens.
+pub fn layout_globals_of(get: &dyn Fn(&str) -> Value, theme: &Value) -> kurashi_layout::Globals {
+    let token = |name: &str, d: u32| {
+        theme["tokens"][name]
+            .as_f64()
+            .map_or(d, |v| v.round().max(0.0) as u32)
+    };
+    kurashi_layout::Globals {
+        draw: get("layout.draw")
+            .as_str()
+            .and_then(kurashi_layout::Draw::parse)
+            .unwrap_or(kurashi_layout::Draw::Dynamic),
+        reveal_delay_ms: get("layout.reveal_delay")
+            .as_u64()
+            .map_or(250, |v| v as u32),
+        gap: token("space.sm", 8),
+        join_radius: token("radius.lg", 16),
+        bar_size: get("bar.height").as_u64().map_or(32, |v| v as u32),
+    }
+}
+
+/// The `runtime.layout` document as the config, the theme, the mods and the outputs have it now (PROTOCOL §3.1).
+pub fn layout_document(store: &ConfigStore, hub: &Hub) -> Value {
+    let mut outputs = std::collections::BTreeMap::new();
+    outputs.insert("*".to_string(), layout_output(store, None));
+    for name in layout_outputs(hub) {
+        let cfg = layout_output(store, Some(&name));
+        outputs.insert(name, cfg);
+    }
+    kurashi_layout::compute(&kurashi_layout::Input {
+        globals: layout_globals(store, hub),
+        mods: layout_mods(hub),
+        outputs,
+    })
+    .to_value()
+}
+
+/// Rebuilds `runtime.layout` while someone watches it (Ma): started by the first subscriber, it follows the changes of
+/// the documents the layout depends on (coalesced: a burst of patches is one rebuild) and stops with the last one.
+struct LayoutProvider {
+    store: std::sync::Weak<ConfigStore>,
+    task: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+impl crate::hub::Provider for LayoutProvider {
+    fn start(&self, hub: Arc<Hub>) {
+        let Some(store) = self.store.upgrade() else {
+            return;
+        };
+        let _ = hub.set(LAYOUT_DOC, layout_document(&store, &hub), None);
+        let Ok(rt) = tokio::runtime::Handle::try_current() else {
+            return;
+        };
+        let weak = self.store.clone();
+        let mut rx = hub.events();
+        let task = rt.spawn(async move {
+            let mut outputs = layout_outputs(&hub);
+            loop {
+                let mut dirty = match rx.recv().await {
+                    Ok(m) => layout_relevant(&m, &hub, &mut outputs),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => true,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => return,
+                };
+                // Whatever else is already queued joins this rebuild.
+                loop {
+                    match rx.try_recv() {
+                        Ok(m) => dirty |= layout_relevant(&m, &hub, &mut outputs),
+                        Err(tokio::sync::broadcast::error::TryRecvError::Lagged(_)) => dirty = true,
+                        Err(_) => break,
+                    }
+                }
+                if dirty {
+                    let Some(store) = weak.upgrade() else { return };
+                    let _ = hub.set(LAYOUT_DOC, layout_document(&store, &hub), None);
+                }
+            }
+        });
+        *self.task.lock().expect("layout task") = Some(task);
+    }
+
+    fn stop(&self) {
+        if let Some(t) = self.task.lock().expect("layout task").take() {
+            t.abort();
+        }
+    }
+}
+
+/// Whether a hub message can move the layout: a change of the config, the theme or the mods, or a change of the set of
+/// outputs (the workspaces document changes far more often, for other reasons).
+fn layout_relevant(m: &kurashi_ipc::ServerMsg, hub: &Hub, outputs: &mut BTreeSet<String>) -> bool {
+    let doc = match m {
+        kurashi_ipc::ServerMsg::Patch { doc, .. } | kurashi_ipc::ServerMsg::Snap { doc, .. } => doc,
+        _ => return false,
+    };
+    if !LAYOUT_INPUTS.contains(&doc.as_str()) {
+        return false;
+    }
+    if doc == crate::workspaces::DOC || doc == crate::config::DOC {
+        let now = layout_outputs(hub);
+        let moved = now != *outputs;
+        *outputs = now;
+        if doc == crate::workspaces::DOC {
+            return moved;
+        }
+    }
+    true
+}
+
+/// `runtime.layout` (K71): registered with the config store, computed on the first subscription and followed while
+/// watched.
+pub fn layout_doc(hub: &Arc<Hub>, store: &Arc<ConfigStore>) {
+    let provider = Arc::new(LayoutProvider {
+        store: Arc::downgrade(store),
+        task: Mutex::new(None),
+    });
+    hub.register(LAYOUT_DOC, layout_document(store, hub), Some(provider));
+}
+
+/// The focused output, as the compositor's workspaces say it (the output whose workspace has the focus).
+fn focused_output(hub: &Hub) -> Option<String> {
+    let (_, d) = hub.snapshot(crate::workspaces::DOC).ok()?;
+    d["outputs"].as_object()?.iter().find_map(|(name, list)| {
+        (name != "*"
+            && list
+                .as_array()
+                .is_some_and(|l| l.iter().any(|w| w["focused"] == true)))
+        .then(|| name.clone())
+    })
+}
+
+/// A `layout.toggle` target, checked against the output's layout: `bar:<edge>` (a bar stands there), `dock` (on),
+/// `sidebar:<side>`, `module:<edge>:<zone>` (an edge without a bar whose zone shows modules).
+fn layout_target_ok(l: &kurashi_layout::OutputLayout, target: &str) -> Result<bool, ActionError> {
+    use kurashi_layout::{Edge, ZONES};
+    let invalid = || ActionError::Invalid(ARGS_INVALID.into());
+    let parts: Vec<&str> = target.split(':').collect();
+    Ok(match parts.as_slice() {
+        ["bar", e] => l.edge(Edge::parse(e).ok_or_else(invalid)?).bar,
+        ["dock"] => l.dock.on,
+        ["sidebar", "left" | "right"] => true,
+        ["module", e, z] => {
+            let el = l.edge(Edge::parse(e).ok_or_else(invalid)?);
+            let i = ZONES.iter().position(|x| x == z).ok_or_else(invalid)?;
+            !el.bar && !el.zones.get(i).is_empty()
+        }
+        _ => return Err(invalid()),
+    })
+}
+
+/// Removes the `sidebar:*` entries of `runtime.ui.shown` (a sidebar that closes is no longer brought out).
+fn clear_shown_sidebars(d: &mut Value) {
+    let Some(list) = d.get("shown").and_then(Value::as_array) else {
+        return;
+    };
+    let kept: Vec<Value> = list
+        .iter()
+        .filter(|s| !s.as_str().is_some_and(|s| s.starts_with("sidebar:")))
+        .cloned()
+        .collect();
+    set_shown(d, kept);
+}
+
+/// `runtime.ui.shown`, absent when empty (documents carry no empty "nothing").
+fn set_shown(d: &mut Value, list: Vec<Value>) {
+    if let Some(o) = d.as_object_mut() {
+        if list.is_empty() {
+            o.remove("shown");
+        } else {
+            o.insert("shown".into(), Value::Array(list));
+        }
+    }
+}
+
+/// `layout.toggle {target, output?}` and `layout.bar.move {from, to, output?}` (PROTOCOL §6, K71).
+pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
+    let hub = store.hub().clone();
+    let weak = Arc::downgrade(store);
+    actions.register_with_args(
+        "layout.toggle",
+        "action.layout.toggle",
+        "{target, output?}",
+        move |a: Value| {
+            let hub = hub.clone();
+            let weak = weak.clone();
+            async move {
+                let target = a["target"]
+                    .as_str()
+                    .filter(|s| !s.is_empty())
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?
+                    .to_owned();
+                let output = match a.get("output") {
+                    None => focused_output(&hub).unwrap_or_else(|| "*".into()),
+                    Some(Value::String(o)) if !o.is_empty() => o.clone(),
+                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                };
+                let store = weak
+                    .upgrade()
+                    .ok_or_else(|| ActionError::Unavailable(ARGS_INVALID.into()))?;
+                let cfg = layout_output(&store, (output != "*").then_some(output.as_str()));
+                let l =
+                    kurashi_layout::output(&layout_globals(&store, &hub), &layout_mods(&hub), &cfg);
+                if !layout_target_ok(&l, &target)? {
+                    return Err(ActionError::Invalid(LAYOUT_TARGET.into()));
+                }
+                let entry = format!("{target}@{output}");
+                hub.update("runtime.ui", None, |d| {
+                    let mut list: Vec<Value> = d["shown"].as_array().cloned().unwrap_or_default();
+                    match list.iter().position(|v| v == entry.as_str()) {
+                        Some(i) => {
+                            list.remove(i);
+                        }
+                        None => list.push(json!(entry)),
+                    }
+                    set_shown(d, list);
+                })
+                .map_err(|e| ActionError::Internal(e.to_string()))?;
+                Ok(None)
+            }
+        },
+    );
+    let weak = Arc::downgrade(store);
+    actions.register_with_args(
+        "layout.bar.move",
+        "action.layout.bar.move",
+        "{from, to, output?}",
+        move |a: Value| {
+            let weak = weak.clone();
+            async move {
+                let edge = |k: &str| {
+                    a[k].as_str()
+                        .and_then(kurashi_layout::Edge::parse)
+                        .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))
+                };
+                let (from, to) = (edge("from")?, edge("to")?);
+                let output = match a.get("output") {
+                    None => None,
+                    Some(Value::String(o)) if !o.is_empty() => Some(o.clone()),
+                    Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                };
+                let store = weak
+                    .upgrade()
+                    .ok_or_else(|| ActionError::Unavailable(ARGS_INVALID.into()))?;
+                let cfg = layout_output(&store, output.as_deref());
+                if !cfg.edges[from as usize].bar {
+                    return Err(ActionError::Invalid(LAYOUT_TARGET.into()));
+                }
+                if from == to || cfg.edges[to as usize].bar {
+                    return Err(ActionError::Invalid(LAYOUT_EDGE_TAKEN.into()));
+                }
+                // One transaction: the bar and its zones move, the edge it leaves keeps no modules of its own.
+                let set = |key: String, value: Value| ApplyOp::Set {
+                    set: key,
+                    value,
+                    output: output.clone(),
+                };
+                let (f, t) = (from.name(), to.name());
+                let mut ops = vec![
+                    set(format!("edges.{f}.bar"), json!(false)),
+                    set(format!("edges.{t}.bar"), json!(true)),
+                ];
+                for (i, z) in kurashi_layout::ZONES.iter().enumerate() {
+                    ops.push(set(
+                        format!("edges.{t}.{z}"),
+                        json!(cfg.edges[from as usize].zones[i]),
+                    ));
+                    ops.push(set(format!("edges.{f}.{z}"), json!([])));
+                }
+                let done = store.apply(&ops).map_err(|errs| {
+                    let code = errs
+                        .first()
+                        .map_or("config.error.unrepresentable", |e| e.code.as_str());
+                    ActionError::Invalid(code.into())
+                })?;
+                Ok(Some(json!({"rev": done.rev, "undo": done.undo})))
+            }
+        },
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
@@ -3254,7 +3681,7 @@ mod tests {
         }
         hub.register(
             crate::config::DOC,
-            json!({"values": {"sidebar.left": {"value": [], "source": "user"}}}),
+            json!({"values": {"sidebar.left.sections": {"value": [], "source": "user"}}}),
             None,
         );
         match actions

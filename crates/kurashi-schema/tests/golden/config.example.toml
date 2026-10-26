@@ -1,26 +1,201 @@
-# Kurashi configuration — schema v2.
+# Kurashi configuration — schema v3.
 # Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
 #
 # Every key is listed commented out at its default. Set only what you want to change:
 # unset keys keep following defaults, themes and profiles.
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
 #
-# schema_version = 2
+# schema_version = 3
+
+# [layout]
+#
+# Draw mode — How the bars, the dock, the sidebars and the island meet the screen's edges
+# and each other. Floating: a gap away from everything, every corner rounded, with the
+# look's shadow. Dynamic: flush on the edge (or the frame, or a bar), joined to it by
+# rounded fillets. Connected: flush and joined with straight corners. A component set to its
+# own mode keeps it.
+#   choices: "floating" | "dynamic" | "connected" · since schema v3
+# draw = "dynamic"
+#
+# Reveal delay — How long the pointer rests on an edge before what shows on hover comes
+# out; an edge another screen touches waits twice as long.
+#   range: 0..=1000, step 50 (ms) · since schema v3
+# reveal_delay = 250
+
+# [layout.frame]
+#
+# Screen frame — A band round the screen that the bars, the dock and the sidebars stand
+# on, its inner corners rounded.
+#   per-output · since schema v3
+# enabled = false
+#
+# Frame thickness
+#   range: 2..=32, step 1 (px) · only while layout.frame.enabled == true · since schema v3
+# thickness = 8
+#
+# Inner corners — How round the frame's inner corners are (0 = square).
+#   range: 0..=48, step 2 (px) · only while layout.frame.enabled == true · since schema v3
+# radius = 16
+#
+# Windows keep clear of the frame — Windows tile inside the frame. Off: the frame is drawn
+# over the windows' edges.
+#   only while layout.frame.enabled == true · since schema v3
+# reserve = true
 
 # [bar]
 #
-# Show bar — Whether this output gets a bar at all.
-#   per-output
-# enabled = true
-#
-# Edge — Screen edge the bar is anchored to.
-#   choices: "top" | "bottom" | "left" | "right" · only while bar.enabled == true ·
-#   per-output
-# edge = "top"
-#
-# Height — Thickness of the bar in logical pixels (its width when anchored left or right).
-#   range: 16..=96, step 2 (px) · only while bar.enabled == true · per-output
+# Bar height — Thickness of every bar in logical pixels (its width on a left or right
+# edge), and of an edge's modules.
+#   range: 16..=96, step 2 (px) · per-output
 # height = 32
+
+# [edges.top]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = true
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.top.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = ["sidebar_left", "workspaces", "windows"]
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = ["island"]
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = ["volume", "mods", "recorder", "keyboard", "clock", "quick", "tray", "sidebar_right"]
+
+# [edges.bottom]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.bottom.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
+
+# [edges.left]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.left.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
+
+# [edges.right]
+#
+# Bar — A bar stands on this edge and shows its modules. Without one, each part that lists
+# modules shows them on their own at the edge.
+#   per-output · since schema v3
+# bar = false
+#
+# Visibility — Always shown; shown when the pointer rests on the edge; shown while the
+# desktop is empty, else on hover; or hidden until a key, the command line or
+# `layout.toggle` brings it out.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · per-output · since schema v3
+# visibility = "always"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# always shown; Always keeps it while it hides on hover too.
+#   choices: "auto" | "on" | "off" · only while edges.right.visibility != "hidden" ·
+#   per-output · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · per-output · since schema v3
+# draw = "auto"
+#
+# Start — The modules at the start of the edge (the left, or the top of a side edge), in
+# order. "Other mods' widgets" stands for every mod widget no list names.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# start = []
+#
+# Centre — The modules in the middle of the edge, in order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# center = []
+#
+# End — The modules at the end of the edge (the right, or the bottom of a side edge), in
+# order.
+#   choices: from `modules` (resolved at runtime) · per-output · since schema v3
+# end = []
 
 # [theme]
 #
@@ -393,6 +568,11 @@
 # System events — Volume, brightness, power and Bluetooth changes show on the island for a
 # moment. Off, the island does not listen to them at all.
 # system_events = true
+#
+# Draw mode — How the island meets the bar or the edge it grows out of. Automatic follows
+# the layout's draw mode (K71).
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
 
 # [island.main.input]
 #
@@ -493,14 +673,20 @@
 #   only while desktop.enabled == true
 # weather = true
 #
-# Order — The cards from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods'
-# cards as `mod:<id>:<name>`. A card that is not listed comes after the listed ones. The
-# desk's edit mode writes it (K48).
-#   only while desktop.enabled == true · advanced
-# order = ["clock", "calendar", "media", "weather"]
+# Cards on the right — The cards on the right side from top to bottom: `clock`,
+# `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`. On the side the
+# cards stand on, a card neither side lists comes after the listed ones. The desk's edit
+# mode writes it (K48, K71).
+#   only while desktop.enabled == true · advanced · since schema v3
+# right = ["clock", "calendar", "media", "weather"]
 #
-# Hidden cards — Cards the desk leaves out, named as in Order. The desk's edit mode writes
-# it.
+# Cards on the left — The cards on the left side from top to bottom, named as on the
+# right.
+#   only while desktop.enabled == true · advanced · since schema v3
+# left = []
+#
+# Hidden cards — Cards the desk leaves out, named as on either side. The desk's edit mode
+# writes it.
 #   only while desktop.enabled == true · advanced
 # hidden = []
 
@@ -574,10 +760,23 @@
 #   choices: "bottom" | "left" | "right" · only while dock.enabled == true · per-output
 # edge = "bottom"
 #
-# Hide automatically — The dock slides away and comes back when the pointer touches the
-# edge.
-#   only while dock.enabled == true
-# autohide = true
+# Visibility — Shown while the desktop is empty and else when the pointer rests on its
+# edge (as before), always, on hover only, or hidden until a key or `layout.toggle` brings
+# it out (K71).
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · only while dock.enabled ==
+#   true · since schema v3
+# visibility = "empty_desktop"
+#
+# Keep space — Whether windows keep clear of the dock. Automatic keeps space only while it
+# is always shown.
+#   choices: "auto" | "on" | "off" · only while dock.enabled == true · only while
+#   dock.visibility != "hidden" · since schema v3
+# reserve = "auto"
+#
+# Draw mode — Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · only while dock.enabled == true
+#   · since schema v3
+# draw = "auto"
 #
 # Pinned apps — Desktop entry ids (e.g. firefox, org.gnome.Nautilus), in order.
 # Right-click an app in the dock to pin it.
@@ -592,36 +791,69 @@
 #   only while dock.enabled == true
 # show_running = true
 
-# [sidebar]
+# [sidebar.right]
 #
-# Style — Panel: from the bar (or the screen edge) to the far edge, flush to its side, the
-# inner corners rounded. Floating: the same column a gap away from every edge, every corner
-# rounded, with the look's shadow.
-#   choices: "panel" | "floating"
-# style = "panel"
+# Sections — Top to bottom: you and the session, the quick tiles, the levels,
+# notifications, the month, what plays, and the mods' panels.
+#   choices: from `sidebar.sections` (resolved at runtime) · since schema v3
+# sections = ["header", "toggles", "sliders", "notifications", "calendar"]
 #
-# Width
-#   range: 320..=640, step 10 (px)
+# Width — Drag the sidebar's inner edge to change it.
+#   range: 320..=640, step 10 (px) · since schema v3
 # width = 420
 #
-# Right sidebar — Its sections, top to bottom: you and the session, the quick tiles, the
-# levels, notifications, the month, what plays, and the mods' panels.
-#   choices: from `sidebar.sections` (resolved at runtime)
-# right = ["header", "toggles", "sliders", "notifications", "calendar"]
+# Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On
+# hover: rest the pointer on the screen's side. Always shown: pinned open, the windows
+# beside it.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · since schema v3
+# visibility = "hidden"
 #
-# Left sidebar — Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not
-# on is skipped. Empty: no left sidebar.
-#   choices: from `sidebar.tabs` (resolved at runtime)
-# left = ["mod:ai:ai"]
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# pinned open.
+#   choices: "auto" | "on" | "off" · only while sidebar.right.visibility != "hidden" · since
+#   schema v3
+# reserve = "auto"
+#
+# Draw mode — Dynamic: from the bar (or the screen edge) to the far edge, flush to its
+# side, joined to the bar by rounded fillets. Floating: a gap away from every edge, every
+# corner rounded, with the look's shadow. Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
+
+# [sidebar.left]
+#
+# Tabs — The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped.
+# Empty: no left sidebar.
+#   choices: from `sidebar.tabs` (resolved at runtime) · since schema v3
+# sections = ["mod:ai:ai"]
+#
+# Width — Drag the sidebar's inner edge to change it.
+#   range: 320..=640, step 10 (px) · since schema v3
+# width = 420
+#
+# Visibility — Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On
+# hover: rest the pointer on the screen's side. Always shown: pinned open, the windows
+# beside it.
+#   choices: "always" | "hover" | "empty_desktop" | "hidden" · since schema v3
+# visibility = "hidden"
+#
+# Keep space — Whether windows keep clear of it. Automatic keeps space only while it is
+# pinned open.
+#   choices: "auto" | "on" | "off" · only while sidebar.left.visibility != "hidden" · since
+#   schema v3
+# reserve = "auto"
+#
+# Draw mode — Dynamic: from the bar (or the screen edge) to the far edge, flush to its
+# side, joined to the bar by rounded fillets. Floating: a gap away from every edge, every
+# corner rounded, with the look's shadow. Automatic follows the layout's draw mode.
+#   choices: "auto" | "floating" | "dynamic" | "connected" · since schema v3
+# draw = "auto"
+
+# [sidebar]
 #
 # Open from the bar — The bar's quick settings button opens the right sidebar instead of
-# the quick settings card.
+# the quick settings card (and the bar leaves the right sidebar's own button out).
 # from_bar = false
-#
-# Buttons in the bar — A button at each end of the bar opens that side's sidebar: the left
-# one at the start, the right one at the end (left out while the quick settings button opens
-# the right sidebar). The launcher's "> sidebar" and the keys open them too.
-# bar_buttons = true
 
 # [settings]
 #

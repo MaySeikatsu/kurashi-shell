@@ -291,10 +291,17 @@ fn parse_container_attrs(attrs: &[Attribute]) -> syn::Result<ContainerAttrs> {
 fn doc_text(attrs: &[Attribute]) -> (Option<String>, Option<String>) {
     let mut lines = Vec::new();
     for attr in attrs.iter().filter(|a| a.path().is_ident("doc")) {
-        if let Meta::NameValue(nv) = &attr.meta
-            && let Expr::Lit(ExprLit {
-                lit: Lit::Str(s), ..
-            }) = &nv.value
+        // `#[doc = $text]` inside a `macro_rules!` (the schema's per-edge structs) arrives wrapped in an invisible group.
+        let mut value = match &attr.meta {
+            Meta::NameValue(nv) => &nv.value,
+            _ => continue,
+        };
+        while let Expr::Group(g) = value {
+            value = &g.expr;
+        }
+        if let Expr::Lit(ExprLit {
+            lit: Lit::Str(s), ..
+        }) = value
         {
             lines.extend(s.value().lines().map(|l| l.trim().to_owned()));
         }
@@ -382,6 +389,12 @@ fn humanize(id: &str) -> String {
     }
 }
 
+/// A type check's span: errors point at the attribute's value, while names (`__m`) resolve as in the rest of the
+/// expansion — a value written inside a `macro_rules!` would otherwise not see them (hygiene).
+fn at(span: proc_macro2::Span) -> proc_macro2::Span {
+    span.resolved_at(proc_macro2::Span::call_site())
+}
+
 fn opt_str(v: &Option<LitStr>) -> Ts {
     match v {
         Some(s) => quote!(::core::option::Option::Some(#s)),
@@ -455,7 +468,7 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
 
         let mut body = Vec::new();
         if let Some((lo, hi)) = &a.range {
-            body.push(quote_spanned! {lo.span()=>
+            body.push(quote_spanned! {at(lo.span())=>
                 ::kurashi_schema::__private::assert_numeric::<#ty>();
                 let __lo: #ty = #lo;
                 let __hi: #ty = #hi;
@@ -464,7 +477,7 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
             });
         }
         if let Some(step) = &a.step {
-            body.push(quote_spanned! {step.span()=>
+            body.push(quote_spanned! {at(step.span())=>
                 ::kurashi_schema::__private::assert_numeric::<#ty>();
                 let __step: #ty = #step;
                 __m.constraints.step = ::core::option::Option::Some(::kurashi_schema::__private::value(&__step));
@@ -481,7 +494,7 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
                 quote!((#s, #text))
             });
             let span = choices[0].span();
-            body.push(quote_spanned! {span=>
+            body.push(quote_spanned! {at(span)=>
                 ::kurashi_schema::__private::assert_textual::<#ty>();
                 __m.constraints.choices =
                     ::kurashi_schema::__private::string_choices(&__m.key, &[#(#pairs),*]);
@@ -494,7 +507,7 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
                     "use either `choices` or `choices_from`, not both",
                 ));
             }
-            body.push(quote_spanned! {src.span()=>
+            body.push(quote_spanned! {at(src.span())=>
                 ::kurashi_schema::__private::assert_choice_source::<#ty>();
                 __m.constraints.choices_from = ::core::option::Option::Some(#src.to_owned());
             });

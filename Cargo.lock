@@ -1027,6 +1027,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-layout"
+version = "0.0.1"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "kurashi-mock"
 version = "0.0.1"
 dependencies = [
@@ -1035,6 +1043,7 @@ dependencies = [
  "clap",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashi-layout",
  "kurashi-schema",
  "kurashi-theme",
  "kurashid",
@@ -1299,6 +1308,7 @@ dependencies = [
  "kurashi-ipc",
  "kurashi-island",
  "kurashi-launcher",
+ "kurashi-layout",
  "kurashi-mod-ai",
  "kurashi-mod-api",
  "kurashi-mod-calendar",
@@ -1327,6 +1337,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "toml 0.8.23",
+ "toml_edit 0.22.27",
  "tracing",
  "tracing-subscriber",
  "zbus",

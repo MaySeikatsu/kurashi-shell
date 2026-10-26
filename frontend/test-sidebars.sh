@@ -424,6 +424,17 @@ if __name__ == "__main__":
 PY
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 
 FAILS=0
 check() { # check <0|1> <label>
@@ -493,10 +504,12 @@ scene() {
   : > "$R/qs.log"
   timeout 20 swaymsg output HEADLESS-1 resolution "${width}x${height}" >/dev/null || fail "the output did not take ${width}x${height}"
   start_daemon "$locale"
-  K set bar.edge "$edge" >/dev/null || fail "bar.edge $edge was refused"
+  bar_edge "$edge" || fail "the bar did not move to $edge"
   # The fit arithmetic below counts the column's own slots; the sidebars' end buttons (I154) are tested in
-  # test-sidebar-panel.sh.
-  K set sidebar.bar_buttons false >/dev/null || fail "sidebar.bar_buttons was refused"
+  # test-sidebar-panel.sh. K71: the buttons are modules of the bar's zones; these zones leave them out.
+  K set "edges.$edge.start=[\"workspaces\",\"windows\"]" \
+    "edges.$edge.end=[\"volume\",\"mods\",\"recorder\",\"keyboard\",\"clock\",\"quick\",\"tray\"]" >/dev/null \
+    || fail "the zones without the sidebar buttons were refused"
   [ "$mods" = 0 ] || enable_mods
   env -u KURASHI_SOCKET KURASHI_BAR_GEOMETRY=1 LC_ALL="$locale" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   SCENE_PIDS+=("$!")
@@ -679,7 +692,8 @@ print(("ok" if ok else "FAIL") + " %s %d ms: mw=%.3f mh=%.3f" % (phase, ms, mw, 
 sys.exit(0 if ok else 1)
 PY
 morph_config() { # morph_config <edge> <look> <profile>
-  K set bar.edge="$1" theme.style="$2" theme.motion.profile="$3" >/dev/null || fail "config $1 $2 $3 was refused"
+  bar_edge "$1" || fail "the bar did not move to $1"
+  K set theme.style="$2" theme.motion.profile="$3" >/dev/null || fail "config $1 $2 $3 was refused"
   sleep 1.5
 }
 if want_part morph; then
