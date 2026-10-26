@@ -55,12 +55,15 @@ at 8e88a8d7 (`git archive`), "new" this branch, both against the same daemon in 
 - Row 492 (b): one layer window and one TileSheet less per output in the default framed layout (3 `kurashi-frame` surfaces,
   test-frame.sh). Untextured the frame now costs +2…5 MiB (ref +1…11 in this run, W43: +2…5); with the paper material
   +8…15 (ref +13…26, W43: +10…23). The material's allowance (K68: ≤ +12 per output) is still missed in one pair of three.
-- Absolute PSS differs by ~60 MiB between the two frontends of one run (ref first): I211's noise (which other processes map
-  the same Qt and driver files); compare the pairs.
+- The acceptance run (two pairs each): kanso ref +13.1 / +2.4, new +9.7 / +1.0; washi + paper ref +14.8 / +20.9, new
+  +15.3 / +8.9 — first pairs carry start-up noise in both.
+- Absolute PSS differs by ~60 MiB between the two frontends of one run (ref always first, in both runs): not isolated —
+  order or I211's noise (which other processes map the same Qt and driver files); compare the pairs, not the levels.
 - **Idle: 0 commits in 10 s** — washi, the default bar (frame off), and washi + paper with the frame on (the bar carrying its
   strip), measured between two minutes of the bar clock.
 - **The hidden bar's window** (visibility hover, kanso; PSS before the first reveal → after one reveal and hide): kept
-  unmapped after its first show (the dock's pattern) 186.3 → 183.8; no window while hidden (`KURASHI_BAR_DROP=1`) 187.1 → 186.0.
+  unmapped after its first show (the dock's pattern) 186.3 → 183.8 and 202.0 → 200.3; no window while hidden
+  (`KURASHI_BAR_DROP=1`) 187.1 → 186.0 and 202.2 → 201.2.
   The two are within the noise; the kept window stays (no window or module tree to make on each reveal).
 - Pixel identity of the default top bar against main (`tools/bench/block-identity.sh`, real kurashid, 2560×1440): terminal
   identical; washi 8 px and sekai 9 px off by one channel unit at glyph edges (the sidebar buttons' glyphs); main against
