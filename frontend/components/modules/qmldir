@@ -1,0 +1,14 @@
+ModuleBase 1.0 ModuleBase.qml
+ModuleHost 1.0 ModuleHost.qml
+ModuleLink 1.0 ModuleLink.qml
+Workspaces 1.0 Workspaces.qml
+Windows 1.0 Windows.qml
+Island 1.0 Island.qml
+Volume 1.0 Volume.qml
+Recorder 1.0 Recorder.qml
+Keyboard 1.0 Keyboard.qml
+Clock 1.0 Clock.qml
+Quick 1.0 Quick.qml
+Tray 1.0 Tray.qml
+SidebarToggle 1.0 SidebarToggle.qml
+ModWidget 1.0 ModWidget.qml

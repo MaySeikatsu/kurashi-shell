@@ -1,0 +1,87 @@
+import QtQuick
+import "../../core"
+import "../island"
+
+// One zone of a top or bottom bar as a row of runs (surfaces/Bar.qml `runsOf`): each run one group block under chromes with
+// groups — the island alone (its pill is its block), the window list a group of its own, every other stretch one group —
+// `Theme.pad` + the groups' padding apart. A run's pieces are one module each, or a stretch of tight ones (the workspace
+// keys and the sidebar button beside them). Runs and pieces with nothing present take no room (no spacing for them).
+Row {
+    id: zr
+    required property var owner
+    property string zone: "start"
+    property var runs: []
+    // Where the window list's room ends (the next zone's left edge, in this row's parent): the start zone's list fits up to it.
+    property real limit: 0
+    spacing: Theme.pad + 2 * zr.owner.groupInset
+
+    Repeater {
+        model: zr.runs
+        delegate: Item {
+            id: run
+            required property var modelData
+            property int presentN: 0
+            function recount() {
+                var n = 0
+                for (var i = 0; i < pieceRep.count; i++) { var p = pieceRep.itemAt(i); if (p && p.presentN > 0) n++ }
+                if (n !== presentN) presentN = n
+            }
+            visible: presentN > 0
+            width: inner.width
+            height: zr.height
+            BarGroup {
+                id: grp
+                around: inner
+                visible: run.modelData.kind !== "island" && Theme.groups && inner.width > 0
+                AnchorReport {
+                    target: grp
+                    key: run.modelData.key
+                    output: zr.owner.outName
+                    enabled: run.modelData.key !== "" && zr.owner.primary && grp.visible
+                }
+            }
+            Row {
+                id: inner
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.verticalCenterOffset: run.modelData.kind === "island" ? 0 : -Theme.shadowDy / 2
+                spacing: Theme.pad
+                Repeater {
+                    id: pieceRep
+                    model: run.modelData.pieces
+                    onItemAdded: Qt.callLater(run.recount)
+                    onItemRemoved: Qt.callLater(run.recount)
+                    delegate: Row {
+                        id: piece
+                        required property var modelData
+                        property int presentN: 0
+                        function recount() {
+                            var n = 0
+                            for (var i = 0; i < hostRep.count; i++) { var h = hostRep.itemAt(i); if (h && h.present) n++ }
+                            if (n !== presentN) { presentN = n; run.recount() }
+                        }
+                        visible: presentN > 0
+                        anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                        spacing: modelData.tight ? zr.owner.tightSpacing : Theme.pad
+                        Repeater {
+                            id: hostRep
+                            model: piece.modelData.entries
+                            onItemAdded: Qt.callLater(piece.recount)
+                            onItemRemoved: Qt.callLater(piece.recount)
+                            delegate: ZoneHost {
+                                required property var modelData
+                                owner: zr.owner
+                                entry: modelData
+                                anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+                                // The window list's room: from where it stands to the next zone, less the gaps.
+                                room: zr.zone === "start"
+                                    ? zr.limit - (zr.x + run.x) - Theme.pad - 2 * zr.owner.groupInset
+                                    : (zr.parent ? zr.parent.width / 4 : 0)
+                                onPresentChanged: piece.recount()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
