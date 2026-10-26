@@ -39,7 +39,7 @@ Each component, in each mode:
 |---|---|---|---|
 | bar | inset `band + gap` from its edge and from the bands beside it; rounded ends (image 8, 10 bottom) | flush, full length; *is* the frame's band on its edge | as dynamic |
 | dock | `gap` above the band or the bar on its edge | sits on the band / the bar (image 6: on the bottom bar) with fillets | sits on it, straight sides |
-| sidebar | inset `gap` on every side | from the bar (or band) at one end to the band at the other, flush to its side, fillets where it meets a bar (image 9); beside a floating bar it reaches the band (image 10) | as dynamic, straight joins |
+| sidebar | inset `gap` on every side | from the bar (or band) at one end to the band at the other, flush to its side, fillets where it meets a bar (image 9); under a floating bar it starts `gap` below it, a free rounded end (user decision, I253 (a)) | as dynamic, straight joins |
 | island / edge module | `gap` from the band or the bar | grows out of the band or the bar, fillets (today's neck) | straight neck |
 **Bars on every edge** (`edges.<e>.bar`, one per edge): each bar has its own visibility, reserve, draw and zones
 (`start`, `center`, `end`). Bars on adjacent edges meet at the corner: the horizontal bars own the corners (they span

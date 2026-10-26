@@ -79,7 +79,8 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   connected).
 - `sidebars.<right|left>`: `draw` + `draw_source`, `visibility`, `width`, `inset`, `reserve` + `reserve_source`
   (+ `reserve_reason`), `span.start` / `span.end` (the column's free length along its side: px from the top and bottom
-  edges), `joins.start` / `joins.end` (what each end meets; absent while floating), `radius`.
+  edges), `joins.start` / `joins.end` (what each end meets: `frame | bar:<edge> | edge | none` — `none` is a free end with
+  rounded corners, under a floating bar; absent while floating), `radius`.
 - `island`: `edge`, `zone`, `host` (`bar` when its edge has a bar, else `module`), `draw` + `draw_source`; absent when no
   zone names `island`.
 - `unplaced`: enabled modules with a glance that no zone shows (no zone names them and none holds `mods`), as module
@@ -95,7 +96,8 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   module that keeps space, else `none`; every component whose visibility is `hidden` carries `reserve_reason:
   layout.reserve.hidden`; the dock `joins` `bar:<edge>` whenever its edge has a bar; floating components carry
   `radius: 0`; `unplaced` lists core modules before mod glances (K72 order); a floating bar's inset is `band + gap` and
-  the sidebars beside it reach the band; a side bar's `span` runs past a top or bottom bar that is not `hidden`
+  a sidebar under a floating top or bottom bar that is not `hidden` ends `gap` before it in every draw mode and its
+  `joins` end there is `none` (I253, user decision); a side bar's `span` runs past a top or bottom bar that is not `hidden`
   (`inset + bar_size`), else from the band, + `gap` when the side bar floats (the horizontal bars own the corners). Mapping order matters on wlroots and niri alike (W43-frame probe): a zone
   holder is placed inside the zones of holders mapped before it, and its margin adds to its zone — holders keep margin 0
   on their own edge.
