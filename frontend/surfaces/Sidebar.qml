@@ -644,11 +644,22 @@ Scope {
                             onPositionChanged: ev => {
                                 if (!pressed) return
                                 var dx = mapToItem(null, ev.x, 0).x - startX
-                                col.liveW = col.clampW(startW + (sb.side === "right" ? -dx : dx))
+                                if (Math.abs(dx) >= 2) moved = true
+                                if (moved) col.liveW = col.clampW(startW + (sb.side === "right" ? -dx : dx))
                             }
-                            onReleased: { col.resizing = false; col.writeWidth(col.liveW) }
-                            onCanceled: { col.resizing = false; col.liveW = -1 }
-                            onDoubleClicked: { col.resizing = false; col.resetWidth() }
+                            // A press that did not move (one half of a double click) writes nothing.
+                            property bool moved: false
+                            onReleased: {
+                                col.resizing = false
+                                if (sb.geometryLog) console.log("sidebar-grip release moved=" + moved + " w=" + col.liveW)
+                                if (moved && !resetting) col.writeWidth(col.liveW)
+                                else if (!resetting) col.liveW = -1
+                                moved = false
+                                resetting = false
+                            }
+                            onCanceled: { col.resizing = false; col.liveW = -1; moved = false; resetting = false }
+                            property bool resetting: false
+                            onDoubleClicked: { resetting = true; col.resizing = false; col.resetWidth() }
                         }
                     }
                 }
