@@ -279,8 +279,9 @@ fn a_bar_in_every_draw_mode() {
                     assert_eq!(top.inset, band + 8);
                     assert_eq!(top.reserve, band + 8 + 32);
                     assert_eq!(l.frame.band.top, band);
-                    // Beside a floating bar a sidebar reaches the band.
-                    assert_eq!(l.sidebars.right.span.start, band);
+                    // Under a floating bar a sidebar starts a gap below it and meets nothing there (I253 (a)).
+                    assert_eq!(l.sidebars.right.span.start, band + 8 + 32 + 8);
+                    assert_eq!(l.sidebars.right.joins.as_ref().unwrap().start, "none");
                 }
                 _ => {
                     assert_eq!(top.inset, 0);
@@ -383,6 +384,20 @@ fn sidebars_in_every_draw_mode() {
             }
         }
     }
+}
+
+#[test]
+fn a_floating_sidebar_under_a_floating_bar_keeps_a_gap_from_it() {
+    let mut c = defaults();
+    c.edges[0].draw = Some(Draw::Floating);
+    c.sidebar_right.draw = Some(Draw::Floating);
+    let s = lay(&c, &[]).sidebars.right;
+    // The bar: inset gap, 32 deep; the sidebar a gap below it, never over its end.
+    assert_eq!(s.span.start, 8 + 32 + 8);
+    assert_eq!(s.joins, None);
+    // A hidden floating bar comes out over the column: the column reaches the band.
+    c.edges[0].visibility = Visibility::Hidden;
+    assert_eq!(lay(&c, &[]).sidebars.right.span.start, 8);
 }
 
 #[test]
