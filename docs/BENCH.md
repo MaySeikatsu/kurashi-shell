@@ -39,6 +39,29 @@ baseline.
 
 ## Results
 
+### 2026-10-26 — W44 follow: one reveal model, holders, openings, the Stage on its own bar (machine A; K71, rows 510–525)
+`frontend/test-bars.sh` (sandbox `w44-follow-bars`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
+card's target dir) with `idle.enabled = false`, calm motion; "ref" is main's frontend at 0628659d (`git archive`), "new"
+this branch, both against the same daemon in one run.
+
+- **Idle: 0 commits in 10 s** with a hover bar, a hover dock and a pinned sidebar at rest (washi), the pointer away **and**
+  resting on the top edge with the bar out (the shared edge strip stays mapped under it now, row 524); and as before the
+  default bar (0) and washi + paper with the frame on (0). A pinned sidebar alone commits nothing at rest
+  (test-sidebar-panel P).
+- **The resting pointer (row 524):** a hover bar with the pointer resting on the top edge, sampled every 0.35 s for 4 s:
+  ref `111000111100` (out, gone, out again: the loop), new `111111111111`. Dock and sidebars held before (EdgeHold) and still
+  do with EdgeReveal alone.
+- **Frame strips (row 525):** frame on, a docked 32 px top bar, the side strips' height: reserve off ref 976 px (placed
+  inside the bar's zone, a 32 px notch under the fillets), new 1008; reserve on (row 510 made the bar the top holder) 976
+  before framegeom counted the bar's zone, 1008 after (`p-frame` probe; test-frame.sh now asserts both).
+- **PSS frame off → on (MiB, pairs):** kanso ref +2.0 / +4.4 / −1.3, new +3.4 / +11.7 / +4.4; washi + paper ref
+  +15.8 / +10.7 / +9.0, new +10.5 / +18.2 / +4.9. No surface was added or removed by this card (the frame's three windows
+  per output, row 492 b), so the spread is the run-to-run noise W44-bar saw (one pair in three far off on either side);
+  absolute PSS again ~60 MiB apart between the two frontends of one run (ref first).
+- **The hover bar's window kept vs none (PSS before the first reveal → after one reveal and hide):** keep 192.1 → 189.7,
+  drop (`KURASHI_BAR_DROP=1`) 194.9 → 191.0 — unchanged from W44-bar. While a hover surface is out its edge strip now stays
+  (a 4 px input-only layer window); the dock and the sidebars kept theirs already (EdgeHold), the bars now too.
+
 ### 2026-10-26 — W44 bar: bars from the zones, the docked bar carries its frame strip (row 492 b), idle, the hidden bar's window (machine A; K71, K72)
 `frontend/test-bars.sh` (sandbox `w44-bar-test`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
 card's target dir) with `idle.enabled = false` and the calm motion profile; frontend `qs -p` directly. "ref" is main's frontend
