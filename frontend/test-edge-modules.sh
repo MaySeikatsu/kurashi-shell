@@ -59,8 +59,10 @@ cleanup() {
   [ -n "$PTR" ] && exec 7>&-
   [ -n "$KEY" ] && exec 8>&-
   for p in $PTR $KEY; do kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; done
+  # The removal is forked first, in a clean environment: the stop ends every process whose environment names the sandbox,
+  # this script's children included, before a line after it runs (measured).
+  setsid -f env -i PATH="$PATH" /bin/sh -c "sleep 4; rm -rf '/tmp/kurashi-sb-$NAME'" >/dev/null 2>&1 < /dev/null
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
-  rm -rf "/tmp/kurashi-sb-$NAME"
 }
 trap cleanup EXIT
 
