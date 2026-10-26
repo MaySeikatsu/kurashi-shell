@@ -404,8 +404,10 @@ Scope {
                         id: geomTimer
                         interval: 300
                         onTriggered: {
-                            var parts = ["dock-geom", dock.outName, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-", "win", dock.winW, dock.winH,
-                                "draw", dock.draw, "vis", dock.vis, "inset", dock.inset, "joins", dock.ld.joins || "-", "holder", dock.reserve]
+                            var parts = ["dock-geom", dock.outName, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-",
+                                "draw", dock.draw, "vis", dock.vis, "inset", dock.inset, "joins", dock.ld.joins || "-", "holder", dock.reserve,
+                                "body", [Math.round(body.x), Math.round(body.y), Math.round(body.width), Math.round(body.height)].join(","),
+                                "win", dock.winW, dock.winH]
                             for (var i = 0; i < dock.keys.length; i++) {
                                 var it = list.itemAtIndex(i)
                                 if (!it || dock.keys[i] === "|") continue
