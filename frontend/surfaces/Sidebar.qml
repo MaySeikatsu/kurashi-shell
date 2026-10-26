@@ -200,7 +200,11 @@ Scope {
             Component.onCompleted: if (wanted) drive()
             function drive() {
                 if (holding || sb.holdP >= 0) {
-                    if (wanted) { held = true; gate = false; p = Math.max(0, Math.min(1, sb.holdP)) }
+                    if (wanted) {
+                        held = true; gate = false; p = Math.max(0, Math.min(1, sb.holdP))
+                        // (test-texture.sh reads how far the held column stands from its rest.)
+                        if (sb.geometryLog) console.log("sidebar-hold " + sb.side + " " + out + " p=" + p.toFixed(3) + " off=" + Math.round(off))
+                    }
                     else { held = false; p = 0 }
                     return
                 }
