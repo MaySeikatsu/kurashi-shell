@@ -13,6 +13,8 @@ ModuleBase {
     slotHeights: present ? [height] : []
     Accessible.role: Accessible.Button
     Accessible.name: I18n.tr("power.bar.recording")
+    a11yName: Accessible.name
+    function activate() { Store.act("recorder.stop") }
     function geo() { return [["rec", m]] }
     Grid {
         id: dotRow

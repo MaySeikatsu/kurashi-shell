@@ -6,8 +6,10 @@ import "../island"
 
 // A mod's glance (K26, K72: zone entry `{id: "mod:<id>:<name>", kind: "mod", mod, provide: "widget:<name>"}`): the mod's
 // `widget:<name>` through ModLoader, loaded only while the host shows it (and, in a column, while the fit gives it its
-// slot); its panel grows out of it (AnchorReport) and its `peek:<name>` shows on hover or keyboard focus (PeekSource, K35).
-// In a column a widget that declares `vertical` is told so; one that does not is drawn as it is, clipped to its slot.
+// slot); its panel grows out of it (AnchorReport) and its `peek:<name>` shows on hover or keyboard focus (PeekSource, K35;
+// it hangs from this host's edge and window, row 514). In a column a widget that declares `vertical` is told so; one that
+// does not is drawn as it is, clipped to its slot. A widget with its own tab stop (`activeFocusOnTab`) keeps the keyboard;
+// for one without, the host's tab stop opens the mod's `panel:<name>` (the module's expanded view) when it has one.
 ModuleBase {
     id: m
     property string mod: ""
@@ -16,7 +18,11 @@ ModuleBase {
     readonly property var modsDoc: Store.docs["mods"]
     readonly property string url: Mods.qmlOf(modsDoc, provide, mod)
     readonly property string peekSource: Mods.qmlOf(modsDoc, "peek:" + name, mod) !== "" ? "mod:" + mod + ":" + name : ""
+    readonly property bool hasPanel: Mods.qmlOf(modsDoc, "panel:" + name, mod) !== ""
     present: url !== ""
+    ownsFocus: loader.item !== null && loader.item !== undefined && loader.item.activeFocusOnTab === true
+    a11yName: I18n.tr("edge-modules.mod").replace("{mod}", m.mod)
+    function activate() { if (hasPanel) Store.act("mod.panel.open", { id: m.mod, panel: m.name }) }
     // A column slot's height until the widget has been measured. Small on purpose: an unmeasured widget is then loaded and
     // measured; a large default would keep a widget that does not fit unloaded, so it would never be measured.
     property int measured: 0
@@ -60,10 +66,6 @@ ModuleBase {
         source: m.peekSource
         output: m.output
         hovered: hover.hovered
-        focused: loader.item !== null && loader.item.activeFocus === true
+        focused: (loader.item !== null && loader.item.activeFocus === true) || m.hostFocused
     }
-    readonly property var qsw: Window.window ? QsWindow.window : null
-    readonly property string placeKey: peekSource !== "" && qsw ? [m.output, m.edge, Light.originOf(qsw).x, Light.originOf(qsw).y].join("|") : ""
-    onPlaceKeyChanged: if (placeKey !== "") { var o = Light.originOf(qsw); Peeks.place(peekSource, m.output, m.edge, o.x, o.y) }
-    Component.onDestruction: if (peekSource !== "") Peeks.unplace(peekSource, m.output)
 }

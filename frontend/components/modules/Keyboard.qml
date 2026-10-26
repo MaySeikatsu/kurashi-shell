@@ -16,6 +16,8 @@ ModuleBase {
     slotHeights: present ? [height] : []
     Accessible.role: Accessible.Button
     Accessible.name: I18n.tr("power.bar.layout").replace("{name}", m.cur ? String(m.cur.name) : "")
+    a11yName: Accessible.name
+    function activate() { Store.act("keyboard.next") }
     function geo() { return [["layout", m]] }
     Rectangle {
         anchors.fill: parent

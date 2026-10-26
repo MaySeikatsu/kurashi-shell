@@ -14,3 +14,4 @@ Sidebar 1.0 Sidebar.qml
 TextureOverlay 1.0 TextureOverlay.qml
 Frame 1.0 Frame.qml
 EdgeStripHost 1.0 EdgeStripHost.qml
+EdgeModules 1.0 EdgeModules.qml
