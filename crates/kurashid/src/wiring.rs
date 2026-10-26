@@ -238,37 +238,7 @@ pub fn ui(hub: &Arc<Hub>, actions: &mut ActionRegistry) {
             let hub = hub.clone();
             async move {
                 let (side, output) = sidebar_args(&a)?;
-                if side == "left" && left_sidebar_empty(&hub) {
-                    return Err(ActionError::Invalid(SIDEBAR_NO_TABS.into()));
-                }
-                hub.update("runtime.ui", None, |d| {
-                    let same = d["sidebar"].as_str() == Some(side)
-                        && output
-                            .as_deref()
-                            .is_none_or(|o| d["sidebar_output"].as_str() == Some(o));
-                    if toggle && same {
-                        clear_sidebar(d);
-                        return;
-                    }
-                    d["panel"] = json!("");
-                    d["popup"] = json!(false);
-                    d["tray"] = json!("");
-                    d["face"] = json!("");
-                    d["launcher"] = json!(false);
-                    clear_peek(d);
-                    d["sidebar"] = json!(side);
-                    match &output {
-                        Some(o) => d["sidebar_output"] = json!(o),
-                        None if !same => {
-                            if let Some(m) = d.as_object_mut() {
-                                m.remove("sidebar_output");
-                            }
-                        }
-                        None => {}
-                    }
-                })
-                .map_err(|e| ActionError::Internal(e.to_string()))?;
-                Ok(None)
+                open_sidebar(&hub, side, output, toggle)
             }
         }
     };
@@ -442,7 +412,48 @@ fn clear_sidebar(d: &mut Value) {
         o.remove("sidebar");
         o.remove("sidebar_output");
     }
-    clear_shown_sidebars(d);
+}
+
+/// `sidebar.toggle` (`toggle`) / `sidebar.open` of `side` on `output` (None: the frontend's focused output), and
+/// `layout.toggle {target: "sidebar:<side>"}` (row 486: one truth, `runtime.ui.sidebar`). One at a time: opening a
+/// sidebar closes the Stage's panel, the peek and the launcher. A left sidebar with no tab configured is refused.
+pub(crate) fn open_sidebar(
+    hub: &Hub,
+    side: &'static str,
+    output: Option<String>,
+    toggle: bool,
+) -> Result<Option<Value>, ActionError> {
+    if side == "left" && left_sidebar_empty(hub) {
+        return Err(ActionError::Invalid(SIDEBAR_NO_TABS.into()));
+    }
+    hub.update("runtime.ui", None, |d| {
+        let same = d["sidebar"].as_str() == Some(side)
+            && output
+                .as_deref()
+                .is_none_or(|o| d["sidebar_output"].as_str() == Some(o));
+        if toggle && same {
+            clear_sidebar(d);
+            return;
+        }
+        d["panel"] = json!("");
+        d["popup"] = json!(false);
+        d["tray"] = json!("");
+        d["face"] = json!("");
+        d["launcher"] = json!(false);
+        clear_peek(d);
+        d["sidebar"] = json!(side);
+        match &output {
+            Some(o) => d["sidebar_output"] = json!(o),
+            None if !same => {
+                if let Some(m) = d.as_object_mut() {
+                    m.remove("sidebar_output");
+                }
+            }
+            None => {}
+        }
+    })
+    .map_err(|e| ActionError::Internal(e.to_string()))?;
+    Ok(None)
 }
 
 /// `{side, output?}` of `sidebar.toggle` / `sidebar.open`: the side, and the output when one is named.
@@ -3234,19 +3245,6 @@ fn layout_target_ok(l: &kurashi_layout::OutputLayout, target: &str) -> Result<bo
     })
 }
 
-/// Removes the `sidebar:*` entries of `runtime.ui.shown` (a sidebar that closes is no longer brought out).
-fn clear_shown_sidebars(d: &mut Value) {
-    let Some(list) = d.get("shown").and_then(Value::as_array) else {
-        return;
-    };
-    let kept: Vec<Value> = list
-        .iter()
-        .filter(|s| !s.as_str().is_some_and(|s| s.starts_with("sidebar:")))
-        .cloned()
-        .collect();
-    set_shown(d, kept);
-}
-
 /// `runtime.ui.shown`, absent when empty (documents carry no empty "nothing").
 fn set_shown(d: &mut Value, list: Vec<Value>) {
     if let Some(o) = d.as_object_mut() {
@@ -3275,11 +3273,23 @@ pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
                     .filter(|s| !s.is_empty())
                     .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?
                     .to_owned();
-                let output = match a.get("output") {
-                    None => focused_output(&hub).unwrap_or_else(|| "*".into()),
-                    Some(Value::String(o)) if !o.is_empty() => o.clone(),
+                let named = match a.get("output") {
+                    None => None,
+                    Some(Value::String(o)) if !o.is_empty() => Some(o.clone()),
                     Some(_) => return Err(ActionError::Invalid(ARGS_INVALID.into())),
                 };
+                // Row 486: a sidebar has one truth, `runtime.ui.sidebar` — the target is `sidebar.toggle` (on the
+                // named output, else the frontend's focused one), never a `shown` entry.
+                if let Some(side) = target.strip_prefix("sidebar:") {
+                    let side = match side {
+                        "left" => "left",
+                        "right" => "right",
+                        _ => return Err(ActionError::Invalid(ARGS_INVALID.into())),
+                    };
+                    return open_sidebar(&hub, side, named, true);
+                }
+                let output =
+                    named.unwrap_or_else(|| focused_output(&hub).unwrap_or_else(|| "*".into()));
                 let store = weak
                     .upgrade()
                     .ok_or_else(|| ActionError::Unavailable(ARGS_INVALID.into()))?;

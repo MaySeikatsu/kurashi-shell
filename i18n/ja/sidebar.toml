@@ -28,3 +28,8 @@
 "sidebar.left.missing.no_panel" = "{name}：そのパネルはありません。"
 "sidebar.left.missing.unknown" = "{name}：モッドのパネルではありません。"
 "sidebar.left.settings" = "タブを選ぶ"
+
+# 列の内側の縁にあるサイズ変更のつまみ（W44、要望 12）。
+"sidebar.a11y.grip" = "サイドバーの幅を変える"
+"sidebar.resize.hint" = "{w} px。ドラッグで幅を変え、ダブルクリックで既定の幅に戻します。サイドバーにキーボードがあるときは Ctrl+← / Ctrl+→ でも変えられます。"
+"sidebar.resize.forced" = "幅は {by} が決めています。"

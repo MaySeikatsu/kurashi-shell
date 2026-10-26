@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # The edge sidebars (card W29, docs/ux/sidebar.md), invisibly (headless sway sandbox), with the REAL kurashid:
-#   1. closed = no sidebar window; `sidebar.toggle {side: right}` under a top bar: the window spans the bar's bottom → the
-#      screen's bottom (its height is the output's less the bar's zone, its bottom row is drawn), flush right, 420 px;
+#   1. closed = no sidebar window; `sidebar.toggle {side: right}` under a top bar: the column spans the bar's bottom → the
+#      screen's bottom (W44: geometry from runtime.layout, logged in output coordinates; the window ignores zones and
+#      covers the output while it catches clicks), flush right, 420 px;
 #      Esc (after a click gives it the keyboard) closes it and the window goes; opening the launcher closes it;
-#   2. floating style: the column is inset by the theme's gap (the outermost column of pixels is the desk);
+#   2. floating: the column is inset by the theme's gap on every side, below the bar (the outermost pixels are the desk);
 #   3. a left bar: the right sidebar spans the whole height; with `sidebar.from_bar` the bar's quick button opens it;
 #   4. the left sidebar with the AI mod on: its tab shows the AI panel (no Ollama in the sandbox: the mod's own state);
 #   5. a 1280×720 output: the column fits (the notifications shrink, the column never overflows);
-#   6. shots: right panel and floating under washi, sekai, win95 and glass; left panel under washi.
+#   6. shots: right panel and floating under washi, sekai, win95 and glass; left panel under washi;
+#   8–11 (W44, K71): every sidebar row of the layout's mode table (washi, sekai × top/bottom bar × frame × draw × side),
+#      hover reveal of each side, pinned with a test window beside it and no idle frame, drag/double-click/keyboard resize.
 #   nix develop -c frontend/test-sidebar-panel.sh [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug).
 # Shots in frontend/shots/sidebar/<style>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
@@ -85,9 +88,9 @@ start_kurashid() {
   pids+=("$!")
   wait_socket kurashid
 }
-start_frontend() {
+start_frontend() {  # start_frontend [VAR=value …]
   : > "$R/qs.log"
-  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_BAR_GEOMETRY=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_BAR_GEOMETRY=1 "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
@@ -158,8 +161,8 @@ qml_errors() {
   fi
 }
 RIGHT='{"side":"right","output":"HEADLESS-1"}'
-# SIDEBAR_PHASES=146 runs only those phases (all by default).
-want() { [[ "${SIDEBAR_PHASES:-1234567}" == *"$1"* ]]; }
+# SIDEBAR_PHASES=146 runs only those phases (all by default; W44's: 8 layout, 9 hover, P pinned, R resize).
+want() { [[ "${SIDEBAR_PHASES:-123456789PR}" == *"$1"* ]]; }
 : > "$R/server.log"
 
 # 1. A top bar, panel style: geometry, Esc, the launcher.
@@ -176,13 +179,13 @@ wait_geom "^HEADLESS-1 right panel$SETTLED"
 read -r _ _ _ _ WW WH _ FR _ BEDGE BARH _ <<< "$(geom)"
 [ "$BEDGE" = top ] || fail "expected a top bar, got '$BEDGE' ($(geom))"
 [ "$WW" = "$SW" ] || fail "the window is $WW px wide, not the output's $SW (the catcher; $(geom))"
-[ "$WH" = $(( SH - BARH )) ] || fail "under a $BARH px top bar the panel is $WH px tall, not $(( SH - BARH )) ($(geom))"
-[ "$FR" = "$(( WW - 420 )),0,420,$WH" ] || fail "the panel's column is not flush or not 420 px wide ($FR)"
+[ "$WH" = "$SH" ] || fail "the window is $WH px tall, not the output's $SH (it ignores zones; $(geom))"
+[ "$FR" = "$(( SW - 420 )),$BARH,420,$(( SH - BARH ))" ] || fail "the panel's column is not flush under the bar or not 420 px wide ($FR)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) $(( SH - 1 )))" = ink ] || fail "the panel does not reach the screen's bottom-right corner"
 [ "$(px $(( SW - 410 )) $(( SH - 1 )))" = ink ] || fail "the panel's bottom row is not drawn"
 [ "$(px $(( SW - 430 )) $(( SH / 2 )))" = desk ] || fail "something is drawn left of the panel"
-echo "ok: right panel under the top bar: ${WW}x$WH at y=$BARH → bottom ($SW×$SH output)"
+echo "ok: right panel under the top bar: $FR ($SW×$SH output)"
 qml_errors
 # The Wi-Fi tile's arrow (the first tile, under the 44 px header) opens its page over the sections; the click also gives
 # the column the keyboard (on demand). Esc goes back to the sections first, the next Esc closes the sidebar.
@@ -219,7 +222,7 @@ start_frontend
 K act sidebar.toggle "$RIGHT" >/dev/null
 wait_geom "^HEADLESS-1 right floating$SETTLED"
 read -r _ _ _ _ WW WH _ FR _ _ BARH _ GAP _ <<< "$(geom)"
-[ "$FR" = "$(( WW - GAP - 420 )),0,420,$(( WH - GAP ))" ] || fail "the floating column is not inset by $GAP at its free sides and joined to the bar ($FR in ${WW}x$WH)"
+[ "$FR" = "$(( SW - GAP - 420 )),$(( BARH + GAP )),420,$(( SH - BARH - 2 * GAP ))" ] || fail "the floating column is not inset by $GAP from the bar and the edges ($FR)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) $(( SH / 2 )))" = desk ] || fail "the floating column touches the screen's edge"
 [ "$(px $(( SW - 1 )) $(( SH - 1 )))" = desk ] || fail "the floating column touches the screen's bottom"
@@ -244,13 +247,13 @@ ui | jq -e '.sidebar == "right" and .sidebar_output == "HEADLESS-1" and .panel =
   || fail "the bar's quick button did not open the right sidebar ($(ui))"
 echo "ok: with sidebar.from_bar the bar's quick button opens the right sidebar"
 wait_geom "^HEADLESS-1 right panel$SETTLED"
-read -r _ _ _ _ WW WH _ _ _ BEDGE _ <<< "$(geom)"
-[ "$BEDGE" = left ] || fail "expected a left bar ($(geom))"
-[ "$WH" = "$SH" ] || fail "beside a left bar the right panel is $WH px tall, not $SH"
+read -r _ _ _ _ WW WH _ FR _ BEDGE _ <<< "$(geom)"
+geom | grep -q ' joins edge,edge ' || fail "beside a left bar the right panel should meet the screen's edges ($(geom))"
+[ "${FR#*,}" = "0,420,$SH" ] || fail "beside a left bar the right panel is not the full height ($FR)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) 0)" = ink ] || fail "the panel does not reach the top-right corner"
 [ "$(px $(( SW - 1 )) $(( SH - 1 )))" = ink ] || fail "the panel does not reach the bottom-right corner"
-echo "ok: beside a left bar the right panel spans the full height (${WW}x$WH)"
+echo "ok: beside a left bar the right panel spans the full height ($FR)"
 ptr click $(( (QX0 + QX1) / 2 )) $(( (QY0 + QY1) / 2 )) left
 wait_window down
 echo "ok: the bar's button closes it again"
@@ -292,12 +295,12 @@ if want 5 && swaymsg output HEADLESS-1 mode 1280x720 >/dev/null 2>&1; then
   notes
   K act sidebar.toggle "$RIGHT" >/dev/null
   wait_geom "^HEADLESS-1 right panel$SETTLED"
-  read -r _ _ _ _ WW WH _ _ _ _ BARH _ <<< "$(geom)"
-  [ "$WH" = $(( SH - BARH )) ] || fail "on 720 px the panel is $WH px tall"
+  read -r _ _ _ _ WW WH _ FR _ _ BARH _ <<< "$(geom)"
+  [ "${FR##*,}" = $(( SH - BARH )) ] || fail "on 720 px the column is ${FR##*,} px tall"
   mkdir -p "$OUT/washi"
   shot washi/right-720 right
   [ "$(px $(( SW - 410 )) $(( SH - 1 )))" = ink ] || fail "on 720 px the column does not reach the bottom"
-  echo "ok: on a 1280×720 output the column fits (${WW}x$WH)"
+  echo "ok: on a 1280×720 output the column fits ($FR)"
   qml_errors
   stop_phase
   swaymsg output HEADLESS-1 mode "$MODE" >/dev/null 2>&1 || true
@@ -330,6 +333,189 @@ for edge in top left; do
   qml_errors
   stop_phase
 done
+fi
+
+# ---- W44 (K71; docs/ux/layout.md, docs/ux/sidebar.md): the sidebars from runtime.layout ----
+# 8. Every sidebar row of the mode table: washi and sekai × a top and a bottom bar × the frame off and on × floating,
+#    dynamic, connected, both sides. The column's rect (logged in output coordinates) is the layout's: `inset` from its
+#    side, `span.start` from the top, `span.end` from the bottom, `width` wide. Shots
+#    frontend/shots/sidebar/layout/<decor>/<bar>-frame<off|on>-<draw>-<side>.png.
+# 9. Hover (point 14): with `visibility = "hover"` a rest on its edge reveals each side, a pointer resting there keeps it,
+#    leaving the column hides it (its window goes).
+# 10. Pinned (`always`): the column stays with no toggle, keeps its zone (a test window tiles beside it), and commits no
+#    frame at rest.
+# 11. Resize (point 12): a drag of the inner edge writes sidebar.right.width on release (real kurashid), a double click
+#    resets it to the default, Ctrl+Left by 10 px a press while the column has the keyboard.
+lay() { K sub runtime.layout --count 0 --json | jq -c ".data.outputs[\"HEADLESS-1\"].sidebars.$1"; }
+# The column's rect the layout gives: "x,y,w,h" in output coordinates.
+want_rect() {
+  local l x
+  l=$(lay "$1")
+  read -r INS W0 S0 S1 <<< "$(echo "$l" | jq -r '"\(.inset) \(.width) \(.span.start) \(.span.end)"')"
+  x=$INS; [ "$1" = right ] && x=$(( SW - INS - W0 ))
+  echo "$x,$S0,$W0,$(( SH - S0 - S1 ))"
+}
+open_side() {  # open_side <side>: toggled open, at rest
+  local n; n=$(grep -c "sidebar-rest $1 " "$R/qs.log" || true)
+  K act sidebar.toggle "{\"side\":\"$1\",\"output\":\"HEADLESS-1\"}" >/dev/null
+  for _ in $(seq 60); do [ "$(grep -c "sidebar-rest $1 " "$R/qs.log" || true)" -gt "$n" ] && return 0; sleep 0.1; done
+  fail "the $1 sidebar did not come to rest ($(geom))"
+}
+close_side() {
+  K act sidebar.close >/dev/null
+  for _ in $(seq 60); do last_window | grep -q "sidebar-window down $1" && return 0; sleep 0.1; done
+  fail "the $1 sidebar's window did not go"
+}
+side_geom() { grep "sidebar-geom HEADLESS-1 $1 " "$R/qs.log" | tail -1 | sed 's/.*sidebar-geom //'; }
+cat > "$W/drag.py" <<'PY'
+import struct, sys, time
+sys.path.insert(0, sys.argv[1])
+import wl_pointer as wp
+x0, y0, x1, y1 = (int(v) for v in sys.argv[2:6])
+mode = sys.argv[6] if len(sys.argv) > 6 else "drag"
+p = wp.Pointer()
+p.motion(x0, y0)
+p.roundtrip()
+time.sleep(0.4)
+def press(state):
+    p.send(p.pointer, 2, struct.pack("<III", wp.ms(), wp.BUTTONS["left"], state))
+    p.send(p.pointer, 4)
+    p.roundtrip()
+if mode == "double":
+    press(1); time.sleep(0.05); press(0); time.sleep(0.08); press(1); time.sleep(0.05); press(0)
+else:
+    press(1); time.sleep(0.2); p.sweep(x0, y0, x1, y1, 0.8); time.sleep(0.5); press(0)
+p.settle()
+PY
+drag() { stop_pointer; timeout 20 python3 -I "$W/drag.py" "$ROOT/tools/bench" "$@" >> "$W/ptr.log" 2>&1 || fail "drag failed"; start_pointer; }
+cfgv() { K sub config --count 0 --json | jq -c ".data.values[\"$1\"] | {value, kind: .source.kind}"; }
+
+if want 8; then
+  LOUT=$OUT/layout
+  for d in ${SIDEBAR_LAYOUT_DECORS:-washi sekai}; do
+    mkdir -p "$LOUT/$d"
+    config "$d" 'idle.enabled = false'
+    : > "$R/server.log"
+    start_kurashid
+    start_frontend
+    for bar in top bottom; do
+      [ "$bar" = bottom ] && { K act layout.bar.move '{"from":"top","to":"bottom"}' >/dev/null || fail "layout.bar.move refused"; }
+      for frame in off on; do
+        fr=false; [ "$frame" = on ] && fr=true
+        for draw in floating dynamic connected; do
+          K set layout.frame.enabled=$fr "layout.draw=\"$draw\"" >/dev/null || fail "set refused"
+          sleep 0.8
+          for side in right left; do
+            open_side "$side"
+            tag="$d $bar frame $frame $draw $side"
+            want=$(want_rect "$side")
+            got=$(side_geom "$side" | sed 's/.* frame \([^ ]*\) .*/\1/')
+            [ "$got" = "$want" ] || fail "$tag: the column stands at $got, the layout says $want ($(side_geom "$side"))"
+            side_geom "$side" | grep -q " draw $draw " || fail "$tag: drawn as $(side_geom "$side")"
+            x=0; [ "$side" = right ] && x=$(( SW - 560 ))
+            sleep 0.3
+            timeout 20 grim -g "$x,0 560x$SH" "$LOUT/$d/$bar-frame$frame-$draw-$side.png" && echo "shot $LOUT/$d/$bar-frame$frame-$draw-$side.png"
+            echo "ok: $tag: $got ($(side_geom "$side" | sed 's/.* joins \([^ ]*\) .*/\1/'))"
+            close_side "$side"
+          done
+        done
+      done
+      [ "$bar" = bottom ] && K act layout.bar.move '{"from":"bottom","to":"top"}' >/dev/null
+    done
+    qml_errors
+    stop_phase
+  done
+fi
+
+if want 9; then
+  config washi 'idle.enabled = false' '[sidebar.right]' 'visibility = "hover"' '[sidebar.left]' 'visibility = "hover"'
+  : > "$R/server.log"
+  start_kurashid
+  start_frontend
+  for side in right left; do
+    ex=0; [ "$side" = right ] && ex=$(( SW - 1 ))
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    sleep 0.8
+    n=$(grep -c "sidebar-rest $side " "$R/qs.log" || true)
+    ptr move "$ex" $(( SH / 2 ))
+    for _ in $(seq 40); do [ "$(grep -c "sidebar-rest $side " "$R/qs.log" || true)" -gt "$n" ] && break; sleep 0.1; done
+    [ "$(grep -c "sidebar-rest $side " "$R/qs.log" || true)" -gt "$n" ] || fail "hover: a rest on the $side edge did not reveal it"
+    sleep 2
+    last_window | grep -q "sidebar-window up $side" || fail "hover: the $side column went while the pointer rested on the edge"
+    [ "$(grep -c "sidebar-rest $side " "$R/qs.log" || true)" = $(( n + 1 )) ] || fail "hover: the $side column came and went while the pointer rested"
+    mkdir -p "$OUT/layout"
+    timeout 20 grim -g "$([ "$side" = right ] && echo $(( SW - 560 )) || echo 0),0 560x$SH" "$OUT/layout/hover-$side.png"
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    for _ in $(seq 40); do last_window | grep -q "sidebar-window down $side" && break; sleep 0.1; done
+    last_window | grep -q "sidebar-window down $side" || fail "hover: the $side column stayed after the pointer left"
+    ui | jq -e 'has("sidebar") | not' >/dev/null || fail "hover opened runtime.ui.sidebar ($(ui))"
+    echo "ok: hover: the $side edge's dwell reveals it, a resting pointer keeps it, leaving hides it"
+  done
+  qml_errors
+  stop_phase
+fi
+
+if want P; then  # 10. pinned
+  swaymsg 'default_border none' >/dev/null; swaymsg 'default_floating_border none' >/dev/null
+  config washi 'idle.enabled = false' '[sidebar.right]' 'visibility = "always"'
+  : > "$R/server.log"
+  start_kurashid
+  start_frontend WAYLAND_DEBUG=1
+  for _ in $(seq 60); do grep -q "sidebar-rest right " "$R/qs.log" && break; sleep 0.1; done
+  grep -q "sidebar-rest right " "$R/qs.log" || fail "pinned: the right column did not come out by itself"
+  side_geom right | grep -q " holder 420 " || fail "pinned: the column does not hold its zone ($(side_geom right))"
+  printf 'import QtQuick\nimport Quickshell\nShellRoot { FloatingWindow { color: "#c03030"; implicitWidth: 400; implicitHeight: 300 } }\n' > "$W/win.qml"
+  # (Without the pointer's fifo: a writer it inherits would keep the pointer from ever seeing EOF.)
+  env -u KURASHI_SOCKET qs -p "$W/win.qml" >> "$R/win.log" 2>&1 7>&- &
+  WIN=$!; pids+=("$WIN")
+  rect=""
+  for _ in $(seq 50); do
+    rect=$(swaymsg -t get_tree -r | jq -r --argjson p "$WIN" '.. | select(.pid? == $p) | .rect | "\(.x) \(.y) \(.width) \(.height)"' | head -1)
+    [ -n "$rect" ] && break; sleep 0.1
+  done
+  sleep 1
+  rect=$(swaymsg -t get_tree -r | jq -r --argjson p "$WIN" '.. | select(.pid? == $p) | .rect | "\(.x) \(.y) \(.width) \(.height)"' | head -1)
+  read -r WX WY WWID WHEI <<< "$rect"
+  [ $(( WX + WWID )) -le $(( SW - 420 )) ] || fail "pinned: the test window ($rect) does not tile beside the column"
+  echo "ok: pinned: a test window tiles beside it ($rect)"
+  timeout 20 grim -s 0.5 "$OUT/layout/pinned.png"
+  sleep 1
+  s=$(stat -c %s "$R/qs.log"); sleep 5
+  SBS=$(grep -oE 'get_layer_surface\(new id zwlr_layer_surface_v1#[0-9]+, wl_surface#[0-9]+, [^"]*"kurashi-sidebar"' "$R/qs.log" \
+    | tail -1 | grep -oE 'wl_surface#[0-9]+')
+  [ -n "$SBS" ] || fail "idle: the pinned sidebar's surface is not in the Wayland log"
+  c=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -c "${SBS}\.commit(" || true)
+  [ "$c" = 0 ] || fail "idle: the pinned sidebar committed $c frames in 5 s"
+  echo "ok: idle: the pinned sidebar commits no frame at rest"
+  qml_errors
+  stop_phase
+fi
+
+if want R; then  # 11. resize
+  config washi 'idle.enabled = false'
+  : > "$R/server.log"
+  start_kurashid
+  start_frontend
+  open_side right
+  drag $(( SW - 420 )) $(( SH / 2 )) $(( SW - 520 )) $(( SH / 2 ))
+  for _ in $(seq 30); do [ "$(cfgv sidebar.right.width)" = '{"value":520,"kind":"user"}' ] && break; sleep 0.2; done
+  [ "$(cfgv sidebar.right.width)" = '{"value":520,"kind":"user"}' ] || fail "resize: a drag of 100 px wrote $(cfgv sidebar.right.width)"
+  for _ in $(seq 30); do side_geom right | grep -q ",520,$(( SH - 32 )) " && break; sleep 0.2; done
+  side_geom right | grep -q "frame $(( SW - 520 ))," || fail "resize: the column is not 520 px wide ($(side_geom right))"
+  timeout 20 grim -g "$(( SW - 700 )),0 700x300" "$OUT/layout/resized.png"
+  echo "ok: resize: the drag wrote sidebar.right.width = 520 on release"
+  drag $(( SW - 520 )) $(( SH / 2 )) $(( SW - 520 )) $(( SH / 2 )) double
+  for _ in $(seq 30); do cfgv sidebar.right.width | grep -q '"kind":"default"' && break; sleep 0.2; done
+  cfgv sidebar.right.width | grep -q '"value":420,"kind":"default"' || fail "resize: a double click did not reset ($(cfgv sidebar.right.width))"
+  echo "ok: resize: a double click resets it to the default"
+  ptr click $(( SW - 410 )) $(( SH / 2 )) left
+  sleep 0.5
+  keys ctrl+left ctrl+left ctrl+left
+  for _ in $(seq 30); do [ "$(cfgv sidebar.right.width)" = '{"value":450,"kind":"user"}' ] && break; sleep 0.2; done
+  [ "$(cfgv sidebar.right.width)" = '{"value":450,"kind":"user"}' ] || fail "resize: Ctrl+Left ×3 wrote $(cfgv sidebar.right.width)"
+  echo "ok: resize: Ctrl+Left by 10 px a press (one write: 450)"
+  qml_errors
+  stop_phase
 fi
 
 # 6. Looks: right panel and floating under each style.

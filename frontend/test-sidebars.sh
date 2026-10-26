@@ -13,8 +13,9 @@
 # item's box lies inside the bar, the bottom column is in order and does not overlap the island, and the mod slots and tray
 # icons drawn are the ones the column's fit gives, with the count of the rest. The frontend logs no QML error or warning.
 # Shots: frontend/shots/sidebars/<scene>.png (the output) and <scene>-bar.png (the bar's strip): read them, not just the exit code.
-# Part two (W34, `morph`, below): the edge sidebars grow out of the bar and fold back into it — frozen mid-morph frames,
-# the join's pixels, click outside, 20 cycles' USS, idle frames; shots in frontend/shots/sidebar/morph/.
+# Part two (`morph`, below; W44/K71 supersedes W34's grow-from-the-button): the edge sidebars slide in from their screen
+# edge and back — frozen mid-slide frames, the join's pixels, click outside, 20 cycles' USS, idle frames; shots in
+# frontend/shots/sidebar/slide/.
 # SIDEBARS_PARTS="bars morph" (default) picks the parts; without a test-mods daemon the side-bar scenes are skipped (said so).
 #   KURASHI_BIN_DIR=<dir with kurashid (--features test-mods) and kurashi> \
 #     timeout 1800 nix develop -c frontend/test-sidebars.sh [sandbox-name]
@@ -561,17 +562,17 @@ if want_part bars; then
   fi
 fi
 
-# ---- W34 (docs/ux/motion.md "the bar reaches out"): the sidebars grow out of the bar and fold back into it ----
-# One daemon and frontend (KURASHI_SIDEBAR_FREEZE: the morph holds still N ms after it starts, for a shot; the frontend
+# ---- W44 (K71, the user's decision): the sidebars slide in from their screen edge in every draw mode ----
+# One daemon and frontend (KURASHI_SIDEBAR_FREEZE: the slide holds still N ms after it starts, for a shot; the frontend
 # logs it). For each bar edge (top, bottom), look (washi, sekai, kami), profile (calm, lively) and side (left, right):
 # frames at 40/120/250 ms of the opening, the column at rest and 40/120/250 ms of the closing, as one sheet
-# frontend/shots/sidebar/morph/<edge>-<look>-<profile>-<side>.png (half size; read them). Asserted: every frozen frame
-# is mid-morph (opening: the shape has not reached rest at 40 ms; closing: it has left it) and the window comes and goes;
+# frontend/shots/sidebar/slide/<edge>-<look>-<profile>-<side>.png (half size; read them). Asserted: every frozen frame
+# is mid-slide (opening: short of rest at 40 ms, under way later; closing: it has left its rest) and the window comes and goes;
 # at rest the fillet's pixels at the column's inner top corner are the column's colour and, where the bar draws a strip,
 # the bar's (one sheet); `none` cuts (the column is whole the frame after its window maps); a click outside the column
 # closes it and one on the column does not (I152); 20 open/close cycles leave the frontend's USS where it was (K16);
 # an open sidebar at rest commits no frame (Ma). MORPH_EDGES / MORPH_LOOKS / MORPH_PROFILES / MORPH_SIDES narrow it.
-MOUT=$ROOT/frontend/shots/sidebar/morph
+MOUT=$ROOT/frontend/shots/sidebar/slide
 MBG='#8fb8c8'
 nlines() { grep -c -- "$1" "$R/qs.log" || true; }
 wait_more() { # wait_more <pattern> <count before> [tries of 50 ms]
@@ -630,7 +631,7 @@ frozen() {
 geom_rest() { grep "sidebar-geom HEADLESS-1 $1 " "$R/qs.log" | tail -1 | sed 's/.*sidebar-geom //'; }
 cat > "$W/join.py" <<'PY'
 # join.py PPM EDGE SIDE X Y W H WINY BARH OW STRIP: the join of a column at rest. PPM is the whole output. The column's
-# rect (X, Y, W, H) is in its window, whose top lies at WINY on the output. The fillet's pixels (just outside the column's
+# rect (X, Y, W, H) is in output coordinates (W44: the sidebar's geometry line); WINY is 0. The fillet's pixels (just outside the column's
 # inner top corner, on the bar's edge), the column's own (just inside its edge) and, with STRIP 1, the bar strip's (just
 # past its rule): medians of three, compared channel by channel. Prints "ok …" / "FAIL …".
 import sys
@@ -656,7 +657,7 @@ def med(pts):
     return tuple(sorted(c[k] for c in cs)[len(cs) // 2] for k in range(3))
 # The bar's edge on the output and the direction into the column (down under a top bar, up over a bottom one).
 if edge == "top":
-    e, d = winy, 1
+    e, d = winy + Y, 1
 else:
     e, d = winy + Y + H, -1
 # Into the column from its inner side: right sidebar's inner side is its left edge.
@@ -678,17 +679,16 @@ if strip:
 sys.exit(1 if bad else 0)
 PY
 cat > "$W/mid.py" <<'PY'
-# mid.py PHASE MS LINE: whether a frozen frame (the frontend's "sidebar-frozen" line: side, phase, ms, mw=…, mh=…) is
-# mid-morph: opening at 40 ms both springs are short of rest; closing, the shape has left its rest.
+# mid.py PHASE MS LINE: whether a frozen frame (the frontend's "sidebar-frozen" line: side, phase, ms, p=…) is
+# mid-slide: opening at 40 ms the spring is short of rest, later under way; closing, the column has left its rest.
 import re, sys
 phase, ms, line = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-mw = float(re.search(r"mw=(-?[0-9.]+)", line).group(1))
-mh = float(re.search(r"mh=(-?[0-9.]+)", line).group(1))
+p = float(re.search(r"p=(-?[0-9.]+)", line).group(1))
 if phase == "open":
-    ok = (mw < 0.95 and mh < 0.95) if ms <= 40 else (mw > 0.05 and mh > 0.05)
+    ok = p < 0.95 if ms <= 40 else p > 0.05
 else:
-    ok = mw < 0.999 or mh < 0.999
-print(("ok" if ok else "FAIL") + " %s %d ms: mw=%.3f mh=%.3f" % (phase, ms, mw, mh))
+    ok = p < 0.999
+print(("ok" if ok else "FAIL") + " %s %d ms: p=%.3f" % (phase, ms, p))
 sys.exit(0 if ok else 1)
 PY
 morph_config() { # morph_config <edge> <look> <profile>
@@ -697,7 +697,7 @@ morph_config() { # morph_config <edge> <look> <profile>
   sleep 1.5
 }
 if want_part morph; then
-  echo "== morph: the sidebars grow out of the bar"
+  echo "== slide: the sidebars slide in from their screen edge"
   stop_scene
   mkdir -p "$MOUT"
   timeout 20 swaymsg output HEADLESS-1 resolution 1920x1080 >/dev/null || fail "the output did not take 1920x1080"
@@ -730,7 +730,7 @@ if want_part morph; then
           # The join at rest: the fillet's pixels against the column's and the bar strip's.
           read -r _ _ _ _ WW WH _ FR _ BEDGE BARH _ <<< "$(geom_rest "$side")"
           IFS=, read -r FX FY FW FH <<< "$FR"
-          WINY=0; [ "$BEDGE" = top ] && WINY=$((SH - WH))
+          WINY=0
           STRIP=1; [ "$look" = sekai ] && STRIP=0   # keycap groups float on the desk: no strip
           if [ "$BEDGE" = top ] || [ "$BEDGE" = bottom ]; then
           timeout 20 grim -t ppm "$R/rest.ppm" || fail "grim failed"
@@ -805,12 +805,26 @@ PY
 
   # K16: 20 open/close cycles after 5 to warm up (the heap settles there: measured +70 MiB over the first five, then
   # flat within ±6 MiB); the frontend's USS after them against after the warm-up. The Stage's map/unmap leak was ~5 MiB
-  # a cycle (100 MiB here); 10 MiB allows the allocator's noise.
+  # a cycle (100 MiB here); 10 MiB allows the allocator's noise. W44: one sample swings by tens of MiB as the allocator
+  # keeps or returns freed arenas (measured 200 → 164 MiB between two cycles, flat over 180 cycles), so each side is the
+  # smallest of its last five samples.
   uss() { awk '/^Private_(Clean|Dirty):/ { s += $2 } END { print s }' "/proc/$QS_PID/smaps_rollup"; }
-  for i in $(seq 5); do open_rest right || break; close_down right || break; done
-  sleep 1; U0=$(uss)
-  for i in $(seq 20); do open_rest right || break; close_down right || break; done
-  sleep 2; U1=$(uss)
+  low=""
+  cycles() { # cycles <n>: n open/close cycles; `low` = the smallest USS after each of the last five
+    local i u; low=""
+    for i in $(seq "$1"); do
+      open_rest right || break; close_down right || break
+      if [ "$i" -gt $(( $1 - 5 )) ]; then
+        sleep 0.3; u=$(uss)
+        if [ -z "$low" ] || [ "$u" -lt "$low" ]; then low=$u; fi
+      fi
+    done
+    return 0
+  }
+  cycles 5
+  U0=$low
+  cycles 20
+  U1=$low
   echo "test-sidebars: USS after 5 warm-up cycles $((U0 / 1024)) MiB, after 20 more $((U1 / 1024)) MiB ($(( (U1 - U0) / 1024 )) MiB)"
   [ $((U1 - U0)) -le $((10 * 1024)) ] && check 1 "20 open/close cycles: USS $(( (U1 - U0) / 1024 )) MiB (≤ 10 MiB)" \
     || check 0 "20 open/close cycles grew the USS by $(( (U1 - U0) / 1024 )) MiB"

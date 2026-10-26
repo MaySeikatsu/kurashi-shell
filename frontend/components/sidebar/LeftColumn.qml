@@ -107,6 +107,7 @@ Item {
             id: placement
             target: panel.item !== null && panel.item.placement !== undefined ? panel.item : null
             win: lc.Window.window
+            origin: lc.QsWindow.window && lc.QsWindow.window.placementOrigin !== undefined ? lc.QsWindow.window.placementOrigin : Qt.point(0, 0)
             output: lc.Screen.name
             side: "left"
         }
