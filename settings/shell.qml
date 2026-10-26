@@ -554,7 +554,7 @@ ShellRoot {
                                     HoverHandler { id: navHover }
                                     // A Material Symbols icon per core page (none for mods and the views without one).
                                     readonly property string icon: ({
-                                        bar: "toolbar", appearance: "palette", accessibility: "accessibility_new",
+                                        layout: "toolbar", appearance: "palette", accessibility: "accessibility_new",
                                         island: "toggle_on", notifications: "notifications", launcher: "apps",
                                         clock: "schedule", desktop: "desktop_windows", power: "power_settings_new", dock: "dock_to_bottom", sidebar: "side_navigation", keys: "keyboard", "@changed": "history",
                                         "@mods": "extension", "@profiles": "person"

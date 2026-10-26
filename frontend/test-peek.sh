@@ -137,6 +137,17 @@ C
 cc -shared -fPIC -O2 -o "$W/timeshift.so" "$W/timeshift.c" -ldl || fail "the clock shim did not build"
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 peek_src() { ipc runtime.ui | python3 -c 'import json,sys; d=json.load(sys.stdin) or {}; p=d.get("peek"); print(p["source"] if p else "")'; }
 peek_out() { ipc runtime.ui | python3 -c 'import json,sys; d=json.load(sys.stdin) or {}; p=d.get("peek"); print(p["output"] if p else "")'; }
 # doc_is <document> <python condition on d>: 0 when the condition holds for the document now (no check is recorded).
@@ -362,7 +373,7 @@ phase_real() {
   check "$(drawn "$W/island-peek-real-top.ppm" "$W/base-r-top2.ppm" 1100 40 1460 200)" \
     "the island's peek is drawn under the top bar (real daemon)"
   move 1280 600; sleep 0.9
-  K set bar.edge bottom >/dev/null
+  bar_edge bottom || fail "the bar did not move to the bottom"
   sleep 3
   move 1280 600; sleep 0.5
   grab base-r-bottom HEADLESS-1
@@ -382,7 +393,7 @@ phase_real() {
   move "$((sx + 30))" 1423; sleep 0.9
   check "$([ -z "$(peek_src)" ] && echo 1 || echo 0)" "no peek is asked for on the bottom bar while a card is open"
   K act ui.close >/dev/null
-  K set bar.edge top >/dev/null
+  bar_edge top || fail "the bar did not move to the top"
   sleep 1
   qs_errors
   stop_phase
@@ -397,7 +408,7 @@ phase_sides() {
   start_frontend
   start_pointer
   K act mod.enable '{"id":"sysmon"}' >/dev/null || fail "mod.enable sysmon failed"
-  K set bar.edge left >/dev/null || fail "bar.edge left was refused"
+  bar_edge left || fail "the bar did not move to the left"
   sleep 3
   # The sysmon widget on the left bar: the first y (top down, the pointer on the bar's middle) where its peek is asked for.
   sy=$(scan y 18 100 1400 30 mod:sysmon:sysmon)
@@ -419,7 +430,7 @@ phase_sides() {
   shot island-peek-left HEADLESS-1
   check "$(drawn "$W/island-peek-left.ppm" "$W/base-l2.ppm" 44 570 460 870)" "the island's peek is drawn beside the left bar"
   move 1280 600; sleep 0.9
-  K set bar.edge right >/dev/null || fail "bar.edge right was refused"
+  bar_edge right || fail "the bar did not move to the right"
   sleep 3
   W1=$(output_w HEADLESS-1)
   rx=$((W1 - 18))
@@ -434,7 +445,7 @@ phase_sides() {
     "the sysmon peek is drawn beside the right bar, at its widget"
   move 1280 600; sleep 0.9
   check "$([ -z "$(peek_src)" ] && echo 1 || echo 0)" "the peek goes when the pointer leaves the right bar"
-  K set bar.edge top >/dev/null
+  bar_edge top || fail "the bar did not move to the top"
   sleep 1
   qs_errors
   stop_phase

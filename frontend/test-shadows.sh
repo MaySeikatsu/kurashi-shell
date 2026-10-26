@@ -67,6 +67,17 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 rm -rf "$R/xdg"; mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 : > "$XDG_CONFIG_HOME/kurashi/config.toml"
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 set_() { K set "$@" >/dev/null || fail "kurashi set $* refused"; }
 
 # The theme document's tokens (and a config key's provenance), over the socket.
@@ -271,20 +282,21 @@ surf2() {
   look "$lk"
   if [ -n "${4:-}" ]; then set_ theme.material.shadow "$5"; set_ theme.material.shadow_angle "$4"; fi
   sleep 1
-  set_ sidebar.style floating
+  set_ sidebar.right.draw=floating sidebar.left.draw=floating
   start_frontend_dir "$dir"
   K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || fail "sidebar.toggle"
   sleep 1.8
   grim -g "2000,0 560x1440" "$pre-sidebar.png"
   K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null || true
   sleep 1.4
-  K reset sidebar.style >/dev/null 2>&1 || true
+  K reset sidebar.right.draw >/dev/null 2>&1 || true
+  K reset sidebar.left.draw >/dev/null 2>&1 || true
   notify Calendar "Standup in 5 minutes" "Room 3 · bring the notes from Monday" 20000
   sleep 2.2
   grim -g "880,0 800x720" "$pre-toast-drip.png"
   K act notify.dismiss '{}' >/dev/null || true
   sleep 1.5
-  set_ bar.edge right
+  bar_edge right || fail "the bar did not move to the right"
   sleep 2
   notify Mail "Aiko Tanaka" "The photos from Saturday are in the shared folder." 20000
   sleep 2.2
@@ -296,7 +308,7 @@ surf2() {
   sleep 1.2
   K act notify.dismiss '{}' >/dev/null || true
   sleep 1
-  set_ bar.edge top
+  bar_edge top || fail "the bar did not move to the top"
   sleep 2
   e=$(qml_errors)
   [ -z "$e" ] || { echo "$e" | head -20; fail "QML errors (see $R/qs.log)"; }

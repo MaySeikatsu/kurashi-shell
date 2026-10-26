@@ -53,6 +53,17 @@ trap cleanup EXIT
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 cat > "$W/ipc.py" <<'PY'
 import json, os, socket, sys
 sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -162,7 +173,7 @@ apply_case() {
   # Each look's own profile unless the case names one (washi and kami calm, sekai lively).
   [ -n "$prof" ] || { [ "$style" = sekai ] && prof=lively || prof=calm; }
   K set theme.motion.profile "$prof" >/dev/null || fail "profile $prof refused"
-  K set bar.edge "$edge" >/dev/null || fail "bar.edge $edge refused"
+  bar_edge "$edge" || fail "the bar did not move to $edge"
   sleep 2.5
   EDGE=$edge
 }

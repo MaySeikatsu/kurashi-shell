@@ -115,6 +115,15 @@ shot() {  # shot <name> <right|left>
   sleep 1.2
   timeout 20 grim -g "$x,0 560x$SH" "$OUT/$1.png" && echo "shot $OUT/$1.png"
 }
+# K71: config lines for a bar on edge $1 with today's modules and none on top (what `layout.bar.move` writes). Root
+# keys: they go before any `[table]` line.
+bar_lines() {
+  [ "$1" = top ] && return
+  printf '%s\n' "edges.top.bar = false" "edges.top.start = []" "edges.top.center = []" "edges.top.end = []" \
+    "edges.$1.bar = true" "edges.$1.start = [\"sidebar_left\", \"workspaces\", \"windows\"]" \
+    "edges.$1.center = [\"island\"]" \
+    "edges.$1.end = [\"volume\", \"mods\", \"recorder\", \"keyboard\", \"clock\", \"quick\", \"tray\", \"sidebar_right\"]"
+}
 config() {  # config <style> [toml lines…]
   { printf 'theme.style = "%s"\n' "$1"; shift; printf '%s\n' "$@"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
 }
@@ -203,7 +212,7 @@ fi
 
 # 2. Floating: inset by the gap on every side.
 if want 2; then
-config washi '[sidebar]' 'style = "floating"'
+config washi '[sidebar.right]' 'draw = "floating"' '[sidebar.left]' 'draw = "floating"'
 : > "$R/server.log"
 start_kurashid
 start_frontend
@@ -222,7 +231,7 @@ fi
 
 # 3. A left bar: the right sidebar runs edge to edge; the bar's quick button opens it with sidebar.from_bar.
 if want 3; then
-config washi '[bar]' 'edge = "left"' '[sidebar]' 'from_bar = true'
+config washi "$(bar_lines left)" '[sidebar]' 'from_bar = true'
 : > "$R/server.log"
 start_kurashid
 start_frontend
@@ -297,11 +306,11 @@ elif want 5; then
   echo "skip: the sandbox output cannot change its mode"
 fi
 
-# 7. The bar's sidebar buttons (I154, `sidebar.bar_buttons` on by default): under a top bar and a left bar, a click on
+# 7. The bar's sidebar buttons (I154; the modules `sidebar_left` / `sidebar_right` of the bar's zones, K71): under a top bar and a left bar, a click on
 #    the right button opens the right sidebar, on the left one the left sidebar, a second click closes it.
 if want 7; then
 for edge in top left; do
-  config washi '[bar]' "edge = \"$edge\""
+  config washi "$(bar_lines "$edge")"
   : > "$R/server.log"
   start_kurashid
   start_frontend
@@ -327,7 +336,9 @@ fi
 want 6 && for d in $DECORS; do
   mkdir -p "$OUT/$d"
   for style in panel floating; do
-    config "$d" '[sidebar]' "style = \"$style\""
+    # K71: the panel is the sidebar's automatic draw mode (dynamic), floating its own.
+    draw=auto; [ "$style" = floating ] && draw=floating
+    config "$d" '[sidebar.right]' "draw = \"$draw\"" '[sidebar.left]' "draw = \"$draw\""
     : > "$R/server.log"
     start_kurashid
     start_frontend

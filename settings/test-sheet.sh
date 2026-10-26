@@ -169,13 +169,13 @@ echo "layer surface: kurashi-settings, Overlay, anchored on all edges, exclusive
 shot kami-light
 
 # --- 2. idle: no frame while open and still (Ma) ----------------------------------------------------------------------
-Q goto bar; sleep 2
+Q goto layout; sleep 2
 f0=$(Q frames); sleep 3; f1=$(Q frames)
 [ "$f0" = "$f1" ] || fail "the open sheet drew $((f1 - f0)) frames in 3 s while still"
 echo "idle: 0 frames in 3 s with the sheet open"
 
 # --- 3. a deep link through the daemon jumps the open sheet ------------------------------------------------------------
-Q goto bar
+Q goto layout
 K settings theme.pen.line | grep -q "moved to" || fail "kurashi settings did not reach the open sheet"
 for _ in $(seq 25); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
 [ "$(Q current)" = appearance ] || fail "the deep link did not open the pen's page ($(Q current))"

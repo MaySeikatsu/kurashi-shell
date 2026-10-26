@@ -64,6 +64,14 @@ notify() {
   timeout 10 gdbus call --session --dest org.freedesktop.Notifications --object-path /org/freedesktop/Notifications \
     --method org.freedesktop.Notifications.Notify "$1" 0 "" "$2" "$3" '[]' '{}' "${4:-8000}" | grep -oE '[0-9]+' | tail -1
 }
+# K71: config lines for a bar on edge $1 with today's modules and none on top (what `layout.bar.move` writes).
+bar_lines() {
+  [ "$1" = top ] && return
+  printf '%s\n' "edges.top.bar = false" "edges.top.start = []" "edges.top.center = []" "edges.top.end = []" \
+    "edges.$1.bar = true" "edges.$1.start = [\"sidebar_left\", \"workspaces\", \"windows\"]" \
+    "edges.$1.center = [\"island\"]" \
+    "edges.$1.end = [\"volume\", \"mods\", \"recorder\", \"keyboard\", \"clock\", \"quick\", \"tray\", \"sidebar_right\"]"
+}
 start_all() { # start_all <look> [config line ...]
   stop_shell
   stop_daemon
@@ -128,7 +136,7 @@ FIRST=1
 for CASE in $MORPH_CASES; do
   IFS=: read -r LOOK PROFILE EDGE <<< "$CASE"
   echo "== $LOOK $PROFILE $EDGE"
-  start_all "$LOOK" "theme.motion.profile = \"$PROFILE\"" "bar.edge = \"$EDGE\""
+  start_all "$LOOK" "theme.motion.profile = \"$PROFILE\"" "$(bar_lines "$EDGE")"
   got=$(K sub theme --count 0 --json | jq -r '.data.tokens["motion.profile"]')
   check "$([ "$got" = "$PROFILE" ] && echo 1 || echo 0)" "$LOOK the motion profile in effect is $PROFILE ($got)"
   crop="880,0 800x720"

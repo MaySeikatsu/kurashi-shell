@@ -44,7 +44,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-rm -rf "$R/xdg"   # hermetic: the left-edge phase stores bar.edge, which a rerun would otherwise start with
+rm -rf "$R/xdg"   # hermetic: the left-edge phase moves the bar, which a rerun would otherwise start with
 export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
        XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
@@ -93,6 +93,17 @@ PY
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 tok() { ipc sub theme | jq -r --arg k "$1" '.tokens[$k]'; }
 K() { timeout 10 "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 
 # Pixel counts in the bar's end of one capture (P6 PPM): accent (fill and knob), dim (muted level or the
 # unavailable mark) and light (the clock, which proves the region is the bar). JSON on stdout.
@@ -228,7 +239,7 @@ start_kurashid
 start_frontend
 shot unavailable 1
 check unavailable top "$UNAVAILABLE" "a fill or knob is drawn with no audio, or no mark stands in for it"
-K set bar.edge left >/dev/null
+bar_edge left || fail "the bar did not move to the left"
 shot unavailable-left 3
 check unavailable-left left "$UNAVAILABLE" "a fill or knob is drawn with no audio (vertical), or no mark"
 stop_phase

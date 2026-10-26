@@ -196,7 +196,8 @@ TASKS='{"*":[{"id":11,"app_id":"firefox","focused":false},{"id":13,"app_id":"foo
  "HEADLESS-1":[{"id":11,"app_id":"firefox","focused":false},{"id":13,"app_id":"foot","focused":true}]}'
 mock_scene() {  # mock_scene [autohide]: the fake windows, two pins, the dock on (autohide off unless given)
   mockdoc "{\"doc\":\"svc.workspaces\",\"patch\":{\"windows\":$(echo "$WINDOWS" | jq -c .),\"tasks\":$(echo "$TASKS" | jq -c .)}}"
-  cfgval dock.autohide "${1:-false}"
+  # K71 `dock.visibility`: autohide was `empty_desktop` (the default), off `always`.
+  if [ "${1:-false}" = true ]; then cfgval dock.visibility '"empty_desktop"'; else cfgval dock.visibility '"always"'; fi
   cfgval dock.pinned '["firefox","org.gnome.Nautilus"]'
   cfgval dock.enabled true
 }
@@ -295,7 +296,7 @@ keys escape
 sleep 0.5
 # Autohide: away from the dock it hides; a rest on the edge reveals it; leaving hides it again.
 ptr move $(( SW / 2 )) $(( SH / 2 ))
-cfgval dock.autohide true
+cfgval dock.visibility '"empty_desktop"'
 sleep 1.2
 BAND_Y=$(( SH - 120 ))
 n=$(ink 0 "$BAND_Y" "$SW" 120)
@@ -316,7 +317,7 @@ qml_errors
 stop_phase
 
 # 2. The real kurashid: Unpin by the menu writes dock.pinned.
-printf 'theme.style = "%s"\n[dock]\nenabled = true\nautohide = false\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
+printf 'theme.style = "%s"\n[dock]\nenabled = true\nvisibility = "always"\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
   > "$XDG_CONFIG_HOME/kurashi/config.toml"
 : > "$R/server.log"
 start_kurashid
@@ -397,7 +398,7 @@ if [ "${DOCK_MEASURE:-0}" = 1 ]; then
   start_frontend WAYLAND_DEBUG=1
   scene_hidden
   sleep 5; c0=$(size); sleep 10; hid=$(dock_commits "$c0")
-  cfgval dock.autohide false
+  cfgval dock.visibility '"always"'
   sleep 5; c0=$(size); sleep 10; shown=$(dock_commits "$c0")
   stop_phase
   [ "$hid" = 0 ] || fail "idle: the hidden dock committed $hid times in 10 s"
@@ -413,7 +414,7 @@ if [ "${DOCK_MEASURE:-0}" = 1 ]; then
       u=$(uss_mib "$QS_PID")
       if [ "$run" = on ]; then
         on_u="$on_u $u"
-        if [ "$rep" = 1 ]; then cfgval dock.autohide false; sleep 6; shown_u=$(uss_mib "$QS_PID"); fi
+        if [ "$rep" = 1 ]; then cfgval dock.visibility '"always"'; sleep 6; shown_u=$(uss_mib "$QS_PID"); fi
       else off_u="$off_u $u"; fi
       stop_phase
     done

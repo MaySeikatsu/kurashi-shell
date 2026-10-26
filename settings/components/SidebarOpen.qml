@@ -1,7 +1,7 @@
 import QtQuick
 import "../core"
 
-// Under "Buttons in the bar" (I154): the sidebars open from here too — "Open now" for each side — and the line naming the
+// Under "Open from the bar" (I154; K71 folded the bar buttons into the zones): the sidebars open from here too — "Open now" for each side — and the line naming the
 // keys the Home-Manager module binds by default (they need its niri binds file included; Settings cannot see niri's
 // binds, so it names the defaults and where they come from). The left one only while the left sidebar has tabs.
 Column {
@@ -9,7 +9,7 @@ Column {
     spacing: Theme.gap
     width: parent ? parent.width : 400
     objectName: "sidebar-open"
-    readonly property var tabs: Store.valueOf("sidebar.left")
+    readonly property var tabs: Store.valueOf("sidebar.left.sections")
     readonly property bool hasLeft: Array.isArray(so.tabs) && so.tabs.length > 0
     property string error: ""
 

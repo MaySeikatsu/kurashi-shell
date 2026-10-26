@@ -15,7 +15,7 @@ import "../components/island"
 // Mods add cards (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only while the desk is
 // shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say). A mod's cards follow
 // the manifest's `provides` order: the `qml` map is sorted by key, so it cannot give one (W36).
-// Order (K48 (4)): the column follows `desktop.order` — core ids and `mod:<id>:<name>` — and the cards it does not list
+// Order (K48 (4), K71): the column follows the list of its side (`desktop.right` / `desktop.left`) — core ids and `mod:<id>:<name>` — and the cards it does not list
 // come after, core ones first. Hidden (K65, W36): a card is left out while its switch is off (core: `desktop.<card>`,
 // the switch Settings shows) or its id is in `desktop.hidden` (a mod card has no switch of its own).
 // Edit mode (SekaiPop "Edit Desktop", macOS "Edit Widgets"; docs/ux/desktop.md v3–v4): the "Edit" key on hover lifts the
@@ -108,7 +108,9 @@ PanelWindow {
 
     // ---- order -------------------------------------------------------------------------------------------------------
     readonly property var coreIds: ["clock", "calendar", "media", "weather"]
-    readonly property var configOrder: { var o = bars.valueOf("desktop.order", null); return Array.isArray(o) ? o : coreIds }
+    // K71: the list of the side the cards stand on.
+    readonly property string orderKey: onLeft ? "desktop.left" : "desktop.right"
+    readonly property var configOrder: { var o = bars.valueOf(orderKey, null); return Array.isArray(o) ? o : coreIds }
     // Every card the desk can show now, in their unlisted order: core first, then mods' in mod order.
     readonly property var available: coreIds.concat(modCards.map(function (c) { return c.id }))
     function urlOf(id) {
@@ -146,7 +148,7 @@ PanelWindow {
     Component.onCompleted: sync()
 
     // ---- edit mode ---------------------------------------------------------------------------------------------------
-    readonly property var orderProv: bars.entry("desktop.order")
+    readonly property var orderProv: bars.entry(orderKey)
     // A layer above the user's (Nix, a forced value) holds the order: edit mode says so and moves nothing (Shōjiki).
     readonly property bool orderLocked: !!orderProv && (!!orderProv.forced_by || (orderProv.source || {}).kind === "forced"
                                                         || (orderProv.source || {}).kind === "nix")
@@ -204,7 +206,7 @@ PanelWindow {
         var ops = []
         var ids = modelIds()
         if (!orderLocked && JSON.stringify(ids) !== JSON.stringify(arrange(configOrder)))
-            ops.push({ set: "desktop.order", value: ids })
+            ops.push({ set: orderKey, value: ids })
         // A core card's switch is its own key; a mod card's hide is its entry in the list. The list goes out once, in the
         // same apply, so one undo puts it back with the rest.
         var hidden = hiddenList.slice()
