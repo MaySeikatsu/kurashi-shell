@@ -286,7 +286,7 @@ PanelWindow {
         color: bar.clearStrip ? "transparent" : Theme.surfaceAlpha
         radius: bar.drawFloating ? Math.min(Theme.rLg, Theme.barH / 2) : 0
         // A floating bar is outlined all round (line chrome; the pen draws it under a pen).
-        border.width: bar.drawFloating && !bar.clearStrip && !rulePen.active ? Theme.outlineW : 0
+        border.width: bar.drawFloating && !bar.floating && !rulePen.active ? Theme.outlineW : 0
         border.color: Theme.outlineColor
         // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
         // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there itself,
@@ -333,7 +333,7 @@ PanelWindow {
         Loader {
             id: rulePen
             anchors.fill: parent
-            active: Theme.penOutline && !bar.clearStrip && Theme.outlineW > 0
+            active: Theme.penOutline && !bar.floating && Theme.outlineW > 0
             sourceComponent: PenOutline {
                 readonly property real ow: Theme.outlineW
                 readonly property real cy: cfg.edge === "top" ? height - ow / 2 : ow / 2
@@ -350,7 +350,7 @@ PanelWindow {
             }
         }
         Repeater {
-            model: !bar.clearStrip && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
+            model: !bar.floating && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
             Rectangle {
                 required property var modelData
                 color: Theme.outlineColor

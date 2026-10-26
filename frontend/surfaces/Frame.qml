@@ -47,9 +47,16 @@ Scope {
 
     // One subscription per output, held while the shell runs: it decides whether the frame exists at all.
     Watch { doc: "runtime.layout" }
-    readonly property var lay: ShellLayout.of(out)
+    readonly property var live: ShellLayout.of(out)
+    readonly property bool on: (live.frame || {}).on === true
+    // What the strips draw: the layout while the frame is on, kept while it fades out (the zones go at once: `holds`).
+    // A copy: Store merges patches into the document in place, so a kept reference would change under the fade.
+    property var lay: ({})
+    readonly property string liveKey: JSON.stringify(live)
+    function copy(l) { return JSON.parse(JSON.stringify(l)) }
+    // (Read from `live` itself: `on` may not have been re-evaluated yet when this runs.)
+    onLiveKeyChanged: if ((live.frame || {}).on === true) lay = JSON.parse(liveKey)
     readonly property var fdoc: lay.frame || ({})
-    readonly property bool on: fdoc.on === true
     readonly property int r: Math.max(0, Math.round(fdoc.radius || 0))
     // Rounded screen corners (K47 (6)): ScreenCorners' black fillets sit on the panel's outer corners, but the strips
     // are made later and would lie over them, so each strip draws the same black over its own part (black on black
@@ -60,12 +67,12 @@ Scope {
         return typeof v === "number" && v > 0 ? Math.round(v) : 0
     }
 
-    function edgeOf(e) { return ShellLayout.edgeOf(out, e) }
-    function band(e) { return ShellLayout.bandOf(out, e) }
+    function edgeOf(e) { return (lay.edges && lay.edges[e]) || ShellLayout.edgeOf(out, e) }
+    function band(e) { var f = lay.frame; return f && f.on && f.band ? (f.band[e] || 0) : 0 }
     // A bar stands flush on edge `e` and is the band there.
     function docked(e) {
         var ed = edgeOf(e)
-        return on && ed.bar === true && ed.draw !== "floating" && ed.visibility !== "hidden" && band(e) === 0
+        return fdoc.on === true && ed.bar === true && ed.draw !== "floating" && ed.visibility !== "hidden" && band(e) === 0
     }
     readonly property var bands: ({ top: band("top"), bottom: band("bottom"), left: band("left"), right: band("right") })
     // The cut's edges, from each screen edge.
@@ -75,18 +82,19 @@ Scope {
         left: bands.left + (docked("left") ? Theme.barH : 0),
         right: bands.right + (docked("right") ? Theme.barH : 0)
     })
-    function holds(e) { var ed = edgeOf(e); return on && ed.holder === "frame" && (ed.reserve || 0) > 0 }
-    function reserveOf(e) { return holds(e) ? Math.round(edgeOf(e).reserve) : 0 }
+    function holds(e) { var ed = ShellLayout.edgeOf(out, e); return on && ed.holder === "frame" && (ed.reserve || 0) > 0 }
+    function reserveOf(e) { return holds(e) ? Math.round(ShellLayout.edgeOf(out, e).reserve) : 0 }
 
     // Turning the frame on or off shows the band once over `motion.std` (cut when motion is off): the strips stay made
     // for the fade out and go with it.
     property bool held: false
-    onOnChanged: if (on) { leave.stop(); held = true } else if (held) leave.restart()
-    Component.onCompleted: held = on
+    onOnChanged: if (on) { lay = copy(live); leave.stop(); held = true } else if (held) leave.restart()
+    Component.onCompleted: { if (on) lay = copy(live); held = on }
     Timer { id: leave; interval: Math.max(1, Theme.stdMs); onTriggered: fr.held = false }
 
-    // The outline's width under line chrome (0 elsewhere); the pen draws it under a pen.
-    readonly property int ow: Theme.outlineW
+    // The rule's width: the outline under line chrome (boxed: an outline and no shadow; keycap and soft draw a plain sheet,
+    // their ring and shadow belong to blocks); the pen draws it under a pen.
+    readonly property int ow: Theme.boxed ? Theme.outlineW : 0
 
     // Points along a quarter circle (centre, radius, from angle a0 to a1, radians; screen axes, y down).
     function arc(cx, cy, rad, a0, a1) {
@@ -314,14 +322,26 @@ Scope {
             // The top or bottom strip's pieces (`top` true for the top one), in output coordinates.
             function across(top) {
                 var W = sw, H = sh
-                var e = top ? "top" : "bottom", d = o[e] + r, y0 = top ? 0 : H - d
+                var e = top ? "top" : "bottom"
+                // How far from this edge each side band is this strip's: to the fillets' end, or on to where the side
+                // strip starts when this edge's zone is deeper than that (a floating bar's reserve).
+                var reachL = Math.max(o[e] + r, top ? sideFrom("left") : sideTo("left"))
+                var reachR = Math.max(o[e] + r, top ? sideFrom("right") : sideTo("right"))
+                var d = Math.max(o[e] + r, b.left > 0 ? reachL : 0, b.right > 0 ? reachR : 0), y0 = top ? 0 : H - d
                 var bw = b[e], dl = o.left - b.left, dr = o.right - b.right
                 var fills = [], fillets = [], rules = [], arcs = []
                 if (bw > 0) fills.push({ x: dl, y: top ? 0 : H - bw, w: W - dl - dr, h: bw })
-                // The side bands from the cut's edge to the fillets' end.
-                var cy = top ? o.top : H - o.bottom - r
-                if (b.left > 0 && r > 0) fills.push({ x: 0, y: cy, w: b.left, h: r })
-                if (b.right > 0 && r > 0) fills.push({ x: W - b.right, y: cy, w: b.right, h: r })
+                // The side bands from the cut's edge to their reach.
+                var cols = [[b.left, reachL, 0], [b.right, reachR, W - b.right]]
+                for (var i = 0; i < 2; i++) {
+                    var cw = cols[i][0], reach = cols[i][1], cx = cols[i][2]
+                    if (cw <= 0 || reach <= o[e]) continue
+                    fills.push({ x: cx, y: top ? o[e] : H - reach, w: cw, h: reach - o[e] })
+                    // Past the fillet the side's rule runs on in this strip.
+                    var past = reach - o[e] - r
+                    if (ow > 0 && past > 0)
+                        rules.push({ x: i === 0 ? cw - ow : cx, y: top ? o[e] + r : H - reach, w: ow, h: past })
+                }
                 var edgeY = top ? o.top : H - o.bottom
                 if (r > 0) {
                     fillets.push(top ? { x: o.left, y: o.top, turn: 0 } : { x: o.left, y: H - o.bottom - r, turn: 270 })
