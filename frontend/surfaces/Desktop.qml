@@ -928,7 +928,15 @@ PanelWindow {
                             acceptsReturn: false
                             onClicked: desk.moveCard(cards.side, slot.index, slot.index + 1)
                         }
-                        // W44 (point 15): to the other column (its arrow points there).
+                        IconButton {
+                            icon: slot.wanted ? "visibility" : "visibility_off"; glyph: slot.wanted ? "◉" : "◌"
+                            a11y: I18n.tr(slot.wanted ? "frontend.desktop.edit.hide" : "frontend.desktop.edit.show")
+                            lit: slot.wanted
+                            enabled: !slot.locked
+                            acceptsReturn: false
+                            onClicked: desk.toggleShown(slot.cid)
+                        }
+                        // W44 (point 15): to the other column (its arrow points there); after the eye, so the Tab path to the eye stays.
                         IconButton {
                             objectName: "desk-side:" + slot.cid
                             icon: cards.side === "left" ? "arrow_forward" : "arrow_back"
@@ -937,14 +945,6 @@ PanelWindow {
                             enabled: !desk.orderLocked
                             acceptsReturn: false
                             onClicked: desk.moveSide(cards.side, slot.index)
-                        }
-                        IconButton {
-                            icon: slot.wanted ? "visibility" : "visibility_off"; glyph: slot.wanted ? "◉" : "◌"
-                            a11y: I18n.tr(slot.wanted ? "frontend.desktop.edit.hide" : "frontend.desktop.edit.show")
-                            lit: slot.wanted
-                            enabled: !slot.locked
-                            acceptsReturn: false
-                            onClicked: desk.toggleShown(slot.cid)
                         }
                     }
                     // A hidden card says so in words, not by its dimming alone.

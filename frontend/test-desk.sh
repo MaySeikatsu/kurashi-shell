@@ -208,6 +208,31 @@ for DECOR in $DECORS; do
   wait_val desktop.hidden '[]'
   check "$([ "$(val desktop.clock)" = true ] && [ "$(val desktop.hidden)" = '[]' ] && echo 1 || echo 0)" "$DECOR one undo put the switch and the hidden list back"
 
+  # W44 (point 15): `desktop.left` and `desktop.right` at once; edit mode moves a card across (Alt+Left from the right
+  # column) and Done writes both lists as one change.
+  echo "== $DECOR: cards on both sides, a card moved across in edit mode"
+  K set desktop.left '["calendar"]' | grep -q '^applied' || fail "kurashi set desktop.left was not applied"
+  wait_val desktop.left '["calendar"]'
+  sleep 1.5
+  grim -s 0.5 "$OUT/both-$DECOR.png"
+  # The calendar on the left (its column 32 px in from the left edge, under the bar), the clock still on the right.
+  lpx=$(grim -g "182,$(( $(bar_h) + 120 )) 1x1" -t ppm - | tail -c 3 | od -An -tu1 | xargs)
+  check "$([ "$lpx" != "143 184 200" ] && echo 1 || echo 0)" "$DECOR the calendar stands in the left column (pixel $lpx)"
+  edit_key
+  shot "both-edit-$DECOR"
+  kp alt+left               # the focused card (the clock, the right column's first) to the left column
+  sleep 0.6
+  grim -s 0.5 "$OUT/both-moved-$DECOR.png"
+  kp return
+  wait_val desktop.left '["calendar","clock"]'
+  check "$([ "$(val desktop.left)" = '["calendar","clock"]' ] && echo 1 || echo 0)" "$DECOR Alt+Left took the clock to the left column ($(val desktop.left))"
+  check "$(val desktop.right | python3 -c 'import json,sys; o = json.load(sys.stdin); sys.exit(0 if "clock" not in o and "calendar" not in o else 1)' && echo 1 || echo 0)" "$DECOR … and out of the right list ($(val desktop.right))"
+  K raw '{"t":"undo","id":"u"}' | grep -q applied || fail "undo of the move across was refused"
+  wait_val desktop.left '["calendar"]'
+  check "$([ "$(val desktop.left)" = '["calendar"]' ] && echo 1 || echo 0)" "$DECOR one undo put both lists back ($(val desktop.left))"
+  K raw '{"t":"apply","id":"r","ops":[{"reset":"desktop.left"},{"reset":"desktop.right"}]}' | grep -q applied || fail "the lists' reset was refused"
+  wait_val desktop.left '[]'
+
   echo "== $DECOR: a value forced above the user: its eye is off, and the bar says why"
   TEST_MANAGED=$'[_managed]\nenforce = true\n\n[desktop]\nhidden = ["mod:tasks:notes"]\n'
   start_all "$DECOR"
