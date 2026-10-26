@@ -157,7 +157,17 @@ Scope {
     // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus.
     property bool pointerOn: false
     property bool focused: false
-    readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel
+    // The pointer that brought it out rests on the edge, inside the bar's window once it maps — but the compositor tells the
+    // window so only when it is on screen (first reveal: the window is made then). Until the window has seen the pointer
+    // come or go, or a moment after it is out, the edge's pointer holds it.
+    property bool edgeHold: false
+    Connections {
+        target: reveal
+        function onRevealedChanged() { bar.edgeHold = reveal.revealed; if (reveal.revealed) edgeHoldT.restart() }
+    }
+    onPointerOnChanged: edgeHold = false
+    property Timer edgeHoldT: Timer { interval: 1200; onTriggered: bar.edgeHold = false }
+    readonly property bool holdOpen: edgeHold || pointerOn || focused || link.busy || !!uiDoc.panel
         || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
     readonly property bool wantShown: on && (visibility === "always" || forced
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
@@ -217,7 +227,7 @@ Scope {
             readonly property int endRoom: Math.min(shadowRoom, bar.endOff)
             readonly property var g: bar.carries ? FG.geometry(bar.lay, bar.barH, bar.scr ? bar.scr.width : 0, bar.scr ? bar.scr.height : 0,
                                                                Theme.boxed ? Theme.outlineW : 0, FG.zones(bar.lay)) : null
-            readonly property string piecesKey: bar.carries && (bar.edge === "top" || bar.edge === "bottom")
+            readonly property string piecesKey: bar.carries && g !== null && (bar.edge === "top" || bar.edge === "bottom")
                 ? JSON.stringify(FG.across(g, bar.edge === "top")) : ""
             readonly property var pieces: piecesKey !== "" ? JSON.parse(piecesKey) : null
             readonly property int carryDepth: pieces ? Math.max(0, Math.ceil(pieces.d) - bar.barH) : 0
@@ -246,16 +256,20 @@ Scope {
             readonly property int edgeMargin: bar.drawFloating ? 0 : bar.inset
             color: "transparent"
             // The zone (the compositor adds the margin on its edge): the edge's whole reserve, never less than the bar it is.
-            exclusionMode: bar.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
             readonly property int zoneTotal: !bar.holdsZone ? 0
                 : (bar.visibility === "always" ? Math.max(bar.reserve, bar.inset + bar.barH) : bar.reserve)
-            exclusiveZone: Math.max(0, zoneTotal - edgeMargin)
+            // (Quickshell switches to Normal whenever `exclusiveZone` is written, so it is written only while the bar holds the
+            // zone; a window that holds none stays Ignore, -1 on the wire.)
+            exclusionMode: bar.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
+            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, win.zoneTotal - win.edgeMargin); restoreMode: Binding.RestoreNone }
             WlrLayershell.layer: WlrLayer.Top
             // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
             WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             visible: bar.wantShown || bar.shownAmt > 0 || bar.keepsSpace || bar.carries
-            // The body's box (followed while it slides: a Region on the item would follow its move only on a resize).
-            mask: Region { x: body.x; y: body.y; width: body.shownNow ? body.width : 0; height: body.shownNow ? body.height : 0 }
+            // The body's box at rest while it is out or coming out (the dock's rule): a pointer resting on the edge is inside it
+            // the moment the window maps, so the hover reveal holds; an input region that slid in with the body would only
+            // be found by the next motion.
+            mask: Region { x: body.restX; y: body.restY; width: body.shownNow ? body.width : 0; height: body.shownNow ? body.height : 0 }
 
             // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf); registered once
             // it is on screen (the frame's side strips wait for it).
