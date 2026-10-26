@@ -86,8 +86,10 @@ Item {
                     height: width
                     anchors.verticalCenter: parent.verticalCenter
                     share: T.share(dc.lead, clock.now)
-                    stroke: dc.lead !== null && dc.lead.state === "paused" ? Theme.dim : Theme.fg
+                    stroke: dc.lead !== null && dc.lead.state === "paused" ? Theme.dim
+                        : dc.lead !== null && dc.lead.phase && dc.lead.phase !== "focus" ? Theme.tertiary : Theme.accent
                     track: Theme.outline
+                    lineWidth: 4
                 }
                 Column {
                     anchors.verticalCenter: parent.verticalCenter

@@ -39,7 +39,7 @@ Item {
             width: 16
             height: 16
             share: T.share(face.live, clock.now)
-            stroke: face.theme.fg
+            stroke: face.theme.accent
             track: face.theme.outline
         }
         Text {

@@ -133,7 +133,7 @@ Item {
                     width: 22
                     height: 22
                     share: T.share(row.t, clock.now)
-                    stroke: row.t.state === "paused" ? p.theme.dim : p.theme.fg
+                    stroke: row.t.state === "paused" ? p.theme.dim : p.theme.accent
                     track: p.theme.outline
                 }
                 Row {
@@ -302,8 +302,10 @@ Item {
                         height: 48
                         anchors.verticalCenter: parent.verticalCenter
                         share: T.share(p.pomodoro, clock.now)
-                        stroke: p.pomodoro !== null && p.pomodoro.state === "paused" ? p.theme.dim : p.theme.fg
+                        stroke: p.pomodoro !== null && p.pomodoro.state === "paused" ? p.theme.dim
+                            : p.pomodoro !== null && p.pomodoro.phase !== "focus" ? p.theme.tertiary : p.theme.accent
                         track: p.theme.outline
+                        lineWidth: 4
                     }
                     Column {
                         anchors.verticalCenter: parent.verticalCenter
