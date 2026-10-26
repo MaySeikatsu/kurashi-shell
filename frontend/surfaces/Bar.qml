@@ -27,7 +27,8 @@ import "../components/modules" as M
 // window — unless it keeps a zone (`reserve` on) or carries the frame's strip — and its modules hold no subscription (Ma).
 //
 // Zones (the one-holder rule, K71): the window keeps its edge's exclusive zone only when the layout names the bar the
-// holder (or the frame, on an edge whose strip it carries); otherwise it ignores zones and stands at its inset.
+// holder (`holder: "bar"`, also on a framed edge whose strip it carries: row 510); otherwise it ignores zones and stands
+// at its inset.
 // Mapping order matters (W43-frame probe: a holder is placed inside the zones of holders mapped before it): shell.qml
 // maps the top and bottom bars first and the side bars after them (`after`), so a side bar runs between them.
 Scope {
@@ -62,18 +63,17 @@ Scope {
     function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
     // Row 492 (b): a docked bar on a framed output is its edge's strip.
     readonly property bool carries: on && FG.docked(lay, edge)
-    readonly property bool holdsZone: on && (ed.holder === "bar" || (carries && ed.holder === "frame"))
+    // The one-holder rule (K71): the layout names the bar (row 510: also on a framed edge whose strip it carries).
+    readonly property bool holdsZone: on && ed.holder === "bar"
     readonly property int barH: Theme.barH
 
-    // The bars beside a side bar (the horizontal bars own the corners; the side bars run between them): where this one
-    // starts and ends along its edge, from the screen's top and bottom.
-    function across(e) {
-        var x = ShellLayout.edgeOf(outName, e)
-        return x.bar === true && x.visibility !== "hidden" ? Math.round(x.inset || 0) + barH : bandBeside(e)
-    }
-    readonly property int startOff: vertical ? across("top") + (drawFloating ? ShellLayout.gap : 0)
+    // Where the bar starts and ends along its edge, from the screen's start and end on it. A side bar runs between the
+    // horizontal bars (they own the corners): its `span` (row 511, the daemon's; + gap when it floats). A floating top or
+    // bottom bar stands `band + gap` in from the bands beside it.
+    readonly property var span: ed.span || ({})
+    readonly property int startOff: vertical ? Math.max(0, Math.round(span.start || 0))
         : (drawFloating ? bandLeft + ShellLayout.gap : 0)
-    readonly property int endOff: vertical ? across("bottom") + (drawFloating ? ShellLayout.gap : 0)
+    readonly property int endOff: vertical ? Math.max(0, Math.round(span.end || 0))
         : (drawFloating ? bandRight + ShellLayout.gap : 0)
 
     // ---- the zones: module entries (`{id, kind, mod?, provide?}`), through a string so they change only with their content
