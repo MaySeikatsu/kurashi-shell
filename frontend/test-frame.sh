@@ -2,7 +2,8 @@
 # The screen frame (K71, docs/ux/frame.md), headless (sway sandbox), against kurashi-mock serving staged layouts
 # (KURASHI_MOCK_LAYOUT, the "*" entry: the sandbox's output is HEADLESS-1, not the fixture's DP-1) and wearing a real
 # look (kurashid's theme tokens for the decor, handed to the mock with `mock.doc`, as test-look does):
-#   - frame off: no `kurashi-frame` layer surface (the frontend's own requests, WAYLAND_DEBUG); on: four per output;
+#   - frame off: no `kurashi-frame` layer surface (the frontend's own requests, WAYLAND_DEBUG); on with a docked top bar:
+#     three per output (row 492 b: the bar's window carries the top strip);
 #   - the one-holder rule: a test window tiles inside the band with reserve on, under it with reserve off (its position
 #     from sway's tree; the strips and the bar keep the zones);
 #   - the band is drawn where the layout says (pixels at the band, the fillet and the cut), and the docked bar and the
@@ -215,7 +216,7 @@ if [[ " $DECORS " == *" washi "* ]]; then
   close_window
 
   off=$(stat -c %s "$R/qs.log"); QS_ENV=WAYLAND_DEBUG=client scene washi top
-  n=$(surfaces "$off"); say "frame on: $n kurashi-frame surfaces"; [ "$n" = 4 ] || fail "frame on made $n kurashi-frame surfaces, not 4"
+  n=$(surfaces "$off"); say "frame on: $n kurashi-frame surfaces"; [ "$n" = 3 ] || fail "frame on made $n kurashi-frame surfaces, not 3 (the docked bar carries the top strip)"
   window_rect; say "frame on, reserve on: test window at $rect"
   set -- $rect
   [ "${1:-x}" = "$T" ] && [ "${2:-x}" = "$BARH" ] && [ "${3:-0}" = $((SW - 2 * T)) ] && [ "${4:-0}" = $((SH - BARH - T)) ] \
@@ -323,7 +324,7 @@ if [[ " $DECORS " == *" washi "* ]]; then
   off=$(stat -c %s "$R/qs.log")
   OUTPUTS=HEADLESS-1,HEADLESS-2 QS_ENV=WAYLAND_DEBUG=client scene washi top multi=HEADLESS-1
   n=$(surfaces "$off"); say "two outputs, frame on HEADLESS-1 only: $n kurashi-frame surfaces"
-  [ "$n" = 4 ] || fail "two outputs, frame on one: $n kurashi-frame surfaces, not 4"
+  [ "$n" = 3 ] || fail "two outputs, frame on one: $n kurashi-frame surfaces, not 3"
   grim -s 0.25 "$OUT/washi/two-outputs.png"
 fi
 
@@ -359,8 +360,8 @@ KDL
     size=$("$NIRI" msg -j windows | jq -r '.[0].layout.window_size | "\(.[0]) \(.[1])"')
     say "niri $s: $n kurashi-frame layers, window $size"
     case $s in
-      top) want="$((NW - 16)) $((NH - BARH - 8))"; [ "$n" = 4 ] || fail "niri: frame on made $n layers, not 4" ;;
-      reserve-off) want="$NW $((NH - BARH))"; [ "$n" = 4 ] || fail "niri: frame on (reserve off) made $n layers, not 4" ;;
+      top) want="$((NW - 16)) $((NH - BARH - 8))"; [ "$n" = 3 ] || fail "niri: frame on made $n layers, not 3" ;;
+      reserve-off) want="$NW $((NH - BARH))"; [ "$n" = 3 ] || fail "niri: frame on (reserve off) made $n layers, not 3" ;;
       off) want="$NW $((NH - BARH))"; [ "$n" = 0 ] || fail "niri: frame off made $n layers, not 0" ;;
     esac
     [ "$size" = "$want" ] || fail "niri $s: the window is $size, not $want"

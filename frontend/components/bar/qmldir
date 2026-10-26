@@ -1,2 +1,7 @@
 AppIcon 1.0 AppIcon.qml
 TaskList 1.0 TaskList.qml
+FramePieces 1.0 FramePieces.qml
+ZoneHost 1.0 ZoneHost.qml
+ZoneRow 1.0 ZoneRow.qml
+ZoneColumn 1.0 ZoneColumn.qml
+BarGroup 1.0 BarGroup.qml
