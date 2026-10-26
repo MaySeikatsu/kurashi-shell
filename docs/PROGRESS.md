@@ -268,6 +268,9 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W43.2 | Screen frame, the bar as its band, floating bar geometry (card `W43-frame`; K71; `docs/ux/frame.md`) | ✅ functional (sway + nested niri) · UX ✅ (`frontend/shots/frame/`; fullscreen I237, budget I238) | merged |
 | W43.3 | Timer and pomodoro mod, every K72 variant (card `W43-timer`; K73; row 500 ungated jobs) | ✅ functional · UX ✅ (`mods/timer/shots/`; edge-module glance waits for W44; I231–I236) | merged |
 | W44.0 | Shared hover strip per edge: EdgeStrips, EdgeReveal, EdgeStripHost (lead; K71) | ✅ | merged |
-| W44.1 | Bars on every edge from zones; floating pill; hover/empty-desktop/hidden; the docked bar carries its frame strip (card `W44-bar`; K71, K72; rows 490, 492) | 🟡 | |
-| W44.2 | Dock and sidebars in every draw mode; sidebars slide, resize, open on hover, pin; desk on both sides (card `W44-surfaces`; K71; row 486) | 🟡 | |
-| W44.3 | Settings › Layout: edges diagram, zone lists, move bar, honest auto/inert (card `W44-settings`; K71, K72) | 🟡 | |
+| W44.1 | Bars on every edge from zones; floating pill; hover/empty-desktop/hidden; the docked bar carries its frame strip (card `W44-bar`; K71, K72; rows 490, 492) | ✅ functional · UX ✅ (`frontend/shots/bars/`; Stage under a floating bar: W45.1; I245–I248, I250, I254) | merged |
+| W44.2 | Dock and sidebars in every draw mode; sidebars slide, resize, open on hover, pin; desk on both sides (card `W44-surfaces`; K71; row 486) | ✅ functional · UX 🟡 (`frontend/shots/{dock,sidebar,desk}/`; joined dock's paper, openings: W45.1; row 522 = I253; I249) | merged |
+| W44.3 | Settings › Layout: edges diagram, zone lists, move bar, honest auto/inert, empty-bar warning (card `W44-settings`; K71, K72) | ✅ functional · UX ✅ (`settings/shots/layout/`; I242–I244, I251, I252) | merged |
+| W44.4 | Daemon follow-ups: `layout.bar.move` keeps the destination's modules; docked-bar holder, side-bar span, mock `layout.toggle`, bar/dock keys, the `"*"` alias (lead; rows 510, 511, 513, 520, 523, 530, 531) | ✅ | merged |
+| W45.1 | W44 review items: Stage under any bar, one reveal model, holders, openings, the joined dock's paper (card `W44-follow`; rows 512, 521, 524, 525) | 🟡 | |
+| W45.2 | Edge modules, the standalone island, the clock on the full variant table (card `W45-edge`; K71, K72; row 514; I223) | 🟡 | |
