@@ -15,12 +15,12 @@ NAME=${1:-w43-timer-live}   # unique per run: other runs stop any sandbox that s
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/timer/shots
 # The runs: "decor scheme locale" triples, each a fresh daemon and shell.
-RUNS=${RUNS:-"washi light en|washi dark en|sekai light en|washi light ja"}
+RUNS=${RUNS:-"washi light en|washi dark en|sekai light en|sekai dark en|washi light ja"}
 # Layout px of the 2560 x 1440 headless output (HEADLESS-1). The bar is the top strip; the Stage card sits under it, centred.
 BAR_GEOM=${BAR_GEOM:-"0,0 2560x40"}
 PEEK_GEOM=${PEEK_GEOM:-"1960,40 600x220"}
 PANEL_GEOM=${PANEL_GEOM:-"2140,30 420x520"}
-DESK_GEOM=${DESK_GEOM:-"2200,470 360x300"}
+DESK_GEOM=${DESK_GEOM:-"2200,430 360x170"}
 ISLAND_GEOM=${ISLAND_GEOM:-"1140,0 280x48"}
 ISLAND_EXPANDED_GEOM=${ISLAND_EXPANDED_GEOM:-"1000,0 560x560"}
 QUICK_GEOM=${QUICK_GEOM:-"2100,30 440x640"}
@@ -94,6 +94,30 @@ while True:
         break
 PY
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
+# mt.py: the first snapshot of a document on stdin (the CLI's `sub` prints it first), read as a python expression over `d`
+# (the document) and `T` (its timers). Exit 0 when the expression holds; with `print` it prints the value instead.
+cat > "$W/mt.py" <<'PY'
+import json, sys
+
+text = sys.stdin.read()
+at = text.find("{")
+if at < 0:
+    sys.exit("mt: no snapshot")
+obj = json.JSONDecoder().raw_decode(text, at)[0]
+# `kurashi sub` sends {"t": "snap", ..., "data": {...}}; a document is its data.
+d = obj.get("data", obj) if obj.get("t") == "snap" else obj
+value = eval(sys.argv[1], {"d": d, "T": d.get("timers", [])})
+if len(sys.argv) > 2 and sys.argv[2] == "print":
+    print(value)
+    sys.exit(0)
+sys.exit(0 if value else 1)
+PY
+# cli_snap <doc> <expr>: 0 when the expression holds for the document as the CLI's `sub` reads it (`kurashi sub`, one second).
+cli_snap() { timeout 1 "$W/kurashi" sub "$1" > "$W/snap.txt" 2>/dev/null; python3 -I "$W/mt.py" "$2" < "$W/snap.txt"; }
+cli_print() { timeout 1 "$W/kurashi" sub "$1" > "$W/snap.txt" 2>/dev/null; python3 -I "$W/mt.py" "$2" print < "$W/snap.txt"; }
+# The pointer: the sandbox's virtual pointer and keyboard (the frontend tests' helpers), at layout coordinates.
+click_at() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" left >> "$R/keys.log" 2>&1 || true; sleep 1.5; }
+type_keys() { timeout 30 python3 -I "$ROOT/tools/bench/wl_keys.py" "$@" >> "$R/keys.log" 2>&1 || true; sleep 1; }
 # doc_is <python condition on d>: 0 when it holds for mod.timer now.
 doc_is() { ipc mod.timer | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; sys.exit(0 if ($1) else 1)" 2>/dev/null; }
 wait_doc() { local i; for i in $(seq "$2"); do doc_is "$1" && return 0; sleep 0.5; done; return 0; }
@@ -149,6 +173,30 @@ run_one() { # run_one <decor> <scheme> <locale>
   check "$(doc_is 'd.get("available") is True and d.get("timers") == []' && echo 1 || echo 0)" "$tag idle: the document is there and empty"
   shot "glance-idle-$tag" "$BAR_GEOM"
 
+  echo "-- the pointer: the glance, then the Stage panel; each step is read back through kurashi sub"
+  # The glance's hit area in this bar: from about x=2370 (x=2364 is outside it); 2376 is inside for idle and running.
+  click_at 2376 15
+  check "$(cli_snap mod.timer 'len(T) == 1 and T[0]["state"] == "running" and T[0]["duration_ms"] == 300000' && echo 1 || echo 0)" "$tag glance: a click on the idle glance starts the default preset (5 min)"
+  click_at 2376 15
+  check "$(cli_snap runtime.ui 'd.get("panel") == "mod:timer:timer"' && echo 1 || echo 0)" "$tag glance: a click on the running glance opens the panel"
+  shot "panel-pointer-$tag" "$PANEL_GEOM"
+  click_at 2269 201
+  check "$(cli_snap mod.timer 'len(T) == 2 and any(t["duration_ms"] == 600000 for t in T)' && echo 1 || echo 0)" "$tag panel: a click on the 10 min preset starts it"
+  click_at 2280 323
+  type_keys 1 colon 3 0 return
+  check "$(cli_snap mod.timer 'len(T) == 3 and any(t["duration_ms"] == 90000 for t in T)' && echo 1 || echo 0)" "$tag panel: the custom field takes 1:30 and Enter starts it"
+  click_at 2404 132
+  check "$(cli_snap mod.timer 'any(t["duration_ms"] == 90000 and t["state"] == "paused" for t in T)' && echo 1 || echo 0)" "$tag panel: pause"
+  # Paused, the timer sorts after the running ones: it is the third row now (rows are 58 px apart, the first at y 132).
+  click_at 2404 248
+  check "$(cli_snap mod.timer 'any(t["duration_ms"] == 90000 and t["state"] == "running" for t in T)' && echo 1 || echo 0)" "$tag panel: resume"
+  click_at 2456 132
+  check "$(cli_snap mod.timer 'any(t["duration_ms"] == 150000 and t["state"] == "running" for t in T)' && echo 1 || echo 0)" "$tag panel: +1 min"
+  click_at 2510 131
+  check "$(cli_snap mod.timer 'len(T) == 2 and not any(t["duration_ms"] == 150000 for t in T)' && echo 1 || echo 0)" "$tag panel: stop removes the row"
+  K act ui.close '{}' >/dev/null 2>&1 || true
+  K act timer.stop_all '{}' >/dev/null 2>&1 || true
+
   echo "-- two timers, started from the CLI"
   K act timer.start '{"minutes": 10, "label": "Tea"}' >/dev/null || fail "timer.start failed"
   K act timer.pomodoro.start '{}' >/dev/null || fail "timer.pomodoro.start failed"
@@ -188,7 +236,8 @@ run_one() { # run_one <decor> <scheme> <locale>
   K act sidebar.right.toggle '{}' >/dev/null 2>&1 || true
 
   echo "-- the pomodoro's break"
-  K act timer.skip '{"id": 2}' >/dev/null 2>&1 || true
+  POMO_ID=$(cli_print mod.timer 'next(t["id"] for t in T if t["kind"] == "pomodoro")' || true)
+  K act timer.skip "{\"id\": ${POMO_ID:-0}}" >/dev/null 2>&1 || true
   K act mod.panel.open '{"id": "timer", "panel": "timer"}' >/dev/null || true
   wait_doc 'any(t.get("phase") == "short_break" for t in d.get("timers", []))' 10
   check "$(doc_is 'any(t.get("phase") == "short_break" and t.get("state") == "running" for t in d["timers"])' && echo 1 || echo 0)" "$tag break: the pomodoro is in its short break"
@@ -213,12 +262,27 @@ run_one() { # run_one <decor> <scheme> <locale>
   if [ -n "$NID" ]; then echo "invoke: $(K act notify.invoke "{\"id\": $NID, \"key\": \"add\"}" 2>&1 || echo "exit $?")"; fi
   wait_doc 'any(t.get("label") == "Eggs" and t.get("state") == "running" for t in d.get("timers", []))' 10
   check "$(doc_is 'any(t.get("label") == "Eggs" and t.get("state") == "running" for t in d["timers"])' && echo 1 || echo 0)" "$tag end: the notice's +1 min button runs Eggs again"
-  K act timer.stop '{"id": 3}' >/dev/null 2>&1 || true
+  EGGS_ID=$(cli_print mod.timer 'next(t["id"] for t in T if t["label"] == "Eggs")' || true)
+  K act timer.stop "{\"id\": ${EGGS_ID:-0}}" >/dev/null 2>&1 || true
 
   echo "-- the same panel after the end, with the Tea timer still running"
   K act mod.panel.open '{"id": "timer", "panel": "timer"}' >/dev/null || true
   shot "panel-after-end-$tag" "$PANEL_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true
+
+  echo "-- a timer at about half its length: the island's arc, then paused, the panel's and the desk card's"
+  K act timer.stop_all '{}' >/dev/null 2>&1 || true
+  K act timer.start '{"seconds": 40, "label": "Half"}' >/dev/null || fail "timer.start half failed"
+  sleep 20
+  shot "island-half-$tag" "$ISLAND_GEOM"
+  HALF_ID=$(cli_print mod.timer 'next(t["id"] for t in T if t["label"] == "Half")' || true)
+  K act timer.pause "{\"id\": $HALF_ID}" >/dev/null || fail "timer.pause half failed"
+  check "$(cli_snap mod.timer 'any(t["label"] == "Half" and t["state"] == "paused" for t in T)' && echo 1 || echo 0)" "$tag half: the timer is paused about halfway"
+  K act mod.panel.open '{"id": "timer", "panel": "timer"}' >/dev/null || fail "mod.panel.open timer failed"
+  shot "panel-half-$tag" "$PANEL_GEOM"
+  shot "desk-half-$tag" "$DESK_GEOM"
+  K act ui.close '{}' >/dev/null 2>&1 || true
+  K act timer.stop_all '{}' >/dev/null 2>&1 || true
 
   if [ "$locale" = en ] && [ "$decor" = washi ] && [ "$scheme" = light ]; then
     echo "-- the shell closed: a countdown ends with no view open"
