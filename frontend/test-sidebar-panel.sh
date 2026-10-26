@@ -88,9 +88,9 @@ start_kurashid() {
   pids+=("$!")
   wait_socket kurashid
 }
-start_frontend() {
+start_frontend() {  # start_frontend [VAR=value …]
   : > "$R/qs.log"
-  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_BAR_GEOMETRY=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_BAR_GEOMETRY=1 "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
@@ -465,7 +465,8 @@ if want P; then  # 10. pinned
   grep -q "sidebar-rest right " "$R/qs.log" || fail "pinned: the right column did not come out by itself"
   side_geom right | grep -q " holder 420 " || fail "pinned: the column does not hold its zone ($(side_geom right))"
   printf 'import QtQuick\nimport Quickshell\nShellRoot { FloatingWindow { color: "#c03030"; implicitWidth: 400; implicitHeight: 300 } }\n' > "$W/win.qml"
-  env -u KURASHI_SOCKET qs -p "$W/win.qml" >> "$R/win.log" 2>&1 &
+  # (Without the pointer's fifo: a writer it inherits would keep the pointer from ever seeing EOF.)
+  env -u KURASHI_SOCKET qs -p "$W/win.qml" >> "$R/win.log" 2>&1 7>&- &
   WIN=$!; pids+=("$WIN")
   rect=""
   for _ in $(seq 50); do
