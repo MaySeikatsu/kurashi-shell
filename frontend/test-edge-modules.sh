@@ -364,10 +364,17 @@ idle() { # idle <decor>
 pss() { # pss <decor>
   local d=$1 i a b
   apply edges.right.start '[]'; apply edges.bottom.center '[]'; apply edges.bottom.visibility always; settle 3
+  # Toggled live, one frontend (its heap's history is in every number), …
   for i in $(seq "$PAIRS"); do
-    apply edges.bottom.center '[]'; settle 4; a=$(pss_mib "$QS")
-    apply edges.bottom.center '["mod:timer:timer"]'; settle 4; b=$(pss_mib "$QS")
-    say "pss ($d) pair $i: no group $a MiB → one always group $b MiB (Δ $(awk -v a="$a" -v b="$b" 'BEGIN{printf "%+.2f", b - a}'))"
+    apply edges.bottom.center '[]'; settle 6; a=$(pss_mib "$QS")
+    apply edges.bottom.center '["mod:timer:timer"]'; settle 6; b=$(pss_mib "$QS")
+    say "pss ($d) live pair $i: no group $a MiB → one always group $b MiB (Δ $(awk -v a="$a" -v b="$b" 'BEGIN{printf "%+.2f", b - a}'))"
+  done
+  # … and fresh frontends, each started with the layout in place (no history), 10 s after start.
+  for i in $(seq "$PAIRS"); do
+    apply edges.bottom.center '[]'; start_qs; sleep 5; a=$(pss_mib "$QS")
+    apply edges.bottom.center '["mod:timer:timer"]'; start_qs; sleep 5; b=$(pss_mib "$QS")
+    say "pss ($d) fresh pair $i: no group $a MiB → one always group $b MiB (Δ $(awk -v a="$a" -v b="$b" 'BEGIN{printf "%+.2f", b - a}'))"
   done
   apply edges.right.start '["clock", "volume"]'; settle
 }
