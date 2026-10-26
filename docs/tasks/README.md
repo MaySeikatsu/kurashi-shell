@@ -324,3 +324,10 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W42-shadows3 | SessionMenu, KeyClock, PhoneFrame, webdock HostButton/Card/Box, Settings Button, shadow test | haiku |
 | W42-faces2 | kurashi-island, kurashid island/faces, save_profile, keys tests, calendar comments, docs/ux/island | haiku |
 | W42-tiles | QuickTile, Sketch/Snes frames + cache, bench | haiku |
+
+## Wave 43 (2026-10-26, session 14) — layout contract, the frame, the timer mod (K71–K73)
+| Card | Owner paths | Model |
+|---|---|---|
+| W43-layout | schema v3 + migration, kurashi-layout, kurashid config/wiring/actions, CLI, mock, renamed-key readers | opus |
+| W43-frame | Frame.qml, Bar.qml zone/inset/rule, shell.qml Frame Variants, test-frame.sh | opus |
+| W43-timer | kurashi-mod-timer, mods/timer, mod-timer i18n, native registration line | haiku |

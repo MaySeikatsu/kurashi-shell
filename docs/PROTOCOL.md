@@ -54,6 +54,38 @@ State is exposed as named **documents** (`config`, `theme`, `runtime.island.main
 - Several changes to one document within a tick may be coalesced into one `patch` (clients must
   not assume one patch per change).
 
+### 3.1 `runtime.layout` (K71, K72)
+Where every edge surface stands, per output, computed by the daemon's layout step from config, theme tokens and the
+outputs (rebuilt on any of them; nothing polls). Renderers draw it and never re-derive it: no `barH + 4` deciding where a
+fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
+- Top level: `draw` (the preset `layout.draw` in effect), `reveal_delay_ms`, `gap` (token `space.sm`), `join_radius`
+  (token `radius.lg`), `bar_size` (`bar.height`), `outputs`.
+- `outputs` maps an output name to its layout; `"*"` is the layout for an output the daemon does not know yet (a fresh
+  hotplug renders from it until its own entry arrives).
+- Every offset is in logical px **from a screen edge**; the daemon never needs the output's size.
+- `frame`: `on`, `thickness`, `radius` (inner corners), `reserve`, and `band.<edge>` — the frame's visible thickness on
+  each edge (0 where a docked bar is the band, and everywhere while the frame is off).
+- `edges.<top|bottom|left|right>`: `bar` (a bar stands there), `size` (only with a bar), `draw` + `draw_source`
+  (`auto` = followed the preset, `set` = the user's own), `visibility`, `inset` (screen edge → the surface's outer edge),
+  `reserve` (this edge's whole exclusive zone, px) + `reserve_source` (+ `reserve_reason`, an i18n key, when the
+  reserve is inert), `holder` (`frame | bar | dock | sidebar | module | none`: the one surface that sets the exclusive
+  zone; every other surface on the edge uses `ExclusionMode.Ignore`), `zones.<start|center|end>` (ordered module
+  entries `{id, kind: core|mod, mod?, provide?}`; the pseudo id `mods` is already expanded).
+- `dock`: `on`, `edge`, `draw` + `draw_source`, `visibility`, `inset`, `reserve` + `reserve_source`, `joins`
+  (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet: `join_radius` for dynamic, 0 for
+  connected).
+- `sidebars.<right|left>`: `draw` + `draw_source`, `visibility`, `width`, `inset`, `reserve` + `reserve_source`
+  (+ `reserve_reason`), `span.start` / `span.end` (the column's free length along its side: px from the top and bottom
+  edges), `joins.start` / `joins.end` (what each end meets; absent while floating), `radius`.
+- `island`: `edge`, `zone`, `host` (`bar` when its edge has a bar, else `module`), `draw` + `draw_source`; absent when no
+  zone names `island`.
+- `unplaced`: enabled modules with a glance that no zone shows (no zone names them and none holds `mods`), as module
+  entries with a `reason` (`layout.unplaced.not_listed`), so Settings can offer them back (W40 pattern); `problems`: zone
+  entries that cannot be drawn (`id`, `zone`, `reason`: `layout.module.unknown`, `layout.module.mod_off`,
+  `layout.module.no_glance`).
+- `runtime.ui.shown` (K71): the `hidden` components a `layout.toggle` brought out, as `"<target>@<output>"` (`bar:<edge>`,
+  `dock`, `sidebar:<side>`, `module:<edge>:<zone>`); absent when none.
+
 ## 4. Intents (high-frequency interaction)
 ```json
 → {"t":"intent","key":"audio.volume","value":0.6,"origin":"fe-1:slider-7","coalesce":true}
@@ -152,6 +184,13 @@ Launcher rows (W37, rows 405, 407): app rows carry `icon_path` (an absolute file
 the frontend draws its letter tile). The `>` command mode lists "Shortcut settings" (id `settings:keys`) and, when the
 query names one, "Settings: <page>" rows (id `settings:<page>`, a schema page or `mod:<id>`); `launcher.launch` of a
 `settings:<page>` id sends `settings.open {page}`.
+
+Layout actions (K71): `layout.toggle {target, output?}` brings a `hidden` component out or puts it away (targets as in
+`runtime.ui.shown`; the focused output when `output` is absent; refused with `layout.error.target` for a target that is
+not on that output); `layout.bar.move {from, to, output?}` moves a bar and its zones from one edge to another in one
+undoable change (refused with `layout.error.edge_taken` when `to` has a bar). The action registry is a query:
+`{"t":"query","id":"9","kind":"actions"}` → `{"t":"results","id":"9","items":[{"id":"island.next","args":"{island?}","help":"…"}]}`
+(`help` an i18n'd line); `kurashi act --list` prints it.
 
 Appearance actions (K53): `theme.style.apply {name}` and `theme.look.apply {name}` reset the user's values of the
 kind's keys (`STYLE_KEYS` / `LOOK_KEYS`, `kurashi-theme::appearance`) and set `theme.style` / `theme.look`, as one

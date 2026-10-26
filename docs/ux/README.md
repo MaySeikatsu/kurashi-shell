@@ -51,3 +51,7 @@ Ideas deliberately left out, each a BACKLOG row.
 | Wallpaper mod | [wallpaper.md](wallpaper.md) | agreed · card W12-wallpaper |
 | System monitor mod | [sysmon.md](sysmon.md) | agreed · card W12-sysmon |
 | Weather mod | [weather.md](weather.md) | agreed · card W12-weather |
+| Screen frame | [frame.md](frame.md) | agreed · card W43-frame |
+| Layout: draw modes, visibility, bars on every edge | [layout.md](layout.md) | agreed · cards W43-layout, W44-* |
+| Modules and edge modules | [edge-modules.md](edge-modules.md) | agreed · cards W44-*, W45-* |
+| Timer and pomodoro mod | [timer.md](timer.md) | agreed · card W43-timer |

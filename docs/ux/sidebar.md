@@ -75,6 +75,8 @@ first, then closes. Left: Ctrl+PageUp/PageDown switch tabs; the tab buttons are 
 Every control has an accessible name; state is never colour alone (switch knob side, tile badge, text).
 
 ## Motion
+> **Superseded (K71, session 14):** sidebars now slide in from their screen edge in every draw mode; the fillets to the
+> bar and the content rules below stay. See `docs/ux/layout.md`.
 As built (W34 ColumnShape, W36 origin; `docs/ux/motion.md` "the bar reaches out"): the column is one shape that grows
 out of the bar and folds back into it — no slide.
 - **Origin.** Under a top or bottom bar: the sidebar button's own box (the anchor registry, `sidebar:<side>`, 3 px in

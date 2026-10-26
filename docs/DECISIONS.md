@@ -754,3 +754,88 @@ re-made per open scattered the 20-cycle growth 3–4× wider. *Evidence:* BENCH 
 run (PSS only where no other process shares them); idle frames 0; popup and launcher first open unchanged; start-up
 +50 ms in launch.sh. The tests start `qs -p` directly and do not exercise this yet (row 462, I217).
 
+
+## K71 — layout: one bar per edge, a screen frame, three draw modes, one reveal model (2026-10-26, session 14)
+The user's draft (session 14, points 1–8, 11, 12, 14) asks for a screen frame, draw modes that apply to every
+surface, floating bars, bars on several edges, modules pinned to edges, and bars/sidebars/dock that are always
+shown, shown on hover or hidden. They are one concern — where the shell's surfaces stand and how they meet — so they
+get one owner: the daemon's **layout step** (ARCHITECTURE §4 already gave it corner ownership) and one document,
+`runtime.layout` (PROTOCOL §3.1, fixture `fixtures/ipc/server/snap_runtime_layout.json`). Layout is the user's, never
+a look's (K53, COMPOSITION §6): no style or look sets these keys; looks give only the tokens the frame and the joins
+draw with (rule 4). User decisions (session 14): preset **dynamic**; the frame **reserves space** by default and may
+be set not to; sidebars **slide in from their screen edge** in every mode (replaces W34's grow-from-the-button
+motion; the fillet to a bar stays); **one bar per edge**.
+
+**Schema v3** (one bump, one migration `v2_to_v3`, run on `config.toml`, its `[outputs.<name>]` tables, user and
+bundled profiles; `managed.toml` is written by Nix and is migrated in memory the same way):
+- `layout.draw` = `floating | dynamic | connected` (default `dynamic`) — the preset every component follows.
+- `layout.reveal_delay` (ms, 250, 0–1000) — the dwell for every hover reveal; an edge another output touches waits
+  twice as long (the dock's I137 rule, now everyone's).
+- `layout.frame.enabled` (per output, false) · `.thickness` (8 px, 2–32) · `.radius` (inner corners, 16 px, 0–48) ·
+  `.reserve` (true).
+- `edges.<top|bottom|left|right>` (all per output): `.bar` (top true, the others false) · `.visibility` ·
+  `.reserve` · `.draw` · `.start` · `.center` · `.end` (module ids, `choices_from = "modules"`). An edge with a bar
+  shows its zones in the bar; an edge without one shows each non-empty zone as an **edge module** (K72) pinned to the
+  frame or the screen edge. Replaces `bar.enabled` and `bar.edge`; `bar.height` stays (one thickness for every bar;
+  per-edge thickness is BACKLOG).
+- `visibility` (bar, edge modules, dock, each sidebar) = `always | hover | empty_desktop | hidden`: always shown;
+  shown after the pointer dwells on its edge (hidden again 400 ms after it leaves); shown while the output's active
+  workspace has no window, else on hover (the dock's `emptyDesk` rule, I137); shown only when asked (key, CLI,
+  `layout.toggle`). `reserve` = `auto | on | off`: auto keeps space only for `always`; `on` keeps it while hidden too;
+  `hidden` never keeps space (`reserve` is inert there with the reason `layout.reserve.hidden`, Shōjiki).
+- `draw` (bar, each edge, dock, each sidebar, the island) = `auto | floating | dynamic | connected`; `auto` follows
+  `layout.draw`. The document carries the resolved value and `"source": "auto" | "set"` so Settings says
+  "Auto (dynamic)".
+- `dock.autohide` → `dock.visibility` (true → `empty_desktop`, the default, which is what autohide did; false →
+  `always`) + `dock.reserve` + `dock.draw`.
+- `sidebar.style` / `sidebar.width` / `sidebar.right` / `sidebar.left` → `sidebar.<right|left>.sections`,
+  `.width` (resizable by dragging the inner edge, written on release), `.visibility` (default `hidden`: opened by
+  key, button or `sidebar.toggle`; `hover` = point 14's edge dwell; `always` = pinned open), `.reserve`, `.draw`
+  (`panel` → `auto`, `floating` → `floating`). `sidebar.bar_buttons` folds into the zones (the modules
+  `sidebar_left` / `sidebar_right`); false removes them from the migrated zones.
+- `desktop.order` → `desktop.right` and `desktop.left` (cards per side, top to bottom); `desktop.side` stays as the
+  side for cards neither list names; `desktop.hidden` stays.
+
+**Geometry rules** (computed in `kurashid/src/layout.rs`, a pure function of config, theme tokens and the outputs,
+unit-tested; rebuilt on config, theme and output changes, nothing polls). Every offset is measured from a screen
+edge, so the daemon needs no output size. `band(e)` = the frame's thickness on `e` when the frame is on and no bar
+sits flush there, else 0. A **dynamic** or **connected** component stands flush on what is under it (band, docked bar,
+or screen edge) and joins it: dynamic with concave fillets of `join_radius` (token `radius.lg`), connected with straight
+corners (radius 0); its free corners stay rounded. A **floating** component stands `gap` (token `space.sm`) away from
+everything, every corner rounded, with the look's shadow. A docked bar *is* the frame's band on its edge (one sheet).
+**Exactly one surface per edge holds that edge's exclusive zone** (`holder`): the frame's strip when the frame is on
+and reserves, else the edge's bar, else the dock, else a sidebar, else an edge module; all others use
+`ExclusionMode.Ignore` and the doc's insets. Caelestia's four 1×1 exclusion windows were not taken: a layer window
+costs ~3.5 MiB (I11, B7), so the zone rides on a surface that exists anyway.
+
+**Draw modes in brief:** bar — floating: inset by band + gap, rounded ends; dynamic/connected: flush, the frame's band
+on that edge. Dock, edge modules, island — join the band or the bar on their edge. Sidebars — span from the bar (or
+band) at one end to the band at the other, flush to their side, sliding in from it.
+
+*Evidence:* user draft (session 14, images 1–13); Caelestia `modules/drawers/` (ContentWindow, Exclusions,
+Interactions; research notes in `docs/ux/frame.md`); KDE Plasma 6 panels (floating, visibility "Always visible / Auto
+hide / Dodge windows / Windows go below", panels on any edge); Waybar and HyprPanel (`modules-left/center/right` per
+bar, one config per bar); the dock's own reveal rules (I137, B7).
+
+## K72 — modules: one id, every variant (2026-10-26, session 14; user points 8–10)
+A **module** is a placeable unit with one id: core ones (`workspaces`, `windows`, `island`, `volume`, `recorder`,
+`keyboard`, `clock`, `quick`, `tray`, `sidebar_left`, `sidebar_right`) and mods' `widget:<name>` as
+`mod:<id>:<name>`; the pseudo id `mods` stands for every enabled mod widget no zone names (where mod widgets went
+before K71). The daemon's `modules` choice list offers them; `runtime.layout` carries zones resolved to entries
+(`{id, kind, mod?, provide?}`), enabled modules no zone shows in `unplaced` and entries it cannot draw (unknown id,
+mod off, no glance) in `problems`
+— the faces pattern of W40 (offered back in Settings, row 450). A module may ship these variants, each optional and
+each a provide the frontend already knows how to load: **glance** (`widget:` — the bar and the edge module),
+**peek** (`peek:`), **expanded** (`panel:` or the face's `:expanded`), **desk card** (`desk:`), **sidebar** (a
+`panel:` offered in `sidebar.*.sections`), **island face** (`island-face:`, whose expanded view is the face's
+`:expanded`), **quick tile** (`slot:quick.tiles`). A variant a module lacks is not offered in that place (Settings
+says why), never drawn empty. The timer mod (K73) is the first module to ship every variant; the existing ones' gaps
+are BACKLOG rows (one per module). The rearranging edit mode ("redesign", SekaiPop) is deferred (BACKLOG).
+
+## K73 — timer and pomodoro as a mod (2026-10-26, session 14; user point 16)
+Mod `timer` (native tier, `crates/kurashi-mod-timer`, `mods/timer`): countdown timers and a pomodoro cycle (25 / 5 /
+15 min, a long break after 4 rounds; all settings). The daemon owns the state (`mod.timer`: each timer's `{id, kind,
+label, phase, round, duration_ms, ends_at_ms | remaining_ms, running}`) and fires the end (a notification and an
+island transient, sound by the notification server's hint); the frontend interpolates the remaining time from
+`ends_at_ms` like the media position and ticks at 1 Hz only while a countdown is visible (rule 5). No polling, no
+timer in the daemon while nothing runs (one deadline). The deadline lives while a timer runs, not only while `mod.timer` has a subscriber: a timer ends with every view closed. A stopwatch is BACKLOG.

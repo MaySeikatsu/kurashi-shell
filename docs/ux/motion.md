@@ -1,4 +1,6 @@
 # UX brief — one motion language: everything grows out of the bar (wave 34)
+> **Note (K71, session 14):** the sidebar no longer grows out of the bar button — it slides in from its screen edge
+> (`docs/ux/layout.md`); every other surface's motion here stands.
 
 User (session 13): "I really like the two animation styles we have so far. But some surfaces don't feel as dynamic and
 fluid as others — I like how the dynamic island animates, extends and feels kinda fluid, wobbly and dynamic, other
