@@ -273,4 +273,4 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W44.3 | Settings › Layout: edges diagram, zone lists, move bar, honest auto/inert, empty-bar warning (card `W44-settings`; K71, K72) | ✅ functional · UX ✅ (`settings/shots/layout/`; I242–I244, I251, I252) | merged |
 | W44.4 | Daemon follow-ups: `layout.bar.move` keeps the destination's modules; docked-bar holder, side-bar span, mock `layout.toggle`, bar/dock keys, the `"*"` alias (lead; rows 510, 511, 513, 520, 523, 530, 531) | ✅ | merged |
 | W45.1 | W44 review items: Stage under any bar, one reveal model, holders, openings, the joined dock's paper (card `W44-follow`; rows 512, 521, 524, 525) | 🟡 | |
-| W45.2 | Edge modules, the standalone island, the clock on the full variant table (card `W45-edge`; K71, K72; row 514; I223) | 🟡 | |
+| W45.2 | Edge modules, the standalone island, the clock on the full variant table (card `W45-edge`; K71, K72; row 514; I223) | ✅ functional · UX 🟡 (`frontend/shots/edge-modules/`; cards from edge modules and the standalone island do not morph, clock peek not served: I256–I261) | merged |
