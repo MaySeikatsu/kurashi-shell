@@ -423,7 +423,10 @@ async fn a_running_timer_is_kept_across_an_enable_and_no_switch_is_offered() {
         1,
         "the state is kept"
     );
-    assert!(doc.get("background").is_none(), "the document carries no switch");
+    assert!(
+        doc.get("background").is_none(),
+        "the document carries no switch"
+    );
 }
 
 #[tokio::test(start_paused = true)]

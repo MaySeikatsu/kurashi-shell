@@ -1250,15 +1250,27 @@ mod tests {
     #[test]
     fn a_job_with_no_gate_runs_without_a_setting_and_a_named_gate_must_be_a_bool() {
         let mut values = Values::new();
-        assert!(gate_open("", &values), "no gate: the job runs with no setting at all");
+        assert!(
+            gate_open("", &values),
+            "no gate: the job runs with no setting at all"
+        );
         values.insert("watch".into(), json!(false));
-        assert!(gate_open("", &values), "no gate: a setting does not stop it either");
-        assert!(!gate_open("watch", &values), "a named gate that is off stops the job");
+        assert!(
+            gate_open("", &values),
+            "no gate: a setting does not stop it either"
+        );
+        assert!(
+            !gate_open("watch", &values),
+            "a named gate that is off stops the job"
+        );
         values.insert("watch".into(), json!(true));
         assert!(gate_open("watch", &values));
 
         let bools = ["watch"];
-        assert!(gate_is_a_bool_setting(bools.iter().copied(), ""), "no gate is always allowed");
+        assert!(
+            gate_is_a_bool_setting(bools.iter().copied(), ""),
+            "no gate is always allowed"
+        );
         assert!(gate_is_a_bool_setting(bools.iter().copied(), "watch"));
         assert!(
             !gate_is_a_bool_setting(bools.iter().copied(), "missing"),
