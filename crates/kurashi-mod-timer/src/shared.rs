@@ -211,9 +211,9 @@ impl Shared {
     /// Next phase); a refused one (the timer is gone) changes nothing.
     pub fn signal(&self, cfg: &Cfg, sig: Signal) {
         match sig {
-            Signal::Closed { id } => {
-                self.lock().notices.remove(&id);
-            }
+            // An expired toast is not a closed notice: the centre keeps the item, and its buttons still act on it (the
+            // server answers from its history). The mapping stays until a button is pressed or the oldest are forgotten.
+            Signal::Closed { .. } => {}
             Signal::Invoked { id, key } => {
                 let Some(timer) = self.lock().notices.remove(&id) else {
                     return;
