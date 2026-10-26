@@ -100,21 +100,34 @@ impl Notifier for DbusNotifier {
                 .interface(SERVICE)
                 .and_then(|b| b.path(PATH))
                 .map(|b| b.build());
-            let Ok(rule) = rule else {
-                return;
+            let rule = match rule {
+                Ok(rule) => rule,
+                Err(e) => {
+                    tracing::warn!(error = %e, "timer notifications: match rule refused");
+                    return;
+                }
             };
-            let Ok(mut events) = zbus::MessageStream::for_match_rule(rule, &conn, None).await
-            else {
-                return;
+            let mut events = match zbus::MessageStream::for_match_rule(rule, &conn, None).await {
+                Ok(events) => events,
+                Err(e) => {
+                    tracing::warn!(error = %e, "timer notifications: not listening on the bus");
+                    return;
+                }
             };
+            tracing::info!("timer notifications: listening for the server's signals");
             loop {
                 tokio::select! {
                     () = tx.closed() => return,
                     next = events.next() => {
-                        let Some(Ok(msg)) = next else {
-                            // The socket died or the stream ended: nothing more will come.
-                            return;
+                        let msg = match next {
+                            Some(Ok(msg)) => msg,
+                            other => {
+                                // The socket died or the stream ended: nothing more will come.
+                                tracing::warn!(stream = ?other.map(|r| r.map(|_| ()).map_err(|e| e.to_string())), "timer notifications: the bus stream ended");
+                                return;
+                            }
                         };
+                        tracing::debug!(member = ?msg.header().member().map(|m| m.as_str().to_owned()), "timer notifications: signal");
                         let signal = match msg.header().member().map(|m| m.as_str()) {
                             Some("ActionInvoked") => msg
                                 .body()

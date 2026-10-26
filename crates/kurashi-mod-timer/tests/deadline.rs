@@ -71,6 +71,15 @@ impl Server {
             })
             .unwrap();
     }
+
+    /// `NotificationClosed` for `id`: the toast expired, while the centre still holds the item.
+    fn close(&self, id: u32) {
+        let tx = self.signal_tx.lock().unwrap();
+        tx.as_ref()
+            .expect("the job listens")
+            .send(Signal::Closed { id })
+            .unwrap();
+    }
 }
 
 impl Notifier for Server {
@@ -445,4 +454,35 @@ async fn pause_and_resume_survive_a_restart_with_the_time_that_was_left() {
     );
     assert_eq!(doc["timers"][0]["remaining_ms"], 6 * MIN);
     assert!(server.shown().is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn a_notice_stays_actionable_after_its_toast_expires() {
+    // The toast expires (NotificationClosed) while the centre still holds the notice: its +1 min button must still run the
+    // timer, as the server answers the press from its history (sandbox test, washi light).
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("timer.json");
+    let wall = Wall::new(T0);
+    let server = Arc::new(Server::default());
+    let e = enable(&module(&path, &wall, &server), settings(true));
+    let _job = e.start_job(Arc::new(Mutex::new(None)));
+    e.action("timer.start", json!({"seconds": 60, "label": "eggs"}))
+        .unwrap();
+    tokio::time::sleep(Duration::from_secs(61)).await;
+    assert_eq!(server.shown().len(), 1, "the end is announced");
+
+    server.close(1);
+    tokio::time::sleep(Duration::from_secs(10)).await;
+    server.press(1, "add");
+    tokio::time::sleep(Duration::from_millis(10)).await;
+
+    let saved = store::load(&path);
+    assert!(
+        matches!(
+            saved.timers[0].status,
+            kurashi_mod_timer::model::Status::Running { .. }
+        ),
+        "the +1 min button ran the timer again after its toast expired: {:?}",
+        saved.timers[0].status
+    );
 }
