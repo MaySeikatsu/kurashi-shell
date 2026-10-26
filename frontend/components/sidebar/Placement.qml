@@ -13,6 +13,9 @@ QtObject {
     property var win: null                  // the sidebar's window (the caller's `Window.window`)
     property string output: ""              // the output it is on (the caller's `Screen.name`)
     property string side: "left"            // the sidebar's side: the edge its window is anchored to
+    // Where the usable area starts in the window (W44: the sidebar's window stands from the screen's edges, ignoring
+    // zones; the host maps the page in the usable area, so the rect is reported from there): x from the anchored side.
+    property point origin: Qt.point(0, 0)
     readonly property var value: _value
     property var _value: null
     property string _last: ""
@@ -51,8 +54,8 @@ QtObject {
         if (!r) { _value = null; return }
         var w = win
         var out = output !== "" ? output : (w && w.screen ? String(w.screen.name) : "")
-        _value = { output: out, side: side, inset: side === "right" ? r.ww - r.x - r.w : r.x, top: r.y,
-                   width: r.w, height: r.h }
+        _value = { output: out, side: side, inset: (side === "right" ? r.ww - r.x - r.w : r.x) - Math.round(origin.x),
+                   top: r.y - Math.round(origin.y), width: r.w, height: r.h }
     }
     property Timer settle: Timer {
         interval: pl.settleMs
@@ -73,5 +76,6 @@ QtObject {
     onTargetChanged: check()
     onWinChanged: check()
     onOutputChanged: { _last = ""; check() }
+    onOriginChanged: { _last = ""; check() }
     Component.onCompleted: check()
 }

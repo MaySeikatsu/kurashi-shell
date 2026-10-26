@@ -29,3 +29,8 @@
 "sidebar.left.missing.no_panel" = "{name}: the mod has no such panel."
 "sidebar.left.missing.unknown" = "{name}: not a mod panel."
 "sidebar.left.settings" = "Choose tabs"
+
+# The resize grip along the column's inner edge (W44, point 12).
+"sidebar.a11y.grip" = "Resize the sidebar"
+"sidebar.resize.hint" = "{w} px. Drag to resize, double-click for the default width; Ctrl+Left or Ctrl+Right while the sidebar has the keyboard."
+"sidebar.resize.forced" = "The width is set by {by}."

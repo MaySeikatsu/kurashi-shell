@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 
 // A mod panel as a right-sidebar section (`mod:<id>:<panel>`, K26): its Panel.qml through ModLoader, on a Card, given
@@ -20,6 +21,7 @@ Card {
         id: placement
         target: loader.item !== null && loader.item.placement !== undefined ? loader.item : null
         win: ms.Window.window
+        origin: ms.QsWindow.window && ms.QsWindow.window.placementOrigin !== undefined ? ms.QsWindow.window.placementOrigin : Qt.point(0, 0)
         output: ms.Screen.name
         side: "right"
     }
