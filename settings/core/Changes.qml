@@ -15,7 +15,7 @@ Singleton {
     // The keys whose change is a live preview (UX brief, settings 3). The schema does not mark them yet: this list is
     // the settings app's policy until a schema flag exists (docs/CONTRACT-CHANGE.md).
     readonly property var previewKeys: ["theme.colors.palette", "theme.colors.scheme", "theme.shape.radius_scale",
-                                        "bar.edge", "theme.typography.family"]
+                                        "theme.typography.family"]
 
     function previewable(key) { return previewKeys.indexOf(key) >= 0 }
     function activeFor(key, output) {

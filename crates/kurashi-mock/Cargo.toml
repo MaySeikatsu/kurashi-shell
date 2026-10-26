@@ -9,7 +9,8 @@ license.workspace = true
 kurashi-core.workspace = true
 kurashi-ipc.workspace = true
 kurashi-schema = { path = "../kurashi-schema" }   # input-slot defaults behind `bindings`
-kurashid = { path = "../kurashid" }   # i18n loader and the CONFIRM_REQUIRED code
+kurashid = { path = "../kurashid" }   # i18n loader, the CONFIRM_REQUIRED code and the layout step's input readers
+kurashi-layout = { path = "../kurashi-layout" }   # runtime.layout from the mock's config (K71)
 kurashi-theme = { path = "../kurashi-theme" }   # the appearance packs and their previews (K53, W29)
 anyhow.workspace = true
 serde_json.workspace = true

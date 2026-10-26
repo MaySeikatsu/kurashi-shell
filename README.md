@@ -61,7 +61,9 @@ Four ways, from the safest to the most committed:
    # Home-Manager: kurashid and the frontend as user services bound to graphical-session.target
    programs.kurashi = {
      enable = true;
-     settings.theme.palette = "wa-iro"; # ~/.config/kurashi/managed.toml, the nix layer
+     settings.theme.colors.palette = "wa-iro"; # ~/.config/kurashi/managed.toml, the nix layer
+     # Schema v3 (K71): a bar per edge. This one stands at the bottom with the island in its middle, none on top.
+     settings.edges = { top.bar = false; bottom = { bar = true; center = [ "island" ]; }; };
      enforce = false; # true: these values win over profiles and user changes
      systemd.enable = true; # false: no user units, start kurashid yourself
      frontend.enable = true; # false: run the daemon only
@@ -86,6 +88,8 @@ Four ways, from the safest to the most committed:
 kurashi ping                   # handshake and round trip (exit 3: no daemon answers)
 kurashi doctor                 # what works, what does not, and how to fix it (exit 1 on failures)
 kurashi act <action> [json]    # invoke an action, e.g. kurashi act island.expand
+kurashi act --list [filter]    # every action with its arguments and what it does (--json: as JSON)
+kurashi act layout.bar.move '{"from":"top","to":"bottom"}'   # the bar and its modules to another edge (one undo)
 kurashi sub <doc> [--count N]  # snapshot, then patches as they arrive (alias: watch)
 kurashi get <key>              # effective value with its provenance
 kurashi why <key>              # every layer that carries the key

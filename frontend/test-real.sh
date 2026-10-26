@@ -30,6 +30,17 @@ export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state \
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 
 K() { "$W/kurashi" "$@"; }
+# K71: the bar moves with its modules in one change (`layout.bar.move`), from the edge it stands on now.
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
 shot() { sleep "${2:-1.5}"; grim "$OUT/$1.png"; [ -s "$OUT/$1.png" ] || { echo "empty screenshot $1" >&2; exit 1; }; echo "shot $1"; }
 start_daemon() {
   rm -f "$KURASHI_SOCKET"
@@ -60,17 +71,16 @@ shot popup-expand
 K act island.expand >/dev/null   # toggle the popup closed again
 
 # Bar placement from the config document: a bottom bar (the island panel must open above it),
-# then no bar, then back to the default. Edge only counts while the bar is enabled, so the bar is
-# re-enabled before its edge is restored.
-K set bar.edge bottom >/dev/null
+# then no bar, then back to the default (K71: `layout.bar.move` moves the bar with its modules).
+bar_edge bottom || fail "the bar did not move to the bottom"
 shot bar-bottom
 K act island.expand >/dev/null
 shot popup-bottom
 K act island.expand >/dev/null
-K set bar.enabled=false >/dev/null
+K set edges.bottom.bar=false >/dev/null
 shot bar-disabled
-K set bar.enabled=true >/dev/null
-K set bar.edge top >/dev/null
+K set edges.bottom.bar=true >/dev/null
+bar_edge top || fail "the bar did not move back to the top"
 
 # Session menu: open, look, close. Destructive entries are never pressed here (no confirm).
 K act session.menu >/dev/null

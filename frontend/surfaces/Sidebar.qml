@@ -14,7 +14,7 @@ import "../components/sidebar"
 // subscription (Ma). The window is anchored to all four edges with exclusive zone 0, so the compositor fits it to the
 // output's usable area: it stops at a bar on any side (copied from ii `modules/ii/sidebarRight/SidebarRight.qml`;
 // shellseikatsu's own arithmetic for the bar's size broke under side bars — its docs/BUGS.md). The column lies on its side.
-// `sidebar.style`: panel = flush, outer corners square, inner corners `radius.lg`; floating = inset by `space.sm`, every
+// `sidebar.<side>.draw` (K71): dynamic/connected = flush, outer corners square, inner corners `radius.lg`; floating = inset by `space.sm`, every
 // corner rounded, the look's chrome (ring, hard or soft shadow). Tokens only (rule 4).
 // W34 (docs/ux/motion.md, "the bar reaches out"): the column is one shape (ColumnShape) that grows out of the bar's end —
 // from the sidebar button's place at the bar's end, else the bar's corner — and folds back into it, width and height on
@@ -227,15 +227,21 @@ Scope {
 
     // This output's config (an output's own entry wins); the sidebar keys are global.
     BarConfig { id: cfg; screen: sb.screen }
-    readonly property bool floating: cfg.valueOf("sidebar.style", "panel") === "floating"
+    // K71: each side's own keys (`sidebar.<side>.*`); `draw = auto` follows `layout.draw`, and only floating is drawn
+    // apart from the panel today (dynamic and connected look as the panel did).
+    readonly property string drawMode: {
+        var d = cfg.valueOf("sidebar." + side + ".draw", "auto")
+        return d === "auto" ? cfg.valueOf("layout.draw", "dynamic") : d
+    }
+    readonly property bool floating: drawMode === "floating"
     readonly property int wantW: {
-        var w = Number(cfg.valueOf("sidebar.width", 420))
+        var w = Number(cfg.valueOf("sidebar." + side + ".width", 420))
         return isNaN(w) ? 420 : Math.max(320, Math.min(640, Math.round(w)))
     }
     // Never wider than the output less a gap.
     readonly property int colW: Math.min(wantW, screen ? screen.width - Theme.gap : wantW)
     readonly property var sections: {
-        var v = cfg.valueOf(side === "left" ? "sidebar.left" : "sidebar.right", side === "left" ? ["mod:ai:ai"]
+        var v = cfg.valueOf("sidebar." + side + ".sections", side === "left" ? ["mod:ai:ai"]
             : ["header", "toggles", "sliders", "notifications", "calendar"])
         return Array.isArray(v) ? v.filter(function (s) { return typeof s === "string" && s !== "" }) : []
     }

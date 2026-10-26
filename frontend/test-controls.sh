@@ -512,7 +512,7 @@ run_check() {  # run_check MESSAGE COMMAND...: a failed command is a failed chec
 
 LEATHER=('theme.texture.kind = "leather"' 'theme.texture.strength = 1')
 KAMI=('theme.style = "kami"')
-DOCKCFG=('[dock]' 'enabled = true' 'autohide = false' 'pinned = ["firefox", "org.gnome.Nautilus"]')
+DOCKCFG=('[dock]' 'enabled = true' 'visibility = "always"' 'pinned = ["firefox", "org.gnome.Nautilus"]')
 
 # ---- 1. the gallery: main, then this branch off and on, leather and kami ----
 say "the gallery: main, then this branch with the controls off and on (leather, then kami)"

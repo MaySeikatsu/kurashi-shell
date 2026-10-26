@@ -5,7 +5,7 @@ import "../../core/mods.js" as Mods
 import ".."
 import "../expanded"
 
-// The right sidebar's column (docs/ux/sidebar.md): `sidebar.right`'s sections, top to bottom — `header`, `toggles`,
+// The right sidebar's column (docs/ux/sidebar.md): `sidebar.right.sections`, its sections, top to bottom — `header`, `toggles`,
 // `sliders`, `notifications`, `calendar` (ClockView: the month grid and the agenda slot), `media` (MediaView, while
 // something plays) and mod panels `mod:<id>:<panel>` (a section takes no space while its mod is off). The notifications
 // take the free height (ii's centre group); when the output is too short for their least height the whole column scrolls,

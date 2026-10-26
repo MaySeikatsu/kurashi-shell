@@ -24,11 +24,15 @@ struct Cli {
 enum Cmd {
     #[command(flatten)]
     Cfg(ConfigCmd),
-    /// Invoke an action, e.g. `kurashi act island.next`
+    /// Invoke an action, e.g. `kurashi act island.next`; `--list` lists them (with a filter: those whose id has it)
     Act {
-        action: String,
+        #[arg(required_unless_present = "list")]
+        action: Option<String>,
         #[arg(default_value = "{}")]
         args: String,
+        /// List the actions with their arguments and what they do (`--json`: as JSON)
+        #[arg(long)]
+        list: bool,
     },
     /// Print a document snapshot, then follow patches (alias: watch) (`--count` to stop after N patches)
     #[command(alias = "watch")]
@@ -120,9 +124,33 @@ async fn main() -> anyhow::Result<()> {
     let (mut rd, mut wr) = connect(&cli).await?;
     let send_one = match &cli.cmd {
         Cmd::Cfg(_) | Cmd::Doctor => unreachable!("handled above"),
-        Cmd::Act { action, args } => Some(ClientMsg::Act {
+        Cmd::Act {
+            action, list: true, ..
+        } => {
+            write_msg(
+                &mut wr,
+                &ClientMsg::Query {
+                    id: "cli".into(),
+                    kind: "actions".into(),
+                    q: action.clone().unwrap_or_default(),
+                },
+            )
+            .await?;
+            match rd.next_value::<ServerMsg>().await? {
+                Some(ServerMsg::Results { items, .. }) => {
+                    println!("{}", kurashi::action_list(&items, cli.json));
+                    return Ok(());
+                }
+                Some(other) => {
+                    print(&other);
+                    std::process::exit(1);
+                }
+                None => std::process::exit(kurashi::EXIT_UNAVAILABLE),
+            }
+        }
+        Cmd::Act { action, args, .. } => Some(ClientMsg::Act {
             id: "cli".into(),
-            action: action.clone(),
+            action: action.clone().unwrap_or_default(),
             args: serde_json::from_str(args)?,
         }),
         Cmd::Intent { key, value } => {
