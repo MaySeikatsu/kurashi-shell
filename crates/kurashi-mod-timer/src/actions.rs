@@ -12,7 +12,6 @@ use crate::shared::Shared;
 pub const ERR_ARGS: &str = "mod-timer.error.args";
 pub const ERR_DURATION: &str = "mod-timer.error.duration";
 pub const ERR_LABEL: &str = "mod-timer.error.label";
-pub const ERR_BACKGROUND: &str = "mod-timer.error.background_off";
 pub const ERR_GONE: &str = "mod-timer.error.gone";
 pub const ERR_NOT_RUNNING: &str = "mod-timer.error.not_running";
 pub const ERR_NOT_PAUSED: &str = "mod-timer.error.not_paused";
@@ -66,12 +65,9 @@ fn amount(args: &Value) -> Result<Option<i64>, ActionError> {
 }
 
 /// `timer.start {minutes?, seconds?, label?}`: a countdown from now. Without a length, the last one started (or the first
-/// preset). Refused while the background count is off: a timer that cannot end must not start (K73).
+/// preset).
 pub fn start(s: &Shared, settings: &Settings, args: &Value) -> Reply {
     let cfg = Cfg::read(settings);
-    if !cfg.background {
-        return Err(ActionError::Unavailable(ERR_BACKGROUND.into()));
-    }
     let label = label_arg(args)?;
     let requested = amount(args)?;
     let id = s.with_state(&cfg, |inner, now| {
@@ -90,9 +86,6 @@ pub fn start(s: &Shared, settings: &Settings, args: &Value) -> Reply {
 /// `timer.pomodoro.start {label?}`: a pomodoro from round 1 of focus, with the cycle in the settings.
 pub fn pomodoro_start(s: &Shared, settings: &Settings, args: &Value) -> Reply {
     let cfg = Cfg::read(settings);
-    if !cfg.background {
-        return Err(ActionError::Unavailable(ERR_BACKGROUND.into()));
-    }
     let label = label_arg(args)?;
     let id = s.with_state(&cfg, |inner, now| {
         inner.state.start_pomodoro(now, &cfg.cycle, &label)

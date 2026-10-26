@@ -397,13 +397,12 @@ impl State {
 
     /// The document `mod.timer` (no nulls, PROTOCOL): timers nearest end first (running, then paused, then ended),
     /// with the settings the views need to draw them and to offer the presets.
-    pub fn document(&self, cycle: &Cycle, presets: &[u64], background: bool) -> Value {
+    pub fn document(&self, cycle: &Cycle, presets: &[u64]) -> Value {
         let mut order: Vec<&Timer> = self.timers.iter().collect();
         order.sort_by_key(|t| (rank(t), end_time(t), t.id));
         let timers: Vec<Value> = order.into_iter().map(timer_json).collect();
         let mut doc = Map::new();
         doc.insert("available".into(), json!(true));
-        doc.insert("background".into(), json!(background));
         doc.insert("timers".into(), json!(timers));
         doc.insert("presets".into(), json!(presets));
         doc.insert(
@@ -760,7 +759,7 @@ mod tests {
         s.pause(T0, paused).unwrap();
         let ended = s.start_countdown(T0, 1, "ended");
         s.reconcile(T0 + 1, &c);
-        let doc = s.document(&c, &[5, 10, 25], true);
+        let doc = s.document(&c, &[5, 10, 25]);
         let ids: Vec<u64> = doc["timers"]
             .as_array()
             .unwrap()
@@ -774,7 +773,6 @@ mod tests {
         assert_eq!(doc["timers"][2]["state"], "paused");
         assert_eq!(doc["timers"][3]["state"], "ended");
         assert_eq!(doc["presets"], json!([5, 10, 25]));
-        assert_eq!(doc["background"], true);
         assert!(
             doc["timers"][0].get("phase").is_none(),
             "a countdown has no phase"
@@ -785,7 +783,7 @@ mod tests {
     fn a_pomodoro_document_shows_its_phase_round_and_rounds() {
         let c = cycle();
         let (s, id) = pomodoro(T0);
-        let doc = s.document(&c, &[25], true);
+        let doc = s.document(&c, &[25]);
         let t = doc["timers"]
             .as_array()
             .unwrap()

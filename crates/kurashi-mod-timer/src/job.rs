@@ -1,7 +1,7 @@
 //! The deadline job (K73; `ModCtx::background`): the one daemon timer of the mod. It sleeps to the earliest end (or to the
 //! end face's time), reconciles, tells the notification server about the ends nobody has heard of, and follows the
 //! server's buttons. With no timer running it waits for a change and for nothing else: no wakeup, no timer (Ma).
-//! The daemon runs it while the `background` setting is on and cancels it when that goes off; starting it again
+//! The daemon runs it while the mod is on (no gate, row 500) and cancels it when the mod goes off; a restart
 //! announces what passed meanwhile (K73: one notice per end, also for an end during a daemon restart).
 //!
 //! The sleep is on the monotonic clock, while the ends are wall-clock: a suspend that passes an end is reconciled on

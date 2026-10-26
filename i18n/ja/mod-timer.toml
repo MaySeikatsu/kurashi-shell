@@ -1,8 +1,6 @@
 # タイマー mod（K73、docs/ux/timer.md）。デーモンは通知と拒否の文言に `mod-timer.end.*`、`mod-timer.phase.*`、
 # `mod-timer.action.*`、`mod-timer.name.*`、`mod-timer.error.*` を使う。ビューはそれ以外を読む。
 "mods.timer.description" = "カウントダウンタイマーとポモドーロ。終わりは画面を閉じていても知らせます。"
-"mods.timer.background" = "バックグラウンドで計時する"
-"mods.timer.background.help" = "オン: 画面を閉じていても時間どおりに終わり、そのことを知らせます。オフ: タイマーを新しく始められず、動いているものはパネルを次に開いたときに知らせます。"
 "mods.timer.presets" = "プリセット"
 "mods.timer.presets.help" = "ボタンの順に、分をカンマで区切って入力します（最大8つ）。空や不正な値は捨てられます。"
 "mods.timer.focus_minutes" = "集中"
@@ -42,7 +40,6 @@
 "mod-timer.error.args" = "タイマーの操作には ID が要ります"
 "mod-timer.error.duration" = "タイマーは 1 分から 1 日までです"
 "mod-timer.error.label" = "名前は 60 文字までです"
-"mod-timer.error.background_off" = "タイマーはオフです: 「バックグラウンドで計時する」をオンにしてください"
 "mod-timer.error.gone" = "そのタイマーはもうありません"
 "mod-timer.error.not_running" = "そのタイマーは動いていません"
 "mod-timer.error.not_paused" = "そのタイマーは一時停止していません"
@@ -77,7 +74,6 @@
 "mod-timer.panel.ended_at" = "{time}に終了"
 "mod-timer.panel.left" = "あと {time}"
 "mod-timer.panel.ends" = "{time}に終了"
-"mod-timer.panel.off" = "タイマーはオフです。設定で「バックグラウンドで計時する」をオンにすると始められます。"
 "mod-timer.panel.a11y.timer" = "{label}、{state}、{time}"
 "mod-timer.peek.line" = "{label} · {time} · {ends} に終了"
 "mod-timer.peek.line.paused" = "{label} · {time} · 一時停止中"
@@ -88,7 +84,6 @@
 "mod-timer.face.a11y" = "{label}、あと {time}"
 "mod-timer.tile.label" = "タイマー"
 "mod-timer.tile.idle" = "オフ"
-"mod-timer.tile.off" = "タイマーはオフです"
 "mod-timer.tile.paused" = "{time} 一時停止中"
 "mod-timer.tile.ended" = "時間になりました"
 "mod-timer.tile.running" = "あと {time}"

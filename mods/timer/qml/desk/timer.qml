@@ -41,8 +41,7 @@ Item {
         return name + " · " + T.fill(dc.tr("mod-timer.panel.round"), {n: t.round, rounds: t.rounds})
     }
     function start(minutes) {
-        if (d.background === false) Store.act("mod.panel.open", { id: "timer", panel: "timer" }, function () {})
-        else Store.act("timer.start", { minutes: minutes }, function () {})
+        Store.act("timer.start", { minutes: minutes }, function () {})
     }
 
     Block {

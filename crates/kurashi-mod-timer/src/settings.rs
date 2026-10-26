@@ -13,8 +13,6 @@ pub const MAX_PRESETS: usize = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Cfg {
-    /// The end is counted in the background (the job runs). Off: no timer can start (`mod-timer.error.background_off`).
-    pub background: bool,
     /// Presets in minutes, in the order the user gave them.
     pub presets: Vec<u64>,
     pub cycle: Cycle,
@@ -42,7 +40,6 @@ impl Cfg {
             .and_then(|v| v.as_str().map(parse_presets))
             .unwrap_or_else(|| DEFAULT_PRESETS.to_vec());
         Cfg {
-            background: flag("background", true),
             presets,
             cycle: Cycle {
                 focus_ms: int("focus_minutes", 25, 1, 180) * MINUTE_MS,
@@ -109,7 +106,6 @@ mod tests {
     #[test]
     fn the_default_countdown_is_the_last_one_started_or_the_first_preset() {
         let cfg = Cfg {
-            background: true,
             presets: vec![15, 5],
             cycle: Cycle {
                 focus_ms: 25 * MINUTE_MS,

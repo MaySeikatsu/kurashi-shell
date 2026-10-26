@@ -28,7 +28,6 @@ Item {
 
     readonly property var d: Store.docs["mod.timer"] || ({})
     readonly property bool available: d.available === true
-    readonly property bool off: available && d.background === false
     readonly property var timers: d.timers || []
     readonly property var presets: d.presets || []
     readonly property var cycle: d.pomodoro || ({})
@@ -50,10 +49,6 @@ Item {
         })
     }
     function start(args) {
-        if (p.off) {
-            p.errorKey = "mod-timer.error.background_off"
-            return
-        }
         p.act("timer.start", args)
     }
     function custom() {
@@ -63,10 +58,6 @@ Item {
             return
         }
         p.fieldError = ""
-        if (p.off) {
-            p.errorKey = "mod-timer.error.background_off"
-            return
-        }
         p.act("timer.start", args, function () { field.text = "" })
     }
     function phaseName(phase) {
@@ -100,12 +91,6 @@ Item {
             font.family: p.theme.fam(text, p.theme.families)
             Accessible.role: Accessible.Heading
             Accessible.name: text
-        }
-        Caption {
-            visible: p.off
-            width: parent.width
-            wrapMode: Text.WordWrap
-            text: p.tr("mod-timer.panel.off")
         }
         Text {
             visible: p.errorKey !== ""

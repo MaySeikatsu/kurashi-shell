@@ -1,5 +1,5 @@
 //! The document `mod.timer` (K73): published while a view watches it, and again on every change. A view that opens after an
-//! end (with the background count off) sees the timer as ended, because the document reconciles first.
+//! end sees the timer as ended, because the document reconciles first.
 
 use std::sync::Arc;
 
