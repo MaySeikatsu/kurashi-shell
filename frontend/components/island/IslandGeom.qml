@@ -22,7 +22,49 @@ Singleton {
         n[output] = { w: w, h: h, dx: dx, face: face }
         pills = n
     }
-    function pillOf(output) { return pills[output] || null }
+    // The pill as the Stage starts from it: its size and face, and its centre's offset from the output's centre — the bar
+    // centres the island by default (`dx` alone); a zone that puts it elsewhere adds where its module stands (`place`, read
+    // now, never reported per frame). `inset`: how far its bar stands from its edge (a floating bar's band + gap, K71).
+    function pillOf(output) {
+        var p = pills[output]
+        if (!p) return null
+        var pl = places[output]
+        var off = pl ? pl.where() : 0
+        var b = pl ? barOf(output, pl.edge) : null
+        return { w: p.w, h: p.h, dx: p.dx + off, face: p.face, edge: pl ? pl.edge : "top", inset: b ? b.inset : 0 }
+    }
+    // ---- where the island's module stands (K72: any zone of any bar). `places["<output>"] = { edge, where, by }`: `where()`
+    // gives the module's centre from the output's centre, px (0 for a centred island on a full-width bar).
+    property var places: ({})
+    function place(output, edge, where, by) {
+        if (output === "" || !where) return
+        var n = Object.assign({}, places)
+        n[output] = { edge: edge, where: where, by: by }
+        places = n
+    }
+    function unplace(output, by) {
+        var o = places[output]
+        if (!o || o.by !== by) return
+        var n = Object.assign({}, places)
+        delete n[output]
+        places = n
+    }
+    // ---- the bars of each output (K71: one per edge). `bars["<output>/<edge>"] = { inset, size, floating, mapped }`: how far
+    // the bar's body stands from its edge (a floating bar's band + gap), its thickness, whether it floats and whether its
+    // window is on screen — the neck and the sidebar's join follow a floating bar's inset; the frame waits for a bar that
+    // carries its strip (row 492 b) before it maps its side strips.
+    property var bars: ({})
+    function setBar(output, edge, info) {
+        if (output === "") return
+        var k = output + "/" + edge, o = bars[k]
+        if (o && info && o.inset === info.inset && o.size === info.size && o.floating === info.floating && o.mapped === info.mapped) return
+        if (!o && !info) return
+        var n = Object.assign({}, bars)
+        if (info) n[k] = { inset: info.inset, size: info.size, floating: info.floating, mapped: info.mapped }
+        else delete n[k]
+        bars = n
+    }
+    function barOf(output, edge) { return bars[output + "/" + edge] || null }
     // The output whose pill is inside the Stage's shape right now; "" when none.
     property string takenOn: ""
     // Where the shape opens the `takenOn` bar's rule (line chrome, W30): from the bar's centre, left and right, in px;

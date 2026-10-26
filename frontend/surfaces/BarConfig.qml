@@ -45,12 +45,26 @@ Scope {
         return p && p.value !== undefined ? p.value : dflt
     }
 
-    // Schema v3 (K71): a bar per edge (`edges.<edge>.bar`). The shell draws one bar for now: the first edge that has one,
-    // top, bottom, left, right; none, no bar. Schema defaults until the daemon says otherwise: a bar, on top.
+    // Schema v3 (K71): a bar per edge, as `runtime.layout` has it for this output (its own entry, else "*"). Readers that
+    // take one bar (the Stage's card and peeks, the dock's clearance) get "the bar": the island's when its zone is on a bar
+    // edge, else the first edge that has one, top, bottom, left, right; none, no bar. Before any layout document the
+    // config's `edges.<edge>.bar` (schema defaults: a bar, on top).
+    Watch { doc: "runtime.layout" }
+    readonly property string outName: screen ? screen.name : ""
+    readonly property var layout: ShellLayout.of(outName)
+    readonly property bool hasDoc: ShellLayout.doc.outputs !== undefined
+    function hasBar(e) {
+        if (hasDoc) return ShellLayout.edgeOf(outName, e).bar === true
+        return valueOf("edges." + e + ".bar", e === "top") === true
+    }
+    // How far a bar on `e` stands from its edge (a floating bar's band + gap; 0 docked), 0 without a bar.
+    function insetOf(e) { return hasDoc && hasBar(e) ? Math.max(0, Math.round(ShellLayout.edgeOf(outName, e).inset || 0)) : 0 }
     readonly property string barEdge: {
+        var isl = hasDoc ? layout.island : null
+        if (isl && isl.host === "bar" && hasBar(isl.edge)) return isl.edge
         var order = ["top", "bottom", "left", "right"]
         for (var i = 0; i < order.length; i++)
-            if (valueOf("edges." + order[i] + ".bar", order[i] === "top") === true) return order[i]
+            if (hasBar(order[i])) return order[i]
         return ""
     }
     readonly property bool enabled: barEdge !== ""
@@ -80,9 +94,9 @@ Scope {
         return Array.isArray(t) && t.length > 0
     }
 
-    // Clearance for something that hugs an edge: past the bar when this output's bar sits there,
-    // else the screen-edge margin.
-    readonly property int topInset: atTop ? Theme.barH + 4 : Theme.gap
-    readonly property int bottomInset: atBottom ? Theme.barH + 4 : Theme.gap
-    readonly property int rightInset: atRight ? Theme.barH + 4 : Theme.gap
+    // Clearance for something that hugs an edge: past the bar when this output's bar sits there (its inset, K71, and its
+    // thickness), else the screen-edge margin.
+    readonly property int topInset: atTop ? insetOf("top") + Theme.barH + 4 : Theme.gap
+    readonly property int bottomInset: atBottom ? insetOf("bottom") + Theme.barH + 4 : Theme.gap
+    readonly property int rightInset: atRight ? insetOf("right") + Theme.barH + 4 : Theme.gap
 }
