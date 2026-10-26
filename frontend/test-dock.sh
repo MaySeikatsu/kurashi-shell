@@ -9,7 +9,10 @@
 #      right-click Firefox → "Unpin from dock" writes `dock.pinned` (one cfg.apply), and the tile goes;
 #   3. looks: the dock under the decors sekai, glass, terminal and none (the real daemon's theme worn by the mock);
 #   (after 3) the first decor in the light scheme: look, urgent, left edge, empty -> shots/dock/<decor>-light/;
-#   5. (after 4) a second output to the right: a right-edge dock on HEADLESS-1 waits 500 ms to reveal (the shared edge),
+#   6. (W44, K71) draw modes from runtime.layout: washi and sekai × top and bottom bar × frame off and on × floating,
+#      dynamic, connected (shots/dock/layout/<decor>/); hover through the shared edge strip (a resting pointer keeps it),
+#      hidden by runtime.ui.shown, empty_desktop; idle commits of a hover dock at rest;
+#   5. (after 6) a second output to the right: a right-edge dock on HEADLESS-1 waits 500 ms to reveal (the shared edge),
 #      HEADLESS-2's own right edge 250 ms;
 #   4. with DOCK_MEASURE=1: idle commits of the dock's surfaces (hidden and shown, 10 s each) and its USS per output
 #      (dock on and hidden vs off, medians of three alternating runs; shown vs hidden once) — docs/BENCH.md "Mods".
@@ -201,6 +204,13 @@ mock_scene() {  # mock_scene [autohide]: the fake windows, two pins, the dock on
   cfgval dock.pinned '["firefox","org.gnome.Nautilus"]'
   cfgval dock.enabled true
 }
+dock_commits() {  # dock_commits <start byte>: commits of the dock's layer surfaces (and the shared edge strips) since then
+  local ids
+  ids=$(grep -oE 'wl_surface#[0-9]+, wl_output#[0-9]+, [0-9]+, "kurashi-(dock|edge)"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
+    | grep -oE '[0-9]+$' | paste -sd'|' - || true)
+  [ -n "$ids" ] || { echo none; return 0; }
+  tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -cE "wl_surface#($ids)\.commit\(" || true
+}
 qml_errors() {
   if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type|Unable to assign|is not defined' "$R/qs.log" \
       | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
@@ -211,8 +221,9 @@ qml_errors() {
 
 : > "$R/server.log"
 
-# 0. The decors' themes, as the real daemon serves them.
-for d in $DECORS; do
+# 0. The decors' themes, as the real daemon serves them (and the layout phase's, W44).
+LAYOUT_DECORS=${DOCK_LAYOUT_DECORS-washi sekai}
+for d in $(echo $DECORS $LAYOUT_DECORS | tr ' ' '\n' | awk '!s[$0]++'); do
   printf 'theme.style = "%s"\n' "$d" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   start_kurashid
   K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$d.json"
@@ -388,7 +399,7 @@ if [ "${DOCK_MEASURE:-0}" = 1 ]; then
   size() { stat -c %s "$R/qs.log"; }
   dock_commits() {  # dock_commits <start byte>: commits of the dock's layer surfaces since that offset
     local ids
-    ids=$(grep -oE 'wl_surface#[0-9]+, wl_output#[0-9]+, [0-9]+, "kurashi-dock(-edge)?"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
+    ids=$(grep -oE 'wl_surface#[0-9]+, wl_output#[0-9]+, [0-9]+, "kurashi-(dock|edge)"' "$R/qs.log" | grep -oE 'wl_surface#[0-9]+' \
       | grep -oE '[0-9]+$' | paste -sd'|' - || true)
     [ -n "$ids" ] || { echo none; return 0; }
     tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -cE "wl_surface#($ids)\.commit\(" || true
@@ -451,6 +462,118 @@ timeout 20 grim -g "0,$(( SH - 200 )) ${SW}x200" "$LOUT/empty.png" && echo "shot
 qml_errors
 stop_phase
 
+# 6. Draw modes and visibility from runtime.layout (K71, W44; docs/ux/layout.md's mode table): under washi and sekai, a
+#    top and a bottom bar, the frame off and on, each of floating / dynamic / connected (the mock computes the layout
+#    from its config as kurashid does). Asserted from the geometry line and the pixels at the dock's base: floating
+#    stands a gap off the band or bar (the gap under it is the desk); dynamic sits on it with a concave fillet beside its
+#    base (ink just outside its corner); connected sits on it with straight sides (desk there). Shots
+#    frontend/shots/dock/layout/<decor>/<bar>-frame<off|on>-<draw>.png. Then visibility through the shared edge strip
+#    (`hover`: a dwell on the edge reveals it, a pointer resting there keeps it, leaving hides it; `hidden`: only while
+#    runtime.ui.shown lists dock@HEADLESS-1; `empty_desktop`: shown on an empty desk) and idle commits at rest (0).
+LOUT=$OUT/layout
+geomf() { geom | tr ' ' '\n' | grep -A1 -x -- "$1" | tail -1; }   # a field of the last geometry line
+# The bar on `top` or `bottom`, with a few modules (layout.bar.move's result; the other edge's zones empty).
+setbar() {
+  local on=$1 off=top
+  [ "$on" = top ] && off=bottom
+  cfgval "edges.$off.bar" false; cfgval "edges.$on.bar" true
+  for z in start center end; do cfgval "edges.$off.$z" '[]'; done
+  cfgval "edges.$on.start" '["workspaces"]'; cfgval "edges.$on.center" '["island"]'; cfgval "edges.$on.end" '["clock","quick"]'
+}
+px1() { [ "$(ink "$1" "$2" 1 1)" -gt 0 ] && echo ink || echo desk; }
+for d in $LAYOUT_DECORS; do
+  mkdir -p "$LOUT/$d"
+  start_mock
+  mockdoc "$(cat "$W/theme-$d.json")"
+  start_frontend
+  mock_scene
+  ptr move $(( SW / 2 )) $(( SH / 2 ))
+  for bar in top bottom; do
+    setbar "$bar"
+    for frame in off on; do
+      if [ "$frame" = on ]; then cfgval layout.frame.enabled true; else cfgval layout.frame.enabled false; fi
+      for draw in floating dynamic connected; do
+        cfgval layout.draw "\"$draw\""
+        wait_geom "draw $draw "
+        # The layout's inset for the dock (the document is the truth: never re-derived here).
+        want=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.inset')
+        for _ in $(seq 20); do [ "$(geomf inset)" = "$want" ] && break; sleep 0.25; done
+        [ "$(geomf inset)" = "$want" ] || fail "$d $bar frame $frame $draw: the dock stands at $(geomf inset), the layout says $want ($(geom))"
+        sleep 0.8
+        IFS=, read -r BX BY BW BH <<< "$(geomf body)"
+        WW=$(geomf win); left=$(( (SW - WW) / 2 + BX ))
+        base=$(( SH - want ))
+        tag="$d $bar frame $frame $draw"
+        [ "$(px1 $(( SW / 2 )) $(( base - 3 )))" = ink ] || fail "$tag: no dock at its base (y $(( base - 3 )))"
+        case $draw in
+          floating) # the gap under it: the desk, unless a band or a bar lies there
+            if [ "$bar" = top ] && [ "$frame" = off ]; then
+              [ "$(px1 $(( SW / 2 )) $(( SH - 2 )))" = desk ] || fail "$tag: the floating dock touches the screen's edge"
+            fi
+            [ "$(px1 $(( left - 3 )) $(( base - 2 )))" = desk ] || fail "$tag: something beside the floating dock's base" ;;
+          dynamic) [ "$(px1 $(( left - 2 )) $(( base - 2 )))" = ink ] || fail "$tag: no fillet beside the dock's base" ;;
+          connected) [ "$(px1 $(( left - 3 )) $(( base - 2 )))" = desk ] || fail "$tag: the connected dock's side is not straight" ;;
+        esac
+        timeout 20 grim -g "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220" "$LOUT/$d/$bar-frame$frame-$draw.png" \
+          && echo "shot $LOUT/$d/$bar-frame$frame-$draw.png"
+        echo "ok: $tag: inset $want, $(geomf joins) joins"
+      done
+    done
+  done
+  qml_errors
+  if [ "$d" = "${LAYOUT_DECORS%% *}" ]; then
+    # Visibility through the shared strip (no window of the dock's own: the strips' namespace is kurashi-edge).
+    setbar top; cfgval layout.frame.enabled false; cfgval layout.draw '"dynamic"'
+    cfgval dock.visibility '"hover"'
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    sleep 1.2
+    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    [ "$n" -lt 50 ] || fail "hover: the dock shows away from the edge ($n px)"
+    ptr move $(( SW / 2 + 300 )) $(( SH - 1 ))
+    sleep 1.2
+    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    [ "$n" -gt 500 ] || fail "hover: a rest on the edge did not reveal the dock ($n px)"
+    sleep 2
+    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    [ "$n" -gt 500 ] || fail "hover: the dock went while the pointer rested on the edge ($n px)"
+    timeout 20 grim -g "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220" "$LOUT/$d/hover-revealed.png"
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    sleep 1.4
+    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    [ "$n" -lt 50 ] || fail "hover: the dock stayed after the pointer left ($n px)"
+    echo "ok: hover: the dwell reveals it, a resting pointer keeps it, leaving hides it"
+    cfgval dock.visibility '"hidden"'
+    sleep 1
+    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -lt 50 ] || fail "hidden: the dock shows"
+    mockdoc '{"doc":"runtime.ui","patch":{"shown":["dock@HEADLESS-1"]}}'
+    sleep 1.2
+    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -gt 500 ] || fail "hidden: runtime.ui.shown did not bring the dock out"
+    mockdoc '{"doc":"runtime.ui","patch":{"shown":[]}}'
+    sleep 1.2
+    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -lt 50 ] || fail "hidden: the dock stayed after shown dropped it"
+    echo "ok: hidden: out only while runtime.ui.shown lists dock@HEADLESS-1"
+    cfgval dock.visibility '"empty_desktop"'
+    mockdoc '{"doc":"svc.workspaces","patch":{"tasks":{"*":[],"HEADLESS-1":[]}}}'
+    sleep 1.2
+    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -gt 500 ] || fail "empty_desktop: the dock is not shown on an empty desk"
+    echo "ok: empty_desktop: shown on an empty desk"
+    qml_errors
+    stop_phase
+    # Ma: a hover dock at rest, hidden and revealed (the pointer resting on the edge), commits no frame in 5 s.
+    start_mock; mockdoc "$(cat "$W/theme-$d.json")"
+    start_frontend WAYLAND_DEBUG=1
+    mock_scene
+    cfgval dock.visibility '"hover"'
+    ptr move $(( SW / 2 )) $(( SH / 2 ))
+    sleep 3; c0=$(stat -c %s "$R/qs.log"); sleep 5; hid=$(dock_commits "$c0")
+    ptr move $(( SW / 2 + 300 )) $(( SH - 1 ))
+    sleep 3; c0=$(stat -c %s "$R/qs.log"); sleep 5; out=$(dock_commits "$c0")
+    [ "$hid" = 0 ] || [ "$hid" = none ] || fail "idle: the hover dock, hidden, committed $hid times in 5 s"
+    [ "$out" = 0 ] || fail "idle: the revealed dock at rest committed $out times in 5 s"
+    echo "ok: idle: a hover dock at rest commits nothing (hidden: $hid, revealed: $out)"
+  fi
+  stop_phase
+done
 # 5. A shared edge (I137): HEADLESS-2 comes to the right of HEADLESS-1; a right-edge dock on HEADLESS-1 reveals after
 # 500 ms (the pointer crosses that edge on its way to the other output), HEADLESS-2's outer edge after 250 ms.
 timeout 20 "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "output-add failed"

@@ -15,14 +15,17 @@ import "../components/island"
 // Mods add cards (K46, row 120: `desk:<name>` → the mod's `qml/desk/<name>.qml`), each loaded only while the desk is
 // shown, at the column's width; a card sets its own implicitHeight (0 when it has nothing to say). A mod's cards follow
 // the manifest's `provides` order: the `qml` map is sorted by key, so it cannot give one (W36).
-// Order (K48 (4), K71): the column follows the list of its side (`desktop.right` / `desktop.left`) — core ids and `mod:<id>:<name>` — and the cards it does not list
-// come after, core ones first. Hidden (K65, W36): a card is left out while its switch is off (core: `desktop.<card>`,
-// the switch Settings shows) or its id is in `desktop.hidden` (a mod card has no switch of its own).
+// Order and sides (K48 (4), K71, W44 point 15): two columns at once — `desktop.left` and `desktop.right`, each top to
+// bottom (core ids and `mod:<id>:<name>`); a card neither list names stands on `desktop.side`, after that side's listed
+// cards (core ones first); a card both lists name stands on the other side (see `arrange`). One window per output: content-sized on
+// its side while one column has cards, the output's width (input only over the columns) while both do. Hidden (K65,
+// W36): a card is left out while its switch is off (core: `desktop.<card>`, the switch Settings shows) or its id is in
+// `desktop.hidden` (a mod card has no switch of its own).
 // Edit mode (SekaiPop "Edit Desktop", macOS "Edit Widgets"; docs/ux/desktop.md v3–v4): the "Edit" key on hover lifts the
-// column over the windows with the keyboard, every card shows (a placeholder says when it shows; a hidden one says
-// "Hidden"), drag or Alt+Up/Down reorders, the eye (or Space) shows or hides any card, and Done writes the order, the
-// switches and the hidden list as one `apply` (one undo step); Escape puts everything back. Nothing is written while
-// editing.
+// columns over the windows with the keyboard, every card shows (a placeholder says when it shows; a hidden one says
+// "Hidden"), drag or Alt+Up/Down reorders, the side key (or Alt+Left/Right) moves a card to the other column, the eye
+// (or Space) shows or hides any card, and Done writes both lists, the switches and the hidden list as one `apply` (one
+// undo step); Escape puts everything back. Nothing is written while editing.
 PanelWindow {
     id: desk
     required property var modelData
@@ -30,15 +33,25 @@ PanelWindow {
 
     BarConfig { id: bars; screen: desk.screen }
     readonly property bool on: bars.valueOf("desktop.enabled", false) === true
-    readonly property bool onLeft: bars.valueOf("desktop.side", "right") === "left"
+    readonly property string mainSide: bars.valueOf("desktop.side", "right") === "left" ? "left" : "right"
     function want(key) { return bars.valueOf("desktop." + key, true) === true }
 
-    // Edit mode. While on, the column sits on the top layer and holds the keyboard (exclusive: a bottom-layer surface
+    // Edit mode. While on, the columns sit on the top layer and hold the keyboard (exclusive: a bottom-layer surface
     // gets keys only after a second click in sway and niri, and Escape must always work); Done or Escape gives both back.
     property bool editing: false
     // What the edit shows before Done: the core cards' switches (`desktop.<id>`) as staged.
     property var staged: ({})
     property string editError: ""
+
+    // K71: the cards keep clear of every edge's zone (a bar, the frame, a pinned sidebar), from runtime.layout.
+    Watch { doc: "runtime.layout" }
+    readonly property var lay: ShellLayout.of(screen ? screen.name : "")
+    function zoneOf(e) { var x = (lay.edges || {})[e] || {}; return x.holder && x.holder !== "none" && typeof x.reserve === "number" ? x.reserve : 0 }
+
+    // Which columns stand: a side with cards (in edit mode both, so a card can cross).
+    readonly property bool leftOn: editing || leftModel.count > 0
+    readonly property bool rightOn: editing || rightModel.count > 0
+    readonly property bool both: leftOn && rightOn
 
     visible: on
     WlrLayershell.layer: editing ? WlrLayer.Top : WlrLayer.Bottom
@@ -46,19 +59,26 @@ PanelWindow {
     WlrLayershell.keyboardFocus: editing ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     color: "transparent"
-    anchors { top: true; left: desk.onLeft; right: !desk.onLeft }
+    anchors { top: true; left: desk.leftOn || !desk.rightOn; right: desk.rightOn }
     // The Edit key sits above the first card's padding, its bottom 2 px above the keycaps' top (they start at the padding),
     // so it covers no content of the clock's keys (W36). The window starts `keyLift` above the cards; the cards keep 28 px
-    // under the bar, or the key's clearance from the bar when that is more.
+    // under the top edge's zone, or the key's clearance from it when that is more.
     readonly property int keyLift: Math.max(0, editKey.height - Theme.pad + 2)
     readonly property int colTop: Math.max(28, keyLift + 8)
+    readonly property int sideGap: 32
     margins {
-        top: (bars.atTop ? Theme.barH : 0) + colTop - keyLift
-        left: (bars.enabled && bars.edge === "left" ? Theme.barH : 0) + 32
-        right: (bars.atRight ? Theme.barH : 0) + 32
+        top: zoneOf("top") + colTop - keyLift
+        left: desk.both ? 0 : zoneOf("left") + sideGap
+        right: desk.both ? 0 : zoneOf("right") + sideGap
     }
-    implicitWidth: cards.width
-    implicitHeight: Math.max(1, cards.height + keyLift)
+    implicitWidth: desk.cardW
+    implicitHeight: Math.max(1, Math.max(leftCol.height, rightCol.height) + keyLift)
+    // While both columns stand only they take the pointer (the desk between them is the windows' and the wallpaper's).
+    mask: Region {
+        item: leftCol
+        Region { item: rightCol }
+        Region { item: editKey }
+    }
     onOnChanged: if (!on) cancelEdit()
 
     Watch { doc: "svc.clock"; active: desk.visible }
@@ -108,50 +128,68 @@ PanelWindow {
 
     // ---- order -------------------------------------------------------------------------------------------------------
     readonly property var coreIds: ["clock", "calendar", "media", "weather"]
-    // K71: the list of the side the cards stand on.
-    readonly property string orderKey: onLeft ? "desktop.left" : "desktop.right"
-    readonly property var configOrder: { var o = bars.valueOf(orderKey, null); return Array.isArray(o) ? o : coreIds }
+    function listOf(side) {
+        var o = bars.valueOf("desktop." + side, null)
+        return Array.isArray(o) ? o.filter(function (s) { return typeof s === "string" }) : (side === "right" ? coreIds : [])
+    }
+    readonly property var configLeft: listOf("left")
+    readonly property var configRight: listOf("right")
     // Every card the desk can show now, in their unlisted order: core first, then mods' in mod order.
     readonly property var available: coreIds.concat(modCards.map(function (c) { return c.id }))
     function urlOf(id) {
         for (var i = 0; i < modCards.length; i++) if (modCards[i].id === id) return modCards[i].url
         return ""
     }
-    // `first` (ids in order) narrowed to the available ones, then every available id it does not list.
-    function arrange(first) {
-        var out = [], seen = {}
-        for (var i = 0; i < first.length; i++)
-            if (available.indexOf(first[i]) >= 0 && !seen[first[i]]) { seen[first[i]] = true; out.push(first[i]) }
-        for (var j = 0; j < available.length; j++) if (!seen[available[j]]) out.push(available[j])
+    // Both columns from the two lists: each narrowed to the available cards, and every available card neither names after
+    // the main side's listed ones. A card both name stands on the other side: the main side's list names every core card
+    // by default, so naming one on the other side is the move (desktop.left = ["calendar"] takes the calendar left).
+    function arrange(left, right) {
+        var out = { left: [], right: [] }, seen = {}
+        var first = mainSide === "left" ? [["right", right], ["left", left]] : [["left", left], ["right", right]]
+        for (var s = 0; s < 2; s++) {
+            var side = first[s][0], l = first[s][1]
+            for (var i = 0; i < l.length; i++)
+                if (available.indexOf(l[i]) >= 0 && !seen[l[i]]) { seen[l[i]] = true; out[side].push(l[i]) }
+        }
+        for (var j = 0; j < available.length; j++) if (!seen[available[j]]) out[mainSide].push(available[j])
         return out
     }
-    function modelIds() {
-        var out = []
-        for (var i = 0; i < order.count; i++) out.push(order.get(i).cid)
+    function modelOf(side) { return side === "left" ? leftModel : rightModel }
+    function modelIds(side) {
+        var m = modelOf(side), out = []
+        for (var i = 0; i < m.count; i++) out.push(m.get(i).cid)
         return out
     }
-    // The model follows the order in place (moves, not a rebuild), so a card keeps its object, its subscriptions and its
-    // keyboard focus. While editing it follows the edit; else the config.
-    function sync() {
-        var ids = arrange(editing ? modelIds() : configOrder)
+    // The models follow the order in place (moves, not a rebuild), so a card keeps its object, its subscriptions and its
+    // keyboard focus. While editing they follow the edit; else the config.
+    function syncSide(m, ids) {
         for (var i = 0; i < ids.length; i++) {
             var at = -1
-            for (var j = i; j < order.count; j++) if (order.get(j).cid === ids[i]) { at = j; break }
-            if (at < 0) order.insert(i, { cid: ids[i], url: urlOf(ids[i]) })
-            else if (at !== i) order.move(at, i, 1)
+            for (var j = i; j < m.count; j++) if (m.get(j).cid === ids[i]) { at = j; break }
+            if (at < 0) m.insert(i, { cid: ids[i], url: urlOf(ids[i]) })
+            else if (at !== i) m.move(at, i, 1)
         }
-        if (order.count > ids.length) order.remove(ids.length, order.count - ids.length)
+        if (m.count > ids.length) m.remove(ids.length, m.count - ids.length)
     }
-    ListModel { id: order }
-    readonly property string syncKey: JSON.stringify([configOrder, available])
+    function sync() {
+        var a = editing ? arrange(modelIds("left"), modelIds("right")) : arrange(configLeft, configRight)
+        // (The two lists are disjoint: a card that crossed sides is inserted on one and removed from the other.)
+        syncSide(leftModel, a.left)
+        syncSide(rightModel, a.right)
+    }
+    ListModel { id: leftModel }
+    ListModel { id: rightModel }
+    readonly property string syncKey: JSON.stringify([configLeft, configRight, available, mainSide])
     onSyncKeyChanged: Qt.callLater(sync)
     Component.onCompleted: sync()
 
     // ---- edit mode ---------------------------------------------------------------------------------------------------
-    readonly property var orderProv: bars.entry(orderKey)
-    // A layer above the user's (Nix, a forced value) holds the order: edit mode says so and moves nothing (Shōjiki).
-    readonly property bool orderLocked: !!orderProv && (!!orderProv.forced_by || (orderProv.source || {}).kind === "forced"
-                                                        || (orderProv.source || {}).kind === "nix")
+    function locked(key) {
+        var p = bars.entry(key)
+        return !!p && (!!p.forced_by || (p.source || {}).kind === "forced" || (p.source || {}).kind === "nix")
+    }
+    // A layer above the user's (Nix, a forced value) holds an order: edit mode says so and moves nothing (Shōjiki).
+    readonly property bool orderLocked: locked("desktop.left") || locked("desktop.right")
     // Hidden (K65): a listed id is left out whatever its switch says. A mod card has no switch, so the list is its only
     // hide; a core card keeps its switch (the one Settings shows), and the list may name it as well.
     readonly property var hiddenList: { var h = bars.valueOf("desktop.hidden", []); return Array.isArray(h) ? h : [] }
@@ -162,10 +200,7 @@ PanelWindow {
     // What the desk shows now, not the staged edit: the watches and the loaders follow it (a hidden card is not made).
     function showsNow(id) { return !hiddenIn(id) }
     // The eye is locked when a layer above the user sets what it writes: the card's switch, or the list for a mod card.
-    function switchLocked(id) {
-        var p = bars.entry(id.indexOf("mod:") === 0 ? "desktop.hidden" : "desktop." + id)
-        return !!p && (!!p.forced_by || (p.source || {}).kind === "forced" || (p.source || {}).kind === "nix")
-    }
+    function switchLocked(id) { return locked(id.indexOf("mod:") === 0 ? "desktop.hidden" : "desktop." + id) }
     readonly property bool anySwitchLocked: {
         for (var i = 0; i < available.length; i++) if (switchLocked(available[i])) return true
         return false
@@ -173,13 +208,17 @@ PanelWindow {
     function shown(id) {
         return editing && staged[id] !== undefined ? staged[id] : !hiddenIn(id)
     }
+    function slotOf(side, i) { var r = side === "left" ? leftCol.rep : rightCol.rep; return r ? r.itemAt(i) : null }
     function startEdit() {
         if (editing) return
         staged = ({})
         editError = ""
         editing = true
         sync()
-        Qt.callLater(function () { var s = rep.itemAt(0); if (s) s.forceActiveFocus() })
+        Qt.callLater(function () {
+            var s = slotOf(mainSide, 0) || slotOf(mainSide === "left" ? "right" : "left", 0)
+            if (s) s.forceActiveFocus()
+        })
     }
     function cancelEdit() {
         if (!editing) return
@@ -196,17 +235,33 @@ PanelWindow {
         s[id] = !shown(id)
         staged = s
     }
-    function moveCard(from, to) {
-        if (orderLocked || to < 0 || to >= order.count || from === to) return
-        order.move(from, to, 1)
+    function moveCard(side, from, to) {
+        var m = modelOf(side)
+        if (orderLocked || to < 0 || to >= m.count || from === to) return
+        m.move(from, to, 1)
     }
-    // Done: the order and the switches that changed, as one apply (one undo step); nothing when nothing changed.
+    // The card at `index` of `side` to the end of the other column; the focus goes with it.
+    function moveSide(side, index) {
+        if (orderLocked) return
+        var m = modelOf(side), other = side === "left" ? "right" : "left", o = modelOf(other)
+        if (index < 0 || index >= m.count) return
+        var it = m.get(index), cid = it.cid, url = it.url
+        root.forceActiveFocus()
+        m.remove(index, 1)
+        o.append({ cid: cid, url: url })
+        var at = o.count - 1
+        Qt.callLater(function () { var s = desk.slotOf(other, at); if (s) s.forceActiveFocus() })
+    }
+    // Done: both orders and the switches that changed, as one apply (one undo step); nothing when nothing changed.
     function saveEdit() {
         if (!editing) return
         var ops = []
-        var ids = modelIds()
-        if (!orderLocked && JSON.stringify(ids) !== JSON.stringify(arrange(configOrder)))
-            ops.push({ set: orderKey, value: ids })
+        var now = { left: modelIds("left"), right: modelIds("right") }
+        var was = arrange(configLeft, configRight)
+        if (!orderLocked && JSON.stringify(now) !== JSON.stringify(was)) {
+            if (JSON.stringify(now.left) !== JSON.stringify(configLeft)) ops.push({ set: "desktop.left", value: now.left })
+            if (JSON.stringify(now.right) !== JSON.stringify(configRight)) ops.push({ set: "desktop.right", value: now.right })
+        }
         // A core card's switch is its own key; a mod card's hide is its entry in the list. The list goes out once, in the
         // same apply, so one undo puts it back with the rest.
         var hidden = hiddenList.slice()
@@ -222,6 +277,7 @@ PanelWindow {
         if (listed) ops.push({ set: "desktop.hidden", value: hidden })
         if (ops.length === 0) { cancelEdit(); return }
         editError = ""
+        if (Quickshell.env("KURASHI_DESK_LOG") === "1") console.log("desk-save " + JSON.stringify(ops))
         Store.apply(ops, function (errors) {
             if (!errors) { root.forceActiveFocus(); editing = false; staged = ({}); return }
             var c = errors.length ? (errors[0].code || "") : ""
@@ -561,15 +617,56 @@ PanelWindow {
 
     Item {
         id: root
-        width: cards.width
-        height: cards.height + desk.keyLift
+        width: desk.both ? desk.width : desk.cardW
+        height: Math.max(leftCol.height, rightCol.height) + desk.keyLift
         focus: true
         Keys.onEscapePressed: event => { desk.cancelEdit(); event.accepted = true }
         HoverHandler { id: deskHover }
 
+        Loader {
+            id: leftCol
+            readonly property string side: "left"
+            readonly property var rep: item ? item.rep : null
+            // Sized by its column (a Loader with a size of its own would size the column instead).
+            active: desk.leftOn
+            x: desk.both ? desk.zoneOf("left") + desk.sideGap : 0
+            y: desk.keyLift
+            sourceComponent: columnC
+        }
+        Loader {
+            id: rightCol
+            readonly property string side: "right"
+            readonly property var rep: item ? item.rep : null
+            active: desk.rightOn
+            x: desk.both ? root.width - desk.zoneOf("right") - desk.sideGap - desk.cardW : 0
+            y: desk.keyLift
+            sourceComponent: columnC
+        }
+
+        // The way in: a key above the main column's first card while the pointer is over the desk (or Tab reaches it).
+        // Above the card's padding, it covers no card content (W36: it used to sit over the clock's last digit).
+        Button {
+            id: editKey
+            objectName: "desk-edit"
+            readonly property Item main: desk.mainSide === "left" && desk.leftOn || !desk.rightOn ? leftCol : rightCol
+            visible: !desk.editing && (deskHover.hovered || editKey.activeFocus)
+            y: 0
+            x: main.x + desk.cardW - width - Theme.gap
+            icon: "edit"
+            label: I18n.tr("frontend.desktop.edit.start")
+            onClicked: desk.startEdit()
+        }
+    }
+
+    // One column of cards (its side from the Loader that holds it).
+    Component {
+        id: columnC
         Column {
             id: cards
-            y: desk.keyLift
+            readonly property string side: parent ? parent.side : "right"
+            readonly property var model: desk.modelOf(side)
+            property alias rep: rep
+            readonly property string other: side === "left" ? "right" : "left"
             width: desk.cardW
             spacing: Theme.pad + 4
             move: Transition {
@@ -577,9 +674,9 @@ PanelWindow {
                 NumberAnimation { properties: "y"; duration: Theme.stdMs; easing.type: Easing.OutCubic }
             }
 
-            // ---- edit mode's bar: what this is, Cancel and Done, and why a save was refused ----
+            // ---- edit mode's bar (on the main column): what this is, Cancel and Done, and why a save was refused ----
             Card {
-                visible: desk.editing
+                visible: desk.editing && cards.side === desk.mainSide
                 fill: Theme.panel
                 Column {
                     width: parent.width
@@ -640,10 +737,31 @@ PanelWindow {
                     }
                 }
             }
+            // An empty column in edit mode: where a card lands when it is moved here.
+            Rectangle {
+                visible: desk.editing && rep.count === 0
+                width: desk.cardW
+                height: emptyText.implicitHeight + 2 * Theme.pad
+                radius: Theme.rLg + 4
+                color: "transparent"
+                border.width: 2
+                border.color: Qt.alpha(Theme.accent, 0.7)
+                Text {
+                    id: emptyText
+                    anchors.centerIn: parent
+                    width: parent.width - 2 * Theme.pad
+                    horizontalAlignment: Text.AlignHCenter
+                    wrapMode: Text.WordWrap
+                    color: Theme.fg
+                    font.pixelSize: Theme.fs - 1
+                    font.family: Theme.fam(text, Theme.families)
+                    text: I18n.tr("frontend.desktop.edit.empty_side")
+                }
+            }
 
             Repeater {
                 id: rep
-                model: order
+                model: cards.model
                 delegate: Item {
                     id: slot
                     required property int index
@@ -689,16 +807,27 @@ PanelWindow {
                     objectName: "deskcard:" + cid
                     Accessible.role: Accessible.ListItem
                     Accessible.name: desk.cardTitle(cid) + (wanted ? "" : " · " + I18n.tr("frontend.desktop.edit.hidden"))
+                    Accessible.description: I18n.tr(cards.side === "left" ? "frontend.desktop.edit.on_left" : "frontend.desktop.edit.on_right")
                     Keys.onPressed: event => {
                         if (!desk.editing) return
                         var alt = (event.modifiers & Qt.AltModifier) !== 0
                         var next = null
-                        if (event.key === Qt.Key_Up && alt) desk.moveCard(slot.index, slot.index - 1)
-                        else if (event.key === Qt.Key_Down && alt) desk.moveCard(slot.index, slot.index + 1)
+                        // Alt+Left/Right: to the other column when that is the way (left column → right, and back).
+                        var toOther = alt && ((event.key === Qt.Key_Right && cards.side === "left")
+                                              || (event.key === Qt.Key_Left && cards.side === "right"))
+                        if (event.key === Qt.Key_Up && alt) desk.moveCard(cards.side, slot.index, slot.index - 1)
+                        else if (event.key === Qt.Key_Down && alt) desk.moveCard(cards.side, slot.index, slot.index + 1)
+                        else if (toOther) desk.moveSide(cards.side, slot.index)
                         else if (event.key === Qt.Key_Up) next = rep.itemAt(slot.index - 1)
                         else if (event.key === Qt.Key_Down) next = rep.itemAt(slot.index + 1)
+                        else if (!alt && ((event.key === Qt.Key_Right && cards.side === "left")
+                                          || (event.key === Qt.Key_Left && cards.side === "right"))) {
+                            var o = desk.modelOf(cards.other)
+                            next = o.count > 0 ? desk.slotOf(cards.other, Math.min(slot.index, o.count - 1)) : null
+                        }
                         else if (event.key === Qt.Key_Space) desk.toggleShown(slot.cid)
                         else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) desk.saveEdit()
+                        else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right) { event.accepted = true; return }
                         else return
                         if (next) next.forceActiveFocus()
                         event.accepted = true
@@ -732,7 +861,7 @@ PanelWindow {
                     }
 
                     // ---- edit mode: the outline, the drag surface (it also keeps clicks off the card's own keys) and
-                    // the card's keys: up, down, show/hide ----
+                    // the card's keys: up, down, the other side, show/hide ----
                     Rectangle {
                         visible: desk.editing
                         anchors.fill: parent
@@ -759,8 +888,8 @@ PanelWindow {
                             slot.pointerTop = mapToItem(cards, mouse.x, mouse.y).y - slot.grabY
                             var prev = rep.itemAt(slot.index - 1)
                             var nxt = rep.itemAt(slot.index + 1)
-                            if (prev && slot.pointerTop < prev.y + prev.height / 2) desk.moveCard(slot.index, slot.index - 1)
-                            else if (nxt && slot.pointerTop + slot.height > nxt.y + nxt.height / 2) desk.moveCard(slot.index, slot.index + 1)
+                            if (prev && slot.pointerTop < prev.y + prev.height / 2) desk.moveCard(cards.side, slot.index, slot.index - 1)
+                            else if (nxt && slot.pointerTop + slot.height > nxt.y + nxt.height / 2) desk.moveCard(cards.side, slot.index, slot.index + 1)
                         }
                         onReleased: slot.dragging = false
                         onCanceled: slot.dragging = false
@@ -790,14 +919,14 @@ PanelWindow {
                             a11y: I18n.tr("frontend.desktop.edit.up")
                             enabled: !desk.orderLocked && slot.index > 0
                             acceptsReturn: false
-                            onClicked: desk.moveCard(slot.index, slot.index - 1)
+                            onClicked: desk.moveCard(cards.side, slot.index, slot.index - 1)
                         }
                         IconButton {
                             icon: "arrow_downward"; glyph: "↓"
                             a11y: I18n.tr("frontend.desktop.edit.down")
-                            enabled: !desk.orderLocked && slot.index < order.count - 1
+                            enabled: !desk.orderLocked && slot.index < cards.model.count - 1
                             acceptsReturn: false
-                            onClicked: desk.moveCard(slot.index, slot.index + 1)
+                            onClicked: desk.moveCard(cards.side, slot.index, slot.index + 1)
                         }
                         IconButton {
                             icon: slot.wanted ? "visibility" : "visibility_off"; glyph: slot.wanted ? "◉" : "◌"
@@ -806,6 +935,17 @@ PanelWindow {
                             enabled: !slot.locked
                             acceptsReturn: false
                             onClicked: desk.toggleShown(slot.cid)
+                        }
+                        // W44 (point 15): to the other column (its arrow points there); after the eye, so the Tab path to the eye stays.
+                        IconButton {
+                            objectName: "desk-side:" + slot.cid
+                            // (Names in the icon font's subset, nix/icon-names.txt.)
+                            icon: cards.side === "left" ? "chevron_right" : "chevron_left"
+                            glyph: cards.side === "left" ? "›" : "‹"
+                            a11y: I18n.tr(cards.side === "left" ? "frontend.desktop.edit.to_right" : "frontend.desktop.edit.to_left")
+                            enabled: !desk.orderLocked
+                            acceptsReturn: false
+                            onClicked: desk.moveSide(cards.side, slot.index)
                         }
                     }
                     // A hidden card says so in words, not by its dimming alone.
@@ -833,20 +973,6 @@ PanelWindow {
                     }
                 }
             }
-        }
-
-        // The way in: a key above the column's first card while the pointer is over the desk (or Tab reaches it). Above the
-        // card's padding, it covers no card content (W36: it used to sit over the clock's last digit).
-        Button {
-            id: editKey
-            objectName: "desk-edit"
-            visible: !desk.editing && (deskHover.hovered || editKey.activeFocus)
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.rightMargin: Theme.gap
-            icon: "edit"
-            label: I18n.tr("frontend.desktop.edit.start")
-            onClicked: desk.startEdit()
         }
     }
 

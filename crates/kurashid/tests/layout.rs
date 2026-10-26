@@ -189,20 +189,8 @@ async fn layout_toggle_brings_a_target_out_and_puts_it_away() {
         .invoke("layout.toggle", json!({"target": "module:bottom:center"}))
         .await
         .unwrap();
-    actions
-        .invoke(
-            "layout.toggle",
-            json!({"target": "sidebar:right", "output": "DP-1"}),
-        )
-        .await
-        .unwrap();
-    assert_eq!(
-        shown(),
-        Some(json!(["module:bottom:center@DP-2", "sidebar:right@DP-1"]))
-    );
-    // Closing the sidebar takes its entry; ui.close (and Esc, which sends it) takes every one.
-    actions.invoke("sidebar.close", json!({})).await.unwrap();
     assert_eq!(shown(), Some(json!(["module:bottom:center@DP-2"])));
+    // ui.close (and Esc, which sends it) takes every entry.
     actions.invoke("ui.close", json!({})).await.unwrap();
     assert_eq!(shown(), None);
     let _ = std::fs::remove_dir_all(&root);
@@ -296,5 +284,56 @@ async fn the_actions_query_lists_the_layout_actions() {
     assert_eq!(items[1]["args"], "{target, output?}");
     assert!(items[1]["help"].as_str().is_some_and(|h| !h.is_empty()));
     assert!(q("").len() > 10, "every action is listed");
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+/// Row 486: `layout.toggle {target: "sidebar:<side>"}` is `sidebar.toggle` — one truth, `runtime.ui.sidebar` (and
+/// `sidebar_output` when an output is named), no `shown` entry; the same toggle closes it, as `sidebar.close` does.
+#[tokio::test]
+async fn layout_toggle_of_a_sidebar_drives_sidebar_toggle() {
+    let (_store, hub, actions, root) = open();
+    let ui = || hub.snapshot("runtime.ui").unwrap().1;
+    actions
+        .invoke(
+            "layout.toggle",
+            json!({"target": "sidebar:right", "output": "DP-1"}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(ui()["sidebar"], json!("right"));
+    assert_eq!(ui()["sidebar_output"], json!("DP-1"));
+    assert_eq!(ui().get("shown"), None, "a sidebar is never a shown entry");
+    // The same toggle closes it; without an output it opens on the frontend's focused one (no sidebar_output).
+    actions
+        .invoke(
+            "layout.toggle",
+            json!({"target": "sidebar:right", "output": "DP-1"}),
+        )
+        .await
+        .unwrap();
+    assert_eq!(ui().get("sidebar"), None);
+    actions
+        .invoke("layout.toggle", json!({"target": "sidebar:right"}))
+        .await
+        .unwrap();
+    assert_eq!(ui()["sidebar"], json!("right"));
+    assert_eq!(ui().get("sidebar_output"), None);
+    // One at a time with the launcher, and sidebar.close closes what layout.toggle opened.
+    actions.invoke("launcher.toggle", json!({})).await.unwrap();
+    assert_eq!(ui().get("sidebar"), None, "the launcher closes it");
+    actions
+        .invoke("layout.toggle", json!({"target": "sidebar:right"}))
+        .await
+        .unwrap();
+    assert_eq!(ui()["launcher"], json!(false), "and it closes the launcher");
+    actions.invoke("sidebar.close", json!({})).await.unwrap();
+    assert_eq!(ui().get("sidebar"), None);
+    // An unknown side is refused like any bad target.
+    assert_eq!(
+        actions
+            .invoke("layout.toggle", json!({"target": "sidebar:middle"}))
+            .await,
+        Err(ActionError::Invalid("error.args.invalid".into()))
+    );
     let _ = std::fs::remove_dir_all(&root);
 }

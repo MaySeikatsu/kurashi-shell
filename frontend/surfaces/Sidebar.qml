@@ -5,533 +5,673 @@ import Quickshell.Io
 import Quickshell.Wayland
 import "../core"
 import "../components"
-import "../components/island"
 import "../components/sidebar"
 
-// An edge sidebar (card W29, docs/ux/sidebar.md): `side` left or right, open while runtime.ui.sidebar names it (the daemon
-// decides, one at a time with the Stage's panels and the launcher). One layer surface on the asking output
-// (runtime.ui.sidebar_output, else the focused one, latched while open); closed = no window at all, 0 frames, no
-// subscription (Ma). The window is anchored to all four edges with exclusive zone 0, so the compositor fits it to the
-// output's usable area: it stops at a bar on any side (copied from ii `modules/ii/sidebarRight/SidebarRight.qml`;
-// shellseikatsu's own arithmetic for the bar's size broke under side bars — its docs/BUGS.md). The column lies on its side.
-// `sidebar.<side>.draw` (K71): dynamic/connected = flush, outer corners square, inner corners `radius.lg`; floating = inset by `space.sm`, every
-// corner rounded, the look's chrome (ring, hard or soft shadow). Tokens only (rule 4).
-// W34 (docs/ux/motion.md, "the bar reaches out"): the column is one shape (ColumnShape) that grows out of the bar's end —
-// from the sidebar button's place at the bar's end, else the bar's corner — and folds back into it, width and height on
-// their own springs as the island's (width leads out, height leads back; interruptible, velocity kept). Where it meets the
-// bar's edge it is joined to it by concave fillets in the bar's own colour, so bar and column read as one sheet; a side
-// bar on the sidebar's side: the column grows along it. The content sits where it rests, cut to the shape, and fades in
-// late (out first); the column's material is carried with its leading edges (K61). `lively` (a low spring damping)
-// stretches the shape as it lengthens fast and squashes it as it lands, the neck wobbling once; `calm` settles softly;
-// `Theme.springOn` false cuts. While open the window takes the whole usable area's input: a click outside the column
-// closes it (I152; niri has no focus grab for layer surfaces). Esc backs out of a page, then closes.
+// An edge sidebar (cards W29, W44; docs/ux/sidebar.md, docs/ux/layout.md): `side` left or right. Where it stands and how it
+// meets its neighbours comes from `runtime.layout` (`sidebars.<side>`: draw, visibility, width, inset, span, joins, radius;
+// `edges.<side>.holder`), never re-derived here (rule 1). Per output (each output's layout names its own visibility):
+// - `hidden` (default): open while runtime.ui.sidebar names its side (key, bar button, `sidebar.toggle`,
+//   `layout.toggle {target: "sidebar:<side>"}` — row 486), on runtime.ui.sidebar_output, else the focused output, latched
+//   while open; one at a time with the Stage's panels and the launcher (the daemon decides). While open its window takes
+//   the usable area's input: a click outside the column closes it (I152; niri has no focus grab for layer surfaces).
+// - `hover` (point 14): the shared edge strip on its side (EdgeReveal, the dwell); it goes 400 ms after the pointer has
+//   left the column, never while it holds the keyboard or is being resized. A key still opens it as above.
+// - `always`: pinned open; it keeps its zone when the layout names it the edge's `holder` (windows tile beside it).
+// - `empty_desktop`: shown while the output's active workspace has no window, else as `hover`.
+// No window while closed (0 frames, no subscription of its sections: Ma).
+// Draw (K71): dynamic = flush to its side from what stands on the top edge to what stands on the bottom one, concave
+// fillets of `radius` where it meets a bar or the frame's band (ColumnShape, the island's neck turned to the neighbour);
+// connected = the same with straight joins (radius 0); floating = inset by the gap on every side, every corner rounded,
+// the look's chrome. Motion (K71, user decision; supersedes W34's grow-from-the-button): the column slides in from its
+// screen edge in every mode, its fillets and content with it, on the theme's spring (interruptible: a toggle mid-way turns
+// it round with its velocity; `Theme.springOn` false cuts). It never passes its rest: the free end stops at the screen's
+// edge. Resize (point 12): an 8 px grip along the inner edge, live while dragging, written on release as
+// `sidebar.<side>.width` (one undo step); double-click resets it; Ctrl+Left/Right by 10 px while the column has focus.
 Scope {
     id: sb
     required property string side            // "left" | "right"
     // shell.qml's focused output, read when the sidebar opens without a named output.
     property var focusedScreen: null
 
+    // One refcounted subscription while the shell runs (the bars and the frame hold it too): visibility decides whether a
+    // column exists at all.
+    Watch { doc: "runtime.layout" }
     readonly property var ui: Store.docs["runtime.ui"] || ({})
-    readonly property bool wanted: ui.sidebar === side
-    readonly property string wantOutput: wanted && typeof ui.sidebar_output === "string" ? ui.sidebar_output : ""
-
-    // The output it is on: picked when it opens, or when the daemon names another output while it is open.
-    property var screen: null
-    // The window exists: open, growing or folding back.
-    property bool held: false
-    readonly property bool instant: !Theme.springOn
-
+    readonly property bool toggled: ui.sidebar === side
+    readonly property string wantOutput: toggled && typeof ui.sidebar_output === "string" ? ui.sidebar_output : ""
+    // The output a toggle opened it on, latched while open (the daemon may name another while it is open: then that one).
+    property string toggledOn: ""
     function screenNamed(n) {
         var s = Quickshell.screens
         for (var i = 0; i < s.length; i++) if (s[i].name === n) return s[i]
         return null
     }
-    function pick() {
+    function pickName() {
         var s = wantOutput !== "" ? screenNamed(wantOutput) : null
-        return s !== null ? s : (focusedScreen || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null))
+        if (s === null) s = focusedScreen || (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
+        return s ? s.name : ""
     }
+    onToggledChanged: toggledOn = toggled ? pickName() : ""
+    onWantOutputChanged: if (toggled) toggledOn = pickName()
+    Component.onCompleted: if (toggled) toggledOn = pickName()
 
-    // ---- the morph: width and height progress, 0 = the origin, 1 = the column at rest ----
-    property real mw: 0
-    property real mh: 0
-    property bool expanding: true
-    // The free end has reached the far edge once: the height stays there and the spring's rebound goes into the width
-    // (the column cannot overshoot past the screen's edge; it squashes instead).
-    property bool landed: false
-    // The height's speed (progress per second), for the stretch; measured only while it moves.
-    property real vh: 0
-    property real lastMh: 0
-    property double lastT: 0
-    // The morph starts on the first presented frame of the new window (as the Stage's), so it is never skipped.
-    property bool gate: false
-
-    // Test only (frontend/test-texture.sh, the carried sheet): the column holds at this width progress (full height,
-    // flush) instead of growing.
+    // The sidebar keys are global (`sidebar.<side>.*`).
+    BarConfig { id: cfg; screen: null }
+    readonly property string widthKey: "sidebar." + side + ".width"
+    readonly property var widthEntry: cfg.entry(widthKey)
+    // A layer above the user's sets the width: the grip is inert and says by whom (Shōjiki).
+    readonly property string widthForcedBy: widthEntry && widthEntry.forced_by ? String(widthEntry.forced_by) : ""
+    readonly property var sections: {
+        var v = cfg.valueOf("sidebar." + side + ".sections", side === "left" ? ["mod:ai:ai"]
+            : ["header", "toggles", "sliders", "notifications", "calendar"])
+        return Array.isArray(v) ? v.filter(function (s) { return typeof s === "string" && s !== "" }) : []
+    }
+    readonly property bool instant: !Theme.springOn
+    readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
+    readonly property bool traceLog: Quickshell.env("KURASHI_SIDEBAR_TRACE") === "1"
+    // Test only (frontend/test-texture.sh, the carried sheet): the column holds at this slide progress instead of moving.
     readonly property real holdP: Quickshell.env("KURASHI_SIDEBAR_HOLD") ? Number(Quickshell.env("KURASHI_SIDEBAR_HOLD")) : -1
-    readonly property bool holding: holdP >= 0 && held
-    onWantedChanged: {
-        if (!wanted && holdP >= 0) { held = false; mw = 0; mh = 0; return }
-        if (wanted && holdP >= 0) {
-            if (!held) { screen = pick(); held = true }
-            gate = false
-            stopSprings()
-            mh = 1
-            landed = true
-            mw = Math.max(0, (holdP * colW - nubW) / Math.max(1, colW - nubW))
-            return
-        }
-        if (wanted) {
-            if (!held) { screen = pick(); readOrigin(); stopSprings(); mw = 0; mh = 0; landed = false; vh = 0; gate = !instant; held = true }
-            readFreeze("open")
-            if (instant) { stopSprings(); mw = 1; mh = 1; landed = true; settled() }
-            else if (!gate) driveTo(1)
-        } else if (held) {
-            gate = false
-            readFreeze("close")
-            if (instant) { stopSprings(); mw = 0; mh = 0; held = false }
-            // (closed before its first frame: nothing moves, so it folds here)
-            else { landed = false; driveTo(0); folded() }
-        }
-    }
-    onWantOutputChanged: if (wanted && held) screen = pick()
-
-    // The island's springs (Stage.qml): width leads on the way out, height on the way back. Behaviors, as there: a new
-    // target retargets the running spring with its velocity (a standalone SpringAnimation ignored a new `to`, measured).
-    readonly property bool springing: held && !gate && !instant && !frozen && !holding
-    function driveTo(v) {
-        expanding = v > 0.5
-        if (frozen) { unfreezeTimer.stop(); frozen = false }
-        mw = v
-        mh = v
-        if (freezeMs >= 0) freezeTimer.restart()
-    }
-    // The springs stand where they are while not `springing` (their Behaviors off); this drops the test freeze.
-    function stopSprings() { freezeTimer.stop(); unfreezeTimer.stop(); frozen = false; vh = 0 }
-    Behavior on mw {
-        enabled: sb.springing
-        SpringAnimation {
-            id: springW
-            spring: Theme.spring * (sb.expanding ? 1.3 : 1.2)
-            damping: Math.min(1, Theme.damping * (sb.expanding ? 1 : 1.25))
-            epsilon: 0.002
-            onRunningChanged: sb.settled()
-        }
-    }
-    Behavior on mh {
-        enabled: sb.springing
-        SpringAnimation {
-            id: springH
-            // Stiffer than the island's height on the way out: a column a screen tall must not creep in its last tenth.
-            spring: Theme.spring * (sb.expanding ? 1.2 : 1.6)
-            damping: Math.min(1, Theme.damping)
-            epsilon: 0.002
-            onRunningChanged: sb.settled()
-        }
-    }
-    onMhChanged: {
-        var t = Date.now(), dt = t - lastT
-        if (springH.running && dt > 0 && dt < 100) vh = 0.5 * vh + 0.5 * (mh - lastMh) * 1000 / dt
-        lastT = t
-        lastMh = mh
-        if (traceLog) console.log("sb-trace " + t + " mw=" + mw.toFixed(3) + " mh=" + mh.toFixed(3) + " exp=" + expanding)
-        if (expanding && wanted && mh >= 1) landed = true
-        folded()
-    }
-    onMwChanged: folded()
-    // Folded back into the bar: the window goes.
-    function folded() {
-        if (wanted || !held || holding || mw > 0.02 || mh > 0.02) return
-        stopSprings()
-        held = false
-        mw = 0
-        mh = 0
-    }
-    function settled() {
-        if (springW.running || springH.running) return
-        vh = 0
-        if (geometryLog && held && wanted && !frozen && mw === 1 && mh === 1) console.log("sidebar-rest " + side + " mw=" + mw.toFixed(3) + " mh=" + mh.toFixed(3))
-    }
-
-    // `lively` from the tokens (rule 4): a spring damped well under `calm`'s stretches and squashes; calm's does not.
-    readonly property real sqK: Math.max(0, Math.min(1, (0.42 - Theme.damping) / 0.12))
-    readonly property real squash: {
-        if (sqK <= 0 || !expanding || holding) return 1
-        var s = 1 - 0.05 * sqK * Math.max(0, Math.min(1, vh / 6))
-        if (landed) s += 0.5 * sqK * (mh - 1)
-        return Math.max(0.9, Math.min(1.06, s))
-    }
-    readonly property real neckNow: Theme.rLg * Math.max(0.4, 1 + (landed && expanding ? 3 * sqK * (mh - 1) : 0))
-    // A spring past its target is soft-limited (8 %, as the island's).
-    function soft(v) { return v > 1 ? 1 + Math.min((v - 1) * 0.6, 0.08) : Math.max(0, v) }
-    function lerp(a, b, t) { return a + (b - a) * t }
-
-    // The content comes in once the shape has nearly grown (fade, <= 160 ms) and leaves first (90 ms).
-    readonly property bool contentWanted: wanted && held && !gate && mw > 0.72 && mh > 0.6 && !holding
-    property real contentP: 0
-    onContentWantedChanged: {
-        contentAnim.stop()
-        if (instant || Theme.quickMs <= 0) { contentP = contentWanted ? 1 : 0; return }
-        contentAnim.to = contentWanted ? 1 : 0
-        contentAnim.duration = contentWanted ? 160 : 90
-        contentAnim.start()
-    }
-    NumberAnimation { id: contentAnim; target: sb; property: "contentP"; easing.type: Easing.OutCubic }
-
     // Test only (frontend/test-sidebars.sh): KURASHI_SIDEBAR_FREEZE names a file read at each open and close; "open 120"
-    // holds the morph still 120 ms after it starts (for a shot), for 1.5 s, and logs it. Without the variable no file
-    // is touched.
+    // holds the slide still 120 ms after it starts (for a shot), for 1.5 s, and logs it. Without the variable no file is
+    // touched.
     readonly property string freezePath: Quickshell.env("KURASHI_SIDEBAR_FREEZE") || ""
-    property int freezeMs: -1
-    property int freezeHoldMs: 1500
-    property bool frozen: false
     FileView { id: freezeFile; blockAllReads: true; printErrors: false }
     function readFreeze(phase) {
-        freezeMs = -1
-        if (freezePath === "") return
+        if (freezePath === "") return null
         // A new path each time: FileView reads it afresh (a reload of the same path kept the first text).
         freezeFile.path = ""
         freezeFile.path = freezePath
         freezeFile.reload()
         freezeFile.waitForJob()
         var t = String(freezeFile.text() || "").trim().split(/\s+/)
-        if (t.length >= 2 && t[0] === phase) { freezeMs = Number(t[1]); freezeHoldMs = t.length >= 3 ? Number(t[2]) : 1500 }
-        if (geometryLog) console.log("sidebar-freeze-read '" + t.join(" ") + "' " + phase + " " + freezeMs)
+        if (geometryLog) console.log("sidebar-freeze-read '" + t.join(" ") + "' " + phase)
+        if (t.length >= 2 && t[0] === phase) return { ms: Number(t[1]), hold: t.length >= 3 ? Number(t[2]) : 1500 }
+        return null
     }
-    Timer {
-        id: freezeTimer
-        interval: Math.max(1, sb.freezeMs)
-        onTriggered: {
-            console.log("sidebar-frozen " + sb.side + " " + (sb.expanding ? "open" : "close") + " " + sb.freezeMs + " mw="
-                + sb.mw.toFixed(3) + " mh=" + sb.mh.toFixed(3) + " content=" + sb.contentP.toFixed(2))
-            // Held where they are (Behaviors off, the values written back), not paused: a resumed SpringAnimation
-            // integrates the paused time at once.
-            sb.frozen = true
-            sb.freezeMs = -1
-            var w = sb.mw, h = sb.mh
-            sb.mw = w
-            sb.mh = h
-            contentAnim.stop()
-            unfreezeTimer.start()
-        }
-    }
-    Timer {
-        id: unfreezeTimer
-        interval: Math.max(1, sb.freezeHoldMs)
-        onTriggered: {
-            sb.frozen = false
-            sb.driveTo(sb.wanted ? 1 : 0)
-            contentAnim.to = sb.contentWanted ? 1 : 0
-            contentAnim.start()
-        }
-    }
+    function num(v, d) { return typeof v === "number" && !isNaN(v) ? v : d }
 
-    // This output's config (an output's own entry wins); the sidebar keys are global.
-    BarConfig { id: cfg; screen: sb.screen }
-    // K71: each side's own keys (`sidebar.<side>.*`); `draw = auto` follows `layout.draw`, and only floating is drawn
-    // apart from the panel today (dynamic and connected look as the panel did).
-    readonly property string drawMode: {
-        var d = cfg.valueOf("sidebar." + side + ".draw", "auto")
-        return d === "auto" ? cfg.valueOf("layout.draw", "dynamic") : d
-    }
-    readonly property bool floating: drawMode === "floating"
-    readonly property int wantW: {
-        var w = Number(cfg.valueOf("sidebar." + side + ".width", 420))
-        return isNaN(w) ? 420 : Math.max(320, Math.min(640, Math.round(w)))
-    }
-    // Never wider than the output less a gap.
-    readonly property int colW: Math.min(wantW, screen ? screen.width - Theme.gap : wantW)
-    readonly property var sections: {
-        var v = cfg.valueOf("sidebar." + side + ".sections", side === "left" ? ["mod:ai:ai"]
-            : ["header", "toggles", "sliders", "notifications", "calendar"])
-        return Array.isArray(v) ? v.filter(function (s) { return typeof s === "string" && s !== "" }) : []
-    }
-    readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
-    readonly property bool traceLog: Quickshell.env("KURASHI_SIDEBAR_TRACE") === "1"
+    Variants {
+        model: Quickshell.screens
+        Scope {
+            id: col
+            required property var modelData
+            readonly property var scr: modelData
+            readonly property string out: scr ? scr.name : ""
+            readonly property int sw: scr ? scr.width : 1920
+            readonly property int sh: scr ? scr.height : 1080
 
-    // The join, in the shape's canonical frame (a right sidebar, its bar edge at the top or on its own side; the frame is
-    // mirrored for the left side, and vertically for a bottom bar and for the right sidebar beside a side bar, whose
-    // button sits at that bar's bottom end).
-    readonly property string barEdge: cfg.enabled ? cfg.edge : "none"
-    readonly property bool joinTop: barEdge === "top" || barEdge === "bottom"
-    readonly property bool joinSide: barEdge === side
-    readonly property bool flipY: barEdge === "bottom" || (cfg.vertical && side === "right")
-    // The bar draws a strip (flat and line chrome, and every side bar); floating groups stand on the desk (Bar.qml).
-    readonly property bool barStrip: !(Theme.groups && Theme.lifted && !cfg.vertical)
-    // The column joined to the bar takes the bar's own colour (one sheet); a free column the panel's.
-    readonly property color fillColor: joinTop || joinSide ? Theme.surfaceAlpha : Theme.panel
-    // Where the morph starts: the sidebar button's place at the bar's end (Bar.qml: the bar's padding and its group's
-    // inset; a side bar's button heads or ends its column), as thick as the bar. Without a bar: the screen's corner.
-    readonly property real barEnd: Theme.pad + (Theme.groups ? Theme.gap + 2 + Theme.xs : 0)
-    // W36: on a top or bottom bar the column grows out of its sidebar button's own box (IslandGeom's registry, row 364;
-    // SidebarButton registers `sidebar:<side>`), as an island card grows out of the pill: read when the column comes out
-    // (and again on its first frame), latched while it is out. Kept as its distance from the column's own screen edge (the
-    // window is anchored to it) and its width, 3 px in like the Stage's origins (the button's drawn square). No button
-    // on this output (hidden, or a side bar): the bar's end, as before.
-    property var origin: null
-    function readOrigin() {
-        var out = screen ? screen.name : ""
-        var r = joinTop && out !== "" ? IslandGeom.rectOf(out, "sidebar:" + side) : null
-        if (r === null || !screen) { origin = null; return }
-        var near = side === "right" ? screen.width - (r.x + r.w) : r.x
-        origin = { near: Math.max(0, near + 3), w: Math.max(8, r.w - 6) }
-    }
-    readonly property real nubW: joinSide ? 0 : (origin ? origin.w : Theme.barH)
+            // ---- the layout of this side on this output ----
+            readonly property var lay: ShellLayout.of(out)
+            readonly property var sl: (lay.sidebars || {})[sb.side] || ({})
+            readonly property var edges: lay.edges || ({})
+            readonly property string vis: typeof sl.visibility === "string" ? sl.visibility
+                : String(cfg.valueOf("sidebar." + sb.side + ".visibility", "hidden"))
+            readonly property string draw: typeof sl.draw === "string" ? sl.draw : "dynamic"
+            readonly property bool floating: draw === "floating"
+            readonly property int inset: sb.num(sl.inset, floating ? ShellLayout.gap : 0)
+            readonly property int spanStart: sb.num((sl.span || {}).start, floating ? ShellLayout.gap : 0)
+            readonly property int spanEnd: sb.num((sl.span || {}).end, floating ? ShellLayout.gap : 0)
+            readonly property string joinStart: !floating && sl.joins ? String(sl.joins.start || "") : ""
+            readonly property string joinEnd: !floating && sl.joins ? String(sl.joins.end || "") : ""
+            readonly property int joinR: Math.max(0, sb.num(sl.radius, floating ? 0 : ShellLayout.joinRadius))
+            // A docked bar on the sidebar's own side: its outer side meets the bar (one sheet).
+            readonly property var sideEdge: edges[sb.side] || ({})
+            readonly property bool sideBar: !floating && sideEdge.bar === true && sideEdge.draw !== "floating"
+            readonly property bool holder: sideEdge.holder === "sidebar"
+            readonly property int reserve: holder ? sb.num(sideEdge.reserve, 0) : 0
+            // A bar the column meets at an end or along its side (the rule's opening, SidebarGeom; the log's `bar`).
+            readonly property string barEdge: joinStart.indexOf("bar:") === 0 ? joinStart.substring(4)
+                : (joinEnd.indexOf("bar:") === 0 ? joinEnd.substring(4) : (sideBar ? sb.side : "none"))
+            function zoneOf(e) { var x = edges[e] || {}; return x.holder && x.holder !== "none" ? sb.num(x.reserve, 0) : 0 }
+            // A change of draw mode while the column is out moves its edges and its fillets (the radius grows or goes)
+            // over `motion.std`, never a jump (docs/ux/layout.md "Motion"); cut without motion. Nothing runs at rest.
+            readonly property bool morphs: held && Theme.springOn
+            property real aInset: inset
+            property real aStart: spanStart
+            property real aEnd: spanEnd
+            property real aR: joinR
+            Behavior on aInset { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aStart { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aEnd { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aR { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
 
-    LazyLoader {
-        active: sb.held
-        PanelWindow {
-            id: win
-            screen: sb.screen
-            anchors { top: true; bottom: true; left: true; right: true }
-            exclusionMode: ExclusionMode.Normal
-            exclusiveZone: 0
-            color: "transparent"
-            WlrLayershell.layer: WlrLayer.Top
-            WlrLayershell.namespace: "kurashi-sidebar"
-            WlrLayershell.keyboardFocus: sb.wanted ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
-            // While open the whole area takes clicks (the catcher, I152); folding back, none.
-            mask: Region { item: inputArea }
-            BackgroundEffect.blurRegion: Region { item: shapeRect }
+            // ---- width ----
+            readonly property int maxW: Math.max(320, Math.min(640, sw - inset - Theme.gap))
+            function clampW(w) { return Math.max(320, Math.min(maxW, Math.round(w))) }
+            // Multiples of 10 from 320 (the schema's step; an off-step value is refused).
+            function stepW(w) { return Math.max(320, Math.min(maxW - (maxW - 320) % 10, 320 + Math.round((w - 320) / 10) * 10)) }
+            readonly property int docW: clampW(sb.num(sl.width, Number(cfg.valueOf(sb.widthKey, 420)) || 420))
+            // While dragged (or written and not yet answered), the width the user is giving it.
+            property int liveW: -1
+            property int pendingW: -1
+            onDocWChanged: if (pendingW >= 0 && docW === pendingW) { pendingW = -1; if (!resizing) liveW = -1 }
+            readonly property int colW: liveW >= 0 ? clampW(liveW) : docW
 
-            readonly property string outName: sb.screen ? sb.screen.name : ""
-            // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the content stands
-            // where it rests (cut to the shape), so the window's carry is none; the column's own relief carries its sheet.
-            property var tileSheet: tilesLoader.item
-            readonly property point sheetCarry: Qt.point(0, 0)
-            Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
-            LightSense {}
-
-            // ---- geometry, canonical frame (see above): the box at the window's side, as tall as the window ----
-            readonly property real boxW: Math.min(width, sb.colW + Math.ceil(sb.colW * 0.1) + Theme.rLg + Theme.gap + Theme.softR + 8)
-            readonly property real boxH: height
-            readonly property real inset: sb.floating ? Theme.gap : 0
-            readonly property real sdy: sb.floating ? Theme.shadowDy : 0
-            // The column at rest: flush with the outer edge (panel) or inset (floating; touching a side bar it joins).
-            readonly property real rx1: boxW - (sb.floating && !sb.joinSide ? Theme.gap : 0)
-            readonly property real rx0: rx1 - sb.colW
-            readonly property real ry0: (sb.joinTop ? 0 : inset) + (sb.flipY && !sb.joinTop ? sdy : 0)
-            readonly property real ry1: boxH - inset - (sb.flipY ? 0 : sdy)
-            // The origin.
-            readonly property real nX1: sb.joinTop ? Math.max(sb.nubW, boxW - (sb.origin ? sb.origin.near : sb.barEnd)) : rx1
-            readonly property real nY0: sb.joinSide ? Theme.pad : ry0
-            readonly property real nY1: sb.joinSide ? Theme.pad + Theme.barH : ry0
-            // The shape now.
-            readonly property real tw: Math.max(0, Math.min(1, sb.mw))
-            readonly property real hp: sb.landed ? 1 : Math.max(0, Math.min(1, sb.mh))
-            readonly property real shX1: sb.holding ? rx1 : sb.lerp(nX1, rx1, tw)
-            readonly property real shW: Math.max(0, sb.lerp(sb.nubW, sb.colW, sb.soft(sb.mw)) * sb.squash)
-            readonly property real shX0: shX1 - shW
-            readonly property real shY0: sb.lerp(nY0, ry0, hp)
-            readonly property real shY1: sb.lerp(nY1, ry1, hp)
-            // K61: the column's material comes with its leading edges (the inner side, the free end), in output axes.
-            readonly property point shapeCarry: Qt.point((sb.side === "left" ? -1 : 1) * (shX0 - rx0),
-                (sb.flipY ? -1 : 1) * (shY1 - ry1))
-            // Canonical → window.
-            function realX(x0c, x1c) { return sb.side === "left" ? boxW - x1c : width - boxW + x0c }
-            function realY(y0c, y1c) { return sb.flipY ? boxH - y1c : y0c }
-            readonly property rect restRect: Qt.rect(realX(rx0, rx1), realY(ry0, ry1), sb.colW, ry1 - ry0)
-
-            function logGeom() {
-                if (!sb.geometryLog) return
-                console.log("sidebar-geom " + outName + " " + sb.side + " " + (sb.floating ? "floating" : "panel")
-                    + " win " + win.width + " " + win.height + " frame " + Math.round(restRect.x) + "," + Math.round(restRect.y)
-                    + "," + Math.round(restRect.width) + "," + Math.round(restRect.height) + " bar " + (cfg.enabled ? cfg.edge : "none")
-                    + " " + Theme.barH + " gap " + Theme.gap + " sections " + sb.sections.join(","))
+            // ---- when it is out ----
+            readonly property bool toggledHere: sb.toggled && sb.toggledOn === out
+            readonly property bool pinned: vis === "always"
+            readonly property bool emptyMode: vis === "empty_desktop"
+            Watch { doc: "svc.workspaces"; active: col.emptyMode }
+            readonly property bool emptyDesk: {
+                if (!emptyMode) return false
+                var t = (Store.docs["svc.workspaces"] || {}).tasks
+                if (!t) return false
+                var l = t[out] || t["*"]
+                return Array.isArray(l) && l.length === 0
             }
-            onRestRectChanged: logGeom()
-            Component.onCompleted: { if (sb.geometryLog) console.log("sidebar-window up " + sb.side); logGeom() }
-            Component.onDestruction: {
-                SidebarGeom.clear(outName)
-                if (sb.geometryLog) console.log("sidebar-window down " + sb.side)
-            }
-            // At rest under a ruled bar, the span of the bar's edge the column (and its fillets) covers, for the bar to
-            // leave its rule out there (SidebarGeom); withdrawn as soon as it moves.
-            readonly property bool atRest: sb.wanted && !sb.gate && !sb.frozen && sb.mw === 1 && sb.mh === 1
-                && !springW.running && !springH.running
-            readonly property var opening: {
-                if (!atRest || !shape.ruled || !(sb.joinTop || sb.joinSide)) return null
-                if (sb.joinTop) {
-                    var a = rx0 - shape.fL, b = rx1 + shape.fR
-                    return sb.side === "left" ? [boxW - b, boxW - a] : [width - boxW + a, width - boxW + b]
-                }
-                var c = ry0 - shape.fT, d = ry1 + shape.fB
-                return sb.flipY ? [boxH - d, boxH - c] : [c, d]
-            }
-            onOpeningChanged: {
-                if (opening) SidebarGeom.set(outName, sb.barEdge, Math.round(opening[0]), Math.round(opening[1]))
-                else SidebarGeom.clear(outName)
-                if (sb.geometryLog) console.log("sidebar-opening " + sb.side + " " + (opening ? Math.round(opening[0]) + "," + Math.round(opening[1]) : "none"))
-            }
-            Connections {
-                target: shapeRect.Window.window
-                function onFrameSwapped() {
-                    if (!sb.gate) return
-                    sb.readOrigin()
-                    sb.gate = false
-                    if (sb.wanted) sb.driveTo(1)
-                }
-            }
-
-            // The shape's body in window coordinates: the content's cut, the blur, and what counts as inside.
-            Item {
-                id: shapeRect
-                x: win.realX(win.shX0, win.shX1)
-                y: win.realY(win.shY0, win.shY1)
-                width: win.shW
-                height: Math.max(0, win.shY1 - win.shY0)
-            }
-            Item {
-                id: inputArea
-                width: sb.wanted ? win.width : 0
-                height: sb.wanted ? win.height : 0
-            }
-            // The catcher: a press outside the column closes it; one on the column goes on to its controls.
-            MouseArea {
-                anchors.fill: parent
-                enabled: sb.wanted
-                acceptedButtons: Qt.AllButtons
-                onPressed: ev => {
-                    if (ev.x >= shapeRect.x && ev.x < shapeRect.x + shapeRect.width && ev.y >= shapeRect.y
-                        && ev.y < shapeRect.y + shapeRect.height) {
-                        ev.accepted = false
-                        return
-                    }
-                    if (sb.geometryLog) console.log("sidebar-outside " + sb.side + " " + Math.round(ev.x) + "," + Math.round(ev.y))
-                    Store.act("sidebar.close")
-                }
-            }
-
-            // The shape, its shadow and its relief mask, in the canonical frame.
-            Item {
-                id: box
-                x: sb.side === "left" ? 0 : win.width - win.boxW
-                width: win.boxW
-                height: win.boxH
-                transform: Scale {
-                    xScale: sb.side === "left" ? -1 : 1
-                    yScale: sb.flipY ? -1 : 1
-                    origin.x: win.boxW / 2
-                    origin.y: win.boxH / 2
-                }
-                SoftShadow {
-                    visible: sb.floating && shape.shown
-                    x: shape.bodyRect.x
-                    y: shape.bodyRect.y
-                    width: shape.bodyRect.width
-                    height: shape.bodyRect.height
-                    radius: Theme.rLg
-                    direction: sb.flipY ? -1 : 1
-                    // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x back so it
-                    // falls the way the light says on both sides (K67, row 421).
-                    mirror: sb.side === "left" ? -1 : 1
-                }
-                ColumnShape {
-                    id: shape
-                    anchors.fill: parent
-                    x0: win.shX0
-                    x1: win.shX1
-                    y0: win.shY0
-                    y1: win.shY1
-                    joinTop: sb.joinTop
-                    joinSide: sb.joinSide
-                    neck: sb.neckNow
-                    squareOuter: !sb.floating
-                    flipX: sb.side === "left"
-                    ruled: sb.barStrip && Theme.outlineW > 0
-                    chrome: sb.floating
-                    flipY: sb.flipY
-                    fill: sb.fillColor
-                }
-                // The shape's fill as a mask for its relief (I168): drawn only into `shapeMask`'s texture, which is redrawn
-                // when the path changes (while the shape morphs) and never at rest.
-                Shape {
-                    id: maskShape
-                    visible: reliefBox.on
-                    anchors.fill: parent
-                    preferredRendererType: Shape.CurveRenderer
-                    ShapePath {
-                        strokeWidth: -1
-                        strokeColor: "transparent"
-                        fillColor: "white"
-                        PathSvg { path: reliefBox.on ? shape.fillPath : "" }
-                    }
-                }
-                // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
-                ShaderEffectSource {
-                    id: shapeMask
-                    x: -100000
-                    width: parent.width
-                    height: parent.height
-                    sourceItem: reliefBox.on ? maskShape : null
-                    hideSource: true
-                    live: false
-                }
-                Connections {
-                    target: reliefBox.on ? shape : null
-                    function onFillPathChanged() { shapeMask.scheduleUpdate() }
-                }
-            }
-            // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the content (over it
-            // with `texture.text`); carried with the shape's leading edges, 0 at rest (the continuous sheet).
-            Item {
-                id: reliefBox
-                readonly property bool on: Theme.texShell && shape.shown
-                readonly property point carry: win.shapeCarry
-                z: Theme.texText ? 2 : 0
-                visible: on
-                x: box.x
-                width: win.boxW
-                height: win.boxH
-                transform: Scale {
-                    xScale: sb.side === "left" ? -1 : 1
-                    yScale: sb.flipY ? -1 : 1
-                    origin.x: win.boxW / 2
-                    origin.y: win.boxH / 2
-                }
-                Loader {
-                    anchors.fill: parent
-                    active: reliefBox.on
-                    sourceComponent: Relief {
-                        anchors.fill: parent
-                        mask: shapeMask
-                        // (not `win.…` here: Relief has a `win` of its own)
-                        carry: reliefBox.carry
-                    }
-                }
-            }
-
-            // The content where the column rests, shown only inside the shape (cut while it grows or folds) and faded in
-            // late. The column's one keyboard focus holder: Esc backs out of a page first, then closes.
-            Item {
+            readonly property bool hoverOn: vis === "hover" || (emptyMode && !emptyDesk)
+            property bool pointerIn: false
+            property bool focusHeld: false
+            property bool resizing: false
+            EdgeReveal {
                 id: reveal
-                z: 1
-                x: shapeRect.x
-                y: shapeRect.y
-                width: shapeRect.width
-                height: shapeRect.height
-                clip: true
-                FocusScope {
-                    id: content
-                    x: win.restRect.x - reveal.x + Theme.pad
-                    y: win.restRect.y - reveal.y + Theme.pad
-                    width: win.restRect.width - 2 * Theme.pad
-                    height: win.restRect.height - 2 * Theme.pad
-                    opacity: sb.contentP
-                    focus: true
-                    Keys.onPressed: event => {
-                        if (event.key !== Qt.Key_Escape) return
-                        if (!(col.item && col.item.back && col.item.back())) Store.act("sidebar.close")
-                        event.accepted = true
-                    }
-                    Component.onCompleted: Qt.callLater(function () { content.forceActiveFocus() })
-                    Accessible.role: Accessible.Pane
-                    Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
+                screen: col.scr
+                edge: sb.side
+                key: "sidebar:" + sb.side
+                enabled: col.hoverOn && !col.toggledHere && col.out !== ""
+                from: col.spanStart
+                to: col.sh - col.spanEnd
+                holdIn: col.pointerIn || col.focusHeld || col.resizing || edgeHold.held
+            }
+            EdgeHold {
+                id: edgeHold
+                output: col.out
+                edge: sb.side
+                key: "sidebar:" + sb.side + ":hold"
+                claim: reveal.enabled
+                active: reveal.revealed
+                from: col.spanStart
+                to: col.sh - col.spanEnd
+            }
+            readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
+            // The window exists: out, sliding in or out.
+            property bool held: false
 
-                    Loader {
-                        id: col
+            // ---- the slide: 0 = behind its screen edge, 1 = at rest ----
+            property real p: 0
+            property bool gate: false
+            property bool frozen: false
+            property bool expanding: true
+            readonly property bool holding: sb.holdP >= 0 && held
+            readonly property bool springing: held && !gate && !sb.instant && !frozen && !holding
+            Behavior on p {
+                enabled: col.springing
+                SpringAnimation {
+                    id: spring
+                    // Stiffer than the island's: a column a screen tall must not creep in its last tenth.
+                    spring: Theme.spring * (col.expanding ? 1.25 : 1.6)
+                    damping: Math.min(1, Theme.damping * (col.expanding ? 1 : 1.25))
+                    epsilon: 0.002
+                    onRunningChanged: col.settled()
+                }
+            }
+            onWantedChanged: drive()
+            Component.onCompleted: if (wanted) drive()
+            function drive() {
+                if (holding || sb.holdP >= 0) {
+                    if (wanted) { held = true; gate = false; p = Math.max(0, Math.min(1, sb.holdP)) }
+                    else { held = false; p = 0 }
+                    return
+                }
+                var fz = sb.readFreeze(wanted ? "open" : "close")
+                freezeMs = fz ? fz.ms : -1
+                freezeHoldMs = fz ? fz.hold : 1500
+                if (wanted) {
+                    if (!held) { frozen = false; p = 0; gate = !sb.instant; held = true }
+                    if (sb.instant) { p = 1; settled() }
+                    else if (!gate) toward(1)
+                } else if (held) {
+                    gate = false
+                    if (sb.instant) { p = 0; held = false }
+                    else { toward(0); gone() }
+                }
+            }
+            function toward(v) {
+                expanding = v > 0.5
+                if (frozen) { unfreezeTimer.stop(); frozen = false }
+                p = v
+                if (freezeMs >= 0) freezeTimer.restart()
+            }
+            onPChanged: {
+                if (sb.traceLog) console.log("sb-trace " + Date.now() + " " + sb.side + " p=" + p.toFixed(3) + " exp=" + expanding)
+                gone()
+            }
+            // Slid back behind its edge: the window goes.
+            function gone() {
+                if (wanted || !held || holding || p > 0.002) return
+                freezeTimer.stop(); unfreezeTimer.stop(); frozen = false
+                held = false
+                p = 0
+            }
+            function settled() {
+                if (spring.running) return
+                if (sb.geometryLog && held && wanted && !frozen && p === 1) console.log("sidebar-rest " + sb.side + " " + out + " p=1.000")
+            }
+            property int freezeMs: -1
+            property int freezeHoldMs: 1500
+            Timer {
+                id: freezeTimer
+                interval: Math.max(1, col.freezeMs)
+                onTriggered: {
+                    console.log("sidebar-frozen " + sb.side + " " + (col.expanding ? "open" : "close") + " " + col.freezeMs
+                        + " p=" + col.p.toFixed(3))
+                    // Held where it is (the Behavior off, the value written back), not paused: a resumed SpringAnimation
+                    // integrates the paused time at once.
+                    col.frozen = true
+                    col.freezeMs = -1
+                    var v = col.p
+                    col.p = v
+                    unfreezeTimer.start()
+                }
+            }
+            Timer {
+                id: unfreezeTimer
+                interval: Math.max(1, col.freezeHoldMs)
+                onTriggered: { col.frozen = false; col.toward(col.wanted ? 1 : 0) }
+            }
+            // How far it stands from its rest, toward its screen edge (never past the rest: the free end stops there).
+            readonly property real travel: colW + inset + Theme.gap + Theme.softR + Math.abs(Theme.sinkX) + 4
+            readonly property real off: Math.max(0, 1 - p) * travel
+
+            // ---- resize ----
+            function writeWidth(w) {
+                var v = stepW(w)
+                liveW = v
+                if (v === docW) { liveW = -1; return }
+                pendingW = v
+                Store.apply([{ set: sb.widthKey, value: v }], function (errors) {
+                    if (!errors) return
+                    col.pendingW = -1
+                    col.liveW = -1
+                    if (sb.geometryLog) console.log("sidebar-width refused " + JSON.stringify(errors))
+                })
+                if (sb.geometryLog) console.log("sidebar-width " + sb.side + " " + v)
+            }
+            function resetWidth() {
+                liveW = -1
+                pendingW = -1
+                Store.apply([{ reset: sb.widthKey }], function (errors) {
+                    if (errors && sb.geometryLog) console.log("sidebar-width reset refused " + JSON.stringify(errors))
+                })
+                if (sb.geometryLog) console.log("sidebar-width " + sb.side + " reset")
+            }
+            // Ctrl+Left/Right: 10 px a press, written after a short pause (one undo step for a run of presses).
+            function nudge(dir) {
+                if (sb.widthForcedBy !== "") return
+                liveW = clampW(colW + dir * 10)
+                keyWrite.restart()
+            }
+            Timer { id: keyWrite; interval: 450; onTriggered: col.writeWidth(col.colW) }
+
+            LazyLoader {
+                active: col.held
+                PanelWindow {
+                    id: win
+                    screen: col.scr
+                    // A toggled column (hidden mode) takes the usable area's input: a click outside closes it.
+                    readonly property bool catcher: col.toggledHere && !col.pinned
+                    anchors { top: true; bottom: true; left: sb.side === "left"; right: sb.side === "right" }
+                    // The column's part of the output: as wide as the widest column (a drag never resizes the window, so
+                    // the pointer's place stays put), the whole width while it catches clicks.
+                    readonly property real boxW: Math.min(col.sw, 640 + col.inset + col.joinR + Theme.gap + Theme.softR
+                        + Math.abs(Theme.sinkX) + 12)
+                    implicitWidth: catcher ? col.sw : Math.ceil(boxW)
+                    // K71: only the edge's holder keeps the zone (windows tile beside a pinned column); every other
+                    // column ignores zones and stands where the layout says, from the screen's edges.
+                    exclusionMode: col.holder ? ExclusionMode.Normal : ExclusionMode.Ignore
+                    // Only a holder sets the zone: setting `exclusiveZone` at all turns the window to ExclusionMode.Normal
+                    // (measured: a column with `exclusiveZone: 0` was placed below the top bar's zone).
+                    Binding on exclusiveZone { when: col.holder; value: col.reserve; restoreMode: Binding.RestoreNone }
+                    color: "transparent"
+                    WlrLayershell.layer: WlrLayer.Top
+                    WlrLayershell.namespace: "kurashi-sidebar"
+                    WlrLayershell.keyboardFocus: col.wanted ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+                    mask: Region {
+                        item: catchArea
+                        Region { item: inputRect }
+                        Region { item: grip }
+                    }
+                    BackgroundEffect.blurRegion: Region { item: shapeRect }
+
+                    readonly property string outName: col.out
+                    // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the content
+                    // rides with the column; the column's own relief carries its sheet (`carry`), the window none.
+                    property var tileSheet: tilesLoader.item
+                    readonly property point sheetCarry: Qt.point(0, 0)
+                    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+                    LightSense {}
+                    // A holder sits inside the zones of the holders the compositor placed before it (W43-frame's probe):
+                    // its top on the output, as Light counts the other windows' zones. Every other column starts at the
+                    // screen's top.
+                    readonly property real offTop: col.holder ? Light.zoneOf(win, "top") : 0
+                    // Where the usable area starts in this window (Placement reports a mod panel's rect from there).
+                    readonly property point placementOrigin: Qt.point(Math.max(0, col.zoneOf(sb.side) - (col.holder ? col.reserve : 0)),
+                        col.zoneOf("top") - offTop)
+                    readonly property string zoneKey: [col.out, sb.side, col.holder ? col.reserve : 0].join("|")
+                    onZoneKeyChanged: Light.setZone(win, col.out, sb.side, col.holder ? col.reserve : 0)
+
+                    // ---- geometry: the canonical frame is the window's side part, `boxW` wide, its outer side at the
+                    // screen's edge (mirrored for the left side); y as the window's ----
+                    readonly property real y0: col.aStart - offTop
+                    readonly property real y1: col.sh - col.aEnd - offTop
+                    readonly property real rx1: boxW - col.aInset
+                    readonly property real rx0: rx1 - col.colW
+                    readonly property real shX0: rx0 + col.off
+                    readonly property real shX1: rx1 + col.off
+                    readonly property bool openT: col.joinStart !== ""
+                    readonly property bool openB: col.joinEnd !== ""
+                    readonly property bool openO: !col.floating
+                    // What may be drawn: never over the neighbours a joined column meets (their fill is translucent); a
+                    // floating column slides out from behind the screen's edge.
+                    readonly property real clipX1: col.floating ? boxW : rx1
+                    readonly property real clipY0: openT ? y0 : 0
+                    readonly property real clipY1: openB ? y1 : height
+                    // Canonical → window.
+                    function realX(x0c, x1c) { return sb.side === "left" ? boxW - x1c : width - boxW + x0c }
+                    readonly property rect restRect: Qt.rect(realX(rx0, rx1), y0, col.colW, y1 - y0)
+                    // K61: the column's material comes with it (output axes).
+                    readonly property point shapeCarry: Qt.point((sb.side === "left" ? -1 : 1) * col.off, 0)
+
+                    function logGeom() {
+                        if (!sb.geometryLog) return
+                        var ox = sb.side === "left" ? 0 : col.sw - width
+                        console.log("sidebar-geom " + col.out + " " + sb.side + " " + (col.floating ? "floating" : "panel")
+                            + " win " + Math.round(width) + " " + Math.round(height) + " frame " + Math.round(ox + restRect.x)
+                            + "," + Math.round(offTop + restRect.y) + "," + Math.round(restRect.width) + "," + Math.round(restRect.height)
+                            + " bar " + col.barEdge + " " + Theme.barH + " gap " + Theme.gap + " draw " + col.draw + " vis " + col.vis
+                            + " joins " + (col.joinStart || "-") + "," + (col.joinEnd || "-") + " radius " + col.joinR
+                            + " holder " + (col.holder ? col.reserve : 0) + " sections " + sb.sections.join(","))
+                    }
+                    onRestRectChanged: logGeom()
+                    onWidthChanged: logGeom()
+                    Component.onCompleted: {
+                        Light.setZone(win, col.out, sb.side, col.holder ? col.reserve : 0)
+                        if (sb.geometryLog) console.log("sidebar-window up " + sb.side + " " + col.out)
+                        logGeom()
+                    }
+                    Component.onDestruction: {
+                        Light.setZone(win, "", sb.side, 0)
+                        SidebarGeom.clear(outName)
+                        col.focusHeld = false
+                        col.pointerIn = false
+                        if (sb.geometryLog) console.log("sidebar-window down " + sb.side + " " + outName)
+                    }
+                    // At rest under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover,
+                    // for the bar to leave its rule out there (SidebarGeom); withdrawn as soon as it moves.
+                    readonly property bool atRest: col.wanted && !col.gate && !col.frozen && col.p === 1 && !spring.running
+                    readonly property var opening: {
+                        if (!atRest || !shape.ruled || col.barEdge === "none") return null
+                        var ox = sb.side === "left" ? 0 : col.sw - width
+                        if (col.barEdge === "top" || col.barEdge === "bottom") {
+                            var f = col.barEdge === "top" ? shape.fTi : shape.fBi
+                            var a = ox + realX(rx0 - f, rx1)
+                            return [a, a + col.colW + f]
+                        }
+                        return [offTop + y0 - shape.fOt, offTop + y1 + shape.fOb]
+                    }
+                    onOpeningChanged: {
+                        if (opening) SidebarGeom.set(outName, col.barEdge, Math.round(opening[0]), Math.round(opening[1]))
+                        else SidebarGeom.clear(outName)
+                        if (sb.geometryLog) console.log("sidebar-opening " + sb.side + " " + (opening ? Math.round(opening[0]) + "," + Math.round(opening[1]) : "none"))
+                    }
+                    // The slide starts on the window's first presented frame (as the Stage's), so it is never skipped.
+                    Connections {
+                        target: shapeRect.Window.window
+                        function onFrameSwapped() {
+                            if (!col.gate) return
+                            col.gate = false
+                            if (col.wanted) col.toward(1)
+                        }
+                    }
+
+                    // The column's body in window coordinates: the input region, the blur, what counts as inside.
+                    Item {
+                        id: shapeRect
+                        x: win.realX(win.shX0, win.shX1)
+                        y: win.y0
+                        width: col.colW
+                        height: Math.max(0, win.y1 - win.y0)
+                        HoverHandler { id: shapeHover; onHoveredChanged: col.pointerIn = hovered || gripHover.hovered }
+                    }
+                    // The column's input: all of it, but the 2 px on the screen's edge while it came out on hover (the
+                    // shared strip keeps the pointer there: EdgeHold).
+                    Item {
+                        id: inputRect
+                        readonly property int cut: edgeHold.active && col.inset < 2 ? 2 - col.inset : 0
+                        x: shapeRect.x + (sb.side === "left" ? cut : 0)
+                        y: shapeRect.y
+                        width: Math.max(0, shapeRect.width - cut)
+                        height: shapeRect.height
+                    }
+                    // While a toggle holds it open: the usable area takes clicks (the catcher; the bars keep theirs).
+                    Item {
+                        id: catchArea
+                        x: win.catcher ? col.zoneOf("left") : 0
+                        y: win.catcher ? col.zoneOf("top") - win.offTop : 0
+                        width: win.catcher ? Math.max(0, win.width - col.zoneOf("left") - col.zoneOf("right")) : 0
+                        height: win.catcher ? Math.max(0, col.sh - col.zoneOf("top") - col.zoneOf("bottom")) : 0
+                    }
+                    MouseArea {
                         anchors.fill: parent
-                        focus: true
-                        sourceComponent: sb.side === "left" ? leftC : rightC
+                        enabled: win.catcher && col.wanted
+                        acceptedButtons: Qt.AllButtons
+                        onPressed: ev => {
+                            if (ev.x >= shapeRect.x - 4 && ev.x < shapeRect.x + shapeRect.width + 4 && ev.y >= shapeRect.y
+                                && ev.y < shapeRect.y + shapeRect.height) {
+                                ev.accepted = false
+                                return
+                            }
+                            if (sb.geometryLog) console.log("sidebar-outside " + sb.side + " " + Math.round(ev.x) + "," + Math.round(ev.y))
+                            Store.act("sidebar.close")
+                        }
+                    }
+
+                    // Everything the column draws, cut where it meets its neighbours.
+                    Item {
+                        id: clipper
+                        x: win.realX(0, win.clipX1)
+                        y: win.clipY0
+                        width: win.clipX1
+                        height: Math.max(0, win.clipY1 - win.clipY0)
+                        clip: true
+
+                        // The shape, its shadow and its relief mask, in the canonical frame.
+                        Item {
+                            id: box
+                            x: (sb.side === "left" ? 0 : win.width - win.boxW) - clipper.x
+                            y: -clipper.y
+                            width: win.boxW
+                            height: win.height
+                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            SoftShadow {
+                                visible: col.floating && shape.shown
+                                x: shape.bodyRect.x
+                                y: shape.bodyRect.y
+                                width: shape.bodyRect.width
+                                height: shape.bodyRect.height
+                                radius: Theme.rLg
+                                // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x
+                                // back so it falls the way the light says on both sides (K67, row 421).
+                                mirror: sb.side === "left" ? -1 : 1
+                            }
+                            ColumnShape {
+                                id: shape
+                                anchors.fill: parent
+                                x0: win.shX0
+                                x1: win.shX1
+                                y0: win.y0
+                                y1: win.y1
+                                openT: win.openT
+                                openB: win.openB
+                                openO: win.openO
+                                // A join with the screen's edge is flush, without a fillet; a bar or the band: the
+                                // layout's radius (0 = connected, a straight join).
+                                neckT: col.joinStart === "edge" ? 0 : col.aR
+                                neckB: col.joinEnd === "edge" ? 0 : col.aR
+                                neckO: col.sideBar ? col.aR : 0
+                                squareOuter: !col.floating
+                                flipX: sb.side === "left"
+                                // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
+                                ruled: !col.floating && Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
+                                chrome: col.floating
+                                // Joined, the column takes its neighbour's colour (one sheet); a free column the panel's.
+                                fill: col.floating ? Theme.panel : Theme.surfaceAlpha
+                            }
+                            // The shape's fill as a mask for its relief (I168): drawn only into `shapeMask`'s texture, which
+                            // is redrawn when the path changes (while the column moves) and never at rest.
+                            Shape {
+                                id: maskShape
+                                visible: reliefBox.on
+                                anchors.fill: parent
+                                preferredRendererType: Shape.CurveRenderer
+                                ShapePath {
+                                    strokeWidth: -1
+                                    strokeColor: "transparent"
+                                    fillColor: "white"
+                                    PathSvg { path: reliefBox.on ? shape.fillPath : "" }
+                                }
+                            }
+                        }
+                        // K59, K61: the column's material, clipped to the shape's fill (fillets included), under the
+                        // content (over it with `texture.text`); carried with the column.
+                        Item {
+                            id: reliefBox
+                            readonly property bool on: Theme.texShell && shape.shown
+                            readonly property point carry: win.shapeCarry
+                            z: Theme.texText ? 2 : 0
+                            visible: on
+                            x: box.x
+                            y: box.y
+                            width: win.boxW
+                            height: win.height
+                            transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
+                            Loader {
+                                anchors.fill: parent
+                                active: reliefBox.on
+                                sourceComponent: Relief {
+                                    anchors.fill: parent
+                                    mask: shapeMask
+                                    // (not `win.…` here: Relief has a `win` of its own)
+                                    carry: reliefBox.carry
+                                }
+                            }
+                        }
+
+                        // The content rides with the column. The column's one keyboard focus holder: Esc backs out of a
+                        // page first, then closes (a toggled column) or lets go (a hover one).
+                        FocusScope {
+                            id: content
+                            z: 1
+                            x: shapeRect.x - clipper.x + Theme.pad
+                            y: shapeRect.y - clipper.y + Theme.pad
+                            width: col.colW - 2 * Theme.pad
+                            height: shapeRect.height - 2 * Theme.pad
+                            focus: true
+                            onActiveFocusChanged: col.focusHeld = activeFocus
+                            Keys.onPressed: event => {
+                                var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
+                                if (ctrl && (event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+                                    // The inner edge moves: left widens a right column, right widens a left one.
+                                    var widen = (event.key === Qt.Key_Left) === (sb.side === "right")
+                                    col.nudge(widen ? 1 : -1)
+                                    event.accepted = true
+                                    return
+                                }
+                                if (event.key !== Qt.Key_Escape) return
+                                if (!(colLoader.item && colLoader.item.back && colLoader.item.back())) {
+                                    if (col.toggledHere) Store.act("sidebar.close")
+                                    else if (reveal.revealed) reveal.revealed = false
+                                }
+                                event.accepted = true
+                            }
+                            // A toggled column takes the keyboard; one that came out on hover or is pinned waits for a
+                            // click (a pointer resting on the edge must not take the app's focus).
+                            Component.onCompleted: if (col.toggledHere) Qt.callLater(function () { content.forceActiveFocus() })
+                            Accessible.role: Accessible.Pane
+                            Accessible.name: I18n.tr(sb.side === "left" ? "sidebar.a11y.left" : "sidebar.a11y.right")
+
+                            Loader {
+                                id: colLoader
+                                anchors.fill: parent
+                                focus: true
+                                sourceComponent: sb.side === "left" ? leftC : rightC
+                            }
+                        }
+                    }
+                    // Parked outside the window, as TileSheet's copies: a texture provider needs its paint node.
+                    ShaderEffectSource {
+                        id: shapeMask
+                        x: -100000
+                        width: win.boxW
+                        height: win.height
+                        sourceItem: reliefBox.on ? maskShape : null
+                        hideSource: true
+                        live: false
+                    }
+                    Connections {
+                        target: reliefBox.on ? shape : null
+                        function onFillPathChanged() { shapeMask.scheduleUpdate() }
+                    }
+
+                    // The resize grip (point 12): 8 px along the inner edge, half over the column.
+                    Item {
+                        id: grip
+                        readonly property bool inert: sb.widthForcedBy !== ""
+                        x: (sb.side === "right" ? shapeRect.x : shapeRect.x + shapeRect.width) - 4
+                        y: shapeRect.y
+                        width: 8
+                        height: shapeRect.height
+                        visible: col.wanted
+                        Accessible.role: Accessible.Grip
+                        Accessible.name: I18n.tr("sidebar.a11y.grip")
+                        Accessible.description: inert ? I18n.tr("sidebar.resize.forced").replace("{by}", sb.widthForcedBy)
+                            : I18n.tr("sidebar.resize.hint").replace("{w}", col.colW)
+                        // The edge lights while the pointer is on it or it is dragged (where the grip is, not colour alone:
+                        // the cursor says it too).
+                        Rectangle {
+                            visible: !grip.inert && (gripHover.hovered || drag.pressed)
+                            x: 3
+                            width: 2
+                            height: parent.height
+                            radius: 1
+                            color: Theme.accent
+                            opacity: drag.pressed ? 0.9 : 0.55
+                        }
+                        HoverHandler { id: gripHover; onHoveredChanged: col.pointerIn = hovered || shapeHover.hovered }
+                        MouseArea {
+                            id: drag
+                            anchors.fill: parent
+                            enabled: !grip.inert
+                            cursorShape: Qt.SplitHCursor
+                            preventStealing: true
+                            property real startX: 0
+                            property int startW: 0
+                            onPressed: ev => {
+                                startX = mapToItem(null, ev.x, 0).x
+                                startW = col.colW
+                                col.resizing = true
+                                col.liveW = startW
+                            }
+                            onPositionChanged: ev => {
+                                if (!pressed) return
+                                var dx = mapToItem(null, ev.x, 0).x - startX
+                                if (Math.abs(dx) >= 2) moved = true
+                                if (moved) col.liveW = col.clampW(startW + (sb.side === "right" ? -dx : dx))
+                            }
+                            // A press that did not move (one half of a double click) writes nothing.
+                            property bool moved: false
+                            onReleased: {
+                                col.resizing = false
+                                if (sb.geometryLog) console.log("sidebar-grip release moved=" + moved + " w=" + col.liveW)
+                                if (moved && !resetting) col.writeWidth(col.liveW)
+                                else if (!resetting) col.liveW = -1
+                                moved = false
+                                resetting = false
+                            }
+                            onCanceled: { col.resizing = false; col.liveW = -1; moved = false; resetting = false }
+                            property bool resetting: false
+                            onDoubleClicked: { resetting = true; col.resizing = false; col.resetWidth() }
+                        }
                     }
                 }
             }
@@ -539,7 +679,7 @@ Scope {
     }
     Component {
         id: rightC
-        RightColumn { sections: sb.sections; outName: sb.screen ? sb.screen.name : "" }
+        RightColumn { sections: sb.sections; outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : "" }
     }
     Component {
         id: leftC
