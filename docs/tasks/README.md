@@ -338,3 +338,9 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W44-bar | Bar/BarConfig/Frame, shell.qml bar+frame Variants, components/modules (new), bar/, IslandGeom, SidebarGeom inset, Light.originOf | opus |
 | W44-surfaces | Dock, Sidebar, Desktop, components/sidebar, their tests; kurashid row 486 | opus |
 | W44-settings | settings/**, layout/settings i18n, settings.open alias | haiku |
+
+## Wave 45 (2026-10-26, session 14) — W44 review items, edge modules, the standalone island (K71, K72; daemon rows 510/511/513/520/523 on main)
+| Card | Owner paths | Model |
+|---|---|---|
+| W44-follow | Bar/BarConfig/Frame/Stage/Dock/Sidebar, core/EdgeReveal, components/{bar,sidebar,island}, their tests | opus |
+| W45-edge | surfaces/EdgeModules (new), shell.qml its Variants, components/modules, core/{Peeks,PeekSource}, MODS.md clock row | opus |
