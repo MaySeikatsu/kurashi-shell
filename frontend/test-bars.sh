@@ -47,7 +47,8 @@ stop() {
 }
 cleanup() {
   stop
-  [ -n "$PTR" ] && { exec 7>&-; wait "$PTR" 2>/dev/null || true; }
+  # (The coproc's own write end stays open in this shell: closing fd 7 alone never ends it, so it is stopped.)
+  [ -n "$PTR" ] && { exec 7>&-; kill "$PTR" 2>/dev/null || true; wait "$PTR" 2>/dev/null || true; }
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
