@@ -265,5 +265,5 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W42.4 | A lighter QuickTile (one hit area, lazy chevron/rings), lazy snes frame, tile bench (card `W42-tiles`; I211) | ✅ identity 0 strong px · snes −35 %/Block · washi card 21 ms (≤ 18 ✗, I218) | merged |
 | W43.0 | Layout contract: K71–K73, briefs frame/layout/edge-modules/timer, `runtime.layout` (PROTOCOL §3.1, fixture, mock), `ShellLayout.qml` (lead) | ✅ | `feat/w43-layout-contract` |
 | W43.1 | Schema v3 + migration, layout step (`kurashi-layout`), `runtime.layout`, `modules`, `layout.toggle`/`layout.bar.move`, `act --list` (card `W43-layout`; K71) | 🟡 functional · UX n/a (no visual change) | |
-| W43.2 | Screen frame, the bar as its band, floating bar geometry (card `W43-frame`; K71; `docs/ux/frame.md`) | 🟡 functional · UX 🟡 | |
-| W43.3 | Timer and pomodoro mod, every K72 variant (card `W43-timer`; K73) | 🟡 functional · UX 🟡 | |
+| W43.2 | Screen frame, the bar as its band, floating bar geometry (card `W43-frame`; K71; `docs/ux/frame.md`) | ✅ functional (sway + nested niri) · UX ✅ (`frontend/shots/frame/`; fullscreen I237, budget I238) | merged |
+| W43.3 | Timer and pomodoro mod, every K72 variant (card `W43-timer`; K73; row 500 ungated jobs) | ✅ functional · UX ✅ (`mods/timer/shots/`; edge-module glance waits for W44; I231–I236) | merged |
