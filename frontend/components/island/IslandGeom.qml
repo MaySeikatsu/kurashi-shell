@@ -49,22 +49,33 @@ Singleton {
         delete n[output]
         places = n
     }
-    // ---- the bars of each output (K71: one per edge). `bars["<output>/<edge>"] = { inset, size, floating, mapped }`: how far
-    // the bar's body stands from its edge (a floating bar's band + gap), its thickness, whether it floats and whether its
-    // window is on screen — the neck and the sidebar's join follow a floating bar's inset; the frame waits for a bar that
-    // carries its strip (row 492 b) before it maps its side strips.
+    // ---- the bars of each output (K71: one per edge). `bars["<output>/<edge>"] = { edge, inset, size, floating, mapped, root,
+    // ox, oy }`: how far the bar's body stands from its edge (a floating bar's band + gap), its thickness, whether it floats,
+    // whether its window is on screen, the window's content item and its top-left corner on the output — the Stage's morph
+    // and the neck follow a floating bar's inset; the frame waits for a bar that carries its strip (row 492 b) before it maps
+    // its side strips, a pinned sidebar for the horizontal bars that hold a zone; `rectOf` tells an origin's bar by `root`.
     property var bars: ({})
     function setBar(output, edge, info) {
         if (output === "") return
         var k = output + "/" + edge, o = bars[k]
-        if (o && info && o.inset === info.inset && o.size === info.size && o.floating === info.floating && o.mapped === info.mapped) return
+        if (o && info && o.inset === info.inset && o.size === info.size && o.floating === info.floating && o.mapped === info.mapped
+                && o.root === (info.root || null) && o.ox === (info.ox || 0) && o.oy === (info.oy || 0)) return
         if (!o && !info) return
         var n = Object.assign({}, bars)
-        if (info) n[k] = { inset: info.inset, size: info.size, floating: info.floating, mapped: info.mapped }
+        if (info) n[k] = { edge: edge, inset: info.inset, size: info.size, floating: info.floating, mapped: info.mapped,
+                           root: info.root || null, ox: info.ox || 0, oy: info.oy || 0 }
         else delete n[k]
         bars = n
     }
     function barOf(output, edge) { return bars[output + "/" + edge] || null }
+    // The bar of `output` whose window holds `item` (null: none of its bars). Walked only when a surface asks.
+    function barHolding(output, item) {
+        var mine = []
+        for (var k in bars) if (k.indexOf(output + "/") === 0 && bars[k].root) mine.push(bars[k])
+        for (var p = item; p && mine.length > 0; p = p.parent)
+            for (var i = 0; i < mine.length; i++) if (mine[i].root === p) return mine[i]
+        return null
+    }
     // The output whose pill is inside the Stage's shape right now; "" when none.
     property string takenOn: ""
     // Where the shape opens the `takenOn` bar's rule (line chrome, W30): from the bar's centre, left and right, in px;
@@ -95,9 +106,10 @@ Singleton {
         delete o[key]
         revision++
     }
-    // The registered item's box on its bar's window — the output's own px for a top or bottom bar, which spans the output
-    // — as { x, y, w, h }, or null: no such key, or the item is gone or hidden. `key` ending in ":" takes the first
-    // registered key with that prefix (a mod's panel opened from another of its widgets).
+    // The registered item's box on its output (logical px, its bar window's place counted: row 512 — a floating bar's window
+    // stands in from the output's corner) as { x, y, w, h, edge }, `edge` the bar it stands in ("" when none of this output's
+    // bars holds it), or null: no such key, or the item is gone or hidden. `key` ending in ":" takes the first registered key
+    // with that prefix (a mod's panel opened from another of its widgets).
     function rectOf(output, key) {
         var o = origins[output]
         if (!o) return null
@@ -108,6 +120,8 @@ Singleton {
         if (!a || !a.item || !a.item.visible || a.item.width <= 0) return null
         var t = a.item
         var p0 = t.mapToItem(null, 0, 0), p1 = t.mapToItem(null, t.width, t.height)
-        return { x: Math.min(p0.x, p1.x), y: Math.min(p0.y, p1.y), w: Math.abs(p1.x - p0.x), h: Math.abs(p1.y - p0.y) }
+        var b = barHolding(output, t)
+        return { x: (b ? b.ox : 0) + Math.min(p0.x, p1.x), y: (b ? b.oy : 0) + Math.min(p0.y, p1.y),
+                 w: Math.abs(p1.x - p0.x), h: Math.abs(p1.y - p0.y), edge: b ? b.edge : "" }
     }
 }

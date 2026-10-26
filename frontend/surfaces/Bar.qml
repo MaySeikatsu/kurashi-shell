@@ -184,11 +184,18 @@ Scope {
     BarConfig { id: cfg; screen: bar.scr }
     readonly property bool primary: cfg.enabled && cfg.edge === edge
     onPrimaryChanged: if (primary) Peeks.setEdge(outName, edge)
-    Component.onCompleted: if (primary) Peeks.setEdge(outName, edge)
+    Component.onCompleted: { if (primary) Peeks.setEdge(outName, edge); report() }
 
     // Where the body stands from its edge, for the neck, the sidebar's join and the frame (IslandGeom's bar registry).
-    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped].join("|")
-    onGeomKeyChanged: IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped } : null)
+    // Also the window's content item and its place on the output, so the Stage can tell which bar an origin stands in and
+    // where (row 512: a floating bar's window does not start at the output's corner).
+    readonly property point winOrigin: winL.item ? winL.item.sheetOrigin : Qt.point(0, 0)
+    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped, winOrigin.x, winOrigin.y].join("|")
+    function report() {
+        IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped,
+                                               root: winL.item ? winL.item.contentItem : null, ox: winOrigin.x, oy: winOrigin.y } : null)
+    }
+    onGeomKeyChanged: report()
     Component.onDestruction: IslandGeom.setBar(outName, edge, null)
 
     readonly property M.ModuleLink link: M.ModuleLink { vertical: bar.vertical }
@@ -261,6 +268,8 @@ Scope {
             // body would only be found by the next motion. Revealed on hover, the 2 px on the screen's edge stay the shared
             // strip's, which keeps the bar out while the pointer rests there (EdgeReveal, row 524).
             readonly property int edgeCut: reveal.cutFor(bar.inset)
+            // The rule as drawn (the test log's; none under a chrome without a rule or a floating bar).
+            readonly property var ruleSegs: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 ? bg.ruleSegs : []
             mask: Region {
                 x: body.restX + (bar.edge === "left" ? win.edgeCut : 0)
                 y: body.restY + (bar.edge === "top" ? win.edgeCut : 0)
@@ -372,14 +381,16 @@ Scope {
                             && IslandGeom.takenOn !== "" && IslandGeom.takenOn === bar.outName
                         // Row 363 (W34): an open sidebar at rest on this edge leaves the rule out over the span its column covers
                         // (SidebarGeom, along the output's edge: from the bar's own start here), so the column's outline runs round its
-                        // fillet into the rule's end — one sheet, no seam.
-                        readonly property var sideOpen: SidebarGeom.openingIn(bar.outName, bar.edge, bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x)
-                        // The rule as segments along the edge: everything but the island's opening and the sidebar's span.
+                        // fillet into the rule's end — one sheet, no seam. Every column that meets this bar opens it (row 521: both
+                        // sidebars out at once; a column joining a top and a bottom bar opens both).
+                        readonly property var sideOpen: SidebarGeom.openingsIn(bar.outName, bar.edge, bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x)
+                        // The rule as segments along the edge: everything but the island's opening and the sidebars' spans.
                         readonly property real ruleLen: bar.vertical ? height : width
                         readonly property var ruleSegs: {
                             var gaps = []
                             if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
-                            if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
+                            for (var s = 0; s < sideOpen.length; s++)
+                                gaps.push([Math.max(0, sideOpen[s].from), Math.min(ruleLen, sideOpen[s].to)])
                             // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
                             // round it into the band beside (FramePieces).
                             if (bar.frameOn && !bar.drawFloating) {
@@ -496,6 +507,9 @@ Scope {
             out.push("BARZONE " + outName + " " + edge + " " + zone + " " + h.mid + " "
                 + [o.x + p.x, o.y + p.y, o.x + p.x + h.width, o.y + p.y + h.height].map(Math.round).join(" "))
         }
+        // The rule's segments along the edge (line chrome; "-" while it draws none), in px from the bar's own start.
+        out.push("BARRULE " + outName + " " + edge + " " + (w.ruleSegs.length > 0
+            ? w.ruleSegs.map(function (g) { return Math.round(g[0]) + "-" + Math.round(g[1]) }).join(",") : "-"))
         for (var k = 0; k < out.length; k++) console.log(out[k])
     }
     property Timer zoneT: Timer { interval: 600; onTriggered: bar.logZones() }
@@ -506,6 +520,11 @@ Scope {
         target: Store
         enabled: bar.zoneLog
         function onDocsChanged() { bar.requestZones() }
+    }
+    property Connections zoneOpenings: Connections {
+        target: SidebarGeom
+        enabled: bar.zoneLog
+        function onOpeningsChanged() { bar.requestZones() }
     }
 
     // ---- top and bottom bars: the zones as rows — start from the left, center in the middle, end at the right -----------

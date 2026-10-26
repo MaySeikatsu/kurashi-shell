@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/sidebar"
+import "../components/island"
 
 // An edge sidebar (cards W29, W44; docs/ux/sidebar.md, docs/ux/layout.md): `side` left or right. Where it stands and how it
 // meets its neighbours comes from `runtime.layout` (`sidebars.<side>`: draw, visibility, width, inset, span, joins, radius;
@@ -293,8 +294,23 @@ Scope {
             }
             Timer { id: keyWrite; interval: 450; onTriggered: col.writeWidth(col.colW) }
 
+            // A column that holds its side's zone is mapped after the top and bottom bars that hold theirs: the compositor
+            // places a holder inside the zones of the holders mapped before it (W43-frame's probe), and the horizontal bars
+            // own the corners (K71) — mapped after the column, a bottom bar came out between the two pinned columns' zones
+            // (measured: 420..1500 of 1920). A bar that turns up later takes the column down until it is on screen.
+            readonly property bool barsFirst: {
+                if (!holder) return true
+                var es = ["top", "bottom"]
+                for (var i = 0; i < es.length; i++) {
+                    var x = edges[es[i]] || {}
+                    if (x.bar !== true || x.holder !== "bar" || !(x.reserve > 0)) continue
+                    var b = IslandGeom.barOf(out, es[i])
+                    if (!b || !b.mapped) return false
+                }
+                return true
+            }
             LazyLoader {
-                active: col.held
+                active: col.held && col.barsFirst
                 PanelWindow {
                     id: win
                     screen: col.scr
@@ -381,7 +397,7 @@ Scope {
                     }
                     Component.onDestruction: {
                         Light.setZone(win, "", sb.side, 0)
-                        SidebarGeom.clear(outName)
+                        SidebarGeom.clear(outName, sb.side)
                         col.focusHeld = false
                         col.pointerIn = false
                         if (sb.geometryLog) console.log("sidebar-window down " + sb.side + " " + outName)
@@ -389,20 +405,28 @@ Scope {
                     // At rest under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover,
                     // for the bar to leave its rule out there (SidebarGeom); withdrawn as soon as it moves.
                     readonly property bool atRest: col.wanted && !col.gate && !col.frozen && col.p === 1 && !spring.running
-                    readonly property var opening: {
-                        if (!atRest || !shape.ruled || col.barEdge === "none") return null
+                    // Row 521: one opening per bar the column meets — the bar at its start (top), the one at its end
+                    // (bottom) and a docked bar on its own side — each `[edge, from, to]` along that bar's edge.
+                    readonly property string openingsKey: {
+                        if (!atRest || !shape.ruled) return ""
                         var ox = sb.side === "left" ? 0 : col.sw - width
-                        if (col.barEdge === "top" || col.barEdge === "bottom") {
-                            var f = col.barEdge === "top" ? shape.fTi : shape.fBi
+                        var out = []
+                        function across(edge, f) {
                             var a = ox + realX(rx0 - f, rx1)
-                            return [a, a + col.colW + f]
+                            out.push([edge, Math.round(a), Math.round(a + col.colW + f)])
                         }
-                        return [offTop + y0 - shape.fOt, offTop + y1 + shape.fOb]
+                        if (col.joinStart === "bar:top") across("top", shape.fTi)
+                        if (col.joinEnd === "bar:bottom") across("bottom", shape.fBi)
+                        if (col.sideBar)
+                            out.push([sb.side, Math.round(offTop + y0 - shape.fOt), Math.round(offTop + y1 + shape.fOb)])
+                        return JSON.stringify(out)
                     }
-                    onOpeningChanged: {
-                        if (opening) SidebarGeom.set(outName, col.barEdge, Math.round(opening[0]), Math.round(opening[1]))
-                        else SidebarGeom.clear(outName)
-                        if (sb.geometryLog) console.log("sidebar-opening " + sb.side + " " + (opening ? Math.round(opening[0]) + "," + Math.round(opening[1]) : "none"))
+                    onOpeningsKeyChanged: {
+                        SidebarGeom.clear(outName, sb.side)
+                        var list = openingsKey !== "" ? JSON.parse(openingsKey) : []
+                        for (var i = 0; i < list.length; i++) SidebarGeom.set(outName, sb.side, list[i][0], list[i][1], list[i][2])
+                        if (sb.geometryLog) console.log("sidebar-opening " + sb.side + " " + (list.length > 0
+                            ? list.map(function (o) { return o[0] + ":" + o[1] + "," + o[2] }).join(" ") : "none"))
                     }
                     // The slide starts on the window's first presented frame (as the Stage's), so it is never skipped.
                     Connections {
