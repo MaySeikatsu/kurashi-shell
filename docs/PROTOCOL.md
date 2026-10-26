@@ -199,7 +199,8 @@ query names one, "Settings: <page>" rows (id `settings:<page>`, a schema page or
 Layout actions (K71): `layout.toggle {target, output?}` brings a `hidden` component out or puts it away (targets as in
 `runtime.ui.shown`; the focused output when `output` is absent; refused with `layout.error.target` for a target that is
 not on that output); `layout.bar.move {from, to, output?}` moves a bar and its zones from one edge to another in one
-undoable change (refused with `layout.error.edge_taken` when `to` has a bar). The action registry is a query:
+undoable change; modules `to` already showed on their own stay, after the bar's, so a move loses none (refused with
+`layout.error.edge_taken` when `to` has a bar). The action registry is a query:
 `{"t":"query","id":"9","kind":"actions"}` → `{"t":"results","id":"9","items":[{"id":"island.next","args":"{island?}","help":"…"}]}`
 (`help` an i18n'd line); `kurashi act --list` prints it.
 

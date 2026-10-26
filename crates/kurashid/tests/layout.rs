@@ -258,6 +258,30 @@ async fn layout_bar_move_moves_the_bar_with_its_zones_in_one_undoable_change() {
 }
 
 #[tokio::test]
+async fn layout_bar_move_keeps_the_modules_the_destination_edge_showed_on_their_own() {
+    let (store, _hub, actions, root) = open();
+    let v = |k: &str| store.get(k, None).unwrap().value;
+    store
+        .apply(&[ApplyOp::Set {
+            set: "edges.bottom.end".into(),
+            value: json!(["clock", "weather"]),
+            output: None,
+        }])
+        .unwrap();
+    let top_end: Vec<Value> = v("edges.top.end").as_array().unwrap().clone();
+    actions
+        .invoke("layout.bar.move", json!({"from": "top", "to": "bottom"}))
+        .await
+        .unwrap();
+    // The bar's modules first; the edge's own after them, without a second clock.
+    let mut want = top_end.clone();
+    want.push(json!("weather"));
+    assert!(top_end.contains(&json!("clock")));
+    assert_eq!(v("edges.bottom.end"), Value::Array(want));
+    let _ = std::fs::remove_dir_all(&root);
+}
+
+#[tokio::test]
 async fn the_actions_query_lists_the_layout_actions() {
     let (_store, hub, actions, root) = open();
     let daemon = Daemon::new(hub, actions, Intents::default());
