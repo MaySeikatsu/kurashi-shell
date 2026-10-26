@@ -5,6 +5,7 @@ import "../core"
 import "../components"
 import "../components/island"
 import "../components/bar"
+import "../components/sidebar"
 import "../components/bar/framegeom.js" as FG
 
 // The screen frame (K71, docs/ux/frame.md): a band round one output in the bar's own material, so the bar, the band and
@@ -92,6 +93,10 @@ Scope {
     // The rule's width: the outline under line chrome (boxed: an outline and no shadow; keycap and soft draw a plain sheet,
     // their ring and shadow belong to blocks); the pen draws it under a pen.
     readonly property int ow: Theme.boxed ? Theme.outlineW : 0
+    // Where a sidebar or the dock joined to the band covers its rule (SidebarGeom; FramePieces leaves the rule out there).
+    // Through a string: it notifies only when an opening of this output changes.
+    readonly property string openingsKey: ow > 0 && held ? JSON.stringify(SidebarGeom.openingsOf(out)) : "[]"
+    readonly property var openings: JSON.parse(openingsKey)
 
     // One strip. Its pieces are given in output coordinates; `ox`/`oy` is where the strip really stands on the output
     // (see the header), so its pieces lay the output's plane under the window.
@@ -158,6 +163,7 @@ Scope {
             fillets: strip.fillets
             rules: strip.rules
             arcs: strip.arcs
+            openings: strip.host.openings
             opacity: 0
             Component.onCompleted: opacity = Qt.binding(function () { return strip.host.on ? 1 : 0 })
             Behavior on opacity {

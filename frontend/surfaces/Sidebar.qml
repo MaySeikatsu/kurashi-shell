@@ -419,9 +419,10 @@ Scope {
                             var a = ox + realX(rx0 - f, rx1)
                             out.push([edge, Math.round(a), Math.round(a + col.colW + f)])
                         }
-                        if (col.joinStart === "bar:top") across("top", shape.fTi)
-                        if (col.joinEnd === "bar:bottom") across("bottom", shape.fBi)
-                        if (col.sideBar)
+                        // (A join with the frame's band opens the band's rule the same way: Frame.qml, FramePieces.)
+                        if (col.joinStart === "bar:top" || col.joinStart === "frame") across("top", shape.fTi)
+                        if (col.joinEnd === "bar:bottom" || col.joinEnd === "frame") across("bottom", shape.fBi)
+                        if (col.sideBar || (!col.floating && ShellLayout.bandOf(col.out, sb.side) > 0))
                             out.push([sb.side, Math.round(offTop + y0 - shape.fOt), Math.round(offTop + y1 + shape.fOb)])
                         return JSON.stringify(out)
                     }
