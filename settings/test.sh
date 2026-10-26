@@ -13,6 +13,13 @@
 # W36-core (I54, I40): a free string list (the terminal command) empty, with three entries, moved by Alt+Down/Up, added to
 # and removed from by keyboard; the wallpaper's folders as a path list with an entry that is not a path refused; page links
 # by `settings.open {page}` on the running window and by KURASHI_SETTINGS_PAGE at start.
+# W44 (K71, K72; docs/ux/layout.md): Settings › Layout's screen: a strip toggles an edge's bar (Space), the radio group picks
+# the section (arrows), "Move bar to …" moves the bar with its zones, a module no edge shows is offered back to a zone (Add
+# to …), a problem entry (an id the file names that no module answers to) is removed by Delete, an inert keep-space row names
+# the document's reason, the preset's line, the sidebar width's drag hint and Reset; I241: no "*" in the output picker and
+# settings.open {page: "bar"} opens layout. Shots: settings/shots/layout/ (sekai and washi, light and dark; the moved, unplaced,
+# problem, inert, preset, sidebar and empty-bar states; ja-layout-top). A strip toggles an edge's bar; a zone takes a module
+# from its Add… list, moves it with Alt+Up and removes it with Delete.
 # Coverage (UX brief docs/ux/settings.md, States and Definition of done). Shots: default, user, profile (after a profile
 # load), Nix-forced and its chip's stack (managed.toml), inert (requires, overridden, mods off, restart pending, choice
 # unavailable), invalid input (the refusal under the row), preview (palette, scheme, radius, font), undo after a CLI change,
@@ -85,6 +92,12 @@ schema_version = 1
 height = 40
 [outputs."HEADLESS-1".bar]
 height = 48
+# No idle lock or dim in a sandbox run: a long run would blank the shots (idle.enabled, W44).
+[idle]
+enabled = false
+# W44: an id no module answers to, in the left edge's centre list (a problem entry from the file; the daemon keeps it).
+[edges.left]
+center = ["island", "clok"]
 T
 # The host (K63): a window (the default), or the sheet, chosen by the config as a user would.
 HOST=${SETTINGS_HOST:-window}
@@ -378,7 +391,8 @@ focus_on() {
 #     flip, and the shot shows the focus ring on that switch (outside the track, not on the ON fill).
 Q goto layout
 Q focusList >/dev/null
-tab_to "toggle:layout.frame.enabled"
+# The screen's strips, radio group and selectors, and the top edge's rows come first now (W44): a longer walk.
+tab_to "toggle:layout.frame.enabled" 200
 [ "$(val layout.frame.enabled)" = false ] || fail "keyboard: layout.frame.enabled not off before the test"
 kp space
 [ "$(val layout.frame.enabled)" = true ] || fail "keyboard: Space did not flip layout.frame.enabled"
@@ -1191,6 +1205,178 @@ echo "keys S3d: a store link at the path is left alone and named"
 rm -f "$KF"
 K '{"t":"apply","id":"k3","ops":[{"reset":"keys.quick"},{"reset":"keys.write"}]}' | grep -q applied || fail "keys: the reset was refused"
 
+# --- W44 (K71, K72; docs/ux/layout.md "Design" and "Keyboard + a11y", docs/ux/edge-modules.md "Placement"): Settings › Layout.
+# The screen above the page: four strips that are toggles (Space), a radio group that picks the edge whose section shows under
+# it (arrows), "Move bar to …" (layout.bar.move carries the zones with the bar), a module no edge shows offered back to a
+# zone, a problem entry removed from its list, an inert keep-space row that names the document's reason, the preset's line,
+# and the sidebar width's drag hint and reset. I241: the output picker has no "*" alias, and settings.open {page: "bar"}
+# opens layout. Shots in settings/shots/layout/: washi and sekai, light and dark (the top edge); the moved, unplaced, problem,
+# inert, preset and sidebar states in washi dark; ja-layout-top in the Japanese pass.
+lshot() { sleep 1; mkdir -p "$SHOTS/layout"; grim -o HEADLESS-1 "$SHOTS/layout/$1.png"; [ -s "$SHOTS/layout/$1.png" ]; }
+# Tabs from the start of the window's focus order (the list first) to the named item.
+lfocus() { Q focusList >/dev/null; tab_to "$1" 200; }
+# Waits (up to 5 s) for a key to hold the value given, as the daemon's `val` prints it (JSON), else fails.
+wait_val() {
+  local key=$1 want=$2
+  for _ in $(seq 25); do [ "$(val "$key")" = "$want" ] && return 0; sleep 0.2; done
+  fail "layout: $key is $(val "$key"), expected $want"
+}
+
+# W1. I241: settings.open {page: "bar"} jumps to the layout page (the window is elsewhere first), and the output picker names
+#     HEADLESS-1 only: the "*" alias that svc.workspaces and runtime.layout carry is not an output.
+Q goto appearance
+K '{"t":"act","id":"pg3","action":"settings.open","args":{"page":"bar"}}' | grep -q '"opened":"jumped"' || fail "I241: settings.open {page: bar} did not jump to the layout page"
+for _ in $(seq 25); do [ "$(Q current)" = layout ] && break; sleep 0.2; done
+[ "$(Q current)" = layout ] || fail "I241: page bar did not open layout ($(Q current))"
+# The picker names the outputs the config overrides and the compositor reports. An earlier step may have reset the override,
+# and the sandbox's daemon can start without its sway socket (the env lines are read before sway listens; kurashid then falls
+# back to niri and reports no outputs), so the override is set here: HEADLESS-1 is then the only name the picker can show.
+K '{"t":"apply","id":"o1","ops":[{"set":"bar.height","value":48,"output":"HEADLESS-1"}]}' | grep -q applied || fail "I241: the HEADLESS-1 override was refused"
+for _ in $(seq 25); do [ "$(Q outputs)" = HEADLESS-1 ] && break; sleep 0.2; done
+[ "$(Q outputs)" = HEADLESS-1 ] || fail "I241: the output picker lists $(Q outputs), not HEADLESS-1 alone"
+[ "$(Q layoutEdge)" = top ] || fail "layout: the page does not open on the top edge ($(Q layoutEdge))"
+echo "layout W1: settings.open {page: bar} jumped to layout; the picker lists HEADLESS-1 only"
+
+# W2. the top edge's screen and section in sekai and washi, light and dark (the style applied, then the scheme set by you).
+for style in sekai washi; do
+  # A pick works on the page on screen (SettingsPages.pick searches its rows): the style is picked on Appearance.
+  Q goto appearance
+  Q pick theme.style "\"$style\""
+  wait_ap style "$style"
+  for scheme in light dark; do
+    K "{\"t\":\"apply\",\"id\":\"sc-$style-$scheme\",\"ops\":[{\"set\":\"theme.colors.scheme\",\"value\":\"$scheme\"}]}" | grep -q applied || fail "layout: the $scheme scheme was refused"
+    wait_val theme.colors.scheme "\"$scheme\""
+    Q goto layout
+    Q scroll 0
+    lshot "$style-$scheme-top"
+  done
+done
+echo "layout W2: the screen and the top edge shot in sekai and washi, light and dark"
+
+# W3. "Move bar to …": the top bar goes to the bottom edge with its zones, and the page follows the bar there.
+lfocus "move-bar"
+kp space
+sleep 0.8
+kp return
+wait_val edges.top.bar false
+wait_val edges.bottom.bar true
+wait_val edges.bottom.start '["sidebar_left","workspaces","windows"]'
+[ "$(Q layoutEdge)" = bottom ] || fail "move: the page did not follow the bar to the bottom edge ($(Q layoutEdge))"
+lshot washi-dark-moved
+echo "layout W3: Move bar to … took the bar and its zones to the bottom edge; the page followed it"
+
+# W4. a module no edge shows is named with its reason and offered back: Clock leaves the bottom's end list, then goes to the
+#     top's (the zone the bar left is empty, so the list is Clock alone).
+lfocus "pickrow:clock"
+kp delete
+wait_val edges.bottom.end '["volume","mods","recorder","keyboard","quick","tray","sidebar_right"]'
+[ "$(Q present unplaced:clock)" = yes ] || fail "unplaced: Clock is not offered back once no zone holds it"
+lshot washi-dark-unplaced
+lfocus "unplaced:clock"
+kp space
+sleep 0.8
+kp down
+kp down
+kp return
+wait_val edges.top.end '["clock"]'
+[ "$(Q present unplaced:clock)" = no ] || fail "unplaced: Clock is still offered after it went to the top's end list"
+echo "layout W4: an unplaced module is offered back to a zone (Add to …)"
+
+# W5. a problem entry: the left edge's centre list names an id no module answers to; the row says why, and Delete removes it.
+lfocus "Left edge"
+kp space
+[ "$(Q layoutEdge)" = left ] || fail "radio: Space on the left edge did not pick its section ($(Q layoutEdge))"
+lfocus "pickrow:clok"
+lshot washi-dark-problem
+kp delete
+wait_val edges.left.center '["island"]'
+echo "layout W5: a problem entry shows its reason and Delete removes it from its list"
+
+# W5b. the screen's strip toggles an edge's bar (Space); on the left edge (empty start list), a module is added from the zone's
+#      Add… list, a second one goes above it with Alt+Up, and Delete removes one.
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar true
+kp space
+wait_val edges.right.bar false
+lfocus "Add…"
+kp space
+kp return
+wait_val edges.left.start '["workspaces"]'
+lfocus "Add…"
+kp space
+kp return
+wait_val edges.left.start '["workspaces","windows"]'
+lfocus "pickrow:windows"
+kp alt+up
+wait_val edges.left.start '["windows","workspaces"]'
+lfocus "pickrow:windows"
+kp delete
+wait_val edges.left.start '["workspaces"]'
+echo "layout W5b: a strip toggles its edge's bar; a module is added from Add…, moved up with Alt+Up and removed with Delete"
+
+# W5c. a bar with no modules in any zone is an empty strip, and the note under its edge's header says so (UX brief, States).
+#      The right edge has no zones: its bar, switched on, is empty; switched off, the note goes. The left edge is picked again.
+lfocus "Right edge"
+kp space
+[ "$(Q layoutEdge)" = right ] || fail "radio: Space on the right edge did not pick its section ($(Q layoutEdge))"
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar true
+for _ in $(seq 25); do [ "$(Q present empty-bar:right)" = yes ] && break; sleep 0.2; done
+[ "$(Q present empty-bar:right)" = yes ] || fail "empty bar: the right edge's bar has no modules, and Settings does not say so"
+lshot washi-dark-empty-bar
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar false
+for _ in $(seq 25); do [ "$(Q present empty-bar:right)" = no ] && break; sleep 0.2; done
+[ "$(Q present empty-bar:right)" = no ] || fail "empty bar: the note stayed after the bar was switched off"
+lfocus "Left edge"
+kp space
+[ "$(Q layoutEdge)" = left ] || fail "radio: Space on the left edge did not pick its section ($(Q layoutEdge))"
+echo "layout W5c: a bar with no modules says so under its edge's header; switched off, the note goes"
+
+# W6. an inert keep-space row names the document's reason (a hidden part never keeps space) and the setting that hides it.
+lfocus "Hidden (opens by key)"
+kp space
+wait_val edges.left.visibility '"hidden"'
+[[ "$(K '{"t":"cfg.get","id":"ir","key":"edges.left.reserve"}')" == *'"inert_by":"edges.left.visibility"'* ]] || fail "inert: edges.left.reserve is not inert under a hidden edge"
+lshot washi-dark-inert
+K '{"t":"apply","id":"ir2","ops":[{"reset":"edges.left.visibility"}]}' | grep -q applied || fail "inert: the reset of edges.left.visibility was refused"
+wait_val edges.left.visibility '"always"'
+echo "layout W6: keep space under a hidden edge is inert, with the document's reason and a link"
+
+# W7. the preset's three modes in one line under its pills, and the frame section after the edge sections.
+Q goto layout
+Q scrollTo "section:layout.layout"
+lshot washi-dark-preset
+echo "layout W7: the preset's modes in one line"
+
+# W8. the sidebar's width: its help names the inner edge to drag, and its Reset takes a value of yours back to the default.
+Q goto sidebar
+K '{"t":"apply","id":"sw1","ops":[{"set":"sidebar.right.width","value":400}]}' | grep -q applied || fail "sidebar: the width was refused"
+for _ in $(seq 25); do [ "$(Q present reset:sidebar.right.width)" = yes ] && break; sleep 0.2; done
+[ "$(Q present reset:sidebar.right.width)" = yes ] || fail "sidebar: the width row has no Reset once the width is yours"
+Q scrollTo "slider:sidebar.right.width"
+lshot washi-dark-sidebar-width
+lfocus "reset:sidebar.right.width"
+kp return
+kp return
+[ "$(src sidebar.right.width)" = default ] || fail "sidebar: Reset did not take the width back to its default ($(src sidebar.right.width))"
+echo "layout W8: the width row names the drag, and its Reset takes the value back"
+
+# W9. back to the baseline the steps after this one expect: the edges at their defaults, the appearance as A7 left it.
+Q goto layout
+ops=""
+for e in top bottom left right; do for k in bar visibility reserve draw start center end; do ops+="${ops:+,}{\"reset\":\"edges.$e.$k\"}"; done; done
+K "{\"t\":\"apply\",\"id\":\"cl1\",\"ops\":[$ops]}" | grep -q applied || fail "layout: resetting the edges was refused"
+Q goto appearance
+Q pick theme.style '"none"'
+wait_ap style none
+K '{"t":"apply","id":"cl2","ops":[{"reset":"theme.colors.scheme"},{"reset":"theme.colors.contrast"}]}' | grep -q applied || fail "layout: the appearance reset was refused"
+wait_ap look kanso
+Q goto layout
+
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
@@ -1203,6 +1389,8 @@ for _ in $(seq 50); do [ "$(Q current)" = mods.records ] && break; sleep 0.2; do
 echo "page link: KURASHI_SETTINGS_PAGE=mod:records opened page mods.records at start"
 sleep 1.5
 shot ja-page-link-records
+Q goto layout
+lshot ja-layout-top
 Q goto appearance
 shot ja-appearance
 Q goto power

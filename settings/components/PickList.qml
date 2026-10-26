@@ -24,6 +24,9 @@ Column {
     // A free list (no offers: a text field adds entries), and one of paths (the field hints at the form).
     property bool free: false
     property bool paths: false
+    // The entries the layout cannot draw (`problems`, K72): {value: reason i18n key}. Such an entry says why under its name;
+    // its remove button stays.
+    property var reasons: ({})
     // The entry typed into the free list's field and sent; the field clears once the daemon lists it.
     property string pending: ""
     signal edited(var items)
@@ -123,8 +126,10 @@ Column {
             readonly property var chosen: entry.index < l.items.length ? l.items[entry.index] : undefined
             readonly property string name: l.nameOf(entry.chosen)
             readonly property bool known: l.free || l.offer(entry.chosen) !== null
+            // The reason an entry cannot be drawn (`problems`, K72), as text: a second line under its name.
+            readonly property string reason: entry.chosen !== undefined && l.reasons[entry.chosen] ? I18n.tr(l.reasons[entry.chosen]) : ""
             width: l.width
-            height: Theme.controlH
+            height: Math.max(Theme.controlH, textCol.implicitHeight + 8)
             radius: Theme.rSm
             color: entry.activeFocus ? Theme.containerHigh : Theme.container
             border.width: 1
@@ -146,20 +151,34 @@ Column {
                 }
             }
             Accessible.role: Accessible.ListItem
-            Accessible.name: (entry.index + 1) + ". " + entry.name
+            Accessible.name: (entry.index + 1) + ". " + entry.name + (entry.reason !== "" ? ". " + entry.reason : "")
 
-            Text {
+            Column {
+                id: textCol
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.pad
                 anchors.right: buttons.left
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
-                // A path keeps its start and its last folder in view.
-                elide: l.paths ? Text.ElideMiddle : Text.ElideRight
-                color: entry.known ? Theme.fg : Theme.dim
-                font.pixelSize: Theme.fs
-                font.family: Theme.fam(text, Theme.families)
-                text: (entry.index + 1) + ".  " + entry.name
+                spacing: 2
+                Text {
+                    width: parent.width
+                    // A path keeps its start and its last folder in view.
+                    elide: l.paths ? Text.ElideMiddle : Text.ElideRight
+                    color: entry.known ? Theme.fg : Theme.dim
+                    font.pixelSize: Theme.fs
+                    font.family: Theme.fam(text, Theme.families)
+                    text: (entry.index + 1) + ".  " + entry.name
+                }
+                Text {
+                    visible: entry.reason !== ""
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    color: Theme.error
+                    font.pixelSize: Theme.fs - 2
+                    font.family: Theme.fam(text, Theme.families)
+                    text: entry.reason
+                }
             }
             Row {
                 id: buttons
