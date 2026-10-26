@@ -65,10 +65,7 @@ ModuleBase {
                 Store.act("tray.scroll", {id: modelData.id, delta: delta, orientation: orientation})
             // W34: the item's menu grows out of it (IslandGeom's origins; top and bottom hosts).
             AnchorReport { target: ticon; key: "tray:" + ticon.modelData.id; output: m.output; enabled: m.anchored && !m.vertical }
-            // Its peek hangs off this host's edge (Peeks: one output may have several bars).
-            readonly property string placeKey: peekSource !== "" && m.qsw ? [m.output, m.edge, Light.originOf(m.qsw).x, Light.originOf(m.qsw).y].join("|") : ""
-            onPlaceKeyChanged: if (placeKey !== "") { var o = Light.originOf(m.qsw); Peeks.place(peekSource, m.output, m.edge, o.x, o.y) }
-            Component.onDestruction: if (peekSource !== "") Peeks.unplace(peekSource, m.output)
+            // Its peek hangs off this host's edge and window (PeekSource asks this module's peekPlace(), row 514).
         }
     }
     Row {

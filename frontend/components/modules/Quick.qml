@@ -15,6 +15,8 @@ ModuleBase {
     width: q.width
     height: q.height
     slotHeights: [thickness]
+    // QuickButton is its own tab stop.
+    ownsFocus: true
     function geo() { return [["quick", m]] }
     QuickButton {
         id: q

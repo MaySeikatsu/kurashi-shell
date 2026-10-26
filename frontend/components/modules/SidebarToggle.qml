@@ -16,6 +16,8 @@ ModuleBase {
     width: b.width
     height: b.height
     slotHeights: [thickness]
+    // SidebarButton is its own tab stop.
+    ownsFocus: true
     function geo() { return [["sidebar-" + m.side, m]] }
     SidebarButton {
         id: b
