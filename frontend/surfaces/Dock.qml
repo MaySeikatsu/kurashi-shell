@@ -3,6 +3,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 import "../components"
+import "../components/sidebar"
 import "../components/bar/appicon.js" as AppIcons
 
 // The app dock (K51, docs/ux/dock.md) of one output: pinned apps (`dock.pinned`, desktop ids) then the running ones
@@ -29,13 +30,34 @@ Scope {
             id: dock
             readonly property var scr: dk.modelData
             readonly property string outName: scr ? scr.name : ""
+            // K71 (W44): where the dock stands and how it meets its edge, from `runtime.layout` (`dock`: edge, draw, visibility,
+            // inset, joins, radius; `edges.<edge>.holder` / `.reserve`), never re-derived here (rule 1).
+            Watch { doc: "runtime.layout" }
+            readonly property var lay: ShellLayout.of(outName)
+            readonly property var ld: lay.dock || ({})
             readonly property string edge: {
-                var e = cfg.valueOf("dock.edge", "bottom")
+                var e = typeof ld.edge === "string" ? ld.edge : cfg.valueOf("dock.edge", "bottom")
                 return e === "left" || e === "right" ? e : "bottom"
             }
             readonly property bool horiz: edge === "bottom"
-            // K71 `dock.visibility`: anything but always shown hides as autohide did (the reveal rules are W44's).
-            readonly property bool autohide: cfg.valueOf("dock.visibility", "empty_desktop") !== "always"
+            readonly property string vis: typeof ld.visibility === "string" ? ld.visibility
+                : String(cfg.valueOf("dock.visibility", "empty_desktop"))
+            readonly property string draw: typeof ld.draw === "string" ? ld.draw : "floating"
+            // Dynamic and connected stand on the band, the bar or the screen edge, joined to it (ColumnShape); floating
+            // keeps the block a gap away.
+            readonly property bool joined: draw !== "floating"
+            readonly property int inset: typeof ld.inset === "number" ? ld.inset : Theme.gap
+            readonly property int joinR: joined ? Math.max(0, typeof ld.radius === "number" ? ld.radius : ShellLayout.joinRadius) : 0
+            readonly property var edgeDoc: (lay.edges || {})[edge] || ({})
+            readonly property bool holder: edgeDoc.holder === "dock"
+            readonly property int reserve: holder && typeof edgeDoc.reserve === "number" ? edgeDoc.reserve : 0
+            // `hidden`: out while `layout.toggle {target: "dock"}` lists it in runtime.ui.shown (on this output, or on the
+            // daemon's "*" when it knows no focused output).
+            readonly property var shownList: (Store.docs["runtime.ui"] || {}).shown || []
+            readonly property bool toggled: vis === "hidden"
+                && (shownList.indexOf("dock@" + outName) >= 0 || shownList.indexOf("dock@*") >= 0)
+            // Anything but always shown hides (and reveals on hover, `empty_desktop` on an empty desk too).
+            readonly property bool autohide: vis !== "always"
             readonly property bool showRunning: cfg.valueOf("dock.show_running", true) === true
             readonly property var pinnedEntry: cfg.entry("dock.pinned")
             readonly property var pinned: {
@@ -211,51 +233,49 @@ Scope {
             readonly property int bodyW: horiz ? bodyAlong : cellAcross + 2 * bodyPad
             readonly property int bodyH: (horiz ? cellAcross + 2 * bodyPad : bodyAlong) + Theme.shadowDy
             readonly property int bodyAcross: horiz ? bodyH : bodyW
-            // Room for the soft shadow round the body, and the gap to the screen edge.
-            readonly property int room: Theme.softR > 0 ? Math.ceil(Theme.softR + Math.abs(Theme.softDy)) : 3
-            readonly property int edgeGap: Math.max(Theme.gap, room)
+            // Room for the soft shadow round the body (and, joined, for the fillets beside it), and the layout's inset from
+            // the screen edge (the band, a bar, a gap: K71).
+            readonly property int room: Math.max(joinR + 2, Theme.softR > 0 ? Math.ceil(Theme.softR + Math.abs(Theme.softDy)) : 3)
+            readonly property int edgeGap: inset
             readonly property int winW: horiz ? bodyAlong + 2 * room : bodyAcross + room + edgeGap
             readonly property int winH: horiz ? bodyAcross + room + edgeGap : bodyH + 2 * room
 
             // ---- hover, reveal, hide ----
-            property bool edgeIn: false
+            // The shared edge strip (K71, EdgeReveal: the dwell, twice as long on an edge another output touches — I137) in
+            // `hover`, and in `empty_desktop` while the desk has windows; `hidden` comes out only by `layout.toggle`. It
+            // stays out while the pointer is on the dock, its menu is open, or the pointer rests on the edge (EdgeHold).
             property bool bodyIn: false
             readonly property bool menuOpen: menuKey !== ""
-            readonly property bool pointerIn: edgeIn || bodyIn || menuOpen
-            readonly property bool holdOpen: !autohide || emptyDesk || menuOpen
-            property bool revealed: false
+            readonly property bool hoverOn: vis === "hover" || (vis === "empty_desktop" && !emptyDesk)
+            // The dock's span along its edge; the whole edge, unless a sidebar reveals on the same edge (it takes the rest).
+            readonly property real edgeLen: scr ? (horiz ? scr.width : scr.height) : 0
+            readonly property bool sharesEdge: !horiz && ((lay.sidebars || {})[edge] || {}).visibility === "hover"
+            readonly property real spanFrom: sharesEdge ? (edgeLen - bodyAlong) / 2 : 0
+            readonly property real spanTo: sharesEdge ? (edgeLen + bodyAlong) / 2 : -1
+            EdgeReveal {
+                id: reveal
+                screen: dock.scr
+                edge: dock.edge
+                key: "dock"
+                enabled: dock.hoverOn && dock.outName !== ""
+                from: dock.spanFrom
+                to: dock.spanTo
+                holdIn: dock.bodyIn || dock.menuOpen || edgeHold.held
+            }
+            EdgeHold {
+                id: edgeHold
+                output: dock.outName
+                edge: dock.edge
+                key: "dock:hold"
+                claim: reveal.enabled
+                active: reveal.revealed
+                from: dock.spanFrom
+                to: dock.spanTo
+            }
+            readonly property bool revealed: reveal.revealed
+            readonly property int revealMs: reveal.delayMs
+            readonly property bool holdOpen: vis === "always" || (vis === "empty_desktop" && emptyDesk) || toggled || menuOpen
             readonly property bool wantShown: holdOpen || revealed
-            onPointerInChanged: {
-                if (pointerIn) {
-                    hideTimer.stop()
-                    if (shownAmt > 0) revealed = true
-                    else if (edgeIn) revealTimer.restart()
-                } else {
-                    revealTimer.stop()
-                    if (revealed) hideTimer.restart()
-                }
-            }
-            onEdgeInChanged: if (edgeIn && !wantShown) revealTimer.restart()
-            // An edge another output touches (I137): the pointer crosses it on its way there, so the reveal waits longer.
-            readonly property bool sharedEdge: {
-                var s = scr
-                if (!s) return false
-                var all = Quickshell.screens
-                for (var i = 0; i < all.length; i++) {
-                    var o = all[i]
-                    if (!o || o.name === s.name) continue
-                    var overlapX = o.x < s.x + s.width && o.x + o.width > s.x
-                    var overlapY = o.y < s.y + s.height && o.y + o.height > s.y
-                    if (edge === "bottom" && overlapX && o.y === s.y + s.height) return true
-                    if (edge === "left" && overlapY && o.x + o.width === s.x) return true
-                    if (edge === "right" && overlapY && o.x === s.x + s.width) return true
-                }
-                return false
-            }
-            readonly property int revealMs: sharedEdge ? 500 : 250
-            Timer { id: revealTimer; interval: dock.revealMs; onTriggered: if (dock.edgeIn) dock.revealed = true }
-            Timer { id: hideTimer; interval: 400; onTriggered: if (!dock.pointerIn) dock.revealed = false }
-            onAutohideChanged: { revealed = false; hideTimer.stop(); revealTimer.stop() }
 
             // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change.
             property real shownAmt: wantShown ? 1 : 0
@@ -279,13 +299,14 @@ Scope {
             // The tile's box on the output, for the menu: the dock window's place is the compositor's (centred on its
             // edge, in the area the bar leaves), so it is worked out the same way here.
             property rect menuAt: Qt.rect(0, 0, 0, 0)
+            // K71: the window ignores zones (it stands at `inset` from the screen edge itself), so it is centred on the
+            // whole output; a holder is placed in what the other edges' holders leave (Light counts their zones).
             function winOrigin() {
                 var w = scr ? scr.width : 0, h = scr ? scr.height : 0
-                var top = cfg.atTop ? Theme.barH : 0, bottom = cfg.atBottom ? Theme.barH : 0
-                var left = cfg.enabled && cfg.edge === "left" ? Theme.barH : 0, right = cfg.atRight ? Theme.barH : 0
-                if (horiz) return Qt.point((w - winW) / 2, h - bottom - winH)
-                var y = top + (h - top - bottom - winH) / 2
-                return Qt.point(edge === "left" ? left : w - right - winW, y)
+                var win = winLoader.item
+                if (holder && win) return Light.originOf(win)
+                if (horiz) return Qt.point((w - winW) / 2, h - winH)
+                return Qt.point(edge === "left" ? 0 : w - winW, (h - winH) / 2)
             }
             readonly property var menuGroup: menuKey !== "" ? (groups.map[menuKey] || null) : null
             // The apps with an urgent window (the geometry log's; the tiles read their own).
@@ -328,44 +349,12 @@ Scope {
                 return true
             }
 
-            // The edge window (autohide): 4 px along the whole edge, a 2 px input zone at the screen's edge.
-            PanelWindow {
-                id: edgeWin
-                screen: dock.scr
-                visible: dock.autohide
-                readonly property bool side: !dock.horiz
-                implicitWidth: side ? 4 : 0
-                implicitHeight: side ? 0 : 4
-                anchors.top: dock.edge !== "bottom"
-                anchors.bottom: true
-                anchors.left: dock.edge !== "right"
-                anchors.right: dock.edge !== "left"
-                color: "transparent"
-                // At the very edge, over a bar's outer pixels too (Fitts): the edge is the target.
-                exclusionMode: ExclusionMode.Ignore
-                WlrLayershell.layer: WlrLayer.Top
-                WlrLayershell.namespace: "kurashi-dock-edge"
-                WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-                mask: Region {
-                    x: dock.edge === "right" ? edgeWin.width - 2 : 0
-                    y: dock.horiz ? edgeWin.height - 2 : 0
-                    width: edgeWin.side ? 2 : edgeWin.width
-                    height: edgeWin.side ? edgeWin.height : 2
-                }
-                Item {
-                    x: dock.edge === "right" ? parent.width - 2 : 0
-                    y: dock.horiz ? parent.height - 2 : 0
-                    width: edgeWin.side ? 2 : parent.width
-                    height: edgeWin.side ? parent.height : 2
-                    HoverHandler { onHoveredChanged: dock.edgeIn = hovered }
-                }
-            }
-
-            // The dock window: made on the first show and kept (a hidden dock costs the edge window only; K40's
-            // shared-window pattern), content-sized, centred on its edge, in the usable area (beside a bar on that edge).
+            // The dock window: made on the first show and kept (a hidden dock costs no window of its own: the edge strip is
+            // shared, EdgeStrips), content-sized, centred on its edge, standing `inset` from the screen edge (K71).
             property bool everShown: false
             onWantShownChanged: if (wantShown) everShown = true
             LazyLoader {
+                id: winLoader
                 active: dock.everShown
                 PanelWindow {
                     id: win
@@ -377,8 +366,14 @@ Scope {
                     implicitWidth: dock.winW
                     implicitHeight: dock.winH
                     color: "transparent"
-                    exclusionMode: ExclusionMode.Normal
-                    exclusiveZone: dock.autohide ? 0 : dock.bodyAcross + dock.edgeGap
+                    // K71: only the edge's holder keeps the zone (`edges.<edge>.reserve`); otherwise zones are ignored and
+                    // the dock stands at the layout's inset (setting `exclusiveZone` at all would turn the mode to Normal).
+                    exclusionMode: dock.holder ? ExclusionMode.Normal : ExclusionMode.Ignore
+                    Binding on exclusiveZone { when: dock.holder; value: dock.reserve; restoreMode: Binding.RestoreNone }
+                    readonly property string zoneKey: [dock.outName, dock.edge, dock.holder ? dock.reserve : 0].join("|")
+                    onZoneKeyChanged: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
+                    Component.onCompleted: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
+                    Component.onDestruction: Light.setZone(win, "", dock.edge, 0)
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-dock"
                     // K59/row 284: this window's tile pair, shared by the body's and the tiles' reliefs (one pair, not
@@ -389,19 +384,28 @@ Scope {
                     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
                     // The body's box at rest: a Region on the item would follow the slide's transform only on a resize, and
                     // a dock revealed after it was made hidden kept an input region off the window (measured).
-                    mask: Region { x: body.x; y: body.y; width: body.width; height: body.height }
+                    // Revealed on hover, the 2 px on the screen's edge stay the shared strip's (EdgeHold keeps the dock out
+                    // while the pointer rests there).
+                    readonly property int edgeCut: edgeHold.active && dock.edgeGap < 2 ? 2 - dock.edgeGap : 0
+                    mask: Region {
+                        x: body.x + (dock.edge === "left" ? win.edgeCut : 0)
+                        y: body.y
+                        width: body.width - (dock.horiz ? 0 : win.edgeCut)
+                        height: body.height - (dock.horiz ? win.edgeCut : 0)
+                    }
                     // Test only (frontend/test-dock.sh): the window's size and each tile's box in window coordinates, logged once
                     // the dock stands after a change. Off without the variable.
                     readonly property bool geometryLog: Quickshell.env("KURASHI_DOCK_GEOMETRY") === "1"
                     readonly property string geomKey: geometryLog && dock.shownAmt === 1
-                        ? dock.keysJson + "/" + dock.icon + "/" + dock.winW + "x" + dock.winH + "/" + dock.edge + "/" + dock.revealMs
+                        ? dock.keysJson + "/" + dock.icon + "/" + dock.winW + "x" + dock.winH + "/" + dock.edge + "/" + dock.revealMs + "/" + dock.draw + "/" + dock.inset
                             + "/" + dock.urgentKeys : ""
                     onGeomKeyChanged: if (geomKey !== "") geomTimer.restart()
                     Timer {
                         id: geomTimer
                         interval: 300
                         onTriggered: {
-                            var parts = ["dock-geom", dock.outName, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-", "win", dock.winW, dock.winH]
+                            var parts = ["dock-geom", dock.outName, "reveal", dock.revealMs, "urgent", dock.urgentKeys || "-", "win", dock.winW, dock.winH,
+                                "draw", dock.draw, "vis", dock.vis, "inset", dock.inset, "joins", dock.ld.joins || "-", "holder", dock.reserve]
                             for (var i = 0; i < dock.keys.length; i++) {
                                 var it = list.itemAtIndex(i)
                                 if (!it || dock.keys[i] === "|") continue
@@ -413,9 +417,20 @@ Scope {
                     }
 
 
+                    // Joined (dynamic, connected): nothing is drawn past the line the dock stands on (the band or a bar is
+                    // translucent: an overlap would show), so the dock comes out of it.
+                    Item {
+                        id: clipper
+                        readonly property int cut: dock.joined ? dock.edgeGap : 0
+                        x: dock.edge === "left" ? cut : 0
+                        width: parent.width - (dock.horiz ? 0 : cut)
+                        height: parent.height - (dock.horiz ? cut : 0)
+                        clip: dock.joined
                     Item {
                         id: slider
-                        anchors.fill: parent
+                        width: win.width
+                        height: win.height
+                        x: -clipper.x
                         // Slides off its edge by the dock's thickness while hiding.
                         readonly property real away: (1 - dock.shownAmt) * (dock.bodyAcross + dock.edgeGap + dock.room)
                         transform: Translate {
@@ -424,16 +439,57 @@ Scope {
                         }
                         opacity: Store.live ? 1 : Theme.staleOpacity
 
-                        Block {
+                        // The joined body (K71): flush on its edge, concave fillets of the layout's radius into it (the
+                        // island's neck turned to the band; 0 = connected's straight sides), its free corners rounded. In
+                        // ColumnShape's frame: a bottom dock is its start side mirrored down, a side dock its outer side.
+                        Item {
+                            visible: dock.joined
+                            width: win.width
+                            height: win.height
+                            transform: Scale {
+                                xScale: dock.edge === "left" ? -1 : 1
+                                yScale: dock.horiz ? -1 : 1
+                                origin.x: win.width / 2
+                                origin.y: win.height / 2
+                            }
+                            ColumnShape {
+                                anchors.fill: parent
+                                visible: dock.joined
+                                // Canonical: a bottom dock's edge is the frame's top; a side dock's edge its right side.
+                                readonly property real ex0: dock.edge === "left" ? win.width - body.x - body.width : body.x
+                                x0: dock.horiz ? body.x : ex0
+                                x1: dock.horiz ? body.x + body.width : win.width - dock.edgeGap
+                                y0: dock.horiz ? dock.edgeGap : body.y
+                                y1: dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy
+                                openT: dock.horiz
+                                openO: !dock.horiz
+                                neckT: dock.joinR
+                                neckO: dock.joinR
+                                radius: Theme.rLg + 4
+                                squareOuter: false
+                                flipY: dock.horiz
+                                flipX: dock.edge === "left"
+                                ruled: Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
+                                fill: Theme.surfaceAlpha
+                            }
+                        }
+
+                        Item {
                             id: body
                             x: dock.edge === "left" ? dock.edgeGap : dock.room
-                            y: dock.room
+                            y: dock.horiz ? dock.room : dock.room
                             width: dock.bodyW
                             height: dock.bodyH
-                            radius: Theme.rLg + 4
-                            fill: Theme.surfaceAlpha
-                            flatBorder: Theme.outline
-                            animate: win.visible
+                            readonly property real inset: 0
+                            // Floating: the look's block (chrome, shadow, relief), a gap off its edge.
+                            Block {
+                                anchors.fill: parent
+                                visible: !dock.joined
+                                radius: Theme.rLg + 4
+                                fill: Theme.surfaceAlpha
+                                flatBorder: Theme.outline
+                                animate: win.visible && !dock.joined
+                            }
                             HoverHandler { onHoveredChanged: dock.bodyIn = hovered }
                             WheelHandler {
                                 enabled: list.contentWidth > list.width || list.contentHeight > list.height
@@ -446,10 +502,10 @@ Scope {
 
                             ListView {
                                 id: list
-                                x: dock.bodyPad - body.inset
-                                y: dock.bodyPad - body.inset
+                                x: dock.bodyPad
+                                y: dock.bodyPad
                                 width: parent.width - 2 * x
-                                height: parent.height - 2 * y
+                                height: parent.height - 2 * y - Theme.shadowDy
                                 orientation: dock.horiz ? ListView.Horizontal : ListView.Vertical
                                 spacing: dock.spacing
                                 interactive: false
@@ -705,6 +761,7 @@ Scope {
                                 }
                             }
                         }
+                    }
                     }
 
                     // The tooltip: the app's name over its tile after a short rest; click-through, made only while shown.
