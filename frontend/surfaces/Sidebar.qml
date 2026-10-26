@@ -123,6 +123,17 @@ Scope {
             readonly property string barEdge: joinStart.indexOf("bar:") === 0 ? joinStart.substring(4)
                 : (joinEnd.indexOf("bar:") === 0 ? joinEnd.substring(4) : (sideBar ? sb.side : "none"))
             function zoneOf(e) { var x = edges[e] || {}; return x.holder && x.holder !== "none" ? sb.num(x.reserve, 0) : 0 }
+            // A change of draw mode while the column is out moves its edges and its fillets (the radius grows or goes)
+            // over `motion.std`, never a jump (docs/ux/layout.md "Motion"); cut without motion. Nothing runs at rest.
+            readonly property bool morphs: held && Theme.springOn
+            property real aInset: inset
+            property real aStart: spanStart
+            property real aEnd: spanEnd
+            property real aR: joinR
+            Behavior on aInset { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aStart { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aEnd { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
+            Behavior on aR { enabled: col.morphs; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
 
             // ---- width ----
             readonly property int maxW: Math.max(320, Math.min(640, sw - inset - Theme.gap))
@@ -341,9 +352,9 @@ Scope {
 
                     // ---- geometry: the canonical frame is the window's side part, `boxW` wide, its outer side at the
                     // screen's edge (mirrored for the left side); y as the window's ----
-                    readonly property real y0: col.spanStart - offTop
-                    readonly property real y1: col.sh - col.spanEnd - offTop
-                    readonly property real rx1: boxW - col.inset
+                    readonly property real y0: col.aStart - offTop
+                    readonly property real y1: col.sh - col.aEnd - offTop
+                    readonly property real rx1: boxW - col.aInset
                     readonly property real rx0: rx1 - col.colW
                     readonly property real shX0: rx0 + col.off
                     readonly property real shX1: rx1 + col.off
@@ -495,9 +506,9 @@ Scope {
                                 openO: win.openO
                                 // A join with the screen's edge is flush, without a fillet; a bar or the band: the
                                 // layout's radius (0 = connected, a straight join).
-                                neckT: col.joinStart === "edge" ? 0 : col.joinR
-                                neckB: col.joinEnd === "edge" ? 0 : col.joinR
-                                neckO: col.sideBar ? col.joinR : 0
+                                neckT: col.joinStart === "edge" ? 0 : col.aR
+                                neckB: col.joinEnd === "edge" ? 0 : col.aR
+                                neckO: col.sideBar ? col.aR : 0
                                 squareOuter: !col.floating
                                 flipX: sb.side === "left"
                                 // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).

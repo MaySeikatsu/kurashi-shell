@@ -48,6 +48,9 @@ Scope {
             readonly property bool joined: draw !== "floating"
             readonly property int inset: typeof ld.inset === "number" ? ld.inset : Theme.gap
             readonly property int joinR: joined ? Math.max(0, typeof ld.radius === "number" ? ld.radius : ShellLayout.joinRadius) : 0
+            // Dynamic ↔ connected morphs the fillets (the radius grows or goes over `motion.std`), never a jump.
+            property real aR: joinR
+            Behavior on aR { enabled: Theme.springOn && dock.shownAmt > 0; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
             readonly property var edgeDoc: (lay.edges || {})[edge] || ({})
             readonly property bool holder: edgeDoc.holder === "dock"
             readonly property int reserve: holder && typeof edgeDoc.reserve === "number" ? edgeDoc.reserve : 0
@@ -465,8 +468,8 @@ Scope {
                                 y1: dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy
                                 openT: dock.horiz
                                 openO: !dock.horiz
-                                neckT: dock.joinR
-                                neckO: dock.joinR
+                                neckT: dock.aR
+                                neckO: dock.aR
                                 radius: Theme.rLg + 4
                                 squareOuter: false
                                 flipY: dock.horiz
