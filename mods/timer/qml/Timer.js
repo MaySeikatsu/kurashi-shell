@@ -40,6 +40,29 @@ function nearest(timers) {
     return list.length > 0 ? list[0] : null
 }
 
+// The first running timer, or null: what the island's live face counts down (the list puts running timers first).
+function firstRunning(timers) {
+    var list = timers || []
+    for (var i = 0; i < list.length; i++) {
+        if (list[i].state === "running") return list[i]
+    }
+    return null
+}
+
+// How long the island's end face stays up after an end: the daemon's END_TTL_MS (K24, shared.rs).
+var END_WINDOW_MS = 12000
+
+// The timer whose end the island's end face speaks for: the first that ended within END_WINDOW_MS before `now`, or null.
+// Pass the clock the view ticks with, so the window closes on time.
+function justEnded(timers, now) {
+    var list = timers || []
+    for (var i = 0; i < list.length; i++) {
+        var t = list[i]
+        if (t.state === "ended" && now - t.ended_at_ms <= END_WINDOW_MS) return t
+    }
+    return null
+}
+
 // The first timer of a kind ("countdown" or "pomodoro"), or null.
 function first(timers, kind) {
     var list = timers || []

@@ -19,6 +19,8 @@ Item {
     Watch { doc: "mod.timer" }
 
     property real fillHeight: 0
+    // A sidebar section sets the rect at rest here (the sidebar's Placement, W30); the width comes from the parent, as the tasks
+    // panel's does: the Stage card and the sidebar section both give the panel their width.
     property var placement: null
     property int cardWidth: 400
     width: parent ? parent.width : cardWidth

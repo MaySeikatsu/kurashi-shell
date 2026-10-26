@@ -22,8 +22,9 @@ Item {
     readonly property var timers: d.timers || []
     readonly property var presets: d.presets || []
     readonly property var pomodoro: T.first(timers, "pomodoro")
-    readonly property var focus: pomodoro !== null ? pomodoro : T.nearest(timers)
-    readonly property bool shown: focus !== null && focus !== undefined
+    // The timer the card speaks for: the pomodoro while one runs, else the nearest countdown. (`focus` is final on Item.)
+    readonly property var lead: pomodoro !== null ? pomodoro : T.nearest(timers)
+    readonly property bool shown: lead !== null && lead !== undefined
     readonly property bool anyRunning: T.runningCount(timers) > 0
 
     Tick { id: clock; wanted: dc.visible && dc.anyRunning }
@@ -32,6 +33,13 @@ Item {
     implicitHeight: card.height
 
     function tr(key) { return I18n.tr(key) }
+    // "Focus · round 2 of 4", "Short break · round 2 of 4": the phase and the round the pomodoro is in.
+    function phaseLine(t) {
+        var name = t.phase === "short_break" ? dc.tr("mod-timer.phase.name.short")
+            : t.phase === "long_break" ? dc.tr("mod-timer.phase.name.long")
+            : dc.tr("mod-timer.phase.name.focus")
+        return name + " · " + T.fill(dc.tr("mod-timer.panel.round"), {n: t.round, rounds: t.rounds})
+    }
     function start(minutes) {
         if (d.background === false) Store.act("mod.panel.open", { id: "timer", panel: "timer" }, function () {})
         else Store.act("timer.start", { minutes: minutes }, function () {})
@@ -78,8 +86,8 @@ Item {
                     width: dc.pomodoro !== null ? 72 : 56
                     height: width
                     anchors.verticalCenter: parent.verticalCenter
-                    share: T.share(dc.focus, clock.now)
-                    stroke: dc.focus !== null && dc.focus.state === "paused" ? Theme.dim : Theme.fg
+                    share: T.share(dc.lead, clock.now)
+                    stroke: dc.lead !== null && dc.lead.state === "paused" ? Theme.dim : Theme.fg
                     track: Theme.outline
                 }
                 Column {
@@ -88,19 +96,19 @@ Item {
                     Text {
                         width: parent.width
                         elide: Text.ElideRight
-                        text: dc.focus === null ? ""
-                            : dc.focus.kind === "pomodoro" ? T.fill(dc.tr("mod-timer.panel.round"), {n: dc.focus.round, rounds: dc.focus.rounds})
-                            : T.nameOf(dc.focus, dc.tr("mod-timer.name.timer"))
+                        text: dc.lead === null ? ""
+                            : dc.lead.kind === "pomodoro" ? dc.phaseLine(dc.lead)
+                            : T.nameOf(dc.lead, dc.tr("mod-timer.name.timer"))
                         color: Theme.fg
                         font.pixelSize: Theme.fs
                         font.family: Theme.fam(text, Theme.families)
                     }
                     Text {
-                        text: dc.focus === null ? ""
-                            : dc.focus.state === "ended" ? dc.tr("mod-timer.panel.ended")
-                            : dc.focus.state === "paused" ? T.clock(dc.focus.remaining_ms)
-                            : T.clock(T.left(dc.focus, clock.now))
-                        color: dc.focus !== null && dc.focus.state === "ended" ? Theme.accent : Theme.fg
+                        text: dc.lead === null ? ""
+                            : dc.lead.state === "ended" ? dc.tr("mod-timer.panel.ended")
+                            : dc.lead.state === "paused" ? T.clock(dc.lead.remaining_ms)
+                            : T.clock(T.left(dc.lead, clock.now))
+                        color: dc.lead !== null && dc.lead.state === "ended" ? Theme.accent : Theme.fg
                         font.pixelSize: Theme.fsDisplay
                         font.weight: Theme.wMedium
                         font.features: ({"tnum": 1})

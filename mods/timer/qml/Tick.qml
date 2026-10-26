@@ -9,6 +9,14 @@ Timer {
     property real now: Date.now()
     repeat: false
     interval: 1000
+    // A clock created already wanted starts here: `onWantedChanged` does not fire for the value it starts with.
+    Component.onCompleted: {
+        if (tick.wanted) {
+            tick.now = Date.now()
+            tick.interval = 1000 - (tick.now % 1000) + 2
+            tick.start()
+        }
+    }
     onWantedChanged: {
         if (tick.wanted) {
             tick.now = Date.now()
