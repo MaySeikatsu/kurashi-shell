@@ -29,8 +29,13 @@ Singleton {
         var p = pills[output]
         if (!p) return null
         var pl = places[output]
-        var off = pl ? pl.where() : 0
         var b = pl ? barOf(output, pl.edge) : null
+        // The module's centre, from the item itself in the bar window that holds it (its place on the output counted, as
+        // rectOf); the module's own `where()` while no bar of this output is known to hold it.
+        var off = 0
+        var it = pl ? pl.by : null, hb = it && it.mapToItem ? barHolding(output, it) : null
+        if (hb && hb.sw > 0 && it.width > 0) off = hb.ox + it.mapToItem(null, it.width / 2, 0).x - hb.sw / 2
+        else if (pl) off = pl.where()
         return { w: p.w, h: p.h, dx: p.dx + off, face: p.face, edge: pl ? pl.edge : "top", inset: b ? b.inset : 0 }
     }
     // ---- where the island's module stands (K72: any zone of any bar). `places["<output>"] = { edge, where, by }`: `where()`
@@ -50,8 +55,9 @@ Singleton {
         places = n
     }
     // ---- the bars of each output (K71: one per edge). `bars["<output>/<edge>"] = { edge, inset, size, floating, mapped, root,
-    // ox, oy }`: how far the bar's body stands from its edge (a floating bar's band + gap), its thickness, whether it floats,
-    // whether its window is on screen, the window's content item and its top-left corner on the output — the Stage's morph
+    // ox, oy, sw }`: how far the bar's body stands from its edge (a floating bar's band + gap), its thickness, whether it
+    // floats, whether its window is on screen, the window's content item, its top-left corner on the output and the output's
+    // width — the Stage's morph
     // and the neck follow a floating bar's inset; the frame waits for a bar that carries its strip (row 492 b) before it maps
     // its side strips, a pinned sidebar for the horizontal bars that hold a zone; `rectOf` tells an origin's bar by `root`.
     property var bars: ({})
@@ -59,11 +65,11 @@ Singleton {
         if (output === "") return
         var k = output + "/" + edge, o = bars[k]
         if (o && info && o.inset === info.inset && o.size === info.size && o.floating === info.floating && o.mapped === info.mapped
-                && o.root === (info.root || null) && o.ox === (info.ox || 0) && o.oy === (info.oy || 0)) return
+                && o.root === (info.root || null) && o.ox === (info.ox || 0) && o.oy === (info.oy || 0) && o.sw === (info.sw || 0)) return
         if (!o && !info) return
         var n = Object.assign({}, bars)
         if (info) n[k] = { edge: edge, inset: info.inset, size: info.size, floating: info.floating, mapped: info.mapped,
-                           root: info.root || null, ox: info.ox || 0, oy: info.oy || 0 }
+                           root: info.root || null, ox: info.ox || 0, oy: info.oy || 0, sw: info.sw || 0 }
         else delete n[k]
         bars = n
     }
