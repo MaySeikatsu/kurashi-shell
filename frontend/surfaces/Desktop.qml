@@ -939,8 +939,9 @@ PanelWindow {
                         // W44 (point 15): to the other column (its arrow points there); after the eye, so the Tab path to the eye stays.
                         IconButton {
                             objectName: "desk-side:" + slot.cid
-                            icon: cards.side === "left" ? "arrow_forward" : "arrow_back"
-                            glyph: cards.side === "left" ? "→" : "←"
+                            // (Names in the icon font's subset, nix/icon-names.txt.)
+                            icon: cards.side === "left" ? "chevron_right" : "chevron_left"
+                            glyph: cards.side === "left" ? "›" : "‹"
                             a11y: I18n.tr(cards.side === "left" ? "frontend.desktop.edit.to_right" : "frontend.desktop.edit.to_left")
                             enabled: !desk.orderLocked
                             acceptsReturn: false
