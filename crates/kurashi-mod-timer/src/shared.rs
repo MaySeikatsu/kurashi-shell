@@ -137,9 +137,7 @@ impl Shared {
 
     /// The document `mod.timer` in effect now.
     pub fn document(&self, cfg: &Cfg) -> Value {
-        self.lock()
-            .state
-            .document(&cfg.cycle, &cfg.presets)
+        self.lock().state.document(&cfg.cycle, &cfg.presets)
     }
 
     /// The next moment the job must wake (the earliest end, or the end face's time), and how many timers run now.
