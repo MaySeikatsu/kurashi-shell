@@ -250,10 +250,12 @@ pub fn network(wifi_on: bool) -> Value {
     }
 }
 
-/// `runtime.layout` (K71, PROTOCOL §3.1): the golden fixture's layout until the mock computes it from its config like
-/// kurashid (card W43-layout). `KURASHI_MOCK_LAYOUT` names a JSON file holding another `data` (a whole snap message or the
-/// bare document), so frontend tests can stage a frame, floating bars or edge modules.
-pub fn layout() -> Value {
+/// `runtime.layout` (K71, PROTOCOL §3.1), computed by the layout step from the mock's `config` document (an output's
+/// own entry wins over the global value), its `theme` tokens and its outputs, as kurashid computes it. The mock has no
+/// mods registry: `mods` expands to nothing unless a `mods` document is given. `KURASHI_MOCK_LAYOUT` names a JSON file
+/// holding another `data` (a whole snap message or the bare document), so frontend tests can stage a frame, floating
+/// bars or edge modules; it wins over the config.
+pub fn layout(config: &Value, outputs: &[String], theme: &Value, mods: &Value) -> Value {
     let pick = |v: Value| match v.get("data") {
         Some(d) if v.get("t").is_some() => d.clone(),
         _ => v,
@@ -265,12 +267,32 @@ pub fn layout() -> Value {
     {
         return pick(v);
     }
-    pick(
-        serde_json::from_str(include_str!(
-            "../../../fixtures/ipc/server/snap_runtime_layout.json"
-        ))
-        .unwrap_or_default(),
-    )
+    let value = |output: Option<&str>, key: &str| -> Value {
+        output
+            .and_then(|o| config["outputs"][o][key].get("value"))
+            .or_else(|| config["values"][key].get("value"))
+            .cloned()
+            .unwrap_or(Value::Null)
+    };
+    let mut configs = std::collections::BTreeMap::new();
+    configs.insert(
+        "*".to_string(),
+        kurashid::wiring::layout_config(&|k: &str| value(None, k)),
+    );
+    let mut names: Vec<String> = outputs.to_vec();
+    if let Some(o) = config["outputs"].as_object() {
+        names.extend(o.keys().cloned());
+    }
+    for name in names {
+        let cfg = kurashid::wiring::layout_config(&|k: &str| value(Some(&name), k));
+        configs.insert(name, cfg);
+    }
+    kurashi_layout::compute(&kurashi_layout::Input {
+        globals: kurashid::wiring::layout_globals_of(&|k: &str| value(None, k), theme),
+        mods: kurashid::wiring::layout_mods_of(mods),
+        outputs: configs,
+    })
+    .to_value()
 }
 
 /// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves the contributions of the test mod `hello` (its

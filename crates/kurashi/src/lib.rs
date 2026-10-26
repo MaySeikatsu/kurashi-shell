@@ -663,9 +663,49 @@ fn named(name: &str, sections: &Option<Vec<String>>) -> Value {
     }
 }
 
+/// `kurashi act --list` (PROTOCOL §6, the `actions` query): one line per action — its id, its arguments and what it
+/// does, in columns; `--json` the rows as the daemon sent them.
+pub fn action_list(items: &[Value], json: bool) -> String {
+    if json {
+        return serde_json::to_string(items).unwrap_or_default();
+    }
+    let field = |i: &Value, k: &str| i[k].as_str().unwrap_or_default().to_owned();
+    let id_w = items.iter().map(|i| field(i, "id").len()).max().unwrap_or(0);
+    let args_w = items.iter().map(|i| field(i, "args").chars().count()).max().unwrap_or(0);
+    items
+        .iter()
+        .map(|i| {
+            let line = format!(
+                "{:id_w$}  {:args_w$}  {}",
+                field(i, "id"),
+                field(i, "args"),
+                field(i, "help")
+            );
+            line.trim_end().to_owned()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn act_list_prints_columns_or_json() {
+        let items = vec![
+            json!({"id": "island.next", "args": "", "help": "Next face"}),
+            json!({"id": "layout.toggle", "args": "{target, output?}", "help": "Show or hide"}),
+        ];
+        assert_eq!(
+            action_list(&items, false),
+            "island.next                       Next face\nlayout.toggle  {target, output?}  Show or hide"
+        );
+        assert_eq!(
+            serde_json::from_str::<Value>(&action_list(&items, true)).unwrap(),
+            json!(items)
+        );
+    }
     use std::path::{Path, PathBuf};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
