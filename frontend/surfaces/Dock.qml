@@ -372,7 +372,9 @@ Scope {
                     // and its fillets cover, for the bar to leave its rule out there (SidebarGeom, as a sidebar's: row 521), so
                     // the dock's outline runs round its fillets into the rule's ends — one sheet, no line under the dock.
                     readonly property string openingKey: {
-                        if (!dock.joined || !joinedShape.ruled || dock.ld.joins !== "bar:" + dock.edge || dock.shownAmt < 1 || !visible)
+                        // (Joined to the frame's band: the band's rule opens the same way, Frame.qml.)
+                        if (!dock.joined || !joinedShape.ruled || (dock.ld.joins !== "bar:" + dock.edge && dock.ld.joins !== "frame")
+                                || dock.shownAmt < 1 || !visible)
                             return ""
                         var o = dock.winOrigin()
                         if (dock.horiz)

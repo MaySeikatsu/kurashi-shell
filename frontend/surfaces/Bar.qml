@@ -63,6 +63,10 @@ Scope {
     function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
     // Row 492 (b): a docked bar on a framed output is its edge's strip.
     readonly property bool carries: on && FG.docked(lay, edge)
+    // The openings of the columns and the dock on the bands this bar's strip carries (SidebarGeom; through a string).
+    readonly property string frameOpeningsKey: carries && Theme.boxed && Theme.outlineW > 0
+        ? JSON.stringify(SidebarGeom.openingsOf(outName).filter(function (o) { return o.edge !== edge })) : "[]"
+    readonly property var frameOpenings: JSON.parse(frameOpeningsKey)
     // The one-holder rule (K71): the layout names the bar (row 510: also on a framed edge whose strip it carries).
     readonly property bool holdsZone: on && ed.holder === "bar"
     readonly property int barH: Theme.barH
@@ -328,6 +332,8 @@ Scope {
                     fillets: win.pieces ? win.pieces.fillets : []
                     rules: win.pieces ? win.pieces.rules : []
                     arcs: win.pieces ? win.pieces.arcs : []
+                    // (the openings of a column or the dock that meets this strip's side bands, as the frame's own strips)
+                    openings: bar.frameOpenings
                 }
             }
 
