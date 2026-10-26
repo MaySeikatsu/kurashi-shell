@@ -6,17 +6,23 @@
 
 function edgeOf(lay, e) { return (lay && lay.edges && lay.edges[e]) || {} }
 function band(lay, e) { var f = lay ? lay.frame : null; return f && f.on && f.band ? (f.band[e] || 0) : 0 }
-// A bar stands flush on edge `e` and is the band there (any visibility but hidden: a hover bar's place stays the band's).
+// A bar stands flush on edge `e` of a framed output and is the band there: the daemon's rule (kurashi-layout `docked`,
+// PROTOCOL §3.1, rows 481 a, 510) — any visibility but hidden (a hover bar's place stays the band's; a hidden bar is not
+// the band: it comes out over it, and the frame draws that edge's strip). The layout then says `band.<e>` 0 and, while
+// the frame reserves, `holder: "bar"`.
 function docked(lay, e) {
     var ed = edgeOf(lay, e), f = (lay && lay.frame) || {}
-    return f.on === true && ed.bar === true && ed.draw !== "floating" && ed.visibility !== "hidden" && band(lay, e) === 0
+    return f.on === true && ed.bar === true && ed.draw !== "floating" && ed.visibility !== "hidden"
 }
-// The zone the frame keeps on each edge (0: none) — held by its strip, or by the docked bar that carries that strip.
+// The zone the frame keeps on each edge (0: none) — held by its strip (`holder: "frame"`), or by the docked bar that
+// carries that strip (`holder: "bar"`, row 510): the side strips that hold a zone are placed inside the top and bottom
+// ones (mapped first), whichever window holds them.
 function zones(lay) {
     var z = {}, es = ["top", "bottom", "left", "right"], on = !!(lay && lay.frame && lay.frame.on === true)
     for (var i = 0; i < es.length; i++) {
         var ed = edgeOf(lay, es[i])
-        z[es[i]] = on && ed.holder === "frame" && (ed.reserve || 0) > 0 ? Math.round(ed.reserve) : 0
+        var held = ed.holder === "frame" || (ed.holder === "bar" && docked(lay, es[i]))
+        z[es[i]] = on && held && (ed.reserve || 0) > 0 ? Math.round(ed.reserve) : 0
     }
     return z
 }

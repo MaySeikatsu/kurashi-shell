@@ -99,7 +99,8 @@ def bar(e, draw="dynamic"):
         E[e].update(inset=t + gap, reserve=t + gap + barh + gap)
     else:
         band[e] = 0
-        E[e].update(inset=0, reserve=barh)
+        # Row 510: a docked bar carries its edge's strip and holds the zone there (`holder: "bar"`).
+        E[e].update(inset=0, reserve=barh, holder="bar")
 if scene in ("top", "reserve-off"):
     bar("top")
 elif scene == "floating":
@@ -188,6 +189,23 @@ surfaces() { # surfaces <log offset>: kurashi-frame layer surfaces the frontend 
   tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -c 'get_layer_surface(.*"kurashi-frame")' || true
 }
 commits() { tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -c 'wl_surface#[0-9]*\.commit(' || true; }
+# side_strips <log offset> <what>: under a docked top bar (washi, T, RAD) the side strips run the full height between
+# the fillets' ends — from BARH + RAD to SH - T - RAD (KURASHI_FRAME_LOG's FRAMEGEO: edge, origin, size) — and the band
+# is on screen just under the top fillet. Row 525: a strip that held no zone but wrote `exclusiveZone` was placed inside
+# the bar's zone (BARH px short, a notch under the fillet); row 510: one that holds a zone starts inside the bar's.
+side_strips() {
+  local e line h want=$((SH - BARH - RAD - T - RAD)) bgp
+  sleep 1
+  bgp=$(pixel 960 700)
+  for e in left right; do
+    line=$(tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -o "FRAMEGEO $e [0-9.]* [0-9.]* [0-9.]* [0-9.]* [a-z]*" | tail -1)
+    h=$(cut -d' ' -f6 <<< "$line")
+    [ "${h:-x}" = "$want" ] && say "$2: the $e strip runs $h px ($line)" \
+      || fail "$2: the $e strip is '${h:-?}' px tall, not $want ($line)"
+  done
+  [ "$(pixel 3 $((BARH + RAD + 2)))" != "$bgp" ] || fail "$2: no band just under the top-left fillet (y $((BARH + RAD + 2)))"
+  [ "$(pixel $((SW - 4)) $((BARH + RAD + 2)))" != "$bgp" ] || fail "$2: no band just under the top-right fillet"
+}
 pss_mib() { awk '/^Pss:/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_rollup"; }
 
 for d in $DECORS; do tokens "$d"; done
@@ -215,8 +233,9 @@ if [[ " $DECORS " == *" washi "* ]]; then
   set -- $rect; [ "${1:-x}" = 0 ] && [ "${2:-x}" = "$BARH" ] || fail "frame off: the window is at $rect, not 0 $BARH"
   close_window
 
-  off=$(stat -c %s "$R/qs.log"); QS_ENV=WAYLAND_DEBUG=client scene washi top
+  off=$(stat -c %s "$R/qs.log"); QS_ENV="WAYLAND_DEBUG=client KURASHI_FRAME_LOG=1" scene washi top
   n=$(surfaces "$off"); say "frame on: $n kurashi-frame surfaces"; [ "$n" = 3 ] || fail "frame on made $n kurashi-frame surfaces, not 3 (the docked bar carries the top strip)"
+  side_strips "$off" "reserve on"
   window_rect; say "frame on, reserve on: test window at $rect"
   set -- $rect
   [ "${1:-x}" = "$T" ] && [ "${2:-x}" = "$BARH" ] && [ "${3:-0}" = $((SW - 2 * T)) ] && [ "${4:-0}" = $((SH - BARH - T)) ] \
@@ -230,7 +249,8 @@ if [[ " $DECORS " == *" washi "* ]]; then
   [ "$(pixel $((T + RAD - 2)) $((BARH + RAD - 2)))" = "$bg" ] || fail "the fillet reaches past its arc"
   [ "$(pixel 3 $((SH - 3)))" != "$bg" ] || fail "no band at the bottom-left corner"
 
-  scene washi reserve-off
+  off=$(stat -c %s "$R/qs.log"); QS_ENV=KURASHI_FRAME_LOG=1 scene washi reserve-off
+  side_strips "$off" "reserve off"
   window_rect; say "frame on, reserve off: test window at $rect"
   set -- $rect; [ "${1:-x}" = 0 ] && [ "${2:-x}" = "$BARH" ] && [ "${3:-0}" = "$SW" ] \
     || fail "reserve off: the window is at $rect, not 0 $BARH $SW (under the band)"

@@ -134,18 +134,8 @@ Scope {
             enabled: g.hoverOn
             from: g.spanFrom
             to: g.spanTo
-            holdIn: g.holdOpen || hold.held || g.edgeLatch
-        }
-        // The pointer that brought it out rests on the edge, where no enter reaches the window mapped under it (W44).
-        EdgeHold {
-            id: hold
-            output: g.outName
-            edge: g.edge
-            key: "module:" + g.zone + ":hold"
-            claim: reveal.enabled
-            active: reveal.revealed
-            from: g.spanFrom
-            to: g.spanTo
+            // (A pointer resting on the edge keeps it out by itself: EdgeReveal keeps its strip while revealed, row 524.)
+            holdIn: g.holdOpen || g.edgeLatch
         }
         // What keeps a revealed group out: the pointer on it, one of its menus or drags, a card or a peek on this output, its
         // keyboard focus.
@@ -198,7 +188,7 @@ Scope {
             enabled: g.geoLog
             function onRevealedChanged() {
                 console.log("EDGEREVEAL " + g.outName + " " + g.edge + " " + g.zone + " " + reveal.revealed + " t=" + Date.now()
-                    + " p=" + Math.round(reveal.p) + " hold=" + hold.held + " holdOpen=" + g.holdOpen)
+                    + " p=" + Math.round(reveal.p) + " hold=" + reveal.onSpan + " holdOpen=" + g.holdOpen)
             }
         }
         function logGeo() {

@@ -28,6 +28,40 @@ Item {
     property var fillets: []
     property var rules: []
     property var arcs: []
+    // Where a neighbour joined to the band covers its rule — a sidebar's end or outer side, the dock (SidebarGeom's
+    // openings, [{edge, from, to}] along that edge in output px): the rule is left out there, so the neighbour's outline
+    // runs round its fillet into the rule's ends (one sheet, as on a bar: row 521).
+    property var openings: []
+    readonly property var shownRules: cutRules(rules, openings)
+    function cutRules(list, ops) {
+        if (!ops || ops.length === 0) return list
+        var out = []
+        for (var i = 0; i < list.length; i++) {
+            var g = list[i], horiz = g.w >= g.h
+            var segs = [[horiz ? g.x : g.y, horiz ? g.x + g.w : g.y + g.h]]
+            var mid = horiz ? g.y + g.h / 2 : g.x + g.w / 2
+            for (var j = 0; j < ops.length; j++) {
+                var o = ops[j], side = o.edge === "left" || o.edge === "right"
+                if (side === horiz) continue
+                var near = o.edge === "top" ? mid < sh / 2 : o.edge === "bottom" ? mid > sh / 2
+                    : o.edge === "left" ? mid < sw / 2 : mid > sw / 2
+                if (!near) continue
+                var n = []
+                for (var k = 0; k < segs.length; k++) {
+                    var s = segs[k]
+                    if (o.to <= s[0] || o.from >= s[1]) { n.push(s); continue }
+                    if (o.from > s[0]) n.push([s[0], o.from])
+                    if (o.to < s[1]) n.push([o.to, s[1]])
+                }
+                segs = n
+            }
+            for (var m = 0; m < segs.length; m++) {
+                var a = segs[m][0], b = segs[m][1]
+                out.push(horiz ? { x: a, y: g.y, w: b - a, h: g.h } : { x: g.x, y: a, w: g.w, h: b - a })
+            }
+        }
+        return out
+    }
     // The fill items (a window's blur region names them).
     function fillAt(i) { return i < fillRep.count ? fillRep.itemAt(i) : null }
     readonly property int fillCount: fillRep.count
@@ -74,7 +108,7 @@ Item {
     }
     // The rule: rectangles and arcs in the outline colour, or the pen's line.
     Repeater {
-        model: fp.ow > 0 && !Theme.penOutline ? fp.rules : []
+        model: fp.ow > 0 && !Theme.penOutline ? fp.shownRules : []
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
@@ -102,7 +136,7 @@ Item {
         y: fp.oy
         width: fp.winW
         height: fp.winH
-        active: fp.ow > 0 && Theme.penOutline && (fp.rules.length > 0 || fp.arcs.length > 0)
+        active: fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0)
         sourceComponent: PenOutline {
             anchors.fill: parent
             color: Theme.outlineColor
@@ -110,7 +144,7 @@ Item {
             seed: fp.seed
             paths: {
                 var l = [], ox = fp.ox, oy = fp.oy, h = fp.ow / 2
-                fp.rules.forEach(function (g) {
+                fp.shownRules.forEach(function (g) {
                     var a = g.w >= g.h
                         ? [{ x: g.x - ox, y: g.y + h - oy }, { x: g.x + g.w - ox, y: g.y + h - oy }]
                         : [{ x: g.x + h - ox, y: g.y - oy }, { x: g.x + h - ox, y: g.y + g.h - oy }]

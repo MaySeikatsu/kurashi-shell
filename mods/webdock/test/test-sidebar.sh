@@ -151,8 +151,12 @@ IFS=, read -r FX FY FW FH <<< "$FR"
 PAD=$(( PIN - FX ))
 [ "$PAD" -ge 0 ] && [ "$PAD" -le 32 ] || fail "the panel sits $PAD px into the column (inset $PIN, column x $FX)"
 [ "$(( PIN + PW + PAD ))" = "$(( FX + FW ))" ] || fail "the pane is not the column less its padding ($PIN+$PW+$PAD vs $FX+$FW)"
-[ "$(( TOP + WH ))" = "$(( FY + FH - PAD ))" ] \
-  || fail "the page area ends at $(( TOP + WH )), the pane at $(( FY + FH - PAD )): it does not take the full height"
+# The panel's `top` counts from the usable area's top (W44: Placement's origin, under a top bar of BARH px); the column's
+# frame from the output's top.
+OY=0
+[ "$BEDGE" = top ] && OY=$BARH
+[ "$(( OY + TOP + WH ))" = "$(( FY + FH - PAD ))" ] \
+  || fail "the page area ends at $(( OY + TOP + WH )), the pane at $(( FY + FH - PAD )): it does not take the full height"
 # The host: site win <w> <h> page <x> <y> <w> <h> place …
 read -r _ _ HW HH _ PX PY PGW PGH _ <<< "$(side_line site)"
 [ "$HW" = "$WW" ] && [ "$HH" = "$WH" ] || fail "the host's window is ${HW}x$HH, the page area ${WW}x$WH"

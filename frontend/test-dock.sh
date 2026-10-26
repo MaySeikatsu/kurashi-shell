@@ -14,6 +14,8 @@
 #      hidden by runtime.ui.shown, empty_desktop; idle commits of a hover dock at rest;
 #   5. (after 6) a second output to the right: a right-edge dock on HEADLESS-1 waits 500 ms to reveal (the shared edge),
 #      HEADLESS-2's own right edge 250 ms;
+#   7. (W44-follow) the joined dock's paper: washi with the paper material, floating/dynamic/connected on the edge and on a
+#      bottom bar: the body carries the relief, the bar's rule opens under a joined dock (shots/dock/layout/washi-paper/);
 #   4. with DOCK_MEASURE=1: idle commits of the dock's surfaces (hidden and shown, 10 s each) and its USS per output
 #      (dock on and hidden vs off, medians of three alternating runs; shown vs hidden once) — docs/BENCH.md "Mods".
 #   nix develop -c frontend/test-dock.sh [sandbox-name]
@@ -574,6 +576,63 @@ for d in $LAYOUT_DECORS; do
   fi
   stop_phase
 done
+# 7. (W44-follow) The joined dock's paper: the real kurashid with washi and the paper material on the shell; floating,
+#    dynamic and connected, on the screen's edge and on a bottom bar. A joined dock carries the look's relief as the
+#    floating Block does — its body's padding row is not one flat colour — and, on a bar under a ruled chrome, opens the
+#    bar's rule under itself (BARRULE: the gap covers the dock's base). Shots frontend/shots/dock/layout/washi-paper/.
+if [ -z "${DOCK_SKIP_PAPER:-}" ]; then
+  POUT=$LOUT/washi-paper
+  mkdir -p "$POUT"
+  printf 'idle.enabled = false\ntheme.style = "washi"\ntheme.texture.kind = "paper"\ntheme.texture.strength = 1.5\n' \
+    > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  printf 'dock.enabled = true\ndock.visibility = "always"\ndock.pinned = ["firefox", "org.gnome.Nautilus", "foot"]\n' \
+    >> "$XDG_CONFIG_HOME/kurashi/config.toml"
+  start_kurashid
+  for _ in $(seq 100); do [ -n "$(K sub theme --count 0 --json | jq -r '.data.tokens["texture.map"] // ""')" ] && break; sleep 0.2; done
+  start_frontend KURASHI_BAR_GEOMETRY=1
+  # The distinct colours along a row of the screen: "<n>".
+  colours() { timeout 20 grim -g "$1,$2 ${3}x1" -t ppm "$W/row.ppm"; python3 -I -c '
+import sys
+d = open(sys.argv[1], "rb").read()
+f, i = [], 0
+while len(f) < 4:
+    while d[i:i + 1].isspace(): i += 1
+    j = i
+    while not d[j:j + 1].isspace(): j += 1
+    f.append(d[i:j]); i = j
+p = d[i + 1:]
+print(len({p[k:k + 3] for k in range(0, len(p) - 2, 3)}))' "$W/row.ppm"; }
+  for where in edge bar; do
+    [ "$where" = bar ] && { K set edges.bottom.bar=true >/dev/null || fail "edges.bottom.bar = true refused"; }
+    for draw in floating dynamic connected; do
+      K set "dock.draw=\"$draw\"" >/dev/null || fail "dock.draw = $draw refused"
+      wait_geom "draw $draw "
+      sleep 1.2
+      inset=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.inset')
+      IFS=, read -r BX BY BW BH <<< "$(geomf body)"
+      WW=$(geomf win); left=$(( (SW - WW) / 2 + BX ))
+      # A row of the body's top padding, over the tiles (the body stands `inset` from the screen's edge, BH tall with its
+      # hard shadow), clear of its rounded corners.
+      n=$(colours $(( left + 24 )) $(( SH - inset - BH + 4 )) $(( BW - 48 )))
+      tag="paper $where $draw"
+      [ "$n" -ge 6 ] && echo "ok: $tag: the dock's body carries the relief ($n colours along its padding row)" \
+        || fail "$tag: the dock's body is flat ($n colours along its padding row): no material"
+      if [ "$where" = bar ] && [ "$draw" != floating ]; then
+        r=$(grep -o 'BARRULE HEADLESS-1 bottom .*' "$R/qs.log" | tail -1 | sed 's/BARRULE HEADLESS-1 bottom //')
+        # Two segments, the gap between them covering the dock's base.
+        g0=$(sed -n 's/^0-\([0-9]*\),\([0-9]*\)-[0-9]*$/\1/p' <<< "$r"); g1=$(sed -n 's/^0-\([0-9]*\),\([0-9]*\)-[0-9]*$/\2/p' <<< "$r")
+        [ -n "$g0" ] && [ "$g0" -le "$left" ] && [ "$g1" -ge $(( left + BW )) ] \
+          && echo "ok: $tag: the bar's rule opens under the dock ($r; base $left..$(( left + BW )))" \
+          || fail "$tag: the bar's rule is '$r', it does not open under the dock's base $left..$(( left + BW ))"
+      fi
+      timeout 20 grim -s 2 -g "$(( SW / 2 - 200 )),$(( SH - 120 )) 400x120" "$POUT/$where-$draw.png" && echo "shot $POUT/$where-$draw.png"
+    done
+  done
+  qml_errors
+  stop_phase
+  rm -f "$XDG_CONFIG_HOME/kurashi/config.toml"
+fi
+
 # 5. A shared edge (I137): HEADLESS-2 comes to the right of HEADLESS-1; a right-edge dock on HEADLESS-1 reveals after
 # 500 ms (the pointer crosses that edge on its way to the other output), HEADLESS-2's outer edge after 250 ms.
 timeout 20 "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "output-add failed"

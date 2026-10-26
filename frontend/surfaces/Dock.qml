@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import "../core"
@@ -246,7 +247,7 @@ Scope {
             // ---- hover, reveal, hide ----
             // The shared edge strip (K71, EdgeReveal: the dwell, twice as long on an edge another output touches — I137) in
             // `hover`, and in `empty_desktop` while the desk has windows; `hidden` comes out only by `layout.toggle`. It
-            // stays out while the pointer is on the dock, its menu is open, or the pointer rests on the edge (EdgeHold).
+            // stays out while the pointer is on the dock, its menu is open, or the pointer rests on the edge (the strip's span).
             property bool bodyIn: false
             readonly property bool menuOpen: menuKey !== ""
             readonly property bool hoverOn: vis === "hover" || (vis === "empty_desktop" && !emptyDesk)
@@ -263,17 +264,7 @@ Scope {
                 enabled: dock.hoverOn && dock.outName !== ""
                 from: dock.spanFrom
                 to: dock.spanTo
-                holdIn: dock.bodyIn || dock.menuOpen || edgeHold.held
-            }
-            EdgeHold {
-                id: edgeHold
-                output: dock.outName
-                edge: dock.edge
-                key: "dock:hold"
-                claim: reveal.enabled
-                active: reveal.revealed
-                from: dock.spanFrom
-                to: dock.spanTo
+                holdIn: dock.bodyIn || dock.menuOpen
             }
             readonly property bool revealed: reveal.revealed
             readonly property int revealMs: reveal.delayMs
@@ -376,7 +367,46 @@ Scope {
                     readonly property string zoneKey: [dock.outName, dock.edge, dock.holder ? dock.reserve : 0].join("|")
                     onZoneKeyChanged: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
                     Component.onCompleted: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
-                    Component.onDestruction: Light.setZone(win, "", dock.edge, 0)
+                    Component.onDestruction: { Light.setZone(win, "", dock.edge, 0); SidebarGeom.clear(dock.outName, "dock") }
+                    // Joined to its edge's bar, at rest, under a chrome that rules the bar's edge: the span of that edge the dock
+                    // and its fillets cover, for the bar to leave its rule out there (SidebarGeom, as a sidebar's: row 521), so
+                    // the dock's outline runs round its fillets into the rule's ends — one sheet, no line under the dock.
+                    readonly property string openingKey: {
+                        // (Joined to the frame's band: the band's rule opens the same way, Frame.qml.)
+                        if (!dock.joined || !joinedShape.ruled || (dock.ld.joins !== "bar:" + dock.edge && dock.ld.joins !== "frame")
+                                || dock.shownAmt < 1 || !visible)
+                            return ""
+                        var o = dock.winOrigin()
+                        if (dock.horiz)
+                            return [Math.round(o.x + body.x - joinedShape.fTi), Math.round(o.x + body.x + body.width + joinedShape.fTo)].join(",")
+                        return [Math.round(o.y + body.y - joinedShape.fOt),
+                                Math.round(o.y + body.y + body.height - Theme.shadowDy + joinedShape.fOb)].join(",")
+                    }
+                    onOpeningKeyChanged: {
+                        SidebarGeom.clear(dock.outName, "dock")
+                        if (openingKey === "") return
+                        var v = openingKey.split(",")
+                        SidebarGeom.set(dock.outName, "dock", dock.edge, Number(v[0]), Number(v[1]))
+                    }
+                    // K61 carried sheet: how far the dock is from its rest while it slides (its reliefs take their grain
+                    // along; 0 at rest).
+                    readonly property point sheetCarry: Qt.point(dock.edge === "left" ? -slider.away : (dock.edge === "right" ? slider.away : 0),
+                                                                 dock.horiz ? slider.away : 0)
+                    // The joined shape's mask for its relief, parked outside the window (a texture provider needs its paint
+                    // node), as the sidebar's.
+                    ShaderEffectSource {
+                        id: joinedMask
+                        x: -100000
+                        width: win.width
+                        height: win.height
+                        sourceItem: joinedRelief.on ? joinedMaskShape : null
+                        hideSource: true
+                        live: false
+                    }
+                    Connections {
+                        target: joinedRelief.on ? joinedShape : null
+                        function onFillPathChanged() { joinedMask.scheduleUpdate() }
+                    }
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-dock"
                     // K59/row 284: this window's tile pair, shared by the body's and the tiles' reliefs (one pair, not
@@ -387,9 +417,9 @@ Scope {
                     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
                     // The body's box at rest: a Region on the item would follow the slide's transform only on a resize, and
                     // a dock revealed after it was made hidden kept an input region off the window (measured).
-                    // Revealed on hover, the 2 px on the screen's edge stay the shared strip's (EdgeHold keeps the dock out
-                    // while the pointer rests there).
-                    readonly property int edgeCut: edgeHold.active && dock.edgeGap < 2 ? 2 - dock.edgeGap : 0
+                    // Revealed on hover, the 2 px on the screen's edge stay the shared strip's (EdgeReveal keeps the dock
+                    // out while the pointer rests there, row 524).
+                    readonly property int edgeCut: reveal.cutFor(dock.edgeGap)
                     mask: Region {
                         x: body.x + (dock.edge === "left" ? win.edgeCut : 0)
                         y: body.y
@@ -448,6 +478,7 @@ Scope {
                         // island's neck turned to the band; 0 = connected's straight sides), its free corners rounded. In
                         // ColumnShape's frame: a bottom dock is its start side mirrored down, a side dock its outer side.
                         Item {
+                            id: joinedBox
                             visible: dock.joined
                             width: win.width
                             height: win.height
@@ -458,6 +489,7 @@ Scope {
                                 origin.y: win.height / 2
                             }
                             ColumnShape {
+                                id: joinedShape
                                 anchors.fill: parent
                                 visible: dock.joined
                                 // Canonical: a bottom dock's edge is the frame's top; a side dock's edge its right side.
@@ -476,6 +508,41 @@ Scope {
                                 flipX: dock.edge === "left"
                                 ruled: Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
                                 fill: Theme.surfaceAlpha
+                            }
+                            // The shape's fill as a mask for its relief (I168, the sidebar's pattern): drawn only into
+                            // `joinedMask`'s texture, redrawn when the path changes (the fillets morph) and never at rest.
+                            Shape {
+                                id: joinedMaskShape
+                                visible: joinedRelief.on
+                                anchors.fill: parent
+                                preferredRendererType: Shape.CurveRenderer
+                                ShapePath {
+                                    strokeWidth: -1
+                                    strokeColor: "transparent"
+                                    fillColor: "white"
+                                    PathSvg { path: joinedRelief.on ? joinedShape.fillPath : "" }
+                                }
+                            }
+                        }
+                        // K59, K61: the joined dock's material, as the floating Block carries it (`texture.shell`): one
+                        // relief clipped to the shape's fill, fillets included, in the same frame, under the tiles; it
+                        // slides with the dock (the window's `sheetCarry`).
+                        Item {
+                            id: joinedRelief
+                            readonly property bool on: dock.joined && Theme.texShell && joinedShape.shown
+                            visible: on
+                            width: win.width
+                            height: win.height
+                            transform: Scale {
+                                xScale: dock.edge === "left" ? -1 : 1
+                                yScale: dock.horiz ? -1 : 1
+                                origin.x: win.width / 2
+                                origin.y: win.height / 2
+                            }
+                            Loader {
+                                anchors.fill: parent
+                                active: joinedRelief.on
+                                sourceComponent: Relief { anchors.fill: parent; mask: joinedMask }
                             }
                         }
 

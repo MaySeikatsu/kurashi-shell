@@ -470,6 +470,11 @@ start_daemon() {
   mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME/kurashi/mods/hello"
   cp -r "$HELLO/qml" "$XDG_DATA_HOME/kurashi/mods/hello/"
   cp "$HELLO/live.mod.toml" "$XDG_DATA_HOME/kurashi/mods/hello/mod.toml"
+  # IDLE_OFF=1: the idle lock off (I241) — the slide part takes ten minutes, and the lock screen took every click after it.
+  if [ -n "${IDLE_OFF:-}" ]; then
+    mkdir -p "$XDG_CONFIG_HOME/kurashi"
+    echo 'idle.enabled = false' > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  fi
   rm -f "$KURASHI_SOCKET"
   env LC_ALL="$1" KURASHI_WEATHER_API=http://127.0.0.1:8099 DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
     "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
@@ -703,7 +708,7 @@ if want_part morph; then
   timeout 20 swaymsg output HEADLESS-1 resolution 1920x1080 >/dev/null || fail "the output did not take 1920x1080"
   swaymsg output '*' bg "$MBG" solid_color >/dev/null 2>&1 || true
   SW=1920 SH=1080
-  start_daemon C.UTF-8
+  IDLE_OFF=1 start_daemon C.UTF-8
   morph_frontend
   HAVE_MAGICK=0; command -v magick >/dev/null && HAVE_MAGICK=1
   for edge in ${MORPH_EDGES-top bottom}; do

@@ -20,14 +20,15 @@ import "../components/modules" as M
 // its window reaches past the bar by the fillets, which hang under its ends, and it keeps the frame's zone there.
 //
 // Visibility (K71): `always`; `hover` — out after the pointer rests on its edge (EdgeReveal: the edge's one shared strip,
-// the dwell, twice as long on an edge another output touches), back 400 ms after it left the bar, never while one of its
+// the dwell, twice as long on an edge another output touches), back 400 ms after it left the bar and the edge, never while one of its
 // menus, peeks or cards is open; `empty_desktop` — out while the output's workspace has no window, else as hover; `hidden`
 // — out only while `runtime.ui.shown` lists `bar:<edge>@<output>` (`layout.toggle`), closed by the same, Esc or a click
 // elsewhere. It slides in from its edge on the motion springs (K65; cut with reduced motion). While hidden it has no
 // window — unless it keeps a zone (`reserve` on) or carries the frame's strip — and its modules hold no subscription (Ma).
 //
 // Zones (the one-holder rule, K71): the window keeps its edge's exclusive zone only when the layout names the bar the
-// holder (or the frame, on an edge whose strip it carries); otherwise it ignores zones and stands at its inset.
+// holder (`holder: "bar"`, also on a framed edge whose strip it carries: row 510); otherwise it ignores zones and stands
+// at its inset.
 // Mapping order matters (W43-frame probe: a holder is placed inside the zones of holders mapped before it): shell.qml
 // maps the top and bottom bars first and the side bars after them (`after`), so a side bar runs between them.
 Scope {
@@ -62,18 +63,21 @@ Scope {
     function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
     // Row 492 (b): a docked bar on a framed output is its edge's strip.
     readonly property bool carries: on && FG.docked(lay, edge)
-    readonly property bool holdsZone: on && (ed.holder === "bar" || (carries && ed.holder === "frame"))
+    // The openings of the columns and the dock on the bands this bar's strip carries (SidebarGeom; through a string).
+    readonly property string frameOpeningsKey: carries && Theme.boxed && Theme.outlineW > 0
+        ? JSON.stringify(SidebarGeom.openingsOf(outName).filter(function (o) { return o.edge !== edge })) : "[]"
+    readonly property var frameOpenings: JSON.parse(frameOpeningsKey)
+    // The one-holder rule (K71): the layout names the bar (row 510: also on a framed edge whose strip it carries).
+    readonly property bool holdsZone: on && ed.holder === "bar"
     readonly property int barH: Theme.barH
 
-    // The bars beside a side bar (the horizontal bars own the corners; the side bars run between them): where this one
-    // starts and ends along its edge, from the screen's top and bottom.
-    function across(e) {
-        var x = ShellLayout.edgeOf(outName, e)
-        return x.bar === true && x.visibility !== "hidden" ? Math.round(x.inset || 0) + barH : bandBeside(e)
-    }
-    readonly property int startOff: vertical ? across("top") + (drawFloating ? ShellLayout.gap : 0)
+    // Where the bar starts and ends along its edge, from the screen's start and end on it. A side bar runs between the
+    // horizontal bars (they own the corners): its `span` (row 511, the daemon's; + gap when it floats). A floating top or
+    // bottom bar stands `band + gap` in from the bands beside it.
+    readonly property var span: ed.span || ({})
+    readonly property int startOff: vertical ? Math.max(0, Math.round(span.start || 0))
         : (drawFloating ? bandLeft + ShellLayout.gap : 0)
-    readonly property int endOff: vertical ? across("bottom") + (drawFloating ? ShellLayout.gap : 0)
+    readonly property int endOff: vertical ? Math.max(0, Math.round(span.end || 0))
         : (drawFloating ? bandRight + ShellLayout.gap : 0)
 
     // ---- the zones: module entries (`{id, kind, mod?, provide?}`), through a string so they change only with their content
@@ -154,20 +158,11 @@ Scope {
         enabled: bar.on && !bar.forced && (bar.visibility === "hover" || (bar.visibility === "empty_desktop" && !bar.emptyDesk))
         holdIn: bar.holdOpen
     }
-    // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus.
+    // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus;
+    // the pointer resting on the edge is EdgeReveal's (the strip stays under the bar, row 524).
     property bool pointerOn: false
     property bool focused: false
-    // The pointer that brought it out rests on the edge, inside the bar's window once it maps — but the compositor tells the
-    // window so only when it is on screen (first reveal: the window is made then). Until the window has seen the pointer
-    // come or go, or a moment after it is out, the edge's pointer holds it.
-    property bool edgeHold: false
-    Connections {
-        target: reveal
-        function onRevealedChanged() { bar.edgeHold = reveal.revealed; if (reveal.revealed) edgeHoldT.restart() }
-    }
-    onPointerOnChanged: edgeHold = false
-    property Timer edgeHoldT: Timer { interval: 1200; onTriggered: bar.edgeHold = false }
-    readonly property bool holdOpen: edgeHold || pointerOn || focused || link.busy || !!uiDoc.panel
+    readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel
         || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
     readonly property bool wantShown: on && (visibility === "always" || forced
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
@@ -193,11 +188,20 @@ Scope {
     BarConfig { id: cfg; screen: bar.scr }
     readonly property bool primary: cfg.enabled && cfg.edge === edge
     onPrimaryChanged: if (primary) Peeks.setEdge(outName, edge)
-    Component.onCompleted: if (primary) Peeks.setEdge(outName, edge)
+    Component.onCompleted: { if (primary) Peeks.setEdge(outName, edge); report() }
 
     // Where the body stands from its edge, for the neck, the sidebar's join and the frame (IslandGeom's bar registry).
-    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped].join("|")
-    onGeomKeyChanged: IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped } : null)
+    // Also the window's content item and its place on the output, so the Stage can tell which bar an origin stands in and
+    // where (row 512: a floating bar's window does not start at the output's corner).
+    readonly property point winOrigin: winL.item ? winL.item.sheetOrigin : Qt.point(0, 0)
+    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped, winOrigin.x, winOrigin.y,
+                                       scr ? scr.width : 0].join("|")
+    function report() {
+        IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped,
+                                               root: winL.item ? winL.item.contentItem : null, ox: winOrigin.x, oy: winOrigin.y,
+                                               sw: scr ? scr.width : 0 } : null)
+    }
+    onGeomKeyChanged: report()
     Component.onDestruction: IslandGeom.setBar(outName, edge, null)
 
     readonly property M.ModuleLink link: M.ModuleLink { vertical: bar.vertical }
@@ -266,10 +270,18 @@ Scope {
             // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
             WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             visible: bar.wantShown || bar.shownAmt > 0 || bar.keepsSpace || bar.carries
-            // The body's box at rest while it is out or coming out (the dock's rule): a pointer resting on the edge is inside it
-            // the moment the window maps, so the hover reveal holds; an input region that slid in with the body would only
-            // be found by the next motion.
-            mask: Region { x: body.restX; y: body.restY; width: body.shownNow ? body.width : 0; height: body.shownNow ? body.height : 0 }
+            // The body's box at rest while it is out or coming out (the dock's rule): an input region that slid in with the
+            // body would only be found by the next motion. Revealed on hover, the 2 px on the screen's edge stay the shared
+            // strip's, which keeps the bar out while the pointer rests there (EdgeReveal, row 524).
+            readonly property int edgeCut: reveal.cutFor(bar.inset)
+            // The rule as drawn (the test log's; none under a chrome without a rule or a floating bar).
+            readonly property var ruleSegs: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 ? bg.ruleSegs : []
+            mask: Region {
+                x: body.restX + (bar.edge === "left" ? win.edgeCut : 0)
+                y: body.restY + (bar.edge === "top" ? win.edgeCut : 0)
+                width: body.shownNow ? Math.max(0, body.width - (bar.vertical ? win.edgeCut : 0)) : 0
+                height: body.shownNow ? Math.max(0, body.height - (bar.vertical ? 0 : win.edgeCut)) : 0
+            }
 
             // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf); registered once
             // it is on screen (the frame's side strips wait for it).
@@ -320,6 +332,8 @@ Scope {
                     fillets: win.pieces ? win.pieces.fillets : []
                     rules: win.pieces ? win.pieces.rules : []
                     arcs: win.pieces ? win.pieces.arcs : []
+                    // (the openings of a column or the dock that meets this strip's side bands, as the frame's own strips)
+                    openings: bar.frameOpenings
                 }
             }
 
@@ -375,14 +389,16 @@ Scope {
                             && IslandGeom.takenOn !== "" && IslandGeom.takenOn === bar.outName
                         // Row 363 (W34): an open sidebar at rest on this edge leaves the rule out over the span its column covers
                         // (SidebarGeom, along the output's edge: from the bar's own start here), so the column's outline runs round its
-                        // fillet into the rule's end — one sheet, no seam.
-                        readonly property var sideOpen: SidebarGeom.openingIn(bar.outName, bar.edge, bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x)
-                        // The rule as segments along the edge: everything but the island's opening and the sidebar's span.
+                        // fillet into the rule's end — one sheet, no seam. Every column that meets this bar opens it (row 521: both
+                        // sidebars out at once; a column joining a top and a bottom bar opens both).
+                        readonly property var sideOpen: SidebarGeom.openingsIn(bar.outName, bar.edge, bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x)
+                        // The rule as segments along the edge: everything but the island's opening and the sidebars' spans.
                         readonly property real ruleLen: bar.vertical ? height : width
                         readonly property var ruleSegs: {
                             var gaps = []
                             if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
-                            if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
+                            for (var s = 0; s < sideOpen.length; s++)
+                                gaps.push([Math.max(0, sideOpen[s].from), Math.min(ruleLen, sideOpen[s].to)])
                             // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
                             // round it into the band beside (FramePieces).
                             if (bar.frameOn && !bar.drawFloating) {
@@ -499,6 +515,9 @@ Scope {
             out.push("BARZONE " + outName + " " + edge + " " + zone + " " + h.mid + " "
                 + [o.x + p.x, o.y + p.y, o.x + p.x + h.width, o.y + p.y + h.height].map(Math.round).join(" "))
         }
+        // The rule's segments along the edge (line chrome; "-" while it draws none), in px from the bar's own start.
+        out.push("BARRULE " + outName + " " + edge + " " + (w.ruleSegs.length > 0
+            ? w.ruleSegs.map(function (g) { return Math.round(g[0]) + "-" + Math.round(g[1]) }).join(",") : "-"))
         for (var k = 0; k < out.length; k++) console.log(out[k])
     }
     property Timer zoneT: Timer { interval: 600; onTriggered: bar.logZones() }
@@ -509,6 +528,11 @@ Scope {
         target: Store
         enabled: bar.zoneLog
         function onDocsChanged() { bar.requestZones() }
+    }
+    property Connections zoneOpenings: Connections {
+        target: SidebarGeom
+        enabled: bar.zoneLog
+        function onOpeningsChanged() { bar.requestZones() }
     }
 
     // ---- top and bottom bars: the zones as rows — start from the left, center in the middle, end at the right -----------

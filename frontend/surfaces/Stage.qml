@@ -240,9 +240,9 @@ PanelWindow {
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
             : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset))
         left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
-            : (morphLayout ? boxL : (menuBeside ? Theme.barH + Theme.gap : 0))
+            : (morphLayout ? boxL : (menuBeside ? bars.insetOf(bars.edge) + Theme.barH + Theme.gap : 0))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)
-            : (morphLayout ? 0 : (aligned ? (menuBeside ? Theme.barH + Theme.gap : Theme.pad) : 0))
+            : (morphLayout ? 0 : (aligned ? (menuBeside ? bars.insetOf(bars.edge) + Theme.barH + Theme.gap : Theme.pad) : 0))
     }
     implicitWidth: peekLayout ? (peekMorph ? peekBoxR - peekBoxL : peekCard.width) : (morphLayout ? morphW : card.width)
     implicitHeight: peekLayout ? (peekMorph ? peekBoxH : peekCard.height) : (morphLayout ? morphH : card.height)
@@ -307,7 +307,7 @@ PanelWindow {
                 if (stage.morphMode) {
                     springs.place(stage.originCx, stage.closedW, stage.closedFoot)
                     if (stage.debugLog) console.log("stage-morph open " + stage.contentKind + " origin=" + Math.round(stage.origin.x) + ","
-                        + Math.round(stage.origin.w) + "," + stage.origin.kind + " t0=" + Date.now())
+                        + Math.round(stage.origin.w) + "," + stage.origin.kind + " t0=" + Date.now() + " " + stage.firstLog())
                 }
                 stage.gate = false
                 if (stage.morphMode) stage.taken = stage.headMode
@@ -414,8 +414,12 @@ PanelWindow {
     readonly property bool peekSide: shownEdge === "left" || shownEdge === "right"
     // The output the peek is on: the request's while it is available, the latched one while it fades out.
     readonly property string peekScreen: peekAvailable ? peekOutput : shownOutput
-    readonly property int peekInset: Theme.barH + 4             // past a top or bottom bar, as BarConfig's insets
-    readonly property int peekBarClear: Theme.barH + Theme.gap  // past a side bar
+    // Row 512: past the bar the peek's source stands in (the request's edge) and that bar's inset (a floating bar's band +
+    // gap, K71): under a top bar, above a bottom bar (as BarConfig's insets), beside a side bar.
+    readonly property var peekBar: IslandGeom.barOf(peekScreen, shownEdge)
+    readonly property int peekBarInset: peekBar ? peekBar.inset : bars.insetOf(shownEdge)
+    readonly property int peekInset: peekBarInset + Theme.barH + 4
+    readonly property int peekBarClear: peekBarInset + Theme.barH + Theme.gap
     readonly property int peekMaxW: screen
         ? Math.max(160, Math.min(400, screen.width - (peekSide ? peekBarClear : 0) - 2 * Theme.gap)) : 400
     // Kept a gap away from the output's edges, like the cards (lead review: a clamped peek touched the edge).
@@ -509,7 +513,8 @@ PanelWindow {
     property real shownW: 0
     Binding { target: stage; property: "shownW"; value: stage.peekReq && stage.peekReq.w !== undefined ? Number(stage.peekReq.w) : 0; when: stage.peekWanted; restoreMode: Binding.RestoreNone }
     readonly property bool peekFlip: shownEdge === "bottom"
-    readonly property real peekE: joined ? (peekFlip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2) : Theme.barH
+    readonly property real peekEdgeY: peekBarInset + Theme.barH
+    readonly property real peekE: joined ? peekBarInset + (peekFlip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2) : peekEdgeY
     readonly property real peekOriginW: Math.max(8, shownW - 6)
     readonly property real peekOriginCx: shownX + shownW / 2
     readonly property int peekSlackX: 16 + Theme.softR
@@ -545,7 +550,7 @@ PanelWindow {
     readonly property real peekGrow: clamp01((peekSprings.hOut - peekE) / Math.max(1, peekInset + peekCard.height - peekE))
     readonly property real peekShapeW: Math.max(0, peekSprings.wOut * (1 - peekSprings.squeeze))
     readonly property real peekShapeCx: peekSprings.cxOut - peekBoxL
-    readonly property real peekBodyTop: joined ? lerp(peekE, peekInset, peekGrow) : Theme.barH
+    readonly property real peekBodyTop: joined ? lerp(peekE, peekInset, peekGrow) : peekEdgeY
     readonly property real peekNeckRoom: Math.max(0, peekShapeW / 2 - Theme.rSm - 8)
     // As the panels' neck: under the widget's group, as near the body's centre as the group's flat foot allows.
     readonly property var peekHome: {
@@ -594,7 +599,7 @@ PanelWindow {
             h: Math.max(0, peekSprings.hOut - stage.peekBodyTop)
             rTop: Theme.rSm
             rBot: Theme.rSm
-            edgeY: stage.joined ? stage.peekE : Theme.barH
+            edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
             neck: stage.joined ? 0 : Theme.rSm
             fill: Theme.containerHigh
             ringScale: 0.5
@@ -672,14 +677,31 @@ PanelWindow {
     Binding {
         target: stage
         property: "pillGeom"
-        value: IslandGeom.pillOf(stage.outName)
+        // (`shown` read here so the value is taken afresh when the shape comes out: the pill's place is read from the items,
+        // which no binding follows — a value kept from before would be stale, e.g. after the bar turned floating.)
+        value: stage.shown ? IslandGeom.pillOf(stage.outName) : null
         when: stage.shown
         restoreMode: Binding.RestoreNone
     }
     readonly property bool headMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null
-    readonly property bool morphMode: (bars.atTop || bars.atBottom)
+    // Row 512 (K71: a bar on each edge, floating or docked): the bar the shape grows from — the island's own bar for its
+    // views (`pillOf().edge`), the bar of the widget a panel grew out of (`rectOf().edge`), else the island's bar, else
+    // "the bar" (BarConfig) — and that bar's inset (a floating bar's band + gap). The local frame below counts y from that
+    // bar's screen edge, so everything that stands on the bar adds `barInset`.
+    readonly property var originRect: {
+        var rev = IslandGeom.revision
+        if (!(shown || open) || headMode || originKey === "") return null
+        var r = IslandGeom.rectOf(outName, originKey)
+        if (r === null && contentKind === "mod") r = IslandGeom.rectOf(outName, "mod:" + shownPanelMod + ":")
+        return r
+    }
+    readonly property string morphEdge: headMode ? pillGeom.edge
+        : (originRect !== null && originRect.edge !== "" ? originRect.edge : (pillGeom !== null ? pillGeom.edge : bars.edge))
+    readonly property var morphBar: IslandGeom.barOf(outName, morphEdge)
+    readonly property real barInset: morphBar ? morphBar.inset : bars.insetOf(morphEdge)
+    readonly property bool morphMode: (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
         && (headMode || panelKinds.indexOf(contentKind) >= 0)
-    readonly property bool flip: bars.atBottom
+    readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
     // keeps the card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
     readonly property bool morphLayout: morphMode && shown
@@ -687,10 +709,12 @@ PanelWindow {
     // The pill at rest: its face's top from the screen edge (a bottom bar's face ends a keycap shadow above the edge).
     readonly property real pillW: pillGeom ? pillGeom.w : 120
     readonly property real pillH: pillGeom ? pillGeom.h : Theme.barH - 10
-    readonly property real pillTop: (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
+    readonly property real pillTop: barInset + (Theme.barH - pillH - Theme.shadowDy) / 2 + (flip ? Theme.shadowDy : 0)
     readonly property real pillOutCx: outW / 2 + (pillGeom ? pillGeom.dx : 0)
+    // The bar's inner edge (local): where a strip ends and a headless shape grows out of it.
+    readonly property real barEdgeY: barInset + Theme.barH
     // The card's content sits where it always did: past the bar and 4 px (BarConfig's inset); the shape ends at its foot.
-    readonly property real cardTop: Theme.barH + 4
+    readonly property real cardTop: barEdgeY + 4
     // The bar's groups float as blocks (a chrome with groups and a shadow of either kind: no strip under them, Bar.qml):
     // the card joins the island's own block (I115), or a widget's block. Else the neck joins the card to the bar's strip.
     readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
@@ -702,18 +726,16 @@ PanelWindow {
     // The origin (out x, width; `e`: the line the shape hangs from, local). A widget's drawn square is 3 px in from its
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
-    readonly property real groupFoot: flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2
+    readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
     readonly property string originKey: contentKind === "quick" ? "quick"
         : (contentKind === "tray" ? "tray:" + shownTray
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
     readonly property var origin: {
-        var rev = IslandGeom.revision
         if (!shown || headMode) return { x: pillOutCx - pillW / 2, w: pillW, e: pillTop + pillH, kind: "pill" }
-        var r = originKey === "" ? null : IslandGeom.rectOf(outName, originKey)
-        if (r === null && contentKind === "mod") r = IslandGeom.rectOf(outName, "mod:" + shownPanelMod + ":")
-        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : Theme.barH, kind: "widget" }
-        if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined ? pillTop + pillH : Theme.barH, kind: "pill" }
-        return { x: outW / 2 - 40, w: 80, e: joined ? groupFoot : Theme.barH, kind: "centre" }
+        var r = originRect
+        if (r !== null) return { x: r.x + 3, w: Math.max(8, r.w - 6), e: joined ? groupFoot : barEdgeY, kind: "widget" }
+        if (pillGeom !== null) return { x: pillOutCx - pillW / 2, w: pillW, e: joined ? pillTop + pillH : barEdgeY, kind: "pill" }
+        return { x: outW / 2 - 40, w: 80, e: joined ? groupFoot : barEdgeY, kind: "centre" }
     }
     readonly property real originCx: origin.x + origin.w / 2
     // The shape closed: the pill (head), or a sliver at the line it hangs from.
@@ -817,6 +839,16 @@ PanelWindow {
             + " kind=" + stage.contentKind + " origin=" + stage.origin.kind + " card=" + card.width + "x" + card.height
             + " win=" + stage.width + "x" + stage.height + "+" + stage.boxL)
     }
+    // Test only (the debug log's): where the shape starts on the output — its edge and inset, the head (the pill's rect) and
+    // the foot it hangs from — in output px, so a test compares it with the bar's own log (test-bars.sh, row 512).
+    function firstLog() {
+        var sh = screen ? screen.height : 0
+        function y(v) { return Math.round(flip ? sh - v : v) }
+        var x0 = Math.round(originCx - closedW / 2), x1 = Math.round(originCx + closedW / 2)
+        var head = headMode ? [x0, y(flip ? pillTop + pillH : pillTop), x1, y(flip ? pillTop : pillTop + pillH)].join(",") : "-"
+        return "edge=" + morphEdge + " inset=" + Math.round(barInset) + " head=" + head + " foot=" + y(closedFoot)
+            + " dx=" + (pillGeom ? Math.round(pillGeom.dx) : "-")
+    }
     function lerp(a, b, t) { return a + (b - a) * t }
     function clamp01(v) { return Math.max(0, Math.min(1, v)) }
     // How far the shape has grown out of its origin, 0..1 (the foot against the card's): corners, tint and ring follow it.
@@ -837,7 +869,7 @@ PanelWindow {
     // The body: the whole shape on a strip with a head; in the joined topologies what grows out from under the head or
     // the block, from its foot to the card's rect; headless on a strip, from the strip's edge. The view is cut to it.
     readonly property real bodyTop: joined ? lerp(hangE, cardTop, tgrow)
-        : (headMode ? pillTop : Theme.barH)
+        : (headMode ? pillTop : barEdgeY)
     readonly property real bodyH: Math.max(0, shapeFoot - bodyTop)
     // The shape's fill: the pill's at first (a head), the card's once grown, at the panel's opacity (I114); a boxed pill
     // has the strip under it. A headless shape is the card's from the start.
@@ -946,7 +978,7 @@ PanelWindow {
             h: stage.bodyH
             rTop: stage.joined || !stage.headMode ? Theme.rLg : stage.lerp(stage.pillR, Theme.rLg, stage.tgrow)
             rBot: stage.headMode ? stage.lerp(stage.pillR, Theme.rLg, stage.tgrow) : Math.min(Theme.rLg, stage.lerp(Theme.rSm, Theme.rLg, stage.tgrow))
-            edgeY: stage.joined ? stage.hangE : Theme.barH
+            edgeY: stage.joined ? stage.hangE : stage.barEdgeY
             neck: stage.neckR
             fill: stage.shapeFill
             headFill: stage.headMode ? stage.headFill : stage.shapeFill
@@ -1006,7 +1038,7 @@ PanelWindow {
                 anchors.fill: parent
                 mask: shapeMask
                 carry: stage.shapeCarry
-                bandEdge: stage.joined ? shape.edgeY : Theme.barH
+                bandEdge: stage.joined ? shape.edgeY : stage.barEdgeY
                 bandWeight: stage.joined ? 1 : Theme.panel.a
             }
         }

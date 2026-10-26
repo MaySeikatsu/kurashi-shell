@@ -7,6 +7,9 @@
 #   - draw: the mode table's bar row (dynamic, connected, floating; floating on each edge), with the frame off and on;
 #   - visibility: hover (the pointer rests on the edge: not out before the dwell, out after it, gone after it left),
 #     empty desktop (out with no window, gone with one), hidden (`kurashi act layout.toggle '{"target":"bar:bottom"}'`);
+#     a pointer resting on the edge keeps a hover bar out (row 524: no going and coming back);
+#   - stage (row 512): the island card's morph starts at the pill of its own bar and the quick card at its button's bar,
+#     the bar's inset counted — docked and floating top, bottom, floating bottom, the island on a bottom bar beside a top bar;
 #   - reserve: a test window's place (sway's tree) for always + auto / off and hover + on / auto;
 #   - idle: no Wayland commit in 10 s (default bar; frame on with the paper material);
 #   - row 492 (b): the frontend's PSS with the frame off and on, toggled live, this frontend against a reference one
@@ -16,14 +19,14 @@
 #   - no QML error in the frontend's log.
 # Shots: frontend/shots/bars/<decor>/.
 #   KURASHI_BIN_DIR=<dir with kurashid, kurashi> timeout 2400 nix develop -c frontend/test-bars.sh [sandbox]
-#   BARS_DECORS="washi sekai" picks decors; BARS_PARTS="zones draw reveal reserve idle pss" the parts; BARS_PAIRS=<n>.
+#   BARS_DECORS="washi sekai" picks decors; BARS_PARTS="zones draw reveal stage reserve idle pss" the parts; BARS_PAIRS=<n>.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${1:-w44-bar-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/bars
 DECORS=${BARS_DECORS:-washi sekai}
-PARTS=${BARS_PARTS:-zones draw reveal reserve idle pss}
+PARTS=${BARS_PARTS:-zones draw reveal stage reserve idle pss}
 PAIRS=${BARS_PAIRS:-3}
 FAILS=0
 fail() { echo "test-bars: FAIL $*" >&2; FAILS=$((FAILS + 1)); }
@@ -44,7 +47,8 @@ stop() {
 }
 cleanup() {
   stop
-  [ -n "$PTR" ] && { exec 7>&-; wait "$PTR" 2>/dev/null || true; }
+  # (The coproc's own write end stays open in this shell: closing fd 7 alone never ends it, so it is stopped.)
+  [ -n "$PTR" ] && { exec 7>&-; kill "$PTR" 2>/dev/null || true; wait "$PTR" 2>/dev/null || true; }
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null || true
 }
 trap cleanup EXIT
@@ -104,6 +108,13 @@ bar_win() {
   tail -n +"$((mark + 1))" "$R/qs.log" | grep -o "BARWIN HEADLESS-1 $1 .*" | tail -1 | cut -d' ' -f4- || true
 }
 mark() { echo "BARMARK $1" >> "$R/qs.log"; }
+# The log since mark <name>.
+since_mark() { local m; m=$(grep -n "^BARMARK $1\$" "$R/qs.log" | tail -1 | cut -d: -f1); tail -n +"$((${m:-0} + 1))" "$R/qs.log"; }
+# near_box "x0,y0,x1,y1" "x0,y0,x1,y1" <tolerance px>: the two boxes agree.
+near_box() {
+  awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { n = split(a, p, ","); m = split(b, q, ","); if (n != 4 || m != 4) exit 1
+    for (i = 1; i <= 4; i++) { d = p[i] - q[i]; if (d < -t || d > t) exit 1 } }'
+}
 expect_zone() { # expect_zone <id> <edge> <zone> <what>
   local z; z=$(zone_of "$1")
   case "$z" in "$2 $3 "*) say "$4: $1 on $2/$3 (${z#* * })" ;; *) fail "$4: $1 is at '${z:-nowhere}', not $2/$3" ;; esac
@@ -274,6 +285,16 @@ if want reveal; then
   sleep 1.5
   [ "$(pixel $((SW / 2)) 10)" = "$BG" ] || fail "hover: the bar stayed after the pointer left"
   say "hover: hidden at rest, out after the dwell, stays under the pointer, gone after it left"
+  # Row 524 (one reveal model): a pointer that rests on the edge keeps the bar out — no going and coming back (the bar's
+  # window maps over the resting pointer, which gets no enter there; the edge strip stays under it and holds it out).
+  pointer move $((SW / 2 - 200)) 0
+  sleep 0.8
+  s=""; for _ in $(seq 12); do [ "$(pixel $((SW / 2 - 300)) 16)" = "$BG" ] && s+=0 || s+=1; sleep 0.35; done
+  [ "$s" = 111111111111 ] || fail "hover: the bar went and came back while the pointer rested on the edge ($s)"
+  pointer move $((SW / 2)) 600
+  sleep 1.5
+  [ "$(pixel $((SW / 2)) 10)" = "$BG" ] || fail "hover: the bar stayed after the resting pointer left"
+  say "hover: the pointer resting on the edge keeps the bar out ($s over 4 s)"
   # Empty desktop: out with no window, gone with one.
   apply edges.top.visibility=empty_desktop
   sleep 1
@@ -317,6 +338,56 @@ if want reveal; then
   reset_layout
 fi
 
+# ======================================== the Stage on its own bar (row 512) ========================================
+# The island card's morph starts at the pill of the island's own bar and the quick card at its button's bar, that bar's
+# inset counted (a floating bar stands band + gap from its edge): the first frame's head is the pill's box from the bar's
+# own log (BARZONE island), the quick card's foot the bar's inner edge — docked top, floating top, bottom, floating bottom,
+# and the island on a bottom bar beside a top bar (the quick card then grows from the top bar).
+if want stage; then
+  d=${DECORS%% *}
+  start_daemon "$d"; mark stage-start; QS_ENV=KURASHI_STAGE_DEBUG=1 start_qs
+  # stage_case <name> <island edge> <quick edge> <inset>
+  stage_case() {
+    local name=$1 ie=$2 qe=$3 ins=$4 z head foot fe
+    z=$(zone_of island); set -- $z
+    [ "${1:-}" = "$ie" ] || { fail "stage $name: the island is at '${z:-nowhere}', not on $ie"; return; }
+    local box="$3,$4,$5,$6"
+    mark "stage-$name"
+    K act island.expand >/dev/null; sleep 0.12; shoot "$d" "stage-$name-mid"; sleep 1.3
+    shoot "$d" "stage-$name-open"
+    local o; o=$(since_mark "stage-$name" | grep -o 'stage-morph open [a-z]* .*' | tail -1)
+    head=$(sed -n 's/.* head=\([^ ]*\).*/\1/p' <<< "$o"); fe=$(sed -n 's/.* edge=\([a-z]*\).*/\1/p' <<< "$o")
+    near_box "$head" "$box" 2 && [ "$fe" = "$ie" ] \
+      && say "stage $name: the island's morph starts at the pill ($head, the bar's island $box, edge $fe)" \
+      || fail "stage $name: the morph starts at '$head' on '$fe', the pill is $box on $ie ($o)"
+    K act ui.close >/dev/null; sleep 1.4
+    mark "stage-$name-q"
+    K act quick.toggle >/dev/null; sleep 1.4
+    shoot "$d" "stage-$name-quick"
+    o=$(since_mark "stage-$name-q" | grep -o 'stage-morph open quick .*' | tail -1)
+    foot=$(sed -n 's/.* foot=\([0-9]*\).*/\1/p' <<< "$o"); fe=$(sed -n 's/.* edge=\([a-z]*\).*/\1/p' <<< "$o")
+    local want=$((ins + BARH)); [ "$qe" = bottom ] && want=$((SH - ins - BARH))
+    [ "$fe" = "$qe" ] && [ "${foot:-x}" = "$want" ] \
+      && say "stage $name: the quick card grows from the $qe bar's edge ($foot)" \
+      || fail "stage $name: the quick card grows from '$fe' at '${foot:-?}', not $qe at $want ($o)"
+    K act ui.close >/dev/null; sleep 1.4
+  }
+  stage_case docked top top 0
+  mark stage-floating; apply edges.top.draw=floating
+  stage_case floating-top top top 8
+  apply edges.top.draw=auto
+  mark stage-bottom; K act layout.bar.move '{"from":"top","to":"bottom"}' >/dev/null || fail "layout.bar.move top → bottom"
+  sleep 3
+  stage_case bottom bottom bottom 0
+  mark stage-fbottom; apply edges.bottom.draw=floating
+  stage_case floating-bottom bottom bottom 8
+  mark stage-both
+  apply edges.bottom.draw=auto edges.top.bar=true 'edges.top.center=[]' 'edges.top.end=["quick","clock"]' \
+    'edges.bottom.start=[]' 'edges.bottom.end=[]' 'edges.bottom.center=["island"]'
+  stage_case island-bottom bottom top 0
+  reset_layout
+fi
+
 # ======================================== reserve ========================================
 if want reserve; then
   d=${DECORS%% *}
@@ -344,6 +415,20 @@ if want idle; then
     say "idle ($d, frame $fr): $c commits in 10 s"
     [ "$c" = 0 ] || fail "idle ($d, frame $fr): $c commits"
   done
+  # W44-follow acceptance: a hover bar, a hover dock and a pinned sidebar at rest — the pointer away, then resting on the
+  # top edge with the bar out (the shared strip stays mapped under it, row 524).
+  start_daemon washi; QS_ENV=WAYLAND_DEBUG=client start_qs
+  apply edges.top.visibility=hover dock.enabled=true dock.visibility=hover sidebar.right.visibility=always
+  for at in away edge; do
+    if [ $at = away ]; then pointer move $((SW / 2)) 600; else pointer move $((SW / 2 - 200)) 0; fi
+    sleep 3; while [ "$(date +%-S)" -gt 40 ] || [ "$(date +%-S)" -lt 2 ]; do sleep 1; done
+    s=$(stat -c %s "$R/qs.log"); sleep 10; c=$(commits "$s")
+    say "idle (hover bar, hover dock, pinned sidebar; pointer $at): $c commits in 10 s"
+    [ "$c" = 0 ] || fail "idle (hover bar, hover dock, pinned sidebar; pointer $at): $c commits"
+  done
+  [ "$(pixel $((SW / 2 - 300)) 16)" != "$BG" ] || fail "idle: the hover bar is not out under the resting pointer"
+  pointer move $((SW / 2)) 600
+  reset_layout
 fi
 
 # ======================================== PSS (row 492 b) and the seam ========================================

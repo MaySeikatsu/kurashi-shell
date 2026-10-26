@@ -9,7 +9,7 @@
 # follows the pointer and glides back; a sidebar held mid-slide carries its material (`carried`) or not (`fixed`), and
 # at rest both are the continuous sheet. Shots go to frontend/shots/texture/shell/, frontend/shots/texture/w32/ and
 # frontend/shots/look/kami{,-dark}/ (evidence to look at); the pixel checks decide the exit code.
-#   nix develop -c frontend/test-texture.sh
+#   nix develop -c frontend/test-texture.sh   (TEXTURE_SB=<prefix> names its sandboxes, default w32-rel)
 #   Machine B: export KURASHI_RENDER_NODE=/dev/dri/renderD129 first (the sandbox's gles2 renderer).
 # The tile is two files (contract rows 280-281): the opaque RGB normal map (`texture.map`) and, when the material prints
 # ink, a white RGBA map with the coverage in alpha (`texture.ink_map`): Qt Quick premultiplies textures.
@@ -452,7 +452,7 @@ QS_LOG=""
 session() {
   local name=$1 texture=$2
   shift 2
-  SB=w32-rel-$name
+  SB=${TEXTURE_SB:-w32-rel}-$name
   # The last session's network namespace must not reach the launcher of this one.
   unset LD_PRELOAD KURASHI_SANDBOX_NETNS_PID KURASHI_SANDBOX_NETNS_ID
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$SB" 2>/dev/null)"
@@ -678,25 +678,37 @@ D=$("${TEX[@]}" diff "$OUT/k61-rest.png" "$OUT/k61-spot-back.png" 0 0 1000 33)
 awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "spotlight: the beam did not glide back to the middle ($D)"
 
 # ---- 4c. K61: the carried sheet — a sidebar held mid-slide carries its material; at rest it is the continuous sheet ----
-# The right sidebar (420 px, flush) held at half its slide is 210 px out of place: carried, its material is the one it
-# has at rest, moved by 210 px; fixed, the material stays where the output's sheet is. At rest both are identical.
+# The right sidebar (420 px, flush) held at half its slide (KURASHI_SIDEBAR_HOLD is the slide's progress since W44: the
+# column slides in from its screen edge, K71) stands `off` px out of place — half its travel, which the column logs
+# (`sidebar-hold … off=`): carried, its material is the one it has at rest, moved by `off`; fixed, the material stays
+# where the output's sheet is. At rest both are identical.
 say "carried and fixed sheets: a sidebar mid-slide and at rest"
+export KURASHI_SIDEBAR_GEOMETRY=1
+HOLD_OFF=""
 for mode in carried fixed; do
   for hold in rest mid; do
     if [ "$hold" = mid ]; then export KURASHI_SIDEBAR_HOLD=0.5; else unset KURASHI_SIDEBAR_HOLD; fi
     session "sheet-$mode-$hold" yes "$GRID" 'theme.texture.strength = 0.8' "theme.texture.sheet = \"$mode\""
     ctl act sidebar.toggle '{"side":"right"}'
     shot "sheet-$mode-$hold" 1.8
+    if [ "$hold" = mid ]; then
+      o=$(grep -o 'sidebar-hold right [^ ]* p=0.500 off=[0-9]*' "$QS_LOG" | tail -1 | sed 's/.*off=//')
+      [ -n "$o" ] || fail "sheet-$mode-mid: the held column logged no offset"
+      [ -z "$HOLD_OFF" ] || [ "$o" = "$HOLD_OFF" ] || fail "sheet-$mode-mid: held $o px out, the other mode $HOLD_OFF"
+      HOLD_OFF=${o:-$HOLD_OFF}
+    fi
     stop_session
   done
 done
-unset KURASHI_SIDEBAR_HOLD
+unset KURASHI_SIDEBAR_HOLD KURASHI_SIDEBAR_GEOMETRY
+HOLD_OFF=${HOLD_OFF:-210}
+say "the column held mid-slide stands $HOLD_OFF px out of place"
 cp "$OUT/sheet-carried-mid.png" "$W32/carried-mid-slide.png"
 cp "$OUT/sheet-fixed-mid.png" "$W32/fixed-mid-slide.png"
-# A box of the column's empty middle (the notifications' room), at rest and 210 px further right mid-slide.
-D=$("${TEX[@]}" shifted "$OUT/sheet-carried-mid.png" "$OUT/sheet-carried-rest.png" 210 2160 700 2340 1000)
+# A box of the column's empty middle (the notifications' room), at rest and `off` px further right mid-slide.
+D=$("${TEX[@]}" shifted "$OUT/sheet-carried-mid.png" "$OUT/sheet-carried-rest.png" "$HOLD_OFF" 2160 700 2340 1000)
 awk -v d="$D" 'BEGIN { exit !(d < 0.05) }' || fail "carried: the sidebar mid-slide does not carry its material ($D)"
-D=$("${TEX[@]}" shifted "$OUT/sheet-fixed-mid.png" "$OUT/sheet-fixed-rest.png" 210 2160 700 2340 1000)
+D=$("${TEX[@]}" shifted "$OUT/sheet-fixed-mid.png" "$OUT/sheet-fixed-rest.png" "$HOLD_OFF" 2160 700 2340 1000)
 awk -v d="$D" 'BEGIN { exit !(d > 0.3) }' || fail "fixed: the sidebar mid-slide carried its material ($D)"
 D=$("${TEX[@]}" diff "$OUT/sheet-carried-rest.png" "$OUT/sheet-fixed-rest.png" 2140 40 2559 1400)
 awk -v d="$D" 'BEGIN { exit !(d < 0.02) }' || fail "carried at rest is not the continuous sheet ($D)"
