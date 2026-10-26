@@ -250,6 +250,29 @@ pub fn network(wifi_on: bool) -> Value {
     }
 }
 
+/// `runtime.layout` (K71, PROTOCOL §3.1): the golden fixture's layout until the mock computes it from its config like
+/// kurashid (card W43-layout). `KURASHI_MOCK_LAYOUT` names a JSON file holding another `data` (a whole snap message or the
+/// bare document), so frontend tests can stage a frame, floating bars or edge modules.
+pub fn layout() -> Value {
+    let pick = |v: Value| match v.get("data") {
+        Some(d) if v.get("t").is_some() => d.clone(),
+        _ => v,
+    };
+    if let Some(path) = std::env::var_os("KURASHI_MOCK_LAYOUT")
+        && let Some(v) = std::fs::read_to_string(&path)
+            .ok()
+            .and_then(|t| serde_json::from_str::<Value>(&t).ok())
+    {
+        return pick(v);
+    }
+    pick(
+        serde_json::from_str(include_str!(
+            "../../../fixtures/ipc/server/snap_runtime_layout.json"
+        ))
+        .unwrap_or_default(),
+    )
+}
+
 /// `runtime.slots` (K28, PROTOCOL §5): the mock has no mods, so it serves the contributions of the test mod `hello` (its
 /// footer row, its day mark and its quick tile), the real wallpaper tile (`mods/wallpaper`), the real weather clock aside
 /// and day mark (`mods/weather`, W19) and one contribution that is not a tile (`qml/not-a-tile.qml`, W18: clipped to its
