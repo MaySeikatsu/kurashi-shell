@@ -907,6 +907,26 @@
 #   only while keys.write == true
 # webdock = ""
 #
+# Top bar
+#   only while keys.write == true
+# bar_top = ""
+#
+# Bottom bar
+#   only while keys.write == true
+# bar_bottom = ""
+#
+# Left bar
+#   only while keys.write == true
+# bar_left = ""
+#
+# Right bar
+#   only while keys.write == true
+# bar_right = ""
+#
+# Dock
+#   only while keys.write == true
+# dock = ""
+#
 # Volume up
 #   only while keys.write == true
 # volume_up = "XF86AudioRaiseVolume"

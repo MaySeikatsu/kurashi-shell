@@ -1431,6 +1431,31 @@ Write these shortcuts into a file the compositor reads (niri: `kurashi-binds.kdl
 - type: `string` · default: `""`
 - only while `keys.write == true`
 
+#### `keys.bar_top` — Top bar
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.bar_bottom` — Bottom bar
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.bar_left` — Left bar
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.bar_right` — Right bar
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
+#### `keys.dock` — Dock
+
+- type: `string` · default: `""`
+- only while `keys.write == true`
+
 #### `keys.volume_up` — Volume up
 
 - type: `string` · default: `"XF86AudioRaiseVolume"`
