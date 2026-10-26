@@ -11,6 +11,8 @@
 #   6. shots: right panel and floating under washi, sekai, win95 and glass; left panel under washi;
 #   8–11 (W44, K71): every sidebar row of the layout's mode table (washi, sekai × top/bottom bar × frame × draw × side),
 #      hover reveal of each side, pinned with a test window beside it and no idle frame, drag/double-click/keyboard resize.
+#   O (row 521, terminal's line chrome): both sidebars pinned open the top bar's rule twice; a bottom bar turned on spans
+#      the width under them and opens its rule under both (four openings). SIDEBAR_PHASES="123456789PRO" picks the parts.
 #   nix develop -c frontend/test-sidebar-panel.sh [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug).
 # Shots in frontend/shots/sidebar/<style>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
@@ -162,7 +164,7 @@ qml_errors() {
 }
 RIGHT='{"side":"right","output":"HEADLESS-1"}'
 # SIDEBAR_PHASES=146 runs only those phases (all by default; W44's: 8 layout, 9 hover, P pinned, R resize).
-want() { [[ "${SIDEBAR_PHASES:-123456789PR}" == *"$1"* ]]; }
+want() { [[ "${SIDEBAR_PHASES:-123456789PRO}" == *"$1"* ]]; }
 : > "$R/server.log"
 
 # 1. A top bar, panel style: geometry, Esc, the launcher.
@@ -487,6 +489,43 @@ if want P; then  # 10. pinned
   c=$(tail -c +"$((s + 1))" "$R/qs.log" | grep -c "${SBS}\.commit(" || true)
   [ "$c" = 0 ] || fail "idle: the pinned sidebar committed $c frames in 5 s"
   echo "ok: idle: the pinned sidebar commits no frame at rest"
+  qml_errors
+  stop_phase
+fi
+
+# O. Openings (row 521, line chrome: terminal): both sidebars pinned under a top bar open its rule twice — the rule runs
+#    only between the two columns (BARRULE, KURASHI_BAR_GEOMETRY) — and a bottom bar turned on meanwhile spans the whole
+#    width under them (the pinned columns, which hold their zones, wait for it: a holder mapped after them is placed
+#    between their zones) with its rule opened under both columns too: four openings, two per column.
+if want O; then
+  config terminal 'idle.enabled = false' '[sidebar.right]' 'visibility = "always"' '[sidebar.left]' 'visibility = "always"'
+  : > "$R/server.log"
+  start_kurashid
+  start_frontend
+  for _ in $(seq 60); do [ "$(grep -c 'sidebar-rest ' "$R/qs.log" || true)" -ge 2 ] && break; sleep 0.1; done
+  sleep 1.5
+  rule() { grep -o "BARRULE HEADLESS-1 $1 .*" "$R/qs.log" | tail -1 | sed "s/BARRULE HEADLESS-1 $1 //"; }
+  opens() { grep -o "sidebar-opening $1 .*" "$R/qs.log" | tail -1 | sed "s/sidebar-opening $1 //"; }
+  WL=$(lay left | jq -r .width); WR=$(lay right | jq -r .width)
+  [ "$(rule top)" = "$WL-$(( SW - WR ))" ] || fail "openings: the top rule is '$(rule top)', not $WL-$(( SW - WR )) (two openings)"
+  [ "$(opens left)" = "top:0,$WL" ] && [ "$(opens right)" = "top:$(( SW - WR )),$SW" ] \
+    || fail "openings: the columns publish '$(opens left)' and '$(opens right)'"
+  mkdir -p "$OUT/layout"
+  timeout 20 grim -s 0.5 "$OUT/layout/openings-two.png"
+  echo "ok: openings: both pinned columns open the top bar's rule ($(rule top))"
+  K set edges.bottom.bar=true >/dev/null || fail "edges.bottom.bar = true was refused"
+  sleep 3
+  b=$(grep -o 'BARWIN HEADLESS-1 bottom .*' "$R/qs.log" | tail -1 | sed 's/BARWIN HEADLESS-1 bottom //')
+  BH=$(K sub theme --count 0 --json | jq -r '.data.tokens["bar.height"] // 32')
+  [ "$b" = "0 $(( SH - BH )) $SW $BH shown" ] || fail "openings: the bottom bar's window is '$b', not the whole width"
+  [ "$(px 3 $(( SH - BH / 2 )))" = ink ] && [ "$(px $(( SW - 3 )) $(( SH - BH / 2 )))" = ink ] \
+    || fail "openings: the bottom bar does not reach the output's corners under the columns"
+  [ "$(rule bottom)" = "$WL-$(( SW - WR ))" ] || fail "openings: the bottom rule is '$(rule bottom)', not $WL-$(( SW - WR ))"
+  [ "$(opens left)" = "top:0,$WL bottom:0,$WL" ] && [ "$(opens right)" = "top:$(( SW - WR )),$SW bottom:$(( SW - WR )),$SW" ] \
+    || fail "openings: a column joining a top and a bottom bar publishes '$(opens left)' and '$(opens right)'"
+  timeout 20 grim -s 0.5 "$OUT/layout/openings-top-bottom.png"
+  timeout 20 grim -s 4 -g "$(( WL - 30 )),$(( SH - BH - 30 )) 60x60" "$OUT/layout/openings-bottom-join.png"
+  echo "ok: openings: a bottom bar spans the width under the pinned columns and opens its rule under both ($(rule bottom))"
   qml_errors
   stop_phase
 fi
