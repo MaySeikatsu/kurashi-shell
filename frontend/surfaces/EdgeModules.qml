@@ -134,7 +134,7 @@ Scope {
             enabled: g.hoverOn
             from: g.spanFrom
             to: g.spanTo
-            holdIn: g.holdOpen || hold.held
+            holdIn: g.holdOpen || hold.held || g.edgeLatch
         }
         // The pointer that brought it out rests on the edge, where no enter reaches the window mapped under it (W44).
         EdgeHold {
@@ -150,6 +150,15 @@ Scope {
         // What keeps a revealed group out: the pointer on it, one of its menus or drags, a card or a peek on this output, its
         // keyboard focus.
         property bool pointerOn: false
+        // The pointer that brought it out, between the strip's leave and the window's enter (the Bar's rule): held from the
+        // reveal until the window has seen the pointer come or go, or 1.2 s.
+        property bool edgeLatch: false
+        Connections {
+            target: reveal
+            function onRevealedChanged() { g.edgeLatch = reveal.revealed; if (reveal.revealed) latchT.restart() }
+        }
+        onPointerOnChanged: edgeLatch = false
+        property Timer latchT: Timer { interval: 1200; onTriggered: g.edgeLatch = false }
         property bool focused: false
         readonly property M.ModuleLink link: M.ModuleLink { vertical: g.vertical }
         readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel
@@ -167,6 +176,11 @@ Scope {
         readonly property real grow: Math.max(0, Math.min(1.12, shownAmt))
         readonly property bool windowWanted: on && (wantShown || shownAmt > 0 || keepsSpace)
         function putAway() { if (forced) Store.act("layout.toggle", { target: g.target, output: g.outName }) }
+        // A card opened from the keyboard-revealed group is up (see the body's focus): the group goes once it closes.
+        property bool afterCard: false
+        readonly property bool cardUp: !!uiDoc.panel
+        onCardUpChanged: if (!cardUp && afterCard) { afterCard = false; putAway() }
+        onForcedChanged: if (!forced) afterCard = false
 
         // Test only (KURASHI_EDGE_GEOMETRY=1, frontend/test-edge-modules.sh): `EDGEGROUP <output> <edge> <zone> <vis> <draw>
         // out|in body x y w h` (output px) and one `EDGEMOD <output> <edge> <zone> <id> x0 y0 x1 y1` per present module, a
@@ -182,7 +196,10 @@ Scope {
         Connections {
             target: reveal
             enabled: g.geoLog
-            function onRevealedChanged() { console.log("EDGEREVEAL " + g.outName + " " + g.edge + " " + g.zone + " " + reveal.revealed + " p=" + reveal.p + " hold=" + hold.held + " holdOpen=" + g.holdOpen) }
+            function onRevealedChanged() {
+                console.log("EDGEREVEAL " + g.outName + " " + g.edge + " " + g.zone + " " + reveal.revealed + " t=" + Date.now()
+                    + " p=" + Math.round(reveal.p) + " hold=" + hold.held + " holdOpen=" + g.holdOpen)
+            }
         }
         function logGeo() {
             var head = "EDGEGROUP " + outName + " " + edge + " " + zone + " " + visibility + " " + draw + " "
@@ -261,23 +278,31 @@ Scope {
                 }
                 function bodyBox() { return boxAt(nearRest, farRest) }
                 readonly property var restBox: boxAt(nearRest, farRest)
-                // Input: the group at rest and the band under it to the screen's edge (Caelestia's hit zone: the module's
-                // span on the band), while it is out or coming out. The pointer that brought it out rests on the edge: the
-                // window mapped over it may take it (then `hit` holds the group) or leave it on the shared strip (then
-                // EdgeHold does) — either way it stays out.
+                // Input: the group at rest and the band under it to the screen's edge (Caelestia's hit zone: the module's span
+                // on the band), while it is out or coming out. Mapped under the resting pointer that brought it out, the
+                // window takes it from the strip at once but is told so only ~0.5 s later (sway, measured: leave, then the
+                // enter): `edgeLatch` holds the group across that gap.
                 readonly property var hitBox: boxAt(0, farRest)
+                // (Never an empty region: a 0×0 mask reads as none, the whole window takes input — and the resting pointer
+                // with it, measured. A zone holder folded at rest keeps one pixel at its far corner, inside its own zone.)
+                readonly property bool inputOn: g.wantShown || g.shownAmt > 0
                 mask: Region {
-                    x: win.hitBox.x
-                    y: win.hitBox.y
-                    width: g.shownAmt > 0 ? win.hitBox.w : 0
-                    height: g.shownAmt > 0 ? win.hitBox.h : 0
+                    x: win.inputOn ? win.hitBox.x : (g.edge === "right" ? 0 : win.width - 1)
+                    y: win.inputOn ? win.hitBox.y : (g.edge === "bottom" ? 0 : win.height - 1)
+                    width: win.inputOn ? win.hitBox.w : 1
+                    height: win.inputOn ? win.hitBox.h : 1
                 }
                 Item {
                     x: win.hitBox.x
                     y: win.hitBox.y
                     width: win.hitBox.w
                     height: win.hitBox.h
-                    HoverHandler { onHoveredChanged: g.pointerOn = hovered }
+                    HoverHandler {
+                        onHoveredChanged: {
+                            g.pointerOn = hovered
+                            if (g.geoLog) console.log("EDGEHOVER " + g.outName + " " + g.edge + " " + g.zone + " " + hovered + " t=" + Date.now())
+                        }
+                    }
                 }
 
                 // ---- the shape ----
@@ -355,12 +380,18 @@ Scope {
                             visible: g.shownAmt > 0 || content.active
                             focus: g.forced
                             Keys.onEscapePressed: g.putAway()
-                            // Brought out by key it holds the keyboard: losing it (a click elsewhere) puts it away.
+                            // Brought out by key it holds the keyboard: losing it (a click elsewhere) puts it away — but a
+                            // card it opened (Enter on a module) takes the keyboard too: then it stays out under the card and
+                            // goes when the card closes, its errand done.
                             property bool hadFocus: false
                             onActiveFocusChanged: {
                                 g.focused = activeFocus
-                                if (activeFocus) hadFocus = true
-                                else if (hadFocus) { hadFocus = false; g.putAway() }
+                                if (activeFocus) { hadFocus = true; g.afterCard = false }
+                                else if (hadFocus) {
+                                    hadFocus = false
+                                    if (g.uiDoc.panel) g.afterCard = true
+                                    else g.putAway()
+                                }
                             }
                             Accessible.role: Accessible.Grouping
                             Accessible.name: I18n.tr("edge-modules.group.a11y")

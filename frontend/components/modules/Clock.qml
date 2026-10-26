@@ -41,6 +41,8 @@ ModuleBase {
     // per hover); then this flag goes and the source stays.
     readonly property bool peekServed: false
     HoverHandler { id: hover; enabled: m.peekServed }
+    // A click opens the expanded view, as Enter does (the glance → expanded path of every module, K72).
+    TapHandler { onTapped: m.activate() }
     PeekSource {
         target: m
         source: m.peekServed ? "clock:main" : ""

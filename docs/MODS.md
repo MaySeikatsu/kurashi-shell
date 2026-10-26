@@ -334,6 +334,16 @@ hover/focus via `ui.peek {source: "mod:<id>:<name>", output, x, w}`, K35) · isl
 providers · services · decor packs (slots + recipe) · lock scenes · palettes · app-theme
 templates · i18n strings.
 
+**Modules and their variants (K72).** Every placeable module — a core one or a mod's `widget:` — has one id and the
+variants the shell's places need, each optional and loaded only where it is shown (docs/ux/edge-modules.md "Module
+variants"); a variant a module lacks is not offered there. The rows say what each variant is for a module that ships the
+full table; the other modules' gaps are BACKLOG rows, one per module.
+
+| module | glance | peek | expanded | desk card | sidebar | island face | quick tile |
+|---|---|---|---|---|---|---|---|
+| `clock` (core; I223, W45) | `components/modules/Clock.qml`: hh:mm (two lines on a side edge); a click or Enter opens the expanded view | `components/modules/ClockPeek.qml`: the day, the ISO week, the next timed agenda item (calendar mod) and the nearest timer's end (timer mod); a second time zone once `svc.clock` carries it (row 551); asked as the core source `clock:main` (row 550) | the island's clock card (`island.expand {face: "clock"}`; ClockView, with the calendar's agenda slots) | the desk's clock card (core desk card) | the calendar section (`sidebar.<side>.sections`, the clock view's month and agenda) | the island's `clock` face | none — a clock has no state to switch, and quick settings holds toggles and levels (COMPOSITION §5) |
+| `mod:timer:timer` (K73) | `widget:timer` | `peek:timer` | `panel:timer` | `desk:timer` | `panel:timer` | `island-face:timer` (+ `:expanded`) | `slot:quick.tiles` |
+
 **Icon names.** A mod names icons by Material Symbols ligature. The shell draws them from its subset
 (`nix/icon-names.txt`, the names the bundled code uses; `tools/check-icon-names.sh` in `just check` keeps it current);
 a name the subset lacks is drawn from the full Material Symbols family when installed (`font.icons_fallback`), and a
