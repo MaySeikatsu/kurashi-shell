@@ -1,13 +1,17 @@
 import QtQuick
 import Quickshell
 
-// One hover reveal at a screen edge (K71; the dock's I137 rules, now everyone's): while `enabled`, claims its output's
-// edge strip (EdgeStrips) and sets `revealed` once the pointer has rested `ShellLayout.revealDelay` ms on the strip inside
-// [from, to] (twice as long on an edge another output touches: the pointer crosses it on its way there). It stays
-// revealed while the consumer says the pointer is on it (`holdIn`: its window, its menus, its keyboard focus) and goes
-// 400 ms after the pointer has left both. `to < 0` means the whole edge. The strip is claimed only while not revealed, so
-// it never covers the revealed surface's outer pixels (its own window holds the pointer then). No timer runs while nothing
-// moves (Ma).
+// One hover reveal at a screen edge (K71; the dock's I137 rules, now everyone's; row 524: the one reveal model of the bars,
+// the dock and the sidebars): while `enabled`, claims its output's edge strip (EdgeStrips) and sets `revealed` once the
+// pointer has rested `ShellLayout.revealDelay` ms on the strip inside [from, to] (twice as long on an edge another output
+// touches: the pointer crosses it on its way there). It stays revealed while the pointer is on the strip inside the span
+// or the consumer says the pointer is on it (`holdIn`: its window, its menus, its keyboard focus), and goes 400 ms after
+// the pointer has left both. `to < 0` means the whole edge.
+// The strip stays claimed while the surface is out: a pointer that rests on the edge (no motion) gets no `enter` on a
+// window mapped under it (sway, measured), so a strip given up at the reveal would hide the surface 400 ms later and,
+// mapped again under the pointer, reveal it again — a loop. The strip lies under the surface (mapped first), so a revealed
+// surface leaves its outermost `cut` px (the strip's input, 2 px) out of its input region, and the strip keeps reporting
+// the pointer there. No timer runs while nothing moves (Ma).
 QtObject {
     id: r
     required property var screen          // the ShellScreen
@@ -18,6 +22,11 @@ QtObject {
     property real to: -1
     property bool holdIn: false
     property bool revealed: false
+
+    // The strip's input depth at the screen edge (EdgeStripHost): what a revealed surface leaves to the strip.
+    readonly property int stripPx: 2
+    // How many px the consumer leaves out of its input region on its screen edge, its body standing `inset` px from it.
+    function cutFor(inset) { return enabled && revealed ? Math.max(0, stripPx - Math.max(0, Math.round(inset))) : 0 }
 
     readonly property string output: screen ? screen.name : ""
     readonly property real p: EdgeStrips.posOf(output, edge)
@@ -54,11 +63,10 @@ QtObject {
     onOutputChanged: sync()
     onEdgeChanged: sync()
     onKeyChanged: sync()
-    onRevealedChanged: sync()
     // The strip this reveal holds ("" while none), so a change of output, edge or key releases the old one.
     property string held: ""
     function sync() {
-        var want = enabled && !revealed && output !== "" && key !== "" ? output + "/" + edge + "/" + key : ""
+        var want = enabled && output !== "" && key !== "" ? output + "/" + edge + "/" + key : ""
         if (want === held) return
         if (held !== "") { var h = held.split("/"); EdgeStrips.release(h[0], h[1], h.slice(2).join("/")) }
         held = want

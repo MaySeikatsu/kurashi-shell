@@ -246,7 +246,7 @@ Scope {
             // ---- hover, reveal, hide ----
             // The shared edge strip (K71, EdgeReveal: the dwell, twice as long on an edge another output touches — I137) in
             // `hover`, and in `empty_desktop` while the desk has windows; `hidden` comes out only by `layout.toggle`. It
-            // stays out while the pointer is on the dock, its menu is open, or the pointer rests on the edge (EdgeHold).
+            // stays out while the pointer is on the dock, its menu is open, or the pointer rests on the edge (the strip's span).
             property bool bodyIn: false
             readonly property bool menuOpen: menuKey !== ""
             readonly property bool hoverOn: vis === "hover" || (vis === "empty_desktop" && !emptyDesk)
@@ -263,17 +263,7 @@ Scope {
                 enabled: dock.hoverOn && dock.outName !== ""
                 from: dock.spanFrom
                 to: dock.spanTo
-                holdIn: dock.bodyIn || dock.menuOpen || edgeHold.held
-            }
-            EdgeHold {
-                id: edgeHold
-                output: dock.outName
-                edge: dock.edge
-                key: "dock:hold"
-                claim: reveal.enabled
-                active: reveal.revealed
-                from: dock.spanFrom
-                to: dock.spanTo
+                holdIn: dock.bodyIn || dock.menuOpen
             }
             readonly property bool revealed: reveal.revealed
             readonly property int revealMs: reveal.delayMs
@@ -387,9 +377,9 @@ Scope {
                     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
                     // The body's box at rest: a Region on the item would follow the slide's transform only on a resize, and
                     // a dock revealed after it was made hidden kept an input region off the window (measured).
-                    // Revealed on hover, the 2 px on the screen's edge stay the shared strip's (EdgeHold keeps the dock out
-                    // while the pointer rests there).
-                    readonly property int edgeCut: edgeHold.active && dock.edgeGap < 2 ? 2 - dock.edgeGap : 0
+                    // Revealed on hover, the 2 px on the screen's edge stay the shared strip's (EdgeReveal keeps the dock
+                    // out while the pointer rests there, row 524).
+                    readonly property int edgeCut: reveal.cutFor(dock.edgeGap)
                     mask: Region {
                         x: body.x + (dock.edge === "left" ? win.edgeCut : 0)
                         y: body.y

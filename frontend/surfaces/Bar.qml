@@ -20,7 +20,7 @@ import "../components/modules" as M
 // its window reaches past the bar by the fillets, which hang under its ends, and it keeps the frame's zone there.
 //
 // Visibility (K71): `always`; `hover` — out after the pointer rests on its edge (EdgeReveal: the edge's one shared strip,
-// the dwell, twice as long on an edge another output touches), back 400 ms after it left the bar, never while one of its
+// the dwell, twice as long on an edge another output touches), back 400 ms after it left the bar and the edge, never while one of its
 // menus, peeks or cards is open; `empty_desktop` — out while the output's workspace has no window, else as hover; `hidden`
 // — out only while `runtime.ui.shown` lists `bar:<edge>@<output>` (`layout.toggle`), closed by the same, Esc or a click
 // elsewhere. It slides in from its edge on the motion springs (K65; cut with reduced motion). While hidden it has no
@@ -154,20 +154,11 @@ Scope {
         enabled: bar.on && !bar.forced && (bar.visibility === "hover" || (bar.visibility === "empty_desktop" && !bar.emptyDesk))
         holdIn: bar.holdOpen
     }
-    // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus.
+    // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus;
+    // the pointer resting on the edge is EdgeReveal's (the strip stays under the bar, row 524).
     property bool pointerOn: false
     property bool focused: false
-    // The pointer that brought it out rests on the edge, inside the bar's window once it maps — but the compositor tells the
-    // window so only when it is on screen (first reveal: the window is made then). Until the window has seen the pointer
-    // come or go, or a moment after it is out, the edge's pointer holds it.
-    property bool edgeHold: false
-    Connections {
-        target: reveal
-        function onRevealedChanged() { bar.edgeHold = reveal.revealed; if (reveal.revealed) edgeHoldT.restart() }
-    }
-    onPointerOnChanged: edgeHold = false
-    property Timer edgeHoldT: Timer { interval: 1200; onTriggered: bar.edgeHold = false }
-    readonly property bool holdOpen: edgeHold || pointerOn || focused || link.busy || !!uiDoc.panel
+    readonly property bool holdOpen: pointerOn || focused || link.busy || !!uiDoc.panel
         || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
     readonly property bool wantShown: on && (visibility === "always" || forced
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
@@ -266,10 +257,16 @@ Scope {
             // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
             WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
             visible: bar.wantShown || bar.shownAmt > 0 || bar.keepsSpace || bar.carries
-            // The body's box at rest while it is out or coming out (the dock's rule): a pointer resting on the edge is inside it
-            // the moment the window maps, so the hover reveal holds; an input region that slid in with the body would only
-            // be found by the next motion.
-            mask: Region { x: body.restX; y: body.restY; width: body.shownNow ? body.width : 0; height: body.shownNow ? body.height : 0 }
+            // The body's box at rest while it is out or coming out (the dock's rule): an input region that slid in with the
+            // body would only be found by the next motion. Revealed on hover, the 2 px on the screen's edge stay the shared
+            // strip's, which keeps the bar out while the pointer rests there (EdgeReveal, row 524).
+            readonly property int edgeCut: reveal.cutFor(bar.inset)
+            mask: Region {
+                x: body.restX + (bar.edge === "left" ? win.edgeCut : 0)
+                y: body.restY + (bar.edge === "top" ? win.edgeCut : 0)
+                width: body.shownNow ? Math.max(0, body.width - (bar.vertical ? win.edgeCut : 0)) : 0
+                height: body.shownNow ? Math.max(0, body.height - (bar.vertical ? 0 : win.edgeCut)) : 0
+            }
 
             // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf); registered once
             // it is on screen (the frame's side strips wait for it).
