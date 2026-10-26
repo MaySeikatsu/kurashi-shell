@@ -796,8 +796,8 @@ bundled profiles; `managed.toml` is written by Nix and is migrated in memory the
 - `desktop.order` → `desktop.right` and `desktop.left` (cards per side, top to bottom); `desktop.side` stays as the
   side for cards neither list names; `desktop.hidden` stays.
 
-**Geometry rules** (computed in `kurashid/src/layout.rs`, a pure function of config, theme tokens and the outputs,
-unit-tested; rebuilt on config, theme and output changes, nothing polls). Every offset is measured from a screen
+**Geometry rules** (computed in the pure crate `crates/kurashi-layout` — kurashid and kurashi-mock both use it, row
+482 — from config, theme tokens and the outputs, unit-tested; PROTOCOL §3.1 lists the settled rules; rebuilt on config, theme and output changes, nothing polls). Every offset is measured from a screen
 edge, so the daemon needs no output size. `band(e)` = the frame's thickness on `e` when the frame is on and no bar
 sits flush there, else 0. A **dynamic** or **connected** component stands flush on what is under it (band, docked bar,
 or screen edge) and joins it: dynamic with concave fillets of `join_radius` (token `radius.lg`), connected with straight

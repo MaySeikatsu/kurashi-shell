@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # The web dock as a left-sidebar tab (W30, docs/ux/webdock.md "In the sidebar"), invisibly (headless sway sandbox), with
 # the REAL kurashid, the real shell and the real web host (qs-webengine), two file:// pins, no network (K37):
-#   1. the mod on, `sidebar.left = ["mod:webdock:webdock"]` accepted (the tab is offered); `sidebar.toggle {side: left}`
+#   1. the mod on, `sidebar.left.sections = ["mod:webdock:webdock"]` accepted (the tab is offered); `sidebar.toggle {side: left}`
 #      opens the sidebar on the dock's tab (sidebar-tab …=ok); the panel reports where its page area rests and the host
 #      maps its sidebar window there: the window is that area, the page fills it under the navigation row, the area spans
 #      the pane's width and reaches the pane's bottom (the full height on offer), and the page's own colour is on screen;
 #   2. a click on the second pin's key switches the page (the daemon's sidebar pin, the host's window, the colour);
 #   3. closing the sidebar unmaps the host's window (no frame afterwards), the page is frozen and stays loaded (kept);
 #   4. shots mods/webdock/shots/sidebar-washi.png and sidebar-sekai.png;
-#   5. the dock as a right-sidebar section (`sidebar.right`): the page is placed from the right edge, on screen.
+#   5. the dock as a right-sidebar section (`sidebar.right.sections`): the page is placed from the right edge, on screen.
 #   nix develop -c mods/webdock/test/test-sidebar.sh [sandbox-name]
 # Binaries: kurashid and kurashi from $KURASHI_BIN_DIR (default $CARGO_TARGET_DIR/debug or target/debug); build them with
 # `cargo build --workspace --features kurashid/test-mods` first (a plain `cargo test` replaces that kurashid).
@@ -112,8 +112,8 @@ K ping >/dev/null 2>&1 || fail "kurashid did not come up ($R/server.log)"
 K act mod.enable '{"id":"webdock"}' >/dev/null || fail "mod.enable webdock"
 K set mods.webdock.pins "[{\"id\":\"site\",\"title\":\"Site\",\"target\":\"$PAGES/site.html#sidebar\"},{\"id\":\"other\",\"title\":\"Other\",\"target\":\"$PAGES/other.html\"}]" >/dev/null \
   || fail "the pins were refused"
-K set sidebar.left '["mod:webdock:webdock"]' >/dev/null || fail "sidebar.left = [mod:webdock:webdock] was refused (the tab is not offered)"
-ok "the dock's panel is offered as a left tab (sidebar.left accepted)"
+K set sidebar.left.sections '["mod:webdock:webdock"]' >/dev/null || fail "sidebar.left.sections = [mod:webdock:webdock] was refused (the tab is not offered)"
+ok "the dock's panel is offered as a left tab (sidebar.left.sections accepted)"
 
 : > "$R/qs.log"
 env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
@@ -216,7 +216,7 @@ qml_errors
 # ---- 5. a right-sidebar section: the same page, placed from the right edge ----
 K act sidebar.close >/dev/null
 wait_window down
-K set sidebar.right '["header", "mod:webdock:webdock"]' >/dev/null || fail "sidebar.right with the dock's section was refused"
+K set sidebar.right.sections '["header", "mod:webdock:webdock"]' >/dev/null || fail "sidebar.right.sections with the dock's section was refused"
 p0=$(count 'webdock-panel place HEADLESS-1 right ' "$R/qs.log")
 K act sidebar.toggle '{"side":"right","output":"HEADLESS-1"}' >/dev/null
 wait_window up

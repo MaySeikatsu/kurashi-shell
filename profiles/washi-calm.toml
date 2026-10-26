@@ -1,5 +1,5 @@
 # Paper and ink: the washi look, airy spacing, the clock and the month on the desk.
-schema_version = 2
+schema_version = 3
 
 [theme]
 style = "washi"
