@@ -418,8 +418,9 @@ impl JobCtx {
 
 /// A background job a mod declared (`job:<name>`, I23). The daemon takes it with
 /// [`ModCtx::take_jobs`] and runs it while the mod is enabled and the bool setting `wanted_by` is
-/// true; it is cancelled when either stops. While it runs and has work ([`JobCtx::set_active`]),
-/// `reason` (an i18n key) is in the `mods` document's `running_reasons` (Settings: "Running now").
+/// true; it is cancelled when either stops. An empty `wanted_by` has no gate: the job runs while the
+/// mod is on (row 500, K73). While it runs and has work ([`JobCtx::set_active`]), `reason` (an i18n
+/// key) is in the `mods` document's `running_reasons` (Settings: "Running now").
 pub struct Job {
     pub name: String,
     pub reason: String,
@@ -582,8 +583,10 @@ impl ModCtx {
     }
 
     /// Background job `name` (I23, `job:<name>`): runs while the mod is enabled and its bool setting
-    /// `wanted_by` is true, and is cancelled when either stops. It shows in the `mods` document as
-    /// `reason` (an i18n key) while it runs, so a poll the user can see is never unreported.
+    /// `wanted_by` is true, and is cancelled when either stops. An empty `wanted_by` has no gate: the
+    /// job runs while the mod is on, and no setting of the mod is needed (row 500, K73: a deadline that
+    /// must live with no view open). It shows in the `mods` document as `reason` (an i18n key) while it
+    /// runs, so a poll the user can see is never unreported.
     pub fn background<F, Fut>(
         &mut self,
         name: &str,
@@ -911,6 +914,17 @@ mod tests {
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].name, "tick");
         assert_eq!(jobs[0].wanted_by, "on");
+        assert!(c.finish().unwrap().is_empty());
+    }
+
+    #[test]
+    fn a_job_with_an_empty_wanted_by_has_no_gate() {
+        let mut c = ctx(&["job:tick"]);
+        c.background("tick", "mods.running.tick", "", |_| async {})
+            .unwrap();
+        let jobs = c.take_jobs();
+        assert_eq!(jobs.len(), 1, "taken like a gated job");
+        assert_eq!(jobs[0].wanted_by, "", "no setting gates it");
         assert!(c.finish().unwrap().is_empty());
     }
 

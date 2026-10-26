@@ -1126,6 +1126,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-mod-timer"
+version = "0.0.1"
+dependencies = [
+ "chrono",
+ "futures-util",
+ "kurashi-mod-api",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "toml 0.8.23",
+ "tracing",
+ "zbus",
+]
+
+[[package]]
 name = "kurashi-mod-wallpaper"
 version = "0.0.1"
 dependencies = [
@@ -1290,6 +1306,7 @@ dependencies = [
  "kurashi-mod-lyrics",
  "kurashi-mod-sysmon",
  "kurashi-mod-tasks",
+ "kurashi-mod-timer",
  "kurashi-mod-wallpaper",
  "kurashi-mod-weather",
  "kurashi-mod-webdock",

@@ -1,0 +1,80 @@
+id = "timer"
+name = "Timer"
+description = "mods.timer.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+# Countdown timers and a pomodoro cycle (K73, docs/ux/timer.md). The crate registers the document `mod.timer`, the actions
+# `timer.*`, the deadline job (one daemon timer, the earliest end) and the island face's signals; the QML is every variant the
+# module ships (K72): the glance, the peek, the panel (Stage card and sidebar section), the desk card, the island face with its
+# expanded view, and the quick tile.
+provides = [
+    "service:timer",
+    "action:timer.*",
+    "job:deadline",
+    "island-face:timer",
+    "widget:timer",
+    "peek:timer",
+    "panel:timer",
+    "desk:timer",
+    "slot:quick.tiles",
+]
+# The end goes out as a notification on the session bus (the notification server the daemon serves).
+capabilities = ["dbus:session"]
+cost = "low"
+
+[[setting]]
+key = "presets"
+type = "string"
+default = "5,10,25"
+label = "mods.timer.presets"
+help = "mods.timer.presets.help"
+
+[[setting]]
+key = "focus_minutes"
+type = "int"
+default = 25
+range = [1, 180]
+unit = "min"
+label = "mods.timer.focus_minutes"
+help = "mods.timer.focus_minutes.help"
+
+[[setting]]
+key = "short_break_minutes"
+type = "int"
+default = 5
+range = [1, 60]
+unit = "min"
+label = "mods.timer.short_break_minutes"
+help = "mods.timer.short_break_minutes.help"
+
+[[setting]]
+key = "long_break_minutes"
+type = "int"
+default = 15
+range = [1, 120]
+unit = "min"
+label = "mods.timer.long_break_minutes"
+help = "mods.timer.long_break_minutes.help"
+
+[[setting]]
+key = "rounds"
+type = "int"
+default = 4
+range = [1, 12]
+label = "mods.timer.rounds"
+help = "mods.timer.rounds.help"
+
+[[setting]]
+key = "auto_advance"
+type = "bool"
+default = true
+label = "mods.timer.auto_advance"
+help = "mods.timer.auto_advance.help"
+
+[[setting]]
+key = "sound"
+type = "bool"
+default = true
+label = "mods.timer.sound"
+help = "mods.timer.sound.help"
