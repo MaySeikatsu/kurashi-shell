@@ -348,7 +348,8 @@ fi
 #    frame at rest.
 # 11. Resize (point 12): a drag of the inner edge writes sidebar.right.width on release (real kurashid), a double click
 #    resets it to the default, Ctrl+Left by 10 px a press while the column has the keyboard.
-lay() { K sub runtime.layout --count 0 --json | jq -c ".data.outputs[\"HEADLESS-1\"].sidebars.$1"; }
+# (The output's own entry, else "*": the layout for an output the daemon does not know yet.)
+lay() { K sub runtime.layout --count 0 --json | jq -c "(.data.outputs[\"HEADLESS-1\"] // .data.outputs[\"*\"]).sidebars.$1"; }
 # The column's rect the layout gives: "x,y,w,h" in output coordinates.
 want_rect() {
   local l x
@@ -507,6 +508,7 @@ if want O; then
   rule() { grep -o "BARRULE HEADLESS-1 $1 .*" "$R/qs.log" | tail -1 | sed "s/BARRULE HEADLESS-1 $1 //"; }
   opens() { grep -o "sidebar-opening $1 .*" "$R/qs.log" | tail -1 | sed "s/sidebar-opening $1 //"; }
   WL=$(lay left | jq -r .width); WR=$(lay right | jq -r .width)
+  case "$WL$WR" in *[!0-9]*|"") fail "openings: the layout gives no sidebar widths ($(lay left) $(lay right))" ;; esac
   [ "$(rule top)" = "$WL-$(( SW - WR ))" ] || fail "openings: the top rule is '$(rule top)', not $WL-$(( SW - WR )) (two openings)"
   [ "$(opens left)" = "top:0,$WL" ] && [ "$(opens right)" = "top:$(( SW - WR )),$SW" ] \
     || fail "openings: the columns publish '$(opens left)' and '$(opens right)'"
