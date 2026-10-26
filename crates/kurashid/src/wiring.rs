@@ -3097,7 +3097,9 @@ pub fn layout_globals_of(get: &dyn Fn(&str) -> Value, theme: &Value) -> kurashi_
             .as_str()
             .and_then(kurashi_layout::Draw::parse)
             .unwrap_or(kurashi_layout::Draw::Dynamic),
-        reveal_delay_ms: get("layout.reveal_delay").as_u64().map_or(250, |v| v as u32),
+        reveal_delay_ms: get("layout.reveal_delay")
+            .as_u64()
+            .map_or(250, |v| v as u32),
         gap: token("space.sm", 8),
         join_radius: token("radius.lg", 16),
         bar_size: get("bar.height").as_u64().map_or(32, |v| v as u32),
@@ -3282,7 +3284,8 @@ pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
                     .upgrade()
                     .ok_or_else(|| ActionError::Unavailable(ARGS_INVALID.into()))?;
                 let cfg = layout_output(&store, (output != "*").then_some(output.as_str()));
-                let l = kurashi_layout::output(&layout_globals(&store, &hub), &layout_mods(&hub), &cfg);
+                let l =
+                    kurashi_layout::output(&layout_globals(&store, &hub), &layout_mods(&hub), &cfg);
                 if !layout_target_ok(&l, &target)? {
                     return Err(ActionError::Invalid(LAYOUT_TARGET.into()));
                 }
@@ -3343,7 +3346,10 @@ pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
                     set(format!("edges.{t}.bar"), json!(true)),
                 ];
                 for (i, z) in kurashi_layout::ZONES.iter().enumerate() {
-                    ops.push(set(format!("edges.{t}.{z}"), json!(cfg.edges[from as usize].zones[i])));
+                    ops.push(set(
+                        format!("edges.{t}.{z}"),
+                        json!(cfg.edges[from as usize].zones[i]),
+                    ));
                     ops.push(set(format!("edges.{f}.{z}"), json!([])));
                 }
                 let done = store.apply(&ops).map_err(|errs| {

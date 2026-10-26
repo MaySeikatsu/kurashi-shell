@@ -12,7 +12,12 @@ use kurashid::config::ConfigStore;
 use kurashid::{ActionError, ActionRegistry, Daemon, Hub, Intents};
 use serde_json::{Value, json};
 
-fn open() -> (Arc<ConfigStore>, Arc<Hub>, ActionRegistry, std::path::PathBuf) {
+fn open() -> (
+    Arc<ConfigStore>,
+    Arc<Hub>,
+    ActionRegistry,
+    std::path::PathBuf,
+) {
     static N: AtomicUsize = AtomicUsize::new(0);
     let n = N.fetch_add(1, Ordering::SeqCst);
     let root = std::env::temp_dir().join(format!("kurashid-layout-{}-{n}", std::process::id()));
@@ -59,10 +64,16 @@ async fn the_layout_follows_the_config_the_theme_and_the_outputs() {
     assert_eq!(top["bar"], true);
     assert_eq!(top["holder"], "bar");
     assert_eq!(top["reserve"], 32);
-    assert_eq!(top["zones"]["center"], json!([{"id": "island", "kind": "core"}]));
+    assert_eq!(
+        top["zones"]["center"],
+        json!([{"id": "island", "kind": "core"}])
+    );
     assert_eq!(first["outputs"]["*"]["frame"]["on"], false);
     assert_eq!(first["draw"], "dynamic");
-    assert_eq!(first["outputs"]["*"]["sidebars"]["right"]["reserve_reason"], "layout.reserve.hidden");
+    assert_eq!(
+        first["outputs"]["*"]["sidebars"]["right"]["reserve_reason"],
+        "layout.reserve.hidden"
+    );
 
     // A value: the frame on one output.
     store
@@ -74,10 +85,21 @@ async fn the_layout_follows_the_config_the_theme_and_the_outputs() {
     .await;
 
     // The tokens: the theme's gap and join radius.
-    hub.register("theme", json!({"tokens": {"space.sm": 8, "radius.lg": 16}}), None);
-    hub.set("theme", json!({"tokens": {"space.sm": 6, "radius.lg": 12}}), None)
-        .unwrap();
-    eventually(&hub, "the theme's tokens", |d| d["gap"] == 6 && d["join_radius"] == 12).await;
+    hub.register(
+        "theme",
+        json!({"tokens": {"space.sm": 8, "radius.lg": 16}}),
+        None,
+    );
+    hub.set(
+        "theme",
+        json!({"tokens": {"space.sm": 6, "radius.lg": 12}}),
+        None,
+    )
+    .unwrap();
+    eventually(&hub, "the theme's tokens", |d| {
+        d["gap"] == 6 && d["join_radius"] == 12
+    })
+    .await;
 
     // An output the compositor reports.
     hub.register("svc.workspaces", json!({"outputs": {}}), None);
@@ -87,7 +109,10 @@ async fn the_layout_follows_the_config_the_theme_and_the_outputs() {
         None,
     )
     .unwrap();
-    eventually(&hub, "the new output", |d| d["outputs"].get("HDMI-A-1").is_some()).await;
+    eventually(&hub, "the new output", |d| {
+        d["outputs"].get("HDMI-A-1").is_some()
+    })
+    .await;
 
     // A mod's glance: listed by `mods` where the top bar's zones name it.
     hub.register(
@@ -114,12 +139,18 @@ async fn layout_toggle_brings_a_target_out_and_puts_it_away() {
     let (store, hub, actions, root) = open();
     let shown = || hub.snapshot("runtime.ui").unwrap().1.get("shown").cloned();
     actions
-        .invoke("layout.toggle", json!({"target": "bar:top", "output": "DP-1"}))
+        .invoke(
+            "layout.toggle",
+            json!({"target": "bar:top", "output": "DP-1"}),
+        )
         .await
         .unwrap();
     assert_eq!(shown(), Some(json!(["bar:top@DP-1"])));
     actions
-        .invoke("layout.toggle", json!({"target": "bar:top", "output": "DP-1"}))
+        .invoke(
+            "layout.toggle",
+            json!({"target": "bar:top", "output": "DP-1"}),
+        )
         .await
         .unwrap();
     assert_eq!(shown(), None, "the same toggle puts it away");
@@ -134,7 +165,11 @@ async fn layout_toggle_brings_a_target_out_and_puts_it_away() {
             "{target}"
         );
     }
-    for bad in [json!({}), json!({"target": "bar:middle"}), json!({"target": "nope"})] {
+    for bad in [
+        json!({}),
+        json!({"target": "bar:middle"}),
+        json!({"target": "nope"}),
+    ] {
         assert_eq!(
             actions.invoke("layout.toggle", bad.clone()).await,
             Err(ActionError::Invalid("error.args.invalid".into())),
@@ -155,7 +190,10 @@ async fn layout_toggle_brings_a_target_out_and_puts_it_away() {
         .await
         .unwrap();
     actions
-        .invoke("layout.toggle", json!({"target": "sidebar:right", "output": "DP-1"}))
+        .invoke(
+            "layout.toggle",
+            json!({"target": "sidebar:right", "output": "DP-1"}),
+        )
         .await
         .unwrap();
     assert_eq!(
@@ -223,7 +261,11 @@ async fn layout_bar_move_moves_the_bar_with_its_zones_in_one_undoable_change() {
 async fn the_actions_query_lists_the_layout_actions() {
     let (_store, hub, actions, root) = open();
     let daemon = Daemon::new(hub, actions, Intents::default());
-    let q = daemon.queries.get("actions").expect("the actions query").clone();
+    let q = daemon
+        .queries
+        .get("actions")
+        .expect("the actions query")
+        .clone();
     let items = q("layout.");
     let ids: Vec<&str> = items.iter().filter_map(|i| i["id"].as_str()).collect();
     assert_eq!(ids, ["layout.bar.move", "layout.toggle"]);

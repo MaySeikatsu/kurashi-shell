@@ -670,8 +670,16 @@ pub fn action_list(items: &[Value], json: bool) -> String {
         return serde_json::to_string(items).unwrap_or_default();
     }
     let field = |i: &Value, k: &str| i[k].as_str().unwrap_or_default().to_owned();
-    let id_w = items.iter().map(|i| field(i, "id").len()).max().unwrap_or(0);
-    let args_w = items.iter().map(|i| field(i, "args").chars().count()).max().unwrap_or(0);
+    let id_w = items
+        .iter()
+        .map(|i| field(i, "id").len())
+        .max()
+        .unwrap_or(0);
+    let args_w = items
+        .iter()
+        .map(|i| field(i, "args").chars().count())
+        .max()
+        .unwrap_or(0);
     items
         .iter()
         .map(|i| {
