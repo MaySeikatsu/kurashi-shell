@@ -18,14 +18,14 @@ OUT=$ROOT/mods/timer/shots
 RUNS=${RUNS:-"washi light en|washi dark en|sekai light en|washi light ja"}
 # Layout px of the 2560 x 1440 headless output (HEADLESS-1). The bar is the top strip; the Stage card sits under it, centred.
 BAR_GEOM=${BAR_GEOM:-"0,0 2560x40"}
-PEEK_GEOM=${PEEK_GEOM:-"1000,40 560x200"}
-PANEL_GEOM=${PANEL_GEOM:-"1020,30 520x1000"}
-DESK_GEOM=${DESK_GEOM:-"2200,30 360x1000"}
-ISLAND_GEOM=${ISLAND_GEOM:-"880,0 800x120"}
-ISLAND_EXPANDED_GEOM=${ISLAND_EXPANDED_GEOM:-"880,0 800x760"}
-QUICK_GEOM=${QUICK_GEOM:-"1780,30 760x860"}
-SIDEBAR_GEOM=${SIDEBAR_GEOM:-"1960,0 600x1440"}
-TOAST_GEOM=${TOAST_GEOM:-"2000,40 540x320"}
+PEEK_GEOM=${PEEK_GEOM:-"1960,40 600x220"}
+PANEL_GEOM=${PANEL_GEOM:-"2140,30 420x520"}
+DESK_GEOM=${DESK_GEOM:-"2200,470 360x300"}
+ISLAND_GEOM=${ISLAND_GEOM:-"1140,0 280x48"}
+ISLAND_EXPANDED_GEOM=${ISLAND_EXPANDED_GEOM:-"1000,0 560x560"}
+QUICK_GEOM=${QUICK_GEOM:-"2100,30 440x640"}
+SIDEBAR_GEOM=${SIDEBAR_GEOM:-"2110,0 450x1440"}
+TOAST_GEOM=${TOAST_GEOM:-"1100,36 370x130"}
 # The glance's x in the bar (layout px) for the peek; the bar's widgets sit on the right of the centre. Override per run.
 GLANCE_X=${GLANCE_X:-2300}
 mkdir -p "$OUT"
@@ -99,6 +99,9 @@ doc_is() { ipc mod.timer | python3 -c "import json,sys; d = json.load(sys.stdin)
 wait_doc() { local i; for i in $(seq "$2"); do doc_is "$1" && return 0; sleep 0.5; done; return 0; }
 # notified <text>: 0 when the notification server holds a notice whose summary or body has the text.
 notified() { ipc svc.notifications | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; t = sys.argv[1]; items = d.get('items', []); sys.exit(0 if any(t in (i.get('summary','') + ' ' + i.get('body','')) for i in items) else 1)" "$1" 2>/dev/null; }
+# toasted <text>: 0 when a notice with the text is one of the popups on screen. The document's `toasts` lists the ids of the showing
+# notices (kurashi-notify), so the items with those ids are the toasts.
+toasted() { ipc svc.notifications | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; t = sys.argv[1]; shown = set(d.get('toasts', [])); sys.exit(0 if any(i.get('id') in shown and t in (i.get('summary','') + ' ' + i.get('body','')) for i in d.get('items', [])) else 1)" "$1" 2>/dev/null; }
 shot() { # shot <name> <geometry>
   sleep "${WAIT:-2}"
   grim -g "$2" "$OUT/$1.png"
@@ -115,7 +118,7 @@ start_all() { # start_all <decor> <scheme> <locale>
 theme.style = "$1"
 theme.colors.scheme = "$2"
 desktop.enabled = true
-sidebar.sections = ["header", "mod:timer:timer"]
+sidebar.right = ["header", "mod:timer:timer"]
 TOML
   rm -f "$KURASHI_SOCKET"
   env LC_ALL="$3.UTF-8" LANG="$3.UTF-8" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
@@ -160,7 +163,8 @@ run_one() { # run_one <decor> <scheme> <locale>
   K act ui.peek '{}' >/dev/null || true
 
   echo "-- the panel (Stage card)"
-  K act mod.panel.open '{"id": "timer", "panel": "timer"}' >/dev/null || fail "mod.panel.open timer failed"
+  echo "reply: $(K act mod.panel.open '{"id": "timer", "panel": "timer"}' 2>&1 || echo "exit $?")"
+  echo "ui: $(ipc runtime.ui 2>&1 | head -c 400 || true)"
   shot "panel-$tag" "$PANEL_GEOM"
   K act ui.close '{}' >/dev/null 2>&1 || true
 
@@ -197,8 +201,18 @@ run_one() { # run_one <decor> <scheme> <locale>
   check "$(doc_is 'any(t.get("label") == "Eggs" and t.get("state") == "ended" for t in d["timers"])' && echo 1 || echo 0)" "$tag end: Eggs is ended in the document"
   sleep 1
   check "$(notified 'Eggs' && echo 1 || echo 0)" "$tag end: a notification names Eggs"
-  shot "island-end-$tag" "$ISLAND_GEOM"
-  shot "toast-end-$tag" "$TOAST_GEOM"
+  check "$(toasted 'Eggs' && echo 1 || echo 0)" "$tag end: a toast names Eggs"
+  # The toast lives about five seconds: its shots are taken right after the end, before it goes.
+  WAIT=0.5 shot "toast-end-$tag" "$TOAST_GEOM"
+  grim -g "0,0 2560x1440" "$OUT/full-end-$tag.png"
+  WAIT=0.5 shot "island-end-$tag" "$ISLAND_GEOM"
+  # The notice's "+1 min" button, pressed through the daemon (notify.invoke): the server emits ActionInvoked on the bus,
+  # and the mod's listener runs the timer's +1 min, so Eggs runs again.
+  NID=$(ipc svc.notifications | python3 -c "import json,sys; d = json.load(sys.stdin) or {}; ids = [i['id'] for i in d.get('items', []) if i.get('summary') == 'Eggs']; print(ids[-1] if ids else '')" 2>/dev/null || true)
+  echo "notice id: ${NID:-none}"
+  if [ -n "$NID" ]; then echo "invoke: $(K act notify.invoke "{\"id\": $NID, \"key\": \"add\"}" 2>&1 || echo "exit $?")"; fi
+  wait_doc 'any(t.get("label") == "Eggs" and t.get("state") == "running" for t in d.get("timers", []))' 10
+  check "$(doc_is 'any(t.get("label") == "Eggs" and t.get("state") == "running" for t in d["timers"])' && echo 1 || echo 0)" "$tag end: the notice's +1 min button runs Eggs again"
   K act timer.stop '{"id": 3}' >/dev/null 2>&1 || true
 
   echo "-- the same panel after the end, with the Tea timer still running"
@@ -211,11 +225,19 @@ run_one() { # run_one <decor> <scheme> <locale>
     stop_shell
     K act timer.start '{"seconds": 3, "label": "NoView"}' >/dev/null || fail "timer.start noview failed"
     sleep 6
+    # A subscriber's first snapshot can be the one registered at enable time: poll until the service has published.
+    wait_doc 'any(t.get("label") == "NoView" and t.get("state") == "ended" for t in d.get("timers", []))' 20
     check "$(doc_is 'any(t.get("label") == "NoView" and t.get("state") == "ended" for t in d["timers"])' && echo 1 || echo 0)" "$tag no view: the end was reconciled with no view open"
     check "$(notified 'NoView' && echo 1 || echo 0)" "$tag no view: the notification reached the server with no view open"
     echo "-- a daemon restart keeps a paused timer, and what passed is announced once"
     K act timer.start '{"minutes": 5, "label": "Rest"}' >/dev/null || fail "timer.start rest failed"
-    REST_ID=$(ipc mod.timer | python3 -c "import json,sys; d = json.load(sys.stdin); print(next(t['id'] for t in d['timers'] if t['label'] == 'Rest'))")
+    REST_ID=""
+    for _ in $(seq 20); do
+      REST_ID=$(ipc mod.timer | python3 -c "import json,sys; d = json.load(sys.stdin); print(next(t['id'] for t in d['timers'] if t['label'] == 'Rest'))" 2>/dev/null || true)
+      [ -n "$REST_ID" ] && break
+      sleep 0.5
+    done
+    [ -n "$REST_ID" ] || fail "the Rest timer is not in the document"
     K act timer.pause "{\"id\": $REST_ID}" >/dev/null || fail "timer.pause failed"
     stop_daemon
     env LC_ALL=en_US.UTF-8 DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" PULSE_SERVER="unix:$R/no-pulse/native" \
@@ -224,6 +246,7 @@ run_one() { # run_one <decor> <scheme> <locale>
     for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
     K ping >/dev/null 2>&1 || fail "kurashid did not come up after the restart"
     K act mod.enable '{"id": "timer"}' >/dev/null 2>&1 || true
+    wait_doc 'any(t.get("label") == "Rest" and t.get("state") == "paused" for t in d.get("timers", []))' 20
     check "$(doc_is 'any(t.get("label") == "Rest" and t.get("state") == "paused" for t in d["timers"])' && echo 1 || echo 0)" "$tag restart: the paused timer is still paused"
     check "$(doc_is 'any(t.get("label") == "NoView" and t.get("state") == "ended" for t in d["timers"])' && echo 1 || echo 0)" "$tag restart: the ended timer is kept, not restarted"
     start_shell
@@ -233,8 +256,9 @@ run_one() { # run_one <decor> <scheme> <locale>
   fi
 }
 
-for RUN in $RUNS; do
-  IFS=' ' read -r decor scheme locale <<< "${RUN//|/ }"
+IFS='|' read -ra runs <<< "$RUNS"
+for RUN in "${runs[@]}"; do
+  read -r decor scheme locale <<< "$RUN"
   run_one "$decor" "$scheme" "$locale"
 done
 
