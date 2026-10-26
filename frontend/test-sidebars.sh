@@ -805,12 +805,26 @@ PY
 
   # K16: 20 open/close cycles after 5 to warm up (the heap settles there: measured +70 MiB over the first five, then
   # flat within ±6 MiB); the frontend's USS after them against after the warm-up. The Stage's map/unmap leak was ~5 MiB
-  # a cycle (100 MiB here); 10 MiB allows the allocator's noise.
+  # a cycle (100 MiB here); 10 MiB allows the allocator's noise. W44: one sample swings by tens of MiB as the allocator
+  # keeps or returns freed arenas (measured 200 → 164 MiB between two cycles, flat over 180 cycles), so each side is the
+  # smallest of its last five samples.
   uss() { awk '/^Private_(Clean|Dirty):/ { s += $2 } END { print s }' "/proc/$QS_PID/smaps_rollup"; }
-  for i in $(seq 5); do open_rest right || break; close_down right || break; done
-  sleep 1; U0=$(uss)
-  for i in $(seq 20); do open_rest right || break; close_down right || break; done
-  sleep 2; U1=$(uss)
+  low=""
+  cycles() { # cycles <n>: n open/close cycles; `low` = the smallest USS after each of the last five
+    local i u; low=""
+    for i in $(seq "$1"); do
+      open_rest right || break; close_down right || break
+      if [ "$i" -gt $(( $1 - 5 )) ]; then
+        sleep 0.3; u=$(uss)
+        if [ -z "$low" ] || [ "$u" -lt "$low" ]; then low=$u; fi
+      fi
+    done
+    return 0
+  }
+  cycles 5
+  U0=$low
+  cycles 20
+  U1=$low
   echo "test-sidebars: USS after 5 warm-up cycles $((U0 / 1024)) MiB, after 20 more $((U1 / 1024)) MiB ($(( (U1 - U0) / 1024 )) MiB)"
   [ $((U1 - U0)) -le $((10 * 1024)) ] && check 1 "20 open/close cycles: USS $(( (U1 - U0) / 1024 )) MiB (≤ 10 MiB)" \
     || check 0 "20 open/close cycles grew the USS by $(( (U1 - U0) / 1024 )) MiB"
