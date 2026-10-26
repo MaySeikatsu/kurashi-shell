@@ -117,13 +117,18 @@ fn effect_v2(output: Option<&str>) -> Effect {
             }
             v.clone()
         };
-        let own = output.map(|o| walk(&doc["outputs"][o])).unwrap_or(Value::Null);
+        let own = output
+            .map(|o| walk(&doc["outputs"][o]))
+            .unwrap_or(Value::Null);
         if own.is_null() { walk(&doc) } else { own }
     };
     let enabled = pick(&["bar", "enabled"]).as_bool().unwrap_or(true);
     let edge = pick(&["bar", "edge"]).as_str().unwrap_or("top").to_owned();
     let buttons = pick(&["sidebar", "bar_buttons"]).as_bool().unwrap_or(true);
-    let side = pick(&["desktop", "side"]).as_str().unwrap_or("right").to_owned();
+    let side = pick(&["desktop", "side"])
+        .as_str()
+        .unwrap_or("right")
+        .to_owned();
     let _ = side;
     Effect {
         bar: enabled.then(|| edge.clone()),
@@ -198,7 +203,8 @@ fn a_v2_file_migrates_to_the_golden_v3_file_with_the_same_effect() {
     );
 
     let migrated = std::fs::read_to_string(paths.user_file()).unwrap();
-    let golden = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/migrated_v3.toml");
+    let golden =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/migrated_v3.toml");
     if std::env::var_os("UPDATE_GOLDEN").is_some() {
         std::fs::write(&golden, &migrated).unwrap();
     }
@@ -223,7 +229,10 @@ fn a_v2_file_migrates_to_the_golden_v3_file_with_the_same_effect() {
     drop(store);
     let again = open(&root);
     assert!(again.diagnostics().is_empty());
-    assert_eq!(std::fs::read_to_string(paths.user_file()).unwrap(), migrated);
+    assert_eq!(
+        std::fs::read_to_string(paths.user_file()).unwrap(),
+        migrated
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 
@@ -254,11 +263,7 @@ left = ["clock"]
     )
     .unwrap();
     let store = open(&root);
-    assert!(
-        store.diagnostics().is_empty(),
-        "{:?}",
-        store.diagnostics()
-    );
+    assert!(store.diagnostics().is_empty(), "{:?}", store.diagnostics());
     let v = |k: &str| store.get(k, None).unwrap().value;
     assert_eq!(v("edges.top.bar"), json!(false));
     assert_eq!(v("edges.bottom.bar"), json!(true));
@@ -274,7 +279,11 @@ left = ["clock"]
     assert_eq!(v("sidebar.left.width"), json!(420));
     assert_eq!(v("desktop.left"), json!(["clock"]));
     // The managed file is the Nix layer: never rewritten.
-    assert!(!std::fs::read_to_string(paths.managed_file()).unwrap().contains("schema_version"));
+    assert!(
+        !std::fs::read_to_string(paths.managed_file())
+            .unwrap()
+            .contains("schema_version")
+    );
     let _ = std::fs::remove_dir_all(&root);
 }
 

@@ -112,10 +112,7 @@ fn v2_to_v3(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
         .and_then(toml_edit::Item::as_table_like)
         .map(|o| o.iter().map(|(k, _)| k.to_owned()).collect())
         .unwrap_or_default();
-    if let Some(outputs) = root
-        .get("outputs")
-        .and_then(toml_edit::Item::as_table_like)
-    {
+    if let Some(outputs) = root.get("outputs").and_then(toml_edit::Item::as_table_like) {
         for (_, t) in outputs.iter() {
             if let Some(s) = t
                 .as_table_like()
@@ -210,7 +207,8 @@ fn migrate_table(
     desk_sides: &BTreeSet<String>,
 ) {
     use toml_edit::{Array, Item, value};
-    let strings = |v: &[&str]| Item::Value(toml_edit::Value::Array(Array::from_iter(v.iter().copied())));
+    let strings =
+        |v: &[&str]| Item::Value(toml_edit::Value::Array(Array::from_iter(v.iter().copied())));
 
     take(t, &["bar", "enabled"]);
     take(t, &["bar", "edge"]);

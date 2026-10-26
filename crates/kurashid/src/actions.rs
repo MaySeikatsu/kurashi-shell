@@ -150,13 +150,17 @@ mod tests {
     #[tokio::test]
     async fn the_actions_query_lists_ids_arguments_and_help() {
         let mut reg = ActionRegistry::default();
-        reg.register_with_args("layout.toggle", "action.layout.toggle", "{target, output?}", |_| async {
-            Ok(None)
-        });
+        reg.register_with_args(
+            "layout.toggle",
+            "action.layout.toggle",
+            "{target, output?}",
+            |_| async { Ok(None) },
+        );
         reg.register("island.next", "action.island.next", |_| async { Ok(None) });
         assert!(reg.describe("island.next", "{island?}"));
         assert!(!reg.describe("nope", ""));
-        let strings = serde_json::json!({"action.layout.toggle": "Show or hide a part of the layout"});
+        let strings =
+            serde_json::json!({"action.layout.toggle": "Show or hide a part of the layout"});
         let items = reg.query("", &strings);
         assert_eq!(
             items,
