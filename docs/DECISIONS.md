@@ -822,7 +822,8 @@ bar, one config per bar); the dock's own reveal rules (I137, B7).
 the bar comes out over it); a side bar's `span` comes from the daemon (the horizontal bars own the corners);
 `layout.bar.move` keeps the destination edge's own modules after the bar's; a sidebar target of `layout.toggle` is
 `sidebar.toggle` (one truth, no `shown` entry); `keys.bar_<edge>` and `keys.dock` bind `layout.toggle` (empty by
-default); `"*"` in output maps is an alias views skip.
+default); `"*"` in output maps is an alias views skip. A sidebar under a floating bar starts `gap` below it in every draw
+mode (free rounded end, `joins: none`; user decision 2026-10-26, I253 (a)) — never over the bar's end.
 
 ## K72 — modules: one id, every variant (2026-10-26, session 14; user points 8–10)
 A **module** is a placeable unit with one id: core ones (`workspaces`, `windows`, `island`, `volume`, `recorder`,
