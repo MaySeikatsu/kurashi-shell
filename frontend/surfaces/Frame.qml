@@ -28,7 +28,7 @@ import "../components/bar/framegeom.js" as FG
 // on its edge. One window and one tile sheet less per output in the default framed layout.
 //
 // The strip whose edge's holder is `frame` keeps the edge's zone (`exclusiveZone = edges.<e>.reserve`); the others ignore
-// zones. Measured in the sway sandbox (probe, W43-frame): a surface that keeps a zone is placed inside the zones of those
+// zones (ExclusionMode.Ignore, `exclusiveZone` never written: row 525). Measured in the sway sandbox (probe, W43-frame): a surface that keeps a zone is placed inside the zones of those
 // that were mapped before it, and its margin on the anchored edge is added to its zone. So: holders have margin 0 on their
 // own edge, and top and bottom (strips, or the bars carrying them) are mapped first, the sides after them — a side strip
 // that keeps its zone starts below the top holder's zone and its top margin is counted from there. niri (smithay's layer
@@ -112,7 +112,10 @@ Scope {
         color: "transparent"
         mask: Region {}
         exclusionMode: holder ? ExclusionMode.Normal : ExclusionMode.Ignore
-        exclusiveZone: holder ? host.reserveOf(edge) : 0
+        // Row 525: written only while it holds the zone. Writing `exclusiveZone` at all (even 0) turns a PanelWindow to
+        // ExclusionMode.Normal, and a non-holder was then placed inside the other holders' zones (measured: under a 32 px
+        // top bar with reserve off the side strips came out 976 px tall, 32 px below their fillets; 1008 with this).
+        Binding on exclusiveZone { when: strip.holder; value: strip.host.reserveOf(strip.edge); restoreMode: Binding.RestoreNone }
         WlrLayershell.layer: WlrLayer.Top
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "kurashi-frame"
