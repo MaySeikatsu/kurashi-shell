@@ -17,6 +17,58 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-26 — session 14 (machine A): the layout system — screen frame, draw modes, bars on every edge, edge modules, the timer — K71–K73, waves 43–45
+**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dirs
+`~/.cache/kurashi-agents-target/lead` (52 GB) and `lead-mods` (a `--features test-mods` build) are kept. The disk filled to
+100 % mid-session (old `/tmp/kurashi-sb-*` sandboxes ≈ 51 GB, agent target dirs ≈ 20 GB each): delete each card's target
+dir and its sandboxes right after its merge, and start cards with `CARGO_INCREMENTAL=0`. Nix GC'd the nixpkgs source
+while the disk was full; `nix develop --option eval-cache false` refetched it. A sandbox `dev` (sway pid 2347498,
+`/tmp/kurashi-sb-dev`) a W45 agent started by mistake may still run — the user was asked to stop it
+(`tools/bench/sandbox.sh stop dev`). The user's NixOS/HM config needs no change for schema v3 (it sets only
+`idle.enabled = false`).
+
+**User decisions (session 14):** draw preset **dynamic**; the frame reserves space by default and can be set not to;
+sidebars **slide in from their screen edge in every mode** (replaces W34's grow-from-the-button); **one bar per edge**
+(several per edge later, I221); I218 option (a) (small blocks share the window's paper grain), the rest of I216/I218 a
+refinement round; the live-session check deferred (I219); **I253 (a)**: a sidebar under a floating bar starts a gap below
+it in every draw mode (option (b), the bar shortening, only as an optional setting if cheap: I255).
+
+**Built and merged:**
+- Wave 43 (contracts K71–K73): schema v3 + `v2_to_v3` migration; `crates/kurashi-layout` computes `runtime.layout`
+  (frame bands, per-edge bars/zones/insets/holders/reserve, dock, sidebars, island, `unplaced`, `problems`) for kurashid
+  and the mock; actions `layout.toggle`, `layout.bar.move`, the `actions` query, `kurashi act --list`; the screen frame
+  (`surfaces/Frame.qml`); the timer/pomodoro mod with every K72 variant (row 500: ungated background jobs).
+- Wave 44: shared edge strips (`EdgeStrips`/`EdgeReveal`/`EdgeStripHost`); bars on every edge from the zones with every
+  bar item a module component (`components/modules/**`, `ModuleHost`), floating pill, always/hover/empty-desktop/hidden,
+  the docked bar carrying its frame strip; dock and sidebars in every draw mode, sidebars slide/hover/pin/drag-resize
+  (Ctrl+Left/Right), desk on both sides; Settings › Layout (screen diagram, zone lists, Move bar to, honest
+  "Automatic (…)", inert reasons, empty-bar warning).
+- Lead (rows 510/511/513/520/522/523/530/531): `layout.bar.move` keeps the destination's modules; `holder: bar` on a
+  framed edge a docked bar carries; a hidden bar is not the band; side bars get `span`; the mock answers `layout.toggle`;
+  `keys.bar_<edge>` / `keys.dock` (empty by default); `"*"` documented as an alias; I253 (a) (`joins: none`).
+- Wave 45: W44-follow (the Stage grows from its own bar under any bar; one reveal model — EdgeHold folded into
+  EdgeReveal, no more out/in loop on a resting pointer; frame strips stay `Ignore`; openings per side; the joined dock's
+  paper) and W45-edge (edge module groups on bar-less edges in every visibility × draw, the standalone island with
+  transient faces, peeks from the host's place, keyboard path, the clock's K72 row; a click on the bar's clock now opens
+  the island clock card).
+
+**Next steps (in order):**
+1. Rerun the deferred suites on main (I267) on a quiet machine; fix what fails first. `SIDEBARS_PARTS=bars
+   frontend/test-sidebars.sh` failed on the W44-follow branch (end column stacking) but **passed on main** after the
+   merge (lead rerun, all checks) — treat it as a load-timing flake unless it recurs.
+2. The live-session check on the user's niri (I219): bar, frame, a hover dock, a sidebar pinned, Settings › Layout.
+3. Stage work (I256): cards grow out of an edge module and out of the standalone island (rows 553, 557); then the
+   clock peek served (row 550, I257) and the edge-module overlaps (I258: peek clearance row 552, dock × group row 554,
+   frame rule under joined groups row 556).
+4. Smaller follow-ups: I259 (blank timer peek), I260, I265, I266, I245 (inner fillets where bars meet), I242–I244,
+   I250–I252, I262–I264; fullscreen (I237) before hover edges ship as a default.
+5. Budgets: reveal first frame ≤ 16.7 ms (I246); the first edge group's PSS (I261); frame + paper (I254).
+6. The refinement round the user asked for (I216, I218 rest) and the deferred features: several bars per edge (I221),
+   the redesign edit mode (I220), free desk placement (I222), I255.
+
+**Open decisions / risks:** none pending from the user. Risk: much of wave 45's suite coverage ran on branches only
+(I267). Contract rows still open: 540–543, 550–557 (see CONTRACT-CHANGE; their BACKLOG rows above).
+
 ## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material, icon subset — K61–K69, waves 32–42 (K70)
 **State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dir
 `~/.cache/kurashi-agents-target/lead` is kept. The user's NixOS config (`~/.config/nixos`, uncommitted there) now runs
@@ -239,57 +291,3 @@ stop (quick-sections counts them). Data URLs: use `encodeURIComponent`, not `Qt.
 warning that fails the QML-warning checks). Sandbox dirs may survive a run: remove fifos before `mkfifo`.
 
 ---
-
-## 2026-10-21 — session 10 (machine B): looks, daily-driver services, identity packs, adapters — K45–K52, waves 22–28
-**State:** `main` green (see "Verification" below), pushed. 13 Opus agent cards merged in waves of ≤ 2; no agent worktrees
-left. **Disk:** the machine ran full once (`target/` dirs grew to 70 GB across worktrees) — delete `target/` and agent
-worktrees' `target/` after merges; `~/.cache/kurashi-agents-target` is gone. Nothing is half-done.
-
-**User decisions (session 10):** `sekai` stays an option; every decor is a whole, distinct look and **never** a layout —
-layout lives in profiles (K45); the keycap island card joins its bar group (done); sidebar details to be discussed
-(I116); "isekai" cyberpunk decor only after the user sends inspiration (I117 — Cyberpunk presets were left out on
-purpose); first look / first-run profile offer deferred. Then: "as complete and usable as possible", copy from
-Caelestia, Noctalia, DMS, ii, shellseikatsu, WormShell where they solved it.
-
-**Built and merged:**
-- **Looks:** chrome flat/keycap/soft/line from tokens (K45); decors are files `decors/*.toml` + user packs (K50); 18
-  packs incl. 14 ports from shellseikatsu with frames and lock backdrops; Settings decor preview cards; bundled
-  look+layout profiles (`profiles/`); **app theme export** (K49: matugen-syntax templates for GTK, Qt, foot, kitty,
-  alacritty, ghostty, niri; HM `programs.kurashi.themeExport` adds the include lines).
-- **Daily driver (K47):** idle (ext-idle-notify: dim → lock → screens off → suspend) + keep-awake + media inhibit,
-  night light (wlsunset), keyboard layouts, recorder (gpu-screen-recorder/wf-recorder), screenshots, polkit dialog
-  (Quickshell PolkitAgent; never in sandboxes), rounded screen corners, power page in Settings.
-- **Mods:** tasks + notes over Markdown (K46, Obsidian Tasks syntax), lyrics (LRCLIB), calendar (ICS/vdirsyncer/feeds/
-  khal, RRULE, time zones), AI chat (Ollama first, OpenAI-compatible, Anthropic; keys from secret-tool/env only),
-  Wallhaven in the wallpaper picker; `desk:` provide for mod desk cards.
-- **Shell:** app dock (K51), desk edit mode + `desktop.order`, Settings section cards + theme-export status, launcher
-  `>` commands / web search / unit conversions / clipboard with images and pins / emoji grid / `?` keybind cheat
-  sheet, live audio levels (cava) + cover colours, greetd greeter (NixOS `services.kurashi.greeter`).
-- **Compositors (K52):** Sway and Hyprland adapters beside niri, `AnyCompositor` chosen from env; the sway sandbox now
-  runs the real adapter path.
-- **Fixed:** B31 and B33 (stale tests), the polkit agent can never run inside a sandbox, `Store.apply` (+ err path),
-  theme-export test independent of the install prefix (nix build checks).
-
-**Verification (end of session):** `just check`; `nix build .#kurashi`; `nix/tests/hm-eval.nix`; `greeter/nixos-eval.nix`;
-every frontend suite incl. new ones (power, media, desk, dock, launcher, polkit, sway adapter, greeter, ai, tasks,
-lyrics, calendar, settings, webdock, mods-live, peek, sidebars, look for 8 decors) — all green; the last full run after
-the W28 merges: check, nix build, hm-eval, greeter-eval, greeter, ai, real, look, mods-live green.
-
-**Next steps (ordered):**
-1. Show the user the session's work live (the shell on their display only when they ask): `theme.decor` packs,
-   Settings › Appearance cards, `theme.export`, quick tiles (keep awake, night light, record), dock (`dock.enabled`),
-   desk edit mode, launcher `>`/`;`/`:`/`?`, AI panel against their Ollama, calendar/tasks pointed at their files.
-2. Sidebar discussion (I116), then the isekai decor when inspiration arrives (I117).
-3. Contract follow-ups: I134 secret setting type (Wallhaven key, AI keys, calendar feeds), I127 mods following core
-   documents, I141 mods adding launcher rows (AI `!` mode), I139 capabilities published per adapter.
-4. Backlog sweep of the session's rows I118–I142 (polish), then bench: dock (+6.9 MiB hidden), desk with mod cards,
-   spectrum bars, idle service.
-
-**Open decisions (ask):** default look for new installs; should the greeter be on in the user's NixOS config; which AI
-provider/model by default; MangoWM adapter priority.
-
-**Gotchas (new):** agents' CONTRACT-CHANGE rows collide — give each card its own row range (this session: 120–223 in
-blocks). Resolving those conflicts with a regex left a `|||||||` line once: grep for markers after every merge. A
-`cd` into a worktree moves the lead's cwd. Nix builds run tests with an empty data dir: tests must read repository
-files by `CARGO_MANIFEST_DIR`. Quick-settings and web dock tests click fixed coordinates: new tiles or bar chips move
-them (update the offsets, B33).
