@@ -65,12 +65,14 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
 - Every offset is in logical px **from a screen edge**; the daemon never needs the output's size.
 - `frame`: `on`, `thickness`, `radius` (inner corners), `reserve`, and `band.<edge>` — the frame's visible thickness on
   each edge (0 where a docked bar is the band, and everywhere while the frame is off).
+  A docked bar carries its edge's frame strip (row 492 b).
 - `edges.<top|bottom|left|right>`: `bar` (a bar stands there), `size` (only with a bar), `draw` + `draw_source`
   (`auto` = followed the preset, `set` = the user's own), `visibility`, `inset` (screen edge → the surface's outer edge),
   `reserve` (this edge's whole exclusive zone, px) + `reserve_source` (+ `reserve_reason`, an i18n key, when the
   reserve is inert), `holder` (`frame | bar | dock | sidebar | module | none`: the one surface that sets the exclusive
   zone; every other surface on the edge uses `ExclusionMode.Ignore`), `zones.<start|center|end>` (ordered module
-  entries `{id, kind: core|mod, mod?, provide?}`; the pseudo id `mods` is already expanded).
+  entries `{id, kind: core|mod, mod?, provide?}`; the pseudo id `mods` is already expanded), `span.start` / `span.end`
+  (only on a left or right bar: its free length along its edge, px from the top and bottom — row 511).
 - `dock`: `on`, `edge`, `draw` + `draw_source`, `visibility`, `inset`, `reserve` + `reserve_source`, `joins`
   (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet: `join_radius` for dynamic, 0 for
   connected).
@@ -83,19 +85,22 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   entries with a `reason` (`layout.unplaced.not_listed`), so Settings can offer them back (W40 pattern); `problems`: zone
   entries that cannot be drawn (`id`, `zone`, `reason`: `layout.module.unknown`, `layout.module.mod_off`,
   `layout.module.no_glance`).
-- Rules the layout step settles (`crates/kurashi-layout`, unit-tested; row 481): `band(e)` is 0 under a docked
-  (dynamic/connected) bar of any visibility; a surface that keeps space reserves `inset + size` (bar and edge-module
+- Rules the layout step settles (`crates/kurashi-layout`, unit-tested; rows 481, 510, 511): `band(e)` is 0 under a
+  docked (dynamic/connected) bar of any visibility but `hidden` (a hidden bar comes out over the band); a surface that keeps space reserves `inset + size` (bar and edge-module
   group: `bar_size`; dock: `dock.icon_size + 16`; sidebar: `width`); `edges.<e>.reserve` is the largest of the frame's
-  band (frame on and reserving), the edge's bar or module group, the dock and the sidebar there; `holder` is `frame` on
-  every edge while the frame is on and reserves (even where its zone is 0), else the first of bar > dock > sidebar >
+  band (frame on and reserving; the frame's `thickness` under a docked bar), the edge's bar or module group, the dock
+  and the sidebar there; while the frame is on and reserves, `holder` is `bar` on an edge a docked bar carries and
+  `frame` on every other edge (even where its zone is 0), else the first of bar > dock > sidebar >
   module that keeps space, else `none`; every component whose visibility is `hidden` carries `reserve_reason:
   layout.reserve.hidden`; the dock `joins` `bar:<edge>` whenever its edge has a bar; floating components carry
   `radius: 0`; `unplaced` lists core modules before mod glances (K72 order); a floating bar's inset is `band + gap` and
-  the sidebars beside it reach the band. Mapping order matters on wlroots and niri alike (W43-frame probe): a zone
+  the sidebars beside it reach the band; a side bar's `span` runs past a top or bottom bar that is not `hidden`
+  (`inset + bar_size`), else from the band, + `gap` when the side bar floats (the horizontal bars own the corners). Mapping order matters on wlroots and niri alike (W43-frame probe): a zone
   holder is placed inside the zones of holders mapped before it, and its margin adds to its zone — holders keep margin 0
   on their own edge.
 - `runtime.ui.shown` (K71): the `hidden` components a `layout.toggle` brought out, as `"<target>@<output>"` (`bar:<edge>`,
-  `dock`, `sidebar:<side>`, `module:<edge>:<zone>`); absent when none.
+  `dock`, `module:<edge>:<zone>`); absent when none. A sidebar never appears here: `layout.toggle {target:
+  "sidebar:<side>"}` runs `sidebar.toggle` (one truth: `runtime.ui.sidebar`, row 486/520).
 
 ## 4. Intents (high-frequency interaction)
 ```json
@@ -197,7 +202,7 @@ query names one, "Settings: <page>" rows (id `settings:<page>`, a schema page or
 `settings:<page>` id sends `settings.open {page}`.
 
 Layout actions (K71): `layout.toggle {target, output?}` brings a `hidden` component out or puts it away (targets as in
-`runtime.ui.shown`; the focused output when `output` is absent; refused with `layout.error.target` for a target that is
+`runtime.ui.shown`, plus `sidebar:<side>`, which runs `sidebar.toggle {side, output?}`; the focused output when `output` is absent; refused with `layout.error.target` for a target that is
 not on that output); `layout.bar.move {from, to, output?}` moves a bar and its zones from one edge to another in one
 undoable change; modules `to` already showed on their own stay, after the bar's, so a move loses none (refused with
 `layout.error.edge_taken` when `to` has a bar). The action registry is a query:

@@ -239,6 +239,22 @@ impl State {
         &self.docs[doc].data
     }
 
+    /// The output whose workspace has the focus, as kurashid's `focused_output` (`"*"` when none).
+    fn focused_output(&self) -> String {
+        self.data("svc.workspaces")["outputs"]
+            .as_object()
+            .and_then(|o| {
+                o.iter().find_map(|(name, list)| {
+                    (name != "*"
+                        && list
+                            .as_array()
+                            .is_some_and(|l| l.iter().any(|w| w["focused"] == true)))
+                    .then(|| name.clone())
+                })
+            })
+            .unwrap_or_else(|| "*".into())
+    }
+
     /// Whether the minute ticker should run. Never under `--fixed-time`.
     pub fn clock_ticks(&self) -> bool {
         self.fixed_time.is_none()
@@ -468,9 +484,57 @@ impl State {
             "ui.close" => self.patch(
                 "runtime.ui",
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null,
-                       "sidebar": null, "sidebar_output": null}),
+                       "sidebar": null, "sidebar_output": null, "shown": null}),
                 None,
             ),
+            // K71, as kurashid (rows 513, 523): a `hidden` component out or away as `<target>@<output>` in
+            // `runtime.ui.shown`; a sidebar target is `sidebar.toggle`. The output defaults to the focused one.
+            "layout.toggle" => {
+                let target = args["target"]
+                    .as_str()
+                    .filter(|t| !t.is_empty())
+                    .ok_or_else(|| Fail::invalid(ARGS_INVALID))?
+                    .to_owned();
+                let named = match args.get("output") {
+                    None => None,
+                    Some(Value::String(o)) if !o.is_empty() => Some(o.clone()),
+                    Some(_) => return Err(Fail::invalid(ARGS_INVALID)),
+                };
+                if let Some(side) = target.strip_prefix("sidebar:") {
+                    let mut a = json!({"side": side});
+                    if let Some(o) = &named {
+                        a["output"] = json!(o);
+                    }
+                    return self.act("sidebar.toggle", &a);
+                }
+                let output = named.unwrap_or_else(|| self.focused_output());
+                let outs = &self.data("runtime.layout")["outputs"];
+                let l = if outs[&output].is_object() { &outs[&output] } else { &outs["*"] };
+                let parts: Vec<&str> = target.split(':').collect();
+                let zone = |e: &str, z: &str| &l["edges"][e]["zones"][z];
+                let ok = match parts.as_slice() {
+                    ["bar", e @ ("top" | "bottom" | "left" | "right")] => l["edges"][*e]["bar"] == true,
+                    ["dock"] => l["dock"]["on"] == true,
+                    ["module", e @ ("top" | "bottom" | "left" | "right"), z @ ("start" | "center" | "end")] => {
+                        l["edges"][*e]["bar"] != true && zone(e, z).as_array().is_some_and(|v| !v.is_empty())
+                    }
+                    _ => return Err(Fail::invalid(ARGS_INVALID)),
+                };
+                if !ok {
+                    return Err(Fail::invalid("layout.error.target"));
+                }
+                let entry = format!("{target}@{output}");
+                let mut list: Vec<Value> =
+                    self.data("runtime.ui")["shown"].as_array().cloned().unwrap_or_default();
+                match list.iter().position(|v| v == entry.as_str()) {
+                    Some(i) => {
+                        list.remove(i);
+                    }
+                    None => list.push(json!(entry)),
+                }
+                let shown = if list.is_empty() { Value::Null } else { Value::Array(list) };
+                self.patch("runtime.ui", json!({"shown": shown}), None);
+            }
             // K47 (5), as kurashid: the polkit agent's dialog is up or gone; `ui.close` keeps it.
             "ui.polkit" => {
                 let active = args["active"]
@@ -1551,6 +1615,38 @@ mod tests {
         st.act("ui.close", &none()).unwrap();
         assert_eq!(st.data("runtime.ui"), &closed);
         assert!(st.act("sidebar.toggle", &json!({"side": "top"})).is_err());
+    }
+
+    #[test]
+    fn layout_toggle_lists_a_target_in_shown_and_a_sidebar_target_is_the_sidebar() {
+        let mut st = state();
+        let shown = |st: &State| st.data("runtime.ui")["shown"].clone();
+        let out = st.focused_output();
+        st.act("layout.toggle", &json!({"target": "bar:top"}))
+            .unwrap();
+        assert_eq!(shown(&st), json!([format!("bar:top@{out}")]));
+        st.act("layout.toggle", &json!({"target": "bar:top"}))
+            .unwrap();
+        assert_eq!(shown(&st), Value::Null);
+        // No bar on the left edge: refused, as kurashid.
+        assert!(
+            st.act("layout.toggle", &json!({"target": "bar:left"}))
+                .is_err()
+        );
+        assert!(
+            st.act("layout.toggle", &json!({"target": "nonsense"}))
+                .is_err()
+        );
+        // A sidebar target runs sidebar.toggle; no shown entry.
+        st.act("layout.toggle", &json!({"target": "sidebar:right"}))
+            .unwrap();
+        assert_eq!(st.data("runtime.ui")["sidebar"], "right");
+        assert_eq!(shown(&st), Value::Null);
+        // ui.close puts every shown component away.
+        st.act("layout.toggle", &json!({"target": "bar:top"}))
+            .unwrap();
+        st.act("ui.close", &json!({})).unwrap();
+        assert_eq!(shown(&st), Value::Null);
     }
 
     #[test]
