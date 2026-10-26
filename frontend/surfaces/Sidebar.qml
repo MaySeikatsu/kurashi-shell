@@ -171,17 +171,7 @@ Scope {
                 enabled: col.hoverOn && !col.toggledHere && col.out !== ""
                 from: col.spanStart
                 to: col.sh - col.spanEnd
-                holdIn: col.pointerIn || col.focusHeld || col.resizing || edgeHold.held
-            }
-            EdgeHold {
-                id: edgeHold
-                output: col.out
-                edge: sb.side
-                key: "sidebar:" + sb.side + ":hold"
-                claim: reveal.enabled
-                active: reveal.revealed
-                from: col.spanStart
-                to: col.sh - col.spanEnd
+                holdIn: col.pointerIn || col.focusHeld || col.resizing
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
             // The window exists: out, sliding in or out.
@@ -434,10 +424,10 @@ Scope {
                         HoverHandler { id: shapeHover; onHoveredChanged: col.pointerIn = hovered || gripHover.hovered }
                     }
                     // The column's input: all of it, but the 2 px on the screen's edge while it came out on hover (the
-                    // shared strip keeps the pointer there: EdgeHold).
+                    // shared strip keeps the pointer there: EdgeReveal, row 524).
                     Item {
                         id: inputRect
-                        readonly property int cut: edgeHold.active && col.inset < 2 ? 2 - col.inset : 0
+                        readonly property int cut: reveal.cutFor(col.inset)
                         x: shapeRect.x + (sb.side === "left" ? cut : 0)
                         y: shapeRect.y
                         width: Math.max(0, shapeRect.width - cut)

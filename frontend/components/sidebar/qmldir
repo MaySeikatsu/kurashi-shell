@@ -9,4 +9,3 @@ LeftColumn 1.0 LeftColumn.qml
 Placement 1.0 Placement.qml
 ColumnShape 1.0 ColumnShape.qml
 singleton SidebarGeom 1.0 SidebarGeom.qml
-EdgeHold 1.0 EdgeHold.qml
