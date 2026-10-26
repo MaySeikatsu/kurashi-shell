@@ -2052,10 +2052,13 @@ impl ConfigStore {
                         return Err(ActionError::Invalid(UNKNOWN_KEY.into()));
                     }
                     (Some(k), _) => SettingsTarget::Key(k),
-                    (None, Some(p)) if !me.has_settings_page(&p) => {
-                        return Err(ActionError::Invalid(SETTINGS_UNKNOWN_PAGE.into()));
+                    (None, Some(p)) => {
+                        let p = settings_page_alias(&p).to_owned();
+                        if !me.has_settings_page(&p) {
+                            return Err(ActionError::Invalid(SETTINGS_UNKNOWN_PAGE.into()));
+                        }
+                        SettingsTarget::Page(p)
                     }
-                    (None, Some(p)) => SettingsTarget::Page(p),
                     (None, None) => SettingsTarget::Window,
                 };
                 // Probing and starting block (a `qs` call that waits for its reply): off the runtime.
@@ -2141,6 +2144,18 @@ pub enum SettingsTarget {
     Page(String),
 }
 
+/// Page ids Settings no longer has, with the page that took their place (I241): `bar`, the bar's page before K71 moved
+/// the bar's settings into `layout`, opens `layout`.
+const SETTINGS_PAGE_ALIASES: [(&str, &str); 1] = [("bar", "layout")];
+
+/// The page `settings.open {page}` opens for the id it names: a renamed page's old id maps to its new one.
+pub fn settings_page_alias(page: &str) -> &str {
+    SETTINGS_PAGE_ALIASES
+        .iter()
+        .find(|(old, _)| *old == page)
+        .map_or(page, |(_, new)| new)
+}
+
 /// The first executable `name` on `path`.
 fn find_program(name: &str, path: &OsStr) -> Option<PathBuf> {
     std::env::split_paths(path)
@@ -2195,6 +2210,16 @@ fn reap(mut child: Child) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// I241: `settings.open {page: "bar"}` opens `layout`; every other page keeps its id, a mod's page included.
+    #[test]
+    fn the_bar_page_opens_layout() {
+        assert_eq!(settings_page_alias("bar"), "layout");
+        assert_eq!(settings_page_alias("keys"), "keys");
+        assert_eq!(settings_page_alias("layout"), "layout");
+        assert_eq!(settings_page_alias("mod:bar"), "mod:bar");
+        assert_eq!(settings_page_alias("mods.bar"), "mods.bar");
+    }
 
     /// A schema with one loaded mod `pics` and its free lists (I54): `folders` holds paths
     /// (`unit = "path"`), `tags` any strings; `pick` has fixed choices.

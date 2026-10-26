@@ -62,6 +62,29 @@ this branch, both against the same daemon in one run.
   drop (`KURASHI_BAR_DROP=1`) 194.9 → 191.0 — unchanged from W44-bar. While a hover surface is out its edge strip now stays
   (a 4 px input-only layer window); the dock and the sidebars kept theirs already (EdgeHold), the bars now too.
 
+### 2026-10-26 — W45 edge modules: idle at rest, PSS per shown group (machine A, loaded: W44-follow ran beside; K71, K72)
+`frontend/test-edge-modules.sh` (sandbox `w45-edge-test`, headless sway gles2, one 1920×1080 output), the real kurashid
+(debug, the card's target dir) with `idle.enabled = false` and the calm motion profile, frontend `qs -p` directly; the default
+top bar, the timer mod on, the fixture's bottom-centre timer group (`edges.bottom.center = ["mod:timer:timer"]`, always) with
+the frame off. Load average ≈ 1.4–2 (another agent's sandbox): the PSS numbers are labelled loaded.
+
+| | washi | sekai |
+|---|---|---|
+| idle, always groups (bottom timer, right clock + volume), 10 s between minutes | **0 commits** | **0 commits** |
+| idle, the same groups on hover, at rest (no window, the edge strips only) | **0 commits** | **0 commits** |
+| PSS Δ, one always group, toggled live (one frontend, 4 pairs) | +1.33 / +0.91 / −0.78 / +1.07 | −5.22 / +3.55 / +0.06 / +8.59 |
+| PSS Δ, fresh frontends started with / without the group (4 pairs) | +5.40 / +7.05 / +17.14 / +5.65 | +40.79 / +6.29 / +7.00 / +5.61 |
+
+- **Budget (docs/ux/edge-modules.md: ≤ +3 MiB per shown group): met when a group comes and goes in a running shell (median
+  ≈ +1 MiB washi), not met for the first group of a fresh frontend (median ≈ +5.5–6.5 MiB, outliers aside)**: that one pays a
+  layer window's floor (~3.5 MiB, I11) and the timer widget's first load. A window as wide as the group instead of the whole
+  edge (bench variant, 4 fresh pairs, washi): +7.18 / +5.13 / +2.59 / +5.42 — about 0.7 MiB less; not taken (a top or bottom
+  group's window spans its edge so the origins it registers for the Stage are in output px, as a bar's).
+- A hover group at rest has no window and no loaded module (its zone's third of the edge's shared strip is all), so its cost
+  at rest is the strip's (EdgeStrips, shared with every hover consumer on that edge).
+- Not measured: the reveal's first frame (≤ 16.7 ms budget) — the window is made at the reveal (debug build: the layer
+  surface maps ~250 ms after the dwell ends); a release-build measure is open.
+
 ### 2026-10-26 — W44 bar: bars from the zones, the docked bar carries its frame strip (row 492 b), idle, the hidden bar's window (machine A; K71, K72)
 `frontend/test-bars.sh` (sandbox `w44-bar-test`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
 card's target dir) with `idle.enabled = false` and the calm motion profile; frontend `qs -p` directly. "ref" is main's frontend

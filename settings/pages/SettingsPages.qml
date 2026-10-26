@@ -60,10 +60,12 @@ Flickable {
         function onSchemaChanged() { p.refreshStructure() }
     }
 
+    // Settings › Layout: the edge whose section shows under the screen (K71; LayoutScreen picks it, the page keeps it).
+    property string layoutEdge: "top"
     // Related pages (UX brief, settings 7): the pages whose settings act on this one's, when they exist.
     readonly property var relatedPages: {
         var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility"],
-                  accessibility: ["appearance"], bar: ["appearance"] }
+                  accessibility: ["appearance"], layout: ["dock", "sidebar"], dock: ["layout"], sidebar: ["layout"] }
         var ps = p.structure
         return (m[p.pageId] || []).filter(function (id) {
             return ps.some(function (x) { return x.id === id })
@@ -94,11 +96,12 @@ Flickable {
                                        "sidebar.from_bar": cSidebarOpen, "theme.texture.kind": cTextureCards,
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
                                        "theme.light.color": cLightSwatches, "theme.material.shadow": cShadowPreview,
-                                       "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus })
+                                       "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus,
+                                       "layout.draw": cDrawModes })
     // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
     // dropdown (SettingRow.picker), with the provenance line under them.
     readonly property var pickers: ({ "theme.texture.kind": true, "theme.colors.ink": true, "theme.light.color": true,
-                                      "theme.texture.wallpaper.kind": true })
+                                      "theme.texture.wallpaper.kind": true, "layout.draw": true })
     // A document shown only while a switch is on (key -> the bool key): the wallpaper's own material cards (K61) show
     // while "Own material for the wallpaper" is on, and leave the row as a plain dropdown otherwise.
     readonly property var extraWhen: ({ "theme.texture.wallpaper.kind": "theme.texture.wallpaper.own" })
@@ -133,6 +136,25 @@ Flickable {
     Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
     Component { id: cKeysStatus; KeysStatus {} }
     Component { id: cShortcut; ShortcutRecorder {} }
+    Component { id: cDrawModes; DrawModes {} }
+    // The note under the selected edge's header when its bar has no modules (Settings › Layout; EmptyBarNote).
+    Component {
+        id: cEmptyBar
+        EmptyBarNote {
+            edge: p.layoutEdge
+            output: p.output
+        }
+    }
+    // The screen of Settings › Layout (its own Loader: the layout document is watched only while it is shown, Ma).
+    Component {
+        id: cLayoutScreen
+        LayoutScreen {
+            width: parent.width
+            output: p.output
+            edge: p.layoutEdge
+            onEdgePicked: e => p.layoutEdge = e
+        }
+    }
 
     contentWidth: width
     contentHeight: col.implicitHeight + Theme.pad * 2
@@ -162,8 +184,9 @@ Flickable {
                 rowsByKey[r.key] = r
                 if (q === "" && Store.isPackRow(r)) (p.packCompanions[r.choices_from] || []).forEach(function (k) { taken[k] = true })
             }) })
-            for (var j = 0; j < pages[i].sections.length; j++) {
-                var s = pages[i].sections[j]
+            var sections = q === "" && pages[i].id === "layout" ? p.layoutSections(pages[i].sections) : pages[i].sections
+            for (var j = 0; j < sections.length; j++) {
+                var s = sections[j]
                 var rows = s.rows.filter(function (r) {
                     return (p.showAdvanced || !r.advanced || q !== "") && matches(r, q)
                 })
@@ -184,6 +207,16 @@ Flickable {
         }
         return out
     }
+    // Settings › Layout shows one edge at a time (K71): the selected edge's section comes first, under the screen, and the
+    // other edges' sections are left out. The rest keep the schema's order. Not a filter on values: the list changes only
+    // with the selected edge, so a value change does not rebuild the rows.
+    function layoutSections(list) {
+        const want = p.layoutEdge + "_edge"
+        const first = list.filter(function (s) { return s.id === want })
+        return first.concat(list.filter(function (s) { return s.id !== want && !/_edge$/.test(s.id) }))
+    }
+    // The settings test (W44): whether an item named so is on the page.
+    function present(name) { return findNamed(col, name) !== null }
     // How many settings a search looked through (the empty-search line names its scope, UX brief "empty search").
     readonly property int scopeCount: Store.allRows().length
 
@@ -371,6 +404,13 @@ Flickable {
             modId: p.modId
             onPageRequested: id => p.pageRequested(id)
         }
+        // Settings › Layout: the screen with the edges, above the selected edge's section (LayoutScreen). Only on that page.
+        Loader {
+            width: col.width
+            active: !p.searching && p.pageId === "layout"
+            visible: active
+            sourceComponent: cLayoutScreen
+        }
         Text {
             visible: p.view.length === 0
             width: col.width
@@ -453,6 +493,14 @@ Flickable {
                         header: !p.searching
                         title: I18n.tr(modelData.label)
                         icon: p.sectionIcon(pageOf, modelData.id)
+                        // Settings › Layout: the selected edge's bar with no modules says so, under the section's header (UX brief,
+                        // docs/ux/layout.md "States"). Only that section, and only on the page.
+                        Loader {
+                            width: sec.width - 2 * Theme.pad
+                            active: pageOf === "layout" && !p.searching && modelData.id === p.layoutEdge + "_edge"
+                            visible: active
+                            sourceComponent: cEmptyBar
+                        }
                         Repeater {
                             model: sec.modelData.rows
                             delegate: Column {

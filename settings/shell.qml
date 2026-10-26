@@ -329,6 +329,11 @@ ShellRoot {
             function resetToStyle(): void { settingsPages.resetToStyle() }
             function scrollTo(name: string): void { settingsPages.scrollTo(name) }
             function appearance(): string { return JSON.stringify(Store.theme.appearance || null) }
+            // The output picker's names (I241: no "*" alias), the edge Settings › Layout shows, and whether an item named so is on
+            // the page (the layout screen's strips, radio and selectors).
+            function outputs(): string { return Store.outputNames().join(",") }
+            function layoutEdge(): string { return settingsPages.layoutEdge }
+            function present(name: string): string { return settingsPages.present(name) ? "yes" : "no" }
         }
 
         // The material (K63; K59, K61): the shell's own Relief (linked from frontend/), under each opaque surface's content —

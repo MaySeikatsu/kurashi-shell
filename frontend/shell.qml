@@ -76,6 +76,12 @@ ShellRoot {
             }
         }
     }
+    // The edge modules of each output (K71, K72, docs/ux/edge-modules.md): every non-empty zone of an edge without a bar is
+    // a group pinned to that edge, mapped after the bars and the frame (a zone-holding group is placed inside their zones).
+    Variants {
+        model: Quickshell.screens
+        delegate: EdgeModules { id: edgeMods; onTrayMenuRequested: id => root.openTray(id, edgeMods.modelData) }
+    }
     // The mods' own surfaces (K38, row 88): every enabled mod's `surface:<name>`, once per output, with that output as its
     // `screen` (a required property at creation, so ModLoader, which hands in only the core singletons, does not fit).
     // They live as long as their mod: the list changes only when its content does (a Repeater would rebuild them all).
