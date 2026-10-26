@@ -38,8 +38,9 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 9] = [
+pub const CORE_SOURCES: [&str; 10] = [
     "actions",
+    "modules",
     "palettes",
     "icon_themes",
     "island.faces",
@@ -52,11 +53,18 @@ pub const CORE_SOURCES: [&str; 9] = [
 
 /// The config files' migrations (user file, profiles, managed.toml; `schema_version`).
 pub fn migrations() -> Vec<kurashi_config::Migration> {
-    vec![kurashi_config::Migration {
-        from: 1,
-        to: 2,
-        apply: v1_to_v2,
-    }]
+    vec![
+        kurashi_config::Migration {
+            from: 1,
+            to: 2,
+            apply: v1_to_v2,
+        },
+        kurashi_config::Migration {
+            from: 2,
+            to: 3,
+            apply: v2_to_v3,
+        },
+    ]
 }
 
 /// K53: `theme.decor` (a whole look, K42/K50) became `theme.style`; every bundled decor is a style of the same name,
@@ -68,6 +76,239 @@ fn v1_to_v2(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
         theme.insert("style", item);
     }
     Ok(())
+}
+
+/// K71: one bar per edge, a screen frame, draw modes, one reveal model. Runs on the root and on every
+/// `[outputs.<name>]` table. A file without `schema_version` reads as v1 and runs every migration — Home-Manager's
+/// `managed.toml` has none and may already use the v3 names — so keys already in the new shape are left as they are and
+/// a new key is only written where the file has none.
+/// - `bar.enabled = false` → no edge has a bar (and that edge's zones are written empty: an edge without a bar shows
+///   its zones as edge modules, so the screen stays as it was); `bar.edge = E` (≠ top) → `edges.E.bar`, E's zones
+///   are the top bar's, the top's written empty. An output table writes only what differs from the root's result.
+/// - `sidebar.bar_buttons = false` → the zones are written without `sidebar_left` / `sidebar_right`.
+/// - `dock.autohide = false` → `dock.visibility = "always"` (true was what `empty_desktop`, the default, does).
+/// - `sidebar.style = "floating"` → both sides `draw = "floating"`; `sidebar.width` → both widths;
+///   `sidebar.right` / `sidebar.left` (lists) → `.sections`.
+/// - `desktop.order` → `desktop.<side>` (the side the cards stand on; the other side's list too when an output puts
+///   them there).
+fn v2_to_v3(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    let root = doc.as_table_mut();
+    let buttons = match take(root, &["sidebar", "bar_buttons"]) {
+        Some(item) => item.as_bool().unwrap_or(true),
+        None => true,
+    };
+    let root_enabled = get(root, &["bar", "enabled"]).and_then(toml_edit::Item::as_bool);
+    let root_edge = get(root, &["bar", "edge"])
+        .and_then(toml_edit::Item::as_str)
+        .map(str::to_owned);
+    // The outputs' desk sides, so an order moves to every list a desk reads.
+    let root_side = get(root, &["desktop", "side"])
+        .and_then(toml_edit::Item::as_str)
+        .unwrap_or("right")
+        .to_owned();
+    let mut sides = BTreeSet::from([root_side.clone()]);
+    let output_names: Vec<String> = root
+        .get("outputs")
+        .and_then(toml_edit::Item::as_table_like)
+        .map(|o| o.iter().map(|(k, _)| k.to_owned()).collect())
+        .unwrap_or_default();
+    if let Some(outputs) = root
+        .get("outputs")
+        .and_then(toml_edit::Item::as_table_like)
+    {
+        for (_, t) in outputs.iter() {
+            if let Some(s) = t
+                .as_table_like()
+                .and_then(|t| get(t, &["desktop", "side"]))
+                .and_then(toml_edit::Item::as_str)
+            {
+                sides.insert(s.to_owned());
+            }
+        }
+    }
+
+    let defaults = BarState::defaults();
+    let root_state = BarState::of(root_enabled.unwrap_or(true), root_edge.as_deref(), buttons);
+    migrate_table(root, &defaults, &root_state, &sides);
+    for name in output_names {
+        let Some(t) = root
+            .get_mut("outputs")
+            .and_then(toml_edit::Item::as_table_like_mut)
+            .and_then(|o| o.get_mut(&name))
+            .and_then(toml_edit::Item::as_table_like_mut)
+        else {
+            continue;
+        };
+        let enabled = get(t, &["bar", "enabled"]).and_then(toml_edit::Item::as_bool);
+        let edge = get(t, &["bar", "edge"])
+            .and_then(toml_edit::Item::as_str)
+            .map(str::to_owned);
+        let state = BarState::of(
+            enabled.or(root_enabled).unwrap_or(true),
+            edge.as_deref().or(root_edge.as_deref()),
+            buttons,
+        );
+        let own_side = get(t, &["desktop", "side"])
+            .and_then(toml_edit::Item::as_str)
+            .unwrap_or(&root_side)
+            .to_owned();
+        migrate_table(t, &root_state, &state, &BTreeSet::from([own_side]));
+    }
+    Ok(())
+}
+
+/// Where the bar stands and what each edge's zones hold, as v2 had it (for the root, and per output).
+#[derive(PartialEq)]
+struct BarState {
+    bar: Option<&'static str>,
+    zones: BTreeMap<&'static str, [Vec<&'static str>; 3]>,
+}
+
+impl BarState {
+    const EDGES: [&'static str; 4] = ["top", "bottom", "left", "right"];
+
+    /// What v3's defaults say: a top bar with today's modules.
+    fn defaults() -> Self {
+        Self::of(true, None, true)
+    }
+
+    fn of(enabled: bool, edge: Option<&str>, buttons: bool) -> Self {
+        use kurashi_schema::v1::{TOP_CENTER, TOP_END, TOP_START};
+        let bar = enabled.then(|| {
+            Self::EDGES
+                .into_iter()
+                .find(|e| Some(*e) == edge)
+                .unwrap_or("top")
+        });
+        let keep = |id: &&str| buttons || (*id != "sidebar_left" && *id != "sidebar_right");
+        let bar_zones = [
+            TOP_START.iter().copied().filter(keep).collect(),
+            TOP_CENTER.to_vec(),
+            TOP_END.iter().copied().filter(keep).collect(),
+        ];
+        let zones = Self::EDGES
+            .into_iter()
+            .map(|e| {
+                let z = if Some(e) == bar {
+                    bar_zones.clone()
+                } else {
+                    Default::default()
+                };
+                (e, z)
+            })
+            .collect();
+        Self { bar, zones }
+    }
+}
+
+/// Rewrites one table (the root or an output's) from v2 to v3. `inherited` is what the table gets without writing
+/// anything (the schema's defaults for the root, the root's result for an output); `want` what v2 had in effect there.
+fn migrate_table(
+    t: &mut dyn toml_edit::TableLike,
+    inherited: &BarState,
+    want: &BarState,
+    desk_sides: &BTreeSet<String>,
+) {
+    use toml_edit::{Array, Item, value};
+    let strings = |v: &[&str]| Item::Value(toml_edit::Value::Array(Array::from_iter(v.iter().copied())));
+
+    take(t, &["bar", "enabled"]);
+    take(t, &["bar", "edge"]);
+    take(t, &["sidebar", "bar_buttons"]);
+    for e in BarState::EDGES {
+        let has = |s: &BarState| s.bar == Some(e);
+        if has(inherited) != has(want) {
+            put(t, &["edges", e, "bar"], value(has(want)));
+        }
+        for (i, zone) in ["start", "center", "end"].into_iter().enumerate() {
+            let (a, b) = (&inherited.zones[e][i], &want.zones[e][i]);
+            if a != b {
+                put(t, &["edges", e, zone], strings(b));
+            }
+        }
+    }
+
+    if let Some(item) = take(t, &["dock", "autohide"])
+        && item.as_bool() == Some(false)
+    {
+        put(t, &["dock", "visibility"], value("always"));
+    }
+    // The lists first: they become the tables the other sidebar keys go into.
+    for side in ["right", "left"] {
+        if get(t, &["sidebar", side]).is_some_and(Item::is_array)
+            && let Some(list) = take(t, &["sidebar", side])
+        {
+            put(t, &["sidebar", side, "sections"], list);
+        }
+    }
+    if let Some(style) = take(t, &["sidebar", "style"])
+        && style.as_str() == Some("floating")
+    {
+        for side in ["right", "left"] {
+            put(t, &["sidebar", side, "draw"], value("floating"));
+        }
+    }
+    if get(t, &["sidebar", "width"]).is_some_and(|i| i.as_integer().is_some())
+        && let Some(width) = take(t, &["sidebar", "width"])
+    {
+        for side in ["right", "left"] {
+            put(t, &["sidebar", side, "width"], width.clone());
+        }
+    }
+    if get(t, &["desktop", "order"]).is_some_and(Item::is_array)
+        && let Some(order) = take(t, &["desktop", "order"])
+    {
+        for side in desk_sides {
+            put(t, &["desktop", side.as_str()], order.clone());
+        }
+    }
+}
+
+/// The item at `path` (a dotted key, a `[table]` or an inline table alike).
+fn get<'a>(t: &'a dyn toml_edit::TableLike, path: &[&str]) -> Option<&'a toml_edit::Item> {
+    let (last, parents) = path.split_last()?;
+    let mut cur = t;
+    for p in parents {
+        cur = cur.get(p)?.as_table_like()?;
+    }
+    cur.get(last)
+}
+
+/// Removes the item at `path`; a table it leaves empty goes too.
+fn take(t: &mut dyn toml_edit::TableLike, path: &[&str]) -> Option<toml_edit::Item> {
+    let (first, rest) = path.split_first()?;
+    if rest.is_empty() {
+        return t.remove(first);
+    }
+    let child = t.get_mut(first)?.as_table_like_mut()?;
+    let out = take(child, rest);
+    if out.is_some() && child.is_empty() {
+        t.remove(first);
+    }
+    out
+}
+
+/// Writes `item` at `path` unless something is there already (a file may hold the new shape: it wins). Missing tables
+/// are created; a path through a value that is not a table is left alone.
+fn put(t: &mut dyn toml_edit::TableLike, path: &[&str], item: toml_edit::Item) {
+    let Some((last, parents)) = path.split_last() else {
+        return;
+    };
+    let mut cur = t;
+    for p in parents {
+        if !cur.contains_key(p) {
+            let mut table = toml_edit::Table::new();
+            table.set_implicit(true);
+            cur.insert(p, toml_edit::Item::Table(table));
+        }
+        let Some(next) = cur.get_mut(p).and_then(toml_edit::Item::as_table_like_mut) else {
+            return;
+        };
+        cur = next;
+    }
+    if !cur.contains_key(last) {
+        cur.insert(last, item);
+    }
 }
 /// The right sidebar's core sections (W29, docs/ux/sidebar.md), offered before the mods' panels.
 const SIDEBAR_SECTIONS: [&str; 6] = [
@@ -322,8 +563,23 @@ fn offers_now(
     hub: &Hub,
     mod_faces: &BTreeMap<String, String>,
     mod_panels: &[Offer],
+    mod_widgets: &[Offer],
 ) -> BTreeMap<String, Vec<Offer>> {
     let mut offers = BTreeMap::new();
+    // K72: what an edge's zones may list — the core modules, every loaded mod's glance (`widget:`), and `mods` for the
+    // enabled mod widgets no zone names.
+    offers.insert(
+        "modules".to_string(),
+        kurashi_layout::CORE_MODULES
+            .iter()
+            .map(|m| Offer::on(m, format!("layout.module.{m}")))
+            .chain(mod_widgets.iter().cloned())
+            .chain(std::iter::once(Offer::on(
+                kurashi_layout::MODS,
+                "layout.module.mods".into(),
+            )))
+            .collect(),
+    );
     // W29: the right sidebar's sections and the left sidebar's tabs.
     offers.insert(
         "sidebar.sections".to_string(),
@@ -438,6 +694,8 @@ struct ModSettings {
     faces: Vec<String>,
     /// The panels it provides (`panel:<name>`): sidebar tabs and sections (W29).
     panels: Vec<String>,
+    /// Its glances (`widget:<name>`): modules for the edges' zones (K72).
+    widgets: Vec<String>,
 }
 
 impl ModTable {
@@ -462,6 +720,14 @@ impl ModTable {
                         _ => None,
                     })
                     .collect();
+                let widgets = m
+                    .provides
+                    .iter()
+                    .filter_map(|p| match p {
+                        Provide::Widget(name) => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
                 Some(ModSettings {
                     id: m.id.clone(),
                     name: m.name.clone(),
@@ -470,6 +736,7 @@ impl ModTable {
                     keys: m.settings.iter().map(|s| setting_meta(m, s)).collect(),
                     faces,
                     panels,
+                    widgets,
                 })
             })
             .collect();
@@ -493,6 +760,24 @@ impl ModTable {
             .flat_map(|m| {
                 m.panels.iter().map(move |p| Offer {
                     value: format!("mod:{}:{p}", m.id),
+                    label: m.name.clone(),
+                    enabled: m.enabled,
+                    reason: (!m.enabled).then(|| REASON_MOD_DISABLED.to_string()),
+                    group: None,
+                })
+            })
+            .collect()
+    }
+
+    /// Every loaded mod's glance as a module offer `mod:<id>:<name>` (K72), labelled with the mod's name; disabled with
+    /// the reason while the mod is off, like its panels.
+    fn widget_offers(&self) -> Vec<Offer> {
+        self.mods
+            .iter()
+            .filter(|m| m.loaded)
+            .flat_map(|m| {
+                m.widgets.iter().map(move |w| Offer {
+                    value: format!("mod:{}:{w}", m.id),
                     label: m.name.clone(),
                     enabled: m.enabled,
                     reason: (!m.enabled).then(|| REASON_MOD_DISABLED.to_string()),
@@ -864,7 +1149,7 @@ impl ConfigStore {
             opts.migrations = migrations();
         }
         // No mods yet: their face labels follow with `sync_mods`.
-        let offers = offers_now(&hub, &BTreeMap::new(), &[]);
+        let offers = offers_now(&hub, &BTreeMap::new(), &[], &[]);
         let schema = SchemaAdapter {
             core: registry,
             lists: list_keys(registry.version()),
@@ -896,7 +1181,14 @@ impl ConfigStore {
         store.apply_appearance();
         store.remember_started();
         hub.register(DOC, store.document(), None);
+        // K71: where the edge surfaces stand follows the values (and the theme, mods and outputs) from here.
+        crate::wiring::layout_doc(&hub, &store);
         store
+    }
+
+    /// The hub the store publishes to.
+    pub fn hub(&self) -> &Arc<Hub> {
+        &self.hub
     }
 
     /// Records the `restart` keys' effective values once, after the couplings forced what they
@@ -1353,12 +1645,12 @@ impl ConfigStore {
     /// no patch (hub).
     fn publish_settings(&self) {
         // The mods' face names and panels are read under their own lock first: `offers_now` reads the hub.
-        let (mod_faces, mod_panels) = {
+        let (mod_faces, mod_panels, mod_widgets) = {
             let cfg = self.cfg.lock().expect("config lock");
             let mods = &cfg.schema().mods;
-            (mods.face_names(), mods.panel_offers())
+            (mods.face_names(), mods.panel_offers(), mods.widget_offers())
         };
-        let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels);
+        let mut offers = offers_now(&self.hub, &mod_faces, &mod_panels, &mod_widgets);
         for (source, options) in self.mod_sources.lock().expect("mod sources").iter() {
             // A core source keeps its own options (the native mods refuse those names).
             offers
@@ -1513,6 +1805,8 @@ impl ConfigStore {
             (name, sections)
         }
         let no_name = || ActionError::Invalid(PROFILE_INVALID_NAME.into());
+        // K71: `layout.toggle` and `layout.bar.move` act on the values this store holds.
+        crate::wiring::layout_actions(self, actions);
 
         // K53: `theme.style.apply {name}` / `theme.look.apply {name}` — one undoable change that resets the kind's
         // appearance keys the user set and picks the pack ("reset to style" is applying the current one again).
@@ -1930,6 +2224,7 @@ mod tests {
                     keys: vec![folders, list("tags", json!([])), pick],
                     faces: Vec::new(),
                     panels: Vec::new(),
+                    widgets: Vec::new(),
                 }],
             },
             offers: BTreeMap::new(),
@@ -1997,7 +2292,7 @@ mod tests {
             None,
         );
         let mods = BTreeMap::from([("weather".to_string(), "mods.weather.name".to_string())]);
-        let offers = offers_now(&hub, &mods, &[]);
+        let offers = offers_now(&hub, &mods, &[], &[]);
         let faces = &offers["island.faces"];
         let label = |v: &str| faces.iter().find(|o| o.value == v).map(|o| o.label.clone());
         assert_eq!(label("weather").as_deref(), Some("mods.weather.name"));
@@ -2021,7 +2316,7 @@ mod tests {
             reason: Some(REASON_MOD_DISABLED.into()),
             group: None,
         };
-        let offers = offers_now(&hub, &BTreeMap::new(), &[ai, tasks]);
+        let offers = offers_now(&hub, &BTreeMap::new(), &[ai, tasks], &[]);
         let values = |src: &str| {
             offers[src]
                 .iter()

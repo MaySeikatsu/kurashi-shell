@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 2;
+pub const VERSION: u32 = 3;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -21,7 +21,11 @@ pub fn registry() -> &'static Registry {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Config {
     #[kurashi(nested)]
+    pub layout: Layout,
+    #[kurashi(nested)]
     pub bar: Bar,
+    #[kurashi(nested)]
+    pub edges: Edges,
     #[kurashi(nested)]
     pub theme: Theme,
     #[kurashi(nested)]
@@ -128,32 +132,213 @@ pub struct SettingsApp {
     pub window: SettingsWindow,
 }
 
-// --- bar ---------------------------------------------------------------------------------------
+// --- layout (K71, K72) ------------------------------------------------------------------------
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-pub enum Edge {
-    Top,
-    Bottom,
-    Left,
-    Right,
+#[kurashi(i18n = "draw")]
+pub enum DrawMode {
+    /// Floating
+    Floating,
+    /// Dynamic
+    Dynamic,
+    /// Connected
+    Connected,
+}
+
+/// A component's own draw mode; `auto` follows `layout.draw` (K71).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "draw_own")]
+pub enum DrawChoice {
+    /// Automatic
+    Auto,
+    /// Floating
+    Floating,
+    /// Dynamic
+    Dynamic,
+    /// Connected
+    Connected,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "visibility")]
+pub enum Visibility {
+    /// Always shown
+    Always,
+    /// Show on hover
+    Hover,
+    /// Show on an empty desktop
+    EmptyDesktop,
+    /// Hidden (opens by key)
+    Hidden,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "keep_space")]
+pub enum KeepSpace {
+    /// Automatic
+    Auto,
+    /// Always
+    On,
+    /// Never
+    Off,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
-#[kurashi(page = "bar", section = "layout")]
-pub struct Bar {
-    /// Show bar
-    /// Whether this output gets a bar at all.
-    #[kurashi(default = true, per_output)]
+#[kurashi(page = "layout", section = "layout")]
+pub struct Layout {
+    /// Draw mode
+    /// How the bars, the dock, the sidebars and the island meet the screen's edges and each other. Floating: a gap away
+    /// from everything, every corner rounded, with the look's shadow. Dynamic: flush on the edge (or the frame, or a
+    /// bar), joined to it by rounded fillets. Connected: flush and joined with straight corners. A component set to its
+    /// own mode keeps it.
+    #[kurashi(default = DrawMode::Dynamic, since = 3)]
+    pub draw: DrawMode,
+    /// Reveal delay
+    /// How long the pointer rests on an edge before what shows on hover comes out; an edge another screen touches waits
+    /// twice as long.
+    #[kurashi(default = 250, range = 0..=1000, step = 50, unit = "ms", since = 3)]
+    pub reveal_delay: u32,
+    #[kurashi(nested, section = "frame")]
+    pub frame: Frame,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+pub struct Frame {
+    /// Screen frame
+    /// A band round the screen that the bars, the dock and the sidebars stand on, its inner corners rounded.
+    #[kurashi(default = false, per_output, since = 3)]
     pub enabled: bool,
-    /// Edge
-    /// Screen edge the bar is anchored to.
-    #[kurashi(default = Edge::Top, per_output, requires = "bar.enabled == true")]
-    pub edge: Edge,
-    /// Height
-    /// Thickness of the bar in logical pixels (its width when anchored left or right).
-    #[kurashi(default = 32, range = 16..=96, step = 2, unit = "px", per_output,
-              requires = "bar.enabled == true")]
+    /// Frame thickness
+    #[kurashi(default = 8, range = 2..=32, step = 1, unit = "px", requires = "layout.frame.enabled == true",
+              since = 3)]
+    pub thickness: u32,
+    /// Inner corners
+    /// How round the frame's inner corners are (0 = square).
+    #[kurashi(default = 16, range = 0..=48, step = 2, unit = "px", requires = "layout.frame.enabled == true",
+              since = 3)]
+    pub radius: u32,
+    /// Windows keep clear of the frame
+    /// Windows tile inside the frame. Off: the frame is drawn over the windows' edges.
+    #[kurashi(default = true, requires = "layout.frame.enabled == true", since = 3)]
+    pub reserve: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout", section = "layout")]
+pub struct Bar {
+    /// Bar height
+    /// Thickness of every bar in logical pixels (its width on a left or right edge), and of an edge's modules.
+    #[kurashi(default = 32, range = 16..=96, step = 2, unit = "px", per_output)]
     pub height: u32,
+}
+
+/// The top bar's zones: the left sidebar's button, the workspaces and the window list; the island; then the volume,
+/// the mods' widgets, the recorder, the keyboard layout, the clock, quick settings, the tray and the right sidebar's
+/// button — Bar.qml's rows before K71, so the default bar stays as it was.
+pub const TOP_START: [&str; 3] = ["sidebar_left", "workspaces", "windows"];
+pub const TOP_CENTER: [&str; 1] = ["island"];
+pub const TOP_END: [&str; 8] = [
+    "volume",
+    "mods",
+    "recorder",
+    "keyboard",
+    "clock",
+    "quick",
+    "tray",
+    "sidebar_right",
+];
+const NO_MODULES: [&str; 0] = [];
+
+/// One struct per edge, every key per output (K71): the derive's `default` is per leaf and the edges differ in theirs.
+macro_rules! edge {
+    ($name:ident, $section:literal, $bar:expr, $start:expr, $center:expr, $end:expr, $hidden:literal) => {
+        #[derive(Debug, Clone, PartialEq, KurashiSchema)]
+        #[kurashi(section = $section)]
+        pub struct $name {
+            /// Bar
+            /// A bar stands on this edge and shows its modules. Without one, each part that lists modules shows them on
+            /// their own at the edge.
+            #[kurashi(default = $bar, per_output, since = 3)]
+            pub bar: bool,
+            /// Visibility
+            /// Always shown; shown when the pointer rests on the edge; shown while the desktop is empty, else on
+            /// hover; or hidden until a key, the command line or `layout.toggle` brings it out.
+            #[kurashi(default = Visibility::Always, per_output, since = 3)]
+            pub visibility: Visibility,
+            /// Keep space
+            /// Whether windows keep clear of it. Automatic keeps space only while it is always shown; Always keeps
+            /// it while it hides on hover too.
+            #[kurashi(default = KeepSpace::Auto, per_output, requires = $hidden, since = 3)]
+            pub reserve: KeepSpace,
+            /// Draw mode
+            /// Automatic follows the layout's draw mode.
+            #[kurashi(default = DrawChoice::Auto, per_output, since = 3)]
+            pub draw: DrawChoice,
+            /// Start
+            /// The modules at the start of the edge (the left, or the top of a side edge), in order. "Other mods'
+            /// widgets" stands for every mod widget no list names.
+            #[kurashi(default = strings(&$start), choices_from = "modules", per_output, since = 3)]
+            pub start: Vec<String>,
+            /// Centre
+            /// The modules in the middle of the edge, in order.
+            #[kurashi(default = strings(&$center), choices_from = "modules", per_output, since = 3)]
+            pub center: Vec<String>,
+            /// End
+            /// The modules at the end of the edge (the right, or the bottom of a side edge), in order.
+            #[kurashi(default = strings(&$end), choices_from = "modules", per_output, since = 3)]
+            pub end: Vec<String>,
+        }
+    };
+}
+
+edge!(
+    TopEdge,
+    "top_edge",
+    true,
+    TOP_START,
+    TOP_CENTER,
+    TOP_END,
+    "edges.top.visibility != hidden"
+);
+edge!(
+    BottomEdge,
+    "bottom_edge",
+    false,
+    NO_MODULES,
+    NO_MODULES,
+    NO_MODULES,
+    "edges.bottom.visibility != hidden"
+);
+edge!(
+    LeftEdge,
+    "left_edge",
+    false,
+    NO_MODULES,
+    NO_MODULES,
+    NO_MODULES,
+    "edges.left.visibility != hidden"
+);
+edge!(
+    RightEdge,
+    "right_edge",
+    false,
+    NO_MODULES,
+    NO_MODULES,
+    NO_MODULES,
+    "edges.right.visibility != hidden"
+);
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "layout")]
+pub struct Edges {
+    #[kurashi(nested)]
+    pub top: TopEdge,
+    #[kurashi(nested)]
+    pub bottom: BottomEdge,
+    #[kurashi(nested)]
+    pub left: LeftEdge,
+    #[kurashi(nested)]
+    pub right: RightEdge,
 }
 
 // --- theme axes ----------------------------------------------------------------------------------
@@ -797,6 +982,10 @@ pub struct IslandInstance {
     /// listen to them at all.
     #[kurashi(default = true)]
     pub system_events: bool,
+    /// Draw mode
+    /// How the island meets the bar or the edge it grows out of. Automatic follows the layout's draw mode (K71).
+    #[kurashi(default = DrawChoice::Auto, since = 3)]
+    pub draw: DrawChoice,
 }
 
 // --- notifications ---------------------------------------------------------------------------
@@ -876,14 +1065,19 @@ pub struct Desktop {
     /// Today's weather, while the weather mod is on and has a place.
     #[kurashi(default = true, requires = "desktop.enabled == true")]
     pub weather: bool,
-    /// Order
-    /// The cards from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as `mod:<id>:<name>`.
-    /// A card that is not listed comes after the listed ones. The desk's edit mode writes it (K48).
+    /// Cards on the right
+    /// The cards on the right side from top to bottom: `clock`, `calendar`, `media`, `weather`, and mods' cards as
+    /// `mod:<id>:<name>`. On the side the cards stand on, a card neither side lists comes after the listed ones. The
+    /// desk's edit mode writes it (K48, K71).
     #[kurashi(default = strings(&["clock", "calendar", "media", "weather"]), advanced,
-              requires = "desktop.enabled == true")]
-    pub order: Vec<String>,
+              requires = "desktop.enabled == true", since = 3)]
+    pub right: Vec<String>,
+    /// Cards on the left
+    /// The cards on the left side from top to bottom, named as on the right.
+    #[kurashi(default = strings(&[]), advanced, requires = "desktop.enabled == true", since = 3)]
+    pub left: Vec<String>,
     /// Hidden cards
-    /// Cards the desk leaves out, named as in Order. The desk's edit mode writes it.
+    /// Cards the desk leaves out, named as on either side. The desk's edit mode writes it.
     #[kurashi(default = strings(&[]), advanced, requires = "desktop.enabled == true")]
     pub hidden: Vec<String>,
 }
@@ -1024,10 +1218,20 @@ pub struct Dock {
     /// Edge
     #[kurashi(default = DockEdge::Bottom, per_output, requires = "dock.enabled == true")]
     pub edge: DockEdge,
-    /// Hide automatically
-    /// The dock slides away and comes back when the pointer touches the edge.
-    #[kurashi(default = true, requires = "dock.enabled == true")]
-    pub autohide: bool,
+    /// Visibility
+    /// Shown while the desktop is empty and else when the pointer rests on its edge (as before), always, on hover
+    /// only, or hidden until a key or `layout.toggle` brings it out (K71).
+    #[kurashi(default = Visibility::EmptyDesktop, requires = "dock.enabled == true", since = 3)]
+    pub visibility: Visibility,
+    /// Keep space
+    /// Whether windows keep clear of the dock. Automatic keeps space only while it is always shown.
+    #[kurashi(default = KeepSpace::Auto, requires = "dock.enabled == true",
+              requires = "dock.visibility != hidden", since = 3)]
+    pub reserve: KeepSpace,
+    /// Draw mode
+    /// Automatic follows the layout's draw mode.
+    #[kurashi(default = DrawChoice::Auto, requires = "dock.enabled == true", since = 3)]
+    pub draw: DrawChoice,
     /// Pinned apps
     /// Desktop entry ids (e.g. firefox, org.gnome.Nautilus), in order. Right-click an app in the dock to pin it.
     #[kurashi(default = strings(&[]), requires = "dock.enabled == true")]
@@ -1043,43 +1247,69 @@ pub struct Dock {
 
 // --- sidebars (W29, docs/ux/sidebar.md) ------------------------------------------------------
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-pub enum SidebarStyle {
-    /// Panel
-    Panel,
-    /// Floating
-    Floating,
+/// One struct per side (K71): the two differ in their sections' defaults and offers.
+macro_rules! sidebar_side {
+    ($name:ident, $section:literal, $sections:expr, $source:literal, $hidden:literal,
+     $sections_label:literal, $sections_help:literal) => {
+        #[derive(Debug, Clone, PartialEq, KurashiSchema)]
+        #[kurashi(section = $section)]
+        pub struct $name {
+            #[doc = $sections_label]
+            #[doc = $sections_help]
+            #[kurashi(default = strings(&$sections), choices_from = $source, since = 3)]
+            pub sections: Vec<String>,
+            /// Width
+            /// Drag the sidebar's inner edge to change it.
+            #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px", since = 3)]
+            pub width: u32,
+            /// Visibility
+            /// Hidden: opened by its key, its button in the bar or `sidebar.toggle`. On hover: rest the pointer on the
+            /// screen's side. Always shown: pinned open, the windows beside it.
+            #[kurashi(default = Visibility::Hidden, since = 3)]
+            pub visibility: Visibility,
+            /// Keep space
+            /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open.
+            #[kurashi(default = KeepSpace::Auto, requires = $hidden, since = 3)]
+            pub reserve: KeepSpace,
+            /// Draw mode
+            /// Dynamic: from the bar (or the screen edge) to the far edge, flush to its side, joined to the bar by
+            /// rounded fillets. Floating: a gap away from every edge, every corner rounded, with the look's shadow.
+            /// Automatic follows the layout's draw mode.
+            #[kurashi(default = DrawChoice::Auto, since = 3)]
+            pub draw: DrawChoice,
+        }
+    };
 }
+
+sidebar_side!(
+    SidebarRight,
+    "right_sidebar",
+    ["header", "toggles", "sliders", "notifications", "calendar"],
+    "sidebar.sections",
+    "sidebar.right.visibility != hidden",
+    "Sections",
+    "Top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what plays, and the mods' panels."
+);
+sidebar_side!(
+    SidebarLeft,
+    "left_sidebar",
+    ["mod:ai:ai"],
+    "sidebar.tabs",
+    "sidebar.left.visibility != hidden",
+    "Tabs",
+    "The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar."
+);
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 #[kurashi(page = "sidebar", section = "sidebar")]
 pub struct Sidebar {
-    /// Style
-    /// Panel: from the bar (or the screen edge) to the far edge, flush to its side, the inner corners rounded. Floating:
-    /// the same column a gap away from every edge, every corner rounded, with the look's shadow.
-    #[kurashi(default = SidebarStyle::Panel)]
-    pub style: SidebarStyle,
-    /// Width
-    #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px")]
-    pub width: u32,
-    /// Right sidebar
-    /// Its sections, top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what
-    /// plays, and the mods' panels.
-    #[kurashi(default = strings(&["header", "toggles", "sliders", "notifications", "calendar"]),
-              choices_from = "sidebar.sections")]
-    pub right: Vec<String>,
-    /// Left sidebar
-    /// Its tabs: the mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.
-    #[kurashi(default = strings(&["mod:ai:ai"]), choices_from = "sidebar.tabs")]
-    pub left: Vec<String>,
+    #[kurashi(nested)]
+    pub right: SidebarRight,
+    #[kurashi(nested)]
+    pub left: SidebarLeft,
     /// Open from the bar
-    /// The bar's quick settings button opens the right sidebar instead of the quick settings card.
+    /// The bar's quick settings button opens the right sidebar instead of the quick settings card (and the bar leaves
+    /// the right sidebar's own button out).
     #[kurashi(default = false)]
     pub from_bar: bool,
-    /// Buttons in the bar
-    /// A button at each end of the bar opens that side's sidebar: the left one at the start, the right one at the end
-    /// (left out while the quick settings button opens the right sidebar). The launcher's "> sidebar" and the keys
-    /// open them too.
-    #[kurashi(default = true)]
-    pub bar_buttons: bool,
 }
