@@ -40,7 +40,7 @@ cp "$BIN/kurashid" "$BIN/kurashi" "$W/"
 SRV=""; QS=""; WIN=""; PTR=""
 stop_qs() { [ -n "$QS" ] && { kill "$QS" 2>/dev/null || true; wait "$QS" 2>/dev/null || true; }; QS=""; }
 stop() {
-  for v in WIN QS SRV; do p=${!v}; [ -n "$p" ] && { kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; }; eval "$v="; done
+  for pv in WIN QS SRV; do p=${!pv}; [ -n "$p" ] && { kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; }; eval "$pv="; done
 }
 cleanup() {
   stop
@@ -101,7 +101,7 @@ zone_of() {
 # The bar windows logged since the last mark: "<edge> x y w h shown|hidden" per edge (the last line per edge).
 bar_win() {
   local mark; mark=$(grep -n "BARMARK" "$R/qs.log" | tail -1 | cut -d: -f1); mark=${mark:-0}
-  tail -n +"$((mark + 1))" "$R/qs.log" | grep -o "BARWIN HEADLESS-1 $1 .*" | tail -1 | cut -d' ' -f3- || true
+  tail -n +"$((mark + 1))" "$R/qs.log" | grep -o "BARWIN HEADLESS-1 $1 .*" | tail -1 | cut -d' ' -f4- || true
 }
 mark() { echo "BARMARK $1" >> "$R/qs.log"; }
 expect_zone() { # expect_zone <id> <edge> <zone> <what>
@@ -143,8 +143,7 @@ pss_mib() { awk '/^Pss:/{s+=$2} END{printf "%.2f", s/1024}' "/proc/$1/smaps_roll
 # ======================================== zones and bars ========================================
 if want zones; then
   for d in $DECORS; do
-    start_daemon "$d"; start_qs
-    mark default
+    start_daemon "$d"; mark default; start_qs
     shoot "$d" default
     expect_zone island top center "$d default"
     expect_zone clock top end "$d default"
@@ -180,6 +179,17 @@ if want zones; then
     w=$(bar_win left); say "$d left: window $w"
     case "$w" in "0 0 $BARH $SH shown") ;; *) fail "$d left: the bar's window is '$w', not 0 0 $BARH $SH" ;; esac
 
+    # Three edges: top, bottom and a right bar between them.
+    reset_layout
+    mark three
+    apply edges.bottom.bar=true edges.right.bar=true 'edges.top.end=["clock","quick"]' 'edges.bottom.start=[]' \
+      'edges.bottom.center=["windows"]' 'edges.bottom.end=["volume"]' 'edges.right.start=[]' 'edges.right.center=[]' \
+      'edges.right.end=["tray","recorder","keyboard","sidebar_right"]'
+    shoot "$d" three
+    w=$(bar_win right); say "$d three: right window $w"
+    case "$w" in "$((SW - BARH)) $BARH $BARH $((SH - 2 * BARH)) shown") ;; *) fail "$d three: the right bar's window is '$w'" ;; esac
+    expect_zone volume bottom end "$d three"
+
     # All four edges: the horizontal bars own the corners, the side bars run between them.
     reset_layout
     mark four
@@ -210,16 +220,17 @@ if want draw; then
     for fr in off on; do
       [ $fr = on ] && apply layout.frame.enabled=true
       for mode in dynamic connected floating; do
+        mark "draw-$mode-$fr"
         apply layout.draw="$mode"
         shoot "$d" "draw-$mode-frame-$fr"
-        mark "draw-$mode-$fr"
         w=$(bar_win top); say "$d $mode, frame $fr: top window $w"
         if [ $mode = floating ]; then
           # A pill `inset` from its edge: the screen's top rows and its first columns show what is under the bar.
           [ $fr = off ] && { [ "$(pixel $((SW / 2)) 2)" = "$BG" ] || fail "$d floating: the bar reaches the screen's edge"; }
           band=0; [ $fr = on ] && band=8
           [ "$(pixel $((SW / 2)) $((8 + band + BARH / 2)))" != "$BG" ] || fail "$d floating, frame $fr: no bar where the pill stands"
-        else
+        elif [ "$d" != sekai ] || [ $fr = on ]; then
+          # (sekai's groups float as keys on a clear strip, unless the bar is the frame's band.)
           [ "$(pixel 3 $((BARH / 2)))" != "$BG" ] || fail "$d $mode, frame $fr: the docked bar does not reach the screen's end"
         fi
       done
@@ -286,6 +297,15 @@ if want reveal; then
   K act layout.toggle '{"target":"bar:bottom"}' >/dev/null || fail "layout.toggle bar:bottom (back) was refused"
   sleep 1.5
   [ "$(pixel $((SW / 2)) $((SH - 10)))" = "$BG" ] || fail "hidden: the second layout.toggle did not put the bar away"
+  # Brought out by key, it takes the keyboard on a click (OnDemand) and Esc puts it away.
+  K act layout.toggle '{"target":"bar:bottom"}' >/dev/null || fail "layout.toggle bar:bottom was refused"
+  sleep 1.5
+  pointer click $((SW / 2 - 300)) $((SH - 10)) left
+  sleep 0.5
+  timeout 10 python3 -I "$ROOT/tools/bench/wl_keys.py" escape || fail "wl_keys escape failed"
+  sleep 1.5
+  [ "$(pixel $((SW / 2)) $((SH - 10)))" = "$BG" ] || fail "hidden: Esc did not put the bar away"
+  [ "$(K sub runtime.ui --count 0 --json 2>/dev/null | jq -r '.data.shown // [] | length')" = 0 ] || fail "hidden: runtime.ui.shown still lists the bar after Esc"
   say "empty desktop and hidden: done"
   # Hover on the bottom bar, the pointer at the bottom edge.
   apply edges.bottom.visibility=hover
