@@ -21,7 +21,7 @@ Item {
 
     // The offers of a choice control, replaced only when their content changes: the daemon re-publishes the schema after
     // a change, and an open dropdown must keep its highlight when the offers it shows are the same.
-    readonly property var liveOffers: r.row.choices ?? []
+    readonly property var liveOffers: r.autoOffers(r.row.choices ?? [])
     property var offers: []
     property string offersSig: ""
     function refreshOffers(): void {
@@ -31,10 +31,18 @@ Item {
             r.offers = r.liveOffers
         }
     }
+    // The `auto` offer says what it resolved to (runtime.layout, Store.autoLabel): "Automatic (dynamic)". A row the layout
+    // does not resolve keeps its offers as the schema gives them.
+    function autoOffers(list: var): var {
+        const word = Store.autoLabel(r.row.key, r.out)
+        if (word === "") return list
+        return list.map(function (c) { return c.value === "auto" ? Object.assign({}, c, { label: word }) : c })
+    }
     onLiveOffersChanged: refreshOffers()
     Component.onCompleted: {
         refreshOffers()
         if (r.wantsPreviews) Store.watch("theme.previews")
+        if (Store.readsLayout(r.rowKey)) Store.watch("runtime.layout")
     }
     // The block layout of the Appearance page (W29): the row's name is the card's title, so the left column gives way to
     // one line saying what the setting is (its kind's `settings.appearance.<source>.what`), and the control takes the
@@ -51,7 +59,7 @@ Item {
     readonly property bool previewable: Changes.previewable(row.key)
     // What the control shows: the value a preview moved to while one is open, else the daemon's.
     readonly property var value: previewing ? Changes.session.shown : (prov === undefined ? row.default : prov.value)
-    readonly property var reasons: { Store.config; return Store.inertReasons(row, out) }
+    readonly property var reasons: { Store.config; Store.docs; return Store.inertReasons(row, out) }
     // A pending restart, an offer that is gone (I9) and a mod that is off (K22) are not inertness: the value can still be
     // changed, and reset, meanwhile.
     readonly property bool inert: reasons.some(function (x) {
@@ -65,7 +73,10 @@ Item {
     readonly property bool wantsPreviews: Store.isPackRow(row)
     // Picking a style or a look is its action (it resets that kind's settings), not a value: no preview on arrows.
     readonly property bool packAction: Store.packActions[row.choices_from] !== undefined
-    Component.onDestruction: if (r.wantsPreviews) Store.unwatch("theme.previews")
+    Component.onDestruction: {
+        if (r.wantsPreviews) Store.unwatch("theme.previews")
+        if (Store.readsLayout(r.rowKey)) Store.unwatch("runtime.layout")
+    }
     // Offers with a look of their own (K45, I104, K53) are preview cards: name -> {tokens, frame?}, from `theme.previews`.
     readonly property var looks: {
         var pv = Store.docs["theme.previews"]
@@ -439,6 +450,8 @@ Item {
             label: I18n.tr(r.row.label)
             choices: r.offers
             items: r.everyFace ? r.offers.map(function (o) { return o.value }) : (Array.isArray(r.value) ? r.value : [])
+            // The entries runtime.layout cannot draw (K72), each with its reason (a zone's `problems`).
+            reasons: { Store.docs; return Store.problemReasons(r.row.key, r.out) }
             enabled: r.editable
             refused: r.error !== ""
             onEdited: v => Store.setValue(r.row.key, v, r.out)

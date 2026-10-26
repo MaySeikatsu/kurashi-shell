@@ -36,3 +36,5 @@ TileSheet 1.0 TileSheet.qml
 LightSense 1.0 LightSense.qml
 ShortcutRecorder 1.0 ShortcutRecorder.qml
 KeysStatus 1.0 KeysStatus.qml
+LayoutScreen 1.0 LayoutScreen.qml
+DrawModes 1.0 DrawModes.qml
