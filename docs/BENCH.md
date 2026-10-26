@@ -635,3 +635,18 @@ gles2). The re-measure is one run of the phase: its own numbers, not a replaceme
 PSS is unusable with two outputs under gles2 (a ~1.9 TiB mapping, I93), as in the W20 row. The phase's checks pass:
 per-output USS at most 10 MiB, and 20 reveal/hide cycles add at most 1 MiB of USS. The W38 changes (the forced tip, a
 `PopupWindow` made only while shown, and the notes' shots) add no window while the dock is hidden; the idle check is 0 commits.
+
+### 2026-10-26 — timer mod: idle frames and daemon wakeups (W43-timer, K73; row 500)
+The timer mod on the real `kurashid` (a release build of `228168c2`, thin LTO) under headless sway (gles2, renderD128) with
+the frontend: `tools/bench/measure.py --daemon real`, sandbox prefix `w43-timer-`, warm-up 10 s, idle 30 s. Pass B counts the
+commits of each layer surface over the idle window; pass A reads the daemon's CPU and wakeups over the same window.
+| Scenario | Idle commits (30 s) | Daemon CPU | Daemon wakeups/s | Note |
+|---|---|---|---|---|
+| Mod on, no timer, bar shown | 20 in one burst at the bar's minute flip (14:37:00, 309 ms); 0 otherwise | not measured | not measured | the bar's own clock (quickshell#34) |
+| Mod on, a 10 min countdown running; bar and desk off; island faces = clock only (no view shows the timer) | 0; no bursts | 0.0 % | 0.0 | daemon PSS 27.6 MiB; the frontend's wakeups 0.1/s |
+- Idle frames: 0 with the mod on and no timer, apart from the bar's minute flip; 0 with a running countdown that no view shows.
+- The daemon holds no timer while the countdown runs: its one deadline is ten minutes away, so no wakeup falls in the window.
+- Not measured: a countdown that a view shows (the glance, the panel, the desk card or the island face). Its own tick is one
+  frame a second while it is visible (Ma), and it stops when the view closes.
+- Configs for the second row: `mods.enabled = ["timer"]`, `bar.enabled = false`, `desktop.enabled = false`,
+  `island.main.faces = ["clock"]`; the countdown starts from the measured command (`timer.start`, 600 s) before the frontend runs.
