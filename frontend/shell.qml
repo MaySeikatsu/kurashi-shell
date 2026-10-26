@@ -109,6 +109,11 @@ ShellRoot {
         model: Quickshell.screens
         delegate: ScreenCorners {}
     }
+    // The screen frame (K71, docs/ux/frame.md): per output, four strips only while runtime.layout has the frame on there.
+    Variants {
+        model: Quickshell.screens
+        delegate: Frame {}
+    }
     // The edge sidebars (W29, docs/ux/sidebar.md): a window only while runtime.ui.sidebar names its side, on that output.
     Sidebar { side: "right"; focusedScreen: root.focusedScreen() }
     Sidebar { side: "left"; focusedScreen: root.focusedScreen() }
