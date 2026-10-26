@@ -547,50 +547,50 @@ async fn restart_keys_report_pending_until_set_back_to_start_up() {
     assert!(bad.is_empty(), "{bad:#?}");
 }
 
-/// K21, per output: `bar.enabled` off on one output makes `bar.edge` inert there and nowhere else.
-/// `bar.edge` has no value of its own on that output, so the output's entry in the `config` document
-/// must carry the reason anyway: the view falls back to the global entry and does not evaluate
+/// K21, per output: the top edge hidden on one output makes its `reserve` inert there and nowhere else (K71: a hidden
+/// component never keeps space). `edges.top.reserve` has no value of its own on that output, so the output's entry in
+/// the `config` document must carry the reason anyway: the view falls back to the global entry and does not evaluate
 /// `requires` itself.
 #[tokio::test]
 async fn output_scoped_requires_is_reported_in_that_output_only() {
     let mut client = start(None).await;
-    let off_on_dp1 = ApplyOp::Set {
-        set: "bar.enabled".into(),
-        value: json!(false),
+    let hidden_on_dp1 = ApplyOp::Set {
+        set: "edges.top.visibility".into(),
+        value: json!("hidden"),
         output: Some("DP-1".into()),
     };
     assert!(
         matches!(
-            client.apply(vec![off_on_dp1]).await,
+            client.apply(vec![hidden_on_dp1]).await,
             ServerMsg::Applied { .. }
         ),
-        "bar.enabled@DP-1 = false rejected"
+        "edges.top.visibility@DP-1 = hidden rejected"
     );
     let mut bad = Vec::new();
-    let inert = client.get("bar.edge", Some("DP-1")).await;
+    let inert = client.get("edges.top.reserve", Some("DP-1")).await;
     if inert.reason.as_deref() != Some(REQUIRES_REASON)
-        || inert.inert_by.as_deref() != Some("bar.enabled")
+        || inert.inert_by.as_deref() != Some("edges.top.visibility")
     {
         bad.push(format!(
-            "bar.edge@DP-1 should be inert by bar.enabled, cfg.get says {inert:?}"
+            "edges.top.reserve@DP-1 should be inert by edges.top.visibility, cfg.get says {inert:?}"
         ));
     }
     for scope in [None, Some("DP-2")] {
-        let p = client.get("bar.edge", scope).await;
+        let p = client.get("edges.top.reserve", scope).await;
         if p.reason.is_some() || p.inert_by.is_some() {
             bad.push(format!(
-                "bar.edge@{scope:?} should be active, cfg.get says {p:?}"
+                "edges.top.reserve@{scope:?} should be active, cfg.get says {p:?}"
             ));
         }
     }
     let doc = client.config_doc().await;
-    if doc["outputs"]["DP-1"]["bar.edge"] != json!(&inert) {
+    if doc["outputs"]["DP-1"]["edges.top.reserve"] != json!(&inert) {
         bad.push(format!(
-            "config doc lists bar.edge@DP-1 as {}, cfg.get says {inert:?}",
-            doc["outputs"]["DP-1"]["bar.edge"]
+            "config doc lists edges.top.reserve@DP-1 as {}, cfg.get says {inert:?}",
+            doc["outputs"]["DP-1"]["edges.top.reserve"]
         ));
     }
-    audit(&mut client, "bar.enabled@DP-1=off", &mut bad).await;
+    audit(&mut client, "edges.top.visibility@DP-1=hidden", &mut bad).await;
     assert!(bad.is_empty(), "{bad:#?}");
 }
 
@@ -601,8 +601,8 @@ async fn output_scoped_requires_is_reported_in_that_output_only() {
 async fn inert_controls_report_why_they_are_inert() {
     let mut scenarios: Vec<(String, Vec<ApplyOp>)> = vec![("defaults".into(), vec![])];
     scenarios.push((
-        "bar.enabled=false".into(),
-        vec![set("bar.enabled", json!(false))],
+        "edges.top.visibility=hidden".into(),
+        vec![set("edges.top.visibility", json!("hidden"))],
     ));
     for mode in overrides_by_mode().keys() {
         scenarios.push((format!("{mode}=on"), vec![set(mode, json!(true))]));
