@@ -630,10 +630,38 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
         radius: join_radius(dock_draw, g),
     };
 
+    // A floating top/bottom bar that is not hidden: a sidebar ends a gap before it in every draw mode (I253, user
+    // decision (a)) and meets nothing there.
+    let floats_over = |e: Edge| {
+        let ec = &cfg.edges[e.index()];
+        ec.bar && ec.visibility != Visibility::Hidden && draw_of(e).0 == Draw::Floating
+    };
+    // Where a sidebar's end along edge `e` stands (px from that edge, before its own float gap) and what it meets.
+    let sidebar_end = |e: Edge| {
+        if floats_over(e) {
+            (
+                edge_inset(cfg, g, e, band(e), Draw::Floating) + cfg.bar_size,
+                "none".to_string(),
+            )
+        } else {
+            (base(e), meets(e))
+        }
+    };
+
     // The sidebars: from what stands on the top edge to what stands on the bottom one, flush to their side.
     let sidebar = |s: &SidebarConfig, side: Edge| {
         let (draw, draw_source) = resolve(s.draw, g.draw);
         let float = if draw == Draw::Floating { g.gap } else { 0 };
+        let (top, top_meets) = sidebar_end(Edge::Top);
+        let (bottom, bottom_meets) = sidebar_end(Edge::Bottom);
+        // A gap off a floating bar whatever the sidebar's own draw (it already carries one when floating itself).
+        let off = |e: Edge| {
+            if floats_over(e) {
+                g.gap.max(float)
+            } else {
+                float
+            }
+        };
         let inset = base(side) + float;
         let keeps = s.reserve.keeps(s.visibility);
         Sidebar {
@@ -646,12 +674,12 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             reserve_source: reserve_source(s.reserve),
             reserve_reason: reserve_reason(s.visibility),
             span: Span {
-                start: base(Edge::Top) + float,
-                end: base(Edge::Bottom) + float,
+                start: top + off(Edge::Top),
+                end: bottom + off(Edge::Bottom),
             },
-            joins: (draw != Draw::Floating).then(|| Joins {
-                start: meets(Edge::Top),
-                end: meets(Edge::Bottom),
+            joins: (draw != Draw::Floating).then_some(Joins {
+                start: top_meets,
+                end: bottom_meets,
             }),
             radius: join_radius(draw, g),
         }
