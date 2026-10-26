@@ -23,6 +23,9 @@ ModuleBase {
     width: vertical ? thickness : row.implicitWidth
     height: vertical ? columnH : row.implicitHeight
     slotHeights: [columnH]
+    // The slider is its own tab stop while there is audio to set (arrows step it); without, the host says why.
+    ownsFocus: usable
+    a11yName: a11y
     function geo() { return [["slider", vertical ? sliderV : sliderH]] }
 
     // Wheel intents: a notch is one 5 % step from the last value sent, so fast scrolling does not lose steps while the
