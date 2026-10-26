@@ -72,7 +72,7 @@ const fn bind(field: &'static str, action: &'static str) -> Bind {
 }
 
 /// The `keys.*` fields in the schema's order; the first of two actions on one combo is the one written.
-pub const BINDS: [Bind; 14] = [
+pub const BINDS: [Bind; 19] = [
     bind("launcher", "launcher.toggle"),
     bind("notifications", "notifications.center"),
     Bind {
@@ -94,6 +94,26 @@ pub const BINDS: [Bind; 14] = [
     },
     bind("settings", "settings.open"),
     bind("webdock", "webdock.toggle"),
+    Bind {
+        args: Some(r#"{"target":"bar:top"}"#),
+        ..bind("bar_top", "layout.toggle")
+    },
+    Bind {
+        args: Some(r#"{"target":"bar:bottom"}"#),
+        ..bind("bar_bottom", "layout.toggle")
+    },
+    Bind {
+        args: Some(r#"{"target":"bar:left"}"#),
+        ..bind("bar_left", "layout.toggle")
+    },
+    Bind {
+        args: Some(r#"{"target":"bar:right"}"#),
+        ..bind("bar_right", "layout.toggle")
+    },
+    Bind {
+        args: Some(r#"{"target":"dock"}"#),
+        ..bind("dock", "layout.toggle")
+    },
     Bind {
         repeat: true,
         locked: true,
@@ -1234,6 +1254,11 @@ mod tests {
             "Super+Alt+L",
             "",
             "",
+            "",
+            "",
+            "",
+            "",
+            "",
             "XF86AudioRaiseVolume",
             "XF86AudioLowerVolume",
             "XF86AudioMute",
@@ -1739,6 +1764,8 @@ mod tests {
             ("quick", "Mod+Q"),
             ("settings", "Ctrl+Alt+Comma"),
             ("webdock", "Mod+B"),
+            ("bar_bottom", "Mod+Shift+B"),
+            ("dock", "Mod+Shift+D"),
         ]);
         let doc = run(dir.path(), true, all, Some(&niri), &t);
         assert_eq!(doc["state"], "written", "{doc}");

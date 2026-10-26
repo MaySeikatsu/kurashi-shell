@@ -61,7 +61,8 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
 - Top level: `draw` (the preset `layout.draw` in effect), `reveal_delay_ms`, `gap` (token `space.sm`), `join_radius`
   (token `radius.lg`), `bar_size` (`bar.height`), `outputs`.
 - `outputs` maps an output name to its layout; `"*"` is the layout for an output the daemon does not know yet (a fresh
-  hotplug renders from it until its own entry arrives).
+  hotplug renders from it until its own entry arrives). `"*"` is an alias, not an output: a view that lists outputs
+  (Settings' output picker) skips it, here and in `svc.workspaces` (row 531).
 - Every offset is in logical px **from a screen edge**; the daemon never needs the output's size.
 - `frame`: `on`, `thickness`, `radius` (inner corners), `reserve`, and `band.<edge>` — the frame's visible thickness on
   each edge (0 where a docked bar is the band, and everywhere while the frame is off).
