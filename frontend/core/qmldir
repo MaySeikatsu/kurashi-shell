@@ -7,3 +7,5 @@ singleton Peeks 1.0 Peeks.qml
 PeekSource 1.0 PeekSource.qml
 singleton Light 1.0 Light.qml
 singleton ShellLayout 1.0 ShellLayout.qml
+singleton EdgeStrips 1.0 EdgeStrips.qml
+EdgeReveal 1.0 EdgeReveal.qml
