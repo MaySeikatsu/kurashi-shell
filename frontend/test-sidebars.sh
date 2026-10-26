@@ -470,6 +470,9 @@ start_daemon() {
   mkdir -p "$XDG_CONFIG_HOME" "$XDG_STATE_HOME" "$XDG_CACHE_HOME" "$XDG_DATA_HOME/kurashi/mods/hello"
   cp -r "$HELLO/qml" "$XDG_DATA_HOME/kurashi/mods/hello/"
   cp "$HELLO/live.mod.toml" "$XDG_DATA_HOME/kurashi/mods/hello/mod.toml"
+  # The idle lock off (I241): a run of the slide part takes ten minutes, and the lock screen took every click after it.
+  mkdir -p "$XDG_CONFIG_HOME/kurashi"
+  echo 'idle.enabled = false' > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env LC_ALL="$1" KURASHI_WEATHER_API=http://127.0.0.1:8099 DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
     "$W/kurashid" >> "$R/kurashid.log" 2>&1 &
