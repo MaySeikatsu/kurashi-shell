@@ -12,3 +12,4 @@ ScreenCorners 1.0 ScreenCorners.qml
 Dock 1.0 Dock.qml
 Sidebar 1.0 Sidebar.qml
 TextureOverlay 1.0 TextureOverlay.qml
+Frame 1.0 Frame.qml
