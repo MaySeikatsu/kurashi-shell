@@ -137,6 +137,14 @@ Flickable {
     Component { id: cKeysStatus; KeysStatus {} }
     Component { id: cShortcut; ShortcutRecorder {} }
     Component { id: cDrawModes; DrawModes {} }
+    // The note under the selected edge's header when its bar has no modules (Settings › Layout; EmptyBarNote).
+    Component {
+        id: cEmptyBar
+        EmptyBarNote {
+            edge: p.layoutEdge
+            output: p.output
+        }
+    }
     // The screen of Settings › Layout (its own Loader: the layout document is watched only while it is shown, Ma).
     Component {
         id: cLayoutScreen
@@ -485,6 +493,14 @@ Flickable {
                         header: !p.searching
                         title: I18n.tr(modelData.label)
                         icon: p.sectionIcon(pageOf, modelData.id)
+                        // Settings › Layout: the selected edge's bar with no modules says so, under the section's header (UX brief,
+                        // docs/ux/layout.md "States"). Only that section, and only on the page.
+                        Loader {
+                            width: sec.width - 2 * Theme.pad
+                            active: pageOf === "layout" && !p.searching && modelData.id === p.layoutEdge + "_edge"
+                            visible: active
+                            sourceComponent: cEmptyBar
+                        }
                         Repeater {
                             model: sec.modelData.rows
                             delegate: Column {

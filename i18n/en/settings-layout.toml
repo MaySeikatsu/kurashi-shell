@@ -23,3 +23,4 @@
 "settings.layout.auto_keeps" = "Automatic (keeps space)"
 "settings.layout.auto_none" = "Automatic (no space)"
 "settings.layout.draw_modes" = "Floating: a gap from everything. Dynamic: flush on the edge, joined by fillets. Connected: flush, with straight joins."
+"settings.layout.empty_bar" = "This bar has no modules: it shows as an empty strip. Add a module or turn the bar off."

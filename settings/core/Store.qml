@@ -302,6 +302,15 @@ Singleton {
     function freeEdges(output) {
         return ["top", "bottom", "left", "right"].filter(function (e) { return valueOf("edges." + e + ".bar", output) !== true })
     }
+    // A bar that stands on an edge with no modules in any of its zones (the resolved zones of runtime.layout): an empty strip.
+    // False while the document is not in, so nothing is said that the daemon has not said (Shōjiki).
+    function barIsEmpty(edge, output) {
+        var lo = layoutOf(output)
+        var part = lo && lo.edges ? lo.edges[edge] : null
+        if (!part || part.bar !== true || !part.zones) return false
+        var z = part.zones
+        return (z.start || []).length + (z.center || []).length + (z.end || []).length === 0
+    }
 
     // Why a row is inert or not in effect yet: [{kind, text, key}]. The daemon decides and says so on the
     // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names inert_by. `key`
