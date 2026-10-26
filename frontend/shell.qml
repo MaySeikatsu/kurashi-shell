@@ -104,6 +104,11 @@ ShellRoot {
         model: Quickshell.screens
         delegate: Dock {}
     }
+    // The shared hover strips at the edges (K71, EdgeStrips): per output, a strip only while something there reveals on hover.
+    Variants {
+        model: Quickshell.screens
+        delegate: EdgeStripHost {}
+    }
     // Rounded screen corners (K47 (6)): per output, only while theme.shape.screen_corners > 0.
     Variants {
         model: Quickshell.screens
