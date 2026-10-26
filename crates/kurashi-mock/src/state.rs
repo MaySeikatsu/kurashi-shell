@@ -159,6 +159,8 @@ impl State {
             // K28: the contributions of the test mod `hello`, the wallpaper tile, the weather clock aside and day mark and a
             // plain one (see documents::slots).
             ("runtime.slots", documents::slots()),
+            // K71: where the edge surfaces stand (the fixture, or KURASHI_MOCK_LAYOUT).
+            ("runtime.layout", documents::layout()),
             // The weather mod's document (W19): the clock aside and the day marks read it.
             (
                 "mod.weather",
