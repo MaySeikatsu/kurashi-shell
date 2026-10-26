@@ -359,6 +359,9 @@ pub struct EdgeLayout {
     /// The bar's thickness; only with a bar.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub size: Option<u32>,
+    /// A side bar's free length along its edge (px from the top and the bottom); only on a left or right bar.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub span: Option<Span>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize)]
@@ -556,8 +559,12 @@ fn join_radius(draw: Draw, g: &Globals) -> u32 {
 /// One output's layout.
 pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLayout {
     let draw_of = |e: Edge| resolve(cfg.edges[e.index()].draw, g.draw);
-    // A bar flush on its edge: it is the frame's band there.
-    let docked = |e: Edge| cfg.edges[e.index()].bar && draw_of(e).0 != Draw::Floating;
+    // A bar flush on its edge: it is the frame's band there (any visibility but hidden: a hover bar's place stays the
+    // band's; a hidden bar comes out over the band).
+    let docked = |e: Edge| {
+        let ec = &cfg.edges[e.index()];
+        ec.bar && draw_of(e).0 != Draw::Floating && ec.visibility != Visibility::Hidden
+    };
     let band = |e: Edge| {
         if cfg.frame.enabled && !docked(e) {
             cfg.frame.thickness
@@ -654,6 +661,16 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
         left: sidebar(&cfg.sidebar_left, Edge::Left),
     };
 
+    // The horizontal bars own the corners; a side bar runs between them (row 511): past a top/bottom bar that is not
+    // hidden, else from the band.
+    let across = |e: Edge| {
+        let ec = &cfg.edges[e.index()];
+        if ec.bar && ec.visibility != Visibility::Hidden {
+            edge_inset(cfg, g, e, band(e), draw_of(e).0) + cfg.bar_size
+        } else {
+            band(e)
+        }
+    };
     let mut edge_layouts: Vec<EdgeLayout> = Vec::with_capacity(4);
     for (e, z) in Edge::ALL.into_iter().zip(zones) {
         let ec = &cfg.edges[e.index()];
@@ -676,10 +693,18 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             Edge::Left => sidebars.left.reserve,
             _ => 0,
         };
-        let frame_here = if frame_reserves { band(e) } else { 0 };
+        // A docked bar carries its edge's frame strip (row 492 b), so it keeps the frame's part of the zone too.
+        let frame_here = match (frame_reserves, docked(e)) {
+            (false, _) => 0,
+            (true, true) => cfg.frame.thickness,
+            (true, false) => band(e),
+        };
         let reserve = frame_here.max(own).max(dock_here).max(sidebar_here);
-        // Exactly one surface holds the edge's exclusive zone (K71): frame > bar > dock > sidebar > module > none.
-        let holder = if frame_reserves {
+        // Exactly one surface holds the edge's exclusive zone (K71): frame > bar > dock > sidebar > module > none; on
+        // a framed edge whose strip a docked bar carries, the bar (row 510).
+        let holder = if frame_reserves && docked(e) {
+            Holder::Bar
+        } else if frame_reserves {
             Holder::Frame
         } else if ec.bar && own > 0 {
             Holder::Bar
@@ -704,6 +729,13 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             holder,
             zones: z,
             size: ec.bar.then_some(cfg.bar_size),
+            span: (ec.bar && matches!(e, Edge::Left | Edge::Right)).then(|| {
+                let float = if draw == Draw::Floating { g.gap } else { 0 };
+                Span {
+                    start: across(Edge::Top) + float,
+                    end: across(Edge::Bottom) + float,
+                }
+            }),
         });
     }
     let mut it = edge_layouts.into_iter();

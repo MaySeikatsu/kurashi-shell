@@ -193,7 +193,9 @@ fn frame_off_has_no_band_and_frame_on_bands_every_edge_but_a_docked_bars() {
             right: 8
         }
     );
-    for e in Edge::ALL {
+    // The docked top bar carries its edge's strip and holds the zone there (row 510); the frame holds the rest.
+    assert_eq!(on.edges.top.holder, Holder::Bar);
+    for e in [Edge::Bottom, Edge::Left, Edge::Right] {
         assert_eq!(on.edge(e).holder, Holder::Frame, "{e:?}");
     }
     assert_eq!(on.edges.top.reserve, 32);
@@ -465,6 +467,59 @@ fn reserve_follows_visibility() {
 }
 
 #[test]
+fn a_hidden_bar_is_not_the_band_and_a_hover_bar_is() {
+    let mut c = defaults();
+    c.frame.enabled = true;
+    // A hidden bar: the frame bands its edge and holds it; the bar comes out over the band.
+    c.edges[0].visibility = Visibility::Hidden;
+    let hidden = lay(&c, &[]);
+    assert_eq!(hidden.frame.band.top, 8);
+    assert_eq!(hidden.edges.top.holder, Holder::Frame);
+    assert_eq!(hidden.edges.top.reserve, 8);
+    // A hover bar stays the band; the zone keeps the frame's thickness while the bar is in.
+    c.edges[0].visibility = Visibility::Hover;
+    let hover = lay(&c, &[]);
+    assert_eq!(hover.frame.band.top, 0);
+    assert_eq!(hover.edges.top.holder, Holder::Bar);
+    assert_eq!(hover.edges.top.reserve, 8);
+}
+
+#[test]
+fn a_side_bar_runs_between_the_horizontal_bars() {
+    let mut c = defaults();
+    c.edges[2].bar = true;
+    let l = lay(&c, &[]);
+    // Under the top bar, down to the screen edge; the horizontal bars carry no span.
+    assert_eq!(l.edges.left.span, Some(Span { start: 32, end: 0 }));
+    assert_eq!(l.edges.top.span, None);
+    assert_eq!(l.edges.right.span, None);
+    // A bottom bar too; a hidden one leaves the side bar the edge's band.
+    c.edges[1].bar = true;
+    assert_eq!(
+        lay(&c, &[]).edges.left.span,
+        Some(Span { start: 32, end: 32 })
+    );
+    c.edges[1].visibility = Visibility::Hidden;
+    c.frame.enabled = true;
+    assert_eq!(
+        lay(&c, &[]).edges.left.span,
+        Some(Span { start: 32, end: 8 })
+    );
+    // A floating top bar stands off its edge; a floating side bar keeps a gap from it.
+    c.edges[0].draw = Some(Draw::Floating);
+    c.edges[2].draw = Some(Draw::Floating);
+    let f = lay(&c, &[]);
+    assert_eq!(f.edges.top.inset, 16);
+    assert_eq!(
+        f.edges.left.span,
+        Some(Span {
+            start: 16 + 32 + 8,
+            end: 8 + 8
+        })
+    );
+}
+
+#[test]
 fn holder_order_is_frame_bar_dock_sidebar_module_none() {
     // Bottom: a bar, the dock and modules all keep space — the bar holds it, the zone is the widest.
     let mut c = defaults();
@@ -475,9 +530,12 @@ fn holder_order_is_frame_bar_dock_sidebar_module_none() {
     assert_eq!(l.edges.bottom.holder, Holder::Bar);
     assert_eq!(l.edges.bottom.reserve, l.dock.reserve);
     assert!(l.dock.reserve > 32);
-    // The frame beats them all.
+    // The frame beats them all, but for a docked bar: it carries the edge's strip and holds the zone (row 510).
     c.frame.enabled = true;
+    assert_eq!(lay(&c, &[]).edges.bottom.holder, Holder::Bar);
+    c.edges[1].draw = Some(Draw::Floating);
     assert_eq!(lay(&c, &[]).edges.bottom.holder, Holder::Frame);
+    c.edges[1].draw = None;
     // Without the bar the dock holds it.
     c.frame.enabled = false;
     c.edges[1].bar = false;
