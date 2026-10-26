@@ -817,6 +817,13 @@ Interactions; research notes in `docs/ux/frame.md`); KDE Plasma 6 panels (floati
 hide / Dodge windows / Windows go below", panels on any edge); Waybar and HyprPanel (`modules-left/center/right` per
 bar, one config per bar); the dock's own reveal rules (I137, B7).
 
+*Amendments (W44 reviews, rows 510–531):* a docked bar carries its edge's frame strip and holds that edge's zone
+(`holder: bar`; row 492 b measured cheaper than a strip window); a `hidden` bar is not the band (the frame bands the edge,
+the bar comes out over it); a side bar's `span` comes from the daemon (the horizontal bars own the corners);
+`layout.bar.move` keeps the destination edge's own modules after the bar's; a sidebar target of `layout.toggle` is
+`sidebar.toggle` (one truth, no `shown` entry); `keys.bar_<edge>` and `keys.dock` bind `layout.toggle` (empty by
+default); `"*"` in output maps is an alias views skip.
+
 ## K72 — modules: one id, every variant (2026-10-26, session 14; user points 8–10)
 A **module** is a placeable unit with one id: core ones (`workspaces`, `windows`, `island`, `volume`, `recorder`,
 `keyboard`, `clock`, `quick`, `tray`, `sidebar_left`, `sidebar_right`) and mods' `widget:<name>` as
