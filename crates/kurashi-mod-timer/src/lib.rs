@@ -126,7 +126,8 @@ impl NativeMod for TimerMod {
         );
 
         let s = shared.clone();
-        ctx.background("deadline", "mods.running.timer", "background", move |job| {
+        // No gate (row 500, done): the deadline lives while the mod is on, with no view open and no setting to switch it off.
+        ctx.background("deadline", "mods.running.timer", "", move |job| {
             let s = s.clone();
             async move { job::run(s, job).await }
         })?;

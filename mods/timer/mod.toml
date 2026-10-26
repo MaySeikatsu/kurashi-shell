@@ -23,15 +23,6 @@ provides = [
 capabilities = ["dbus:session"]
 cost = "low"
 
-# `background` is the job's switch (`wanted_by`): with it off no timer can start, and a running one is announced when the
-# panel next opens (K73; the daemon refuses `timer.start` with the reason in the document).
-[[setting]]
-key = "background"
-type = "bool"
-default = true
-label = "mods.timer.background"
-help = "mods.timer.background.help"
-
 [[setting]]
 key = "presets"
 type = "string"

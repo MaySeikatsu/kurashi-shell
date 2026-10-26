@@ -28,7 +28,7 @@ QuickTile {
 
     glyph: "⏱"
     label: I18n.tr("mod-timer.tile.label")
-    subtitle: !showing ? I18n.tr(d.background === false ? "mod-timer.tile.off" : "mod-timer.tile.idle")
+    subtitle: !showing ? I18n.tr("mod-timer.tile.idle")
         : running ? I18n.tr("mod-timer.tile.running").replace("{time}", T.clock(T.left(nearest, clock.now)))
         : paused ? I18n.tr("mod-timer.tile.paused").replace("{time}", T.clock(nearest.remaining_ms))
         : I18n.tr("mod-timer.tile.ended")
@@ -39,8 +39,7 @@ QuickTile {
 
     onActivated: {
         if (!tile.showing) {
-            if (d.background === false) Store.act("mod.panel.open", { id: "timer", panel: "timer" }, function () {})
-            else Store.act("timer.start", {}, function () {})
+            Store.act("timer.start", {}, function () {})
         } else if (tile.running) {
             Store.act("timer.pause", { id: tile.nearest.id }, function () {})
         } else if (tile.paused) {

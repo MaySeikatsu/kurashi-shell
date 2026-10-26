@@ -5,8 +5,8 @@ import "Timer.js" as T
 
 // Bar widget of the timer mod (K73, docs/ux/timer.md "Glance"): a ring and the time left of the nearest timer (h:mm from an
 // hour up); paused, the time it kept, dimmed; ended, an alarm in the accent colour; with no timer, the timer glyph alone.
-// A click (Return, Enter, Space too) starts the default countdown, or opens the panel while a timer is on or the background
-// count is off (the panel says why). The wheel adds or takes a minute from the nearest. Visible = subscribed (Ma): the
+// A click (Return, Enter, Space too) starts the default countdown, or opens the panel while a timer is on. The wheel adds or
+// takes a minute from the nearest. Visible = subscribed (Ma): the
 // second clock runs only while a running countdown shows.
 Item {
     // Handed in by ModLoader (K26 loader contract).
@@ -32,7 +32,7 @@ Item {
     readonly property string shownName: showing ? T.nameOf(nearest, nearest.kind === "pomodoro" ? I18n.tr("mod-timer.name.pomodoro") : I18n.tr("mod-timer.name.timer")) : ""
 
     function primary() {
-        if (w.showing || d.background === false) Store.act("mod.panel.open", { id: "timer", panel: "timer" }, function () {})
+        if (w.showing) Store.act("mod.panel.open", { id: "timer", panel: "timer" }, function () {})
         else Store.act("timer.start", {}, function () {})
     }
     function nudge(up) {

@@ -9,7 +9,6 @@ use std::time::Duration;
 use kurashi_mod_api::{
     ActionError, FaceUpdate, Hooks, Job, JobCtx, ModCtx, NativeMod, Registration, Settings, Values,
 };
-use kurashi_mod_timer::actions::ERR_BACKGROUND;
 use kurashi_mod_timer::notify::{BoxFut, Notice, Notifier, Signal};
 use kurashi_mod_timer::shared::Clock;
 use kurashi_mod_timer::texts::Texts;
@@ -175,9 +174,8 @@ fn futures_block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
     }
 }
 
-fn settings(background: bool) -> Values {
+fn settings() -> Values {
     let mut v = Values::new();
-    v.insert("background".into(), json!(background));
     v.insert("presets".into(), json!("5,10,25"));
     v.insert("focus_minutes".into(), json!(25));
     v.insert("short_break_minutes".into(), json!(5));
@@ -231,7 +229,7 @@ async fn a_countdown_ends_with_no_view_open_and_its_plus_one_button_runs_it_agai
     let path = dir.path().join("timer.json");
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let active = Arc::new(Mutex::new(None));
     let _job = e.start_job(active.clone());
 
@@ -314,7 +312,7 @@ async fn a_pomodoro_moves_on_by_itself_and_says_so_when_the_break_starts() {
     let path = dir.path().join("timer.json");
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let _job = e.start_job(Arc::new(Mutex::new(None)));
 
     e.action("timer.pomodoro.start", json!({})).unwrap();
@@ -354,13 +352,13 @@ async fn an_end_during_a_daemon_restart_is_announced_once_on_start_with_its_time
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
     {
-        let e = enable(&module(&path, &wall, &server), settings(true));
+        let e = enable(&module(&path, &wall, &server), settings());
         e.action("timer.start", json!({"minutes": 3, "label": "tea"}))
             .unwrap();
     }
     // The daemon is down for ten minutes; the timer ran out meanwhile.
     wall.down_for(10 * MIN);
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let _job = e.start_job(Arc::new(Mutex::new(None)));
     tokio::time::sleep(Duration::from_millis(10)).await;
     let shown = server.shown();
@@ -377,7 +375,7 @@ async fn an_end_during_a_daemon_restart_is_announced_once_on_start_with_its_time
     assert_eq!(shown[0].summary, "tea");
 
     // The next start finds nothing pending: no second notice for the same end.
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let _job = e.start_job(Arc::new(Mutex::new(None)));
     tokio::time::sleep(Duration::from_millis(10)).await;
     assert_eq!(server.shown().len(), 1);
@@ -389,7 +387,7 @@ async fn an_idle_mod_has_no_deadline_and_a_stopped_timer_is_not_announced() {
     let path = dir.path().join("timer.json");
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let active = Arc::new(Mutex::new(None));
     let _job = e.start_job(active.clone());
     tokio::time::sleep(Duration::from_secs(3600)).await;
@@ -410,27 +408,22 @@ async fn an_idle_mod_has_no_deadline_and_a_stopped_timer_is_not_announced() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn background_off_refuses_a_new_timer_and_a_running_one_is_still_listed() {
+async fn a_running_timer_is_kept_across_an_enable_and_no_switch_is_offered() {
+    // Row 500 (done): the deadline has no gate, so there is no setting that would stop timers from ending.
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("timer.json");
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
-    let off = enable(&module(&path, &wall, &server), settings(false));
-    let refused = off
-        .action("timer.start", json!({"minutes": 1}))
-        .unwrap_err();
-    assert_eq!(refused, ActionError::Unavailable(ERR_BACKGROUND.into()));
-    assert_eq!(off.document().await["background"], false);
-
-    let on = enable(&module(&path, &wall, &server), settings(true));
+    let on = enable(&module(&path, &wall, &server), settings());
     on.action("timer.start", json!({"seconds": 30})).unwrap();
-    let on_again = enable(&module(&path, &wall, &server), settings(false));
-    let doc = on_again.document().await;
+    let again = enable(&module(&path, &wall, &server), settings());
+    let doc = again.document().await;
     assert_eq!(
         doc["timers"].as_array().unwrap().len(),
         1,
         "the state is kept"
     );
+    assert!(doc.get("background").is_none(), "the document carries no switch");
 }
 
 #[tokio::test(start_paused = true)]
@@ -440,13 +433,13 @@ async fn pause_and_resume_survive_a_restart_with_the_time_that_was_left() {
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
     {
-        let e = enable(&module(&path, &wall, &server), settings(true));
+        let e = enable(&module(&path, &wall, &server), settings());
         e.action("timer.start", json!({"minutes": 10})).unwrap();
         tokio::time::sleep(Duration::from_secs(4 * 60)).await;
         e.action("timer.pause", json!({"id": 1})).unwrap();
     }
     wall.down_for(60 * MIN);
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let doc = e.document().await;
     assert_eq!(
         doc["timers"][0]["state"], "paused",
@@ -464,7 +457,7 @@ async fn a_notice_stays_actionable_after_its_toast_expires() {
     let path = dir.path().join("timer.json");
     let wall = Wall::new(T0);
     let server = Arc::new(Server::default());
-    let e = enable(&module(&path, &wall, &server), settings(true));
+    let e = enable(&module(&path, &wall, &server), settings());
     let _job = e.start_job(Arc::new(Mutex::new(None)));
     e.action("timer.start", json!({"seconds": 60, "label": "eggs"}))
         .unwrap();
