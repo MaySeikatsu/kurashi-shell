@@ -331,3 +331,10 @@ Sandbox names: `w34-stage-…`, `w34-side-…`, `w34-surf-…`.
 | W43-layout | schema v3 + migration, kurashi-layout, kurashid config/wiring/actions, CLI, mock, renamed-key readers | opus |
 | W43-frame | Frame.qml, Bar.qml zone/inset/rule, shell.qml Frame Variants, test-frame.sh | opus |
 | W43-timer | kurashi-mod-timer, mods/timer, mod-timer i18n, native registration line | haiku |
+
+## Wave 44 (2026-10-26, session 14) — bars on every edge, dock and sidebars in every draw mode, Settings › Layout (K71, K72)
+| Card | Owner paths | Model |
+|---|---|---|
+| W44-bar | Bar/BarConfig/Frame, shell.qml bar+frame Variants, components/modules (new), bar/, IslandGeom, SidebarGeom inset, Light.originOf | opus |
+| W44-surfaces | Dock, Sidebar, Desktop, components/sidebar, their tests; kurashid row 486 | opus |
+| W44-settings | settings/**, layout/settings i18n, settings.open alias | haiku |

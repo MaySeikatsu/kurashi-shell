@@ -267,3 +267,7 @@ tests, *UX ✅* only after their brief in `docs/ux/` is met (lead review against
 | W43.1 | Schema v3 + migration, layout step (`kurashi-layout`), `runtime.layout`, `modules`, `layout.toggle`/`layout.bar.move`, `act --list` (card `W43-layout`; K71) | ✅ functional (migration goldens, fixture byte-equal) · UX n/a (shell unchanged; Settings › Layout page generated) | merged |
 | W43.2 | Screen frame, the bar as its band, floating bar geometry (card `W43-frame`; K71; `docs/ux/frame.md`) | ✅ functional (sway + nested niri) · UX ✅ (`frontend/shots/frame/`; fullscreen I237, budget I238) | merged |
 | W43.3 | Timer and pomodoro mod, every K72 variant (card `W43-timer`; K73; row 500 ungated jobs) | ✅ functional · UX ✅ (`mods/timer/shots/`; edge-module glance waits for W44; I231–I236) | merged |
+| W44.0 | Shared hover strip per edge: EdgeStrips, EdgeReveal, EdgeStripHost (lead; K71) | ✅ | merged |
+| W44.1 | Bars on every edge from zones; floating pill; hover/empty-desktop/hidden; the docked bar carries its frame strip (card `W44-bar`; K71, K72; rows 490, 492) | 🟡 | |
+| W44.2 | Dock and sidebars in every draw mode; sidebars slide, resize, open on hover, pin; desk on both sides (card `W44-surfaces`; K71; row 486) | 🟡 | |
+| W44.3 | Settings › Layout: edges diagram, zone lists, move bar, honest auto/inert (card `W44-settings`; K71, K72) | 🟡 | |
