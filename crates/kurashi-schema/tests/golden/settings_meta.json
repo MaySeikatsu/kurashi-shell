@@ -4462,6 +4462,106 @@
                   "value": true
                 }
               ],
+              "default": "",
+              "key": "keys.bar_top",
+              "label": "config.keys.bar_top.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "shortcut",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.bar_bottom",
+              "label": "config.keys.bar_bottom.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "shortcut",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.bar_left",
+              "label": "config.keys.bar_left.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "shortcut",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.bar_right",
+              "label": "config.keys.bar_right.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "shortcut",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": "",
+              "key": "keys.dock",
+              "label": "config.keys.dock.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "shortcut",
+              "couplings": [
+                {
+                  "key": "keys.write",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
               "default": "XF86AudioRaiseVolume",
               "key": "keys.volume_up",
               "label": "config.keys.volume_up.label",

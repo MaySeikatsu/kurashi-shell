@@ -94,6 +94,21 @@ pub struct Keys {
     /// Web dock
     #[kurashi(default = String::new(), requires = "keys.write == true")]
     pub webdock: String,
+    /// Top bar
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub bar_top: String,
+    /// Bottom bar
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub bar_bottom: String,
+    /// Left bar
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub bar_left: String,
+    /// Right bar
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub bar_right: String,
+    /// Dock
+    #[kurashi(default = String::new(), requires = "keys.write == true")]
+    pub dock: String,
     /// Volume up
     #[kurashi(default = "XF86AudioRaiseVolume".to_owned(), requires = "keys.write == true")]
     pub volume_up: String,

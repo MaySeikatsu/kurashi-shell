@@ -112,8 +112,11 @@ Scope {
             readonly property int inset: sb.num(sl.inset, floating ? ShellLayout.gap : 0)
             readonly property int spanStart: sb.num((sl.span || {}).start, floating ? ShellLayout.gap : 0)
             readonly property int spanEnd: sb.num((sl.span || {}).end, floating ? ShellLayout.gap : 0)
-            readonly property string joinStart: !floating && sl.joins ? String(sl.joins.start || "") : ""
-            readonly property string joinEnd: !floating && sl.joins ? String(sl.joins.end || "") : ""
+            // What each end meets: a bar, the band, the screen edge — or nothing (`"none"`, I253 a: under a floating bar the
+            // column starts a gap below it, a free end with rounded corners and no fillet; "" here, as a floating column's).
+            function free(j) { var s = String(j || ""); return s === "none" ? "" : s }
+            readonly property string joinStart: !floating && sl.joins ? free(sl.joins.start) : ""
+            readonly property string joinEnd: !floating && sl.joins ? free(sl.joins.end) : ""
             readonly property int joinR: Math.max(0, sb.num(sl.radius, floating ? 0 : ShellLayout.joinRadius))
             // A docked bar on the sidebar's own side: its outer side meets the bar (one sheet).
             readonly property var sideEdge: edges[sb.side] || ({})
