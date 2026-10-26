@@ -1291,6 +1291,29 @@ kp delete
 wait_val edges.left.center '["island"]'
 echo "layout W5: a problem entry shows its reason and Delete removes it from its list"
 
+# W5b. the screen's strip toggles an edge's bar (Space); on the left edge (empty start list), a module is added from the zone's
+#      Add… list, a second one goes above it with Alt+Up, and Delete removes one.
+lfocus "edge:right"
+kp space
+wait_val edges.right.bar true
+kp space
+wait_val edges.right.bar false
+lfocus "Add…"
+kp space
+kp return
+wait_val edges.left.start '["workspaces"]'
+lfocus "Add…"
+kp space
+kp return
+wait_val edges.left.start '["workspaces","windows"]'
+lfocus "pickrow:windows"
+kp alt+up
+wait_val edges.left.start '["windows","workspaces"]'
+lfocus "pickrow:windows"
+kp delete
+wait_val edges.left.start '["workspaces"]'
+echo "layout W5b: a strip toggles its edge's bar; a module is added from Add…, moved up with Alt+Up and removed with Delete"
+
 # W6. an inert keep-space row names the document's reason (a hidden part never keeps space) and the setting that hides it.
 lfocus "Hidden (opens by key)"
 kp space
