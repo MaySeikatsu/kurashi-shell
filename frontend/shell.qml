@@ -4,7 +4,7 @@ import "core"
 import "core/mods.js" as Mods
 import "surfaces"
 
-// Thin view (CLAUDE.md rule 1): one Bar per output; Quickshell.screens follows hotplug.
+// Thin view (CLAUDE.md rule 1): the bars of each output; Quickshell.screens follows hotplug.
 // A single content-sized Stage serves the focused output only (K16).
 ShellRoot {
     id: root
@@ -50,10 +50,30 @@ ShellRoot {
     Watch { doc: "svc.workspaces" }
     Watch { doc: "runtime.ui" }
 
+    // The bars and the screen frame of each output (K71, docs/ux/layout.md, docs/ux/frame.md): a bar on every edge whose
+    // `runtime.layout` entry has one, and the frame's strips while the frame is on. Mapping order matters (a zone holder is
+    // placed inside the zones of the holders mapped before it): the top and bottom bars first, the frame's top and bottom
+    // strips, then the side bars — which run between the horizontal bars — once those are on screen.
     Variants {
         model: Quickshell.screens
-        delegate: Bar {
-            onTrayMenuRequested: id => root.openTray(id, screen)
+        delegate: Scope {
+            id: edges
+            required property var modelData
+            Bar { id: topBar; modelData: edges.modelData; edge: "top"; onTrayMenuRequested: id => root.openTray(id, edges.modelData) }
+            Bar { id: bottomBar; modelData: edges.modelData; edge: "bottom"; onTrayMenuRequested: id => root.openTray(id, edges.modelData) }
+            Frame { id: frame; modelData: edges.modelData }
+            Bar {
+                modelData: edges.modelData
+                edge: "left"
+                after: topBar.settled && bottomBar.settled && frame.acrossSettled
+                onTrayMenuRequested: id => root.openTray(id, edges.modelData)
+            }
+            Bar {
+                modelData: edges.modelData
+                edge: "right"
+                after: topBar.settled && bottomBar.settled && frame.acrossSettled
+                onTrayMenuRequested: id => root.openTray(id, edges.modelData)
+            }
         }
     }
     // The mods' own surfaces (K38, row 88): every enabled mod's `surface:<name>`, once per output, with that output as its
@@ -113,11 +133,6 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
         delegate: ScreenCorners {}
-    }
-    // The screen frame (K71, docs/ux/frame.md): per output, four strips only while runtime.layout has the frame on there.
-    Variants {
-        model: Quickshell.screens
-        delegate: Frame {}
     }
     // The edge sidebars (W29, docs/ux/sidebar.md): a window only while runtime.ui.sidebar names its side, on that output.
     Sidebar { side: "right"; focusedScreen: root.focusedScreen() }

@@ -39,6 +39,37 @@ baseline.
 
 ## Results
 
+### 2026-10-26 — W44 bar: bars from the zones, the docked bar carries its frame strip (row 492 b), idle, the hidden bar's window (machine A; K71, K72)
+`frontend/test-bars.sh` (sandbox `w44-bar-test`, headless sway gles2, one 1920×1080 output), the real kurashid (debug, the
+card's target dir) with `idle.enabled = false` and the calm motion profile; frontend `qs -p` directly. "ref" is main's frontend
+at 8e88a8d7 (`git archive`), "new" this branch, both against the same daemon in one run; the frame toggled live
+(`layout.frame.enabled`), a docked top bar. PSS of the frontend process, MiB.
+
+| Look | Frontend | Frame off → on, pairs | Δ |
+|---|---|---|---|
+| kanso (no material) | ref (4 strips) | 196.3 → 207.5 · 202.5 → 205.8 · 205.4 → 206.1 | +11.3 / +3.3 / +0.7 |
+| kanso | new (3 strips, the bar carries the top one) | 139.2 → 141.6 · 136.1 → 138.8 · 134.1 → 138.9 | **+2.4 / +2.8 / +4.7** |
+| washi + paper material | ref | 210.4 → 236.8 · 231.3 → 244.2 · 230.9 → 246.1 | +26.4 / +12.9 / +15.2 |
+| washi + paper material | new | 180.0 → 194.9 · 193.6 → 201.6 · 189.3 → 202.4 | **+14.8 / +8.0 / +13.1** |
+
+- Row 492 (b): one layer window and one TileSheet less per output in the default framed layout (3 `kurashi-frame` surfaces,
+  test-frame.sh). Untextured the frame now costs +2…5 MiB (ref +1…11 in this run, W43: +2…5); with the paper material
+  +8…15 (ref +13…26, W43: +10…23). The material's allowance (K68: ≤ +12 per output) is still missed in one pair of three.
+- The acceptance run (two pairs each): kanso ref +13.1 / +2.4, new +9.7 / +1.0; washi + paper ref +14.8 / +20.9, new
+  +15.3 / +8.9 — first pairs carry start-up noise in both.
+- Absolute PSS differs by ~60 MiB between the two frontends of one run (ref always first, in both runs): not isolated —
+  order or I211's noise (which other processes map the same Qt and driver files); compare the pairs, not the levels.
+- **Idle: 0 commits in 10 s** — washi, the default bar (frame off), and washi + paper with the frame on (the bar carrying its
+  strip), measured between two minutes of the bar clock.
+- **The hidden bar's window** (visibility hover, kanso; PSS before the first reveal → after one reveal and hide): kept
+  unmapped after its first show (the dock's pattern) 186.3 → 183.8 and 202.0 → 200.3; no window while hidden
+  (`KURASHI_BAR_DROP=1`) 187.1 → 186.0 and 202.2 → 201.2.
+  The two are within the noise; the kept window stays (no window or module tree to make on each reveal).
+- Pixel identity of the default top bar against main (`tools/bench/block-identity.sh`, real kurashid, 2560×1440): terminal
+  identical; washi 8 px and sekai 9 px off by one channel unit at glyph edges (the sidebar buttons' glyphs); main against
+  itself: sekai 0, washi 4. No strong difference in the bar, the card, quick settings, the session menu or a held key; the
+  launcher differs only where main's first run had not indexed the apps yet (in both runs, main against itself too).
+
 ### 2026-10-26 — W43 frame: four strips per output, PSS with the frame off and on, idle (machine A; K71, docs/ux/frame.md)
 `frontend/test-frame.sh` (sandbox `w43-frame-test`, headless sway gles2, one 1920×1080 output), kurashi-mock serving a staged
 `runtime.layout` (frame on: thickness 8, radius 16, reserve on, a docked top bar; off: the fixture's unframed output) and wearing

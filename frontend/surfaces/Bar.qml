@@ -7,604 +7,535 @@ import "../components"
 import "../components/island"
 import "../components/sidebar"
 import "../components/bar"
+import "../components/bar/framegeom.js" as FG
+import "../components/modules" as M
 
-// One bar per output, on the edge that output's config names (bar.edge). bar.enabled false: no
-// surface, no exclusive zone and no subscriptions held for it (Ma). Everything shown comes from
-// Store; every click becomes an act/intent.
-PanelWindow {
+// The bar on one edge of one output (K71, docs/ux/layout.md): there while `runtime.layout` has `edges.<edge>.bar` for this
+// output, its rows (top, bottom) or columns (left, right) the edge's zones `start`, `center`, `end`, each entry a module
+// (K72, components/modules: ModuleHost). Everything shown comes from Store; every click becomes an act or an intent.
+//
+// Draw (K71): docked (dynamic, connected) — flush on its edge, the frame's band there; floating — a rounded pill `inset`
+// (band + gap) from its edge and `band + gap` from the bands beside it, in every chrome (the look's Block: its outline,
+// ring and shadow), the groups standing on it. A docked bar on a framed output carries its edge's frame strip (row 492 b):
+// its window reaches past the bar by the fillets, which hang under its ends, and it keeps the frame's zone there.
+//
+// Visibility (K71): `always`; `hover` — out after the pointer rests on its edge (EdgeReveal: the edge's one shared strip,
+// the dwell, twice as long on an edge another output touches), back 400 ms after it left the bar, never while one of its
+// menus, peeks or cards is open; `empty_desktop` — out while the output's workspace has no window, else as hover; `hidden`
+// — out only while `runtime.ui.shown` lists `bar:<edge>@<output>` (`layout.toggle`), closed by the same, Esc or a click
+// elsewhere. It slides in from its edge on the motion springs (K65; cut with reduced motion). While hidden it has no
+// window — unless it keeps a zone (`reserve` on) or carries the frame's strip — and its modules hold no subscription (Ma).
+//
+// Zones (the one-holder rule, K71): the window keeps its edge's exclusive zone only when the layout names the bar the
+// holder (or the frame, on an edge whose strip it carries); otherwise it ignores zones and stands at its inset.
+// Mapping order matters (W43-frame probe: a holder is placed inside the zones of holders mapped before it): shell.qml
+// maps the top and bottom bars first and the side bars after them (`after`), so a side bar runs between them.
+Scope {
     id: bar
     required property var modelData
-    screen: modelData
-
-    // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
-    property var tileSheet: tilesLoader.item
-    Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
-    LightSense {}
-
-    // This output's bar settings (config document, per-output entry wins).
-    BarConfig { id: cfg; screen: bar.screen }
-    readonly property bool vertical: cfg.vertical
-    // The bar's edge, kept by Peeks for this output: the items' peeks ask for it, and a side bar's peek sits beside the bar (I67).
-    readonly property string barEdge: cfg.edge
-    onBarEdgeChanged: Peeks.setEdge(screen ? screen.name : "", barEdge)
-
-    readonly property string origin: "qs:" + (screen ? screen.name : "?") + ":" + Math.floor(Math.random() * 1e6)
-    // Veil: daemon away (or not yet current) -> keep last state, dim it, show the glyph.
-    readonly property bool stale: !Store.live
-    // Test only (frontend/test-sidebars.sh): the items' boxes are logged after each change. Off without the variable.
-    readonly property bool geometryLog: Quickshell.env("KURASHI_BAR_GEOMETRY") === "1"
-
-    // What this bar renders; unwatched while the bar is hidden or gone so the daemon can stop
-    // services nobody shows (Ma).
-    Watch { doc: "svc.clock"; active: bar.visible }
-    Watch { doc: "svc.workspaces"; active: bar.visible }
-    Watch { doc: "runtime.island.main"; active: bar.visible }
-    Watch { doc: "svc.audio"; active: bar.visible }
-    Watch { doc: "mods"; active: bar.visible }
-    Watch { doc: "svc.tray"; active: bar.visible }
-    // Input bindings (ARCHITECTURE §6): what each island slot runs. Only while this bar is shown.
-    Watch { doc: "bindings"; active: bar.visible }
-    // Where the bar stands (K71, PROTOCOL §3.1): who keeps this edge's zone, the inset, the draw mode, the frame's bands.
-    Watch { doc: "runtime.layout"; active: bar.visible }
-    readonly property var layoutEdge: ShellLayout.edgeOf(outName, cfg.edge)
-    readonly property var frameDoc: ShellLayout.of(outName).frame || ({})
-    readonly property bool frameOn: frameDoc.on === true
-    // The one-holder rule (K71): the bar keeps its edge's zone only when the layout names it; otherwise (the frame's
-    // strip keeps it) the bar ignores zones and stands at its inset.
-    readonly property bool holdsZone: layoutEdge.holder === undefined || layoutEdge.holder === "bar"
-    readonly property int inset: Math.max(0, Math.round(layoutEdge.inset || 0))
-    // Floating (K71, image 8): inset by band + gap on its edge (the layout's `inset`) and from the bands beside it, every
-    // corner rounded. Docked (dynamic, connected): flush, the frame's band on this edge.
-    readonly property bool drawFloating: layoutEdge.draw === "floating"
-    readonly property int sideInset: drawFloating ? ShellLayout.gap : 0
-    // Plain numbers (they notify only when they change): every document patch re-reads the layout, and a rebuilt rule
-    // list would remake the rule's items, a frame drawn for nothing (Ma).
-    readonly property int bandTop: ShellLayout.bandOf(outName, "top")
-    readonly property int bandBottom: ShellLayout.bandOf(outName, "bottom")
-    readonly property int bandLeft: ShellLayout.bandOf(outName, "left")
-    readonly property int bandRight: ShellLayout.bandOf(outName, "right")
-    readonly property int frameRadius: Math.max(0, Math.round(frameDoc.radius || 0))
-    function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
-    // A docked bar on a framed output is the band: its strip is drawn even where the groups float (keycap, soft), so
-    // bar and band are one sheet.
-    readonly property bool clearStrip: floating && !(frameOn && !drawFloating)
-    readonly property var clock: Store.docs["svc.clock"] || ({})
-    readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
-    readonly property var island: Store.docs["runtime.island.main"] || ({})
-    // Volume. The slider shows a level only for audio the daemon reports: no document yet, or
-    // available === false (no audio server; its volume there is 0), is no level, not a guessed 0 %.
-    // A muted sink keeps its level, drawn dim (Shōjiki, B2).
-    readonly property var audioDoc: Store.docs["svc.audio"]
-    readonly property var audio: audioDoc || ({})
-    readonly property bool audioUsable: audioDoc !== undefined && audioDoc.available !== false
-    readonly property bool audioMuted: audio.muted === true
-    // Mod widgets (K26): every enabled mod's `widget:*` component, in mod order, placed at the end of the right row.
-    // The list is rebuilt only when its content changes: a Repeater reset would reload every widget.
-    readonly property var modsDoc: Store.docs["mods"]
-    property var modWidgets: []
-    function refreshWidgets() {
-        var w = Mods.widgets(modsDoc)
-        if (JSON.stringify(w) !== JSON.stringify(modWidgets)) modWidgets = w
-    }
-    onModsDocChanged: refreshWidgets()
-    Component.onCompleted: {
-        refreshWidgets()
-        Peeks.setEdge(screen ? screen.name : "", barEdge)
-        Light.setZone(bar, screen ? screen.name : "", cfg.edge, zoneSize)
-    }
-    // The quick button (K24), or with `sidebar.from_bar` the right sidebar on this output (W29): its open state and its click.
-    readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
-    readonly property bool quickOpen: cfg.sidebarFromBar
-        ? uiDoc.sidebar === "right" && (!uiDoc.sidebar_output || uiDoc.sidebar_output === (screen ? screen.name : ""))
-        : uiDoc.panel === "quick"
-    // I154: the sidebars' buttons at the bar's ends — open state per side on this output, and the click.
-    readonly property string outName: screen ? screen.name : ""
-    function sidebarOpen(side) {
-        return uiDoc.sidebar === side && (!uiDoc.sidebar_output || uiDoc.sidebar_output === outName)
-    }
-    function toggleSidebar(side) { Store.act("sidebar.toggle", {side: side, output: outName}) }
-    readonly property bool leftButton: cfg.sidebarButtons && cfg.leftSidebarTabs
-    // The quick button already opens the right sidebar with `sidebar.from_bar`: no second button for it.
-    readonly property bool rightButton: cfg.sidebarButtons && !cfg.sidebarFromBar
-    function quickClicked() {
-        if (cfg.sidebarFromBar) Store.act("sidebar.toggle", {side: "right", output: screen ? screen.name : ""})
-        else Store.act("quick.toggle")
-    }
-    // A mod widget's peek (K35): its `peek:<name>` component, named after the widget's `widget:<name>`; "" when the mod has none.
-    function modPeekOf(w) {
-        var name = String(w.provide).substring("widget:".length)
-        return Mods.qmlOf(modsDoc, "peek:" + name, w.mod) !== "" ? "mod:" + w.mod + ":" + name : ""
-    }
-    readonly property var trayDoc: Store.docs["svc.tray"] || ({})
-    readonly property var bindings: Store.docs["bindings"] || ({})
-    // Items to draw: none while the tray service is unavailable, and Passive items stay hidden
-    // (status Passive says there is nothing to show). No delegates exist for the others.
-    readonly property var trayItems: trayDoc.available === true
-        ? (trayDoc.items || []).filter(function (it) { return it.status !== "Passive" }) : []
-    // A side bar's column holds this many tray icons (the vertical layout sets it, see there); a top or bottom bar holds all.
-    property int trayFit: 0
-    readonly property int trayVisible: vertical ? trayFit : 1000000
-    // A tray menu is shown by the Stage on the output whose tray was clicked (shell.qml).
+    property string edge: "top"
+    // shell.qml: the bars (and frame strips) this one is placed after are on screen, or none is wanted.
+    property bool after: true
     signal trayMenuRequested(string id)
-    readonly property real daemonVolume: audio.volume ?? 0
-    readonly property string volumeA11y: !audioUsable ? I18n.tr("frontend.volume.unavailable")
-        : (audioMuted ? I18n.tr("frontend.volume.muted")
-            : I18n.tr("frontend.volume.level").replace("{pct}", Math.round(daemonVolume * 100)))
-    // This output's workspace pills, or the "*" list when the daemon sends one for all outputs.
-    // The windows of this output's active workspace (svc.workspaces `tasks`, session 9): one icon each, click focuses.
-    readonly property var tasks: {
-        var t = workspaces.tasks || {}
-        var n = screen ? screen.name : ""
-        return t[n] || t["*"] || []
-    }
-    // The workspace chip a window is dragged over (TaskList), ringed until the drop; -1 while nothing is dragged.
-    property int dragWs: -1
-    // The chip under a scene point for a window's drop (`items`: the chips' delegates): the chip's slot along the bar
-    // (half the spacing on each side) across the bar's whole thickness, so a thin dot is still a target.
-    function pillAtIn(items, sx, sy) {
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i]
-            if (!it || !it.modelData) continue
-            var p = it.mapToItem(null, 0, 0)
-            var slack = Theme.gap / 2 + 1
-            var hit = vertical ? (sy >= p.y - slack && sy < p.y + it.height + slack)
-                : (sx >= p.x - slack && sx < p.x + it.width + slack)
-            if (hit) return it.modelData
-        }
-        return null
-    }
-    function boxesOf(items) {
-        var out = []
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i]
-            if (!it || !it.modelData) continue
-            var p = it.mapToItem(null, 0, 0)
-            out.push({ id: it.modelData.id, x: Math.round(p.x), y: Math.round(p.y), w: Math.round(it.width), h: Math.round(it.height) })
-        }
-        return out
-    }
-    function repItems(r) {
-        var a = []
-        for (var i = 0; i < r.count; i++) a.push(r.itemAt(i))
-        return a
-    }
-    readonly property var pills: {
-        var o = workspaces.outputs || {}
-        var n = screen ? screen.name : ""
-        return o[n] || o["*"] || []
-    }
 
-    // Screen coordinates of a point in `item`: the SNI calls take them. The surface sits at the
-    // output's top-left, or at its bottom or right edge for a bar on those sides.
-    function screenPoint(item, x, y) {
-        var p = item.mapToItem(null, x, y)
-        var s = bar.screen
-        var ox = s && cfg.edge === "right" ? s.width - bar.width - bar.margins.right : bar.margins.left
-        var oy = s && cfg.edge === "bottom" ? s.height - bar.height - bar.margins.bottom : bar.margins.top
-        return { x: Math.round((s ? s.x : 0) + ox + p.x), y: Math.round((s ? s.y : 0) + oy + p.y) }
-    }
-    // A tray click. A menu request goes to the shell, which knows the output the Stage shows it on;
-    // the other buttons are sent here, as tray.activate or tray.secondary.
-    function trayRequest(action, id, item, x, y) {
-        if (action === "menu") { bar.trayMenuRequested(id); return }
-        var p = screenPoint(item, x, y)
-        Store.act(action === "secondary" ? "tray.secondary" : "tray.activate", {id: id, x: p.x, y: p.y})
-    }
-    // The leading items of a side bar's column that fit in `avail` px, `gap` apart (heights `hs`, top to bottom). When some
-    // do not, a marker of `markH` follows the last one that does, so the marker is in the fit too. The end of the list hides first.
-    function fitCount(hs, avail, gap, markH) {
-        var total = 0
-        for (var i = 0; i < hs.length; i++) total += hs[i] + (i > 0 ? gap : 0)
-        if (total <= avail) return hs.length
-        var used = 0
-        for (var k = 0; k < hs.length; k++) {
-            var next = used + (k > 0 ? gap : 0) + hs[k]
-            if (next + gap + markH > avail) return k
-            used = next
-        }
-        return hs.length
-    }
+    readonly property var scr: modelData
+    readonly property string outName: scr ? scr.name : ""
+    readonly property bool vertical: edge === "left" || edge === "right"
 
-    // One tray item, the same in both layouts. The bar's full thickness is its pointer target. A side bar hides the icons its
-    // column has no room for (they come last, so they hide first).
-    Component {
-        id: trayIconDelegate
-        TrayIcon {
-            id: ticon
-            required property var modelData
-            required property int index
-            visible: index < bar.trayVisible
-            title: modelData.title ?? ""
-            iconName: modelData.icon_name ?? ""
-            iconTheme: modelData.icon_theme_path ?? ""
-            pixmap: (modelData.icon_pixmap && modelData.icon_pixmap.png_base64)
-                ? "data:image/png;base64," + modelData.icon_pixmap.png_base64 : ""
-            attention: modelData.status === "NeedsAttention"
-            hasMenu: modelData.has_menu === true
-            menuOnly: modelData.item_is_menu === true
-            tip: modelData.tooltip ?? ""
-            // The hover peek names the item's title and tooltip (K35, B9); an item with neither has nothing to show.
-            peekSource: (modelData.title || modelData.tooltip) ? "tray:" + modelData.id : ""
-            peekOutput: bar.screen ? bar.screen.name : ""
-            onRequested: (action, x, y) => bar.trayRequest(action, modelData.id, ticon, x, y)
-            onScrolled: (delta, orientation) =>
-                Store.act("tray.scroll", {id: modelData.id, delta: delta, orientation: orientation})
-            // W34: the item's menu grows out of it (IslandGeom's origins; top and bottom bars).
-            AnchorReport { target: ticon; key: "tray:" + ticon.modelData.id; output: bar.outName; enabled: !bar.vertical }
-        }
-    }
+    // Where the bar stands (PROTOCOL §3.1): held while the shell runs, it decides whether the bar exists at all.
+    Watch { doc: "runtime.layout" }
+    readonly property var lay: ShellLayout.of(outName)
+    readonly property var ed: ShellLayout.edgeOf(outName, edge)
+    // Plain values (they notify only when they change): every document patch re-reads the layout, and rebuilt lists would
+    // remake items — a frame drawn for nothing (Ma).
+    readonly property bool on: ed.bar === true
+    readonly property string visibility: ed.visibility || "always"
+    readonly property bool drawFloating: ed.draw === "floating"
+    readonly property int inset: Math.max(0, Math.round(ed.inset || 0))
+    readonly property int reserve: Math.max(0, Math.round(ed.reserve || 0))
+    readonly property bool frameOn: (lay.frame || {}).on === true
+    readonly property int frameRadius: Math.max(0, Math.round((lay.frame || {}).radius || 0))
+    readonly property int bandTop: FG.band(lay, "top")
+    readonly property int bandBottom: FG.band(lay, "bottom")
+    readonly property int bandLeft: FG.band(lay, "left")
+    readonly property int bandRight: FG.band(lay, "right")
+    function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
+    // Row 492 (b): a docked bar on a framed output is its edge's strip.
+    readonly property bool carries: on && FG.docked(lay, edge)
+    readonly property bool holdsZone: on && (ed.holder === "bar" || (carries && ed.holder === "frame"))
+    readonly property int barH: Theme.barH
 
-    // Volume intents. A wheel notch is one 5 % step from the last value sent, so fast scrolling
-    // does not lose steps while the daemon's echo is still on its way; the echo resets it.
-    property real volumeTarget: -1
-    onDaemonVolumeChanged: volumeTarget = -1
-    function setVolume(v) {
-        if (!audioUsable) return
-        volumeTarget = -1
-        Store.intent("audio.volume", v, origin)
+    // The bars beside a side bar (the horizontal bars own the corners; the side bars run between them): where this one
+    // starts and ends along its edge, from the screen's top and bottom.
+    function across(e) {
+        var x = ShellLayout.edgeOf(outName, e)
+        return x.bar === true && x.visibility !== "hidden" ? Math.round(x.inset || 0) + barH : bandBeside(e)
     }
-    function volumeStep(dy) {
-        if (dy === 0 || !audioUsable) return
-        var base = volumeTarget >= 0 ? volumeTarget : daemonVolume
-        volumeTarget = Math.max(0, Math.min(1, base + (dy > 0 ? 0.05 : -0.05)))
-        Store.intent("audio.volume", volumeTarget, origin)
-    }
+    readonly property int startOff: vertical ? across("top") + (drawFloating ? ShellLayout.gap : 0)
+        : (drawFloating ? bandLeft + ShellLayout.gap : 0)
+    readonly property int endOff: vertical ? across("bottom") + (drawFloating ? ShellLayout.gap : 0)
+        : (drawFloating ? bandRight + ShellLayout.gap : 0)
 
-    // Anchored to its edge: a left or right bar spans the height, a top or bottom bar the width.
-    anchors {
-        top: cfg.edge === "top" || vertical
-        bottom: cfg.edge === "bottom" || vertical
-        left: cfg.edge === "left" || !vertical
-        right: cfg.edge === "right" || !vertical
+    // ---- the zones: module entries (`{id, kind, mod?, provide?}`), through a string so they change only with their content
+    // Before any layout document: the schema's default zones, `mods` standing for every enabled mod widget.
+    readonly property bool noDoc: ShellLayout.doc.outputs === undefined
+    Watch { doc: "mods"; active: bar.noDoc && bar.on }
+    readonly property string zonesKey: {
+        if (!noDoc) return JSON.stringify(ed.zones || { start: [], center: [], end: [] })
+        var core = function (id) { return { id: id, kind: "core" } }
+        var mods = Mods.widgets(Store.docs["mods"]).map(function (w) {
+            return { id: "mod:" + w.mod + ":" + String(w.provide).substring(7), kind: "mod", mod: w.mod, provide: w.provide }
+        })
+        return JSON.stringify({
+            start: edge === "top" ? ["sidebar_left", "workspaces", "windows"].map(core) : [],
+            center: edge === "top" ? [core("island")] : [],
+            end: edge === "top" ? [core("volume")].concat(mods, ["recorder", "keyboard", "clock", "quick", "tray", "sidebar_right"].map(core)) : []
+        })
     }
-    implicitHeight: vertical ? 0 : Theme.barH
-    implicitWidth: vertical ? Theme.barH : 0
-    visible: cfg.enabled
-    color: "transparent"
-    // Auto: exclusive zone = the bar's thickness (the compositor adds the margin on its edge); Ignore while another
-    // surface holds the edge (K71).
-    exclusionMode: holdsZone ? ExclusionMode.Auto : ExclusionMode.Ignore
-    margins {
-        top: cfg.edge === "top" ? bar.inset : (bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("top") : 0) : 0)
-        bottom: cfg.edge === "bottom" ? bar.inset : (bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("bottom") : 0) : 0)
-        left: cfg.edge === "left" ? bar.inset : (!bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("left") : 0) : 0)
-        right: cfg.edge === "right" ? bar.inset : (!bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("right") : 0) : 0)
-    }
-    // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf).
-    readonly property int zoneSize: visible && holdsZone ? Theme.barH + inset : 0
-    readonly property var zoneKey: [screen ? screen.name : "", cfg.edge, zoneSize].join("|")
-    onZoneKeyChanged: Light.setZone(bar, screen ? screen.name : "", cfg.edge, zoneSize)
-    Component.onDestruction: Light.setZone(bar, "", cfg.edge, 0)
-
-    // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol)
-    BackgroundEffect.blurRegion: Region { item: bg }
-
-    // The chrome decides how the bar's groups stand (K42, K45), from tokens only (rule 4):
-    // - flat (`chrome.groups` false): one solid strip, the rows on it;
-    // - groups with a shadow of either kind (keycap, soft): the groups float as blocks on the desk, the strip is clear;
-    // - groups without a shadow (line): a terminal's status line — the strip, its inner edge ruled in the outline, and each
-    //   group an outlined box with no fill behind its text.
-    // Side bars keep their strip: their items are not grouped.
-    readonly property bool lifted: Theme.shadowDy > 0 || Theme.softR > 0
-    readonly property bool floating: Theme.groups && lifted && !vertical
-    Rectangle {
-        id: bg
-        anchors.fill: parent
-        color: bar.clearStrip ? "transparent" : Theme.surfaceAlpha
-        radius: bar.drawFloating ? Math.min(Theme.rLg, Theme.barH / 2) : 0
-        // A floating bar is outlined all round (line chrome; the pen draws it under a pen).
-        border.width: bar.drawFloating && !bar.floating && !rulePen.active ? Theme.outlineW : 0
-        border.color: Theme.outlineColor
-        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
-        // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there itself,
-        // in step with the card: round the hanging card's fillets into its sides, never under a translucent card. The
-        // opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
-        readonly property bool opened: !bar.vertical && IslandGeom.openR > IslandGeom.openL
-            && IslandGeom.takenOn !== "" && IslandGeom.takenOn === (bar.screen ? bar.screen.name : "")
-        // Row 363 (W34): an open sidebar at rest on this edge leaves the rule out over the span its column covers
-        // (SidebarGeom), so the column's outline runs round its fillet into the rule's end — one sheet, no seam.
-        readonly property var sideOpen: {
-            var o = SidebarGeom.openingOf(bar.screen ? bar.screen.name : "")
-            return o && o.edge === cfg.edge ? o : null
-        }
-        // The rule as segments along the edge: everything but the island's opening and the sidebar's span.
-        readonly property real ruleLen: bar.vertical ? height : width
-        readonly property var ruleSegs: {
-            var gaps = []
-            if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
-            if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
-            // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
-            // round it into the band beside (Frame.qml).
-            if (bar.frameOn && !bar.drawFloating) {
-                var fr = bar.frameRadius
-                gaps.push([0, bar.bandBeside(bar.vertical ? "top" : "left") + fr])
-                gaps.push([ruleLen - bar.bandBeside(bar.vertical ? "bottom" : "right") - fr, ruleLen])
+    readonly property var zones: JSON.parse(zonesKey)
+    // The modules whose neighbours stand close (the workspace keys and the sidebar buttons beside them); the others are
+    // `Theme.pad` apart.
+    readonly property var tightIds: ["workspaces", "sidebar_left", "sidebar_right"]
+    // A zone as runs, each run one group block (chromes with groups): the island stands alone (its pill is its block), the
+    // window list is a group of its own, every other stretch one group; a run's pieces are one module each, or a stretch of
+    // tight ones. `key`: the group's origin key (Stage reads these three).
+    function runsOf(zone, list) {
+        var runs = [], cur = null, rightUsed = false
+        function close() { if (cur) runs.push(cur); cur = null }
+        for (var i = 0; i < list.length; i++) {
+            var e = list[i]
+            if (e.id === "island" || e.id === "windows") {
+                close()
+                runs.push({ kind: e.id, key: e.id === "windows" ? "group:tasks" : "", pieces: [[e]] })
+                continue
             }
-            gaps.sort(function (x, y) { return x[0] - y[0] })
-            var segs = [], at = 0
-            for (var i = 0; i < gaps.length; i++) {
-                if (gaps[i][0] > at) segs.push([at, gaps[i][0]])
-                at = Math.max(at, gaps[i][1])
-            }
-            if (at < ruleLen) segs.push([at, ruleLen])
-            return segs
+            if (!cur) cur = { kind: "group", key: "", pieces: [] }
+            var tight = tightIds.indexOf(e.id) >= 0
+            var last = cur.pieces.length > 0 ? cur.pieces[cur.pieces.length - 1] : null
+            if (tight && last && last.tight) last.push(e)
+            else { var p = [e]; p.tight = tight; cur.pieces.push(p) }
         }
-        // K59: the strip's material, under its rules (flat chrome; floating groups stand on their own blocks).
-        Loader {
-            anchors.fill: parent
-            active: !bar.clearStrip && Theme.texShell
-            sourceComponent: Relief { anchors.fill: parent; radius: bg.radius }
+        close()
+        for (var j = 0; j < runs.length; j++) {
+            var r = runs[j]
+            if (r.kind !== "group") continue
+            var ids = [].concat.apply([], r.pieces).map(function (x) { return x.id })
+            if (ids.indexOf("workspaces") >= 0) r.key = "group:workspaces"
+            else if (zone === "end" && !rightUsed) { r.key = "group:right"; rightUsed = true }
+            else r.key = "group:" + zone + ":" + j
+            // (A piece's `tight` mark does not survive JSON: keep it as data.)
+            r.pieces = r.pieces.map(function (p) { return { tight: !!p.tight, entries: p.slice() } })
         }
-        // K62: with a pen in effect the rule is drawn by the pen, as one open line (two, either side of the island's
-        // opening); the opening and the line's ends are the rectangles' below.
-        Loader {
-            id: rulePen
-            anchors.fill: parent
-            active: Theme.penOutline && !bar.floating && Theme.outlineW > 0
-            sourceComponent: PenOutline {
-                readonly property real ow: Theme.outlineW
-                readonly property real cy: cfg.edge === "top" ? height - ow / 2 : ow / 2
-                readonly property real cx: cfg.edge === "left" ? width - ow / 2 : ow / 2
-                color: Theme.outlineColor
-                lineWidth: ow
-                seed: bar.vertical ? 0xB4A2 : 0xB4A1
-                radius: bg.radius
-                // Floating: the outline of the rounded bar (paths null); else the rule's segments.
-                paths: bar.drawFloating ? null : bg.ruleSegs.map(function (g) {
-                    return bar.vertical ? { points: [{ x: cx, y: g[0] }, { x: cx, y: g[1] }], closed: false }
-                                        : { points: [{ x: g[0], y: cy }, { x: g[1], y: cy }], closed: false }
-                })
-            }
-        }
-        Repeater {
-            model: !bar.floating && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
-            Rectangle {
-                required property var modelData
-                color: Theme.outlineColor
-                x: bar.vertical ? (cfg.edge === "left" ? bg.width - width : 0) : modelData[0]
-                y: bar.vertical ? modelData[0] : (cfg.edge === "top" ? bg.height - height : 0)
-                width: bar.vertical ? Theme.outlineW : Math.max(0, modelData[1] - modelData[0])
-                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.outlineW
-            }
-        }
-    }
-    // K47 (W23-system, docs/ux/power.md): the keyboard layout's short name (svc.keyboard), shown only while the compositor
-    // names more than one layout; a click switches to the next (`keyboard.next`). Its document is watched
-    // while the chip exists, i.e. while the bar is shown (the compositor stream behind it is refcounted, Ma).
-    // W36 (I131): on a side bar the chip is the bar's width less a margin, the short name cut to three letters (the full
-    // name is the accessible one); `allowed` is the side bar's fit.
-    component KeyboardChip: Item {
-        id: kb
-        Watch { doc: "svc.keyboard" }
-        property bool vertical: false
-        property bool allowed: true
-        readonly property var d: Store.docs["svc.keyboard"] || ({})
-        readonly property var layouts: d.layouts || []
-        readonly property var cur: layouts.length > 0 ? layouts[Math.max(0, Math.min(layouts.length - 1, Number(d.current || 0)))] : null
-        readonly property bool wanted: layouts.length > 1
-        visible: wanted && allowed
-        width: vertical ? Theme.barH - 8 : (visible ? kbText.implicitWidth + 2 * Theme.xs : 0)
-        height: Theme.barH - 12
-        Accessible.role: Accessible.Button
-        Accessible.name: I18n.tr("power.bar.layout").replace("{name}", kb.cur ? String(kb.cur.name) : "")
-        Rectangle {
-            anchors.fill: parent
-            radius: Theme.rSm
-            color: kbHover.hovered ? Theme.containerHigh : "transparent"
-        }
-        Text {
-            id: kbText
-            anchors.centerIn: parent
-            color: Theme.fg
-            font.pixelSize: Theme.fsCaption
-            font.weight: Theme.wBold
-            font.family: Theme.fam(text, Theme.families)
-            text: kb.cur ? String(kb.cur.short).toUpperCase().substring(0, kb.vertical ? 3 : 8) : ""
-        }
-        HoverHandler { id: kbHover }
-        TapHandler { onTapped: Store.act("keyboard.next") }
-    }
-    // K47: a recording runs (svc.recorder) — a red dot and its label; a click stops it (`recorder.stop`). Nothing at all while
-    // nothing records; the dot does not blink (no animation, Ma).
-    // W36 (I131): on a side bar the dot stands over the label, both centred in the bar's width.
-    component RecordDot: Item {
-        id: rd
-        Watch { doc: "svc.recorder" }
-        property bool vertical: false
-        property bool allowed: true
-        readonly property bool recording: (Store.docs["svc.recorder"] || ({})).recording === true
-        readonly property bool wanted: recording
-        visible: wanted && allowed
-        width: vertical ? Theme.barH : (visible ? dotRow.implicitWidth + 2 * Theme.xs : 0)
-        height: vertical ? Theme.barH - 6 : Theme.barH - 12
-        Accessible.role: Accessible.Button
-        Accessible.name: I18n.tr("power.bar.recording")
-        Grid {
-            id: dotRow
-            anchors.centerIn: parent
-            columns: rd.vertical ? 1 : 2
-            spacing: rd.vertical ? 2 : Theme.xs
-            horizontalItemAlignment: Grid.AlignHCenter
-            verticalItemAlignment: Grid.AlignVCenter
-            Rectangle {
-                width: 10
-                height: 10
-                radius: 5
-                color: Theme.error
-            }
-            Text {
-                color: Theme.error
-                font.pixelSize: Theme.fsCaption
-                font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
-                text: I18n.tr("power.bar.rec")
-            }
-        }
-        TapHandler { onTapped: Store.act("recorder.stop") }
+        for (var k = 0; k < runs.length; k++)
+            if (runs[k].kind !== "group") runs[k].pieces = [{ tight: false, entries: runs[k].pieces[0] }]
+        return runs
     }
 
-    // A group's block behind a row of the bar (chromes with groups): the row's box plus `Theme.gap` around it, the face
-    // centred on the bar. Under flat chrome nothing is drawn and nothing moves (the rows keep their places). The soft
-    // shadow is a short one: the bar's window ends a few px under the block.
-    // K67: face and hard shadow are centred together, so a longer shadow (strength 2) or one cast upwards stays inside
-    // the bar's window; at the defaults (straight down by `Theme.shadowDy`) this is where the face always stood.
-    component Group: Block {
-        required property Item around
-        readonly property real padX: Theme.gap + 2
-        visible: Theme.groups && around.visible && around.width > 0
-        x: around.x - padX
-        y: (parent.height - (Theme.barH - 8) - Math.abs(Theme.sinkY)) / 2 - Math.min(0, Theme.sinkY)
-        width: around.width + 2 * padX
-        height: Theme.barH - 8 + Theme.shadowDy
-        radius: Theme.rFull
-        ringScale: 0.5
-        softScale: 0.3
-        // (An inline component does not see the bar's ids: `lifted` again, from the tokens.)
-        fill: Theme.shadowDy > 0 || Theme.softR > 0 ? Theme.surfaceAlpha : "transparent"
+    // ---- visibility ---------------------------------------------------------------------------------------------------
+    readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
+    readonly property bool forced: {
+        var s = uiDoc.shown
+        if (!Array.isArray(s)) return false
+        return s.indexOf("bar:" + edge + "@" + outName) >= 0 || s.indexOf("bar:" + edge + "@*") >= 0
     }
+    // The desk is empty: this output's active workspace holds no window (svc.workspaces `tasks`, as the dock reads it).
+    Watch { doc: "svc.workspaces"; active: bar.on && bar.visibility === "empty_desktop" }
+    readonly property bool emptyDesk: {
+        var t = (Store.docs["svc.workspaces"] || {}).tasks
+        if (!t) return false
+        var l = t[outName] || t["*"]
+        return Array.isArray(l) && l.length === 0
+    }
+    EdgeReveal {
+        id: reveal
+        screen: bar.scr
+        edge: bar.edge
+        key: "bar"
+        enabled: bar.on && !bar.forced && (bar.visibility === "hover" || (bar.visibility === "empty_desktop" && !bar.emptyDesk))
+        holdIn: bar.holdOpen
+    }
+    // What keeps a revealed bar out: the pointer on it, one of its menus or drags, a card or a peek on this output, its focus.
+    property bool pointerOn: false
+    property bool focused: false
+    // The pointer that brought it out rests on the edge, inside the bar's window once it maps — but the compositor tells the
+    // window so only when it is on screen (first reveal: the window is made then). Until the window has seen the pointer
+    // come or go, or a moment after it is out, the edge's pointer holds it.
+    property bool edgeHold: false
+    Connections {
+        target: reveal
+        function onRevealedChanged() { bar.edgeHold = reveal.revealed; if (reveal.revealed) edgeHoldT.restart() }
+    }
+    onPointerOnChanged: edgeHold = false
+    property Timer edgeHoldT: Timer { interval: 1200; onTriggered: bar.edgeHold = false }
+    readonly property bool holdOpen: edgeHold || pointerOn || focused || link.busy || !!uiDoc.panel
+        || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
+    readonly property bool wantShown: on && (visibility === "always" || forced
+        || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
+    // 0 = slid out past its edge, 1 = in place; a spring between (K65), cut when motion is off.
+    property real shownAmt: wantShown ? 1 : 0
+    Behavior on shownAmt {
+        enabled: Theme.springOn
+        SpringAnimation { spring: Theme.spring; damping: Math.max(Theme.damping, 0.6); epsilon: 0.01 }
+    }
+    // The window: while the bar is out or sliding, while it keeps a zone or carries the frame's strip (both hold while it
+    // is in), and — once shown — kept unmapped while hidden (the dock's pattern; BENCH "W44 bar": the cheaper of the two).
+    readonly property bool keepsSpace: holdsZone && reserve > 0
+    property bool everShown: false
+    onWantShownChanged: if (wantShown) everShown = true
+    // (Bench only: KURASHI_BAR_DROP=1 makes no window while hidden, the other choice measured.)
+    readonly property bool keepWindow: Quickshell.env("KURASHI_BAR_DROP") !== "1"
+    readonly property bool windowWanted: on && (wantShown || shownAmt > 0 || keepsSpace || carries || (everShown && keepWindow))
+    readonly property bool mapped: winL.item !== null && winL.item.backingWindowVisible === true
+    // shell.qml: what waits for this bar (the side bars, the frame's side strips) may go once it is on screen or not wanted.
+    readonly property bool settled: !(on && (wantShown || keepsSpace || carries)) || mapped
+
+    // The one bar of this output the Stage and the peeks take as "the bar" (BarConfig.edge: the island's, else the first).
+    BarConfig { id: cfg; screen: bar.scr }
+    readonly property bool primary: cfg.enabled && cfg.edge === edge
+    onPrimaryChanged: if (primary) Peeks.setEdge(outName, edge)
+    Component.onCompleted: if (primary) Peeks.setEdge(outName, edge)
+
+    // Where the body stands from its edge, for the neck, the sidebar's join and the frame (IslandGeom's bar registry).
+    readonly property string geomKey: [outName, edge, on, inset, barH, drawFloating, mapped].join("|")
+    onGeomKeyChanged: IslandGeom.setBar(outName, edge, on ? { inset: inset, size: barH, floating: drawFloating, mapped: mapped } : null)
+    Component.onDestruction: IslandGeom.setBar(outName, edge, null)
+
+    readonly property M.ModuleLink link: M.ModuleLink { vertical: bar.vertical }
+
+    LazyLoader {
+        id: winL
+        active: bar.windowWanted && bar.after
+        PanelWindow {
+            id: win
+            screen: bar.scr
+            // QuickButton and SidebarButton read it (their origins register on top and bottom bars only).
+            readonly property bool vertical: bar.vertical
+
+            // K59: this window's tile pair, shared by its reliefs (components/TileSheet.qml), and the pointer light's sensor.
+            property var tileSheet: tilesLoader.item
+            Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
+            LightSense {}
+
+            // ---- geometry: the body (the bar itself) inside the window ----
+            // A floating bar's window reaches from its edge (margin 0, as a zone holder must: its margin would add to its
+            // zone) and round the body by the look's shadow; a carrying bar's reaches past the bar by the frame's fillets.
+            readonly property int shadowRoom: bar.drawFloating && Theme.lifted
+                ? Math.ceil(Math.max(Math.abs(Theme.sinkX), Math.abs(Theme.sinkY), Theme.shadowDy) + Theme.softR) : 0
+            readonly property int edgeRoom: bar.drawFloating ? bar.inset : 0
+            readonly property int awayRoom: shadowRoom
+            readonly property int startRoom: Math.min(shadowRoom, bar.startOff)
+            readonly property int endRoom: Math.min(shadowRoom, bar.endOff)
+            readonly property var g: bar.carries ? FG.geometry(bar.lay, bar.barH, bar.scr ? bar.scr.width : 0, bar.scr ? bar.scr.height : 0,
+                                                               Theme.boxed ? Theme.outlineW : 0, FG.zones(bar.lay)) : null
+            readonly property string piecesKey: bar.carries && g !== null && (bar.edge === "top" || bar.edge === "bottom")
+                ? JSON.stringify(FG.across(g, bar.edge === "top")) : ""
+            readonly property var pieces: piecesKey !== "" ? JSON.parse(piecesKey) : null
+            readonly property int carryDepth: pieces ? Math.max(0, Math.ceil(pieces.d) - bar.barH) : 0
+            readonly property int thick: edgeRoom + bar.barH + awayRoom + carryDepth
+            // The side bar's start and end on the output: a holder is placed inside the zones of the holders mapped before it
+            // (the top and bottom bars or the frame's strips; shell.qml's order), so its margins count from there.
+            readonly property int zoneBeforeTop: bar.vertical && bar.holdsZone ? Light.zoneOf(win, "top") : 0
+            readonly property int zoneBeforeBottom: bar.vertical && bar.holdsZone ? Light.zoneOf(win, "bottom") : 0
+
+            anchors {
+                top: bar.edge === "top" || bar.vertical
+                bottom: bar.edge === "bottom" || bar.vertical
+                left: bar.edge === "left" || !bar.vertical
+                right: bar.edge === "right" || !bar.vertical
+            }
+            implicitHeight: bar.vertical ? 0 : thick
+            implicitWidth: bar.vertical ? thick : 0
+            margins {
+                top: bar.edge === "top" ? (bar.drawFloating ? 0 : bar.inset)
+                    : (bar.vertical ? Math.max(0, bar.startOff - win.startRoom - win.zoneBeforeTop) : 0)
+                bottom: bar.edge === "bottom" ? (bar.drawFloating ? 0 : bar.inset)
+                    : (bar.vertical ? Math.max(0, bar.endOff - win.endRoom - win.zoneBeforeBottom) : 0)
+                left: bar.edge === "left" ? (bar.drawFloating ? 0 : bar.inset) : (!bar.vertical ? bar.startOff - win.startRoom : 0)
+                right: bar.edge === "right" ? (bar.drawFloating ? 0 : bar.inset) : (!bar.vertical ? bar.endOff - win.endRoom : 0)
+            }
+            readonly property int edgeMargin: bar.drawFloating ? 0 : bar.inset
+            color: "transparent"
+            // The zone (the compositor adds the margin on its edge): the edge's whole reserve, never less than the bar it is.
+            readonly property int zoneTotal: !bar.holdsZone ? 0
+                : (bar.visibility === "always" ? Math.max(bar.reserve, bar.inset + bar.barH) : bar.reserve)
+            // (Quickshell switches to Normal whenever `exclusiveZone` is written, so it is written only while the bar holds the
+            // zone; a window that holds none stays Ignore, -1 on the wire.)
+            exclusionMode: bar.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
+            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, win.zoneTotal - win.edgeMargin); restoreMode: Binding.RestoreNone }
+            WlrLayershell.layer: WlrLayer.Top
+            // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
+            WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+            visible: bar.wantShown || bar.shownAmt > 0 || bar.keepsSpace || bar.carries
+            // The body's box at rest while it is out or coming out (the dock's rule): a pointer resting on the edge is inside it
+            // the moment the window maps, so the hover reveal holds; an input region that slid in with the body would only
+            // be found by the next motion.
+            mask: Region { x: body.restX; y: body.restY; width: body.shownNow ? body.width : 0; height: body.shownNow ? body.height : 0 }
+
+            // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf); registered once
+            // it is on screen (the frame's side strips wait for it).
+            readonly property var zoneKey: [bar.outName, bar.edge, backingWindowVisible ? zoneTotal : 0].join("|")
+            onZoneKeyChanged: Light.setZone(win, bar.outName, bar.edge, backingWindowVisible ? zoneTotal : 0)
+            Component.onDestruction: Light.setZone(win, "", bar.edge, 0)
+            // Row 490: where this window really stands on its output (the sheet's registration; Light.originOf reads it).
+            readonly property point sheetOrigin: {
+                var s = bar.scr
+                if (!s) return Qt.point(0, 0)
+                var x = margins.left, y = margins.top
+                if (bar.edge === "right") x = s.width - width - margins.right
+                if (bar.edge === "bottom") y = s.height - height - margins.bottom
+                if (bar.vertical) y = zoneBeforeTop + margins.top
+                return Qt.point(x, y)
+            }
+            // K61 carried sheet: the body's distance from its place at rest while it slides.
+            readonly property point sheetCarry: Qt.point(body.x - body.restX, body.y - body.restY)
+
+            // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol): the body, and the frame's fills
+            // this window carries.
+            BackgroundEffect.blurRegion: Region {
+                item: body.shownNow ? bg : null
+                Region { item: carried.item ? carried.item.fillAt(0) : null }
+                Region { item: carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
+                Region { item: carried.item && carried.item.fillCount > 2 ? carried.item.fillAt(2) : null }
+            }
+
+            // Row 492 (b): the frame's strip on this edge (its side bands to the fillets' end, the fillets, the rule's arcs).
+            Loader {
+                id: carried
+                active: win.pieces !== null
+                sourceComponent: FramePieces {
+                    ox: win.sheetOrigin.x
+                    oy: win.sheetOrigin.y
+                    winW: win.width
+                    winH: win.height
+                    sw: bar.scr ? bar.scr.width : 0
+                    sh: bar.scr ? bar.scr.height : 0
+                    r: bar.frameRadius
+                    ow: Theme.boxed ? Theme.outlineW : 0
+                    cr: {
+                        var v = cfg.valueOf("theme.shape.screen_corners", 0)
+                        return typeof v === "number" && v > 0 ? Math.round(v) : 0
+                    }
+                    seed: bar.edge === "top" ? 0xF2A1 : 0xF2A2
+                    fills: win.pieces ? win.pieces.fills : []
+                    fillets: win.pieces ? win.pieces.fillets : []
+                    rules: win.pieces ? win.pieces.rules : []
+                    arcs: win.pieces ? win.pieces.arcs : []
+                }
+            }
+
+            Item {
+                id: body
+                // At rest: past the edge room, the start room and (bottom, right) the carried depth.
+                readonly property real restX: bar.edge === "right" ? win.width - win.edgeRoom - bar.barH
+                    : (bar.edge === "left" ? win.edgeRoom : win.startRoom)
+                readonly property real restY: bar.edge === "bottom" ? win.height - win.edgeRoom - bar.barH
+                    : (bar.edge === "top" ? win.edgeRoom : win.startRoom)
+                // Slid out: past its edge, with its shadow.
+                readonly property real away: (1 - bar.shownAmt) * (bar.barH + win.edgeRoom + win.awayRoom + 2)
+                readonly property bool shownNow: bar.shownAmt > 0
+                x: restX + (bar.edge === "left" ? -away : bar.edge === "right" ? away : 0)
+                y: restY + (bar.edge === "top" ? -away : bar.edge === "bottom" ? away : 0)
+                width: bar.vertical ? bar.barH : win.width - win.startRoom - win.endRoom
+                height: bar.vertical ? win.height - win.startRoom - win.endRoom : bar.barH
+                visible: shownNow
+                focus: bar.forced
+                Keys.onEscapePressed: bar.putAway()
+                // Brought out by key, it had the keyboard: a click elsewhere takes it, and puts the bar away.
+                onActiveFocusChanged: {
+                    bar.focused = activeFocus
+                    if (!activeFocus && hadFocus) { hadFocus = false; bar.putAway() }
+                    else if (activeFocus) hadFocus = true
+                }
+                property bool hadFocus: false
+                HoverHandler { onHoveredChanged: bar.pointerOn = hovered }
+
+                Item {
+                    id: bb
+                    anchors.fill: parent
+                    // The chrome decides how the bar's groups stand (K42, K45), from tokens only (rule 4):
+                    // - flat (`chrome.groups` false): one solid strip, the rows on it;
+                    // - groups with a shadow of either kind (keycap, soft): the groups float as blocks on the desk, the strip is clear;
+                    // - groups without a shadow (line): a terminal's status line — the strip, its inner edge ruled in the outline, and
+                    //   each group an outlined box with no fill behind its text.
+                    // Side bars keep their strip: their items are not grouped. A floating bar is a pill in every chrome, the groups on it;
+                    // a docked bar on a framed output is the band, so its strip is drawn even where the groups float.
+                    readonly property bool floatingGroups: Theme.groups && Theme.lifted && !bar.vertical
+                    readonly property bool clearStrip: floatingGroups && !bar.drawFloating && !bar.frameOn
+                    readonly property bool live: bar.shownAmt > 0
+
+                    Rectangle {
+                        id: bg
+                        anchors.fill: parent
+                        color: bb.clearStrip || bar.drawFloating ? "transparent" : Theme.surfaceAlpha
+                        // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
+                        // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there
+                        // itself, in step with the card: round the hanging card's fillets into its sides, never under a translucent
+                        // card. The opening stands still while the card morphs, so the two surfaces never disagree mid-morph.
+                        readonly property bool opened: !bar.vertical && bar.primary && IslandGeom.openR > IslandGeom.openL
+                            && IslandGeom.takenOn !== "" && IslandGeom.takenOn === bar.outName
+                        // Row 363 (W34): an open sidebar at rest on this edge leaves the rule out over the span its column covers
+                        // (SidebarGeom, along the output's edge: from the bar's own start here), so the column's outline runs round its
+                        // fillet into the rule's end — one sheet, no seam.
+                        readonly property var sideOpen: SidebarGeom.openingIn(bar.outName, bar.edge, bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x)
+                        // The rule as segments along the edge: everything but the island's opening and the sidebar's span.
+                        readonly property real ruleLen: bar.vertical ? height : width
+                        readonly property var ruleSegs: {
+                            var gaps = []
+                            if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
+                            if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
+                            // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
+                            // round it into the band beside (FramePieces).
+                            if (bar.frameOn && !bar.drawFloating) {
+                                var fr = bar.frameRadius
+                                gaps.push([0, bar.bandBeside(bar.vertical ? "top" : "left") + fr])
+                                gaps.push([ruleLen - bar.bandBeside(bar.vertical ? "bottom" : "right") - fr, ruleLen])
+                            }
+                            gaps.sort(function (x, y) { return x[0] - y[0] })
+                            var segs = [], at = 0
+                            for (var i = 0; i < gaps.length; i++) {
+                                if (gaps[i][0] > at) segs.push([at, gaps[i][0]])
+                                at = Math.max(at, gaps[i][1])
+                            }
+                            if (at < ruleLen) segs.push([at, ruleLen])
+                            return segs
+                        }
+                        // Floating (K71, image 8): the look's own Block — fill, outline, ring, shadow and pen — with rounded ends.
+                        Loader {
+                            active: bar.drawFloating
+                            sourceComponent: Block {
+                                width: bg.width
+                                height: bg.height + Theme.shadowDy
+                                radius: Theme.rFull
+                                fill: Theme.surfaceAlpha
+                                animate: false
+                            }
+                        }
+                        // K59: the strip's material, under its rules (a floating pill's Block carries its own).
+                        Loader {
+                            anchors.fill: parent
+                            active: !bb.clearStrip && !bar.drawFloating && Theme.texShell
+                            sourceComponent: Relief { anchors.fill: parent }
+                        }
+                        // K62: with a pen in effect the rule is drawn by the pen, as one open line (two, either side of the island's
+                        // opening); the opening and the line's ends are the rectangles' below.
+                        Loader {
+                            id: rulePen
+                            anchors.fill: parent
+                            active: Theme.penOutline && !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0
+                            sourceComponent: PenOutline {
+                                readonly property real ow: Theme.outlineW
+                                readonly property real cy: bar.edge === "top" ? height - ow / 2 : ow / 2
+                                readonly property real cx: bar.edge === "left" ? width - ow / 2 : ow / 2
+                                color: Theme.outlineColor
+                                lineWidth: ow
+                                seed: bar.vertical ? 0xB4A2 : 0xB4A1
+                                radius: 0
+                                paths: bg.ruleSegs.map(function (g) {
+                                    return bar.vertical ? { points: [{ x: cx, y: g[0] }, { x: cx, y: g[1] }], closed: false }
+                                                        : { points: [{ x: g[0], y: cy }, { x: g[1], y: cy }], closed: false }
+                                })
+                            }
+                        }
+                        Repeater {
+                            model: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
+                            Rectangle {
+                                required property var modelData
+                                color: Theme.outlineColor
+                                x: bar.vertical ? (bar.edge === "left" ? bg.width - width : 0) : modelData[0]
+                                y: bar.vertical ? modelData[0] : (bar.edge === "top" ? bg.height - height : 0)
+                                width: bar.vertical ? Theme.outlineW : Math.max(0, modelData[1] - modelData[0])
+                                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.outlineW
+                            }
+                        }
+                    }
+
+                    // One layout is active at a time: a row on top and bottom bars, a column on left and right. Nothing is made while
+                    // the bar is out of sight, so its modules hold no subscriptions (Ma).
+                    Loader {
+                        anchors.fill: parent
+                        active: bb.live && !bar.vertical
+                        sourceComponent: horizontalLayout
+                    }
+                    Loader {
+                        anchors.fill: parent
+                        active: bb.live && bar.vertical
+                        sourceComponent: verticalLayout
+                    }
+                }
+            }
+        }
+    }
+    function putAway() { if (forced) Store.act("layout.toggle", {target: "bar:" + edge, output: outName}) }
+
     // How far a group's row sits in from the bar's end (the group's padding); 0 under flat chrome.
     readonly property real groupInset: Theme.groups ? Theme.gap + 2 + Theme.xs : 0
+    readonly property real tightSpacing: vertical ? Theme.gap : (Theme.groups ? Theme.xs + 1 : Theme.gap)
+    readonly property bool stale: !Store.live
 
-    // One layout is active at a time: a row on top and bottom bars, a column on left and right.
-    // Nothing is instantiated while the bar is hidden, so its faces hold no subscriptions (Ma).
-    Loader {
-        anchors.fill: parent
-        active: bar.visible && !bar.vertical
-        sourceComponent: horizontalLayout
+    // Test only (KURASHI_BAR_GEOMETRY=1, frontend/test-bars.sh): which module stands where — one line per present module,
+    // `BARZONE <output> <edge> <zone> <id> x0 y0 x1 y1` in output px, and the window, `BARWIN <output> <edge> x y w h` —
+    // logged a moment after a change. Without the variable: no timer, no log.
+    readonly property bool zoneLog: Quickshell.env("KURASHI_BAR_GEOMETRY") === "1"
+    property var zoneRoot: null
+    function hostsIn(item, out) {
+        if (!item) return out
+        if (item.mid !== undefined && item.slotHeights !== undefined && item.geo !== undefined) { out.push(item); return out }
+        var ch = item.children
+        for (var i = 0; i < ch.length; i++) hostsIn(ch[i], out)
+        return out
     }
-    Loader {
-        anchors.fill: parent
-        active: bar.visible && bar.vertical
-        sourceComponent: verticalLayout
-    }
-
-    // A workspace in a top or bottom bar. Flat chrome: a dot, the focused one a wider accent bar. Chromes with groups: a
-    // small numbered key — focused lit in the accent, occupied on the container (an outlined box under line chrome),
-    // empty on the ring (keycap) or bare — that sinks, shrinks or flashes while pressed.
-    // A click focuses the workspace (niri's own action through the daemon).
-    Component {
-        id: dotPill
-        Rectangle {
-            required property var modelData
-            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-            height: modelData.focused ? 10 : 8
-            width: modelData.focused ? 24 : 8
-            radius: height / 2
-            color: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.fg : "transparent")
-            border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
-            border.color: Theme.dim
-            Behavior on width {
-                enabled: bar.visible
-                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
-            }
-            // A window dragged over this workspace (W36): a ring round the dot.
-            Rectangle {
-                visible: bar.dragWs === modelData.id
-                anchors.centerIn: parent
-                width: parent.width + 8
-                height: parent.height + 8
-                radius: height / 2
-                color: "transparent"
-                border.width: 2
-                border.color: Theme.accent
-            }
+    function logZones() {
+        var w = winL.item
+        if (!w || !zoneRoot) return
+        var o = w.sheetOrigin, out = ["BARWIN " + outName + " " + edge + " " + [o.x, o.y, w.width, w.height].map(Math.round).join(" ")
+            + " " + (w.visible ? "shown" : "hidden")]
+        var hosts = hostsIn(zoneRoot, [])
+        for (var i = 0; i < hosts.length; i++) {
+            var h = hosts[i]
+            if (!h.present || !h.visible) continue
+            var p = h.mapToItem(null, 0, 0)
+            var zone = zones.start.some(function (e) { return e.id === h.mid }) ? "start"
+                : zones.center.some(function (e) { return e.id === h.mid }) ? "center" : "end"
+            out.push("BARZONE " + outName + " " + edge + " " + zone + " " + h.mid + " "
+                + [o.x + p.x, o.y + p.y, o.x + p.x + h.width, o.y + p.y + h.height].map(Math.round).join(" "))
         }
+        for (var k = 0; k < out.length; k++) console.log(out[k])
     }
-    Component {
-        id: keyPill
-        Block {
-            id: kp
-            required property var modelData
-            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-            anchors.verticalCenterOffset: Theme.shadowDy / 2
-            width: modelData.focused ? 34 : 22
-            height: 20 + Theme.shadowDy
-            radius: Theme.rFull
-            ringScale: 0
-            softScale: 0
-            pressed: wsTap.pressed
-            fill: modelData.focused ? Theme.accent
-                : (modelData.occupied ? (bar.lifted ? Theme.containerHigh : "transparent")
-                    : (Theme.ringW > 0 ? Theme.ring : "transparent"))
-            opacity: modelData.focused || modelData.occupied ? 1 : 0.7
-            Behavior on width {
-                enabled: bar.visible && Theme.springOn
-                NumberAnimation { duration: Theme.stdMs + 80; easing.type: Easing.OutBack; easing.overshoot: Theme.overshoot }
-            }
-            Text {
-                anchors.centerIn: parent
-                color: kp.modelData.focused ? Theme.fgOnAccent : (kp.modelData.occupied ? Theme.fg : Theme.dim)
-                font.pixelSize: Theme.fsCaption
-                font.weight: Theme.wBold
-                font.family: Theme.fam(text, Theme.families)
-                text: kp.modelData.idx ?? ""
-            }
-            TapHandler { id: wsTap; onTapped: Store.act("workspace.focus", {id: kp.modelData.id}) }
-            // A window dragged over this workspace (W36): a ring round the key.
-            Rectangle {
-                visible: bar.dragWs === kp.modelData.id
-                anchors.fill: parent
-                anchors.margins: -3
-                radius: height / 2
-                color: "transparent"
-                border.width: 2
-                border.color: Theme.accent
-            }
-        }
+    property Timer zoneT: Timer { interval: 600; onTriggered: bar.logZones() }
+    function requestZones() { if (zoneLog) zoneT.restart() }
+    onZonesKeyChanged: requestZones()
+    onShownAmtChanged: if (shownAmt === 1 || shownAmt === 0) requestZones()
+    property Connections zoneDocs: Connections {
+        target: Store
+        enabled: bar.zoneLog
+        function onDocsChanged() { bar.requestZones() }
     }
 
-    // ---- top and bottom bars: workspaces left, Island centre, the rest right --------------------
+    // ---- top and bottom bars: the zones as rows — start from the left, center in the middle, end at the right -----------
     Component {
         id: horizontalLayout
         Item {
+            id: hl
             anchors.fill: parent
+            Component.onCompleted: { bar.zoneRoot = hl; bar.requestZones() }
             opacity: bar.stale ? Theme.staleOpacity : 1
             Behavior on opacity {
-                enabled: bar.visible
+                enabled: bar.shownAmt > 0
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
-
-            Group { id: wsGroup; around: workspaceRow; AnchorReport { target: wsGroup; key: "group:workspaces"; output: bar.outName; enabled: wsGroup.visible } }
-            Row {
-                id: workspaceRow
-                anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
-                anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                spacing: Theme.groups ? Theme.xs + 1 : Theme.gap
-                SidebarButton {
-                    visible: bar.leftButton
-                    anchors.verticalCenter: parent.verticalCenter
-                    side: "left"
-                    open: bar.sidebarOpen("left")
-                    onClicked: bar.toggleSidebar("left")
-                }
-                Repeater {
-                    id: wsRepH
-                    model: bar.pills
-                    delegate: Theme.groups ? keyPill : dotPill
-                }
+            ZoneRow {
+                id: startRow
+                owner: bar
+                zone: "start"
+                runs: bar.runsOf("start", bar.zones.start || [])
+                height: hl.height
+                limit: centerRow.width > 0 ? centerRow.x : endRow.x
+                anchors { left: parent.left; leftMargin: Theme.pad + bar.groupInset }
             }
-            // The window list (W36, docs/ux/window-list.md): after the workspaces, in a group of its own (keycap), up to
-            // the island; the rest as "+N".
-            Group { id: taskGroup; around: taskRow; AnchorReport { target: taskGroup; key: "group:tasks"; output: bar.outName; enabled: taskGroup.visible } }
-            TaskList {
-                id: taskRow
-                visible: bar.tasks.length > 0
-                anchors { left: workspaceRow.right; leftMargin: Theme.pad + 2 * bar.groupInset; verticalCenter: parent.verticalCenter }
-                anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                tasks: bar.tasks
-                edge: cfg.edge
-                screen: bar.screen
-                pills: bar.pills
-                live: bar.visible
-                maxCount: Math.max(1, Math.floor((islandH.x - x - Theme.pad - 2 * bar.groupInset + spacing) / (btn + spacing)))
-                pillAt: function (sx, sy) { return bar.pillAtIn(bar.repItems(wsRepH), sx, sy) }
-                pillBoxes: function () { return bar.boxesOf(bar.repItems(wsRepH)) }
-                onDragWsChanged: bar.dragWs = dragWs
-            }
-            // Disconnected glyph: instantiated only while stale (nothing at idle), after the workspaces.
+            // Disconnected glyph: instantiated only while stale (nothing at idle), after the start zone.
             Loader {
-                anchors { left: taskRow.visible ? taskRow.right : workspaceRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
-                active: bar.stale
+                anchors { left: startRow.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
+                active: bar.stale && bar.primary
                 sourceComponent: Text {
                     color: Theme.accent
                     font.pixelSize: Theme.fs - 2
@@ -612,228 +543,66 @@ PanelWindow {
                     text: "⊘ " + I18n.tr("frontend.bar.disconnected")
                 }
             }
-
-            Island {
-                id: islandH
-                anchors { horizontalCenter: parent.horizontalCenter; verticalCenter: parent.verticalCenter }
-                face: bar.island.face || "clock"
-                reason: bar.island.reason || "default"
-                slots: bar.bindings["island.main"] || ({})
-                peekOutput: bar.screen ? bar.screen.name : ""
-                // The user's binding decides what a slot does; an absent slot never reaches here.
-                onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
+            ZoneRow {
+                id: centerRow
+                owner: bar
+                zone: "center"
+                runs: bar.runsOf("center", bar.zones.center || [])
+                height: hl.height
+                anchors.horizontalCenter: parent.horizontalCenter
             }
-
-            Group { id: rightGroup; around: rightRow; AnchorReport { target: rightGroup; key: "group:right"; output: bar.outName; enabled: rightGroup.visible } }
-            Row {
-                id: rightRow
-                anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset; verticalCenter: parent.verticalCenter }
-                anchors.verticalCenterOffset: -Theme.shadowDy / 2
-                spacing: Theme.pad
-                // The volume's icon (chromes with groups): a click mutes, as the media key does.
-                Icon {
-                    visible: Theme.groups && bar.audioUsable
-                    anchors.verticalCenter: parent.verticalCenter
-                    name: bar.audioMuted ? "volume_off" : "volume_up"
-                    glyph: bar.audioMuted ? "🔇" : "🔊"
-                    filled: true
-                    color: Theme.fg
-                    TapHandler { onTapped: Store.act("audio.mute.toggle") }
-                }
-                Slider {
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 110
-                    value: bar.daemonVolume
-                    unavailable: !bar.audioUsable
-                    fill: bar.audioMuted ? Theme.dim : Theme.accent
-                    a11y: bar.volumeA11y
-                    onMoved: v => bar.setVolume(v)
-                    WheelHandler { enabled: bar.audioUsable; onWheel: event => bar.volumeStep(event.angleDelta.y) }
-                }
-                Repeater {
-                    model: bar.modWidgets
-                    delegate: ModLoader {
-                        id: modW
-                        required property var modelData
-                        anchors.verticalCenter: parent.verticalCenter
-                        url: modelData.url
-                        // W34: the mod's panel grows out of its widget (IslandGeom's origins).
-                        AnchorReport { target: modW; key: "mod:" + modW.modelData.mod + ":" + String(modW.modelData.provide).substring(7); output: bar.outName }
-                        // The hover or keyboard-focus peek (K35): the widget's `peek:<name>`, drawn by the Stage.
-                        HoverHandler { id: modHover }
-                        PeekSource {
-                            target: modW
-                            source: bar.modPeekOf(modW.modelData)
-                            output: bar.screen ? bar.screen.name : ""
-                            hovered: modHover.hovered
-                            focused: modW.item !== null && modW.item.activeFocus === true
-                        }
-                    }
-                }
-                RecordDot { anchors.verticalCenter: parent.verticalCenter }
-                KeyboardChip { anchors.verticalCenter: parent.verticalCenter }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.weight: Theme.wBold
-                    font.family: Theme.fam(text, Theme.families)
-                    text: (bar.clock.hh ?? "--") + ":" + (bar.clock.mm ?? "--")
-                }
-                // Quick settings sit before the tray (K24); the panel is the daemon's runtime.ui.panel.
-                QuickButton {
-                    anchors.verticalCenter: parent.verticalCenter
-                    open: bar.quickOpen
-                    onClicked: bar.quickClicked()
-                }
-                // The tray ends the row: its menus align to the bar's end (K23).
-                Repeater {
-                    model: bar.trayItems
-                    delegate: trayIconDelegate
-                }
-                // I154: the right sidebar's button at the very end.
-                SidebarButton {
-                    visible: bar.rightButton
-                    anchors.verticalCenter: parent.verticalCenter
-                    side: "right"
-                    open: bar.sidebarOpen("right")
-                    onClicked: bar.toggleSidebar("right")
-                }
+            ZoneRow {
+                id: endRow
+                owner: bar
+                zone: "end"
+                runs: bar.runsOf("end", bar.zones.end || [])
+                height: hl.height
+                anchors { right: parent.right; rightMargin: Theme.pad + bar.groupInset }
             }
         }
     }
 
-    // ---- left and right bars: the same items in one column. Top to bottom: the workspaces, the Island at the centre (a
-    // column, see Island.qml), and below it the volume slider, the mod widgets, the clock, the quick settings and the tray,
-    // in the horizontal right row's order and spacing (I85). Each widget takes the bar's 36 px width: text is not turned,
-    // the values are shortened and their full text is the accessible name. The bottom column holds the leading items that
-    // fit between the island and the bar's end; the rest hide from the end, with the count "+N". Wrapper items keep the
-    // column's positioner away from anchors.
+    // ---- left and right bars: the zones as columns — start from the top, center in the middle, end at the bottom ---------
+    // Each module takes the bar's width: text is not turned, the values are shortened and their full text is the accessible
+    // name (I85). The end column holds the leading slots that fit between the center and the bar's end; the rest hide from
+    // the end, with the count "+N". A sidebar button that ends the end zone stands at the very end (I154).
+    // A zone's pieces: a stretch of tight modules is one piece, the others one each.
+    function piecesOf(list) {
+        var out = []
+        for (var i = 0; i < list.length; i++) {
+            var tight = tightIds.indexOf(list[i].id) >= 0
+            var last = out.length > 0 ? out[out.length - 1] : null
+            if (tight && last && last.tight) last.entries.push(list[i])
+            else out.push({ tight: tight, entries: [list[i]] })
+        }
+        return out
+    }
     Component {
         id: verticalLayout
         Item {
-            id: vlayout
+            id: vl
             anchors.fill: parent
             opacity: bar.stale ? Theme.staleOpacity : 1
             Behavior on opacity {
-                enabled: bar.visible
+                enabled: bar.shownAmt > 0
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
+            readonly property var endAll: bar.zones.end || []
+            readonly property bool endButton: endAll.length > 0
+                && (endAll[endAll.length - 1].id === "sidebar_right" || endAll[endAll.length - 1].id === "sidebar_left")
+            readonly property var endList: endButton ? endAll.slice(0, endAll.length - 1) : endAll
 
-            // The bottom column's slots, top to bottom: the slider, each mod widget (its own height once measured, else a
-            // default; clipped to the slot at the bar's edge), the clock, the quick button, each tray icon.
-            readonly property int sliderH: 110
-            // A mod slot's height until its widget has been measured. Small on purpose: an unmeasured widget is then loaded
-            // and measured; a large default would keep a widget that does not fit unloaded, so it would never be measured.
-            readonly property int modSlotH: Theme.barH
-            readonly property int modN: bar.modWidgets.length
-            readonly property int trayN: bar.trayItems.length
-            // The recording mark and the layout chip (I131): a slot each, only while they have something to say.
-            readonly property int recN: recV.wanted ? 1 : 0
-            readonly property int kbN: kbV.wanted ? 1 : 0
-            readonly property int extraN: recN + kbN
-            // The mod slots' heights, by mod index, as each widget reports them (see setModSlot): a plain list, so the
-            // fit never reads the Repeater (a binding that creates delegates while it is read is a loop).
-            property var modSlotsH: []
-            function modSlotOf(i) { var h = modSlotsH[i]; return h > 0 ? h : modSlotH }
-            function setModSlot(i, h) {
-                if (modSlotsH[i] === h) return
-                var a = modSlotsH.slice()
-                a[i] = h
-                modSlotsH = a
-            }
-            // The clock's two lines, measured on a text that does not change: a hidden Text is not laid out, so its own
-            // implicit height would follow the fit it feeds (a binding loop).
-            TextMetrics { id: clockM; text: "00"; font.pixelSize: Theme.fs; font.family: Theme.fam(text, Theme.families) }
-            readonly property real clockH: 2 * clockM.height
-            readonly property var slotH: {
-                var h = [sliderH]
-                for (var i = 0; i < modN; i++) h.push(modSlotOf(i))
-                if (recN) h.push(recV.height)
-                if (kbN) h.push(kbV.height)
-                h.push(clockH)
-                h.push(Theme.barH)
-                for (var j = 0; j < trayN; j++) h.push(Theme.barH)
-                return h
-            }
-            // The room between the island's lower edge (with a gap) and the bar's end (with the bottom margin).
-            // The right sidebar's button sits below the column, at the bar's end (I154): its room is not the column's.
-            readonly property real endButtonH: bar.rightButton ? Theme.barH + Theme.pad : 0
-            readonly property real columnAvail: height / 2 - isl.height / 2 - Theme.gap - Theme.pad - endButtonH
-            // The marker's height is measured on a fixed text: the marker's own text depends on the fit (a loop otherwise).
-            TextMetrics { id: markM; text: "+0"; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(text, Theme.families) }
-            readonly property int fit: bar.fitCount(slotH, columnAvail, Theme.pad, markM.height)
-            readonly property int hiddenN: slotH.length - fit
-            // The tray icons this column holds: the slots after the slider, the mods, the recording mark and layout chip, the
-            // clock and the quick button.
-            Binding {
-                target: bar
-                property: "trayFit"
-                value: Math.max(0, Math.min(vlayout.trayN, vlayout.fit - 3 - vlayout.modN - vlayout.extraN))
-            }
-
-            Column {
-                id: workspaceCol
+            ZoneColumn {
+                id: startCol
+                owner: bar
+                pieces: bar.piecesOf(bar.zones.start || [])
+                roomEnd: centerCol.height > 0 ? centerCol.y : endCol.y
                 anchors { top: parent.top; topMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
-                spacing: Theme.gap
-                // I154: the left sidebar's button heads the column.
-                SidebarButton {
-                    id: sbLeftV
-                    visible: bar.leftButton
-                    side: "left"
-                    open: bar.sidebarOpen("left")
-                    onClicked: bar.toggleSidebar("left")
-                }
-                Repeater {
-                    id: wsRepV
-                    model: bar.pills
-                    delegate: Item {
-                        required property var modelData
-                        width: Theme.barH
-                        height: modelData.focused ? 24 : 8
-                        Rectangle {
-                            anchors.centerIn: parent
-                            width: modelData.focused ? 10 : 8
-                            height: parent.height
-                            radius: width / 2
-                            color: modelData.focused ? Theme.accent : (modelData.occupied ? Theme.fg : "transparent")
-                            border.width: (!modelData.focused && !modelData.occupied) ? 1 : 0
-                            border.color: Theme.dim
-                        }
-                        // A window dragged over this workspace (W36): a ring round the dot.
-                        Rectangle {
-                            visible: bar.dragWs === modelData.id
-                            anchors.centerIn: parent
-                            width: 18
-                            height: parent.height + 8
-                            radius: width / 2
-                            color: "transparent"
-                            border.width: 2
-                            border.color: Theme.accent
-                        }
-                    }
-                }
             }
-            // The window list in a column under the workspaces (W36, I102), down to the island; the rest as "+N".
-            TaskList {
-                id: taskColV
-                visible: bar.tasks.length > 0
-                vertical: true
-                anchors { top: workspaceCol.bottom; topMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
-                tasks: bar.tasks
-                edge: cfg.edge
-                screen: bar.screen
-                pills: bar.pills
-                live: bar.visible
-                maxCount: Math.max(1, Math.floor((isl.y - y - Theme.gap + spacing) / (btn + spacing)))
-                pillAt: function (sx, sy) { return bar.pillAtIn(bar.repItems(wsRepV), sx, sy) }
-                pillBoxes: function () { return bar.boxesOf(bar.repItems(wsRepV)) }
-                onDragWsChanged: bar.dragWs = dragWs
-            }
-            // Disconnected glyph under the workspaces (and the windows); the label does not fit a bar this thin.
+            // Disconnected glyph under the start zone; the label does not fit a bar this thin.
             Loader {
-                anchors { top: taskColV.visible ? taskColV.bottom : workspaceCol.bottom; topMargin: Theme.gap; horizontalCenter: parent.horizontalCenter }
-                active: bar.stale
+                anchors { top: startCol.bottom; topMargin: Theme.gap; horizontalCenter: parent.horizontalCenter }
+                active: bar.stale && bar.primary
                 sourceComponent: Text {
                     color: Theme.accent
                     font.pixelSize: Theme.fs - 2
@@ -841,164 +610,115 @@ PanelWindow {
                     text: "⊘"
                 }
             }
-
-            Island {
-                id: isl
+            ZoneColumn {
+                id: centerCol
+                owner: bar
+                pieces: bar.piecesOf(bar.zones.center || [])
                 anchors.centerIn: parent
-                // A side bar's island is a column, not a turned row (I85); its peek is a side bar's too (I67): the Stage draws
-                // it beside the bar, aligned to the island.
-                vertical: true
-                peekOutput: bar.screen ? bar.screen.name : ""
-                face: bar.island.face || "clock"
-                reason: bar.island.reason || "default"
-                slots: bar.bindings["island.main"] || ({})
-                onActivated: slot => Store.act("input.dispatch", {component: "island.main", slot: slot})
+            }
+            ZoneHost {
+                id: endBtn
+                owner: bar
+                entry: vl.endButton ? vl.endAll[vl.endAll.length - 1] : ({})
+                anchors { bottom: parent.bottom; bottomMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
             }
 
-            SidebarButton {
-                id: sbRightV
-                visible: bar.rightButton
-                anchors { bottom: parent.bottom; bottomMargin: Theme.pad; horizontalCenter: parent.horizontalCenter }
-                side: "right"
-                open: bar.sidebarOpen("right")
-                onClicked: bar.toggleSidebar("right")
+            // ---- the end column's fit ----
+            // The room between the center's lower edge (with a gap) and the bar's end (with the bottom margin); the end
+            // button's room is not the column's.
+            readonly property real endButtonH: endBtn.visible ? bar.barH + Theme.pad : 0
+            readonly property real columnAvail: height / 2 - centerCol.height / 2 - Theme.gap - Theme.pad - endButtonH
+            // The marker's height is measured on a fixed text: the marker's own text depends on the fit (a loop otherwise).
+            TextMetrics { id: markM; text: "+0"; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(text, Theme.families) }
+            // The slots of the end column's modules, in order, as each reports them (plain lists, set on the next turn: a
+            // binding that reads the hosts while the fit changes their loading would loop).
+            property var slots: []
+            property var fits: []
+            property int fit: 0
+            readonly property int hiddenN: slots.length - fit
+            function refit() {
+                var all = [], per = []
+                for (var i = 0; i < endRep.count; i++) {
+                    var h = endRep.itemAt(i)
+                    var s = h ? h.slotHeights : []
+                    per.push(s.length)
+                    for (var j = 0; j < s.length; j++) all.push(s[j])
+                }
+                var f = fitCount(all, columnAvail, Theme.pad, markM.height)
+                var fs = [], at = 0
+                for (var k = 0; k < per.length; k++) { fs.push(Math.max(0, Math.min(per[k], f - at))); at += per[k] }
+                if (JSON.stringify(all) !== JSON.stringify(slots)) slots = all
+                if (JSON.stringify(fs) !== JSON.stringify(fits)) fits = fs
+                if (fit !== f) fit = f
+                requestGeometry()
+            }
+            onColumnAvailChanged: Qt.callLater(refit)
+            // The leading slots that fit in `avail` px, `gap` apart; when some do not, a marker of `markH` follows the last
+            // one that does, so the marker is in the fit too. The end of the list hides first.
+            function fitCount(hs, avail, gap, markH) {
+                var total = 0
+                for (var i = 0; i < hs.length; i++) total += hs[i] + (i > 0 ? gap : 0)
+                if (total <= avail) return hs.length
+                var used = 0
+                for (var k = 0; k < hs.length; k++) {
+                    var next = used + (k > 0 ? gap : 0) + hs[k]
+                    if (next + gap + markH > avail) return k
+                    used = next
+                }
+                return hs.length
             }
             Column {
-                id: stack
-                anchors { bottom: parent.bottom; bottomMargin: Theme.pad + vlayout.endButtonH; horizontalCenter: parent.horizontalCenter }
+                id: endCol
+                anchors { bottom: parent.bottom; bottomMargin: Theme.pad + vl.endButtonH; horizontalCenter: parent.horizontalCenter }
                 spacing: Theme.pad
-                Item {
-                    visible: vlayout.fit >= 1
-                    width: Theme.barH
-                    height: vlayout.sliderH
-                    Slider {
-                        id: sliderV
-                        anchors.centerIn: parent
-                        width: 110
-                        rotation: -90
-                        value: bar.daemonVolume
-                        unavailable: !bar.audioUsable
-                        fill: bar.audioMuted ? Theme.dim : Theme.accent
-                        a11y: bar.volumeA11y
-                        onMoved: v => bar.setVolume(v)
-                        WheelHandler { enabled: bar.audioUsable; onWheel: event => bar.volumeStep(event.angleDelta.y) }
-                    }
-                }
                 Repeater {
-                    id: modRep
-                    model: bar.modWidgets
-                    delegate: Item {
-                        id: vmod
+                    id: endRep
+                    model: vl.endList
+                    onItemAdded: Qt.callLater(vl.refit)
+                    onItemRemoved: Qt.callLater(vl.refit)
+                    delegate: ZoneHost {
                         required property var modelData
                         required property int index
-                        // Past the column's end the widget is not loaded either (ModLoader's gate, Ma).
-                        visible: vlayout.fit > 1 + index
-                        width: Theme.barH
-                        // The slot is the widget's own height once measured (kept while it is unloaded, so the fit does not flip).
-                        height: vlayout.modSlotOf(index)
-                        clip: true
-                        readonly property var widgetItem: vmodW.item
-                        function measure() {
-                            if (vmodW.item && ("vertical" in vmodW.item) && vmodW.item.implicitHeight > 0)
-                                vlayout.setModSlot(index, Math.ceil(vmodW.item.implicitHeight))
-                        }
-                        HoverHandler { id: vmodHover }
-                        ModLoader {
-                            id: vmodW
-                            anchors.centerIn: parent
-                            url: vmod.modelData.url
-                            shown: vmod.visible
-                        }
-                        // Measured on the next turn: a widget loaded by the fit (its visibility) must not change the fit in the same pass.
-                        Connections { target: vmodW; function onItemChanged() { Qt.callLater(vmod.measure) } }
-                        Connections { target: vmodW.item; ignoreUnknownSignals: true; function onImplicitHeightChanged() { Qt.callLater(vmod.measure) } }
-                        // A widget that declares `vertical` is told that its bar is a side one; one that does not is drawn as it is
-                        // and clipped to the slot (ModLoader passes nothing else).
-                        Binding {
-                            target: vmodW.item
-                            property: "vertical"
-                            value: true
-                            when: vmodW.item !== null && vmodW.item !== undefined && ("vertical" in vmodW.item)
-                        }
-                        // The hover or keyboard-focus peek of a side bar's widget (K35, I67): drawn beside the bar.
-                        PeekSource {
-                            target: vmod
-                            source: bar.modPeekOf(vmod.modelData)
-                            output: bar.screen ? bar.screen.name : ""
-                            hovered: vmodHover.hovered
-                            focused: vmodW.item !== null && vmodW.item.activeFocus === true
-                        }
+                        owner: bar
+                        entry: modelData
+                        anchors.horizontalCenter: parent ? parent.horizontalCenter : undefined
+                        fitSlots: index < vl.fits.length ? vl.fits[index] : 0
+                        onSlotHeightsChanged: Qt.callLater(vl.refit)
                     }
                 }
-                RecordDot {
-                    id: recV
-                    vertical: true
-                    allowed: vlayout.fit > 1 + vlayout.modN
-                }
-                KeyboardChip {
-                    id: kbV
-                    vertical: true
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    allowed: vlayout.fit > 1 + vlayout.modN + vlayout.recN
-                }
-                Text {
-                    id: clockT
-                    visible: vlayout.fit > 1 + vlayout.modN + vlayout.extraN
-                    width: Theme.barH
-                    horizontalAlignment: Text.AlignHCenter
-                    color: Theme.fg
-                    font.pixelSize: Theme.fs
-                    font.family: Theme.fam(text, Theme.families)
-                    text: (bar.clock.hh ?? "--") + "\n" + (bar.clock.mm ?? "--")
-                }
-                QuickButton {
-                    id: quickB
-                    visible: vlayout.fit > 2 + vlayout.modN + vlayout.extraN
-                    open: bar.quickOpen
-                    onClicked: bar.quickClicked()
-                }
-                Repeater {
-                    id: trayRep
-                    model: bar.trayItems
-                    delegate: trayIconDelegate
-                }
-                // The count of the items the column has no room for (see fit); it follows the last item that is shown.
+                // The count of the slots the column has no room for; it follows the last one that is shown.
                 Text {
                     id: hiddenT
-                    visible: vlayout.hiddenN > 0
-                    width: Theme.barH
+                    visible: vl.hiddenN > 0
+                    width: bar.barH
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
                     font.family: Theme.fam(text, Theme.families)
-                    text: "+" + vlayout.hiddenN
+                    text: "+" + vl.hiddenN
                     Accessible.role: Accessible.StaticText
-                    Accessible.name: I18n.tr("frontend.bar.hidden").replace("{n}", vlayout.hiddenN)
+                    Accessible.name: I18n.tr("frontend.bar.hidden").replace("{n}", vl.hiddenN)
                 }
             }
 
-            // Test only (KURASHI_BAR_GEOMETRY=1, frontend/test-sidebars.sh): the boxes of what this bar draws, logged a moment
-            // after each change, so the test asserts the layout from the items' geometry. Without the variable: no timer, no log.
-            Timer {
-                id: geoT
-                interval: 300
-                onTriggered: vlayout.logGeometry()
-            }
-            function requestGeometry() { if (bar.geometryLog) geoT.restart() }
+            // Test only (KURASHI_BAR_GEOMETRY=1, frontend/test-sidebars.sh, test-bars.sh): the boxes of what this bar draws,
+            // logged a moment after each change, so a test asserts the layout from the items' geometry. Without the
+            // variable: no timer, no log.
+            readonly property bool geometryLog: Quickshell.env("KURASHI_BAR_GEOMETRY") === "1"
+            Timer { id: geoT; interval: 300; onTriggered: vl.logGeometry() }
+            function requestGeometry() { if (geometryLog) geoT.restart() }
             onWidthChanged: requestGeometry()
             onHeightChanged: requestGeometry()
-            onFitChanged: requestGeometry()
-            Component.onCompleted: requestGeometry()
+            Component.onCompleted: { Qt.callLater(refit); requestGeometry(); bar.zoneRoot = vl; bar.requestZones() }
             Connections {
                 target: Store
-                enabled: bar.geometryLog
-                function onDocsChanged() { vlayout.requestGeometry() }
+                enabled: vl.geometryLog
+                function onDocsChanged() { vl.requestGeometry() }
             }
-            // A box in the bar's window: a rotated item (the slider) is measured by its four corners, as it is drawn.
+            // A box in the bar's body: a rotated item (the slider) is measured by its four corners, as it is drawn.
             function boxOf(it) {
-                var cs = bar.contentItem
-                var a = it.mapToItem(cs, 0, 0), b = it.mapToItem(cs, it.width, 0)
-                var c = it.mapToItem(cs, 0, it.height), d = it.mapToItem(cs, it.width, it.height)
+                var a = it.mapToItem(vl, 0, 0), b = it.mapToItem(vl, it.width, 0)
+                var c = it.mapToItem(vl, 0, it.height), d = it.mapToItem(vl, it.width, it.height)
                 return [Math.min(a.x, b.x, c.x, d.x), Math.min(a.y, b.y, c.y, d.y),
                     Math.max(a.x, b.x, c.x, d.x), Math.max(a.y, b.y, c.y, d.y)].map(v => Math.round(v)).join(" ")
             }
@@ -1007,28 +727,27 @@ PanelWindow {
                 for (var p = it; p; p = p.parent) if (!p.visible) return false
                 return true
             }
+            function hostsOf(item, out) {
+                if (!item) return out
+                if (item.mid !== undefined && item.slotHeights !== undefined && item.geo !== undefined) { out.push(item); return out }
+                var ch = item.children
+                for (var i = 0; i < ch.length; i++) hostsOf(ch[i], out)
+                return out
+            }
             function logGeometry() {
-                var out = ["BARGEO bar 0 0 " + Math.round(bar.width) + " " + Math.round(bar.height)]
-                out.push("BARGEO fit " + fit + " hidden " + hiddenN + " trays " + trayN + " shown " + bar.trayFit)
+                var trayHost = null
+                for (var t = 0; t < endRep.count; t++) { var th = endRep.itemAt(t); if (th && th.mid === "tray") trayHost = th }
+                var trayN = trayHost && trayHost.item ? trayHost.item.items.length : 0
+                var trayShown = trayHost && trayHost.item ? trayHost.item.shownN : 0
+                var out = ["BARGEO bar 0 0 " + Math.round(vl.width) + " " + Math.round(vl.height)]
+                out.push("BARGEO fit " + fit + " hidden " + hiddenN + " trays " + trayN + " shown " + trayShown)
                 function add(name, it) { if (shownOf(it)) out.push("BARGEO " + name + " " + boxOf(it)) }
-                add("workspaces", workspaceCol)
-                add("tasks", taskColV)
-                add("rec", recV)
-                add("layout", kbV)
-                add("island", isl)
-                add("slider", sliderV)
-                add("clock", clockT)
-                add("quick", quickB)
-                add("more", hiddenT)
-                add("sidebar-left", sbLeftV)
-                add("sidebar-right", sbRightV)
-                for (var i = 0; i < modRep.count; i++) {
-                    var d = modRep.itemAt(i)
-                    if (!d) continue
-                    add("slot-" + d.modelData.mod, d)
-                    add("widget-" + d.modelData.mod, d.widgetItem)
+                var hosts = hostsOf(vl, [])
+                for (var i = 0; i < hosts.length; i++) {
+                    var g = hosts[i].geo()
+                    for (var j = 0; j < g.length; j++) add(g[j][0], g[j][1])
                 }
-                for (var j = 0; j < trayRep.count; j++) add("tray" + j, trayRep.itemAt(j))
+                add("more", hiddenT)
                 for (var k = 0; k < out.length; k++) console.log(out[k])
             }
         }

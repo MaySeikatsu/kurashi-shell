@@ -19,6 +19,18 @@ QtObject {
 
     function setEdge(output, edge) { edges[output] = edge }
     function edgeOf(output) { return edges[output] || "top" }
+    // K71: an output may have a bar on each edge. A source whose item stands on a bar of its own says so (`place`: that
+    // bar's edge and its window's place on the output, logical px), so its peek hangs beside that bar, at the item's
+    // place on the output (a floating bar's window does not start at the output's corner).
+    property var places: ({})
+    function place(source, output, edge, ox, oy) {
+        if (!source || !output) return
+        places[source] = { output: output, edge: edge, ox: ox || 0, oy: oy || 0 }
+    }
+    function unplace(source, output) {
+        var p = places[source]
+        if (p && p.output === output) delete places[source]
+    }
 
     // Asks for the peek of `source` (`mod:<id>:<name>`, `tray:<item>` or `island:<instance>`) on `output`, under the item
     // that starts at `x` and is `w` wide (output-local logical px). `edge` is the bar's edge (top when absent). A side bar's
@@ -27,9 +39,12 @@ QtObject {
         if (ui.panel) return
         owner = source
         grace.stop()
-        var e = edge || "top"
-        var req = {source: source, output: output, x: Math.round(x), w: Math.round(w), edge: e}
-        if (e === "left" || e === "right") { req.y = Math.round(y); req.h = Math.round(h) }
+        var pl = places[source]
+        if (pl && pl.output !== output) pl = null
+        var e = pl ? pl.edge : (edge || "top")
+        var ox = pl ? pl.ox : 0, oy = pl ? pl.oy : 0
+        var req = {source: source, output: output, x: Math.round(x + ox), w: Math.round(w), edge: e}
+        if (e === "left" || e === "right") { req.y = Math.round(y + oy); req.h = Math.round(h) }
         Store.act("ui.peek", req)
     }
     // The pointer or the focus left `source`: its peek goes after the grace, if it is still the one asked for.

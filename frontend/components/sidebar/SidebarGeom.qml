@@ -8,7 +8,7 @@ import Quickshell
 // column stands at rest under (or beside) a ruled bar; withdrawn the moment it starts to fold. Plain state (Ma).
 Singleton {
     // { "<output>": { edge, from, to } }: the bar's edge ("top", "bottom", "left", "right") and the span along it, in px
-    // from the bar's start (its left end, or its top end for a side bar).
+    // from the output's start on that edge (its left end, or its top end for a side edge; a docked bar starts there too).
     property var openings: ({})
     function set(output, edge, from, to) {
         if (output === "") return
@@ -25,4 +25,11 @@ Singleton {
         openings = n
     }
     function openingOf(output) { return openings[output] || null }
+    // K71: the span along the output's edge (from the output's left or top end), and a bar reads it from its own start —
+    // a floating bar stands `band + gap` in from the output's ends (its `start`), a docked one at 0, where the two agree.
+    function openingIn(output, edge, start) {
+        var o = openings[output]
+        if (!o || o.edge !== edge) return null
+        return { edge: o.edge, from: o.from - start, to: o.to - start }
+    }
 }

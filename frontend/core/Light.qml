@@ -88,8 +88,11 @@ Singleton {
     // The top-left corner of layer window `w` on its output (logical px). Layer surfaces are placed by their anchors:
     // a left or top anchor pins the margin; a right or bottom anchor pins the margin from the far edge; neither
     // centres the window on that axis (the layer-shell rule).
-    // Inside the exclusive zones it respects.
+    // Inside the exclusive zones it respects. A window that knows its place better says so (`sheetOrigin`, a point in output
+    // logical px; row 490): the compositor places a zone holder inside the zones of holders mapped *before* it only, so
+    // counting every other zone is wrong for crossing holders (the frame's strips, bars on adjacent edges).
     function originOf(w) {
+        if (w && w.sheetOrigin !== undefined && w.sheetOrigin !== null) return w.sheetOrigin
         if (!w || !w.screen || !w.anchors || !w.margins) return Qt.point(0, 0)
         var s = w.screen, a = w.anchors, m = w.margins
         var zl = zoneOf(w, "left"), zr = zoneOf(w, "right"), zt = zoneOf(w, "top"), zb = zoneOf(w, "bottom")
