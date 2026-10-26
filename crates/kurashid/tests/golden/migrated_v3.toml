@@ -1,0 +1,62 @@
+schema_version = 3
+
+# The user's bar sits on the left.
+[bar]
+height = 36
+
+[dock]
+enabled = true
+icon_size = 40
+visibility = "always"
+
+[sidebar]
+from_bar = true
+
+[sidebar.right]
+sections = ["header", "calendar"]
+draw = "floating"
+width = 500
+
+[sidebar.left]
+sections = ["mod:tasks:tasks"]
+draw = "floating"
+width = 500
+
+[desktop]
+enabled = true
+side = "right"
+left = ["calendar", "clock"]
+right = ["calendar", "clock"]
+
+[outputs."DP-1".edges.bottom]
+bar = true
+start = ["workspaces", "windows"]
+center = ["island"]
+end = ["volume", "mods", "recorder", "keyboard", "clock", "quick", "tray"]
+
+[outputs."DP-1".edges.left]
+bar = false
+start = []
+center = []
+end = []
+
+[outputs."HDMI-A-1".desktop]
+side = "left"
+
+[outputs."HDMI-A-1".edges.left]
+bar = false
+start = []
+center = []
+end = []
+
+[edges.top]
+bar = false
+start = []
+center = []
+end = []
+
+[edges.left]
+bar = true
+start = ["workspaces", "windows"]
+center = ["island"]
+end = ["volume", "mods", "recorder", "keyboard", "clock", "quick", "tray"]

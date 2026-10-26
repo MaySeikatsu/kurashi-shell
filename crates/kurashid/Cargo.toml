@@ -44,6 +44,9 @@ serde_json.workspace = true
 thiserror.workspace = true
 serde.workspace = true
 toml = "0.8"
+# The schema migrations edit the parsed files (kurashi-config hands them over as `toml_edit` documents).
+toml_edit = "0.22"
+kurashi-layout = { path = "../kurashi-layout" }
 # `process`: host processes (K38, native/hosts.rs); `rustix`: their process groups (SIGTERM, SIGKILL).
 tokio = { workspace = true, features = ["process"] }
 rustix = { version = "1", features = ["process"] }
