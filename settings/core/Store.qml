@@ -117,9 +117,10 @@ Singleton {
         var p = prov(key, output)
         return p === undefined ? undefined : p.value
     }
-    // Outputs worth offering in the picker: those with overrides plus the ones the compositor lists.
+    // Outputs worth offering in the picker: those with overrides plus the ones the compositor lists. `"*"` is an alias
+    // the daemon adds (svc.workspaces: the focused output's list; runtime.layout: the global layout), not an output (I241).
     function outputNames() {
-        var seen = {}
+        var seen = { "*": 1 }
         var out = []
         var a = config.outputs || ({})
         for (var k in a) if (!seen[k]) { seen[k] = 1; out.push(k) }
@@ -238,6 +239,70 @@ Singleton {
         return s.kind === "user" || s.kind === "profile" || isNix(s)
     }
 
+    // --- runtime.layout (K71, PROTOCOL §3.1): what the layout step resolved, per output ------------------------------------
+    // Settings draws the layout from this document and never derives it (rule 1). Watched by the views that show it.
+    // The entry of an output; the global one ("*") for "all outputs" and for an output the daemon has no entry for.
+    function layoutOf(output) {
+        var d = docs["runtime.layout"]
+        if (!d || !d.outputs) return null
+        return d.outputs[output || "*"] || d.outputs["*"] || null
+    }
+    // The rows that read the document: the draw and keep-space choices, the zone lists (their problems).
+    function readsLayout(key) {
+        return /^(edges\.(top|bottom|left|right)\.(draw|reserve|start|center|end)|dock\.(draw|reserve)|sidebar\.(right|left)\.(draw|reserve))$/.test(key)
+    }
+    // The part of an output's layout a draw or keep-space key resolves in: an edge, the dock or a sidebar; null otherwise.
+    function layoutPart(key, lo) {
+        var m = /^edges\.(top|bottom|left|right)\.(draw|reserve)$/.exec(key)
+        if (m) return lo.edges ? (lo.edges[m[1]] || null) : null
+        m = /^sidebar\.(right|left)\.(draw|reserve)$/.exec(key)
+        if (m) return lo.sidebars ? (lo.sidebars[m[1]] || null) : null
+        if (/^dock\.(draw|reserve)$/.test(key)) return lo.dock || null
+        return null
+    }
+    // The words of a draw or keep-space row's `auto` choice: "Automatic (dynamic)" (automatic follows the preset), and
+    // "Automatic (keeps space)" or "(no space)" where the layout resolved keep-space as automatic. "" when the document
+    // says nothing, so the choice keeps its own label (Shōjiki: nothing is shown that is not in effect).
+    function autoLabel(key, output) {
+        var d = docs["runtime.layout"]
+        var lo = layoutOf(output)
+        var part = d && lo ? layoutPart(key, lo) : null
+        if (!part) return ""
+        if (/\.draw$/.test(key)) return d.draw ? I18n.fmt("settings.layout.auto_draw", { mode: I18n.tr("config.choice.draw." + d.draw) }) : ""
+        if (part.reserve_source !== "auto") return ""
+        return I18n.tr(part.reserve > 0 ? "settings.layout.auto_keeps" : "settings.layout.auto_none")
+    }
+    // The document's reason a keep-space row is inert (a part that is hidden never keeps space): an i18n key, or "".
+    function reserveReason(key, output) {
+        var lo = layoutOf(output)
+        var part = lo ? layoutPart(key, lo) : null
+        return part && /\.reserve$/.test(key) && part.reserve_reason ? part.reserve_reason : ""
+    }
+    // The entries of a zone list runtime.layout cannot draw (`problems`, K72): {id: reason key}.
+    function problemReasons(key, output) {
+        var out = {}
+        var lo = layoutOf(output)
+        var ps = lo && lo.problems ? lo.problems : []
+        for (var i = 0; i < ps.length; i++) if (ps[i].zone === key) out[ps[i].id] = ps[i].reason
+        return out
+    }
+    // The enabled modules no zone shows on an output (`unplaced`, K72), in the daemon's order.
+    function unplacedOf(output) {
+        var lo = layoutOf(output)
+        return lo && lo.unplaced ? lo.unplaced : []
+    }
+    // A module's name: its label among the daemon's `modules` offers (the zone rows carry them), else its id.
+    function moduleName(id) {
+        var h = rowOf("edges.top.start")
+        var ch = h && h.row.choices ? h.row.choices : []
+        for (var i = 0; i < ch.length; i++) if (ch[i].value === id) return I18n.tr(ch[i].label)
+        return String(id)
+    }
+    // The edges that have no bar on an output (where `layout.bar.move` can take the bar).
+    function freeEdges(output) {
+        return ["top", "bottom", "left", "right"].filter(function (e) { return valueOf("edges." + e + ".bar", output) !== true })
+    }
+
     // Why a row is inert or not in effect yet: [{kind, text, key}]. The daemon decides and says so on the
     // provenance (reason, inert_by; K21). This only words it, from the schema coupling that names inert_by. `key`
     // is the setting that controls this one ("" when none): the row offers a link to it. kinds "pending", "unavailable"
@@ -246,7 +311,12 @@ Singleton {
         var out = []
         var p = prov(row.key, output)
         if (p && p.forced_by) out.push({ kind: "forced", text: forcedText(p), key: rowOf(p.forced_by) ? p.forced_by : "" })
-        if (p && p.reason === "settings.inert.requires") {
+        var why = p && p.reason === "settings.inert.requires" ? reserveReason(row.key, output) : ""
+        if (why !== "") {
+            // A keep-space row under a hidden part: the document's reason (a hidden part never keeps space), linked to
+            // the setting that hides it.
+            out.push({ kind: "requires", key: p.inert_by || "", text: I18n.tr(why) })
+        } else if (p && p.reason === "settings.inert.requires") {
             // Of the couplings on the blocking key, name the one that blocks now (two `requires` on one key, e.g. chrome
             // not flat and not line, row 467); the first on the key when none reads as blocking.
             var hit = null
