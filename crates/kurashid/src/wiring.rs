@@ -3334,7 +3334,8 @@ pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
                 if from == to || cfg.edges[to as usize].bar {
                     return Err(ActionError::Invalid(LAYOUT_EDGE_TAKEN.into()));
                 }
-                // One transaction: the bar and its zones move, the edge it leaves keeps no modules of its own.
+                // One transaction: the bar and its zones move, the edge it leaves keeps no modules of its own. Modules
+                // the destination edge already showed on their own stay, after the bar's (none is lost by a move).
                 let set = |key: String, value: Value| ApplyOp::Set {
                     set: key,
                     value,
@@ -3346,10 +3347,13 @@ pub fn layout_actions(store: &Arc<ConfigStore>, actions: &mut ActionRegistry) {
                     set(format!("edges.{t}.bar"), json!(true)),
                 ];
                 for (i, z) in kurashi_layout::ZONES.iter().enumerate() {
-                    ops.push(set(
-                        format!("edges.{t}.{z}"),
-                        json!(cfg.edges[from as usize].zones[i]),
-                    ));
+                    let mut zone = cfg.edges[from as usize].zones[i].clone();
+                    for m in &cfg.edges[to as usize].zones[i] {
+                        if !zone.contains(m) {
+                            zone.push(m.clone());
+                        }
+                    }
+                    ops.push(set(format!("edges.{t}.{z}"), json!(zone)));
                     ops.push(set(format!("edges.{f}.{z}"), json!([])));
                 }
                 let done = store.apply(&ops).map_err(|errs| {
