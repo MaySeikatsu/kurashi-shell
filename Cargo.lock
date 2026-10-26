@@ -1043,6 +1043,7 @@ dependencies = [
  "clap",
  "kurashi-core",
  "kurashi-ipc",
+ "kurashi-layout",
  "kurashi-schema",
  "kurashi-theme",
  "kurashid",

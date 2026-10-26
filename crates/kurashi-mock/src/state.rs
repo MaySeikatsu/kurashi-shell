@@ -159,8 +159,16 @@ impl State {
             // K28: the contributions of the test mod `hello`, the wallpaper tile, the weather clock aside and day mark and a
             // plain one (see documents::slots).
             ("runtime.slots", documents::slots()),
-            // K71: where the edge surfaces stand (the fixture, or KURASHI_MOCK_LAYOUT).
-            ("runtime.layout", documents::layout()),
+            // K71: where the edge surfaces stand, from the config below (or KURASHI_MOCK_LAYOUT); followed in `apply`.
+            (
+                "runtime.layout",
+                documents::layout(
+                    &appearance::initial(documents::config(kurashi_schema::v1::registry())),
+                    outputs,
+                    &documents::theme(),
+                    &Value::Null,
+                ),
+            ),
             // The weather mod's document (W19): the clock aside and the day marks read it.
             (
                 "mod.weather",
@@ -263,6 +271,27 @@ impl State {
         if doc == "config" {
             let keys = documents::keys(self.data("config"));
             self.patch("svc.keys", keys, None);
+        }
+        // K71: the layout follows the values and the tokens, as kurashid's layout step does.
+        if matches!(doc, "config" | "theme" | "mods") {
+            self.relayout();
+        }
+    }
+
+    /// Recomputes `runtime.layout` and sends what changed (nothing when nothing did).
+    fn relayout(&mut self) {
+        let mods = self
+            .docs
+            .get("mods")
+            .map_or(Value::Null, |d| d.data.clone());
+        let next = documents::layout(
+            self.data("config"),
+            &self.outputs,
+            self.data("theme"),
+            &mods,
+        );
+        if let Some(ops) = kurashi_ipc::diff_patch(self.data("runtime.layout"), &next) {
+            self.patch("runtime.layout", ops, None);
         }
     }
 
@@ -2338,6 +2367,29 @@ mod tests {
 
     /// W19 (rows 71, 72): `config` serves the schema's defaults with their provenance, `mock.doc` sets a clock key as a layer
     /// would, and `mod.weather` covers seven days from the mock's fixed date.
+    /// K71: the mock computes `runtime.layout` from its config as kurashid does, and follows every change of it.
+    #[test]
+    fn the_layout_follows_the_mock_config() {
+        let mut st = State::new(&["HEADLESS-1".to_owned()], None);
+        let l = st.data("runtime.layout").clone();
+        assert_eq!(l["outputs"]["*"]["edges"]["top"]["holder"], "bar");
+        assert_eq!(l["outputs"]["HEADLESS-1"]["edges"]["top"]["bar"], true);
+        assert_eq!(
+            l["outputs"]["*"]["edges"]["top"]["zones"]["start"][1],
+            json!({"id": "workspaces", "kind": "core"})
+        );
+        st.act(
+            "mock.doc",
+            &json!({"doc": "config", "patch": {"outputs": {"HEADLESS-1": {
+                "layout.frame.enabled": {"value": true, "source": {"kind": "user"}}}}}}),
+        )
+        .unwrap();
+        let l = st.data("runtime.layout");
+        assert_eq!(l["outputs"]["HEADLESS-1"]["frame"]["on"], true);
+        assert_eq!(l["outputs"]["HEADLESS-1"]["frame"]["band"]["bottom"], 8);
+        assert_eq!(l["outputs"]["*"]["frame"]["on"], false);
+    }
+
     #[test]
     fn config_defaults_and_the_weather_days_follow_the_mock() {
         let mut st = State::new(

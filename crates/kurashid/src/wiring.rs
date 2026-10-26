@@ -2964,11 +2964,16 @@ const LAYOUT_INPUTS: [&str; 4] = [crate::config::DOC, "theme", "mods", crate::wo
 
 /// What the layout step reads for one output (`None`: the global values, the `"*"` entry).
 fn layout_output(store: &ConfigStore, output: Option<&str>) -> kurashi_layout::OutputConfig {
+    layout_config(&|k: &str| store.get(k, output).map(|p| p.value).unwrap_or(Value::Null))
+}
+
+/// The layout step's input for one output from the values in effect there (`val`: a key's value, `Null` when unknown).
+/// Shared with the mock, which reads them from its `config` document.
+pub fn layout_config(val: &dyn Fn(&str) -> Value) -> kurashi_layout::OutputConfig {
     use kurashi_layout::{
         DockConfig, Draw, Edge, EdgeConfig, FrameConfig, OutputConfig, Reserve, SidebarConfig,
         Visibility,
     };
-    let val = |k: &str| store.get(k, output).map(|p| p.value).unwrap_or(Value::Null);
     let text = |k: &str| val(k).as_str().unwrap_or_default().to_owned();
     let num = |k: &str, d: u32| {
         val(k)
@@ -3045,9 +3050,13 @@ fn layout_outputs(hub: &Hub) -> BTreeSet<String> {
 
 /// The mods as the layout sees them (the `mods` document, in registry order).
 fn layout_mods(hub: &Hub) -> Vec<kurashi_layout::ModWidgets> {
-    let Ok((_, d)) = hub.snapshot("mods") else {
-        return Vec::new();
-    };
+    hub.snapshot("mods")
+        .map(|(_, d)| layout_mods_of(&d))
+        .unwrap_or_default()
+}
+
+/// The mods of a `mods` document (`{mods: [{id, state, provides}]}`) as the layout sees them.
+pub fn layout_mods_of(d: &Value) -> Vec<kurashi_layout::ModWidgets> {
     d["mods"]
         .as_array()
         .into_iter()
@@ -3069,13 +3078,20 @@ fn layout_mods(hub: &Hub) -> Vec<kurashi_layout::ModWidgets> {
 }
 
 fn layout_globals(store: &ConfigStore, hub: &Hub) -> kurashi_layout::Globals {
+    let theme = hub.snapshot("theme").map(|(_, t)| t).unwrap_or_default();
+    layout_globals_of(
+        &|k: &str| store.get(k, None).map(|p| p.value).unwrap_or(Value::Null),
+        &theme,
+    )
+}
+
+/// The values every output shares, from the global values (`get`) and the `theme` document's tokens.
+pub fn layout_globals_of(get: &dyn Fn(&str) -> Value, theme: &Value) -> kurashi_layout::Globals {
     let token = |name: &str, d: u32| {
-        hub.snapshot("theme")
-            .ok()
-            .and_then(|(_, t)| t["tokens"][name].as_f64())
+        theme["tokens"][name]
+            .as_f64()
             .map_or(d, |v| v.round().max(0.0) as u32)
     };
-    let get = |k: &str| store.get(k, None).map(|p| p.value).unwrap_or(Value::Null);
     kurashi_layout::Globals {
         draw: get("layout.draw")
             .as_str()
