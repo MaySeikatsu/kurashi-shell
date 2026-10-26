@@ -39,6 +39,30 @@ baseline.
 
 ## Results
 
+### 2026-10-26 — W43 frame: four strips per output, PSS with the frame off and on, idle (machine A; K71, docs/ux/frame.md)
+`frontend/test-frame.sh` (sandbox `w43-frame-test`, headless sway gles2, one 1920×1080 output), kurashi-mock serving a staged
+`runtime.layout` (frame on: thickness 8, radius 16, reserve on, a docked top bar; off: the fixture's unframed output) and wearing
+kurashid's theme tokens for the look. Frontend `qs -p` directly (not launch.sh). PSS of the frontend process, MiB.
+
+| Look | Pairs | Frame off | Frame on | Δ |
+|---|---|---|---|---|
+| kanso (no material), one frontend, frame toggled by the layout | 3 + 3 (two runs) | 186.4 / 188.6 / 188.0 · 164.7 / 169.3 / 170.5 | 191.4 / 190.8 / 190.6 · 170.0 / 173.1 / 173.4 | **+5.0 / +2.1 / +2.7 · +5.2 / +3.8 / +2.9** |
+| washi + paper material, one frontend, toggled | 3 + 3 | 241.1 / 239.9 / 242.6 · 212.2 / 209.5 / 213.6 | 250.8 / 251.8 / 263.0 · 225.7 / 222.3 / 236.1 | **+9.7 / +11.9 / +20.4 · +13.5 / +12.8 / +22.5** |
+| kanso, two frontends (each started off or on) | 3 | 186.9 / 172.3 / 172.3 | 201.1 / 187.5 / 187.3 | +14.2 / +15.2 / +15.0 |
+| washi + paper, two frontends | 3 | 220.6 / 219.1 / 215.7 | 256.4 / 250.3 / 250.5 | +35.8 / +31.2 / +34.8 |
+
+- **Untextured, live: +2…5 MiB per output** for four layer windows (top 1920×48 with the bar's part transparent, bottom
+  1920×24, sides 8×1008). The brief's ≤ +2 MiB is just missed; I11's ~3.5 MiB per window does not hold for windows this small.
+- **With the material: +10…23 MiB** — each strip makes its own TileSheet (normal, ink, height render targets) and reliefs; the
+  material's per-output allowance (K68: ≤ +12) is missed in two of six pairs.
+- Two frontends differ by +14…36 MiB: a frontend started with the frame on keeps more than one that turns it on later (start-up
+  arenas); the spread between runs elsewhere in BENCH is of that order (I211), so the toggled pairs are the frame's own cost.
+- Earlier runs of the same test: kanso toggled +3.8, −5.8, +1.0, +1.6 (noise of ± 6); two-frontend pairs from −24.8 to +39.6.
+- **Idle: 0 commits in 10 s** for the four strips and every other surface (washi + paper, kami with its pen; the mock's clock
+  pinned with `--fixed-time`: with a ticking clock the bar's minute flip landed inside the window in some runs). The strips are
+  static: drawn once, a pen line painted once per change. The frame adds 4 mapped surfaces per output (budget "≤ 4 mapped
+  surfaces per output" — row 492).
+
 ### 2026-10-25 — W42 memory: the image plugins the shell draws, two jemalloc arenas; the launcher window stays (machine A; K68, I194, I11)
 "Before" is `8598d57b`'s frontend (`git archive`), "after" this branch; both against one real `kurashid` (release, this branch,
 from the card's own target dir via the new `KURASHI_BIN_DIR`), headless sway gles2, one 2560×1440 output, sandboxes
