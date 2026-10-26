@@ -44,6 +44,30 @@ PanelWindow {
     Watch { doc: "svc.tray"; active: bar.visible }
     // Input bindings (ARCHITECTURE §6): what each island slot runs. Only while this bar is shown.
     Watch { doc: "bindings"; active: bar.visible }
+    // Where the bar stands (K71, PROTOCOL §3.1): who keeps this edge's zone, the inset, the draw mode, the frame's bands.
+    Watch { doc: "runtime.layout"; active: bar.visible }
+    readonly property var layoutEdge: ShellLayout.edgeOf(outName, cfg.edge)
+    readonly property var frameDoc: ShellLayout.of(outName).frame || ({})
+    readonly property bool frameOn: frameDoc.on === true
+    // The one-holder rule (K71): the bar keeps its edge's zone only when the layout names it; otherwise (the frame's
+    // strip keeps it) the bar ignores zones and stands at its inset.
+    readonly property bool holdsZone: layoutEdge.holder === undefined || layoutEdge.holder === "bar"
+    readonly property int inset: Math.max(0, Math.round(layoutEdge.inset || 0))
+    // Floating (K71, image 8): inset by band + gap on its edge (the layout's `inset`) and from the bands beside it, every
+    // corner rounded. Docked (dynamic, connected): flush, the frame's band on this edge.
+    readonly property bool drawFloating: layoutEdge.draw === "floating"
+    readonly property int sideInset: drawFloating ? ShellLayout.gap : 0
+    // Plain numbers (they notify only when they change): every document patch re-reads the layout, and a rebuilt rule
+    // list would remake the rule's items, a frame drawn for nothing (Ma).
+    readonly property int bandTop: ShellLayout.bandOf(outName, "top")
+    readonly property int bandBottom: ShellLayout.bandOf(outName, "bottom")
+    readonly property int bandLeft: ShellLayout.bandOf(outName, "left")
+    readonly property int bandRight: ShellLayout.bandOf(outName, "right")
+    readonly property int frameRadius: Math.max(0, Math.round(frameDoc.radius || 0))
+    function bandBeside(e) { return e === "top" ? bandTop : e === "bottom" ? bandBottom : e === "left" ? bandLeft : bandRight }
+    // A docked bar on a framed output is the band: its strip is drawn even where the groups float (keycap, soft), so
+    // bar and band are one sheet.
+    readonly property bool clearStrip: floating && !(frameOn && !drawFloating)
     readonly property var clock: Store.docs["svc.clock"] || ({})
     readonly property var workspaces: Store.docs["svc.workspaces"] || ({})
     readonly property var island: Store.docs["runtime.island.main"] || ({})
@@ -66,7 +90,7 @@ PanelWindow {
     Component.onCompleted: {
         refreshWidgets()
         Peeks.setEdge(screen ? screen.name : "", barEdge)
-        Light.setZone(bar, screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0)
+        Light.setZone(bar, screen ? screen.name : "", cfg.edge, zoneSize)
     }
     // The quick button (K24), or with `sidebar.from_bar` the right sidebar on this output (W29): its open state and its click.
     readonly property var uiDoc: Store.docs["runtime.ui"] || ({})
@@ -155,8 +179,8 @@ PanelWindow {
     function screenPoint(item, x, y) {
         var p = item.mapToItem(null, x, y)
         var s = bar.screen
-        var ox = s && cfg.edge === "right" ? s.width - bar.width : 0
-        var oy = s && cfg.edge === "bottom" ? s.height - bar.height : 0
+        var ox = s && cfg.edge === "right" ? s.width - bar.width - bar.margins.right : bar.margins.left
+        var oy = s && cfg.edge === "bottom" ? s.height - bar.height - bar.margins.bottom : bar.margins.top
         return { x: Math.round((s ? s.x : 0) + ox + p.x), y: Math.round((s ? s.y : 0) + oy + p.y) }
     }
     // A tray click. A menu request goes to the shell, which knows the output the Stage shows it on;
@@ -236,10 +260,20 @@ PanelWindow {
     implicitHeight: vertical ? 0 : Theme.barH
     implicitWidth: vertical ? Theme.barH : 0
     visible: cfg.enabled
-    color: "transparent"       // exclusionMode Auto -> exclusive zone = the bar's thickness
+    color: "transparent"
+    // Auto: exclusive zone = the bar's thickness (the compositor adds the margin on its edge); Ignore while another
+    // surface holds the edge (K71).
+    exclusionMode: holdsZone ? ExclusionMode.Auto : ExclusionMode.Ignore
+    margins {
+        top: cfg.edge === "top" ? bar.inset : (bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("top") : 0) : 0)
+        bottom: cfg.edge === "bottom" ? bar.inset : (bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("bottom") : 0) : 0)
+        left: cfg.edge === "left" ? bar.inset : (!bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("left") : 0) : 0)
+        right: cfg.edge === "right" ? bar.inset : (!bar.vertical ? bar.sideInset + (bar.drawFloating ? bar.bandBeside("right") : 0) : 0)
+    }
     // Its exclusive zone, for the origins of windows the compositor places beside it (Light.originOf).
-    readonly property var zoneKey: [screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0].join("|")
-    onZoneKeyChanged: Light.setZone(bar, screen ? screen.name : "", cfg.edge, visible ? Theme.barH : 0)
+    readonly property int zoneSize: visible && holdsZone ? Theme.barH + inset : 0
+    readonly property var zoneKey: [screen ? screen.name : "", cfg.edge, zoneSize].join("|")
+    onZoneKeyChanged: Light.setZone(bar, screen ? screen.name : "", cfg.edge, zoneSize)
     Component.onDestruction: Light.setZone(bar, "", cfg.edge, 0)
 
     // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol)
@@ -256,7 +290,11 @@ PanelWindow {
     Rectangle {
         id: bg
         anchors.fill: parent
-        color: bar.floating ? "transparent" : Theme.surfaceAlpha
+        color: bar.clearStrip ? "transparent" : Theme.surfaceAlpha
+        radius: bar.drawFloating ? Math.min(Theme.rLg, Theme.barH / 2) : 0
+        // A floating bar is outlined all round (line chrome; the pen draws it under a pen).
+        border.width: bar.drawFloating && !bar.floating && !rulePen.active ? Theme.outlineW : 0
+        border.color: Theme.outlineColor
         // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
         // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there itself,
         // in step with the card: round the hanging card's fillets into its sides, never under a translucent card. The
@@ -275,6 +313,13 @@ PanelWindow {
             var gaps = []
             if (opened) gaps.push([Math.max(0, width / 2 + IslandGeom.openL), width / 2 + IslandGeom.openR])
             if (sideOpen) gaps.push([Math.max(0, sideOpen.from), Math.min(ruleLen, sideOpen.to)])
+            // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
+            // round it into the band beside (Frame.qml).
+            if (bar.frameOn && !bar.drawFloating) {
+                var fr = bar.frameRadius
+                gaps.push([0, bar.bandBeside(bar.vertical ? "top" : "left") + fr])
+                gaps.push([ruleLen - bar.bandBeside(bar.vertical ? "bottom" : "right") - fr, ruleLen])
+            }
             gaps.sort(function (x, y) { return x[0] - y[0] })
             var segs = [], at = 0
             for (var i = 0; i < gaps.length; i++) {
@@ -287,8 +332,8 @@ PanelWindow {
         // K59: the strip's material, under its rules (flat chrome; floating groups stand on their own blocks).
         Loader {
             anchors.fill: parent
-            active: !bar.floating && Theme.texShell
-            sourceComponent: Relief { anchors.fill: parent }
+            active: !bar.clearStrip && Theme.texShell
+            sourceComponent: Relief { anchors.fill: parent; radius: bg.radius }
         }
         // K62: with a pen in effect the rule is drawn by the pen, as one open line (two, either side of the island's
         // opening); the opening and the line's ends are the rectangles' below.
@@ -303,14 +348,16 @@ PanelWindow {
                 color: Theme.outlineColor
                 lineWidth: ow
                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
-                paths: bg.ruleSegs.map(function (g) {
+                radius: bg.radius
+                // Floating: the outline of the rounded bar (paths null); else the rule's segments.
+                paths: bar.drawFloating ? null : bg.ruleSegs.map(function (g) {
                     return bar.vertical ? { points: [{ x: cx, y: g[0] }, { x: cx, y: g[1] }], closed: false }
                                         : { points: [{ x: g[0], y: cy }, { x: g[1], y: cy }], closed: false }
                 })
             }
         }
         Repeater {
-            model: !bar.floating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
+            model: !bar.floating && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
             Rectangle {
                 required property var modelData
                 color: Theme.outlineColor
