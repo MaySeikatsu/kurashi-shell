@@ -3,6 +3,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import "../core"
+import "../core/corner.js" as Corner
 
 // Rounded screen corners (K47 (6), K74: `runtime.layout`'s `screen_radius`): four concave quarter-circle fillets in black — the
 // panel's own edge — at the corners of one output, while the radius is > 0 (shellseikatsu `Widgets/ScreenCorners.qml`,
@@ -39,10 +40,8 @@ Scope {
             ShapePath {
                 fillColor: "black"
                 strokeWidth: -1
-                startX: 0; startY: 0
-                PathLine { x: sc.radius; y: 0 }
-                PathArc { x: 0; y: sc.radius; radiusX: sc.radius; radiusY: sc.radius; direction: PathArc.Counterclockwise }
-                PathLine { x: 0; y: 0 }
+                // (squircle in a squircle look, I281, concentric with the frame's band)
+                PathSvg { path: "M 0 0 L " + sc.radius + " 0" + Corner.quarter(sc.radius, 0, sc.radius, 0, 0, sc.radius, Theme.squircle) + " Z" }
             }
         }
     }

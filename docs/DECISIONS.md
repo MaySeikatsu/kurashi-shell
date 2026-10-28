@@ -915,3 +915,19 @@ The user's live check after session 15 (BACKLOG I276–I281).
   maple 18°, interpolated along the year through plum, rape-flower yellow, gold and crimson): hues 20 % toward it, then
   a 10 % blend toward it at the colour's own lightness (contrast stays; the wcag stage runs after). The theme document's
   `appearance.season` says today's term and lean; Settings shows it under the switch.
+- **Squircles (I281, session 16, user: implement them).** `corners = squircle` draws every quarter corner as a squircle:
+  one cubic between the circle's ends, its handles 0.88 of the way to the corner point (`core/corner.js`; the middle of
+  the curve about where a superellipse of exponent ~3.5 has it). Same ends and tangents, so lines, fillets and ruled joins
+  meet it as they met the arc. The path shapes (ColumnShape, MorphShape, Toasts) pass their SVG through
+  `Corner.squircled` (quarter `A` → `C`; two quarter arcs of one radius with almost no straight piece between them are a
+  pill's end and stay round); the frame's rule arcs and fillets, the screen corners and the pen's outlines follow; Block
+  draws its shadow, rim and ring fill with `SquircleRect` (Loaders, nothing made in a round look). The theme scales the
+  radius steps ×1.3 under squircle (`SQUIRCLE_SCALE`): a squircle with the circle's ends sits closer to the corner, so a
+  longer one reads as round as the radius set — and K74's concentric chain (screen, band, hole) scales with it.
+  Leftovers (Rectangle-drawn corners, the relief's box): I288.
+- **Nested corners (I269, session 16).** `Theme.nested(outer, inset)` = `outer − inset` (≥ 0) is the radius of a corner
+  that lies `inset` inside another: the Settings navigation's plates (inside the sheet's `radius.lg`, across the column's
+  gap) and the sidebar's section plates (inside the column's corner — the look's radius floating, the hole's joined —
+  across its padding; the sidebar window publishes it as `sectionR`). A joined column whose hole radius is no more than
+  its padding gets square plates: the rule, not a bug; a rounder look raises R.
+

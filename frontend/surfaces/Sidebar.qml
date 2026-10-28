@@ -381,6 +381,9 @@ Scope {
                     // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the content
                     // rides with the column; the column's own relief carries its sheet (`carry`), the window none.
                     property var tileSheet: tilesLoader.item
+                    // I269: a section's plate lies `pad` inside the column's corner: concentric with it (the column's
+                    // corner: the look's radius floating, the hole's joined).
+                    readonly property int sectionR: Theme.nested(col.floating ? Theme.rLg : col.joinR, Theme.pad)
                     readonly property point sheetCarry: Qt.point(0, 0)
                     Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
                     LightSense {}

@@ -30,6 +30,9 @@ Singleton {
     // The compositor's blur behind the chrome (`theme.material.blur`): glass only, and only while the switch is on and the
     // compositor can (the daemon's token). Every window's BackgroundEffect.blurRegion is empty otherwise.
     readonly property bool blur: tok("blur", false) === true
+    // `theme.shape.corners = squircle` (I281): every shape draws its quarter corners as squircle curves (core/corner.js);
+    // a pill's round end stays round.
+    readonly property bool squircle: tok("shape.corner", "rounded") === "squircle"
     readonly property color containerHigh: color("color.surface_container_high", "#2f2c33")
     readonly property int barH: tok("bar.height", 36)
     // Control height. Visuals of buttons take it; smaller visuals enlarge their hit area to it (32 px floor).
@@ -44,6 +47,9 @@ Singleton {
     readonly property int rSm: tok("radius.sm", 6)
     readonly property int rLg: tok("radius.lg", 18)
     readonly property int rFull: tok("radius.full", 999)
+    // K74 (I269): the radius of a corner that lies `inset` px inside a corner of `outer` — concentric with it, so curves
+    // inside one another keep one distance all round (0 once the inset is the radius or more).
+    function nested(outer, inset) { return Math.max(0, Math.round(outer - inset)) }
     readonly property int quickMs: tok("motion.quick_ms", 120)
     readonly property int stdMs: tok("motion.standard_ms", 220)
     readonly property int emphMs: tok("motion.emphasized_ms", 320)

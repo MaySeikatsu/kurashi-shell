@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Shapes
 import "../../core"
 import ".."
+import "../../core/corner.js" as Corner
 
 // The drawn part of one frame strip (K71, docs/ux/frame.md): its band fills (in the bar's material, K59), the inner fillets,
 // the rule (line chrome: rectangles and arcs, or the pen's line, K62) and the screen's rounded outer corners over it. Laid
@@ -237,10 +238,8 @@ Item {
         ShapePath {
             fillColor: fill
             strokeWidth: -1
-            startX: 0; startY: 0
-            PathLine { x: r; y: 0 }
-            PathArc { x: 0; y: r; radiusX: r; radiusY: r; direction: PathArc.Counterclockwise }
-            PathLine { x: 0; y: 0 }
+            // (the squircle corner in a squircle look, I281: the band's inner corner as the shapes draw theirs)
+            PathSvg { path: r > 0 ? "M 0 0 L " + r + " 0" + Corner.quarter(r, 0, r, 0, 0, r, Theme.squircle) + " Z" : "" }
         }
     }
     // A concave inner corner: the band's colour from the corner to the arc (ScreenCorners' fillet), turned per corner; the

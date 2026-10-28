@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import "../../core"
 import ".."
 import "../expanded"
@@ -62,7 +63,8 @@ Item {
         Rectangle {
             width: ns.width
             height: dndRow.height + 2 * Theme.gap
-            radius: Theme.rLg
+            // (concentric with the column, as the section plates: I269)
+            radius: QsWindow.window && QsWindow.window.sectionR !== undefined ? QsWindow.window.sectionR : Theme.rLg
             color: ns.dnd ? Theme.selected : Theme.containerHigh
             Row {
                 id: dndRow

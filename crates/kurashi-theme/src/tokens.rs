@@ -52,11 +52,15 @@ pub fn space_scale(d: Density) -> [(&'static str, f64); 6] {
 /// Radius steps from the one radius `r` (K74): `lg` is `r` (panels, cards), `md` two thirds of it (controls), `sm` a
 /// third (small parts) — the steps of the old scale at 18 px, so the default stays pixel-identical. Shape `none`
 /// collapses all of them to 0.
+/// A squircle corner spans this many radii along its sides (I281): with the same ends as a circle's quarter it sits closer
+/// to the corner, so its steps are this much longer to read as round as the radius the user set.
+pub const SQUIRCLE_SCALE: f64 = 1.3;
+
 pub fn radius_steps(shape: Shape, r: f64) -> [(&'static str, f64); 5] {
-    let r = if shape == Shape::None {
-        0.0
-    } else {
-        r.max(0.0)
+    let r = match shape {
+        Shape::None => 0.0,
+        Shape::Rounded => r.max(0.0),
+        Shape::Squircle => r.max(0.0) * SQUIRCLE_SCALE,
     };
     [
         ("none", 0.0),

@@ -6,6 +6,7 @@ import "../core"
 import "../components"
 import "../components/island"
 import "../components/pen.js" as Pen
+import "../core/corner.js" as Corner
 
 // Toast stack (focused output) plus the notification center, so shell.qml needs a single line. Expiry is daemon-side: a
 // toast exists exactly while its id is in `toasts`. The window is unmapped while no toast is up (Ma).
@@ -443,10 +444,10 @@ Scope {
                         + " " + f(E) + arc(R, 1, snapCx - as, E) + " Z"
                 }
                 readonly property bool drawn: !freed && !leaving && win.drip
-                readonly property string fillPath: !drawn ? "" : (detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true))
-                readonly property string linePath: !drawn ? "" : (detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false))
+                readonly property string fillPath: !drawn ? "" : Corner.squircled(detached ? free(0, 0) + " " + stub(0, true) : attached(0, 0, true), Theme.squircle)
+                readonly property string linePath: !drawn ? "" : Corner.squircled(detached ? free(win.ow / 2, 0) + " " + stub(0, false) : attached(win.ow / 2, 0, false), Theme.squircle)
                 readonly property string shadowPath: !drawn || (win.shadowSx === 0 && win.shadowSy === 0) ? ""
-                    : (detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z")
+                    : Corner.squircled(detached ? free(0, win.shadowSy) : attached(0, win.shadowSy, false) + " Z", Theme.squircle)
                 readonly property color lineColor: card.urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
 
                 // ---- where the card is drawn (local top), and its space in the stack.
