@@ -368,7 +368,14 @@ Scope {
                         Region { item: inputRect }
                         Region { item: grip }
                     }
-                    BackgroundEffect.blurRegion: Region { item: shapeRect }
+                    // Glass only (Theme.blur), rounded as the body is drawn (I276).
+                    BackgroundEffect.blurRegion: Region {
+                        item: Theme.blur ? shapeRect : null
+                        topLeftRadius: shape.sTL
+                        topRightRadius: shape.sTR
+                        bottomLeftRadius: shape.sBL
+                        bottomRightRadius: shape.sBR
+                    }
 
                     readonly property string outName: col.out
                     // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the content
@@ -433,13 +440,14 @@ Scope {
                         col.pointerIn = false
                         if (sb.geometryLog) console.log("sidebar-window down " + sb.side + " " + outName)
                     }
-                    // At rest under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover,
-                    // for the bar to leave its rule out there (SidebarGeom); withdrawn as soon as it moves.
-                    readonly property bool atRest: col.wanted && !col.gate && !col.frozen && col.p === 1 && !spring.running && !timedP.running
+                    // Under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover, for the bar to
+                    // leave its rule out there (SidebarGeom) — on every frame the column shows, sliding or at rest, so the
+                    // moving column reads as it does at rest (I278: the rule ran through it while it moved).
+                    readonly property bool opens: !col.gate && col.p > 0 && shapeRect.width > 0
                     // Row 521: one opening per bar the column meets — the bar at its start (top), the one at its end
                     // (bottom) and a docked bar on its own side — each `[edge, from, to]` along that bar's edge.
                     readonly property string openingsKey: {
-                        if (!atRest || !shape.ruled) return ""
+                        if (!opens || !shape.ruled) return ""
                         var ox = sb.side === "left" ? 0 : col.sw - width
                         var out = []
                         function across(edge, f) {

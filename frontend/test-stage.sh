@@ -92,13 +92,13 @@ PY
 ipc() { timeout 10 python3 -I "$W/ipc.py" "$@"; }
 K() { timeout 10 "$W/kurashi" "$@"; }
 
-# The card's surface (Theme.container, color.surface_container) in the output's centre column: its
+# The card's surface (the bar's sheet since I277: color.surface) in the output's centre column: its
 # pixel count and bounding box. The island's shape is drawn at the panel's opacity (W22, I114: Theme.panel, the mock's
 # surface_alpha 0.82), so a pixel of the container blended over the desk's own colour counts too. A card is drawn only where its surface is; a closed Stage draws nothing.
 cat > "$W/analyse.py" <<'PY'
 import json, sys
 
-SURFACE = (0x25, 0x23, 0x29)   # color.surface_container in the mock's theme
+SURFACE = (0x1b, 0x1a, 0x1e)   # color.surface in the mock's theme (I277: a card is the bar's sheet)
 ALPHA = 0.82                   # color.surface_alpha in the mock's theme
 TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 720   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar

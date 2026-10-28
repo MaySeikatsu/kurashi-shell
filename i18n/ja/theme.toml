@@ -13,3 +13,8 @@
 "theme.texture.back" = "「{material}」に戻す"
 "theme.scheme.light" = "ライト"
 "theme.scheme.dark" = "ダーク"
+"theme.season.detail" = "今日は{term}（{romaji}）。色が{strength}%ほど{season}に寄っています。"
+"theme.season.toward.winter" = "冬の青"
+"theme.season.toward.spring" = "桜色"
+"theme.season.toward.summer" = "新緑"
+"theme.season.toward.autumn" = "紅葉"

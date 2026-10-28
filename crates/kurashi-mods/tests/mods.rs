@@ -13,6 +13,14 @@ fn manifest_dir(sub: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join(sub)
 }
 
+/// The bundled mods and the fixtures' `media`, a mod with settings (bundled until media became core, I281).
+fn sample_roots() -> [PathBuf; 2] {
+    [
+        manifest_dir("../../mods"),
+        manifest_dir("tests/fixtures/sample"),
+    ]
+}
+
 const GOOD: &str = r#"
 id = "demo"
 name = "Demo"
@@ -57,9 +65,11 @@ fn bundled_manifests_validate() {
     let r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
     let ids: Vec<_> = r.iter().map(|e| e.id.as_str()).collect();
     // Every bundled mod validates; the first two are the oldest (more join as cards land).
-    for id in ["easter-eggs", "media"] {
-        assert!(ids.contains(&id), "{id} missing from {ids:?}");
-    }
+    assert!(
+        ids.contains(&"easter-eggs"),
+        "easter-eggs missing from {ids:?}"
+    );
+    assert!(!ids.contains(&"media"), "media is core, not a mod (I281)");
     for e in r.iter() {
         assert_eq!(e.state, ModState::Available, "{}: {:?}", e.id, e.state);
         let m = e.manifest.as_ref().unwrap();
@@ -181,6 +191,7 @@ fn good_manifest_and_float_default() {
 fn invalid_fixture_does_not_stop_discovery() {
     let roots = [
         manifest_dir("../../mods"),
+        manifest_dir("tests/fixtures/sample"),
         manifest_dir("tests/fixtures/invalid"),
     ];
     let mut r = Registry::discover(&roots, &daemon());
@@ -287,7 +298,7 @@ fn conflicts_name_both_mods() {
 
 #[test]
 fn enable_disable_symmetric_and_idempotent() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     let on = r.enable("media").unwrap();
     assert_eq!(r.get("media").unwrap().state, ModState::Enabled);
     assert_eq!(on.added.len(), 5 + 2);
@@ -309,7 +320,7 @@ fn enable_disable_symmetric_and_idempotent() {
 
 #[test]
 fn load_registers_settings_and_leaves_provides_off() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     let loaded = r.load("media").unwrap();
     assert_eq!(r.get("media").unwrap().state, ModState::Disabled);
     assert!(
@@ -333,7 +344,7 @@ fn load_registers_settings_and_leaves_provides_off() {
 
 #[test]
 fn reconcile_makes_the_registry_equal_to_the_lists() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     let set = |ids: &[&str]| ids.iter().map(|s| s.to_string()).collect();
     // An enabled id is loaded even when the loaded list does not name it (K25, enabled ⊆ loaded).
     assert!(r.reconcile(&set(&[]), &set(&["media"])).is_empty());
@@ -375,7 +386,7 @@ fn reconcile_switches_off_before_it_switches_on() {
 
 #[test]
 fn running_is_reported_per_mod_and_defaults_off() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     r.enable("media").unwrap();
     assert!(
         r.doc()["mods"]
@@ -438,7 +449,7 @@ fn ids_of_the_mods_lists_are_reserved() {
 
 #[test]
 fn policy_enables_only_listed() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     let policy = Policy {
         default_enabled: ["easter-eggs".to_string()].into(),
     };
@@ -451,7 +462,7 @@ fn policy_enables_only_listed() {
 
 #[test]
 fn setting_contributions_use_mod_config_keys() {
-    let mut r = Registry::discover(&[manifest_dir("../../mods")], &daemon());
+    let mut r = Registry::discover(&sample_roots(), &daemon());
     let ch = r.enable("media").unwrap();
     let keys: Vec<_> = ch
         .added
@@ -532,6 +543,7 @@ fn documents_carry_no_nulls_and_invalid_entries_omit_absent_fields() {
     fs::create_dir(t.path().join("empty")).unwrap(); // no mod.toml at all
     let roots = [
         manifest_dir("../../mods"),
+        manifest_dir("tests/fixtures/sample"),
         manifest_dir("tests/fixtures/invalid"),
         t.path().into(),
     ];

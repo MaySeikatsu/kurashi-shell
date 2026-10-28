@@ -47,6 +47,10 @@ Item {
     default property alias content: inner.data
     // The card's rest rect as an item (input mask and blur region).
     readonly property alias cardItem: card
+    // The card's corners at rest, for the owner's blur region (it must not reach past the outline): round away from the
+    // bar, square where it grows out of it (the fillets beyond are the bar's); round all round in the fallback.
+    readonly property real cardRNear: morph ? 0 : Theme.rLg
+    readonly property real cardRFar: Theme.rLg
 
     readonly property bool morph: onBar
     // On screen: opening, open or folding back.
@@ -221,7 +225,8 @@ Item {
     readonly property real bodyH: Math.max(0, shapeFoot - bodyTop)
     readonly property point shapeCarry: Qt.point(shapeCx - cardCx, (flip ? -1 : 1) * (shapeFoot - cardFoot))
     readonly property color shapeFill: {
-        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tgrow))
+        // (I277: the card is the sheet it grows out of — the bar's surface colour, not the container's)
+        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.surface, tgrow))
         return Qt.alpha(c, Theme.panel.a)
     }
     // I160 (as the Stage): the head over the bar's translucent strip is made one layer with it as the card grows.

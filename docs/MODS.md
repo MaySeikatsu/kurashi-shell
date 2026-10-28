@@ -139,14 +139,14 @@ A native mod is first-party code shipped with kurashi: Rust linked into `kurashi
   `reason` (an i18n key) in `running_reasons` while it runs. A job with nothing to do says so with `JobCtx::set_active(false)` (I48): it keeps running, but its reason leaves `running_reasons` until it calls `set_active(true)` (sysmon's paused watch, weather's rain watch without a saved place). A job whose body returns or panics stops
   running; a `wanted_by` that is not a bool setting of the mod refuses the enable. An empty `wanted_by` has no gate: the job runs while the mod is on (row 500, done: the timer's deadline). Weather's rain alerts and sysmon's trouble watch are jobs; a poll the user can see is never a
   bare task.
-- **Refused without code (B15):** a native mod whose manifest declares daemon code (`service:`,
-  `action:`, `island-face:`, `choices:`, `job:`) is refused with `mods.error.not_built` when this build
-  links no `NativeMod` for it: it stays `disabled` with that reason in `errors`, and the config keeps
-  its list entry. Frontend-only provides (`widget:`, `panel:`, `peek:`, `slot:`, `palette:`, `decor:`, `i18n`)
-  need no code and switch on as before. In the shipped build the bundled `easter-eggs` (on by default,
-  it declares `action:easter.*`) and `media` (`service:mpris`, `island-face:media`, `action:media.*`)
-  are refused until their code is linked; the default `mods.enabled` list therefore shows
-  easter-eggs as "not built" until its manifest or its code changes.
+- **Not offered without code (B15, I281):** a native mod whose manifest declares daemon code (`service:`,
+  `action:`, `island-face:`, `choices:`, `job:`, `host:`) is not offered when this build links no `NativeMod` for it:
+  the daemon drops it from the registry at start (no `mods` entry, no settings page, no switch that cannot work;
+  enabling it fails as an unknown mod), and the config keeps its list entries for a build that has it. Frontend-only
+  provides (`widget:`, `panel:`, `peek:`, `slot:`, `palette:`, `decor:`, `i18n`) need no code and switch on as before.
+  In the shipped build the bundled `easter-eggs` (it declares `action:easter.*`) is not offered until its code is
+  linked (BACKLOG I286). `media` is core (svc.media, the island's face, the desktop card) and no longer a mod
+  (session 16: its page showed a switch that could never turn on).
 - **Frontend:** the `mods` document gives each enabled native mod `qml: {"<provide>": "<file url>"}`
   for the components its manifest lists (`widget:x` → `qml/Widget.qml`, `panel:x` → `qml/Panel.qml`,
   `island-face:x` → `qml/Face.qml` with compact + expanded parts, K24). The frontend instantiates

@@ -13,9 +13,8 @@ use kurashid::config::ConfigStore;
 use kurashid::{ActionError, ActionRegistry, Hub, wiring};
 use serde_json::{Value, json};
 
-/// The bundled mods: `easter-eggs` and `media` (both available; nothing is on by default, K33). Both declare daemon code
-/// that this test build does not link, so enabling them is refused (B15): the lifecycle tests switch
-/// on `plain` from [`vehicle`] instead.
+/// The bundled mods (nothing is on by default, K33). `easter-eggs` declares daemon code this test build does not link,
+/// so it is not offered at all (B15, I281): the lifecycle tests switch on `plain` from [`vehicle`] instead.
 fn bundled() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods")
 }
@@ -84,6 +83,15 @@ impl Daemon {
             .expect("listed in the mods document")
     }
 
+    fn listed(&self, id: &str) -> bool {
+        let (_, doc) = self.hub.snapshot("mods").unwrap();
+        doc["mods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == id)
+    }
+
     fn state(&self, id: &str) -> String {
         self.entry(id)["state"].as_str().unwrap().to_string()
     }
@@ -109,11 +117,11 @@ async fn enable_is_a_config_write_that_undo_reverts_and_a_restart_keeps() {
     let root = scratch("persist");
     let extra = vehicle("persist-mods");
     let d = start(&root, std::slice::from_ref(&extra));
-    // Nothing is on by default (K33: easter-eggs has no code in this build).
-    assert_eq!(d.state("easter-eggs"), "available");
+    // Nothing is on by default (K33); easter-eggs has no code in this build and is not offered (I281).
+    assert!(!d.listed("easter-eggs"));
     assert!(d.store.string_list("mods.enabled").is_empty());
-    assert_eq!(d.state("media"), "available");
-    assert!(d.page("mods.media").is_none());
+    assert_eq!(d.state("plain"), "available");
+    assert!(d.page("mods.plain").is_none());
 
     // Loaded first (its own transaction), then on.
     d.act("mod.load", "plain").await.unwrap();
@@ -207,16 +215,16 @@ async fn forced_lists_refuse_the_mod_actions_and_write_nothing() {
     let paths = Paths::rooted(&root);
     write(
         &paths.managed_file(),
-        "[_managed]\nenforce = true\n\n[mods]\nenabled = [\"easter-eggs\"]\n",
+        "[_managed]\nenforce = true\n\n[mods]\nenabled = []\n",
     );
-    let d = start(&root, &[]);
+    let extra = vehicle("forced-mods");
+    let d = start(&root, std::slice::from_ref(&extra));
     assert!(d.store.is_forced("mods.enabled"));
     let forced = Err(ActionError::Invalid("config.error.forced".into()));
-    assert_eq!(d.act("mod.enable", "media").await, forced);
-    assert_eq!(d.act("mod.disable", "easter-eggs").await, forced);
+    assert_eq!(d.act("mod.enable", "plain").await, forced);
     // The refused enable wrote no list: the loaded one is not touched either (empty by default).
     assert!(d.store.string_list("mods.loaded").is_empty());
-    assert_eq!(d.state("media"), "available");
+    assert_eq!(d.state("plain"), "available");
 }
 
 #[tokio::test]
@@ -231,7 +239,7 @@ async fn a_file_edit_reconciles_the_registry() {
     d.store.reload();
     // Enabled implies loaded (K25): plain is on; nothing else was loaded by default.
     assert_eq!(d.state("plain"), "enabled");
-    assert_eq!(d.state("easter-eggs"), "available");
+    assert!(!d.listed("easter-eggs"));
     assert!(d.page("mods.easter-eggs").is_none());
 }
 

@@ -157,12 +157,13 @@ panel=$(ipc sub runtime.ui | jq -r '.panel')
 echo "ok: second right click closes the tray menu"
 
 # 5. Quick settings, then its Bluetooth page (docs/ux/quick-settings.md: a tile's arrow, or Right on the tile, opens its page
-#    in the card): powered, one connected keyboard. The card is 400 px and centred on the output; a click on its left
-#    padding (inert) gives the card the keyboard focus. Tab five times reaches the Bluetooth tile (the three status segments,
-#    then the Wi-Fi tile), and Right opens its page.
+#    in the card): powered, one connected keyboard. The card is 400 px, under its widget at the bar's right end (W36: its
+#    left edge ~404 px from the output's right); a click on its left padding (inert) gives the card the keyboard focus — a
+#    click beside it would close it (I279). Tab five times reaches the Bluetooth tile (the three status segments, then the
+#    Wi-Fi tile), and Right opens its page.
 ipc act quick.toggle >/dev/null || fail "quick.toggle refused"
 sleep 2
-click "$((SW / 2 - 195))" 300 left
+click "$((SW - 398))" 300 left
 sleep 0.5
 { for _ in 1 2 3 4 5; do echo tab; sleep 0.4; done; echo right; sleep 1.5; } \
   | timeout 60 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve || fail "keys failed"
@@ -185,15 +186,15 @@ token() {  # token <name> <fallback>: a colour token of the theme document, as h
   v=${v#\#}
   echo "${v:-$2}"
 }
-# connect.py locate <ppm> <surface> <containerHigh> <accent> <error>: the Connect button, the containerHigh band at
-# the card's right edge that is the lowest button above the card's accent Close button (x and y of its centre).
+# connect.py locate <ppm> <surface> <containerHigh> <accent> <error>: the Connect button, the lowest containerHigh band
+# at the card's right edge (x and y of its centre). The card is the bar's sheet (I277: color.surface).
 # connect.py error <ppm> <same colours>: the number of error-colour pixels inside the card.
 cat > "$W/connect.py" <<'PY'
 import sys
 
 mode, ppm = sys.argv[1], sys.argv[2]
 SURFACE, HIGH, ACCENT, ERROR = (tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) for c in sys.argv[3:7])
-X0, X1, Y0, Y1 = 960, 1600, 40, 1000   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
+X0, X1, Y0, Y1 = 1280, 2560, 40, 1000   # the output is 2560 wide: the card stands under its widget at the right end (W36), under the 36 px bar
 
 
 def read_ppm(data):
@@ -250,12 +251,10 @@ def bands(column, lo, hi, colour, tol):
 
 x0, y0, x1, y1 = card()
 if mode == "locate":
-    close = bands(x0 + 20, y0, y1, ACCENT, 8)   # the Close button: accent, 28 px, inside its left padding
-    if not close:
-        raise SystemExit("no Close button in the card")
-    connect = bands(x1 - 19, y0, close[-1][0] - 4, HIGH, 4)   # a button's right padding, clear of its label
+    # (no Close button since I279: the lowest button band in the card is Connect)
+    connect = bands(x1 - 19, y0, y1, HIGH, 4)   # a button's right padding, clear of its label
     if not connect:
-        raise SystemExit("no Connect button above Close")
+        raise SystemExit("no Connect button in the card")
     a, b = connect[-1]
     print(x1 - 19, (a + b) // 2)
 elif mode == "error":
@@ -264,11 +263,11 @@ elif mode == "error":
 else:
     raise SystemExit(f"unknown mode {mode}")
 PY
-COLOURS=("$(token color.surface_container 252329)" "$(token color.surface_container_high 2f2c33)" \
+COLOURS=("$(token color.surface 1b1a1e)" "$(token color.surface_container_high 2f2c33)" \
   "$(token color.accent c9404b)" "$(token color.error e46962)")
 timeout 20 grim -o HEADLESS-1 -t ppm "$W/scan.ppm" || fail "grim failed on scan.ppm"
 read -r CONNECT_X CONNECT_Y < <(timeout 60 python3 -I "$W/connect.py" locate "$W/scan.ppm" "${COLOURS[@]}") \
-  || fail "no Connect button above the card's Close button in the scan shot (connect.py)"
+  || fail "no Connect button in the card in the scan shot (connect.py)"
 click "$CONNECT_X" "$CONNECT_Y" left
 sleep 1.5
 bt=$(ipc sub svc.bluetooth)

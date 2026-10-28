@@ -254,9 +254,13 @@ PanelWindow {
     color: "transparent"
     mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
     // The island's shape is opaque and changes size every frame of its morph: no blur behind it.
-    BackgroundEffect.blurRegion: peekLayout ? peekRegion : (shown && !morphMode ? cardRegion : emptyRegion)
+    BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
+        : peekLayout ? peekBlur : (shown && !morphMode ? cardBlur : emptyRegion)
     Region { id: cardRegion; item: card }
     Region { id: peekRegion; item: peekCard }
+    // (rounded as the cards are drawn: a square region showed the blur past their corners, I276)
+    Region { id: cardBlur; item: card; radius: card.radius }
+    Region { id: peekBlur; item: peekCard; radius: peekCard.radius }
     Region { id: emptyRegion }
 
     onOpenChanged: {
@@ -602,9 +606,44 @@ PanelWindow {
             rBot: Theme.rSm
             edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
             neck: stage.joined ? 0 : Theme.rSm
-            fill: Theme.containerHigh
+            // (I277: the peek is the bar's sheet, as the card it grows out of)
+            fill: Theme.surfaceAlpha
             ringScale: 0.5
             flip: stage.peekFlip
+        }
+        // The peek's material (K59, I277): the relief clipped to the shape's fill path, as the island's card has it
+        // (I168); the mask is redrawn only when the path changes.
+        Shape {
+            id: peekMaskShape
+            visible: peekRelief.on
+            anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeWidth: -1
+                strokeColor: "transparent"
+                fillColor: "white"
+                PathSvg { path: peekRelief.on ? peekShape.fillPath : "" }
+            }
+        }
+        ShaderEffectSource {
+            id: peekMask
+            x: -100000
+            width: parent.width
+            height: parent.height
+            sourceItem: peekRelief.on ? peekMaskShape : null
+            hideSource: true
+            live: false
+        }
+        Connections {
+            target: peekRelief.on ? peekShape : null
+            function onFillPathChanged() { peekMask.scheduleUpdate() }
+        }
+        Loader {
+            id: peekRelief
+            readonly property bool on: Theme.texShell && peekShape.visible && peekShape.w > 2 && peekShape.h > 2
+            anchors.fill: parent
+            active: on
+            sourceComponent: Relief { anchors.fill: parent; mask: peekMask; bandEdge: peekShape.edgeY; bandWeight: 1 }
         }
     }
 
@@ -616,7 +655,7 @@ PanelWindow {
         width: Math.max(160, Math.min(stage.peekMaxW, peekLoader.implicitWidth + 2 * Theme.pad))
         height: peekLoader.implicitHeight + 2 * Theme.pad
         radius: Theme.rSm
-        color: stage.peekMorph ? "transparent" : Theme.containerHigh
+        color: stage.peekMorph ? "transparent" : Theme.surfaceAlpha
         // K62: with a pen in effect the pen draws the outline (1 px further in: the frame clips its children).
         border.width: peekPen.active || stage.peekMorph ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
@@ -640,6 +679,13 @@ PanelWindow {
             : (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
         y: stage.peekMorph ? (stage.peekFlip ? stage.peekBoxH - stage.peekInset - height : stage.peekInset)
             : (stage.peekSide ? 0 : (stage.shownEdge === "bottom" ? 1 : -1)) * stage.peekSlide * (1 - stage.peekP)
+        // The bar's material on a free peek too (K59, I277).
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: Theme.texShell && peekCard.visible && !stage.peekMorph
+            sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, peekCard.radius - Theme.outlineW) }
+        }
         HoverHandler { onHoveredChanged: hovered ? Peeks.hold() : Peeks.leave() }
         TapHandler { onTapped: Peeks.dismiss() }
         Loader {
@@ -886,7 +932,8 @@ PanelWindow {
     // The shape's fill: the pill's at first (a head), the card's once grown, at the panel's opacity (I114); a boxed pill
     // has the strip under it. A headless shape is the card's from the start.
     readonly property color shapeFill: {
-        var c = headMode ? Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tgrow)) : Theme.container
+        // (I277: a card is the sheet it grows out of — the bar's surface colour, not the container's)
+        var c = headMode ? Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.surface, tgrow)) : Theme.surface
         return Qt.alpha(c, Theme.panel.a)
     }
     // I160: the head over the bar's strip, translucent over translucent, made one layer as the card grows: lighter by the
@@ -1104,7 +1151,7 @@ PanelWindow {
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
         radius: Theme.rLg
-        color: stage.morphMode || stage.ownChrome ? "transparent" : Theme.panel
+        color: stage.morphMode || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
         border.width: stage.morphMode || stage.ownChrome || cardPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
@@ -1185,14 +1232,7 @@ PanelWindow {
                 onLoaded: if (stage.debugLog) console.log("stage-view made " + stage.contentKind + " t=" + Date.now())
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
-            // The one close action of the island and quick cards (Esc closes them too).
-            KeyButton {
-                visible: !stage.ownChrome
-                label: I18n.tr("frontend.stage.close")
-                primary: true
-                side: 28
-                onClicked: Store.act("ui.close")
-            }
+            // No Close button (I279): Esc or a click elsewhere (ClickAway) closes the island and quick cards.
         }
 
         SessionMenu {

@@ -79,6 +79,35 @@ pub fn solar_term(d: Date) -> SolarTerm {
         .unwrap_or(TERMS[23])
 }
 
+/// The season a hue leans toward (I281: each season its own colour, not only warm and cold): the anchors, by the day
+/// of the year a term starts, with hues unwrapped so the year runs winter blue → plum → sakura → rape-flower yellow →
+/// fresh green → golden → maple → crimson → winter blue again.
+const SEASON_ANCHORS: [(f64, f64, &str); 5] = [
+    (20.0, 215.0, "winter"),  // 大寒: cool blue
+    (95.0, 340.0, "spring"),  // 清明: sakura
+    (172.0, 480.0, "summer"), // 夏至: fresh green (120°)
+    (296.0, 378.0, "autumn"), // 霜降: maple (18°)
+    (385.0, 215.0, "winter"), // the next 大寒
+];
+
+/// The hue (degrees, 0..360) this term's colours lean toward, and the season it is nearest (`winter`, `spring`,
+/// `summer`, `autumn`): sampled at the term's start, as `warmth`, so the fortnight shares one value.
+pub fn season_hue(term: SolarTerm) -> (f64, &'static str) {
+    let mut doy = f64::from(Date::new(2001, term.start.0, term.start.1).day_of_year());
+    if doy < SEASON_ANCHORS[0].0 {
+        doy += 365.0;
+    }
+    let i = SEASON_ANCHORS
+        .windows(2)
+        .position(|w| doy >= w[0].0 && doy < w[1].0)
+        .unwrap_or(SEASON_ANCHORS.len() - 2);
+    let (a, b) = (SEASON_ANCHORS[i], SEASON_ANCHORS[i + 1]);
+    let t = (doy - a.0) / (b.0 - a.0);
+    let hue = (a.1 + (b.1 - a.1) * t).rem_euclid(360.0);
+    let near = if t < 0.5 { a.2 } else { b.2 };
+    ((hue * 1e3).round() / 1e3, near)
+}
+
 /// Warmth in -1.0 (coldest, ~大寒) ..= 1.0 (hottest, ~大暑), sampled at the term's start
 /// so the whole fortnight shares one value (24 discrete steps, not a continuous drift).
 pub fn warmth(term: SolarTerm) -> f64 {
