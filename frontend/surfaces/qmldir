@@ -9,6 +9,7 @@ SessionMenu 1.0 SessionMenu.qml
 Desktop 1.0 Desktop.qml
 PolkitDialog 1.0 PolkitDialog.qml
 ScreenCorners 1.0 ScreenCorners.qml
+ClickAway 1.0 ClickAway.qml
 Dock 1.0 Dock.qml
 Sidebar 1.0 Sidebar.qml
 TextureOverlay 1.0 TextureOverlay.qml
