@@ -847,3 +847,37 @@ label, phase, round, duration_ms, ends_at_ms | remaining_ms, running}`) and fire
 island transient, sound by the notification server's hint); the frontend interpolates the remaining time from
 `ends_at_ms` like the media position and ticks at 1 Hz only while a countdown is visible (rule 5). No polling, no
 timer in the daemon while nothing runs (one deadline). The deadline lives while a timer runs, not only while `mod.timer` has a subscriber: a timer ends with every view closed. A stopwatch is BACKLOG.
+
+## K74 — one corner radius, concentric; the expressive motion (2026-10-28, session 15; user)
+**Radius.** The user (session 15): "There should be a dedicated setting for the radius — this radius should influence the
+radius of the frame, the joins, and also buttons, toggles etc. … if radius is set to 20, the screen edges might have the 20,
+the outer frame 20 too, the inner frame 20 − x where x is the number of pixels between the outer and the inner frame side
+… they should match visually if a radius is the inner side of another one." And: a square look squares the frame too.
+- Schema v4: `theme.shape.radius` (px, 0–48, default 18) replaces `theme.shape.radius_scale` (migration `v3_to_v4`:
+  `round(18 × scale)`, at the root and per output). Tokens: `radius.lg = R`, `radius.md = round(2R/3)`,
+  `radius.sm = round(R/3)` — the old steps at 18 px, so the default is pixel-identical (theme goldens unchanged but for
+  motion). `corners = none` still collapses every step to 0 (the control is inert with that reason).
+- `layout.frame.radius` went. The window cut into the sheet has **one** corner radius: `R − thickness` on a framed output
+  (the inner curve of a band `thickness` wide round an outer corner of `R`: concentric), `R` without a frame. The layout
+  publishes it as `frame.radius`, the dock's and both sidebars' `radius` (PROTOCOL §3.1, fixture); the joined dock and
+  columns take it for their free corners too, so every corner of the hole, concave or convex, is that one radius
+  (Caelestia's border and panels share one rounding). Washi (R 9) and an 8 px band give 1 px: nearly square, as the
+  look's own corners are small; a look or the user raises R for rounder holes.
+- Not in this step (BACKLOG I269): the concentric rule for nested controls (`inner = outer − inset`: a button inside a card,
+  the Settings nav), screen corners following R by default (a change at the monitor's bezel — an open decision), pixel
+  and straight-line joins (I270).
+**Motion.** The user: "in dynamic they should look and feel like they do in caelestia shell"; keep the springs as a
+separate setting, adapt them where they conflict.
+- `theme.motion.profile` gains `expressive`, the new default; looks that said `calm` say `expressive` (lively and none
+  stay). Tokens `motion.kind` (`timed | spring | none`) and `motion.timed.{open,close,fast,effects}_ms` + `_curve`:
+  Caelestia's M3 expressive values (caelestia-dots/shell `plugin/src/Caelestia/Config/tokens.hpp`, read 2026-10-28):
+  open = expressive default spatial `[0.38, 1.21, 0.22, 1]` over 500 ms (overshoots ~1.4 %), close = emphasized
+  (two segments) over 400 ms, effects `[0.34, 0.8, 0.34, 1]` over 200 ms; ×1/speed.
+- Frontend: `core/Glide.qml` (one value on the curves, or the spring it had) moves the bar, the dock and edge modules;
+  `MorphSprings` (Stage, launcher, notification centre, toasts) and the sidebar run the curves while timed. A docked
+  bar's and a column's overshoot widens them inward (the body stays on its edge), as Caelestia's bar widens past its
+  content.
+- Grow out of the border: a docked hover bar keeps the frame's band on its edge while it is away; out, it is the band
+  grown thick — the frame's fillets, arcs and rules follow its moving edge on any of the four edges (`IslandGeom.lifts`,
+  FramePieces `lift*`), and a column joined to it follows it down to the band. The island keeps its own springs (its
+  identity, K42).
