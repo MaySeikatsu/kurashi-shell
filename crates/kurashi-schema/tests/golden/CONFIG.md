@@ -366,7 +366,7 @@ Shifts accent colours so they stay distinguishable.
 
 #### `theme.colors.season` — Seasonal tint (旬)
 
-A slight seasonal drift of hues following the 24 solar terms.
+The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24 solar terms.
 
 - type: `bool` · default: `false`
 - advanced

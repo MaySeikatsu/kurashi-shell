@@ -292,6 +292,25 @@ Scope {
                     width: win.inputOn ? win.hitBox.w : 1
                     height: win.inputOn ? win.hitBox.h : 1
                 }
+                // Glass only (Theme.blur): behind the group's body as drawn — the floating pill round, the joined body (its
+                // frame mirrored back to the window) at its free corners (I276).
+                BackgroundEffect.blurRegion: Region {
+                    id: blurAll
+                    readonly property bool on: Theme.blur && g.grow > 0
+                    item: on && g.floating ? pill : null
+                    radius: Math.min(pill.width, pill.height) / 2
+                    Region {
+                        readonly property rect b: shape.bodyRect
+                        x: g.edge === "left" ? win.width - b.x - b.width : b.x
+                        y: g.edge === "bottom" ? win.height - b.y - b.height : b.y
+                        width: blurAll.on && !g.floating ? b.width : 0
+                        height: blurAll.on && !g.floating ? b.height : 0
+                        topLeftRadius: shape.sTL
+                        topRightRadius: shape.sTR
+                        bottomLeftRadius: shape.sBL
+                        bottomRightRadius: shape.sBR
+                    }
+                }
                 Item {
                     x: win.hitBox.x
                     y: win.hitBox.y

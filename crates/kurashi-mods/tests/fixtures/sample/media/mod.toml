@@ -1,0 +1,24 @@
+id = "media"
+name = "Media"
+description = "mods.media.description"
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["widget:media", "island-face:media", "panel:media", "service:mpris", "action:media.*"]
+capabilities = ["dbus:session", "network"]
+cost = "low"
+
+[[setting]]
+key = "show_art"
+type = "bool"
+default = true
+label = "mods.media.show_art"
+
+[[setting]]
+key = "seek_step"
+type = "int"
+default = 5
+range = [1, 60]
+unit = "s"
+label = "mods.media.seek_step"
+help = "mods.media.seek_step.help"

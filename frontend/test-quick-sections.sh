@@ -189,7 +189,7 @@ ppm_shot() {  # ppm_shot <name> <settle s>: the output as a PPM
 card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 cy0 cx1 cy1) and a crop of it
   local res
   ppm_shot "$1" "$2"
-  res=$(timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" "$(token color.surface_container 252329)") \
+  res=$(timeout 60 python3 -I "$W/analyse.py" "$W/$1.ppm" "$(token color.surface 1b1a1e)") \
     || fail "$1: analysis failed"
   echo "$1: $res"
   jq -e '.surface >= 15000 and .bbox != null
@@ -453,7 +453,7 @@ echo "ok: the media row opens the island's media view"
 K act ui.close >/dev/null || fail "ui.close refused"
 sleep 1.5
 ppm_shot quick-closed 0.5
-closed=$(timeout 60 python3 -I "$W/analyse.py" "$W/quick-closed.ppm" "$(token color.surface_container 252329)")
+closed=$(timeout 60 python3 -I "$W/analyse.py" "$W/quick-closed.ppm" "$(token color.surface 1b1a1e)")
 jq -e '.surface < 500' <<<"$closed" >/dev/null || fail "a card is still drawn after ui.close ($closed)"
 [ "$(last_event svc.network)" = "unsub svc.network" ] || fail "the card's documents stayed subscribed after ui.close"
 echo "ok: ui.close: no card drawn, and the card's documents unsubscribed"

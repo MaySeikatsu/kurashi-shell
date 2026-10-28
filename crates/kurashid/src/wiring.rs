@@ -1549,6 +1549,11 @@ pub fn mods_native(
             config.as_ref().map(Arc::downgrade),
         ),
     };
+    // B15, I281: a mod this build cannot run is not offered (its config list entries stay, for a build that has it).
+    {
+        let ModsState { reg, native } = &mut st;
+        reg.retain(|e| native.can_run(e));
+    }
     // Registered before the first refresh, which fills it in; the document is never read empty.
     hub.register("mods", json!({"mods": []}), None);
     hub.register(SLOTS_DOC, json!({}), None);

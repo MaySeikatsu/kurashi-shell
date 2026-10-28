@@ -84,8 +84,17 @@ PanelWindow {
     color: "transparent"
     mask: shown ? cardRegion : emptyRegion
     // The shape changes size every frame of its morph: blur only behind the card at rest.
-    BackgroundEffect.blurRegion: shown && morph.settled ? cardRegion : emptyRegion
+    BackgroundEffect.blurRegion: shown && morph.settled && Theme.blur ? blurRegion : emptyRegion
     Region { id: cardRegion; item: morph.cardItem }
+    // (rounded as the card is drawn: a square region showed the blur past its corners, I276)
+    Region {
+        id: blurRegion
+        item: morph.cardItem
+        topLeftRadius: morph.flip ? morph.cardRFar : morph.cardRNear
+        topRightRadius: morph.flip ? morph.cardRFar : morph.cardRNear
+        bottomLeftRadius: morph.flip ? morph.cardRNear : morph.cardRFar
+        bottomRightRadius: morph.flip ? morph.cardRNear : morph.cardRFar
+    }
     Region { id: emptyRegion }
 
     onOpenChanged: if (open) Store.act("notify.mark_read", {})

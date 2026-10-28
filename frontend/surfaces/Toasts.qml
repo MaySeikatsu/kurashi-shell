@@ -243,8 +243,11 @@ Scope {
         WlrLayershell.namespace: "kurashi-toasts"
         color: "transparent"
         mask: hitRegion
-        BackgroundEffect.blurRegion: hitRegion
+        // Glass only (Theme.blur); rounded as the cards are (I276).
+        BackgroundEffect.blurRegion: Theme.blur ? blurRegion : noBlur
         Region { id: hitRegion; item: hit }
+        Region { id: blurRegion; item: hit; radius: Theme.rLg }
+        Region { id: noBlur }
         // Input on the cards only, never on the bar's strip above them.
         Item {
             id: hit

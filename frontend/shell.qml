@@ -135,6 +135,11 @@ ShellRoot {
         model: Quickshell.screens
         delegate: EdgeStripHost {}
     }
+    // A click elsewhere closes an open card, the launcher or the notification centre (I279): per output, only while one is open.
+    Variants {
+        model: Quickshell.screens
+        delegate: ClickAway {}
+    }
     // Rounded screen corners (K47 (6)): per output, only while runtime.layout's screen_radius > 0 (K74).
     Variants {
         model: Quickshell.screens

@@ -17,6 +17,51 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-28 — session 16 (machine A): screen corners follow the radius; the user's live check (blur, popups, motion, click-away, mods, seasons) — K74 addendum, K75
+**State:** `feat/w47-screen-corners` and `feat/w48-polish` merged into `main` (`--no-ff`); `main` pushed after the first
+merge (user's go) — push the second when the user agrees. `nix build .` run on the merged `main` so `nix run .` starts
+without a compile (until a tracked file changes). No subagents (user's rule, session 15–16). The old `/tmp/kurashi-sb-*`
+leftovers were deleted (user's go). Lead build dirs `~/.cache/kurashi-agents-target/{lead,lead-mods}` kept; scratch
+logs in `/tmp/kurashi-lead-logs/` (dev.sh: a sandbox with the user's own config, bursts of frames).
+
+**User decisions (session 16):** screen corners follow the radius by default, with a toggle (done: schema v5); nested
+concentric controls are next (I269); seasonal tint — make it visible and say what it does (done); squircle — implement
+real superellipse corners (**open, next**); the Media mod's dead page — gone; blur — must follow its switch (done); click
+popups need no Close button, a click elsewhere or Esc closes (done); popups must share their origin's colour and texture
+(done); don't dig into "styles broken" now (I280 holds the finding: applying a style clears the user's look, and the
+active profile's look shows through).
+
+**Merged:**
+- K74 addendum (schema v5): `theme.shape.screen_corners_follow` (default on) → `runtime.layout.screen_radius` = R, else
+  `screen_corners`; migration `v4_to_v5` keeps a chosen size. Probes in test-dock/stage/modqml/mods-live skip the corners.
+- K75: blur gated on glass + switch + compositor, regions follow the drawn corners (bar, frame, sidebar, dock, edge groups,
+  cards, toasts); popups (Stage cards, launcher, notification centre, peek, dock tooltip/menu, the phone views) are the
+  bar's sheet (surface colour + relief); sidebar/dock rule openings every frame, the dock starts on its first presented
+  frame; `ClickAway` (one top-layer catcher per output while something is open) and no Close button; native mods whose
+  code is not linked are not offered (media manifest removed, easter-eggs hidden, I286); the seasons have hues.
+
+**Suites (session 16, on the branch):** `just check` ✅; stage, quick-sections, dock, sidebars, bars, edge-modules, frame,
+polkit, island-join, settings ✅. test-tray-bt ❌ at its Bluetooth step — fails on main too (I287). test-modqml's
+mod-panel step and test-morph fail on main too (I274).
+
+**Next steps (ordered):**
+1. Ask the user to check on niri: glass blur at rounded corners and joins, the sidebar's band while it slides (image 6 of
+   session 16 was not reproduced on sway), the dock's reveal, popups' colour/texture, click-away.
+2. Squircle (I281): real superellipse corners for `corners = squircle` — the shared shapes (Block, ColumnShape,
+   MorphShape, BarMorph, FramePieces' arcs, Rectangle-based controls via a shape path), concentric with K74's radii.
+3. I269: concentric radii for nested controls (buttons, toggles, tiles, the Settings navigation).
+4. I282 dock on the top edge (grows out of the bar, stays aligned while either spawns); I283 a per-side sidebar mode
+   setting (pages with tabs / one column of sections).
+5. I284/I285 window and workspace previews on hover — UX brief first; niri 26.04 offers no per-window capture to clients
+   (stills through niri's IPC are the route).
+6. I280 styles (low priority per the user), I287 tray-bt, I274 mod panel gate, I286 easter-eggs.
+
+**Open decisions / risks:** blur shapes and the sidebar band could only be verified by loading and logging (sway has no
+`ext_background_effect`); the fillets' wedges are not blurred under glass (small, noted in K75). Washi's R 9 still gives a
+1 px hole radius (session 15's open point).
+
+---
+
 ## 2026-10-28 — session 15 (machine A): the frame under a hover bar, one corner radius, the expressive motion — K74
 **State:** `feat/w46-frame-morph` merged into `main` locally (`--no-ff`), **not pushed** (push when the user agrees). No subagents this session (user's rule).
 Lead build dirs `~/.cache/kurashi-agents-target/lead` and `lead-mods` kept. Leftovers the lead could not remove (denied):
@@ -222,60 +267,3 @@ reused across runs keeps its cache (`/tmp/kurashi-sb-<name>`): read the file the
 that place events "hours from now" break in evening runs.
 
 ---
-
-## 2026-10-21 — session 12 (machine B): light/dark modes, web dock in the sidebar, island join — K55, K56, wave 30
-**State:** `main` green, pushed. Two agent cards (W30-webdock-sidebar, W30-island-line) merged through the integration
-branch `feat/k55-scheme-modes`; no agent worktrees left. `target/` deleted at the end. Nothing is half-done.
-
-**User decisions (session 12):** isekai/mirai stays deferred (I117 — don't ask again until the user brings it up); the
-web dock can be used in the sidebar and fills it there, not phone shaped (K56); light/dark has modes Follow system /
-Follow wallpaper / Dark / Light, a style takes it over when applied and "reset" goes back to the user's own (K55).
-Reported: the sidebar could not be opened (I154) and the open island's outline did not meet the bar under line chrome
-(I155) — both fixed.
-
-**Built and merged:**
-- **K55:** `theme.colors.scheme` = `auto` (default; xdg-desktop-portal `org.freedesktop.appearance color-scheme`,
-  `kurashid/src/os_scheme.rs`, watched only while chosen) | `wallpaper` (mean CIE L* of the wallpaper mod's applied
-  picture, light from 55) | `dark` | `light`. The scheme is in `STYLE_KEYS` again: applying a style resets it; the
-  user's mode before is kept in `$XDG_STATE_HOME/kurashi/scheme-before`, `theme.scheme.restore {}` brings it back.
-  Theme document `appearance.scheme_effective / scheme_detail / scheme_before`. Settings: four pills + a reason line +
-  "Back to …" (`SchemeStatus.qml`); Dark tiles show the scheme in effect; the wallpaper picker keeps a follow mode.
-- **I154 / K58:** the sidebars open without a key — a button at each end of the bar (`sidebar.bar_buttons`, on by
-  default), launcher `>` "Right sidebar" / "Left sidebar" (`sidebar.{right,left}.toggle`), Settings › Sidebar "Open
-  now" with the keys. HM default binds now include `Mod+Shift+N` (right sidebar) and `Mod+A` (left); bind entries may carry JSON
-  arguments (`"sidebar.toggle {\"side\":\"left\"}"`). The user's niri config does not include `kurashi-binds.kdl`
-  yet (`programs.kurashi.niri.binds.enable` + `include "kurashi-binds.kdl"`) — tell them, don't edit it.
-- **W30-island-line:** under line chrome the card hangs from the bar's rule: one continuous outline (fillets with
-  constant width), the rule opened under the card; `frontend/test-island-join.sh` pixel-checks 10 cases.
-- **W30-webdock-sidebar (K56):** `panel:webdock` for `sidebar.left`/`sidebar.right`; pins as a key row, the page fills
-  the pane; the host maps a second window `kurashi-webdock-side` and moves the pin's page (no reload); same pin in
-  both places → live in the sidebar, "shown in the sidebar" at the edge. Panel property `placement` (MODS "Panels"),
-  `mod.webdock.sidebar {pin?, place?}` (fixture variant `snap_mod_webdock_sidebar.json`).
-
-**Verification (end of session):** `just check` (fmt, clippy -D warnings, all tests); `nix build .#kurashi`; hm-eval
-(incl. the sidebar binds with JSON args, `niri validate`); 31 sandbox suites — real, stage, quick, quick-sections, volume,
-modqml, mods-live, sidebars, sidebar-panel, power, desk, dock, launcher, media, polkit, island-morph, sway-adapter,
-**island-join (12 cases incl. mid-morph)**, settings, greeter, ai, tasks, lyrics, calendar, webdock dock, **webdock
-sidebar**, webdock host; looks washi and sekai — all green.
-
-**Next steps (ordered):**
-1. Show the user live when they ask: the four light/dark modes and "Back to …", both sidebars via the new keys, the
-   web dock as a left tab (`sidebar.left = ["mod:webdock:webdock", "mod:ai:ai"]`), the island under washi.
-2. I156 time-of-day fallback for `auto` without a portal. (I154 is done: K58 — bar end buttons, launcher commands,
-   Settings "Open now".)
-3. Follow-ups I158 (host memory with the sidebar window, BENCH), I159 (web dock in the sidebar polish), I160 (island
-   polish), I148–I153 (sidebar/appearance), I145–I147.
-4. Then session 10's remaining steps: I134 secret setting type, I127, I141, I139; backlog sweep I118–I142; bench.
-
-**Open decisions (ask):** none pending. MangoWM and isekai/mirai stay deferred until the user raises them.
-
-**Also fixed (session 12):** Settings' preview moved across several choices stacked undo steps (K57: the config
-document publishes `history.rev`); the sandbox's D-Bus no longer activates a real desktop portal (`tools/bench/sandbox.sh`
-denies `org.freedesktop.portal.Desktop`); the washi grain no longer uses deprecated `Qt.btoa`.
-
-**Gotchas (new):** never run `just check` while sandbox suites run — `cargo test` and the `--features
-kurashid/test-mods` build share `target/`. The lyrics test needs `cargo build -p kurashi-mod-lyrics --example fake_mpris`.
-Settings' focus hook names a Segmented pill by its label (e.g. "Follow the system"), not `segment:<key>`. `pkill -f` with a pattern that also matches your own shell's command line kills the tool call
-(exit 144) — kill by PID. A private `dbus-daemon` for tests needs `<allow receive_sender="*"/>` or replies are
-dropped and the test hangs; bound such tests with `tokio::time::timeout`. With two agents building, a lead `cargo
-test` can wait 10+ minutes on the build lock — run it in the background.

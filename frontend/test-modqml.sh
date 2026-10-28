@@ -93,7 +93,7 @@ K() { timeout 10 "$W/kurashi" "$@"; }
 cat > "$W/analyse.py" <<'PY'
 import json, sys
 
-SURFACE = (0x25, 0x23, 0x29)   # color.surface_container, the default palette (the daemon's theme says the same)
+SURFACE = (0x1b, 0x1a, 0x1e)   # color.surface, the default palette (I277: a card is the bar's sheet)
 TOL = 3
 X0, X1, Y0, Y1 = 960, 1600, 40, 900   # the output is 2560 wide: a card is centred on 1280, under the 36 px bar
 

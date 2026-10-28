@@ -274,8 +274,13 @@ Scope {
             // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change: on Caelestia's curves while the motion
             // is timed (K74: it grows out of its edge and overshoots a little; Glide), else on the enter curve.
             readonly property real shownAmt: Theme.timed ? glide.value : easedAmt
-            readonly property Glide glide: Glide { to: dock.wantShown ? 1 : 0 }
-            property real easedAmt: wantShown ? 1 : 0
+            // The motion starts on the window's first presented frame after it is mapped (as the sidebar's and the Stage's):
+            // started with the map, its first frames ran before the compositor showed the window, and the dock came up
+            // nearly out already — a jump (I278).
+            property bool presented: false
+            readonly property bool growing: wantShown && presented
+            readonly property Glide glide: Glide { to: dock.growing ? 1 : 0 }
+            property real easedAmt: growing ? 1 : 0
             Behavior on easedAmt {
                 enabled: Theme.springOn && !Theme.timed
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
@@ -357,6 +362,12 @@ Scope {
                     id: win
                     screen: dock.scr
                     visible: dock.wantShown || dock.shownAmt > 0
+                    onVisibleChanged: if (!visible) dock.presented = false
+                    Connections {
+                        target: body.Window.window
+                        enabled: dock.wantShown && !dock.presented
+                        function onFrameSwapped() { dock.presented = true }
+                    }
                     anchors.bottom: dock.edge === "bottom"
                     anchors.left: dock.edge === "left"
                     anchors.right: dock.edge === "right"
@@ -371,13 +382,13 @@ Scope {
                     onZoneKeyChanged: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
                     Component.onCompleted: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
                     Component.onDestruction: { Light.setZone(win, "", dock.edge, 0); SidebarGeom.clear(dock.outName, "dock") }
-                    // Joined to its edge's bar, at rest, under a chrome that rules the bar's edge: the span of that edge the dock
+                    // Joined to its edge's bar, while shown (sliding too: I278), under a chrome that rules the bar's edge: the span of that edge the dock
                     // and its fillets cover, for the bar to leave its rule out there (SidebarGeom, as a sidebar's: row 521), so
                     // the dock's outline runs round its fillets into the rule's ends — one sheet, no line under the dock.
                     readonly property string openingKey: {
                         // (Joined to the frame's band: the band's rule opens the same way, Frame.qml.)
                         if (!dock.joined || !joinedShape.ruled || (dock.ld.joins !== "bar:" + dock.edge && dock.ld.joins !== "frame")
-                                || dock.shownAmt < 1 || !visible)
+                                || dock.shownAmt <= 0 || !visible)
                             return ""
                         var o = dock.winOrigin()
                         if (dock.horiz)
@@ -428,6 +439,15 @@ Scope {
                         y: body.y
                         width: body.width - (dock.horiz ? 0 : win.edgeCut)
                         height: body.height - (dock.horiz ? win.edgeCut : 0)
+                    }
+                    // Glass only (Theme.blur): behind the body, rounded as it is drawn — the floating block all round, the
+                    // joined body at its free corners (I276).
+                    BackgroundEffect.blurRegion: Region {
+                        item: Theme.blur ? body : null
+                        topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rLg + 4
+                        topRightRadius: dock.joined ? joinedShape.sTR : Theme.rLg + 4
+                        bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rLg + 4
+                        bottomRightRadius: dock.joined ? joinedShape.sBR : Theme.rLg + 4
                     }
                     // Test only (frontend/test-dock.sh): the window's size and each tile's box in window coordinates, logged once
                     // the dock stands after a change. Off without the variable.
@@ -877,9 +897,16 @@ Scope {
                                 width: tipText.implicitWidth + 2 * Theme.gap
                                 height: tipText.implicitHeight + Theme.gap
                                 radius: Theme.rSm
-                                color: Theme.panel
+                                // The dock's own sheet and material (I277)
+                                color: Theme.surfaceAlpha
                                 border.width: 1
                                 border.color: Theme.outline
+                                Loader {
+                                    anchors.fill: parent
+                                    anchors.margins: 1
+                                    active: Theme.texShell
+                                    sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, tipBox.radius - 1) }
+                                }
                                 Text {
                                     id: tipText
                                     anchors.centerIn: parent
@@ -933,7 +960,7 @@ Scope {
                                 width: Math.max(180, col.implicitWidth + 2 * Theme.gap + 2 * inset)
                                 height: col.implicitHeight + 2 * Theme.gap + 2 * inset + Theme.shadowDy
                                 radius: Theme.rLg
-                                fill: Theme.panel
+                                fill: Theme.surfaceAlpha
                                 flatBorder: Theme.outline
                                 softScale: 0.6
                                 Column {
