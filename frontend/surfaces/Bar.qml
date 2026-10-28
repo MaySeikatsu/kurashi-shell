@@ -239,11 +239,22 @@ Scope {
             // grown thick (Caelestia's border and bar, docs/ux/frame.md). `bodyDepth`: how far the body's inner edge stands
             // from the screen edge now; the cut (where the fillets hang) never nearer the edge than the frame's thickness.
             readonly property real bodyDepth: !bar.carries ? bar.barH
-                : bar.edge === "top" ? body.y + bar.barH : (bar.scr ? bar.scr.height : 0) - sheetOrigin.y - body.y
+                : bar.edge === "top" ? body.y + bar.barH
+                : bar.edge === "bottom" ? (bar.scr ? bar.scr.height : 0) - sheetOrigin.y - body.y
+                : bar.edge === "left" ? body.x + bar.barH
+                : (bar.scr ? bar.scr.width : 0) - sheetOrigin.x - body.x
             readonly property int frameT: Math.max(0, Math.round((bar.lay.frame || {}).thickness || 0))
             readonly property real cutDepth: Math.min(bar.barH, Math.max(frameT, bodyDepth))
             // The band shows below (above) the body while the body is slid out past the frame's thickness.
             readonly property bool bandShows: bar.carries && bodyDepth < frameT - 0.5
+            // How much nearer its edge this bar's cut stands than at rest: the fillets the frame's strips (or another bar's)
+            // hang on this edge follow it (IslandGeom.lifts).
+            readonly property real ownLift: bar.carries ? Math.max(0, bar.barH - cutDepth) : 0
+            onOwnLiftChanged: IslandGeom.setLift(bar.outName, bar.edge, ownLift, win)
+            Component.onCompleted: IslandGeom.setLift(bar.outName, bar.edge, ownLift, win)
+            function liftOn(e) { return e === bar.edge ? ownLift : IslandGeom.liftOf(bar.outName, e) }
+            // Where the cut stands on edge `e` now, from the screen's edge: its band, a docked bar's thickness, less its lift.
+            function cutOf(e) { return bar.bandBeside(e) + (FG.docked(bar.lay, e) ? bar.barH : 0) - liftOn(e) }
             readonly property int thick: edgeRoom + bar.barH + awayRoom + carryDepth
             // The side bar's start and end on the output: a holder is placed inside the zones of the holders mapped before it
             // (the top and bottom bars or the frame's strips; shell.qml's order), so its margins count from there.
@@ -296,7 +307,7 @@ Scope {
             // it is on screen (the frame's side strips wait for it).
             readonly property var zoneKey: [bar.outName, bar.edge, backingWindowVisible ? zoneTotal : 0].join("|")
             onZoneKeyChanged: Light.setZone(win, bar.outName, bar.edge, backingWindowVisible ? zoneTotal : 0)
-            Component.onDestruction: Light.setZone(win, "", bar.edge, 0)
+            Component.onDestruction: { Light.setZone(win, "", bar.edge, 0); IslandGeom.dropLift(bar.outName, bar.edge, win) }
             // Row 490: where this window really stands on its output (the sheet's registration; Light.originOf reads it).
             readonly property point sheetOrigin: {
                 var s = bar.scr
@@ -322,7 +333,8 @@ Scope {
             // Row 492 (b): the frame's strip on this edge (its side bands to the fillets' end, the fillets, the rule's arcs).
             Loader {
                 id: carried
-                active: win.pieces !== null
+                // (a side bar carries no pieces — the frame's top and bottom strips hang its fillets — only its band's cover)
+                active: bar.carries
                 sourceComponent: FramePieces {
                     ox: win.sheetOrigin.x
                     oy: win.sheetOrigin.y
@@ -343,19 +355,29 @@ Scope {
                     arcs: win.pieces ? win.pieces.arcs : []
                     // (the openings of a column or the dock that meets this strip's side bands, as the frame's own strips)
                     openings: bar.frameOpenings
-                    liftEdge: bar.edge
-                    lift: Math.max(0, bar.barH - win.cutDepth)
+                    liftTop: win.liftOn("top")
+                    liftBottom: win.liftOn("bottom")
+                    liftLeft: win.liftOn("left")
+                    liftRight: win.liftOn("right")
                     readonly property real sw0: bar.scr ? bar.scr.width : 0
                     readonly property real sh0: bar.scr ? bar.scr.height : 0
                     readonly property real near: Math.max(0, win.bodyDepth)
-                    cover: win.bandShows
-                        ? { x: 0, y: bar.edge === "top" ? near : sh0 - win.frameT, w: sw0, h: win.frameT - near }
-                        : { x: 0, y: 0, w: 0, h: 0 }
-                    readonly property real rl: bar.bandLeft + bar.frameRadius
-                    readonly property real rr: bar.bandRight + bar.frameRadius
-                    coverRule: win.bandShows && ow > 0
-                        ? { x: rl, y: bar.edge === "top" ? win.frameT - ow : sh0 - win.frameT, w: sw0 - rl - rr, h: ow }
-                        : { x: 0, y: 0, w: 0, h: 0 }
+                    readonly property real t: win.frameT
+                    // The band where the body is not (along the whole window; a side bar's runs between the strips).
+                    cover: !win.bandShows ? { x: 0, y: 0, w: 0, h: 0 }
+                        : bar.edge === "top" ? { x: 0, y: near, w: sw0, h: t - near }
+                        : bar.edge === "bottom" ? { x: 0, y: sh0 - t, w: sw0, h: t - near }
+                        : bar.edge === "left" ? { x: near, y: win.sheetOrigin.y, w: t - near, h: win.height }
+                        : { x: sw0 - t, y: win.sheetOrigin.y, w: t - near, h: win.height }
+                    // Its rule along the band's inner edge, between the fillets of the strips beside it.
+                    readonly property real ra: bar.vertical ? win.sheetOrigin.y + bar.frameRadius : win.cutOf("left") + bar.frameRadius
+                    readonly property real rb: bar.vertical ? win.sheetOrigin.y + win.height - bar.frameRadius
+                        : sw0 - win.cutOf("right") - bar.frameRadius
+                    coverRule: !(win.bandShows && ow > 0) ? { x: 0, y: 0, w: 0, h: 0 }
+                        : bar.edge === "top" ? { x: ra, y: t - ow, w: rb - ra, h: ow }
+                        : bar.edge === "bottom" ? { x: ra, y: sh0 - t, w: rb - ra, h: ow }
+                        : bar.edge === "left" ? { x: t - ow, y: ra, w: ow, h: rb - ra, vert: true }
+                        : { x: sw0 - t, y: ra, w: ow, h: rb - ra, vert: true }
                 }
             }
 
@@ -423,10 +445,16 @@ Scope {
                                 gaps.push([Math.max(0, sideOpen[s].from), Math.min(ruleLen, sideOpen[s].to)])
                             // K71: on a framed output the bar's rule ends where the frame's fillet begins; the frame's rule turns
                             // round it into the band beside (FramePieces).
+                            // (Where the fillets end, from this window's own start and end: a side bar's window starts at the band
+                            // or past a docked bar, and a sliding bar beside it brings its fillet nearer the screen's edge.)
                             if (bar.frameOn && !bar.drawFloating) {
-                                var fr = bar.frameRadius
-                                gaps.push([0, bar.bandBeside(bar.vertical ? "top" : "left") + fr])
-                                gaps.push([ruleLen - bar.bandBeside(bar.vertical ? "bottom" : "right") - fr, ruleLen])
+                                var fr = bar.frameRadius, e0 = bar.vertical ? "top" : "left", e1 = bar.vertical ? "bottom" : "right"
+                                var o0 = bar.vertical ? win.sheetOrigin.y : win.sheetOrigin.x
+                                var len = bar.scr ? (bar.vertical ? bar.scr.height : bar.scr.width) : 0
+                                var o1 = len - o0 - ruleLen
+                                var cut0 = win.cutOf(e0), cut1 = win.cutOf(e1)
+                                gaps.push([0, Math.max(0, cut0 + fr - o0)])
+                                gaps.push([ruleLen - Math.max(0, cut1 + fr - o1), ruleLen])
                             }
                             gaps.sort(function (x, y) { return x[0] - y[0] })
                             var segs = [], at = 0
