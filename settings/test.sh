@@ -141,6 +141,34 @@ provides = ["widget:demo-blur"]
 capabilities = []
 cost = "low"
 T
+# A mod with settings (the mod page steps): `media`, frontend-only test data — media itself is core, not a mod (I281).
+mkdir -p "$R/data/kurashi/mods/media"
+cat > "$R/data/kurashi/mods/media/mod.toml" <<'T'
+id = "media"
+name = "Media"
+description = "A test mod with settings: a widget and two values."
+version = "0.1.0"
+tier = "native"
+kurashi = ">=0.0.1"
+provides = ["widget:media"]
+capabilities = ["dbus:session", "network"]
+cost = "low"
+
+[[setting]]
+key = "show_art"
+type = "bool"
+default = true
+label = "Show album art"
+
+[[setting]]
+key = "seek_step"
+type = "int"
+default = 5
+range = [1, 60]
+unit = "s"
+label = "Seek step"
+help = "How many seconds the seek buttons skip."
+T
 # The records test mod (K38, W17): the repo's test data, copied in so the daemon discovers it like a user mod.
 mkdir -p "$R/data/kurashi/mods/records"
 cp "$ROOT/crates/kurashid/tests/data/mods/records/mod.toml" "$R/data/kurashi/mods/records/mod.toml"

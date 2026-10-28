@@ -185,8 +185,8 @@ token() {  # token <name> <fallback>: a colour token of the theme document, as h
   v=${v#\#}
   echo "${v:-$2}"
 }
-# connect.py locate <ppm> <surface> <containerHigh> <accent> <error>: the Connect button, the containerHigh band at
-# the card's right edge that is the lowest button above the card's accent Close button (x and y of its centre).
+# connect.py locate <ppm> <surface> <containerHigh> <accent> <error>: the Connect button, the lowest containerHigh band
+# at the card's right edge (x and y of its centre). The card is the bar's sheet (I277: color.surface).
 # connect.py error <ppm> <same colours>: the number of error-colour pixels inside the card.
 cat > "$W/connect.py" <<'PY'
 import sys
@@ -250,12 +250,10 @@ def bands(column, lo, hi, colour, tol):
 
 x0, y0, x1, y1 = card()
 if mode == "locate":
-    close = bands(x0 + 20, y0, y1, ACCENT, 8)   # the Close button: accent, 28 px, inside its left padding
-    if not close:
-        raise SystemExit("no Close button in the card")
-    connect = bands(x1 - 19, y0, close[-1][0] - 4, HIGH, 4)   # a button's right padding, clear of its label
+    # (no Close button since I279: the lowest button band in the card is Connect)
+    connect = bands(x1 - 19, y0, y1, HIGH, 4)   # a button's right padding, clear of its label
     if not connect:
-        raise SystemExit("no Connect button above Close")
+        raise SystemExit("no Connect button in the card")
     a, b = connect[-1]
     print(x1 - 19, (a + b) // 2)
 elif mode == "error":
@@ -264,11 +262,11 @@ elif mode == "error":
 else:
     raise SystemExit(f"unknown mode {mode}")
 PY
-COLOURS=("$(token color.surface_container 252329)" "$(token color.surface_container_high 2f2c33)" \
+COLOURS=("$(token color.surface 1b1a1e)" "$(token color.surface_container_high 2f2c33)" \
   "$(token color.accent c9404b)" "$(token color.error e46962)")
 timeout 20 grim -o HEADLESS-1 -t ppm "$W/scan.ppm" || fail "grim failed on scan.ppm"
 read -r CONNECT_X CONNECT_Y < <(timeout 60 python3 -I "$W/connect.py" locate "$W/scan.ppm" "${COLOURS[@]}") \
-  || fail "no Connect button above the card's Close button in the scan shot (connect.py)"
+  || fail "no Connect button in the card in the scan shot (connect.py)"
 click "$CONNECT_X" "$CONNECT_Y" left
 sleep 1.5
 bt=$(ipc sub svc.bluetooth)

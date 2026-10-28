@@ -432,7 +432,10 @@ pub fn season(mut p: Palette, date: Option<Date>) -> StageOut {
             Rgb::from_hsl(h + d * frac, s, l)
         };
         let (_, _, nl) = nc.to_hsl();
-        p.set(r, nc.mix(Rgb::from_hsl(target, SEASON_SAT, nl), SEASON_BLEND));
+        p.set(
+            r,
+            nc.mix(Rgb::from_hsl(target, SEASON_SAT, nl), SEASON_BLEND),
+        );
     }
     let n = format!(
         "season: {} {} ({near}), hue {:.0}% toward {:.0}°",

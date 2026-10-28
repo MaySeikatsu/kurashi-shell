@@ -347,7 +347,7 @@ check_frontend() {
 
 sleep 4
 # Wait for the frontend's first documents, then the card surface colour of this theme (color.surface_container).
-SURFACE=$(doc theme | jq -r '.tokens["color.surface_container"] // "#252329"')
+SURFACE=$(doc theme | jq -r '.tokens["color.surface"] // "#1b1a1e"')   # (I277: a card is the bar's sheet)
 ALPHA=$(doc theme | jq -r '.tokens["color.surface_alpha"] // 1')
 echo "surface colour: $SURFACE"
 
