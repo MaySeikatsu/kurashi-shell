@@ -13,3 +13,8 @@
 "theme.texture.back" = "Back to {material}"
 "theme.scheme.light" = "light"
 "theme.scheme.dark" = "dark"
+"theme.season.detail" = "Today: {term} ({romaji}) — colours lean {strength} % toward {season}."
+"theme.season.toward.winter" = "winter blue"
+"theme.season.toward.spring" = "sakura"
+"theme.season.toward.summer" = "fresh green"
+"theme.season.toward.autumn" = "maple"

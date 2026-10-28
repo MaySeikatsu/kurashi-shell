@@ -41,6 +41,21 @@ pub(crate) fn b(store: &ConfigStore, key: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// What the seasonal tint does today (I281): the solar term, the season it is nearest, how far hues lean and toward
+/// which hue. `{}` while the tint is off.
+fn season_detail(date: Option<kurashi_theme::season::Date>) -> Value {
+    let Some(d) = date else { return json!({}) };
+    let term = kurashi_theme::season::solar_term(d);
+    let (hue, near) = kurashi_theme::season::season_hue(term);
+    json!({
+        "term": term.ja,
+        "romaji": term.romaji,
+        "season": near,
+        "hue": hue.round(),
+        "strength": (kurashi_theme::stages::SEASON_STRENGTH * 100.0).round(),
+    })
+}
+
 fn today() -> kurashi_theme::season::Date {
     use chrono::Datelike;
     let d = chrono::Local::now().date_naive();
@@ -437,6 +452,8 @@ pub fn document_with(
                     // K61 (row 340): each light colour as resolved, for Settings' swatches.
                     "light_colors": crate::texture::light_colors(store, chrono::Local::now()),
                     "overrides": store.appearance_overrides(),
+                    // I281: the season the colours lean toward today, for Settings' line under the switch ({} while off).
+                    "season": season_detail(input.season),
                 },
             })
         }

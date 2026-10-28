@@ -117,7 +117,7 @@
 "config.choice.colorblind.deuteranopia" = "2型（D型）"
 "config.choice.colorblind.tritanopia" = "3型（T型）"
 "config.theme.colors.season.label" = "季節の色合い（旬）"
-"config.theme.colors.season.help" = "二十四節気に合わせて色相をわずかに移ろわせる。"
+"config.theme.colors.season.help" = "二十四節気に合わせて、色が季節の色（冬の青・桜色・新緑・紅葉）へ少し寄ります。"
 "config.theme.colors.oled.label" = "純黒（OLED）"
 "config.theme.colors.oled.help" = "ダーク時の地を純黒にする。"
 "config.theme.shape.corners.label" = "角"

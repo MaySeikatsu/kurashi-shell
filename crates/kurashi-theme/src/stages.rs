@@ -17,7 +17,7 @@ use crate::ThemeError;
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::input::{Colorblind, ContrastLevel, Ink, Scheme, Source, Wallpaper};
 use crate::palette::{CHROMA_ROLES, CONTAINERS, Palette, PaletteSet, ROLES, RawRoles};
-use crate::season::{Date, solar_term, warmth};
+use crate::season::{Date, season_hue, solar_term};
 
 pub struct StageOut {
     pub palette: Palette,
@@ -401,25 +401,29 @@ pub fn contrast_level(mut p: Palette, level: ContrastLevel) -> StageOut {
 
 // ---------- 4. season (旬) ----------
 
-/// Max fraction of the way toward the warm/cool target hue at full warmth.
-const SEASON_STRENGTH: f64 = 0.05;
-const WARM_HUE: f64 = 30.0;
-const COOL_HUE: f64 = 215.0;
+/// The fraction of the way every hue leans toward the season's own (`season_hue`): calm, and visible all year (I281:
+/// the old warm/cool swing peaked at 5 % and was near 0 in spring and autumn).
+pub const SEASON_STRENGTH: f64 = 0.2;
+/// The saturation a grey takes in the season's hue: a whisper of colour where there is no hue to turn.
+const SEASON_GREY: f64 = 0.05;
+/// Then every colour is blended this far toward the season's colour at its own lightness (contrast stays; a palette
+/// whose hues already sit near the season's — a warm one in autumn — still shows it).
+const SEASON_BLEND: f64 = 0.1;
+const SEASON_SAT: f64 = 0.55;
 
 pub fn season(mut p: Palette, date: Option<Date>) -> StageOut {
     let Some(date) = date else {
         return out(p, vec!["season: off".into()]);
     };
     let term = solar_term(date);
-    let w = warmth(term);
-    let target = if w >= 0.0 { WARM_HUE } else { COOL_HUE };
-    let frac = SEASON_STRENGTH * w.abs();
+    let (target, near) = season_hue(term);
+    let frac = SEASON_STRENGTH;
     for r in ROLES.iter().filter(|r| !matches!(**r, "scrim" | "shadow")) {
         let c = p.get(r);
         let (h, s, l) = c.to_hsl();
         let nc = if s < 0.03 {
-            // True greys have no hue to rotate: add a whisper of temperature instead.
-            Rgb::from_hsl(target, 0.015 * w.abs(), l)
+            // True greys have no hue to rotate: a whisper of the season's colour instead.
+            Rgb::from_hsl(target, SEASON_GREY, l)
         } else {
             let mut d = (target - h).rem_euclid(360.0);
             if d > 180.0 {
@@ -427,15 +431,15 @@ pub fn season(mut p: Palette, date: Option<Date>) -> StageOut {
             }
             Rgb::from_hsl(h + d * frac, s, l)
         };
-        p.set(r, nc);
+        let (_, _, nl) = nc.to_hsl();
+        p.set(r, nc.mix(Rgb::from_hsl(target, SEASON_SAT, nl), SEASON_BLEND));
     }
     let n = format!(
-        "season: {} {} (warmth {:+.2}), hue {:.1}% toward {}",
+        "season: {} {} ({near}), hue {:.0}% toward {:.0}°",
         term.ja,
         term.romaji,
-        w,
         frac * 100.0,
-        if w >= 0.0 { "warm" } else { "cool" }
+        target
     );
     out(p, vec![n])
 }
