@@ -887,3 +887,31 @@ separate setting, adapt them where they conflict.
   grown thick — the frame's fillets, arcs and rules follow its moving edge on any of the four edges (`IslandGeom.lifts`,
   FramePieces `lift*`), and a column joined to it follows it down to the band. The island keeps its own springs (its
   identity, K42).
+
+## K75 — one sheet, honest switches: blur, popups, unbuilt mods, click-away, the seasons (2026-10-28, session 16; user)
+The user's live check after session 15 (BACKLOG I276–I281).
+- **Blur follows the material (I276).** The daemon overwrote the material-gated `blur` token with the raw switch and the
+  frontend never read it: every bar, frame strip and sidebar asked for compositor blur whatever the material, as plain
+  rectangles, so the blurred backdrop showed square past rounded corners (niri 26.04 implements
+  `ext_background_effect_v1`). Now the token is the material's (`glass` and the switch on and the compositor able),
+  `Theme.blur` gates every `BackgroundEffect.blurRegion`, and the regions take the corners as drawn (Quickshell 0.3.1's
+  `Region` per-corner radii; `ColumnShape.sTL…sBR`, its canonical corners mirrored back to the screen). The fillets'
+  wedges stay unblurred (a small gap in glass; noted, not a hard edge).
+- **Popups are the sheet they grow out of (I277).** The Stage's, launcher's and notification centre's cards took the
+  container colour and the hover peek and the dock's tooltip and menu the container colour without relief. They take the
+  surface colour at the bar's opacity (the same token, `color.surface_alpha`), and the peek and the tooltip carry the
+  relief. The container colour stays for tiles and controls inside a sheet.
+- **A moving column or dock reads as at rest (I278).** Their rule openings are published on every frame they show, not
+  only at rest; the dock's motion starts on its window's first presented frame (as the sidebar's and the Stage's).
+- **A click elsewhere closes (I279).** No Close buttons on click popups. Layer surfaces see no click outside themselves
+  and niri gives them no focus grab, so `ClickAway` maps one transparent top-layer window per output over the usable area
+  while a card, the launcher, the notification centre or a tray menu is open; a press runs `ui.close`. Under the overlay
+  popups, over apps, clear of the exclusive zones (a bar widget still takes its click).
+- **A switch that cannot work is not shown (I281, amends B15).** A native mod whose daemon code this build does not link
+  is dropped from the registry: no list entry, no page; its config entries stay. `media` stopped being a mod (core:
+  `svc.media`, the island's face, the desktop card); its manifest went. `easter-eggs` waits for code (I286).
+- **The seasons have colours (I281).** The tint swung only warm↔cool, ≤ 5 %, ≈ 0 in spring and autumn. Each solar
+  term now leans toward its season's hue (anchors: 大寒 winter blue 215°, 清明 sakura 340°, 夏至 fresh green 120°, 霜降
+  maple 18°, interpolated along the year through plum, rape-flower yellow, gold and crimson): hues 20 % toward it, then
+  a 10 % blend toward it at the colour's own lightness (contrast stays; the wcag stage runs after). The theme document's
+  `appearance.season` says today's term and lean; Settings shows it under the switch.

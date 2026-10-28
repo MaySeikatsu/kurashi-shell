@@ -157,12 +157,13 @@ panel=$(ipc sub runtime.ui | jq -r '.panel')
 echo "ok: second right click closes the tray menu"
 
 # 5. Quick settings, then its Bluetooth page (docs/ux/quick-settings.md: a tile's arrow, or Right on the tile, opens its page
-#    in the card): powered, one connected keyboard. The card is 400 px and centred on the output; a click on its left
-#    padding (inert) gives the card the keyboard focus. Tab five times reaches the Bluetooth tile (the three status segments,
-#    then the Wi-Fi tile), and Right opens its page.
+#    in the card): powered, one connected keyboard. The card is 400 px, under its widget at the bar's right end (W36: its
+#    left edge ~404 px from the output's right); a click on its left padding (inert) gives the card the keyboard focus — a
+#    click beside it would close it (I279). Tab five times reaches the Bluetooth tile (the three status segments, then the
+#    Wi-Fi tile), and Right opens its page.
 ipc act quick.toggle >/dev/null || fail "quick.toggle refused"
 sleep 2
-click "$((SW / 2 - 195))" 300 left
+click "$((SW - 398))" 300 left
 sleep 0.5
 { for _ in 1 2 3 4 5; do echo tab; sleep 0.4; done; echo right; sleep 1.5; } \
   | timeout 60 python3 -I "$ROOT/tools/bench/wl_keys.py" --serve || fail "keys failed"
@@ -193,7 +194,7 @@ import sys
 
 mode, ppm = sys.argv[1], sys.argv[2]
 SURFACE, HIGH, ACCENT, ERROR = (tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) for c in sys.argv[3:7])
-X0, X1, Y0, Y1 = 960, 1600, 40, 1000   # the output is 2560 wide: the card is centred on 1280, under the 36 px bar
+X0, X1, Y0, Y1 = 1280, 2560, 40, 1000   # the output is 2560 wide: the card stands under its widget at the right end (W36), under the 36 px bar
 
 
 def read_ppm(data):
