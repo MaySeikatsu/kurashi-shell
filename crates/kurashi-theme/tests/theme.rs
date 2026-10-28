@@ -458,7 +458,8 @@ fn axes_scales() {
 
     let mut i = ThemeInput::default();
     i.axes.motion_speed = 2.0;
-    i.axes.radius_scale = 1.5;
+    i.axes.motion = MotionProfile::Calm;
+    i.axes.radius = 27.0;
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["motion.standard_ms"], 110);
     assert_eq!(t["radius.md"], 18);

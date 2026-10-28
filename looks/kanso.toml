@@ -5,9 +5,9 @@ category = "modern"
 # a neutral sans. The look every other one is measured against (K53).
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.85
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 1.0
+"theme.shape.radius" = 18
 "theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]

@@ -5,9 +5,9 @@ category = "modern"
 # form of the editor-palette styles: catppuccin, rose-pine; K53).
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.9
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 1.2
+"theme.shape.radius" = 22
 "theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]

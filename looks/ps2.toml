@@ -5,11 +5,11 @@ category = "retro"
 # void black, translucent light towers and blue glow lines, thin silver type, solemn calm motion.
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.92
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 0.5
+"theme.shape.radius" = 9
 "theme.typography.family" = ["SST", "Zrnic", "Inter", "Noto Sans CJK JP", "sans-serif"]
 [slots]
 frame = "ps2"

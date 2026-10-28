@@ -166,12 +166,10 @@ Scope {
         || (!!uiDoc.peek && (uiDoc.peek.output === undefined || uiDoc.peek.output === outName))
     readonly property bool wantShown: on && (visibility === "always" || forced
         || (visibility === "empty_desktop" && emptyDesk) || reveal.revealed)
-    // 0 = slid out past its edge, 1 = in place; a spring between (K65), cut when motion is off.
-    property real shownAmt: wantShown ? 1 : 0
-    Behavior on shownAmt {
-        enabled: Theme.springOn
-        SpringAnimation { spring: Theme.spring; damping: Math.max(Theme.damping, 0.6); epsilon: 0.01 }
-    }
+    // 0 = slid out past its edge, 1 = in place: on Caelestia's curves (expressive: the bar grows out of the band and
+    // overshoots a little) or a spring (calm, lively; K65), cut when motion is off (K74, Glide).
+    readonly property real shownAmt: glide.value
+    readonly property Glide glide: Glide { to: bar.wantShown ? 1 : 0; damping: Math.max(Theme.damping, 0.6) }
     // The window: while the bar is out or sliding, while it keeps a zone or carries the frame's strip (both hold while it
     // is in), and — once shown — kept unmapped while hidden (the dock's pattern; BENCH "W44 bar": the cheaper of the two).
     readonly property bool keepsSpace: holdsZone && reserve > 0
@@ -239,17 +237,18 @@ Scope {
             // grown thick (Caelestia's border and bar, docs/ux/frame.md). `bodyDepth`: how far the body's inner edge stands
             // from the screen edge now; the cut (where the fillets hang) never nearer the edge than the frame's thickness.
             readonly property real bodyDepth: !bar.carries ? bar.barH
-                : bar.edge === "top" ? body.y + bar.barH
+                : body.over + (bar.edge === "top" ? body.y + bar.barH
                 : bar.edge === "bottom" ? (bar.scr ? bar.scr.height : 0) - sheetOrigin.y - body.y
                 : bar.edge === "left" ? body.x + bar.barH
-                : (bar.scr ? bar.scr.width : 0) - sheetOrigin.x - body.x
+                : (bar.scr ? bar.scr.width : 0) - sheetOrigin.x - body.x)
             readonly property int frameT: Math.max(0, Math.round((bar.lay.frame || {}).thickness || 0))
-            readonly property real cutDepth: Math.min(bar.barH, Math.max(frameT, bodyDepth))
+            readonly property real cutDepth: Math.max(frameT, bodyDepth)
             // The band shows below (above) the body while the body is slid out past the frame's thickness.
             readonly property bool bandShows: bar.carries && bodyDepth < frameT - 0.5
             // How much nearer its edge this bar's cut stands than at rest: the fillets the frame's strips (or another bar's)
             // hang on this edge follow it (IslandGeom.lifts).
-            readonly property real ownLift: bar.carries ? Math.max(0, bar.barH - cutDepth) : 0
+            // (negative while the bar overshoots past its rest: the fillets hang further in)
+            readonly property real ownLift: bar.carries ? bar.barH - cutDepth : 0
             onOwnLiftChanged: IslandGeom.setLift(bar.outName, bar.edge, ownLift, win)
             Component.onCompleted: IslandGeom.setLift(bar.outName, bar.edge, ownLift, win)
             function liftOn(e) { return e === bar.edge ? ownLift : IslandGeom.liftOf(bar.outName, e) }
@@ -355,6 +354,8 @@ Scope {
                     arcs: win.pieces ? win.pieces.arcs : []
                     // (the openings of a column or the dock that meets this strip's side bands, as the frame's own strips)
                     openings: bar.frameOpenings
+                    coverOpenings: win.bandShows && ow > 0
+                        ? SidebarGeom.openingsOf(bar.outName).filter(function (o) { return o.edge === bar.edge }) : []
                     liftTop: win.liftOn("top")
                     liftBottom: win.liftOn("bottom")
                     liftLeft: win.liftOn("left")
@@ -389,7 +390,11 @@ Scope {
                 readonly property real restY: bar.edge === "bottom" ? win.height - win.edgeRoom - bar.barH
                     : (bar.edge === "top" ? win.edgeRoom : win.startRoom)
                 // Slid out: past its edge, with its shadow.
-                readonly property real away: (1 - bar.shownAmt) * (bar.barH + win.edgeRoom + win.awayRoom + 2)
+                readonly property real away: Math.max(0, 1 - bar.shownAmt) * (bar.barH + win.edgeRoom + win.awayRoom + 2)
+                // Past rest on an overshooting curve (K74, expressive): the bar's inner edge reaches further in and settles
+                // back — Caelestia's bar widening past its content — while the body stays on its edge (a docked bar only:
+                // a floating pill has no edge to grow from). The strip's fill and rule follow its inner edge.
+                readonly property real over: bar.drawFloating ? 0 : Math.max(0, bar.shownAmt - 1) * bar.barH
                 readonly property bool shownNow: bar.shownAmt > 0
                 x: restX + (bar.edge === "left" ? -away : bar.edge === "right" ? away : 0)
                 y: restY + (bar.edge === "top" ? -away : bar.edge === "bottom" ? away : 0)
@@ -424,6 +429,10 @@ Scope {
                     Rectangle {
                         id: bg
                         anchors.fill: parent
+                        anchors.bottomMargin: bar.edge === "top" ? -body.over : 0
+                        anchors.topMargin: bar.edge === "bottom" ? -body.over : 0
+                        anchors.rightMargin: bar.edge === "left" ? -body.over : 0
+                        anchors.leftMargin: bar.edge === "right" ? -body.over : 0
                         color: bb.clearStrip || bar.drawFloating ? "transparent" : Theme.surfaceAlpha
                         // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
                         // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there

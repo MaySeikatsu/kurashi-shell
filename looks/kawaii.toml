@@ -8,7 +8,7 @@ category = "fiction"
 "theme.motion.profile" = "lively"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 0.9
+"theme.shape.radius" = 16
 "theme.typography.family" = ["Quicksand", "Comic Neue", "Nunito", "M PLUS Rounded 1c", "Noto Sans CJK JP", "sans-serif"]
 [slots]
 frame = "kawaii"

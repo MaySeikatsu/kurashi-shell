@@ -4,7 +4,7 @@ category = "modern"
 # A terminal's honesty: ink outlines on mono, square corners, sharp icons, quick and calm.
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.motion.speed" = 1.6
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"

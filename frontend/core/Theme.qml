@@ -105,6 +105,20 @@ Singleton {
     readonly property bool springOn: tok("motion.spring.on", true)
     readonly property real spring: tok("motion.spring.spring", 4.0)
     readonly property real damping: tok("motion.spring.damping", 0.45)
+    // K74: how surfaces move — "timed" (expressive: Caelestia's curves; a surface grows out of its edge on `openCurve` over
+    // `openMs`, folds back on `closeCurve` over `closeMs`, its content fades on `effectsCurve`), "spring" (calm, lively:
+    // the springs above) or "none" (cuts). Curves are `easing.bezierCurve` lists (several segments, ending at 1, 1).
+    readonly property string motionKind: tok("motion.kind", springOn ? "spring" : "none")
+    readonly property bool timed: motionKind === "timed"
+    readonly property int openMs: tok("motion.timed.open_ms", 500)
+    readonly property int closeMs: tok("motion.timed.close_ms", 400)
+    readonly property int fastMs: tok("motion.timed.fast_ms", 350)
+    readonly property int effectsMs: tok("motion.timed.effects_ms", 200)
+    readonly property var openCurve: tok("motion.timed.open_curve", [0.38, 1.21, 0.22, 1, 1, 1])
+    readonly property var closeCurve: tok("motion.timed.close_curve",
+        [0.05, 0, 2 / 15, 0.06, 1 / 6, 0.4, 5 / 24, 0.82, 0.25, 1, 1, 1])
+    readonly property var fastCurve: tok("motion.timed.fast_curve", [0.42, 1.67, 0.21, 0.9, 1, 1])
+    readonly property var effectsCurve: tok("motion.timed.effects_curve", [0.34, 0.8, 0.34, 1, 1, 1])
     // How visible bar content stays while the daemon is away (reconnect veil).
     readonly property real staleOpacity: tok("opacity.stale", 0.45)
     readonly property int longMs: tok("motion.long_ms", 500)
