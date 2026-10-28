@@ -128,10 +128,15 @@ ShellRoot {
         readonly property bool special: current === "@changed" || current === "@mods" || current === "@profiles"
         // The sidebar: the core pages keep their order, and each mod's page sits among them by name, before the first core
         // page that sorts after it (K25). Then Changed, Mods and Profiles. `mod` is a mod's id, "" otherwise.
+        // A page's name in the nav: a mod's from its own strings (`mods.<id>.name`, I244), else the label it came with.
+        function navName(x: var): string {
+            if (x.mod !== undefined && x.mod !== "" && I18n.has("mods." + x.mod + ".name")) return I18n.tr("mods." + x.mod + ".name")
+            return I18n.tr(x.label)
+        }
         readonly property var navItems: {
             var strings = I18n.strings   // re-evaluated when the strings arrive
             var entryOf = function (x) { return { id: x.id, label: x.label, mod: x.mod !== undefined ? x.mod : "" } }
-            var nameOf = function (x) { return I18n.tr(x.label) }
+            var nameOf = function (x) { return win.navName(x) }
             var core = win.pages.filter(function (x) { return x.mod === undefined }).map(entryOf)
             var mods = win.pages.filter(function (x) { return x.mod !== undefined }).map(entryOf)
             mods.sort(function (a, b) { return nameOf(a).localeCompare(nameOf(b)) })
@@ -545,7 +550,7 @@ ShellRoot {
                                     // The shape carries it; the colour (color.status.*) only repeats it.
                                     readonly property bool isMod: navEntry.modelData.mod !== ""
                                     readonly property bool modOn: isMod && Store.modOn(navEntry.modelData.mod)
-                                    readonly property string shownName: isMod ? I18n.tr(navEntry.modelData.label)
+                                    readonly property string shownName: isMod ? win.navName(navEntry.modelData)
                                         : navEntry.modelData.id === "@changed" ? I18n.fmt("settings.ui.changed_count", { n: win.changedCount })
                                         : I18n.pageTitle(navEntry.modelData.id, navEntry.modelData.label)
                                     function open(): void { win.page = navEntry.modelData.id; win.query = "" }
