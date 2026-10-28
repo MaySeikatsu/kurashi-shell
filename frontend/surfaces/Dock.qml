@@ -897,9 +897,16 @@ Scope {
                                 width: tipText.implicitWidth + 2 * Theme.gap
                                 height: tipText.implicitHeight + Theme.gap
                                 radius: Theme.rSm
-                                color: Theme.panel
+                                // The dock's own sheet and material (I277)
+                                color: Theme.surfaceAlpha
                                 border.width: 1
                                 border.color: Theme.outline
+                                Loader {
+                                    anchors.fill: parent
+                                    anchors.margins: 1
+                                    active: Theme.texShell
+                                    sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, tipBox.radius - 1) }
+                                }
                                 Text {
                                     id: tipText
                                     anchors.centerIn: parent
@@ -953,7 +960,7 @@ Scope {
                                 width: Math.max(180, col.implicitWidth + 2 * Theme.gap + 2 * inset)
                                 height: col.implicitHeight + 2 * Theme.gap + 2 * inset + Theme.shadowDy
                                 radius: Theme.rLg
-                                fill: Theme.panel
+                                fill: Theme.surfaceAlpha
                                 flatBorder: Theme.outline
                                 softScale: 0.6
                                 Column {

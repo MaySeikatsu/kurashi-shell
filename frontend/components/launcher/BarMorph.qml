@@ -225,7 +225,8 @@ Item {
     readonly property real bodyH: Math.max(0, shapeFoot - bodyTop)
     readonly property point shapeCarry: Qt.point(shapeCx - cardCx, (flip ? -1 : 1) * (shapeFoot - cardFoot))
     readonly property color shapeFill: {
-        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.container, tgrow))
+        // (I277: the card is the sheet it grows out of — the bar's surface colour, not the container's)
+        var c = Qt.tint(boxed ? Theme.surface : Theme.containerHigh, Qt.alpha(Theme.surface, tgrow))
         return Qt.alpha(c, Theme.panel.a)
     }
     // I160 (as the Stage): the head over the bar's translucent strip is made one layer with it as the card grows.
