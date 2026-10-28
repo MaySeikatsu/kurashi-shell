@@ -32,12 +32,58 @@ Item {
     // openings, [{edge, from, to}] along that edge in output px): the rule is left out there, so the neighbour's outline
     // runs round its fillet into the rule's ends (one sheet, as on a bar: row 521).
     property var openings: []
-    readonly property var shownRules: cutRules(rules, openings)
+    // Docked bars that slide (hover, empty desktop: Bar.qml): the cut on edge `e` stands `lift<E>` px nearer the screen edge
+    // than the pieces were laid out for (the bar's shown depth; IslandGeom.lifts). A piece hanging in a corner (`c`: a
+    // fillet, its arc, a square corner's pixel) moves with both of its corner's edges; the band's straight rule (`band`)
+    // reaches the moved corners; a piece marked `grow: <edge>` (the side bands in a top or bottom strip, and their rule)
+    // keeps its far end and reaches the moved cut. `cover` ({x, y, w, h}, output px; 0: none) is the band between a sliding
+    // bar's body and the frame's thickness while the body is slid nearer the edge than that, `coverRule` the band's inner
+    // rule along it. Numbers, not new piece lists: the delegates stay made while a bar moves.
+    property real liftTop: 0
+    property real liftBottom: 0
+    property real liftLeft: 0
+    property real liftRight: 0
+    property var cover: ({ x: 0, y: 0, w: 0, h: 0 })
+    property var coverRule: ({ x: 0, y: 0, w: 0, h: 0 })
+    // Where a column or the dock joined to the band under a slid-out bar covers the cover's rule (as `openings`).
+    property var coverOpenings: []
+    readonly property var coverRules: coverRule.w > 0 && coverRule.h > 0 ? cutRules([coverRule], coverOpenings) : []
+    function cdx(c) { return c.charAt(1) === "l" ? -liftLeft : liftRight }
+    function cdy(c) { return c.charAt(0) === "t" ? -liftTop : liftBottom }
+    function gx(g) { return g.c ? g.x + cdx(g.c) : g.band ? g.x - liftLeft : g.x }
+    function gy(g) { return g.c ? g.y + cdy(g.c) : g.grow === "top" ? g.y - liftTop : g.y }
+    function gw(g) { return g.band ? g.w + liftLeft + liftRight : g.w }
+    function gh(g) { return Math.max(0, g.grow === "top" ? g.h + liftTop : g.grow === "bottom" ? g.h + liftBottom : g.h) }
+    // A rule piece runs along x (a band's edge) unless it is marked `vert` (a side's rule, 0 long at rest).
+    function isH(g) { return g.vert === true ? false : g.w >= g.h }
+    // The rule as drawn: moved with the lifts first, then cut where a neighbour covers it (a lifted piece can reach into an
+    // opening it was clear of at rest). The delegates take these as they are.
+    readonly property var shownRules: cutRules(rules.map(function (g) {
+        return { x: gx(g), y: gy(g), w: gw(g), h: gh(g), vert: g.vert }
+    }), openings)
+    // An arc is left out where a neighbour joined to the band reaches into its corner (the neighbour's outline turns there).
+    function covered(a) {
+        var dx = cdx(a.c), dy = cdy(a.c), x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9
+        for (var i = 0; i < a.p.length; i++) {
+            x0 = Math.min(x0, a.p[i].x + dx); x1 = Math.max(x1, a.p[i].x + dx)
+            y0 = Math.min(y0, a.p[i].y + dy); y1 = Math.max(y1, a.p[i].y + dy)
+        }
+        for (var j = 0; j < openings.length; j++) {
+            var o = openings[j], e = o.edge
+            if (e === "top" && a.c.charAt(0) === "t" || e === "bottom" && a.c.charAt(0) === "b") {
+                if (o.from < x1 && o.to > x0) return true
+            } else if (e === "left" && a.c.charAt(1) === "l" || e === "right" && a.c.charAt(1) === "r") {
+                if (o.from < y1 && o.to > y0) return true
+            }
+        }
+        return false
+    }
+    readonly property var shownArcs: arcs.filter(function (a) { return !covered(a) })
     function cutRules(list, ops) {
         if (!ops || ops.length === 0) return list
         var out = []
         for (var i = 0; i < list.length; i++) {
-            var g = list[i], horiz = g.w >= g.h
+            var g = list[i], horiz = fp.isH(g)
             var segs = [[horiz ? g.x : g.y, horiz ? g.x + g.w : g.y + g.h]]
             var mid = horiz ? g.y + g.h / 2 : g.x + g.w / 2
             for (var j = 0; j < ops.length; j++) {
@@ -57,7 +103,7 @@ Item {
             }
             for (var m = 0; m < segs.length; m++) {
                 var a = segs[m][0], b = segs[m][1]
-                out.push(horiz ? { x: a, y: g.y, w: b - a, h: g.h } : { x: g.x, y: a, w: g.w, h: b - a })
+                out.push(Object.assign({}, g, horiz ? { x: a, w: b - a } : { y: a, h: b - a }))
             }
         }
         return out
@@ -89,7 +135,7 @@ Item {
         model: fp.fills
         Rectangle {
             required property var modelData
-            x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
+            x: fp.gx(modelData); y: fp.gy(modelData); width: fp.gw(modelData); height: fp.gh(modelData)
             color: Theme.surfaceAlpha
             Loader {
                 anchors.fill: parent
@@ -98,12 +144,22 @@ Item {
             }
         }
     }
+    Rectangle {
+        x: fp.cover.x; y: fp.cover.y; width: fp.cover.w; height: fp.cover.h
+        visible: fp.cover.h > 0 && fp.cover.w > 0
+        color: Theme.surfaceAlpha
+        Loader {
+            anchors.fill: parent
+            active: Theme.texShell && parent.visible
+            sourceComponent: Relief { anchors.fill: parent }
+        }
+    }
     Repeater {
         model: fp.fillets
         Fillet {
             required property var modelData
             r: fp.r
-            x: modelData.x; y: modelData.y; turn: modelData.turn
+            x: fp.gx(modelData); y: fp.gy(modelData); turn: modelData.turn
         }
     }
     // The rule: rectangles and arcs in the outline colour, or the pen's line.
@@ -116,17 +172,28 @@ Item {
         }
     }
     Repeater {
-        model: fp.ow > 0 && !Theme.penOutline ? fp.arcs : []
+        model: fp.ow > 0 && !Theme.penOutline ? fp.coverRules : []
+        Rectangle {
+            required property var modelData
+            x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
+            color: Theme.outlineColor
+        }
+    }
+    Repeater {
+        model: fp.ow > 0 && !Theme.penOutline ? fp.shownArcs : []
         Shape {
             required property var modelData
-            anchors.fill: parent
+            x: fp.cdx(modelData.c)
+            y: fp.cdy(modelData.c)
+            width: fp.width
+            height: fp.height
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 fillColor: "transparent"
                 strokeColor: Theme.outlineColor
                 strokeWidth: fp.ow
                 capStyle: ShapePath.FlatCap
-                PathPolyline { path: modelData.map(function (p) { return Qt.point(p.x, p.y) }) }
+                PathPolyline { path: modelData.p.map(function (p) { return Qt.point(p.x, p.y) }) }
             }
         }
     }
@@ -136,7 +203,7 @@ Item {
         y: fp.oy
         width: fp.winW
         height: fp.winH
-        active: fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0)
+        active: fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
         sourceComponent: PenOutline {
             anchors.fill: parent
             color: Theme.outlineColor
@@ -144,14 +211,17 @@ Item {
             seed: fp.seed
             paths: {
                 var l = [], ox = fp.ox, oy = fp.oy, h = fp.ow / 2
-                fp.shownRules.forEach(function (g) {
-                    var a = g.w >= g.h
+                var lifted = fp.shownRules.concat(fp.coverRules)
+                lifted.forEach(function (g) {
+                    if (g.w <= 0 || g.h <= 0) return
+                    var a = fp.isH(g)
                         ? [{ x: g.x - ox, y: g.y + h - oy }, { x: g.x + g.w - ox, y: g.y + h - oy }]
                         : [{ x: g.x + h - ox, y: g.y - oy }, { x: g.x + h - ox, y: g.y + g.h - oy }]
                     l.push({ points: a, closed: false })
                 })
-                fp.arcs.forEach(function (a) {
-                    l.push({ points: a.map(function (p) { return { x: p.x - ox, y: p.y - oy } }), closed: false })
+                fp.shownArcs.forEach(function (a) {
+                    var dx = fp.cdx(a.c), dy = fp.cdy(a.c)
+                    l.push({ points: a.p.map(function (p) { return { x: p.x + dx - ox, y: p.y + dy - oy } }), closed: false })
                 })
                 return l
             }

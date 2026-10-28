@@ -143,7 +143,7 @@ pub fn preview(
                     _ => Shape::Rounded,
                 }
             }
-            "theme.shape.radius_scale" => input.axes.radius_scale = f,
+            "theme.shape.radius" => input.axes.radius = f,
             "theme.colors.ink" if s != "palette" => input.ink = Ink::Named(s.into()),
             "theme.typography.family_jp" => {
                 input.axes.font_chain_jp = v

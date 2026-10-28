@@ -64,7 +64,8 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   hotplug renders from it until its own entry arrives). `"*"` is an alias, not an output: a view that lists outputs
   (Settings' output picker) skips it, here and in `svc.workspaces` (row 531).
 - Every offset is in logical px **from a screen edge**; the daemon never needs the output's size.
-- `frame`: `on`, `thickness`, `radius` (inner corners), `reserve`, and `band.<edge>` — the frame's visible thickness on
+- `frame`: `on`, `thickness`, `radius` (the inner corners: K74, `join_radius` less `thickness` while the frame is on, never
+  below 0; `join_radius` while it is off — no config key of its own since schema v4), `reserve`, and `band.<edge>` — the frame's visible thickness on
   each edge (0 where a docked bar is the band, and everywhere while the frame is off).
   A docked bar carries its edge's frame strip (row 492 b).
 - `edges.<top|bottom|left|right>`: `bar` (a bar stands there), `size` (only with a bar), `draw` + `draw_source`
@@ -75,12 +76,13 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   entries `{id, kind: core|mod, mod?, provide?}`; the pseudo id `mods` is already expanded), `span.start` / `span.end`
   (only on a left or right bar: its free length along its edge, px from the top and bottom — row 511).
 - `dock`: `on`, `edge`, `draw` + `draw_source`, `visibility`, `inset`, `reserve` + `reserve_source`, `joins`
-  (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet: `join_radius` for dynamic, 0 for
-  connected).
+  (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet and the joined dock's corners: for
+  dynamic the hole's radius — `frame.radius` on a framed output, else `join_radius` (K74) —, 0 for connected).
 - `sidebars.<right|left>`: `draw` + `draw_source`, `visibility`, `width`, `inset`, `reserve` + `reserve_source`
   (+ `reserve_reason`), `span.start` / `span.end` (the column's free length along its side: px from the top and bottom
   edges), `joins.start` / `joins.end` (what each end meets: `frame | bar:<edge> | edge | none` — `none` is a free end with
-  rounded corners, under a floating bar; absent while floating), `radius`.
+  rounded corners, under a floating bar; absent while floating), `radius` (as the dock's: the joined column's fillets
+  and free corners).
 - `island`: `edge`, `zone`, `host` (`bar` when its edge has a bar, else `module`), `draw` + `draw_source`; absent when no
   zone names `island`.
 - `unplaced`: enabled modules with a glance that no zone shows (no zone names them and none holds `mods`), as module

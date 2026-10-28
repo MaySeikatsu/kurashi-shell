@@ -8,5 +8,5 @@ palette = "catppuccin"
 [recipe]
 "theme.motion.profile" = "lively"
 "theme.material.opacity" = 0.92
-"theme.shape.radius_scale" = 1.3
+"theme.shape.radius" = 23
 "theme.colors.scheme" = "dark"

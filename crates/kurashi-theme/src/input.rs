@@ -89,6 +89,8 @@ pub enum Material {
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MotionProfile {
+    /// Timed curves after Caelestia's (M3 expressive): surfaces grow out of their edge and overshoot a little (K74).
+    Expressive,
     Calm,
     Lively,
     None,
@@ -116,7 +118,8 @@ pub enum Density {
 #[derive(Clone, Debug)]
 pub struct Axes {
     pub shape: Shape,
-    pub radius_scale: f64,
+    /// The one corner radius (K74), px.
+    pub radius: f64,
     pub material: Material,
     pub opacity: f64,
     pub blur: bool,
@@ -134,11 +137,11 @@ impl Default for Axes {
     fn default() -> Self {
         Axes {
             shape: Shape::Rounded,
-            radius_scale: 1.0,
+            radius: 18.0,
             material: Material::Glass,
             opacity: 0.82,
             blur: true,
-            motion: MotionProfile::Calm,
+            motion: MotionProfile::Expressive,
             motion_speed: 1.0,
             density: Density::Regular,
             chrome: Chrome::Flat,

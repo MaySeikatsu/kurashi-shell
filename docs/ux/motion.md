@@ -96,6 +96,21 @@ come with the shape.
   (machine A at load ~8) its visible growth starts ~100 ms after the first commit even with a cached size; the first
   open of a session holds at the button until the view is made (≥ 120 ms). A lighter QuickPanel is the real fix.
 
+## The expressive profile (K74, session 15)
+User: "in dynamic they should look and feel like they do in caelestia shell" — grow out of the border, fillets that track
+the motion, Caelestia's curves; the springs stay as a setting of their own and adapt where they conflict.
+- **Caelestia, read** (caelestia-dots/shell, 2026-10-28): the bar's width animates from the border's thickness to its
+  content (`modules/bar/BarWrapper.qml`: open on the expressive default spatial curve, close on emphasized); drawers
+  (dashboard, launcher, sidebar) slide out from behind the border by their own size with opacity following
+  (`offsetScale`, `Anim` = 500 ms default spatial); popouts animate their size between panels; one blob group unions
+  border and panels with a smooth-min, so the concave corners follow every frame. Tokens: `config/tokens.hpp`.
+- **Here:** `theme.motion.profile = expressive` (the default; calm looks moved to it) → `motion.kind = timed` and the
+  `motion.timed.*` tokens. `core/Glide.qml` moves one value on those curves (or on the spring it had: calm, lively);
+  the bar, the dock and edge modules use it; MorphSprings (Stage panels and peeks, launcher, notification centre,
+  toasts) and the sidebar run the curves per axis while timed (no soft limit or squash: the curve's own overshoot is the
+  bounce). The frame's pieces follow a sliding bar (frame.md); a column follows a sliding bar it joins.
+- **Not yet:** the island keeps its springs (K42); content fades still use `motion.standard`; I273.
+
 ## States
 Opening, open, retargeting, closing, closed; interrupted (close during open continues from the current value and
 velocity); a surface whose origin is gone (the widget hidden on this output) grows from the bar's centre; multi-output:

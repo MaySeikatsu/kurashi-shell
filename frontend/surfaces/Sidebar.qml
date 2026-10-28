@@ -126,6 +126,11 @@ Scope {
             // A bar the column meets at an end or along its side (the rule's opening, SidebarGeom; the log's `bar`).
             readonly property string barEdge: joinStart.indexOf("bar:") === 0 ? joinStart.substring(4)
                 : (joinEnd.indexOf("bar:") === 0 ? joinEnd.substring(4) : (sideBar ? sb.side : "none"))
+            // A docked bar the column meets at an end that slides (hover): the column's end follows the bar's edge, down
+            // to the band while the bar is away (IslandGeom.lifts; the window is the screen's height, nothing resizes).
+            function liftAt(j) { return j.indexOf("bar:") === 0 ? IslandGeom.liftOf(out, j.substring(4)) : 0 }
+            readonly property real liftStart: liftAt(joinStart)
+            readonly property real liftEnd: liftAt(joinEnd)
             function zoneOf(e) { var x = edges[e] || {}; return x.holder && x.holder !== "none" ? sb.num(x.reserve, 0) : 0 }
             // A change of draw mode while the column is out moves its edges and its fillets (the radius grows or goes)
             // over `motion.std`, never a jump (docs/ux/layout.md "Motion"); cut without motion. Nothing runs at rest.
@@ -189,7 +194,7 @@ Scope {
             readonly property bool holding: sb.holdP >= 0 && held
             readonly property bool springing: held && !gate && !sb.instant && !frozen && !holding
             Behavior on p {
-                enabled: col.springing
+                enabled: col.springing && !Theme.timed
                 SpringAnimation {
                     id: spring
                     // Stiffer than the island's: a column a screen tall must not creep in its last tenth.
@@ -199,9 +204,20 @@ Scope {
                     onRunningChanged: col.settled()
                 }
             }
+            // K74 (expressive): Caelestia's curves instead of the spring — out on `openCurve`, back on `closeCurve`; a new
+            // target starts from where the column stands. Its overshoot past rest widens the column inward (`overPx`).
+            NumberAnimation {
+                id: timedP
+                target: col
+                property: "p"
+                easing.type: Easing.BezierSpline
+                onRunningChanged: col.settled()
+            }
+            readonly property real overPx: Math.max(0, p - 1) * colW
             onWantedChanged: drive()
             Component.onCompleted: if (wanted) drive()
             function drive() {
+                timedP.stop()
                 if (holding || sb.holdP >= 0) {
                     if (wanted) {
                         held = true; gate = false; p = Math.max(0, Math.min(1, sb.holdP))
@@ -227,7 +243,14 @@ Scope {
             function toward(v) {
                 expanding = v > 0.5
                 if (frozen) { unfreezeTimer.stop(); frozen = false }
-                p = v
+                if (Theme.timed && !sb.instant) {
+                    timedP.stop()
+                    timedP.from = p
+                    timedP.to = v
+                    timedP.duration = Math.max(1, expanding ? Theme.openMs : Theme.closeMs)
+                    timedP.easing.bezierCurve = expanding ? Theme.openCurve : Theme.closeCurve
+                    timedP.start()
+                } else p = v
                 if (freezeMs >= 0) freezeTimer.restart()
             }
             onPChanged: {
@@ -242,7 +265,7 @@ Scope {
                 p = 0
             }
             function settled() {
-                if (spring.running) return
+                if (spring.running || timedP.running) return
                 if (sb.geometryLog && held && wanted && !frozen && p === 1) console.log("sidebar-rest " + sb.side + " " + out + " p=1.000")
             }
             property int freezeMs: -1
@@ -255,6 +278,7 @@ Scope {
                         + " p=" + col.p.toFixed(3))
                     // Held where it is (the Behavior off, the value written back), not paused: a resumed SpringAnimation
                     // integrates the paused time at once.
+                    timedP.stop()
                     col.frozen = true
                     col.freezeMs = -1
                     var v = col.p
@@ -365,11 +389,11 @@ Scope {
 
                     // ---- geometry: the canonical frame is the window's side part, `boxW` wide, its outer side at the
                     // screen's edge (mirrored for the left side); y as the window's ----
-                    readonly property real y0: col.aStart - offTop
-                    readonly property real y1: col.sh - col.aEnd - offTop
+                    readonly property real y0: col.aStart - col.liftStart - offTop
+                    readonly property real y1: col.sh - col.aEnd + col.liftEnd - offTop
                     readonly property real rx1: boxW - col.aInset
                     readonly property real rx0: rx1 - col.colW
-                    readonly property real shX0: rx0 + col.off
+                    readonly property real shX0: rx0 + col.off - col.overPx
                     readonly property real shX1: rx1 + col.off
                     readonly property bool openT: col.joinStart !== ""
                     readonly property bool openB: col.joinEnd !== ""
@@ -411,7 +435,7 @@ Scope {
                     }
                     // At rest under (or beside) a ruled bar, the span of the bar's edge the column and its fillets cover,
                     // for the bar to leave its rule out there (SidebarGeom); withdrawn as soon as it moves.
-                    readonly property bool atRest: col.wanted && !col.gate && !col.frozen && col.p === 1 && !spring.running
+                    readonly property bool atRest: col.wanted && !col.gate && !col.frozen && col.p === 1 && !spring.running && !timedP.running
                     // Row 521: one opening per bar the column meets — the bar at its start (top), the one at its end
                     // (bottom) and a docked bar on its own side — each `[edge, from, to]` along that bar's edge.
                     readonly property string openingsKey: {
@@ -532,6 +556,9 @@ Scope {
                                 neckB: col.joinEnd === "edge" ? 0 : col.aR
                                 neckO: col.sideBar ? col.aR : 0
                                 squareOuter: !col.floating
+                                // K74: a joined column's free corners are corners of the window cut into the sheet: the
+                                // layout's one radius, as its fillets (0 = connected, straight)
+                                radius: col.floating ? Theme.rLg : col.joinR
                                 flipX: sb.side === "left"
                                 // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
                                 ruled: !col.floating && Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)

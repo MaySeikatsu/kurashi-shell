@@ -14,7 +14,8 @@ Renderers bind **only to component tokens**. The daemon resolves everything and 
 token map (`theme` document); the frontend never computes colours.
 
 Scales: spacing 4 px base (`xs 4, sm 8, md 12, lg 16, xl 24, 2xl 32`); radius
-`none|sm|md|lg|full` × `shape.radius_scale`; type scale (caption, label, body, title, display);
+`none|sm|md|lg|full` from the one radius `shape.radius` R (K74: `lg = R`, `md = 2R/3`, `sm = R/3`; the frame's inner
+corners and every dynamic join `R − thickness`, concentric); type scale (caption, label, body, title, display);
 motion tokens (`instant, quick 120, standard 220, emphasized 320, long 500` ms) with easing roles
 (`enter, exit, emphasized, continuous`) × `motion.speed`.
 
@@ -38,7 +39,7 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 ## 3. Axes (orthogonal, all user-pinnable)
 | Axis | Values |
 |---|---|
-| `shape` | corner style `none|rounded|squircle`, `radius_scale` |
+| `shape` | corner style `none|rounded|squircle`, `radius` (px, K74) |
 | `material` | `solid|translucent|glass`, `opacity`, `blur` (request; capability-forced off if unsupported) |
 | `motion` | profile `calm|lively|none` + `speed` |
 | `density` | `compact|regular|airy` (scales spacing + control sizes) |
@@ -67,9 +68,9 @@ are never reset.
 | washi | inspired | washi | wa-iro | light |
 | kanso | modern | kanso | kanso | dark |
 | material, glass, terminal | modern | same name | material / kanso / kanso | dark |
-| catppuccin | modern | soft | catppuccin | dark, lively, opacity 0.92, radius ×1.3 |
-| rose-pine | modern | soft | rose-pine | dark, radius ×1.15, Nunito |
-| tokyo-night | modern | kanso | tokyo-night | dark, compact, calm ×1.25, opacity 0.88, radius ×0.85, mono |
+| catppuccin | modern | soft | catppuccin | dark, lively, opacity 0.92, radius 23 |
+| rose-pine | modern | soft | rose-pine | dark, radius 21, Nunito |
+| tokyo-night | modern | kanso | tokyo-night | dark, compact, calm ×1.25, opacity 0.88, radius 15, mono |
 | sekai, aqua | inspired | same name | same name | sekai light / aqua dark |
 | win95, luna, aero, ps2, snes | retro | same name | same name | scheme; win95/snes compact |
 | kawaii, yorha, hallownest, souls | fiction | same name | same name | scheme |
@@ -90,7 +91,7 @@ A decor pack = **typed slots + recipe**:
 (`chrome.outline` px, colour `chrome.line`), ring (`chrome.ring` px, `chrome.ring_color`), fill, and a hard shadow
 (`chrome.shadow` px down, `chrome.line`). Pressed = the face sinks by the shadow and springs back
 (`motion.spring.overshoot`). Flat chrome sets every width to 0. Components draw blocks through `Block.qml` only.
-`theme.decor = sekai` recommends palette `sekai` (light), keycap chrome, lively motion, solid material, radius ×1.25
+`theme.decor = sekai` recommends palette `sekai` (light), keycap chrome, lively motion, solid material, radius 23
 and Nunito, at the `theme:sekai` layer. Icons come from `Icon.qml` by ligature name (K69): `font.icons` is the shell's
 subset "Kurashi Symbols Rounded" (line chrome: "Kurashi Symbols Sharp" first) when installed, else the full Material
 Symbols family of that cut, else "" and components draw their text glyph. When `font.icons` is the subset,

@@ -174,7 +174,6 @@ impl EdgeConfig {
 pub struct FrameConfig {
     pub enabled: bool,
     pub thickness: u32,
-    pub radius: u32,
     pub reserve: bool,
 }
 
@@ -547,10 +546,22 @@ fn reserve_reason(v: Visibility) -> Option<&'static str> {
     (v == Visibility::Hidden).then_some(REASON_RESERVE_HIDDEN)
 }
 
-/// The radius of a join: dynamic's fillet, connected's straight corner; floating has no join.
-fn join_radius(draw: Draw, g: &Globals) -> u32 {
-    if draw == Draw::Dynamic {
+/// The corners of the window cut into the shell's sheet (K74): the one radius `R` (`radius.lg`), less the frame's
+/// thickness on a framed output — the inner curve of a band `thickness` wide round a corner of radius `R` — so the
+/// frame's inner corners, every dynamic join and the corners of what stands on the band are one radius, concentric
+/// with the screen's corner and the look's panels.
+fn hole_radius(cfg: &OutputConfig, g: &Globals) -> u32 {
+    if cfg.frame.enabled {
+        g.join_radius.saturating_sub(cfg.frame.thickness)
+    } else {
         g.join_radius
+    }
+}
+
+/// The radius of a join: dynamic's fillet (the hole's radius), connected's straight corner; floating has no join.
+fn join_radius(draw: Draw, cfg: &OutputConfig, g: &Globals) -> u32 {
+    if draw == Draw::Dynamic {
+        hole_radius(cfg, g)
     } else {
         0
     }
@@ -627,7 +638,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
                 meets(de)
             }
         }),
-        radius: join_radius(dock_draw, g),
+        radius: join_radius(dock_draw, cfg, g),
     };
 
     // A floating top/bottom bar that is not hidden: a sidebar ends a gap before it in every draw mode (I253, user
@@ -681,7 +692,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
                 start: top_meets,
                 end: bottom_meets,
             }),
-            radius: join_radius(draw, g),
+            radius: join_radius(draw, cfg, g),
         }
     };
     let sidebars = Sidebars {
@@ -800,7 +811,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
         frame: Frame {
             on: cfg.frame.enabled,
             thickness: cfg.frame.thickness,
-            radius: cfg.frame.radius,
+            radius: hole_radius(cfg, g),
             reserve: cfg.frame.reserve,
             band: PerEdge::of(band),
         },

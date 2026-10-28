@@ -257,12 +257,12 @@ Q openChoice theme.pen.line
 sleep 0.5
 kp escape
 alive "Esc on an open dropdown closed the sheet"
-radius0=$(K raw '{"t":"cfg.get","id":"r","key":"theme.shape.radius_scale"}' | python3 -I -c 'import json,sys; print(json.loads(sys.stdin.readline())["v"]["value"])')
-Q jump theme.shape.radius_scale
+radius0=$(K raw '{"t":"cfg.get","id":"r","key":"theme.shape.radius"}' | python3 -I -c 'import json,sys; print(json.loads(sys.stdin.readline())["v"]["value"])')
+Q jump theme.shape.radius
 sleep 0.5
 Q focusList >/dev/null
-for _ in $(seq 150); do [ "$(Q focused)" = "slider:theme.shape.radius_scale" ] && break; echo tab >&3; sleep 0.2; done
-[ "$(Q focused)" = "slider:theme.shape.radius_scale" ] || fail "Tab did not reach the radius slider ($(Q focused))"
+for _ in $(seq 150); do [ "$(Q focused)" = "slider:theme.shape.radius" ] && break; echo tab >&3; sleep 0.2; done
+[ "$(Q focused)" = "slider:theme.shape.radius" ] || fail "Tab did not reach the radius slider ($(Q focused))"
 kp right
 for _ in $(seq 25); do [ "$(Q previewState)" != none ] && break; sleep 0.2; done
 [ "$(Q previewState)" != none ] || fail "Right on the radius slider opened no preview"
@@ -273,7 +273,7 @@ for _ in $(seq 25); do [ "$(Q previewState)" = none ] && break; sleep 0.2; done
 kp escape
 gone "Esc did not close the sheet"
 sleep 0.5
-radius1=$(K raw '{"t":"cfg.get","id":"r","key":"theme.shape.radius_scale"}' | python3 -I -c 'import json,sys; print(json.loads(sys.stdin.readline())["v"]["value"])')
+radius1=$(K raw '{"t":"cfg.get","id":"r","key":"theme.shape.radius"}' | python3 -I -c 'import json,sys; print(json.loads(sys.stdin.readline())["v"]["value"])')
 [ "$radius1" = "$radius0" ] || fail "the radius is $radius1 after the put back and close, was $radius0"
 exec 3>&-
 echo "Esc: the dropdown closed first, the preview was put back next, then the sheet closed (radius $radius1)"

@@ -1,11 +1,11 @@
-# Kurashi configuration — schema v3.
+# Kurashi configuration — schema v4.
 # Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
 #
 # Every key is listed commented out at its default. Set only what you want to change:
 # unset keys keep following defaults, themes and profiles.
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
 #
-# schema_version = 3
+# schema_version = 4
 
 # [layout]
 #
@@ -32,10 +32,6 @@
 # Frame thickness
 #   range: 2..=32, step 1 (px) · only while layout.frame.enabled == true · since schema v3
 # thickness = 8
-#
-# Inner corners — How round the frame's inner corners are (0 = square).
-#   range: 0..=48, step 2 (px) · only while layout.frame.enabled == true · since schema v3
-# radius = 16
 #
 # Windows keep clear of the frame — Windows tile inside the frame. Off: the frame is drawn
 # over the windows' edges.
@@ -285,9 +281,12 @@
 #   range: 0..=48, step 2 (px)
 # screen_corners = 0
 #
-# Corner radius scale — Multiplies every corner radius token.
-#   range: 0.0..=2.0, step 0.05 · only while theme.shape.corners != "none" · advanced
-# radius_scale = 1.0
+# Corner radius — The one radius every corner follows (K74): panels, cards and the
+# island's views take it; buttons, toggles and smaller parts take steps of it; the frame's
+# inner corners and the joins of the bar, the dock and the sidebars take it less the frame's
+# thickness, so curves that sit inside one another stay concentric.
+#   range: 0..=48, step 1 (px) · only while theme.shape.corners != "none" · since schema v4
+# radius = 18
 
 # [theme.material]
 #
@@ -328,9 +327,11 @@
 
 # [theme.motion]
 #
-# Motion — Character of animations: calm, lively, or none at all.
-#   choices: "calm" | "lively" | "none" · forced to "none" while a11y.reduce_motion is on
-# profile = "calm"
+# Motion — Character of animations: expressive (surfaces grow out of the edge on timed
+# curves that overshoot a little), calm or lively (springs), or none at all.
+#   choices: "expressive" | "calm" | "lively" | "none" · forced to "none" while
+#   a11y.reduce_motion is on
+# profile = "expressive"
 #
 # Animation speed — Multiplies every motion duration's speed (2.0 = twice as fast).
 #   range: 0.25..=3.0, step 0.05 · only while theme.motion.profile != "none" · advanced

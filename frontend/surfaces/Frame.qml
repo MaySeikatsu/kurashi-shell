@@ -164,6 +164,11 @@ Scope {
             rules: strip.rules
             arcs: strip.arcs
             openings: strip.host.openings
+            // (a docked bar sliding on an edge: its cut, and the fillets hanging on it, stand nearer that edge)
+            liftTop: IslandGeom.liftOf(strip.host.out, "top")
+            liftBottom: IslandGeom.liftOf(strip.host.out, "bottom")
+            liftLeft: IslandGeom.liftOf(strip.host.out, "left")
+            liftRight: IslandGeom.liftOf(strip.host.out, "right")
             opacity: 0
             Component.onCompleted: opacity = Qt.binding(function () { return strip.host.on ? 1 : 0 })
             Behavior on opacity {

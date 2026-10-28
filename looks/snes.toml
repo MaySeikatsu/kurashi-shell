@@ -5,7 +5,7 @@ category = "retro"
 # hard blocky keys, the logo's four dots and the purple buttons, chunky pixel type, quick motion.
 [recipe]
 "theme.chrome" = "keycap"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.motion.speed" = 1.6
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"

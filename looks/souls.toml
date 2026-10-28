@@ -5,7 +5,7 @@ category = "fiction"
 # antique-gold hairlines with corner flourishes, ember accents, an engraved serif, solemn slow motion.
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.motion.speed" = 0.8
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"

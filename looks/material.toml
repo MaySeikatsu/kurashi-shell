@@ -5,8 +5,8 @@ category = "modern"
 # shadows, constant rounding, emphasized damped easing, Roboto.
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 1.0
+"theme.shape.radius" = 18
 "theme.typography.family" = ["Roboto", "Noto Sans CJK JP", "sans-serif"]
