@@ -22,8 +22,8 @@ Item {
     property real contentHeight: 0
     property bool buttons: true
     property bool homeBar: true
-    // The screen's ground (the web card hands it the skeleton's colour).
-    property color screenColor: theme ? theme.container : "#252329"
+    // The screen's ground: the bar's sheet it grows out of (I277; the web card hands it the skeleton's colour).
+    property color screenColor: theme ? theme.surface : "#1b1a1e"
     // The status row's two sides, beside the cut-out: the caller's items (a time, glyphs).
     property alias statusLeft: leftSlot.data
     property alias statusRight: rightSlot.data
