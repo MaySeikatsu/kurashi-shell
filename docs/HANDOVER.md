@@ -17,6 +17,31 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-28 — session 16, part 2 (machine A, the user away for 3 h): squircles, nested corners, the top dock, sidebar layouts, palettes, the style-rework card — K75
+**State:** branches `feat/w49-squircle` → `w50-dock-top` → `w51-sidebar-mode` → `w52-palettes` (stacked) merged into
+`main` locally (`--no-ff`), **not pushed** — push when the user agrees. `nix build .#default` run on the merged `main`
+afterwards so `nix run .` starts without a compile (until a tracked file changes; see I290–I293 for making rebuilds
+cheap). No subagents (user's rule). Scratch: `/tmp/kurashi-lead-logs/` (dev.sh sandbox with the user's config, bursts).
+
+**Built (K75 addenda):** real squircle corners (`core/corner.js`, `Corner.squircled`, `SquircleRect`; radius ×1.3 under
+squircle; leftovers I288) · `Theme.nested(outer, inset)` — Settings navigation and the sidebar's section plates are
+concentric (rest of I269 open) · `dock.edge = top`, and a dock joined to a sliding bar rides its edge (I282) ·
+`sidebar.<side>.mode` stack / pages, core sections as pages, wrapping tabs (I283) · catppuccin, rose-pine, tokyo-night
+are palettes, not styles (schema v6, `v5_to_v6` keeps a config's look) · I242 empty output names refused · I259 empty
+peeks draw nothing · I244 mod pages' names translated and sorted · stale rows I148, I205 (dnd) closed.
+**Written, not built:** `docs/tasks/W53-styles.md` (I289) — the user's style rework (Windows 95…11, macOS, consoles;
+new decor components; a lock screen per style; shellseikatsu's LockStyle*.qml as inspiration). I290–I293: build-time
+proposals.
+
+**Next steps (ordered):**
+1. The user's review of today's work on niri (blur at corners, the sidebar band while sliding, popups' sheet, click-away,
+   squircle looks — aqua/glass —, the top dock, the sidebar layouts).
+2. W53 (I289): UX brief `docs/ux/styles.md` first, then the system card, then one card per family (the card says how).
+3. I290–I293 if the user wants faster builds (they asked for ideas; nothing changed in `nix/package.nix` yet).
+4. The rest of I269 (Stage views, desk tiles), I288 (squircle leftovers), I280 (style vs profile look), I284/I285 previews.
+
+---
+
 ## 2026-10-28 — session 16 (machine A): screen corners follow the radius; the user's live check (blur, popups, motion, click-away, mods, seasons) — K74 addendum, K75
 **State:** `feat/w47-screen-corners` and `feat/w48-polish` merged into `main` (`--no-ff`); `main` pushed after the first
 merge (user's go) — push the second when the user agrees. `nix build .` run on the merged `main` so `nix run .` starts
@@ -212,58 +237,5 @@ mid-commit, so check `git status` in their worktree. Run `just check` before mer
 (W40). `target/release` goes stale — rebuild before a bench (`cargo build --release -p kurashid -p kurashi`). The machine's
 load average sits at 6–10 from the user's session: only same-run pairs are comparable. The shared agents target dir grew
 to 52 GB once — delete per-card dirs after each merge.
-
----
-
-## 2026-10-21 — session 12, part 2 (machine B): material textures and their light, 紙 kami, text colour — K59, K60, wave 31
-**State:** `main` green, pushed (merge of `feat/k59-texture-light`). Four agent cards merged (W31-texture-gen,
-W31-texture-polish, W31-relief, W31-paint); no agent worktrees left; their build dirs deleted. Nothing is half-done.
-
-**User decisions (session 12, part 2):** textures are colourless reliefs lit like a normal map, an appearance option
-of their own; scopes shell (default) / wallpaper / shell + wallpaper / everything (apps too); rulings and dots as faint
-ink in the palette's colours with a switch to no colour; a continuous sheet by default; light modes static (direction
-configurable), pointer, daytime and — added later — the wallpaper's own light (its brightest place); text untextured by
-default with an option to texture it; screen filters (CRT, pixelate, scanlines) are a separate idea (I165), Hyprland's
-`screen_shader` a later adapter detail (I164); a polished 紙 (kami) style with a handwritten font in blue ink; a general
-text colour option; a brushed oil-paint material.
-
-**Built and merged:**
-- **K59 textures:** `crates/kurashi-texture` — twelve seamless, deterministic materials (paper, dotted/lined/squared
-  paper, fabric, wool, stone, halftone, metal, leather, wood, paint), wrinkles, tint/plain; the shading formula
-  (DESIGN-SYSTEM "Texture and light") mirrored by `frontend/shaders/relief.frag` (qsb, `just shaders`); tiles as an opaque
-  relief map + a white ink map (rows 280–281, Qt premultiplies). Daemon `kurashid/src/texture.rs`: tokens `texture.*`,
-  `light.*` (legibility cap so text keeps 4.5:1), tile cache on a blocking thread, daytime sun (NOAA, 5-minute tick only in
-  that mode), the wallpaper light (`light_spot`: a lamp at the picture's brightest region, `light.lamp`), the wallpaper
-  bake through the mod API's new `PictureFilter`, Settings swatches only while Settings watches `theme.previews`.
-  `theme.texture.restore` brings the user's material back after a look/style took it (as K55).
-- **Frontend:** `Relief` on blocks, bar strip, grounds, Stage card and the island's shape, notifications, lock;
-  continuous sheet (gl_FragCoord + window origin, `Light.originOf`); `TextureOverlay` (scope everything, click-through);
-  pointer lamp (`core/Light.qml`, `LightSense.qml`); `texture.text` lays the relief over content.
-- **K60:** `theme.colors.ink` (palette | blue | black | sepia | red | green | violet | custom) as a palette stage before
-  wcag; `theme.typography.family_jp`; style/look/palette `kami` (paper_dots, sketch frame, Kalam + Klee One — in the dev
-  shell and the HM/NixOS font defaults via `google-fonts.override`), light and dark.
-- **Settings:** material cards (daemon swatches), light dial, ink swatches (`settings/test-texture.sh`).
-
-**Verification (end of session):** `just check`; `nix build .#kurashi`; hm-eval; 30 sandbox suites incl. the new
-`frontend/test-texture.sh` (relief = formula within 0.6/255, ink included; continuity; text on/off; overlay
-click-through; four static angles, pointer, daytime) and `settings/test-texture.sh`; looks washi and kami — all green.
-Fixed on the way: `mods/webdock/test/test-dock.sh` clicked where the K58 sidebar button now sits; the calendar test's feed
-event fell into tomorrow in an evening run.
-
-**Next steps (ordered):**
-1. Show the user live when they ask: 紙 in light and dark, a few materials under each light mode (incl. the wallpaper's
-   light with a real wallpaper, never shot in the sandbox yet), the everything overlay.
-2. Kami polish: I172 (the phone card's ground), I168 (relief clipped to the island's path), I169 (fibres busy on dark
-   paper), I167 (media cover opt-out).
-3. BENCH row for scope shell (idle 0 frames measured by W31-relief; PSS with one tile pair per window ≈ 1.8 MiB at
-   scale 1) and the everything overlay; I171 (generation time at scale 2), I170 (finer normals), I166 (greeter tile).
-4. Then session 12's earlier list: I156 time-of-day fallback for `auto`, I158–I162, I148–I153, I145–I147; session 10's
-   I134, I127, I141, I139; backlog sweep I118–I142.
-
-**Open decisions (ask):** none pending. MangoWM and isekai/mirai stay deferred until the user raises them.
-
-**Gotchas (new):** Qt Quick premultiplies texture alpha — never keep data in the RGB of alpha-0 texels. A sandbox name
-reused across runs keeps its cache (`/tmp/kurashi-sb-<name>`): read the file the tokens name, not the first match. Tests
-that place events "hours from now" break in evening runs.
 
 ---
