@@ -935,4 +935,8 @@ The user's live check after session 15 (BACKLOG I276–I281).
   tooltip and menu below, the hop downward). A dock joined to a bar that slides (hover, empty desktop) rides that bar's
   edge: it moves by the bar's published lift (`IslandGeom.liftOf`, K74) inside its own window — content and clip line,
   no resize per frame — so bar and dock never part while either moves, on the top and the bottom edge alike.
+- **A layout per sidebar (I283, session 16).** `sidebar.<side>.mode`: `stack` (one column, every section stacked — the
+  right's default) or `pages` (one section at a time under wrapping tabs — the left's). Either side takes either: in pages
+  a core section (header, tiles, levels, notifications, calendar, media) is a page of its own, drawn as the one column
+  draws it; in a stack a mod's panel is a section. A stack without a section that fills keeps its spare room below.
 

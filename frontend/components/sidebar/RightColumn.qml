@@ -85,6 +85,8 @@ Item {
                     onLoaded: if (item && modRef !== null) { item.mod = modRef.mod; item.panel = modRef.panel }
                 }
             }
+            // Without a section that fills (notifications), the room left over stays below the sections, not between them.
+            Item { Layout.fillHeight: true; visible: rc.sections.indexOf("notifications") < 0 }
         }
     }
     Component { id: headerC; HeaderSection {} }

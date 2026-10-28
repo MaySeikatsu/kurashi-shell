@@ -1270,10 +1270,19 @@ pub struct Dock {
 
 // --- sidebars (W29, docs/ux/sidebar.md) ------------------------------------------------------
 
-/// One struct per side (K71): the two differ in their sections' defaults and offers.
+/// How a sidebar shows its sections (I283): stacked in one column, or one at a time as pages with tabs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+pub enum SidebarMode {
+    /// One column
+    Stack,
+    /// Pages with tabs
+    Pages,
+}
+
+/// One struct per side (K71): the two differ in their sections' defaults and offers, and in their mode's default.
 macro_rules! sidebar_side {
     ($name:ident, $section:literal, $sections:expr, $source:literal, $hidden:literal,
-     $sections_label:literal, $sections_help:literal) => {
+     $sections_label:literal, $sections_help:literal, $mode:expr) => {
         #[derive(Debug, Clone, PartialEq, KurashiSchema)]
         #[kurashi(section = $section)]
         pub struct $name {
@@ -1281,6 +1290,11 @@ macro_rules! sidebar_side {
             #[doc = $sections_help]
             #[kurashi(default = strings(&$sections), choices_from = $source, since = 3)]
             pub sections: Vec<String>,
+            /// Layout
+            /// One column: every section stacked, scrolled together. Pages with tabs: one section at a time, the tabs
+            /// above it.
+            #[kurashi(default = $mode, since = 5)]
+            pub mode: SidebarMode,
             /// Width
             /// Drag the sidebar's inner edge to change it.
             #[kurashi(default = 420, range = 320..=640, step = 10, unit = "px", since = 3)]
@@ -1311,7 +1325,8 @@ sidebar_side!(
     "sidebar.sections",
     "sidebar.right.visibility != hidden",
     "Sections",
-    "Top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what plays, and the mods' panels."
+    "Top to bottom: you and the session, the quick tiles, the levels, notifications, the month, what plays, and the mods' panels.",
+    SidebarMode::Stack
 );
 sidebar_side!(
     SidebarLeft,
@@ -1320,7 +1335,8 @@ sidebar_side!(
     "sidebar.tabs",
     "sidebar.left.visibility != hidden",
     "Tabs",
-    "The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar."
+    "The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Empty: no left sidebar.",
+    SidebarMode::Pages
 );
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
