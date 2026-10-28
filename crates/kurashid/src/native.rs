@@ -1057,6 +1057,14 @@ impl Native {
     }
 }
 
+impl Native {
+    /// Whether this build can run a mod (B15, I281): one whose manifest declares daemon code needs its `NativeMod`
+    /// linked. A mod without it is not offered at all — no list entry, no settings page, no switch that cannot work.
+    pub fn can_run(&self, e: &ModEntry) -> bool {
+        self.linked.contains_key(&e.id) || !e.manifest.as_ref().is_some_and(needs_daemon_code)
+    }
+}
+
 /// Whether a manifest declares something only linked daemon code can serve: a service, an action, an
 /// island face, a choice source, a background job or a host process (B15, K38). Frontend-only provides (widgets, panels,
 /// slots, palettes…) need no code and stay enable-able.
