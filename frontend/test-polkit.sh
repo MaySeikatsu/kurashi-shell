@@ -8,8 +8,9 @@
 # (shake, message, field cleared); Escape cancels and the window goes away. runtime.ui.polkit follows (true while up,
 # false after). One run with two identities. Then the real shell with KURASHI_POLKIT_AGENT=1 and a system bus that does
 # not exist: the agent's registration result is logged ("polkit: agent not registered").
-# Corners: the real shell with theme.shape.screen_corners = 24: black fillets at the output's corners, the background at
-# 14 px in; set to 0 live: gone.
+# Corners: the real shell with its own screen-corner size (screen_corners_follow = false, screen_corners = 24): black
+# fillets at the output's corners, the background at 14 px in; set to 0 live: gone; following the radius again (K74,
+# sekai's 23 px): back.
 # I128 (W36), with the real shell: while runtime.ui.polkit is true no Stage panel opens (row 381: kurashid refuses
 # quick.toggle and island.expand with ui.error.polkit, runtime.ui.panel stays empty, nothing drawn), an open quick card is
 # closed by the daemon and folds away when it turns true, and does not come back when it turns false.
@@ -224,7 +225,7 @@ shot "polkit-identities-sekai" "$CARD_GEOM"
 stop_shell
 
 echo "== the real shell: agent registration and screen corners at 24 px"
-start_daemon sekai "theme.shape.screen_corners = 24"
+start_daemon sekai $'theme.shape.screen_corners_follow = false\ntheme.shape.screen_corners = 24'
 env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" KURASHI_POLKIT_AGENT=1 qs -p "$ROOT/frontend" >> "$R/qs-real.log" 2>&1 &
 SHPID=$!
 sleep 6
@@ -236,6 +237,10 @@ grim -g "2440,1320 120x120" "$OUT/corners-24-br.png"
 K set theme.shape.screen_corners=0 >/dev/null || fail "set screen_corners failed"
 sleep 1.5
 pixels "corners at 0: the background at the output's corners" 1,1438,bg 2558,1438,bg
+K set theme.shape.screen_corners_follow=true >/dev/null || fail "set screen_corners_follow failed"
+sleep 1.5
+pixels "corners following sekai's radius (23): black at the output's corners, the background 14 px in" \
+  1,1438,black 2558,1438,black 14,1425,bg 2545,1425,bg
 
 # I128 (W36): while runtime.ui.polkit is true the Stage and the island step aside. The flag is set through the daemon's
 # own action (the agent is not registered here). (2350,300) lies in the quick card at rest (under its button at the

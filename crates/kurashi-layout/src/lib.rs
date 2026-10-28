@@ -230,6 +230,10 @@ pub struct Globals {
     pub gap: u32,
     /// Token `radius.lg`.
     pub join_radius: u32,
+    /// `theme.shape.screen_corners_follow`: the screen's corners take `join_radius`.
+    pub screen_follow: bool,
+    /// `theme.shape.screen_corners`, the screen's corners while they do not follow.
+    pub screen_corners: u32,
     /// The global `bar.height`.
     pub bar_size: u32,
 }
@@ -251,6 +255,7 @@ pub struct Document {
     pub reveal_delay_ms: u32,
     pub gap: u32,
     pub join_radius: u32,
+    pub screen_radius: u32,
     pub bar_size: u32,
     pub outputs: BTreeMap<String, OutputLayout>,
 }
@@ -518,6 +523,7 @@ pub fn compute(input: &Input) -> Document {
         reveal_delay_ms: g.reveal_delay_ms,
         gap: g.gap,
         join_radius: g.join_radius,
+        screen_radius: screen_radius(g),
         bar_size: g.bar_size,
         outputs: input
             .outputs
@@ -555,6 +561,16 @@ fn hole_radius(cfg: &OutputConfig, g: &Globals) -> u32 {
         g.join_radius.saturating_sub(cfg.frame.thickness)
     } else {
         g.join_radius
+    }
+}
+
+/// The screen's outer corners (K74): the radius itself by default — the frame's band runs round them and its inner
+/// corner is the hole's radius, so screen, band and hole are concentric —, else `theme.shape.screen_corners`.
+fn screen_radius(g: &Globals) -> u32 {
+    if g.screen_follow {
+        g.join_radius
+    } else {
+        g.screen_corners
     }
 }
 
