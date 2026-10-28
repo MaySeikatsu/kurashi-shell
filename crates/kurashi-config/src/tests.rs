@@ -1338,3 +1338,18 @@ fn profile_file_refusals_name_the_problem() {
         Err(ConfigError::InvalidProfileName(_))
     ));
 }
+
+/// I242: an override for an output without a name is refused (it was stored and shown as a blank pill).
+#[test]
+fn an_empty_output_name_is_refused() {
+    let dir = TempDir::new().unwrap();
+    let mut cfg = open(&dir);
+    let errs = cfg
+        .apply(&[Op::set_on("bar.height", "", json!(50))])
+        .unwrap_err();
+    assert!(
+        matches!(&errs[0], OpError::Invalid { message, .. } if message == "config.error.output_empty"),
+        "{errs:?}"
+    );
+    assert_eq!(val(&cfg, "bar.height", None), (json!(32), Source::Default));
+}
