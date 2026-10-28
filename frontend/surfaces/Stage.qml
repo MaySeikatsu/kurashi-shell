@@ -1189,14 +1189,7 @@ PanelWindow {
                 onLoaded: if (stage.debugLog) console.log("stage-view made " + stage.contentKind + " t=" + Date.now())
                 sourceComponent: stage.viewing ? stage.views[stage.contentKind] : null
             }
-            // The one close action of the island and quick cards (Esc closes them too).
-            KeyButton {
-                visible: !stage.ownChrome
-                label: I18n.tr("frontend.stage.close")
-                primary: true
-                side: 28
-                onClicked: Store.act("ui.close")
-            }
+            // No Close button (I279): Esc or a click elsewhere (ClickAway) closes the island and quick cards.
         }
 
         SessionMenu {
