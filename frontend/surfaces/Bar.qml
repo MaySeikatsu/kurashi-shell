@@ -235,6 +235,15 @@ Scope {
                 ? JSON.stringify(FG.across(g, bar.edge === "top")) : ""
             readonly property var pieces: piecesKey !== "" ? JSON.parse(piecesKey) : null
             readonly property int carryDepth: pieces ? Math.max(0, Math.ceil(pieces.d) - bar.barH) : 0
+            // A carrying bar that slides (hover, empty desktop): the frame's band stays on its edge — the bar is the band
+            // grown thick (Caelestia's border and bar, docs/ux/frame.md). `bodyDepth`: how far the body's inner edge stands
+            // from the screen edge now; the cut (where the fillets hang) never nearer the edge than the frame's thickness.
+            readonly property real bodyDepth: !bar.carries ? bar.barH
+                : bar.edge === "top" ? body.y + bar.barH : (bar.scr ? bar.scr.height : 0) - sheetOrigin.y - body.y
+            readonly property int frameT: Math.max(0, Math.round((bar.lay.frame || {}).thickness || 0))
+            readonly property real cutDepth: Math.min(bar.barH, Math.max(frameT, bodyDepth))
+            // The band shows below (above) the body while the body is slid out past the frame's thickness.
+            readonly property bool bandShows: bar.carries && bodyDepth < frameT - 0.5
             readonly property int thick: edgeRoom + bar.barH + awayRoom + carryDepth
             // The side bar's start and end on the output: a holder is placed inside the zones of the holders mapped before it
             // (the top and bottom bars or the frame's strips; shell.qml's order), so its margins count from there.
@@ -334,6 +343,19 @@ Scope {
                     arcs: win.pieces ? win.pieces.arcs : []
                     // (the openings of a column or the dock that meets this strip's side bands, as the frame's own strips)
                     openings: bar.frameOpenings
+                    liftEdge: bar.edge
+                    lift: Math.max(0, bar.barH - win.cutDepth)
+                    readonly property real sw0: bar.scr ? bar.scr.width : 0
+                    readonly property real sh0: bar.scr ? bar.scr.height : 0
+                    readonly property real near: Math.max(0, win.bodyDepth)
+                    cover: win.bandShows
+                        ? { x: 0, y: bar.edge === "top" ? near : sh0 - win.frameT, w: sw0, h: win.frameT - near }
+                        : { x: 0, y: 0, w: 0, h: 0 }
+                    readonly property real rl: bar.bandLeft + bar.frameRadius
+                    readonly property real rr: bar.bandRight + bar.frameRadius
+                    coverRule: win.bandShows && ow > 0
+                        ? { x: rl, y: bar.edge === "top" ? win.frameT - ow : sh0 - win.frameT, w: sw0 - rl - rr, h: ow }
+                        : { x: 0, y: 0, w: 0, h: 0 }
                 }
             }
 
@@ -437,6 +459,7 @@ Scope {
                         Loader {
                             id: rulePen
                             anchors.fill: parent
+                            visible: !win.bandShows
                             active: Theme.penOutline && !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0
                             sourceComponent: PenOutline {
                                 readonly property real ow: Theme.outlineW
@@ -456,6 +479,8 @@ Scope {
                             model: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
                             Rectangle {
                                 required property var modelData
+                                // (inside the frame's band while the body is slid out past it: the band's rule stands there)
+                                visible: !win.bandShows
                                 color: Theme.outlineColor
                                 x: bar.vertical ? (bar.edge === "left" ? bg.width - width : 0) : modelData[0]
                                 y: bar.vertical ? modelData[0] : (bar.edge === "top" ? bg.height - height : 0)
