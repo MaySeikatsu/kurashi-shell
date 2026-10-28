@@ -158,11 +158,9 @@ Scope {
         // Something to show: a group whose modules are all absent now (a recorder that records nothing) grows nothing.
         readonly property bool hasContent: winL.item !== null && winL.item.runNow > 0
         // 0 = folded into its line, 1 = out; the island's spring between (K65), cut when motion is off.
-        property real shownAmt: wantShown && hasContent ? 1 : 0
-        Behavior on shownAmt {
-            enabled: Theme.springOn
-            SpringAnimation { spring: Theme.spring; damping: Math.max(Theme.damping, 0.5); epsilon: 0.005 }
-        }
+        // (K74: Caelestia's curves while the motion is timed, a spring while it springs; Glide)
+        readonly property real shownAmt: glide.value
+        readonly property Glide glide: Glide { to: g.wantShown && g.hasContent ? 1 : 0; damping: Math.max(Theme.damping, 0.5); epsilon: 0.005 }
         readonly property real grow: Math.max(0, Math.min(1.12, shownAmt))
         readonly property bool windowWanted: on && (wantShown || shownAmt > 0 || keepsSpace)
         function putAway() { if (forced) Store.act("layout.toggle", { target: g.target, output: g.outName }) }

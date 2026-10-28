@@ -271,10 +271,13 @@ Scope {
             readonly property bool holdOpen: vis === "always" || (vis === "empty_desktop" && emptyDesk) || toggled || menuOpen
             readonly property bool wantShown: holdOpen || revealed
 
-            // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change.
-            property real shownAmt: wantShown ? 1 : 0
-            Behavior on shownAmt {
-                enabled: Theme.springOn
+            // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change: on Caelestia's curves while the motion
+            // is timed (K74: it grows out of its edge and overshoots a little; Glide), else on the enter curve.
+            readonly property real shownAmt: Theme.timed ? glide.value : easedAmt
+            readonly property Glide glide: Glide { to: dock.wantShown ? 1 : 0 }
+            property real easedAmt: wantShown ? 1 : 0
+            Behavior on easedAmt {
+                enabled: Theme.springOn && !Theme.timed
                 NumberAnimation { duration: Theme.stdMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve }
             }
 
@@ -502,7 +505,9 @@ Scope {
                                 openO: !dock.horiz
                                 neckT: dock.aR
                                 neckO: dock.aR
-                                radius: Theme.rLg + 4
+                                // K74: the joined dock's corners are corners of the window cut into the sheet: the layout's
+                                // one radius, as its fillets (0 = connected, straight)
+                                radius: dock.joinR
                                 squareOuter: false
                                 flipY: dock.horiz
                                 flipX: dock.edge === "left"

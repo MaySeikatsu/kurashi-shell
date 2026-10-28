@@ -8,5 +8,5 @@ category = "modern"
 "theme.material.kind" = "glass"
 "theme.material.opacity" = 0.62
 "theme.shape.corners" = "squircle"
-"theme.shape.radius_scale" = 1.4
+"theme.shape.radius" = 25
 "theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]

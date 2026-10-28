@@ -5,11 +5,11 @@ category = "retro"
 # Windows 7 "Aero"): translucent glass with a specular sheen in a glass window band, aero blue, Segoe UI.
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "glass"
 "theme.material.opacity" = 0.78
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 1.0
+"theme.shape.radius" = 18
 "theme.typography.family" = ["Segoe UI", "Noto Sans", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
 [slots]
 frame = "aero"

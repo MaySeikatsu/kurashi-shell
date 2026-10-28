@@ -74,19 +74,20 @@ Singleton {
         bars = n
     }
     function barOf(output, edge) { return bars[output + "/" + edge] || null }
-    // How far a sliding docked bar's cut stands nearer its screen edge than at rest (`lifts["<output>/<edge>"]`, px; absent: 0):
-    // the bar is the frame's band grown thick, and the strips that hang its fillets (the frame's own, or another bar that
-    // carries one) follow it (FramePieces `lift*`). Written per frame only while a bar slides; read by the frame's strips.
+    // How far a sliding docked bar's cut stands nearer its screen edge than at rest (`lifts["<output>/<edge>"]`, px;
+    // absent: 0; negative: further in, while it overshoots): the bar is the frame's band grown thick, and the strips that
+    // hang its fillets (the frame's own, or another bar that carries one) follow it (FramePieces `lift*`). Written per
+    // frame only while a bar slides; read by the frame's strips.
     property var lifts: ({})
     // (`owner`: the window that writes it — a bar's window remade by its loader must not clear its successor's value.)
     property var liftOwners: ({})
     function setLift(output, edge, px, owner) {
         if (output === "") return
-        var k = output + "/" + edge, v = Math.max(0, Math.round(px * 4) / 4)
+        var k = output + "/" + edge, v = Math.round(px * 4) / 4
         if (owner !== undefined) liftOwners[k] = owner
         if ((lifts[k] || 0) === v) return
         var n = Object.assign({}, lifts)
-        if (v > 0) n[k] = v; else delete n[k]
+        if (v !== 0) n[k] = v; else delete n[k]
         lifts = n
     }
     function dropLift(output, edge, owner) {

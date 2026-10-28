@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../../core"
+import "../../core/ease.js" as Ease
 
 // The springs of one morphing shape (W34, docs/ux/motion.md; Capsule's animator): three axes in px — `cx` (the shape's
 // centre along the bar), `w` (its extent along the bar) and `h` (how far it reaches out of the bar, its foot) — each a
@@ -16,6 +17,9 @@ import "../../core"
 //   it lands and rebounds), `squash` × the foot's speed; `squash` is the token `motion.spring.squash` (a contract request,
 //   CONTRACT-CHANGE), else derived from the damping (0 for calm's, ~0.066 for lively's);
 // - `neckScale`: the neck's wobble on landing (1 at rest; thinner while the foot overshoots, fuller as it rebounds).
+// Timed (K74, the expressive profile: `Theme.timed`): every axis runs Caelestia's curve instead of its spring — from where
+// it is to its target, `Theme.openCurve` over `openMs` on the way out, `closeCurve` over `closeMs` back; a new target
+// starts a new curve from where the axis stands. The curve's own overshoot is the bounce (no soft limit, no squash).
 // `on` false (motion off, or before the first frame) snaps every axis to its target. The driver (a FrameAnimation) runs
 // only while an axis is still moving: idle, nothing runs (Ma). `place()` sets the values without motion (the start).
 QtObject {
@@ -41,7 +45,14 @@ QtObject {
     readonly property real cap: Math.max(0.03, Math.min(0.08, 0.03 + (0.45 - Theme.damping) * 0.26))
     readonly property real squash: Theme.springOn
         ? Theme.tok("motion.spring.squash", Math.max(0, Math.min(0.07, (0.45 - Theme.damping) * 0.35))) : 0
+    readonly property bool timed: Theme.timed
+    // Timed: each axis's start, the time it has run (ms) and its length, and the curve it runs.
+    property var t0: [0, 0, 0]
+    property var tEl: [0, 0, 0]
+    property real tDur: 1
+    property var tCurve: Theme.openCurve
     function soft(v, to, span) {
+        if (timed) return v
         var over = (v - to) * (span >= 0 ? 1 : -1)
         var lim = cap * Math.abs(span)
         if (over <= 0 || lim < 0.5) return over > 0 ? to : v
@@ -88,6 +99,12 @@ QtObject {
         if (axis === 0) scx = span(cxTo, cx, scx, lcx)
         else if (axis === 1) sw = span(wTo, w, sw, lw)
         else sh = span(hTo, h, sh, lh)
+        if (timed) {
+            t0[axis] = [cx, w, h][axis]
+            tEl[axis] = 0
+            tDur = Math.max(1, expanding ? Theme.openMs : Theme.closeMs)
+            tCurve = expanding ? Theme.openCurve : Theme.closeCurve
+        }
         lcx = cxTo; lw = wTo; lh = hTo
         if (!driver.running) { acc = 0; fresh = true }
         driver.running = true
@@ -131,6 +148,7 @@ QtObject {
     property real acc: 0
     property bool fresh: false
     function advance(dt) {
+        if (timed) { advanceTimed(dt); return }
         var t0 = debugLog ? Date.now() : 0
         // The first frame of a run counts one step: the driver's time since it last ran is not motion.
         acc += (fresh ? 0.016 : Math.min(dt, 0.05)) * 1000
@@ -158,6 +176,21 @@ QtObject {
             driver.running = false
             if (debugLog) { console.log("morph-springs settled frames=" + frames + " stepMs=" + stepMs); frames = 0; stepMs = 0 }
         }
+    }
+    function advanceTimed(dt) {
+        var step = (fresh ? 0.016 : Math.min(dt, 0.05)) * 1000
+        fresh = false
+        var to = [cxTo, wTo, hTo], v = [cx, w, h], done = true
+        for (var a = 0; a < 3; a++) {
+            tEl[a] = Math.min(tDur, tEl[a] + step)
+            var p = tEl[a] / tDur
+            v[a] = p >= 1 ? to[a] : t0[a] + (to[a] - t0[a]) * Ease.at(tCurve, p)
+            if (p < 1) done = false
+        }
+        vcx = 0; vw = 0; vh = 0
+        cx = v[0]; w = v[1]; h = v[2]
+        publish()
+        if (done) driver.running = false
     }
     property FrameAnimation driver: FrameAnimation {
         running: false

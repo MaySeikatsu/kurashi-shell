@@ -216,10 +216,11 @@ pub fn niri_animations(profile: &str, speed: f64) -> String {
     if profile == "none" {
         return "animations {\n    off\n}".into();
     }
-    let (damping, stiffness) = if profile == "lively" {
-        (0.75, 1000.0)
-    } else {
-        (1.0, 800.0)
+    // (expressive: the shell's surfaces overshoot ~6 % on their curves; the windows a little less, on a spring)
+    let (damping, stiffness) = match profile {
+        "lively" => (0.75, 1000.0),
+        "expressive" => (0.85, 900.0),
+        _ => (1.0, 800.0),
     };
     let k = (stiffness * speed.clamp(0.25, 4.0).powi(2)).round() as i64;
     let mut out = String::from("animations {\n");

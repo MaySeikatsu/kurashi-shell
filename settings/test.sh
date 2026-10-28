@@ -124,7 +124,7 @@ cat > "$R/cfg/kurashi/profiles/roomy.toml" <<'T'
 [theme]
 density = "compact"
 [theme.shape]
-radius_scale = 1.5
+radius = 27
 [a11y]
 large_text = true
 T
@@ -540,13 +540,13 @@ Q advanced false
 Q goto appearance
 Q advanced true
 Q focusList >/dev/null
-tab_to "slider:theme.shape.radius_scale"
-radius0=$(val theme.shape.radius_scale)
+tab_to "slider:theme.shape.radius"
+radius0=$(val theme.shape.radius)
 kp right
-[[ "$(Q previewState)" == theme.shape.radius_scale=* ]] || fail "radius: Right did not preview ($(Q previewState))"
+[[ "$(Q previewState)" == theme.shape.radius=* ]] || fail "radius: Right did not preview ($(Q previewState))"
 shot_now 20b-preview-radius
 Q putBack
-[ "$(val theme.shape.radius_scale)" = "$radius0" ] || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius_scale))"
+[ "$(val theme.shape.radius)" = "$radius0" ] || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius))"
 echo "keyboard K10: Right previewed the radius scale; Put back restored $radius0"
 
 # K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
@@ -664,12 +664,12 @@ shot 17c-profile-source
 
 # 13d. the review of a load after the user changed a key the profile sets: the user's value is replaced ("your change
 #      replaced"), the changes the profile does not name stay (kept), and Nix holds density back (not applied).
-Q set theme.shape.radius_scale 0.8
+Q set theme.shape.radius 0.8
 Q preview roomy
 pv=$(K '{"t":"act","id":"pv","action":"profile.preview","args":{"name":"roomy"}}')
 echo "$pv" | python3 -c 'import json,sys
 m = json.loads(sys.stdin.readline()); d = m["data"]
-r = [e for e in d["diff"] if e["key"] == "theme.shape.radius_scale"]
+r = [e for e in d["diff"] if e["key"] == "theme.shape.radius"]
 assert r and r[0]["before"]["source"]["kind"] == "user", r
 assert d["kept_user"] >= 2, d
 assert any(h["key"] == "theme.density" for h in d["not_applied"]), d' || fail "overlay: the review does not replace the user value or keep the others: $pv"

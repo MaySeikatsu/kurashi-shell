@@ -6,6 +6,6 @@ category = "modern"
 look = "soft"
 palette = "rose-pine"
 [recipe]
-"theme.shape.radius_scale" = 1.15
+"theme.shape.radius" = 21
 "theme.typography.family" = ["Nunito", "Noto Sans CJK JP", "sans-serif"]
 "theme.colors.scheme" = "dark"

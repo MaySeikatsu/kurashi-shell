@@ -49,19 +49,21 @@ pub fn space_scale(d: Density) -> [(&'static str, f64); 6] {
     .map(|(n, v)| (n, (v * k).round()))
 }
 
-/// Radius steps x `radius_scale`; shape `none` collapses all of them to 0.
-pub fn radius_scale(shape: Shape, scale: f64) -> [(&'static str, f64); 5] {
-    let k = if shape == Shape::None {
+/// Radius steps from the one radius `r` (K74): `lg` is `r` (panels, cards), `md` two thirds of it (controls), `sm` a
+/// third (small parts) — the steps of the old scale at 18 px, so the default stays pixel-identical. Shape `none`
+/// collapses all of them to 0.
+pub fn radius_steps(shape: Shape, r: f64) -> [(&'static str, f64); 5] {
+    let r = if shape == Shape::None {
         0.0
     } else {
-        scale.max(0.0)
+        r.max(0.0)
     };
     [
         ("none", 0.0),
-        ("sm", 6.0 * k),
-        ("md", 12.0 * k),
-        ("lg", 18.0 * k),
-        ("full", if k == 0.0 { 0.0 } else { 999.0 }),
+        ("sm", (r / 3.0).round()),
+        ("md", (r * 2.0 / 3.0).round()),
+        ("lg", r.round()),
+        ("full", if r == 0.0 { 0.0 } else { 999.0 }),
     ]
 }
 
@@ -78,7 +80,7 @@ pub fn duration_ms(base: f64, profile: MotionProfile, speed: f64) -> i64 {
     let speed = speed.clamp(0.25, 4.0);
     let profile_k = match profile {
         MotionProfile::None => return 0,
-        MotionProfile::Calm => 1.0,
+        MotionProfile::Calm | MotionProfile::Expressive => 1.0,
         MotionProfile::Lively => 0.8,
     };
     (base * profile_k / speed).round() as i64
@@ -90,6 +92,13 @@ pub fn easing(profile: MotionProfile) -> [(&'static str, [f64; 4]); 4] {
         MotionProfile::None => {
             ["enter", "exit", "emphasized", "continuous"].map(|n| (n, [0.0, 0.0, 1.0, 1.0]))
         }
+        // Caelestia's (M3 expressive) default spatial curve on arrival, its accelerating exit.
+        MotionProfile::Expressive => [
+            ("enter", [0.38, 1.21, 0.22, 1.0]),
+            ("exit", [0.3, 0.0, 0.8, 0.15]),
+            ("emphasized", [0.05, 0.7, 0.1, 1.0]),
+            ("continuous", [0.2, 0.0, 0.0, 1.0]),
+        ],
         MotionProfile::Calm => [
             ("enter", [0.05, 0.7, 0.1, 1.0]),
             ("exit", [0.3, 0.0, 0.8, 0.15]),
@@ -153,7 +162,7 @@ pub fn build(
     for (n, v) in space_scale(axes.density) {
         px(&mut t, &format!("space.{n}"), v);
     }
-    for (n, v) in radius_scale(axes.shape, axes.radius_scale) {
+    for (n, v) in radius_steps(axes.shape, axes.radius) {
         px(&mut t, &format!("radius.{n}"), v);
     }
     // Genuinely circular things (knobs, avatars) keep a circle even when shape is `none`.
@@ -235,10 +244,64 @@ pub fn build(
     t.insert(
         "motion.profile".into(),
         json!(match axes.motion {
+            MotionProfile::Expressive => "expressive",
             MotionProfile::Calm => "calm",
             MotionProfile::Lively => "lively",
             MotionProfile::None => "none",
         }),
+    );
+    // K74: how surfaces move. `timed` (expressive): Caelestia's curves (M3 expressive, read 2026-10-28 from
+    // caelestia-dots/shell `plugin/src/Caelestia/Config/tokens.hpp`) — a surface grows out of its edge on the default
+    // spatial curve (500 ms, overshoots ~6 %) and folds back on the emphasized one (400 ms), its content fading on the
+    // effects curve; `spring` (calm, lively): the spring family below; `none`: cuts. Curves are QML `bezierCurve` lists
+    // (segments of c1, c2, end; the last point 1, 1).
+    t.insert(
+        "motion.kind".into(),
+        json!(match axes.motion {
+            MotionProfile::Expressive => "timed",
+            MotionProfile::None => "none",
+            _ => "spring",
+        }),
+    );
+    for (n, ms) in [
+        ("open", 500.0),
+        ("close", 400.0),
+        ("fast", 350.0),
+        ("effects", 200.0),
+    ] {
+        t.insert(
+            format!("motion.timed.{n}_ms"),
+            json!(duration_ms(ms, axes.motion, axes.motion_speed)),
+        );
+    }
+    t.insert(
+        "motion.timed.open_curve".into(),
+        json!([0.38, 1.21, 0.22, 1.0, 1.0, 1.0]),
+    );
+    t.insert(
+        "motion.timed.close_curve".into(),
+        json!([
+            0.05,
+            0.0,
+            2.0 / 15.0,
+            0.06,
+            1.0 / 6.0,
+            0.4,
+            5.0 / 24.0,
+            0.82,
+            0.25,
+            1.0,
+            1.0,
+            1.0
+        ]),
+    );
+    t.insert(
+        "motion.timed.fast_curve".into(),
+        json!([0.42, 1.67, 0.21, 0.9, 1.0, 1.0]),
+    );
+    t.insert(
+        "motion.timed.effects_curve".into(),
+        json!([0.34, 0.8, 0.34, 1.0, 1.0, 1.0]),
     );
 
     // Springs (K42): overshoot of arrivals (QML Easing.OutBack amplitude) and a spring for
@@ -246,7 +309,7 @@ pub fn build(
     // keycap chrome bounces more, `none` has no spring at all (`motion.spring.on` false).
     let overshoot = match (axes.motion, axes.chrome) {
         (MotionProfile::None, _) => 0.0,
-        (MotionProfile::Calm, _) => 0.6,
+        (MotionProfile::Calm | MotionProfile::Expressive, _) => 0.6,
         (MotionProfile::Lively, Chrome::Flat) => 1.4,
         (MotionProfile::Lively, Chrome::Keycap) => 2.2,
         (MotionProfile::Lively, Chrome::Soft) => 1.0,
@@ -255,7 +318,8 @@ pub fn build(
     t.insert("motion.spring.overshoot".into(), json!(overshoot));
     let (spring, damping) = match axes.motion {
         MotionProfile::None => (0.0, 1.0),
-        MotionProfile::Calm => (4.0, 0.45),
+        // (Expressive: what is not moved on its curves yet springs as calm does.)
+        MotionProfile::Calm | MotionProfile::Expressive => (4.0, 0.45),
         MotionProfile::Lively => (3.2, 0.26),
     };
     let sk = axes.motion_speed.clamp(0.25, 4.0);

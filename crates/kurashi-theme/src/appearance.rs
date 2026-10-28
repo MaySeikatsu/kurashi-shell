@@ -24,7 +24,7 @@ use serde_json::Value;
 pub const LOOK_KEYS: &[&str] = &[
     "theme.chrome",
     "theme.shape.corners",
-    "theme.shape.radius_scale",
+    "theme.shape.radius",
     "theme.material.kind",
     "theme.material.opacity",
     "theme.material.blur",
@@ -72,7 +72,7 @@ pub const STYLE_KEYS: &[&str] = &[
     "theme.density",
     "theme.chrome",
     "theme.shape.corners",
-    "theme.shape.radius_scale",
+    "theme.shape.radius",
     "theme.material.kind",
     "theme.material.opacity",
     "theme.material.blur",
@@ -479,7 +479,7 @@ mod tests {
     fn a_styles_look_tweaks_apply_to_its_own_look_only() {
         let style = parse(
             Kind::Style,
-            "name = \"cozy\"\nlook = \"soft\"\npalette = \"catppuccin\"\n[recipe]\n\"theme.shape.radius_scale\" = 1.3\n\"theme.density\" = \"airy\"\n",
+            "name = \"cozy\"\nlook = \"soft\"\npalette = \"catppuccin\"\n[recipe]\n\"theme.shape.radius\" = 23\n\"theme.density\" = \"airy\"\n",
             "cozy",
             false,
         )
@@ -493,16 +493,16 @@ mod tests {
         };
         let own = layer(Some(&style), Some(&soft));
         assert_eq!(
-            get(&own, "theme.shape.radius_scale").unwrap(),
-            (serde_json::json!(1.3), "style:cozy".into())
+            get(&own, "theme.shape.radius").unwrap(),
+            (serde_json::json!(23), "style:cozy".into())
         );
         assert_eq!(get(&own, "theme.chrome").unwrap().1, "look:soft");
         assert_eq!(get(&own, "theme.look").unwrap().0, "soft");
         // The user picked sekai over the style: sekai's own corners, the style's density and palette still.
         let over = layer(Some(&style), Some(&sekai));
         assert_eq!(
-            get(&over, "theme.shape.radius_scale").unwrap(),
-            (serde_json::json!(1.25), "look:sekai".into())
+            get(&over, "theme.shape.radius").unwrap(),
+            (serde_json::json!(23), "look:sekai".into())
         );
         assert_eq!(get(&over, "theme.density").unwrap().1, "style:cozy");
         assert_eq!(get(&over, "theme.colors.palette").unwrap().0, "catppuccin");

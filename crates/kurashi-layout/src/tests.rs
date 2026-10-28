@@ -43,7 +43,6 @@ fn defaults() -> OutputConfig {
         frame: FrameConfig {
             enabled: false,
             thickness: 8,
-            radius: 16,
             reserve: true,
         },
         edges: [
@@ -339,7 +338,8 @@ fn the_dock_in_every_draw_mode() {
                         d.joins.as_deref(),
                         Some(if frame { "frame" } else { "edge" })
                     );
-                    assert_eq!(d.radius, 16);
+                    // K74: the hole's radius — `radius.lg` less the frame's thickness on a framed output.
+                    assert_eq!(d.radius, if frame { 8 } else { 16 });
                 }
                 Draw::Connected => {
                     assert_eq!(d.inset, band);
@@ -380,7 +380,7 @@ fn sidebars_in_every_draw_mode() {
                         end: "frame".into()
                     })
                 );
-                assert_eq!(s.radius, if draw == Draw::Dynamic { 16 } else { 0 });
+                assert_eq!(s.radius, if draw == Draw::Dynamic { 8 } else { 0 });
             }
         }
     }
@@ -724,4 +724,18 @@ fn parsers_read_the_config_spelling() {
     assert_eq!(Reserve::parse("off"), Some(Reserve::Off));
     assert_eq!(Edge::parse("left"), Some(Edge::Left));
     assert_eq!(Edge::parse("middle"), None);
+}
+
+#[test]
+fn one_radius_for_the_hole() {
+    // K74: the frame's inner corners are `radius.lg` less the thickness (concentric with an outer corner of `radius.lg`),
+    // never below 0; without a frame the joins take `radius.lg` itself.
+    let mut c = defaults();
+    c.frame.enabled = true;
+    assert_eq!(lay(&c, &[]).frame.radius, 8);
+    c.frame.thickness = 24;
+    assert_eq!(lay(&c, &[]).frame.radius, 0);
+    c.frame.enabled = false;
+    c.sidebar_right.draw = Some(Draw::Dynamic);
+    assert_eq!(lay(&c, &[]).sidebars.right.radius, 16);
 }

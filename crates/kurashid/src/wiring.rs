@@ -3026,7 +3026,6 @@ pub fn layout_config(val: &dyn Fn(&str) -> Value) -> kurashi_layout::OutputConfi
         frame: FrameConfig {
             enabled: flag("layout.frame.enabled", false),
             thickness: num("layout.frame.thickness", 8),
-            radius: num("layout.frame.radius", 16),
             reserve: flag("layout.frame.reserve", true),
         },
         edges: Edge::ALL.map(edge),
