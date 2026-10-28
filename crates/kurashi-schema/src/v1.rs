@@ -465,7 +465,8 @@ pub struct Colors {
     #[kurashi(default = Colorblind::None)]
     pub colorblind: Colorblind,
     /// Seasonal tint (旬)
-    /// A slight seasonal drift of hues following the 24 solar terms.
+    /// The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24
+    /// solar terms.
     #[kurashi(default = false, advanced)]
     pub season: bool,
     /// Pure black (OLED)

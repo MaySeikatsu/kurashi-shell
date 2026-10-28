@@ -146,7 +146,7 @@
 "config.choice.colorblind.deuteranopia" = "Deuteranopia"
 "config.choice.colorblind.tritanopia" = "Tritanopia"
 "config.theme.colors.season.label" = "Seasonal tint (旬)"
-"config.theme.colors.season.help" = "A slight seasonal drift of hues following the 24 solar terms."
+"config.theme.colors.season.help" = "The colours lean a little toward the season's own — winter blue, sakura, fresh green, maple — following the 24 solar terms."
 "config.theme.colors.oled.label" = "Pure black (OLED)"
 "config.theme.colors.oled.help" = "Pure-black grounds on dark schemes."
 "config.theme.colors.ink.label" = "Text colour"
