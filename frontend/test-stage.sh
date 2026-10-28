@@ -124,8 +124,9 @@ def read_ppm(data):
 
 with open(sys.argv[1], "rb") as f:
     w, h, raster = read_ppm(f.read())
-# The desk's colour, from the output's bottom-right corner (no surface there), and the panel blended over it.
-_b = ((h - 3) * w + (w - 3)) * 3
+# The desk's colour, near the output's bottom-right corner (no surface there; 60 px in, past the screen's rounded corner,
+# K74), and the panel blended over it.
+_b = ((h - 60) * w + (w - 60)) * 3
 BLEND = tuple(round(SURFACE[k] * ALPHA + raster[_b + k] * (1 - ALPHA)) for k in range(3))
 
 
