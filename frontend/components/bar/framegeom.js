@@ -71,11 +71,12 @@ function across(g, top) {
     for (var i = 0; i < 2; i++) {
         var cw = cols[i][0], reach = cols[i][1], cx = cols[i][2]
         if (cw <= 0 || reach <= o[e]) continue
-        fills.push({ x: cx, y: top ? o[e] : H - reach, w: cw, h: reach - o[e] })
+        // (`grow`: its end at the cut follows a carrying bar's moving edge, FramePieces `lift`.)
+        fills.push({ x: cx, y: top ? o[e] : H - reach, w: cw, h: reach - o[e], grow: true })
         // Past the fillet the side's rule runs on in this strip.
         var past = reach - o[e] - r
         if (ow > 0 && past > 0)
-            rules.push({ x: i === 0 ? cw - ow : cx, y: top ? o[e] + r : H - reach, w: ow, h: past })
+            rules.push({ x: i === 0 ? cw - ow : cx, y: top ? o[e] + r : H - reach, w: ow, h: past, grow: true })
     }
     var edgeY = top ? o.top : H - o.bottom
     if (r > 0) {
