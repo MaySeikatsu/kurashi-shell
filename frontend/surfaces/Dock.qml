@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/sidebar"
+import "../components/island"
 import "../components/bar/appicon.js" as AppIcons
 
 // The app dock (K51, docs/ux/dock.md) of one output: pinned apps (`dock.pinned`, desktop ids) then the running ones
@@ -38,9 +39,14 @@ Scope {
             readonly property var ld: lay.dock || ({})
             readonly property string edge: {
                 var e = typeof ld.edge === "string" ? ld.edge : cfg.valueOf("dock.edge", "bottom")
-                return e === "left" || e === "right" ? e : "bottom"
+                return e === "left" || e === "right" || e === "top" ? e : "bottom"
             }
-            readonly property bool horiz: edge === "bottom"
+            // I282: the top edge too — under the top bar, growing out of it (the bottom's mirror).
+            readonly property bool atTop: edge === "top"
+            readonly property bool horiz: edge === "bottom" || edge === "top"
+            // A bar on the dock's edge that slides (hover, empty desktop) publishes how far its edge is from its rest
+            // (IslandGeom.lifts, K74): a dock that grows out of it rides that edge, so the two never part (I282).
+            readonly property real lift: ld.joins === "bar:" + edge ? Math.max(0, Math.min(edgeGap, IslandGeom.liftOf(outName, edge))) : 0
             readonly property string vis: typeof ld.visibility === "string" ? ld.visibility
                 : String(cfg.valueOf("dock.visibility", "empty_desktop"))
             readonly property string draw: typeof ld.draw === "string" ? ld.draw : "floating"
@@ -307,7 +313,7 @@ Scope {
                 var w = scr ? scr.width : 0, h = scr ? scr.height : 0
                 var win = winLoader.item
                 if (holder && win) return Light.originOf(win)
-                if (horiz) return Qt.point((w - winW) / 2, h - winH)
+                if (horiz) return Qt.point((w - winW) / 2, atTop ? 0 : h - winH)
                 return Qt.point(edge === "left" ? 0 : w - winW, (h - winH) / 2)
             }
             readonly property var menuGroup: menuKey !== "" ? (groups.map[menuKey] || null) : null
@@ -369,6 +375,7 @@ Scope {
                         function onFrameSwapped() { dock.presented = true }
                     }
                     anchors.bottom: dock.edge === "bottom"
+                    anchors.top: dock.edge === "top"
                     anchors.left: dock.edge === "left"
                     anchors.right: dock.edge === "right"
                     implicitWidth: dock.winW
@@ -405,7 +412,7 @@ Scope {
                     // K61 carried sheet: how far the dock is from its rest while it slides (its reliefs take their grain
                     // along; 0 at rest).
                     readonly property point sheetCarry: Qt.point(dock.edge === "left" ? -slider.away : (dock.edge === "right" ? slider.away : 0),
-                                                                 dock.horiz ? slider.away : 0)
+                                                                 dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0))
                     // The joined shape's mask for its relief, parked outside the window (a texture provider needs its paint
                     // node), as the sidebar's.
                     ShaderEffectSource {
@@ -436,7 +443,7 @@ Scope {
                     readonly property int edgeCut: reveal.cutFor(dock.edgeGap)
                     mask: Region {
                         x: body.x + (dock.edge === "left" ? win.edgeCut : 0)
-                        y: body.y
+                        y: body.y + (dock.atTop ? win.edgeCut - dock.lift : (dock.edge === "bottom" ? dock.lift : 0))
                         width: body.width - (dock.horiz ? 0 : win.edgeCut)
                         height: body.height - (dock.horiz ? win.edgeCut : 0)
                     }
@@ -479,8 +486,10 @@ Scope {
                     // translucent: an overlap would show), so the dock comes out of it.
                     Item {
                         id: clipper
-                        readonly property int cut: dock.joined ? dock.edgeGap : 0
+                        // (the line moves with a sliding bar on the edge: `lift`)
+                        readonly property real cut: dock.joined ? dock.edgeGap - dock.lift : 0
                         x: dock.edge === "left" ? cut : 0
+                        y: dock.atTop ? cut : 0
                         width: parent.width - (dock.horiz ? 0 : cut)
                         height: parent.height - (dock.horiz ? cut : 0)
                         clip: dock.joined
@@ -489,11 +498,12 @@ Scope {
                         width: win.width
                         height: win.height
                         x: -clipper.x
-                        // Slides off its edge by the dock's thickness while hiding.
+                        y: -clipper.y
+                        // Slides off its edge by the dock's thickness while hiding (and rides a sliding bar's edge).
                         readonly property real away: (1 - dock.shownAmt) * (dock.bodyAcross + dock.edgeGap + dock.room)
                         transform: Translate {
                             x: dock.edge === "left" ? -slider.away : (dock.edge === "right" ? slider.away : 0)
-                            y: dock.horiz ? slider.away : 0
+                            y: dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0)
                         }
                         opacity: Store.live ? 1 : Theme.staleOpacity
 
@@ -507,7 +517,7 @@ Scope {
                             height: win.height
                             transform: Scale {
                                 xScale: dock.edge === "left" ? -1 : 1
-                                yScale: dock.horiz ? -1 : 1
+                                yScale: dock.edge === "bottom" ? -1 : 1
                                 origin.x: win.width / 2
                                 origin.y: win.height / 2
                             }
@@ -520,7 +530,7 @@ Scope {
                                 x0: dock.horiz ? body.x : ex0
                                 x1: dock.horiz ? body.x + body.width : win.width - dock.edgeGap
                                 y0: dock.horiz ? dock.edgeGap : body.y
-                                y1: dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy
+                                y1: dock.atTop ? body.y + body.height : (dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy)
                                 openT: dock.horiz
                                 openO: !dock.horiz
                                 neckT: dock.aR
@@ -529,7 +539,7 @@ Scope {
                                 // one radius, as its fillets (0 = connected, straight)
                                 radius: dock.joinR
                                 squareOuter: false
-                                flipY: dock.horiz
+                                flipY: dock.edge === "bottom"
                                 flipX: dock.edge === "left"
                                 ruled: Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
                                 fill: Theme.surfaceAlpha
@@ -560,7 +570,7 @@ Scope {
                             height: win.height
                             transform: Scale {
                                 xScale: dock.edge === "left" ? -1 : 1
-                                yScale: dock.horiz ? -1 : 1
+                                yScale: dock.edge === "bottom" ? -1 : 1
                                 origin.x: win.width / 2
                                 origin.y: win.height / 2
                             }
@@ -574,7 +584,7 @@ Scope {
                         Item {
                             id: body
                             x: dock.edge === "left" ? dock.edgeGap : dock.room
-                            y: dock.horiz ? dock.room : dock.room
+                            y: dock.atTop ? dock.edgeGap : dock.room
                             width: dock.bodyW
                             height: dock.bodyH
                             readonly property real inset: 0
@@ -699,7 +709,7 @@ Scope {
                                         SequentialAnimation {
                                             id: hop
                                             loops: 3
-                                            NumberAnimation { target: hopT; property: dock.horiz ? "y" : "x"; to: dock.horiz ? -10 : (dock.edge === "left" ? 8 : -8); duration: 140; easing.type: Easing.OutQuad }
+                                            NumberAnimation { target: hopT; property: dock.horiz ? "y" : "x"; to: dock.horiz ? (dock.atTop ? 10 : -10) : (dock.edge === "left" ? 8 : -8); duration: 140; easing.type: Easing.OutQuad }
                                             NumberAnimation { target: hopT; property: dock.horiz ? "y" : "x"; to: 0; duration: 180; easing.type: Easing.InQuad }
                                         }
                                         Image {
@@ -882,9 +892,10 @@ Scope {
                             readonly property string text: dock.noteKey === dock.tipKey && dock.noteText !== "" ? dock.noteText
                                 : (dock.tipKey === "+" ? I18n.tr("dock.empty.hint") : (g ? g.name : ""))
                             anchor.item: dock.tipTile
-                            anchor.edges: dock.edge === "bottom" ? Edges.Top : (dock.edge === "left" ? Edges.Right : Edges.Left)
-                            anchor.gravity: dock.edge === "bottom" ? Edges.Top : (dock.edge === "left" ? Edges.Right : Edges.Left)
-                            anchor.margins.top: dock.horiz ? -6 : 0
+                            anchor.edges: dock.edge === "bottom" ? Edges.Top : dock.atTop ? Edges.Bottom : (dock.edge === "left" ? Edges.Right : Edges.Left)
+                            anchor.gravity: dock.edge === "bottom" ? Edges.Top : dock.atTop ? Edges.Bottom : (dock.edge === "left" ? Edges.Right : Edges.Left)
+                            anchor.margins.top: dock.edge === "bottom" ? -6 : 0
+                            anchor.margins.bottom: dock.atTop ? -6 : 0
                             anchor.margins.left: dock.edge === "right" ? -6 : 0
                             anchor.margins.right: dock.edge === "left" ? -6 : 0
                             visible: text !== "" && dock.tipTile !== null
@@ -955,7 +966,7 @@ Scope {
                                 readonly property rect at: dock.menuAt
                                 x: dock.horiz ? Math.max(Theme.gap, Math.min(menu.width - width - Theme.gap, at.x + at.width / 2 - width / 2))
                                     : (dock.edge === "left" ? at.x + at.width + Theme.gap : at.x - Theme.gap - width)
-                                y: dock.horiz ? at.y - Theme.gap - height
+                                y: dock.atTop ? at.y + at.height + Theme.gap : dock.horiz ? at.y - Theme.gap - height
                                     : Math.max(Theme.gap, Math.min(menu.height - height - Theme.gap, at.y + at.height / 2 - height / 2))
                                 width: Math.max(180, col.implicitWidth + 2 * Theme.gap + 2 * inset)
                                 height: col.implicitHeight + 2 * Theme.gap + 2 * inset + Theme.shadowDy

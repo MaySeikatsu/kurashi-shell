@@ -429,6 +429,7 @@
 "config.dock.enabled.help" = "Your pinned apps and the running ones, at a screen edge."
 "config.dock.edge.label" = "Edge"
 "config.choice.dock_edge.bottom" = "Bottom"
+"config.choice.dock_edge.top" = "Top"
 "config.choice.dock_edge.left" = "Left"
 "config.choice.dock_edge.right" = "Right"
 "config.dock.visibility.label" = "Visibility"
