@@ -1,5 +1,6 @@
 # Sidebars — UX brief (card W29-sidebar)
 Status: v1 built (W29-sidebar). Test `frontend/test-sidebar-panel.sh`; shots `frontend/shots/sidebar/<decor>/*.png`.
+Session 16 (I283, K75): each side picks its layout (`sidebar.<side>.mode`: one column or pages with tabs); defaults unchanged.
 
 ## Job
 A tall column at a screen edge that holds "the rest of the shell" in one glance, without stacking popups: on the right

@@ -1291,6 +1291,14 @@ Top to bottom: you and the session, the quick tiles, the levels, notifications, 
 - choices: from `sidebar.sections` (resolved at runtime)
 - since schema v3
 
+#### `sidebar.right.mode` — Layout
+
+One column: every section stacked, scrolled together. Pages with tabs: one section at a time, the tabs above it.
+
+- type: `choice` · default: `"stack"`
+- choices: `"stack"` | `"pages"`
+- since schema v5
+
 #### `sidebar.right.width` — Width
 
 Drag the sidebar's inner edge to change it.
@@ -1333,6 +1341,14 @@ The mods' panels (AI chat, tasks, …). A tab whose mod is not on is skipped. Em
 - type: `string_list` · default: `["mod:ai:ai"]`
 - choices: from `sidebar.tabs` (resolved at runtime)
 - since schema v3
+
+#### `sidebar.left.mode` — Layout
+
+One column: every section stacked, scrolled together. Pages with tabs: one section at a time, the tabs above it.
+
+- type: `choice` · default: `"pages"`
+- choices: `"stack"` | `"pages"`
+- since schema v5
 
 #### `sidebar.left.width` — Width
 

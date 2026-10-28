@@ -184,7 +184,8 @@ read -r _ _ _ _ WW WH _ FR _ BEDGE BARH _ <<< "$(geom)"
 [ "$WH" = "$SH" ] || fail "the window is $WH px tall, not the output's $SH (it ignores zones; $(geom))"
 [ "$FR" = "$(( SW - 420 )),$BARH,420,$(( SH - BARH ))" ] || fail "the panel's column is not flush under the bar or not 420 px wide ($FR)"
 sleep 1.2
-[ "$(px $(( SW - 1 )) $(( SH - 1 )))" = ink ] || fail "the panel does not reach the screen's bottom-right corner"
+# (60 px in from the corner: the screen's own rounded corner is black there, K74)
+[ "$(px $(( SW - 1 )) $(( SH - 60 )))" = ink ] || fail "the panel does not reach the screen's right edge at the bottom"
 [ "$(px $(( SW - 410 )) $(( SH - 1 )))" = ink ] || fail "the panel's bottom row is not drawn"
 [ "$(px $(( SW - 430 )) $(( SH / 2 )))" = desk ] || fail "something is drawn left of the panel"
 echo "ok: right panel under the top bar: $FR ($SW×$SH output)"
@@ -227,7 +228,7 @@ read -r _ _ _ _ WW WH _ FR _ _ BARH _ GAP _ <<< "$(geom)"
 [ "$FR" = "$(( SW - GAP - 420 )),$(( BARH + GAP )),420,$(( SH - BARH - 2 * GAP ))" ] || fail "the floating column is not inset by $GAP from the bar and the edges ($FR)"
 sleep 1.2
 [ "$(px $(( SW - 1 )) $(( SH / 2 )))" = desk ] || fail "the floating column touches the screen's edge"
-[ "$(px $(( SW - 1 )) $(( SH - 1 )))" = desk ] || fail "the floating column touches the screen's bottom"
+[ "$(px $(( SW - GAP - 210 )) $(( SH - 1 )))" = desk ] || fail "the floating column touches the screen's bottom"
 [ "$(px $(( SW - GAP - 20 )) $(( SH / 2 )))" = ink ] || fail "the floating column is not drawn"
 echo "ok: floating: inset by $GAP px ($FR)"
 qml_errors
@@ -253,8 +254,8 @@ read -r _ _ _ _ WW WH _ FR _ BEDGE _ <<< "$(geom)"
 geom | grep -q ' joins edge,edge ' || fail "beside a left bar the right panel should meet the screen's edges ($(geom))"
 [ "${FR#*,}" = "0,420,$SH" ] || fail "beside a left bar the right panel is not the full height ($FR)"
 sleep 1.2
-[ "$(px $(( SW - 1 )) 0)" = ink ] || fail "the panel does not reach the top-right corner"
-[ "$(px $(( SW - 1 )) $(( SH - 1 )))" = ink ] || fail "the panel does not reach the bottom-right corner"
+[ "$(px $(( SW - 1 )) 60)" = ink ] || fail "the panel does not reach the top of the right edge"
+[ "$(px $(( SW - 1 )) $(( SH - 60 )))" = ink ] || fail "the panel does not reach the bottom of the right edge"
 echo "ok: beside a left bar the right panel spans the full height ($FR)"
 ptr click $(( (QX0 + QX1) / 2 )) $(( (QY0 + QY1) / 2 )) left
 wait_window down
