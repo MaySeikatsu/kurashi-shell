@@ -7,6 +7,7 @@ import "../core/mods.js" as Mods
 import "../components"
 import "../components/expanded"
 import "../components/island"
+import "../components/bar/framegeom.js" as FG
 
 // Stage (ARCHITECTURE §4): overlay layer surface holding popups / OSD / island expansions, the
 // session menu, the tray item menus (K23), the quick settings card (K24) and the hover peeks of bar items (K35). Sized to its content
@@ -746,9 +747,20 @@ PanelWindow {
     // button grown, and its neck stays on the button's block where the groups float. The island's views and the session
     // menu (no widget) rest centred under the pill. A tray menu without its icon on this output keeps the tray's end.
     readonly property bool restsUnder: panelKinds.indexOf(contentKind) >= 0 && origin.kind === "widget"
+    // Session 15: kept inside what stands on the output's sides — the frame's band and its inner corner, a side bar —
+    // not over them (a quick card under the bar's end lay on the right band and its fillet).
+    readonly property var outLay: ShellLayout.of(screen ? screen.name : "")
+    function sideClear(e) {
+        var ed = FG.edgeOf(outLay, e), r = FG.band(outLay, e) > 0 || FG.docked(outLay, e)
+            ? Math.max(0, Math.round((outLay.frame || {}).radius || 0)) : 0
+        var bar = ed.bar === true && ed.visibility !== "hidden" ? Math.max(0, ed.inset || 0) + Theme.barH : 0
+        return FG.band(outLay, e) + bar + Math.max(Theme.pad, r)
+    }
+    readonly property real clearL: sideClear("left")
+    readonly property real clearR: sideClear("right")
     readonly property real cardOutX: restsUnder
-        ? Math.round(Math.max(Theme.pad, Math.min(outW - Theme.pad - card.width, originCx - card.width / 2)))
-        : (aligned ? outW - Theme.pad - card.width : Math.round((outW - card.width) / 2))
+        ? Math.round(Math.max(clearL, Math.min(outW - clearR - card.width, originCx - card.width / 2)))
+        : (aligned ? outW - clearR - card.width : Math.round((outW - card.width) / 2))
     readonly property real cardFoot: cardTop + card.height
 
     // The box the window covers along the bar (out px) and its height: the origin and the card with the neck's and the

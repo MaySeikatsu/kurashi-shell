@@ -17,6 +17,46 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-28 — session 15 (machine A): the frame under a hover bar, one corner radius, the expressive motion — K74
+**State:** `feat/w46-frame-morph` merged into `main` locally (`--no-ff`), **not pushed** (push when the user agrees). No subagents this session (user's rule).
+Lead build dirs `~/.cache/kurashi-agents-target/lead` and `lead-mods` kept. Leftovers the lead could not remove (denied):
+`/tmp/kurashi-sb-{dev,lead-sbars,lead-w44-int,w44-*,lead-frame}` (≈ 3.5 GB, no processes but `dev`), and the handover's
+sandbox `dev` still runs (sway pid 2347498) — stop it with `tools/bench/sandbox.sh stop dev`, then delete the dirs.
+
+**User decisions (session 15):** the frame must connect to the screen edge under a hover bar; its outline must run on
+smoothly into the bar and every emerging component; morphs in dynamic should look and feel like Caelestia's (grow out of
+the border, fillets that track the motion, Caelestia's curves), the springs staying as a setting of their own; **one
+radius setting** that drives the frame, the joins, buttons, toggles and other controls, with related radii (inner =
+outer − the distance between them; a square look squares the frame too); the screen's black corners are the shell's
+topmost layer. Ideas noted: pixelated and straight-line joins (I270).
+
+**Built (branch):**
+- Frame: a docked hover bar keeps the band; the frame's fillets/arcs/rules follow a sliding bar on all four edges
+  (`IslandGeom.lifts`, FramePieces `lift*`, `cover`/`coverRule`); bands run the full width (corner hole above a docked
+  side bar fixed); a side bar's rule ends where its fillet does; columns joined to a hover bar follow it to the band;
+  rules opened and arcs hidden where a joined neighbour reaches; screen corners on the overlay layer; Stage cards keep
+  clear of bands/fillets/side bars; joined edge-module groups open the band's rule (I258 row 556) and take the hole radius.
+- K74 / schema v4: `theme.shape.radius` (px) replaces `radius_scale` (migration + test); `layout.frame.radius` derived
+  (R − thickness on a framed output) for frame, dock, sidebars; expressive motion profile (default; calm looks moved)
+  with Caelestia's curves: `core/Glide.qml`, `core/ease.js`, MorphSprings and Sidebar timed paths; bar/column overshoot
+  widens inward. test-frame gained a `hover` scene.
+
+**Next steps (in order):**
+1. Push `main` (the user's go), then Live check on the user's niri (I219) — now including a hover bar with the frame, R 18/24, and the expressive feel.
+3. I269 (concentric nested controls, Settings nav; screen corners following R: ask the user), I273 (island/fades on the
+   curves if the user wants), I271 (side bar under a top edge's module zone), I268 (acrossMade loop).
+4. The rest of session 14's list (I256–I267, I245, budgets I246/I261/I254/I272).
+
+**Open decisions:** should `theme.shape.screen_corners` follow R by default? Washi's R 9 makes its frame's inner corners
+1 px (R − 8): fine by the rule, or should washi's R go up?
+**Suites (session 15):** `just check` ✅; test-frame (washi, terminal, incl. niri) ✅; test-sidebars ✅;
+test-stage ✅; test-dock ✅ (fillet check follows the layout radius); test-bars ✅; test-edge-modules ✅; settings/test.sh ✅;
+test-island-join ✅; test-morph ❌ at the sysmon peek — same on main's frontend, I274. A regression found and fixed on the
+way: Glide's spring path started a SpringAnimation by hand, which ignores a new target while running (groups and bars
+stayed out); it is a Behavior now.
+
+---
+
 ## 2026-10-26 — session 14 (machine A): the layout system — screen frame, draw modes, bars on every edge, edge modules, the timer — K71–K73, waves 43–45
 **State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dirs
 `~/.cache/kurashi-agents-target/lead` (52 GB) and `lead-mods` (a `--features test-mods` build) are kept. The disk filled to
@@ -239,55 +279,3 @@ Settings' focus hook names a Segmented pill by its label (e.g. "Follow the syste
 (exit 144) — kill by PID. A private `dbus-daemon` for tests needs `<allow receive_sender="*"/>` or replies are
 dropped and the test hangs; bound such tests with `tokio::time::timeout`. With two agents building, a lead `cargo
 test` can wait 10+ minutes on the build lock — run it in the background.
-
----
-
-## 2026-10-21 — session 11 (machine B): Style · Look · Palette, light/dark everywhere, sidebars — K53, K54, wave 29
-**State:** `main` green, pushed. Two agent cards (W29-sidebar, W29-appearance) merged through the integration branch
-`feat/k53-appearance`; no agent worktrees left. `target/` deleted at the end (disk at 94 %). Nothing is half-done.
-
-**User decisions (session 11):** washi is the default on a fresh install; the greeter stays off in the user's NixOS
-config (the feature stays); AI defaults to Ollama with the **last used model** (else the first installed); MangoWM after
-most of the shell is done (I143); "isekai" may be "mirai" or both — **ask again** (I117); sidebar gets style options and
-an edge-to-edge panel like ii (stops at a bar on that side), the phone style stays, a paper-notebook sidebar is an idea
-(I144); appearance split into **Style** (a fixed preset that resets and sets everything), **Look** (shape, chrome,
-material, motion, type, frame), **Palette** (colours only), sorted into categories Modern / Inspired / Retro / Fiction;
-every palette has light **and** dark.
-
-**Built and merged:**
-- **K53 appearance:** `looks/*.toml` (17) and `styles/*.toml` (19) replace `decors/`; user packs in
-  `~/.config/kurashi/{looks,styles}/`; `theme.style` (default washi) + `theme.look` (default kanso); schema v2 with a
-  v1→v2 migration (`theme.decor` → `theme.style`); per-entry theme layer sources `look:<n>`/`style:<n>`; actions
-  `theme.style.apply` / `theme.look.apply` reset their keys and set the pack in one undoable transaction; document
-  `theme.previews`; the theme document carries `appearance`; offers carry `group`. Light/dark is the **user's mode**:
-  never reset by a style (a style only recommends one). Dark mode tile in quick settings and the sidebar toggles.
-- **Settings:** Style / Look / Palette blocks with category chips and preview cards, "N settings differ from Washi ·
-  Reset", light/dark switch with the style's recommendation; washi paper frame (`frames/Paper.qml`).
-- **Palettes:** the missing scheme added to yorha, win95, luna, aero, kawaii, snes (dark) and hallownest, ps2, souls
-  (light); a test requires both.
-- **K54 sidebars:** `surfaces/Sidebar.qml`, `sidebar.{style panel|floating, width, right, left, from_bar}`, actions
-  `sidebar.toggle/open/close`, Mod+Shift+N (right) and Mod+A (left); left column = mod panel tabs (AI, …), mod panels
-  may fill the offered height (`fillHeight`, MODS.md).
-- **AI:** empty Ollama model = the last used one from saved conversations, if still installed.
-
-**Verification (end of session):** `just check`; `nix build .#kurashi`; hm-eval; all 24 sandbox suites (real, stage,
-quick, quick-sections, volume, modqml, mods-live, sidebars, sidebar-panel, power, desk, dock, launcher, media, polkit,
-island-morph, sway-adapter, settings, greeter, ai, tasks, lyrics, calendar, webdock); look washi and sekai — green.
-
-**Next steps (ordered):**
-1. Ask the user: isekai and/or mirai inspiration (I117); should the web dock become a sidebar tab (I116); keep
-   light/dark as the user's mode, or let a style set it on apply (K53 amendment)?
-2. Show the session's work live when the user asks: Settings › Appearance categories, Reset to Washi, Dark tile,
-   both sidebars in panel and floating styles.
-3. Sidebar follow-ups I148–I152; appearance follow-ups I145 (mod `decor:` provide → `look:`/`style:`), I146 (profile
-   layer vs style apply), I147 (palette categories), I153 (Settings display maps; the mock lacks `schema.settings`).
-4. Then session 10's remaining steps: I134 secret setting type, I127, I141, I139; backlog sweep I118–I142; bench.
-
-**Open decisions (ask):** see step 1. MangoWM stays deferred.
-
-**Gotchas (new):** frontend pixel tests pin `theme.style = "none"` (washi is the default now). `cargo test` replaces the
-`--features kurashid/test-mods` binary: rebuild with the feature before the sandbox suites. A new quick tile adds a Tab
-stop (quick-sections counts them). Data URLs: use `encodeURIComponent`, not `Qt.btoa(string)` (deprecated, logs a
-warning that fails the QML-warning checks). Sandbox dirs may survive a run: remove fifos before `mkfifo`.
-
----

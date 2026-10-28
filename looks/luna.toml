@@ -5,10 +5,10 @@ category = "retro"
 # controls in a Luna-blue window frame with its title band, glossy buttons, slight rounding, Tahoma.
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
-"theme.shape.radius_scale" = 0.6
+"theme.shape.radius" = 11
 "theme.typography.family" = ["Tahoma", "Verdana", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
 [slots]
 frame = "luna"

@@ -64,7 +64,42 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 3,
             apply: v2_to_v3,
         },
+        kurashi_config::Migration {
+            from: 3,
+            to: 4,
+            apply: v3_to_v4,
+        },
     ]
+}
+
+/// K74: one corner radius. `theme.shape.radius_scale` (× the 18 px step) became `theme.shape.radius` (px, rounded);
+/// `layout.frame.radius` went: the frame's inner corners follow the radius less the frame's thickness. Runs on the root
+/// and on every `[outputs.<name>]` table; a file that already says `radius` keeps it.
+fn v3_to_v4(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    fn one(t: &mut dyn toml_edit::TableLike) {
+        if let Some(item) = take(t, &["theme", "shape", "radius_scale"])
+            && let Some(k) = item
+                .as_float()
+                .or_else(|| item.as_integer().map(|i| i as f64))
+        {
+            let px = (k.max(0.0) * 18.0).round().min(48.0) as i64;
+            put(t, &["theme", "shape", "radius"], toml_edit::value(px));
+        }
+        take(t, &["layout", "frame", "radius"]);
+    }
+    let root = doc.as_table_mut();
+    one(root);
+    if let Some(outputs) = root
+        .get_mut("outputs")
+        .and_then(toml_edit::Item::as_table_like_mut)
+    {
+        for (_, t) in outputs.iter_mut() {
+            if let Some(t) = t.as_table_like_mut() {
+                one(t);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// K53: `theme.decor` (a whole look, K42/K50) became `theme.style`; every bundled decor is a style of the same name,

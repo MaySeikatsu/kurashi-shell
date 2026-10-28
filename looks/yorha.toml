@@ -5,7 +5,7 @@ category = "fiction"
 # olive ink, dead-flat sharp rectangles, scanlines and the double rule, a serif hand, damped motion.
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "calm"
+"theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
 "theme.typography.family" = ["Noto Serif", "Noto Serif CJK JP", "serif"]

@@ -6,8 +6,9 @@ import "../core"
 
 // Rounded screen corners (K47 (6), `theme.shape.screen_corners`): four concave quarter-circle fillets in black — the
 // panel's own edge — at the corners of one output, while the radius is > 0 (shellseikatsu `Widgets/ScreenCorners.qml`,
-// Caelestia's rounded border). Click-through (`mask: Region {}`), no keyboard, top layer, ignoring exclusive zones so
-// they sit on the panel's corners. Unlike shellseikatsu's one full-screen surface, each corner is its own r × r surface:
+// Caelestia's rounded border). Click-through (`mask: Region {}`), no keyboard, ignoring exclusive zones so they sit on
+// the panel's corners. On the overlay layer: the screen's edge is the topmost thing the shell draws — no bar, frame strip,
+// dock or sidebar mapped later (a hover bar maps on its first reveal) comes out over it (user, session 15). Unlike shellseikatsu's one full-screen surface, each corner is its own r × r surface:
 // four tiny buffers instead of a transparent full-output one. Static: drawn once (a Shape, no Canvas, no animation), 0
 // frames idle; no surface at all while the radius is 0.
 Scope {
@@ -28,7 +29,7 @@ Scope {
         implicitWidth: sc.radius
         implicitHeight: sc.radius
         exclusionMode: ExclusionMode.Ignore
-        WlrLayershell.layer: WlrLayer.Top
+        WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         WlrLayershell.namespace: "kurashi-corners"
         color: "transparent"

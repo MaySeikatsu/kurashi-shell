@@ -54,6 +54,19 @@ on per output, follows the look (fill, chrome outline, texture, pen, light) and,
 - **Settings:** page Layout › Frame: Frame (switch, per output), Thickness, Inner corners, Keep windows inside
   (`reserve`). The preview is the live frame (no separate preview surface).
 
+## Session 15 additions (K74)
+- **Bar on hover** (user: "the frame doesn't connect to the edge of the screen if the bar is only shown on hover"): a
+  docked hover bar keeps the frame's band (`thickness`) on its edge while it is away, the fillets hanging on the band;
+  coming out, it is the band grown thick — its inner edge moves and the frame's fillets, arcs, side bands and rules follow
+  it on all four edges, as do the columns joined to it (Caelestia: the bar's width animates from the border's
+  thickness). Its overshoot widens it inward and settles.
+- **One radius** (user): the inner corners are `theme.shape.radius − thickness` (concentric with an outer corner of R; 0
+  at least), the same radius as every dynamic join and the joined dock's and columns' corners; `layout.frame.radius` is
+  gone. A square look (`corners = none`) squares the frame too. Screen corners keep their own key (R recommended; whether
+  they follow R is open, I269).
+- **Screen corners** sit on the overlay layer: nothing the shell draws comes out over the screen's edge.
+- A card resting under a bar widget keeps clear of the bands, the inner corner and side bars.
+
 ## States
 off (no surface at all) · on with a top bar (default) · on with the bar on another edge · on with no bar · floating
 bar inside · bar hidden (`visibility: hidden`) — the band stands where the bar was · fullscreen window (band 0 on that

@@ -114,31 +114,6 @@
             },
             {
               "advanced": false,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "layout.frame.enabled",
-                  "kind": "requires",
-                  "op": "eq",
-                  "reason": "settings.inert.requires",
-                  "value": true
-                }
-              ],
-              "default": 16,
-              "help": "config.layout.frame.radius.help",
-              "key": "layout.frame.radius",
-              "label": "config.layout.frame.radius.label",
-              "max": 48,
-              "min": 0,
-              "per_output": false,
-              "restart": false,
-              "since": 3,
-              "step": 2,
-              "type": "int",
-              "unit": "px"
-            },
-            {
-              "advanced": false,
               "control": "toggle",
               "couplings": [
                 {
@@ -1153,7 +1128,7 @@
               "unit": "px"
             },
             {
-              "advanced": true,
+              "advanced": false,
               "control": "slider",
               "couplings": [
                 {
@@ -1164,17 +1139,18 @@
                   "value": "none"
                 }
               ],
-              "default": 1.0,
-              "help": "config.theme.shape.radius_scale.help",
-              "key": "theme.shape.radius_scale",
-              "label": "config.theme.shape.radius_scale.label",
-              "max": 2.0,
-              "min": 0.0,
+              "default": 18,
+              "help": "config.theme.shape.radius.help",
+              "key": "theme.shape.radius",
+              "label": "config.theme.shape.radius.label",
+              "max": 48,
+              "min": 0,
               "per_output": false,
               "restart": false,
-              "since": 1,
-              "step": 0.05,
-              "type": "float"
+              "since": 4,
+              "step": 1,
+              "type": "int",
+              "unit": "px"
             },
             {
               "advanced": false,
@@ -1437,6 +1413,10 @@
               "advanced": false,
               "choices": [
                 {
+                  "label": "config.choice.motion_profile.expressive",
+                  "value": "expressive"
+                },
+                {
                   "label": "config.choice.motion_profile.calm",
                   "value": "calm"
                 },
@@ -1458,7 +1438,7 @@
                   "reason": "settings.inert.overridden_by"
                 }
               ],
-              "default": "calm",
+              "default": "expressive",
               "help": "config.theme.motion.profile.help",
               "key": "theme.motion.profile",
               "label": "config.theme.motion.profile.label",
@@ -4655,5 +4635,5 @@
       ]
     }
   ],
-  "schema_version": 3
+  "schema_version": 4
 }

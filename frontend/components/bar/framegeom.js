@@ -48,7 +48,8 @@ function geometry(lay, barH, sw, sh, ow, z) {
         left: b.left + (docked(lay, "left") ? barH : 0),
         right: b.right + (docked(lay, "right") ? barH : 0)
     }
-    return { sw: sw, sh: sh, o: o, b: b, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z }
+    var dk = { top: docked(lay, "top"), bottom: docked(lay, "bottom"), left: docked(lay, "left"), right: docked(lay, "right") }
+    return { sw: sw, sh: sh, o: o, b: b, dk: dk, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z }
 }
 // Where a side strip starts and ends: never above the zones the compositor already placed it inside (a holder is placed
 // within the top and bottom holders' zones, mapped before it).
@@ -64,40 +65,48 @@ function across(g, top) {
     var reachL = Math.max(o[e] + r, top ? sideFrom(g, "left") : sideTo(g, "left"))
     var reachR = Math.max(o[e] + r, top ? sideFrom(g, "right") : sideTo(g, "right"))
     var d = Math.max(o[e] + r, b.left > 0 ? reachL : 0, b.right > 0 ? reachR : 0), y0 = top ? 0 : H - d
-    var bw = b[e], dl = o.left - b.left, dr = o.right - b.right
+    var bw = b[e]
     var fills = [], fillets = [], rules = [], arcs = []
-    if (bw > 0) fills.push({ x: dl, y: top ? 0 : H - bw, w: W - dl - dr, h: bw })
-    var cols = [[b.left, reachL, 0], [b.right, reachR, W - b.right]]
+    // The band runs the whole width: the horizontal strips own the corners (a docked side bar runs between them, row 511).
+    if (bw > 0) fills.push({ x: 0, y: top ? 0 : H - bw, w: W, h: bw })
+    // The side columns this strip draws: a side's band down to where its strip starts; a docked side bar's thickness, 0
+    // deep at rest (its window starts at this strip's cut), that grows while this edge's bar slides (the corner between
+    // the two bars stays sheet).
+    var dk = g.dk || {}
+    var cols = [dk.left ? [o.left, o[e], 0] : [b.left, reachL, 0], dk.right ? [o.right, o[e], W - o.right] : [b.right, reachR, W - b.right]]
     for (var i = 0; i < 2; i++) {
-        var cw = cols[i][0], reach = cols[i][1], cx = cols[i][2]
-        if (cw <= 0 || reach <= o[e]) continue
-        fills.push({ x: cx, y: top ? o[e] : H - reach, w: cw, h: reach - o[e] })
-        // Past the fillet the side's rule runs on in this strip.
-        var past = reach - o[e] - r
-        if (ow > 0 && past > 0)
-            rules.push({ x: i === 0 ? cw - ow : cx, y: top ? o[e] + r : H - reach, w: ow, h: past })
+        var cw = cols[i][0], reach = cols[i][1], cx = cols[i][2], bar = i === 0 ? dk.left : dk.right
+        if (cw <= 0 || (reach <= o[e] && !bar)) continue
+        // (`grow`: its end at the cut follows a sliding bar's moving edge on this strip's edge, FramePieces `lift*`.)
+        fills.push({ x: cx, y: top ? o[e] : H - reach, w: cw, h: reach - o[e], grow: e })
+        // Past the fillet the side's rule runs on in this strip (0 long at rest where the side strip starts at the fillet's
+        // end: it is there for a carrying bar's lift, which brings the fillet nearer the edge than the side strip starts).
+        var past = Math.max(0, reach - o[e] - r)
+        if (ow > 0)
+            rules.push({ x: i === 0 ? cw - ow : cx, y: top ? o[e] + r : H - reach, w: ow, h: past, grow: e, vert: true })
     }
     var edgeY = top ? o.top : H - o.bottom
     if (r > 0) {
-        fillets.push(top ? { x: o.left, y: o.top, turn: 0 } : { x: o.left, y: H - o.bottom - r, turn: 270 })
-        fillets.push(top ? { x: W - o.right - r, y: o.top, turn: 90 } : { x: W - o.right - r, y: H - o.bottom - r, turn: 180 })
+        // (`c`: the corner it hangs in — it moves with a sliding bar on either of that corner's edges.)
+        fillets.push(top ? { x: o.left, y: o.top, turn: 0, c: "tl" } : { x: o.left, y: H - o.bottom - r, turn: 270, c: "bl" })
+        fillets.push(top ? { x: W - o.right - r, y: o.top, turn: 90, c: "tr" } : { x: W - o.right - r, y: H - o.bottom - r, turn: 180, c: "br" })
     }
     if (ow > 0) {
         // The straight rule along this band's inner edge (a docked bar rules its own edge).
         if (bw > 0) {
             var x0 = o.left + r - (r === 0 ? ow : 0), x1 = W - o.right - r + (r === 0 ? ow : 0)
-            rules.push({ x: x0, y: top ? edgeY - ow : edgeY, w: x1 - x0, h: ow })
+            rules.push({ x: x0, y: top ? edgeY - ow : edgeY, w: x1 - x0, h: ow, band: true })
         } else if (r === 0) {
             // A docked bar and square corners: the corner's pixel joins the bar's rule to the side's.
-            rules.push({ x: o.left - ow, y: top ? edgeY - ow : edgeY, w: ow, h: ow })
-            rules.push({ x: W - o.right, y: top ? edgeY - ow : edgeY, w: ow, h: ow })
+            rules.push({ x: o.left - ow, y: top ? edgeY - ow : edgeY, w: ow, h: ow, c: top ? "tl" : "bl" })
+            rules.push({ x: W - o.right, y: top ? edgeY - ow : edgeY, w: ow, h: ow, c: top ? "tr" : "br" })
         }
         // Round each fillet: centred on the arc's centre, the line inside the band.
         if (r > 0) {
             var rho = r + ow / 2, cyA = top ? o.top + r : H - o.bottom - r
             var lx = o.left + r, rx = W - o.right - r
-            arcs.push(top ? arc(lx, cyA, rho, -Math.PI / 2, -Math.PI) : arc(lx, cyA, rho, Math.PI, Math.PI / 2))
-            arcs.push(top ? arc(rx, cyA, rho, -Math.PI / 2, 0) : arc(rx, cyA, rho, 0, Math.PI / 2))
+            arcs.push({ c: top ? "tl" : "bl", p: top ? arc(lx, cyA, rho, -Math.PI / 2, -Math.PI) : arc(lx, cyA, rho, Math.PI, Math.PI / 2) })
+            arcs.push({ c: top ? "tr" : "br", p: top ? arc(rx, cyA, rho, -Math.PI / 2, 0) : arc(rx, cyA, rho, 0, Math.PI / 2) })
         }
     }
     return { y0: y0, d: d, fills: fills, fillets: fillets, rules: rules, arcs: arcs }

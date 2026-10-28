@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 3;
+pub const VERSION: u32 = 4;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -227,11 +227,6 @@ pub struct Frame {
     #[kurashi(default = 8, range = 2..=32, step = 1, unit = "px", requires = "layout.frame.enabled == true",
               since = 3)]
     pub thickness: u32,
-    /// Inner corners
-    /// How round the frame's inner corners are (0 = square).
-    #[kurashi(default = 16, range = 0..=48, step = 2, unit = "px", requires = "layout.frame.enabled == true",
-              since = 3)]
-    pub radius: u32,
     /// Windows keep clear of the frame
     /// Windows tile inside the frame. Off: the frame is drawn over the windows' edges.
     #[kurashi(default = true, requires = "layout.frame.enabled == true", since = 3)]
@@ -830,11 +825,12 @@ pub struct Shape {
     /// Rounds the corners of every screen by this many pixels (0 = square, as the panel is).
     #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px")]
     pub screen_corners: u32,
-    /// Corner radius scale
-    /// Multiplies every corner radius token.
-    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, advanced,
-              requires = "theme.shape.corners != none")]
-    pub radius_scale: f64,
+    /// Corner radius
+    /// The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and
+    /// smaller parts take steps of it; the frame's inner corners and the joins of the bar, the dock and the sidebars take
+    /// it less the frame's thickness, so curves that sit inside one another stay concentric.
+    #[kurashi(default = 18, range = 0..=48, step = 1, unit = "px", requires = "theme.shape.corners != none", since = 4)]
+    pub radius: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -893,6 +889,8 @@ pub struct Material {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum MotionProfile {
+    /// Expressive
+    Expressive,
     Calm,
     Lively,
     /// Off
@@ -902,8 +900,9 @@ pub enum MotionProfile {
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
 pub struct Motion {
     /// Motion
-    /// Character of animations: calm, lively, or none at all.
-    #[kurashi(default = MotionProfile::Calm, overridden_by = "a11y.reduce_motion => none")]
+    /// Character of animations: expressive (surfaces grow out of the edge on timed curves that overshoot a little),
+    /// calm or lively (springs), or none at all.
+    #[kurashi(default = MotionProfile::Expressive, overridden_by = "a11y.reduce_motion => none")]
     pub profile: MotionProfile,
     /// Animation speed
     /// Multiplies every motion duration's speed (2.0 = twice as fast).

@@ -27,7 +27,7 @@ fn v1_builds() {
     assert!(reg.get("theme.material.blur").is_some());
     let d = reg.defaults();
     assert_eq!(d["bar.height"], 32);
-    assert_eq!(d["theme.motion.profile"], "calm");
+    assert_eq!(d["theme.motion.profile"], "expressive");
     // Every default validates (also enforced by Registry::build).
     for (k, v) in &d {
         reg.validate(k, v).unwrap();

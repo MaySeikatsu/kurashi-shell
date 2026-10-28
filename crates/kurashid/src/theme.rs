@@ -165,7 +165,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             "squircle" => Shape::Squircle,
             _ => Shape::Rounded,
         },
-        radius_scale: f(store, "theme.shape.radius_scale", 1.0),
+        radius: f(store, "theme.shape.radius", 18.0),
         material: match s(store, "theme.material.kind").as_str() {
             "solid" => Material::Solid,
             "glass" => Material::Glass,
@@ -176,7 +176,8 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         motion: match s(store, "theme.motion.profile").as_str() {
             "none" => MotionProfile::None,
             "lively" => MotionProfile::Lively,
-            _ => MotionProfile::Calm,
+            "calm" => MotionProfile::Calm,
+            _ => MotionProfile::Expressive,
         },
         motion_speed: f(store, "theme.motion.speed", 1.0),
         density: match s(store, "theme.density").as_str() {
