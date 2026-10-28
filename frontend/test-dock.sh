@@ -513,7 +513,13 @@ for d in $LAYOUT_DECORS; do
               [ "$(px1 $(( SW / 2 )) $(( SH - 2 )))" = desk ] || fail "$tag: the floating dock touches the screen's edge"
             fi
             [ "$(px1 $(( left - 3 )) $(( base - 2 )))" = desk ] || fail "$tag: something beside the floating dock's base" ;;
-          dynamic) [ "$(px1 $(( left - 2 )) $(( base - 2 )))" = ink ] || fail "$tag: no fillet beside the dock's base" ;;
+          dynamic) # K74: the fillet's radius is the layout's (R less the band on a framed output: washi's 9 − 8 = 1 px)
+            jr=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.radius')
+            if [ "${jr:-0}" -ge 4 ]; then
+              [ "$(px1 $(( left - 2 )) $(( base - 2 )))" = ink ] || fail "$tag: no fillet beside the dock's base (radius $jr)"
+            else
+              echo "test-dock: $tag: the join's radius is $jr px (K74), the fillet is not pixel-checked"
+            fi ;;
           connected) [ "$(px1 $(( left - 3 )) $(( base - 2 )))" = desk ] || fail "$tag: the connected dock's side is not straight" ;;
         esac
         timeout 20 grim -g "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220" "$LOUT/$d/$bar-frame$frame-$draw.png" \
