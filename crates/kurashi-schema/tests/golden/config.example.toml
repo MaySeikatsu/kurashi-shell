@@ -807,6 +807,11 @@
 #   choices: from `sidebar.sections` (resolved at runtime) · since schema v3
 # sections = ["header", "toggles", "sliders", "notifications", "calendar"]
 #
+# Layout — One column: every section stacked, scrolled together. Pages with tabs: one
+# section at a time, the tabs above it.
+#   choices: "stack" | "pages" · since schema v5
+# mode = "stack"
+#
 # Width — Drag the sidebar's inner edge to change it.
 #   range: 320..=640, step 10 (px) · since schema v3
 # width = 420
@@ -835,6 +840,11 @@
 # Empty: no left sidebar.
 #   choices: from `sidebar.tabs` (resolved at runtime) · since schema v3
 # sections = ["mod:ai:ai"]
+#
+# Layout — One column: every section stacked, scrolled together. Pages with tabs: one
+# section at a time, the tabs above it.
+#   choices: "stack" | "pages" · since schema v5
+# mode = "pages"
 #
 # Width — Drag the sidebar's inner edge to change it.
 #   range: 320..=640, step 10 (px) · since schema v3

@@ -3982,6 +3982,29 @@
             },
             {
               "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.sidebar_mode.stack",
+                  "value": "stack"
+                },
+                {
+                  "label": "config.choice.sidebar_mode.pages",
+                  "value": "pages"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "stack",
+              "help": "config.sidebar.right.mode.help",
+              "key": "sidebar.right.mode",
+              "label": "config.sidebar.right.mode.label",
+              "per_output": false,
+              "restart": false,
+              "since": 5,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
               "control": "slider",
               "couplings": [],
               "default": 420,
@@ -4116,6 +4139,29 @@
               "restart": false,
               "since": 3,
               "type": "string_list"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.sidebar_mode.stack",
+                  "value": "stack"
+                },
+                {
+                  "label": "config.choice.sidebar_mode.pages",
+                  "value": "pages"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "pages",
+              "help": "config.sidebar.left.mode.help",
+              "key": "sidebar.left.mode",
+              "label": "config.sidebar.left.mode.label",
+              "per_output": false,
+              "restart": false,
+              "since": 5,
+              "type": "choice"
             },
             {
               "advanced": false,

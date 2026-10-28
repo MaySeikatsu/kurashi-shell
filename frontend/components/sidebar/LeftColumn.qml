@@ -13,6 +13,10 @@ import "../island"
 Item {
     id: lc
     property var tabs: []
+    // I283: either side can show its sections as pages — the left's mod panels, or the right's core sections (each a page
+    // of its own, drawn as the one-column layout draws it).
+    property string side: "left"
+    property string outName: ""
     Watch { doc: "mods" }
     readonly property var modsDoc: Store.docs["mods"]
 
@@ -25,6 +29,11 @@ Item {
     readonly property var rows: {
         var out = []
         for (var i = 0; i < tabs.length; i++) {
+            if (String(tabs[i]).indexOf("mod:") !== 0) {
+                out.push({ value: tabs[i], ref: null, core: true, state: "ok",
+                           name: I18n.tr("config.choice.sidebar_section." + tabs[i]) })
+                continue
+            }
             var ref = Mods.panelOf(tabs[i])
             var e = ref ? entryOf(ref.mod) : null
             var state = ref === null ? "unknown"
@@ -55,8 +64,9 @@ Item {
         else if (event.key === Qt.Key_PageUp) { step(-1); event.accepted = true }
     }
 
-    // The tab bar: one key per tab, the current one tonal. Hidden with a single tab (nothing to switch).
-    Row {
+    // The tab bar: one key per tab, the current one tonal, wrapping onto a second line when they do not fit (I283: the
+    // right side's five sections). Hidden with a single tab (nothing to switch).
+    Flow {
         id: bar
         visible: lc.shownTabs.length > 1
         width: lc.width
@@ -78,7 +88,7 @@ Item {
     // The tab's panel.
     Flickable {
         id: pane
-        visible: lc.tab !== null
+        visible: lc.tab !== null && lc.tab.core !== true
         y: bar.height + (bar.visible ? Theme.pad : 0)
         width: lc.width
         height: lc.height - y
@@ -91,9 +101,10 @@ Item {
             id: panel
             width: pane.width
             height: item ? Math.max(item.implicitHeight, pane.height) : 0
-            provide: lc.tab ? "panel:" + lc.tab.ref.panel : ""
-            mod: lc.tab ? lc.tab.ref.mod : ""
+            provide: lc.tab && !lc.tab.core ? "panel:" + lc.tab.ref.panel : ""
+            mod: lc.tab && !lc.tab.core ? lc.tab.ref.mod : ""
         }
+
         // The height on offer, for a panel that can fill it (optional `fillHeight`, MODS.md "Panels"; row 238).
         Binding {
             target: panel.item
@@ -117,6 +128,15 @@ Item {
             value: placement.value
             when: placement.target !== null
         }
+    }
+    // A core section as a page (I283): the one-column layout's own section, alone, in the pane's place (it scrolls itself).
+    Loader {
+        id: corePage
+        y: pane.y
+        width: lc.width
+        height: lc.height - pane.y
+        active: lc.tab !== null && lc.tab.core === true
+        sourceComponent: RightColumn { anchors.fill: parent; sections: [lc.tab.value]; outName: lc.outName }
     }
     // Nothing to show: which tabs are missing, and why.
     Column {
@@ -148,7 +168,7 @@ Item {
             side: 30
             icon: "settings"
             label: I18n.tr("sidebar.left.settings")
-            onClicked: Store.act("settings.open", {key: "sidebar.left.sections"})
+            onClicked: Store.act("settings.open", {key: "sidebar." + lc.side + ".sections"})
         }
     }
 }
