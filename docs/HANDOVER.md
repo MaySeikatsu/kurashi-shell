@@ -18,7 +18,7 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-10-28 — session 15 (machine A): the frame under a hover bar, one corner radius, the expressive motion — K74
-**State:** branch `feat/w46-frame-morph` (not merged yet — see Next steps 1). No subagents this session (user's rule).
+**State:** `feat/w46-frame-morph` merged into `main` locally (`--no-ff`), **not pushed** (push when the user agrees). No subagents this session (user's rule).
 Lead build dirs `~/.cache/kurashi-agents-target/lead` and `lead-mods` kept. Leftovers the lead could not remove (denied):
 `/tmp/kurashi-sb-{dev,lead-sbars,lead-w44-int,w44-*,lead-frame}` (≈ 3.5 GB, no processes but `dev`), and the handover's
 sandbox `dev` still runs (sway pid 2347498) — stop it with `tools/bench/sandbox.sh stop dev`, then delete the dirs.
@@ -42,15 +42,18 @@ topmost layer. Ideas noted: pixelated and straight-line joins (I270).
   widens inward. test-frame gained a `hover` scene.
 
 **Next steps (in order):**
-1. Read the suite results below; fix any red, then merge `feat/w46-frame-morph` (`--no-ff`) and push.
-2. Live check on the user's niri (I219) — now including a hover bar with the frame, R 18/24, and the expressive feel.
+1. Push `main` (the user's go), then Live check on the user's niri (I219) — now including a hover bar with the frame, R 18/24, and the expressive feel.
 3. I269 (concentric nested controls, Settings nav; screen corners following R: ask the user), I273 (island/fades on the
    curves if the user wants), I271 (side bar under a top edge's module zone), I268 (acrossMade loop).
 4. The rest of session 14's list (I256–I267, I245, budgets I246/I261/I254/I272).
 
 **Open decisions:** should `theme.shape.screen_corners` follow R by default? Washi's R 9 makes its frame's inner corners
 1 px (R − 8): fine by the rule, or should washi's R go up?
-**Suites (session 15):** SUITES_PLACEHOLDER
+**Suites (session 15):** `just check` ✅; test-frame (washi, terminal, incl. niri) ✅; test-sidebars ✅;
+test-stage ✅; test-dock ✅ (fillet check follows the layout radius); test-bars ✅; test-edge-modules ✅; settings/test.sh ✅;
+test-island-join ✅; test-morph ❌ at the sysmon peek — same on main's frontend, I274. A regression found and fixed on the
+way: Glide's spring path started a SpringAnimation by hand, which ignores a new target while running (groups and bars
+stayed out); it is a Behavior now.
 
 ---
 
