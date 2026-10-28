@@ -164,6 +164,8 @@ stop_pointer() {
 ptr() { echo "$*" >&7; sleep 0.5; }
 keys() { timeout 20 python3 -I "$ROOT/tools/bench/wl_keys.py" "$@"; }
 shot() { timeout 20 grim "$OUT/$1.png" && echo "shot $OUT/$1.png"; }
+# The bottom band without the screen's corners (K74: they follow the radius, up to 48 px): where only the dock draws.
+band_ink() { ink 48 "$1" $(( SW - 96 )) 120; }
 ink() {  # ink <x> <y> <w> <h>: the non-desk pixels of that region
   timeout 20 grim -g "$1,$2 ${3}x${4}" -t ppm "$W/ink.ppm"
   python3 -I "$W/ink.py" "$W/ink.ppm" "$BG"
@@ -312,18 +314,18 @@ ptr move $(( SW / 2 )) $(( SH / 2 ))
 cfgval dock.visibility '"empty_desktop"'
 sleep 1.2
 BAND_Y=$(( SH - 120 ))
-n=$(ink 0 "$BAND_Y" "$SW" 120)
+n=$(band_ink "$BAND_Y")
 [ "$n" -lt 50 ] || fail "autohide: the dock still shows ($n px)"
 echo "ok: autohide hides the dock ($n px)"
 ptr move $(( SW / 2 )) $(( SH - 1 ))
 sleep 1.2
-n=$(ink 0 "$BAND_Y" "$SW" 120)
+n=$(band_ink "$BAND_Y")
 [ "$n" -gt 500 ] || fail "autohide: a rest on the edge did not reveal the dock ($n px)"
 echo "ok: a rest on the bottom edge reveals the dock ($n px)"
 shot "$FIRST/revealed"
 ptr move $(( SW / 2 )) $(( SH / 2 ))
 sleep 1.4
-n=$(ink 0 "$BAND_Y" "$SW" 120)
+n=$(band_ink "$BAND_Y")
 [ "$n" -lt 50 ] || fail "autohide: the dock stayed after the pointer left ($n px)"
 echo "ok: the dock hides after the pointer left ($n px)"
 qml_errors
@@ -535,35 +537,35 @@ for d in $LAYOUT_DECORS; do
     cfgval dock.visibility '"hover"'
     ptr move $(( SW / 2 )) $(( SH / 2 ))
     sleep 1.2
-    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    n=$(band_ink $(( SH - 120 )))
     [ "$n" -lt 50 ] || fail "hover: the dock shows away from the edge ($n px)"
     ptr move $(( SW / 2 + 300 )) $(( SH - 1 ))
     sleep 1.2
-    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    n=$(band_ink $(( SH - 120 )))
     [ "$n" -gt 500 ] || fail "hover: a rest on the edge did not reveal the dock ($n px)"
     sleep 2
-    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    n=$(band_ink $(( SH - 120 )))
     [ "$n" -gt 500 ] || fail "hover: the dock went while the pointer rested on the edge ($n px)"
     timeout 20 grim -g "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220" "$LOUT/$d/hover-revealed.png"
     ptr move $(( SW / 2 )) $(( SH / 2 ))
     sleep 1.4
-    n=$(ink 0 $(( SH - 120 )) "$SW" 120)
+    n=$(band_ink $(( SH - 120 )))
     [ "$n" -lt 50 ] || fail "hover: the dock stayed after the pointer left ($n px)"
     echo "ok: hover: the dwell reveals it, a resting pointer keeps it, leaving hides it"
     cfgval dock.visibility '"hidden"'
     sleep 1
-    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -lt 50 ] || fail "hidden: the dock shows"
+    [ "$(band_ink $(( SH - 120 )))" -lt 50 ] || fail "hidden: the dock shows"
     mockdoc '{"doc":"runtime.ui","patch":{"shown":["dock@HEADLESS-1"]}}'
     sleep 1.2
-    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -gt 500 ] || fail "hidden: runtime.ui.shown did not bring the dock out"
+    [ "$(band_ink $(( SH - 120 )))" -gt 500 ] || fail "hidden: runtime.ui.shown did not bring the dock out"
     mockdoc '{"doc":"runtime.ui","patch":{"shown":[]}}'
     sleep 1.2
-    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -lt 50 ] || fail "hidden: the dock stayed after shown dropped it"
+    [ "$(band_ink $(( SH - 120 )))" -lt 50 ] || fail "hidden: the dock stayed after shown dropped it"
     echo "ok: hidden: out only while runtime.ui.shown lists dock@HEADLESS-1"
     cfgval dock.visibility '"empty_desktop"'
     mockdoc '{"doc":"svc.workspaces","patch":{"tasks":{"*":[],"HEADLESS-1":[]}}}'
     sleep 1.2
-    [ "$(ink 0 $(( SH - 120 )) "$SW" 120)" -gt 500 ] || fail "empty_desktop: the dock is not shown on an empty desk"
+    [ "$(band_ink $(( SH - 120 )))" -gt 500 ] || fail "empty_desktop: the dock is not shown on an empty desk"
     echo "ok: empty_desktop: shown on an empty desk"
     qml_errors
     stop_phase

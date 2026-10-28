@@ -59,7 +59,9 @@ Where every edge surface stands, per output, computed by the daemon's layout ste
 outputs (rebuilt on any of them; nothing polls). Renderers draw it and never re-derive it: no `barH + 4` deciding where a
 fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
 - Top level: `draw` (the preset `layout.draw` in effect), `reveal_delay_ms`, `gap` (token `space.sm`), `join_radius`
-  (token `radius.lg`), `bar_size` (`bar.height`), `outputs`.
+  (token `radius.lg`), `screen_radius` (the screen's outer corners, K74: `join_radius` while
+  `theme.shape.screen_corners_follow`, else `theme.shape.screen_corners`; 0 = square; since schema v5), `bar_size`
+  (`bar.height`), `outputs`.
 - `outputs` maps an output name to its layout; `"*"` is the layout for an output the daemon does not know yet (a fresh
   hotplug renders from it until its own entry arrives). `"*"` is an alias, not an output: a view that lists outputs
   (Settings' output picker) skips it, here and in `svc.workspaces` (row 531).

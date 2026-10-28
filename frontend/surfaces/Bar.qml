@@ -343,10 +343,7 @@ Scope {
                     sh: bar.scr ? bar.scr.height : 0
                     r: bar.frameRadius
                     ow: Theme.boxed ? Theme.outlineW : 0
-                    cr: {
-                        var v = cfg.valueOf("theme.shape.screen_corners", 0)
-                        return typeof v === "number" && v > 0 ? Math.round(v) : 0
-                    }
+                    cr: ShellLayout.screenRadius
                     seed: bar.edge === "top" ? 0xF2A1 : 0xF2A2
                     fills: win.pieces ? win.pieces.fills : []
                     fillets: win.pieces ? win.pieces.fillets : []
