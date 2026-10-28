@@ -322,11 +322,14 @@ Scope {
 
             // ext-background-effect-v1 blur (no-op where the compositor lacks the protocol): the body, and the frame's fills
             // this window carries.
+            // Glass only (Theme.blur). The body as drawn: a floating bar's pill round, a docked strip square; nothing for a
+            // clear strip (its groups are pills of their own) — a square region showed the blur past the outline (I276).
             BackgroundEffect.blurRegion: Region {
-                item: body.shownNow ? bg : null
-                Region { item: carried.item ? carried.item.fillAt(0) : null }
-                Region { item: carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
-                Region { item: carried.item && carried.item.fillCount > 2 ? carried.item.fillAt(2) : null }
+                item: Theme.blur && body.shownNow && !bb.clearStrip ? bg : null
+                radius: bar.drawFloating ? Math.min(bg.width, bg.height) / 2 : 0
+                Region { item: Theme.blur && carried.item ? carried.item.fillAt(0) : null }
+                Region { item: Theme.blur && carried.item && carried.item.fillCount > 1 ? carried.item.fillAt(1) : null }
+                Region { item: Theme.blur && carried.item && carried.item.fillCount > 2 ? carried.item.fillAt(2) : null }
             }
 
             // Row 492 (b): the frame's strip on this edge (its side bands to the fillets' end, the fillets, the rule's arcs).

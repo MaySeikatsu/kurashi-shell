@@ -368,7 +368,14 @@ Scope {
                         Region { item: inputRect }
                         Region { item: grip }
                     }
-                    BackgroundEffect.blurRegion: Region { item: shapeRect }
+                    // Glass only (Theme.blur), rounded as the body is drawn (I276).
+                    BackgroundEffect.blurRegion: Region {
+                        item: Theme.blur ? shapeRect : null
+                        topLeftRadius: shape.sTL
+                        topRightRadius: shape.sTR
+                        bottomLeftRadius: shape.sBL
+                        bottomRightRadius: shape.sBR
+                    }
 
                     readonly property string outName: col.out
                     // K59: this window's tile set, shared by its reliefs, and the pointer light's sensor. K61: the content

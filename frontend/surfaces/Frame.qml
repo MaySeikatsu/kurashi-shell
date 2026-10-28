@@ -138,9 +138,9 @@ Scope {
         Component.onDestruction: Light.setZone(strip, "", edge, 0)
 
         BackgroundEffect.blurRegion: Region {
-            item: pieces.fillAt(0)
-            Region { item: pieces.fillCount > 1 ? pieces.fillAt(1) : null }
-            Region { item: pieces.fillCount > 2 ? pieces.fillAt(2) : null }
+            item: Theme.blur ? pieces.fillAt(0) : null
+            Region { item: Theme.blur && pieces.fillCount > 1 ? pieces.fillAt(1) : null }
+            Region { item: Theme.blur && pieces.fillCount > 2 ? pieces.fillAt(2) : null }
         }
 
         FramePieces {

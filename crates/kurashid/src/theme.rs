@@ -384,7 +384,6 @@ pub fn document_with(
             if let Some(h) = store.get("bar.height", None) {
                 tokens.insert("bar.height".into(), h.value);
             }
-            tokens.insert("blur".into(), json!(input.axes.blur));
             tokens.insert("decor.frame".into(), json!(decor_frame(store)));
             // K62: the pen — how outlines and (through a layer) text are drawn; values in effect (a11y forces them).
             tokens.insert("pen.line".into(), json!(s(store, "theme.pen.line")));

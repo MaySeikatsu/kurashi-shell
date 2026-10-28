@@ -254,9 +254,13 @@ PanelWindow {
     color: "transparent"
     mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
     // The island's shape is opaque and changes size every frame of its morph: no blur behind it.
-    BackgroundEffect.blurRegion: peekLayout ? peekRegion : (shown && !morphMode ? cardRegion : emptyRegion)
+    BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
+        : peekLayout ? peekBlur : (shown && !morphMode ? cardBlur : emptyRegion)
     Region { id: cardRegion; item: card }
     Region { id: peekRegion; item: peekCard }
+    // (rounded as the cards are drawn: a square region showed the blur past their corners, I276)
+    Region { id: cardBlur; item: card; radius: card.radius }
+    Region { id: peekBlur; item: peekCard; radius: peekCard.radius }
     Region { id: emptyRegion }
 
     onOpenChanged: {

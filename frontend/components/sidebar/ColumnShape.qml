@@ -145,6 +145,12 @@ Shape {
     readonly property string fillPath: shown ? path(ow + gw, true, 0) : ""
     // The body's rect without the fillets (the soft shadow's).
     readonly property rect bodyRect: Qt.rect(x0, y0, bw, bh)
+    // The body's corners as they lie on screen (the caller's mirroring undone), for the window's blur region: it follows
+    // the body's rounding, never past the outline (I276); the fillets beyond are left out.
+    readonly property real sTL: flipY ? (flipX ? rBR : rBL) : (flipX ? rTR : rTL)
+    readonly property real sTR: flipY ? (flipX ? rBL : rBR) : (flipX ? rTL : rTR)
+    readonly property real sBL: flipY ? (flipX ? rTR : rTL) : (flipX ? rBR : rBL)
+    readonly property real sBR: flipY ? (flipX ? rTL : rTR) : (flipX ? rBL : rBR)
 
     // K62: with a pen in effect the pen draws the outline along its centre line (one closed line; the open sides lie
     // past the neighbour's edge).
