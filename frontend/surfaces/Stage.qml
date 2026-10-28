@@ -515,6 +515,12 @@ PanelWindow {
     // and w) as the panels do — headless, out of the strip's edge or the widget's block — and its lines fade in once it
     // has; it folds back into the widget when it goes. The window covers the bar's strip, the widget and the card.
     readonly property bool peekMorph: peekLayout && !peekSide && Theme.springOn
+    // A peek with nothing to say (its lines empty: the timer's while none runs) draws nothing — no empty frame (I259).
+    readonly property bool peekEmpty: {
+        var l = peekLoader.item
+        var v = l && l.item !== undefined ? l.item : l
+        return !!v && v.lines !== undefined && v.lines !== null && v.lines.length === 0
+    }
     property real shownW: 0
     Binding { target: stage; property: "shownW"; value: stage.peekReq && stage.peekReq.w !== undefined ? Number(stage.peekReq.w) : 0; when: stage.peekWanted; restoreMode: Binding.RestoreNone }
     readonly property bool peekFlip: shownEdge === "bottom"
@@ -574,7 +580,7 @@ PanelWindow {
     readonly property real peekNeckCx: Math.max(peekShapeCx - peekNeckRoom, Math.min(peekShapeCx + peekNeckRoom, peekNeckWant))
     Item {
         id: peekShapeBox
-        visible: stage.peekMorph
+        visible: stage.peekMorph && !stage.peekEmpty
         width: stage.peekBoxR - stage.peekBoxL
         height: stage.peekBoxH
         transform: Scale { yScale: stage.peekFlip ? -1 : 1; origin.y: stage.peekBoxH / 2 }
@@ -673,7 +679,8 @@ PanelWindow {
                 seed: 0x9EE4
             }
         }
-        opacity: stage.peekP
+        // (nothing drawn for an empty peek, I259; its loader stays to learn when there are lines again)
+        opacity: stage.peekEmpty ? 0 : stage.peekP
         // It slides in from its bar: down from a top bar, up from a bottom bar, out from a side bar.
         x: stage.peekMorph ? stage.peekLeft - stage.peekBoxL
             : (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
