@@ -65,8 +65,8 @@ function loopNoise(R, L, lambda) {
 
 // The closed outline of a w × h rounded rectangle whose line runs `inset` px inside the edge, as points (clockwise
 // from the top-left corner's end). `r` is one radius, or [top-left, top-right, bottom-right, bottom-left]. A corner
-// keeps at least 1.5 px: a pen does not turn on a point.
-function roundRect(w, h, r, inset) {
+// keeps at least 1.5 px: a pen does not turn on a point. `sq`: squircle corners (corner.js's cubic, I281).
+function roundRect(w, h, r, inset, sq) {
     var x0 = inset, y0 = inset, x1 = w - inset, y1 = h - inset
     var rs = typeof r === "number" ? [r, r, r, r] : r
     var lim = Math.max(1.5, Math.min((x1 - x0) / 2, (y1 - y0) / 2))
@@ -76,6 +76,19 @@ function roundRect(w, h, r, inset) {
         cx += cx < w / 2 ? rc : -rc
         cy += cy < h / 2 ? rc : -rc
         var n = Math.max(4, Math.ceil(rc * Math.PI / 2))
+        if (sq && rc < lim - 0.5) {
+            // The squircle's cubic (a pill's round end stays round) between the arc's ends, its handles 0.88 of the way to the corner point.
+            var a1 = a0 + Math.PI / 2, kq = 0.88
+            var sx = cx + rc * Math.cos(a0), sy = cy + rc * Math.sin(a0), ex = cx + rc * Math.cos(a1), ey = cy + rc * Math.sin(a1)
+            var qx = cx + rc * (Math.cos(a0) + Math.cos(a1)), qy = cy + rc * (Math.sin(a0) + Math.sin(a1))
+            var hx = sx + (qx - sx) * kq, hy = sy + (qy - sy) * kq, gx = ex + (qx - ex) * kq, gy = ey + (qy - ey) * kq
+            for (var j = 0; j <= n; j++) {
+                var t = j / n, u = 1 - t
+                pts.push({ x: u * u * u * sx + 3 * u * u * t * hx + 3 * u * t * t * gx + t * t * t * ex,
+                           y: u * u * u * sy + 3 * u * u * t * hy + 3 * u * t * t * gy + t * t * t * ey })
+            }
+            return
+        }
         for (var k = 0; k <= n; k++) {
             var a = a0 + (Math.PI / 2) * k / n
             pts.push({ x: cx + rc * Math.cos(a), y: cy + rc * Math.sin(a) })
@@ -88,7 +101,7 @@ function roundRect(w, h, r, inset) {
     return pts
 }
 
-// An SVG path of absolute M, L, A (circular, small arc) and Z commands — the paths MorphShape builds — as polylines:
+// An SVG path of absolute M, L, A (circular, small arc), C (a squircle corner) and Z commands — the paths MorphShape builds — as polylines:
 // [{pts, closed}], one per subpath. Arcs are sampled every ~1.5 px.
 function svgPaths(d) {
     var tok = (d || "").trim().split(/[\s,]+/)
@@ -124,6 +137,19 @@ function svgPaths(d) {
                 }
             }
             px = x; py = y
+        } else if (c === "C") {
+            // A cubic (a squircle corner, corner.js): sampled every ~1.5 px of its control polygon.
+            var ax = num(), ay = num(), bx = num(), by = num(), ex = num(), ey = num()
+            if (cur) {
+                var len = Math.hypot(ax - px, ay - py) + Math.hypot(bx - ax, by - ay) + Math.hypot(ex - bx, ey - by)
+                var m = Math.max(2, Math.ceil(len / 1.5))
+                for (var j = 1; j <= m; j++) {
+                    var t = j / m, u = 1 - t
+                    cur.pts.push({ x: u * u * u * px + 3 * u * u * t * ax + 3 * u * t * t * bx + t * t * t * ex,
+                                   y: u * u * u * py + 3 * u * u * t * ay + 3 * u * t * t * by + t * t * t * ey })
+                }
+            }
+            px = ex; py = ey
         } else if (c === "Z") {
             if (cur) cur.closed = true
         }
