@@ -1224,6 +1224,9 @@ pub struct Recorder {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 pub enum DockEdge {
     Bottom,
+    /// Top
+    /// Under the top bar, growing out of it (I282).
+    Top,
     Left,
     Right,
 }

@@ -319,6 +319,7 @@
 "config.dock.draw.label" = "描き方"
 "config.dock.draw.help" = "自動はレイアウトの描き方に従います。"
 "config.choice.dock_edge.bottom" = "下"
+"config.choice.dock_edge.top" = "上"
 "config.choice.dock_edge.left" = "左"
 "config.choice.dock_edge.right" = "右"
 "config.dock.pinned.label" = "ピン留めしたアプリ"

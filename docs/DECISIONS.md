@@ -930,4 +930,9 @@ The user's live check after session 15 (BACKLOG I276–I281).
   gap) and the sidebar's section plates (inside the column's corner — the look's radius floating, the hole's joined —
   across its padding; the sidebar window publishes it as `sectionR`). A joined column whose hole radius is no more than
   its padding gets square plates: the rule, not a bug; a rounder look raises R.
+- **The dock on the top edge (I282, session 16).** `dock.edge` takes `top` (the schema's enum; the layout was edge-generic
+  already): under the top bar it joins `bar:top` and grows out of it, the bottom's mirror (its joined frame unflipped, the
+  tooltip and menu below, the hop downward). A dock joined to a bar that slides (hover, empty desktop) rides that bar's
+  edge: it moves by the bar's published lift (`IslandGeom.liftOf`, K74) inside its own window — content and clip line,
+  no resize per frame — so bar and dock never part while either moves, on the top and the bottom edge alike.
 

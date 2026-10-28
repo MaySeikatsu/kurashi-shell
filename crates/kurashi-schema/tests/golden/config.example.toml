@@ -765,7 +765,8 @@
 # enabled = false
 #
 # Edge
-#   choices: "bottom" | "left" | "right" · only while dock.enabled == true · per-output
+#   choices: "bottom" | "top" | "left" | "right" · only while dock.enabled == true ·
+#   per-output
 # edge = "bottom"
 #
 # Visibility — Shown while the desktop is empty and else when the pointer rests on its
