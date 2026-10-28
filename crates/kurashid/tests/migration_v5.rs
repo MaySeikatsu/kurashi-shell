@@ -36,7 +36,11 @@ fn migrated(src: &str) -> String {
 fn a_chosen_screen_corner_size_stops_following() {
     let out = migrated("schema_version = 4\n\n[theme.shape]\nscreen_corners = 24\n");
     let doc: toml::Table = out.parse().unwrap();
-    assert_eq!(doc["schema_version"].as_integer(), Some(5), "{out}");
+    assert_eq!(
+        doc["schema_version"].as_integer(),
+        Some(i64::from(kurashi_schema::v1::VERSION)),
+        "{out}"
+    );
     let shape = &doc["theme"]["shape"];
     assert_eq!(shape["screen_corners"].as_integer(), Some(24), "{out}");
     assert_eq!(

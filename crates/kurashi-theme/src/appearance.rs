@@ -120,15 +120,6 @@ const BUNDLED_STYLES: &[(&str, &str)] = &[
     ("material", include_str!("../../../styles/material.toml")),
     ("glass", include_str!("../../../styles/glass.toml")),
     ("terminal", include_str!("../../../styles/terminal.toml")),
-    (
-        "catppuccin",
-        include_str!("../../../styles/catppuccin.toml"),
-    ),
-    ("rose-pine", include_str!("../../../styles/rose-pine.toml")),
-    (
-        "tokyo-night",
-        include_str!("../../../styles/tokyo-night.toml"),
-    ),
     ("sekai", include_str!("../../../styles/sekai.toml")),
     ("aqua", include_str!("../../../styles/aqua.toml")),
     ("win95", include_str!("../../../styles/win95.toml")),

@@ -415,6 +415,14 @@ impl<S: SchemaView> Config<S> {
         if !self.known.contains(&key) {
             return Err(OpError::UnknownKey { index, key });
         }
+        if output.as_deref().is_some_and(|o| o.trim().is_empty()) {
+            // I242: an override needs an output's name (an empty one was stored and shown as a blank pill).
+            return Err(OpError::Invalid {
+                index,
+                key,
+                message: "config.error.output_empty".to_string(),
+            });
+        }
         if let Some(o) = output
             && !self.schema.per_output(&key)
         {
