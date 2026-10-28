@@ -47,6 +47,10 @@ Item {
     default property alias content: inner.data
     // The card's rest rect as an item (input mask and blur region).
     readonly property alias cardItem: card
+    // The card's corners at rest, for the owner's blur region (it must not reach past the outline): round away from the
+    // bar, square where it grows out of it (the fillets beyond are the bar's); round all round in the fallback.
+    readonly property real cardRNear: morph ? 0 : Theme.rLg
+    readonly property real cardRFar: Theme.rLg
 
     readonly property bool morph: onBar
     // On screen: opening, open or folding back.

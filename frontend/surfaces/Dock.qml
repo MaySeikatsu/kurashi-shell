@@ -429,6 +429,15 @@ Scope {
                         width: body.width - (dock.horiz ? 0 : win.edgeCut)
                         height: body.height - (dock.horiz ? win.edgeCut : 0)
                     }
+                    // Glass only (Theme.blur): behind the body, rounded as it is drawn — the floating block all round, the
+                    // joined body at its free corners (I276).
+                    BackgroundEffect.blurRegion: Region {
+                        item: Theme.blur ? body : null
+                        topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rLg + 4
+                        topRightRadius: dock.joined ? joinedShape.sTR : Theme.rLg + 4
+                        bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rLg + 4
+                        bottomRightRadius: dock.joined ? joinedShape.sBR : Theme.rLg + 4
+                    }
                     // Test only (frontend/test-dock.sh): the window's size and each tile's box in window coordinates, logged once
                     // the dock stands after a change. Off without the variable.
                     readonly property bool geometryLog: Quickshell.env("KURASHI_DOCK_GEOMETRY") === "1"
