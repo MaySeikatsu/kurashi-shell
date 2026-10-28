@@ -547,7 +547,7 @@ kp right
 shot_now 20b-preview-radius
 Q putBack
 [ "$(val theme.shape.radius)" = "$radius0" ] || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius))"
-echo "keyboard K10: Right previewed the radius scale; Put back restored $radius0"
+echo "keyboard K10: Right previewed the radius; Put back restored $radius0"
 
 # K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
 fonts0=$(val theme.typography.family)
@@ -664,7 +664,7 @@ shot 17c-profile-source
 
 # 13d. the review of a load after the user changed a key the profile sets: the user's value is replaced ("your change
 #      replaced"), the changes the profile does not name stay (kept), and Nix holds density back (not applied).
-Q set theme.shape.radius 0.8
+Q set theme.shape.radius 14
 Q preview roomy
 pv=$(K '{"t":"act","id":"pv","action":"profile.preview","args":{"name":"roomy"}}')
 echo "$pv" | python3 -c 'import json,sys
@@ -674,7 +674,7 @@ assert r and r[0]["before"]["source"]["kind"] == "user", r
 assert d["kept_user"] >= 2, d
 assert any(h["key"] == "theme.density" for h in d["not_applied"]), d' || fail "overlay: the review does not replace the user value or keep the others: $pv"
 shot 4b-profile-overlay
-echo "overlay B13: the review replaces radius_scale (your change), keeps the other changes, and holds density back"
+echo "overlay B13: the review replaces radius (your change), keeps the other changes, and holds density back"
 
 # 13d2. I64 (2): a value of yours that the profile sets to the same value (large_text: roomy turns it on). The review marks it
 #       as the same value, listed under "Same value, now set by this profile" with the neutral "Now from this profile" chip,

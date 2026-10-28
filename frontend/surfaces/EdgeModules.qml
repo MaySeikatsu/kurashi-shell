@@ -72,7 +72,8 @@ Scope {
         readonly property int reserve: Math.max(0, Math.round(ed.reserve || 0))
         readonly property bool keepsSpace: holdsZone && reserve > 0
         // Dynamic ↔ connected morphs the fillets (the radius moves over `motion.std`), never a jump.
-        readonly property int joinR: draw === "dynamic" ? ShellLayout.joinRadius : 0
+        // (K74: on a framed output the hole's one radius, `frame.radius`; the layout's `join_radius` without a frame)
+        readonly property int joinR: draw === "dynamic" ? (frameOn ? frameRadius : ShellLayout.joinRadius) : 0
         property real aR: joinR
         Behavior on aR { enabled: Theme.springOn && g.shownAmt > 0; NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic } }
 
@@ -243,7 +244,18 @@ Scope {
                 }
                 readonly property string zoneKey: [g.outName, g.edge, backingWindowVisible && g.holdsZone ? g.reserve : 0].join("|")
                 onZoneKeyChanged: Light.setZone(win, g.outName, g.edge, backingWindowVisible && g.holdsZone ? g.reserve : 0)
-                Component.onDestruction: Light.setZone(win, "", g.edge, 0)
+                Component.onDestruction: { Light.setZone(win, "", g.edge, 0); SidebarGeom.clear(g.outName, "group:" + g.zone, g.edge) }
+                // I258 (row 556): a joined group on a framed edge whose band is ruled (line chrome) covers the band's rule
+                // with its body and fillets: the rule opens there (SidebarGeom, as a column's and the dock's), so the
+                // group's outline runs round its fillets into the rule's ends — one sheet, no line under the group.
+                readonly property string openingKey: !g.floating && g.frameOn && shape.ruled && g.grow > 0
+                    ? [Math.round(g.bodyStart - g.aR), Math.round(g.bodyStart + g.bodyLen + g.aR)].join(",") : ""
+                onOpeningKeyChanged: {
+                    SidebarGeom.clear(g.outName, "group:" + g.zone, g.edge)
+                    if (openingKey === "") return
+                    var v = openingKey.split(",")
+                    SidebarGeom.set(g.outName, "group:" + g.zone, g.edge, Number(v[0]), Number(v[1]))
+                }
 
                 // K59: this window's tile pair for the reliefs, and the pointer light's sensor.
                 property var tileSheet: tilesLoader.item
@@ -335,7 +347,8 @@ Scope {
                                 openO: g.vertical
                                 neckT: g.aR
                                 neckO: g.aR
-                                radius: Math.min(Theme.rLg + 4, g.thick / 2)
+                                // K74: its free corners are corners of the hole, as its fillets (0 = connected, straight)
+                                radius: Math.min(g.joinR, g.thick / 2)
                                 squareOuter: false
                                 flipY: g.edge === "bottom"
                                 flipX: g.edge === "left"

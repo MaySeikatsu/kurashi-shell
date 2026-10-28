@@ -209,8 +209,8 @@ declare -A CASES=(
   [line-none]='top 0 theme.style = "none"|theme.chrome = "line"'
   [line-square]='top 0 theme.style = "washi"|theme.shape.corners = "none"'
   [line-squircle]='top 0 theme.style = "washi"|theme.shape.corners = "squircle"'
-  [line-r05]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 0.5'
-  [line-r2]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius_scale = 2.0'
+  [line-r05]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius = 9'
+  [line-r2]='top 0 theme.style = "none"|theme.chrome = "line"|theme.shape.radius = 36'
   [washi-bottom]="bottom 0 theme.style = \"washi\"|$BOTTOM_BAR"
   [terminal-bottom]="bottom 0 theme.style = \"terminal\"|$BOTTOM_BAR"
   [washi-mid]='top 0 theme.style = "washi"|theme.motion.speed = 0.25'

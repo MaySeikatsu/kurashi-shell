@@ -20,7 +20,9 @@ QtObject {
     // The spring's value, the timed value, and the one in effect (plain values: a binding to `to` would jump first).
     property real sv: 0
     property real tv: 0
-    Component.onCompleted: { sv = to; tv = to }
+    // (Set at rest first: the spring's Behavior is on only once the value stands where the surface was made.)
+    property bool ready: false
+    Component.onCompleted: { sv = to; tv = to; ready = true }
     readonly property real value: timed ? tv : sv
     readonly property bool running: anim.running || sprung.running
 
@@ -29,18 +31,21 @@ QtObject {
         property: "tv"
         easing.type: Easing.BezierSpline
     }
-    property SpringAnimation sprung: SpringAnimation {
-        target: gl
-        property: "sv"
-        spring: gl.spring
-        damping: gl.damping
-        epsilon: gl.epsilon
+    // (A Behavior, as the surfaces had: a SpringAnimation started by hand does not take a new target while it runs.)
+    Behavior on sv {
+        enabled: gl.springs && gl.ready
+        SpringAnimation {
+            id: sprung
+            spring: gl.spring
+            damping: gl.damping
+            epsilon: gl.epsilon
+        }
     }
     onToChanged: go()
-    onTimedChanged: { anim.stop(); sprung.stop(); sv = to; tv = to }
+    onTimedChanged: { anim.stop(); tv = to }
     function go() {
         if (timed) {
-            sprung.stop(); sv = to
+            sv = to
             if (Math.abs(to - tv) < 1e-4) { anim.stop(); tv = to; return }
             var opening = (to > tv) === openUp
             anim.stop()
@@ -49,14 +54,10 @@ QtObject {
             anim.duration = Math.max(1, opening ? Theme.openMs : Theme.closeMs)
             anim.easing.bezierCurve = opening ? Theme.openCurve : Theme.closeCurve
             anim.start()
-        } else if (springs) {
-            anim.stop(); tv = to
-            sprung.to = to
-            if (!sprung.running) sprung.start()
         } else {
-            anim.stop(); sprung.stop(); sv = to; tv = to
+            anim.stop(); tv = to; sv = to
         }
     }
     // Set without motion (a surface made at rest).
-    function snap(v) { anim.stop(); sprung.stop(); to = v; sv = v; tv = v }
+    function snap(v) { anim.stop(); ready = false; to = v; tv = v; sv = v; ready = true }
 }
