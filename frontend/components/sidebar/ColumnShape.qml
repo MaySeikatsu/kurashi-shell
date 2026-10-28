@@ -4,6 +4,7 @@ import Quickshell
 import "../../core"
 import ".."
 import "../pen.js" as Pen
+import "../../core/corner.js" as Corner
 
 // A column that stands on what is under it (K71, docs/ux/layout.md "Draw modes"): the sidebar, and the dock in its joined
 // modes. Drawn in a canonical frame — a column whose OUTER side is the frame's right side (x = width) and whose ends are
@@ -137,7 +138,7 @@ Shape {
             }
             s += ln(X0, T)
         } else s += ln(X0, Y0 + tl)
-        return s + " Z"
+        return Corner.squircled(s + " Z", Theme.squircle)
     }
     function band(a, b) { var p = path(a, true, 0), q = path(b, true, 0); return p === "" ? "" : p + " " + q }
 

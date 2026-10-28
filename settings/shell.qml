@@ -551,8 +551,10 @@ ShellRoot {
                                     function open(): void { win.page = navEntry.modelData.id; win.query = "" }
                                     width: parent.width
                                     height: Theme.controlH + 4
-                                    radius: height / 2
-                                    // Tonal pill for the open page (I51); keycap chrome outlines it.
+                                    // Concentric with the window's corner across the column's margin (I269: the user's
+                                    // "left bar of the menu"); a pill at most.
+                                    radius: Math.min(height / 2, Theme.nested(Theme.rLg, Theme.gap))
+                                    // The tonal plate of the open page (I51); keycap chrome outlines it.
                                     color: on ? Theme.selected : (navHover.hovered ? Theme.containerHigh : "transparent")
                                     border.width: on && Theme.outlineW > 0 ? Theme.outlineW : 0
                                     border.color: Theme.line

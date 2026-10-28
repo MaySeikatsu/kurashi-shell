@@ -4,6 +4,7 @@ import Quickshell
 import "../../core"
 import ".."
 import "../pen.js" as Pen
+import "../../core/corner.js" as Corner
 
 // The island's one shape while it morphs (W21; Capsule's single morphing capsule, Vitreus's liquid neck). Drawn in a top
 // bar's frame; the Stage mirrors the whole item for a bottom bar (`flip`: the hard shadow still falls towards the screen's
@@ -285,7 +286,7 @@ Shape {
 
     // The fill's own path (inside the outline and the ring): the Stage clips the island's relief to it (I168), so the
     // material covers head, neck fillets and body and nothing else.
-    readonly property string fillPath: visible ? path(ow + gw, 0) : ""
+    readonly property string fillPath: visible ? Corner.squircled(path(ow + gw, 0), Theme.squircle) : ""
 
     // K62: with a pen in effect the pen draws the outline band and the rule the shape carries, along their centre lines
     // (the same contours at half the outline's inset): one closed line round head, neck and body — or, hanging from a
@@ -297,7 +298,7 @@ Shape {
         if (!visible || !penOn) return []
         var c = ow / 2, out = []
         function add(d, width, closed) {
-            var subs = Pen.svgPaths(d)
+            var subs = Pen.svgPaths(Corner.squircled(d, Theme.squircle))
             for (var i = 0; i < subs.length; i++)
                 out.push({ points: subs[i].pts, closed: closed === undefined ? subs[i].closed : closed, width: width })
         }
@@ -388,7 +389,7 @@ Shape {
             strokeWidth: -1
             strokeColor: "transparent"
             fillColor: sh.casts ? sh.fa(Theme.line, sh.fade) : "transparent"
-            PathSvg { path: sh.visible && sh.casts ? (sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd)) : "" }
+            PathSvg { path: sh.visible && sh.casts ? Corner.squircled(sh.joined ? sh.path(0, sh.sd) : sh.stripPath(0, false, sh.sd), Theme.squircle) : "" }
         }
     }
     // The bar's rule, drawn by the shape (a ruled strip only; see rulePath), under the outline and the fill.
@@ -396,21 +397,21 @@ Shape {
         strokeWidth: -1
         strokeColor: "transparent"
         fillColor: sh.ruledStrip && !sh.penOn ? sh.oc : "transparent"
-        PathSvg { path: sh.visible && !sh.penOn ? sh.rulePath() : "" }
+        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.rulePath(), Theme.squircle) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.penOn ? "transparent" : sh.fa(sh.oc, sh.fade)
-        PathSvg { path: sh.visible && !sh.penOn ? sh.band(0, sh.ow) : "" }
+        PathSvg { path: sh.visible && !sh.penOn ? Corner.squircled(sh.band(0, sh.ow), Theme.squircle) : "" }
     }
     ShapePath {
         strokeWidth: -1
         strokeColor: "transparent"
         fillRule: ShapePath.OddEvenFill
         fillColor: sh.gw > 0 ? sh.fa(Theme.ring, sh.fade) : "transparent"
-        PathSvg { path: sh.visible && sh.gw > 0 ? sh.band(sh.ow, sh.ow + sh.gw) : "" }
+        PathSvg { path: sh.visible && sh.gw > 0 ? Corner.squircled(sh.band(sh.ow, sh.ow + sh.gw), Theme.squircle) : "" }
     }
     ShapePath {
         strokeWidth: -1
