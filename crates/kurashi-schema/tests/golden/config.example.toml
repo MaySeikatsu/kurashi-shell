@@ -1,11 +1,11 @@
-# Kurashi configuration — schema v5.
+# Kurashi configuration — schema v6.
 # Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
 #
 # Every key is listed commented out at its default. Set only what you want to change:
 # unset keys keep following defaults, themes and profiles.
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
 #
-# schema_version = 5
+# schema_version = 6
 
 # [layout]
 #

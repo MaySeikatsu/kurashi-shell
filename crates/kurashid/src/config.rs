@@ -74,7 +74,96 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 5,
             apply: v4_to_v5,
         },
+        kurashi_config::Migration {
+            from: 5,
+            to: 6,
+            apply: v5_to_v6,
+        },
     ]
+}
+
+/// Session 16 (user): the styles that were only a palette — catppuccin, rose-pine, tokyo-night — became palette choices.
+/// A file that names one keeps its appearance: `theme.style` becomes `none` (your own), and the style's look, palette
+/// and recipe are written as its own values wherever the file sets none. Root and `[outputs.*]` tables.
+fn v5_to_v6(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    fn style_values(name: &str) -> Option<Vec<(&'static [&'static str], toml_edit::Item)>> {
+        use toml_edit::value;
+        let fonts = |v: &[&str]| {
+            let mut a = toml_edit::Array::new();
+            for f in v {
+                a.push(*f);
+            }
+            value(a)
+        };
+        Some(match name {
+            "catppuccin" => vec![
+                (&["theme", "look"][..], value("soft")),
+                (&["theme", "colors", "palette"][..], value("catppuccin")),
+                (&["theme", "motion", "profile"][..], value("lively")),
+                (&["theme", "material", "opacity"][..], value(0.92)),
+                (&["theme", "shape", "radius"][..], value(23)),
+                (&["theme", "colors", "scheme"][..], value("dark")),
+            ],
+            "rose-pine" => vec![
+                (&["theme", "look"][..], value("soft")),
+                (&["theme", "colors", "palette"][..], value("rose-pine")),
+                (&["theme", "shape", "radius"][..], value(21)),
+                (
+                    &["theme", "typography", "family"][..],
+                    fonts(&["Nunito", "Noto Sans CJK JP", "sans-serif"]),
+                ),
+                (&["theme", "colors", "scheme"][..], value("dark")),
+            ],
+            "tokyo-night" => vec![
+                (&["theme", "look"][..], value("kanso")),
+                (&["theme", "colors", "palette"][..], value("tokyo-night")),
+                (&["theme", "motion", "speed"][..], value(1.25)),
+                (&["theme", "material", "opacity"][..], value(0.88)),
+                (&["theme", "shape", "radius"][..], value(15)),
+                (
+                    &["theme", "typography", "family"][..],
+                    fonts(&[
+                        "JetBrainsMono Nerd Font",
+                        "JetBrains Mono",
+                        "Noto Sans Mono CJK JP",
+                        "monospace",
+                    ]),
+                ),
+                (&["theme", "colors", "scheme"][..], value("dark")),
+                (&["theme", "density"][..], value("compact")),
+            ],
+            _ => return None,
+        })
+    }
+    fn one(t: &mut dyn toml_edit::TableLike) {
+        let style = t
+            .get("theme")
+            .and_then(|th| th.get("style"))
+            .and_then(toml_edit::Item::as_str)
+            .map(str::to_owned);
+        let Some(values) = style.as_deref().and_then(style_values) else {
+            return;
+        };
+        take(t, &["theme", "style"]);
+        put(t, &["theme", "style"], toml_edit::value("none"));
+        // (`put` writes only where the file has nothing: a value of the user's own stays)
+        for (path, item) in values {
+            put(t, path, item);
+        }
+    }
+    let root = doc.as_table_mut();
+    one(root);
+    if let Some(outputs) = root
+        .get_mut("outputs")
+        .and_then(toml_edit::Item::as_table_like_mut)
+    {
+        for (_, t) in outputs.iter_mut() {
+            if let Some(t) = t.as_table_like_mut() {
+                one(t);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// K74 (session 16): the screen's corners follow the corner radius by default (`theme.shape.screen_corners_follow`). A

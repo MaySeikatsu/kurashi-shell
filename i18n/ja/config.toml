@@ -56,3 +56,4 @@
 # 行 101 (I64 (1)): 保存済みのプロファイルと同じ名前のファイルの読み込み。
 "config.error.profile_name_taken" = "同じ名前のプロファイルが保存されています。読み込むにはファイル名を変えてください"
 "config.choice.action.none" = "なし"
+"config.error.output_empty" = "出力（画面）の名前が必要です。"

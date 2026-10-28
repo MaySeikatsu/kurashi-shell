@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 5;
+pub const VERSION: u32 = 6;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
