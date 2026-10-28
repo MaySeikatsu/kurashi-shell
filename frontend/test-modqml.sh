@@ -118,7 +118,7 @@ with open(sys.argv[1], "rb") as f:
     w, h, raster = read_ppm(f.read())
 # The island's shape is drawn at the panel's opacity (W22, I114): the container blended over the desk's own colour (from
 # the bottom-right corner) counts too, at the daemon's translucent default (0.85) or the mock's surface_alpha (0.82).
-_b = ((h - 3) * w + (w - 3)) * 3
+_b = ((h - 60) * w + (w - 60)) * 3  # (60 px in: past the rounded screen corner, K74)
 COLOURS = [SURFACE] + [tuple(round(SURFACE[k] * a + raster[_b + k] * (1 - a)) for k in range(3)) for a in (0.85, 0.82)]
 n = 0
 x0 = y0 = 1 << 30

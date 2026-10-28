@@ -170,7 +170,7 @@ def card(ppm, surface, alpha="1"):
     t = [int(surface.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4)]
     w, h, raster = read_ppm(pathlib.Path(ppm).read_bytes())
     a = float(alpha)
-    b = ((h - 3) * w + (w - 3)) * 3   # the desk's own colour, from the bottom-right corner
+    b = ((h - 60) * w + (w - 60)) * 3   # the desk's own colour, near the bottom-right corner (past the screen corner, K74)
     blend = [round(t[k] * a + raster[b + k] * (1 - a)) for k in range(3)]
     n, x0, y0, x1, y1 = 0, 1 << 30, 1 << 30, -1, -1
     for y in range(40, min(1000, h)):
