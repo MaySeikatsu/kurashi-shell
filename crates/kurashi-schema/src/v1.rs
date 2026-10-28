@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 4;
+pub const VERSION: u32 = 5;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -821,9 +821,14 @@ pub struct Shape {
     /// Corner style of bars, popups and the island.
     #[kurashi(default = Corners::Rounded)]
     pub corners: Corners,
+    /// Screen corners follow the radius
+    /// The screen's corners take the corner radius, so the frame, the bars and the panels sit concentric in them (a
+    /// square look leaves them square). Off: they take their own size below.
+    #[kurashi(default = true, since = 5)]
+    pub screen_corners_follow: bool,
     /// Screen corners
     /// Rounds the corners of every screen by this many pixels (0 = square, as the panel is).
-    #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px")]
+    #[kurashi(default = 0, range = 0..=48, step = 2, unit = "px", requires = "theme.shape.screen_corners_follow == false")]
     pub screen_corners: u32,
     /// Corner radius
     /// The one radius every corner follows (K74): panels, cards and the island's views take it; buttons, toggles and

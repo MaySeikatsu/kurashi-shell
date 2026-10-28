@@ -1,11 +1,11 @@
-# Kurashi configuration — schema v4.
+# Kurashi configuration — schema v5.
 # Generated from the schema (kurashi_schema::example_toml); do not edit by hand.
 #
 # Every key is listed commented out at its default. Set only what you want to change:
 # unset keys keep following defaults, themes and profiles.
 # Per-output keys can be overridden per monitor, e.g. [outputs."DP-1".bar] height = 40.
 #
-# schema_version = 4
+# schema_version = 5
 
 # [layout]
 #
@@ -276,9 +276,15 @@
 #   choices: "none" | "rounded" | "squircle"
 # corners = "rounded"
 #
+# Screen corners follow the radius — The screen's corners take the corner radius, so the
+# frame, the bars and the panels sit concentric in them (a square look leaves them square).
+# Off: they take their own size below.
+#   since schema v5
+# screen_corners_follow = true
+#
 # Screen corners — Rounds the corners of every screen by this many pixels (0 = square, as
 # the panel is).
-#   range: 0..=48, step 2 (px)
+#   range: 0..=48, step 2 (px) · only while theme.shape.screen_corners_follow == false
 # screen_corners = 0
 #
 # Corner radius — The one radius every corner follows (K74): panels, cards and the

@@ -61,11 +61,7 @@ Scope {
     readonly property var fdoc: lay.frame || ({})
     readonly property int r: Math.max(0, Math.round(fdoc.radius || 0))
     // Rounded screen corners (K47 (6)): drawn by each strip over its own part (FramePieces).
-    BarConfig { id: cfg; screen: fr.modelData }
-    readonly property int cr: {
-        var v = cfg.valueOf("theme.shape.screen_corners", 0)
-        return typeof v === "number" && v > 0 ? Math.round(v) : 0
-    }
+    readonly property int cr: ShellLayout.screenRadius
 
     // The zones the strips keep, per edge (0: none). Through a string so it notifies only when a zone changes: every
     // document patch re-reads the layout, and rebuilt piece lists would remake the strips' items (a frame for nothing).

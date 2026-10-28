@@ -3112,6 +3112,12 @@ pub fn layout_globals_of(get: &dyn Fn(&str) -> Value, theme: &Value) -> kurashi_
             .map_or(250, |v| v as u32),
         gap: token("space.sm", 8),
         join_radius: token("radius.lg", 16),
+        screen_follow: get("theme.shape.screen_corners_follow")
+            .as_bool()
+            .unwrap_or(true),
+        screen_corners: get("theme.shape.screen_corners")
+            .as_u64()
+            .map_or(0, |v| v.min(u64::from(u32::MAX)) as u32),
         bar_size: get("bar.height").as_u64().map_or(32, |v| v as u32),
     }
 }

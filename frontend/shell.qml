@@ -135,7 +135,7 @@ ShellRoot {
         model: Quickshell.screens
         delegate: EdgeStripHost {}
     }
-    // Rounded screen corners (K47 (6)): per output, only while theme.shape.screen_corners > 0.
+    // Rounded screen corners (K47 (6)): per output, only while runtime.layout's screen_radius > 0 (K74).
     Variants {
         model: Quickshell.screens
         delegate: ScreenCorners {}

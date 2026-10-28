@@ -259,6 +259,8 @@
 "settings.section.idle" = "アイドル"
 "settings.section.night_light" = "夜間モード"
 "settings.section.recorder" = "画面録画"
+"config.theme.shape.screen_corners_follow.label" = "画面の角を角の丸さに合わせる"
+"config.theme.shape.screen_corners_follow.help" = "画面の角が角の丸さと同じ半径になり、フレーム・バー・パネルがその中に同心に収まります（四角のルックでは四角のまま）。オフにすると下の値を使います。"
 "config.theme.shape.screen_corners.label" = "画面の角"
 "config.theme.shape.screen_corners.help" = "すべての画面の角をこのピクセル数だけ丸めます（0 = パネルどおりの四角）。"
 "config.idle.enabled.label" = "アイドル時の動作"

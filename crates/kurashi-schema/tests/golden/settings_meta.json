@@ -1112,8 +1112,29 @@
             },
             {
               "advanced": false,
-              "control": "slider",
+              "control": "toggle",
               "couplings": [],
+              "default": true,
+              "help": "config.theme.shape.screen_corners_follow.help",
+              "key": "theme.shape.screen_corners_follow",
+              "label": "config.theme.shape.screen_corners_follow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 5,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.shape.screen_corners_follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": false
+                }
+              ],
               "default": 0,
               "help": "config.theme.shape.screen_corners.help",
               "key": "theme.shape.screen_corners",
@@ -4635,5 +4656,5 @@
       ]
     }
   ],
-  "schema_version": 4
+  "schema_version": 5
 }

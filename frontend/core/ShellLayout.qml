@@ -10,6 +10,9 @@ QtObject {
     readonly property var doc: Store.docs["runtime.layout"] || ({})
     readonly property int gap: doc.gap !== undefined ? doc.gap : 8
     readonly property int joinRadius: doc.join_radius !== undefined ? doc.join_radius : 16
+    // The screen's outer corners (K74): the radius while `theme.shape.screen_corners_follow`, else their own size. 0 until
+    // the document says (no corner drawn that is not in effect).
+    readonly property int screenRadius: doc.screen_radius !== undefined ? Math.max(0, Math.round(doc.screen_radius)) : 0
     readonly property int revealDelay: doc.reveal_delay_ms !== undefined ? doc.reveal_delay_ms : 250
 
     readonly property var fallback: ({

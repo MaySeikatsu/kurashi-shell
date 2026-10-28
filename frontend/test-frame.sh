@@ -133,6 +133,8 @@ if args.get("multi"):
         e.update(inset=0, reserve=barh if k == "top" else 0, holder="bar" if k == "top" else "none")
     doc["outputs"] = {args["multi"]: o, "*": off}
 doc["bar_size"] = barh
+# The screen's corners (K74 `screen_radius`): square unless the scene says (`screen=<px>`), as the shots before it.
+doc["screen_radius"] = int(args.get("screen", 0))
 json.dump(doc, open(out, "w"))
 PY
 
@@ -334,7 +336,9 @@ if [[ " $DECORS " == *" washi "* ]]; then
   scene washi top radius=48; shoot washi radius-48
   scene washi top thickness=2; shoot washi thickness-2
   scene washi nobar thickness=32; shoot washi thickness-32
-  CFG='{"theme.shape.screen_corners": 16}' scene washi top; shoot washi screen-corners
+  scene washi top screen=16; shoot washi screen-corners
+  # Following the radius: screen R, band 8, hole R − 8 (K74) — R 24 here, so the three curves read as concentric.
+  scene washi top screen=24 radius=16; shoot washi screen-corners-follow
 fi
 
 # ---- memory: the frontend's PSS with the frame off and on, back-to-back pairs ----

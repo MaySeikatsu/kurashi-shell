@@ -864,8 +864,14 @@ the outer frame 20 too, the inner frame 20 − x where x is the number of pixels
   (Caelestia's border and panels share one rounding). Washi (R 9) and an 8 px band give 1 px: nearly square, as the
   look's own corners are small; a look or the user raises R for rounder holes.
 - Not in this step (BACKLOG I269): the concentric rule for nested controls (`inner = outer − inset`: a button inside a card,
-  the Settings nav), screen corners following R by default (a change at the monitor's bezel — an open decision), pixel
-  and straight-line joins (I270).
+  the Settings nav), pixel and straight-line joins (I270).
+- **Screen corners (session 16, user: "should follow the radius by default, but there should be a toggle for it").**
+  Schema v5: `theme.shape.screen_corners_follow` (default on): the screen's outer corners are `radius.lg` — screen R,
+  band round it, hole `R − thickness`: the whole chain concentric (0 under `corners = none`: a square look squares the
+  screen too). Off, `theme.shape.screen_corners` (px, inert while following — `requires`) sizes them as before. The
+  layout resolves it once and publishes the top-level `screen_radius` (PROTOCOL §3.1, fixture); `ScreenCorners` and the
+  frame's and a docked bar's corner fillets all draw that number. Migration `v4_to_v5`: a file that set
+  `screen_corners` (0 included) chose a size and gets `screen_corners_follow = false`; every other file follows.
 **Motion.** The user: "in dynamic they should look and feel like they do in caelestia shell"; keep the springs as a
 separate setting, adapt them where they conflict.
 - `theme.motion.profile` gains `expressive`, the new default; looks that said `calm` say `expressive` (lively and none
