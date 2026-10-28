@@ -16,11 +16,13 @@ use serde_json::{Value, json};
 
 const SEEK: &str = "mods.media.seek_step";
 
-/// The bundled mods (`mods/`): `media` (off by default) and `easter-eggs` (on by default).
+/// The bundled mods (`mods/`, `easter-eggs` among them) and the test data's `media`: a mod with settings (it was a
+/// bundled mod until media became core, I281).
 fn bundled() -> Registry {
     let version = Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods");
-    Registry::discover(&[dir], &version)
+    let data = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/mods");
+    Registry::discover(&[dir, data], &version)
 }
 
 /// A store over a fresh config dir. `user_toml` is written to `config.toml` before the store

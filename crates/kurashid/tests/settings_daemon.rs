@@ -390,7 +390,8 @@ async fn settings_open_takes_a_page_and_refuses_one_settings_does_not_have() {
     // A loaded mod has a page (K25), `mods.<id>` in `schema.settings`, linked as `mod:<id>`.
     let version = semver::Version::parse(env!("CARGO_PKG_VERSION")).unwrap();
     let mut reg = kurashi_mods::Registry::discover(
-        &[PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../mods")],
+        // (the test data's `media`: a mod with settings, bundled until media became core, I281)
+        &[PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/mods")],
         &version,
     );
     reg.load("media").unwrap();

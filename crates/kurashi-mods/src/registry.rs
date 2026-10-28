@@ -160,6 +160,12 @@ impl Registry {
             .collect()
     }
 
+    /// Keeps only the entries `keep` accepts (the daemon drops a native mod whose code this build does not link: B15,
+    /// I281 — no page and no switch that cannot work).
+    pub fn retain(&mut self, mut keep: impl FnMut(&ModEntry) -> bool) {
+        self.mods.retain(|_, e| keep(e));
+    }
+
     pub fn get(&self, id: &str) -> Option<&ModEntry> {
         self.mods.get(id)
     }

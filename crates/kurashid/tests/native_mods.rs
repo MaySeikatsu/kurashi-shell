@@ -1327,11 +1327,11 @@ async fn a_list_setting_is_a_pick_list_of_its_choices() {
     );
 }
 
-/// B15: a mod whose manifest declares daemon code (a service, action, island face, choice source or
-/// job) is refused when this build links none for it; a frontend-only mod is switched on as before.
-/// The bundled `media` and `easter-eggs` (on by default) declare daemon code and no linked module.
+/// B15, I281: a mod whose manifest declares daemon code (a service, action, island face, choice source or
+/// job) is not offered when this build links none for it — not listed, and enabling it fails; a frontend-only mod is
+/// switched on as before. The bundled `easter-eggs` declares an action and has no linked module.
 #[tokio::test]
-async fn an_unlinked_mod_with_daemon_provides_is_refused_and_a_frontend_only_one_is_on() {
+async fn an_unlinked_mod_with_daemon_provides_is_not_offered_and_a_frontend_only_one_is_on() {
     let extra = scratch("unbuilt-mods");
     write(
         &extra.join("ghost/mod.toml"),
@@ -1349,24 +1349,23 @@ async fn an_unlinked_mod_with_daemon_provides_is_refused_and_a_frontend_only_one
         Vec::new(),
     );
 
-    // Nothing is on by default (K33); switched on, the bundled easter-eggs has an action and no code: refused.
-    assert_eq!(d.state("easter-eggs"), "available");
-    d.act("mod.enable", "easter-eggs").await.unwrap();
-    assert_eq!(d.state("easter-eggs"), "disabled");
-    assert_eq!(
-        d.entry("easter-eggs")["errors"][0]["key"],
-        "mods.error.not_built"
-    );
-
-    d.act("mod.enable", "ghost").await.unwrap();
-    assert_eq!(d.state("ghost"), "disabled");
-    assert_eq!(d.entry("ghost")["errors"][0]["key"], "mods.error.not_built");
-
-    // The bundled media declares a service, a face and actions: the same refusal, and nothing served.
-    d.act("mod.enable", "media").await.unwrap();
-    assert_eq!(d.state("media"), "disabled");
-    assert_eq!(d.entry("media")["errors"][0]["key"], "mods.error.not_built");
-    assert!(d.hub.snapshot("mod.media").is_err());
+    let listed = |id: &str| {
+        let (_, doc) = d.hub.snapshot("mods").unwrap();
+        doc["mods"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == id)
+    };
+    for id in ["easter-eggs", "ghost"] {
+        assert!(!listed(id), "{id} has no code in this build: not offered");
+        assert!(
+            d.act("mod.enable", id).await.is_err(),
+            "{id}: nothing to enable"
+        );
+    }
+    // Media is core (svc.media, the island's face): no mod of that name any more.
+    assert!(!listed("media"));
 
     // Frontend-only provides need no code: on, with their components listed.
     d.act("mod.enable", "glass").await.unwrap();
