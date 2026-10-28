@@ -68,9 +68,6 @@ are never reset.
 | washi | inspired | washi | wa-iro | light |
 | kanso | modern | kanso | kanso | dark |
 | material, glass, terminal | modern | same name | material / kanso / kanso | dark |
-| catppuccin | modern | soft | catppuccin | dark, lively, opacity 0.92, radius 23 |
-| rose-pine | modern | soft | rose-pine | dark, radius 21, Nunito |
-| tokyo-night | modern | kanso | tokyo-night | dark, compact, calm ×1.25, opacity 0.88, radius 15, mono |
 | sekai, aqua | inspired | same name | same name | sekai light / aqua dark |
 | win95, luna, aero, ps2, snes | retro | same name | same name | scheme; win95/snes compact |
 | kawaii, yorha, hallownest, souls | fiction | same name | same name | scheme |
@@ -129,6 +126,7 @@ tiles, bar groups: a restrained edge or nothing), `ground` (the lock's backdrop,
 
 | pack (W25, after shellseikatsu `Services/Modes/*.qml`) | palette | chrome | corners | motion | type chain (free fallback) | frame |
 |---|---|---|---|---|---|---|
+(Session 16: catppuccin, tokyo-night and rose-pine are palettes now, not styles — a style that was only a palette is a palette choice; migration `v5_to_v6` keeps a config's appearance. The rows below are history.)
 | catppuccin | catppuccin mocha | soft, translucent 0.92 | rounded ×1.3 | lively | Inter | — |
 | tokyo-night | tokyo-night night | flat, translucent 0.88, compact | rounded ×0.85 | calm ×1.25 | JetBrains Mono | — |
 | rose-pine | rose-pine main | soft, translucent 0.9 | rounded ×1.15 | calm | Nunito | — |

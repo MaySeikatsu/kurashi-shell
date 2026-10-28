@@ -939,4 +939,10 @@ The user's live check after session 15 (BACKLOG I276–I281).
   right's default) or `pages` (one section at a time under wrapping tabs — the left's). Either side takes either: in pages
   a core section (header, tiles, levels, notifications, calendar, media) is a page of its own, drawn as the one column
   draws it; in a stack a mod's panel is a section. A stack without a section that fills keeps its spare room below.
+- **A style is more than a palette (session 16, user).** catppuccin, rose-pine and tokyo-night were styles that only
+  named a palette, a stock look and a few values: they are palette choices now (their palettes were there already), and
+  the styles list keeps what has a design of its own. Schema v6: `v5_to_v6` turns a file's `theme.style` of one of them
+  into `none` (your own) and writes the style's look, palette and recipe where the file had none — nothing changes on
+  screen. The deeper style rework (Windows, macOS and console looks; a lock screen per style) is
+  `docs/tasks/W53-styles.md`.
 
