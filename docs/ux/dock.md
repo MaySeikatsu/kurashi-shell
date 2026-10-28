@@ -1,5 +1,6 @@
 # App dock — UX brief (K51, card W25-dock)
 Status: v1 built (W25-dock); W36-bar: urgent, pin reorder by drag, shared-edge reveal, icon chain (I137). Shots `frontend/shots/dock/<decor>/*.png`; test `frontend/test-dock.sh`.
+Session 16 (I282, K75): `dock.edge = top` — under the top bar, growing out of it; joined to a sliding bar it rides the bar's edge (no gap while either moves).
 
 ## Job
 Start the apps you keep and get back to the ones that run, from one edge, without a bar's window list per workspace.

@@ -1227,7 +1227,7 @@ Your pinned apps and the running ones, at a screen edge.
 #### `dock.edge` — Edge
 
 - type: `choice` · default: `"bottom"`
-- choices: `"bottom"` | `"left"` | `"right"`
+- choices: `"bottom"` | `"top"` | `"left"` | `"right"`
 - only while `dock.enabled == true`
 - per-output
 
