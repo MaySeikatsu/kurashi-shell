@@ -925,4 +925,9 @@ The user's live check after session 15 (BACKLOG I276–I281).
   radius steps ×1.3 under squircle (`SQUIRCLE_SCALE`): a squircle with the circle's ends sits closer to the corner, so a
   longer one reads as round as the radius set — and K74's concentric chain (screen, band, hole) scales with it.
   Leftovers (Rectangle-drawn corners, the relief's box): I288.
+- **Nested corners (I269, session 16).** `Theme.nested(outer, inset)` = `outer − inset` (≥ 0) is the radius of a corner
+  that lies `inset` inside another: the Settings navigation's plates (inside the sheet's `radius.lg`, across the column's
+  gap) and the sidebar's section plates (inside the column's corner — the look's radius floating, the hole's joined —
+  across its padding; the sidebar window publishes it as `sectionR`). A joined column whose hole radius is no more than
+  its padding gets square plates: the rule, not a bug; a rounder look raises R.
 

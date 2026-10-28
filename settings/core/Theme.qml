@@ -37,6 +37,9 @@ Singleton {
     readonly property int rSm: tok("radius.sm", 6)
     readonly property int rLg: tok("radius.lg", 18)
     readonly property int rFull: tok("radius.full", 999)
+    // K74 (I269): the radius of a corner that lies `inset` px inside a corner of `outer` — concentric with it, so curves
+    // inside one another keep one distance all round (0 once the inset is the radius or more).
+    function nested(outer, inset) { return Math.max(0, Math.round(outer - inset)) }
     // Chrome (K42), as the shell's Theme: keycap = ink outline, ring and hard shadow; flat = all widths 0.
     readonly property int outlineW: tok("chrome.outline", 0)
     readonly property int ringW: tok("chrome.ring", 0)
