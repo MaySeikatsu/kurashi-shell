@@ -67,6 +67,11 @@ Scope {
             : ["header", "toggles", "sliders", "notifications", "calendar"])
         return Array.isArray(v) ? v.filter(function (s) { return typeof s === "string" && s !== "" }) : []
     }
+    // I283: one column (the right's default) or pages with tabs (the left's).
+    readonly property string mode: {
+        var v = cfg.valueOf("sidebar." + side + ".mode", side === "left" ? "pages" : "stack")
+        return v === "pages" || v === "stack" ? v : (side === "left" ? "pages" : "stack")
+    }
     readonly property bool instant: !Theme.springOn
     readonly property bool geometryLog: Quickshell.env("KURASHI_SIDEBAR_GEOMETRY") === "1"
     readonly property bool traceLog: Quickshell.env("KURASHI_SIDEBAR_TRACE") === "1"
@@ -654,7 +659,7 @@ Scope {
                                 id: colLoader
                                 anchors.fill: parent
                                 focus: true
-                                sourceComponent: sb.side === "left" ? leftC : rightC
+                                sourceComponent: sb.mode === "pages" ? leftC : rightC
                             }
                         }
                     }
@@ -743,6 +748,6 @@ Scope {
     }
     Component {
         id: leftC
-        LeftColumn { tabs: sb.sections }
+        LeftColumn { tabs: sb.sections; side: sb.side; outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : "" }
     }
 }
