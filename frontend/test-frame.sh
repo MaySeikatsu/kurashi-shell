@@ -103,6 +103,10 @@ def bar(e, draw="dynamic"):
         E[e].update(inset=0, reserve=barh, holder="bar")
 if scene in ("top", "reserve-off"):
     bar("top")
+elif scene == "hover":
+    # A docked bar on hover carries its strip and keeps the frame's zone (the daemon's `frame_here`).
+    bar("top")
+    E["top"].update(visibility="hover", reserve=t)
 elif scene == "floating":
     bar("bottom", "floating")
 elif scene.startswith("bar-"):
@@ -262,6 +266,22 @@ if [[ " $DECORS " == *" washi "* ]]; then
   [ "$(pixel 3 600)" = "$bg" ] || fail "the band stayed after the frame went off"
   K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":true}}}}}' >/dev/null; sleep 1.5
   [ "$(pixel 3 600)" != "$bg" ] || fail "the band did not come back with the frame"
+
+  # A docked bar on hover (session 15): hidden, the band stays on its edge and the fillets hang on the band; out, the bar
+  # is the band grown thick and the fillets hang under it.
+  scene washi hover
+  bg=$(pixel 960 700)
+  [ "$(pixel 960 3)" != "$bg" ] || fail "hover bar hidden: no band on the top edge"
+  [ "$(pixel 960 $((T + 3)))" = "$bg" ] || fail "hover bar hidden: something drawn under the band (y $((T + 3)))"
+  [ "$(pixel $((T + 1)) $((T + 1)))" != "$bg" ] || fail "hover bar hidden: no fillet on the band's left end"
+  [ "$(pixel 3 $((T + 3)))" != "$bg" ] || fail "hover bar hidden: the left band does not reach the top band"
+  shoot washi hover-hidden
+  ( echo "move 960 0"; sleep 2.5; echo "move 960 600"; sleep 1 ) | python3 -I "$ROOT/tools/bench/wl_pointer.py" --serve &
+  hp=$!; sleep 1.8
+  [ "$(pixel 960 $((BARH - 3)))" != "$bg" ] || fail "hover bar out: no bar at y $((BARH - 3))"
+  [ "$(pixel $((T + 1)) $((BARH + 1)))" != "$bg" ] || fail "hover bar out: no fillet under the bar's left end"
+  shoot washi hover-out
+  wait "$hp" || true
 
   scene washi floating
   window_rect; say "floating bottom bar: test window at $rect"

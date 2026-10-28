@@ -32,25 +32,33 @@ Item {
     // openings, [{edge, from, to}] along that edge in output px): the rule is left out there, so the neighbour's outline
     // runs round its fillet into the rule's ends (one sheet, as on a bar: row 521).
     property var openings: []
-    // A carrying bar that slides (hover, empty desktop: Bar.qml): the cut on its edge stands `lift` px nearer the screen
-    // edge than the pieces were laid out for (the bar's shown depth). The fillets, the arcs and the rule's corner pixels
-    // move with it; the pieces marked `grow` (the side bands and their rule) keep their far end and reach the cut. `cover`
-    // ({x, y, w, h}, output px; h 0: none) is the band between the bar's body and the frame's thickness while the body is
-    // slid nearer the edge than that, `coverRule` the band's inner rule along it. Numbers, not new piece lists: the delegates
-    // stay made while the bar moves.
-    property string liftEdge: ""
-    property real lift: 0
+    // Docked bars that slide (hover, empty desktop: Bar.qml): the cut on edge `e` stands `lift<E>` px nearer the screen edge
+    // than the pieces were laid out for (the bar's shown depth; IslandGeom.lifts). A piece hanging in a corner (`c`: a
+    // fillet, its arc, a square corner's pixel) moves with both of its corner's edges; the band's straight rule (`band`)
+    // reaches the moved corners; a piece marked `grow: <edge>` (the side bands in a top or bottom strip, and their rule)
+    // keeps its far end and reaches the moved cut. `cover` ({x, y, w, h}, output px; 0: none) is the band between a sliding
+    // bar's body and the frame's thickness while the body is slid nearer the edge than that, `coverRule` the band's inner
+    // rule along it. Numbers, not new piece lists: the delegates stay made while a bar moves.
+    property real liftTop: 0
+    property real liftBottom: 0
+    property real liftLeft: 0
+    property real liftRight: 0
     property var cover: ({ x: 0, y: 0, w: 0, h: 0 })
     property var coverRule: ({ x: 0, y: 0, w: 0, h: 0 })
-    readonly property real shiftY: liftEdge === "top" ? -lift : liftEdge === "bottom" ? lift : 0
-    function growY(g) { return g.grow && liftEdge === "top" ? g.y - lift : g.grow ? g.y : g.y + shiftY }
-    function growH(g) { return g.grow ? g.h + lift : g.h }
+    function cdx(c) { return c.charAt(1) === "l" ? -liftLeft : liftRight }
+    function cdy(c) { return c.charAt(0) === "t" ? -liftTop : liftBottom }
+    function gx(g) { return g.c ? g.x + cdx(g.c) : g.band ? g.x - liftLeft : g.x }
+    function gy(g) { return g.c ? g.y + cdy(g.c) : g.grow === "top" ? g.y - liftTop : g.y }
+    function gw(g) { return g.band ? g.w + liftLeft + liftRight : g.w }
+    function gh(g) { return g.grow === "top" ? g.h + liftTop : g.grow === "bottom" ? g.h + liftBottom : g.h }
+    // A rule piece runs along x (a band's edge) unless it is marked `vert` (a side's rule, 0 long at rest).
+    function isH(g) { return g.vert === true ? false : g.w >= g.h }
     readonly property var shownRules: cutRules(rules, openings)
     function cutRules(list, ops) {
         if (!ops || ops.length === 0) return list
         var out = []
         for (var i = 0; i < list.length; i++) {
-            var g = list[i], horiz = g.w >= g.h
+            var g = list[i], horiz = fp.isH(g)
             var segs = [[horiz ? g.x : g.y, horiz ? g.x + g.w : g.y + g.h]]
             var mid = horiz ? g.y + g.h / 2 : g.x + g.w / 2
             for (var j = 0; j < ops.length; j++) {
@@ -70,7 +78,7 @@ Item {
             }
             for (var m = 0; m < segs.length; m++) {
                 var a = segs[m][0], b = segs[m][1]
-                out.push(horiz ? { x: a, y: g.y, w: b - a, h: g.h, grow: g.grow } : { x: g.x, y: a, w: g.w, h: b - a, grow: g.grow })
+                out.push(Object.assign({}, g, horiz ? { x: a, w: b - a } : { y: a, h: b - a }))
             }
         }
         return out
@@ -102,7 +110,7 @@ Item {
         model: fp.fills
         Rectangle {
             required property var modelData
-            x: modelData.x; y: fp.growY(modelData); width: modelData.w; height: fp.growH(modelData)
+            x: fp.gx(modelData); y: fp.gy(modelData); width: fp.gw(modelData); height: fp.gh(modelData)
             color: Theme.surfaceAlpha
             Loader {
                 anchors.fill: parent
@@ -126,7 +134,7 @@ Item {
         Fillet {
             required property var modelData
             r: fp.r
-            x: modelData.x; y: modelData.y + fp.shiftY; turn: modelData.turn
+            x: fp.gx(modelData); y: fp.gy(modelData); turn: modelData.turn
         }
     }
     // The rule: rectangles and arcs in the outline colour, or the pen's line.
@@ -134,7 +142,7 @@ Item {
         model: fp.ow > 0 && !Theme.penOutline ? fp.shownRules : []
         Rectangle {
             required property var modelData
-            x: modelData.x; y: fp.growY(modelData); width: modelData.w; height: fp.growH(modelData)
+            x: fp.gx(modelData); y: fp.gy(modelData); width: fp.gw(modelData); height: fp.gh(modelData)
             color: Theme.outlineColor
         }
     }
@@ -147,7 +155,8 @@ Item {
         model: fp.ow > 0 && !Theme.penOutline ? fp.arcs : []
         Shape {
             required property var modelData
-            y: fp.shiftY
+            x: fp.cdx(modelData.c)
+            y: fp.cdy(modelData.c)
             width: fp.width
             height: fp.height
             preferredRendererType: Shape.CurveRenderer
@@ -156,7 +165,7 @@ Item {
                 strokeColor: Theme.outlineColor
                 strokeWidth: fp.ow
                 capStyle: ShapePath.FlatCap
-                PathPolyline { path: modelData.map(function (p) { return Qt.point(p.x, p.y) }) }
+                PathPolyline { path: modelData.p.map(function (p) { return Qt.point(p.x, p.y) }) }
             }
         }
     }
@@ -175,17 +184,19 @@ Item {
             paths: {
                 var l = [], ox = fp.ox, oy = fp.oy, h = fp.ow / 2
                 var lifted = fp.shownRules.map(function (g) {
-                    return { x: g.x, y: fp.growY(g), w: g.w, h: fp.growH(g) }
+                    return { x: fp.gx(g), y: fp.gy(g), w: fp.gw(g), h: fp.gh(g), vert: g.vert }
                 })
                 if (fp.coverRule.h > 0 && fp.coverRule.w > 0) lifted.push(fp.coverRule)
                 lifted.forEach(function (g) {
-                    var a = g.w >= g.h
+                    if (g.w <= 0 || g.h <= 0) return
+                    var a = fp.isH(g)
                         ? [{ x: g.x - ox, y: g.y + h - oy }, { x: g.x + g.w - ox, y: g.y + h - oy }]
                         : [{ x: g.x + h - ox, y: g.y - oy }, { x: g.x + h - ox, y: g.y + g.h - oy }]
                     l.push({ points: a, closed: false })
                 })
                 fp.arcs.forEach(function (a) {
-                    l.push({ points: a.map(function (p) { return { x: p.x - ox, y: p.y + fp.shiftY - oy } }), closed: false })
+                    var dx = fp.cdx(a.c), dy = fp.cdy(a.c)
+                    l.push({ points: a.p.map(function (p) { return { x: p.x + dx - ox, y: p.y + dy - oy } }), closed: false })
                 })
                 return l
             }
