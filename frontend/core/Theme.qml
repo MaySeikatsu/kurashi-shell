@@ -30,6 +30,9 @@ Singleton {
     // The compositor's blur behind the chrome (`theme.material.blur`): glass only, and only while the switch is on and the
     // compositor can (the daemon's token). Every window's BackgroundEffect.blurRegion is empty otherwise.
     readonly property bool blur: tok("blur", false) === true
+    // `theme.shape.corners = squircle` (I281): every shape draws its quarter corners as squircle curves (core/corner.js);
+    // a pill's round end stays round.
+    readonly property bool squircle: tok("shape.corner", "rounded") === "squircle"
     readonly property color containerHigh: color("color.surface_container_high", "#2f2c33")
     readonly property int barH: tok("bar.height", 36)
     // Control height. Visuals of buttons take it; smaller visuals enlarge their hit area to it (32 px floor).

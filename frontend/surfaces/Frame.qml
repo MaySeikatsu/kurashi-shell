@@ -180,7 +180,7 @@ Scope {
             id: strips
             readonly property real sw: fr.modelData ? fr.modelData.width : 0
             readonly property real sh: fr.modelData ? fr.modelData.height : 0
-            readonly property var g: FG.geometry(fr.lay, Theme.barH, sw, sh, fr.ow, fr.zones)
+            readonly property var g: FG.geometry(fr.lay, Theme.barH, sw, sh, fr.ow, fr.zones, Theme.squircle)
             readonly property var topP: FG.across(g, true)
             readonly property var bottomP: FG.across(g, false)
             readonly property var leftP: FG.side(g, true)

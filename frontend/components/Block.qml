@@ -49,6 +49,9 @@ Item {
     // The outline this block draws (0: none): the chrome's, else the flat hairline.
     readonly property real outlineWidth: Theme.outlineW > 0 ? Theme.outlineW : (flatBorder.a > 0 ? 1 : 0)
     readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
+    // I281: a squircle look draws the shadow, the rim and the ring's fill as squircles (SquircleRect, made only then);
+    // a pill (its corner half the face or more) stays round.
+    readonly property bool sq: Theme.squircle && Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 
@@ -61,8 +64,13 @@ Item {
         width: blk.width
         height: blk.faceH
         radius: face.r
-        color: Theme.line
+        color: blk.sq ? "transparent" : Theme.line
         antialiasing: true
+        Loader {
+            anchors.fill: parent
+            active: blk.sq
+            sourceComponent: SquircleRect { radius: face.r; color: Theme.line }
+        }
     }
     Item {
         id: face
@@ -100,11 +108,23 @@ Item {
             id: rim
             anchors.fill: parent
             radius: face.r
-            color: blk.ringW > 0 ? Theme.ring : face.shownFill
+            readonly property color fillC: blk.ringW > 0 ? Theme.ring : face.shownFill
             // A frame that draws the outline itself (kami's pen), or the pen (K62), replaces the straight line.
-            border.width: over.item !== null && over.item.hidesOutline ? 0 : blk.outlineWidth
+            readonly property real lineW: over.item !== null && over.item.hidesOutline ? 0 : blk.outlineWidth
+            color: blk.sq ? "transparent" : fillC
+            border.width: blk.sq ? 0 : lineW
             border.color: blk.outlineInk
             antialiasing: true
+            Loader {
+                anchors.fill: parent
+                active: blk.sq
+                sourceComponent: SquircleRect {
+                    radius: face.r
+                    color: rim.fillC
+                    borderWidth: rim.lineW
+                    borderColor: blk.outlineInk
+                }
+            }
         }
         // Under the content: the press flash of a chrome without sink or shrink (line), and the material's relief (K59).
         Loader {
@@ -144,8 +164,14 @@ Item {
             anchors.fill: parent
             anchors.margins: blk.inset
             radius: face.innerR
-            color: blk.ringW > 0 ? face.shownFill : "transparent"
+            color: blk.ringW > 0 && !blk.sq ? face.shownFill : "transparent"
             antialiasing: true
+            Loader {
+                z: -1
+                anchors.fill: parent
+                active: blk.sq && blk.ringW > 0
+                sourceComponent: SquircleRect { radius: face.innerR; color: face.shownFill }
+            }
             // K62: the pen's text modifiers draw the content (text, icons) through one layer while any is in effect;
             // not over a picture or a web page (`relief: false`).
             layer.enabled: Theme.penText && blk.relief

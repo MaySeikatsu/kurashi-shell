@@ -43,7 +43,7 @@ Item {
         if (!lines) {
             var r = po.radii ? po.radii : Math.min(po.radius, w / 2, h / 2)
             if (w < 4 || h < 4) return
-            lines = [{ points: po.points ? po.points : Pen.roundRect(w, h, r, po.lineWidth / 2 + po.inset), closed: true }]
+            lines = [{ points: po.points ? po.points : Pen.roundRect(w, h, r, po.lineWidth / 2 + po.inset, Theme.squircle), closed: true }]
         }
         var salt = (Pen.seedOf(w, h, 0x5E11) ^ (po.seed >= 0 ? po.seed : Pen.salt(po.anchor))) >>> 0
         for (var l = 0; l < lines.length; l++) {

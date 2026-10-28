@@ -20,6 +20,7 @@ QuickPanel 1.0 QuickPanel.qml
 PeekLines 1.0 PeekLines.qml
 KeyClock 1.0 KeyClock.qml
 SoftShadow 1.0 SoftShadow.qml
+SquircleRect 1.0 SquircleRect.qml
 FrameHost 1.0 FrameHost.qml
 Relief 1.0 Relief.qml
 TileSheet 1.0 TileSheet.qml
