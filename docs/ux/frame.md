@@ -21,8 +21,9 @@ on per output, follows the look (fill, chrome outline, texture, pen, light) and,
   full-output transparent buffer + a shader per frame; we draw four static strips like `ScreenCorners.qml`, 0 frames
   idle); the four extra exclusion windows (a layer window costs ~3.5 MiB here, I11 — the strips hold the zones).
 - **end-4 ii** (`modules/ii/screenCorners`), **shellseikatsu** `Widgets/ScreenCorners.qml`: rounded corners only, no
-  band. Our `theme.shape.screen_corners` is that and stays: it rounds the panel's *outer* corners, the frame's radius
-  rounds its *inner* corners — both can be on.
+  band. Ours rounds the panel's *outer* corners; since K74 (session 16) they follow the corner radius R by default
+  (`theme.shape.screen_corners_follow`), so screen, band and the frame's inner corners (`R − thickness`) are concentric;
+  off, `theme.shape.screen_corners` gives them their own size.
 - **KDE Plasma 6**: no frame; floating panels show a margin all round. **macOS / Windows / GNOME**: none.
 - **Hyprland decorations / niri `border`**: per-window borders, not a screen frame — a frame does not replace them.
 

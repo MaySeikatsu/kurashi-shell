@@ -38,7 +38,10 @@ fn radius_scale_becomes_px_and_frame_radius_goes() {
         "schema_version = 3\n\n[theme.shape]\nradius_scale = 1.25\n\n[layout.frame]\nenabled = true\nradius = 24\n\n\
          [outputs.\"DP-1\".theme.shape]\nradius_scale = 0.5\n",
     );
-    assert!(out.contains("schema_version = 4"), "{out}");
+    assert!(
+        out.contains(&format!("schema_version = {}", kurashi_schema::v1::VERSION)),
+        "{out}"
+    );
     assert!(!out.contains("radius_scale"), "{out}");
     let doc: toml::Table = out.parse().unwrap();
     assert_eq!(

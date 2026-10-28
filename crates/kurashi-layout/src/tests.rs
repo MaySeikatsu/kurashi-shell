@@ -10,6 +10,8 @@ fn globals() -> Globals {
         reveal_delay_ms: 250,
         gap: 8,
         join_radius: 16,
+        screen_follow: true,
+        screen_corners: 0,
         bar_size: 32,
     }
 }
@@ -139,6 +141,7 @@ fn the_fixture_comes_out_byte_equal() {
         reveal_delay_ms: g.reveal_delay_ms,
         gap: g.gap,
         join_radius: g.join_radius,
+        screen_radius: screen_radius(&g),
         bar_size: g.bar_size,
         outputs: BTreeMap::from([
             ("*".to_string(), output(&g, &mods, &fixture_star())),
@@ -738,4 +741,21 @@ fn one_radius_for_the_hole() {
     c.frame.enabled = false;
     c.sidebar_right.draw = Some(Draw::Dynamic);
     assert_eq!(lay(&c, &[]).sidebars.right.radius, 16);
+}
+
+#[test]
+fn screen_corners_follow_the_radius() {
+    // K74 (session 16): the screen's corners are `radius.lg` unless the user gives them their own size.
+    let mut g = globals();
+    g.screen_corners = 24;
+    let doc = |g: &Globals| {
+        compute(&Input {
+            globals: g.clone(),
+            mods: Vec::new(),
+            outputs: BTreeMap::new(),
+        })
+    };
+    assert_eq!(doc(&g).screen_radius, 16);
+    g.screen_follow = false;
+    assert_eq!(doc(&g).screen_radius, 24);
 }

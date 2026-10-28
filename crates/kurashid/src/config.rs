@@ -69,7 +69,33 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 4,
             apply: v3_to_v4,
         },
+        kurashi_config::Migration {
+            from: 4,
+            to: 5,
+            apply: v4_to_v5,
+        },
     ]
+}
+
+/// K74 (session 16): the screen's corners follow the corner radius by default (`theme.shape.screen_corners_follow`). A
+/// file that set `theme.shape.screen_corners` chose its own size (0 included), so it gets `screen_corners_follow = false`
+/// unless it already says. Root only: the key is not per output.
+fn v4_to_v5(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    let root = doc.as_table_mut();
+    let shape = root
+        .get("theme")
+        .and_then(|t| t.get("shape"))
+        .and_then(toml_edit::Item::as_table_like);
+    if shape.is_some_and(|s| {
+        s.contains_key("screen_corners") && !s.contains_key("screen_corners_follow")
+    }) {
+        put(
+            root,
+            &["theme", "shape", "screen_corners_follow"],
+            toml_edit::value(false),
+        );
+    }
+    Ok(())
 }
 
 /// K74: one corner radius. `theme.shape.radius_scale` (× the 18 px step) became `theme.shape.radius` (px, rounded);

@@ -39,7 +39,7 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 ## 3. Axes (orthogonal, all user-pinnable)
 | Axis | Values |
 |---|---|
-| `shape` | corner style `none|rounded|squircle`, `radius` (px, K74) |
+| `shape` | corner style `none|rounded|squircle`, `radius` (px, K74), `screen_corners_follow` (screen corners = R, default on) / `screen_corners` (px, while off) |
 | `material` | `solid|translucent|glass`, `opacity`, `blur` (request; capability-forced off if unsupported) |
 | `motion` | profile `calm|lively|none` + `speed` |
 | `density` | `compact|regular|airy` (scales spacing + control sizes) |

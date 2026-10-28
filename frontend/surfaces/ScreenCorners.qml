@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../core"
 
-// Rounded screen corners (K47 (6), `theme.shape.screen_corners`): four concave quarter-circle fillets in black — the
+// Rounded screen corners (K47 (6), K74: `runtime.layout`'s `screen_radius`): four concave quarter-circle fillets in black — the
 // panel's own edge — at the corners of one output, while the radius is > 0 (shellseikatsu `Widgets/ScreenCorners.qml`,
 // Caelestia's rounded border). Click-through (`mask: Region {}`), no keyboard, ignoring exclusive zones so they sit on
 // the panel's corners. On the overlay layer: the screen's edge is the topmost thing the shell draws — no bar, frame strip,
@@ -15,11 +15,9 @@ Scope {
     id: sc
     required property var modelData
 
-    BarConfig { id: cfg; screen: sc.modelData }
-    readonly property int radius: {
-        var r = cfg.valueOf("theme.shape.screen_corners", 0)
-        return typeof r === "number" && r > 0 ? Math.round(r) : 0
-    }
+    // (`runtime.layout`'s `screen_radius`: the corner radius while they follow it, K74, else theme.shape.screen_corners)
+    Watch { doc: "runtime.layout" }
+    readonly property int radius: ShellLayout.screenRadius
 
     // One fillet: black from the corner to the arc, drawn for the top-left corner and turned for the others.
     component Corner: PanelWindow {
