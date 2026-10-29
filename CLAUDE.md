@@ -90,4 +90,10 @@ delete it after the merge; `docs/tasks/README.md` has the card rules.
 ## Testing without disturbing the user's session
 Never start the shell on the user's display unless asked. Use `just sandbox` (headless sway,
 own `XDG_RUNTIME_DIR` under `/tmp/kurashi-sb-*`, own `HOME`), screenshots via `grim`, and kill
-only PIDs whose environ carries that runtime dir. For screencopy tests use the gles2 renderer.
+only PIDs whose environ carries that runtime dir (never `pkill`). For screencopy tests use the gles2 renderer.
+
+**niri is the lead platform (user rule, session 17).** Every visual check, review screenshot and acceptance of a
+user-facing change runs on niri: `tools/bench/niri-sandbox.sh` nests niri inside that invisible sway sandbox, so
+niri's blur, layer stacking and animations are what you see — sway lacks blur and stacks layers differently, and bugs
+were missed there. The sway-based `frontend/test-*.sh` suites stay as regression tests; a fix is not done until it is
+seen on niri. For blur, start it with a patterned wallpaper; for joins, read pixels (grim + `magick … txt:`).
