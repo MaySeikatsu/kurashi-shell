@@ -188,6 +188,10 @@ Scope {
                 holdIn: col.pointerIn || col.focusHeld || col.resizing
             }
             readonly property bool wanted: pinned || (emptyMode && emptyDesk) || toggledHere || reveal.revealed
+            // I301: out or not, for the holder of this edge's zone (SidebarGeom.openZone).
+            readonly property int openZone: SidebarGeom.openZone(out, sb.side)
+            readonly property string outKey: out + "|" + wanted
+            onOutKeyChanged: { SidebarGeom.setOut(out, sb.side, wanted) }
             // The window exists: out, sliding in or out.
             property bool held: false
 
@@ -360,10 +364,12 @@ Scope {
                     implicitWidth: catcher ? col.sw : Math.ceil(boxW)
                     // K71: only the edge's holder keeps the zone (windows tile beside a pinned column); every other
                     // column ignores zones and stands where the layout says, from the screen's edges.
-                    exclusionMode: col.holder ? ExclusionMode.Normal : ExclusionMode.Ignore
+                    // I301: where nothing holds the edge's zone, a column that keeps space only while it is out holds it then.
+                    readonly property bool holdsOpen: !col.holder && col.wanted && col.sideEdge.holder === "none" && col.openZone > 0
+                    exclusionMode: col.holder || holdsOpen ? ExclusionMode.Normal : ExclusionMode.Ignore
                     // Only a holder sets the zone: setting `exclusiveZone` at all turns the window to ExclusionMode.Normal
                     // (measured: a column with `exclusiveZone: 0` was placed below the top bar's zone).
-                    Binding on exclusiveZone { when: col.holder; value: col.reserve; restoreMode: Binding.RestoreNone }
+                    Binding on exclusiveZone { when: col.holder || win.holdsOpen; value: col.holder ? col.reserve : col.openZone; restoreMode: Binding.RestoreNone }
                     color: "transparent"
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-sidebar"
@@ -581,7 +587,7 @@ Scope {
                                 radius: col.floating ? Theme.rLg : col.joinR
                                 flipX: sb.side === "left"
                                 // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
-                                ruled: !col.floating && Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
+                                ruled: !col.floating && Theme.frameOutline
                                 chrome: col.floating
                                 // Joined, the column takes its neighbour's colour (one sheet); a free column the panel's.
                                 fill: col.floating ? Theme.panel : Theme.surfaceAlpha

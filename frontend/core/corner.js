@@ -10,6 +10,8 @@
 // Handle length as a fraction of the way from an end to the corner point: 0.5523 draws a circle, more a squircle.
 var K_CIRCLE = 0.5523
 var K_SQUIRCLE = 0.88
+// `sq` is the look's squircle ratio (`Theme.squircle`, token `shape.squircle_k`, I300) or `true` for the default one.
+function kOf(sq) { return typeof sq === "number" && sq > K_CIRCLE && sq < 1 ? sq : K_SQUIRCLE }
 
 function f(v) { return Math.round(v * 100) / 100 }
 
@@ -29,15 +31,15 @@ function cornerOf(px, py, qx, qy, sweep) {
 function quarter(px, py, r, sweep, x, y, sq) {
     if (!(r > 0.05)) return " L " + f(x) + " " + f(y)
     if (!sq) return " A " + f(r) + " " + f(r) + " 0 0 " + sweep + " " + f(x) + " " + f(y)
-    var c = cornerOf(px, py, x, y, sweep)
-    return " C " + f(px + (c.x - px) * K_SQUIRCLE) + " " + f(py + (c.y - py) * K_SQUIRCLE)
-        + " " + f(x + (c.x - x) * K_SQUIRCLE) + " " + f(y + (c.y - y) * K_SQUIRCLE) + " " + f(x) + " " + f(y)
+    var c = cornerOf(px, py, x, y, sweep), k = kOf(sq)
+    return " C " + f(px + (c.x - px) * k) + " " + f(py + (c.y - py) * k)
+        + " " + f(x + (c.x - x) * k) + " " + f(y + (c.y - y) * k) + " " + f(x) + " " + f(y)
 }
 
 // Points along a quarter turn from p to q round the corner point c (n + 1 points, both ends included): the circle's
 // cubic or the squircle's.
 function points(px, py, cx, cy, qx, qy, sq, n) {
-    var k = sq ? K_SQUIRCLE : K_CIRCLE
+    var k = sq ? kOf(sq) : K_CIRCLE
     var ax = px + (cx - px) * k, ay = py + (cy - py) * k, bx = qx + (cx - qx) * k, by = qy + (cy - qy) * k
     var out = []
     for (var i = 0; i <= n; i++) {
@@ -115,7 +117,7 @@ function squircled(svg, sq) {
         else {
             var nb = neighbour(k, -1), na = neighbour(k, 1)
             var halfCircle = (nb && Math.abs(nb.r - g.r) < 0.6) || (na && Math.abs(na.r - g.r) < 0.6)
-            if (g.q && !halfCircle) out.push(quarter(g.px, g.py, g.r, +g.a[4], g.x, g.y, true).trim())
+            if (g.q && !halfCircle) out.push(quarter(g.px, g.py, g.r, +g.a[4], g.x, g.y, sq).trim())
             else out.push("A", g.a.join(" "))
         }
     }

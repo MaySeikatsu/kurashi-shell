@@ -64,7 +64,7 @@ Scope {
     // Row 492 (b): a docked bar on a framed output is its edge's strip.
     readonly property bool carries: on && FG.docked(lay, edge)
     // The openings of the columns and the dock on the bands this bar's strip carries (SidebarGeom; through a string).
-    readonly property string frameOpeningsKey: carries && Theme.boxed && Theme.outlineW > 0
+    readonly property string frameOpeningsKey: carries && Theme.frameOutline
         ? JSON.stringify(SidebarGeom.openingsOf(outName).filter(function (o) { return o.edge !== edge })) : "[]"
     readonly property var frameOpenings: JSON.parse(frameOpeningsKey)
     // The one-holder rule (K71): the layout names the bar (row 510: also on a framed edge whose strip it carries).
@@ -228,7 +228,7 @@ Scope {
             readonly property int startRoom: Math.min(shadowRoom, bar.startOff)
             readonly property int endRoom: Math.min(shadowRoom, bar.endOff)
             readonly property var g: bar.carries ? FG.geometry(bar.lay, bar.barH, bar.scr ? bar.scr.width : 0, bar.scr ? bar.scr.height : 0,
-                                                               Theme.boxed ? Theme.outlineW : 0, FG.zones(bar.lay), Theme.squircle) : null
+                                                               Theme.frameOutlineW, FG.zones(bar.lay), Theme.squircle) : null
             readonly property string piecesKey: bar.carries && g !== null && (bar.edge === "top" || bar.edge === "bottom")
                 ? JSON.stringify(FG.across(g, bar.edge === "top")) : ""
             readonly property var pieces: piecesKey !== "" ? JSON.parse(piecesKey) : null
@@ -284,7 +284,8 @@ Scope {
             // (Quickshell switches to Normal whenever `exclusiveZone` is written, so it is written only while the bar holds the
             // zone; a window that holds none stays Ignore, -1 on the wire.)
             exclusionMode: bar.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
-            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, win.zoneTotal - win.edgeMargin); restoreMode: Binding.RestoreNone }
+            // (with the zone a sidebar that keeps space only while it is out takes then: I301)
+            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, Math.max(win.zoneTotal, SidebarGeom.openZone(bar.outName, bar.edge)) - win.edgeMargin); restoreMode: Binding.RestoreNone }
             WlrLayershell.layer: WlrLayer.Top
             // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
             WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -294,7 +295,7 @@ Scope {
             // strip's, which keeps the bar out while the pointer rests there (EdgeReveal, row 524).
             readonly property int edgeCut: reveal.cutFor(bar.inset)
             // The rule as drawn (the test log's; none under a chrome without a rule or a floating bar).
-            readonly property var ruleSegs: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 ? bg.ruleSegs : []
+            readonly property var ruleSegs: !bar.drawFloating && Theme.frameOutline ? bg.ruleSegs : []
             mask: Region {
                 x: body.restX + (bar.edge === "left" ? win.edgeCut : 0)
                 y: body.restY + (bar.edge === "top" ? win.edgeCut : 0)
@@ -353,7 +354,7 @@ Scope {
                     sw: bar.scr ? bar.scr.width : 0
                     sh: bar.scr ? bar.scr.height : 0
                     r: bar.frameRadius
-                    ow: Theme.boxed ? Theme.outlineW : 0
+                    ow: Theme.frameOutlineW
                     cr: ShellLayout.screenRadius
                     seed: bar.edge === "top" ? 0xF2A1 : 0xF2A2
                     fills: win.pieces ? win.pieces.fills : []
@@ -505,12 +506,12 @@ Scope {
                             id: rulePen
                             anchors.fill: parent
                             visible: !win.bandShows
-                            active: Theme.penOutline && !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0
+                            active: Theme.penOutline && !bar.drawFloating && Theme.frameOutline
                             sourceComponent: PenOutline {
-                                readonly property real ow: Theme.outlineW
+                                readonly property real ow: Theme.frameOutlineW
                                 readonly property real cy: bar.edge === "top" ? height - ow / 2 : ow / 2
                                 readonly property real cx: bar.edge === "left" ? width - ow / 2 : ow / 2
-                                color: Theme.outlineColor
+                                color: Theme.frameOutlineColor
                                 lineWidth: ow
                                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
                                 radius: 0
@@ -521,16 +522,17 @@ Scope {
                             }
                         }
                         Repeater {
-                            model: !bb.floatingGroups && !bar.drawFloating && Theme.outlineW > 0 && !rulePen.active ? bg.ruleSegs : []
+                            model: !bar.drawFloating && Theme.frameOutline && !rulePen.active ? bg.ruleSegs : []
                             Rectangle {
                                 required property var modelData
                                 // (inside the frame's band while the body is slid out past it: the band's rule stands there)
                                 visible: !win.bandShows
-                                color: Theme.outlineColor
+                                // (the frame outline's, I303: on for keycap and line chrome, the bar's inner side as the frame's)
+                                color: Theme.frameOutlineColor
                                 x: bar.vertical ? (bar.edge === "left" ? bg.width - width : 0) : modelData[0]
                                 y: bar.vertical ? modelData[0] : (bar.edge === "top" ? bg.height - height : 0)
-                                width: bar.vertical ? Theme.outlineW : Math.max(0, modelData[1] - modelData[0])
-                                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.outlineW
+                                width: bar.vertical ? Theme.frameOutlineW : Math.max(0, modelData[1] - modelData[0])
+                                height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.frameOutlineW
                             }
                         }
                     }

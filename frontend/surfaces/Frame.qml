@@ -68,7 +68,8 @@ Scope {
     readonly property string zonesKey: on ? JSON.stringify(FG.zones(live)) : JSON.stringify({ top: 0, bottom: 0, left: 0, right: 0 })
     readonly property var zones: JSON.parse(zonesKey)
     function holds(e) { return zones[e] > 0 }
-    function reserveOf(e) { return zones[e] || 0 }
+    // (with the zone a sidebar that keeps space only while it is out takes then: I301)
+    function reserveOf(e) { return Math.max(zones[e] || 0, SidebarGeom.openZone(out, e)) }
     // The edges whose strip a docked bar carries (row 492 b). Through a string, as the zones.
     readonly property string carriedKey: JSON.stringify({ top: FG.docked(lay, "top"), bottom: FG.docked(lay, "bottom"),
                                                           left: FG.docked(lay, "left"), right: FG.docked(lay, "right") })
@@ -86,9 +87,9 @@ Scope {
     Component.onCompleted: { if (on) lay = copy(live); held = on }
     Timer { id: leave; interval: Math.max(1, Theme.stdMs); onTriggered: fr.held = false }
 
-    // The rule's width: the outline under line chrome (boxed: an outline and no shadow; keycap and soft draw a plain sheet,
-    // their ring and shadow belong to blocks); the pen draws it under a pen.
-    readonly property int ow: Theme.boxed ? Theme.outlineW : 0
+    // The rule's width: the frame outline's (`theme.frame_outline`, I303 — auto: on for keycap and line chrome); the pen
+    // draws it under a pen.
+    readonly property int ow: Theme.frameOutlineW
     // Where a sidebar or the dock joined to the band covers its rule (SidebarGeom; FramePieces leaves the rule out there).
     // Through a string: it notifies only when an opening of this output changes.
     readonly property string openingsKey: ow > 0 && held ? JSON.stringify(SidebarGeom.openingsOf(out)) : "[]"

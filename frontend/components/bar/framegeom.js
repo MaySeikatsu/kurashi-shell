@@ -35,7 +35,7 @@ function arc(cx, cy, rad, a0, a1, sq) {
     if (sq) {
         var p0x = cx + rad * Math.cos(a0), p0y = cy + rad * Math.sin(a0), p1x = cx + rad * Math.cos(a1), p1y = cy + rad * Math.sin(a1)
         return Corner.points(p0x, p0y, cx + rad * (Math.cos(a0) + Math.cos(a1)), cy + rad * (Math.sin(a0) + Math.sin(a1)),
-                             p1x, p1y, true, n)
+                             p1x, p1y, sq, n)
     }
     for (var i = 0; i <= n; i++) {
         var a = a0 + (a1 - a0) * i / n
@@ -56,7 +56,7 @@ function geometry(lay, barH, sw, sh, ow, z, sq) {
         right: b.right + (docked(lay, "right") ? barH : 0)
     }
     var dk = { top: docked(lay, "top"), bottom: docked(lay, "bottom"), left: docked(lay, "left"), right: docked(lay, "right") }
-    return { sw: sw, sh: sh, o: o, b: b, dk: dk, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z, sq: !!sq }
+    return { sw: sw, sh: sh, o: o, b: b, dk: dk, r: Math.max(0, Math.round(f.radius || 0)), ow: ow, z: z, sq: sq || 0 }
 }
 // Where a side strip starts and ends: never above the zones the compositor already placed it inside (a holder is placed
 // within the top and bottom holders' zones, mapped before it).
