@@ -186,6 +186,10 @@ async fn run() -> anyhow::Result<()> {
         )),
     );
     kurashid::wiring::ui(&hub, &mut actions);
+    // W53.0b (K80): the open card's title bar buttons (runtime.ui.title) and `ui.title {button}`.
+    kurashid::title::register(&hub, config.clone(), &mut actions);
+    // W53.0b (K80): the style's sound cues, off by default (nothing watches or plays while off).
+    kurashid::sound::register(&hub, config.clone(), &mut actions);
     kurashid::wiring::notifications_with_facts(
         &hub,
         &mut actions,
