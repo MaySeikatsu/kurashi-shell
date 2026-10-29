@@ -1,5 +1,7 @@
 import QtQuick
+import QtQuick.Effects
 import "../core"
+import "decor"
 
 // Block (K42, K45): the one shape every chrome is made of, drawn from tokens only (rule 4: nothing here or in a caller
 // compares the chrome's name). The four chromes are four sets of widths and colours:
@@ -22,11 +24,17 @@ import "../core"
 // under the content and one over it, only while the look has any of it; the sink and the shrink share one eased value and
 // the fill one colour animation (two Behaviors, not five). The stacking order is the same as before, so every chrome
 // draws what it drew (tools/bench/block-identity.sh).
+// W53.0a (K80): the bevel chrome — `Theme.bevelW` px light/dark pairs over the face's edge (decor/BevelEdge.qml), the
+// pairs swapped while pressed or `sunken` (a text field, the tray well), the content moved `Theme.bevelPress` px down
+// and right while pressed (no sink, no shrink, no flash); and the materials next to blur — a glow and a bloom under the
+// face, a sheen on its upper half — each made only while the look has it (0 frames idle).
 Item {
     id: blk
     property color fill: Theme.containerHigh
     property real radius: Theme.rLg
     property bool pressed: false
+    // A well (K80): drawn pressed in at rest — the bevel's pairs swapped. Only a bevel look draws it.
+    property bool sunken: false
     // A hairline when the chrome has no outline of its own (flat cards, popups).
     property color flatBorder: "transparent"
     property bool animate: visible
@@ -39,13 +47,16 @@ Item {
     // K62: the pen's salt for this block's outline (≥ 0); -1 = the block's place in its parent (pen.js `salt`).
     property int penSeed: -1
     readonly property real ringW: Theme.ringW * ringScale
-    readonly property real inset: Theme.outlineW + ringW
+    // The content sits inside the outline, the ring and both bevel pairs.
+    readonly property real inset: Theme.outlineW + ringW + 2 * Theme.bevelW
     readonly property real faceH: height - Theme.shadowDy
     readonly property alias face: face
     default property alias content: fillRect.data
-    // The press a chrome has: a sink (hard shadow), a shrink (press scale), else a flash of the fill (also a keycap whose
-    // shadow is set to nothing: K67, nothing to sink onto).
-    readonly property bool flashes: Theme.sinkX === 0 && Theme.sinkY === 0 && Theme.pressScale >= 1
+    // The press a chrome has: a sink (hard shadow), a shrink (press scale), a bevel's swap, else a flash of the fill (also
+    // a keycap whose shadow is set to nothing: K67, nothing to sink onto).
+    readonly property bool flashes: Theme.sinkX === 0 && Theme.sinkY === 0 && Theme.pressScale >= 1 && Theme.bevelW === 0
+    // How far the content moves down and right while pressed (a bevel's press; 0 for every other chrome).
+    readonly property int shift: pressed ? Theme.bevelPress : 0
     // The outline this block draws (0: none): the chrome's, else the flat hairline.
     readonly property real outlineWidth: Theme.outlineW > 0 ? Theme.outlineW : (flatBorder.a > 0 ? 1 : 0)
     readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
@@ -98,6 +109,31 @@ Item {
         x: Theme.sinkX * pressP
         y: Theme.sinkY * pressP
         scale: 1 - (1 - Theme.pressScale) * pressP
+        // W53.0a: the glow (a role's colour) and the bloom (the face's own, lighter) round the face: two static halos, made
+        // only while the look has either; small things inside blocks glow as little as they cast shadows (`softScale`).
+        Loader {
+            z: -1
+            anchors.fill: parent
+            active: (Theme.glow > 0 || Theme.bloom > 0) && blk.softScale > 0
+            sourceComponent: Item {
+                RectangularShadow {
+                    anchors.fill: parent
+                    visible: Theme.glow > 0
+                    blur: Theme.glowR * blk.softScale
+                    spread: 0
+                    radius: Math.min(face.r, Math.min(width, height) / 2)
+                    color: Qt.alpha(Theme.glowColor, Theme.glow)
+                }
+                RectangularShadow {
+                    anchors.fill: parent
+                    visible: Theme.bloom > 0
+                    blur: Theme.bloomR * blk.softScale
+                    spread: 2
+                    radius: Math.min(face.r, Math.min(width, height) / 2)
+                    color: Qt.alpha(Qt.lighter(face.shownFill, 1.6), Theme.bloom)
+                }
+            }
+        }
         // The soft shadow (soft chrome): made only while the theme has one and this block casts it.
         SoftShadow {
             anchors.fill: parent
@@ -130,9 +166,21 @@ Item {
         Loader {
             id: under
             readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && !Theme.texText
-            active: blk.flashes || relief
+            readonly property bool sheen: Theme.sheen > 0 && blk.fill.a > 0
+            active: blk.flashes || relief || sheen
             anchors.fill: parent
             sourceComponent: Item {
+                // W53.0a: the sheen (Vista/7 glass buttons): a light gloss over the upper half of the fill, fading out.
+                Rectangle {
+                    visible: under.sheen
+                    anchors { top: parent.top; left: parent.left; right: parent.right; margins: blk.inset }
+                    height: (parent.height - 2 * blk.inset) / 2
+                    radius: face.innerR
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: Qt.rgba(1, 1, 1, 0.5 * Theme.sheen) }
+                        GradientStop { position: 1; color: Qt.rgba(1, 1, 1, 0.12 * Theme.sheen) }
+                    }
+                }
                 // The flash: the face lights at once and fades back on release.
                 Rectangle {
                     anchors.fill: parent
@@ -163,6 +211,11 @@ Item {
             id: fillRect
             anchors.fill: parent
             anchors.margins: blk.inset
+            // A bevel's press moves the content (0 otherwise: the margins are the inset).
+            anchors.topMargin: blk.inset + blk.shift
+            anchors.leftMargin: blk.inset + blk.shift
+            anchors.bottomMargin: blk.inset - blk.shift
+            anchors.rightMargin: blk.inset - blk.shift
             radius: face.innerR
             color: blk.ringW > 0 && !blk.sq ? face.shownFill : "transparent"
             antialiasing: true
@@ -185,11 +238,19 @@ Item {
         Loader {
             id: over
             readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && Theme.texText
-            active: relief || Theme.frame !== "" || (Theme.penOutline && blk.outlineWidth > 0)
+            active: relief || Theme.frame !== "" || (Theme.penOutline && blk.outlineWidth > 0) || Theme.bevelW > 0
             anchors.fill: parent
             sourceComponent: Item {
                 // The frame or the pen draws the outline: the rim leaves its straight line out.
                 readonly property bool hidesOutline: frameHost.drawsOutline || pen.active
+                // W53.0a (K80): the bevel's two pairs over the face's edge, swapped while pressed or sunken.
+                Loader {
+                    active: Theme.bevelW > 0
+                    anchors.fill: parent
+                    sourceComponent: BevelEdge {
+                        sunk: blk.pressed || blk.sunken
+                    }
+                }
                 // With `texture.text` the relief is drawn over the content too: ink and icons sink into the same sheet.
                 Loader {
                     active: over.relief

@@ -47,3 +47,9 @@
 "action.theme.texture.restore" = "自分の素材に戻す"
 "config.error.no_texture_before" = "戻せる以前の素材がありません。"
 "config.error.appearance_name" = "スタイルかルックの名前を指定してください。"
+
+# Decor parts (W53.0a, K80): the caption's buttons (their accessible names) and the start button's label.
+"decor.title.close" = "閉じる"
+"decor.title.maximize" = "全画面"
+"decor.title.minimize" = "隠す"
+"decor.start.label" = "スタート"

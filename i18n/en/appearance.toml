@@ -48,3 +48,9 @@
 "action.theme.texture.restore" = "Back to my material"
 "config.error.no_texture_before" = "There is no earlier material to go back to."
 "config.error.appearance_name" = "Name a style or a look."
+
+# Decor parts (W53.0a, K80): the caption's buttons (their accessible names) and the start button's label.
+"decor.title.close" = "Close"
+"decor.title.maximize" = "Full screen"
+"decor.title.minimize" = "Hide"
+"decor.start.label" = "Start"
