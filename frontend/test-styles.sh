@@ -9,7 +9,7 @@
 #   - STYLES_REF=<dir>: the shots of STYLES_IDENTICAL (default "kanso washi") equal <dir>/<style>/<surface>.png within
 #     tools/bench/block-identity.sh's noise rule (faint px pass; strong ones only in clock-sized clusters — the minute).
 #   nix develop -c frontend/test-styles.sh [style …]          (default: every bundled style)
-# STYLES_ROOT=<tree>: another checkout's frontend and sandbox script with these binaries (`git archive main | tar -x`: a
+# STYLES_PROBE=0 skips the bevel probe (a reference tree has no bevel). STYLES_ROOT=<tree>: another checkout's frontend and sandbox script with these binaries (`git archive main | tar -x`: a
 # reference set); STYLES_OUT=<dir>: the shots go there. STYLES_SANDBOX names the sandbox (default styles),
 # STYLES_WALLPAPER a picture behind the shell (blur shows only over one). Binaries: $KURASHI_BIN_DIR, else
 # $CARGO_TARGET_DIR/debug, else target/debug.
@@ -75,6 +75,7 @@ done
 # The bevel probe: a look of the user's (unknown to every renderer) names the bevel chrome; the bar's first group must
 # show the theme's four lines (`bevel.light`, `light2` at its left edge, `dark2`, `dark` at its bottom), in the exact
 # token colours, one device px each. (A look's recipe applies when the look in effect changes: kanso first.)
+if [ "${STYLES_PROBE:-1}" = 1 ]; then   # (0 for a reference set from a tree before the bevel)
 mkdir -p "$R/xdg/config/kurashi/looks"
 printf '%s\n' 'name = "probe-bevel"' 'category = "custom"' '[recipe]' '"theme.chrome" = "bevel"' \
   '"theme.shape.corners" = "none"' '"theme.material.kind" = "solid"' > "$R/xdg/config/kurashi/looks/probe-bevel.toml"
@@ -110,6 +111,7 @@ got = [px(xs[0], y), px(xs[1], y), px(xs[0] + 6, down[0]), px(xs[0] + 6, down[1]
 assert got == want, ("bevel lines", got, "tokens", want)
 print("test-styles: bevel probe ok:", got)
 PY
+fi
 
 # The lock last, every style in one locked session (the real daemon locks in the sandbox; unlocking needs a password).
 K act session.lock
