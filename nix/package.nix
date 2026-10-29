@@ -144,7 +144,10 @@ runCommand "${pname}-${version}"
     inherit pname version;
     nativeBuildInputs = [ makeBinaryWrapper ];
     passthru = {
-      inherit bin cargoArtifacts;
+      # Not `bin`: lib.getBin (writeShellApplication's runtimeInputs, makeBinPath) takes an attribute of that name for the
+      # package's bin output, and the unwrapped binaries find no data (the `nix run .` app ran them, session 17).
+      unwrapped = bin;
+      inherit cargoArtifacts;
       # Not `tests`: nixpkgs tooling expects an attribute set there.
       cargoTests = tests;
       # The devShell builds the same crates (flake.nix).
