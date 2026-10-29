@@ -5,7 +5,7 @@ import "../pen.js" as Pen
 // Kami's hand-drawn outline (K60, docs/ux/texture.md "紙 kami"): every block's edge drawn with a pen. Two passes over one
 // rounded rectangle, the second a little off the first; a seeded wobble, so the lines are the same for the same size and
 // never shimmer; pen pressure (the width varies between 0.8 and 1.6 px along a pass); a small overshoot past each corner
-// where the pen came back round. The ink is `Theme.fg` at 0.85 α. A small block (a key, a tile, a bar group) gets one
+// where the pen came back round. The ink is the outline's (`Theme.outlineInkOpaque`; kami: the text's) at 0.85 α. A small block (a key, a tile, a bar group) gets one
 // quieter pass. Static: the canvas is painted once per size and colour, and nothing runs after that (Ma).
 // The frame draws the outline itself (`drawsOutline`), so the block leaves its straight line out. K62: the pen's
 // modifiers (pressure, breaks, fade, wobble; components/pen.js) work on top of this pen; another line style than solid
@@ -72,13 +72,13 @@ FrameBase {
             var pts = []
             for (var q = 0; q < src.length; q++) pts.push({ x: src[q].x + pad, y: src[q].y + pad })
             Pen.outline(ctx, {
-                pts: pts, width: f.small ? 0.9 : 1.3, color: Theme.fg, line: m.line, pressure: m.pressure,
+                pts: pts, width: f.small ? 0.9 : 1.3, color: Theme.outlineInkOpaque, line: m.line, pressure: m.pressure,
                 breaks: m.breaks, fade: m.fade, wobble: m.wobble, seed: seed, W: w + 2 * pad, H: h + 2 * pad
             })
             return
         }
         var R = Pen.rng(seed)
-        var ink = Pen.rgb(Theme.fg)
+        var ink = Pen.rgb(Theme.outlineInkOpaque)
         var passes = f.small ? [{ w: 0.8, off: 0 }] : [{ w: 1.25, off: 0 }, { w: 1.0, off: 0.7 }]
         ctx.lineCap = "round"
         ctx.lineJoin = "round"

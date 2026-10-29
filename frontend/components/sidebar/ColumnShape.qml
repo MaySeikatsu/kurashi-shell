@@ -156,7 +156,7 @@ Shape {
 
     // K62: with a pen in effect the pen draws the outline along its centre line (one closed line; the open sides lie
     // past the neighbour's edge).
-    readonly property bool penOn: ruled ? Theme.framePen : Theme.penOutline
+    readonly property bool penOn: Theme.penOutline
     function penPaths() {
         if (!shown || !penOn) return []
         var subs = Pen.svgPaths(path(ow / 2, true, 0)), out = []
@@ -168,7 +168,6 @@ Shape {
         active: sh.penOn && sh.shown
         sourceComponent: PenOutline {
             color: sh.oc
-            line: sh.ruled ? Theme.framePenLine : Theme.penLine
             lineWidth: sh.ow
             seed: 0x51DE3
             paths: sh.penPaths()

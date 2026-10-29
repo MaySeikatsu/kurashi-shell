@@ -464,22 +464,12 @@ A line along the frame's inner edge and the sides of what is joined to it — ba
 - choices: `"auto"` | `"on"` | `"off"`
 - since schema v7
 
-#### `theme.frame_outline_ink` — Frame outline ink
+#### `theme.outline_ink` — Outline ink
 
-The colour of the frame outline: the chrome's outline, the text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
+The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
 
 - type: `choice` · default: `"outline"`
 - choices: `"outline"` | `"text"` | `"accent"`
-- only while `theme.frame_outline != "off"`
-- since schema v7
-
-#### `theme.frame_outline_stroke` — Frame outline stroke
-
-How the frame outline is drawn: one even line (the pen's settings apply), or sketched by hand in two light passes, as kami draws its blocks.
-
-- type: `choice` · default: `"line"`
-- choices: `"line"` | `"sketch"`
-- only while `theme.frame_outline != "off"`
 - since schema v7
 
 ### Material
@@ -808,7 +798,7 @@ The highlights' colour.
 How outlines round blocks and surfaces are drawn: solid, dotted, dashed, broken — long strokes with gaps where the pen left the paper — or rough, a very uneven hand line.
 
 - type: `choice` · default: `"solid"`
-- choices: `"solid"` | `"dotted"` | `"dashed"` | `"broken"` | `"rough"`
+- choices: `"solid"` | `"dotted"` | `"dashed"` | `"broken"` | `"rough"` | `"sketch"`
 - forced to `"solid"` while `a11y.high_contrast` is on
 
 #### `theme.pen.pressure` — Pen pressure

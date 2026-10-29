@@ -70,7 +70,14 @@ Singleton {
     // K45: soft and line chrome. Read the widths and colours, never `chromeStyle` to pick a look (rule 4); the
     // style name is for logs and tests.
     readonly property string chromeStyle: tok("chrome.style", "flat")
-    readonly property color outlineColor: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
+    // The ink every outline is drawn in (`theme.outline_ink`, session 17; looks set it): the chrome's own outline, the
+    // text's ink at its blocks' 0.85 (kami), or the accent. `outlineInkOpaque`: the same ink for a decor that draws its
+    // own outline on a translucent canvas (Sketch) and sets the alpha itself.
+    readonly property string outlineInk: tok("outline.ink", "outline")
+    readonly property color chromeOutline: Qt.alpha(color("chrome.outline_color", "#121120"), tok("chrome.outline_alpha", 0))
+    readonly property color outlineColor: outlineInk === "text" ? Qt.alpha(fg, 0.85) : outlineInk === "accent" ? accent : chromeOutline
+    readonly property color outlineInkOpaque: outlineInk === "text" ? fg : outlineInk === "accent" ? accent
+        : Qt.rgba(chromeOutline.r, chromeOutline.g, chromeOutline.b, 1)
     readonly property int softR: tok("chrome.soft", 0)
     readonly property int softDy: tok("chrome.soft_dy", 0)
     // K67 (docs/ux/shadows.md): the vector every shadow falls along — the user's strength and direction, or away from the
@@ -99,12 +106,8 @@ Singleton {
     // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
     readonly property bool frameOutline: tok("frame.outline", boxed) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
-    // Its ink and stroke (`theme.frame_outline_ink` / `_stroke`, looks set them: kami's is the text's ink, sketched as its
-    // blocks): the chrome's outline, the text's ink at its blocks' 0.85, or the accent; one even line or the sketch.
-    readonly property string frameInk: tok("frame.outline_ink", "outline")
-    readonly property color frameOutlineColor: frameInk === "text" ? Qt.alpha(fg, 0.85) : frameInk === "accent" ? accent
-        : (outlineW > 0 ? outlineColor : outline)
-    readonly property bool frameSketch: tok("frame.outline_stroke", "line") === "sketch"
+    // In the outline's ink; a chrome without an outline of its own and the chrome's ink: a hairline.
+    readonly property color frameOutlineColor: outlineInk !== "outline" || outlineW > 0 ? outlineColor : outline
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")
@@ -197,8 +200,5 @@ Singleton {
     readonly property real penTextWobble: tok("pen.text_wobble", 0)
     // Some outline modifier or line style is in effect: outlines are drawn by the pen, not as straight borders.
     readonly property bool penOutline: penLine !== "solid" || penPressure > 0 || penBreaks > 0 || penFade > 0 || penWobble > 0
-    // The frame outline goes through the pen when the pen is in effect or the outline is sketched (pen.js `sketch`).
-    readonly property bool framePen: penOutline || frameSketch
-    readonly property string framePenLine: frameSketch ? "sketch" : penLine
     readonly property bool penText: penTextPressure > 0 || penTextBreaks > 0 || penTextFade > 0 || penTextWobble > 0
 }

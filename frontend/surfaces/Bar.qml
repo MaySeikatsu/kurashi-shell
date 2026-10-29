@@ -509,14 +509,13 @@ Scope {
                             id: rulePen
                             anchors.fill: parent
                             visible: !win.bandShows
-                            active: Theme.framePen && !bar.drawFloating && Theme.frameOutline
+                            active: Theme.penOutline && !bar.drawFloating && Theme.frameOutline
                             sourceComponent: PenOutline {
                                 readonly property real ow: Theme.frameOutlineW
                                 readonly property real cy: bar.edge === "top" ? height - ow / 2 : ow / 2
                                 readonly property real cx: bar.edge === "left" ? width - ow / 2 : ow / 2
                                 color: Theme.frameOutlineColor
-                                line: Theme.framePenLine
-                                lineWidth: ow
+                                                    lineWidth: ow
                                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
                                 radius: 0
                                 paths: bg.ruleSegs.map(function (g) {

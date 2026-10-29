@@ -210,7 +210,7 @@ Item {
     }
     // The rule: rectangles and arcs in the outline colour, or the pen's line.
     Repeater {
-        model: fp.drawRule && fp.ow > 0 && !Theme.framePen ? fp.shownRules : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.shownRules : []
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
@@ -218,7 +218,7 @@ Item {
         }
     }
     Repeater {
-        model: fp.drawRule && fp.ow > 0 && !Theme.framePen ? fp.coverRules : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.coverRules : []
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
@@ -226,7 +226,7 @@ Item {
         }
     }
     Repeater {
-        model: fp.drawRule && fp.ow > 0 && !Theme.framePen ? fp.shownArcs : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.shownArcs : []
         Shape {
             required property var modelData
             x: fp.cdx(modelData.c)
@@ -244,7 +244,7 @@ Item {
         }
     }
     Repeater {
-        model: fp.ow > 0 && !Theme.framePen ? fp.tailArcs : []
+        model: fp.ow > 0 && !Theme.penOutline ? fp.tailArcs : []
         Shape {
             required property var modelData
             width: fp.width
@@ -265,11 +265,10 @@ Item {
         y: fp.oy
         width: fp.winW
         height: fp.winH
-        active: fp.drawRule && fp.ow > 0 && Theme.framePen && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
+        active: fp.drawRule && fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
         sourceComponent: PenOutline {
             anchors.fill: parent
             color: Theme.frameOutlineColor
-            line: Theme.framePenLine
             lineWidth: fp.ow
             seed: fp.seed
             paths: {

@@ -387,16 +387,11 @@ pub struct Theme {
     // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
     #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
     pub frame_outline: FrameOutline,
-    /// Frame outline ink
-    /// The colour of the frame outline: the chrome's outline, the text's ink (as a hand-drawn look outlines its blocks),
-    /// or the accent. Looks set it with the rest of their outline.
-    #[kurashi(default = FrameInk::Outline, section = "shape", requires = "theme.frame_outline != off", since = 7)]
-    pub frame_outline_ink: FrameInk,
-    /// Frame outline stroke
-    /// How the frame outline is drawn: one even line (the pen's settings apply), or sketched by hand in two light
-    /// passes, as kami draws its blocks.
-    #[kurashi(default = FrameStroke::Line, section = "shape", requires = "theme.frame_outline != off", since = 7)]
-    pub frame_outline_stroke: FrameStroke,
+    /// Outline ink
+    /// The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the
+    /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
+    #[kurashi(default = OutlineInk::Outline, section = "shape", since = 7)]
+    pub outline_ink: OutlineInk,
     #[kurashi(nested, section = "motion")]
     pub motion: Motion,
     /// Density
@@ -435,23 +430,14 @@ pub enum Chrome {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-#[kurashi(i18n = "frame_ink")]
-pub enum FrameInk {
+#[kurashi(i18n = "outline_ink")]
+pub enum OutlineInk {
     /// Outline
     Outline,
     /// Text
     Text,
     /// Accent
     Accent,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
-#[kurashi(i18n = "frame_stroke")]
-pub enum FrameStroke {
-    /// Line
-    Line,
-    /// Sketch
-    Sketch,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -810,6 +796,9 @@ pub enum PenLine {
     Broken,
     /// Rough
     Rough,
+    /// Sketch
+    /// Two light passes that drift a little, as a hand draws (kami's blocks).
+    Sketch,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
