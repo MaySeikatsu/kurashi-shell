@@ -119,7 +119,8 @@ mod tests {
         apply(&s, &hub, &BTreeSet::from(["blur".to_string()]));
         let p = s.get("theme.material.blur", None).unwrap();
         assert_ne!(p.source, Source::Forced("capability".into()));
-        assert_eq!(p.value, json!(true));
+        // Back to the schema default (off since v7, I297).
+        assert_eq!(p.value, json!(false));
         assert_eq!(hub.snapshot(DOC).unwrap().1["blur"], json!(true));
     }
 }
