@@ -1,0 +1,1 @@
+{"t":"snap","doc":"runtime.ui","rev":31,"data":{"popup":true,"panel":"island","launcher":false,"tray":"","face":"media","full":"island:media","title":{"buttons":[{"id":"minimize","action":"app_menu","menu":"spotify-client"},{"id":"maximize","action":"full_screen"},{"id":"close","action":"close"}],"full":true}}}

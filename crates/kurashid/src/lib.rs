@@ -19,9 +19,11 @@ pub mod native;
 pub mod os_scheme;
 pub mod server;
 pub mod services;
+pub mod sound;
 pub mod texture;
 pub mod theme;
 pub mod theme_export;
+pub mod title;
 pub mod wiring;
 pub mod workspaces;
 
