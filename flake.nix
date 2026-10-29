@@ -5,7 +5,8 @@
   # Rust builds with a cached dependency derivation (I292).
   inputs.crane.url = "github:ipetkov/crane";
   # W58 (K79): niri `main` has ext-image-copy-capture cursor sessions (niri#4554, 849c576); no release does yet. Used
-  # only by the NixOS module's `programs.kurashi.pointerLight.enable` (fetched and built only then). Back to nixpkgs'
+  # only by the NixOS module's `programs.kurashi.pointerLight.enable` (locked and fetched with the flake; built only
+  # then). Back to nixpkgs'
   # niri once a release has them (BACKLOG I316).
   inputs.niri-main = {
     url = "github:niri-wm/niri/849c576ffc902c9a6f249d9371a1e95fb63cf553";
