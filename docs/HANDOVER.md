@@ -52,9 +52,9 @@ check (`apps-wrapped`).
 3. W56 corners (I288 squircle on every visible shape incl. relief.frag's box; I269 concentric rest) — `docs/tasks/W56-corners.md`.
 4. W57 elevation shadows (I310; the user wants them smooth: layered ambient + key, no banding) — UX brief first,
    `docs/tasks/W57-elevation-shadows.md` (static via niri layer-rule shadows vs client-drawn for follow-light).
-5. W58 the pointer light across the screen (I311) — `docs/tasks/W58-pointer-light.md`: a click-through overlay cannot see
-   the cursor (Wayland); niri 26.04 has no ext-image-copy-capture cursor sessions and no cursor IPC → routes: cursor
-   sessions in kurashid where supported, a niri patch (ask the user first), an honest fallback. The effects sheet (I312:
+5. W58 the pointer light across the screen (I311) — `docs/tasks/W58-pointer-light.md`. **Decided (user):** the Wayland
+   cursor protocol (ext-image-copy-capture cursor sessions) in kurashid; niri 26.04 lacks it → a patched niri through the
+   flake, switched on by the modules only while the pointer light is on; lighting becomes a module later (I313). The effects sheet (I312:
    ripples, trails, waves) builds on it later.
 6. W55 fast suites, W53 styles (I294 first if style edits pile up), I280, I284/I285.
 

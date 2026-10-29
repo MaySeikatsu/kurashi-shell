@@ -18,6 +18,14 @@ carry effects (ripples on a click, a trail behind the cursor, waves)."
   `leave`, `position`, `hotspot` events): event-driven, no polling, exactly "where is the cursor on this output".
   wlroots ≥ 0.19 implements ext-image-copy-capture (check cursor sessions for sway); KWin and Hyprland: check.
 
+## Decision (user, session 17)
+Use the Wayland cursor protocol: **ext-image-copy-capture-v1 cursor sessions** (route 1). Where the compositor lacks it
+(niri 26.04), provide it **through the flake, only while the pointer light is in use**: a patched niri (`nix/patches/`,
+as quickshell's) exposed by the flake and switched on by the NixOS / Home-Manager module only when the lighting option
+that needs it is on (no patched compositor for users who don't use the pointer light). Offer the patch upstream. The
+lighting is built into the shell for now (fine); it should become a module (mod) in the end — I313 — and this
+dependency then belongs to that module's manifest.
+
 ## Routes, best first
 1. **kurashid subscribes to cursor sessions** (wayland-client in a service, refcounted: only while a light mode or an
    effect needs it — Ma) and publishes `runtime.pointer {output, x, y}` throttled to the frame rate; the frontend's `Light`
