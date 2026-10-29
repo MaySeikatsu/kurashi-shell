@@ -4,3 +4,4 @@ singleton I18n 1.0 I18n.qml
 singleton Changes 1.0 Changes.qml
 singleton Light 1.0 Light.qml
 Glide 1.0 Glide.qml
+Watch 1.0 Watch.qml

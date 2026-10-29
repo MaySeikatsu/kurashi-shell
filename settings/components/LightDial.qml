@@ -38,6 +38,7 @@ Row {
     property real dragElevation: 40
     // The test hook: the line as shown.
     readonly property string text: note.text
+    readonly property string reachText: reach.visible ? reach.text : ""
 
     function commit(a, e) {
         a = ((Math.round(a) % 360) + 360) % 360
@@ -232,6 +233,19 @@ Row {
                 : ld.mode === "daytime" ? I18n.tr("settings.light.daytime." + (ld.detail || "day"))
                 : ld.mode === "wallpaper" ? I18n.tr("settings.light.wallpaper." + (ld.detail || "wallpaper_waiting"))
                 : I18n.tr("settings.light.static")
+        }
+        // W58 (K79, Shōjiki): whether the lamp sees the pointer over windows too, or why it keeps to the shell's surfaces.
+        Text {
+            id: reach
+            readonly property var pdoc: Light.pointerDoc
+            visible: (ld.mode === "pointer" || ld.spotlight) && text !== ""
+            width: parent.width
+            wrapMode: Text.WordWrap
+            color: Theme.dim
+            font.pixelSize: Theme.fs - 1
+            font.family: Theme.fam(text, Theme.families)
+            text: !pdoc ? "" : pdoc.available === true ? I18n.tr("settings.light.everywhere")
+                : I18n.tr(pdoc.reason || "pointer.no_protocol")
         }
     }
 }

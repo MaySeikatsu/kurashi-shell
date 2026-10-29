@@ -15,6 +15,27 @@
         "type": "github"
       }
     },
+    "niri-main": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1789244303,
+        "narHash": "sha256-ZymbkFBfgzMXbENnBzopIZ9LkrnJi6ytRABIzjCqEbk=",
+        "owner": "niri-wm",
+        "repo": "niri",
+        "rev": "849c576ffc902c9a6f249d9371a1e95fb63cf553",
+        "type": "github"
+      },
+      "original": {
+        "owner": "niri-wm",
+        "repo": "niri",
+        "rev": "849c576ffc902c9a6f249d9371a1e95fb63cf553",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1791456040,
@@ -34,6 +55,7 @@
     "root": {
       "inputs": {
         "crane": "crane",
+        "niri-main": "niri-main",
         "nixpkgs": "nixpkgs"
       }
     }

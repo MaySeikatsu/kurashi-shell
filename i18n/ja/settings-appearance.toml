@@ -25,3 +25,4 @@
 "settings.light.numbers_beam" = "方向 {angle}° ・ 高さ {elevation}° ・ 光の幅 {beam}°"
 "settings.light.spotlight" = "この方向が画面の縁と交わる所に固定したランプ。光はシェルの上ではポインターを追い、ほかでは中央で休みます。小さな画面をクリックするとランプが動きます。"
 "settings.light.screen" = "{angle}° に固定したスポットライト、光の幅 {beam}°"
+"settings.light.everywhere" = "コンポジターがポインターの位置を伝えるので、光はウィンドウの上でもポインターを追います。"

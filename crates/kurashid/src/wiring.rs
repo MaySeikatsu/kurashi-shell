@@ -5774,6 +5774,112 @@ pub fn recorder(
     });
 }
 
+// ---- svc.pointer (W58, K79) -------------------------------------------------------------------------------------
+
+pub const POINTER_DOC: &str = "svc.pointer";
+
+/// `svc.pointer` before anything watches it, and while the pointer is on no output.
+fn pointer_doc_gone() -> Value {
+    json!({ "available": true, "output": null, "x": 0.0, "y": 0.0 })
+}
+
+/// `svc.pointer` when the compositor cannot tell where the pointer is: the light keeps to the shell's own surfaces.
+fn pointer_doc_unavailable(why: kurashi_compositor::pointer::Unavailable) -> Value {
+    use kurashi_compositor::pointer::Unavailable as U;
+    let reason = match why {
+        U::NoDisplay | U::Disconnected => "pointer.disconnected",
+        U::NoProtocol => "pointer.no_protocol",
+        U::NoPointer => "pointer.no_pointer",
+    };
+    json!({ "available": false, "reason": reason, "output": null, "x": 0.0, "y": 0.0 })
+}
+
+/// `svc.pointer` while subscribed: the cursor sessions run from the first subscriber to the last (Ma).
+struct PointerProvider {
+    running: Mutex<Option<tokio::task::JoinHandle<()>>>,
+}
+
+impl crate::hub::Provider for PointerProvider {
+    fn start(&self, hub: Arc<Hub>) {
+        let task = tokio::spawn(async move {
+            use kurashi_compositor::pointer::{PointerEvent, PointerWatcher};
+            let (_watcher, mut rx) = PointerWatcher::spawn();
+            while let Some(ev) = rx.recv().await {
+                let doc = match ev {
+                    PointerEvent::At { output, x, y } => {
+                        json!({ "available": true, "output": output, "x": (x * 10.0).round() / 10.0, "y": (y * 10.0).round() / 10.0 })
+                    }
+                    PointerEvent::Gone => pointer_doc_gone(),
+                    PointerEvent::NoPointer => {
+                        pointer_doc_unavailable(kurashi_compositor::pointer::Unavailable::NoPointer)
+                    }
+                    PointerEvent::Unavailable(why) => {
+                        tracing::debug!(
+                            ?why,
+                            "no pointer position: the light follows the pointer over the shell's surfaces"
+                        );
+                        let _ = hub.set(POINTER_DOC, pointer_doc_unavailable(why), None);
+                        break;
+                    }
+                };
+                let _ = hub.set(POINTER_DOC, doc, None);
+            }
+        });
+        *self.running.lock().expect("pointer lock") = Some(task);
+    }
+    fn stop(&self) {
+        // Aborting the task drops the watcher, which closes its connection and every session.
+        if let Some(t) = self.running.lock().expect("pointer lock").take() {
+            t.abort();
+        }
+    }
+}
+
+/// `svc.pointer` (W58, K79): where the pointer is on every output, from `ext-image-copy-capture-v1` cursor sessions,
+/// refcounted. `available` false with a `reason` where the compositor lacks them (the frontend's fallback: the light
+/// follows the pointer over the shell's own surfaces).
+pub fn pointer(hub: &Arc<Hub>) {
+    hub.register(
+        POINTER_DOC,
+        pointer_doc_gone(),
+        Some(Arc::new(PointerProvider {
+            running: Mutex::new(None),
+        })),
+    );
+}
+
+#[cfg(test)]
+mod pointer_tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn the_pointer_document_waits_for_a_subscriber_and_says_why_it_cannot() {
+        let hub = Hub::new();
+        pointer(&hub);
+        // Registered and silent: no session before a subscriber, no output yet.
+        let d = hub.snapshot(POINTER_DOC).unwrap().1;
+        assert_eq!(d["available"], true);
+        assert!(d["output"].is_null());
+        assert_eq!(hub.subscribers(POINTER_DOC), 0);
+        // Without the protocol the frontend's fallback is named by a key both locales carry.
+        use kurashi_compositor::pointer::Unavailable as U;
+        let d = pointer_doc_unavailable(U::NoProtocol);
+        assert_eq!(d["available"], false);
+        assert_eq!(d["reason"], "pointer.no_protocol");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../i18n");
+        for why in [U::NoProtocol, U::NoPointer, U::Disconnected, U::NoDisplay] {
+            let key = pointer_doc_unavailable(why)["reason"]
+                .as_str()
+                .unwrap()
+                .to_owned();
+            for lang in ["en", "ja"] {
+                let t = std::fs::read_to_string(root.join(lang).join("pointer.toml")).unwrap();
+                assert!(t.contains(&format!("\"{key}\"")), "{lang} lacks {key}");
+            }
+        }
+    }
+}
+
 // ---- svc.audio.spectrum (K48, W24-media) -----------------------------------------------------------------------
 
 pub const SPECTRUM_DOC: &str = "svc.audio.spectrum";
