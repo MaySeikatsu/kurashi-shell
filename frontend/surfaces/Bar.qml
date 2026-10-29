@@ -337,7 +337,15 @@ Scope {
                 id: carried
                 // (a side bar carries no pieces — the frame's top and bottom strips hang its fillets — only its band's cover)
                 active: bar.carries
-                sourceComponent: FramePieces {
+                // The sheet under the body; the rule over it (`carriedRule`, after the body, I302).
+                readonly property bool rule: false
+                sourceComponent: carriedPieces
+            }
+            Component {
+                id: carriedPieces
+                FramePieces {
+                    drawSheet: !parent.rule
+                    drawRule: parent.rule
                     ox: win.sheetOrigin.x
                     oy: win.sheetOrigin.y
                     winW: win.width
@@ -540,6 +548,13 @@ Scope {
                         sourceComponent: verticalLayout
                     }
                 }
+            }
+            // The frame's rule this window carries, over the body: the arcs meet the body's outline (I302).
+            Loader {
+                id: carriedRule
+                active: bar.carries
+                readonly property bool rule: true
+                sourceComponent: carriedPieces
             }
         }
     }

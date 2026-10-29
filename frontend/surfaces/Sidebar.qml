@@ -373,9 +373,13 @@ Scope {
                         Region { item: inputRect }
                         Region { item: grip }
                     }
-                    // Glass only (Theme.blur), rounded as the body is drawn (I276).
+                    // Glass only (Theme.blur), rounded as the body is drawn (I276), at the body's box as numbers (I296: the
+                    // box moves every frame of the slide; as the dock's, the region must not depend on the item tracking it).
                     BackgroundEffect.blurRegion: Region {
-                        item: Theme.blur ? shapeRect : null
+                        x: shapeRect.x
+                        y: shapeRect.y
+                        width: Theme.blur ? shapeRect.width : 0
+                        height: Theme.blur ? shapeRect.height : 0
                         topLeftRadius: shape.sTL
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
