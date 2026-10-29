@@ -28,7 +28,7 @@
 # and with ISO week numbers. Shots: frontend/shots/island/clock-*.png.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-stage}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-stage}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 MOCK_BIN=${KURASHI_MOCK_BIN:-$BIN/kurashi-mock}
 OUT=$ROOT/frontend/shots/stage
@@ -36,6 +36,7 @@ mkdir -p "$OUT"
 fail() { echo "test-stage: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -224,12 +225,14 @@ start_mock() {  # MOCK_LC: the locale the mock reads from its environment (kuras
   fail "mock did not come up (see $R/server.log)"
 }
 start_frontend() {
+  local off bare; off=$(log_size "$R/qs.log"); bare=$(screen_hash)
   # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
   env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3   # the bar's documents and the first frames
+  # The bar's documents and the first frames (was a fixed 3 s: drawn and still, at most 3 s).
+  wait_frontend "$R/qs.log" "$off" 3 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
 }
 
 : > "$R/qs.log"
@@ -432,13 +435,14 @@ clock_card() {
 }
 # start_frontend_again: the frontend after a restart of the mock; the hello line it waits for is a new one.
 start_frontend_again() {
-  local before
+  local before off bare
   before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
+  off=$(log_size "$R/qs.log"); bare=$(screen_hash)
   env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
   [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3
+  wait_frontend "$R/qs.log" "$off" 3 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"   # (was a fixed 3 s)
 }
 
 K mock face clock >/dev/null
@@ -541,11 +545,12 @@ pids+=("$!")
 for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && break; sleep 0.1; done
 ipc svc.clock >/dev/null 2>&1 || fail "mock did not come up with two outputs (see $R/server.log)"
 before=$(grep -c 'hello.*frontend' "$R/server.log" || true)
+off=$(log_size "$R/qs.log"); bare=$(screen_hash)
 env -u KURASHI_SOCKET KURASHI_STAGE_DEBUG=1 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] && break; sleep 0.1; done
 [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$before" ] || fail "frontend never said hello (see $R/qs.log)"
-sleep 3
+wait_frontend "$R/qs.log" "$off" 3 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"   # (was a fixed 3 s)
 
 focus_on HEADLESS-2
 K act quick.toggle >/dev/null

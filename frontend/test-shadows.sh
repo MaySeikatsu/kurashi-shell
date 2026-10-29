@@ -38,7 +38,7 @@
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${SHADOW_SANDBOX:-w42-shadows3-shadows}
+NAME=${SHADOW_SANDBOX:-${KURASHI_SB_PREFIX:-}w42-shadows3-shadows}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHADOW_OUT:-$ROOT/frontend/shots/shadows}
 PARTS=${SHADOW_PARTS:-tokens matrix follow press surfaces settings ma surfaces2 surfaces3 inert}
@@ -48,6 +48,7 @@ say() { echo "test-shadows: $*"; }
 want() { [[ " $PARTS " == *" $1 "* ]]; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -145,14 +146,20 @@ start_frontend_dir() {
   if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; fi
   : > "$R/qs.log"
   n0=$(grep -c 'hello.*frontend' "$R/server.log" || true)
+  local bare; bare=$(screen_hash)
+  QS_T0=$(now_ms)
   env -u KURASHI_SOCKET "$@" qs -p "$dir" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   pids+=("$QS_PID")
   for _ in $(seq 100); do [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] && break; sleep 0.1; done
   [ "$(grep -c 'hello.*frontend' "$R/server.log" || true)" -gt "$n0" ] || fail "frontend never said hello from $dir (see $R/qs.log)"
-  sleep 3
+  # Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+  wait_frontend "$R/qs.log" 0 3 0.6 "$bare" || fail "the frontend did not load from $dir (see $R/qs.log)"
 }
 start_frontend() { start_frontend_dir "$ROOT/frontend" "$@"; }  # start_frontend [ENV=VALUE …]
+# settle <s>: after a settings change, until the screen stands still (its repaint, its motion), at most <s> — the fixed
+# sleep it was (W55).
+settle() { wait_settled "$1" 0.4; }
 qml_errors() {
   grep -E "TypeError|ReferenceError|is not a type|Cannot assign|is not defined|Unable to assign|Cannot read property" "$R/qs.log" \
     | grep -v "^\s*$" || true
@@ -167,14 +174,14 @@ look() {  # look <style>: the style, calm motion, shadows back to the defaults
   K reset theme.material >/dev/null 2>&1 || true
   K reset theme.texture >/dev/null 2>&1 || true
   K reset theme.light >/dev/null 2>&1 || true
-  sleep 2
+  settle 2
 }
-card() {  # card <name>: the island's card at rest, then closed
+card() {  # card <name>: the island's card at rest, then closed (each wait at most its old fixed time)
   K act island.expand >/dev/null || fail "island.expand"
-  sleep 1.6
+  wait_settled 1.6 0.5
   shot "$1" "$CARD"
   K act ui.close >/dev/null || true
-  sleep 1.2
+  wait_settled 1.2 0.5
 }
 
 # notify <app> <summary> <body> [ms]: one notification on the sandbox's own bus (the daemon serves it).
@@ -515,26 +522,28 @@ full() { grim -o HEADLESS-1 "$1"; }
 # start_qs_file <file>: a shell from one file (a harness; Settings' store needs no hello from the frontend).
 start_qs_file() {
   if [ -n "$QS_PID" ]; then kill "$QS_PID" 2>/dev/null || true; wait "$QS_PID" 2>/dev/null || true; QS_PID=; fi
+  local bare; bare=$(screen_hash)
   env -u KURASHI_SOCKET qs -p "$1" > "$R/qs-file.log" 2>&1 &
   QS_PID=$!
   pids+=("$QS_PID")
-  sleep 4
+  # Was a fixed 4 s: the harness loaded, drew and stands still (at most 4 s for that).
+  wait_frontend "$R/qs-file.log" 0 4 0.6 "$bare" || fail "the harness $1 did not load (see $R/qs-file.log)"
 }
 # The current look, four full shots: the defaults (180), 135 and 225 at strength 2, and strength 0 (no shadow).
 s3_look_shots() {  # s3_look_shots <prefix>
-  set_ theme.material.shadow 1; set_ theme.material.shadow_angle 180; sleep 1
+  set_ theme.material.shadow 1; set_ theme.material.shadow_angle 180; settle 1
   full "$1-180.png"
-  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; settle 1
   full "$1-135.png"
-  set_ theme.material.shadow_angle 225; sleep 1
+  set_ theme.material.shadow_angle 225; settle 1
   full "$1-225.png"
-  set_ theme.material.shadow 0; sleep 1
+  set_ theme.material.shadow 0; settle 1
   full "$1-base.png"
 }
 # s3_press <prefix> <x> <y>: the pointer holds (x,y) for 2.5 s; the shot at 135° strength 2 is taken while it is down. The
 # vector the daemon gives for that setting goes to <prefix>-held.vec (whole px: a held key sinks by it).
 s3_press() {
-  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; settle 1
   toks shadow.dx shadow.dy | python3 -I -c 'import json,sys; v = json.load(sys.stdin); print(int(round(v[0])), int(round(v[1])))' > "$1-held.vec"
   timeout 20 python3 -I "$W/hold.py" "$ROOT/tools/bench/wl_pointer.py" "$2" "$3" 2.5 &
   local hp=$!
@@ -602,32 +611,32 @@ if want tokens; then
   look sekai
   for a in 135 225 90 0; do
     for s in 0.5 2; do
-      set_ theme.material.shadow "$s"; set_ theme.material.shadow_angle "$a"; sleep 0.6
+      set_ theme.material.shadow "$s"; set_ theme.material.shadow_angle "$a"; settle 0.6
       # shellcheck disable=SC2046
       expect "keycap $a° × $s" $(vec 4 "$a" "$s")
     done
   done
-  set_ theme.material.shadow 0; sleep 0.6
+  set_ theme.material.shadow 0; settle 0.6
   expect "keycap strength 0" 0 0 0
   look glass
-  set_ theme.material.shadow 2; sleep 0.6
+  set_ theme.material.shadow 2; settle 0.6
   expect "soft × 2 (alpha twice, under 0.9)" 0 12 2
   look sekai
   # Following without a material is inert (and says so); the static direction stays.
-  set_ theme.material.shadow_angle 90; set_ theme.material.shadow_follow true; sleep 0.6
+  set_ theme.material.shadow_angle 90; set_ theme.material.shadow_follow true; settle 0.6
   [ "$(reason theme.material.shadow_follow)" = settings.inert.requires ] || fail "shadow_follow without a material is not inert"
   expect "follow without a material: the angle" 4 0
-  set_ theme.texture.kind paper; sleep 1.5
+  set_ theme.texture.kind paper; settle 1.5
   [ "$(reason theme.material.shadow_angle)" = settings.inert.requires ] || fail "shadow_angle is not inert while following"
   for le in "315 40" "45 40" "315 15" "45 70" "0 40"; do
     # shellcheck disable=SC2086
     set -- $le
-    set_ theme.light.angle "$1"; set_ theme.light.elevation "$2"; sleep 0.8
+    set_ theme.light.angle "$1"; set_ theme.light.elevation "$2"; settle 0.8
     # shellcheck disable=SC2046
     expect "follow light $1° at $2°" $(fvec 4 "$1" "$2" 1)
   done
   # The pointer's lamp casts from where it rests (the static angle): the same vector.
-  set_ theme.light.mode pointer; sleep 0.8
+  set_ theme.light.mode pointer; settle 0.8
   # shellcheck disable=SC2046
   expect "follow the pointer's lamp at rest" $(fvec 4 0 40 1)
 fi
@@ -638,14 +647,14 @@ if want matrix; then
     look "$st"
     for a in 180 135 225; do
       for s in 0.5 1 2; do
-        set_ theme.material.shadow "$s"; set_ theme.material.shadow_angle "$a"; sleep 1
+        set_ theme.material.shadow "$s"; set_ theme.material.shadow_angle "$a"; settle 1
         shot "$st-a$a-s$s-bar" "$BAR"
         card "$st-a$a-s$s-card"
       done
     done
   done
   look sekai
-  set_ theme.material.shadow 0; sleep 1
+  set_ theme.material.shadow 0; settle 1
   shot "sekai-s0-bar" "$BAR"
   card "sekai-s0-card"
 fi
@@ -658,7 +667,7 @@ if want follow; then
     for le in "315 70" "315 15" "45 70" "45 15"; do
       # shellcheck disable=SC2086
       set -- $le
-      set_ theme.light.angle "$1"; set_ theme.light.elevation "$2"; sleep 1.5
+      set_ theme.light.angle "$1"; set_ theme.light.elevation "$2"; settle 1.5
       shot "$st-follow-l$1-e$2-bar" "$BAR"
       card "$st-follow-l$1-e$2-card"
     done
@@ -681,7 +690,7 @@ PY
 if want press; then
   say "== press"
   look sekai
-  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+  set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; settle 1
   # The island card's Close key (a Block button); its release closes the card.
   PX=${SHADOW_PRESS_X:-1125}; PY_=${SHADOW_PRESS_Y:-425}
   K act island.expand >/dev/null || fail "island.expand"
@@ -702,7 +711,7 @@ if want surfaces; then
   say "== surfaces"
   for st in sekai glass; do
     look "$st"
-    set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; sleep 1
+    set_ theme.material.shadow 2; set_ theme.material.shadow_angle 135; settle 1
     K act quick.toggle >/dev/null || fail "quick.toggle"
     sleep 1.8
     shot "$st-a135-s2-quick" "1040,0 1520x900"
@@ -717,18 +726,20 @@ fi
 if want settings; then
   say "== settings"
   look sekai
-  set_ theme.material.shadow 1.5; set_ theme.material.shadow_angle 135; sleep 1
+  set_ theme.material.shadow 1.5; set_ theme.material.shadow_angle 135; settle 1
   sq static
-  set_ theme.texture.kind paper; set_ theme.material.shadow_follow true; set_ theme.light.angle 45; sleep 1.5
+  set_ theme.texture.kind paper; set_ theme.material.shadow_follow true; set_ theme.light.angle 45; settle 1.5
   sq follow
 fi
 
 if want ma; then
   say "== ma"
   look sekai
-  set_ theme.texture.kind paper; set_ theme.material.shadow_follow true; set_ theme.light.mode pointer; sleep 1.5
+  set_ theme.texture.kind paper; set_ theme.material.shadow_follow true; set_ theme.light.mode pointer; settle 1.5
   start_frontend WAYLAND_DEBUG=1
-  sleep 2
+  # 6 s after the launch, about the hello and the fixed 3 + 2 s before: the start-up's own commits (the paper's tiles)
+  # run past a still screen (W55 measured 8 of them in the sweep after a 1.5 + 2 s wait).
+  sleep_rest "$QS_T0" 6
   commits() { grep -c 'wl_surface#[0-9]*\.commit(' "$R/qs.log" || true; }
   # Which surfaces committed after byte offset $1, with their layer namespaces.
   who() {

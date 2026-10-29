@@ -22,7 +22,7 @@
 #     timeout 900 nix develop -c frontend/test-desk.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w24-dsk-1}   # unique per run: other runs stop any sandbox that shares a name
+NAME=${1:-${KURASHI_SB_PREFIX:-}w24-dsk-1}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/desk
 DECORS=${DECORS:-sekai none}

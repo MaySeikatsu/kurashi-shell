@@ -21,7 +21,7 @@
 # sekai-bottom, washi-none (motion off: cuts), plain (no style: translucent flat strip, the I160 head), glass (soft: I122). Binaries from $KURASHI_BIN_DIR (kurashid, kurashi, kurashi-mock).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${MORPH_SANDBOX:-w34-stage-morph}
+NAME=${MORPH_SANDBOX:-${KURASHI_SB_PREFIX:-}w34-stage-morph}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/morph}
 AT=${MORPH_AT:-40 120 250}

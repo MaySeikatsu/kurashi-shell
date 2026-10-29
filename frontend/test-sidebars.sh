@@ -33,6 +33,7 @@ TEST_MODS=0; grep -aq 'hello.raise' "$BIN/kurashid" && TEST_MODS=1   # the side-
 WEATHER_TOKYO='{"place":{"id":"1850147","name":"Tokyo","country_code":"JP","lat":35.6895,"lon":139.69171,"tz":"Asia/Tokyo"}}'
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi" "$R/weather/v1"
@@ -516,12 +517,16 @@ scene() {
   K set "edges.$edge.start=[\"workspaces\",\"windows\"]" \
     "edges.$edge.end=[\"volume\",\"mods\",\"recorder\",\"keyboard\",\"clock\",\"quick\",\"tray\"]" >/dev/null \
     || fail "the zones without the sidebar buttons were refused"
+  # Motion off (W55): the scenes check the column's geometry at rest, not a slide.
+  K set theme.motion.profile=none >/dev/null || fail "theme.motion.profile none was refused"
   [ "$mods" = 0 ] || enable_mods
+  local bare; bare=$(screen_hash)
   env -u KURASHI_SOCKET KURASHI_BAR_GEOMETRY=1 LC_ALL="$locale" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   SCENE_PIDS+=("$!")
-  sleep 4
+  # (Were fixed 4 s and 3 s: the frontend loaded, drew and stands still; then, after the tray items, still again.)
+  wait_frontend "$R/qs.log" 0 4 0.6 "$bare" || fail "the frontend did not load for $name (see $R/qs.log)"
   [ "$tray" = 0 ] || start_tray "$tray"
-  sleep 3
+  wait_settled 3 0.8
   python3 -I "$W/geo.py" "$R/qs.log" "$height" "$mods" "$tray" "$hidden" > "$R/geo.out" 2>&1 || true
   [ -s "$R/geo.out" ] || check 0 "$name: the geometry check printed nothing (see $R/qs.log)"
   while IFS= read -r line; do
@@ -596,6 +601,8 @@ morph_frontend() { # morph_frontend [env assignments…]: a fresh frontend with 
   env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_SIDEBAR_FREEZE="$W/freeze" "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   SCENE_PIDS+=("$QS_PID")
+  # The slide part keeps its fixed 4 s (W55: with a still-screen wait here, kami's 40 ms frame came at rest in four
+  # runs out of four; main passed — the slide's timing is what this part measures).
   sleep 4
 }
 # open_rest <side> / close_down <side>: one toggle, waiting for the column at rest or the window gone.
@@ -699,6 +706,8 @@ PY
 morph_config() { # morph_config <edge> <look> <profile>
   bar_edge "$1" || fail "the bar did not move to $1"
   K set theme.style="$2" theme.motion.profile="$3" >/dev/null || fail "config $1 $2 $3 was refused"
+  # A fixed 1.5 s stays (W55 tried a still-screen wait: kami's 40 ms frame then came at rest twice in a row — a profile
+  # change draws nothing, and the slide's timing needs the time the new look takes to warm up).
   sleep 1.5
 }
 if want_part morph; then

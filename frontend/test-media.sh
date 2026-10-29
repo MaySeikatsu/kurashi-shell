@@ -16,7 +16,7 @@
 # (`cargo build -p kurashid -p kurashi` and `cargo build -p kurashi-mock --example fake_mpris_art` first.)
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w24-med-1}   # unique per run: other runs stop any sandbox that shares a name
+NAME=${1:-${KURASHI_SB_PREFIX:-}w24-med-1}   # unique per run: other runs stop any sandbox that shares a name
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 PLAYER_BIN=${KURASHI_FAKE_MPRIS_ART:-$BIN/examples/fake_mpris_art}
 OUT=$ROOT/frontend/shots/media

@@ -18,7 +18,7 @@
 #   its PPMs; PEN_NEW=<frontend dir> compares another frontend (PEN_NEW=<base export> is the noise control).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w32-pen}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w32-pen}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 BASE=${PEN_BASE:-$(git -C "$ROOT" merge-base HEAD main)}
 OUT=$ROOT/frontend/shots/pen

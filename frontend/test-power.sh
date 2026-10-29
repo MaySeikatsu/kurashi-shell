@@ -17,7 +17,7 @@
 # Shots in frontend/shots/power/. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w23-sys-power}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w23-sys-power}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/power
 mkdir -p "$OUT"
