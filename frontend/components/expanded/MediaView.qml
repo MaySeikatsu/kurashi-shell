@@ -113,7 +113,7 @@ Item {
         // The hero: the art beside the titles and the level bars. With the cover's colours (`art_colors`, K48) it sits on
         // the cover's own tone, its text and bars in the colours the daemon checked for contrast (data colours, not
         // tokens); without them it is plain, on the card.
-        Rectangle {
+        RoundBox {
             id: hero
             width: view.width
             height: heroRow.implicitHeight + 2 * inset

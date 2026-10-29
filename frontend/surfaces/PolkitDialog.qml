@@ -272,7 +272,7 @@ Scope {
                     Item {
                         width: parent.width
                         height: 48 + Theme.shadowDy
-                        Rectangle {
+                        RoundBox {
                             id: box
                             width: parent.width
                             height: 48

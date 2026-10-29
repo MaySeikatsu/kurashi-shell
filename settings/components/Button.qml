@@ -3,7 +3,7 @@ import "../core"
 
 // Text button. `label` is already translated by the caller. Emits `clicked` only. Reachable by Tab;
 // Return, Enter and Space press it. A click does not take focus, so the ring shows for keyboard users only.
-Rectangle {
+RoundBox {
     id: b
     property string label: ""
     // The name a screen reader says, when the visible label is a glyph ("↑") that says nothing by itself.
@@ -24,7 +24,7 @@ Rectangle {
     border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.fg
     // Keycap chrome: the hard shadow along the shadow vector (K67). Pressed, it stands 1 px off the face along each axis
     // (the sign of the step: straight down at the defaults, as before), so the key reads as sunk onto it.
-    Rectangle {
+    RoundBox {
         z: -1
         visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
         x: area.pressed ? Math.sign(Theme.sinkX) : Theme.sinkX

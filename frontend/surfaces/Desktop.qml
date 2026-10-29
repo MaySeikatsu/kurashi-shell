@@ -444,7 +444,7 @@ PanelWindow {
         Row {
             width: parent.width
             spacing: Theme.pad
-            Rectangle {
+            RoundBox {
                 id: art
                 width: 72; height: 72
                 radius: Theme.rLg
@@ -738,7 +738,7 @@ PanelWindow {
                 }
             }
             // An empty column in edit mode: where a card lands when it is moved here.
-            Rectangle {
+            RoundBox {
                 visible: desk.editing && rep.count === 0
                 width: desk.cardW
                 height: emptyText.implicitHeight + 2 * Theme.pad
@@ -862,7 +862,7 @@ PanelWindow {
 
                     // ---- edit mode: the outline, the drag surface (it also keeps clicks off the card's own keys) and
                     // the card's keys: up, down, the other side, show/hide ----
-                    Rectangle {
+                    RoundBox {
                         visible: desk.editing
                         anchors.fill: parent
                         anchors.bottomMargin: Theme.shadowDy

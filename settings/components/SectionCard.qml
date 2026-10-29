@@ -17,7 +17,7 @@ Item {
     Accessible.name: c.title
 
     // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
-    Rectangle {
+    RoundBox {
         visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
         x: Theme.sinkX
         y: Theme.sinkY
@@ -26,7 +26,7 @@ Item {
         radius: face.radius
         color: Theme.line
     }
-    Rectangle {
+    RoundBox {
         id: face
         width: c.width
         height: col.implicitHeight + 2 * Theme.pad

@@ -30,7 +30,7 @@ Flow {
     Repeater {
         id: rep
         model: s.choices
-        delegate: Rectangle {
+        delegate: RoundBox {
             id: pill
             required property var modelData
             required property int index
