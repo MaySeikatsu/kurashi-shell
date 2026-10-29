@@ -1028,6 +1028,7 @@ line or a Japanese string recompiled ~400 crates and ran the suite.
 - Client side: `wayland-protocols` (feature `staging`, already enabled) has the bindings; a refcounted `pointer.rs` in
   `kurashi-compositor` in the shape of `idle.rs`; cursor sessions report `enter/leave/position/hotspot` only (no frames);
   a resting pointer sends nothing. Each session shows in niri's event stream as a cast (filter our own pid).
+
 Measured (session 18, nested sandboxes): niri 849c576 (main) — `svc.pointer` reports the pointer over windows and the bare
 desktop (`winit` 300,400 → 700,650 → 1000,200, one patch per move, none at rest); niri 26.04 — `available: false,
 reason: pointer.no_protocol` and the frontend keeps its sensors; sway (nixpkgs, wlroots 0.19) — both globals offered,
