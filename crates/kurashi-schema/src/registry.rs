@@ -72,7 +72,7 @@ impl Registry {
                     Some(t) => (key, Some((t, value))),
                     None => (key, None),
                 },
-                Coupling::OverriddenBy { key, forces } => match self.get(key) {
+                Coupling::OverriddenBy { key, forces, .. } => match self.get(key) {
                     Some(t) if t.ty != Ty::Bool => {
                         errors.push(SchemaError::OverrideNotBool {
                             key: m.key.clone(),
