@@ -7,7 +7,6 @@ Chip 1.0 Chip.qml
 ProvenanceChip 1.0 ProvenanceChip.qml
 Island 1.0 Island.qml
 SlotHost 1.0 SlotHost.qml
-LockContent 1.0 LockContent.qml
 NotificationCard 1.0 NotificationCard.qml
 FocusRing 1.0 FocusRing.qml
 TrayIcon 1.0 TrayIcon.qml

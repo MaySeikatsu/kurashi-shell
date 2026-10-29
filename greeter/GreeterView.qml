@@ -1,16 +1,19 @@
 import QtQuick
 import "core"
 import "components"
+import "components/lock"
 
-// One output's greeter (W28, docs/ux/greeter.md): the lock screen's content (frontend/components/LockContent.qml,
-// unchanged: the user's ground, keycap clock, field, shake and messages) over the user's wallpaper when the greeter may
-// read it, with the user and session chips at the bottom left and the power keys at the bottom right. Presentational:
-// `g` (Greeter.qml) holds the state. Keyboard: the field has focus; Tab and Shift+Tab cycle field → user → session →
-// suspend → restart → power off; Escape returns to the field.
+// One output's greeter (W28, docs/ux/greeter.md): the user's lock face (frontend/components/lock/, W53.0b: the plain
+// one — the user's ground, keycap clock, field, shake and messages — unless their style brings one) over the user's
+// wallpaper when the greeter may read it, with the user and session chips at the bottom left and the power keys at the
+// bottom right. Presentational: `g` (Greeter.qml) holds the state. Keyboard: the field has focus; Tab and Shift+Tab cycle
+// field → user → session → suspend → restart → power off; Escape returns to the field.
 Item {
     id: v
     property var g
     property string wallpaper: ""
+    // The face the user's cache names (`lock_face`); "plain" without one.
+    property string face: "plain"
 
     Rectangle { anchors.fill: parent; color: Theme.surface }
     Image {
@@ -25,13 +28,17 @@ Item {
         visible: status === Image.Ready
     }
 
-    LockContent {
+    // W53.0b (K80): the lock face the user's cache names (`lock_face`, resolved by kurashid), the plain one without.
+    FaceHost {
         id: lc
         anchors.fill: parent
+        focus: true
+        face: v.face
         // Over a picture the surface becomes a veil, so the field and the clock keep their contrast.
-        color: pic.visible ? Qt.alpha(Theme.surface, 0.55) : Theme.surface
+        ground: pic.visible ? Qt.alpha(Theme.surface, 0.55) : Theme.surface
         lock: v.g.viewLock
         clock: v.g.clock
+        user: v.g.users.length > 0 && v.g.userIndex >= 0 ? { name: v.g.users[v.g.userIndex].display } : ({})
         onSubmitted: s => v.g.submit(s)
         onCancelled: v.g.cancel()
     }

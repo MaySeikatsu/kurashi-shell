@@ -231,6 +231,12 @@
 #   choices: "compact" | "regular" | "airy"
 # density = "regular"
 #
+# Sounds — Short sounds when you unlock, when something goes wrong, when a notification
+# arrives and when the launcher opens or closes: the style's own set, original sounds in the
+# spirit of what it recreates (K80). Off: nothing is loaded or played.
+#   since schema v7
+# sounds = false
+#
 # Apps that follow — Write the shell's colours for these apps whenever the theme changes:
 # GTK, Qt, terminals, niri (K49). Each one needs one line in its own config to read the
 # file; Settings shows it.
@@ -1004,3 +1010,53 @@
 # Brightness down
 #   only while keys.write == true
 # brightness_down = "XF86MonBrightnessDown"
+
+# [lock]
+#
+# Lock screen — Follow the style: the lock screen its style brings, or the plain one when
+# it brings none. Plain: the shell's own lock screen in every style. Or one lock screen by
+# name, whatever the style.
+#   choices: from `lock.faces` (resolved at runtime) · since schema v7
+# face = "follow"
+
+# [title_bar]
+#
+# Title bar buttons — Where the style draws a title bar on its cards (the island's cards,
+# quick settings, menus): no title bar, only the close button, or minimize, maximize and
+# close. A style without title bars draws none either way.
+#   choices: "off" | "close" | "full" · since schema v7
+# buttons = "full"
+#
+# Close button
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons != "off" · since schema v7
+# close = "close"
+#
+# Maximize button — Full screen: the card grows to the largest size the screen has room
+# for.
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons == "full" · since schema v7
+# maximize = "full_screen"
+#
+# Minimize button — The app's menu: the menu its tray icon opens, where the card belongs
+# to an app that has one (a player); every other card hides, back to the island.
+#   choices: "close" | "hide" | "full_screen" | "app_menu" | "none" · only while
+#   title_bar.buttons == "full" · since schema v7
+# minimize = "app_menu"
+
+# [cursor]
+#
+# The style's pointer — The pointer the style brings, set as the compositor's cursor theme
+# (niri: `kurashi-cursor.kdl`, included from its config). Off: your own cursor theme stays.
+#   since schema v7
+# theme = false
+#
+# Pointer size
+#   range: 16..=64, step 4 (px) · only while cursor.theme == true · since schema v7
+# size = 24
+#
+# Pointer decoration — A trail behind the pointer, sparkles or a ring round it, drawn over
+# everything while the pointer moves and gone when it rests. Where the compositor does not
+# say where the pointer is, none is drawn.
+#   choices: "off" | "style" | "trail" | "sparkles" | "ring" · since schema v7
+# decoration = "off"
