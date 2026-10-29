@@ -181,10 +181,11 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Shape::Rounded,
         },
         radius: f(store, "theme.shape.radius", 18.0),
-        material: match s(store, "theme.material.kind").as_str() {
-            "solid" => Material::Solid,
-            "glass" => Material::Glass,
-            _ => Material::Translucent,
+        squircle: f(store, "theme.shape.squircle", 0.77),
+        material: if s(store, "theme.material.kind") == "solid" {
+            Material::Solid
+        } else {
+            Material::Translucent
         },
         opacity: f(store, "theme.material.opacity", 0.85),
         blur: b(store, "theme.material.blur"),
@@ -206,6 +207,11 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             "soft" => kurashi_theme::Chrome::Soft,
             "line" => kurashi_theme::Chrome::Line,
             _ => kurashi_theme::Chrome::Flat,
+        },
+        frame_outline: match s(store, "theme.frame_outline").as_str() {
+            "on" => kurashi_theme::FrameOutline::On,
+            "off" => kurashi_theme::FrameOutline::Off,
+            _ => kurashi_theme::FrameOutline::Auto,
         },
         ..Axes::default()
     };

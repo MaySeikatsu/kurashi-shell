@@ -1175,6 +1175,30 @@
             },
             {
               "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.shape.corners",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "squircle"
+                }
+              ],
+              "default": 0.77,
+              "help": "config.theme.shape.squircle.help",
+              "key": "theme.shape.squircle",
+              "label": "config.theme.shape.squircle.label",
+              "max": 1.0,
+              "min": 0.0,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 0.01,
+              "type": "float"
+            },
+            {
+              "advanced": false,
               "choices": [
                 {
                   "label": "config.choice.chrome.flat",
@@ -1210,6 +1234,33 @@
               "restart": false,
               "since": 1,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.frame_outline.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.frame_outline.on",
+                  "value": "on"
+                },
+                {
+                  "label": "config.choice.frame_outline.off",
+                  "value": "off"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "auto",
+              "help": "config.theme.frame_outline.help",
+              "key": "theme.frame_outline",
+              "label": "config.theme.frame_outline.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         },
@@ -1227,10 +1278,6 @@
                 {
                   "label": "config.choice.material.translucent",
                   "value": "translucent"
-                },
-                {
-                  "label": "config.choice.material.glass",
-                  "value": "glass"
                 }
               ],
               "control": "select",
@@ -1296,7 +1343,7 @@
                   "kind": "requires",
                   "op": "eq",
                   "reason": "settings.inert.requires",
-                  "value": "glass"
+                  "value": "translucent"
                 },
                 {
                   "kind": "capability",
@@ -1310,7 +1357,7 @@
                   "reason": "settings.inert.overridden_by"
                 }
               ],
-              "default": true,
+              "default": false,
               "help": "config.theme.material.blur.help",
               "key": "theme.material.blur",
               "label": "config.theme.material.blur.label",
@@ -4706,5 +4753,5 @@
       ]
     }
   ],
-  "schema_version": 6
+  "schema_version": 7
 }
