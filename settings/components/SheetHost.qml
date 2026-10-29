@@ -18,8 +18,14 @@ PanelWindow {
     readonly property alias slot: slot
     // The sheet's rectangle on the surface (the settings test checks it is centred).
     readonly property alias frame: frame
-    // 0 → 1 while opening, back to 0 while closing; nothing animates in between (Ma).
-    property real p: 0
+    // 0 → 1 while opening, back to 0 while closing, on the motion profile (session 17, docs/ux/settings.md "Opening"):
+    // expressive on Caelestia's curves (the open curve overshoots a little), calm and lively on their springs, motion off at
+    // once — the shell's own Glide. `grow` is that value (it may pass 1); `p` is it within 0..1. Nothing runs at rest (Ma).
+    Glide { id: glide; to: 0 }
+    readonly property real grow: glide.value
+    readonly property real p: Math.max(0, Math.min(1, grow))
+    // The content once the shape is about 40 % out (the effects follow the shape, as on Caelestia's drawers).
+    readonly property real contentP: Math.max(0, Math.min(1, (grow - 0.4) / 0.6))
     property bool closing: false
     // The sheet's corners (the shell's large radius, a step rounder as the launcher's card).
     readonly property real radius: Theme.rLg + 4
@@ -52,11 +58,10 @@ PanelWindow {
     function close() {
         if (closing) return
         closing = true
-        anim.stop()
-        anim.from = p
-        anim.to = 0
-        anim.start()
+        glide.to = 0
+        if (!glide.running && grow <= 0.001) dismissed()
     }
+    onGrowChanged: if (closing && grow <= 0.001) dismissed()
 
     screen: pinned
     anchors.top: true
@@ -76,18 +81,8 @@ PanelWindow {
         function onFrameSwapped() {
             if (!sh.gate) return
             sh.gate = false
-            anim.from = sh.p
-            anim.to = 1
-            anim.start()
+            glide.to = 1
         }
-    }
-    NumberAnimation {
-        id: anim
-        target: sh
-        property: "p"
-        duration: Theme.stdMs
-        easing.type: Easing.OutCubic
-        onFinished: if (sh.closing && sh.p <= 0) sh.dismissed()
     }
 
     // The backdrop: the scrim over the desktop. A click on it closes; it takes no focus (UX brief, a11y).
@@ -109,8 +104,10 @@ PanelWindow {
         height: Math.round(Math.min(740, sh.height * 0.9))
         x: Math.round((sh.width - width) / 2)
         y: Math.round((sh.height - height) / 2)
-        opacity: Math.min(1, sh.p * 1.4)
-        scale: 0.97 + 0.03 * sh.p
+        // It grows down from its top edge (the side the bar and the island are on): the ground, outline and shadows are as
+        // tall as the shape is out; the content keeps its size (no relayout per frame) and is cut there.
+        readonly property real shownH: Math.max(0, height * sh.grow)
+        opacity: Math.min(1, sh.grow * 4)
         Accessible.role: Accessible.Dialog
         Accessible.name: I18n.tr("settings.ui.title")
 
@@ -123,12 +120,13 @@ PanelWindow {
             x: Theme.sinkX
             y: Theme.sinkY
             width: frame.width
-            height: frame.height
+            height: Math.max(2 * sh.radius, frame.shownH)
             radius: sh.radius
             color: Theme.line
         }
         Loader {
-            anchors.fill: parent
+            width: parent.width
+            height: Math.max(2 * sh.radius, frame.shownH)
             active: Theme.softR > 0 && Theme.shadowAlpha > 0
             sourceComponent: RectangularShadow {
                 offset.x: Theme.shadowX
@@ -143,17 +141,28 @@ PanelWindow {
         // offscreen layer would move it off the shell's sheet. The content rounds its own corners instead (`radius`, read by
         // shell.qml's header and sidebar), and the ground relief is the content's first child (shell.qml).
         Rectangle {
-            anchors.fill: parent
+            width: parent.width
+            height: Math.max(2 * sh.radius, frame.shownH)
             radius: sh.radius
             color: Theme.surface
         }
+        // (a scissor, not a layer: the relief still registers by the window pixel it is drawn at)
         Item {
-            id: slot
-            anchors.fill: parent
+            width: parent.width
+            height: Math.min(parent.height, Math.max(0, frame.shownH - sh.radius / 2))
+            clip: sh.grow < 0.999
+            Item {
+                id: slot
+                width: frame.width
+                height: frame.height
+                opacity: sh.contentP
+                y: 12 * (1 - sh.contentP)
+            }
         }
         // The outline over the content's edge: the chrome's ink, else a hairline that keeps the sheet off the scrim.
         Rectangle {
-            anchors.fill: parent
+            width: parent.width
+            height: Math.max(2 * sh.radius, frame.shownH)
             color: "transparent"
             radius: sh.radius
             border.width: Theme.outlineW > 0 ? Theme.outlineW : 1

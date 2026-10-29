@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic as QQC
 import Quickshell
 import "../core"
 import "../components"
@@ -12,6 +13,11 @@ import "../components/ProfileDiff.js" as ProfileDiff
 // profile.import, config.profiles); this page only lays them out and names the paths its fields hold.
 Flickable {
     id: p
+    // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
+    flickDeceleration: 2900
+    maximumFlickVelocity: 7000
+    KineticWheel { flick: p }
+    QQC.ScrollBar.vertical: PageScrollBar {}
     // The list is the daemon's `config.profiles` (K27): pushed, and current when a profile file appears or goes. A daemon
     // without that field gets `profile.list` once per connection instead.
     property var listed: []

@@ -5,9 +5,14 @@ import Quickshell
 // The only reader of `theme.tokens` (rule 4). Components ask for tokens by name and never branch
 // on theme/profile names. Fallbacks only cover a daemon that has not delivered the theme yet.
 Singleton {
-    readonly property var tokens: (Store.docs["theme"] && Store.docs["theme"].tokens) ? Store.docs["theme"].tokens : ({})
+    // The one Theme of the shell and of Settings (session 17: Settings links this file into its core/): the shell's Store
+    // keeps the theme in `docs`, Settings' Store in `theme`.
+    readonly property var themeDoc: (Store.docs && Store.docs["theme"]) || Store.theme || null
+    readonly property var tokens: (themeDoc && themeDoc.tokens) ? themeDoc.tokens : ({})
     function tok(k, d) { var v = tokens[k]; return v === undefined ? d : v }
     function color(k, d) { return Qt.color(tok(k, d)) }
+    // A colour token that may be missing (a palette without it): the given colour stands in.
+    function colorOr(k, d) { var v = tokens[k]; return v === undefined ? d : Qt.color(v) }
     function bezier(k, d) { var c = tok(k, d); return [c[0], c[1], c[2], c[3], 1, 1] }
     // font.families is not exposed to QML Text; pick the CJK family by script.
     function fam(t, f) { if (!f || f.length < 2) return ""; return /[　-ヿ一-鿿]/.test(t || "") ? f[1] : f[0] }
@@ -201,4 +206,12 @@ Singleton {
     // Some outline modifier or line style is in effect: outlines are drawn by the pen, not as straight borders.
     readonly property bool penOutline: penLine !== "solid" || penPressure > 0 || penBreaks > 0 || penFade > 0 || penWobble > 0
     readonly property bool penText: penTextPressure > 0 || penTextBreaks > 0 || penTextFade > 0 || penTextWobble > 0
+
+    // Settings' own (it shares this Theme): on/off marks, and the relief of a window that has moved between its hosts
+    // (`hosted`, set by settings/shell.qml around a re-host: a Relief binds to the window it is made in).
+    readonly property color statusOff: colorOr("color.status.off", dim)
+    readonly property color statusOn: colorOr("color.status.on", accent)
+    property bool hosted: false
+    readonly property bool surfaceRelief: hosted && texShell && !texText
+    readonly property bool textRelief: hosted && texShell && texText
 }
