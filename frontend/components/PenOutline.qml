@@ -64,8 +64,12 @@ Item {
     // The anchor's cell in its parent (ints: they notify only when the cell changes).
     readonly property int cellX: anchor ? Pen.cell(anchor.x) : 0
     readonly property int cellY: anchor ? Pen.cell(anchor.y) : 0
-    readonly property var inputs: [width, height, radius, radii, inset, color.r, color.g, color.b, lineWidth, points,
-        paths, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
+    // The lines by content (strings: they notify only when a point moves — callers rebuild their arrays on every patch of
+    // what they read, and a repaint is a commit: an idle surface must not commit, test-frame's idle check).
+    readonly property string pointsKey: points ? JSON.stringify(points) : ""
+    readonly property string pathsKey: paths ? JSON.stringify(paths) : ""
+    readonly property var inputs: [width, height, radius, radii, inset, color.r, color.g, color.b, lineWidth, pointsKey,
+        pathsKey, line, pressure, breaks, fade, wobble, seed, cellX, cellY]
     onInputsChanged: cv.requestPaint()
 
     Canvas {

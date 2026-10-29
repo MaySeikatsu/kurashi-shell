@@ -33,6 +33,11 @@ Item {
     // openings, [{edge, from, to}] along that edge in output px): the rule is left out there, so the neighbour's outline
     // runs round its fillet into the rule's ends (one sheet, as on a bar: row 521).
     property var openings: []
+    // What this instance draws: the sheet (fills, fillets, the screen's corners) and/or the rule. A window that draws its
+    // own body between them (a docked bar carrying its strip) takes two instances, the rule over its body: else the body's
+    // last row hides the arcs' first half pixel and the rule steps where it meets the body's outline (I302).
+    property bool drawSheet: true
+    property bool drawRule: true
     // Docked bars that slide (hover, empty desktop: Bar.qml): the cut on edge `e` stands `lift<E>` px nearer the screen edge
     // than the pieces were laid out for (the bar's shown depth; IslandGeom.lifts). A piece hanging in a corner (`c`: a
     // fillet, its arc, a square corner's pixel) moves with both of its corner's edges; the band's straight rule (`band`)
@@ -80,6 +85,46 @@ Item {
         return false
     }
     readonly property var shownArcs: arcs.filter(function (a) { return !covered(a) })
+    // Where a neighbour joined to the band stands (an opening), its fillet's outline turns into this rule's row: that part
+    // of the turn is drawn here, over the band (I302) — the neighbour's window draws the rest and may be stacked under this
+    // strip, and it stops at the band's line anyway. The same circle as the neighbour's (ColumnShape `ruled`: the layout's
+    // one radius round the fillet's centre, the line from `r` to `r + ow` out), from the rule's row up to 45°.
+    function nearEdge(e, mid) {
+        return e === "top" ? mid < sh / 2 : e === "bottom" ? mid > sh / 2 : e === "left" ? mid < sw / 2 : mid > sw / 2
+    }
+    readonly property var tailArcs: {
+        var out = []
+        if (!drawRule || r <= 0 || ow <= 0 || openings.length === 0) return out
+        var lifted = rules.map(function (g) { return { x: gx(g), y: gy(g), w: gw(g), h: gh(g), vert: g.vert } })
+        for (var j = 0; j < openings.length; j++) {
+            var o = openings[j], side = o.edge === "left" || o.edge === "right", L = NaN, r0 = 0, r1 = 0
+            // (only where this strip rules that edge under the opening, and only at an end the rule runs on past: a
+            // neighbour reaching the rule's end — a column from corner to corner — turns there without a fillet)
+            for (var i = 0; i < lifted.length && isNaN(L); i++) {
+                var g = lifted[i], horiz = isH(g)
+                if (side === horiz || !nearEdge(o.edge, horiz ? g.y + g.h / 2 : g.x + g.w / 2)) continue
+                var s0 = horiz ? g.x : g.y, s1 = horiz ? g.x + g.w : g.y + g.h
+                if (o.to < s0 || o.from > s1) continue
+                L = o.edge === "bottom" ? g.y : o.edge === "top" ? g.y + g.h : o.edge === "left" ? g.x + g.w : g.x
+                r0 = s0; r1 = s1
+            }
+            if (isNaN(L)) continue
+            var nx = o.edge === "left" ? 1 : o.edge === "right" ? -1 : 0, ny = o.edge === "top" ? 1 : o.edge === "bottom" ? -1 : 0
+            var a = Math.min(r, (o.to - o.from) / 2), rho = a + ow / 2
+            var ends = [[o.from, 1, o.from > r0 + 0.5], [o.to, -1, o.to < r1 - 0.5]]
+            for (var k = 0; k < 2; k++) {
+                if (!ends[k][2]) continue
+                var at = ends[k][0], sg = ends[k][1], pts = []
+                var cx = (side ? L : at) + nx * a, cy = (side ? at : L) + ny * a
+                for (var q = 0; q <= 8; q++) {
+                    var th = Math.PI / 4 * q / 8, c = Math.cos(th), sn = Math.sin(th) * sg
+                    pts.push({ x: cx + rho * (-nx * c + (side ? 0 : sn)), y: cy + rho * (-ny * c + (side ? sn : 0)) })
+                }
+                out.push(pts)
+            }
+        }
+        return out
+    }
     function cutRules(list, ops) {
         if (!ops || ops.length === 0) return list
         var out = []
@@ -121,7 +166,7 @@ Item {
     // The screen's outer corners (K47 (6)): ScreenCorners' black fillets sit on the panel's outer corners, but a strip is
     // made later and would lie over them, so it draws the same black over its own part (black on black where both are).
     Repeater {
-        model: fp.cr > 0 ? [[0, 0, 0], [fp.sw - fp.cr, 0, 90], [fp.sw - fp.cr, fp.sh - fp.cr, 180], [0, fp.sh - fp.cr, 270]] : []
+        model: fp.drawSheet && fp.cr > 0 ? [[0, 0, 0], [fp.sw - fp.cr, 0, 90], [fp.sw - fp.cr, fp.sh - fp.cr, 180], [0, fp.sh - fp.cr, 270]] : []
         z: 1
         Item {
             required property var modelData
@@ -133,7 +178,7 @@ Item {
     }
     Repeater {
         id: fillRep
-        model: fp.fills
+        model: fp.drawSheet ? fp.fills : []
         Rectangle {
             required property var modelData
             x: fp.gx(modelData); y: fp.gy(modelData); width: fp.gw(modelData); height: fp.gh(modelData)
@@ -147,7 +192,7 @@ Item {
     }
     Rectangle {
         x: fp.cover.x; y: fp.cover.y; width: fp.cover.w; height: fp.cover.h
-        visible: fp.cover.h > 0 && fp.cover.w > 0
+        visible: fp.drawSheet && fp.cover.h > 0 && fp.cover.w > 0
         color: Theme.surfaceAlpha
         Loader {
             anchors.fill: parent
@@ -156,7 +201,7 @@ Item {
         }
     }
     Repeater {
-        model: fp.fillets
+        model: fp.drawSheet ? fp.fillets : []
         Fillet {
             required property var modelData
             r: fp.r
@@ -165,23 +210,23 @@ Item {
     }
     // The rule: rectangles and arcs in the outline colour, or the pen's line.
     Repeater {
-        model: fp.ow > 0 && !Theme.penOutline ? fp.shownRules : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.shownRules : []
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
         }
     }
     Repeater {
-        model: fp.ow > 0 && !Theme.penOutline ? fp.coverRules : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.coverRules : []
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
         }
     }
     Repeater {
-        model: fp.ow > 0 && !Theme.penOutline ? fp.shownArcs : []
+        model: fp.drawRule && fp.ow > 0 && !Theme.penOutline ? fp.shownArcs : []
         Shape {
             required property var modelData
             x: fp.cdx(modelData.c)
@@ -191,10 +236,26 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 fillColor: "transparent"
-                strokeColor: Theme.outlineColor
+                strokeColor: Theme.frameOutlineColor
                 strokeWidth: fp.ow
                 capStyle: ShapePath.FlatCap
                 PathPolyline { path: modelData.p.map(function (p) { return Qt.point(p.x, p.y) }) }
+            }
+        }
+    }
+    Repeater {
+        model: fp.ow > 0 && !Theme.penOutline ? fp.tailArcs : []
+        Shape {
+            required property var modelData
+            width: fp.width
+            height: fp.height
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                fillColor: "transparent"
+                strokeColor: Theme.frameOutlineColor
+                strokeWidth: fp.ow
+                capStyle: ShapePath.FlatCap
+                PathPolyline { path: modelData.map(function (p) { return Qt.point(p.x, p.y) }) }
             }
         }
     }
@@ -204,10 +265,10 @@ Item {
         y: fp.oy
         width: fp.winW
         height: fp.winH
-        active: fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
+        active: fp.drawRule && fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
         sourceComponent: PenOutline {
             anchors.fill: parent
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
             lineWidth: fp.ow
             seed: fp.seed
             paths: {
@@ -223,6 +284,9 @@ Item {
                 fp.shownArcs.forEach(function (a) {
                     var dx = fp.cdx(a.c), dy = fp.cdy(a.c)
                     l.push({ points: a.p.map(function (p) { return { x: p.x + dx - ox, y: p.y + dy - oy } }), closed: false })
+                })
+                fp.tailArcs.forEach(function (t) {
+                    l.push({ points: t.map(function (p) { return { x: p.x - ox, y: p.y - oy } }), closed: false })
                 })
                 return l
             }

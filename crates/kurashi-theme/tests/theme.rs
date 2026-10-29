@@ -474,6 +474,68 @@ fn axes_scales() {
     assert_eq!(t["blur"], false);
 }
 
+/// I300: `shape.squircle_k` maps `theme.shape.squircle` 0..1 onto 0.5523..0.98; the default is today's 0.88.
+#[test]
+fn squircle_k_follows_the_curve_setting() {
+    let mut i = ThemeInput::default();
+    for (v, k) in [(0.0, 0.5523), (0.5, 0.7662), (0.77, 0.8816), (1.0, 0.98)] {
+        i.axes.squircle = v;
+        let t = resolve(&i, &fonts()).unwrap().tokens;
+        assert_eq!(t["shape.squircle_k"], serde_json::json!(k), "squircle {v}");
+    }
+    // Emitted under every corner style (the frontend reads it only under squircle).
+    i.axes.squircle = 0.77;
+    for shape in [Shape::None, Shape::Rounded, Shape::Squircle] {
+        i.axes.shape = shape;
+        let t = resolve(&i, &fonts()).unwrap().tokens;
+        assert_eq!(t["shape.squircle_k"], serde_json::json!(0.8816));
+    }
+    assert_eq!(ThemeInput::default().axes.squircle, 0.77);
+    assert!((tokens::squircle_k(0.77) - 0.88).abs() < 0.005);
+}
+
+/// I303: `frame.outline` is the chrome's own default under `auto` (keycap and line on, flat and soft off), else the
+/// setting.
+#[test]
+fn frame_outline_per_chrome_and_setting() {
+    let mut i = ThemeInput::default();
+    for (chrome, auto) in [
+        (Chrome::Flat, false),
+        (Chrome::Keycap, true),
+        (Chrome::Soft, false),
+        (Chrome::Line, true),
+    ] {
+        i.axes.chrome = chrome;
+        for (setting, want) in [
+            (FrameOutline::Auto, auto),
+            (FrameOutline::On, true),
+            (FrameOutline::Off, false),
+        ] {
+            i.axes.frame_outline = setting;
+            let t = resolve(&i, &fonts()).unwrap().tokens;
+            assert_eq!(t["frame.outline"], want, "{chrome:?} × {setting:?}");
+        }
+    }
+}
+
+/// I297: translucent blurs when the switch is on (what glass did), never without it; solid never blurs.
+#[test]
+fn translucent_blurs_only_with_the_switch() {
+    let mut i = ThemeInput::default();
+    i.axes.material = Material::Translucent;
+    i.axes.opacity = 0.6;
+    for blur in [true, false] {
+        i.axes.blur = blur;
+        let t = resolve(&i, &fonts()).unwrap().tokens;
+        assert_eq!(t["blur"], blur);
+        assert_eq!(t["color.surface_alpha"], 0.6);
+    }
+    i.axes.material = Material::Solid;
+    i.axes.blur = true;
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["blur"], false);
+}
+
 #[test]
 fn oled_and_overrides() {
     let mut i = input("wa-iro", Scheme::Dark);

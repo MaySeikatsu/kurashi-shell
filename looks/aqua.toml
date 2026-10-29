@@ -6,7 +6,8 @@ category = "inspired"
 [recipe]
 "theme.chrome" = "soft"
 "theme.motion.profile" = "expressive"
-"theme.material.kind" = "glass"
+"theme.material.kind" = "translucent"
+"theme.material.blur" = true
 "theme.material.opacity" = 0.6
 "theme.shape.corners" = "squircle"
 "theme.shape.radius" = 24

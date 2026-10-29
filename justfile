@@ -34,6 +34,11 @@ bench name *CMD:
     cargo build --workspace --release
     python3 tools/bench/measure.py --name {{name}} -- {{CMD}}
 
+# Frontend suites in parallel, a failure re-run alone (tools/test-suites.sh): `just suites`, `just suites --changed`,
+# `just suites dock frame`, `just suites --all`
+suites *ARGS:
+    tools/test-suites.sh {{ARGS}}
+
 nix-check:
     nix flake check
 

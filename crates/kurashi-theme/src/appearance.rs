@@ -25,6 +25,7 @@ pub const LOOK_KEYS: &[&str] = &[
     "theme.chrome",
     "theme.shape.corners",
     "theme.shape.radius",
+    "theme.shape.squircle",
     "theme.material.kind",
     "theme.material.opacity",
     "theme.material.blur",
@@ -73,6 +74,7 @@ pub const STYLE_KEYS: &[&str] = &[
     "theme.chrome",
     "theme.shape.corners",
     "theme.shape.radius",
+    "theme.shape.squircle",
     "theme.material.kind",
     "theme.material.opacity",
     "theme.material.blur",
@@ -215,6 +217,17 @@ pub fn parse(kind: Kind, src: &str, fallback_name: &str, bundled: bool) -> Resul
                 k.clone(),
                 serde_json::to_value(val).map_err(|e| e.to_string())?,
             ));
+        }
+    }
+    // Schema v7 (I297): a pack file has no schema version to migrate, so a user's pack that still says `glass` reads as
+    // what glass was — translucent with its blur on (unless it says otherwise).
+    if let Some(e) = recipe
+        .iter_mut()
+        .find(|(k, v)| k == "theme.material.kind" && v == "glass")
+    {
+        e.1 = serde_json::Value::from("translucent");
+        if !recipe.iter().any(|(k, _)| k == "theme.material.blur") {
+            recipe.push(("theme.material.blur".into(), serde_json::Value::Bool(true)));
         }
     }
     // A frame names a QML file: lowercase words joined by `-`, nothing that could leave the frames directory.
@@ -423,6 +436,34 @@ mod tests {
         assert_eq!(looks.iter().find(|d| d.name == "sekai").unwrap().frame, "");
         assert!(parse(Kind::Look, "[slots]\nframe = \"../x\"\n", "x", false).is_err());
         assert!(parse(Kind::Style, "[slots]\nframe = \"x\"\n", "x", false).is_err());
+    }
+
+    #[test]
+    fn a_pack_that_says_glass_reads_as_translucent_with_blur() {
+        let get = |p: &Pack, k: &str| {
+            p.recipe
+                .iter()
+                .find(|(n, _)| n == k)
+                .map(|(_, v)| v.clone())
+        };
+        let p = parse(
+            Kind::Look,
+            "name = \"mine\"\n[recipe]\n\"theme.material.kind\" = \"glass\"\n",
+            "x",
+            false,
+        )
+        .unwrap();
+        assert_eq!(get(&p, "theme.material.kind"), Some("translucent".into()));
+        assert_eq!(get(&p, "theme.material.blur"), Some(true.into()));
+        // Its own blur switch stays.
+        let p = parse(
+            Kind::Look,
+            "name = \"mine\"\n[recipe]\n\"theme.material.kind\" = \"glass\"\n\"theme.material.blur\" = false\n",
+            "x",
+            false,
+        )
+        .unwrap();
+        assert_eq!(get(&p, "theme.material.blur"), Some(false.into()));
     }
 
     #[test]

@@ -379,6 +379,8 @@ Item {
             implicitHeight: box.height
             color: "transparent"
             mask: Region {}
+            // Glass: blurred as the bar's sheet is (I296).
+            BackgroundEffect.blurRegion: Region { item: Theme.blur ? box : null; radius: Theme.rSm }
             Rectangle {
                 id: box
                 width: Math.min(380, Math.max(titleT.implicitWidth, appT.implicitWidth) + 2 * Theme.gap)
@@ -433,6 +435,14 @@ Item {
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.namespace: "kurashi-tasks-menu"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+            // Glass: behind the menu's block, without its shadow (I296).
+            BackgroundEffect.blurRegion: Region {
+                x: Theme.blur ? menuBody.x : 0
+                y: menuBody.y
+                width: Theme.blur ? menuBody.width : 0
+                height: Theme.blur ? menuBody.height - Theme.shadowDy : 0
+                radius: Theme.rLg
+            }
             MouseArea {
                 anchors.fill: parent
                 acceptedButtons: Qt.AllButtons

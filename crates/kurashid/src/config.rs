@@ -79,7 +79,72 @@ pub fn migrations() -> Vec<kurashi_config::Migration> {
             to: 6,
             apply: v5_to_v6,
         },
+        kurashi_config::Migration {
+            from: 6,
+            to: 7,
+            apply: v6_to_v7,
+        },
     ]
+}
+
+/// Session 17 (I297): the material `glass` became `translucent` with its blur switch on, and blur's default became off
+/// (translucent never blurred before). A file keeps what it showed: `kind = "glass"` turns `translucent` and gets
+/// `blur = true` unless it says; a file that says `translucent` and `blur = true` had that switch inert, so it becomes
+/// `false`. Root and `[outputs.*]` tables.
+fn v6_to_v7(doc: &mut kurashi_config::DocumentMut) -> Result<(), String> {
+    fn one(t: &mut dyn toml_edit::TableLike) {
+        let material = t
+            .get("theme")
+            .and_then(|th| th.get("material"))
+            .and_then(toml_edit::Item::as_table_like);
+        let kind = material
+            .and_then(|m| m.get("kind"))
+            .and_then(toml_edit::Item::as_str)
+            .map(str::to_owned);
+        let blur = material
+            .and_then(|m| m.get("blur"))
+            .and_then(toml_edit::Item::as_bool);
+        match (kind.as_deref(), blur) {
+            (Some("glass"), _) => {
+                set(t, &["theme", "material", "kind"], "translucent".into());
+                put(t, &["theme", "material", "blur"], toml_edit::value(true));
+            }
+            (Some("translucent"), Some(true)) => {
+                set(t, &["theme", "material", "blur"], false.into());
+            }
+            _ => {}
+        }
+    }
+    // Replaces a value in place, so its comments and position stay.
+    fn set(t: &mut dyn toml_edit::TableLike, path: &[&str], v: toml_edit::Value) {
+        let mut cur = Some(t);
+        let (last, parents) = path.split_last().expect("a path");
+        for p in parents {
+            cur = cur
+                .and_then(|c| c.get_mut(p))
+                .and_then(toml_edit::Item::as_table_like_mut);
+        }
+        if let Some(item) = cur.and_then(|c| c.get_mut(last))
+            && let Some(old) = item.as_value_mut()
+        {
+            let decor = old.decor().clone();
+            *old = v;
+            *old.decor_mut() = decor;
+        }
+    }
+    let root = doc.as_table_mut();
+    one(root);
+    if let Some(outputs) = root
+        .get_mut("outputs")
+        .and_then(toml_edit::Item::as_table_like_mut)
+    {
+        for (_, t) in outputs.iter_mut() {
+            if let Some(t) = t.as_table_like_mut() {
+                one(t);
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Session 16 (user): the styles that were only a palette — catppuccin, rose-pine, tokyo-night — became palette choices.
