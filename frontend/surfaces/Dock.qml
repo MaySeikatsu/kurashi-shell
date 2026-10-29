@@ -428,6 +428,12 @@ Scope {
                         target: joinedRelief.on ? joinedShape : null
                         function onFillPathChanged() { joinedMask.scheduleUpdate() }
                     }
+                    // A relief made again by a theme change (texture, sheet) gets a fresh mask: the grab above runs only
+                    // when the path changes, and an empty mask hides the material (I298, not reproduced; a guess).
+                    Connections {
+                        target: joinedRelief
+                        function onOnChanged() { if (joinedRelief.on) Qt.callLater(joinedMask.scheduleUpdate) }
+                    }
                     WlrLayershell.layer: WlrLayer.Top
                     WlrLayershell.namespace: "kurashi-dock"
                     // K59/row 284: this window's tile pair, shared by the body's and the tiles' reliefs (one pair, not
@@ -448,9 +454,25 @@ Scope {
                         height: body.height - (dock.horiz ? win.edgeCut : 0)
                     }
                     // Glass only (Theme.blur): behind the body, rounded as it is drawn — the floating block all round, the
-                    // joined body at its free corners (I276).
+                    // joined body at its free corners (I276). Where the body is drawn (I296): moved by the slide — a Region
+                    // on the item follows its transform only on a resize, so it stayed where the dock had hidden and the
+                    // dock at rest was not blurred — and cut at the line the joined dock comes out of.
+                    readonly property rect blurBox: {
+                        var x0 = body.x + sheetCarry.x, y0 = body.y + sheetCarry.y
+                        var x1 = x0 + body.width, y1 = y0 + body.height - (dock.joined ? 0 : Theme.shadowDy)
+                        // (a joined body reaches its line however it moves: it stretches over an overshoot, I299)
+                        var c = clipper.cut, j = dock.joined
+                        if (dock.edge === "left") x0 = j ? c : Math.max(x0, c)
+                        else if (dock.edge === "right") x1 = j ? width - c : Math.min(x1, width - c)
+                        else if (dock.atTop) y0 = j ? c : Math.max(y0, c)
+                        else y1 = j ? height - c : Math.min(y1, height - c)
+                        return Qt.rect(x0, y0, Math.max(0, x1 - x0), Math.max(0, y1 - y0))
+                    }
                     BackgroundEffect.blurRegion: Region {
-                        item: Theme.blur ? body : null
+                        x: win.blurBox.x
+                        y: win.blurBox.y
+                        width: Theme.blur && dock.shownAmt > 0 ? win.blurBox.width : 0
+                        height: Theme.blur && dock.shownAmt > 0 ? win.blurBox.height : 0
                         topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rLg + 4
                         topRightRadius: dock.joined ? joinedShape.sTR : Theme.rLg + 4
                         bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rLg + 4
@@ -501,6 +523,9 @@ Scope {
                         y: -clipper.y
                         // Slides off its edge by the dock's thickness while hiding (and rides a sliding bar's edge).
                         readonly property real away: (1 - dock.shownAmt) * (dock.bodyAcross + dock.edgeGap + dock.room)
+                        // How far an overshooting reveal carries the body past its rest (I299): the joined shape's foot
+                        // stays on its line meanwhile (the body stretches), so its fillets never lift off the band.
+                        readonly property real over: Math.max(0, -away)
                         transform: Translate {
                             x: dock.edge === "left" ? -slider.away : (dock.edge === "right" ? slider.away : 0)
                             y: dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0)
@@ -528,8 +553,8 @@ Scope {
                                 // Canonical: a bottom dock's edge is the frame's top; a side dock's edge its right side.
                                 readonly property real ex0: dock.edge === "left" ? win.width - body.x - body.width : body.x
                                 x0: dock.horiz ? body.x : ex0
-                                x1: dock.horiz ? body.x + body.width : win.width - dock.edgeGap
-                                y0: dock.horiz ? dock.edgeGap : body.y
+                                x1: dock.horiz ? body.x + body.width : win.width - dock.edgeGap + slider.over
+                                y0: dock.horiz ? dock.edgeGap - slider.over : body.y
                                 y1: dock.atTop ? body.y + body.height : (dock.horiz ? win.height - body.y : body.y + body.height - Theme.shadowDy)
                                 openT: dock.horiz
                                 openO: !dock.horiz
@@ -903,6 +928,8 @@ Scope {
                             implicitHeight: tipBox.height
                             color: "transparent"
                             mask: Region {}
+                            // Glass: the tooltip is the dock's sheet, blurred as it is (I296).
+                            BackgroundEffect.blurRegion: Region { item: Theme.blur ? tipBox : null; radius: Theme.rSm }
                             Rectangle {
                                 id: tipBox
                                 width: tipText.implicitWidth + 2 * Theme.gap
@@ -945,6 +972,14 @@ Scope {
                             WlrLayershell.layer: WlrLayer.Overlay
                             WlrLayershell.namespace: "kurashi-dock-menu"
                             WlrLayershell.keyboardFocus: WlrKeyboardFocus.Exclusive
+                            // Glass: behind the menu's block, without its shadow (I296).
+                            BackgroundEffect.blurRegion: Region {
+                                x: Theme.blur ? menuBody.x : 0
+                                y: menuBody.y
+                                width: Theme.blur ? menuBody.width : 0
+                                height: Theme.blur ? menuBody.height - Theme.shadowDy : 0
+                                radius: Theme.rLg
+                            }
                             MouseArea {
                                 anchors.fill: parent
                                 acceptedButtons: Qt.AllButtons
