@@ -378,10 +378,10 @@ pub struct Theme {
     /// How blocks are drawn: flat fills; keycaps with an ink outline, a light ring and a hard shadow
     /// they sink into when pressed; soft blocks with a faint rim and a soft shadow; ink lines; or
     /// bevels, light and dark edges that press in (K42, K45, K80).
-    // K80 amends K42: under high contrast a bevel should stay (its lines carry pressed and sunken). The theme crate draws
-    // it in the contrast ink; the coupling below still forces flat until the daemon can keep one value (CONTRACT-CHANGE).
+    // K80 amends K42: under high contrast a bevel stays (its lines carry pressed and sunken), drawn in the contrast ink;
+    // every other chrome is forced flat (`except`: the daemon reads the value beneath the accessibility layer).
     #[kurashi(default = Chrome::Flat, section = "shape",
-              overridden_by = "a11y.high_contrast => flat")]
+              overridden_by = "a11y.high_contrast => flat except bevel")]
     pub chrome: Chrome,
     /// Frame outline
     /// A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the

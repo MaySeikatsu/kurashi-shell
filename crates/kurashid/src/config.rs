@@ -1439,10 +1439,16 @@ impl ConfigStore {
                 if let Coupling::OverriddenBy {
                     key: mode,
                     forces: Some(v),
+                    except,
                 } = c
                     && cfg
                         .resolve(mode, None)
                         .is_some_and(|p| p.value == Value::Bool(true))
+                    // K80: a value the mode leaves alone (high contrast keeps a bevel) — read beneath the old force.
+                    && !(!except.is_empty()
+                        && cfg
+                            .resolve_beneath("accessibility", key, None)
+                            .is_some_and(|p| except.contains(&p.value)))
                 {
                     want.push((key.to_string(), v.clone(), mode.clone()));
                     break; // first active mode wins (declaration order)

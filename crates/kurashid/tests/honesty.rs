@@ -218,6 +218,7 @@ fn overrides_by_mode() -> BTreeMap<String, Vec<(String, Value)>> {
             if let Coupling::OverriddenBy {
                 key: mode,
                 forces: Some(v),
+                ..
             } = c
             {
                 by_mode
@@ -490,6 +491,33 @@ async fn a11y_modes_force_their_coupled_keys_with_a_reason() {
         audit(&mut client, &format!("{mode}=off"), &mut bad).await;
     }
     assert!(bad.is_empty(), "{bad:#?}");
+}
+
+/// K80 (amends K42): high contrast forces flat chrome, except a bevel, which it leaves as it is (its edges carry pressed
+/// and sunken); a keycap is still forced flat, and switching the bevel back to keycap under high contrast forces again.
+#[tokio::test]
+async fn high_contrast_keeps_a_bevel_and_flattens_the_rest() {
+    let mut client = start(None).await;
+    for (chrome, want) in [("bevel", "bevel"), ("keycap", "flat"), ("bevel", "bevel")] {
+        assert!(matches!(
+            client
+                .apply(vec![
+                    set("theme.chrome", json!(chrome)),
+                    set("a11y.high_contrast", json!(true))
+                ])
+                .await,
+            ServerMsg::Applied { .. }
+        ));
+        let p = client.get("theme.chrome", None).await;
+        assert_eq!(p.value, json!(want), "{chrome} under high contrast: {p:?}");
+        if want == "bevel" {
+            assert_eq!(
+                p.source,
+                Source::User,
+                "a kept bevel is the user's own value: {p:?}"
+            );
+        }
+    }
 }
 
 /// K21 (rule 2): a `restart` key that runs another value than its service started with says so

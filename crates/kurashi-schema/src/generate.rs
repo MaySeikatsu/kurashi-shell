@@ -262,7 +262,7 @@ fn notes(m: &KeyMeta, code: fn(&str) -> String) -> Vec<String> {
             Coupling::Capability { name } => {
                 format!("needs compositor capability {}", code(name))
             }
-            Coupling::OverriddenBy { key, forces } => match forces {
+            Coupling::OverriddenBy { key, forces, .. } => match forces {
                 Some(f) => format!(
                     "forced to {} while {} is on",
                     code(&f.to_string()),

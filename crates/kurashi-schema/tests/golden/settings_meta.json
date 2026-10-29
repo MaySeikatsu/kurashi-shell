@@ -1224,6 +1224,9 @@
               "control": "select",
               "couplings": [
                 {
+                  "except": [
+                    "bevel"
+                  ],
                   "forces": "flat",
                   "key": "a11y.high_contrast",
                   "kind": "overridden_by",
