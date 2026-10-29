@@ -40,7 +40,7 @@ battery. The wallpaper mod's picker previews the `wallpaper` source with its `wa
 | Axis | Values |
 |---|---|
 | `shape` | corner style `none|rounded|squircle`, `radius` (px, K74), `screen_corners_follow` (screen corners = R, default on) / `screen_corners` (px, while off) |
-| `material` | `solid|translucent|glass`, `opacity`, `blur` (request; capability-forced off if unsupported) |
+| `material` | `solid|translucent` (schema v7: glass is translucent + `blur`; the name is kept for a future liquid-glass material), `opacity`, `blur` (translucent only; request, capability-forced off if unsupported) |
 | `motion` | profile `calm|lively|none` + `speed` |
 | `density` | `compact|regular|airy` (scales spacing + control sizes) |
 | `typography` | family chain (resolved via fontconfig → first installed), scale |
@@ -109,7 +109,7 @@ K45 adds two chromes and makes every decor a whole look that never touches layou
 |---|---|---|---|---|---|---|
 | none | yours (wa-iro dark) | yours (flat) | yours | yours | yours | Rounded |
 | sekai | sekai light | keycap | rounded ×1.25 | lively | Nunito | Rounded, filled, 600 |
-| glass | kanso dark, glass 0.62 | soft | squircle ×1.4 | lively (settles) | Inter | Rounded, 400 |
+| glass | kanso dark, translucent 0.62 + blur | soft | squircle ×1.4 | lively (settles) | Inter | Rounded, 400 |
 | terminal | kanso dark, solid | line | none | calm ×1.6 | JetBrains Mono | Sharp, 300 |
 | washi | wa-iro light, solid | line | rounded ×0.5 | calm | Noto Serif | Sharp, 300 |
 
@@ -131,12 +131,12 @@ tiles, bar groups: a restrained edge or nothing), `ground` (the lock's backdrop,
 | tokyo-night | tokyo-night night | flat, translucent 0.88, compact | rounded ×0.85 | calm ×1.25 | JetBrains Mono | — |
 | rose-pine | rose-pine main | soft, translucent 0.9 | rounded ×1.15 | calm | Nunito | — |
 | material | material (M3 baseline) dark | flat, solid | rounded ×1 | calm | Roboto | — |
-| aqua | aqua dark, glass 0.6 | soft | squircle ×1.35 | calm | SF Pro → Inter | sheen |
+| aqua | aqua dark, translucent 0.6 + blur | soft | squircle ×1.35 | calm | SF Pro → Inter | sheen |
 | yorha | yorha light | flat, solid | none | calm | Noto Serif | yorha |
 | kawaii | kawaii light | soft, solid | rounded ×0.9 | lively | Quicksand → Comic Neue → Nunito | kawaii |
 | win95 | win95 light | line, solid, compact | none | none | W95FA/MS Sans Serif/Tahoma → DejaVu Sans | bevel |
 | luna | luna light | soft, solid | rounded ×0.6 | calm | Tahoma/Verdana → DejaVu Sans | luna |
-| aero | aero light, glass 0.78 | soft | rounded ×1 | calm | Segoe UI → Noto Sans | aero |
+| aero | aero light, translucent 0.78 + blur | soft | rounded ×1 | calm | Segoe UI → Noto Sans | aero |
 | ps2 | ps2 dark | soft, translucent 0.92 | rounded ×0.5 | calm | SST/Zrnic → Inter | ps2 |
 | snes | snes light | keycap, solid, compact | none | calm ×1.6 | Press Start 2P → JetBrains Mono | snes |
 | hallownest | hallownest dark | line, translucent 0.94 | rounded ×0.6 | calm ×0.85 | Trajan Pro → Cinzel → Noto Serif | hollow |

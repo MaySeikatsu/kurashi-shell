@@ -8,6 +8,7 @@ use crate::ThemeError;
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
 use crate::input::{Axes, Chrome, Density, FrameOutline, Material, MotionProfile, Shape};
+use crate::palette::{Palette, ROLES};
 
 /// The squircle's control-point ratio at `theme.shape.squircle` 0 (a circle's quarter, `K_CIRCLE` in corner.js) and 1.
 pub const SQUIRCLE_K_ROUND: f64 = 0.5523;
@@ -18,7 +19,6 @@ pub const SQUIRCLE_K_SQUARE: f64 = 0.98;
 pub fn squircle_k(v: f64) -> f64 {
     SQUIRCLE_K_ROUND + v.clamp(0.0, 1.0) * (SQUIRCLE_K_SQUARE - SQUIRCLE_K_ROUND)
 }
-use crate::palette::{Palette, ROLES};
 
 /// The icon font components draw glyphs with (ligatures by name), when installed.
 pub const ICON_FAMILY: &str = "Material Symbols Rounded";
