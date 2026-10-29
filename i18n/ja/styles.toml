@@ -24,3 +24,4 @@
 "styles.layout.review" = "そのレイアウトも使う…"
 "styles.layout.not_now" = "今はやめる"
 "styles.layout.load" = "このレイアウトを使う"
+"cursor.not_on_path" = "ポインタのテーマを入れたフォルダがセッションの XCURSOR_PATH に含まれていないため、コンポジタが見つけられないかもしれません。"

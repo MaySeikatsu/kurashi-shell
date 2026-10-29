@@ -24,3 +24,4 @@
 "styles.layout.review" = "Also use its layout…"
 "styles.layout.not_now" = "Not now"
 "styles.layout.load" = "Use this layout"
+"cursor.not_on_path" = "The pointer theme is linked into a folder your session's XCURSOR_PATH leaves out: the compositor may not find it."
