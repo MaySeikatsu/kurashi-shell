@@ -115,7 +115,7 @@ PanelWindow {
         cardH: card.height
         slide: 12
 
-        Rectangle {
+        RoundBox {
             id: card
             // 400 px, wider (up to 480) when the title and its two buttons need it (a monospaced or wide face).
             width: Math.min(480, Math.max(400, titleText.implicitWidth + dnd.width + clear.width + 2 * Theme.gap + 2 * Theme.pad + 2))
@@ -255,6 +255,8 @@ PanelWindow {
                                     required property var modelData
                                     item: modelData
                                     width: body.width - 2
+                                    // Concentric with the centre's card across its padding (I269).
+                                    radius: Theme.nested(card.radius, Theme.pad + 1)
                                     swipeable: false
                                     onDismissed: Store.act("notify.dismiss", { id: item.id })
                                     onInvoked: key => Store.act("notify.invoke", { id: item.id, key: key })

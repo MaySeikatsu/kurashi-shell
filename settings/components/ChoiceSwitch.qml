@@ -44,7 +44,7 @@ Item {
     Keys.onEnterPressed: event => { s.picked(s.choices[s.chosenIndex].value); event.accepted = true }
     Keys.onEscapePressed: event => { if (s.cancellable) s.cancelled(); event.accepted = s.cancellable }
 
-    Rectangle {
+    RoundBox {
         id: track
         anchors.verticalCenter: parent.verticalCenter
         width: 2 * s.cellW
@@ -55,7 +55,7 @@ Item {
         border.color: Theme.outline
         opacity: s.enabled ? 1 : 0.5
 
-        Rectangle {
+        RoundBox {
             x: 1 + s.chosenIndex * s.cellW
             y: 1
             width: s.cellW - 2

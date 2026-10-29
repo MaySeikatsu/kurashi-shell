@@ -230,6 +230,7 @@ async fn run() -> anyhow::Result<()> {
         compositor.clone().map(adapter_focused_output),
     );
     kurashid::wiring::spectrum(&hub);
+    kurashid::wiring::pointer(&hub);
     // K66 (row 103): the quick card's service documents say when a forced key holds their switch.
     if let Some(store) = config.as_deref() {
         kurashid::wiring::forced_services(&hub, store);

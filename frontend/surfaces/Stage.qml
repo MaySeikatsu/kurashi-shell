@@ -676,7 +676,7 @@ PanelWindow {
 
     // The frame: the content and the card's padding, at most the output's width less a gap. The Stage anchors it (see
     // anchors). The pointer on it keeps it (Peeks.hold); a click dismisses it. Its content is loaded only while it is held (Ma).
-    Rectangle {
+    RoundBox {
         id: peekCard
         visible: stage.peekLayout
         width: Math.max(160, Math.min(stage.peekMaxW, peekLoader.implicitWidth + 2 * Theme.pad))
@@ -1147,7 +1147,7 @@ PanelWindow {
     }
 
     // ---- card under the Island: the island's view or the quick card, session menu, or tray menu
-    Rectangle {
+    RoundBox {
         id: card
         visible: stage.shown
         // Media, the calendar and the quick settings card (docs/ux/quick-settings.md) need the wider card; a mod panel

@@ -27,3 +27,5 @@ TileSheet 1.0 TileSheet.qml
 LightSense 1.0 LightSense.qml
 PenOutline 1.0 PenOutline.qml
 PenInk 1.0 PenInk.qml
+RoundBox 1.0 RoundBox.qml
+RoundPen 1.0 RoundPen.qml

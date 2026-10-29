@@ -25,3 +25,4 @@
 "settings.light.numbers_beam" = "From {angle}° · {elevation}° high · beam {beam}°"
 "settings.light.spotlight" = "A lamp pinned where this direction meets the screen's edge; its beam follows the pointer over the shell and rests on the middle elsewhere. Click the little screen to move the lamp."
 "settings.light.screen" = "The spotlight pinned at {angle}°, its beam {beam}° wide"
+"settings.light.everywhere" = "The compositor tells the shell where the pointer is: the lamp follows it over windows too."

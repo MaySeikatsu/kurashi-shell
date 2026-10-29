@@ -90,6 +90,10 @@ ShaderEffect {
     readonly property vector4d uRadii: Qt.vector4d(topLeftRadius < 0 ? radius : topLeftRadius,
         topRightRadius < 0 ? radius : topRightRadius, bottomRightRadius < 0 ? radius : bottomRightRadius,
         bottomLeftRadius < 0 ? radius : bottomLeftRadius)
+    // W56 (I288): under squircle corners the box's corner is the superellipse through the shapes' cubic's midpoint
+    // ((3k + 4) / 8 of the corner on each axis, k the handle ratio): 2^(-1/n) = (3k + 4) / 8.
+    readonly property vector4d uSquircle: Qt.vector4d(Theme.squircle > 0
+        ? -Math.LN2 / Math.log((3 * Math.min(0.99, Math.max(0.56, Theme.squircle)) + 4) / 8) : 0, 0, 0, 0)
     readonly property vector4d uInk: Qt.vector4d(Theme.texInk.r, Theme.texInk.g, Theme.texInk.b, 0)
     readonly property vector4d uLightDir: Qt.vector4d(Theme.lightDirToken[0], Theme.lightDirToken[1],
         Theme.lightDirToken[2], 0)

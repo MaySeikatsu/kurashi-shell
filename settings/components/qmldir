@@ -42,3 +42,6 @@ DrawModes 1.0 DrawModes.qml
 EmptyBarNote 1.0 EmptyBarNote.qml
 KineticWheel 1.0 KineticWheel.qml
 PageScrollBar 1.0 PageScrollBar.qml
+RoundBox 1.0 RoundBox.qml
+RoundPen 1.0 RoundPen.qml
+SquircleRect 1.0 SquircleRect.qml

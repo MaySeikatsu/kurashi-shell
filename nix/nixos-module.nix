@@ -76,6 +76,20 @@ in
     # K47: the screen recorder prefers gpu-screen-recorder, which needs NixOS's capability wrapper (KMS capture).
     gpuScreenRecorder.enable = lib.mkEnableOption "gpu-screen-recorder for the screen recorder (K47), with its capability wrapper";
 
+    # W58 (K79): the pointer light across the whole screen needs a compositor that reports the pointer to the shell
+    # (ext-image-copy-capture cursor sessions). niri 26.04 does not; niri `main` does (niri#4554). Turning this on makes
+    # `programs.niri.package` that niri (mkDefault: a package you set yourself wins). Off, the light follows the pointer
+    # over the shell's own surfaces only, and Settings says so. Until a niri release has it (BACKLOG I316).
+    pointerLight = {
+      enable = lib.mkEnableOption "niri from its main branch, which tells the shell where the pointer is (the pointer light and the spotlight over windows too)";
+      niriPackage = lib.mkOption {
+        type = lib.types.package;
+        default = let p = self.inputs.niri-main.packages.${pkgs.stdenv.hostPlatform.system}; in p.niri or p.default;
+        defaultText = lib.literalExpression "niri at 849c576 (main), from this flake's `niri-main` input";
+        description = "The niri that implements ext-image-copy-capture cursor sessions.";
+      };
+    };
+
     # The web dock (K38) is set up in Home-Manager (programs.kurashi.webdock); this installs its host
     # package system-wide, as Home-Manager does for the user. The base closure never carries it.
     webdock = {
@@ -130,6 +144,10 @@ in
 
       # Brightness needs no extra rule: logind's SetBrightness D-Bus call is permitted for the
       # active local session, which is what kurashid uses (no udev/video-group hacks).
+    })
+
+    (lib.mkIf (cfg.enable && cfg.pointerLight.enable) {
+      programs.niri.package = lib.mkDefault cfg.pointerLight.niriPackage;
     })
 
     (lib.mkIf (cfg.enable && cfg.gpuScreenRecorder.enable) {

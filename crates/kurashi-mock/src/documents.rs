@@ -65,8 +65,24 @@ pub fn workspaces(outputs: &[String], focus: Option<&str>, focused_idx: u32) -> 
     json!({ "outputs": map })
 }
 
-/// Wa-iro (和色) dark tokens — the probe's theme document (DESIGN-SYSTEM §6).
+/// Wa-iro (和色) dark tokens — the probe's theme document (DESIGN-SYSTEM §6) — over the default theme's whole token set
+/// as kurashi-theme resolves it (I306: shape, frame, chrome and pen tokens too, so a frontend on the mock reads the
+/// tokens kurashid serves instead of its `tok()` fallbacks).
 pub fn theme() -> Value {
+    let mut doc = wa_iro();
+    if let Ok(out) = kurashi_theme::resolve(
+        &kurashi_theme::ThemeInput::default(),
+        &crate::appearance::AnyFont,
+    ) {
+        let own = doc["tokens"].as_object().cloned().unwrap_or_default();
+        let mut all: Map<String, Value> = out.tokens.into_iter().collect();
+        all.extend(own);
+        doc["tokens"] = Value::Object(all);
+    }
+    doc
+}
+
+fn wa_iro() -> Value {
     json!({ "tokens": {
         "color.surface": "#1b1a1e",
         "color.surface_container": "#252329",
