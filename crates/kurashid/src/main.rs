@@ -151,6 +151,8 @@ async fn run() -> anyhow::Result<()> {
                 };
             kurashid::theme::register(&hub, &store, fonts);
             kurashid::keys::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
+            // W53.0b (K80, I317): the style's pointer (a niri include, as the keys) and the pointer decoration.
+            kurashid::cursor::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
             Some(store)
         }
         None => {

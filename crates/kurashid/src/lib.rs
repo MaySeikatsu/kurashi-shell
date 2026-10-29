@@ -6,6 +6,7 @@ pub mod bindings;
 pub mod capabilities;
 pub mod clock;
 pub mod config;
+pub mod cursor;
 pub mod doctor;
 pub mod greeter_cache;
 pub mod hub;

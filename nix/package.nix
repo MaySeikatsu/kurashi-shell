@@ -69,8 +69,9 @@ let
       ../frontend
       ../settings
       ../mods
-      # W53.0b (K80): the styles' sound cues (original, CC0).
+      # W53.0b (K80): the styles' sound cues and cursor themes (original, CC0).
       ../sounds
+      ../cursors
       # The greeter (W28): its QML and the links `core`/`components` into frontend/.
       ../greeter
     ]) shots;
@@ -87,6 +88,7 @@ let
       ../settings
       ../mods
       ../sounds
+      ../cursors
       ../greeter
     ]) shots;
   };
