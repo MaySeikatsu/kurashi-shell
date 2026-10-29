@@ -18,11 +18,15 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-10-29 — session 17, part 3 (machine A): outlines in general, Settings on the shell's Theme, cards for corners, shadows, the light
-**State:** branch `feat/s17-frame-ink` (on top of `main` 0e0f3adb+) is **not merged** — its check run was still going at
-handover: 12 of 15 suites green under load; `frontend/test-sidebars.sh` (kami: "the fillet (231) is the bar strip's
-colour (247)", calm and lively) and `settings/test-sheet.sh` ("the spotlight does not follow the pointer over the sheet")
-failed under load and were re-running alone; `settings/test.sh` and `just check` after them. Logs:
-`/tmp/kurashi-suites/s17-settings/` (summary.txt once done), `/tmp/kurashi-lead-logs/check-settings.log`. A package of the
+**State:** branch `feat/s17-frame-ink` (on top of `main` 0e0f3adb+) is **not merged**. Its full check run finished:
+`just check` green (1254 tests), 13 of 15 suites green (the merge set + pen, look, settings texture). Two failed alone too:
+- `frontend/test-sidebars.sh` — **from this branch** (green on main): under kami, "the fillet (231, 231, 231) is the bar
+  strip's colour (247, 244, 236)" for top-kami calm/lively left/right, plus "open 40 ms: p=1.003/1.096" in kami lively.
+  Most likely kami's new sketched ink on the joined column (ColumnShape `penOn`/`oc` with `pen.line = sketch`, or the
+  sketch's second pass/overshoot landing on the sampled fillet pixel). **Fix before merging.**
+- `settings/test-sheet.sh` "the spotlight does not follow the pointer over the sheet" — **fails on main too** (I314),
+  older; not a blocker.
+Logs: `/tmp/kurashi-suites/s17-settings/` (summary.txt) and `/tmp/kurashi-lead-logs/main-{sidebars,sheet}.log` (main). A package of the
 branch was built (`nix run .` from the checkout runs it); `main` and its package are part 2's. Nothing pushed.
 The `nix run .` regression of part 1 (passthru `bin` → the app ran the unwrapped daemon) is fixed on `main` with a flake
 check (`apps-wrapped`).
@@ -39,12 +43,9 @@ check (`apps-wrapped`).
   `--changed`.
 
 **Next steps (ordered):**
-1. Finish the branch: read the alone re-runs. If `test-sidebars` kami fillet is real, it comes from kami's sketched ink on
-   the joined column (ColumnShape `penOn`/`oc` with `pen.line = sketch`) — compare on niri (`niri-sandbox.sh`, look kami,
-   chrome line, right sidebar top fillet) against `main`; if `test-sheet`'s spotlight check is real, it comes from the
-   sheet's content now sitting in a clipped, offset slot (SheetHost: `slot` inside the grow clip; Relief registers by
-   window pixel — check `Light` still gets the sheet's pointer). Fix, `just suites --changed main settings/test-sheet.sh`,
-   `just check`, merge `--no-ff`, `nix build .#kurashi`, ask the user to push.
+1. Finish the branch: fix the kami fillet in `test-sidebars` (see State; compare on niri with `niri-sandbox.sh`, look kami,
+   chrome line, the right sidebar's top fillet, against main), then `just suites sidebars` + `just suites --changed main`,
+   `just check`, merge `--no-ff`, `nix build .#kurashi`, ask the user to push. The sheet spotlight (I314) is older.
 2. Bugs found today: I309 (kami: the island card's head shows the wallpaper across the bar — main too), I305 (keycap
    frame outline under grouped bars looks heavy), re-check on the user's niri I296 (sidebar band with blur) and I298
    (dock texture after a Sheet change: a guess is in), I304 (layer stacking by map order), I306 (mock tokens), I308 (pen
