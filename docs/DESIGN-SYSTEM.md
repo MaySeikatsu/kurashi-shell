@@ -142,6 +142,86 @@ tiles, bar groups: a restrained edge or nothing), `ground` (the lock's backdrop,
 | hallownest | hallownest dark | line, translucent 0.94 | rounded ×0.6 | calm ×0.85 | Trajan Pro → Cinzel → Noto Serif | hollow |
 | souls | souls dark | line, solid | none | calm ×0.8 | OptimusPrinceps → EB Garamond → Noto Serif | ornate |
 
+### Decor slots and metrics (W53.0a, K80; docs/ux/styles.md "The shared system")
+The system grows to fit each style 1:1 (K80 decided 8): everything a style is — its window and frame decorations,
+bevels, OS colours, how things move, fonts, symbols, materials, controls — is data in its look, never a renderer branch
+(rule 4). A family card writes toml and decor parts only.
+
+**Slots** (`[slots]` in a look, `appearance::SLOTS`): `frame`, `title`, `start`, `tray`, `menu`, `scroll`, `tooltip`,
+`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`. Each is a component name (a slug; `""` or left out = the
+default, today's shell), published as `decor.<slot>`. A host loads `components/decor/<slot>/<Name>.qml` (kebab →
+Pascal, `DecorHost.qml`) and never compares the name; without a slot nothing is made and the caller draws its own
+default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<Slot>Base.qml`. Hosts:
+
+| host | slot | the caller | its default |
+|---|---|---|---|
+| `TitleHost` | title | top of a Stage card, the launcher, polkit, the session menu (title, icon, `focused`, `canClose`, `buttons`; `close`, `button(name)`) | 0 px, nothing |
+| `StartHost` | start | the bar's `launcher` module (W53.0b): `pressed`, `open`, `vertical`; label `decor.start.label` with `[decor] start.label` | the plain icon button |
+| `TrayWell` | tray | under the tray group | `tray.sunken`: a sunken bevel; else nothing |
+| `MenuStyle` | menu | tray/dock menus, launcher rows: `rowH(own)`, `radius(own)`, `highlight`, `separator`, `rowBackground` | the caller's rows |
+| `ScrollStyle` | scroll | every ScrollBar: `width(own)`, `arrows`, `thumb`, `part` | the thin bar |
+| `TooltipStyle` | tooltip | dock tooltip, peeks: `fill(own)`, `ink(own)`, `tail`, `part` | the caller's |
+| `FocusRing` | (metrics) | every focusable control | `ring` 1 px |
+| `Entrance` | (metrics) | a surface's content, `progress` 0…1 from `edge` | `grow` = K74 (the wrapper does nothing) |
+
+Shipped parts: `title/Caption.qml` (a caption drawn from the metrics alone: solid or gradient fill, active and inactive,
+text side and weight, buttons in glyph/bevel/gel/plate/dot chrome on either side; it draws only buttons that act —
+close while `canClose`, the caller's `buttons`). `BevelEdge.qml` is the bevel any part may use.
+
+**Metrics** (`[decor]` in a look, `appearance::DECOR_KEYS`: one list with kinds, ranges and defaults, rule 3). Values
+are numbers, switches, words, palette **role names** (published as colours, never hex in a look), bézier curves or font
+chains; nested tables flatten (`[decor.title] height = 18` = `"title.height" = 18`); a key outside the list or a value
+outside its kind is refused and reported like a foreign recipe key. Every key is published as `decor.<key>` with its
+default filled in:
+
+| group | keys (default) |
+|---|---|
+| caption | `title.height` (24), `title.fill` ([title, title_end]), `title.fill_inactive`, `title.on` (on_title), `title.fill_dir` (horizontal), `title.align` (start), `title.weight` (700), `title.close` (glyph · bevel · gel · plate · dot), `title.buttons` (end · start), `title.radius` (-1) |
+| window border | `border.width` (0), `border.color` (outline) |
+| bevel | `bevel.width` (1), `bevel.press_offset` (1) |
+| menu | `menu.row` (0 = own), `menu.highlight` (capsule · bar · inset), `menu.separator` (line · etched · space), `menu.radius` (-1) |
+| scroll bar | `scroll.width` (0 = own), `scroll.arrows` (false), `scroll.thumb` (pill · flat · bevel · gel) |
+| tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false) |
+| tray, separators | `tray.sunken` (false), `separator.style` (line · etched · none) |
+| focus | `focus.style` (ring · dotted · double · halo), `focus.offset` (0; negative = inside), `focus.width` (1) |
+| start | `start.label` (false) |
+| type | `type.pixel` (false), `type.pixel_step` (1) |
+| symbols | `icons.family` ([] = the shell's), `icon.size` (0 = body + 4), `icon.scale` (1), `icon.fill`, `icon.weight` (-1 = the chrome's) |
+| motion | `motion.style` (grow · slide · zoom · fade · flip · stepped · rubber), `motion.steps` (4 frames at 60 Hz per step), `motion.{open,close,fast,effects}_ms` (0 = K74's), `motion.{…}_curve` ([] = K74's; 4 numbers = one cubic) |
+| materials | `material.glow` (0), `material.glow_color` (accent), `material.glow_radius` (12), `material.bloom` (0), `material.bloom_radius` (16), `material.sheen` (0) |
+| pixel grid | `pixel` (0) |
+
+**Palette roles** (derived when a palette leaves them out, as `line`/`ring`): `title`, `title_end`, `title_inactive`,
+`title_inactive_end`, `on_title` (accent → 45 % lighter; outline → 30 % lighter; the best ink); `bevel_light`,
+`bevel_light2`, `bevel_dark2`, `bevel_dark` (the face — the high container — mixed toward white 0.9/0.5 and black
+0.33/0.9 on light grounds, 0.45/0.2 and 0.4/0.8 on dark ones); `info`, `on_info` (a pale warning tint: 98's #ffffe1);
+`desk` (secondary). The WCAG stage keeps `on_title` on `title` and `on_info` on `info` at 4.5:1.
+
+**The bevel chrome** (`theme.chrome = bevel`, K80): no outline, ring or shadow; two pairs of 1 px lines over the face's
+edge — `bevel.light`/`bevel.dark` outside, `bevel.light2`/`bevel.dark2` inside, light from the top left, the dark lines
+over the light ones at the top-right and bottom-left corners (98.css) — in whole device px (`Theme.crisp`). Pressed: the
+pairs swap and the content moves `bevel.press_offset` px down-right (no sink, shrink or flash). `Block.sunken` draws a
+well (a text field, the tray) swapped at rest. `bevel.width`/`press_offset` are 0 under every other chrome. **High
+contrast keeps the bevel** (K80 amends K42): the theme draws it in the contrast ink (outer pair `on_surface`, inner
+`on_surface_variant`/`outline`) — the schema's coupling still forces `flat` until the daemon can exempt one value
+(CONTRACT-CHANGE).
+
+**Motion personality.** `motion.style` is the form (`Theme.motionStyle`; `Entrance.qml` draws slide/zoom/fade/flip for a
+surface that adopts it), the look's own curves and durations replace K74's timed ones, `rubber` overshoots on arrival,
+and `stepped` makes `motion.kind = stepped` (a timed kind: `Theme.timed` holds) whose curves are staircases — each step
+held `motion.steps` frames — so every timed surface moves in jumps. Profile `none` (reduce motion forces it) wins over
+all of it: kind and style `none`, no curves.
+
+**Type and symbols.** A look's `theme.typography.family`/`family_jp` chains (free stand-ins installed by Home-Manager,
+nothing proprietary bundled). `type.pixel` publishes `font.pixel` (Text `renderType: NativeRendering`) and snaps every
+`font.size.*` to whole `type.pixel_step`s. `icons.family` puts a style's own symbol font (Material ligature names) first
+when installed — the shell's family becomes its `font.icons_fallback` — and `icon.size`/`icon.scale` size the icons
+(`Theme.iconSize`, `Theme.iconScale`).
+
+**Materials next to blur.** `glow.*` (a halo round blocks in a role's colour), `bloom.*` (a lighter halo of the block's
+own colour) and `sheen.strength` (a gloss over the upper half: Vista/7) are static `RectangularShadow`s and a gradient,
+made in `Block` only while the look has them (0 frames idle). High contrast turns them off.
+
 ### Texture and light (K59)
 A material is a relief, not a picture (`docs/ux/texture.md`). The daemon generates a seamless tile per material
 (`crates/kurashi-texture`), resolves the light and publishes tokens; renderers sample and shade with one function,
