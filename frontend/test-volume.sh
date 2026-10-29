@@ -14,7 +14,7 @@
 # just the exit code. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-volume}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-volume}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 MOCK_BIN=${KURASHI_MOCK_BIN:-$BIN/kurashi-mock}
 OUT=$ROOT/frontend/shots/volume
@@ -25,6 +25,7 @@ mkdir -p "$OUT"
 fail() { echo "test-volume: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -222,11 +223,13 @@ start_mock() {  # the fixture audio: volume 0.5, available (the mock's svc.audio
 }
 start_frontend() {
   # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
+  QS_OFF=$(log_size "$R/qs.log"); QS_BARE=$(screen_hash)
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3   # the bar's documents and the first frames
+  # The bar's documents and the first frames (was a fixed 3 s: drawn and still, at most 3 s).
+  wait_frontend "$R/qs.log" "$QS_OFF" 3 0.6 "$QS_BARE" || fail "the frontend did not load (see $R/qs.log)"
 }
 
 : > "$R/qs.log"
