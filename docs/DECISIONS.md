@@ -971,6 +971,9 @@ line or a Japanese string recompiled ~400 crates and ran the suite.
   iteration stays `cargo` in `nix develop` (incremental); `nix build` is for the installed result.
 - The devShell no longer takes `inputsFrom` the package (now a plain derivation); it lists the Rust build inputs from
   `passthru.rust{Native,}BuildInputs`.
+- **Fix (same day):** the unwrapped binaries are `passthru.unwrapped`, never `bin` — `lib.getBin` (writeShellApplication's
+  runtimeInputs) takes an attribute named `bin` for the bin output, so `nix run .` started the unwrapped daemon without
+  its data (raw strings, no mods, the default look, no Settings). Flake check `apps-wrapped` guards it.
 
 ## K77 — schema v7: Solid/Translucent with blur, squircle curve, frame outline, sidebars keep space while out; blur and joins follow what is drawn (2026-10-29, session 17; user's niri review, I295–I303)
 - **Material (I297).** `MaterialKind` is `solid | translucent`; `theme.material.blur` belongs to translucent (default
