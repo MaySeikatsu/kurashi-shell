@@ -1,9 +1,10 @@
 //! The `theme` document (DESIGN-SYSTEM §1–§3): resolved config → `kurashi-theme` pipeline → flat
 //! token map. Recomputed on config changes only; renderers never compute colours (rule 4).
 //!
-//! Token `decor.frame` (W25, K50, K53): the look in effect's `[slots] frame` — `theme.look` through
-//! `kurashi_theme::appearance::find`, `""` for a look without one. The frontend loads the frame component of that
-//! name (`frontend/components/frames/`); it is data, no renderer compares it (rule 4).
+//! Tokens `decor.<slot>` and `decor.<key>` (W25, K50, K53, W53.0a): the look in effect's `[slots]` (`frame`, `title`,
+//! …) and `[decor]` metrics — `theme.look` through `kurashi_theme::appearance::find`, every default filled in by the
+//! theme crate. The frontend's hosts load the component of that name (`frontend/components/frames/`,
+//! `frontend/components/decor/<slot>/`); it is data, no renderer compares it (rule 4).
 //!
 //! K53: the document also carries the preview cards of every style (`styles`) and look (`looks`, drawn in the palette
 //! and scheme in effect: a look has no colours) and `appearance {style, look, palette, overrides}` — the keys that
@@ -202,12 +203,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             _ => Density::Regular,
         },
         type_scale: f(store, "theme.typography.scale", 1.0),
-        chrome: match s(store, "theme.chrome").as_str() {
-            "keycap" => kurashi_theme::Chrome::Keycap,
-            "soft" => kurashi_theme::Chrome::Soft,
-            "line" => kurashi_theme::Chrome::Line,
-            _ => kurashi_theme::Chrome::Flat,
-        },
+        chrome: kurashi_theme::Chrome::parse(&s(store, "theme.chrome")),
         frame_outline: match s(store, "theme.frame_outline").as_str() {
             "on" => kurashi_theme::FrameOutline::On,
             "off" => kurashi_theme::FrameOutline::Off,
@@ -262,6 +258,8 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             name => kurashi_theme::Ink::Named(name.to_owned()),
         },
         axes,
+        // W53.0a: the look in effect's slots and `[decor]` (its frame was `decor.frame` before; the same value).
+        decor: look_decor(store),
         ..ThemeInput::default()
     }
 }
@@ -330,13 +328,13 @@ fn palette_previews(look: &str, scheme: &str, fonts: &dyn FontProvider) -> Value
         .clone()
 }
 
-/// The look in effect's frame (`[slots] frame`), `""` when it has none (W25, K53).
-fn decor_frame(store: &ConfigStore) -> String {
+/// The look in effect's decor pack (`[slots]`, `[decor]`; W25, K53, W53.0a): the defaults for a look that is not there.
+fn look_decor(store: &ConfigStore) -> kurashi_theme::Decor {
     kurashi_theme::appearance::find(
         kurashi_theme::appearance::Kind::Look,
         &s(store, "theme.look"),
     )
-    .map(|d| d.frame)
+    .map(|d| d.decor_input())
     .unwrap_or_default()
 }
 
@@ -433,7 +431,6 @@ pub fn document_with(
             if let Some(h) = store.get("bar.height", None) {
                 tokens.insert("bar.height".into(), h.value);
             }
-            tokens.insert("decor.frame".into(), json!(decor_frame(store)));
             // K62: the pen — how outlines and (through a layer) text are drawn; values in effect (a11y forces them).
             tokens.insert("pen.line".into(), json!(s(store, "theme.pen.line")));
             for k in [

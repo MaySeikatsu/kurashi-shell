@@ -40,6 +40,21 @@ pub const ROLES: &[&str] = &[
     // between outline and fill. Derived when a palette does not name them.
     "line",
     "ring",
+    // W53.0a (K80, docs/ux/styles.md "Palette roles"): window captions (active start and end, inactive start and end,
+    // their text), the four bevel lines (outer light, inner light, inner dark, outer dark: light falls from the top
+    // left), tooltips and balloons, and the desktop ground. Derived when a palette does not name them.
+    "title",
+    "title_end",
+    "title_inactive",
+    "title_inactive_end",
+    "on_title",
+    "bevel_light",
+    "bevel_light2",
+    "bevel_dark2",
+    "bevel_dark",
+    "info",
+    "on_info",
+    "desk",
 ];
 
 /// A palette file must name at least these; the rest is derived by [`Palette::complete`].
@@ -193,6 +208,42 @@ impl Palette {
             let v = self.on_for(self.roles[base]);
             def(on, v, &mut self);
         }
+        // W53.0a: a caption is the accent fading lighter, an inactive one the outline's grey fading toward white. The
+        // bevel's four lines are the block's face (the high container) lightened and darkened: nearly the whole way on
+        // light grounds (98's white and near-black), part of it on dark ones, where a white edge would glare. A tooltip
+        // is a pale warning tint (98's #ffffe1), the desk the secondary.
+        let title = self.roles["accent"];
+        def("title", title, &mut self);
+        let title = self.roles["title"];
+        def("title_end", title.mix(WHITE, 0.45), &mut self);
+        let grey = self.roles["outline"];
+        def("title_inactive", grey, &mut self);
+        let grey = self.roles["title_inactive"];
+        def("title_inactive_end", grey.mix(WHITE, 0.3), &mut self);
+        let on_title = self.on_for(title);
+        def("on_title", on_title, &mut self);
+        let face = self.roles["surface_container_high"];
+        let (l, l2, d2, d) = if dark {
+            (0.45, 0.2, 0.4, 0.8)
+        } else {
+            (0.9, 0.5, 0.33, 0.9)
+        };
+        def("bevel_light", face.mix(WHITE, l), &mut self);
+        def("bevel_light2", face.mix(WHITE, l2), &mut self);
+        def("bevel_dark2", face.mix(BLACK, d2), &mut self);
+        def("bevel_dark", face.mix(BLACK, d), &mut self);
+        let warn = self.roles["warning"];
+        let info = if dark {
+            warn.mix(s, 0.75)
+        } else {
+            warn.mix(WHITE, 0.85)
+        };
+        def("info", info, &mut self);
+        let info = self.roles["info"];
+        let on_info = self.on_for(info);
+        def("on_info", on_info, &mut self);
+        let desk = self.roles["secondary"];
+        def("desk", desk, &mut self);
         debug_assert!(ROLES.iter().all(|r| self.roles.contains_key(*r)));
         Ok(self)
     }

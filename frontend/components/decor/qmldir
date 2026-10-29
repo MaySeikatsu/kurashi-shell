@@ -1,0 +1,9 @@
+BevelEdge 1.0 BevelEdge.qml
+DecorHost 1.0 DecorHost.qml
+Entrance 1.0 Entrance.qml
+MenuStyle 1.0 MenuStyle.qml
+ScrollStyle 1.0 ScrollStyle.qml
+StartHost 1.0 StartHost.qml
+TitleHost 1.0 TitleHost.qml
+TooltipStyle 1.0 TooltipStyle.qml
+TrayWell 1.0 TrayWell.qml

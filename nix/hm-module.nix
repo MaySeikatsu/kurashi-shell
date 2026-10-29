@@ -85,15 +85,19 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = [ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ]);
-      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" ]; }) ])";
+      default = [ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" ]; }) ]);
+      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" ]; }) ])";
       description = ''
         Fonts the shell draws with: its icon subset (nix/icon-font.nix, W41: the names the shell draws, also installed by
         the package), and Material Symbols (Rounded, and Sharp for line chrome) for the names the subset lacks (without
         either, components fall back to text glyphs), the looks' families (K42, K45, K53: Nunito for `sekai`, Inter for
         `glass`, JetBrains Mono for `terminal`, Noto Serif for `washi`; W25: Quicksand and Comic Neue for `kawaii`, Cinzel
-        for `hallownest`, EB Garamond for `souls`, Roboto for `material`; K60: Kalam and Klee One for `kami` — the looks' other families are not free and
-        fall back along their chains) and Noto CJK (sans and serif) for Japanese.
+        for `hallownest`, EB Garamond for `souls`, Roboto for `material`; K60: Kalam and Klee One for `kami`) and Noto CJK
+        (sans and serif) for Japanese. K80 (W53.0a, docs/ux/styles.md "Fonts"): the styles' free stand-ins, every one
+        OFL or free — DejaVu Sans (Lucida Grande), Fira Sans (Trebuchet MS), Libre Franklin (XP's start), BIZ UDPGothic
+        (Japanese UI), Press Start 2P (16-bit pixel type) and M PLUS 1p (thin Japanese). The vendors' own families
+        (Segoe, Tahoma, MS Sans Serif, SF, Lucida Grande) are never bundled and win when you have them; the stand-ins
+        nixpkgs lacks (Selawik, Wine Tahoma, W95FA, PixelMplus, Misaki) fall back along each look's chain.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };

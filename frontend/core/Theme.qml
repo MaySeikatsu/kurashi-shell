@@ -109,6 +109,47 @@ Singleton {
     readonly property bool groups: tok("chrome.groups", false)
     // W25: the decor pack's frame (`decor.frame`), a name FrameHost loads as data ("" = none; rule 4).
     readonly property string frame: tok("decor.frame", "")
+    // W53.0a (K80, DESIGN-SYSTEM §4 "Decor slots and metrics"): the look's other slots — names the decor hosts load as
+    // `components/decor/<slot>/<Name>.qml` ("" = the default, today's shell) — and its `[decor]` metrics (numbers,
+    // switches, colours, curves; every default is in the theme). Data only: never compared (rule 4).
+    function slot(name) { return tok("decor." + name, "") }
+    function decor(key, d) { return tok("decor." + key, d) }
+    // A slot's component name as its file name (kebab-case → PascalCase), "" for none.
+    function pascal(n) {
+        if (!n) return ""
+        return n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
+    }
+    // The bevel chrome (K80): line width (0 = no bevel), how far a pressed block's content moves, and the four lines —
+    // outer light, inner light, inner dark, outer dark; light falls from the top left. Under high contrast the daemon
+    // sends the contrast ink.
+    readonly property int bevelW: tok("bevel.width", 0)
+    readonly property int bevelPress: tok("bevel.press_offset", 0)
+    readonly property color bevelLight: color("bevel.light", "#ffffff")
+    readonly property color bevelLight2: color("bevel.light2", "#dfdfdf")
+    readonly property color bevelDark2: color("bevel.dark2", "#808080")
+    readonly property color bevelDark: color("bevel.dark", "#0a0a0a")
+    // Keyboard focus as the look draws it (FocusRing): "ring" (today's 1 px), "dotted", "double", "halo"; its offset
+    // (negative = inside) and width.
+    readonly property string focusStyle: tok("decor.focus.style", "ring")
+    readonly property int focusOffset: tok("decor.focus.offset", 0)
+    readonly property int focusW: tok("decor.focus.width", 1)
+    // W53.0a: materials next to blur — a glow round blocks, a bloom of a block's own colour, a sheen on its upper half.
+    // 0 = none (nothing is made); static, nothing runs per frame (Ma). High contrast turns them off in the daemon.
+    readonly property real glow: tok("glow.strength", 0)
+    readonly property color glowColor: color("glow.color", "#c9404b")
+    readonly property int glowR: tok("glow.radius", 12)
+    readonly property real bloom: tok("bloom.strength", 0)
+    readonly property int bloomR: tok("bloom.radius", 16)
+    readonly property real sheen: tok("sheen.strength", 0)
+    // W53.0a: bitmap type (no smoothing, sizes on the `pixelStep` grid: Text { renderType: Theme.pixelType ?
+    // Text.NativeRendering : Text.QtRendering }), the default icon size and a scale for every icon, the pixel grid.
+    readonly property bool pixelType: tok("font.pixel", false) === true
+    readonly property int pixelStep: tok("font.pixel_step", 1)
+    readonly property int iconSize: tok("icon.size", fs + 4)
+    readonly property real iconScale: tok("icon.scale", 1)
+    readonly property int pixelGrid: tok("decor.pixel", 0)
+    // A hairline that stays one device pixel (`round(dpr) / dpr` logical px): bevels and captions stay crisp at 1.25.
+    function crisp(w, dpr) { return Math.max(1, Math.round(w * (dpr || 1))) / (dpr || 1) }
     readonly property int iconFill: tok("icon.fill", 0)
     readonly property int iconWeight: tok("icon.weight", 400)
     // Row 125: a block casts a shadow of either kind (bar groups float), or is an outlined box with no fill (line).
@@ -148,7 +189,13 @@ Singleton {
     // `openMs`, folds back on `closeCurve` over `closeMs`, its content fades on `effectsCurve`), "spring" (calm, lively:
     // the springs above) or "none" (cuts). Curves are `easing.bezierCurve` lists (several segments, ending at 1, 1).
     readonly property string motionKind: tok("motion.kind", springOn ? "spring" : "none")
-    readonly property bool timed: motionKind === "timed"
+    // W53.0a: "stepped" is timed motion whose curves are staircases (the daemon builds them): every timed surface jumps.
+    readonly property bool timed: motionKind === "timed" || motionKind === "stepped"
+    // W53.0a (K80): the form surfaces move in — "grow" (K74: out of their edge), "slide", "zoom", "fade", "flip",
+    // "stepped", "rubber"; "none" with motion off. Surfaces that draw a form take it through decor/Entrance.qml.
+    readonly property string motionStyle: tok("motion.style", "grow")
+    // Frames at 60 Hz each step of a stepped look holds.
+    readonly property int motionSteps: tok("motion.steps", 4)
     readonly property int openMs: tok("motion.timed.open_ms", 500)
     readonly property int closeMs: tok("motion.timed.close_ms", 400)
     readonly property int fastMs: tok("motion.timed.fast_ms", 350)

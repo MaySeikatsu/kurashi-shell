@@ -585,6 +585,9 @@ pub fn aa_pairs() -> Vec<(&'static str, &'static str, f64)> {
         ("on_success", "success"),
         ("on_warning", "warning"),
         ("on_error", "error"),
+        // W53.0a: caption text on the caption's start, tooltip text on its fill.
+        ("on_title", "title"),
+        ("on_info", "info"),
     ] {
         v.push((on, bg, BODY));
     }
