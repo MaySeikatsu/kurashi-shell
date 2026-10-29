@@ -214,7 +214,7 @@ Item {
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
         }
     }
     Repeater {
@@ -222,7 +222,7 @@ Item {
         Rectangle {
             required property var modelData
             x: modelData.x; y: modelData.y; width: modelData.w; height: modelData.h
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
         }
     }
     Repeater {
@@ -236,7 +236,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 fillColor: "transparent"
-                strokeColor: Theme.outlineColor
+                strokeColor: Theme.frameOutlineColor
                 strokeWidth: fp.ow
                 capStyle: ShapePath.FlatCap
                 PathPolyline { path: modelData.p.map(function (p) { return Qt.point(p.x, p.y) }) }
@@ -252,7 +252,7 @@ Item {
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
                 fillColor: "transparent"
-                strokeColor: Theme.outlineColor
+                strokeColor: Theme.frameOutlineColor
                 strokeWidth: fp.ow
                 capStyle: ShapePath.FlatCap
                 PathPolyline { path: modelData.map(function (p) { return Qt.point(p.x, p.y) }) }
@@ -268,7 +268,7 @@ Item {
         active: fp.drawRule && fp.ow > 0 && Theme.penOutline && (fp.shownRules.length > 0 || fp.arcs.length > 0 || fp.coverRules.length > 0)
         sourceComponent: PenOutline {
             anchors.fill: parent
-            color: Theme.outlineColor
+            color: Theme.frameOutlineColor
             lineWidth: fp.ow
             seed: fp.seed
             paths: {

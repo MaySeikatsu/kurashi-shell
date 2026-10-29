@@ -384,7 +384,7 @@ Scope {
                     // K71: only the edge's holder keeps the zone (`edges.<edge>.reserve`); otherwise zones are ignored and
                     // the dock stands at the layout's inset (setting `exclusiveZone` at all would turn the mode to Normal).
                     exclusionMode: dock.holder ? ExclusionMode.Normal : ExclusionMode.Ignore
-                    Binding on exclusiveZone { when: dock.holder; value: dock.reserve; restoreMode: Binding.RestoreNone }
+                    Binding on exclusiveZone { when: dock.holder; value: Math.max(dock.reserve, SidebarGeom.openZone(dock.outName, dock.edge)); restoreMode: Binding.RestoreNone }
                     readonly property string zoneKey: [dock.outName, dock.edge, dock.holder ? dock.reserve : 0].join("|")
                     onZoneKeyChanged: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
                     Component.onCompleted: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
@@ -566,7 +566,7 @@ Scope {
                                 squareOuter: false
                                 flipY: dock.edge === "bottom"
                                 flipX: dock.edge === "left"
-                                ruled: Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
+                                ruled: Theme.frameOutline
                                 fill: Theme.surfaceAlpha
                             }
                             // The shape's fill as a mask for its relief (I168, the sidebar's pattern): drawn only into
