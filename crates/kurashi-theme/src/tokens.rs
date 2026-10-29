@@ -5,9 +5,10 @@ use std::collections::BTreeMap;
 use serde_json::{Value, json};
 
 use crate::ThemeError;
+use crate::appearance::{DECOR_KEYS, DecorKind, SLOTS};
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
-use crate::input::{Axes, Chrome, Density, FrameOutline, Material, MotionProfile, Shape};
+use crate::input::{Axes, Chrome, Decor, Density, FrameOutline, Material, MotionProfile, Shape};
 use crate::palette::{Palette, ROLES};
 
 /// The squircle's control-point ratio at `theme.shape.squircle` 0 (a circle's quarter, `K_CIRCLE` in corner.js) and 1.
@@ -151,12 +152,84 @@ fn at_least(c: Rgb, bg: Rgb, min: f64, toward: Rgb) -> Rgb {
         .unwrap_or(toward)
 }
 
+/// A staircase as a QML `bezierCurve` (W53.0a, `motion.style = stepped`): `n` equal steps, each taken at once and then
+/// held, in straight segments — a surface moves in visible jumps (16-bit menus) whatever the frame rate.
+pub fn stepped_curve(n: usize) -> Vec<f64> {
+    let n = n.clamp(1, 60);
+    let r = |v: f64| (v * 1e4).round() / 1e4;
+    let mut c = Vec::with_capacity(n * 12);
+    for k in 0..n {
+        let (x0, x1) = (k as f64 / n as f64, (k + 1) as f64 / n as f64);
+        let (y0, y1) = (x0, x1);
+        let xj = x0 + (x1 - x0).min(0.002) / 2.0;
+        // The jump (x0, y0) → (xj, y1), then the hold (xj, y1) → (x1, y1); straight lines: c1 = start, c2 = end.
+        c.extend([x0, y0, xj, y1, xj, y1].map(r));
+        c.extend([xj, y1, x1, y1, x1, y1].map(r));
+    }
+    c
+}
+
+/// A look's curve (`[decor] motion.*_curve`) as a `bezierCurve` list: a cubic's four numbers get their end (1, 1).
+fn curve_value(v: &Value) -> Option<Vec<f64>> {
+    let n: Vec<f64> = v.as_array()?.iter().filter_map(Value::as_f64).collect();
+    match n.len() {
+        0 => None,
+        4 => Some([n[0], n[1], n[2], n[3], 1.0, 1.0].to_vec()),
+        _ => Some(n),
+    }
+}
+
+/// The slot names and `[decor]` metrics as `decor.<name>` tokens, every default filled in (W53.0a); a role is published
+/// as its colour, `""` as `""` (the component's own colour).
+fn decor_tokens(t: &mut TokenMap, p: &Palette, decor: &Decor) {
+    for s in SLOTS {
+        t.insert(
+            format!("decor.{s}"),
+            json!(decor.slots.get(*s).cloned().unwrap_or_default()),
+        );
+    }
+    for d in DECOR_KEYS {
+        let v = decor
+            .metrics
+            .get(d.key)
+            .cloned()
+            .unwrap_or_else(|| d.default_value());
+        let v = match d.kind {
+            DecorKind::Role => match v.as_str() {
+                Some(r) if !r.is_empty() => json!(p.get(r).hex()),
+                _ => json!(""),
+            },
+            DecorKind::Roles => json!(
+                v.as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Value::as_str)
+                    .map(|r| p.get(r).hex())
+                    .collect::<Vec<_>>()
+            ),
+            _ => v,
+        };
+        t.insert(format!("decor.{}", d.key), v);
+    }
+}
+
 pub fn build(
     p: &Palette,
     axes: &Axes,
+    decor: &Decor,
+    high_contrast: bool,
     fonts: &dyn FontProvider,
     overrides: &BTreeMap<String, Value>,
 ) -> Result<(TokenMap, Vec<String>), ThemeError> {
+    // A `[decor]` metric in effect: the look's, else its default (appearance::DECOR_KEYS).
+    let dv = |key: &str| -> Value {
+        decor.metrics.get(key).cloned().unwrap_or_else(|| {
+            crate::appearance::decor_key(key)
+                .map(|d| d.default_value())
+                .unwrap_or(Value::Null)
+        })
+    };
+    let dnum = |key: &str| dv(key).as_f64().unwrap_or(0.0);
     let mut t = TokenMap::new();
     let mut notes = vec![];
 
@@ -191,11 +264,25 @@ pub fn build(
         "shape.squircle_k".into(),
         json!((squircle_k(axes.squircle) * 1e4).round() / 1e4),
     );
+    // W53.0a: bitmap type (`[decor] type.pixel`) sits on a grid of `type.pixel_step` px; large text takes whole steps.
+    let pixel_type = dv("type.pixel").as_bool() == Some(true);
+    let step = if pixel_type {
+        dnum("type.pixel_step").max(1.0)
+    } else {
+        1.0
+    };
+    t.insert("font.pixel".into(), json!(pixel_type));
+    px(&mut t, "font.pixel_step", step);
     for (n, v) in TYPE_SCALE {
+        let size = v * axes.type_scale.clamp(0.5, 3.0);
         px(
             &mut t,
             &format!("font.size.{n}"),
-            v * axes.type_scale.clamp(0.5, 3.0),
+            if step > 1.0 {
+                (size / step).round().max(1.0) * step
+            } else {
+                size
+            },
         );
     }
     for (n, w) in [("regular", 400), ("medium", 500), ("bold", 700)] {
@@ -238,17 +325,48 @@ pub fn build(
     } else {
         ""
     };
+    // W53.0a: a style's own symbol font (`[decor] icons.family`, ligature names as Material Symbols) when installed; the
+    // shell's family is then the fallback for a name it lacks (Shōjiki: never tofu).
+    let own = dv("icons.family")
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .find(|f| fonts.is_installed(f))
+        .map(String::from);
+    let (icons, fallback) = match &own {
+        Some(f) => (f.as_str(), icons),
+        None => (icons, fallback),
+    };
     t.insert("font.icons".into(), json!(icons));
     t.insert("font.icons_fallback".into(), json!(fallback));
-    // Icon cut per chrome (K45): keycaps take filled, heavier symbols; line chrome hairline ones.
+    // Icon cut per chrome (K45): keycaps take filled, heavier symbols; line chrome hairline ones. A look may set its own
+    // (`[decor] icon.fill`, `icon.weight`; -1 = the chrome's).
     let (icon_fill, icon_weight) = match axes.chrome {
         Chrome::Keycap => (1, 600),
-        Chrome::Soft => (0, 400),
+        Chrome::Soft | Chrome::Flat | Chrome::Bevel => (0, 400),
         Chrome::Line => (0, 300),
-        Chrome::Flat => (0, 400),
     };
-    t.insert("icon.fill".into(), json!(icon_fill));
-    t.insert("icon.weight".into(), json!(icon_weight));
+    let own_or = |key: &str, d: i64| match dnum(key) as i64 {
+        v if v >= 0 => v,
+        _ => d,
+    };
+    t.insert("icon.fill".into(), json!(own_or("icon.fill", icon_fill)));
+    t.insert(
+        "icon.weight".into(),
+        json!(own_or("icon.weight", icon_weight)),
+    );
+    // The default icon size (Icon.qml: the body size + 4 until now) and a scale for every icon (W53.0a).
+    let body = t["font.size.body"].as_f64().unwrap_or(13.0);
+    px(
+        &mut t,
+        "icon.size",
+        match dnum("icon.size") {
+            v if v > 0.0 => v,
+            _ => body + 4.0,
+        },
+    );
+    t.insert("icon.scale".into(), json!(dnum("icon.scale")));
 
     for (n, base) in DURATIONS {
         t.insert(
@@ -273,54 +391,76 @@ pub fn build(
     // spatial curve (500 ms, overshoots ~6 %) and folds back on the emphasized one (400 ms), its content fading on the
     // effects curve; `spring` (calm, lively): the spring family below; `none`: cuts. Curves are QML `bezierCurve` lists
     // (segments of c1, c2, end; the last point 1, 1).
+    // W53.0a (K80): a look's motion personality on top — the form surfaces move in (`motion.style`: grow is K74's, the
+    // others are drawn by the surfaces that adopt them), its own durations and curves (`[decor] motion.*`), and the
+    // `stepped` style, whose kind quantises every timed curve into jumps held `motion.steps` frames at 60 Hz. The profile
+    // `none` (reduce motion forces it) still wins: no curves, no steps.
+    let style = dv("motion.style");
+    let style = style.as_str().unwrap_or("grow");
+    let stepped = style == "stepped";
     t.insert(
         "motion.kind".into(),
         json!(match axes.motion {
-            MotionProfile::Expressive => "timed",
             MotionProfile::None => "none",
+            _ if stepped => "stepped",
+            MotionProfile::Expressive => "timed",
             _ => "spring",
         }),
     );
-    for (n, ms) in [
-        ("open", 500.0),
-        ("close", 400.0),
-        ("fast", 350.0),
-        ("effects", 200.0),
+    t.insert(
+        "motion.style".into(),
+        json!(if axes.motion == MotionProfile::None {
+            "none"
+        } else {
+            style
+        }),
+    );
+    let hold = dnum("motion.steps").max(1.0);
+    t.insert("motion.steps".into(), json!(hold as i64));
+    // A rubber-band look overshoots on arrival unless it names its own curves.
+    let rubber = [0.34, 1.56, 0.64, 1.0, 1.0, 1.0].to_vec();
+    for (n, ms, curve) in [
+        ("open", 500.0, [0.38, 1.21, 0.22, 1.0, 1.0, 1.0].to_vec()),
+        (
+            "close",
+            400.0,
+            [
+                0.05,
+                0.0,
+                2.0 / 15.0,
+                0.06,
+                1.0 / 6.0,
+                0.4,
+                5.0 / 24.0,
+                0.82,
+                0.25,
+                1.0,
+                1.0,
+                1.0,
+            ]
+            .to_vec(),
+        ),
+        ("fast", 350.0, [0.42, 1.67, 0.21, 0.9, 1.0, 1.0].to_vec()),
+        ("effects", 200.0, [0.34, 0.8, 0.34, 1.0, 1.0, 1.0].to_vec()),
     ] {
-        t.insert(
-            format!("motion.timed.{n}_ms"),
-            json!(duration_ms(ms, axes.motion, axes.motion_speed)),
-        );
+        let base = match dnum(&format!("motion.{n}_ms")) {
+            v if v > 0.0 => v,
+            _ => ms,
+        };
+        let dur = duration_ms(base, axes.motion, axes.motion_speed);
+        t.insert(format!("motion.timed.{n}_ms"), json!(dur));
+        let own = curve_value(&dv(&format!("motion.{n}_curve")));
+        let curve = if stepped {
+            stepped_curve(((dur as f64) / (hold * 1000.0 / 60.0)).round() as usize)
+        } else if let Some(c) = own {
+            c
+        } else if style == "rubber" && n != "close" && n != "effects" {
+            rubber.clone()
+        } else {
+            curve
+        };
+        t.insert(format!("motion.timed.{n}_curve"), json!(curve));
     }
-    t.insert(
-        "motion.timed.open_curve".into(),
-        json!([0.38, 1.21, 0.22, 1.0, 1.0, 1.0]),
-    );
-    t.insert(
-        "motion.timed.close_curve".into(),
-        json!([
-            0.05,
-            0.0,
-            2.0 / 15.0,
-            0.06,
-            1.0 / 6.0,
-            0.4,
-            5.0 / 24.0,
-            0.82,
-            0.25,
-            1.0,
-            1.0,
-            1.0
-        ]),
-    );
-    t.insert(
-        "motion.timed.fast_curve".into(),
-        json!([0.42, 1.67, 0.21, 0.9, 1.0, 1.0]),
-    );
-    t.insert(
-        "motion.timed.effects_curve".into(),
-        json!([0.34, 0.8, 0.34, 1.0, 1.0, 1.0]),
-    );
 
     // Springs (K42): overshoot of arrivals (QML Easing.OutBack amplitude) and a spring for
     // retargetable morphs (QML SpringAnimation `spring`/`damping`). Calm settles without a bounce,
@@ -331,7 +471,7 @@ pub fn build(
         (MotionProfile::Lively, Chrome::Flat) => 1.4,
         (MotionProfile::Lively, Chrome::Keycap) => 2.2,
         (MotionProfile::Lively, Chrome::Soft) => 1.0,
-        (MotionProfile::Lively, Chrome::Line) => 0.4,
+        (MotionProfile::Lively, Chrome::Line | Chrome::Bevel) => 0.4,
     };
     t.insert("motion.spring.overshoot".into(), json!(overshoot));
     let (spring, damping) = match axes.motion {
@@ -439,6 +579,19 @@ pub fn build(
             groups: true,
             frame_outline: true,
         },
+        // W53.0a (K80): the bevel's lines are its own tokens (`bevel.*`, below): no outline, ring or shadow; a press swaps
+        // the pairs and moves the content (`bevel.press_offset`), it neither sinks nor shrinks.
+        Chrome::Bevel => Ch {
+            style: "bevel",
+            outline: 0.0,
+            ring: 0.0,
+            shadow: 0.0,
+            soft: 0.0,
+            soft_dy: 0.0,
+            press_scale: 1.0,
+            groups: true,
+            frame_outline: false,
+        },
     };
     let keycap = axes.chrome == Chrome::Keycap;
     t.insert("chrome.style".into(), json!(ch.style));
@@ -480,9 +633,70 @@ pub fn build(
             if p.dark { WHITE } else { g("on_surface") },
             if p.dark { 0.16 } else { 0.10 },
         ),
-        Chrome::Flat => (g("outline_variant"), 0.0),
+        Chrome::Flat | Chrome::Bevel => (g("outline_variant"), 0.0),
     };
     col(&mut t, "chrome.outline_color", oc);
+    // W53.0a (K80): the bevel — 0 wide unless the chrome is one — and its four lines: outer light/dark, inner light/dark,
+    // light from the top left. High contrast keeps the bevel (it carries pressed and sunken, K80 amends K42), drawn in the
+    // contrast palette's ink: the outer pair in the text colour on both sides, the inner pair telling the light side from
+    // the dark one.
+    let bevel = axes.chrome == Chrome::Bevel;
+    px(
+        &mut t,
+        "bevel.width",
+        if bevel { dnum("bevel.width") } else { 0.0 },
+    );
+    px(
+        &mut t,
+        "bevel.press_offset",
+        if bevel {
+            dnum("bevel.press_offset")
+        } else {
+            0.0
+        },
+    );
+    let lines = if high_contrast {
+        [
+            g("on_surface"),
+            g("on_surface_variant"),
+            g("outline"),
+            g("on_surface"),
+        ]
+    } else {
+        [
+            g("bevel_light"),
+            g("bevel_light2"),
+            g("bevel_dark2"),
+            g("bevel_dark"),
+        ]
+    };
+    for (n, c) in ["light", "light2", "dark2", "dark"].iter().zip(lines) {
+        col(&mut t, &format!("bevel.{n}"), c);
+    }
+    // W53.0a: materials next to blur — a glow round blocks in a role's colour, a bloom of a block's own colour, a sheen
+    // on its upper half. Static halos and gradients (0 frames idle); decoration, so high contrast turns them off.
+    let deco = if high_contrast { 0.0 } else { 1.0 };
+    let r2 = |v: f64| (v * 100.0).round() / 100.0;
+    t.insert(
+        "glow.strength".into(),
+        json!(r2(dnum("material.glow") * deco)),
+    );
+    let glow = match dv("material.glow_color").as_str() {
+        Some(r) if !r.is_empty() => g(r),
+        _ => g("accent"),
+    };
+    col(&mut t, "glow.color", glow);
+    px(&mut t, "glow.radius", dnum("material.glow_radius"));
+    t.insert(
+        "bloom.strength".into(),
+        json!(r2(dnum("material.bloom") * deco)),
+    );
+    px(&mut t, "bloom.radius", dnum("material.bloom_radius"));
+    t.insert(
+        "sheen.strength".into(),
+        json!(r2(dnum("material.sheen") * deco)),
+    );
+    decor_tokens(&mut t, p, decor);
     t.insert("chrome.outline_alpha".into(), json!(oa));
     col(&mut t, "chrome.soft_color", g("shadow"));
     t.insert(
