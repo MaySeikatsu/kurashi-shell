@@ -1001,3 +1001,30 @@ line or a Japanese string recompiled ~400 crates and ran the suite.
   over its body.
 - **niri is the lead platform** for visual checks (`tools/bench/niri-sandbox.sh`, CLAUDE.md): sway has no
   ext-background-effect and stacks layers differently; these bugs were invisible there.
+
+## K78 — elevation shadows: the shell draws them, one light for everything (2026-10-29, session 18; user, W57/I310)
+- **The shell draws every elevation shadow** in its own windows: two layers (ambient all round + key along the light),
+  the surfaces' true shapes (fillets, squircles, the frame's hole as one inset shadow in screen coordinates) and joined
+  shapes as one silhouette. niri's `layer-rule { shadow {} }` was weighed and not taken: one rectangle with one radius
+  per surface, one layer, static, niri-only (<https://github.com/YaLTeR/niri/blob/main/docs/wiki/Configuration:-Layer-Rules.md>).
+- **The light is shell-wide:** `theme.light` stops depending on the material (amends K67's inertness of `follow` under
+  flat and line for elevation and block shadows alike).
+- **Following the pointer lamp / spotlight is an option** (off by default; amends K67's "shadows never move with the
+  pointer" for that option only): eased, only while the pointer light repaints anyway (W58), off under reduced motion.
+- The band and docked bars cast onto windows with the key layer only (short reach). Soft and keycap looks ship Static,
+  flat and line Off. Separate strengths for block shadows and elevation; levels per surface role from decor packs.
+- UX brief: `docs/ux/shadows.md` "Elevation". Idle stays 0 frames; the shadow margin stays outside input, blur region
+  and exclusive zone.
+
+## K79 — the pointer position: cursor sessions from niri main, the fallback stays (2026-10-29, session 18; user, W58/I311)
+- Upstream niri implements ext-image-copy-capture-v1 for outputs and cursors (niri#4554, merged 2026-09-12, commit
+  849c576; <https://github.com/niri-wm/niri/pull/4554>), on `main` only (no release after 26.04). smithay has the
+  protocol (Smithay#1902). So **no niri patch**: the flake pins niri `main` (≥ 849c576) as an input, and the modules
+  use it only while the pointer light is on (replaces the session-17 plan of a patch in `nix/patches/`).
+- **The fallback stays first-class** (user): without the protocol (another niri, another compositor, the input not
+  enabled) the light follows the pointer over the shell's own surfaces as before, and Settings says why.
+- **Back to a release as soon as one has it** (user: the pin must not cost long compile times for good): check niri
+  releases now and then (a HANDOVER "Risks" line and a BACKLOG row) and drop the pin for nixpkgs' niri once it ships.
+- Client side: `wayland-protocols` (feature `staging`, already enabled) has the bindings; a refcounted `pointer.rs` in
+  `kurashi-compositor` in the shape of `idle.rs`; cursor sessions report `enter/leave/position/hotspot` only (no frames);
+  a resting pointer sends nothing. Each session shows in niri's event stream as a cast (filter our own pid).
