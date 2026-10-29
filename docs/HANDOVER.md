@@ -17,6 +17,32 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-29 — session 17 (machine A): faster builds — K76
+**State:** `feat/i290-faster-builds` merged into `main` (`--no-ff`), **not pushed** (push when the user agrees; session
+16 part 2's merges are unpushed too). `nix build .#kurashi` run on the merged `main`. No subagents (user's rule).
+
+**Merged (K76, I290–I293):** crane flake input; `nix/package.nix` = deps (`buildDepsOnly`) → `bin` (our crates, from
+Rust sources + `looks/ styles/ palettes/ i18n/*/doctor.toml`, which are `include_str!`'d) → the package (data copied,
+`makeBinaryWrapper --set-default KURASHI_DATA_DIR $out/share/kurashi`). `option_env!("KURASHI_DATA_DIR")` removed
+(kurashid `i18n.rs`, mod-timer `texts.rs`). Tests: `checks.<system>.tests` (`passthru.cargoTests`), no longer in
+`nix build`. devShell lists `passthru.rust{Native,}BuildInputs` instead of `inputsFrom`. README "Iterating".
+**Measured:** old package builds 34–78 min (nix log timestamps, 15 builds Oct 22–28, median ~44 min); now QML/string
+edit ~5 s, Rust edit ~5 min, cold/Cargo.lock ~11 min. Verified: `just check` and `checks.tests` (1244 tests each),
+hm/webdock/greeter evals, webdock-closure, `nix run .#sandbox`, wrapped kurashid without the variable (data found, ja
+strings, process name `kurashid`).
+
+**Next steps (ordered):**
+1. The user's review of session 16's work on niri (see the entry below, step 1) — first live start on the new package.
+2. W53 (I289): UX brief `docs/ux/styles.md` first, then the system card, then one card per family.
+3. I294 if style work makes `looks/`/`styles/`/`palettes/` edits frequent (load them at run time; then they rebuild in
+   seconds too). I293's binary cache: the user's call (cachix account or an attic server for machines A and B).
+4. The rest of I269, I288, I280, I284/I285.
+
+**Risks:** the first `nix build` on machine B is a cold one (~11 min there or more). HM/NixOS installs keep the same
+paths (`$out/share/kurashi/...`, `$out/bin/...`); the binaries in `$out/bin` are now small wrappers.
+
+---
+
 ## 2026-10-28 — session 16, part 2 (machine A, the user away for 3 h): squircles, nested corners, the top dock, sidebar layouts, palettes, the style-rework card — K75
 **State:** branches `feat/w49-squircle` → `w50-dock-top` → `w51-sidebar-mode` → `w52-palettes` (stacked) merged into
 `main` locally (`--no-ff`), **not pushed** — push when the user agrees. `nix build .#default` run on the merged `main`
