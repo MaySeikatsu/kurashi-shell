@@ -31,6 +31,8 @@ case "${1:-}" in
 start)
   # (a sandbox of this name left from an earlier run would hand back its dead sway's environment)
   "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null 2>&1 || true
+  # (and its old sockets: sway would take the next wayland-N while the env still named the old one)
+  rm -rf "/tmp/kurashi-sb-$NAME"
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
   "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV"
   R=$XDG_RUNTIME_DIR

@@ -213,13 +213,9 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             "off" => kurashi_theme::FrameOutline::Off,
             _ => kurashi_theme::FrameOutline::Auto,
         },
-        frame_outline_ink: match s(store, "theme.frame_outline_ink").as_str() {
+        outline_ink: match s(store, "theme.outline_ink").as_str() {
             v @ ("text" | "accent") => v.into(),
             _ => "outline".into(),
-        },
-        frame_outline_stroke: match s(store, "theme.frame_outline_stroke").as_str() {
-            "sketch" => "sketch".into(),
-            _ => "line".into(),
         },
         ..Axes::default()
     };

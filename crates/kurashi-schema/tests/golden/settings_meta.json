@@ -1266,63 +1266,24 @@
               "advanced": false,
               "choices": [
                 {
-                  "label": "config.choice.frame_ink.outline",
+                  "label": "config.choice.outline_ink.outline",
                   "value": "outline"
                 },
                 {
-                  "label": "config.choice.frame_ink.text",
+                  "label": "config.choice.outline_ink.text",
                   "value": "text"
                 },
                 {
-                  "label": "config.choice.frame_ink.accent",
+                  "label": "config.choice.outline_ink.accent",
                   "value": "accent"
                 }
               ],
               "control": "select",
-              "couplings": [
-                {
-                  "key": "theme.frame_outline",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "off"
-                }
-              ],
+              "couplings": [],
               "default": "outline",
-              "help": "config.theme.frame_outline_ink.help",
-              "key": "theme.frame_outline_ink",
-              "label": "config.theme.frame_outline_ink.label",
-              "per_output": false,
-              "restart": false,
-              "since": 7,
-              "type": "choice"
-            },
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.frame_stroke.line",
-                  "value": "line"
-                },
-                {
-                  "label": "config.choice.frame_stroke.sketch",
-                  "value": "sketch"
-                }
-              ],
-              "control": "select",
-              "couplings": [
-                {
-                  "key": "theme.frame_outline",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "off"
-                }
-              ],
-              "default": "line",
-              "help": "config.theme.frame_outline_stroke.help",
-              "key": "theme.frame_outline_stroke",
-              "label": "config.theme.frame_outline_stroke.label",
+              "help": "config.theme.outline_ink.help",
+              "key": "theme.outline_ink",
+              "label": "config.theme.outline_ink.label",
               "per_output": false,
               "restart": false,
               "since": 7,
@@ -2604,6 +2565,10 @@
                 {
                   "label": "config.choice.pen_line.rough",
                   "value": "rough"
+                },
+                {
+                  "label": "config.choice.pen_line.sketch",
+                  "value": "sketch"
                 }
               ],
               "control": "select",
