@@ -15,6 +15,7 @@ pub mod globals;
 pub mod hyprland;
 pub mod idle;
 pub mod niri;
+pub mod pointer;
 pub mod sway;
 mod types;
 

@@ -5,7 +5,7 @@ import "../core"
 // daemon refuses it (the row says why, under the control) and follows the daemon's value once that changes, so an
 // invalid input is never replaced by the old value (UX brief, settings: invalid input). Escape puts the daemon's
 // value back. `typing` follows every edit, for controls that must react while the user types.
-Rectangle {
+RoundBox {
     id: f
     property string value: ""
     property string placeholder: ""

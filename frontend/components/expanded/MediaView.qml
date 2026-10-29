@@ -113,7 +113,7 @@ Item {
         // The hero: the art beside the titles and the level bars. With the cover's colours (`art_colors`, K48) it sits on
         // the cover's own tone, its text and bars in the colours the daemon checked for contrast (data colours, not
         // tokens); without them it is plain, on the card.
-        Rectangle {
+        RoundBox {
             id: hero
             width: view.width
             height: heroRow.implicitHeight + 2 * inset
@@ -132,7 +132,8 @@ Item {
                     id: artBox
                     width: 96
                     height: 96
-                    radius: Theme.rLg
+                    // Concentric with the tinted hero across its inset (I269); on its own, the look's radius.
+                    radius: view.tinted ? Theme.nested(hero.radius, hero.inset) : Theme.rLg
                     color: Theme.selected
                     Accessible.role: Accessible.Graphic
                     Accessible.name: I18n.tr("island.media.art")

@@ -1,0 +1,4 @@
+# The pointer's position across the screen (`svc.pointer`, W58, K79; docs/ux/texture.md "Light").
+"pointer.no_protocol" = "This compositor does not tell the shell where the pointer is: the light follows it over the shell's own surfaces"
+"pointer.no_pointer" = "There is no pointer on this seat: the light stays where it rests"
+"pointer.disconnected" = "The shell lost its view of the pointer: the light follows it over the shell's own surfaces"

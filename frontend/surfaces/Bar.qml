@@ -477,6 +477,13 @@ Scope {
                                 gaps.push([0, Math.max(0, cut0 + fr - o0)])
                                 gaps.push([ruleLen - Math.max(0, cut1 + fr - o1), ruleLen])
                             }
+                            // I305 (user: a gap): groups floating with a shadow (keycap, soft) break the rule under them, their
+                            // shadow's sideways reach and a few px beside, so the rule and the shadows never run together.
+                            if (bb.floatingGroups && bar.zoneRoot && bar.zoneRoot.groupSpans) {
+                                var reach = Math.abs(Theme.sinkX) + 3, gs = bar.zoneRoot.groupSpans
+                                for (var g = 0; g < gs.length; g++)
+                                    gaps.push([Math.max(0, gs[g][0] - reach), Math.min(ruleLen, gs[g][1] + reach)])
+                            }
                             gaps.sort(function (x, y) { return x[0] - y[0] })
                             var segs = [], at = 0
                             for (var i = 0; i < gaps.length; i++) {
@@ -623,6 +630,8 @@ Scope {
         Item {
             id: hl
             anchors.fill: parent
+            // The group blocks along the bar (I305: the strip's rule breaks under them).
+            readonly property var groupSpans: startRow.groupSpans.concat(centerRow.groupSpans, endRow.groupSpans)
             Component.onCompleted: { bar.zoneRoot = hl; bar.requestZones() }
             opacity: bar.stale ? Theme.staleOpacity : 1
             Behavior on opacity {

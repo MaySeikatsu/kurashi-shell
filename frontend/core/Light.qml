@@ -60,11 +60,30 @@ Singleton {
     }
 
     // The pointer left a shell window on `out`. A leave on an output the pointer already moved on from does nothing
-    // (the window it entered owns the lamp now).
+    // (the window it entered owns the lamp now). While the daemon reports the pointer everywhere, it says where it went.
     function leave(out) {
-        if (out !== output || k === 0) return
+        if (everywhere || out !== output || k === 0) return
+        rest()
+    }
+    function rest() {
+        if (k === 0) return
         if (Theme.springOn) glide.restart()
         else k = 0
+    }
+
+    // W58 (K79): where the pointer is across the whole screen — over windows too — from kurashid's cursor sessions
+    // (`svc.pointer`), watched only in the pointer and spotlight modes (refcounted: no session otherwise). Without them
+    // (`available` false: a compositor without ext-image-copy-capture cursor sessions, niri 26.04) the sensors alone
+    // feed the lamp over the shell's own surfaces, as before (Settings says why).
+    readonly property bool wanted: Theme.lightMode === "pointer" || Theme.lightMode === "spotlight"
+    property Watch pointerWatch: Watch { doc: "svc.pointer"; active: light.wanted }
+    readonly property var pointerDoc: wanted ? Store.docs["svc.pointer"] : undefined
+    readonly property bool everywhere: !!pointerDoc && pointerDoc.available === true
+    onPointerDocChanged: {
+        var d = pointerDoc
+        if (!d || d.available !== true) return
+        if (d.output) moveTo(d.output, d.x, d.y)
+        else rest()
     }
 
     // The exclusive zones other layer windows hold on each output (the bars): `{ "<output>": [{win, edge, size}] }`.

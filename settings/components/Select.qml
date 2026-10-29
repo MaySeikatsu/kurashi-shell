@@ -105,7 +105,7 @@ Item {
         if (s.typeAhead(event.text)) event.accepted = true
     }
 
-    Rectangle {
+    RoundBox {
         anchors.fill: parent
         radius: Theme.rSm
         color: Theme.containerHigh
@@ -159,7 +159,7 @@ Item {
         // Focus goes back to the control, so Tab carries on from the row (keyboard path).
         onClosed: s.forceActiveFocus()
 
-        background: Rectangle {
+        background: RoundBox {
             color: Theme.containerHigh
             border.width: 1
             border.color: Theme.outline
@@ -185,7 +185,7 @@ Item {
                     event.accepted = true
             }
 
-            delegate: Rectangle {
+            delegate: RoundBox {
                 id: opt
                 required property var modelData
                 required property int index

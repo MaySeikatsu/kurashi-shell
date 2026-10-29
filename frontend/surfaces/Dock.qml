@@ -931,7 +931,7 @@ Scope {
                             mask: Region {}
                             // Glass: the tooltip is the dock's sheet, blurred as it is (I296).
                             BackgroundEffect.blurRegion: Region { item: Theme.blur ? tipBox : null; radius: Theme.rSm }
-                            Rectangle {
+                            RoundBox {
                                 id: tipBox
                                 width: tipText.implicitWidth + 2 * Theme.gap
                                 height: tipText.implicitHeight + Theme.gap
