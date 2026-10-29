@@ -897,3 +897,22 @@ URL or a VM capture before its shots are reviewed.
 6. **Sounds.** (a) Ship original cue sets per style, off by default, one switch in Settings; (b) no sounds in W53
    (later). *Recommend (a)* for snes and ps2 only in W53 (where sound is half the identity), the Windows and Mac sets
    later.
+
+## Decided (user, session 18 — K80)
+1. **Lock face follows the style** (`lock.face = follow | plain | <name>`, default `follow`); one switch keeps the plain one.
+2. **Styles only dress** the modules there are; an OS-like layout (start button, taskbar, menu bar) comes from an
+   optional companion profile ("Also use its layout"). Layout never changes by itself (K45).
+3. **Title bars on Stage cards: the full set of buttons, with a switch `off | close only | full`** (user). Each button's
+   action is configurable; defaults: **close** closes the card as usual, **maximize** opens it full screen, **minimize**
+   opens the app's own menu where one exists — the menu a left click on its bar entry shows (the user's example: Steam's
+   tray menu with its entries, separators and the key hints "↑ ↓ choose · → ← submenu · Enter run · Esc close") — only
+   where that fits the card and makes sense; otherwise minimize hides the card (back to the island).
+4. **Fonts:** Home-Manager installs the free stand-ins by default (licences permitting); the user's own Segoe, Tahoma or
+   SF win when installed. Nothing proprietary is bundled.
+5. **macOS:** aqua = Jaguar–Tiger pinstripes, and a new `vibrancy` = Big Sur–Sonoma; Tahoe's Liquid Glass waits for the
+   glass material.
+6. **Sounds: every style supports an original sound-cue set** (a sound profile per style, off by default, one switch);
+   styles with a direct reference — snes, ps2, yorha (NieR), the Windows styles, the Mac styles and the like — ship cue
+   files of their own (original sounds in the spirit of the reference, never the trademarked originals).
+7. **High contrast keeps the bevel** (amends K42): a style's 3D borders stay, in high-contrast colours, as Windows' own
+   high-contrast themes keep their 3D edges.
