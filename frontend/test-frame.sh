@@ -19,7 +19,7 @@
 #   FRAME_DECORS="washi sekai" picks decors; FRAME_PAIRS=<n> the PSS pairs (default 3).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w43-frame-test}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w43-frame-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/frame
 DECORS=${FRAME_DECORS:-washi washi-dark washi-paper sekai sekai-paper glass win95 terminal kami}
@@ -31,6 +31,7 @@ say() { echo "test-frame: $*"; }
 for b in kurashid kurashi kurashi-mock; do [ -x "$BIN/$b" ] || die "no $b in $BIN (KURASHI_BIN_DIR)"; done
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -57,7 +58,8 @@ swaymsg 'default_floating_border none' >/dev/null
 tokens() { # tokens <decor> → $W/theme-<decor>.json
   local d=$1 style=${1%%-*}
   mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-  printf 'theme.style = "%s"\n' "$style" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  # Motion off (W55): no step here checks a slide or a fade's course, only where things end up.
+  printf 'theme.style = "%s"\ntheme.motion.profile = "none"\n' "$style" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   [[ "$d" == *-dark* ]] && printf 'theme.colors.scheme = "dark"\n' >> "$XDG_CONFIG_HOME/kurashi/config.toml"
   [[ "$d" == *-paper* ]] && printf 'theme.texture.kind = "paper"\ntheme.texture.strength = 1.5\n' >> "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
@@ -158,10 +160,12 @@ scene() { # scene <decor> <scene> [layout args…]; env CFG: extra config values
   local cfg; cfg=$(jq -cn --arg e "$edge" --argjson en "$enabled" --argjson x "${CFG:-{\}}" \
     '{doc: "config", patch: {values: ({"bar.edge": {value: $e, source: {kind: "user"}}, "bar.enabled": {value: $en, source: {kind: "user"}}} + ($x | with_entries(.value = {value: .value, source: {kind: "user"}})))}}')
   K act mock.doc "$cfg" >/dev/null
-  local before; before=$(stat -c %s "$R/qs.log")
+  local before bare; before=$(stat -c %s "$R/qs.log"); bare=$(screen_hash)
+  SCENE_T0=$(now_ms)
   env -u KURASHI_SOCKET ${QS_ENV:-} qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS=$!
-  sleep 4
+  # Was a fixed 4 s: the frontend loaded, drew and stands still (at most 4 s for the drawing to settle).
+  wait_frontend "$R/qs.log" "$before" 4 0.8 "$bare" || die "the frontend did not load for $d $s (see $R/qs.log)"
 }
 shoot() { # shoot <decor> <name>: the screen (half size) and the top-left corner (4×; the bottom-left one for a bottom bar)
   mkdir -p "$OUT/$1"
@@ -201,7 +205,8 @@ commits() { tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -c 'wl_surface#[0-9]*\.c
 # the bar's zone (BARH px short, a notch under the fillet); row 510: one that holds a zone starts inside the bar's.
 side_strips() {
   local e line h want=$((SH - BARH - RAD - T - RAD)) bgp
-  sleep 1
+  # Was a fixed 1 s: both strips logged their geometry (the scene's wait already saw the screen settle).
+  for e in left right; do wait_for "$R/qs.log" "FRAMEGEO $e " 1 "$1" || true; done
   bgp=$(pixel 960 700)
   for e in left right; do
     line=$(tail -c +"$(( $1 + 1 ))" "$R/qs.log" | grep -o "FRAMEGEO $e [0-9.]* [0-9.]* [0-9.]* [0-9.]* [a-z]*" | tail -1)
@@ -264,9 +269,12 @@ if [[ " $DECORS " == *" washi "* ]]; then
   close_window
 
   # Off and on again while the shell runs (the layout changes; the band fades out and comes back).
-  K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":false}}}}}' >/dev/null; sleep 1.5
+  # (Each was a fixed 1.5 s: now at most 1.5 s, until the pixel the check reads has turned.)
+  K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":false}}}}}' >/dev/null
+  wait_until 1.5 eval '[ "$(pixel 3 600)" = "$bg" ]' || true
   [ "$(pixel 3 600)" = "$bg" ] || fail "the band stayed after the frame went off"
-  K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":true}}}}}' >/dev/null; sleep 1.5
+  K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":true}}}}}' >/dev/null
+  wait_until 1.5 eval '[ "$(pixel 3 600)" != "$bg" ]' || true
   [ "$(pixel 3 600)" != "$bg" ] || fail "the band did not come back with the frame"
 
   # A docked bar on hover (session 15): hidden, the band stays on its edge and the fillets hang on the band; out, the bar
@@ -297,8 +305,10 @@ for ds in washi-paper:top kami:top kami:off; do
   d=${ds%:*}; sc=${ds#*:}
   [[ " $DECORS " == *" $d "* ]] || continue
   MOCK_ARGS="--fixed-time 12:00" QS_ENV=WAYLAND_DEBUG=client scene "$d" "$sc"
-  # The bar clock's minute flip is the one idle commit the budget allows (K68): measure between two minutes.
-  sleep 4; while [ "$(date +%-S)" -gt 35 ]; do sleep 1; done
+  # The bar clock's minute flip is the one idle commit the budget allows (K68). The mock's clock is frozen
+  # (--fixed-time: it never ticks on its own, and the bar's clock is its svc.clock), so no minute flips in the window
+  # and none is waited for (W55). Was a fixed 4 s: the start-up commits ended (none for 1.5 s, at most 4 s).
+  wait_log_quiet "$R/qs.log" 'wl_surface#[0-9]*\.commit\(' 1.5 4
   s=$(stat -c %s "$R/qs.log")
   # Documents patched meanwhile that nothing on this output shows (another output's layout and workspaces): every
   # patch re-reads the layout, and that must redraw nothing.
@@ -345,13 +355,14 @@ fi
 for d in washi-paper kanso; do
   [ "$d" = washi-paper ] && [[ " $DECORS " != *" washi-paper "* ]] && continue
   # Separate frontends (each starts with the frame off or on).
+  # (Each measured 10 s after its frontend started, as before: the scene's 4 s, now shorter, and 6 s.)
   for i in $(seq "$PAIRS"); do
-    scene "$d" off; sleep 6; a=$(pss_mib "$QS")
-    scene "$d" top; sleep 6; b=$(pss_mib "$QS")
+    scene "$d" off; sleep_rest "$SCENE_T0" 10; a=$(pss_mib "$QS")
+    scene "$d" top; sleep_rest "$SCENE_T0" 10; b=$(pss_mib "$QS")
     say "PSS $d pair $i (two frontends): frame off $a MiB, on $b MiB (+$(awk -v a="$a" -v b="$b" 'BEGIN{printf "%.2f", b - a}') MiB)"
   done
   # One frontend, the frame turned off and on by the layout (no start-up noise; what an output's frame costs live).
-  scene "$d" top; sleep 6
+  scene "$d" top; sleep_rest "$SCENE_T0" 10
   for i in $(seq "$PAIRS"); do
     K act mock.doc '{"doc":"runtime.layout","patch":{"outputs":{"*":{"frame":{"on":false}}}}}' >/dev/null; sleep 5
     a=$(pss_mib "$QS")
@@ -400,8 +411,14 @@ KDL
     n=$("$NIRI" msg -j layers | jq '[.[] | select(.namespace == "kurashi-frame")] | length')
     WAYLAND_DISPLAY=$NWL env -u KURASHI_SOCKET qs -p "$W/win.qml" >> "$R/win.log" 2>&1 &
     WIN=$!
-    sleep 2
-    size=$("$NIRI" msg -j windows | jq -r '.[0].layout.window_size | "\(.[0]) \(.[1])"')
+    case $s in
+      top) want="$((NW - 16)) $((NH - BARH - 8))" ;;
+      *) want="$NW $((NH - BARH))" ;;
+    esac
+    niri_size() { "$NIRI" msg -j windows | jq -r '.[0].layout.window_size | "\(.[0]) \(.[1])"'; }
+    # Was a fixed 2 s: at most 2 s, until the window has the size the check wants.
+    wait_until 2 eval '[ "$(niri_size)" = "$want" ]' || true
+    size=$(niri_size)
     say "niri $s: $n kurashi-frame layers, window $size"
     case $s in
       top) want="$((NW - 16)) $((NH - BARH - 8))"; [ "$n" = 3 ] || fail "niri: frame on made $n layers, not 3" ;;
