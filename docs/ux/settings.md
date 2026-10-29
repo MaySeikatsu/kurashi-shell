@@ -166,3 +166,43 @@ File Search (folders to index or skip, one per row, Add…); **macOS** Spotlight
 - Shots: `settings/shots/{freelist-empty,freelist-three,freelist-added,freelist-invalid-path,page-link-keys,ja-page-link-records}.png`.
 - Definition of done: free list add / remove / reorder by keyboard and pointer ✓; path hint and refusal ✓; old colon
   string read ✓; page link at start and while running ✓; en + ja copy ✓; a native file picker ✗ (later, needs a portal client).
+
+## Opening, scrolling and the navigation's frame (session 17, user)
+**Ask.** "The menu should have the same fluid spawn animation as Caelestia's; other animation styles an adapted version
+that matches them — as a sheet, and in a window too if possible. Scrolling is very slow: more fluid, accelerating and
+easing out, with a scrollbar to grab. The sidebar should be framed like the content's section cards when the chrome
+draws outlines."
+
+**References.** Caelestia (Quickshell): its drawers grow out of their edge — height from 0 on Material 3 expressive
+spatial curves (`[0.38, 1.21, 0.22, 1]`, ~500 ms, a slight overshoot), content fading in on the effects curve once the
+shape is mostly out, folding back on the emphasized-accelerate curve (~400 ms). The shell already moves on these curves
+under the expressive profile (K74, `Glide`). Scrolling: GNOME/libadwaita and macOS scroll kinetically (wheel notches
+add velocity that decays; a touchpad moves 1:1 and flings on release), with an overlay scrollbar that widens on hover and
+can be dragged; KDE adds click-to-page on the track.
+
+**Design.**
+- *Sheet.* The sheet grows from the top edge (where the bar and the island are) to its place: its height on `Glide`
+  (expressive: Caelestia's open curve with its overshoot; calm and lively: the profile's spring; motion off: at once),
+  the content fading in on the effects curve after the shape is ~40 % out and sliding the last 12 px; the backdrop fades
+  with it. Closing folds it back up on the close curve.
+- *Window.* The compositor maps and animates the toplevel itself (niri's own open animation); inside it the content
+  arrives the same way — fading in and sliding 12 px on the profile's motion — so both modes feel alike.
+- *Scrolling* (every page, Changed, Mods, Profiles). Wheel notches add velocity to a kinetic scroll that decelerates
+  smoothly (consecutive notches accelerate, a stop eases out); a touchpad's pixel deltas move 1:1 and fling on release;
+  keyboard Page Up/Down and Home/End stay. A scrollbar on the content's right edge: thin at rest, wider under the
+  pointer, draggable (grab it to jump), a click on the track pages; shown only while the content is taller than the view.
+  Reduced motion: no kinetic tail.
+- *Navigation frame.* The sidebar is a block like the section cards: inset by the gap, rounded with the card radius,
+  outlined in the chrome's ink when the chrome draws outlines (line, keycap), its fill and relief as before; flat and soft
+  keep their look. The selected entry's plate is concentric with it (K74 `Theme.nested`).
+
+**States.** Opening, open, closing (sheet); window first frame; scrolling at rest / flinging / dragging the bar / at the
+ends (no overscroll bounce: StopAtBounds as now); content shorter than the view (no bar); reduced motion (no grow, no
+kinetic tail, the bar still works).
+
+**Keyboard, a11y.** Unchanged paths; the scrollbar is pointer-only (keyboard scrolls the page), its role ScrollBar with
+the page's name.
+
+**Definition of done.** Sheet open/close captured frame by frame on niri for expressive, calm, lively and none; window
+mode's content reveal; wheel and drag scrolling of a long page (Appearance) with the bar visible; the sidebar framed
+under line and keycap, unchanged under flat and soft (shots); `just suites settings` green; no frames at rest (idle).
