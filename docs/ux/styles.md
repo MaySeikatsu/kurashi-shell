@@ -916,3 +916,19 @@ URL or a VM capture before its shots are reviewed.
    files of their own (original sounds in the spirit of the reference, never the trademarked originals).
 7. **High contrast keeps the bevel** (amends K42): a style's 3D borders stay, in high-contrast colours, as Windows' own
    high-contrast themes keep their 3D edges.
+8. **The design system grows to fit the styles, never the other way round** (user, session 18): wherever the system
+   keeps a style from a 1:1 replication, extend it. Each style is a personality and can bring its own: **animation
+   styles** (the way things move: slide, zoom, fade, flip, stepped/pixel, rubber-band …) and **motion curves** (its own
+   béziers and timings), **fonts**, **symbols/icons** (icon set and icon sizes), **textures**, **sounds**, **window
+   decorations** (title bars, borders, bevels), **frame decorations**, **OS colours**, **material effects** (blur,
+   bloom, glass, glow), **buttons, sliders, toggles, menus, scroll bars, tooltips**. All of it as slots and tokens in
+   decor packs (rule 4), so a new style is data, not code — the system stays extensible and modifiable.
+9. **Every style ships a Layout Preset** that rearranges the shell to read as the original (taskbar at the bottom with a
+   start button for the Windows styles, a menu bar on top and a dock for the Mac ones, …) — offered with the style ("Also
+   use its layout", decision 2), never applied by itself.
+10. **Windows styles get a start button** (a bar module) that opens the shell's launcher/console in a start-menu skin of
+    the style; the Mac styles the equivalent (an Apple-menu-like mark, original, opening the launcher/Spotlight skin).
+11. **Cursor personality, off by default:** a style may bring its own stylised **pointer cursor** (applied through the
+    compositor's cursor theme, e.g. a niri config include written by kurashid as for keys) and a **cursor decoration**
+    — a trail as in osu!, sparkles, a ring — drawn on W58's effects sheet (I312) from `svc.pointer`. Both switches are
+    off by default.
