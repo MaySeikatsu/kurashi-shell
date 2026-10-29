@@ -1049,6 +1049,19 @@ PanelWindow {
             radius: Math.min(shape.rTop, shape.rBot)
             direction: stage.flip ? -1 : 1
         }
+        // W57 (K78): the card's elevation; cut along the bar it grows out of (one sheet with it).
+        Elevation {
+            visible: shape.h > 1
+            opacity: stage.shapeFade
+            x: shape.x0
+            y: shape.y0
+            width: shape.w
+            height: shape.h
+            radius: Math.min(shape.rTop, shape.rBot)
+            level: 3
+            cutTop: stage.joined
+            mirrorY: stage.flip ? -1 : 1
+        }
         MorphShape {
             id: shape
             visible: shapeBox.visible
