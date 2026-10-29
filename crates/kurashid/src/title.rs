@@ -185,6 +185,12 @@ pub fn press(
     Ok(())
 }
 
+/// A `runtime.ui` patch that touches only the peek or the title overlay.
+fn only_peek_or_title(ops: &Value) -> bool {
+    ops.as_object()
+        .is_some_and(|o| o.keys().all(|k| k == "peek" || k == "title"))
+}
+
 struct Title {
     hub: Arc<Hub>,
     store: Option<Arc<ConfigStore>>,
@@ -275,12 +281,24 @@ pub fn register(hub: &Arc<Hub>, store: Option<Arc<ConfigStore>>, actions: &mut A
             loop {
                 match events.recv().await {
                     Ok(msg) => match msg.as_ref() {
+                        // A peek (a hover sweep over the bar) and our own overlay change nothing here.
+                        kurashi_ipc::ServerMsg::Patch { doc, ops, .. }
+                            if doc == DOC && only_peek_or_title(ops) =>
+                        {
+                            continue;
+                        }
+                        // The player and the tray matter only while the media card is open.
                         kurashi_ipc::ServerMsg::Snap { doc, .. }
                         | kurashi_ipc::ServerMsg::Patch { doc, .. }
-                            if doc == DOC
-                                || doc == crate::theme::DOC
-                                || doc == "svc.tray"
-                                || doc == "svc.media" => {}
+                            if doc == "svc.tray" || doc == "svc.media" =>
+                        {
+                            if t.snap(DOC)["face"] != "media" {
+                                continue;
+                            }
+                        }
+                        kurashi_ipc::ServerMsg::Snap { doc, .. }
+                        | kurashi_ipc::ServerMsg::Patch { doc, .. }
+                            if doc == DOC || doc == crate::theme::DOC => {}
                         _ => continue,
                     },
                     Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
@@ -344,6 +362,16 @@ mod tests {
             ]
         );
         assert_eq!(t["full"], false);
+    }
+
+    #[test]
+    fn a_peek_or_our_own_overlay_does_not_recompute() {
+        assert!(only_peek_or_title(&json!({"peek": null})));
+        assert!(only_peek_or_title(&json!({"title": {"full": true}})));
+        assert!(!only_peek_or_title(
+            &json!({"peek": null, "panel": "quick"})
+        ));
+        assert!(!only_peek_or_title(&json!({"full": "quick:"})));
     }
 
     #[test]
