@@ -39,7 +39,10 @@ path_of() {
     *) echo "frontend/test-$1.sh" ;;
   esac
 }
-ALL=$(ls frontend/test-*.sh settings/test*.sh greeter/test.sh mods/*/test/*.sh 2>/dev/null | grep -v 'test-launch.sh')
+ALL=$(ls frontend/test-*.sh settings/test*.sh greeter/test.sh mods/*/test/*.sh 2>/dev/null | grep -v -e 'test-launch.sh' -e 'test-lib.sh')
+# I319: every run's sandboxes carry a prefix of their own, so two runners (the lead's and an agent's) never share a
+# sandbox dir or kill each other's processes. A prefix given from outside wins.
+export KURASHI_SB_PREFIX=${KURASHI_SB_PREFIX:-r$$-}
 
 suites=()
 case "$MODE" in
