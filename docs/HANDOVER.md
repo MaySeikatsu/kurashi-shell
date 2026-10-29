@@ -18,14 +18,14 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-10-29 — session 18 (machine A): the kami fillet, today's bugs, corners, the pointer light, elevation, the styles wave started — K78–K80
-**State (updated 22:2x):** `main` = ab973c93 + c083c1d3 (progress), `just check` 1256 green, `nix build .#kurashi` ok;
-pushed up to a862d9e4 — **the elevation merge and later are not pushed**. Suites of the merge sets green alone, except
-`settings/test-sheet.sh` spotlight (I314, main too) and `test-sidebars` kami 40 ms first frame once under an agent's load
-(I315). **Agents running** (worktrees under `.claude/worktrees/`): **W55** (faster suites; its timings overlapped other
-runs — re-run its suites alone before accepting, I319), **W53.0a** (visual system: slots, `[decor]`, bevel, motion
-styles/curves, fonts/icons, bloom, `test-styles.sh`), **W53.0b** (lock faces, title-bar buttons, sounds, cursor theme +
-trail off by default, start button, layout presets). Review each against its card and `docs/ux/styles.md`, then merge.
-`../ks-s18` (worktree of `feat/s18-elevation`, merged) can be removed.
+**State (updated 22:45):** `main` = aedb6ef0, **pushed**; `just check` 1256 green, `nix build .#kurashi` ok, merge-set
+suites green (W55's faster waits included). Failing as on main: `settings/test-sheet.sh` spotlight (I314); flaky under
+load: `test-sidebars` kami 40 ms (I315). **Agents running** (worktrees under `.claude/worktrees/`): **W53.0a** (branch
+`feat/w53-0a-visual-system`: slots, `[decor]`, bevel, motion styles/curves, fonts/icons, bloom, `test-styles.sh`) and
+**W53.0b** (`feat/w53-0b-personality`: lock faces, title-bar buttons, sounds, cursor theme + trail off by default,
+start button, layout presets). Review each against its card (`docs/tasks/W53.0a-*.md`, `W53.0b-*.md`) and
+`docs/ux/styles.md`, run `just suites --changed main` + `just check`, then merge. The W55 agent's worktree
+(`agent-ad28…`, merged) can be removed once it unlocks.
 
 **Merged this session:**
 - s17 branch finished: kami's fillet ink came from the sketch's second pass drifting to one side (0.7–1.3 px) across
