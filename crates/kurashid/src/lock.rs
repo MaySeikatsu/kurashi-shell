@@ -324,10 +324,10 @@ pub fn register(
                 };
                 if doc == crate::theme::DOC {
                     e.refresh_face();
-                } else if doc == DOC {
-                    if let Ok((_, d)) = hub.snapshot(DOC) {
-                        e.on_lock_doc(d).await;
-                    }
+                } else if doc == DOC
+                    && let Ok((_, d)) = hub.snapshot(DOC)
+                {
+                    e.on_lock_doc(d).await;
                 }
             }
         });

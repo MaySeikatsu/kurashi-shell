@@ -20,3 +20,7 @@
 "cursor.include_missing" = "niri does not read the file yet: add this line to its config"
 "cursor.unsupported" = "The style's pointer is set on niri only for now."
 "decor.start.label" = "Start"
+"styles.layout.offer" = "{style} comes with a layout to match its original."
+"styles.layout.review" = "Also use its layout…"
+"styles.layout.not_now" = "Not now"
+"styles.layout.load" = "Use this layout"

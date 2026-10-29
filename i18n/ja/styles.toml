@@ -20,3 +20,7 @@
 "cursor.include_missing" = "niri はまだこのファイルを読みません。設定にこの行を加えてください"
 "cursor.unsupported" = "スタイルのポインタは今のところ niri でのみ設定できます。"
 "decor.start.label" = "スタート"
+"styles.layout.offer" = "{style} には元になったものに合わせたレイアウトがあります。"
+"styles.layout.review" = "そのレイアウトも使う…"
+"styles.layout.not_now" = "今はやめる"
+"styles.layout.load" = "このレイアウトを使う"
