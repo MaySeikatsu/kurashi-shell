@@ -18,7 +18,7 @@
 # Shots in frontend/shots/sidebar/<style>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w29-sb-test}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w29-sb-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/sidebar
 DECORS=${SIDEBAR_DECORS:-washi sekai win95 glass}
@@ -26,6 +26,7 @@ mkdir -p "$OUT"
 fail() { echo "test-sidebar-panel: FAIL: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -92,11 +93,13 @@ start_kurashid() {
 }
 start_frontend() {  # start_frontend [VAR=value …]
   : > "$R/qs.log"
+  local bare; bare=$(screen_hash)
   env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_BAR_GEOMETRY=1 "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3
+  # Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+  wait_frontend "$R/qs.log" 0 3 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
   start_pointer
 }
 start_pointer() {
@@ -117,7 +120,7 @@ keys() { timeout 20 python3 -I "$ROOT/tools/bench/wl_keys.py" "$@"; }
 shot() {  # shot <name> <right|left>
   local x=0
   [ "$2" = right ] && x=$(( SW - 560 ))
-  sleep 1.2
+  wait_settled 1.2 0.5 "$x,0 560x$SH"   # (was a fixed 1.2 s: the region stands still, at most that long)
   timeout 20 grim -g "$x,0 560x$SH" "$OUT/$1.png" && echo "shot $OUT/$1.png"
 }
 # K71: config lines for a bar on edge $1 with today's modules and none on top (what `layout.bar.move` writes). Root
