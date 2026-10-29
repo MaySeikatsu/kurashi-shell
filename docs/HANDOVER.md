@@ -35,7 +35,7 @@ strings, process name `kurashid`).
 1. The user's review of session 16's work on niri (see the entry below, step 1) — first live start on the new package.
 2. W53 (I289): UX brief `docs/ux/styles.md` first, then the system card, then one card per family.
 3. I294 if style work makes `looks/`/`styles/`/`palettes/` edits frequent (load them at run time; then they rebuild in
-   seconds too). I293's binary cache: the user's call (cachix account or an attic server for machines A and B).
+   seconds too). I293's binary cache: not wanted for now (user), kept as an idea.
 4. The rest of I269, I288, I280, I284/I285.
 
 **Risks:** the first `nix build` on machine B is a cold one (~11 min there or more). HM/NixOS installs keep the same
