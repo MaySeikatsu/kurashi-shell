@@ -17,7 +17,7 @@
 # Run inside `nix develop` (sway, niri, qs, grim, imagemagick). Binaries from $KURASHI_BIN_DIR, else
 # $CARGO_TARGET_DIR/debug, else target/debug. Shots and env files go to $KURASHI_NIRI_SB_OUT (/tmp/kurashi-niri-sb-out).
 # Blur shows only over something: pass a patterned wallpaper (swaybg from nixpkgs is spawned with it).
-# Known: start right after stop can race sway's start (wait ~5 s); the idle lock and a locked previous run are cleared on
+# Known: the idle lock and a locked previous run are cleared on
 # start (`idle.enabled = false` in the config keeps it from locking mid-test, I241).
 set -uo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -32,6 +32,8 @@ start)
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
   "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV"
   R=$XDG_RUNTIME_DIR
+  # (sandbox.sh may return before sway answers on its IPC socket)
+  for _ in $(seq 50); do swaymsg -t get_version >/dev/null 2>&1 && break; sleep 0.2; done
   swaymsg output HEADLESS-1 resolution 1920x1080 >/dev/null
   swaymsg 'default_border none' >/dev/null
   cat > "$R/niri.kdl" <<'KDL'
