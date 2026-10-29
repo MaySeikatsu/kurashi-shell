@@ -70,7 +70,10 @@ pub fn workspaces(outputs: &[String], focus: Option<&str>, focused_idx: u32) -> 
 /// tokens kurashid serves instead of its `tok()` fallbacks).
 pub fn theme() -> Value {
     let mut doc = wa_iro();
-    if let Ok(out) = kurashi_theme::resolve(&kurashi_theme::ThemeInput::default(), &crate::appearance::AnyFont) {
+    if let Ok(out) = kurashi_theme::resolve(
+        &kurashi_theme::ThemeInput::default(),
+        &crate::appearance::AnyFont,
+    ) {
         let own = doc["tokens"].as_object().cloned().unwrap_or_default();
         let mut all: Map<String, Value> = out.tokens.into_iter().collect();
         all.extend(own);
