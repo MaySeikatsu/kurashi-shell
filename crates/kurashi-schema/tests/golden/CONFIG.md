@@ -464,6 +464,14 @@ A line along the frame's inner edge and the sides of what is joined to it — ba
 - choices: `"auto"` | `"on"` | `"off"`
 - since schema v7
 
+#### `theme.outline_ink` — Outline ink
+
+The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
+
+- type: `choice` · default: `"outline"`
+- choices: `"outline"` | `"text"` | `"accent"`
+- since schema v7
+
 ### Material
 
 #### `theme.material.kind` — Material
@@ -790,7 +798,7 @@ The highlights' colour.
 How outlines round blocks and surfaces are drawn: solid, dotted, dashed, broken — long strokes with gaps where the pen left the paper — or rough, a very uneven hand line.
 
 - type: `choice` · default: `"solid"`
-- choices: `"solid"` | `"dotted"` | `"dashed"` | `"broken"` | `"rough"`
+- choices: `"solid"` | `"dotted"` | `"dashed"` | `"broken"` | `"rough"` | `"sketch"`
 - forced to `"solid"` while `a11y.high_contrast` is on
 
 #### `theme.pen.pressure` — Pen pressure

@@ -42,8 +42,9 @@ Shape {
     property bool flipX: false         // the frame is mirrored horizontally (a left column): it still falls the screen's way
     property color fill: Theme.panel
 
-    readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
-    readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+    // A shape joined to the frame's ruled band (`ruled`) is outlined as the frame is (its ink and stroke, I303).
+    readonly property real ow: ruled ? Theme.frameOutlineW : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    readonly property color oc: ruled ? Theme.frameOutlineColor : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
     readonly property real gw: chrome ? Theme.ringW * 0.5 : 0
     // The hard shadow's vector (K67; `Theme.shadowDy` straight down by default), in the canonical frame.
     readonly property real sdx: chrome ? (flipX ? -1 : 1) * Theme.sinkX : 0

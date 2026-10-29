@@ -62,10 +62,12 @@ def command(parts):
             return "click", int(parts[1]), int(parts[2]), parts[3]
         if len(parts) == 6 and parts[0] == "sweep":
             return "sweep", int(parts[1]), int(parts[2]), (int(parts[3]), int(parts[4]), float(parts[5]))
+        if len(parts) == 5 and parts[0] == "wheel":
+            return "wheel", int(parts[1]), int(parts[2]), (int(parts[3]), float(parts[4]))
     except ValueError:
         pass
     die("wl_pointer.py: want 'move <x> <y>', 'click <x> <y> <left|middle|right>' or "
-        "'sweep <x0> <y0> <x1> <y1> <seconds>'")
+        "'sweep <x0> <y0> <x1> <y1> <seconds>' or 'wheel <x> <y> <notches> <seconds between>' (negative: down)")
 
 
 class Pointer:
@@ -212,12 +214,28 @@ class Pointer:
             time.sleep(max(0.0, start + (i + 1) * seconds / steps - time.monotonic()))
         self.roundtrip()   # the compositor has handled every event before the next line is read
 
+    def wheel(self, x, y, notches, gap):
+        # Mouse-wheel notches at (x, y): axis_source(wheel), then per notch axis_discrete(time, vertical, value, ±1) and a
+        # frame, `gap` s apart (a positive count scrolls up, as a wheel turned away from the user).
+        self.motion(x, y)
+        time.sleep(0.2)
+        step = -1 if notches > 0 else 1
+        for _ in range(abs(notches)):
+            self.send(self.pointer, 5, struct.pack("<I", 0))
+            self.send(self.pointer, 7, struct.pack("<IIii", ms(), 0, step * 15 * 256, step))
+            self.send(self.pointer, 4)
+            self.roundtrip()
+            time.sleep(gap)
+        self.settle()
+
     def perform(self, cmd):
         verb, x, y, rest = cmd
         if verb == "move":
             self.move(x, y)
         elif verb == "sweep":
             self.sweep(x, y, *rest)
+        elif verb == "wheel":
+            self.wheel(x, y, *rest)
         else:
             self.click(x, y, rest)
 

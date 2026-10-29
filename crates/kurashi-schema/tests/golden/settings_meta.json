@@ -1261,6 +1261,33 @@
               "restart": false,
               "since": 7,
               "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.outline_ink.outline",
+                  "value": "outline"
+                },
+                {
+                  "label": "config.choice.outline_ink.text",
+                  "value": "text"
+                },
+                {
+                  "label": "config.choice.outline_ink.accent",
+                  "value": "accent"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "outline",
+              "help": "config.theme.outline_ink.help",
+              "key": "theme.outline_ink",
+              "label": "config.theme.outline_ink.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
             }
           ]
         },
@@ -2538,6 +2565,10 @@
                 {
                   "label": "config.choice.pen_line.rough",
                   "value": "rough"
+                },
+                {
+                  "label": "config.choice.pen_line.sketch",
+                  "value": "sketch"
                 }
               ],
               "control": "select",

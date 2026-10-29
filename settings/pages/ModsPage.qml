@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic as QQC
 import "../core"
 import "../components"
 
@@ -9,6 +10,11 @@ import "../components"
 // and read their own entry live, so a state change updates its row in place and the focus on it stays where it is.
 Flickable {
     id: p
+    // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
+    flickDeceleration: 2900
+    maximumFlickVelocity: 7000
+    KineticWheel { flick: p }
+    QQC.ScrollBar.vertical: PageScrollBar {}
     // mod id -> {text, state}: why its last request was refused (the catalog text, or the generic line with its code) and
     // the state the row had then. The line goes once the row changes state, and on any change that goes through (B8).
     property var failures: ({})

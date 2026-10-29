@@ -75,6 +75,12 @@ ShellRoot {
             LightSense {}
             Component.onCompleted: root.adopt(contentItem)
             Component.onDestruction: root.release(contentItem)
+            // The reveal starts on the first frame shown, as the sheet's opening (never half over before it is on screen).
+            property bool revealGate: true
+            Connections {
+                target: contentItem.Window.window
+                function onFrameSwapped() { if (revealGate) { revealGate = false; windowReveal.to = 1 } }
+            }
             // Closed by the compositor or the user; a re-host to the sheet (host changed first) does not end the app.
             onVisibleChanged: if (!visible && root.host === "window") root.quit()
         }
@@ -90,9 +96,17 @@ ShellRoot {
     }
 
     // The content both hosts show (one instance; it has no window until a host adopts it).
+    // Window mode (session 17, docs/ux/settings.md "Opening"): the compositor maps and animates the toplevel itself; inside
+    // it the content arrives as on the sheet — fading in and sliding its last 12 px on the profile's motion (Glide). The
+    // sheet does this for its own slot, so here only while the window hosts.
+    Glide { id: windowReveal; to: 0 }
+    readonly property real revealP: host === "window" ? Math.max(0, Math.min(1, windowReveal.value)) : 1
+
     Item {
         id: win
         anchors.fill: parent
+        opacity: root.revealP
+        transform: Translate { y: 12 * (1 - root.revealP) }
         readonly property bool sheet: root.host === "sheet"
         // Frames the host window has drawn (the settings test's idle check: none while open and still, Ma).
         property int frames: 0
@@ -509,15 +523,35 @@ ShellRoot {
                 height: parent.height - 52 - (Store.outputNames().length > 0 ? 40 : 0)
 
                 // --- sidebar -----------------------------------------------------------------
-                Rectangle {
+                // Framed as the section cards are (session 17, docs/ux/settings.md): inset by the gap, the card radius,
+                // the chrome's outline (a hairline where it has none) and its hard shadow along the shadow vector.
+                Item {
                     width: 220
                     height: parent.height
+                    Rectangle {
+                        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+                        x: navFace.x + Theme.sinkX
+                        y: navFace.y + Theme.sinkY
+                        width: navFace.width
+                        height: navFace.height
+                        radius: navFace.radius
+                        color: Theme.line
+                    }
+                    Rectangle {
+                    id: navFace
+                    x: Theme.gap
+                    y: Theme.gap
+                    width: parent.width - 2 * Theme.gap
+                    height: parent.height - 2 * Theme.gap - Theme.shadowDy
+                    radius: Theme.rLg
                     color: Theme.container
-                    bottomLeftRadius: root.cornerR
+                    border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+                    border.color: Theme.outlineW > 0 ? Theme.line : Theme.containerHigh
                     Loader {
                         anchors.fill: parent
+                        anchors.margins: navFace.border.width
                         active: Theme.surfaceRelief
-                        sourceComponent: Relief { bottomLeftRadius: root.cornerR }
+                        sourceComponent: Relief { radius: Math.max(0, navFace.radius - navFace.border.width) }
                     }
                     Column {
                         anchors.fill: parent
@@ -626,6 +660,7 @@ ShellRoot {
                             }
                         }
                     }
+                }
                 }
 
                 // --- content -----------------------------------------------------------------

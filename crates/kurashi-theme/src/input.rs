@@ -139,6 +139,9 @@ pub struct Axes {
     pub density: Density,
     pub chrome: Chrome,
     pub frame_outline: FrameOutline,
+    /// `theme.outline_ink` (session 17): passed through as the token `outline.ink` ("outline" | "text" | "accent"): the
+    /// colour of every outline; looks set it in their recipe.
+    pub outline_ink: String,
     /// Type scale multiplier (accessibility `large_text` raises it).
     pub type_scale: f64,
     pub font_chain: Vec<String>,
@@ -159,6 +162,7 @@ impl Default for Axes {
             density: Density::Regular,
             chrome: Chrome::Flat,
             frame_outline: FrameOutline::Auto,
+            outline_ink: "outline".into(),
             type_scale: 1.0,
             font_chain: ["Inter", "Noto Sans", "sans-serif"]
                 .map(String::from)

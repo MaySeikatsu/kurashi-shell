@@ -420,6 +420,23 @@ function stroke(ctx, o) {
         run(ctx, loop, F, w * 1.1, sr, sr + L + over,
             function (s) { return 0.75 + 0.25 * smooth(0, 5, sr + L + over - s) },
             function (s) { return RA * (0.8 * rn(s) + 0.2 * rj(s)) + (closed ? side * 1.4 * (s - sr) / (L + over) : 0) })
+    } else if (line === "sketch") {
+        // Kami's hand (frames/Sketch.qml) for any line (the frame outline's `sketch` stroke): two passes, the second
+        // thinner and lighter, each drifting slowly on its own about the line (under a pixel, a hand, not a jitter; never
+        // biased to one side: a joined shape's outline runs along its neighbour's edge, and a bias would carry it across
+        // the join), the first with the pressure swelling and thinning. A loop runs past its start a little, where the pen
+        // came back round; an open line ends where it meets something (a rule at a column's fillet): it stops at its ends
+        // and its drift settles onto them.
+        var dn = loopNoise(R, L, 40), dn2 = loopNoise(R, L, 34), pn = loopNoise(R, L, 55)
+        var ovs = closed ? clamp(L * 0.02, 2, 5) : 0
+        var sa1 = closed ? R() * L : 0, sa2 = closed ? R() * L : 0
+        var pin = closed ? function () { return 1 } : function (s) { return smooth(0, 6, s) * smooth(0, 6, L - s) }
+        run(ctx, loop, F, 0.8 * w, sa1, sa1 + L + ovs,
+            function (s) { return 0.85 + 0.3 * pn(s) }, function (s) { return 0.6 * dn(s) * pin(s) })
+        // The second, lighter pass as one path at one width (as rough's faint one): a few canvas calls instead of one per
+        // step, so a sketched outline costs about what a solid one does (a column's first frame, session 18).
+        faint(ctx, loop, F, Math.max(0.45, 0.62 * w), sa2, sa2 + L + ovs * 0.6,
+              function (s) { return 0.6 * dn2(s) * pin(s) }, 0.85)
     } else {
         run(ctx, loop, F, w, 0, L)
     }

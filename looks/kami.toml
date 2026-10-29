@@ -16,5 +16,8 @@ category = "inspired"
 # K61: the dots and fibres cast faint shadows; the pen swells and thins a little.
 "theme.texture.shadows" = "on"
 "theme.pen.pressure" = 0.35
+# Every outline as its blocks' (session 17): the text's ink, sketched — the frame, the island, cards and sidebars too.
+"theme.outline_ink" = "text"
+"theme.pen.line" = "sketch"
 [slots]
 frame = "sketch"

@@ -8,7 +8,7 @@
 #                                        working tree): a suite named after a changed file, or whose script names it;
 #                                        a change to frontend/core, crates/ or i18n/ runs the merge set
 #   tools/test-suites.sh --all           every suite script
-#   tools/test-suites.sh dock frame …    these (frontend/test-<name>.sh, or a path)
+#   tools/test-suites.sh dock frame …    these (frontend/test-<name>.sh, or a path); after --changed/--all: added
 #   -j N                                 parallel jobs (default 4)
 #
 # Run inside `nix develop`. Logs and the summary: $KURASHI_SUITES_OUT (/tmp/kurashi-suites/<time>/).
@@ -25,7 +25,7 @@ while [ $# -gt 0 ]; do
     -j) JOBS=$2; shift 2 ;;
     --changed) MODE=changed; shift; if [ $# -gt 0 ] && [[ "$1" != -* ]] && git rev-parse -q --verify "$1" >/dev/null; then REF=$1; shift; fi ;;
     --all) MODE=all; shift ;;
-    *) MODE=pick; PICK+=("$1"); shift ;;
+    *) [ "$MODE" = merge ] && MODE=pick; PICK+=("$1"); shift ;;   # (with --changed or --all: added to that set)
   esac
 done
 
@@ -64,6 +64,8 @@ case "$MODE" in
       suites=("${!want[@]}")
     fi ;;
 esac
+if [ "$MODE" != pick ]; then for s in "${PICK[@]}"; do suites+=("$(path_of "$s")"); done; fi
+mapfile -t suites < <(printf '%s\n' "${suites[@]}" | awk 'NF && !seen[$0]++')
 if [ ${#suites[@]} -eq 0 ]; then echo "test-suites: nothing to run"; exit 0; fi
 
 OUT=${KURASHI_SUITES_OUT:-/tmp/kurashi-suites/$(date +%Y%m%d-%H%M%S)}

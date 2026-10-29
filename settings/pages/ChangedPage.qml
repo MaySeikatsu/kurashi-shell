@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic as QQC
 import "../core"
 import "../components"
 
@@ -9,6 +10,11 @@ import "../components"
 // focus on a Reset stays where it is while the daemon answers.
 Flickable {
     id: p
+    // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
+    flickDeceleration: 2900
+    maximumFlickVelocity: 7000
+    KineticWheel { flick: p }
+    QQC.ScrollBar.vertical: PageScrollBar {}
     signal jumpRequested(string targetPage, var row)
 
     // The changed settings grouped by page, in page order: [{pageId, label, entries: [{key, output}]}]. Replaced only when
