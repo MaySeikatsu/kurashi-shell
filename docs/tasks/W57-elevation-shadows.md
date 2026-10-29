@@ -13,6 +13,13 @@ Blocks get keycap's hard shadow or soft's blurred one along one shadow vector (`
 `shadow_follow` = away from the material's light); flat and line chrome have none; the shell's large surfaces (bar
 strip, frame band, sidebars, dock) cast nothing onto the desktop.
 
+## Look (user: "like smooth shadows")
+Smooth and soft: two layers per shadow — a wide, faint ambient one all round and a softer key one offset along the light
+(Material's elevation pairs, macOS's window shadows) — so the falloff is natural, never a hard edge or a band; the
+blur large enough that no banding shows on dark grounds (dither if it does); corners following the surface's own
+(round or squircle). Under keycap the hard shadow stays the block's own; elevation adds the smooth one under the
+surfaces.
+
 ## Design questions for the brief (decide with the user)
 - **Model.** An elevation per surface role (frame/bar 1, dock and sidebars 2, cards and popups 3, toasts and the launcher
   4): the drop shadow's softness, distance and opacity grow with it; one global strength and a mode `off | static |
