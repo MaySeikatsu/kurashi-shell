@@ -28,7 +28,7 @@
 #   EDGE_PAIRS=<n> the PSS pairs.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w45-edge-test}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w45-edge-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/edge-modules
 TIMER_OUT=$ROOT/mods/timer/shots
@@ -43,6 +43,7 @@ want() { [[ " $PARTS " == *" $1 "* ]]; }
 for b in kurashid kurashi kurashi-mock; do [ -x "$BIN/$b" ] || die "no $b in $BIN (KURASHI_BIN_DIR)"; done
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -84,7 +85,9 @@ start_daemon() { # start_daemon <decor> [locale]
   stop
   local d=$1 loc=${2:-C}
   rm -rf "$R/xdg"; mkdir -p "$XDG_CONFIG_HOME/kurashi" "$XDG_STATE_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
-  { echo 'idle.enabled = false'; printf 'theme.style = "%s"\n' "$d"; echo 'theme.motion.profile = "calm"'
+  # Motion off (W55): the steps check states, places, the dwell and the hide delay (EdgeReveal's own timers), not a
+  # slide's course; the PSS part keeps the calm profile its numbers were taken with (MOTION=calm).
+  { echo 'idle.enabled = false'; printf 'theme.style = "%s"\n' "$d"; printf 'theme.motion.profile = "%s"\n' "${MOTION:-none}"
     echo "$GROUPS_CFG"; } > "$XDG_CONFIG_HOME/kurashi/config.toml"
   rm -f "$KURASHI_SOCKET"
   env LC_ALL="$loc.UTF-8" LANG="$loc.UTF-8" DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
@@ -110,13 +113,17 @@ mset() { # mset <key> <json value>: a config value on the mock (its layout step 
 }
 start_qs() { # start_qs (env QS_ENV, QS_LANG)
   stop_qs
+  local before bare; before=$(stat -c %s "$R/qs.log"); bare=$(screen_hash)
+  QS_T0=$(now_ms)
   env -u KURASHI_SOCKET KURASHI_EDGE_GEOMETRY=1 ${QS_LANG:+LC_ALL=$QS_LANG.UTF-8 LANG=$QS_LANG.UTF-8} ${QS_ENV:-} \
       qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS=$!
-  sleep 5
+  # Was a fixed 5 s: the frontend loaded, drew and stands still (at most 5 s for that).
+  wait_frontend "$R/qs.log" "$before" 5 0.6 "$bare" || die "the frontend did not load (see $R/qs.log)"
 }
 apply() { K set "$@" >/dev/null || fail "kurashi set $* was refused"; }
-settle() { sleep "${1:-2.5}"; }
+# (Was a fixed sleep of `s` (2.5): until the screen stands still, at most that long.)
+settle() { wait_settled "${1:-2.5}" 0.6; }
 mark() { echo "EDGEMARK $1" >> "$R/qs.log"; }
 since_mark() { local m; m=$(grep -n "EDGEMARK" "$R/qs.log" | tail -1 | cut -d: -f1); tail -n +"$(( ${m:-0} + 1 ))" "$R/qs.log"; }
 # The group's last logged state since the mark: "out …", "in …", "none", or "" (nothing logged).
@@ -155,11 +162,11 @@ open_window() {
     rect=$(swaymsg -t get_tree -r | jq -r --argjson p "$WIN" '.. | select(.pid? == $p) | .rect | "\(.x) \(.y) \(.width) \(.height)"' | head -1)
     [ -n "$rect" ] && break; sleep 0.1
   done
-  sleep 1.5
+  wait_settled 1.5 0.5   # (was a fixed 1.5 s)
   rect=$(swaymsg -t get_tree -r | jq -r --argjson p "$WIN" '.. | select(.pid? == $p) | .rect | "\(.x) \(.y) \(.width) \(.height)"' | head -1)
   return 0
 }
-close_window() { [ -n "$WIN" ] && { kill "$WIN" 2>/dev/null || true; wait "$WIN" 2>/dev/null || true; }; WIN=""; sleep 1; }
+close_window() { [ -n "$WIN" ] && { kill "$WIN" 2>/dev/null || true; wait "$WIN" 2>/dev/null || true; }; WIN=""; wait_settled 1 0.5; }   # (was a fixed 1 s)
 # One virtual pointer and one keyboard for the whole run (a device that goes away drops the window's focus).
 pointer() {
   if [ -z "$PTR" ]; then
@@ -352,7 +359,9 @@ idle() { # idle <decor>
   local d=$1 s c
   QS_ENV=WAYLAND_DEBUG=client start_qs
   for vis in always hover; do
-    apply edges.bottom.visibility "$vis"; apply edges.right.visibility "$vis"; away; settle 3
+    apply edges.bottom.visibility "$vis"; apply edges.right.visibility "$vis"; away
+    # (Was a fixed 3 s: the commits after the change ended — none for 1.5 s, at most 3 s.)
+    wait_log_quiet "$R/qs.log" 'wl_surface#[0-9]*\.commit\(' 1.5 3
     between_minutes
     s=$(stat -c %s "$R/qs.log"); sleep 10; c=$(commits "$s")
     say "idle ($d, $vis): $c commits in 10 s"
@@ -365,20 +374,22 @@ idle() { # idle <decor>
 # ---- pss: one shown group --------------------------------------------------------------------------------------------
 pss() { # pss <decor>
   local d=$1 i a b
-  apply edges.right.start '[]'; apply edges.bottom.center '[]'; apply edges.bottom.visibility always; settle 3
+  # The numbers as they were taken: the calm profile, the fixed waits.
+  apply theme.motion.profile calm
+  apply edges.right.start '[]'; apply edges.bottom.center '[]'; apply edges.bottom.visibility always; sleep 3
   # Toggled live, one frontend (its heap's history is in every number), …
   for i in $(seq "$PAIRS"); do
-    apply edges.bottom.center '[]'; settle 6; a=$(pss_mib "$QS")
-    apply edges.bottom.center '["mod:timer:timer"]'; settle 6; b=$(pss_mib "$QS")
+    apply edges.bottom.center '[]'; sleep 6; a=$(pss_mib "$QS")
+    apply edges.bottom.center '["mod:timer:timer"]'; sleep 6; b=$(pss_mib "$QS")
     say "pss ($d) live pair $i: no group $a MiB → one always group $b MiB (Δ $(awk -v a="$a" -v b="$b" 'BEGIN{printf "%+.2f", b - a}'))"
   done
   # … and fresh frontends, each started with the layout in place (no history), 10 s after start.
   for i in $(seq "$PAIRS"); do
-    apply edges.bottom.center '[]'; start_qs; sleep 5; a=$(pss_mib "$QS")
-    apply edges.bottom.center '["mod:timer:timer"]'; start_qs; sleep 5; b=$(pss_mib "$QS")
+    apply edges.bottom.center '[]'; start_qs; sleep_rest "$QS_T0" 10; a=$(pss_mib "$QS")
+    apply edges.bottom.center '["mod:timer:timer"]'; start_qs; sleep_rest "$QS_T0" 10; b=$(pss_mib "$QS")
     say "pss ($d) fresh pair $i: no group $a MiB → one always group $b MiB (Δ $(awk -v a="$a" -v b="$b" 'BEGIN{printf "%+.2f", b - a}'))"
   done
-  apply edges.right.start '["clock", "volume"]'; settle
+  apply edges.right.start '["clock", "volume"]'; apply theme.motion.profile none; settle
 }
 
 # ---- island: the standalone island on the top band (mock) -----------------------------------------------------------
