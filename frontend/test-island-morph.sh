@@ -19,7 +19,7 @@ TAG=${1:-sekai}
 shift || true
 LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
-NAME=${MORPH_SANDBOX:-w21-isl-morph}-$TAG
+NAME=${MORPH_SANDBOX:-${KURASHI_SB_PREFIX:-}w21-isl-morph}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MORPH_OUT:-$ROOT/frontend/shots/island}
 AT=${MORPH_AT:-40 120 250}
@@ -28,6 +28,7 @@ mkdir -p "$OUT"
 fail() { echo "test-island-morph: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -56,11 +57,13 @@ pids+=("$!")
 for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
 K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
 swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
+BARE=$(screen_hash)
 env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
 grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-sleep 3
+# Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+wait_frontend "$R/qs.log" 0 3 0.6 "$BARE" || fail "the frontend did not load (see $R/qs.log)"
 
 # burst <name> <action>: the action, and one grim per MORPH_AT offset, each started on its own clock.
 burst() {
@@ -85,12 +88,13 @@ for i in $(seq "${MORPH_CYCLES:-0}"); do
   grim -g "$CROP" "$R/cycle-$i.png"; echo "test-island-morph: cycle $i: $R/cycle-$i.png"
   K act ui.close >/dev/null; sleep 1.2
 done
+# (Each fixed 1.5 s before a shot at rest is now: until the crop stands still, at most 1.5 s.)
 burst open island.expand
-sleep 1.5
+wait_settled 1.5 0.5 "$CROP"
 grim -g "$CROP" "$OUT/morph-$TAG-rest.png"
 echo "test-island-morph: $OUT/morph-$TAG-rest.png"
 burst close ui.close
-sleep 1.5
+wait_settled 1.5 0.5 "$CROP"
 grim -g "$CROP" "$OUT/morph-$TAG-after.png"
 if grep -E 'qml:.*(Error|error)|TypeError|ReferenceError|is not a type' "$R/qs.log" | grep -v 'Unable to assign \[undefined\]' >/dev/null; then
   grep -E 'Error|error|Warn|warn' "$R/qs.log" | head -20 >&2

@@ -187,11 +187,11 @@ run_case() {
   rm -f "$out/morph-$tag"-open-*.png "$out/morph-$tag"-close-*.png "$qslog"
   if [ -n "$at" ]; then
     log=$qslog
-    KURASHI_ISLAND_DEBUG=1 MORPH_LOG=$qslog MORPH_AT=$at MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join \
+    KURASHI_ISLAND_DEBUG=1 MORPH_LOG=$qslog MORPH_AT=$at MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=${KURASHI_SB_PREFIX:-}w30-join \
       "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" > "$EXTRA/$tag.log" 2>&1 \
       || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
   else
-    MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=w30-join "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" \
+    MORPH_OUT=$out MORPH_CROP=$crop MORPH_SANDBOX=${KURASHI_SB_PREFIX:-}w30-join "$ROOT/frontend/test-island-morph.sh" "$tag" "$@" \
       > "$EXTRA/$tag.log" 2>&1 || { tail -5 "$EXTRA/$tag.log" >&2; fail "morph test failed for $tag"; }
   fi
   local shots=("$out/morph-$tag-rest.png")
