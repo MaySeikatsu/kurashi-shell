@@ -162,10 +162,17 @@ scene() { # scene <decor> <scene> [layout args…]; env CFG: extra config values
   K act mock.doc "$cfg" >/dev/null
   local before bare; before=$(stat -c %s "$R/qs.log"); bare=$(screen_hash)
   SCENE_T0=$(now_ms)
-  env -u KURASHI_SOCKET ${QS_ENV:-} qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
+  # KURASHI_FRAME_LOG in every scene: its FRAMEGEO lines are what the wait below waits for.
+  env -u KURASHI_SOCKET KURASHI_FRAME_LOG=1 ${QS_ENV:-} qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS=$!
-  # Was a fixed 4 s: the frontend loaded, drew and stands still (at most 4 s for the drawing to settle).
+  # Was a fixed 4 s: the frontend loaded, drew and stands still (at most 4 s for the drawing to settle) …
   wait_frontend "$R/qs.log" "$before" 4 0.8 "$bare" || die "the frontend did not load for $d $s (see $R/qs.log)"
+  # … and where the scene has a frame, its strips logged a size (under load they come well after the bar: a still
+  # screen alone let checks run on a bar without its band), then the screen stood still again.
+  if [ "$s" != off ]; then
+    wait_for "$R/qs.log" 'FRAMEGEO [a-z]+ [0-9.]+ [0-9.]+ [1-9][0-9.]* [1-9][0-9.]*' 4 "$before" || true
+    wait_settled 4 0.8
+  fi
 }
 shoot() { # shoot <decor> <name>: the screen (half size) and the top-left corner (4×; the bottom-left one for a bottom bar)
   mkdir -p "$OUT/$1"
