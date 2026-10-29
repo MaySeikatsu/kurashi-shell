@@ -10,6 +10,7 @@
 "layout.module.tray" = "トレイ"
 "layout.module.sidebar_left" = "左のサイドバーのボタン"
 "layout.module.sidebar_right" = "右のサイドバーのボタン"
+"layout.module.launcher" = "ランチャー（スタートボタン）"
 "layout.module.mods" = "ほかのモッドのウィジェット"
 "layout.reserve.hidden" = "隠した部品は場所を空けません。ウィンドウの上に出てきます。"
 "layout.unplaced.not_listed" = "どの辺にも出ていません。"
