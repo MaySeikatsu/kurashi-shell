@@ -170,7 +170,7 @@ in
       example = { RUST_LOG = "kurashid=debug"; };
       description = ''
         Extra environment variables for both services. `KURASHI_DATA_DIR` is deliberately not
-        set: the binary knows its own prefix (package.nix bakes it in).
+        set: the package's wrappers point the binaries at its own data (nix/package.nix, I291).
       '';
     };
 
