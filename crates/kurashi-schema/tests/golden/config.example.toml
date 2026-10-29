@@ -221,6 +221,18 @@
 #   choices: "auto" | "on" | "off" · since schema v7
 # frame_outline = "auto"
 #
+# Frame outline ink — The colour of the frame outline: the chrome's outline, the text's
+# ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest
+# of their outline.
+#   choices: "outline" | "text" | "accent" · only while theme.frame_outline != "off" · since
+#   schema v7
+# frame_outline_ink = "outline"
+#
+# Frame outline stroke — How the frame outline is drawn: one even line (the pen's settings
+# apply), or sketched by hand in two light passes, as kami draws its blocks.
+#   choices: "line" | "sketch" · only while theme.frame_outline != "off" · since schema v7
+# frame_outline_stroke = "line"
+#
 # Density — Scales spacing and control sizes everywhere.
 #   choices: "compact" | "regular" | "airy"
 # density = "regular"

@@ -29,6 +29,8 @@ SWAYENV=$OUT/sway-env.sh
 NIRIENV=$OUT/niri-env.sh
 case "${1:-}" in
 start)
+  # (a sandbox of this name left from an earlier run would hand back its dead sway's environment)
+  "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null 2>&1 || true
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
   "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV"
   R=$XDG_RUNTIME_DIR

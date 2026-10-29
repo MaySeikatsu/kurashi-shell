@@ -99,7 +99,12 @@ Singleton {
     // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
     readonly property bool frameOutline: tok("frame.outline", boxed) === true
     readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
-    readonly property color frameOutlineColor: outlineW > 0 ? outlineColor : outline
+    // Its ink and stroke (`theme.frame_outline_ink` / `_stroke`, looks set them: kami's is the text's ink, sketched as its
+    // blocks): the chrome's outline, the text's ink at its blocks' 0.85, or the accent; one even line or the sketch.
+    readonly property string frameInk: tok("frame.outline_ink", "outline")
+    readonly property color frameOutlineColor: frameInk === "text" ? Qt.alpha(fg, 0.85) : frameInk === "accent" ? accent
+        : (outlineW > 0 ? outlineColor : outline)
+    readonly property bool frameSketch: tok("frame.outline_stroke", "line") === "sketch"
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")
@@ -192,5 +197,8 @@ Singleton {
     readonly property real penTextWobble: tok("pen.text_wobble", 0)
     // Some outline modifier or line style is in effect: outlines are drawn by the pen, not as straight borders.
     readonly property bool penOutline: penLine !== "solid" || penPressure > 0 || penBreaks > 0 || penFade > 0 || penWobble > 0
+    // The frame outline goes through the pen when the pen is in effect or the outline is sketched (pen.js `sketch`).
+    readonly property bool framePen: penOutline || frameSketch
+    readonly property string framePenLine: frameSketch ? "sketch" : penLine
     readonly property bool penText: penTextPressure > 0 || penTextBreaks > 0 || penTextFade > 0 || penTextWobble > 0
 }

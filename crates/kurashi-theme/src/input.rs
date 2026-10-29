@@ -139,6 +139,10 @@ pub struct Axes {
     pub density: Density,
     pub chrome: Chrome,
     pub frame_outline: FrameOutline,
+    /// `theme.frame_outline_ink` / `_stroke` (session 17): passed through as the tokens `frame.outline_ink` and
+    /// `frame.outline_stroke` ("outline" | "text" | "accent", "line" | "sketch"); looks set them in their recipe.
+    pub frame_outline_ink: String,
+    pub frame_outline_stroke: String,
     /// Type scale multiplier (accessibility `large_text` raises it).
     pub type_scale: f64,
     pub font_chain: Vec<String>,
@@ -159,6 +163,8 @@ impl Default for Axes {
             density: Density::Regular,
             chrome: Chrome::Flat,
             frame_outline: FrameOutline::Auto,
+            frame_outline_ink: "outline".into(),
+            frame_outline_stroke: "line".into(),
             type_scale: 1.0,
             font_chain: ["Inter", "Noto Sans", "sans-serif"]
                 .map(String::from)

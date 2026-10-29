@@ -82,6 +82,8 @@
   "font.weight.medium": 500,
   "font.weight.regular": 400,
   "frame.outline": false,
+  "frame.outline_ink": "outline",
+  "frame.outline_stroke": "line",
   "icon.fill": 0,
   "icon.weight": 400,
   "island.bg": "#2f2c33",

@@ -42,8 +42,9 @@ Shape {
     property bool flipX: false         // the frame is mirrored horizontally (a left column): it still falls the screen's way
     property color fill: Theme.panel
 
-    readonly property real ow: Theme.outlineW > 0 ? Theme.outlineW : 1
-    readonly property color oc: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+    // A shape joined to the frame's ruled band (`ruled`) is outlined as the frame is (its ink and stroke, I303).
+    readonly property real ow: ruled ? Theme.frameOutlineW : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    readonly property color oc: ruled ? Theme.frameOutlineColor : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
     readonly property real gw: chrome ? Theme.ringW * 0.5 : 0
     // The hard shadow's vector (K67; `Theme.shadowDy` straight down by default), in the canonical frame.
     readonly property real sdx: chrome ? (flipX ? -1 : 1) * Theme.sinkX : 0
@@ -155,7 +156,7 @@ Shape {
 
     // K62: with a pen in effect the pen draws the outline along its centre line (one closed line; the open sides lie
     // past the neighbour's edge).
-    readonly property bool penOn: Theme.penOutline
+    readonly property bool penOn: ruled ? Theme.framePen : Theme.penOutline
     function penPaths() {
         if (!shown || !penOn) return []
         var subs = Pen.svgPaths(path(ow / 2, true, 0)), out = []
@@ -167,6 +168,7 @@ Shape {
         active: sh.penOn && sh.shown
         sourceComponent: PenOutline {
             color: sh.oc
+            line: sh.ruled ? Theme.framePenLine : Theme.penLine
             lineWidth: sh.ow
             seed: 0x51DE3
             paths: sh.penPaths()
