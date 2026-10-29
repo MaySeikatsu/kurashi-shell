@@ -1,4 +1,4 @@
-import QtQml
+import QtQuick
 
 // RoundBox's `border` (a Rectangle's `border.width` / `border.color`, so a Rectangle swaps for a RoundBox unchanged).
 QtObject {

@@ -132,7 +132,8 @@ Item {
                     id: artBox
                     width: 96
                     height: 96
-                    radius: Theme.rLg
+                    // Concentric with the tinted hero across its inset (I269); on its own, the look's radius.
+                    radius: view.tinted ? Theme.nested(hero.radius, hero.inset) : Theme.rLg
                     color: Theme.selected
                     Accessible.role: Accessible.Graphic
                     Accessible.name: I18n.tr("island.media.art")

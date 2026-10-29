@@ -60,7 +60,7 @@ Item {
             }
         }
         // Do not disturb, on a plate: tonal while it is on.
-        Rectangle {
+        RoundBox {
             width: ns.width
             height: dndRow.height + 2 * Theme.gap
             // (concentric with the column, as the section plates: I269)
@@ -140,6 +140,8 @@ Item {
         delegate: NotificationCard {
             required property var modelData
             width: list.width
+            // Concentric with the column, as the section plates beside it (I269).
+            radius: QsWindow.window && QsWindow.window.sectionR !== undefined ? QsWindow.window.sectionR : Theme.rLg
             item: modelData
             onDismissed: ns.act("notify.dismiss", {id: modelData.id})
             onInvoked: key => ns.act("notify.invoke", {id: modelData.id, key: key})

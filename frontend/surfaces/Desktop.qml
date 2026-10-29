@@ -447,7 +447,8 @@ PanelWindow {
             RoundBox {
                 id: art
                 width: 72; height: 72
-                radius: Theme.rLg
+                // Concentric with the card across its padding (I269).
+                radius: Theme.nested(mediaCard.radius, Theme.pad + mediaCard.inset)
                 color: Theme.selected
                 border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
                 border.color: Theme.line
