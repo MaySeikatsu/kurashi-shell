@@ -498,6 +498,16 @@ Scope {
                         amount: d.drawn ? 1 : 0
                         direction: win.flip ? -1 : 1
                     }
+                    // W57 (K78): a toast stands highest (level 4).
+                    Elevation {
+                        x: d.bx0
+                        y: d.by0
+                        width: d.bw
+                        height: d.bh
+                        radius: d.r
+                        level: 4
+                        mirrorY: win.flip ? -1 : 1
+                    }
                     // The hard shadow (K67): its own layer, moved across by the vector's x (its path carries the y).
                     Shape {
                         x: win.shadowSx
@@ -570,6 +580,13 @@ Scope {
                         origin.y: win.flip ? card.height : 0
                         xScale: d.detached ? d.sw / win.cardW : 1
                         yScale: d.detached ? win.cardW / d.sw : 1
+                    }
+                    Elevation {
+                        visible: !d.drawn
+                        width: win.cardW
+                        height: card.height
+                        radius: card.radius
+                        level: 4
                     }
                     NotificationCard {
                         id: card
