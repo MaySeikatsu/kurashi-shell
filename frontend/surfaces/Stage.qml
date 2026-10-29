@@ -271,12 +271,17 @@ PanelWindow {
         height: peekShape.h
         radius: Theme.rSm
     }
+    // I309: never over the bar's row — niri fills a layer's blur region with the blurred wallpaper over the layers under
+    // it, so a card's head across the bar showed the wallpaper there (blur, translucency, line or flat chrome: the head is
+    // see-through over the strip, I160); the bar blurs its strip itself.
+    readonly property real blurTop: Math.max(bodyTop, barEdgeY)
+    readonly property real blurH: Math.max(0, bodyTop + bodyH - blurTop)
     Region {
         id: shapeBlur
         x: stage.shapeCx - stage.shapeW / 2
-        y: stage.flip ? stage.morphH - stage.bodyTop - stage.bodyH : stage.bodyTop
+        y: stage.flip ? stage.morphH - stage.blurTop - stage.blurH : stage.blurTop
         width: stage.shapeW
-        height: stage.bodyH
+        height: stage.blurH
         topLeftRadius: stage.flip ? shape.rBot : shape.rTop
         topRightRadius: stage.flip ? shape.rBot : shape.rTop
         bottomLeftRadius: stage.flip ? shape.rTop : shape.rBot
@@ -1043,6 +1048,19 @@ PanelWindow {
             height: shape.h
             radius: Math.min(shape.rTop, shape.rBot)
             direction: stage.flip ? -1 : 1
+        }
+        // W57 (K78): the card's elevation; cut along the bar it grows out of (one sheet with it).
+        Elevation {
+            visible: shape.h > 1
+            opacity: stage.shapeFade
+            x: shape.x0
+            y: shape.y0
+            width: shape.w
+            height: shape.h
+            radius: Math.min(shape.rTop, shape.rBot)
+            level: 3
+            cutTop: stage.joined
+            mirrorY: stage.flip ? -1 : 1
         }
         MorphShape {
             id: shape

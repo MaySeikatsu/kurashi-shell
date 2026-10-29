@@ -1,0 +1,934 @@
+# Styles that read as their inspiration — UX brief (W53)
+Status: draft (session 18; card `docs/tasks/W53-styles.md`). Functional and UX tracked separately in PROGRESS.
+
+## Job
+Pick a style and the shell reads as that OS or console at a glance, on every surface and on the lock screen. Users who
+know Windows 98 should see the grey bevels and the navy caption. XP users should see Luna blue and the green start
+button, and so on. This must hold without a renderer that knows the name: identity is data (slots, tokens, palette
+roles; rule 4). A style still never moves anything (K45). The bar stays on its edge and the island where it is. The
+"with layout" version of a style (a taskbar at the bottom, a menu bar at the top) is a **profile** the user loads on
+purpose (`profiles/README.md`, `docs/ux/looks.md`).
+
+The brief has four parts:
+1. One section per style in scope, all in the same shape so the lead can compare: win95, luna, aero, fluent (new),
+   aqua, vibrancy (new: modern macOS), snes, ps2.
+2. A review row for each of the other looks.
+3. The shared system they all need: slots, tokens, a bevel chrome, type, lock faces, sounds, tests.
+4. The card split, and the questions only the user can answer.
+
+## How to read the numbers
+Each number cites its source, and the source's tier says how far to trust it:
+- **[P] primary:** Microsoft Learn, Apple HIG, the vendor's own defaults.
+- **[W] Wine:** a re-implementation that matches the vendor's defaults on purpose. Wine `sysmetrics.c`
+  (<https://goma.googlesource.com/wine/+/refs/tags/wine-20040213/windows/sysmetrics.c>) reads `CaptionHeight`,
+  `MenuHeight` and `ScrollWidth` from `HKCU\Control Panel\Desktop\WindowMetrics`. Its fallbacks: caption 18 (+1),
+  menu 18 (+1), scroll 16, border 1, dialog frame 3. Registry values are twips: px = −value / 15, so −270 = 18 px.
+- **[R] recreation:** CSS recreations that were measured against screenshots. 98.css
+  (<https://github.com/jdan/98.css/blob/main/style.css>, MIT), XP.css
+  (<https://github.com/botoxparty/XP.css/tree/main/themes/XP>) and 7.css
+  (<https://github.com/khang-nd/7.css/tree/main/gui>). They are good evidence, not gospel.
+- **[O] observed:** shellseikatsu `Panels/Lockscreen/LockStyle*.qml`, read 2026-10-29. Inspiration only.
+
+**to verify** means the value is our best memory. The family card must measure it from a reference screenshot
+(cite its URL) or a VM before it ships.
+
+Everything is in logical px at 96 dpi (scale 1). Bevel and hairline widths are **device-pixel exact**: a 1 px bevel
+is `round(dpr)` device px, never a blurred 1.25 px line (see "The shared system › pixels").
+
+## Rules every style follows
+- **One era per style, pinned.** Pinned eras:
+
+  | style | pinned era | why |
+  |---|---|---|
+  | win95 | Windows 98 SE, "Windows Standard" scheme | the gradient caption is what people picture; 95's flat navy is a palette tweak |
+  | luna | Windows XP SP2, Luna Blue | |
+  | aero | Windows 7, Aero, default "Sky" colour (to verify the name) | |
+  | fluent | Windows 11 22H2+ | not 10: the brief asks for rounded 8 px |
+  | aqua | Mac OS X 10.2 Jaguar – 10.4 Tiger | the pinstripe and gel era; Spotlight arrived in 10.4 |
+  | vibrancy | macOS 11 Big Sur – 14 Sonoma | vibrancy, 24 px menu bar, Control Centre |
+  | snes | Super Famicom / PAL SNES | four-colour button cluster, 16-bit RPG menus |
+  | ps2 | PS2 dashboard (System Configuration / Browser) | |
+
+  vibrancy does **not** follow macOS 26 Tahoe's Liquid Glass. K77 keeps the material name "glass" free for a future
+  liquid-glass material, and Liquid Glass belongs there (see "Later").
+- **No renderer branches** (rule 4). A look names components in `[slots]` and metrics in `[decor]`, and the daemon
+  publishes them as tokens. Hosts load the named component, as `FrameHost` already does (kebab → Pascal), and never
+  compare a name. Two looks may share one component with different metrics; win95 and kawaii both use a caption bar.
+- **No layout from a look** (K45). A style dresses modules that already exist: the launcher toggle becomes the start
+  button, the tray becomes the tray well, the clock becomes the two-line taskbar clock. Adding the module, or moving
+  the bar to the bottom, is the style's companion profile (`profiles/<style>-desk.toml`).
+- **Shōjiki: no inert chrome.** A title bar draws only buttons that work. The close button is `ui.close`, and Esc does
+  the same. Minimize and maximize are never drawn, because a Stage card can do neither. Ctrl+Alt+Del text, "Log Off"
+  without an action and fake menus are refused too. Where the OS had a control we cannot honour, we leave a gap, not
+  a dead button.
+- **Original marks.** No logos, no wordmarks, no wallpapers and no sounds from the vendors (see "Not copied" per
+  style). We draw an original mark in the same spirit: a four-pane window that is not the Windows flag, a soft gel
+  orb, and so on. Text that names the OS ("Windows 98", "Mac OS X", "PlayStation") never appears. The wordmark slot
+  shows the host name or 暮らし.
+- **Palette roles, not hex.** Every colour comes from a palette role, so a pinned palette still fits (the frame rule,
+  K50). New roles (below) derive from existing ones when a palette leaves them out.
+- **Ma.** An idle style renders 0 frames. A loop runs only while its state does: the XP progress shimmer while
+  loading, the Aqua default-button pulse only for its first 3 pulses. The lock face exists only while locked. Sounds
+  load nothing while off.
+
+---
+
+## 1. win95 — Windows 98 SE, "Windows Standard"
+
+**Reference.** The 98 SE desktop, with a teal ground, silver windows and a navy-to-blue caption. Screenshots:
+98.css demo <https://jdan.github.io/98.css/> [R]; GUIdebook Windows 98 gallery
+<https://guidebookgallery.org/screenshots/win98> (to verify the URL).
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| caption height | 18 px (+1 border) | [W] sysmetrics `CaptionHeight` |
+| caption fill | active gradient `#000080 → #1084d0` (horizontal); inactive `#808080 → #b5b5b5` | [R] 98.css `--dialog-blue(-light)`, `--dialog-gray(-light)` |
+| caption text | bold, white, 11 px "MS Sans Serif" (8 pt), left, 3 px padding | [R] 98.css `.title-bar` (padding `3px 2px 3px 3px`) |
+| caption buttons | 16 × 14, raised bevel, 2 px gap before ×; only × kept (rules) | [R] 98.css |
+| window border | 1 + dialog frame 3 (fixed); sizing frame 4 | [W] sysmetrics |
+| face / highlight / light / shadow / dark | `#c0c0c0` / `#ffffff` / `#dfdfdf` / `#808080` / `#0a0a0a` | [R] 98.css `:root` (dark is `#000000` in Windows, to verify) |
+| raised bevel | outer: 1 px highlight top-left, 1 px dark bottom-right; inner: 1 px light top-left, 1 px shadow bottom-right | [R] `--border-raised-*` |
+| pressed | the pairs swap (sunken) and content moves 1 px down-right | [R] `:active` |
+| default button | an extra 1 px dark frame outside the raised bevel | [R] `.default` |
+| field / well | sunken: outer shadow / highlight, inner dark / light; white fill; 21 px tall, padding 3 × 4 | [R] `--border-field` |
+| status well | 1 px: shadow top-left, light bottom-right | [R] `--border-status-field` |
+| button | min 75 × 23, padding 0 12, radius 0 | [R] |
+| focus | 1 px dotted black rectangle, inset 4 px | [R] `outline-offset: -4px` |
+| scroll bar | 16 px wide (17 px horizontal), arrow buttons 16 × 17 raised, thumb raised face, track a 1 px checker of face and highlight | [W] `ScrollWidth` 16; [R] |
+| menu row | 18 px (+1); highlight navy `#000080`, white text; separator etched (1 px shadow over 1 px highlight); submenu ▸ at the right | [W] `MenuHeight`; colours [R] tree-view, to verify for menus |
+| tooltip | `#ffffe1` fill, 1 px black border, no shadow, 8 pt | to verify (Windows `COLOR_INFOBK`) |
+| progress | sunken well, navy blocks 16 px wide with 2 px gaps | [R] `.progress-indicator.segmented` |
+| disabled text | embossed: shadow grey text with a 1 px highlight copy offset down-right | to verify |
+| desktop | teal `#008080` | [O] LockStyleRetro; to verify against 98 |
+| taskbar | 28 px, raised top edge; start button ~54 × 22 bold "Start" with mark; Quick Launch; task buttons with icon and title; tray a status well with 16 px icons and the clock | to verify (all) |
+
+**Type.** MS Sans Serif 8 pt bitmap, 11 px, never smoothed. Free stand-ins: **W95FA** (licence to verify) or Fixedsys
+Excelsior (public domain, to verify), then the existing chain. "Pixelated MS Sans Serif" from 98.css is a converted
+Microsoft bitmap: **not bundled**. ja: MS UI Gothic was the 98 ja UI font. Stand-ins are **PixelMplus12** (M+
+licence) for the bitmap feel, else **BIZ UDPGothic** (OFL). Bitmap rendering on: see "pixels" in the shared system.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the taskbar: one raised strip, groups as raised buttons, start dress on the launcher toggle, tray well round tray + clock | bottom edge comes from the `win95-desk` profile |
+| island | a status well in the bar (sunken pane, like a status-bar field); expanded = a window card | balloon tips did not exist yet: no peek bubble |
+| Stage cards | windows: 18 px caption with icon and title, × only, 3 px frame | inactive caption grey when the card loses focus |
+| sidebar | a docked tool window (small caption, 15 px; to verify), sections as group boxes (etched frame with the label in the gap) | 98 had no action centre; the group box is the honest 98 idiom |
+| dock | a floating Quick Launch toolbar: raised strip, 16/24 px icons, a grip at the start | |
+| launcher | the Start menu: a vertical banner at the left (wordmark rotated 90°, `title` gradient), 32 px icon rows (to verify), submenu arrows, an etched separator before the session row | the search field sits on top as a sunken well (98 had none: honest addition); empty → greyed "(Empty)" row, as 98 menus did |
+| quick settings | the tray's volume popup: a small raised window, vertical sliders as trackbars, a "Mute" checkbox | tiles become checkboxes and push buttons |
+| toasts | an info-yellow tooltip box with a bold first line | 98 had no balloon |
+| lock | "Welcome to <host>" logon dialog on the teal desktop | see lock face |
+
+**Lock face `logon`.** Teal ground (role `desk`). A centred 98 dialog: a caption with no buttons (nothing works on a
+lock), an original key glyph, and labels **User name** (the session user as text, not a fake field) and **Password**
+(a sunken well). OK = submit, Cancel = clear the field (`lock.cancel`). A bottom strip has one status well with the
+clock: a real, honest time and no start button.
+- Error: a second modal dialog with an original stop glyph and an **OK** button. Enter or Esc dismisses it, and focus
+  returns to the field.
+- Caps Lock: an info-yellow tip under the field.
+- Retry delay: the OK button is disabled and the status text counts down.
+- Fingerprint (PAM info): the text above the field.
+
+shellseikatsu's Retro face gets the dialog right. It fakes a read-only user field, hard-codes hex and has no
+Caps Lock state.
+
+**Not copied.** The Windows flag, the "Windows 98" banner text, the Clouds wallpaper, the startup sound, the keys
+icon. Ours: a four-pane mark in the accent colours, and the banner shows the host name.
+
+**States.** Loading: segmented progress (static blocks, no march when `reduce_motion`). Error: stop dialog. Offline or
+disconnected: disabled emboss on controls that wait for the daemon. Empty: "(Empty)" menu rows.
+
+**Keyboard + a11y.**
+- Underlined access keys are drawn **only while Alt is held** (98 "hide underlined letters"). Dotted focus.
+- High contrast keeps the bevel (it is structure and state), drawn from the high-contrast palette's `on_surface` and
+  `surface`.
+- Large text: the caption grows with the text (height = max(18, line + 4)), and the pixel font steps 11 → 22.
+
+**Motion.** None: menus and windows appear at once (`motion.profile none`). 98's menu slide is a later option.
+
+**Multi-output.** The caption and frames are per card. The taskbar is per bar the user has. The lock dialog sits on
+the focused output, and the others show only the teal ground with the clock well.
+
+**Budget.** Bevel chrome replaces line chrome + Bevel frame, so it should cost less (fewer items per Block). Measure
+it. The lock face exists only while locked.
+
+---
+
+## 2. luna — Windows XP SP2, Luna Blue
+
+**Reference.** The XP desktop with Luna Blue, the green start button, the blue taskbar and the Welcome screen.
+Screenshots: XP.css demo <https://botoxparty.github.io/XP.css/> [R]; GUIdebook XP gallery (to verify the URL).
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| caption | 28 px incl. the 1 px top border; vertical gradient `#0997ff 0 → #0053ee 8 % → #0050ee 40 % → #0066ff 88–93 % → #005bff 95 % → #003dd7 96–100 %` | [R] XP.css `_window.scss` |
+| caption text | Trebuchet MS 13 px, white, text shadow 1 px `#0f1089` | [R] (bold in XP: to verify) |
+| top corners | 8 px (window), 7 px right of the title band; bottom square | [R] |
+| frame | 3 px blue: insets `#0831d9`/`#00138c`, `#166aee`/`#001ea0`, `#0855dd`/`#003bda` | [R] |
+| caption buttons | 21 × 21, 2 px gap; × red (`#e0461e`-ish, to verify) with a white glyph | [R] size; colour to verify |
+| window face | `#ece9d8` | [R] `--surface` |
+| buttons | 3 px radius, 1 px `#003c74` border, white → `#ece9d8` gradient; hover: orange inner glow (`#f8b330`, to verify); default: blue inner border; pressed: darker gradient | to verify (XP.css `_button.scss`) |
+| fields | 1 px `#7f9db9` border, white fill (XP.css `--input-border-color #789dbc`) | [R]; `#7f9db9` to verify |
+| focus | dotted rectangle (as 98) inside buttons | to verify |
+| scroll bar | 17 px; pale-blue track; rounded blue thumb with grip lines; track shadow `#b9cdfa`/`#b6c9f7` | [R] `--scrollbar-*` |
+| menus | white, 1 px `#aca899` border, highlight `#316ac5` white text, soft drop shadow, 18–20 px rows | to verify |
+| tooltip | `#ffffe1`, 1 px black, drop shadow; **balloon tip**: rounded ~6 px (to verify), a tail toward its anchor, bold title with a 16 px icon, × | to verify |
+| taskbar | 30 px, blue gradient; start button green with italic lowercase "start" and the mark; task buttons rounded and glossy; tray a lighter blue well with a 1 px light left edge | to verify (all) |
+
+**Type.** Tahoma 8 pt (11 px) body; Trebuchet MS bold for captions; Franklin Gothic Medium Italic for "start" (to
+verify). Free stand-ins: **Wine Tahoma** (LGPL, metric-compatible: to verify), and **Libre Franklin** (OFL) italic
+for the start label. Trebuchet has no metric twin: Fira Sans (OFL) is the stand-in (to verify the fit). ja: MS UI
+Gothic / Tahoma fallback → **BIZ UDPGothic**.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the blue taskbar; start dress green; tray well lighter blue | |
+| island | a balloon tip anchored on the bar (peek); expanded = a window card | XP's balloon tips are its notification idiom |
+| Stage cards | Luna windows: caption band, 3 px frame, × red | |
+| sidebar | the XP **task pane**: a pale-blue gradient ground, collapsible groups with rounded headers and a chevron button | "System Tasks"-style groups map one-to-one to our sections |
+| dock | Quick Launch in its own glossy strip | |
+| launcher | the two-column Start menu: blue header with avatar and name; white left column (results, MFU); pale-blue right column (places: Settings, files); orange-bottomed footer with the session actions (Lock, Log off → `session.menu` actions); "All Programs ▸" | search field on top of the left column (XP had none: honest addition) |
+| quick settings | tray popups: volume as a small window with a vertical slider; tiles as XP checkboxes | |
+| toasts | balloon tips from the tray: title, icon, ×, tail | |
+| lock | the Welcome screen | |
+
+**Lock face `welcome`.** A header band and a footer band in the dark title blue, with the orange divider (role
+`tertiary`). A Luna field in between, with a soft bloom. Left: the wordmark (host name, italic) and "To begin, type
+your password". Right: the user tile, a rounded white frame round the avatar (`~/.face` or initials), the name, the
+password field and a green → button.
+- Error: an XP balloon tip from the field, with an icon and a bold title (text from `lockui`).
+- Caps Lock: the XP balloon "Caps Lock is On". XP really did show this.
+- Fingerprint: a line under the name.
+
+shellseikatsu's XP face reveals the field on click. Ours shows it at once, because a keyboard-first lock must not
+need a click.
+
+**Not copied.** Bliss, the flag, "Microsoft Windows XP" wordmarks, the XP sounds. Ours: an original gel mark in four
+pane colours from roles, and an original wallpaper-free gradient ground.
+
+**States.** Loading: the XP progress bar, green blocks with a moving glint while loading and visible only
+(`reduce_motion`: static blocks). Error: balloon. Offline: the greyed text style (`#aca899`, to verify).
+
+**Keyboard + a11y.** As win95: access keys on Alt, dotted focus. High contrast: Luna falls back to the classic bevel
+(as XP did with high contrast on). Large text: the caption grows with the text.
+
+**Motion.** Menus and tooltips fade (~200 ms, to verify); windows appear at once; the task pane groups slide open
+(~200 ms, to verify). Profile: `expressive` with `speed` tuned to these, or the timed curves at fixed short times.
+
+**Multi-output.** As win95.
+
+**Budget.** The caption band is one gradient Rectangle per card, and the balloon tail one Shape per open balloon.
+
+---
+
+## 3. aero — Windows 7, Aero
+
+**Reference.** The Windows 7 desktop: glass captions and frames, the superbar with the round start orb, and the
+logon screen. Screenshots: 7.css demo <https://khang-nd.github.io/7.css/> [R]; GUIdebook 7 gallery (to verify the
+URL).
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| window radius | 6 px (top), caption buttons 5 px | [R] 7.css `--w7-w-bdr`, `--w7-wct-bdr` |
+| frame | 6 px glass on every side (window and title padding) | [R] `--w7-w-space` |
+| caption | ~21 px of text area + 6 px frame (to verify); title left; glass shows the blurred desktop | [R] / to verify |
+| glass | base `#4580c4`; overlay `linear-gradient(to right, #ffffff66, #0000001a, #ffffff33)`; 135°/225° white highlights | [R] `--w7-w-bg`, `--w7-w-grad` |
+| window shadow | `2px 2px 10px 1px #000000b3`, inner 1 px `#fffa` rim | [R] |
+| caption buttons | min/max 29 × 19, × 48 × 19; × gradient `#e0a197e5 → #cf796a 25–50 % → #d54f36 50 %`; hover `#fb9d8b → #ee6d56 → #d42809`; pressed `#d1a894 → #b67562 → #7d0d01` | [R] |
+| controls | radius 3; border `#8e8f8f` (hover `#3c7fb1`, pressed `#6d91ab`, disabled `#adb2b5`); fill `#f2f2f2 45 % / #ebebeb 45 % → #cfcfcf`; hover `#eaf6fd 45 % / #bee6fd 45 % → #a7d9f5`; pressed `#e5f4fc → #c4e5f6 30–50 % / #98d1ef 50 % → #68b3db`; inner rim `#fffc` | [R] `_variables.scss` |
+| surface | `#f0f0f0`; font 9 pt Segoe UI | [R] |
+| list highlight | 1 px `#aaddfa`, fill `#fff9 → #e6ecf5cc 90 % → #fffc`, radius 3 | [R] `--w7-li-*` |
+| focus | dotted rectangle plus a blue inner glow on fields | to verify |
+| scroll bar | 17 px, glossy rounded thumb, hover blue | to verify |
+| menus | `#f0f0f0`, an icon gutter with an etched edge, highlight = the list-highlight capsule | to verify |
+| tooltip | white → `#e4e5f0` gradient, 1 px `#767676`, radius 2–3, soft shadow | to verify |
+| taskbar | 40 px glass; round orb overhanging the top edge (~54 px, to verify); icon buttons ~62 px wide (to verify) with a **hot-track glow** in the icon's dominant colour; tray chevron; two-line clock; Show Desktop strip at the far right (~15 px, to verify) | to verify |
+
+**Type.** Segoe UI 9 pt (12 px). Free stand-in: **Selawik**, "metrically compatible with Segoe UI" [P] (Microsoft
+Learn typography page, <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography>;
+repo <https://github.com/Microsoft/Selawik>; licence to verify, believed OFL). ja: Meiryo UI → **BIZ UDPGothic** /
+Noto Sans CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the superbar: glass strip; start dress = the round orb; app icons with hot-track glow (accent, or the app icon's colour where `art_colors`-style extraction exists, later) | |
+| island | the taskbar **thumbnail preview**: a glass peek above its widget; expanded = a glass window card | 7's own "what is this app doing" surface |
+| Stage cards | glass windows: 6 px glass frame, caption, red × | under `reduce_transparency` the glass is the opaque base colour |
+| sidebar | the gadget column: sections as glass gadget cards | Vista/7 gadgets, honest to the era |
+| dock | pinned superbar icons (same idiom as the bar) | |
+| launcher | the 7 Start menu: white left list with "Search programs and files" at the **bottom**, glass right column with the avatar on top, places, and a Shut down split button (→ `session.menu`) | the search position is the 7 signature |
+| quick settings | tray flyouts: white body with a glass edge band ("network list", "volume") | |
+| toasts | 7 balloon tips (white gradient, rounded, tail) | |
+| lock | the 7 logon screen | |
+
+**Lock face `logon-glass`.** A deep blue field with an original pattern of soft light streaks (static, one paint)
+and a central bloom. A 126 px user tile (to verify) in a glass frame, the name, and a password field with a round
+blue → button. A wordmark sits low in the centre (host name).
+- Error: the field is replaced by the message and an **OK** button (7's own behaviour). Enter returns to the field.
+- Caps Lock: a balloon tip.
+
+shellseikatsu's Win7 face hard-codes its blues. Ours takes roles.
+
+**Not copied.** The orb's flag, the "Harmony" wallpaper and logon art, the "Windows 7 Ultimate" branding, the sounds.
+
+**States.** Loading: the glossy green progress bar; its shimmer only while loading and visible. Error: the inline
+message + OK. Offline: greyed glass.
+
+**Keyboard + a11y.** Dotted focus with a blue glow. `reduce_transparency` turns glass opaque (7's own "Enable
+transparency" off). High contrast: classic bevel. Large text grows the caption.
+
+**Motion.** Windows open with fade + scale from ~0.95 (to verify, ~200 ms); flyouts fade; hot-track glow follows the
+pointer only while hovered (one Item, no timer).
+
+**Multi-output.** Blur regions per card (K75/K77 rules: regions from numbers).
+
+**Budget.** Glass = existing translucent + blur; the sheen is the existing `Sheen` frame. New: the caption component
+and the orb.
+
+---
+
+## 4. fluent — Windows 11 (new style)
+
+**Reference.** Windows 11 22H2+: Mica windows, Acrylic flyouts, a centred taskbar, the quick settings and
+notification centre flyouts, and the lock curtain. Primary docs:
+- Geometry <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/geometry>
+- Title bar <https://learn.microsoft.com/en-us/windows/apps/design/basics/titlebar-design>
+- Typography <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography>
+- Mica <https://learn.microsoft.com/en-us/windows/apps/design/style/mica>
+- Timing <https://learn.microsoft.com/en-us/windows/apps/design/motion/timing-and-easing>
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| radius | 8 px top-level (windows, flyouts, dialogs); 4 px in-page controls and tooltips; 4 px bars (progress, scroll, slider); 0 where two straight edges meet or where a flyout joins what opened it | [P] geometry |
+| title bar | 32 px (48 px with a search box or person picture); icon 16 px at 16 px from the edge; title 16 px after it, Caption style | [P] titlebar |
+| caption buttons | full-bleed backplates; glyphs E921/E922/E8BB; states rest, hover, pressed, active, inactive; 46 px wide (to verify); × hover red `#c42b1c` (to verify) | [P] / to verify |
+| type ramp | Caption 12/16, Body 14/20, Body Strong 14/20 semibold, Body Large 18/24, Subtitle 20/28, Title 28/36, Title Large 40/52, Display 68/92; minimum 12 px regular, 14 px semibold; no bold, no italic | [P] typography |
+| materials | **Mica** (opaque, wallpaper-tinted, sampled once) for long-lived surfaces; **Acrylic** (blurred, translucent) for transient ones; both fall back to a solid colour with transparency off, on battery saver, or when inactive | [P] mica |
+| layer fill | content layer `LayerFillColorDefault` = a low-opacity solid over Mica (value to verify) | [P] |
+| focus | two rings: 2 px outer (primary, black/white) + 1 px inner (secondary) following the control's radius | to verify (`FocusVisualPrimaryThickness`/`SecondaryThickness`, microsoft-ui-xaml) |
+| controls | 32 px tall buttons (to verify); 1 px border with a lighter bottom edge ("elevation border", to verify) | to verify |
+| scroll bar | a 2 px rail that widens to ~6 px with arrows on hover (to verify) | to verify |
+| menus | Acrylic, 8 px radius, item rows ~32 px with 4 px radius highlights inset 4 px (to verify) | radius [P]; rest to verify |
+| shadow | flyouts: a soft 32 px blur at ~0.28 alpha (to verify) | to verify |
+| taskbar | 48 px (to verify), centred icons, Start mark first; running = a 3 × 6 px grey pill under the icon, active = 3 × 16 px accent pill (to verify); right: chevron, a grouped network/volume/battery button, two-line clock and date | to verify |
+
+**Type.** Segoe UI Variable → **Selawik** [P]. ja: Yu Gothic UI → **BIZ UDPGothic** / Noto Sans CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the taskbar; the start dress on the launcher toggle; the grouped tray button **is** our Quick module; the clock **is** the sidebar toggle | the bar is Mica (translucent + tint, no blur: Mica samples the wallpaper, it does not blur live) |
+| island | a taskbar flyout (Acrylic, 8 px) for peek/expanded | |
+| Stage cards | flyouts: Acrylic, 8 px, **no title bar** (11 flyouts have none) | the `title` slot is `""` for fluent |
+| sidebar | notification centre (top) + calendar (bottom), each an Acrylic panel, 12 px apart (to verify) | |
+| dock | pinned centre icons with running pills (same idiom as the bar) | |
+| launcher | the 11 Start: search box on top (pill-ish 4 px), "Pinned" grid of 6 columns with app labels, "Recommended" list; footer with avatar + name left, power right | |
+| quick settings | the 11 Quick Settings flyout: tiles in a 3 × 2 grid with a split chevron for detail, sliders below, a footer row (battery, edit, settings) | already close to ours: tile shape and spacing are the work |
+| toasts | 11 toasts: bottom-right above the bar, Acrylic, 8 px, 364 px wide (to verify), app icon + name header, × on hover | |
+| lock | lock curtain → sign-in | |
+
+**Lock face `curtain`.** Two stages, as 11 does it:
+- **Curtain:** the wallpaper (the user's own) behind Acrylic, a big clock (Display 68 → scaled to the output, semibold
+  "Segoe UI Variable Display" → Selawik semibold), the date under it, and media if playing. Any key or click lifts the
+  curtain (250 ms, Fast Out Slow In).
+- **Sign-in:** the avatar (a circle, ~192 px, to verify), the name, and a password box (4 px radius, a 2 px accent
+  underline on focus, a reveal-eye button, a → submit inside the box). A typed character while on the curtain goes
+  straight into the field, so no keystroke is lost.
+
+Messages:
+- Error: "The password is incorrect. Try again." with **OK** (11's inline step).
+- Caps Lock: a line under the box.
+- Fingerprint: "Scan your finger" under the box when PAM says so.
+
+`reduce_motion`: a crossfade instead of the lift. shellseikatsu's Win11 face has one stage and no reveal button.
+
+**Not copied.** The four-square logo, Bloom wallpapers, Segoe Fluent Icons (Microsoft licence; we use our icon
+subset), the sounds.
+
+**States.** Loading: the indeterminate bar (a 4 px rounded dash sliding) while loading and visible; ring spinner
+nowhere else. Error: inline InfoBar (4 px, a coloured left edge). Offline: InfoBar warning.
+
+**Keyboard + a11y.** The dual focus ring. High contrast: system colours, no Mica (11's own fallback). Large text:
+the title bar grows ([P] "might require that the title bar grows in height").
+
+**Motion.** [P]:
+- Durations: Normal 250 ms, Fast 167 ms, Faster 83 ms.
+- Entrance: Fast Out, Slow In `cubic-bezier(0, 0, 0, 1)`. Exit: Slow Out, Fast In `cubic-bezier(1, 0, 1, 1)`.
+- Flyouts rise ~40 px with a fade (distance to verify).
+
+This maps onto `motion.kind = timed` with the look's own curves (new look keys, see "The shared system").
+
+**Multi-output.** The taskbar per bar (11 shows it on every screen); the lock curtain on each output, the sign-in on
+the focused one.
+
+**Budget.** Mica = the existing translucent material with a wallpaper tint (theme-side, once per wallpaper). No
+live blur on the bar. Acrylic = translucent + blur on the transient cards only.
+
+---
+
+## 5. aqua — Mac OS X 10.2 Jaguar – 10.4 Tiger
+
+**Reference.** Aqua's gel buttons, pinstripes, traffic lights, the 2D Dock and the login window.
+- Apple's archived HIG for the period: <https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/OSXHIGuidelines/>
+  [P] (static, but its window-part tables describe later releases; era values to verify).
+- Screenshots: GUIdebook Mac OS X 10.2 / 10.4 (to verify the URLs).
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| title bar | 22 px, centred title in Lucida Grande 13 pt; pinstripe fill | to verify (HIG archive) |
+| traffic lights | three gel circles ~14 px (to verify) left, close red / minimize yellow / zoom green; glyph appears on hover of the group | to verify |
+| pinstripes | 1 px horizontal lines alternating white and `#efefef`-ish, period 2–4 px (to verify) on window and menu grounds; lighter in 10.3; gone in Tiger's windows | to verify |
+| buttons | gel capsules, 20–21 px tall; default button **aqua blue gel that pulses** (~1.5 s period, to verify); pressed darker gel | to verify |
+| focus | a blue halo ~3 px round fields and lists (`#7dadd9`-ish, to verify) | to verify |
+| scroll bar | 15 px, blue gel thumb with round ends, both arrows together at the bottom (option) | to verify |
+| menu bar | 22 px, white with pinstripes (10.2), Apple menu far left, bold app name, menu extras right | to verify |
+| menus | white at ~95 % opacity, rounded bottom corners ~5 px, highlight blue gel band, Lucida Grande 14 px rows (to verify) | to verify |
+| tooltip | pale yellow `#ffffc7`, 1 px grey border (to verify) | to verify |
+| Spotlight (10.4) | blue magnifier at the menu bar's far right → a drop-down panel: field on top, results grouped by kind with the kind in a left gutter | to verify |
+| Dock | a translucent white rounded strip (2D, pre-Leopard), magnification, a black ▲ under running apps | to verify |
+
+**Type.** Lucida Grande 13 pt. No free metric twin: **DejaVu Sans** (Bitstream Vera heritage, close in feel) at
+12.5 px (to verify the size match). ja: Hiragino Kaku Gothic → Noto Sans CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the menu bar: start dress = our mark as the system menu; the focused app's name in bold (needs app names: see Contracts); extras = tray; clock text | top edge from the `aqua-desk` profile |
+| island | a menu bar extra with its drop-down menu as peek; expanded = a window card | |
+| Stage cards | **sheets**: they slide down out of the bar like a sheet out of a title bar; with a title: pinstripe window with traffic lights (× = red; yellow and green **not drawn**) | |
+| sidebar | a **drawer**: slides out of the screen edge like 10.x drawers out of a window side | |
+| dock | the 2D Dock | |
+| launcher | Spotlight 10.4: drops from the bar's right end | |
+| quick settings | menu-extra menus: sliders inside a menu, toggles as checkmarked rows | |
+| toasts | a small pinstripe utility panel top-right (10.x had no system notifications: honest stand-in) | |
+| lock | the Jaguar/Tiger login window | |
+
+**Lock face `login-window`.** An original aqua-blue gradient ground. A centred pinstripe panel: a header strip with
+our mark and the host name, the user's picture and name, **Password** in a field with the blue halo, and a pulsing
+**Log In** gel default button. The pulse runs 3 cycles after focus, then rests (Ma). Under `reduce_motion` it never
+pulses.
+- Error: the panel **shakes** side to side (the 10.x login window did; the existing shake).
+- Caps Lock: a ⇪ glyph inside the field's end (the 10.x way).
+
+**Not copied.** The Apple logo, the Aqua and Jaguar wallpapers, the "Mac OS X" wordmark, the startup chime, the
+Finder face.
+
+**States.** Loading: the barber-pole bar (blue diagonal stripes moving) only while loading and visible; a spinning
+gear nowhere. Error: shake + red text. Offline: the greyed gel.
+
+**Keyboard + a11y.** Full keyboard access as an option on 10.x; ours is always on, with the halo as the focus ring.
+High contrast: the gel becomes flat white with 1 px black (10.x "white on black" was inverted display — not ours).
+
+**Motion.** Sheets slide 250–300 ms ease-out (to verify); the genie is out of scope; menus fade out with a brief blink
+of the chosen row (2 blinks, ~70 ms each, to verify).
+
+**Multi-output.** The menu bar per output (10.x had it on the main screen only; the profile can say so).
+
+**Budget.** Pinstripes = one tiled 1 × 4 px image, not a Canvas per block.
+
+---
+
+## 6. vibrancy — macOS Big Sur – Sonoma (new style)
+
+**Reference.** macOS 11–14: translucent vibrancy sidebars and menus, 24 px menu bar, Control Centre, Notification
+Centre with widgets, the rounded Dock, and the Sonoma lock screen.
+- HIG <https://developer.apple.com/design/human-interface-guidelines/> [P]: windows, the menu bar, materials. The
+  pages are script-rendered, so every number below is to verify against a measured screenshot.
+- Reviews with screenshots: <https://www.macstories.net/stories/macos-big-sur-the-macstories-review/>,
+  <https://eclecticlight.co/2021/03/19/window-controls-in-big-sur/>.
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| window radius | 10 px (to verify) | |
+| title bar | 28 px plain, 52 px unified toolbar (to verify) | |
+| traffic lights | 12 px circles, 8 px apart (20 px pitch), 8 px from the edge (to verify) | |
+| menu bar | 24 px (37 px on notched displays), translucent, SF Pro 13 px, Control Centre icon and clock at the right | to verify |
+| menus | vibrancy, radius ~6 (to verify), 22 px rows, highlight = accent rounded rect inset 5 px | to verify |
+| Control Centre | modules in rounded tiles (radius ~12–16), a 2-column grid | to verify |
+| notifications | banners top-right, radius ~16, ~344 px wide (to verify) | to verify |
+| Dock | radius ~16–18, translucent, a dot under running apps | to verify |
+| focus | a 3–4 px accent halo outside the control (to verify) | to verify |
+| scroll bar | overlay, 7 px rounded thumb appearing while scrolling (to verify) | to verify |
+
+**Type.** SF Pro (Apple licence, **never bundled**). Stand-in: **Inter** (OFL; the existing chain). ja: Hiragino Sans
+→ Noto Sans CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the menu bar: start dress = our mark; bold focused app name; extras; Control Centre glyph = Quick module; clock = sidebar toggle (Big Sur: the clock opens Notification Centre) | |
+| island | a menu bar extra with a vibrancy panel | |
+| Stage cards | popovers / Control Centre modules (radius per `[decor]`, no title bar) | |
+| sidebar | Notification Centre: notifications grouped by app on top, widgets below | |
+| dock | the Dock | |
+| launcher | Spotlight: a centred floating field (~680 px, to verify), results expand below in one panel | |
+| quick settings | Control Centre | |
+| toasts | banners top-right | |
+| lock | the Sonoma lock screen | |
+
+**Lock face `sonoma`.** The user's wallpaper, static-blurred once at lock. The date above a huge time (SF Pro Display
+semibold → Inter Display semibold) at the top centre. At the bottom centre: the avatar (~64 px, to verify), the name,
+and a capsule password field ("Enter Password"). The hint "Touch ID or Enter Password" appears **only** when the
+daemon says a fingerprint reader is enrolled (see Contracts).
+- Error: shake.
+- Caps Lock: ⇪ inside the field.
+
+**Not copied.** The Apple logo, the Sonoma/Big Sur wallpapers, SF Symbols (Apple licence; our icon subset instead).
+
+**States.** Loading: a thin indeterminate bar; error: shake + text; offline: a dimmed extra with a slash glyph.
+
+**Keyboard + a11y.** The halo focus; `reduce_transparency` = macOS "Reduce transparency" (opaque grey); high contrast
+= "Increase contrast" (1 px borders on every control).
+
+**Motion.** Springs (SwiftUI-like: response ~0.5 s, damping ~0.85, to verify) → our `spring` kind; Control Centre
+modules scale+fade from their glyph.
+
+**Multi-output.** The menu bar on every output (macOS default since 10.9).
+
+**Budget.** Vibrancy = translucent + blur (existing). The lock's blurred wallpaper is a one-off texture while locked.
+
+---
+
+## 7. snes — Super Famicom / PAL SNES
+
+**Reference.** The console itself, not an OS (the SNES had no system menu): light-grey plastic, the four-colour
+button cluster (A red, B yellow, X blue, Y green on the Super Famicom and PAL pad), and 16-bit game menus (the RPG
+window: a blue vertical gradient inside a white 2–3 px rounded border, a white hand-pointer cursor; to verify against
+period screenshots). Native resolution 256 × 224, so the scale is ×4 on 1080p (to verify the grid).
+
+**Metrics.** Everything is on a **pixel grid** of `pixel` = round(min output height / 224 / 2) logical px (the look's
+`[decor] pixel`, to verify the tune). Measured in grid pixels:
+
+| part | value |
+|---|---|
+| window border | 2 px white + 1 px dark outline, corners cut 1 px |
+| window fill | blue vertical gradient in 4–8 hard **bands**, not smooth |
+| cursor | an 8 × 8 hand or ▶ that jumps row to row |
+| text | an 8 × 8 font, line height 2 × 8 |
+
+**Type.** **Press Start 2P** (OFL) at multiples of 8 px; ja **PixelMplus10** or **Misaki** (8 × 8; licence to
+verify). Bitmap rendering on.
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| bar | a HUD strip (a party-status window along the edge) |
+| island | the RPG **text box** that types its line out (one shot) |
+| Stage cards | RPG windows |
+| sidebar | the status / equipment screen |
+| dock | an item row with the cursor |
+| launcher | the command menu (ITEM/MAGIC-style list with the hand cursor; the field as a name-entry line) |
+| quick settings | the config screen: on/off as "ON  OFF" with the cursor on one |
+| toasts | a text box at the bottom of the screen |
+
+**Lock face `title-screen`.** Two stages:
+- **Title:** black ground, an original blocky wordmark of the host name, four dots in the cluster's colours (roles),
+  and "PUSH ANY KEY". It blinks 3 times on appearance, then stays lit (Ma).
+- **File select:** "FILE 1 <user> <time>", and the password as a name-entry line with a block cursor. A typed
+  character on the title stage carries over, so nothing is lost.
+
+Messages:
+- Error: a text box typing out "That's not it." (from `lockui`, one shot).
+- Caps Lock: a "CAPS" lamp.
+- Retry delay: a countdown in the box.
+
+shellseikatsu's SNES face fakes a "© year" byline in the console maker's spot. Ours never imitates that line.
+
+**Not copied.** The Nintendo and SNES/Super Famicom logos, "Licensed by", the console's sound samples. Cues are our
+own square-wave blips.
+
+**States.** Loading: "NOW LOADING" with three dots stepping (only while loading). Error: text box. Offline: the
+window greys to two bands.
+
+**Keyboard + a11y.** Arrow keys move the cursor where lists are, and Tab still works. High contrast: a white border
+on black with no gradient. Large text: the grid scales ×2 (8 → 16). `reduce_motion`: no typing-out, the text appears
+whole.
+
+**Motion.** **Stepped**: windows open by growing in 4 frames at 60 Hz (to verify against games), the cursor jumps, no
+easing. A new `motion.kind = stepped` with `motion.steps` (shared system).
+
+**Multi-output.** Each output computes its own grid pixel.
+
+**Budget.** No Canvas per block: the banded gradient is a few Rectangles.
+
+---
+
+## 8. ps2 — PS2 dashboard
+
+**Reference.** The PS2 boot and dashboard: a black void, translucent light towers, a deep blue floor glow, thin silver
+type, the two-choice main menu (Browser / System Configuration) and the memory-card browser. Screenshots: to verify
+(a reference capture from a console or PCSX2's BIOS screen; cite it in the card).
+
+**Metrics.** Type is thin, silver-white, with a soft blue glow; the menu has 2 rows centred left of centre; a selected
+row glows (to verify against a capture). Everything else is the existing `Ps2` frame's art.
+
+**Type.** Existing chain (SST → Zrnic → Inter). Lighter: Inter Light; ja **M PLUS 1p Light** (OFL).
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| bar | a thin silver strip with glowing labels |
+| island | a "memory card" slot (an original rounded card glyph, not the PS2 card's silhouette) |
+| Stage cards | translucent panels with a blue glow line |
+| sidebar | the System Configuration list |
+| dock | the browser's icon row (icons float with a still reflection) |
+| launcher | the two-level menu: the query in a thin underline field, results as glowing rows |
+| quick settings | System Configuration rows with values at the right |
+| toasts | a glowing line of text low on the screen |
+
+**Lock face `dashboard`.** Towers rise **once** when the lock appears, motes stand still (the existing ground). The
+clock is thin at the top right. The user is a card slot, with the password as an underline field with a soft blue
+glow.
+- Error: the glow turns the error role and the line fades in.
+- Caps Lock: a thin "CAPS" under the line.
+
+**Not copied.** The PlayStation logos, the "Sony Computer Entertainment" boot, the boot sound, the memory-card
+silhouette. Cues are our own soft pads.
+
+**States.** Loading: a slow pulse of the glow (only while loading). Error: a red glow. Offline: the towers dim.
+
+**Keyboard + a11y.** Arrows plus Tab. High contrast: no glow, solid white lines. `reduce_motion`: towers appear at
+full height.
+
+**Motion.** Slow fades of 400–600 ms (to verify), ease-in-out, no overshoot.
+
+**Multi-output.** The towers paint once per output.
+
+**Budget.** The existing `Ps2` frame; the lock face only while locked.
+
+---
+
+## 9. The other looks — review rows
+Same depth, shorter. Each row names what it lacks today, the slots it would use and its lock face.
+
+| look | reference | what is missing | slots | lock face |
+|---|---|---|---|---|
+| sekai | SekaiPop (keycap pop) | already deep; the lock's dot field is the plain face | none new | `plain` (keeps the dot field) |
+| kawaii | Needy Streamer Overload's pastel desktop OS | its windows **have** a title band: use `title` (shared caption with rounded top, a heart × that works) | title, tooltip | `pastel-os`: a login window on a pastel desktop |
+| yorha | NieR:Automata menus | the selection block (a dark bar sliding under the row), the menu's square bullets, a header rule | menu, title (thin header band) | `yorha`: a terminal-like "connect" panel |
+| souls | Dark Souls menus | menu style (gold hairline highlight); lock wording | menu | `bonfire`: a dark ground, an ember glow, the field low centre; wrong password "Try again" in large serif, fading (never "YOU DIED": copyrighted phrasing and too much for an error) |
+| hallownest | Hollow Knight menus | menu style (filigree ends round the selected row) | menu | `hollow`: fog ground, filigree above and below the field |
+| washi | paper and ink | fine as is; menu rows as ruled lines | menu | `plain` |
+| kami | a notebook page (K60) | fine; scroll bar as a pencil line | scroll | `plain` (paper) |
+| kanso | the plain form | the reference look: nothing to add | none | `plain` |
+| material | M3 (<https://m3.material.io/>) | M3 menus (radius 4, 48 px rows), tooltips (plain 4 px), the M3 focus ring (3 px), M3 lock (big clock) | menu, tooltip | `plain` |
+| glass | Vitreus/pleamar | fine; the future liquid-glass material belongs here | none | `plain` |
+| terminal | a terminal | menu as `> ` rows, scroll bar as `│█│`, tooltip as an inverse line | menu, scroll, tooltip | `tty`: a login prompt (`<host> login: <user>` / `Password:` with no echo of anything) |
+| soft | look only (palette styles) | none | none | `plain` |
+
+---
+
+## The shared system (W53.0, one card first)
+
+### Slots, as data
+A look's `[slots]` gains the slots below. The daemon reads them from the look in effect, as it does for `frame`, and
+publishes `decor.<slot>` tokens ("" = the default). A host loads `components/decor/<slot>/<Name>.qml` (kebab →
+Pascal) or, for the lock, `components/lock/<Name>Face.qml`, and never compares the name (rule 4).
+
+| slot | host (who loads it) | component contract | default ("") |
+|---|---|---|---|
+| `frame` (exists) | `FrameHost` in Block, kind card/small/ground | `FrameBase` | none |
+| `title` | `TitleHost`: a strip on top of Stage cards, the launcher, the polkit dialog, the session menu | title, icon, `active`, `canClose`; signal `close` (→ `ui.close`) | no title bar (today) |
+| `start` | dresses the bar's launcher toggle (new bar module `launcher`, see Contracts) | label (`decor.start.label` i18n), `pressed`, `open` | the plain icon button |
+| `tray` | wraps the tray module + clock in a well | children; `sunken` | today's group |
+| `menu` | `MenuStyle` for TrayMenu, the dock menu and launcher rows | row height, highlight shape, separator, submenu arrow, empty row | today's rows |
+| `scroll` | `ScrollStyle` on every ScrollBar | width, thumb, track, arrows | today's thin bar |
+| `tooltip` | `TooltipStyle` (dock tooltip, bar peeks, balloon variant with tail) | `tail` side, title, icon | today's peek |
+| `lock` | the lock surface and the greeter | see "Lock faces" | `plain` (= today's LockContent) |
+| `sounds` | the daemon (no frontend) | a cue set name | none |
+
+A slot left out of a look means the default. A user look file can name any shipped component (or its own under
+`~/.config/kurashi/decor/`, later: mods' `decor:` provides, K50).
+
+### Metrics, as data: `[decor]`
+Components share across looks, so their numbers come from the look. Proposed shape:
+`looks/<n>.toml [decor]` → tokens `decor.<key>`; values are numbers, booleans or **palette role names** (never hex).
+The appearance loader validates them against a list in `kurashi-theme` (one schema, rule 3).
+
+```toml
+[decor]
+"title.height" = 18          # px, grows with large text
+"title.fill" = ["title", "title_end"]   # roles; one = solid, two = gradient
+"title.fill_dir" = "horizontal"         # horizontal | vertical
+"title.align" = "start"                 # start | center
+"title.weight" = 700
+"title.close" = "bevel"                 # the × button's chrome: bevel | gel | plate | dot
+"menu.row" = 19
+"menu.highlight" = "bar"                # bar | capsule | inset
+"scroll.width" = 16
+"scroll.arrows" = true
+"tooltip.fill" = "info"
+"focus.style" = "dotted"                # dotted | ring | halo | double
+"focus.offset" = -4
+"pixel" = 0                             # >0: the pixel grid (snes)
+```
+
+### Palette roles (derived when absent, as K42's `line`/`ring`)
+- `title`, `title_end`, `title_inactive`, `title_inactive_end`, `on_title`: caption gradients.
+- `bevel_light`, `bevel_light2`, `bevel_dark2`, `bevel_dark`: the four bevel lines.
+- `info`, `on_info`: tooltip and balloon.
+- `desk`: the desktop ground the lock and the 9x teal use.
+
+Derivations: title = accent → accent lighter; bevel = surface lightened/darkened (exact formula in the card); info =
+warning container; desk = secondary. The WCAG stage covers `on_title`/`on_info`.
+
+### Chrome `bevel` (Block)
+A fifth chrome next to flat, keycap, soft and line:
+- **Lines:** outline 0, ring 0, no shadow. Two 1 px pairs: outer `bevel_light`/`bevel_dark`, inner
+  `bevel_light2`/`bevel_dark2`. Light falls top-left, as 98.
+- **Press:** the pairs swap and the content shifts by `bevel.press_offset` (1 px) down-right. No scale, no flash.
+- **Wells:** a new Block property `sunken` (a text field, the tray well, the status well) draws the swapped pairs at
+  rest.
+- **Tokens:** `chrome.style = bevel`, `bevel.width` (1), `bevel.press_offset` (1).
+- **Bevel frame:** the old `Bevel` frame keeps only its ground and goes away when the win95 face lands. Luna, aero,
+  fluent and the Macs keep soft/flat chromes and get their identity from `title`, `[decor]` and frames.
+- **High contrast:** K42 forces `flat` under `high_contrast`. Amend it: a bevel stays (it carries pressed and sunken
+  state, and it is lines, not decoration), drawn in the high-contrast palette's `on_surface`/`surface`. This needs a
+  DECISIONS entry.
+
+### Pixels and type
+- **Device-pixel lines.** Bevel, title and hairline widths are `round(dpr) / dpr` logical px, and positions snap the
+  same way, so 1 px stays crisp at 1.25/1.5 (Qt `Item` positions rounded in the hosts). Shots at scale 1 and 1.5.
+- **Bitmap text.**
+  - New look keys `theme.typography.pixel` (bool) and `theme.typography.pixel_step` (px). When on, text uses
+    `renderType: Text.NativeRendering`, full hinting, no smoothing, and sizes snapped to multiples of the step.
+  - Under fractional scaling the step rounds to device pixels (to verify on niri at 1.25).
+  - Large text multiplies by whole steps.
+- **Fonts.** Font chains as today (fontconfig, first installed). Proprietary families (Segoe, Tahoma, SF, Lucida
+  Grande, MS Sans Serif) are named first and used **only when the user has them**, never bundled. Free stand-ins come
+  from HM `programs.kurashi.fonts`, as Nunito today:
+
+  | stand-in | for | licence |
+  |---|---|---|
+  | Selawik | Segoe UI | to verify |
+  | Wine Tahoma | Tahoma | LGPL, to verify |
+  | W95FA | MS Sans Serif | to verify |
+  | Press Start 2P | SNES pixel type | OFL |
+  | PixelMplus | ja pixel type | M+ licence |
+  | Misaki | ja 8 × 8 | to verify |
+  | Libre Franklin | XP "start" | OFL |
+  | BIZ UDPGothic | ja UI | OFL |
+  | M PLUS 1p | ja thin | OFL |
+  | Fira Sans | Trebuchet MS | OFL |
+  | DejaVu Sans | Lucida Grande | free |
+
+  Every licence is checked in the card before any font is installed by default.
+- **ja chain per look:** `theme.typography.family_jp` (exists for kami) gets set by each look as listed per style.
+
+### Focus ring
+`FocusRing.qml` reads `decor.focus.*`:
+- `dotted`: 1 px dotted, inset (9x, XP, 7).
+- `double`: 2 px outer + 1 px inner contrasting ring (fluent).
+- `halo`: 3 px outside, 50 % accent (Macs).
+- `ring`: today's 1 px.
+
+Focus-visible only, as today.
+
+### Motion kinds
+`motion.kind` (`timed | spring | none`, K74) gains `stepped`. `motion.steps` (frames at 60 Hz) quantises every
+timed animation, for snes.
+
+New look keys let a look carry its own timed curves and times. `theme.motion.open_curve` and `open_ms`, with the same
+pair for close and fast, are the K74 tokens that become look-settable; today they are fixed to Caelestia's. Fluent's
+values are [P] above; the Macs' are to verify.
+
+`reduce_motion` beats all of them: no slides, no steps, crossfades of `quick` at most.
+
+### Lock faces
+- **Config.** `lock.face` = `follow` (default: the look's `lock` slot) | `plain` | `<face name>` (offers from the
+  shipped faces). Provenance is shown as usual. This is the card's "toggle to keep the plain one".
+- **Contract** (`components/lock/FaceBase.qml`):
+  - **In:** `lock` (runtime.lock), `clock`, `media`, `remainingMs`, `user {name, avatar}`, `primary` (this output
+    shows the field), `capsLock`, `fingerprint`, `asideSlot` (the `lock.aside` mod slot).
+  - **Out:** `submitted(secret)`, `cancelled()`.
+  - **Every face renders:** clock, date, user, password field (echo off; on for PAM questions with `prompt_echo`),
+    PAM follow-up prompts, info/error messages, busy, the retry countdown, Caps Lock, fingerprint, media
+    (optional), the aside slot, and "daemon disconnected".
+  - **Behaviour:** keyboard only, with the field focused on the first frame. A key typed on a two-stage face's first
+    stage reaches the field. Strings come from `lockui` keys in en and ja.
+  - **Ma:** one paint per size and colour; motion one-shot; nothing while unlocked (the surface does not exist).
+- **Multi-output.** The field is on one output, the focused one (or the pointer's, to verify which niri reports).
+  The others show the face's ground and clock, as Windows and macOS do. The plain face may keep the field
+  everywhere.
+- **Greeter.** `greeter/GreeterView.qml` hosts the same face. The theme cache it reads carries `decor.lock` and the
+  face's tokens. The greeter adds the user and session choosers and power actions in a strip that the face exposes
+  (`extras` area). Without a cache it uses `plain`.
+- **The plain face.** Today's `LockContent` becomes `PlainFace.qml` unchanged, so kanso stays pixel-identical.
+
+### Sounds (optional, off by default)
+- **Keys.** `theme.sounds` (bool, default off) and the look's `[slots] sounds = "<set>"`.
+- **Where.** The daemon plays a cue (rule 1: no Process in the frontend) through `pw-play` (a short process per
+  cue). Nothing is loaded or running while off.
+- **Cues:** `unlock`, `error`, `notify`, `open` (launcher), `close`. Never at login with the screen locked, and never
+  over the user's own event-sound setting (to verify a source for that setting).
+- **Assets.** Every sound is original and synthesised, CC0, under `sounds/<set>/`, ≤ 50 KiB per cue.
+
+### Companion profiles
+These are the "with layout" path: `profiles/win95-desk.toml`, `luna-desk`, `aero-desk`, `fluent-desk` (bar bottom,
+launcher module first, tasks, tray at end) and `aqua-desk`, `vibrancy-desk` (bar top, launcher first, a dock at the
+bottom). Settings' style card links "Also use its layout" to the profile review (`docs/ux/looks.md`).
+
+### Tests
+`frontend/test-styles.sh [style…]`:
+- **Shoots** every style × {bar, a Stage card, launcher, sidebar, a toast, quick settings, lock (rest, error, caps
+  lock)} into `frontend/shots/styles/<style>/`, on **nested niri** (`tools/bench/niri-sandbox.sh`, the lead platform)
+  with motion off.
+- **Pixel checks:**
+  - the bevel's four lines at a known block (exact colours);
+  - the title bar's height and its gradient's ends;
+  - the start dress present;
+  - the lock field focused (a typed char lands);
+  - kanso and washi identical to before W53 (`tools/bench/block-identity.sh`).
+- **Sheet:** one sheet per family for the lead's review against this brief.
+- **Bench:** `just bench` idle frames = 0 per style at rest, and PSS per style vs kanso.
+
+### Contracts touched (for the lead: DECISIONS + PROTOCOL + fixtures; subagents list them in CONTRACT-CHANGE)
+1. **Look file:** `[slots]` gains title, start, tray, menu, scroll, tooltip, lock, sounds; a new `[decor]` table
+   (validated keys); `theme.typography.pixel`/`pixel_step` and the motion curve keys join `LOOK_KEYS`.
+2. **Palette roles:** title…, bevel…, info, on_info, desk (derived when absent).
+3. **Chrome enum:** `bevel`; tokens `bevel.*`; the K42 high-contrast amendment.
+4. **Theme tokens:** `decor.<slot>`, `decor.<key>`.
+5. **Schema:** `lock.face`, `theme.sounds`.
+6. **`runtime.lock`:** `caps_lock` (bool) and `fingerprint {available, state}`. Today neither exists. Caps Lock comes
+   from the lock surface's keyboard modifiers, so it may be frontend-local (Qt does not expose locked modifiers:
+   to verify), else the daemon's seat. Fingerprint state comes from PAM/fprintd.
+7. **Bar module `launcher`** (a toggle the `start` slot dresses): a new module id (K72).
+8. **`svc.workspaces`:** the focused app's display name (aqua and vibrancy menu bar). Task titles for 9x/XP task
+   buttons: K44 omitted titles; a privacy and space choice to revisit (see BACKLOG).
+9. **`svc.sound`** (or an intent `sound.cue {name}`) for cues.
+
+### Budget
+- **Idle:** 0 frames for every style at rest (`just bench`).
+- **Memory:** each style's extra components (title, start, tray, menu, scroll, tooltip) ≤ the current decor frame
+  allowance. BENCH: untextured frame +2…5 MiB at one output, measured fresh. Measure per style against kanso at 1 and
+  2 outputs.
+- **Lock face:** costs nothing while unlocked; while locked ≤ today's lock + 5 MiB (to set from the first
+  measurement).
+- **Sounds:** 0 bytes while off.
+
+---
+
+## Card split
+
+| card | scope | owned paths | acceptance (one line) |
+|---|---|---|---|
+| **W53.0-system** (first; Opus) | slots + `[decor]` + roles + `bevel` chrome + `sunken` + hosts (Title, Start dress, Tray well, Menu/Scroll/Tooltip styles) + FocusRing styles + pixel type keys + `stepped` motion + lock faces (FaceBase, PlainFace, `lock.face`, greeter hosting, caps lock/fingerprint) + sounds plumbing + `launcher` module + test-styles.sh | `crates/kurashi-theme/src/{appearance,tokens}.rs` (+ schema, migration), `crates/kurashi-ipc` (lock fields, fixtures), `kurashid` lock/sound bits, `frontend/components/Block.qml`, `FocusRing.qml`, `frontend/components/decor/` (hosts, defaults), `frontend/components/lock/{FaceBase,PlainFace}.qml`, `frontend/surfaces/Lock.qml`, `greeter/GreeterView.qml`, `frontend/components/modules/Launcher.qml`, `frontend/test-styles.sh`, `i18n/{en,ja}/{lockui,appearance}.toml`, `docs/{PROTOCOL,DECISIONS,DESIGN-SYSTEM}.md` | `test-styles.sh` shoots all styles × 7 surfaces on niri; kanso/washi pixel-identical to main; a look naming `chrome = bevel` and `title = "caption"` draws both with no name compare (grep test); `just check` green |
+| W53.1-win9x | win95 | `{looks,styles,palettes}/win95.toml`, `frontend/components/decor/{title,start,tray,menu,scroll,tooltip}/<win95 parts>`, `frontend/components/lock/LogonFace.qml`, `profiles/win95-desk.toml`, its i18n keys, `frontend/shots/styles/win95/` | its sheet row matches §1; bevel pixel check exact; `test-styles.sh win95` green; PSS within budget |
+| W53.2-xp7 | luna, aero | same pattern for luna + aero; `lock/{Welcome,LogonGlass}Face.qml`; `profiles/{luna,aero}-desk.toml` | sheet rows match §2–3; balloon tail + caps-lock balloon shot; blur regions follow cards |
+| W53.3-fluent | fluent (new style + palette + look) | `{looks,styles,palettes}/fluent.toml`, decor parts, `lock/CurtainFace.qml`, `profiles/fluent-desk.toml` | sheet row matches §4; curtain → sign-in with a typed first char kept; dual focus ring shot |
+| W53.4-macos | aqua, vibrancy (new) | `{looks,styles,palettes}/{aqua,vibrancy}.toml`, decor parts, `lock/{LoginWindow,Sonoma}Face.qml`, `profiles/{aqua,vibrancy}-desk.toml` | sheet rows match §5–6; the pulse stops after 3 cycles (idle frames 0 after 5 s) |
+| W53.5-consoles | snes, ps2 | their toml, decor parts, `lock/{TitleScreen,Dashboard}Face.qml`, `sounds/{snes,ps2}/` | sheet rows match §7–8; stepped motion frames counted; pixel grid crisp at 1.5 |
+| W53.6-fiction | kawaii, yorha, souls, hallownest | their toml, decor parts, `lock/{PastelOs,Yorha,Bonfire,Hollow}Face.qml` | rows of §9 met; no QML warnings |
+| W53.7-japanese | washi, kami, sekai | their toml, menu/scroll parts | §9 rows; washi pixel-identical where §9 says "fine" |
+| W53.8-modern | kanso, material, glass, terminal | their toml, menu/scroll/tooltip parts, `lock/TtyFace.qml` | §9 rows; kanso identical |
+
+W53.1–W53.8 run in parallel worktrees after W53.0 merges. Haiku is fine for W53.6–8 (clear scope), and Opus for
+W53.0, W53.2 and W53.4 (judgement on metrics). Each family card verifies its "to verify" rows with a cited screenshot
+URL or a VM capture before its shots are reviewed.
+
+## Definition of done
+- Every in-scope style reads as its inspiration at a glance on bar, Stage card, launcher, sidebar, quick settings,
+  toast and lock (the lead's sheet review against §1–8). Every other look meets its §9 row.
+- No renderer compares a look, style or slot name (grep test in W53.0).
+- The bevel and caption are pixel-exact at scale 1 and crisp at 1.5.
+- Keyboard-only use of every face and menu; focus visible in each look's own focus style.
+- High contrast, reduced motion, reduced transparency and large text each shot once per family.
+- ja shots per family (the lock and the launcher).
+- 0 idle frames per style; PSS within the budget above; sounds off = nothing loaded.
+- Settings' style cards show true previews (the sheet's thumbnails).
+- Every "to verify" in this brief is resolved with a citation or carried to BACKLOG.
+- BACKLOG rows for every "later".
+
+## Later (BACKLOG candidates)
+- A liquid-glass material (macOS 26 Tahoe; K77 keeps "glass" free) and a `tahoe` style on it.
+- A Windows 10 style (square corners, bottom-left lock clock) as a fluent sibling.
+- Windows 95 proper (flat navy caption) as a palette of win95.
+- XP Olive/Silver and 7 colourisations as palettes.
+- Task titles in 9x/XP task buttons (K44 privacy choice).
+- Hot-track glow from app-icon colours (aero).
+- The Aqua genie.
+- 98's menu slide animation.
+- PS2 clock-screen orbs as a desk card.
+- Per-style cursor themes (out of the shell's reach today).
+
+## Design questions for the user
+1. **Lock face default.** (a) `follow`: each style brings its own lock face, and a switch keeps the plain one;
+   (b) `plain` by default, the style's face opt-in. *Recommend (a)*: the card asks for each style's own lock, and the
+   switch is one click.
+2. **Start button and taskbar layout.** (a) The style only dresses modules you already have; the taskbar or menu-bar
+   layout comes from an optional companion profile ("Also use its layout"); (b) applying a style also moves the bar
+   and adds a start button. *Recommend (a)*: K45 keeps layout out of looks, and the user said layout must stay the
+   same when styles change.
+3. **Title bars on our cards.** (a) Windows-era and Aqua styles draw a title bar with a working × only (no
+   minimize/maximize, since they would do nothing); (b) no buttons, only the title; (c) the full set as decoration.
+   *Recommend (a)*: it reads as the OS and stays honest (Shōjiki). Note that K75 removed Close buttons from click
+   popups; this brings back only the title bar's own ×.
+4. **Fonts.** (a) Install the free stand-ins (Selawik, Wine Tahoma, W95FA, Press Start 2P, PixelMplus…) through
+   Home-Manager by default, licences permitting, and use your own Segoe, Tahoma or SF when installed; (b) install
+   nothing extra, so styles fall back to what the system has. *Recommend (a)*: without them win95 and snes cannot
+   look right, and nothing proprietary is ever bundled.
+5. **Which macOS eras.** (a) aqua = Jaguar–Tiger pinstripes and a new `vibrancy` = Big Sur–Sonoma; Tahoe's Liquid
+   Glass waits for the glass material; (b) aqua = Tiger only (no pinstripes, brushed metal), plus vibrancy; (c) skip
+   vibrancy and follow Tahoe now. *Recommend (a)*: the two most distinct eras, and both are buildable on today's
+   materials.
+6. **Sounds.** (a) Ship original cue sets per style, off by default, one switch in Settings; (b) no sounds in W53
+   (later). *Recommend (a)* for snes and ps2 only in W53 (where sound is half the identity), the Windows and Mac sets
+   later.
+
+## Decided (user, session 18 — K80)
+1. **Lock face follows the style** (`lock.face = follow | plain | <name>`, default `follow`); one switch keeps the plain one.
+2. **Styles only dress** the modules there are; an OS-like layout (start button, taskbar, menu bar) comes from an
+   optional companion profile ("Also use its layout"). Layout never changes by itself (K45).
+3. **Title bars on Stage cards: the full set of buttons, with a switch `off | close only | full`** (user). Each button's
+   action is configurable; defaults: **close** closes the card as usual, **maximize** opens it full screen, **minimize**
+   opens the app's own menu where one exists — the menu a left click on its bar entry shows (the user's example: Steam's
+   tray menu with its entries, separators and the key hints "↑ ↓ choose · → ← submenu · Enter run · Esc close") — only
+   where that fits the card and makes sense; otherwise minimize hides the card (back to the island).
+4. **Fonts:** Home-Manager installs the free stand-ins by default (licences permitting); the user's own Segoe, Tahoma or
+   SF win when installed. Nothing proprietary is bundled.
+5. **macOS:** aqua = Jaguar–Tiger pinstripes, and a new `vibrancy` = Big Sur–Sonoma; Tahoe's Liquid Glass waits for the
+   glass material.
+6. **Sounds: every style supports an original sound-cue set** (a sound profile per style, off by default, one switch);
+   styles with a direct reference — snes, ps2, yorha (NieR), the Windows styles, the Mac styles and the like — ship cue
+   files of their own (original sounds in the spirit of the reference, never the trademarked originals).
+7. **High contrast keeps the bevel** (amends K42): a style's 3D borders stay, in high-contrast colours, as Windows' own
+   high-contrast themes keep their 3D edges.
+8. **The design system grows to fit the styles, never the other way round** (user, session 18): wherever the system
+   keeps a style from a 1:1 replication, extend it. Each style is a personality and can bring its own: **animation
+   styles** (the way things move: slide, zoom, fade, flip, stepped/pixel, rubber-band …) and **motion curves** (its own
+   béziers and timings), **fonts**, **symbols/icons** (icon set and icon sizes), **textures**, **sounds**, **window
+   decorations** (title bars, borders, bevels), **frame decorations**, **OS colours**, **material effects** (blur,
+   bloom, glass, glow), **buttons, sliders, toggles, menus, scroll bars, tooltips**. All of it as slots and tokens in
+   decor packs (rule 4), so a new style is data, not code — the system stays extensible and modifiable.
+9. **Every style ships a Layout Preset** that rearranges the shell to read as the original (taskbar at the bottom with a
+   start button for the Windows styles, a menu bar on top and a dock for the Mac ones, …) — offered with the style ("Also
+   use its layout", decision 2), never applied by itself.
+10. **Windows styles get a start button** (a bar module) that opens the shell's launcher/console in a start-menu skin of
+    the style; the Mac styles the equivalent (an Apple-menu-like mark, original, opening the launcher/Spotlight skin).
+11. **Cursor personality, off by default:** a style may bring its own stylised **pointer cursor** (applied through the
+    compositor's cursor theme, e.g. a niri config include written by kurashid as for keys) and a **cursor decoration**
+    — a trail as in osu!, sparkles, a ring — drawn on W58's effects sheet (I312) from `svc.pointer`. Both switches are
+    off by default.

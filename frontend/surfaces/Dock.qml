@@ -245,7 +245,9 @@ Scope {
             readonly property int bodyAcross: horiz ? bodyH : bodyW
             // Room for the soft shadow round the body (and, joined, for the fillets beside it), and the layout's inset from
             // the screen edge (the band, a bar, a gap: K71).
-            readonly property int room: Math.max(joinR + 2, Theme.softR > 0 ? Math.ceil(Theme.softR + Math.abs(Theme.softDy)) : 3)
+            readonly property int room: Math.max(joinR + 2, Theme.softR > 0 ? Math.ceil(Theme.softR + Math.abs(Theme.softDy)) : 3,
+                // W57: room for a floating dock's elevation (its reach at level 2), outside its input region.
+                !joined && Theme.elevationMode !== "off" ? Math.ceil(30 * Math.max(0.5, Theme.elevationStrength)) : 0)
             readonly property int edgeGap: inset
             readonly property int winW: horiz ? bodyAlong + 2 * room : bodyAcross + room + edgeGap
             readonly property int winH: horiz ? bodyAcross + room + edgeGap : bodyH + 2 * room
@@ -614,6 +616,13 @@ Scope {
                             width: dock.bodyW
                             height: dock.bodyH
                             readonly property real inset: 0
+                            // W57 (K78): a floating dock's elevation (joined, it is one sheet with the band).
+                            Elevation {
+                                visible: !dock.joined
+                                anchors.fill: parent
+                                radius: Theme.rLg + 4
+                                level: 2
+                            }
                             // Floating: the look's block (chrome, shadow, relief), a gap off its edge.
                             Block {
                                 anchors.fill: parent

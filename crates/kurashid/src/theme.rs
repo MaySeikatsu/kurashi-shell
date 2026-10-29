@@ -217,6 +217,9 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
             v @ ("text" | "accent") => v.into(),
             _ => "outline".into(),
         },
+        elevation: s(store, "theme.material.elevation"),
+        elevation_strength: f(store, "theme.material.elevation_strength", 1.0),
+        elevation_pointer: b(store, "theme.material.elevation_pointer"),
         ..Axes::default()
     };
     let chain = families("theme.typography.family");
@@ -384,6 +387,27 @@ fn shadow_tokens(store: &ConfigStore, t: &mut serde_json::Map<String, Value>, in
         {
             t.insert(k.into(), v);
         }
+    }
+    // W57 (K78): the surfaces' elevation falls along `elevation.dir` = [x, y, length factor]: away from the light in
+    // effect under `follow` (the light is shell-wide: any chrome, any material; longer when it stands low), else along
+    // the shadow direction. The pointer's lamp turns it in the frontend (`elevation.pointer`).
+    let follow = t.get("elevation.mode").and_then(Value::as_str) == Some("follow");
+    let light_dir = t
+        .get("light.dir")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(Value::as_f64).collect::<Vec<f64>>())
+        .filter(|v| v.len() == 3)
+        .map(|v| [v[0], v[1], v[2]]);
+    let (u, k) = light_dir
+        .filter(|_| follow)
+        .and_then(kurashi_theme::tokens::shadow_from_light)
+        .unwrap_or_else(|| (kurashi_theme::tokens::shadow_unit(spec.angle), 1.0));
+    let r = |v: f64| (v * 1000.0).round() / 1000.0 + 0.0;
+    if !input.overrides.contains_key("elevation.dir") {
+        t.insert(
+            "elevation.dir".into(),
+            serde_json::json!([r(u[0]), r(u[1]), r(k)]),
+        );
     }
 }
 
