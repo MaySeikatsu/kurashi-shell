@@ -82,9 +82,18 @@ pub enum Shape {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Material {
     Solid,
+    /// See-through at `opacity`, blurred behind when `blur` is on (the daemon forces `blur` off if unsupported).
+    /// Schema v7 (I297): this is what `glass` was; translucent without blur is the same with the switch off.
     Translucent,
-    /// Translucent plus a blur request (the daemon forces `blur` off if unsupported).
-    Glass,
+}
+
+/// `theme.frame_outline` (I303): `Auto` takes the chrome's own default (`tokens::build`'s chrome data).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum FrameOutline {
+    #[default]
+    Auto,
+    On,
+    Off,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -120,6 +129,8 @@ pub struct Axes {
     pub shape: Shape,
     /// The one corner radius (K74), px.
     pub radius: f64,
+    /// `theme.shape.squircle` (I300): 0 nearly round … 1 nearly square; the `shape.squircle_k` token.
+    pub squircle: f64,
     pub material: Material,
     pub opacity: f64,
     pub blur: bool,
@@ -127,6 +138,7 @@ pub struct Axes {
     pub motion_speed: f64,
     pub density: Density,
     pub chrome: Chrome,
+    pub frame_outline: FrameOutline,
     /// Type scale multiplier (accessibility `large_text` raises it).
     pub type_scale: f64,
     pub font_chain: Vec<String>,
@@ -138,13 +150,15 @@ impl Default for Axes {
         Axes {
             shape: Shape::Rounded,
             radius: 18.0,
-            material: Material::Glass,
+            squircle: 0.77,
+            material: Material::Translucent,
             opacity: 0.82,
             blur: true,
             motion: MotionProfile::Expressive,
             motion_speed: 1.0,
             density: Density::Regular,
             chrome: Chrome::Flat,
+            frame_outline: FrameOutline::Auto,
             type_scale: 1.0,
             font_chain: ["Inter", "Noto Sans", "sans-serif"]
                 .map(String::from)

@@ -129,10 +129,10 @@ pub fn preview(
                 }
             }
             "theme.material.kind" => {
-                input.axes.material = match s {
-                    "solid" => Material::Solid,
-                    "glass" => Material::Glass,
-                    _ => Material::Translucent,
+                input.axes.material = if s == "solid" {
+                    Material::Solid
+                } else {
+                    Material::Translucent
                 }
             }
             "theme.material.opacity" => input.axes.opacity = f,

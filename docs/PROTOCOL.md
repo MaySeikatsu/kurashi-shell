@@ -81,7 +81,11 @@ fillet goes. Fixture: `fixtures/ipc/server/snap_runtime_layout.json`.
   (`frame | bar:<edge> | edge`; absent while floating), `radius` (the join's fillet and the joined dock's corners: for
   dynamic the hole's radius — `frame.radius` on a framed output, else `join_radius` (K74) —, 0 for connected).
 - `sidebars.<right|left>`: `draw` + `draw_source`, `visibility`, `width`, `inset`, `reserve` + `reserve_source`
-  (+ `reserve_reason`), `span.start` / `span.end` (the column's free length along its side: px from the top and bottom
+  (+ `reserve_reason`), `reserve_open` (schema v7, row 558, I301: px from the screen edge, like `reserve` — the zone the
+  edge keeps while the sidebar is out: `inset + width` for `reserve = on` with `visibility` `hover` or `empty_desktop`,
+  whose `reserve` is 0 at rest and which take no part in `edges.<side>.reserve` and `holder`; 0 otherwise. Hover is
+  frontend-local, so the frontend applies it: while the sidebar is out the edge's `holder` keeps
+  `max(edges.<side>.reserve, reserve_open)`, and with `holder: none` the sidebar holds that zone itself), `span.start` / `span.end` (the column's free length along its side: px from the top and bottom
   edges), `joins.start` / `joins.end` (what each end meets: `frame | bar:<edge> | edge | none` — `none` is a free end with
   rounded corners, under a floating bar; absent while floating), `radius` (as the dock's: the joined column's fillets
   and free corners).
