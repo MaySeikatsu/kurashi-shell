@@ -255,6 +255,8 @@ PanelWindow {
                                     required property var modelData
                                     item: modelData
                                     width: body.width - 2
+                                    // Concentric with the centre's card across its padding (I269).
+                                    radius: Theme.nested(card.radius, Theme.pad + 1)
                                     swipeable: false
                                     onDismissed: Store.act("notify.dismiss", { id: item.id })
                                     onInvoked: key => Store.act("notify.invoke", { id: item.id, key: key })
