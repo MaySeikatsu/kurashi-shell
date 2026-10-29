@@ -17,6 +17,58 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-29 — session 18 (machine A): the kami fillet, today's bugs, corners, the pointer light, elevation and styles briefs — K78–K80
+**State:** `main` = fa95f783 + b35c5d19 (docs), **not pushed** since 5d15780e (the s17 merge was pushed). `just check` 1256
+green; `nix build .#kurashi` ok; the NixOS module evaluates with `programs.kurashi.pointerLight.enable` on (niri-849c576)
+and off (niri-26.04). Suites of the merge set green alone; `settings/test-sheet.sh` spotlight fails (I314, main too).
+Open branches: **`feat/s18-elevation`** (worktree `../ks-s18`, rebased on main): W57 slice 1 (e3ed90f9), the W53 brief
+(`docs/ux/styles.md`) and K80 — its suites have **not** run yet. **W55** runs as an agent in `.claude/worktrees/`
+(branch `worktree-agent-…`); its timings overlapped the lead's 19:32–20:05 suite run, so re-run its suites alone before
+accepting anything (I319). `feat/s18-keycap-gap` is merged (can be deleted).
+
+**Merged this session:**
+- s17 branch finished: kami's fillet ink came from the sketch's second pass drifting to one side (0.7–1.3 px) across
+  the column's hidden edge segment, and open lines overshooting their ends; the light pass is now one path (the column's
+  first frame stalled: sketch doubled every pen canvas). I315 = a residual later first frame under kami.
+- I305 (user: a gap): the strip's rule breaks under groups floating with a shadow and under the island pill.
+- I306: the mock's theme document = the real resolved token set under its Wa-iro colours.
+- W56: `RoundBox` (+`RoundPen`) — squircle corners where visible boxes were Rectangles (Stage cards, phone, dock
+  tooltip, notification/desk cards, Settings' SectionCard/navigation/Button/TextField/Select/Segmented/ChoiceSwitch;
+  linked into `settings/components`); relief.frag's box is a superellipse through the cubic's midpoint; SquircleRect
+  strokes its border on the centre line (no speck where a corner meets its side). I269: notification cards concentric in
+  the sidebar and the centre; desk and media art nested.
+- W58 (K79): niri main has cursor sessions (niri#4554) → no patch. `svc.pointer` (kurashid, `kurashi-compositor/src/
+  pointer.rs`, refcounted, ≤ 1 patch/16 ms, nothing at rest; waits for a seat pointer); Light prefers it, its sensors
+  stay the fallback; Settings' light dial says which. Flake input `niri-main` (849c576) used by
+  `programs.kurashi.pointerLight.enable` (mkDefault `programs.niri.package`). Measured: niri main end to end, 26.04
+  `pointer.no_protocol`, sway globals present (headless seat has no pointer).
+
+**Decisions:** K78 (elevation: the shell draws all, light shell-wide, pointer-follow as an option, band casts key-only
+onto windows, soft/keycap on by default, separate strengths), K79 (cursor sessions from niri main, fallback kept, back to
+a release asap — I316), K80 (styles: lock faces follow the style, dress-only + opt-in layout preset per style, title bars
+with configurable buttons — minimize may open the app's bar menu —, free font stand-ins, sound sets for every style,
+high contrast keeps bevels, the design system grows per style incl. animation styles/curves, icons, materials, bloom;
+a start button for Windows styles; cursor theme + trail per style, off by default — I317).
+
+**Next steps (ordered):**
+1. Ask the user to push `main`; ask them to re-check **I296** (sidebar band with blur) and **I298** (dock texture after a
+   Sheet change) on their niri session, and for their config/steps for **I309** (not reproduced on nested niri).
+2. W55: when the agent reports, re-run its suites alone (no other runner active, I319), diff its `fail`/`check` lines
+   against main (nothing weakened), then merge. Fix I319 (a per-runner sandbox suffix) with or right after it.
+3. W57: run `just suites --changed main` on `feat/s18-elevation`, merge slice 1; then slice 2: the dock, toasts, the
+   launcher, polkit; the bars and the frame band (the hole's inset shadow in screen coordinates, key-only onto windows,
+   window margins outside input/blur/exclusive zone); Settings' live preview + inert reasons; idle 0 frames with
+   elevation on (frame idle check, bench); shots per mode × chrome on niri. Check `Elevation.centre` while a column slides
+   with `elevation.pointer` on (it is re-evaluated only on Light changes).
+4. W53: write the cards from the brief's split (W53.0-system first: slots, `[decor]`, bevel chrome, lock faces, sound
+   plumbing, layout presets, start button, cursor personality), then the style families in parallel worktrees.
+5. Later: I312 effects sheet (cursor trails build on it), I313 lighting as a module, I304 layer order, I315, I318.
+
+**Risks:** an unreleased niri for pointer-light users (check releases, I316); elevation's two RectangularShadows per
+surface are unmeasured against BENCH; the W53 wave is large — keep the system card first.
+
+---
+
 ## 2026-10-29 — session 17, part 3 (machine A): outlines in general, Settings on the shell's Theme, cards for corners, shadows, the light
 **State:** branch `feat/s17-frame-ink` (on top of `main` 0e0f3adb+) is **not merged**. Its full check run finished:
 `just check` green (1254 tests), 13 of 15 suites green (the merge set + pen, look, settings texture). Two failed alone too:
@@ -147,203 +199,3 @@ proposals.
 2. W53 (I289): UX brief `docs/ux/styles.md` first, then the system card, then one card per family (the card says how).
 3. I290–I293 if the user wants faster builds (they asked for ideas; nothing changed in `nix/package.nix` yet).
 4. The rest of I269 (Stage views, desk tiles), I288 (squircle leftovers), I280 (style vs profile look), I284/I285 previews.
-
----
-
-## 2026-10-28 — session 16 (machine A): screen corners follow the radius; the user's live check (blur, popups, motion, click-away, mods, seasons) — K74 addendum, K75
-**State:** `feat/w47-screen-corners` and `feat/w48-polish` merged into `main` (`--no-ff`); `main` pushed after the first
-merge (user's go) — push the second when the user agrees. `nix build .` run on the merged `main` so `nix run .` starts
-without a compile (until a tracked file changes). No subagents (user's rule, session 15–16). The old `/tmp/kurashi-sb-*`
-leftovers were deleted (user's go). Lead build dirs `~/.cache/kurashi-agents-target/{lead,lead-mods}` kept; scratch
-logs in `/tmp/kurashi-lead-logs/` (dev.sh: a sandbox with the user's own config, bursts of frames).
-
-**User decisions (session 16):** screen corners follow the radius by default, with a toggle (done: schema v5); nested
-concentric controls are next (I269); seasonal tint — make it visible and say what it does (done); squircle — implement
-real superellipse corners (**open, next**); the Media mod's dead page — gone; blur — must follow its switch (done); click
-popups need no Close button, a click elsewhere or Esc closes (done); popups must share their origin's colour and texture
-(done); don't dig into "styles broken" now (I280 holds the finding: applying a style clears the user's look, and the
-active profile's look shows through).
-
-**Merged:**
-- K74 addendum (schema v5): `theme.shape.screen_corners_follow` (default on) → `runtime.layout.screen_radius` = R, else
-  `screen_corners`; migration `v4_to_v5` keeps a chosen size. Probes in test-dock/stage/modqml/mods-live skip the corners.
-- K75: blur gated on glass + switch + compositor, regions follow the drawn corners (bar, frame, sidebar, dock, edge groups,
-  cards, toasts); popups (Stage cards, launcher, notification centre, peek, dock tooltip/menu, the phone views) are the
-  bar's sheet (surface colour + relief); sidebar/dock rule openings every frame, the dock starts on its first presented
-  frame; `ClickAway` (one top-layer catcher per output while something is open) and no Close button; native mods whose
-  code is not linked are not offered (media manifest removed, easter-eggs hidden, I286); the seasons have hues.
-
-**Suites (session 16, on the branch):** `just check` ✅; stage, quick-sections, dock, sidebars, bars, edge-modules, frame,
-polkit, island-join, settings ✅. test-tray-bt ❌ at its Bluetooth step — fails on main too (I287). test-modqml's
-mod-panel step and test-morph fail on main too (I274).
-
-**Next steps (ordered):**
-1. Ask the user to check on niri: glass blur at rounded corners and joins, the sidebar's band while it slides (image 6 of
-   session 16 was not reproduced on sway), the dock's reveal, popups' colour/texture, click-away.
-2. Squircle (I281): real superellipse corners for `corners = squircle` — the shared shapes (Block, ColumnShape,
-   MorphShape, BarMorph, FramePieces' arcs, Rectangle-based controls via a shape path), concentric with K74's radii.
-3. I269: concentric radii for nested controls (buttons, toggles, tiles, the Settings navigation).
-4. I282 dock on the top edge (grows out of the bar, stays aligned while either spawns); I283 a per-side sidebar mode
-   setting (pages with tabs / one column of sections).
-5. I284/I285 window and workspace previews on hover — UX brief first; niri 26.04 offers no per-window capture to clients
-   (stills through niri's IPC are the route).
-6. I280 styles (low priority per the user), I287 tray-bt, I274 mod panel gate, I286 easter-eggs.
-
-**Open decisions / risks:** blur shapes and the sidebar band could only be verified by loading and logging (sway has no
-`ext_background_effect`); the fillets' wedges are not blurred under glass (small, noted in K75). Washi's R 9 still gives a
-1 px hole radius (session 15's open point).
-
----
-
-## 2026-10-28 — session 15 (machine A): the frame under a hover bar, one corner radius, the expressive motion — K74
-**State:** `feat/w46-frame-morph` merged into `main` locally (`--no-ff`), **not pushed** (push when the user agrees). No subagents this session (user's rule).
-Lead build dirs `~/.cache/kurashi-agents-target/lead` and `lead-mods` kept. Leftovers the lead could not remove (denied):
-`/tmp/kurashi-sb-{dev,lead-sbars,lead-w44-int,w44-*,lead-frame}` (≈ 3.5 GB, no processes but `dev`), and the handover's
-sandbox `dev` still runs (sway pid 2347498) — stop it with `tools/bench/sandbox.sh stop dev`, then delete the dirs.
-
-**User decisions (session 15):** the frame must connect to the screen edge under a hover bar; its outline must run on
-smoothly into the bar and every emerging component; morphs in dynamic should look and feel like Caelestia's (grow out of
-the border, fillets that track the motion, Caelestia's curves), the springs staying as a setting of their own; **one
-radius setting** that drives the frame, the joins, buttons, toggles and other controls, with related radii (inner =
-outer − the distance between them; a square look squares the frame too); the screen's black corners are the shell's
-topmost layer. Ideas noted: pixelated and straight-line joins (I270).
-
-**Built (branch):**
-- Frame: a docked hover bar keeps the band; the frame's fillets/arcs/rules follow a sliding bar on all four edges
-  (`IslandGeom.lifts`, FramePieces `lift*`, `cover`/`coverRule`); bands run the full width (corner hole above a docked
-  side bar fixed); a side bar's rule ends where its fillet does; columns joined to a hover bar follow it to the band;
-  rules opened and arcs hidden where a joined neighbour reaches; screen corners on the overlay layer; Stage cards keep
-  clear of bands/fillets/side bars; joined edge-module groups open the band's rule (I258 row 556) and take the hole radius.
-- K74 / schema v4: `theme.shape.radius` (px) replaces `radius_scale` (migration + test); `layout.frame.radius` derived
-  (R − thickness on a framed output) for frame, dock, sidebars; expressive motion profile (default; calm looks moved)
-  with Caelestia's curves: `core/Glide.qml`, `core/ease.js`, MorphSprings and Sidebar timed paths; bar/column overshoot
-  widens inward. test-frame gained a `hover` scene.
-
-**Next steps (in order):**
-1. Push `main` (the user's go), then Live check on the user's niri (I219) — now including a hover bar with the frame, R 18/24, and the expressive feel.
-3. I269 (concentric nested controls, Settings nav; screen corners following R: ask the user), I273 (island/fades on the
-   curves if the user wants), I271 (side bar under a top edge's module zone), I268 (acrossMade loop).
-4. The rest of session 14's list (I256–I267, I245, budgets I246/I261/I254/I272).
-
-**Open decisions:** should `theme.shape.screen_corners` follow R by default? Washi's R 9 makes its frame's inner corners
-1 px (R − 8): fine by the rule, or should washi's R go up?
-**Suites (session 15):** `just check` ✅; test-frame (washi, terminal, incl. niri) ✅; test-sidebars ✅;
-test-stage ✅; test-dock ✅ (fillet check follows the layout radius); test-bars ✅; test-edge-modules ✅; settings/test.sh ✅;
-test-island-join ✅; test-morph ❌ at the sysmon peek — same on main's frontend, I274. A regression found and fixed on the
-way: Glide's spring path started a SpringAnimation by hand, which ignores a new target while running (groups and bars
-stayed out); it is a Behavior now.
-
----
-
-## 2026-10-26 — session 14 (machine A): the layout system — screen frame, draw modes, bars on every edge, edge modules, the timer — K71–K73, waves 43–45
-**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dirs
-`~/.cache/kurashi-agents-target/lead` (52 GB) and `lead-mods` (a `--features test-mods` build) are kept. The disk filled to
-100 % mid-session (old `/tmp/kurashi-sb-*` sandboxes ≈ 51 GB, agent target dirs ≈ 20 GB each): delete each card's target
-dir and its sandboxes right after its merge, and start cards with `CARGO_INCREMENTAL=0`. Nix GC'd the nixpkgs source
-while the disk was full; `nix develop --option eval-cache false` refetched it. A sandbox `dev` (sway pid 2347498,
-`/tmp/kurashi-sb-dev`) a W45 agent started by mistake may still run — the user was asked to stop it
-(`tools/bench/sandbox.sh stop dev`). The user's NixOS/HM config needs no change for schema v3 (it sets only
-`idle.enabled = false`).
-
-**User decisions (session 14):** draw preset **dynamic**; the frame reserves space by default and can be set not to;
-sidebars **slide in from their screen edge in every mode** (replaces W34's grow-from-the-button); **one bar per edge**
-(several per edge later, I221); I218 option (a) (small blocks share the window's paper grain), the rest of I216/I218 a
-refinement round; the live-session check deferred (I219); **I253 (a)**: a sidebar under a floating bar starts a gap below
-it in every draw mode (option (b), the bar shortening, only as an optional setting if cheap: I255).
-
-**Built and merged:**
-- Wave 43 (contracts K71–K73): schema v3 + `v2_to_v3` migration; `crates/kurashi-layout` computes `runtime.layout`
-  (frame bands, per-edge bars/zones/insets/holders/reserve, dock, sidebars, island, `unplaced`, `problems`) for kurashid
-  and the mock; actions `layout.toggle`, `layout.bar.move`, the `actions` query, `kurashi act --list`; the screen frame
-  (`surfaces/Frame.qml`); the timer/pomodoro mod with every K72 variant (row 500: ungated background jobs).
-- Wave 44: shared edge strips (`EdgeStrips`/`EdgeReveal`/`EdgeStripHost`); bars on every edge from the zones with every
-  bar item a module component (`components/modules/**`, `ModuleHost`), floating pill, always/hover/empty-desktop/hidden,
-  the docked bar carrying its frame strip; dock and sidebars in every draw mode, sidebars slide/hover/pin/drag-resize
-  (Ctrl+Left/Right), desk on both sides; Settings › Layout (screen diagram, zone lists, Move bar to, honest
-  "Automatic (…)", inert reasons, empty-bar warning).
-- Lead (rows 510/511/513/520/522/523/530/531): `layout.bar.move` keeps the destination's modules; `holder: bar` on a
-  framed edge a docked bar carries; a hidden bar is not the band; side bars get `span`; the mock answers `layout.toggle`;
-  `keys.bar_<edge>` / `keys.dock` (empty by default); `"*"` documented as an alias; I253 (a) (`joins: none`).
-- Wave 45: W44-follow (the Stage grows from its own bar under any bar; one reveal model — EdgeHold folded into
-  EdgeReveal, no more out/in loop on a resting pointer; frame strips stay `Ignore`; openings per side; the joined dock's
-  paper) and W45-edge (edge module groups on bar-less edges in every visibility × draw, the standalone island with
-  transient faces, peeks from the host's place, keyboard path, the clock's K72 row; a click on the bar's clock now opens
-  the island clock card).
-
-**Next steps (in order):**
-1. Rerun the deferred suites on main (I267) on a quiet machine; fix what fails first. `SIDEBARS_PARTS=bars
-   frontend/test-sidebars.sh` failed on the W44-follow branch (end column stacking) but **passed on main** after the
-   merge (lead rerun, all checks) — treat it as a load-timing flake unless it recurs.
-2. The live-session check on the user's niri (I219): bar, frame, a hover dock, a sidebar pinned, Settings › Layout.
-3. Stage work (I256): cards grow out of an edge module and out of the standalone island (rows 553, 557); then the
-   clock peek served (row 550, I257) and the edge-module overlaps (I258: peek clearance row 552, dock × group row 554,
-   frame rule under joined groups row 556).
-4. Smaller follow-ups: I259 (blank timer peek), I260, I265, I266, I245 (inner fillets where bars meet), I242–I244,
-   I250–I252, I262–I264; fullscreen (I237) before hover edges ship as a default.
-5. Budgets: reveal first frame ≤ 16.7 ms (I246); the first edge group's PSS (I261); frame + paper (I254).
-6. The refinement round the user asked for (I216, I218 rest) and the deferred features: several bars per edge (I221),
-   the redesign edit mode (I220), free desk placement (I222), I255.
-
-**Open decisions / risks:** none pending from the user. Risk: much of wave 45's suite coverage ran on branches only
-(I267). Contract rows still open: 540–543, 550–557 (see CONTRACT-CHANGE; their BACKLOG rows above).
-
-## 2026-10-22…25 — session 13 (machine A): textures, the pen, one motion language, shortcuts, apps follow, perf, shadows, terminal material, icon subset — K61–K69, waves 32–42 (K70)
-**State:** `main` green (`just check`), pushed, no agent running, no worktree left. Lead build dir
-`~/.cache/kurashi-agents-target/lead` is kept. The user's NixOS config (`~/.config/nixos`, uncommitted there) now runs
-kurashi as the niri shell: the NixOS and HM modules from the `kurashi-shell` input (`git+file`, not `path:` — a path
-input copies cargo's 47 GB target/), `modules/home-manager/desktop/kurashi.nix` (user services, HM niri binds with the
-user's Mod+N/Mod+Shift+N/Mod+A kept, idle off), `include "kurashi-binds.kdl"` in niri/config.kdl, noctalia and
-plasma-polkit-agent no longer spawned from niri/init.kdl. Its flake.lock was empty; restored from git with nixpkgs pinned
-to the running system's 6510408. After the user's first rebuild into kurashi, check the live session (bar, notifications,
-polkit, lock) and pick up anything that breaks first.
-
-**User decisions (session 13):** spotlight over a steered direction; Settings as a modal sheet (window stays default);
-carried sheet by default; relief shadows on for kami/paint; everything that comes out of the bar morphs like the island
-(calm and lively stay); apps follow the shell incl. icons and fonts. K68: split memory budgets (core 150 MiB @1; material
-and web dock have allowances); the minute flip ≤ 300 ms is the one idle commit; `island.main.faces` restricts (system
-transients exempt; default users keep every face); toasts/centre under the island and panels under their widget stay.
-
-**Built and merged:** waves 32–35 (texture depth/relief shadows/spotlight/light colour/controls/sheet/cracks/brush/wallpaper
-material, the pen K62, Settings sheet, morph everywhere, apps follow, K64 shortcuts, web dock polish; see PROGRESS) and:
-- W35-perf: popup 88.9 → 13.7 ms (ClockView cells async), PSS reader without GPU mappings (I93), lazy desktop/overlay
-  windows and session keys (per output +9.0 → +0.4 MiB; one output 174.8 → 154.2 MiB).
-- Wave 36 (K65): one spring family for every surface, async Stage views with a size cache (quick 14.6 ms), panels rest
-  under their widget, polkit steps aside; window list in both bar layouts (middle-click close, drag to workspace, title
-  peek, urgent), dock pin reorder; Settings by page, island system events switch, free string lists; desk hide/titles/order.
-- Wave 37 (K66): ghostty custom shader with the material (background pixels only; glslang in the devShell); island face
-  switch, forced services overlay (`Hub::set_overlay`), polkit refusals, daemon icon paths, `kurashi settings --page`,
-  no-bus wait; calendar event details + agenda day; quick tile tokens, right-click → page, focus across changes.
-- Wave 38 (K67): drop shadows (strength, direction, follow the light; defaults pixel-identical); keys for Sway/Hyprland +
-  niri overlay titles; web dock forced tip + the daemon's forced feed for native mods (lead); clock grid centred and
-  five-week months, Return saves desk edits, side-bar toast tests, DND follows the config live.
-- Wave 39: shadows on notifications/lock/polkit/toasts/centre/Settings; a lighter Block (−20–40 µs, pixel-identical);
-  badge contrast ≥ 3:1; minute flip capped at 300 ms and split budgets (lead, K68).
-- Wave 40 (K68): island faces restrict; the faces a list leaves out are offered back in Settings (lead fix, row 450).
-- Wave 41 (K69): the package installs the icon subset (Kurashi Symbols); `font.icons_fallback` + Icon.qml tiers (a name the
-  subset lacks draws from Material Symbols, else glyph/bullet); `tools/check-icon-names.sh` in `just check`; washi grain
-  memo (quick card 48–50 → 22 ms warm); PSS @1 157.5/158.2 → 152.3/152.4 MiB (budget 150 still ✗); `nix build .#kurashi`
-  (CLAUDE.md fixed); the nix check phase reads i18n from the source tree.
-- Wave 42 contracts (lead): the three shadow rows are inert under flat and line chrome (row 423, K67 amendment).
-
-**Next steps (ordered):**
-1. Wave 42 merged (K70 memory: PSS @1 ~110 in pairs; last shadows; faces follow-ups; lighter QuickTile). Next: the
-   user's live session on kurashi (see State); I216 first-launcher-open burst; I218 quick card ≤ 18 ms (paper frame on small
-   blocks is a design call); I217 tests through launch.sh.
-2. Follow-ups by area: I197 (window list), I202 (ghostty tokens/BENCH), I205/I208 (daemon, keys), I207 (web dock on niri),
-   I213 (bench tooling), I214 (icon fallback edge cases), I195 (mods' own i18n), I134 (secret settings), I140 rest (CalDAV).
-3. Ideas: I176 mixed fonts (try `calt` first), I173 rays/bloom, I174 kitty/WezTerm baked background.
-
-**Open decisions:** none pending from the user. If W42-memory cannot reach 150 without latency cost, ask the user again
-(raise to ~155 or accept the latency).
-
-**Gotchas (new):** a `&& grep` chain hides a failing cargo test — use `set -o pipefail`; tests must not read the user's
-real `~/.local/state`; Quickshell hot-reloads the config while a suite runs; machine A has one GPU (`renderD128`);
-CONTRACT-CHANGE.md conflicts on every merge — give each card a row range up front and union both sides; a card whose
-API needs a daemon half must own that half (W38-webdock didn't); agent worktrees are locked — `git worktree remove -f -f`
-after checking the branch is merged and clean; the auto-mode classifier can drop out for minutes — agents then stop
-mid-commit, so check `git status` in their worktree. Run `just check` before merging a lead fix into main, not after
-(W40). `target/release` goes stale — rebuild before a bench (`cargo build --release -p kurashid -p kurashi`). The machine's
-load average sits at 6–10 from the user's session: only same-run pairs are comparable. The shared agents target dir grew
-to 52 GB once — delete per-card dirs after each merge.
-
----
