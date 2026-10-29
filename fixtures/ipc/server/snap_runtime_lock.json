@@ -1,0 +1,1 @@
+{"t":"snap","doc":"runtime.lock","rev":7,"data":{"locked":true,"busy":false,"failures":1,"message_key":"lock.error.wrong_password","face":"plain","caps_lock":true,"fingerprint":{"available":false,"state":"idle"}}}

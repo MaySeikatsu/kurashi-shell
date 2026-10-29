@@ -39,6 +39,7 @@ ShellRoot {
                 anchors.fill: parent
                 g: greeter
                 wallpaper: look.wallpaper
+                face: look.cache.lock_face || "plain"
                 focus: true
             }
         }

@@ -1,6 +1,7 @@
 //! The greeter's copy of the user's look (W28, `docs/ux/greeter.md`). The greeter runs before any session, as its own
 //! user, with no kurashid to ask; after every change of the theme, the wallpaper or the locale this writes what it needs
-//! to draw the last user's look: `{v, user, locale, tokens, wallpaper?}`.
+//! to draw the last user's look: `{v, user, locale, tokens, wallpaper?, lock_face?}` (`lock_face`: the lock face in
+//! effect, `runtime.lock.face`, W53.0b).
 //! - Always: `$XDG_STATE_HOME/kurashi/greeter-theme.json` (atomic, only when the content changed).
 //! - When the system asks for it: the NixOS module (`services.kurashi.greeter`) makes `/var/lib/kurashi-greeter/
 //!   <user>.json` (and `<user>.wallpaper`) owned by the user in a directory only the greeter may write. kurashid never
@@ -207,7 +208,15 @@ pub fn register(hub: &Arc<Hub>) {
                 .snapshot(crate::theme::WALLPAPER_DOC)
                 .ok()
                 .and_then(|(_, d)| wallpaper_of(&d));
-            let doc = cache_doc(&theme, &locale, picture.as_deref(), &user);
+            let mut doc = cache_doc(&theme, &locale, picture.as_deref(), &user);
+            // W53.0b (K80): the lock face in effect (`lock.face` resolved against the style), which the greeter hosts.
+            if let Some(face) = hub
+                .snapshot(crate::lock::DOC)
+                .ok()
+                .and_then(|(_, l)| l["face"].as_str().map(String::from))
+            {
+                doc["lock_face"] = json!(face);
+            }
             let mut copied = copied.lock().unwrap_or_else(|e| e.into_inner());
             match write(&doc, &state_home(), &shared_dir(), &user, &mut copied) {
                 Ok(w) if w != Written::default() => tracing::debug!(?w, "greeter cache written"),
@@ -229,6 +238,7 @@ pub fn register(hub: &Arc<Hub>) {
                     | kurashi_ipc::ServerMsg::Patch { doc, .. }
                         if doc == crate::theme::DOC
                             || doc == crate::theme::WALLPAPER_DOC
+                            || doc == crate::lock::DOC
                             || doc == "i18n" => {}
                     _ => continue,
                 },

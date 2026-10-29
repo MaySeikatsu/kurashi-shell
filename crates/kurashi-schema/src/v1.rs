@@ -54,6 +54,12 @@ pub struct Config {
     pub settings: SettingsApp,
     #[kurashi(nested)]
     pub keys: Keys,
+    #[kurashi(nested)]
+    pub lock: Lock,
+    #[kurashi(nested)]
+    pub title_bar: TitleBar,
+    #[kurashi(nested)]
+    pub cursor: Cursor,
 }
 
 // --- keyboard shortcuts (K64, I72) ---------------------------------------------------------------
@@ -406,6 +412,12 @@ pub struct Theme {
     pub light: Light,
     #[kurashi(nested, section = "pen")]
     pub pen: Pen,
+    /// Sounds
+    /// Short sounds when you unlock, when something goes wrong, when a notification arrives and when the launcher
+    /// opens or closes: the style's own set, original sounds in the spirit of what it recreates (K80). Off: nothing is
+    /// loaded or played.
+    #[kurashi(default = false, section = "sounds", since = 7)]
+    pub sounds: bool,
     /// Apps that follow
     /// Write the shell's colours for these apps whenever the theme changes: GTK, Qt, terminals, niri (K49). Each one
     /// needs one line in its own config to read the file; Settings shows it.
@@ -1426,4 +1438,100 @@ pub struct Sidebar {
     /// the right sidebar's own button out).
     #[kurashi(default = false)]
     pub from_bar: bool,
+}
+
+// --- a style's personality (W53.0b, K80, docs/ux/styles.md "Decided") ----------------------------------------------
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "appearance", section = "lock_screen")]
+pub struct Lock {
+    /// Lock screen
+    /// Follow the style: the lock screen its style brings, or the plain one when it brings none. Plain: the shell's own
+    /// lock screen in every style. Or one lock screen by name, whatever the style.
+    #[kurashi(default = "follow".to_owned(), choices_from = "lock.faces", since = 7)]
+    pub face: String,
+}
+
+/// Which buttons a Stage card's title bar draws, where the style draws a title bar (K80).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "title_buttons")]
+pub enum TitleButtons {
+    /// No title bar
+    Off,
+    /// Close only
+    Close,
+    /// All three
+    Full,
+}
+
+/// What a title bar button does (K80). Shōjiki: a button whose action has nothing to do is not drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "title_action")]
+pub enum TitleAction {
+    /// Close the card
+    Close,
+    /// Hide the card
+    Hide,
+    /// Full screen
+    FullScreen,
+    /// The app's menu, else hide
+    AppMenu,
+    /// No button
+    None,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "appearance", section = "title_bars")]
+pub struct TitleBar {
+    /// Title bar buttons
+    /// Where the style draws a title bar on its cards (the island's cards, quick settings, menus): no title bar, only
+    /// the close button, or minimize, maximize and close. A style without title bars draws none either way.
+    #[kurashi(default = TitleButtons::Full, since = 7)]
+    pub buttons: TitleButtons,
+    /// Close button
+    #[kurashi(default = TitleAction::Close, requires = "title_bar.buttons != off", since = 7)]
+    pub close: TitleAction,
+    /// Maximize button
+    /// Full screen: the card grows to the largest size the screen has room for.
+    #[kurashi(default = TitleAction::FullScreen, requires = "title_bar.buttons == full", since = 7)]
+    pub maximize: TitleAction,
+    /// Minimize button
+    /// The app's menu: the menu its tray icon opens, where the card belongs to an app that has one (a player); every
+    /// other card hides, back to the island.
+    #[kurashi(default = TitleAction::AppMenu, requires = "title_bar.buttons == full", since = 7)]
+    pub minimize: TitleAction,
+}
+
+/// The decoration drawn round the pointer (K80, I317).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "cursor_decoration")]
+pub enum CursorDecoration {
+    /// Off
+    Off,
+    /// The style's own
+    Style,
+    /// Trail
+    Trail,
+    /// Sparkles
+    Sparkles,
+    /// Ring
+    Ring,
+}
+
+#[derive(Debug, Clone, PartialEq, KurashiSchema)]
+#[kurashi(page = "appearance", section = "cursor")]
+pub struct Cursor {
+    /// The style's pointer
+    /// The pointer the style brings, set as the compositor's cursor theme (niri: `kurashi-cursor.kdl`, included from
+    /// its config). Off: your own cursor theme stays.
+    #[kurashi(default = false, since = 7)]
+    pub theme: bool,
+    /// Pointer size
+    #[kurashi(default = 24, range = 16..=64, step = 4, unit = "px", requires = "cursor.theme == true", since = 7)]
+    pub size: u32,
+    /// Pointer decoration
+    /// A trail behind the pointer, sparkles or a ring round it, drawn over everything while the pointer moves and gone
+    /// when it rests. Where the compositor does not say where the pointer is, none is drawn.
+    #[kurashi(default = CursorDecoration::Off, since = 7)]
+    pub decoration: CursorDecoration,
 }

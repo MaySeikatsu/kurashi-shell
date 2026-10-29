@@ -211,6 +211,8 @@ async fn run() -> anyhow::Result<()> {
     kurashid::wiring::brightness(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
     let lock = kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker, facts.clone());
+    // W53.0b (K80): the lock face in effect, Caps Lock and the fingerprint reader, laid over runtime.lock.
+    let _lock_extras = kurashid::lock::register(&hub, config.clone(), &mut intents);
     // K47 (W23-system): idle policy, night light, screen recorder.
     kurashid::wiring::idle(
         &hub,

@@ -14,6 +14,7 @@ pub mod icons;
 pub mod intents;
 pub mod island;
 pub mod keys;
+pub mod lock;
 pub mod native;
 pub mod os_scheme;
 pub mod server;
