@@ -1,0 +1,20 @@
+# luna's layout preset (W53.0b, K80): a taskbar along the bottom — the start button first, the window list, the island,
+# then the tray well and the clock — as the Windows XP desk had it. Offered with the style ("Also use its layout"),
+# never applied by itself (K45).
+schema_version = 7
+
+[theme]
+style = "luna"
+
+[edges.top]
+bar = false
+# Nothing left at the top: an edge's modules stand there on their own without a bar (K71).
+start = []
+center = []
+end = []
+
+[edges.bottom]
+bar = true
+start = ["launcher", "windows"]
+center = ["island"]
+end = ["volume", "mods", "recorder", "keyboard", "quick", "tray", "clock"]

@@ -1,0 +1,1 @@
+{"t":"snap","doc":"svc.cursor","rev":3,"data":{"theme":true,"compositor":"niri","set":"washi","name":"kurashi-washi","file":"/home/u/.config/niri/kurashi-cursor.kdl","include":{"file":"/home/u/.config/niri/config.kdl","line":"include \"kurashi-cursor.kdl\"","present":true},"state":"written","changed":false,"decoration":"trail"}}

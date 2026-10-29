@@ -191,6 +191,7 @@ folder
 forest
 forward_10
 fullscreen
+fullscreen_exit
 function
 gate
 gif

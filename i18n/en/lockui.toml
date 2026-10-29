@@ -3,3 +3,10 @@
 "lockui.checking" = "Checking…"
 "lockui.retry_in" = "Try again in {s} s"
 "lockui.disconnected" = "Daemon disconnected — session stays locked"
+# W53.0b (K80): the hints every face shows, and the lock faces Settings offers.
+"lockui.caps_lock" = "Caps Lock is on"
+"lockui.fingerprint.idle" = "Your fingerprint works too: press Enter, then touch the reader"
+"lockui.fingerprint.scanning" = "Touch the fingerprint reader"
+"lockui.face.follow" = "Follow the style"
+"lockui.face.plain" = "Plain"
+"lockui.face.missing" = "This lock screen is not installed: the plain one stands in."

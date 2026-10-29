@@ -151,6 +151,8 @@ async fn run() -> anyhow::Result<()> {
                 };
             kurashid::theme::register(&hub, &store, fonts);
             kurashid::keys::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
+            // W53.0b (K80, I317): the style's pointer (a niri include, as the keys) and the pointer decoration.
+            kurashid::cursor::register(&hub, &store, compositor.as_ref().map(|t| t.kind));
             Some(store)
         }
         None => {
@@ -186,6 +188,10 @@ async fn run() -> anyhow::Result<()> {
         )),
     );
     kurashid::wiring::ui(&hub, &mut actions);
+    // W53.0b (K80): the open card's title bar buttons (runtime.ui.title) and `ui.title {button}`.
+    kurashid::title::register(&hub, config.clone(), &mut actions);
+    // W53.0b (K80): the style's sound cues, off by default (nothing watches or plays while off).
+    kurashid::sound::register(&hub, config.clone(), &mut actions);
     kurashid::wiring::notifications_with_facts(
         &hub,
         &mut actions,
@@ -211,6 +217,8 @@ async fn run() -> anyhow::Result<()> {
     kurashid::wiring::brightness(&hub, &mut actions, &mut intents, Some(island.clone()));
     let lock_marker = kurashi_core::default_socket_path().with_file_name("locked");
     let lock = kurashid::wiring::lock(&hub, &mut actions, &mut intents, lock_marker, facts.clone());
+    // W53.0b (K80): the lock face in effect, Caps Lock and the fingerprint reader, laid over runtime.lock.
+    let _lock_extras = kurashid::lock::register(&hub, config.clone(), &mut intents);
     // K47 (W23-system): idle policy, night light, screen recorder.
     kurashid::wiring::idle(
         &hub,
