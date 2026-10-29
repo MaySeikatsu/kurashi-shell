@@ -740,3 +740,96 @@ fn every_bundled_palette_has_both_schemes_as_written() {
         }
     }
 }
+
+/// The input a style resolves to on its own (its look's and its own recipe; the user's values left out), for the
+/// per-style goldens: every key the theme crate reads from a pack.
+fn style_input(name: &str) -> ThemeInput {
+    use kurashi_theme::appearance::{Kind, find, layer};
+    let style = find(Kind::Style, name).unwrap();
+    let look = find(Kind::Look, &style.look);
+    let mut i = ThemeInput::default();
+    for (key, v, _) in layer(Some(&style), look.as_ref()) {
+        let s = v.as_str().unwrap_or_default().to_owned();
+        let f = v.as_f64().unwrap_or_default();
+        let list = || -> Vec<String> {
+            v.as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        match key.as_str() {
+            "theme.colors.palette" => i.source = Source::Palette(s),
+            "theme.colors.scheme" => {
+                i.scheme = if s == "light" {
+                    Scheme::Light
+                } else {
+                    Scheme::Dark
+                }
+            }
+            "theme.colors.ink" if s != "palette" => i.ink = Ink::Named(s),
+            "theme.chrome" => {
+                i.axes.chrome = match s.as_str() {
+                    "keycap" => Chrome::Keycap,
+                    "soft" => Chrome::Soft,
+                    "line" => Chrome::Line,
+                    _ => Chrome::Flat,
+                }
+            }
+            "theme.material.kind" => {
+                i.axes.material = if s == "solid" {
+                    Material::Solid
+                } else {
+                    Material::Translucent
+                }
+            }
+            "theme.material.opacity" => i.axes.opacity = f,
+            "theme.material.blur" => i.axes.blur = v.as_bool().unwrap_or(false),
+            "theme.shape.corners" => {
+                i.axes.shape = match s.as_str() {
+                    "none" => Shape::None,
+                    "squircle" => Shape::Squircle,
+                    _ => Shape::Rounded,
+                }
+            }
+            "theme.shape.radius" => i.axes.radius = f,
+            "theme.shape.squircle" => i.axes.squircle = f,
+            "theme.motion.profile" => {
+                i.axes.motion = match s.as_str() {
+                    "none" => MotionProfile::None,
+                    "calm" => MotionProfile::Calm,
+                    "lively" => MotionProfile::Lively,
+                    _ => MotionProfile::Expressive,
+                }
+            }
+            "theme.motion.speed" => i.axes.motion_speed = f,
+            "theme.density" => {
+                i.axes.density = match s.as_str() {
+                    "compact" => Density::Compact,
+                    "airy" => Density::Airy,
+                    _ => Density::Regular,
+                }
+            }
+            "theme.outline_ink" => i.axes.outline_ink = s,
+            "theme.typography.family" => i.axes.font_chain = list(),
+            "theme.typography.family_jp" => i.axes.font_chain_jp = list(),
+            _ => {}
+        }
+    }
+    i
+}
+
+/// Every bundled style's tokens (W53.0a): a change to the design system shows here as added keys only, unless it means
+/// to change a style (a family card then reviews its own file's diff).
+#[test]
+fn golden_every_style() {
+    use kurashi_theme::appearance::{Kind, all_in};
+    for s in all_in(Kind::Style, &[]) {
+        golden(
+            &format!("styles/{}.json", s.name),
+            &resolve(&style_input(&s.name), &fonts()).unwrap().tokens,
+        );
+    }
+}
