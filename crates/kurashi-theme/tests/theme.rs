@@ -686,7 +686,13 @@ fn styles_and_looks_change_looks_never_layout() {
 #[test]
 fn every_chrome_has_its_own_token_set() {
     let mut seen = std::collections::BTreeSet::new();
-    for chrome in [Chrome::Flat, Chrome::Keycap, Chrome::Soft, Chrome::Line] {
+    for chrome in [
+        Chrome::Flat,
+        Chrome::Keycap,
+        Chrome::Soft,
+        Chrome::Line,
+        Chrome::Bevel,
+    ] {
         let mut i = input("wa-iro", Scheme::Dark);
         i.axes.chrome = chrome;
         let t = resolve(&i, &fonts()).unwrap().tokens;
@@ -716,8 +722,243 @@ fn every_chrome_has_its_own_token_set() {
         );
         assert_eq!(n("shadow.alpha_scale"), 1.0, "{chrome:?}");
         seen.insert(t["chrome.style"].as_str().unwrap().to_owned());
+        // W53.0a: only the bevel chrome has bevel lines; its colours are always there (a sunken well's).
+        assert_eq!(
+            n("bevel.width") > 0.0,
+            chrome == Chrome::Bevel,
+            "{chrome:?}"
+        );
+        assert_eq!(
+            n("bevel.press_offset") > 0.0,
+            chrome == Chrome::Bevel,
+            "{chrome:?}"
+        );
+        for k in ["bevel.light", "bevel.light2", "bevel.dark2", "bevel.dark"] {
+            assert!(t[k].as_str().unwrap().starts_with('#'), "{chrome:?} {k}");
+        }
     }
-    assert_eq!(seen.len(), 4);
+    assert_eq!(seen.len(), 5);
+}
+
+/// W53.0a (K80 amends K42): high contrast keeps a bevel, in the contrast palette's ink, and turns the decorative
+/// materials (glow, bloom, sheen) off.
+#[test]
+fn high_contrast_keeps_the_bevel_in_its_ink_and_drops_glow() {
+    let mut i = input("win95", Scheme::Light);
+    i.axes.chrome = Chrome::Bevel;
+    i.decor.metrics = [
+        ("material.glow".to_owned(), serde_json::json!(0.6)),
+        ("material.sheen".to_owned(), serde_json::json!(0.4)),
+    ]
+    .into_iter()
+    .collect();
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["bevel.width"], 1);
+    assert_eq!(t["glow.strength"], 0.6);
+    assert_eq!(t["sheen.strength"], 0.4);
+    assert_ne!(t["bevel.light"], t["bevel.dark"]);
+    i.contrast = ContrastLevel::High;
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["bevel.width"], 1);
+    assert_eq!(t["bevel.light"], t["color.on_surface"]);
+    assert_eq!(t["bevel.dark"], t["color.on_surface"]);
+    assert_ne!(t["bevel.light2"], t["bevel.dark2"]);
+    assert_eq!(t["glow.strength"], 0.0);
+    assert_eq!(t["sheen.strength"], 0.0);
+}
+
+fn decor_of(src: &str) -> Decor {
+    use kurashi_theme::appearance::{Kind, parse};
+    let p = parse(Kind::Look, src, "x", false).unwrap();
+    assert!(p.refused.is_empty(), "{:?}", p.refused);
+    p.decor_input()
+}
+
+/// W53.0a: `[slots]` and `[decor]` as data — validated against one list, every default filled in, roles published as
+/// their colours, nested tables flattened.
+#[test]
+fn decor_is_validated_data_with_every_default() {
+    use kurashi_theme::appearance::{DECOR_KEYS, Kind, SLOTS, parse};
+    let p = parse(
+        Kind::Look,
+        "[slots]\ntitle = \"caption\"\nwings = \"x\"\n[decor]\n\"title.height\" = 18\n\"title.fill\" = [\"title\"]\n\
+         \"menu.row\" = 400\n\"focus.style\" = \"sparkly\"\n\"nope\" = 1\n\"tooltip.fill\" = \"info\"\n\
+         [decor.scroll]\nwidth = 16\narrows = true\n",
+        "x",
+        false,
+    )
+    .unwrap();
+    let mut refused = p.refused.clone();
+    refused.sort();
+    assert_eq!(
+        refused,
+        [
+            "decor.focus.style",
+            "decor.menu.row",
+            "decor.nope",
+            "slots.wings"
+        ]
+    );
+    assert_eq!(p.slots["title"], "caption");
+    assert_eq!(p.decor["scroll.width"], 16);
+    assert_eq!(p.decor["scroll.arrows"], true);
+    // A style carries no decor of its own; a slot name never leaves its directory.
+    assert!(parse(Kind::Style, "[decor]\npixel = 2\n", "x", false).is_err());
+    assert!(parse(Kind::Look, "[slots]\ntitle = \"../x\"\n", "x", false).is_err());
+    let mut i = input("wa-iro", Scheme::Dark);
+    i.decor = p.decor_input();
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    for s in SLOTS {
+        assert!(t.contains_key(&format!("decor.{s}")), "{s}");
+    }
+    for d in DECOR_KEYS {
+        assert!(t.contains_key(&format!("decor.{}", d.key)), "{}", d.key);
+    }
+    assert_eq!(t["decor.title"], "caption");
+    assert_eq!(t["decor.frame"], "");
+    assert_eq!(t["decor.title.height"], 18);
+    assert_eq!(t["decor.title.fill"], serde_json::json!([t["color.title"]]));
+    assert_eq!(t["decor.tooltip.fill"], t["color.info"]);
+    // Left out: the defaults (a role default as its colour, "" as "").
+    assert_eq!(t["decor.menu.row"], 0);
+    assert_eq!(t["decor.tooltip.on"], "");
+    assert_eq!(t["decor.border.color"], t["color.outline"]);
+}
+
+/// W53.0a: the motion personality — a look's own curves and durations, the rubber band, the stepped staircase — and
+/// reduce motion (profile none) still wins over all of them.
+#[test]
+fn motion_styles_curves_and_steps() {
+    let mut i = input("wa-iro", Scheme::Dark);
+    let k74 = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(k74["motion.kind"], "timed");
+    assert_eq!(k74["motion.style"], "grow");
+    i.decor = decor_of(
+        "[decor]\n\"motion.open_ms\" = 300\n\"motion.open_curve\" = [0.2, 0.0, 0.0, 1.0]\n\"motion.style\" = \"rubber\"\n",
+    );
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["motion.timed.open_ms"], 300);
+    assert_eq!(
+        t["motion.timed.open_curve"],
+        serde_json::json!([0.2, 0.0, 0.0, 1.0, 1.0, 1.0])
+    );
+    assert_eq!(
+        t["motion.timed.fast_curve"],
+        serde_json::json!([0.34, 1.56, 0.64, 1.0, 1.0, 1.0])
+    );
+    assert_eq!(
+        t["motion.timed.close_curve"],
+        k74["motion.timed.close_curve"]
+    );
+    i.decor = decor_of("[decor]\n\"motion.style\" = \"stepped\"\n\"motion.steps\" = 5\n");
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["motion.kind"], "stepped");
+    let c: Vec<f64> = t["motion.timed.open_curve"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_f64().unwrap())
+        .collect();
+    // 500 ms in holds of 5 frames at 60 Hz: 6 steps, two straight segments each, ending at 1, 1; x never goes back.
+    assert_eq!(c.len(), 6 * 12);
+    assert_eq!(&c[c.len() - 2..], &[1.0, 1.0]);
+    let xs: Vec<f64> = c.chunks(2).map(|p| p[0]).collect();
+    assert!(xs.windows(2).all(|w| w[1] >= w[0]), "{xs:?}");
+    i.axes.motion = MotionProfile::None;
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["motion.kind"], "none");
+    assert_eq!(t["motion.style"], "none");
+    assert_eq!(t["motion.timed.open_ms"], 0);
+}
+
+/// W53.0a: bitmap type sits on its grid; a style's own icon font wins when installed and the shell's is its fallback.
+#[test]
+fn pixel_type_and_a_styles_icon_font() {
+    let mut i = input("wa-iro", Scheme::Dark);
+    i.decor = decor_of(
+        "[decor]\n\"type.pixel\" = true\n\"type.pixel_step\" = 8\n\"icons.family\" = [\"Pixel Symbols\"]\n\"icon.size\" = 16\n",
+    );
+    let fonts = FakeFonts::new(&["Inter", "Pixel Symbols", "Material Symbols Rounded"]);
+    let t = resolve(&i, &fonts).unwrap().tokens;
+    assert_eq!(t["font.pixel"], true);
+    for n in ["caption", "label", "body", "title", "display"] {
+        let v = t[&format!("font.size.{n}")].as_i64().unwrap();
+        assert_eq!(v % 8, 0, "{n} {v}");
+    }
+    assert_eq!(t["font.icons"], "Pixel Symbols");
+    assert_eq!(t["font.icons_fallback"], "Material Symbols Rounded");
+    assert_eq!(t["icon.size"], 16);
+    // Not installed: the shell's own, as before.
+    let t = resolve(&i, &FakeFonts::new(&["Material Symbols Rounded"]))
+        .unwrap()
+        .tokens;
+    assert_eq!(t["font.icons"], "Material Symbols Rounded");
+}
+
+/// W53.0a, rule 4: no renderer compares a style's, look's or palette's name — identity is slots and tokens. Scans the
+/// QML for a comparison with a bundled pack name in quotes (`=== "win95"`, `== 'kanso'`, `case "sekai":`).
+#[test]
+fn no_renderer_compares_a_pack_name() {
+    use kurashi_theme::appearance::{Kind, all_in};
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let mut names: Vec<String> = all_in(Kind::Look, &[])
+        .into_iter()
+        .chain(all_in(Kind::Style, &[]))
+        .map(|p| p.name)
+        .chain(bundled_names().into_iter().map(String::from))
+        .collect();
+    names.sort();
+    names.dedup();
+    // Names that are also ordinary words of other enums (material kinds, chromes) are not identities.
+    names.retain(|n| !["soft", "material", "glass", "terminal"].contains(&n.as_str()));
+    let mut bad = vec![];
+    let mut stack = vec![
+        root.join("frontend"),
+        root.join("settings"),
+        root.join("greeter"),
+    ];
+    while let Some(dir) = stack.pop() {
+        let Ok(rd) = std::fs::read_dir(&dir) else {
+            continue;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                if !p.ends_with("shots") {
+                    stack.push(p);
+                }
+                continue;
+            }
+            if p.extension().is_none_or(|x| x != "qml" && x != "js") {
+                continue;
+            }
+            let src = std::fs::read_to_string(&p).unwrap_or_default();
+            for (no, line) in src.lines().enumerate() {
+                let code = line.split("//").next().unwrap_or_default();
+                for n in &names {
+                    for q in ['"', '\''] {
+                        let lit = format!("{q}{n}{q}");
+                        let Some(at) = code.find(&lit) else { continue };
+                        let before = code[..at].trim_end();
+                        let after = code[at + lit.len()..].trim_start();
+                        if before.ends_with("==")
+                            || before.ends_with("!=")
+                            || before.ends_with("case")
+                            || after.starts_with("==")
+                            || after.starts_with("!=")
+                        {
+                            bad.push(format!("{}:{}: {}", p.display(), no + 1, line.trim()));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    assert!(
+        bad.is_empty(),
+        "renderers compare pack names:\n{}",
+        bad.join("\n")
+    );
 }
 
 #[test]
@@ -738,5 +979,94 @@ fn every_bundled_palette_has_both_schemes_as_written() {
                 }
             }
         }
+    }
+}
+
+/// The input a style resolves to on its own (its look's and its own recipe; the user's values left out), for the
+/// per-style goldens: every key the theme crate reads from a pack.
+fn style_input(name: &str) -> ThemeInput {
+    use kurashi_theme::appearance::{Kind, find, layer};
+    let style = find(Kind::Style, name).unwrap();
+    let look = find(Kind::Look, &style.look);
+    let mut i = ThemeInput {
+        decor: look.as_ref().map(|l| l.decor_input()).unwrap_or_default(),
+        ..Default::default()
+    };
+    for (key, v, _) in layer(Some(&style), look.as_ref()) {
+        let s = v.as_str().unwrap_or_default().to_owned();
+        let f = v.as_f64().unwrap_or_default();
+        let list = || -> Vec<String> {
+            v.as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|x| x.as_str().map(String::from))
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+        match key.as_str() {
+            "theme.colors.palette" => i.source = Source::Palette(s),
+            "theme.colors.scheme" => {
+                i.scheme = if s == "light" {
+                    Scheme::Light
+                } else {
+                    Scheme::Dark
+                }
+            }
+            "theme.colors.ink" if s != "palette" => i.ink = Ink::Named(s),
+            "theme.chrome" => i.axes.chrome = Chrome::parse(&s),
+            "theme.material.kind" => {
+                i.axes.material = if s == "solid" {
+                    Material::Solid
+                } else {
+                    Material::Translucent
+                }
+            }
+            "theme.material.opacity" => i.axes.opacity = f,
+            "theme.material.blur" => i.axes.blur = v.as_bool().unwrap_or(false),
+            "theme.shape.corners" => {
+                i.axes.shape = match s.as_str() {
+                    "none" => Shape::None,
+                    "squircle" => Shape::Squircle,
+                    _ => Shape::Rounded,
+                }
+            }
+            "theme.shape.radius" => i.axes.radius = f,
+            "theme.shape.squircle" => i.axes.squircle = f,
+            "theme.motion.profile" => {
+                i.axes.motion = match s.as_str() {
+                    "none" => MotionProfile::None,
+                    "calm" => MotionProfile::Calm,
+                    "lively" => MotionProfile::Lively,
+                    _ => MotionProfile::Expressive,
+                }
+            }
+            "theme.motion.speed" => i.axes.motion_speed = f,
+            "theme.density" => {
+                i.axes.density = match s.as_str() {
+                    "compact" => Density::Compact,
+                    "airy" => Density::Airy,
+                    _ => Density::Regular,
+                }
+            }
+            "theme.outline_ink" => i.axes.outline_ink = s,
+            "theme.typography.family" => i.axes.font_chain = list(),
+            "theme.typography.family_jp" => i.axes.font_chain_jp = list(),
+            _ => {}
+        }
+    }
+    i
+}
+
+/// Every bundled style's tokens (W53.0a): a change to the design system shows here as added keys only, unless it means
+/// to change a style (a family card then reviews its own file's diff).
+#[test]
+fn golden_every_style() {
+    use kurashi_theme::appearance::{Kind, all_in};
+    for s in all_in(Kind::Style, &[]) {
+        golden(
+            &format!("styles/{}.json", s.name),
+            &resolve(&style_input(&s.name), &fonts()).unwrap().tokens,
+        );
     }
 }

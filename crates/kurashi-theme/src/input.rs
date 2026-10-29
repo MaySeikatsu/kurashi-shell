@@ -107,7 +107,8 @@ pub enum MotionProfile {
 
 /// How a block of chrome is drawn (K42, K45): flat fills; keycaps — outline, light ring, fill and a
 /// hard shadow straight down that the block sinks into when pressed; soft — a hairline rim and a
-/// soft drop shadow, pressed blocks shrink a little; line — ink outlines, no shadow, crisp.
+/// soft drop shadow, pressed blocks shrink a little; line — ink outlines, no shadow, crisp; bevel (W53.0a, K80) — two
+/// 1 px light/dark pairs, light from the top left, swapped while pressed or sunken (Windows 9x).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum Chrome {
     #[default]
@@ -115,6 +116,29 @@ pub enum Chrome {
     Keycap,
     Soft,
     Line,
+    Bevel,
+}
+
+impl Chrome {
+    /// The config value's name (`theme.chrome`); unknown names are flat.
+    pub fn parse(s: &str) -> Chrome {
+        match s {
+            "keycap" => Chrome::Keycap,
+            "soft" => Chrome::Soft,
+            "line" => Chrome::Line,
+            "bevel" => Chrome::Bevel,
+            _ => Chrome::Flat,
+        }
+    }
+}
+
+/// The look's decor pack (W25, W53.0a, K80): its `[slots]` (component names the frontend's hosts load, `""` = the
+/// default) and its `[decor]` metrics, validated by [`crate::appearance`]. The tokens are `decor.<slot>` and
+/// `decor.<key>` (role names resolved to colours), plus what the metrics feed (bevel, motion, icons, materials).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Decor {
+    pub slots: BTreeMap<String, String>,
+    pub metrics: BTreeMap<String, Value>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -211,6 +235,8 @@ pub struct ThemeInput {
     /// The text colour (K60).
     pub ink: Ink,
     pub axes: Axes,
+    /// The look's slots and `[decor]` metrics (W53.0a); empty = every default (today's shell).
+    pub decor: Decor,
     /// Per-surface / per-output overrides: component token key -> value
     /// (e.g. `"popup.bg" -> "#101010"`). Unknown keys are an error, never silent.
     pub overrides: BTreeMap<String, Value>,
@@ -228,6 +254,7 @@ impl Default for ThemeInput {
             oled: false,
             ink: Ink::Palette,
             axes: Axes::default(),
+            decor: Decor::default(),
             overrides: BTreeMap::new(),
         }
     }
