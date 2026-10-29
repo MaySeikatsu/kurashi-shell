@@ -598,12 +598,12 @@ morph_frontend() { # morph_frontend [env assignments…]: a fresh frontend with 
   for p in ${QS_PID:-}; do kill "$p" 2>/dev/null || true; wait "$p" 2>/dev/null || true; done
   : > "$R/qs.log"
   : > "$W/freeze"
-  local bare; bare=$(screen_hash)
   env -u KURASHI_SOCKET KURASHI_SIDEBAR_GEOMETRY=1 KURASHI_SIDEBAR_FREEZE="$W/freeze" "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   SCENE_PIDS+=("$QS_PID")
-  # Was a fixed 4 s: the frontend loaded, drew and stands still (at most 4 s for that).
-  wait_frontend "$R/qs.log" 0 4 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
+  # The slide part keeps its fixed 4 s (W55: with a still-screen wait here, kami's 40 ms frame came at rest in four
+  # runs out of four; main passed — the slide's timing is what this part measures).
+  sleep 4
 }
 # open_rest <side> / close_down <side>: one toggle, waiting for the column at rest or the window gone.
 open_rest() {
