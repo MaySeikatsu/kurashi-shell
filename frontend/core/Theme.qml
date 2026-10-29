@@ -97,6 +97,14 @@ Singleton {
     readonly property color softColor: Qt.alpha(color("chrome.soft_color", "#000000"),
         Math.min(1, tok("chrome.soft_alpha", 0) * shadowAlpha))
     readonly property real pressScale: tok("chrome.press_scale", 1)
+    // W57 (K78, docs/ux/shadows.md "Elevation"): the surfaces' smooth shadows — mode ("off" | "static" | "follow", auto
+    // resolved by the daemon per chrome), strength, the direction [x, y, length factor] (away from the light under follow)
+    // and whether the pointer's lamp turns it (Elevation.qml).
+    readonly property string elevationMode: tok("elevation.mode", "off")
+    readonly property real elevationStrength: tok("elevation.strength", 1)
+    readonly property var elevationDir: tok("elevation.dir", [0, 1, 1])
+    readonly property bool elevationPointer: tok("elevation.pointer", false)
+    readonly property bool darkScheme: surface.hslLightness < 0.5
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)
     // W25: the decor pack's frame (`decor.frame`), a name FrameHost loads as data ("" = none; rule 4).

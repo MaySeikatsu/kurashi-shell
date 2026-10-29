@@ -529,6 +529,33 @@ Shadows fall away from the material's light, longer when it stands low. A light 
 - only while `theme.chrome != "flat"`
 - only while `theme.chrome != "line"`
 
+#### `theme.material.elevation` — Elevation
+
+Smooth drop shadows under the shell's surfaces — sidebars, the dock, cards, the notification centre — that lift them off the desktop: a wide faint shadow all round and a softer one along the light. Automatic: on for keycap and soft looks, off for flat and line ones. Follow the light: they fall away from it, longer when it stands low.
+
+- type: `choice` · default: `"auto"`
+- choices: `"auto"` | `"off"` | `"static"` | `"follow"`
+- forced to `"off"` while `a11y.high_contrast` is on
+- since schema v7
+
+#### `theme.material.elevation_strength` — Elevation strength
+
+How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have their own strength above).
+
+- type: `float` · default: `1.0`
+- range: `0.0..=2.0`, step `0.05`
+- only while `theme.material.elevation != "off"`
+- since schema v7
+
+#### `theme.material.elevation_pointer` — Elevation follows the pointer
+
+While the light follows the pointer or the spotlight aims at it, the surfaces' shadows turn away from it too, eased; off, they fall from where the light rests.
+
+- type: `bool` · default: `false`
+- only while `theme.material.elevation == "follow"`
+- forced to `false` while `a11y.reduce_motion` is on
+- since schema v7
+
 ### Motion
 
 #### `theme.motion.profile` — Motion

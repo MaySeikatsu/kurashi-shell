@@ -1034,3 +1034,21 @@ desktop (`winit` 300,400 → 700,650 → 1000,200, one patch per move, none at r
 reason: pointer.no_protocol` and the frontend keeps its sensors; sway (nixpkgs, wlroots 0.19) — both globals offered,
 sessions not exercised (the headless seat has no pointer: `pointer.no_pointer`, the watcher waits for one); Hyprland,
 KWin — not measured.
+
+## K80 — styles that look like their inspiration: lock faces, dress-only, title bars, fonts, sounds (2026-10-29, session 18; user, W53)
+- Brief: `docs/ux/styles.md` ("Decided" at its end). Lock faces follow the style (`lock.face`, default `follow`).
+- Styles dress, they never move things: an OS-like layout is an optional companion profile (K45 stands).
+- Stage cards may carry a title bar with the full button set behind a switch (`off | close only | full`); every
+  button's action is configurable (close = close, maximize = full screen, minimize = the app's own bar menu where it
+  fits, else hide). Shōjiki: no button that does nothing.
+- Free font stand-ins installed by Home-Manager by default; the user's own originals win when present.
+- Every style supports an original sound-cue set (off by default); styles with a direct reference ship their own files
+  (original sounds, never the trademarked ones).
+- **Amends K42:** under high contrast a style's bevel stays (in high-contrast colours) instead of being forced flat.
+- macOS styles: `aqua` (Jaguar–Tiger) and a new `vibrancy` (Big Sur–Sonoma).
+- (later the same session) **The design system is extended wherever it keeps a style from a 1:1 look**: per-style
+  animation styles and motion curves, fonts, icon sets and sizes, textures, sounds, window and frame decorations, OS
+  colours, material effects (blur, bloom, glow), buttons/sliders/menus — as decor-pack slots and tokens (rule 4).
+  **Every style ships a Layout Preset** (opt-in); the Windows styles a **start button** opening the launcher in a
+  start-menu skin. **Cursor personality** (a stylised cursor theme, a cursor trail/decoration on W58's effects sheet)
+  per style, **off by default**.

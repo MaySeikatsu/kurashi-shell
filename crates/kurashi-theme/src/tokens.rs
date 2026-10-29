@@ -456,6 +456,19 @@ pub fn build(
     };
     t.insert("frame.outline".into(), json!(frame_outline));
     t.insert("outline.ink".into(), json!(axes.outline_ink));
+    // W57 (K78): the surfaces' elevation shadows. Automatic: where blocks lift (keycap, soft) the surfaces do too; flat
+    // and line looks read as deliberately shadowless.
+    let elevation = match axes.elevation.as_str() {
+        m @ ("off" | "static" | "follow") => m,
+        _ if ch.shadow > 0.0 || ch.soft > 0.0 => "static",
+        _ => "off",
+    };
+    t.insert("elevation.mode".into(), json!(elevation));
+    t.insert("elevation.strength".into(), json!(axes.elevation_strength));
+    t.insert(
+        "elevation.pointer".into(),
+        json!(axes.elevation_pointer && elevation == "follow"),
+    );
     col(&mut t, "chrome.line", g("line"));
     col(&mut t, "chrome.ring_color", g("ring"));
     // The outline's colour and opacity: ink for keycaps, the outline role for line chrome, a faint

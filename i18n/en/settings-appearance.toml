@@ -26,3 +26,6 @@
 "settings.light.spotlight" = "A lamp pinned where this direction meets the screen's edge; its beam follows the pointer over the shell and rests on the middle elsewhere. Click the little screen to move the lamp."
 "settings.light.screen" = "The spotlight pinned at {angle}°, its beam {beam}° wide"
 "settings.light.everywhere" = "The compositor tells the shell where the pointer is: the lamp follows it over windows too."
+"settings.elevation.off" = "No elevation: the surfaces lie flat on the desktop (a flat or line look, or switched off)."
+"settings.elevation.static" = "The surfaces cast a soft shadow along the shadow direction."
+"settings.elevation.follow" = "The surfaces cast a soft shadow away from the light, longer when it stands low."

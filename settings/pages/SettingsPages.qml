@@ -103,6 +103,7 @@ Flickable {
                                        "sidebar.from_bar": cSidebarOpen, "theme.texture.kind": cTextureCards,
                                        "theme.light.mode": cLightDial, "theme.colors.ink": cInkSwatches,
                                        "theme.light.color": cLightSwatches, "theme.material.shadow": cShadowPreview,
+                                       "theme.material.elevation": cElevationPreview,
                                        "theme.texture.wallpaper.kind": cWallpaperCards, "keys.write": cKeysStatus,
                                        "layout.draw": cDrawModes })
     // Extras that are the row's own picker (every offer, keyboard as a radio group): they take the place of the row's
@@ -141,6 +142,7 @@ Flickable {
     Component { id: cInkSwatches; InkSwatches {} }
     Component { id: cLightSwatches; LightSwatches {} }
     Component { id: cShadowPreview; ShadowPreview {} }
+    Component { id: cElevationPreview; ElevationPreview {} }
     Component { id: cWallpaperCards; TextureCards { key: "theme.texture.wallpaper.kind" } }
     Component { id: cKeysStatus; KeysStatus {} }
     Component { id: cShortcut; ShortcutRecorder {} }

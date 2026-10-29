@@ -248,6 +248,14 @@ PanelWindow {
             readonly property int footH: lp.footer ? Theme.gap + 18 : 0
             height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
                 + footH + (morph.morph ? 0 : Theme.shadowDy)
+            // W57 (K78): the launcher stands highest (level 4).
+            Elevation {
+                visible: !morph.morph
+                anchors.fill: parent
+                anchors.bottomMargin: Theme.shadowDy
+                radius: Theme.rLg + 4
+                level: 4
+            }
             Block {
                 visible: !morph.morph
                 anchors.fill: parent

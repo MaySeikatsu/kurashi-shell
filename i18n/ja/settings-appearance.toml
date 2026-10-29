@@ -26,3 +26,6 @@
 "settings.light.spotlight" = "この方向が画面の縁と交わる所に固定したランプ。光はシェルの上ではポインターを追い、ほかでは中央で休みます。小さな画面をクリックするとランプが動きます。"
 "settings.light.screen" = "{angle}° に固定したスポットライト、光の幅 {beam}°"
 "settings.light.everywhere" = "コンポジターがポインターの位置を伝えるので、光はウィンドウの上でもポインターを追います。"
+"settings.elevation.off" = "浮き上がりなし：面はデスクトップに平らに置かれます（フラットや線のルック、またはオフ）。"
+"settings.elevation.static" = "面は影の向きに沿ってやわらかい影を落とします。"
+"settings.elevation.follow" = "面は光から離れる向きにやわらかい影を落とし、光が低いほど長くなります。"
