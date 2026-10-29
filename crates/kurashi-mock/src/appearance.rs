@@ -17,7 +17,7 @@ pub const ERR_NAME: &str = "config.error.appearance_name";
 pub const ERR_UNKNOWN: &str = "config.error.enum";
 
 /// The mock claims every font: a preview names the first family of its chain.
-struct AnyFont;
+pub(crate) struct AnyFont;
 impl FontProvider for AnyFont {
     fn is_installed(&self, _family: &str) -> bool {
         true
