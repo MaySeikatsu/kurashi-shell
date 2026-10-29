@@ -515,7 +515,7 @@ Scope {
                                 readonly property real cy: bar.edge === "top" ? height - ow / 2 : ow / 2
                                 readonly property real cx: bar.edge === "left" ? width - ow / 2 : ow / 2
                                 color: Theme.frameOutlineColor
-                                                    lineWidth: ow
+                                lineWidth: ow
                                 seed: bar.vertical ? 0xB4A2 : 0xB4A1
                                 radius: 0
                                 paths: bg.ruleSegs.map(function (g) {
