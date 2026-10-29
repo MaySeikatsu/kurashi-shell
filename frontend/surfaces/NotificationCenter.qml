@@ -115,7 +115,7 @@ PanelWindow {
         cardH: card.height
         slide: 12
 
-        Rectangle {
+        RoundBox {
             id: card
             // 400 px, wider (up to 480) when the title and its two buttons need it (a monospaced or wide face).
             width: Math.min(480, Math.max(400, titleText.implicitWidth + dnd.width + clear.width + 2 * Theme.gap + 2 * Theme.pad + 2))

@@ -528,7 +528,7 @@ ShellRoot {
                 Item {
                     width: 220
                     height: parent.height
-                    Rectangle {
+                    RoundBox {
                         visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
                         x: navFace.x + Theme.sinkX
                         y: navFace.y + Theme.sinkY
@@ -537,7 +537,7 @@ ShellRoot {
                         radius: navFace.radius
                         color: Theme.line
                     }
-                    Rectangle {
+                    RoundBox {
                     id: navFace
                     x: Theme.gap
                     y: Theme.gap
@@ -577,7 +577,7 @@ ShellRoot {
                                         color: Theme.containerHigh
                                     }
                                 }
-                                Rectangle {
+                                RoundBox {
                                     id: entry
                                     readonly property bool on: !win.searching && navEntry.modelData.id === win.current
                                     // A mod's page (K25) shows its state: a filled dot = on, a hollow ring = loaded, off.

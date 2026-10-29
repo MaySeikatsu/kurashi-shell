@@ -47,6 +47,7 @@ layout(std140, binding = 0) uniform buf {
     vec4 uHole3;
     vec4 uHoleR;     // their corner radii
     vec4 uRadii;     // the item's corners (logical px): x top-left, y top-right, z bottom-right, w bottom-left
+    vec4 uSquircle;  // x the corners' superellipse exponent under squircle corners (W56, I288); 0 = round
 } ubuf;
 layout(binding = 1) uniform sampler2D tileTex;
 layout(binding = 2) uniform sampler2D inkTex;
@@ -171,7 +172,13 @@ void main() {
     float rc = qq.x < 0.0 ? (qq.y < 0.0 ? ubuf.uRadii.x : ubuf.uRadii.w) : (qq.y < 0.0 ? ubuf.uRadii.y : ubuf.uRadii.z);
     float r = min(rc, min(half_.x, half_.y));
     vec2 dq = abs(qq) - (half_ - r);
-    float dist = length(max(dq, 0.0)) + min(max(dq.x, dq.y), 0.0) - r;
+    // A squircle corner (the shapes' cubic, core/corner.js) as the superellipse through its midpoint, so the sheet fills
+    // it to its edge; a pill's end (a corner of half the shorter side) stays round, as SquircleRect's.
+    float sqn = ubuf.uSquircle.x;
+    vec2 dp = max(dq, 0.0);
+    float corner = sqn > 2.0 && r > 0.5 && r < min(half_.x, half_.y) - 0.5 && dp.x > 0.0 && dp.y > 0.0
+        ? r * pow(pow(dp.x / r, sqn) + pow(dp.y / r, sqn), 1.0 / sqn) : length(dp);
+    float dist = corner + min(max(dq.x, dq.y), 0.0) - r;
     float cover = clamp(0.5 - dist, 0.0, 1.0);
     if (ubuf.uFlags.w > 0.5) cover *= texture(maskTex, qt_TexCoord0).a;
     if (above) cover *= ubuf.uBand.y;

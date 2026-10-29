@@ -6,7 +6,7 @@ import ".."
 // A section's plate in a sidebar (docs/ux/sidebar.md): the container role, concentric with the column (I269), the chrome's outline (a hairline
 // under flat chrome); tokens only (rule 4). Its children stack in a column inside its padding; `shown` false takes the
 // section out of the column (RightColumn).
-Rectangle {
+RoundBox {
     id: card
     property bool shown: true
     default property alias content: col.data

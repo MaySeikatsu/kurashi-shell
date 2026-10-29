@@ -9,7 +9,7 @@ import "../core"
 // W34: a budding toast's chrome (fill, outline, shadows, material) is drawn by its shape (Toasts.qml) until it stands
 // free: `bare` leaves only the content, `contentOpacity` fades it in late; `carryDy` is how far the card is from its
 // place at rest (K61: its relief carries the sheet along while the stack springs).
-Rectangle {
+RoundBox {
     id: c
     property var item: ({})
     property bool swipeable: true
@@ -75,7 +75,7 @@ Rectangle {
     }
     SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare ? 0 : 1 }
     // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
-    Rectangle {
+    RoundBox {
         z: -1
         visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && !c.bare
         x: Theme.sinkX

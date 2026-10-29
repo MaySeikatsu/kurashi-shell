@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Effects
+import ".."
 
 // A phone seen from the front (W21, K42; docs/ux/quick-settings.md and docs/ux/webdock.md "Session 9 phone"): the body
 // with its bezel, a rounded screen, a pill cut-out at the top of the screen (dynamic-island style), a status row beside
@@ -97,7 +98,7 @@ Item {
             color: ph.theme.softColor
         }
     }
-    Rectangle {
+    RoundBox {
         visible: ph.castX !== 0 || ph.castY !== 0
         x: ph.side + ph.castX
         y: ph.castY
@@ -107,7 +108,7 @@ Item {
         color: ph.lineC
         antialiasing: true
     }
-    Rectangle {
+    RoundBox {
         id: body
         x: ph.side
         width: ph.bodyW
@@ -120,7 +121,7 @@ Item {
         antialiasing: true
 
         // The glass between the rim and the screen (keycap; flat chrome has the body as its bezel).
-        Rectangle {
+        RoundBox {
             visible: ph.keycap
             anchors.fill: parent
             anchors.margins: ph.outlineW + ph.rimW
@@ -131,7 +132,7 @@ Item {
     }
 
     // ---- the screen ----
-    Rectangle {
+    RoundBox {
         id: screenBox
         x: ph.side + ph.inset
         y: ph.inset
