@@ -384,7 +384,8 @@ Scope {
                     // K71: only the edge's holder keeps the zone (`edges.<edge>.reserve`); otherwise zones are ignored and
                     // the dock stands at the layout's inset (setting `exclusiveZone` at all would turn the mode to Normal).
                     exclusionMode: dock.holder ? ExclusionMode.Normal : ExclusionMode.Ignore
-                    Binding on exclusiveZone { when: dock.holder; value: Math.max(dock.reserve, SidebarGeom.openZone(dock.outName, dock.edge)); restoreMode: Binding.RestoreNone }
+                    readonly property int sideOpenZone: SidebarGeom.openZone(dock.outName, dock.edge)
+                    Binding on exclusiveZone { when: dock.holder; value: Math.max(dock.reserve, win.sideOpenZone); restoreMode: Binding.RestoreNone }
                     readonly property string zoneKey: [dock.outName, dock.edge, dock.holder ? dock.reserve : 0].join("|")
                     onZoneKeyChanged: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)
                     Component.onCompleted: Light.setZone(win, dock.outName, dock.edge, dock.holder ? dock.reserve : 0)

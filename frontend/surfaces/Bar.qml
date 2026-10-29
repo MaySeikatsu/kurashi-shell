@@ -285,7 +285,10 @@ Scope {
             // zone; a window that holds none stays Ignore, -1 on the wire.)
             exclusionMode: bar.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
             // (with the zone a sidebar that keeps space only while it is out takes then: I301)
-            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, Math.max(win.zoneTotal, SidebarGeom.openZone(bar.outName, bar.edge)) - win.edgeMargin); restoreMode: Binding.RestoreNone }
+            // (an int property: it changes only with the number — every layout patch re-reads the layout, and a zone written
+            // again, even unchanged, is a commit: an idle bar must not commit, test-frame)
+            readonly property int sideOpenZone: SidebarGeom.openZone(bar.outName, bar.edge)
+            Binding on exclusiveZone { when: bar.holdsZone; value: Math.max(0, Math.max(win.zoneTotal, win.sideOpenZone) - win.edgeMargin); restoreMode: Binding.RestoreNone }
             WlrLayershell.layer: WlrLayer.Top
             // A hidden bar brought out by key takes the keyboard on demand, like the sidebar (Esc puts it away).
             WlrLayershell.keyboardFocus: bar.forced && bar.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None

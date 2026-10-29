@@ -69,7 +69,10 @@ Scope {
     readonly property var zones: JSON.parse(zonesKey)
     function holds(e) { return zones[e] > 0 }
     // (with the zone a sidebar that keeps space only while it is out takes then: I301)
-    function reserveOf(e) { return Math.max(zones[e] || 0, SidebarGeom.openZone(out, e)) }
+    // (int properties: they change only with the number, so a layout patch rewrites no zone — an idle frame never commits)
+    readonly property int openLeft: SidebarGeom.openZone(out, "left")
+    readonly property int openRight: SidebarGeom.openZone(out, "right")
+    function reserveOf(e) { return Math.max(zones[e] || 0, e === "left" ? openLeft : e === "right" ? openRight : 0) }
     // The edges whose strip a docked bar carries (row 492 b). Through a string, as the zones.
     readonly property string carriedKey: JSON.stringify({ top: FG.docked(lay, "top"), bottom: FG.docked(lay, "bottom"),
                                                           left: FG.docked(lay, "left"), right: FG.docked(lay, "right") })
