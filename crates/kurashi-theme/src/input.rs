@@ -142,6 +142,10 @@ pub struct Axes {
     /// `theme.outline_ink` (session 17): passed through as the token `outline.ink` ("outline" | "text" | "accent"): the
     /// colour of every outline; looks set it in their recipe.
     pub outline_ink: String,
+    /// `theme.material.elevation` (W57, K78): "auto" | "off" | "static" | "follow"; auto takes the chrome's default.
+    pub elevation: String,
+    pub elevation_strength: f64,
+    pub elevation_pointer: bool,
     /// Type scale multiplier (accessibility `large_text` raises it).
     pub type_scale: f64,
     pub font_chain: Vec<String>,
@@ -163,6 +167,9 @@ impl Default for Axes {
             chrome: Chrome::Flat,
             frame_outline: FrameOutline::Auto,
             outline_ink: "outline".into(),
+            elevation: "auto".into(),
+            elevation_strength: 1.0,
+            elevation_pointer: false,
             type_scale: 1.0,
             font_chain: ["Inter", "Noto Sans", "sans-serif"]
                 .map(String::from)

@@ -1497,6 +1497,95 @@
               "restart": false,
               "since": 1,
               "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.elevation.auto",
+                  "value": "auto"
+                },
+                {
+                  "label": "config.choice.elevation.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.elevation.static",
+                  "value": "static"
+                },
+                {
+                  "label": "config.choice.elevation.follow",
+                  "value": "follow"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "off",
+                  "key": "a11y.high_contrast",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "auto",
+              "help": "config.theme.material.elevation.help",
+              "key": "theme.material.elevation",
+              "label": "config.theme.material.elevation.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.material.elevation",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "off"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.material.elevation_strength.help",
+              "key": "theme.material.elevation_strength",
+              "label": "config.theme.material.elevation_strength.label",
+              "max": 2.0,
+              "min": 0.0,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 0.05,
+              "type": "float"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.material.elevation",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "follow"
+                },
+                {
+                  "forces": false,
+                  "key": "a11y.reduce_motion",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": false,
+              "help": "config.theme.material.elevation_pointer.help",
+              "key": "theme.material.elevation_pointer",
+              "label": "config.theme.material.elevation_pointer.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
             }
           ]
         },

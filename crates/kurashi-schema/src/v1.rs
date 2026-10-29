@@ -931,6 +931,40 @@ pub struct Material {
         requires = "theme.chrome != line"
     )]
     pub shadow_follow: bool,
+    /// Elevation
+    /// Smooth drop shadows under the shell's surfaces — sidebars, the dock, cards, the notification centre — that lift
+    /// them off the desktop: a wide faint shadow all round and a softer one along the light. Automatic: on for keycap
+    /// and soft looks, off for flat and line ones. Follow the light: they fall away from it, longer when it stands low.
+    #[kurashi(default = Elevation::Auto, since = 7, overridden_by = "a11y.high_contrast => off")]
+    pub elevation: Elevation,
+    /// Elevation strength
+    /// How deep the surfaces' shadows are: 0 none, 1 the look's own, 2 twice as far and dark (the blocks' shadows have
+    /// their own strength above).
+    #[kurashi(default = 1.0, range = 0.0..=2.0, step = 0.05, since = 7, requires = "theme.material.elevation != off")]
+    pub elevation_strength: f64,
+    /// Elevation follows the pointer
+    /// While the light follows the pointer or the spotlight aims at it, the surfaces' shadows turn away from it too,
+    /// eased; off, they fall from where the light rests.
+    #[kurashi(
+        default = false,
+        since = 7,
+        requires = "theme.material.elevation == follow",
+        overridden_by = "a11y.reduce_motion => false"
+    )]
+    pub elevation_pointer: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "elevation")]
+pub enum Elevation {
+    /// Automatic
+    Auto,
+    /// Off
+    Off,
+    /// Static
+    Static,
+    /// Follow the light
+    Follow,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]

@@ -572,6 +572,20 @@ Scope {
                                 // back so it falls the way the light says on both sides (K67, row 421).
                                 mirror: sb.side === "left" ? -1 : 1
                             }
+                            // W57 (K78): the column's elevation, cut where it joins the band, a bar or the screen's edge.
+                            Elevation {
+                                visible: shape.shown
+                                x: shape.bodyRect.x
+                                y: shape.bodyRect.y
+                                width: shape.bodyRect.width
+                                height: shape.bodyRect.height
+                                radius: col.floating ? Theme.rLg : col.joinR
+                                level: 2
+                                cutTop: win.openT
+                                cutBottom: win.openB
+                                cutRight: win.openO
+                                mirrorX: sb.side === "left" ? -1 : 1
+                            }
                             ColumnShape {
                                 id: shape
                                 anchors.fill: parent

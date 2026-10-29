@@ -127,6 +127,7 @@ PanelWindow {
             border.width: !chrome ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
             border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
             SoftShadow { anchors.fill: parent; radius: card.radius; amount: card.chrome ? 1 : 0 }
+            Elevation { anchors.fill: parent; radius: card.radius; level: 3 }
             // K59: the card is a material area; the relief lies under the content (over it with texture.text).
             Loader {
                 z: Theme.texText ? 2 : 0
