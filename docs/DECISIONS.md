@@ -1046,3 +1046,9 @@ KWin — not measured.
   (original sounds, never the trademarked ones).
 - **Amends K42:** under high contrast a style's bevel stays (in high-contrast colours) instead of being forced flat.
 - macOS styles: `aqua` (Jaguar–Tiger) and a new `vibrancy` (Big Sur–Sonoma).
+- (later the same session) **The design system is extended wherever it keeps a style from a 1:1 look**: per-style
+  animation styles and motion curves, fonts, icon sets and sizes, textures, sounds, window and frame decorations, OS
+  colours, material effects (blur, bloom, glow), buttons/sliders/menus — as decor-pack slots and tokens (rule 4).
+  **Every style ships a Layout Preset** (opt-in); the Windows styles a **start button** opening the launcher in a
+  start-menu skin. **Cursor personality** (a stylised cursor theme, a cursor trail/decoration on W58's effects sheet)
+  per style, **off by default**.
