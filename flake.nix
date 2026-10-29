@@ -43,8 +43,9 @@
             just jq (python3.withPackages (ps: [ ps.fonttools ])) git
             # Shader checks (the ghostty material shader, W37 row 402)
             glslang
-            # Frontend default (K3 candidate 1) + headless test compositor
-            quickshell sway grim wayland-utils
+            # Frontend default (K3 candidate 1) + headless test compositor; niri nested in it is the lead platform for
+            # visual checks (tools/bench/niri-sandbox.sh), imagemagick joins its bursts
+            quickshell sway grim wayland-utils niri imagemagick
             # Shaders (K59): `qsb` compiles frontend/shaders/*.frag
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
