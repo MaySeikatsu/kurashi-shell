@@ -19,3 +19,4 @@
 "cursor.error.refused" = "niri refused the cursor file."
 "cursor.include_missing" = "niri does not read the file yet: add this line to its config"
 "cursor.unsupported" = "The style's pointer is set on niri only for now."
+"decor.start.label" = "Start"
