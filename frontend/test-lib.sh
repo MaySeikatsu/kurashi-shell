@@ -1,5 +1,8 @@
+#!/usr/bin/env bash
 # Shared waits for the frontend suites (card W55): conditions instead of fixed sleeps. Source it after the sandbox's
 # env lines are in effect (grim talks to $WAYLAND_DISPLAY):  . "$ROOT/frontend/test-lib.sh"
+# (tools/test-suites.sh --all globs frontend/test-*.sh: run on its own, this file passes at once.)
+if [ "${BASH_SOURCE[0]}" = "$0" ]; then echo "test-lib: a library the suites source, not a suite"; exit 0; fi
 # Every wait returns as soon as its condition holds; its timeout is the old fixed sleep or longer, so a suite is never
 # slower than before, only faster. A fixed sleep stays where a suite measures time itself (an idle window, a dwell, a
 # reveal's duration).
@@ -48,9 +51,11 @@ _tl_trace() { echo "$1 max=${2:-} ${3}ms" >> "${XDG_RUNTIME_DIR:-/tmp}/test-lib.
 
 # _tl_screen [geometry]: a hash of the screen (all outputs, or the region "x,y wxh"). Full size: grim's scaling costs
 # ~0.7 s a frame on the CPU, a full PPM ~60 ms (measured).
+# A failed capture (a timeout under load, the display going away) never ends a suite under `set -euo pipefail`: it
+# hashes like any other, so two failures in a row read as a still screen.
 _tl_screen() {
-  if [ -n "${1:-}" ]; then timeout 10 grim -t ppm -g "$1" - 2>/dev/null | md5sum
-  else timeout 10 grim -t ppm - 2>/dev/null | md5sum; fi
+  if [ -n "${1:-}" ]; then timeout 10 grim -t ppm -g "$1" - 2>/dev/null | md5sum || true
+  else timeout 10 grim -t ppm - 2>/dev/null | md5sum || true; fi
 }
 
 # wait_settled [max s=10] [quiet s=0.6] [geometry]: returns once the screen (or the region) has not changed for `quiet`
