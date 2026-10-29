@@ -381,11 +381,17 @@ Scope {
                     }
                     // Glass only (Theme.blur), rounded as the body is drawn (I276), at the body's box as numbers (I296: the
                     // box moves every frame of the slide; as the dock's, the region must not depend on the item tracking it).
+                    // I296: cut as the column is drawn (`clipX1`, `clipY0/1`): while it slides its rect lies past the band it
+                    // joins, and niri fills a blur region with the blurred wallpaper over the layers under it — the band
+                    // showed the wallpaper while the column moved.
+                    readonly property real blurX1: Math.min(shX1, clipX1)
+                    readonly property real blurY0: Math.max(y0, clipY0)
+                    readonly property real blurY1: Math.min(y1, clipY1)
                     BackgroundEffect.blurRegion: Region {
-                        x: shapeRect.x
-                        y: shapeRect.y
-                        width: Theme.blur ? shapeRect.width : 0
-                        height: Theme.blur ? shapeRect.height : 0
+                        x: win.realX(win.shX0, win.blurX1)
+                        y: win.blurY0
+                        width: Theme.blur ? Math.max(0, win.blurX1 - win.shX0) : 0
+                        height: Theme.blur ? Math.max(0, win.blurY1 - win.blurY0) : 0
                         topLeftRadius: shape.sTL
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
