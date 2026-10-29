@@ -14,13 +14,28 @@ Row {
     // Where the window list's room ends (the next zone's left edge, in this row's parent): the start zone's list fits up to it.
     property real limit: 0
     spacing: Theme.pad + 2 * zr.owner.groupInset
+    // The group blocks' spans along the bar, in this row's parent (the bar's rule leaves a gap under them, I305).
+    readonly property var groupSpans: {
+        var out = []
+        for (var i = 0; i < runRep.count; i++) {
+            var r = runRep.itemAt(i)
+            if (r && r.visible && r.grouped) out.push([zr.x + r.x + r.gx, zr.x + r.x + r.gx + r.gw])
+        }
+        return out
+    }
 
     Repeater {
+        id: runRep
         model: zr.runs
         delegate: Item {
             id: run
             required property var modelData
             property int presentN: 0
+            // A group block, or the island's pill (its own block, I305).
+            readonly property bool isle: modelData.kind === "island"
+            readonly property bool grouped: grp.visible || (isle && Theme.groups && inner.width > 0)
+            readonly property real gx: isle ? inner.x : grp.x
+            readonly property real gw: isle ? inner.width : grp.width
             function recount() {
                 var n = 0
                 for (var i = 0; i < pieceRep.count; i++) { var p = pieceRep.itemAt(i); if (p && p.presentN > 0) n++ }
