@@ -1,6 +1,6 @@
 # W54-schema-v7 — material without "Glass", squircle steepness, frame outline, sidebar keep-space while open
 
-Session 17, from the user's niri review (BACKLOG I295–I304). The lead does the frontend (QML) side in parallel;
+Session 17, from the user's niri review (BACKLOG I295–I303). The lead does the frontend (QML) side in parallel;
 this card is the daemon/schema side only. Common rules: `docs/tasks/README.md` (all of them).
 Build dir: `CARGO_TARGET_DIR=$HOME/.cache/kurashi-agents-target/W54-schema-v7`.
 
