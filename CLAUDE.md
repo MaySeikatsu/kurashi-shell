@@ -97,3 +97,9 @@ user-facing change runs on niri: `tools/bench/niri-sandbox.sh` nests niri inside
 niri's blur, layer stacking and animations are what you see — sway lacks blur and stacks layers differently, and bugs
 were missed there. The sway-based `frontend/test-*.sh` suites stay as regression tests; a fix is not done until it is
 seen on niri. For blur, start it with a patterned wallpaper; for joins, read pixels (grim + `magick … txt:`).
+
+**Suites run in parallel (user rule, session 17).** `just suites` (tools/test-suites.sh) builds once, runs the frontend
+suites 4 at a time (each owns its sandbox) and re-runs a failure alone — only a failure alone counts. While iterating,
+`just suites --changed` runs only the suites a change touches; before a merge, `just suites` (the merge set) and
+`just check`. Never run suites one by one in a loop. Suites wait for conditions, not fixed sleeps, and keep motion off
+unless motion is under test (card W55).
