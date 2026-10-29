@@ -18,7 +18,7 @@ DecorHost {
     property var buttons: []
     signal close()
     signal button(string name)
-    implicitHeight: ready ? item.implicitHeight : 0
+    // (A Loader's implicit size is its part's: 0 px tall without one.)
     onLoaded: {
         item.title = Qt.binding(function () { return th.title })
         item.icon = Qt.binding(function () { return th.icon })

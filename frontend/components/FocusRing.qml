@@ -44,13 +44,16 @@ Rectangle {
         id: dottedC
         Shape {
             id: ds
-            preferredRendererType: Shape.CurveRenderer
+            // The geometry renderer, unsmoothed: it draws dashes (the curve renderer strokes them solid) on whole px.
+            antialiasing: false
             readonly property real r: Math.max(0, Math.min(fr.corner + Theme.focusOffset, Math.min(width, height) / 2))
             readonly property real h: Theme.focusW / 2
             ShapePath {
                 strokeColor: fr.stroke
                 strokeWidth: Theme.focusW
                 strokeStyle: ShapePath.DashLine
+                // Flat caps: a square cap would grow each 1 px dot over its gap (a solid line).
+                capStyle: ShapePath.FlatCap
                 dashPattern: [1, 1]
                 fillColor: "transparent"
                 startX: ds.r + ds.h; startY: ds.h
