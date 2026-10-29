@@ -17,7 +17,7 @@ TAG=${1:-sekai}
 shift || true
 LINES=("$@")
 [ ${#LINES[@]} -eq 0 ] && LINES=('theme.style = "sekai"')
-NAME=${LOOK_SANDBOX:-fe-look}-$TAG
+NAME=${LOOK_SANDBOX:-${KURASHI_SB_PREFIX:-}fe-look}-$TAG
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/look/$TAG
 STEPS=${LOOK_STEPS:-bar island quick toast notif launcher session}
@@ -25,6 +25,7 @@ mkdir -p "$OUT"
 fail() { echo "test-look: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -54,14 +55,17 @@ for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && br
 K ping >/dev/null 2>&1 || fail "kurashid did not come up (see $R/server.log)"
 # A desk to look at: the wallpaper test picture when there is one, else a neutral fill.
 swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
+BARE=$(screen_hash)
 env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
 grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-sleep 3
+# Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+wait_frontend "$R/qs.log" 0 3 0.6 "$BARE" || fail "the frontend did not load (see $R/qs.log)"
 
-shot() { sleep "${2:-1.2}"; grim "$OUT/$1.png"; echo "test-look: $OUT/$1.png"; }
-close() { K act "$1" >/dev/null 2>&1 || true; sleep 0.8; }
+# (The shot's and the close's fixed waits are now: until the screen stands still, at most that long.)
+shot() { wait_settled "${2:-1.2}" 0.5; grim "$OUT/$1.png"; echo "test-look: $OUT/$1.png"; }
+close() { K act "$1" >/dev/null 2>&1 || true; wait_settled 0.8 0.4; }
 for s in $STEPS; do
   case $s in
     bar) shot bar 0.2 ;;
@@ -91,9 +95,10 @@ if [ "${LOOK_LOCK:-0}" = 1 ] || [ "${LOOK_MOCK:-0}" = 1 ]; then
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K ping >/dev/null 2>&1 && break; sleep 0.1; done
   K act mock.doc "$(cat "$W/theme-patch.json")" >/dev/null
   : > "$R/server.log.lock"
+  OFF=$(log_size "$R/qs.log"); BARE=$(screen_hash)
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
-  sleep 3
+  wait_frontend "$R/qs.log" "$OFF" 3 0.6 "$BARE" || fail "the frontend did not load on the mock (see $R/qs.log)"   # (was a fixed 3 s)
   # The window list needs windows the sandbox's sway does not report: three fake ones on the focused workspace.
   K act mock.doc '{"doc":"svc.workspaces","patch":{"tasks":{"*":[{"id":1,"app_id":"firefox","focused":false},{"id":2,"app_id":"foot","focused":true},{"id":3,"app_id":"org.gnome.Nautilus","focused":false}]}}}' >/dev/null
   shot mock-bar 1.5

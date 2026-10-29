@@ -15,7 +15,7 @@
 # Shots in frontend/shots/tasks/<scheme>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w36-bar-tasks}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w36-bar-tasks}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/tasks
 SCHEMES=${TASKS_SCHEMES:-light dark}

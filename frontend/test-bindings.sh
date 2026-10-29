@@ -6,10 +6,11 @@
 # kurashi; they are copied first, as in test-real.sh. Nothing touches the user's display, socket or config.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-bindings}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-bindings}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -72,9 +73,11 @@ expect_unchanged() { # <panel> <what>
 
 : > "$R/kurashid.log"; : > "$R/qs.log"
 start_daemon
+BARE=$(screen_hash)
 qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
-sleep 3
+# Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+wait_frontend "$R/qs.log" 0 3 0.6 "$BARE" || { echo "FAIL: the frontend did not load (see $R/qs.log)" >&2; exit 1; }
 
 # 1. Bound: left -> notifications.center opens the notification center.
 K set island.main.input.left notifications.center >/dev/null
