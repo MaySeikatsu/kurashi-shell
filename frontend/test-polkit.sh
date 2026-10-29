@@ -231,8 +231,16 @@ echo "== the real shell: agent registration and screen corners at 24 px"
 start_daemon sekai $'theme.shape.screen_corners_follow = false\ntheme.shape.screen_corners = 24'
 env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" KURASHI_POLKIT_AGENT=1 qs -p "$ROOT/frontend" >> "$R/qs-real.log" 2>&1 &
 SHPID=$!
-# Was a fixed 6 s: the agent's registration result logged, then the screen still (its corners drawn).
+T0=$(now_ms)
+# Was a fixed 6 s: the agent's registration result logged, the screen's corners drawn (under load they come late: a
+# still screen alone was not enough), at most the 6 s from the start; then the screen still.
 wait_for "$R/qs-real.log" 'polkit: agent (registered|not registered)' 6 || true
+corner_black() {  # the output's bottom-left pixel is black (px.py's rule: every channel under 16)
+  local r g b
+  read -r r g b < <(timeout 10 grim -t ppm -g "1,1438 1x1" - 2>/dev/null | tail -c 3 | od -An -tu1 || true)
+  [ "${r:-255}" -lt 16 ] && [ "${g:-255}" -lt 16 ] && [ "${b:-255}" -lt 16 ]
+}
+wait_until "$(awk -v t="$(( 6000 - $(now_ms) + T0 ))" 'BEGIN { printf "%.3f", (t > 0 ? t : 0) / 1000 }')" corner_black || true
 wait_settled 3 0.6
 check "$(grep -q 'polkit: agent \(registered\|not registered\)' "$R/qs-real.log" && echo 1 || echo 0)" "the agent's registration result is logged: $(grep -m1 -o 'polkit: agent.*' "$R/qs-real.log" || echo none)"
 pixels "corners at 24: black at the output's corners, the background 14 px in" \
