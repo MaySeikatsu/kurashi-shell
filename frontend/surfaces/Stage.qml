@@ -216,7 +216,7 @@ PanelWindow {
                         required property var modelData
                         activeFocusOnTab: false
                         icon: modelData.id === "close" ? "close" : modelData.id === "minimize" ? "minimize"
-                            : (stage.full ? "close_fullscreen" : "open_in_full")
+                            : (stage.full ? "fullscreen_exit" : "fullscreen")
                         glyph: modelData.id === "close" ? "×" : modelData.id === "minimize" ? "–" : "□"
                         a11y: I18n.tr(modelData.action === "app_menu" ? "styles.title.app_menu"
                             : modelData.id === "maximize" && stage.full ? "styles.title.restore" : "styles.title." + modelData.id)

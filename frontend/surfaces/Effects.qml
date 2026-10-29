@@ -92,8 +92,9 @@ Scope {
                     g.reset()
                     var now = Date.now(), m = fx.marks, life = fx.life
                     if (fx.kind === "trail") {
-                        // A ribbon from the oldest mark to the newest, thin and faint at its tail.
-                        g.lineCap = "round"
+                        // A ribbon from the oldest mark to the newest, thin and faint at its tail (butt caps: round ones
+                        // overlap where the segments meet and bead the translucent ribbon).
+                        g.lineCap = "butt"
                         g.lineJoin = "round"
                         for (var i = 1; i < m.length; i++) {
                             var a = 1 - (now - m[i].t) / life

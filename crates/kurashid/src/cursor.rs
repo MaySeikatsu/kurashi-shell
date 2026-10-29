@@ -37,6 +37,19 @@ pub const REASON_NO_SET: &str = "cursor.no_set";
 pub const REASON_NO_DECORATION: &str = "cursor.no_decoration";
 pub const REASON_WRITE_FAILED: &str = "cursor.error.write_failed";
 pub const REASON_REFUSED: &str = "cursor.error.refused";
+/// The theme is linked into `$XDG_DATA_HOME/icons`, which the session's `XCURSOR_PATH` leaves out: the compositor (which
+/// shares the session's environment) may not find it.
+pub const REASON_NOT_ON_PATH: &str = "cursor.not_on_path";
+
+/// Whether the compositor looks in `icons` for cursor themes: `XCURSOR_PATH` names it, or is unset (libXcursor's and the
+/// xcursor crate's defaults include `~/.local/share/icons`, which is `$XDG_DATA_HOME/icons` unless that is moved).
+pub fn on_cursor_path(icons: &Path, xcursor_path: Option<&str>) -> bool {
+    match xcursor_path {
+        Some(p) if !p.is_empty() => std::env::split_paths(p).any(|d| d == icons),
+        _ => std::env::var_os("HOME")
+            .is_some_and(|h| PathBuf::from(h).join(".local/share/icons") == icons),
+    }
+}
 
 pub fn cursors_dir() -> PathBuf {
     crate::i18n::data_dir().join("cursors")
@@ -278,6 +291,12 @@ impl Cursor {
             compositor: self.compositor,
             checker: checker.as_deref(),
         });
+        if doc["state"] == "written"
+            && !on_cursor_path(&icons, std::env::var("XCURSOR_PATH").ok().as_deref())
+        {
+            doc["reason"] = json!(REASON_NOT_ON_PATH);
+            doc["icons"] = json!(icons.to_string_lossy());
+        }
         let (kind, why) = decoration(
             &crate::theme::s(&self.store, "cursor.decoration"),
             &token(TOKEN_DECORATION),
@@ -385,6 +404,23 @@ mod tests {
                 "{name}: no left_ptr"
             );
         }
+    }
+
+    #[test]
+    fn the_link_must_be_where_the_compositor_looks() {
+        let icons = Path::new("/home/u/.local/share/icons");
+        assert!(on_cursor_path(
+            icons,
+            Some("/home/u/.icons:/home/u/.local/share/icons:/usr/share/icons")
+        ));
+        assert!(!on_cursor_path(
+            icons,
+            Some("/home/u/.icons:/usr/share/icons")
+        ));
+        assert!(!on_cursor_path(
+            Path::new("/tmp/x/icons"),
+            Some("/home/u/.local/share/icons")
+        ));
     }
 
     #[test]

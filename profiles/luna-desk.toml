@@ -8,6 +8,10 @@ style = "luna"
 
 [edges.top]
 bar = false
+# Nothing left at the top: an edge's modules stand there on their own without a bar (K71).
+start = []
+center = []
+end = []
 
 [edges.bottom]
 bar = true
