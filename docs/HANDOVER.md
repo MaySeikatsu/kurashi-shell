@@ -17,6 +17,56 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-10-29 — session 17, part 3 (machine A): outlines in general, Settings on the shell's Theme, cards for corners, shadows, the light
+**State:** branch `feat/s17-frame-ink` (on top of `main` 0e0f3adb+) is **not merged** — its check run was still going at
+handover: 12 of 15 suites green under load; `frontend/test-sidebars.sh` (kami: "the fillet (231) is the bar strip's
+colour (247)", calm and lively) and `settings/test-sheet.sh` ("the spotlight does not follow the pointer over the sheet")
+failed under load and were re-running alone; `settings/test.sh` and `just check` after them. Logs:
+`/tmp/kurashi-suites/s17-settings/` (summary.txt once done), `/tmp/kurashi-lead-logs/check-settings.log`. A package of the
+branch was built (`nix run .` from the checkout runs it); `main` and its package are part 2's. Nothing pushed.
+The `nix run .` regression of part 1 (passthru `bin` → the app ran the unwrapped daemon) is fixed on `main` with a flake
+check (`apps-wrapped`).
+
+**On the branch:**
+- Outlines in general (user): `theme.outline_ink` (outline | text | accent → token `outline.ink`; `Theme.outlineColor`
+  honours it everywhere, kami's sketch decor too); `theme.pen.line` gains `sketch` (pen.js, kami's two light passes);
+  kami's recipe: text + sketch. `theme.frame_outline` still decides whether the frame and the bars' inner edges get a line.
+- Settings: `settings/core/Theme.qml` and `Glide.qml` are links to the shell's (one Theme: Settings follows every token);
+  the sheet grows down from its top edge on the profile's motion (Caelestia's curves under expressive), the window's
+  content fades/slides in; pages scroll kinetically (`KineticWheel`) with a grabbable `PageScrollBar`; the navigation is
+  framed as the section cards. UX brief: `docs/ux/settings.md` "Opening, scrolling and the navigation's frame".
+- Tools: `niri-sandbox.sh` starts from an empty sandbox dir and has `wheel`; `test-suites.sh` adds named suites to
+  `--changed`.
+
+**Next steps (ordered):**
+1. Finish the branch: read the alone re-runs. If `test-sidebars` kami fillet is real, it comes from kami's sketched ink on
+   the joined column (ColumnShape `penOn`/`oc` with `pen.line = sketch`) — compare on niri (`niri-sandbox.sh`, look kami,
+   chrome line, right sidebar top fillet) against `main`; if `test-sheet`'s spotlight check is real, it comes from the
+   sheet's content now sitting in a clipped, offset slot (SheetHost: `slot` inside the grow clip; Relief registers by
+   window pixel — check `Light` still gets the sheet's pointer). Fix, `just suites --changed main settings/test-sheet.sh`,
+   `just check`, merge `--no-ff`, `nix build .#kurashi`, ask the user to push.
+2. Bugs found today: I309 (kami: the island card's head shows the wallpaper across the bar — main too), I305 (keycap
+   frame outline under grouped bars looks heavy), re-check on the user's niri I296 (sidebar band with blur) and I298
+   (dock texture after a Sheet change: a guess is in), I304 (layer stacking by map order), I306 (mock tokens), I308 (pen
+   idle flake; W55 should settle it).
+3. W56 corners (I288 squircle on every visible shape incl. relief.frag's box; I269 concentric rest) — `docs/tasks/W56-corners.md`.
+4. W57 elevation shadows (I310; the user wants them smooth: layered ambient + key, no banding) — UX brief first,
+   `docs/tasks/W57-elevation-shadows.md` (static via niri layer-rule shadows vs client-drawn for follow-light).
+5. W58 the pointer light across the screen (I311) — `docs/tasks/W58-pointer-light.md`: a click-through overlay cannot see
+   the cursor (Wayland); niri 26.04 has no ext-image-copy-capture cursor sessions and no cursor IPC → routes: cursor
+   sessions in kurashid where supported, a niri patch (ask the user first), an honest fallback. The effects sheet (I312:
+   ripples, trails, waves) builds on it later.
+6. W55 fast suites, W53 styles (I294 first if style edits pile up), I280, I284/I285.
+
+**Rules in force (CLAUDE.md, memory):** niri is the lead platform for every visual check; suites via `just suites`
+(`--changed` while iterating); no subagents unless the user allows one.
+
+**Risks:** Settings now shares the shell's Theme file — a Theme change reaches both apps (Settings-only members are at
+the end of it). Schema v7 keys were renamed on this branch before release (`frame_outline_ink/stroke` → `outline_ink`
+and `pen.line = sketch`); a config that set the old keys on the branch reads them as unknown.
+
+---
+
 ## 2026-10-29 — session 17, part 2 (machine A): the user's niri review, schema v7, the test workflow — K77
 **State:** `feat/w54-schema-v7` (one subagent, card W54) and `feat/s17-review-fixes` merged into `main` (`--no-ff`), **not
 pushed** (push when the user agrees; part 1 and session 16's merges are unpushed too). `nix build .#kurashi` run on the
