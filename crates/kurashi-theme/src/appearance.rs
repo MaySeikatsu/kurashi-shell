@@ -15,10 +15,234 @@
 //! `[slots] frame = "<name>"` (looks only) is drawn over every block's edge by the frontend component
 //! `frontend/components/frames/<Name>.qml` (kebab-case → PascalCase; W25). The daemon publishes it as the theme token
 //! `decor.frame` (`""` when the look has none); the name is data, never compared by a renderer (rule 4).
+//!
+//! W53.0a (K80, docs/ux/styles.md "The shared system"): the other [`SLOTS`] work the same way — `[slots] title =
+//! "caption"` is `decor.title`, which the title host loads as `frontend/components/decor/title/Caption.qml` — and a
+//! look's `[decor]` table carries the numbers, switches, palette roles and curves its components share
+//! ([`DECOR_KEYS`]: one list, validated here, published as `decor.<key>` with every default filled in). A slot or a key
+//! outside the lists, or a value outside its kind, is refused and reported like a foreign recipe key.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use serde_json::Value;
+
+/// The look slots (`[slots]`): each a component name the frontend's host for it loads; `""` (or left out) = the
+/// default, today's shell. `lock` and `sounds` are hosted by the lock surface and the daemon (W53.0b).
+pub const SLOTS: &[&str] = &[
+    "frame", "title", "start", "tray", "menu", "scroll", "tooltip", "focus", "button", "slider",
+    "toggle", "lock", "sounds",
+];
+
+/// What a `[decor]` value may be.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DecorKind {
+    /// A whole number within the range (px, a weight, a count).
+    Int(i64, i64),
+    /// A number within the range (a strength).
+    Num(f64, f64),
+    Bool,
+    /// One of these words.
+    Choice(&'static [&'static str]),
+    /// A palette role's name (published as its colour); `""` = the component's own colour.
+    Role,
+    /// One or two role names (a solid fill or a gradient's ends).
+    Roles,
+    /// A QML `bezierCurve`: a cubic's four control numbers (`[x1, y1, x2, y2]`, ending at 1, 1), or whole segments of
+    /// six numbers whose last point is 1, 1; `[]` = the motion profile's own.
+    Curve,
+    /// Font families, the first installed one wins; `[]` = the shell's own.
+    Families,
+}
+
+/// One `[decor]` key: its name, kind, default (JSON) and what it is for.
+pub struct DecorKey {
+    pub key: &'static str,
+    pub kind: DecorKind,
+    pub default: &'static str,
+}
+
+const fn k(key: &'static str, kind: DecorKind, default: &'static str) -> DecorKey {
+    DecorKey { key, kind, default }
+}
+
+use DecorKind::{Bool, Choice, Curve, Families, Int, Num, Role, Roles};
+
+/// Every `[decor]` key a look may set (W53.0a, docs/ux/styles.md "Metrics, as data"), with the default that keeps
+/// today's shell. Numbers are logical px unless named otherwise; `0` (or `-1` where 0 is a size) means the component's
+/// own value. The tokens are `decor.<key>`; roles are published as colours. DESIGN-SYSTEM §4 "Decor metrics" says
+/// what each draws.
+pub const DECOR_KEYS: &[DecorKey] = &[
+    // Window captions (the `title` slot): height, fill (active, inactive; one role solid, two a gradient), its
+    // direction, the text's place and weight, the close button's chrome, which side the buttons sit on, the corner.
+    k("title.height", Int(12, 64), "24"),
+    k("title.fill", Roles, r#"["title", "title_end"]"#),
+    k(
+        "title.fill_inactive",
+        Roles,
+        r#"["title_inactive", "title_inactive_end"]"#,
+    ),
+    k("title.on", Role, r#""on_title""#),
+    k(
+        "title.fill_dir",
+        Choice(&["horizontal", "vertical"]),
+        r#""horizontal""#,
+    ),
+    k("title.align", Choice(&["start", "center"]), r#""start""#),
+    k("title.weight", Int(100, 900), "700"),
+    k(
+        "title.close",
+        Choice(&["glyph", "bevel", "gel", "plate", "dot"]),
+        r#""glyph""#,
+    ),
+    k("title.buttons", Choice(&["end", "start"]), r#""end""#),
+    k("title.radius", Int(-1, 24), "-1"),
+    // A window border round a captioned card: width and role.
+    k("border.width", Int(0, 8), "0"),
+    k("border.color", Role, r#""outline""#),
+    // The bevel chrome (K80): line width and how far content moves while pressed.
+    k("bevel.width", Int(1, 4), "1"),
+    k("bevel.press_offset", Int(0, 4), "1"),
+    // Menus (tray menu, dock menu, launcher rows): row height, the highlight's shape, separators, corner.
+    k("menu.row", Int(0, 64), "0"),
+    k(
+        "menu.highlight",
+        Choice(&["capsule", "bar", "inset"]),
+        r#""capsule""#,
+    ),
+    k(
+        "menu.separator",
+        Choice(&["line", "etched", "space"]),
+        r#""line""#,
+    ),
+    k("menu.radius", Int(-1, 24), "-1"),
+    // Scroll bars: width, arrow buttons, the thumb's face.
+    k("scroll.width", Int(0, 24), "0"),
+    k("scroll.arrows", Bool, "false"),
+    k(
+        "scroll.thumb",
+        Choice(&["pill", "flat", "bevel", "gel"]),
+        r#""pill""#,
+    ),
+    // Tooltips: fill and text roles, a balloon's tail.
+    k("tooltip.fill", Role, r#""""#),
+    k("tooltip.on", Role, r#""""#),
+    k("tooltip.tail", Bool, "false"),
+    // The tray well and separators between bar groups.
+    k("tray.sunken", Bool, "false"),
+    k(
+        "separator.style",
+        Choice(&["line", "etched", "none"]),
+        r#""line""#,
+    ),
+    // Keyboard focus (FocusRing): style, offset (negative = inside), width.
+    k(
+        "focus.style",
+        Choice(&["ring", "dotted", "double", "halo"]),
+        r#""ring""#,
+    ),
+    k("focus.offset", Int(-8, 8), "0"),
+    k("focus.width", Int(1, 4), "1"),
+    // The start button's dress shows its label beside the mark.
+    k("start.label", Bool, "false"),
+    // Type: bitmap text (no smoothing, sizes on a grid of `pixel_step` px).
+    k("type.pixel", Bool, "false"),
+    k("type.pixel_step", Int(1, 16), "1"),
+    // Symbols: the style's own icon font (ligature names as Material Symbols), the default icon size (0 = body + 4) and
+    // a scale for every icon, the fill and weight (-1 = the chrome's).
+    k("icons.family", Families, "[]"),
+    k("icon.size", Int(0, 64), "0"),
+    k("icon.scale", Num(0.5, 2.0), "1.0"),
+    k("icon.fill", Int(-1, 1), "-1"),
+    k("icon.weight", Int(-1, 900), "-1"),
+    // Motion personality (on top of K74's profiles; reduce motion still wins): the form surfaces move in, the stepped
+    // style's hold (frames at 60 Hz per step), the timed durations (0 = K74's) and curves ([] = K74's).
+    k(
+        "motion.style",
+        Choice(&["grow", "slide", "zoom", "fade", "flip", "stepped", "rubber"]),
+        r#""grow""#,
+    ),
+    k("motion.steps", Int(1, 30), "4"),
+    k("motion.open_ms", Int(0, 2000), "0"),
+    k("motion.close_ms", Int(0, 2000), "0"),
+    k("motion.fast_ms", Int(0, 2000), "0"),
+    k("motion.effects_ms", Int(0, 2000), "0"),
+    k("motion.open_curve", Curve, "[]"),
+    k("motion.close_curve", Curve, "[]"),
+    k("motion.fast_curve", Curve, "[]"),
+    k("motion.effects_curve", Curve, "[]"),
+    // Materials next to blur: a glow round blocks (its role and reach), a bloom of the block's own colour, a glossy sheen
+    // on the upper half (Vista/7). 0 = none; static, nothing runs per frame.
+    k("material.glow", Num(0.0, 1.0), "0.0"),
+    k("material.glow_color", Role, r#""accent""#),
+    k("material.glow_radius", Int(0, 48), "12"),
+    k("material.bloom", Num(0.0, 1.0), "0.0"),
+    k("material.bloom_radius", Int(0, 48), "16"),
+    k("material.sheen", Num(0.0, 1.0), "0.0"),
+    // The pixel grid (snes): positions and lines snap to it; 0 = none.
+    k("pixel", Int(0, 8), "0"),
+];
+
+/// The `[decor]` key named `key`.
+pub fn decor_key(key: &str) -> Option<&'static DecorKey> {
+    DECOR_KEYS.iter().find(|d| d.key == key)
+}
+
+impl DecorKey {
+    pub fn default_value(&self) -> Value {
+        serde_json::from_str(self.default).expect("DECOR_KEYS defaults are JSON")
+    }
+
+    /// `v` as this key takes it (an integer for an integer key given as `18.0`), or `None` when it is not one.
+    pub fn check(&self, v: &Value) -> Option<Value> {
+        let role = |r: &Value| {
+            r.as_str()
+                .is_some_and(|s| crate::palette::ROLES.contains(&s))
+        };
+        match self.kind {
+            Int(lo, hi) => {
+                let f = v.as_f64()?;
+                (f.fract() == 0.0 && f >= lo as f64 && f <= hi as f64)
+                    .then(|| Value::from(f as i64))
+            }
+            Num(lo, hi) => {
+                let f = v.as_f64()?;
+                (lo..=hi).contains(&f).then(|| Value::from(f))
+            }
+            Bool => v.is_boolean().then(|| v.clone()),
+            Choice(c) => v
+                .as_str()
+                .is_some_and(|s| c.contains(&s))
+                .then(|| v.clone()),
+            Role => (v.as_str() == Some("") || role(v)).then(|| v.clone()),
+            Roles => {
+                let a = v.as_array()?;
+                ((1..=2).contains(&a.len()) && a.iter().all(role)).then(|| v.clone())
+            }
+            Curve => {
+                let n: Vec<f64> = v
+                    .as_array()?
+                    .iter()
+                    .map(Value::as_f64)
+                    .collect::<Option<_>>()?;
+                let ok = match n.len() {
+                    0 | 4 => true,
+                    l if l % 6 == 0 => n[l - 2] == 1.0 && n[l - 1] == 1.0,
+                    _ => false,
+                };
+                // x stays within the animation's 0..1; y may overshoot.
+                let xs_ok = n.chunks(2).all(|p| (0.0..=1.0).contains(&p[0]));
+                (ok && xs_ok && n.iter().all(|f| f.is_finite())).then(|| v.clone())
+            }
+            Families => {
+                let a = v.as_array()?;
+                a.iter()
+                    .all(|f| f.as_str().is_some_and(|s| !s.is_empty()))
+                    .then(|| v.clone())
+            }
+        }
+    }
+}
 
 /// The keys a look sets, and picking a look resets: its form and feel.
 pub const LOOK_KEYS: &[&str] = &[
@@ -179,6 +403,10 @@ pub struct Pack {
     pub bundled: bool,
     /// Looks: `[slots] frame`, the frame component the frontend draws over blocks; `""` for none.
     pub frame: String,
+    /// Looks: every `[slots]` entry (W53.0a), `frame` included; a slot left out is the default.
+    pub slots: BTreeMap<String, String>,
+    /// Looks: the `[decor]` metrics (W53.0a), checked against [`DECOR_KEYS`].
+    pub decor: BTreeMap<String, Value>,
     /// Styles: the look and the palette they are made of.
     pub look: String,
     pub palette: String,
@@ -232,14 +460,40 @@ pub fn parse(kind: Kind, src: &str, fallback_name: &str, bundled: bool) -> Resul
             recipe.push(("theme.material.blur".into(), serde_json::Value::Bool(true)));
         }
     }
-    // A frame names a QML file: lowercase words joined by `-`, nothing that could leave the frames directory.
-    let frame = v
-        .get("slots")
-        .and_then(|t| t.get("frame"))
-        .and_then(toml::Value::as_str)
-        .unwrap_or_default();
-    if !slug_ok(frame) || (kind == Kind::Style && !frame.is_empty()) {
-        return Err(format!("{} frame {frame:?} is not allowed", kind.dir()));
+    // A slot names a QML file: lowercase words joined by `-`, nothing that could leave its directory. Only looks carry
+    // slots and decor (a style dresses with its look's).
+    let mut slots = BTreeMap::new();
+    if let Some(t) = v.get("slots").and_then(toml::Value::as_table) {
+        for (slot, val) in t {
+            let name = val.as_str().unwrap_or_default();
+            if !slug_ok(name) || val.as_str().is_none() || (kind == Kind::Style && !name.is_empty())
+            {
+                return Err(format!("{} {slot} {val} is not allowed", kind.dir()));
+            }
+            if !SLOTS.contains(&slot.as_str()) {
+                refused.push(format!("slots.{slot}"));
+                continue;
+            }
+            slots.insert(slot.clone(), name.to_owned());
+        }
+    }
+    let frame = slots.get("frame").cloned().unwrap_or_default();
+    let mut decor = BTreeMap::new();
+    if let Some(t) = v.get("decor").and_then(toml::Value::as_table) {
+        if kind == Kind::Style {
+            return Err("styles have no [decor]: their look's applies".into());
+        }
+        let mut flat = Vec::new();
+        flatten_decor("", t, &mut flat);
+        for (key, val) in flat {
+            let val = serde_json::to_value(val).map_err(|e| e.to_string())?;
+            match decor_key(&key).and_then(|d| d.check(&val)) {
+                Some(ok) => {
+                    decor.insert(key, ok);
+                }
+                None => refused.push(format!("decor.{key}")),
+            }
+        }
     }
     let (look, palette) = match kind {
         Kind::Look => (String::new(), String::new()),
@@ -260,10 +514,37 @@ pub fn parse(kind: Kind, src: &str, fallback_name: &str, bundled: bool) -> Resul
         recipe,
         refused,
         bundled,
-        frame: frame.to_owned(),
+        frame,
+        slots,
+        decor,
         look,
         palette,
     })
+}
+
+/// `[decor]` with nested tables (`[decor.title] height = 18`) flattened to dotted keys (`title.height`).
+fn flatten_decor(prefix: &str, t: &toml::Table, out: &mut Vec<(String, toml::Value)>) {
+    for (k, v) in t {
+        let key = if prefix.is_empty() {
+            k.clone()
+        } else {
+            format!("{prefix}.{k}")
+        };
+        match v.as_table() {
+            Some(sub) => flatten_decor(&key, sub, out),
+            None => out.push((key, v.clone())),
+        }
+    }
+}
+
+impl Pack {
+    /// The decor this look dresses the shell in (W53.0a): its slots and metrics, for [`crate::ThemeInput::decor`].
+    pub fn decor_input(&self) -> crate::Decor {
+        crate::Decor {
+            slots: self.slots.clone(),
+            metrics: self.decor.clone(),
+        }
+    }
 }
 
 /// `$XDG_CONFIG_HOME/kurashi/<looks|styles>` (or `~/.config/…`).

@@ -82,7 +82,14 @@ pub fn resolve_palette(input: &ThemeInput) -> Result<(Palette, Vec<Note>), Theme
 /// Full resolution: palette pipeline, axis scales, component tokens, overrides.
 pub fn resolve(input: &ThemeInput, fonts: &dyn FontProvider) -> Result<ThemeOutput, ThemeError> {
     let (palette, mut notes) = resolve_palette(input)?;
-    let (tokens, tn) = tokens::build(&palette, &input.axes, fonts, &input.overrides)?;
+    let (tokens, tn) = tokens::build(
+        &palette,
+        &input.axes,
+        &input.decor,
+        input.contrast == ContrastLevel::High,
+        fonts,
+        &input.overrides,
+    )?;
     notes.extend(tn.into_iter().map(|text| Note {
         stage: if text.starts_with("override") {
             "override"
@@ -120,14 +127,7 @@ pub fn preview(
                     Scheme::Dark
                 }
             }
-            "theme.chrome" => {
-                input.axes.chrome = match s {
-                    "keycap" => Chrome::Keycap,
-                    "soft" => Chrome::Soft,
-                    "line" => Chrome::Line,
-                    _ => Chrome::Flat,
-                }
-            }
+            "theme.chrome" => input.axes.chrome = Chrome::parse(s),
             "theme.material.kind" => {
                 input.axes.material = if s == "solid" {
                     Material::Solid

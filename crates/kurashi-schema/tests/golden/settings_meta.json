@@ -1215,6 +1215,10 @@
                 {
                   "label": "config.choice.chrome.line",
                   "value": "line"
+                },
+                {
+                  "label": "config.choice.chrome.bevel",
+                  "value": "bevel"
                 }
               ],
               "control": "select",
