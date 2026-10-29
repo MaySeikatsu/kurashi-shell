@@ -46,10 +46,11 @@ wait_until() {
 # _tl_trace <what> <max s> <ms>: each wait's length, for tuning, in the sandbox's test-lib.log.
 _tl_trace() { echo "$1 max=${2:-} ${3}ms" >> "${XDG_RUNTIME_DIR:-/tmp}/test-lib.log" 2>/dev/null || true; }
 
-# _tl_screen [geometry]: a hash of the screen (all outputs, or the region "x,y wxh"), at half size.
+# _tl_screen [geometry]: a hash of the screen (all outputs, or the region "x,y wxh"). Full size: grim's scaling costs
+# ~0.7 s a frame on the CPU, a full PPM ~60 ms (measured).
 _tl_screen() {
   if [ -n "${1:-}" ]; then timeout 10 grim -t ppm -g "$1" - 2>/dev/null | md5sum
-  else timeout 10 grim -t ppm -s 0.5 - 2>/dev/null | md5sum; fi
+  else timeout 10 grim -t ppm - 2>/dev/null | md5sum; fi
 }
 
 # wait_settled [max s=10] [quiet s=0.6] [geometry]: returns once the screen (or the region) has not changed for `quiet`
