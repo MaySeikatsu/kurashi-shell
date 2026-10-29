@@ -8,13 +8,10 @@ use serde_json::{Value, json};
 
 pub const FALLBACK: &str = "en";
 
-/// Where `i18n/`, `palettes/` and the frontend live: `$KURASHI_DATA_DIR`, the install prefix
-/// baked in at build time (nix sets it), then the source tree for `cargo run`.
+/// Where `i18n/`, `palettes/` and the frontend live: `$KURASHI_DATA_DIR` (the package's wrappers set it, I291),
+/// then the source tree for `cargo run`. Read at run time only, so the binary does not depend on the data's store path.
 pub fn data_dir() -> PathBuf {
     if let Some(d) = std::env::var_os("KURASHI_DATA_DIR") {
-        return d.into();
-    }
-    if let Some(d) = option_env!("KURASHI_DATA_DIR") {
         return d.into();
     }
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -110,8 +107,8 @@ mod tests {
 
     #[test]
     fn shipped_frontend_strings_exist_in_every_locale() {
-        // The source tree, not data_dir(): under `nix build` the install prefix is empty while
-        // tests run.
+        // The source tree, not data_dir(): a KURASHI_DATA_DIR in the environment may point at
+        // another tree.
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../i18n");
         let en = load_locale(&root, "en");
         let ja = load_locale(&root, "ja");
