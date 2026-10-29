@@ -1,18 +1,13 @@
 import QtQuick
-import "../core"
+import "../../core"
+import ".."
 
-// One lock surface's content (presentational: state in, signals out). The password is held only in
+// The plain lock face (W53.0b: was LockContent.qml, unchanged at rest, so every look keeps today's lock): one lock
+// surface's content (presentational: state in, signals out; the contract is FaceBase's). The password is held only in
 // the TextInput, sent through `submitted` and cleared in the same call stack (K2).
 // Styling: tokens only. The shake and the countdown run only while the surface exists (= locked).
-Rectangle {
+FaceBase {
     id: c
-
-    property var lock: ({})             // runtime.lock
-    property var clock: ({})            // svc.clock
-    property var media: ({})            // svc.media
-    property int remainingMs: 0         // local countdown of lock.retry_in_ms (no daemon polling)
-    signal submitted(string secret)
-    signal cancelled()
 
     readonly property bool busy: lock.busy === true
     readonly property bool waiting: remainingMs > 0
@@ -126,6 +121,15 @@ Rectangle {
     }
 
     function refocus() { field.forceActiveFocus() }
+    // The hints under the message: Caps Lock (the daemon reads the LED, absent = unknown) and the fingerprint reader
+    // (only where PAM asks it and a finger is enrolled).
+    readonly property string hintText: {
+        var h = []
+        if (c.capsLock) h.push(I18n.tr("lockui.caps_lock"))
+        if (c.fingerprint.available === true)
+            h.push(I18n.tr(c.fingerprint.state === "scanning" ? "lockui.fingerprint.scanning" : "lockui.fingerprint.idle"))
+        return h.join(" · ")
+    }
     onFollowUpChanged: { field.text = ""; refocus() }
     onBusyChanged: if (!busy) refocus()
 
@@ -227,6 +231,7 @@ Rectangle {
                     s = ""
                 }
                 Keys.onEscapePressed: { text = ""; c.cancelled() }
+                Keys.onPressed: event => { if (event.key === Qt.Key_CapsLock) c.capsKey() }
             }
         }
 
@@ -238,6 +243,18 @@ Rectangle {
             text: c.busy ? I18n.tr("lockui.checking") : c.messageText
             visible: text !== ""
             color: c.isError && !c.busy ? Theme.error : Theme.dim
+            font.pixelSize: Theme.fs
+            font.family: Theme.fam(text, Theme.families)
+        }
+
+        Text {
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: parent.width
+            horizontalAlignment: Text.AlignHCenter
+            wrapMode: Text.Wrap
+            visible: text !== ""
+            text: c.hintText
+            color: c.capsLock ? Theme.warning : Theme.dim
             font.pixelSize: Theme.fs
             font.family: Theme.fam(text, Theme.families)
         }

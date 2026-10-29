@@ -38,7 +38,8 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 10] = [
+pub const CORE_SOURCES: [&str; 11] = [
+    "lock.faces",
     "actions",
     "modules",
     "palettes",
@@ -803,6 +804,14 @@ fn offers_now(
             .collect(),
     );
     offers.insert("sidebar.tabs".to_string(), mod_panels.to_vec());
+    // W53.0b (K80): the lock faces the package ships, after "follow the style" and "plain".
+    offers.insert(
+        "lock.faces".to_string(),
+        crate::lock::face_offers()
+            .into_iter()
+            .map(|(v, label)| Offer::on(&v, label))
+            .collect(),
+    );
     let mut palettes: Vec<Offer> = kurashi_theme::bundled_names()
         .into_iter()
         .map(|name| Offer::on(name, format!("config.choice.palette.{name}")))
