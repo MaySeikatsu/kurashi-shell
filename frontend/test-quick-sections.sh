@@ -35,7 +35,7 @@
 # KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-quick-sections}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-quick-sections}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 MOCK_BIN=${KURASHI_MOCK_BIN:-$BIN/kurashi-mock}
 LOCALE=${QUICK_LOCALE:-C.UTF-8}
@@ -45,6 +45,7 @@ mkdir -p "$OUT"
 fail() { echo "test-quick-sections: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 MOCK_SOCK=$R/kurashi/mock.sock
@@ -183,7 +184,7 @@ PY
 
 # The shot's card (surface_container) in layout coordinates, and a crop of it as the evidence shot.
 ppm_shot() {  # ppm_shot <name> <settle s>: the output as a PPM
-  sleep "$2"
+  wait_settled "$2" 0.4   # (was a fixed sleep of <settle s>: now at most that, until the screen stands still)
   timeout 20 grim -o HEADLESS-1 -t ppm "$W/$1.ppm" || fail "grim failed on $1"
 }
 card_shot() {  # card_shot <name> <settle s>: the open card's bounding box (cx0 cy0 cx1 cy1) and a crop of it
@@ -218,6 +219,8 @@ press() {  # press <key>...: one line per key to the keyboard helper, a short pa
     sleep 0.4
   done
 }
+# settle <s>: after a step, until the screen stands still (its page, its motion), at most <s> — the fixed sleep it was.
+settle() { wait_settled "$1" 0.5; }
 mark() { printf 'mark %s\n' "$1" >> "$R/subs.log"; }
 # last_event <doc>: the last subscribe or unsubscribe of the card's connection for that document ("" when none yet).
 last_event() { grep -E "^(un)?sub $1\$" "$R/subs.log" | tail -n 1 || true; }
@@ -247,12 +250,14 @@ python3 -I "$W/relay.py" "$KURASHI_SOCKET" "$MOCK_SOCK" "$R/subs.log" >> "$R/rel
 pids+=("$!")
 for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && K sub svc.clock --count 0 --json >/dev/null 2>&1 && break; sleep 0.1; done
 [ -S "$KURASHI_SOCKET" ] || fail "relay did not come up (see $R/relay.log)"
+QS_BARE=$(screen_hash)
 # Without KURASHI_SOCKET: the frontend must find the relay by the protocol default, as in a live session.
 env -u KURASHI_SOCKET LC_ALL=$LOCALE qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
 pids+=("$!")
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
 grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-sleep 3   # the bar's documents and the first frames
+# The bar's documents and the first frames (was a fixed 3 s: drawn and still, at most 3 s).
+wait_frontend "$R/qs.log" 0 3 0.6 "$QS_BARE" || fail "the frontend did not load (see $R/qs.log)"
 
 # One virtual keyboard for the whole keyboard part: a keyboard that goes away makes the compositor drop the window's
 # keyboard focus, so the keys go through a FIFO to one long-running helper.
@@ -283,47 +288,47 @@ echo "ok: no scan subscription while the tiles show"
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
 # The status sentence's segments are Tab stops that open their pages: Wi-Fi, then Audio; Escape returns to each.
 press tab return
-sleep 1.5
+settle 1.5
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "the Wi-Fi status segment did not open the Wi-Fi page"
 press escape
-sleep 1.5
+settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not unsubscribe the scan"
 press tab return
-sleep 1.5
+settle 1.5
 press escape
-sleep 1.5
+settle 1.5
 [ "$(panel)" = quick ] || fail "Escape on the audio page closed the card"
 echo "ok: keyboard: the status segments open their pages (Wi-Fi, Audio) and Escape returns to them"
 # Tab from the Audio segment: the Power segment, then the Wi-Fi tile, where Return toggles the radio.
 press tab tab return
-sleep 1.5
+settle 1.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "false" ] || fail "Tab and Return did not turn the Wi-Fi radio off"
 # With the radio off the scan has no list: the page shows the daemon's reason (the unavailable state of the page).
 press right
-sleep 1.5
+settle 1.5
 card_shot quick-wifi-off-page 0.5
 press escape
-sleep 1.5
+settle 1.5
 press return
-sleep 1.5
+settle 1.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "Return on the Wi-Fi tile did not turn the radio back on"
 echo "ok: keyboard: Tab to the Wi-Fi tile, Return toggles it (off and back on)"
 press right
-sleep 1.5
+settle 1.5
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "Right did not open the Wi-Fi page (scan not subscribed)"
 press tab tab tab tab return
-sleep 1.5
+settle 1.5
 card_shot quick-wifi-refused 0.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "the refused join changed the Wi-Fi radio"
 # The next unsaved network is secured: the daemon names the password it cannot take yet.
 press tab return
-sleep 1.5
+settle 1.5
 card_shot quick-wifi-needs-secret 0.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "true" ] || fail "the join that needs a password changed the Wi-Fi radio"
 echo "ok: keyboard: Right opens the Wi-Fi page; Tab and Return on an unsaved network: the daemon refuses, shown in place"
 # Escape goes back to the tiles (the scan unsubscribed) and the focus returns to the Wi-Fi tile.
 press escape
-sleep 1.5
+settle 1.5
 [ "$(panel)" = quick ] || fail "Escape on a page closed the card"
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not unsubscribe the scan"
 echo "ok: keyboard: Escape goes back to the tiles (the scan unsubscribed), the card stays open"
@@ -332,20 +337,20 @@ echo "ok: keyboard: Escape goes back to the tiles (the scan unsubscribed), the c
 #    focus goes back to the Wi-Fi tile, where the keyboard steps below pick up).
 wifi0=$(jq -r '.wifi_enabled' <<<"$net")
 at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
-sleep 1.5
+settle 1.5
 wifi1=$(doc svc.network | jq -r '.wifi_enabled')
 [ "$wifi1" != "$wifi0" ] || fail "a click on the Wi-Fi tile did not flip svc.network.wifi_enabled ($wifi0)"
 at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
-sleep 1.5
+settle 1.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi0" ] || fail "a second click on the Wi-Fi tile did not flip it back"
 echo "ok: click on the Wi-Fi tile: wifi_enabled $wifi0 -> $wifi1 -> $wifi0"
 at "${WIFI_ARROW[0]}" "${WIFI_ARROW[1]}"
-sleep 1.5
+settle 1.5
 [ "$(panel)" = quick ] || fail "the arrow closed the card (panel \"$(panel)\")"
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "the Wi-Fi page did not subscribe the scan"
 card_shot quick-wifi-page 0.5
 at "${BACK[0]}" "${BACK[1]}"
-sleep 1.5
+settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "the Back control did not unsubscribe the scan"
 echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control returns (unsubscribed)"
 
@@ -354,81 +359,81 @@ echo "ok: the arrow opens the Wi-Fi page (the scan subscribed); its Back control
 right_click() { timeout 30 python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$1" "$2" right || fail "right click at $1,$2 failed"; }
 wifi0=$(doc svc.network | jq -r '.wifi_enabled')
 right_click "$((cx0 + WIFI_TILE[0]))" "$((cy0 + WIFI_TILE[1]))"
-sleep 1.5
+settle 1.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi0" ] || fail "a right click on the Wi-Fi tile toggled the radio"
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "a right click on the Wi-Fi tile did not open its page"
 press escape
-sleep 1.5
+settle 1.5
 [ "$(last_event svc.network.scan)" = "unsub svc.network.scan" ] || fail "Escape did not return from the Wi-Fi page"
 press down down down menu       # wifi, focus, power, keep awake: no page of its own, so Settings' power page
-sleep 1
+settle 1
 grep -q 'act settings.open {"page": "power"}' "$R/subs.log" || fail "the Menu key on keep awake did not ask Settings for the power page"
 press down right menu           # record, dark mode: Settings' appearance page
-sleep 1
+settle 1
 grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" || fail "the Menu key on dark mode did not ask Settings for the appearance page"
 press up up up up left         # back to the Wi-Fi tile, where the keyboard steps below start
-sleep 1
+settle 1
 echo "ok: right click: the Wi-Fi tile opens its page without toggling; the Menu key on keep awake and dark mode asks Settings"
 
 # 4. Audio: Tab to the Audio tile, Right opens the page; Tab walks to the other output, Return makes it the default, and the
 #    focus stays on the row chosen (the rows update in place).
 press tab tab tab right
-sleep 1.5
+settle 1.5
 press tab tab tab tab return
-sleep 1.5
+settle 1.5
 [ "$(doc svc.audio | jq -r '[.sinks[] | select(.default == true) | .id] | first // empty')" = 2 ] \
   || fail "Tab and Return on the second output did not make it the default"
 card_shot quick-audio-hdmi 0.8
 press escape
-sleep 1.5
+settle 1.5
 echo "ok: keyboard: the audio page: Tab and Return make the other output the default"
 
 # 5. Arrows between tiles: Down from Audio reaches Display, Left reaches Power; Right opens the Power page, where Tab and
 #    Return choose Power saver (the profile in effect changes).
 press down left right
-sleep 1.5
+settle 1.5
 card_shot quick-power-page 0.5
 press tab return
-sleep 1.5
+settle 1.5
 [ "$(doc svc.power | jq -r '.profile')" = "power-saver" ] || fail "Tab and Return on the power page did not choose power-saver"
 echo "ok: arrows: Down and Left move between tiles; the power page chooses the profile (power-saver)"
 press escape
-sleep 1.5
+settle 1.5
 
 # 6. Focus: Up from Power reaches Focus, Right opens its page; Tab Tab Return turns Do not disturb on until one hour.
 press up right
-sleep 1.5
+settle 1.5
 press tab tab return
-sleep 1.5
+settle 1.5
 dnd_until=$(doc svc.notifications | jq -r '.dnd_until // empty')
 [ -n "$dnd_until" ] || fail "the focus page's one-hour choice set no end (svc.notifications.dnd_until)"
 card_shot quick-focus-page 0.5
 press left
-sleep 1.5
+settle 1.5
 [ "$(panel)" = quick ] || fail "Left on the focus page closed the card"
 echo "ok: focus page: Do not disturb until one hour (dnd_until $dnd_until)"
 
 # 7. Display: Down and Tab reach Display, Right opens its page (the shot shows the level, the reason for night light). The
 #    slider's intent (brightness.set) is not checked: the mock serves only audio.volume among the intents.
 press down tab right
-sleep 1.5
+settle 1.5
 card_shot quick-display-page 0.5
 press escape
-sleep 1.5
+settle 1.5
 echo "ok: display page"
 
 # 8. Bluetooth: Up twice from Display reaches the Bluetooth tile; Right opens its page (the existing panel).
 press up up right
-sleep 1.5
+settle 1.5
 card_shot quick-bluetooth-page 0.5
 press escape
-sleep 1.5
+settle 1.5
 echo "ok: bluetooth page"
 
 # 9. Connecting and failed: the mock is held still (SIGSTOP), so the Wi-Fi tile's request gets no answer. The tile shows
 #    "connecting" and, 30 s later, the timeout's failure with its Retry; SIGCONT lets the queued request through.
 press left
-sleep 1
+settle 1
 wifi_before=$(doc svc.network | jq -r '.wifi_enabled')
 kill -STOP "$MOCK_PID"
 press return
@@ -445,13 +450,13 @@ echo "ok: connecting, then the timeout's failure; the queued request applies aft
 
 # 10. The media row opens the island's media view (the card gives way to the island's panel).
 at "$MEDIA_TITLE_X" "$(( cy1 - cy0 - MEDIA_FROM_BOTTOM ))"
-sleep 1.5
+settle 1.5
 [ "$(panel)" = island ] || fail "the media row did not open the island's media view (panel \"$(panel)\")"
 echo "ok: the media row opens the island's media view"
 
 # 11. ui.close closes the card (Ma: no card drawn, its documents unsubscribed); Escape on the tiles closes it too.
 K act ui.close >/dev/null || fail "ui.close refused"
-sleep 1.5
+settle 1.5
 ppm_shot quick-closed 0.5
 closed=$(timeout 60 python3 -I "$W/analyse.py" "$W/quick-closed.ppm" "$(token color.surface 1b1a1e)")
 jq -e '.surface < 500' <<<"$closed" >/dev/null || fail "a card is still drawn after ui.close ($closed)"
@@ -462,7 +467,7 @@ for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
 card_shot quick-reopened 1.2
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
 press escape
-sleep 1.5
+settle 1.5
 [ "$(panel)" = "" ] || fail "Escape on the tiles did not close the card (panel \"$(panel)\")"
 echo "ok: Escape on the tiles closes the card"
 
@@ -478,14 +483,14 @@ for _ in $(seq 25); do [ "$(doc svc.power | jq -r '.profile')" = balanced ] && b
 [ "$(doc svc.power | jq -r '.profile')" = balanced ] || fail "the tile states: the power profile is not balanced (power saver is a tile in its own right)"
 [ "$(doc svc.audio | jq -r '.muted')" = false ] || K act audio.mute.toggle >/dev/null
 K act notify.dnd '{"on":false}' >/dev/null
-sleep 1
+settle 1
 card_shot tiles-3-on 1
 K act bluetooth.power '{"on":false}' >/dev/null
 [ "$(doc svc.audio | jq -r '.muted')" = true ] || K act audio.mute.toggle >/dev/null
-sleep 1
+settle 1
 card_shot tiles-1-on 1
 K act network.wifi '{"on":false}' >/dev/null
-sleep 1
+settle 1
 card_shot tiles-0-on 1
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = false ] || fail "the tile states: Wi-Fi did not turn off"
 echo "ok: tile states: three, one and no tile on (tiles-*-on.png)"
@@ -502,7 +507,7 @@ press tab tab tab tab tab tab tab tab tab tab tab tab tab tab
 press down
 pic0=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
 press return
-sleep 1.5
+settle 1.5
 pic1=$(doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty')
 [ -n "$pic0" ] && [ "$pic1" != "$pic0" ] || fail "Return on the wallpaper tile did not move its picture ($pic0 -> $pic1)"
 card_shot tiles-mods-next 0.5
@@ -519,117 +524,118 @@ without() { jq -c --arg m "$1" '[.[] | select(.mod != $m)]' <<<"$full"; }
 set_tiles() {
   K act mock.doc "$(jq -cn --argjson v "$1" '{doc: "runtime.slots", patch: {"quick.tiles": $v}}')" >/dev/null \
     || fail "mock.doc refused the contribution list"
-  sleep 1.5
+  settle 1.5
 }
 pic_now() { doc mod.wallpaper | jq -r '.outputs["HEADLESS-1"].path // empty'; }
 set_tiles "$(without hello)"
-p0=$(pic_now); press return; sleep 1.5; p1=$(pic_now)
+# (Each fixed 1.5 s is now: until the wallpaper changed, at most 1.5 s.)
+p0=$(pic_now); press return; wait_until 1.5 eval '[ "$(pic_now)" != "$p0" ]' || true; p1=$(pic_now)
 [ -n "$p0" ] && [ "$p1" != "$p0" ] || fail "the focus left the wallpaper tile when another contribution left ($p0 -> $p1)"
 set_tiles "$full"
-p2=$(pic_now); press return; sleep 1.5; p3=$(pic_now)
+p2=$(pic_now); press return; wait_until 1.5 eval '[ "$(pic_now)" != "$p2" ]' || true; p3=$(pic_now)
 [ -n "$p2" ] && [ "$p3" != "$p2" ] || fail "the focus left the wallpaper tile when another contribution came back ($p2 -> $p3)"
 press up                        # the test mod's tile (cell 10) has the focus now
 set_tiles "$(without hello)"    # ... and leaves: the focus moves to the tile before it, dark mode (cell 9)
 press menu
-sleep 1.5
+settle 1.5
 grep -q 'act settings.open {"page": "appearance"}' "$R/subs.log" \
   || fail "the focus did not move to the tile before the removed one (dark mode's Menu key sent no appearance page)"
 set_tiles "$full"
 press left down down return     # dark mode, left (8), down (10), down (12): the wallpaper tile again
-sleep 1.5
+settle 1.5
 [ "$(pic_now)" != "$p3" ] || fail "the wallpaper tile was not reached again after the test mod's tile came back"
 echo "ok: focus: stays on the wallpaper tile when a contribution leaves or comes back; moves to the tile before a removed one"
 
 # 14. States the mock makes on demand (W18, I50): a battery, a tile unavailable, a tile forced; and the Display slider's
 #     intent (brightness.set, a fraction of full scale). The states are the documents' own, as a daemon would send them.
 K act mock.doc '{"doc":"svc.power","patch":{"present":true,"on_battery":true,"percent":64,"state":"discharging","time_to_empty_s":7800}}' >/dev/null || fail "mock.doc refused the battery"
-sleep 1
+settle 1
 card_shot tiles-battery 0.8
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the unavailable tile"
-sleep 1
+settle 1
 card_shot tiles-unavailable 0.8
 # W37 (I86, row 103): each of the six tiles whose service document can carry `forced_by` draws "Set by" and is inert. A forced
 # Wi-Fi tile still opens its page (the inert rule of QuickTile), and the radio stays as it is. The Bluetooth adapter is back
 # first: an unavailable tile shows why it is unavailable, not who sets it (the reason outranks the forced state).
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":true}}' >/dev/null || fail "mock.doc refused the Bluetooth adapter"
-sleep 1
+settle 1
 for d in svc.network svc.bluetooth svc.notifications svc.audio svc.power svc.brightness; do
   K act mock.doc "$(jq -cn --arg d "$d" '{doc: $d, patch: {forced_by: "nix"}}')" >/dev/null || fail "mock.doc refused the forced tile $d"
 done
-sleep 1
+settle 1
 card_shot tiles-forced 0.8
 wifi_forced=$(doc svc.network | jq -r '.wifi_enabled')
 at "${WIFI_TILE[0]}" "${WIFI_TILE[1]}"
-sleep 1.5
+settle 1.5
 [ "$(doc svc.network | jq -r '.wifi_enabled')" = "$wifi_forced" ] || fail "a click on the forced Wi-Fi tile changed the radio"
 [ "$(last_event svc.network.scan)" = "sub svc.network.scan" ] || fail "a click on the forced Wi-Fi tile did not open its page"
 press escape
-sleep 1.5
+settle 1.5
 for d in svc.network svc.bluetooth svc.notifications svc.audio svc.power svc.brightness; do
   K act mock.doc "$(jq -cn --arg d "$d" '{doc: $d, patch: {forced_by: null}}')" >/dev/null
 done
 echo "ok: forced: the six tiles draw Set by nix; a click on the forced Wi-Fi tile opens its page and does not toggle"
 # The mod's own tile unavailable: its backend is down, so the tile says why (the mod's i18n key) and dims.
 K act mock.doc '{"doc":"mod.wallpaper","patch":{"backend":{"available":false,"reason":"mod-wallpaper.backend.down"}}}' >/dev/null || fail "mock.doc refused the wallpaper backend"
-sleep 1
+settle 1
 card_shot tiles-wallpaper-down 0.8
 K act mock.doc '{"doc":"mod.wallpaper","patch":{"backend":{"available":true,"reason":null}}}' >/dev/null
 K act mock.doc '{"doc":"svc.bluetooth","patch":{"available":true}}' >/dev/null
 K act mock.doc '{"doc":"svc.power","patch":{"present":false,"on_battery":false,"percent":null,"state":null,"time_to_empty_s":null}}' >/dev/null
 K intent brightness.set 0.3 >/dev/null || fail "brightness.set refused"
-sleep 1
+settle 1
 [ "$(doc svc.brightness | jq -r '.percent == 30')" = true ] || fail "brightness.set 0.3 did not set 30 % ($(doc svc.brightness))"
 echo "ok: states: a battery, an unavailable tile, a forced tile; brightness.set 0.3 makes 30 %"
 # W37 (I50, brief DoD): the footer's lock and suspend appear only while the session service answers.
 K act mock.doc '{"doc":"svc.session","patch":{"available":false}}' >/dev/null || fail "mock.doc refused the session service's absence"
-sleep 1
+settle 1
 card_shot footer-no-session 0.8
 K act mock.doc '{"doc":"svc.session","patch":{"available":true}}' >/dev/null
-sleep 1
+settle 1
 echo "ok: footer without a session service (footer-no-session.png)"
 
 # 15. The picker: Right on the wallpaper tile opens its panel (the mod's Stage panel; the card gives way to it). The card is
 #     reopened, so the keyboard starts where it starts for a user: on the card, with nothing focused.
 K act ui.close >/dev/null
-sleep 1
+settle 1
 K act quick.toggle >/dev/null
 for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
 [ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the picker check"
-sleep 1
+settle 1
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
 press tab tab tab tab tab tab tab tab tab tab tab tab tab tab   # W23: three more core tiles; K53: Dark mode
 press down right
-sleep 1.5
+settle 1.5
 [ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "Right on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
 echo "ok: Right on the wallpaper tile opens its picker panel (mod:wallpaper:wallpaper)"
 
 # 15b. W37: the Menu key on the wallpaper tile is the same secondary action as a right click: its picker panel.
 K act ui.close >/dev/null
-sleep 1
+settle 1
 K act quick.toggle >/dev/null
 for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
 [ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the Menu key check"
-sleep 1
+settle 1
 click "$((cx0 + HEADING[0]))" "$((cy0 + HEADING[1]))"
 press tab tab tab tab tab tab tab tab tab tab tab tab tab tab
 press down menu
-sleep 1.5
+settle 1.5
 [ "$(panel)" = "mod:wallpaper:wallpaper" ] || fail "the Menu key on the wallpaper tile did not open its picker panel (panel \"$(panel)\")"
 echo "ok: the Menu key on the wallpaper tile opens its picker panel (mod:wallpaper:wallpaper)"
 
 # 16. No contribution (the empty state, W18): with no `quick.tiles` entry the grid is the six core tiles and no cell is drawn.
 K act ui.close >/dev/null
-sleep 1
+settle 1
 K act quick.toggle >/dev/null
 for _ in $(seq 25); do [ "$(panel)" = quick ] && break; sleep 0.2; done
 [ "$(panel)" = quick ] || fail "quick.toggle did not reopen the card for the empty state"
 K act mock.doc '{"doc":"runtime.slots","patch":{"quick.tiles":null}}' >/dev/null || fail "mock.doc refused the empty slot"
-sleep 1
+settle 1
 card_shot tiles-no-mods 0.8
 echo "ok: no contribution: the six core tiles only (tiles-no-mods.png)"
 
 K act ui.close >/dev/null
-sleep 1
+settle 1
 [ "$(last_event mod.wallpaper)" = "unsub mod.wallpaper" ] || fail "the wallpaper tile's document stayed subscribed after the card closed"
 echo "ok: the wallpaper tile subscribes its document while the card shows it, and unsubscribes it when the card is gone (Ma)"
 
