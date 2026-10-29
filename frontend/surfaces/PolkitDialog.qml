@@ -185,6 +185,13 @@ Scope {
                 Accessible.name: I18n.tr("polkit.a11y.dialog").replace("{message}", win.message)
                 Accessible.description: win.flow ? I18n.tr("polkit.a11y.action").replace("{action}", win.flow.actionId || "") : ""
 
+                // W57 (K78): a modal stands highest (level 4).
+                Elevation {
+                    anchors.fill: parent
+                    anchors.bottomMargin: Theme.shadowDy
+                    radius: Theme.rLg + 4
+                    level: 4
+                }
                 Block {
                     id: blk
                     anchors.fill: parent
