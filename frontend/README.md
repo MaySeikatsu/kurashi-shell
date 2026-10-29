@@ -12,6 +12,8 @@ target/release/kurashi-mock --outputs HEADLESS-1 &
 qs -p frontend &            # grim frontend/shots/x.png to look
 tools/bench/sandbox.sh stop dev
 ```
+`qs` reloads a QML file when you save it: no rebuild, no restart. Only the daemon side (Rust, strings) needs one; the
+root `README.md` ("Iterating") has the loop for each kind of edit.
 Acceptance: `python3 tools/bench/measure.py --name frontend --warmup 10 --idle 30 -- qs -p frontend`.
 
 ## Layout

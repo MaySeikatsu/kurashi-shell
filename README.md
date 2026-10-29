@@ -30,6 +30,29 @@ nix develop      # toolchain, quickshell, sway (headless tests), bench tools
 just             # list tasks
 ```
 
+## Iterating
+
+Pick the loop by what you changed. `nix build` is for the installed result, not for trying an edit (K76).
+
+| You changed | Fastest loop | Cost |
+|---|---|---|
+| QML (`frontend/`, `settings/`, a mod's `qml/`) | `just dev` and `frontend/launch.sh` from the checkout (Running, item 2): Quickshell reloads the file on save | no build |
+| Strings (`i18n/`), profiles, templates, mod manifests | Restart `just dev`: the daemon reads them from the checkout at start | seconds |
+| Rust (`crates/`) | `just dev` again: `cargo run` builds incrementally, only the crates you touched | incremental |
+| `looks/`, `styles/`, `palettes/` | As Rust: `kurashi-theme` compiles them in (I294 would move them out) | incremental |
+| Check before merging | `just check` (fmt, clippy, tests); `nix flake check` adds the tests as a Nix check | — |
+
+What `nix build .#kurashi` / `nix run .#` costs since K76 (machine A, measured 2026-10-29):
+
+| Edit | Before (one derivation, tests in the build) | Now |
+|---|---|---|
+| QML, strings, profiles, mods | 34–78 min, typically ~45 | ~5 s (data copy only) |
+| Our Rust, `looks/`, `styles/`, `palettes/` | same | ~5 min (dependencies cached) |
+| `Cargo.lock` (dependency update) | same | ~11 min |
+
+The package build no longer runs the tests; run them with `just check` or `nix build .#checks.x86_64-linux.tests`.
+Flakes see only git-tracked files: `git add` a new file before `nix build` or `nix run .#`.
+
 ## Running
 
 Four ways, from the safest to the most committed:

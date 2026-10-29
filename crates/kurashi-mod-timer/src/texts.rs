@@ -1,6 +1,6 @@
 //! The strings the daemon itself says: a notification's title, body and buttons (the frontend translates its own copy from
 //! the `i18n` document). The catalogue is the mod's `i18n/<locale>/mod-timer.toml`, found the way kurashid finds its own
-//! (`crates/kurashid/src/i18n.rs`): `$KURASHI_DATA_DIR`, the install prefix baked in at build time, then the source tree.
+//! (`crates/kurashid/src/i18n.rs`): `$KURASHI_DATA_DIR` (set by the package's wrappers), then the source tree.
 //! The locale comes from LC_ALL, LC_MESSAGES or LANG; a string the locale lacks is English.
 
 use std::collections::BTreeMap;
@@ -57,12 +57,11 @@ fn read(root: &Path, locale: &str) -> BTreeMap<String, String> {
     out
 }
 
-/// The i18n root: `<data dir>/i18n`, where the data dir is `$KURASHI_DATA_DIR`, else the install prefix baked in at build
-/// time, else the source tree (`cargo run` and the tests).
+/// The i18n root: `<data dir>/i18n`, where the data dir is `$KURASHI_DATA_DIR`, else the source tree (`cargo run` and
+/// the tests).
 pub fn i18n_root() -> PathBuf {
     let data = std::env::var_os("KURASHI_DATA_DIR")
         .map(PathBuf::from)
-        .or_else(|| option_env!("KURASHI_DATA_DIR").map(PathBuf::from))
         .unwrap_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("../.."));
     data.join("i18n")
 }
