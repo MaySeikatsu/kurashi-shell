@@ -27,6 +27,7 @@ mkdir -p "$OUT"
 fail() { echo "test-modqml: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -234,9 +235,11 @@ finding() { echo "FINDING: $*" >&2; FINDINGS+=("$*"); }
 start_frontend() {
   : > "$R/qs.log"
   # Without KURASHI_SOCKET: the frontend must find the socket by the protocol default, as in a live session.
+  QS_OFF=$(log_size "$R/qs.log"); QS_BARE=$(screen_hash)
   env -u KURASHI_SOCKET qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   pids+=("$!")
-  sleep 3   # the bar's documents and the first frames
+  # The bar's documents and the first frames (was a fixed 3 s: drawn and still, at most 3 s).
+  wait_frontend "$R/qs.log" "$QS_OFF" 3 0.6 "$QS_BARE" || fail "the frontend did not load (see $R/qs.log)"
 }
 wait_socket() {  # wait_socket <what>: the daemon serves svc.clock
   for _ in $(seq 100); do [ -S "$KURASHI_SOCKET" ] && ipc svc.clock >/dev/null 2>&1 && return 0; sleep 0.1; done

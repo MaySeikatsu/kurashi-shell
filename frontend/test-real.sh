@@ -7,7 +7,7 @@
 # user's display, socket, bus or ~/.config. Screenshots land in frontend/shots/real/.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-real}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-real}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/real
 mkdir -p "$OUT"

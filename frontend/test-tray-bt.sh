@@ -16,7 +16,7 @@
 # evidence to read, not just the exit code. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-fe-tray-bt}
+NAME=${1:-${KURASHI_SB_PREFIX:-}fe-tray-bt}
 MOCK_BIN=${KURASHI_MOCK_BIN:-${CARGO_TARGET_DIR:-$ROOT/target}/debug/kurashi-mock}
 OUT=$ROOT/frontend/shots/tray-bt
 mkdir -p "$OUT"
