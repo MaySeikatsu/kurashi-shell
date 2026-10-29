@@ -71,6 +71,16 @@
         build = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi;
         # The workspace's `cargo test` (I293): out of the package build, reusing its dependency artifacts.
         tests = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi.cargoTests;
+        # The `nix run` apps start the wrapped binaries (KURASHI_DATA_DIR), never the unwrapped ones: lib.getBin once took a
+        # passthru named `bin` for the package's bin output and the default app ran a daemon without its data (session 17).
+        apps-wrapped = let
+          kurashi = self.packages.${pkgs.stdenv.hostPlatform.system}.kurashi;
+          app = self.apps.${pkgs.stdenv.hostPlatform.system}.default.program;
+        in pkgs.runCommand "kurashi-apps-wrapped" { } ''
+          grep -q 'PATH="${kurashi}/bin' ${app}
+          grep -q KURASHI_DATA_DIR ${kurashi}/bin/kurashid
+          touch $out
+        '';
         # K39: the base closure has no QtWebEngine, the web dock's closure has one (nix/tests/closure.nix).
         webdock-closure = import ./nix/tests/closure.nix {
           inherit pkgs;
