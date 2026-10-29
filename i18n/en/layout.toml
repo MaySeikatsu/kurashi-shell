@@ -10,6 +10,7 @@
 "layout.module.tray" = "Tray"
 "layout.module.sidebar_left" = "Left sidebar button"
 "layout.module.sidebar_right" = "Right sidebar button"
+"layout.module.launcher" = "Launcher (start button)"
 "layout.module.mods" = "Other mods' widgets"
 "layout.reserve.hidden" = "A hidden part never keeps space: it comes out over the windows."
 "layout.unplaced.not_listed" = "No edge shows it."

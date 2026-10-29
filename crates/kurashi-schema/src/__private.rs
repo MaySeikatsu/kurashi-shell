@@ -90,9 +90,14 @@ pub fn capability(name: &str) -> Coupling {
 }
 
 pub fn overridden_by(key: &str, forces: Option<&str>) -> Coupling {
+    overridden_by_except(key, forces, &[])
+}
+
+pub fn overridden_by_except(key: &str, forces: Option<&str>, except: &[&str]) -> Coupling {
     Coupling::OverriddenBy {
         key: key.to_owned(),
         forces: forces.map(json),
+        except: except.iter().map(|e| json(e)).collect(),
     }
 }
 

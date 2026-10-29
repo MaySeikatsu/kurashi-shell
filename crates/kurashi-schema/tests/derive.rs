@@ -164,7 +164,8 @@ fn every_attribute_lands_in_meta() {
             },
             Coupling::OverriddenBy {
                 key: "child.lock".into(),
-                forces: Some(json!("plain"))
+                forces: Some(json!("plain")),
+                except: vec![]
             },
         ]
     );

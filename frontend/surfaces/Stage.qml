@@ -172,6 +172,60 @@ PanelWindow {
         sizeCache = n
     }
     readonly property int cardPad: ownChrome ? 0 : Theme.pad + 4
+    // ---- W53.0b (K80): the title bar, as the daemon says (`runtime.ui.title`, absent: none — the style draws no title
+    // bar, `title_bar.buttons` is off, or no card is open). Its height is the style's (`decor.title.height`, W53.0a).
+    readonly property var titleDoc: ui.title || null
+    readonly property bool titled: titleDoc !== null && contentKind !== ""
+    readonly property int titleH: titled ? Math.round(Theme.tok("decor.title.height", 28)) : 0
+    readonly property string titleFile: {
+        var n = String(Theme.tok("decor.title", ""))
+        return n === "" ? "" : n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
+    }
+    // Maximize = full screen: the largest card the output has room for, under (or over) its bar.
+    readonly property bool full: titled && titleDoc.full === true
+    readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
+    readonly property int fullH: screen ? screen.height - Theme.barH - bars.topInset - bars.bottomInset - 3 * Theme.pad : 600
+    readonly property string cardTitle: {
+        if (contentKind === "tray") return trayItem(trayKey).title || I18n.tr("frontend.tray.menu")
+        if (contentKind === "quick" || contentKind === "power" || contentKind === "bluetooth") return I18n.tr("layout.module.quick")
+        if (contentKind === "mod") return shownPanelMod
+        if (contentKind === "session") return I18n.tr("styles.title.session")
+        if (contentKind === "modface" || contentKind === "island") return ui.face ? I18n.tr("config.face." + ui.face) : ""
+        return I18n.tr("config.face." + contentKind)
+    }
+    Component {
+        id: plainTitle
+        Item {
+            Text {
+                anchors { left: parent.left; leftMargin: Theme.pad + 4; right: keys.left; rightMargin: Theme.gap
+                          verticalCenter: parent.verticalCenter }
+                text: stage.cardTitle
+                elide: Text.ElideRight
+                color: Theme.fg
+                font.pixelSize: Theme.fsCaption
+                font.weight: Theme.wBold
+                font.family: Theme.fam(text, Theme.families)
+            }
+            Row {
+                id: keys
+                anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+                spacing: 2
+                Repeater {
+                    model: stage.titleDoc ? stage.titleDoc.buttons : []
+                    delegate: IconButton {
+                        required property var modelData
+                        activeFocusOnTab: false
+                        icon: modelData.id === "close" ? "close" : modelData.id === "minimize" ? "minimize"
+                            : (stage.full ? "fullscreen_exit" : "fullscreen")
+                        glyph: modelData.id === "close" ? "×" : modelData.id === "minimize" ? "–" : "□"
+                        a11y: I18n.tr(modelData.action === "app_menu" ? "styles.title.app_menu"
+                            : modelData.id === "maximize" && stage.full ? "styles.title.restore" : "styles.title." + modelData.id)
+                        onClicked: Store.act("ui.title", { button: modelData.id })
+                    }
+                }
+            }
+        }
+    }
     // A mod panel's root may declare `property int cardWidth` (the card's outer width, contract row 66): the card
     // takes it within 360..720 px and the output's width; the panel gets the card's content width.
     readonly property var modPanel: contentKind === "mod" && view.item ? view.item.item : null
@@ -1172,11 +1226,12 @@ PanelWindow {
         // asks for its card width (contract row 66); the session menu is as wide as its row of tiles; the rest keep 360 px.
         // I192: while the view is being made, the size it had last time (see `cachedSize`).
         readonly property bool fromCache: !stage.viewReady && stage.cachedSize !== null
-        width: fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
+        // W53.0b: a card made full screen by its title bar takes the room its output has (the title bar's own size).
+        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
-        height: fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
-            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad
+        height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
+            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH
         onWidthChanged: stage.recordSize()
         onHeightChanged: stage.recordSize()
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the view is in (the reveal is
@@ -1263,10 +1318,38 @@ PanelWindow {
             width: card.width
             height: card.height
 
+        // W53.0b (K80): the card's title bar, where the style draws one (`runtime.ui.title`, the daemon's: the buttons
+        // and what each does). The style's own strip (`decor.title`, components/decor/title/<Name>.qml) when it loads,
+        // else a plain one from tokens. Every button runs `ui.title {button}`; Esc still closes.
+        Item {
+            id: titleStrip
+            visible: stage.titled
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: stage.titleH
+            Loader {
+                id: styleTitle
+                anchors.fill: parent
+                active: stage.titled && stage.titleFile !== ""
+                source: active ? Qt.resolvedUrl("../components/decor/title/" + stage.titleFile + ".qml") : ""
+                onLoaded: {
+                    item.title = Qt.binding(function () { return stage.cardTitle })
+                    item.buttons = Qt.binding(function () { return stage.titleDoc ? stage.titleDoc.buttons : [] })
+                    item.full = Qt.binding(function () { return stage.full })
+                    item.pressed.connect(function (id) { Store.act("ui.title", { button: id }) })
+                }
+            }
+            Loader {
+                anchors.fill: parent
+                active: stage.titled && styleTitle.status !== Loader.Ready
+                sourceComponent: plainTitle
+            }
+        }
+
         Column {
             id: col
             visible: stage.viewing
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.cardPad }
+            anchors.topMargin: stage.cardPad + stage.titleH
             spacing: Theme.pad
             // Its height is the view's implicit one (an explicit binding to it loops in Qt).
             Loader {
@@ -1286,12 +1369,14 @@ PanelWindow {
             visible: stage.contentKind === "session"
             active: stage.open && stage.contentKind === "session"
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
+            anchors.topMargin: Theme.pad + 4 + stage.titleH
         }
 
         Column {
             id: trayCol
             visible: stage.contentKind === "tray"
             anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
+            anchors.topMargin: Theme.pad + 4 + stage.titleH
             spacing: Theme.gap
             Text {
                 width: trayCol.width
