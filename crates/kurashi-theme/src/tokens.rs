@@ -455,6 +455,8 @@ pub fn build(
         FrameOutline::Off => false,
     };
     t.insert("frame.outline".into(), json!(frame_outline));
+    t.insert("frame.outline_ink".into(), json!(axes.frame_outline_ink));
+    t.insert("frame.outline_stroke".into(), json!(axes.frame_outline_stroke));
     col(&mut t, "chrome.line", g("line"));
     col(&mut t, "chrome.ring_color", g("ring"));
     // The outline's colour and opacity: ink for keycaps, the outline role for line chrome, a faint

@@ -420,6 +420,17 @@ function stroke(ctx, o) {
         run(ctx, loop, F, w * 1.1, sr, sr + L + over,
             function (s) { return 0.75 + 0.25 * smooth(0, 5, sr + L + over - s) },
             function (s) { return RA * (0.8 * rn(s) + 0.2 * rj(s)) + (closed ? side * 1.4 * (s - sr) / (L + over) : 0) })
+    } else if (line === "sketch") {
+        // Kami's hand (frames/Sketch.qml) for any line (the frame outline's `sketch` stroke): two passes, the second a
+        // little off the first and thinner, each drifting slowly (under a pixel, a hand, not a jitter) with the pressure
+        // swelling and thinning; past the ends a little, where the pen came back round.
+        var dn = loopNoise(R, L, 40), dn2 = loopNoise(R, L, 34), pn = loopNoise(R, L, 55), pn2 = loopNoise(R, L, 47)
+        var ovs = closed ? clamp(L * 0.02, 2, 5) : 2.5
+        var sa1 = closed ? R() * L : -ovs, sa2 = closed ? R() * L : -ovs * 0.6
+        run(ctx, loop, F, 0.8 * w, sa1, sa1 + L + (closed ? ovs : 2 * ovs),
+            function (s) { return 0.85 + 0.3 * pn(s) }, function (s) { return 0.6 * dn(s) })
+        run(ctx, loop, F, 0.62 * w, sa2, sa2 + L + (closed ? ovs * 0.6 : 1.2 * ovs),
+            function (s) { return 0.8 + 0.25 * pn2(s) }, function (s) { return 0.7 + 0.6 * dn2(s) })
     } else {
         run(ctx, loop, F, w, 0, L)
     }
