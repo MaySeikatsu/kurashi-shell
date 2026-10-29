@@ -12,7 +12,7 @@
 # Binaries are copied first (shared target dirs are overwritten by other builds).
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-NAME=${1:-wp-real}
+NAME=${1:-${KURASHI_SB_PREFIX:-}wp-real}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/mods/wallpaper/shots
 PIXMAPS=/run/current-system/sw/share/pixmaps

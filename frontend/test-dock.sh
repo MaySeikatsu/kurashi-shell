@@ -23,7 +23,7 @@
 # Shots in frontend/shots/dock/<decor>/. On a hybrid laptop export KURASHI_RENDER_NODE first.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w25-dck-test}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w25-dck-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots/dock
 DECORS=${DOCK_DECORS:-sekai glass terminal none}
@@ -31,6 +31,7 @@ mkdir -p "$OUT"
 fail() { echo "test-dock: FAIL: $*" >&2; exit 1; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -140,12 +141,14 @@ start_kurashid() {
 }
 start_frontend() {  # start_frontend [VAR=value ...]
   : > "$R/qs.log"
+  local bare; bare=$(screen_hash)
   env -u KURASHI_SOCKET KURASHI_DOCK_GEOMETRY=1 "$@" qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   pids+=("$QS_PID")
   for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/server.log" && break; sleep 0.1; done
   grep -q 'hello.*frontend' "$R/server.log" || fail "frontend never said hello (see $R/qs.log)"
-  sleep 3
+  # Was a fixed 3 s: the frontend loaded, drew and stands still (at most 3 s for that).
+  wait_frontend "$R/qs.log" 0 3 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
   start_pointer
 }
 # One virtual pointer per phase (a pointer that goes away ends every hover), made once the frontend is up.
@@ -228,23 +231,29 @@ qml_errors() {
 # 0. The decors' themes, as the real daemon serves them (and the layout phase's, W44).
 LAYOUT_DECORS=${DOCK_LAYOUT_DECORS-washi sekai}
 for d in $(echo $DECORS $LAYOUT_DECORS | tr ' ' '\n' | awk '!s[$0]++'); do
-  printf 'theme.style = "%s"\n' "$d" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+  # Motion off (W55): the steps check where the dock ends up and its dwell (`reveal <ms>`), not a slide's course.
+  printf 'theme.style = "%s"\ntheme.motion.profile = "none"\n' "$d" > "$XDG_CONFIG_HOME/kurashi/config.toml"
   start_kurashid
   K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$d.json"
   stop_phase
 done
 # The first decor in the light scheme too (W36: the dock's states in light and dark).
 FIRST0=${DECORS%% *}
-printf 'theme.style = "%s"\n[theme.colors]\nscheme = "light"\n' "$FIRST0" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+printf 'theme.style = "%s"\ntheme.motion.profile = "none"\n[theme.colors]\nscheme = "light"\n' "$FIRST0" > "$XDG_CONFIG_HOME/kurashi/config.toml"
 start_kurashid
 K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$FIRST0-light.json"
 stop_phase
+# The first decor with its own motion too: step 1 checks the urgent tile's hop, a motion.
+printf 'theme.style = "%s"\n' "$FIRST0" > "$XDG_CONFIG_HOME/kurashi/config.toml"
+start_kurashid
+K sub theme --count 0 --json | jq -c '{doc: "theme", patch: .data}' > "$W/theme-$FIRST0-motion.json"
+stop_phase
 rm -f "$XDG_CONFIG_HOME/kurashi/config.toml"
 
-# 1. The mock: tiles, focus by click and the cycle, the menu, close, autohide.
+# 1. The mock: tiles, focus by click and the cycle, the menu, close, autohide (the decor's own motion: the hop).
 FIRST=${DECORS%% *}
 start_mock
-mockdoc "$(cat "$W/theme-$FIRST.json")"
+mockdoc "$(cat "$W/theme-$FIRST-motion.json")"
 start_frontend
 mock_scene
 mkdir -p "$OUT/$FIRST"
@@ -312,19 +321,22 @@ sleep 0.5
 # Autohide: away from the dock it hides; a rest on the edge reveals it; leaving hides it again.
 ptr move $(( SW / 2 )) $(( SH / 2 ))
 cfgval dock.visibility '"empty_desktop"'
-sleep 1.2
 BAND_Y=$(( SH - 120 ))
+# (The fixed 1.2 / 1.2 / 1.4 s are now at most that long: until the band shows what the check wants. Each starts from
+# the other state, so a wait that ends early has seen the change.)
+wait_until 1.2 eval '[ "$(band_ink "$BAND_Y")" -lt 50 ]' || true
 n=$(band_ink "$BAND_Y")
 [ "$n" -lt 50 ] || fail "autohide: the dock still shows ($n px)"
 echo "ok: autohide hides the dock ($n px)"
 ptr move $(( SW / 2 )) $(( SH - 1 ))
-sleep 1.2
+wait_until 1.2 eval '[ "$(band_ink "$BAND_Y")" -gt 500 ]' || true
 n=$(band_ink "$BAND_Y")
 [ "$n" -gt 500 ] || fail "autohide: a rest on the edge did not reveal the dock ($n px)"
 echo "ok: a rest on the bottom edge reveals the dock ($n px)"
+wait_settled 1.2 0.4 "0,$(( SH - 240 )) ${SW}x240"   # (the slide ended: the shot at rest)
 shot "$FIRST/revealed"
 ptr move $(( SW / 2 )) $(( SH / 2 ))
-sleep 1.4
+wait_until 1.4 eval '[ "$(band_ink "$BAND_Y")" -lt 50 ]' || true
 n=$(band_ink "$BAND_Y")
 [ "$n" -lt 50 ] || fail "autohide: the dock stayed after the pointer left ($n px)"
 echo "ok: the dock hides after the pointer left ($n px)"
@@ -332,7 +344,7 @@ qml_errors
 stop_phase
 
 # 2. The real kurashid: Unpin by the menu writes dock.pinned.
-printf 'theme.style = "%s"\n[dock]\nenabled = true\nvisibility = "always"\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
+printf 'theme.style = "%s"\ntheme.motion.profile = "none"\n[dock]\nenabled = true\nvisibility = "always"\npinned = ["firefox", "org.gnome.Nautilus"]\n' "$FIRST" \
   > "$XDG_CONFIG_HOME/kurashi/config.toml"
 : > "$R/server.log"
 start_kurashid
@@ -503,7 +515,8 @@ for d in $LAYOUT_DECORS; do
         want=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.inset')
         for _ in $(seq 20); do [ "$(geomf inset)" = "$want" ] && break; sleep 0.25; done
         [ "$(geomf inset)" = "$want" ] || fail "$d $bar frame $frame $draw: the dock stands at $(geomf inset), the layout says $want ($(geom))"
-        sleep 0.8
+        # Was a fixed 0.8 s: the dock's corner of the screen stands still (at most 0.8 s).
+        wait_settled 0.8 0.3 "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220"
         IFS=, read -r BX BY BW BH <<< "$(geomf body)"
         WW=$(geomf win); left=$(( (SW - WW) / 2 + BX ))
         base=$(( SH - want ))
@@ -535,12 +548,14 @@ for d in $LAYOUT_DECORS; do
     # Visibility through the shared strip (no window of the dock's own: the strips' namespace is kurashi-edge).
     setbar top; cfgval layout.frame.enabled false; cfgval layout.draw '"dynamic"'
     cfgval dock.visibility '"hover"'
+    # (The waits that end in a change are at most their old fixed time, until the band shows the change; the 2 s rest
+    # and the `hidden` second stay: they check that nothing changes.)
     ptr move $(( SW / 2 )) $(( SH / 2 ))
-    sleep 1.2
+    wait_until 1.2 eval '[ "$(band_ink $(( SH - 120 )))" -lt 50 ]' || true
     n=$(band_ink $(( SH - 120 )))
     [ "$n" -lt 50 ] || fail "hover: the dock shows away from the edge ($n px)"
     ptr move $(( SW / 2 + 300 )) $(( SH - 1 ))
-    sleep 1.2
+    wait_until 1.2 eval '[ "$(band_ink $(( SH - 120 )))" -gt 500 ]' || true
     n=$(band_ink $(( SH - 120 )))
     [ "$n" -gt 500 ] || fail "hover: a rest on the edge did not reveal the dock ($n px)"
     sleep 2
@@ -548,7 +563,7 @@ for d in $LAYOUT_DECORS; do
     [ "$n" -gt 500 ] || fail "hover: the dock went while the pointer rested on the edge ($n px)"
     timeout 20 grim -g "$(( SW / 2 - 350 )),$(( SH - 220 )) 700x220" "$LOUT/$d/hover-revealed.png"
     ptr move $(( SW / 2 )) $(( SH / 2 ))
-    sleep 1.4
+    wait_until 1.4 eval '[ "$(band_ink $(( SH - 120 )))" -lt 50 ]' || true
     n=$(band_ink $(( SH - 120 )))
     [ "$n" -lt 50 ] || fail "hover: the dock stayed after the pointer left ($n px)"
     echo "ok: hover: the dwell reveals it, a resting pointer keeps it, leaving hides it"
@@ -556,15 +571,15 @@ for d in $LAYOUT_DECORS; do
     sleep 1
     [ "$(band_ink $(( SH - 120 )))" -lt 50 ] || fail "hidden: the dock shows"
     mockdoc '{"doc":"runtime.ui","patch":{"shown":["dock@HEADLESS-1"]}}'
-    sleep 1.2
+    wait_until 1.2 eval '[ "$(band_ink $(( SH - 120 )))" -gt 500 ]' || true
     [ "$(band_ink $(( SH - 120 )))" -gt 500 ] || fail "hidden: runtime.ui.shown did not bring the dock out"
     mockdoc '{"doc":"runtime.ui","patch":{"shown":[]}}'
-    sleep 1.2
+    wait_until 1.2 eval '[ "$(band_ink $(( SH - 120 )))" -lt 50 ]' || true
     [ "$(band_ink $(( SH - 120 )))" -lt 50 ] || fail "hidden: the dock stayed after shown dropped it"
     echo "ok: hidden: out only while runtime.ui.shown lists dock@HEADLESS-1"
     cfgval dock.visibility '"empty_desktop"'
     mockdoc '{"doc":"svc.workspaces","patch":{"tasks":{"*":[],"HEADLESS-1":[]}}}'
-    sleep 1.2
+    wait_until 1.2 eval '[ "$(band_ink $(( SH - 120 )))" -gt 500 ]' || true
     [ "$(band_ink $(( SH - 120 )))" -gt 500 ] || fail "empty_desktop: the dock is not shown on an empty desk"
     echo "ok: empty_desktop: shown on an empty desk"
     qml_errors
@@ -575,9 +590,12 @@ for d in $LAYOUT_DECORS; do
     mock_scene
     cfgval dock.visibility '"hover"'
     ptr move $(( SW / 2 )) $(( SH / 2 ))
-    sleep 3; c0=$(stat -c %s "$R/qs.log"); sleep 5; hid=$(dock_commits "$c0")
+    # (Each fixed 3 s before a window is now: no commit for 1 s, at most 3 s. The 5 s windows stay.)
+    wait_log_quiet "$R/qs.log" 'wl_surface#[0-9]*\.commit\(' 1 3
+    c0=$(stat -c %s "$R/qs.log"); sleep 5; hid=$(dock_commits "$c0")
     ptr move $(( SW / 2 + 300 )) $(( SH - 1 ))
-    sleep 3; c0=$(stat -c %s "$R/qs.log"); sleep 5; out=$(dock_commits "$c0")
+    wait_log_quiet "$R/qs.log" 'wl_surface#[0-9]*\.commit\(' 1 3
+    c0=$(stat -c %s "$R/qs.log"); sleep 5; out=$(dock_commits "$c0")
     [ "$hid" = 0 ] || [ "$hid" = none ] || fail "idle: the hover dock, hidden, committed $hid times in 5 s"
     [ "$out" = 0 ] || fail "idle: the revealed dock at rest committed $out times in 5 s"
     echo "ok: idle: a hover dock at rest commits nothing (hidden: $hid, revealed: $out)"
@@ -591,7 +609,7 @@ done
 if [ -z "${DOCK_SKIP_PAPER:-}" ]; then
   POUT=$LOUT/washi-paper
   mkdir -p "$POUT"
-  printf 'idle.enabled = false\ntheme.style = "washi"\ntheme.texture.kind = "paper"\ntheme.texture.strength = 1.5\n' \
+  printf 'idle.enabled = false\ntheme.style = "washi"\ntheme.motion.profile = "none"\ntheme.texture.kind = "paper"\ntheme.texture.strength = 1.5\n' \
     > "$XDG_CONFIG_HOME/kurashi/config.toml"
   printf 'dock.enabled = true\ndock.visibility = "always"\ndock.pinned = ["firefox", "org.gnome.Nautilus", "foot"]\n' \
     >> "$XDG_CONFIG_HOME/kurashi/config.toml"
@@ -615,7 +633,8 @@ print(len({p[k:k + 3] for k in range(0, len(p) - 2, 3)}))' "$W/row.ppm"; }
     for draw in floating dynamic connected; do
       K set "dock.draw=\"$draw\"" >/dev/null || fail "dock.draw = $draw refused"
       wait_geom "draw $draw "
-      sleep 1.2
+      # Was a fixed 1.2 s: the dock's part of the screen stands still (at most 1.2 s).
+      wait_settled 1.2 0.4 "0,$(( SH - 240 )) ${SW}x240"
       inset=$(K sub runtime.layout --count 0 --json | jq -r '.data.outputs["HEADLESS-1"].dock.inset')
       IFS=, read -r BX BY BW BH <<< "$(geomf body)"
       WW=$(geomf win); left=$(( (SW - WW) / 2 + BX ))
@@ -644,7 +663,8 @@ fi
 # 5. A shared edge (I137): HEADLESS-2 comes to the right of HEADLESS-1; a right-edge dock on HEADLESS-1 reveals after
 # 500 ms (the pointer crosses that edge on its way to the other output), HEADLESS-2's outer edge after 250 ms.
 timeout 20 "$ROOT/tools/bench/sandbox.sh" output-add "$NAME" >/dev/null || fail "output-add failed"
-sleep 2
+# Was a fixed 2 s: until sway lists the second output (at most 2 s).
+wait_until 2 eval '[ "$(swaymsg -t get_outputs -r | jq length)" -ge 2 ]' || true
 start_mock
 mockdoc "$(cat "$W/theme-$FIRST.json")"
 start_frontend

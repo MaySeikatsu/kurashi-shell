@@ -7,7 +7,7 @@
 #   KURASHI_BIN_DIR=<dir with kurashid + kurashi> (default: ${CARGO_TARGET_DIR:-target}/debug)
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
-NAME=${1:-webdock-real}
+NAME=${1:-${KURASHI_SB_PREFIX:-}webdock-real}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 SHOTS=$ROOT/mods/webdock/shots
 PAGES=file://$ROOT/mods/webdock/test/pages

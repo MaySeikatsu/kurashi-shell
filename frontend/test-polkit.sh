@@ -20,7 +20,7 @@
 #     timeout 900 nix develop -c frontend/test-polkit.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w23-aut-polkit}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w23-aut-polkit}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/frontend/shots
 DECORS=${DECORS:-sekai none}
@@ -37,6 +37,7 @@ check() { # check <0|1> <label>
 }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 mkdir -p "$W" "$R/kurashi"
@@ -159,9 +160,11 @@ start_daemon() { # start_daemon <decor> [extra config lines]
   swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
 }
 start_harness() {
+  local off bare; off=$(log_size "$R/qs.log"); bare=$(screen_hash)
   env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" FAKE_IDENTITIES="${1:-1}" qs -p "$FE/polkit-harness.qml" >> "$R/qs.log" 2>&1 &
   SHPID=$!
-  sleep "${SHELL_WAIT:-4}"
+  # Was a fixed SHELL_WAIT (4 s): the harness loaded, drew and stands still, at most that long.
+  wait_frontend "$R/qs.log" "$off" "${SHELL_WAIT:-4}" 0.6 "$bare" || fail "the harness did not load (see $R/qs.log)"
 }
 
 # `px.py <ppm> x,y,want ...`: each pixel of a full-output grab is `black`, `bg` (the sandbox's background #8fb8c8) or
@@ -228,17 +231,28 @@ echo "== the real shell: agent registration and screen corners at 24 px"
 start_daemon sekai $'theme.shape.screen_corners_follow = false\ntheme.shape.screen_corners = 24'
 env -u KURASHI_SOCKET DBUS_SYSTEM_BUS_ADDRESS="$NOBUS" KURASHI_POLKIT_AGENT=1 qs -p "$ROOT/frontend" >> "$R/qs-real.log" 2>&1 &
 SHPID=$!
-sleep 6
+T0=$(now_ms)
+# Was a fixed 6 s: the agent's registration result logged, the screen's corners drawn (under load they come late: a
+# still screen alone was not enough), at most the 6 s from the start; then the screen still.
+wait_for "$R/qs-real.log" 'polkit: agent (registered|not registered)' 6 || true
+corner_black() {  # the output's bottom-left pixel is black (px.py's rule: every channel under 16)
+  local r g b
+  read -r r g b < <(timeout 10 grim -t ppm -g "1,1438 1x1" - 2>/dev/null | tail -c 3 | od -An -tu1 || true)
+  [ "${r:-255}" -lt 16 ] && [ "${g:-255}" -lt 16 ] && [ "${b:-255}" -lt 16 ]
+}
+wait_until "$(awk -v t="$(( 6000 - $(now_ms) + T0 ))" 'BEGIN { printf "%.3f", (t > 0 ? t : 0) / 1000 }')" corner_black || true
+wait_settled 3 0.6
 check "$(grep -q 'polkit: agent \(registered\|not registered\)' "$R/qs-real.log" && echo 1 || echo 0)" "the agent's registration result is logged: $(grep -m1 -o 'polkit: agent.*' "$R/qs-real.log" || echo none)"
 pixels "corners at 24: black at the output's corners, the background 14 px in" \
   1,1438,black 2558,1438,black 2,2,black 2557,2,black 14,1425,bg 2545,1425,bg
 grim -g "0,0 120x120" "$OUT/corners-24-tl.png"
 grim -g "2440,1320 120x120" "$OUT/corners-24-br.png"
+# (Each fixed 1.5 s after a set is now: until the screen stands still, at most 1.5 s.)
 K set theme.shape.screen_corners=0 >/dev/null || fail "set screen_corners failed"
-sleep 1.5
+wait_settled 1.5 0.5
 pixels "corners at 0: the background at the output's corners" 1,1438,bg 2558,1438,bg
 K set theme.shape.screen_corners_follow=true >/dev/null || fail "set screen_corners_follow failed"
-sleep 1.5
+wait_settled 1.5 0.5
 pixels "corners following sekai's radius (23): black at the output's corners, the background 14 px in" \
   1,1438,black 2558,1438,black 14,1425,bg 2545,1425,bg
 

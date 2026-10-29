@@ -452,7 +452,7 @@ W_DIR=""
 session() {  # session NAME FRONTEND TEXTURE(yes|no) CONFIG...: leaves the session up (stop_session ends it)
   local name=$1 fe=$2 texture=$3
   shift 3
-  SB=w32-ctl-$name
+  SB=${KURASHI_SB_PREFIX:-}w32-ctl-$name
   unset LD_PRELOAD KURASHI_SANDBOX_NETNS_PID KURASHI_SANDBOX_NETNS_ID
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$SB" 2>/dev/null)"
   local R=$XDG_RUNTIME_DIR

@@ -452,7 +452,7 @@ QS_LOG=""
 session() {
   local name=$1 texture=$2
   shift 2
-  SB=${TEXTURE_SB:-w32-rel}-$name
+  SB=${TEXTURE_SB:-${KURASHI_SB_PREFIX:-}w32-rel}-$name
   # The last session's network namespace must not reach the launcher of this one.
   unset LD_PRELOAD KURASHI_SANDBOX_NETNS_PID KURASHI_SANDBOX_NETNS_ID
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$SB" 2>/dev/null)"

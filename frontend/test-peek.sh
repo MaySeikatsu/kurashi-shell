@@ -32,6 +32,7 @@ fail() { echo "test-peek: $*" >&2; exit 1; }
 want() { [ -z "${PEEK_PHASES:-}" ] || [[ " $PEEK_PHASES " == *" $1 "* ]]; }
 
 eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
+. "$ROOT/frontend/test-lib.sh"
 R=$XDG_RUNTIME_DIR
 W=$R/work
 FIFO=$R/pointer.fifo
@@ -229,10 +230,13 @@ start_real() { # start_real [VAR=value ...]: the real daemon with the given envi
   fail "kurashid did not come up (see $R/kurashid.log)"
 }
 start_frontend() { # $1: extra environment for qs (WAYLAND_DEBUG=1 in the measurement only)
+  local off bare; off=$(size); bare=$(screen_hash)
+  QS_T0=$(now_ms)
   env -u KURASHI_SOCKET ${1:-} qs -p "$ROOT/frontend" >> "$R/qs.log" 2>&1 &
   QS_PID=$!
   pids+=("$QS_PID")
-  sleep 4
+  # Was a fixed 4 s: the frontend loaded, drew and stands still (at most 4 s for that).
+  wait_frontend "$R/qs.log" "$off" 4 0.6 "$bare" || fail "the frontend did not load (see $R/qs.log)"
 }
 # One virtual pointer per phase, started after the outputs it may point at exist (its layout is fixed at start).
 start_pointer() {
@@ -675,7 +679,8 @@ phase_measure() {
   start_pointer
   X2=$(output_x HEADLESS-2)
   move 1280 600
-  sleep 6
+  # (The idle window and its PSS start at least 12 s after the launch, as with the fixed 4 s start before.)
+  sleep 6; sleep_rest "$QS_T0" 12
   s=$(size); sleep 10; idle_c=$(commits "$s"); idle_pss=$(pss_mib "$QS_PID")
   echo "measure idle, no peek (10 s): commits=$idle_c pss=${idle_pss} MiB"
   check "$([ "$idle_c" = 0 ] && echo 1 || echo 0)" "idle with no peek: no Wayland commits in 10 s"
