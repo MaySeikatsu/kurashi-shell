@@ -14,7 +14,7 @@
 #     timeout 900 nix develop -c greeter/test.sh [sandbox-name]
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-NAME=${1:-w28-grt-test}
+NAME=${1:-${KURASHI_SB_PREFIX:-}w28-grt-test}
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=$ROOT/greeter/shots
 DECORS=${DECORS:-sekai none kami}
