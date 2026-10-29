@@ -13,3 +13,4 @@ Tray 1.0 Tray.qml
 SidebarToggle 1.0 SidebarToggle.qml
 ModWidget 1.0 ModWidget.qml
 ClockPeek 1.0 ClockPeek.qml
+Launcher 1.0 Launcher.qml

@@ -15,7 +15,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 /// The core modules (K72), in the order Settings offers them and `unplaced` lists them.
-pub const CORE_MODULES: [&str; 11] = [
+pub const CORE_MODULES: [&str; 12] = [
     "workspaces",
     "windows",
     "island",
@@ -27,7 +27,11 @@ pub const CORE_MODULES: [&str; 11] = [
     "tray",
     "sidebar_left",
     "sidebar_right",
+    "launcher",
 ];
+/// Core modules no default bar has, offered in Settings but never listed as `unplaced`: a start button (W53.0b, K80) is
+/// something a user or a style's layout preset adds, not something that went missing.
+pub const OPTIONAL_MODULES: [&str; 1] = ["launcher"];
 /// The pseudo module: every enabled mod widget no zone of the output names (where mod widgets went before K71).
 pub const MODS: &str = "mods";
 
@@ -913,7 +917,7 @@ fn resolve_zones(
     };
     let mut unplaced: Vec<Unplaced> = CORE_MODULES
         .iter()
-        .filter(|id| !shown(id))
+        .filter(|id| !shown(id) && !OPTIONAL_MODULES.contains(id))
         .map(|id| Unplaced {
             module: Module::core(id),
             reason: REASON_NOT_LISTED,
