@@ -59,8 +59,14 @@ pub fn probe_env() -> Result<BTreeSet<String>> {
 /// given interface set provides.
 pub fn capabilities(interfaces: &BTreeSet<String>) -> BTreeSet<String> {
     let has = |i: &str| interfaces.contains(i);
-    let table: [(&str, bool); 4] = [
+    let table: [(&str, bool); 5] = [
         ("blur", has("ext_background_effect_manager_v1")),
+        // W58 (K79): cursor sessions need the copy-capture manager and output sources.
+        (
+            "pointer_position",
+            has("ext_image_copy_capture_manager_v1")
+                && has("ext_output_image_capture_source_manager_v1"),
+        ),
         ("session_lock", has("ext_session_lock_manager_v1")),
         (
             "screencopy",
