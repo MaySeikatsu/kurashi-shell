@@ -946,3 +946,28 @@ The user's live check after session 15 (BACKLOG I276–I281).
   screen. The deeper style rework (Windows, macOS and console looks; a lock screen per style) is
   `docs/tasks/W53-styles.md`.
 
+
+## K76 — the package is split: cached deps (crane), a data copy, the data dir at run time, tests as a check (2026-10-29, session 17; user, I290–I293)
+`nix/package.nix` was one `buildRustPackage` whose source held the workspace *and* every runtime file, with the data dir
+baked into the binary (`env.KURASHI_DATA_DIR = $out/share/kurashi`) and the whole `cargo test` in its check phase: a QML
+line or a Japanese string recompiled ~400 crates and ran the suite.
+- **Deps cached (I292).** crane (`github:ipetkov/crane`, a flake input): `buildDepsOnly` builds the dependencies from
+  a dummy of the Cargo manifests (crane launders them at eval time), so only Cargo.lock / Cargo.toml changes invalidate
+  it. It also compiles the dev-dependencies, which the tests check reuses; its `cargo check` pass is skipped.
+- **Rust from Rust sources only (I290).** `bin` (crane `buildPackage`) sees Cargo.toml/lock, `crates/`, `fixtures/` and
+  what our crates embed with `include_str!`: `looks/`, `styles/`, `palettes/`, `i18n/{en,ja}/doctor.toml`. Edits to
+  those four still rebuild our crates (not the deps); loading them at run time is I294. The whole workspace is built
+  (no `-p`): a package subset changes feature unification and would miss the deps cache.
+- **Data at run time (I291).** `data_dir()` (kurashid) and `i18n_root()` (mod-timer) read `$KURASHI_DATA_DIR`, else the
+  source tree; the `option_env!` arm is gone. The package derivation copies the data into `$out/share/kurashi` and wraps
+  the binaries (`makeBinaryWrapper`, `--set-default`, so the sandboxes' and the greeter's explicit value wins). The data
+  is copied, not symlinked from a third derivation: frontend, mods' QML and the greeter import each other by relative
+  paths, and one file reached through two store paths would be two QML types. The wrappers exec the real binaries, so
+  process names stay `kurashid`/`kurashi`. The launcher already strips `KURASHI_*` from apps it starts.
+- **Tests out of `nix build` (I293).** `passthru.cargoTests` (crane `cargoTest`, the old source set and pre-check
+  hook) is `checks.<system>.tests`; `nix flake check` and `just check` run them. A binary cache stays the user's call.
+- **Measured (machine A, 2026-10-29):** cold build 657 s (deps + dev-deps + our crates); a QML or i18n edit 4–6 s
+  (`bin` untouched); a leaf `.rs` edit 305 s (deps reused; our 31 crates in release, plus bindgen/pam-sys). Fast Rust
+  iteration stays `cargo` in `nix develop` (incremental); `nix build` is for the installed result.
+- The devShell no longer takes `inputsFrom` the package (now a plain derivation); it lists the Rust build inputs from
+  `passthru.rust{Native,}BuildInputs`.

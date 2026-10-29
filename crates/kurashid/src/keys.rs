@@ -882,7 +882,8 @@ pub fn on_path(name: &str) -> Option<PathBuf> {
     })
 }
 
-/// The `kurashi` binary next to this daemon (the package installs both), else the name for PATH.
+/// The `kurashi` binary next to this daemon (the package installs both), else the name for PATH. Under the package this
+/// is the unwrapped CLI (no KURASHI_DATA_DIR, I291): it reads no data files, so that is fine.
 pub fn kurashi_binary() -> PathBuf {
     std::env::current_exe()
         .ok()
