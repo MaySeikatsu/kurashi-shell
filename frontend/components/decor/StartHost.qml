@@ -11,8 +11,6 @@ DecorHost {
     property bool pressed: false
     property bool open: false
     property bool vertical: false
-    implicitWidth: ready ? item.implicitWidth : 0
-    implicitHeight: ready ? item.implicitHeight : 0
     onLoaded: {
         item.label = Qt.binding(function () { return Theme.decor("start.label", false) ? I18n.tr("decor.start.label") : "" })
         item.pressed = Qt.binding(function () { return sh.pressed })

@@ -100,10 +100,13 @@ TitleBase {
                     anchors.verticalCenterOffset: cap.face === "bevel" && hit.pressed ? 1 : 0
                     // A dot shows its mark only under the pointer (the Macs).
                     visible: cap.face !== "dot" || hit.containsMouse
-                    name: b.modelData === "close" ? "close" : b.modelData === "maximize" ? "crop_square" : "minimize"
+                    name: b.modelData === "close" ? "close" : b.modelData === "maximize" ? "fullscreen" : "minimize"
                     glyph: b.modelData === "close" ? "×" : b.modelData === "maximize" ? "□" : "_"
                     size: Math.round(b.height * 0.8)
-                    color: cap.face === "bevel" || cap.face === "plate" ? Theme.fg : (cap.face === "glyph" ? cap.ink : Theme.fgOnAccent)
+                    // On the caption itself its ink; on a red close face the error role's own ink; on a plain face the text's.
+                    color: cap.face === "glyph" ? cap.ink
+                        : b.modelData === "close" && cap.face !== "bevel"
+                            ? Theme.color("color.on_error", "#ffffff") : Theme.fg
                 }
                 MouseArea {
                     id: hit
