@@ -79,7 +79,7 @@ struct FieldAttrs {
     nested: bool,
     requires: Vec<(String, bool, String)>,
     capability: Vec<LitStr>,
-    overridden_by: Vec<(String, Option<String>)>,
+    overridden_by: Vec<OverriddenBy>,
     since: Option<LitInt>,
     /// Span of every attribute that only makes sense on a leaf (for the `nested` check).
     leaf_only: Vec<(proc_macro2::Span, &'static str)>,
@@ -342,18 +342,32 @@ fn parse_requires(s: &str) -> Result<(String, bool, String), String> {
 }
 
 /// `"<key>"` / `"<key> => <value>"` → (key, forced JSON).
-fn parse_overridden_by(s: &str) -> Result<(String, Option<String>), String> {
-    let (key, forces) = match s.split_once("=>") {
-        Some((k, v)) => (k.trim(), Some(json_value(v)?)),
-        None => (s.trim(), None),
+/// `<key>`, `<key> => <value>` or `<key> => <value> except <a>|<b>` (K80: values the mode leaves alone).
+fn parse_overridden_by(s: &str) -> Result<OverriddenBy, String> {
+    let (key, forces, except) = match s.split_once("=>") {
+        Some((k, v)) => {
+            let (v, ex) = match v.split_once(" except ") {
+                Some((v, ex)) => (
+                    v,
+                    ex.split('|')
+                        .map(json_value)
+                        .collect::<Result<Vec<_>, _>>()?,
+                ),
+                None => (v, Vec::new()),
+            };
+            (k.trim(), Some(json_value(v)?), ex)
+        }
+        None => (s.trim(), None, Vec::new()),
     };
     if !is_dotted(key) {
         return Err(format!(
             "`overridden_by`: {key:?} is not a dotted config key (\"<key>\" or \"<key> => <value>\")"
         ));
     }
-    Ok((key.to_owned(), forces))
+    Ok((key.to_owned(), forces, except))
 }
+
+type OverriddenBy = (String, Option<String>, Vec<String>);
 
 /// JSON literal, or a bare word meaning a string.
 fn json_value(src: &str) -> Result<String, String> {
@@ -537,13 +551,13 @@ fn expand_struct(input: &DeriveInput, fields: &Fields) -> syn::Result<Ts> {
         for cap in &a.capability {
             body.push(quote!(__m.couplings.push(::kurashi_schema::__private::capability(#cap));));
         }
-        for (key, forces) in &a.overridden_by {
+        for (key, forces, except) in &a.overridden_by {
             let forces = match forces {
                 Some(f) => quote!(::core::option::Option::Some(#f)),
                 None => quote!(::core::option::Option::None),
             };
             body.push(quote! {
-                __m.couplings.push(::kurashi_schema::__private::overridden_by(#key, #forces));
+                __m.couplings.push(::kurashi_schema::__private::overridden_by_except(#key, #forces, &[#(#except),*]));
             });
         }
         if let Some(since) = &a.since {
@@ -703,11 +717,19 @@ mod tests {
     fn overridden_by_forms() {
         assert_eq!(
             parse_overridden_by("a11y.reduce_motion => none").unwrap(),
-            ("a11y.reduce_motion".into(), Some("\"none\"".into()))
+            ("a11y.reduce_motion".into(), Some("\"none\"".into()), vec![])
         );
         assert_eq!(
             parse_overridden_by("a11y.large_text").unwrap(),
-            ("a11y.large_text".into(), None)
+            ("a11y.large_text".into(), None, vec![])
+        );
+        assert_eq!(
+            parse_overridden_by("a11y.high_contrast => flat except bevel").unwrap(),
+            (
+                "a11y.high_contrast".into(),
+                Some("\"flat\"".into()),
+                vec!["\"bevel\"".into()]
+            )
         );
     }
 

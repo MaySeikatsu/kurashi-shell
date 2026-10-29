@@ -3,3 +3,10 @@
 "lockui.checking" = "確認中…"
 "lockui.retry_in" = "{s} 秒後に再試行できます"
 "lockui.disconnected" = "デーモンに接続できません。ロックは維持されます"
+# W53.0b (K80): どの顔にも出るヒントと、設定に並ぶロック画面。
+"lockui.caps_lock" = "Caps Lock がオンです"
+"lockui.fingerprint.idle" = "指紋でも解除できます：Enter を押してからセンサーに触れてください"
+"lockui.fingerprint.scanning" = "指紋センサーに触れてください"
+"lockui.face.follow" = "スタイルに合わせる"
+"lockui.face.plain" = "プレーン"
+"lockui.face.missing" = "このロック画面はインストールされていません。プレーンで表示します。"

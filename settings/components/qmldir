@@ -47,3 +47,4 @@ RoundPen 1.0 RoundPen.qml
 SquircleRect 1.0 SquircleRect.qml
 Elevation 1.0 Elevation.qml
 ElevationPreview 1.0 ElevationPreview.qml
+LayoutOffer 1.0 LayoutOffer.qml

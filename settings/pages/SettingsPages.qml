@@ -490,6 +490,12 @@ Flickable {
                             active: blk.modelData.row.choices_from === "styles"
                             sourceComponent: StyleDiffers {}
                         }
+                        // W53.0b (K80): the style's layout preset, offered, never applied by itself.
+                        Loader {
+                            width: blk.width - 2 * Theme.pad
+                            active: blk.modelData.row.choices_from === "styles"
+                            sourceComponent: LayoutOffer {}
+                        }
                     }
                 }
                 Repeater {

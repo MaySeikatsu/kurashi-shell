@@ -53,6 +53,8 @@ pub enum DecorKind {
     Curve,
     /// Font families, the first installed one wins; `[]` = the shell's own.
     Families,
+    /// A shipped set's name (a slug: `cursors/<name>/` in the package); `""` = none (W53.0b, contract row 593).
+    Name,
 }
 
 /// One `[decor]` key: its name, kind, default (JSON) and what it is for.
@@ -66,7 +68,7 @@ const fn k(key: &'static str, kind: DecorKind, default: &'static str) -> DecorKe
     DecorKey { key, kind, default }
 }
 
-use DecorKind::{Bool, Choice, Curve, Families, Int, Num, Role, Roles};
+use DecorKind::{Bool, Choice, Curve, Families, Int, Name, Num, Role, Roles};
 
 /// Every `[decor]` key a look may set (W53.0a, docs/ux/styles.md "Metrics, as data"), with the default that keeps
 /// today's shell. Numbers are logical px unless named otherwise; `0` (or `-1` where 0 is a size) means the component's
@@ -151,6 +153,14 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // Symbols: the style's own icon font (ligature names as Material Symbols), the default icon size (0 = body + 4) and
     // a scale for every icon, the fill and weight (-1 = the chrome's).
     k("icons.family", Families, "[]"),
+    // Cursor personality (W53.0b, I317; both off unless the user turns `cursor.theme` / `cursor.decoration` on): the
+    // style's cursor set and the decoration `cursor.decoration = style` draws.
+    k("cursor", Name, r#""""#),
+    k(
+        "cursor_decoration",
+        Choice(&["", "trail", "sparkles", "ring"]),
+        r#""""#,
+    ),
     k("icon.size", Int(0, 64), "0"),
     k("icon.scale", Num(0.5, 2.0), "1.0"),
     k("icon.fill", Int(-1, 1), "-1"),
@@ -239,6 +249,13 @@ impl DecorKey {
                 a.iter()
                     .all(|f| f.as_str().is_some_and(|s| !s.is_empty()))
                     .then(|| v.clone())
+            }
+            Name => {
+                let s = v.as_str()?;
+                (s.len() <= 64
+                    && s.chars()
+                        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+                .then(|| v.clone())
             }
         }
     }

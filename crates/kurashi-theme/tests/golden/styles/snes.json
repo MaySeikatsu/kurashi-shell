@@ -93,6 +93,8 @@
   "decor.border.color": "#54545e",
   "decor.border.width": 0,
   "decor.button": "",
+  "decor.cursor": "",
+  "decor.cursor_decoration": "",
   "decor.focus": "",
   "decor.focus.offset": 0,
   "decor.focus.style": "ring",

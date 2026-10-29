@@ -1224,6 +1224,9 @@
               "control": "select",
               "couplings": [
                 {
+                  "except": [
+                    "bevel"
+                  ],
                   "forces": "flat",
                   "key": "a11y.high_contrast",
                   "kind": "overridden_by",
@@ -2869,6 +2872,25 @@
           ]
         },
         {
+          "id": "sounds",
+          "label": "settings.section.sounds",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.theme.sounds.help",
+              "key": "theme.sounds",
+              "label": "config.theme.sounds.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            }
+          ]
+        },
+        {
           "id": "settings_app",
           "label": "settings.section.settings_app",
           "rows": [
@@ -2893,6 +2915,266 @@
               "per_output": false,
               "restart": false,
               "since": 1,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "lock_screen",
+          "label": "settings.section.lock_screen",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "lock.faces",
+              "control": "select",
+              "couplings": [],
+              "default": "follow",
+              "help": "config.lock.face.help",
+              "key": "lock.face",
+              "label": "config.lock.face.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "title_bars",
+          "label": "settings.section.title_bars",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.title_buttons.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.title_buttons.close",
+                  "value": "close"
+                },
+                {
+                  "label": "config.choice.title_buttons.full",
+                  "value": "full"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "full",
+              "help": "config.title_bar.buttons.help",
+              "key": "title_bar.buttons",
+              "label": "config.title_bar.buttons.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.title_action.close",
+                  "value": "close"
+                },
+                {
+                  "label": "config.choice.title_action.hide",
+                  "value": "hide"
+                },
+                {
+                  "label": "config.choice.title_action.full_screen",
+                  "value": "full_screen"
+                },
+                {
+                  "label": "config.choice.title_action.app_menu",
+                  "value": "app_menu"
+                },
+                {
+                  "label": "config.choice.title_action.none",
+                  "value": "none"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "title_bar.buttons",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "off"
+                }
+              ],
+              "default": "close",
+              "key": "title_bar.close",
+              "label": "config.title_bar.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.title_action.close",
+                  "value": "close"
+                },
+                {
+                  "label": "config.choice.title_action.hide",
+                  "value": "hide"
+                },
+                {
+                  "label": "config.choice.title_action.full_screen",
+                  "value": "full_screen"
+                },
+                {
+                  "label": "config.choice.title_action.app_menu",
+                  "value": "app_menu"
+                },
+                {
+                  "label": "config.choice.title_action.none",
+                  "value": "none"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "title_bar.buttons",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "full"
+                }
+              ],
+              "default": "full_screen",
+              "help": "config.title_bar.maximize.help",
+              "key": "title_bar.maximize",
+              "label": "config.title_bar.maximize.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.title_action.close",
+                  "value": "close"
+                },
+                {
+                  "label": "config.choice.title_action.hide",
+                  "value": "hide"
+                },
+                {
+                  "label": "config.choice.title_action.full_screen",
+                  "value": "full_screen"
+                },
+                {
+                  "label": "config.choice.title_action.app_menu",
+                  "value": "app_menu"
+                },
+                {
+                  "label": "config.choice.title_action.none",
+                  "value": "none"
+                }
+              ],
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "title_bar.buttons",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": "full"
+                }
+              ],
+              "default": "app_menu",
+              "help": "config.title_bar.minimize.help",
+              "key": "title_bar.minimize",
+              "label": "config.title_bar.minimize.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "cursor",
+          "label": "settings.section.cursor",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [],
+              "default": false,
+              "help": "config.cursor.theme.help",
+              "key": "cursor.theme",
+              "label": "config.cursor.theme.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "cursor.theme",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": true
+                }
+              ],
+              "default": 24,
+              "key": "cursor.size",
+              "label": "config.cursor.size.label",
+              "max": 64,
+              "min": 16,
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "step": 4,
+              "type": "int",
+              "unit": "px"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.cursor_decoration.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.cursor_decoration.style",
+                  "value": "style"
+                },
+                {
+                  "label": "config.choice.cursor_decoration.trail",
+                  "value": "trail"
+                },
+                {
+                  "label": "config.choice.cursor_decoration.sparkles",
+                  "value": "sparkles"
+                },
+                {
+                  "label": "config.choice.cursor_decoration.ring",
+                  "value": "ring"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "off",
+              "help": "config.cursor.decoration.help",
+              "key": "cursor.decoration",
+              "label": "config.cursor.decoration.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
               "type": "choice"
             }
           ]

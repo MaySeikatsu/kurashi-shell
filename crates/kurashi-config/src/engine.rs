@@ -219,6 +219,19 @@ impl<S: SchemaView> Config<S> {
         self.resolve_in(&self.layers, key, output)
     }
 
+    /// `key` as it resolves without the forced layer `name`: the value beneath it (a coupling that forces only some
+    /// values reads what it would replace, K80).
+    pub fn resolve_beneath(
+        &self,
+        name: &str,
+        key: &str,
+        output: Option<&str>,
+    ) -> Option<Provenanced> {
+        let mut l = self.layers.clone();
+        l.forced.retain(|(n, _)| n != name);
+        self.resolve_in(&l, key, output)
+    }
+
     pub(crate) fn resolve_in(
         &self,
         l: &Layers,

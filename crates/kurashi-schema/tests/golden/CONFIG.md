@@ -892,6 +892,15 @@ Letters and icons wander a little off the straight line, as if written by hand.
 - range: `0.0..=1.0`, step `0.05`
 - forced to `0.0` while `a11y.high_contrast` is on
 
+### Sounds
+
+#### `theme.sounds` — Sounds
+
+Short sounds when you unlock, when something goes wrong, when a notification arrives and when the launcher opens or closes: the style's own set, original sounds in the spirit of what it recreates (K80). Off: nothing is loaded or played.
+
+- type: `bool` · default: `false`
+- since schema v7
+
 ### Settings app
 
 #### `settings.window` — Settings opens as
@@ -900,6 +909,75 @@ A normal window the compositor places and tiles, or a sheet the shell draws in t
 
 - type: `choice` · default: `"window"`
 - choices: `"window"` | `"sheet"`
+
+### Lock screen
+
+#### `lock.face` — Lock screen
+
+Follow the style: the lock screen its style brings, or the plain one when it brings none. Plain: the shell's own lock screen in every style. Or one lock screen by name, whatever the style.
+
+- type: `string` · default: `"follow"`
+- choices: from `lock.faces` (resolved at runtime)
+- since schema v7
+
+### Title bars
+
+#### `title_bar.buttons` — Title bar buttons
+
+Where the style draws a title bar on its cards (the island's cards, quick settings, menus): no title bar, only the close button, or minimize, maximize and close. A style without title bars draws none either way.
+
+- type: `choice` · default: `"full"`
+- choices: `"off"` | `"close"` | `"full"`
+- since schema v7
+
+#### `title_bar.close` — Close button
+
+- type: `choice` · default: `"close"`
+- choices: `"close"` | `"hide"` | `"full_screen"` | `"app_menu"` | `"none"`
+- only while `title_bar.buttons != "off"`
+- since schema v7
+
+#### `title_bar.maximize` — Maximize button
+
+Full screen: the card grows to the largest size the screen has room for.
+
+- type: `choice` · default: `"full_screen"`
+- choices: `"close"` | `"hide"` | `"full_screen"` | `"app_menu"` | `"none"`
+- only while `title_bar.buttons == "full"`
+- since schema v7
+
+#### `title_bar.minimize` — Minimize button
+
+The app's menu: the menu its tray icon opens, where the card belongs to an app that has one (a player); every other card hides, back to the island.
+
+- type: `choice` · default: `"app_menu"`
+- choices: `"close"` | `"hide"` | `"full_screen"` | `"app_menu"` | `"none"`
+- only while `title_bar.buttons == "full"`
+- since schema v7
+
+### Cursor
+
+#### `cursor.theme` — The style's pointer
+
+The pointer the style brings, set as the compositor's cursor theme (niri: `kurashi-cursor.kdl`, included from its config). Off: your own cursor theme stays.
+
+- type: `bool` · default: `false`
+- since schema v7
+
+#### `cursor.size` — Pointer size
+
+- type: `int` · default: `24`
+- range: `16..=64`, step `4` (px)
+- only while `cursor.theme == true`
+- since schema v7
+
+#### `cursor.decoration` — Pointer decoration
+
+A trail behind the pointer, sparkles or a ring round it, drawn over everything while the pointer moves and gone when it rests. Where the compositor does not say where the pointer is, none is drawn.
+
+- type: `choice` · default: `"off"`
+- choices: `"off"` | `"style"` | `"trail"` | `"sparkles"` | `"ring"`
+- since schema v7
 
 ## Accessibility
 

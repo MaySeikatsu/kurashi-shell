@@ -169,6 +169,8 @@ ShellRoot {
     Launcher {}
     // The polkit agent (K47 (5)): its dialog exists only while a request is up.
     PolkitDialog {}
+    // The pointer decoration (W53.0b, I317): a sheet only while the pointer moves with a decoration on.
+    Effects {}
     Stage {
         screen: root.stageScreen
         want: root.stageOpen
