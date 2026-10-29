@@ -19,3 +19,4 @@
 "cursor.error.refused" = "niri がカーソルのファイルを受け付けませんでした。"
 "cursor.include_missing" = "niri はまだこのファイルを読みません。設定にこの行を加えてください"
 "cursor.unsupported" = "スタイルのポインタは今のところ niri でのみ設定できます。"
+"decor.start.label" = "スタート"
