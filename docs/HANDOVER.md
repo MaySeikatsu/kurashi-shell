@@ -17,14 +17,15 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
-## 2026-10-29 — session 18 (machine A): the kami fillet, today's bugs, corners, the pointer light, elevation and styles briefs — K78–K80
-**State:** `main` = fa95f783 + b35c5d19 (docs), **not pushed** since 5d15780e (the s17 merge was pushed). `just check` 1256
-green; `nix build .#kurashi` ok; the NixOS module evaluates with `programs.kurashi.pointerLight.enable` on (niri-849c576)
-and off (niri-26.04). Suites of the merge set green alone; `settings/test-sheet.sh` spotlight fails (I314, main too).
-Open branches: **`feat/s18-elevation`** (worktree `../ks-s18`, rebased on main): W57 slice 1 (e3ed90f9), the W53 brief
-(`docs/ux/styles.md`) and K80 — its suites have **not** run yet. **W55** runs as an agent in `.claude/worktrees/`
-(branch `worktree-agent-…`); its timings overlapped the lead's 19:32–20:05 suite run, so re-run its suites alone before
-accepting anything (I319). `feat/s18-keycap-gap` is merged (can be deleted).
+## 2026-10-29 — session 18 (machine A): the kami fillet, today's bugs, corners, the pointer light, elevation, the styles wave started — K78–K80
+**State (updated 22:2x):** `main` = ab973c93 + c083c1d3 (progress), `just check` 1256 green, `nix build .#kurashi` ok;
+pushed up to a862d9e4 — **the elevation merge and later are not pushed**. Suites of the merge sets green alone, except
+`settings/test-sheet.sh` spotlight (I314, main too) and `test-sidebars` kami 40 ms first frame once under an agent's load
+(I315). **Agents running** (worktrees under `.claude/worktrees/`): **W55** (faster suites; its timings overlapped other
+runs — re-run its suites alone before accepting, I319), **W53.0a** (visual system: slots, `[decor]`, bevel, motion
+styles/curves, fonts/icons, bloom, `test-styles.sh`), **W53.0b** (lock faces, title-bar buttons, sounds, cursor theme +
+trail off by default, start button, layout presets). Review each against its card and `docs/ux/styles.md`, then merge.
+`../ks-s18` (worktree of `feat/s18-elevation`, merged) can be removed.
 
 **Merged this session:**
 - s17 branch finished: kami's fillet ink came from the sketch's second pass drifting to one side (0.7–1.3 px) across
@@ -51,17 +52,18 @@ high contrast keeps bevels, the design system grows per style incl. animation st
 a start button for Windows styles; cursor theme + trail per style, off by default — I317).
 
 **Next steps (ordered):**
-1. Ask the user to push `main`; ask them to re-check **I296** (sidebar band with blur) and **I298** (dock texture after a
-   Sheet change) on their niri session, and for their config/steps for **I309** (not reproduced on nested niri).
+1. Ask the user to push `main`. I296 and I309 are fixed (reproduced on niri with blur: both were blur regions niri filled
+   with the blurred wallpaper over a lower layer); **I298** still open (not reproduced; likely the user's GPU) — ask for
+   steps or test on machine A's GPU.
 2. W55: when the agent reports, re-run its suites alone (no other runner active, I319), diff its `fail`/`check` lines
    against main (nothing weakened), then merge. Fix I319 (a per-runner sandbox suffix) with or right after it.
-3. W57: run `just suites --changed main` on `feat/s18-elevation`, merge slice 1; then slice 2: the dock, toasts, the
-   launcher, polkit; the bars and the frame band (the hole's inset shadow in screen coordinates, key-only onto windows,
+3. W57 slices 1–2 are merged (sidebar, Stage card, notification centre, floating dock, launcher card, polkit, Settings
+   preview). Next: toasts, the launcher's morph, the bars and the frame band (the hole's inset shadow in screen coordinates, key-only onto windows,
    window margins outside input/blur/exclusive zone); Settings' live preview + inert reasons; idle 0 frames with
    elevation on (frame idle check, bench); shots per mode × chrome on niri. Check `Elevation.centre` while a column slides
    with `elevation.pointer` on (it is re-evaluated only on Light changes).
-4. W53: write the cards from the brief's split (W53.0-system first: slots, `[decor]`, bevel chrome, lock faces, sound
-   plumbing, layout presets, start button, cursor personality), then the style families in parallel worktrees.
+4. W53: review and merge W53.0a + W53.0b (agents), then the family cards W53.1–8 (`docs/ux/styles.md` "Card split")
+   in parallel worktrees — two agents at a time (the user's allowance this session).
 5. Later: I312 effects sheet (cursor trails build on it), I313 lighting as a module, I304 layer order, I315, I318.
 
 **Risks:** an unreleased niri for pointer-light users (check releases, I316); elevation's two RectangularShadows per
