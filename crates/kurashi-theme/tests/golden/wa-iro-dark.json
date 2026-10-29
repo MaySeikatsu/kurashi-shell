@@ -170,6 +170,7 @@
   "motion.timed.open_ms": 500,
   "osd.bg": "#383638",
   "osd.fg": "#e9e4d8",
+  "outline.ink": "outline",
   "popup.bg": "#252329",
   "popup.chrome": "#444243",
   "popup.fg": "#e9e4d8",

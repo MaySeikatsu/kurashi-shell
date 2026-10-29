@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls.Basic as QQC
 import "../core"
 import "../components"
 
@@ -8,6 +9,11 @@ import "../components"
 // settings 2 and 7), and a mod's page starts with its head (settings 5).
 Flickable {
     id: p
+    // Kinetic wheel and a grabbable scrollbar (session 17, docs/ux/settings.md).
+    flickDeceleration: 2900
+    maximumFlickVelocity: 7000
+    KineticWheel { flick: p }
+    QQC.ScrollBar.vertical: PageScrollBar {}
     property string pageId: ""
     property string query: ""
     property bool showAdvanced: false

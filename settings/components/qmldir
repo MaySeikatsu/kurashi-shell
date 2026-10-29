@@ -40,3 +40,5 @@ KeysStatus 1.0 KeysStatus.qml
 LayoutScreen 1.0 LayoutScreen.qml
 DrawModes 1.0 DrawModes.qml
 EmptyBarNote 1.0 EmptyBarNote.qml
+KineticWheel 1.0 KineticWheel.qml
+PageScrollBar 1.0 PageScrollBar.qml

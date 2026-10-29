@@ -387,6 +387,11 @@ pub struct Theme {
     // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
     #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
     pub frame_outline: FrameOutline,
+    /// Outline ink
+    /// The colour of every outline the shell draws — blocks, the frame, the shapes joined to it: the chrome's own, the
+    /// text's ink (as a hand-drawn look outlines its blocks), or the accent. Looks set it with the rest of their outline.
+    #[kurashi(default = OutlineInk::Outline, section = "shape", since = 7)]
+    pub outline_ink: OutlineInk,
     #[kurashi(nested, section = "motion")]
     pub motion: Motion,
     /// Density
@@ -422,6 +427,17 @@ pub enum Chrome {
     Soft,
     /// Lines
     Line,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "outline_ink")]
+pub enum OutlineInk {
+    /// Outline
+    Outline,
+    /// Text
+    Text,
+    /// Accent
+    Accent,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -780,6 +796,9 @@ pub enum PenLine {
     Broken,
     /// Rough
     Rough,
+    /// Sketch
+    /// Two light passes that drift a little, as a hand draws (kami's blocks).
+    Sketch,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]

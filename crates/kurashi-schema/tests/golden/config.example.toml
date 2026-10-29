@@ -221,6 +221,12 @@
 #   choices: "auto" | "on" | "off" · since schema v7
 # frame_outline = "auto"
 #
+# Outline ink — The colour of every outline the shell draws — blocks, the frame, the
+# shapes joined to it: the chrome's own, the text's ink (as a hand-drawn look outlines its
+# blocks), or the accent. Looks set it with the rest of their outline.
+#   choices: "outline" | "text" | "accent" · since schema v7
+# outline_ink = "outline"
+#
 # Density — Scales spacing and control sizes everywhere.
 #   choices: "compact" | "regular" | "airy"
 # density = "regular"
@@ -519,8 +525,8 @@
 # Outline — How outlines round blocks and surfaces are drawn: solid, dotted, dashed,
 # broken — long strokes with gaps where the pen left the paper — or rough, a very uneven
 # hand line.
-#   choices: "solid" | "dotted" | "dashed" | "broken" | "rough" · forced to "solid" while
-#   a11y.high_contrast is on
+#   choices: "solid" | "dotted" | "dashed" | "broken" | "rough" | "sketch" · forced to
+#   "solid" while a11y.high_contrast is on
 # line = "solid"
 #
 # Pen pressure — Outlines swell and thin along their length, as with a fountain pen.

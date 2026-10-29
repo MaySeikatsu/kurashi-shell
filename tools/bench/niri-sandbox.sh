@@ -11,6 +11,7 @@
 #   niri-sandbox.sh niri <msg args…>                      `niri msg` against the nested niri
 #   niri-sandbox.sh spawn <cmd…>                          start a client on the nested niri (a terminal, swaybg …)
 #   niri-sandbox.sh move|click <x> <y>                    the pointer (screen px of the 1920×1080 output)
+#   niri-sandbox.sh wheel <x> <y> <notches> [gap s]       mouse-wheel notches there (negative: down)
 #   niri-sandbox.sh log [n] | nlog [n]                    the frontend's warnings / niri's log
 #   niri-sandbox.sh stop                                  kill only this sandbox's processes
 #
@@ -29,6 +30,10 @@ SWAYENV=$OUT/sway-env.sh
 NIRIENV=$OUT/niri-env.sh
 case "${1:-}" in
 start)
+  # (a sandbox of this name left from an earlier run would hand back its dead sway's environment)
+  "$ROOT/tools/bench/sandbox.sh" stop "$NAME" >/dev/null 2>&1 || true
+  # (and its old sockets: sway would take the next wayland-N while the env still named the old one)
+  rm -rf "/tmp/kurashi-sb-$NAME"
   eval "$("$ROOT/tools/bench/sandbox.sh" start "$NAME")"
   "$ROOT/tools/bench/sandbox.sh" env "$NAME" > "$SWAYENV"
   R=$XDG_RUNTIME_DIR
@@ -91,6 +96,7 @@ niri) . "$NIRIENV"; shift; timeout 10 niri msg "$@" ;;
 spawn) . "$NIRIENV"; shift; setsid "$@" > /dev/null 2>&1 < /dev/null & ;;
 move) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" move "$2" "$3" ;;
 click) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" click "$2" "$3" left ;;
+wheel) . "$SWAYENV"; python3 -I "$ROOT/tools/bench/wl_pointer.py" wheel "$2" "$3" "$4" "${5:-0.05}" ;;
 log) . "$NIRIENV"; grep -E 'WARN|ERROR|TypeError|ReferenceError|Unable' "$XDG_RUNTIME_DIR/qs.log" | sort | uniq -c | sort -rn | head -"${2:-20}" ;;
 nlog) . "$NIRIENV"; tail -"${2:-20}" "$XDG_RUNTIME_DIR/niri.log" ;;
 stop) "$ROOT/tools/bench/sandbox.sh" stop "$NAME" ;;
