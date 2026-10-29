@@ -25,14 +25,17 @@ Singleton {
     readonly property color surface: color("color.surface", "#1b1a1e")
     readonly property color surfaceAlpha: Qt.alpha(surface, tok("color.surface_alpha", 0.82))
     readonly property color container: color("color.surface_container", "#252329")
-    // A panel's fill: the container at the material's opacity (solid = opaque, translucent and glass see through).
+    // A panel's fill: the container at the material's opacity (solid = opaque, translucent sees through).
     readonly property color panel: Qt.alpha(container, tok("color.surface_alpha", 0.82))
-    // The compositor's blur behind the chrome (`theme.material.blur`): glass only, and only while the switch is on and the
-    // compositor can (the daemon's token). Every window's BackgroundEffect.blurRegion is empty otherwise.
+    // The compositor's blur behind the chrome (`theme.material.blur`): translucent only, and only while the switch is on and
+    // the compositor can (the daemon's token, schema v7). Every window's BackgroundEffect.blurRegion is empty otherwise.
     readonly property bool blur: tok("blur", false) === true
     // `theme.shape.corners = squircle` (I281): every shape draws its quarter corners as squircle curves (core/corner.js);
     // a pill's round end stays round.
-    readonly property bool squircle: tok("shape.corner", "rounded") === "squircle"
+    // The value is the squircle's handle ratio (`theme.shape.squircle`, token `shape.squircle_k`, I300) and 0 for round
+    // corners: true-ish exactly when the look is a squircle one, and every path built with it redraws when the curve moves.
+    readonly property real squircleK: tok("shape.squircle_k", 0.88)
+    readonly property real squircle: tok("shape.corner", "rounded") === "squircle" ? squircleK : 0
     readonly property color containerHigh: color("color.surface_container_high", "#2f2c33")
     readonly property int barH: tok("bar.height", 36)
     // Control height. Visuals of buttons take it; smaller visuals enlarge their hit area to it (32 px floor).
@@ -91,6 +94,12 @@ Singleton {
     // Row 125: a block casts a shadow of either kind (bar groups float), or is an outlined box with no fill (line).
     readonly property bool lifted: shadowDy > 0 || softR > 0
     readonly property bool boxed: outlineW > 0 && !lifted
+    // `theme.frame_outline` (I303): a line along the frame's inner edge and the sides of what joins it (bars' edges, the
+    // dock, sidebars, edge groups), in the chrome's own outline — its ink, or a hairline where the chrome draws none. The
+    // daemon resolves `auto` per chrome (`frame.outline`); without it, the rule the boxed chrome always drew.
+    readonly property bool frameOutline: tok("frame.outline", boxed) === true
+    readonly property int frameOutlineW: frameOutline ? Math.max(1, outlineW) : 0
+    readonly property color frameOutlineColor: outlineW > 0 ? outlineColor : outline
     // Row 130: the dim layer behind a modal (polkit, later the session keys): the palette's scrim role at 40 %.
     readonly property color scrim: Qt.alpha(color("color.scrim", "#000000"), 0.4)
     readonly property color selected: color("color.selected", "#4a3138")

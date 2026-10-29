@@ -247,6 +247,17 @@ Item {
         NumberAnimation { duration: m.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
 
+    // The box the blur stands behind (I295, I296), in this item's coordinates and on screen's orientation: the body as
+    // drawn while it morphs (it follows the springs every frame, so the blur never stands ahead of the shape), the card as
+    // it slides otherwise. Owners build their window's BackgroundEffect region from it.
+    readonly property bool blurOn: shown && (morph ? shapeW > 2 && bodyH > 2 : p > 0)
+    readonly property real blurX: morph ? shapeCx - shapeW / 2 : shade
+    readonly property real blurY: morph ? (flip ? morphH - bodyTop - bodyH : bodyTop) : shade - slide * (1 - p)
+    readonly property real blurW: morph ? shapeW : cardW
+    readonly property real blurH: morph ? bodyH : cardH
+    readonly property real blurRTop: morph ? (flip ? shape.rBot : shape.rTop) : (flip ? cardRFar : cardRNear)
+    readonly property real blurRBottom: morph ? (flip ? shape.rTop : shape.rBot) : (flip ? cardRNear : cardRFar)
+
     // The bar's strip and the slack only while the shape is out (K16); idle, the card's size (the owner's window keeps no strip).
     readonly property bool layout: morph && shown
     width: layout ? morphW : cardW + 2 * shade

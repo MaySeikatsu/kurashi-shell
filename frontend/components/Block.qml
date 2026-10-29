@@ -51,7 +51,7 @@ Item {
     readonly property color outlineInk: Theme.outlineW > 0 ? Theme.outlineColor : flatBorder
     // I281: a squircle look draws the shadow, the rim and the ring's fill as squircles (SquircleRect, made only then);
     // a pill (its corner half the face or more) stays round.
-    readonly property bool sq: Theme.squircle && Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
+    readonly property bool sq: Theme.squircle > 0 && Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 

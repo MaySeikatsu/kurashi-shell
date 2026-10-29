@@ -460,7 +460,7 @@ fn reserve_follows_visibility() {
             if want > 0 { Holder::Bar } else { Holder::None }
         );
 
-        // The dock and the sidebars keep space by the same rule.
+        // The dock keeps space by the same rule; the sidebars too, but for `on` on hover: only while out (I301).
         let mut c = defaults();
         c.dock.enabled = true;
         c.dock.visibility = vis;
@@ -469,19 +469,79 @@ fn reserve_follows_visibility() {
         c.sidebar_right.reserve = res;
         let l = lay(&c, &[]);
         assert_eq!(l.dock.reserve > 0, want > 0, "dock {vis:?} {res:?}");
+        let open_only = res == On && matches!(vis, Hover | EmptyDesktop);
         assert_eq!(
             l.sidebars.right.reserve > 0,
-            want > 0,
+            want > 0 && !open_only,
             "sidebar {vis:?} {res:?}"
         );
+        assert_eq!(l.sidebars.right.reserve_open > 0, open_only);
         assert_eq!(l.sidebars.right.reserve_reason.is_some(), inert);
         if want > 0 {
             assert_eq!(l.edges.bottom.holder, Holder::Dock);
             assert_eq!(l.edges.bottom.reserve, l.dock.reserve);
+        }
+        if want > 0 && !open_only {
             assert_eq!(l.edges.right.holder, Holder::Sidebar);
             assert_eq!(l.edges.right.reserve, 420);
         }
     }
+}
+
+/// I301: `on` with a hover sidebar reserves nothing at rest and carries the zone it keeps while out in `reserve_open`;
+/// `always` keeps its `reserve` as before.
+#[test]
+fn a_hover_sidebar_keeps_space_only_while_it_is_out() {
+    use Reserve::*;
+    use Visibility::*;
+    // (visibility, keep space) → (reserve, reserve_open), on an edge with nothing else on it (inset 0).
+    let cases = [
+        (Hover, On, 0, 420),
+        (EmptyDesktop, On, 0, 420),
+        (Hover, Auto, 0, 0),
+        (Hover, Off, 0, 0),
+        (Always, On, 420, 0),
+        (Always, Auto, 420, 0),
+        (Always, Off, 0, 0),
+        (Hidden, On, 0, 0),
+    ];
+    for (vis, res, reserve, open) in cases {
+        let mut c = defaults();
+        c.sidebar_right.visibility = vis;
+        c.sidebar_right.reserve = res;
+        let l = lay(&c, &[]);
+        let s = &l.sidebars.right;
+        assert_eq!(
+            (s.reserve, s.reserve_open),
+            (reserve, open),
+            "{vis:?} {res:?}"
+        );
+        assert_eq!(l.edges.right.reserve, reserve, "{vis:?} {res:?}");
+        let holder = if reserve > 0 {
+            Holder::Sidebar
+        } else {
+            Holder::None
+        };
+        assert_eq!(l.edges.right.holder, holder, "{vis:?} {res:?}");
+    }
+    // As emitted in `runtime.layout` (row 558).
+    let mut c = defaults();
+    c.sidebar_right.visibility = Hover;
+    c.sidebar_right.reserve = On;
+    assert_eq!(
+        serde_json::to_string(&lay(&c, &[]).sidebars.right).unwrap(),
+        r#"{"draw":"dynamic","draw_source":"auto","visibility":"hover","width":420,"inset":0,"reserve":0,"reserve_open":420,"reserve_source":"set","span":{"start":32,"end":0},"joins":{"start":"bar:top","end":"edge"},"radius":16}"#
+    );
+    // Standing on a right bar, the open zone runs past it: the bar holds the edge at rest, `inset + width` while out.
+    let mut c = defaults();
+    c.edges[3].bar = true;
+    c.sidebar_right.visibility = Hover;
+    c.sidebar_right.reserve = On;
+    let l = lay(&c, &[]);
+    assert_eq!(l.edges.right.holder, Holder::Bar);
+    assert_eq!(l.edges.right.reserve, 32);
+    assert_eq!(l.sidebars.right.reserve, 0);
+    assert_eq!(l.sidebars.right.reserve_open, 32 + 420);
 }
 
 #[test]

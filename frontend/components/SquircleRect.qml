@@ -16,11 +16,11 @@ Shape {
 
     readonly property real half: Math.min(width, height) / 2
     readonly property string outer: width < 1 || height < 1 ? ""
-        : Corner.rect(0, 0, width, height, radius, radius, radius, radius, radius < half - 0.5)
+        : Corner.rect(0, 0, width, height, radius, radius, radius, radius, radius < half - 0.5 ? Theme.squircle : 0)
     readonly property real bw: Math.max(0, borderWidth)
     readonly property real ir: Math.max(0, radius - bw)
     readonly property string inner: bw <= 0 || width <= 2 * bw || height <= 2 * bw ? ""
-        : Corner.rect(bw, bw, width - 2 * bw, height - 2 * bw, ir, ir, ir, ir, ir < half - bw - 0.5)
+        : Corner.rect(bw, bw, width - 2 * bw, height - 2 * bw, ir, ir, ir, ir, ir < half - bw - 0.5 ? Theme.squircle : 0)
 
     ShapePath {
         strokeWidth: -1

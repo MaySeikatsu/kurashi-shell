@@ -482,6 +482,10 @@ pub struct Sidebar {
     pub width: u32,
     pub inset: u32,
     pub reserve: u32,
+    /// I301: the zone its edge's holder keeps while the sidebar is out (px from the screen edge, like `reserve`) —
+    /// `inset + width` for `on` with `hover` or `empty_desktop`, which keep nothing at rest; else 0. Hover is
+    /// frontend-local, so the frontend applies it.
+    pub reserve_open: u32,
     pub reserve_source: Source,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reserve_reason: Option<&'static str>,
@@ -690,7 +694,11 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             }
         };
         let inset = base(side) + float;
-        let keeps = s.reserve.keeps(s.visibility);
+        // I301 (user): a sidebar shown on hover with `on` keeps space only while it is out (`reserve_open`), not at rest
+        // as a bar, the dock or a module group does; `always` keeps it as they do.
+        let open_only = s.reserve == Reserve::On
+            && matches!(s.visibility, Visibility::Hover | Visibility::EmptyDesktop);
+        let keeps = !open_only && s.reserve.keeps(s.visibility);
         Sidebar {
             draw,
             draw_source,
@@ -698,6 +706,7 @@ pub fn output(g: &Globals, mods: &[ModWidgets], cfg: &OutputConfig) -> OutputLay
             width: s.width,
             inset,
             reserve: if keeps { inset + s.width } else { 0 },
+            reserve_open: if open_only { inset + s.width } else { 0 },
             reserve_source: reserve_source(s.reserve),
             reserve_reason: reserve_reason(s.visibility),
             span: Span {

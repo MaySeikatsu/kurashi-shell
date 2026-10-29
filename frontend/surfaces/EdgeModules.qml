@@ -228,7 +228,8 @@ Scope {
                 color: "transparent"
                 exclusionMode: g.holdsZone ? ExclusionMode.Normal : ExclusionMode.Ignore
                 // (Quickshell turns the mode to Normal whenever `exclusiveZone` is written: only while it holds.)
-                Binding on exclusiveZone { when: g.holdsZone; value: g.reserve; restoreMode: Binding.RestoreNone }
+                readonly property int sideOpenZone: SidebarGeom.openZone(g.outName, g.edge)
+                Binding on exclusiveZone { when: g.holdsZone; value: Math.max(g.reserve, win.sideOpenZone); restoreMode: Binding.RestoreNone }
                 WlrLayershell.layer: WlrLayer.Top
                 WlrLayershell.namespace: "kurashi-edge-module"
                 WlrLayershell.keyboardFocus: g.forced && g.visibility === "hidden" ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
@@ -371,7 +372,7 @@ Scope {
                                 squareOuter: false
                                 flipY: g.edge === "bottom"
                                 flipX: g.edge === "left"
-                                ruled: Theme.outlineW > 0 && !(Theme.groups && Theme.lifted)
+                                ruled: Theme.frameOutline
                                 fill: Theme.surfaceAlpha
                             }
                         }

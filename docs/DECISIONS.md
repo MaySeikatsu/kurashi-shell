@@ -971,3 +971,30 @@ line or a Japanese string recompiled ~400 crates and ran the suite.
   iteration stays `cargo` in `nix develop` (incremental); `nix build` is for the installed result.
 - The devShell no longer takes `inputsFrom` the package (now a plain derivation); it lists the Rust build inputs from
   `passthru.rust{Native,}BuildInputs`.
+
+## K77 — schema v7: Solid/Translucent with blur, squircle curve, frame outline, sidebars keep space while out; blur and joins follow what is drawn (2026-10-29, session 17; user's niri review, I295–I303)
+- **Material (I297).** `MaterialKind` is `solid | translucent`; `theme.material.blur` belongs to translucent (default
+  now off: kanso, soft, ps2 and hallownest are translucent and must not start blurring). Migration `v6_to_v7`: glass →
+  translucent with `blur = true` unless the file says otherwise; an inert `translucent` + `blur = true` becomes false.
+  Looks glass, aqua and aero say translucent + blur (same pixels). "Glass" is free for a future liquid-glass / Aero
+  material. A user look file saying glass still reads (appearance shim).
+- **Squircle curve (I300).** `theme.shape.squircle` 0..1 (step 0.01, default 0.77) → token `shape.squircle_k`
+  (0.5523 + v × 0.4277; 0.88 at the default). `Theme.squircle` carries the ratio itself (0 for round), so every path
+  built with it redraws when the slider moves; corner.js, pen.js and framegeom draw with it.
+- **Frame outline (I303).** `theme.frame_outline` auto|on|off → token `frame.outline` (auto: keycap and line on, flat and
+  soft off — chrome data, not a renderer branch). It draws the frame's rule, a bar's inner edge and the joined shapes'
+  ruled fillets in the chrome's ink, or a hairline where the chrome has none.
+- **Sidebar space while out (I301).** `reserve = on` with `hover`/`empty_desktop`: `reserve` 0 at rest and
+  `runtime.layout.sidebars.<side>.reserve_open` (absolute zone, CONTRACT-CHANGE 558). The frontend tracks which sidebars
+  are out (SidebarGeom); the edge's zone holder keeps `max(zone, reserve_open)` meanwhile, the sidebar itself where
+  nothing holds the edge.
+- **Blur follows the drawn shape (I295, I296).** Regions are built from numbers, not `Region { item }`: Quickshell
+  recomputed an item region only on a resize, so a slid dock kept its region where it had hidden (unblurred at rest), and
+  morphing cards used their final box (blur ahead of the growing shape). BarMorph and the Stage expose the body as drawn;
+  the dock, the sidebar, the dock's tooltip and menu and the task list's popups have regions.
+- **Joins (I299, I302).** A joined dock's foot stays on the band while its reveal overshoots (the body stretches). The
+  frame draws the part of a joined neighbour's fillet that lies on its rule's row at each opening (layer stacking on one
+  layer follows map order, so the neighbour's own window may lie under the band); a docked bar carries the frame's rule
+  over its body.
+- **niri is the lead platform** for visual checks (`tools/bench/niri-sandbox.sh`, CLAUDE.md): sway has no
+  ext-background-effect and stacks layers differently; these bugs were invisible there.

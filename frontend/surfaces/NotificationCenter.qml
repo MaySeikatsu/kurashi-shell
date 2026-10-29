@@ -83,17 +83,20 @@ PanelWindow {
     WlrLayershell.namespace: "kurashi-notifications"
     color: "transparent"
     mask: shown ? cardRegion : emptyRegion
-    // The shape changes size every frame of its morph: blur only behind the card at rest.
-    BackgroundEffect.blurRegion: shown && morph.settled && Theme.blur ? blurRegion : emptyRegion
+    // Behind the shape as drawn, every frame of its morph (I295, I296; BarMorph's blur box).
+    BackgroundEffect.blurRegion: Theme.blur && morph.blurOn ? blurRegion : emptyRegion
     Region { id: cardRegion; item: morph.cardItem }
     // (rounded as the card is drawn: a square region showed the blur past its corners, I276)
     Region {
         id: blurRegion
-        item: morph.cardItem
-        topLeftRadius: morph.flip ? morph.cardRFar : morph.cardRNear
-        topRightRadius: morph.flip ? morph.cardRFar : morph.cardRNear
-        bottomLeftRadius: morph.flip ? morph.cardRNear : morph.cardRFar
-        bottomRightRadius: morph.flip ? morph.cardRNear : morph.cardRFar
+        x: morph.x + morph.blurX
+        y: morph.y + morph.blurY
+        width: morph.blurW
+        height: morph.blurH
+        topLeftRadius: morph.blurRTop
+        topRightRadius: morph.blurRTop
+        bottomLeftRadius: morph.blurRBottom
+        bottomRightRadius: morph.blurRBottom
     }
     Region { id: emptyRegion }
 

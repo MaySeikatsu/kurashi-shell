@@ -253,14 +253,35 @@ PanelWindow {
     WlrLayershell.namespace: "kurashi-stage"
     color: "transparent"
     mask: peekLayout ? peekRegion : (shown ? cardRegion : emptyRegion)
-    // The island's shape is opaque and changes size every frame of its morph: no blur behind it.
+    // Behind the card as drawn: a morphing card's body follows the springs every frame (the blur never stands ahead of
+    // the shape, I295, and a grown card is blurred at rest, I296); the head and the neck's fillets stay unblurred.
     BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
-        : peekLayout ? peekBlur : (shown && !morphMode ? cardBlur : emptyRegion)
+        : peekLayout ? (peekMorph ? (peekShapeBox.visible ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible ? shapeBlur : emptyRegion) : cardBlur))
     Region { id: cardRegion; item: card }
     Region { id: peekRegion; item: peekCard }
     // (rounded as the cards are drawn: a square region showed the blur past their corners, I276)
     Region { id: cardBlur; item: card; radius: card.radius }
     Region { id: peekBlur; item: peekCard; radius: peekCard.radius }
+    // A morphing peek grows from its widget's group: behind its body as drawn, never its card's box ahead of it (I295).
+    Region {
+        id: peekShapeBlur
+        x: peekShape.x0
+        y: stage.peekFlip ? stage.peekBoxH - peekShape.y0 - peekShape.h : peekShape.y0
+        width: peekShape.w
+        height: peekShape.h
+        radius: Theme.rSm
+    }
+    Region {
+        id: shapeBlur
+        x: stage.shapeCx - stage.shapeW / 2
+        y: stage.flip ? stage.morphH - stage.bodyTop - stage.bodyH : stage.bodyTop
+        width: stage.shapeW
+        height: stage.bodyH
+        topLeftRadius: stage.flip ? shape.rBot : shape.rTop
+        topRightRadius: stage.flip ? shape.rBot : shape.rTop
+        bottomLeftRadius: stage.flip ? shape.rTop : shape.rBot
+        bottomRightRadius: stage.flip ? shape.rTop : shape.rBot
+    }
     Region { id: emptyRegion }
 
     onOpenChanged: {

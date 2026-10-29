@@ -77,8 +77,9 @@ function roundRect(w, h, r, inset, sq) {
         cy += cy < h / 2 ? rc : -rc
         var n = Math.max(4, Math.ceil(rc * Math.PI / 2))
         if (sq && rc < lim - 0.5) {
-            // The squircle's cubic (a pill's round end stays round) between the arc's ends, its handles 0.88 of the way to the corner point.
-            var a1 = a0 + Math.PI / 2, kq = 0.88
+            // The squircle's cubic (a pill's round end stays round) between the arc's ends, its handles `sq` of the way to the
+            // corner point (Theme.squircle, I300; 0.88 for a plain `true`).
+            var a1 = a0 + Math.PI / 2, kq = typeof sq === "number" && sq > 0.56 && sq < 1 ? sq : 0.88
             var sx = cx + rc * Math.cos(a0), sy = cy + rc * Math.sin(a0), ex = cx + rc * Math.cos(a1), ey = cy + rc * Math.sin(a1)
             var qx = cx + rc * (Math.cos(a0) + Math.cos(a1)), qy = cy + rc * (Math.sin(a0) + Math.sin(a1))
             var hx = sx + (qx - sx) * kq, hy = sy + (qy - sy) * kq, gx = ex + (qx - ex) * kq, gy = ey + (qy - ey) * kq

@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 
 use crate::{Color, FontFamilies, KurashiSchema, Registry, strings};
 
-pub const VERSION: u32 = 6;
+pub const VERSION: u32 = 7;
 
 /// The v1 registry, built once. Building is checked by tests, so this never panics in practice.
 pub fn registry() -> &'static Registry {
@@ -381,6 +381,12 @@ pub struct Theme {
     #[kurashi(default = Chrome::Flat, section = "shape",
               overridden_by = "a11y.high_contrast => flat")]
     pub chrome: Chrome,
+    /// Frame outline
+    /// A line along the frame's inner edge and the sides of what is joined to it — bars, dock, sidebars — drawn in the
+    /// chrome's style. Automatic is on for Keycap and Lines, off for Flat and Soft.
+    // I303: the per-chrome default lives in kurashi-theme's chrome data (rule 4); the token is `frame.outline`.
+    #[kurashi(default = FrameOutline::Auto, section = "shape", since = 7)]
+    pub frame_outline: FrameOutline,
     #[kurashi(nested, section = "motion")]
     pub motion: Motion,
     /// Density
@@ -416,6 +422,15 @@ pub enum Chrome {
     Soft,
     /// Lines
     Line,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "frame_outline")]
+pub enum FrameOutline {
+    /// Automatic
+    Auto,
+    On,
+    Off,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
@@ -837,15 +852,21 @@ pub struct Shape {
     /// it less the frame's thickness, so curves that sit inside one another stay concentric.
     #[kurashi(default = 18, range = 0..=48, step = 1, unit = "px", requires = "theme.shape.corners != none", since = 4)]
     pub radius: u32,
+    /// Squircle curve
+    /// How far a squircle's corners reach toward square: 0 is nearly round, 1 nearly square.
+    // I300. Step 0.01, not 0.05: the default 0.77 is today's curve (k 0.88 in corner.js) and is off a 0.05 grid.
+    #[kurashi(default = 0.77, range = 0.0..=1.0, step = 0.01, requires = "theme.shape.corners == squircle",
+              since = 7)]
+    pub squircle: f64,
 }
 
+// Schema v7 (I297): `glass` became `translucent` with its blur switch on; the name stays free for a liquid-glass
+// material of its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
 #[kurashi(i18n = "material")]
 pub enum MaterialKind {
     Solid,
     Translucent,
-    /// Glass (blurred)
-    Glass,
 }
 
 #[derive(Debug, Clone, PartialEq, KurashiSchema)]
@@ -857,17 +878,17 @@ pub struct Material {
               overridden_by = "a11y.high_contrast => solid")]
     pub kind: MaterialKind,
     /// Opacity
-    /// Opacity of translucent and glass surfaces.
+    /// Opacity of translucent surfaces.
     #[kurashi(default = 0.85, range = 0.3..=1.0, step = 0.01,
               requires = "theme.material.kind != solid",
               overridden_by = "a11y.reduce_transparency => 1.0")]
     pub opacity: f64,
     /// Background blur
-    /// Blur what is behind glass surfaces. Forced off when the compositor cannot blur.
+    /// Blur what is behind translucent surfaces. Forced off when the compositor cannot blur.
     #[kurashi(
-        default = true,
+        default = false,
         capability = "blur",
-        requires = "theme.material.kind == glass",
+        requires = "theme.material.kind == translucent",
         overridden_by = "a11y.reduce_transparency => false"
     )]
     pub blur: bool,
@@ -1305,7 +1326,8 @@ macro_rules! sidebar_side {
             #[kurashi(default = Visibility::Hidden, since = 3)]
             pub visibility: Visibility,
             /// Keep space
-            /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open.
+            /// Whether windows keep clear of it. Automatic keeps space only while it is pinned open; Always also keeps
+            /// space while it is open on hover.
             #[kurashi(default = KeepSpace::Auto, requires = $hidden, since = 3)]
             pub reserve: KeepSpace,
             /// Draw mode

@@ -7,8 +7,18 @@ use serde_json::{Value, json};
 use crate::ThemeError;
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
-use crate::input::{Axes, Chrome, Density, Material, MotionProfile, Shape};
+use crate::input::{Axes, Chrome, Density, FrameOutline, Material, MotionProfile, Shape};
 use crate::palette::{Palette, ROLES};
+
+/// The squircle's control-point ratio at `theme.shape.squircle` 0 (a circle's quarter, `K_CIRCLE` in corner.js) and 1.
+pub const SQUIRCLE_K_ROUND: f64 = 0.5523;
+pub const SQUIRCLE_K_SQUARE: f64 = 0.98;
+
+/// `shape.squircle_k` (I300): the setting's 0..1 mapped onto the control-point ratio; the default 0.77 gives ≈ 0.88,
+/// the constant the frontend drew before.
+pub fn squircle_k(v: f64) -> f64 {
+    SQUIRCLE_K_ROUND + v.clamp(0.0, 1.0) * (SQUIRCLE_K_SQUARE - SQUIRCLE_K_ROUND)
+}
 
 /// The icon font components draw glyphs with (ligatures by name), when installed.
 pub const ICON_FAMILY: &str = "Material Symbols Rounded";
@@ -156,8 +166,7 @@ pub fn build(
     }
     let (alpha, blur) = match axes.material {
         Material::Solid => (1.0, false),
-        Material::Translucent => (axes.opacity.clamp(0.0, 1.0), false),
-        Material::Glass => (axes.opacity.clamp(0.0, 1.0), axes.blur),
+        Material::Translucent => (axes.opacity.clamp(0.0, 1.0), axes.blur),
     };
     t.insert("color.surface_alpha".into(), json!(alpha));
     t.insert("blur".into(), json!(blur));
@@ -177,6 +186,11 @@ pub fn build(
         Shape::Squircle => "squircle",
     };
     t.insert("shape.corner".into(), json!(shape));
+    // Always emitted; the frontend reads it only under `squircle`. Rounded to 4 places so the document stays stable.
+    t.insert(
+        "shape.squircle_k".into(),
+        json!((squircle_k(axes.squircle) * 1e4).round() / 1e4),
+    );
     for (n, v) in TYPE_SCALE {
         px(
             &mut t,
@@ -377,6 +391,8 @@ pub fn build(
         soft_dy: f64,
         press_scale: f64,
         groups: bool,
+        /// `frame.outline` under `theme.frame_outline = auto` (I303): on where blocks are drawn in ink (keycap, line).
+        frame_outline: bool,
     }
     let ch = match axes.chrome {
         Chrome::Flat => Ch {
@@ -388,6 +404,7 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 0.97,
             groups: false,
+            frame_outline: false,
         },
         Chrome::Keycap => Ch {
             style: "keycap",
@@ -398,6 +415,7 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 1.0,
             groups: true,
+            frame_outline: true,
         },
         Chrome::Soft => Ch {
             style: "soft",
@@ -408,6 +426,7 @@ pub fn build(
             soft_dy: 6.0,
             press_scale: 0.96,
             groups: true,
+            frame_outline: false,
         },
         Chrome::Line => Ch {
             style: "line",
@@ -418,6 +437,7 @@ pub fn build(
             soft_dy: 0.0,
             press_scale: 1.0,
             groups: true,
+            frame_outline: true,
         },
     };
     let keycap = axes.chrome == Chrome::Keycap;
@@ -429,6 +449,12 @@ pub fn build(
     px(&mut t, "chrome.soft_dy", ch.soft_dy);
     t.insert("chrome.press_scale".into(), json!(ch.press_scale));
     t.insert("chrome.groups".into(), json!(ch.groups));
+    let frame_outline = match axes.frame_outline {
+        FrameOutline::Auto => ch.frame_outline,
+        FrameOutline::On => true,
+        FrameOutline::Off => false,
+    };
+    t.insert("frame.outline".into(), json!(frame_outline));
     col(&mut t, "chrome.line", g("line"));
     col(&mut t, "chrome.ring_color", g("ring"));
     // The outline's colour and opacity: ink for keycaps, the outline role for line chrome, a faint
