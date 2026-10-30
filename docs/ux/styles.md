@@ -207,6 +207,15 @@ Free stand-ins: **Wine's Tahoma** (LGPL 2.1+; Wine draws it metric-compatible fr
 **Fira Sans** (OFL) for Trebuchet (no metric twin; it reads close at 13 px bold), **Libre Franklin** (OFL) italic for the
 start label. ja: MS UI Gothic → **BIZ UDPGothic**.
 
+**Built (W53.2) and what still differs.** Matches XP at 1:1 metrics: the 29 px glossy caption, its plates and red
+close, the 3 px frame, the 30 px taskbar band with its light top, the green pill with lower-case italic "start", the
+lighter tray well, the Start menu's header, rule, two-tone body and footer, balloon tips, white menus with the blue band,
+glossy buttons (StyleSheet only until row 604), the Welcome screen. Differs: the mark is ours (never the flag); Trebuchet,
+Tahoma and Franklin are free stand-ins (Fira Sans, Wine's Tahoma, Libre Franklin); the task buttons and Quick Launch are
+not drawn (K44 omits titles; BACKLOG); no scroll-bar part yet; the menu band is the taskbar blue, not XP's #316ac5; the
+launcher keeps its search on top and its rows' own layout inside the skin; the island and the clock stand on the
+taskbar as our own pills.
+
 **Mapping**
 
 | our surface | becomes | notes |
@@ -291,6 +300,14 @@ on Microsoft Learn — the taskbar <https://learn.microsoft.com/en-us/windows/wi
 Learn typography page, <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography>;
 repo <https://github.com/Microsoft/Selawik>; **SIL OFL 1.1**, verified from the repository's licence 2026-10-30; nixpkgs
 lacks it: `nix/selawik.nix` from the 1.01 release). ja: Meiryo UI → **BIZ UDPGothic** / Noto Sans CJK JP.
+
+**Built (W53.2) and what still differs.** Matches 7: the 30 px glass caption with the dark title in a glow, the joined
+28/28/48 × 19 button group hanging from the top with the red gel, the 8 px glass frame, the smoky superbar with its
+dark-then-light top edge, the orb inside the bar, capsule menus, white balloons, split glass buttons (StyleSheet only
+until row 604), a glass start-menu frame, the logon layout. Differs: the logon screen's sizes are estimates (no 1:1
+capture: **to verify**, BACKLOG); the glass tint is one role, not 7's colourisation slider; the orb's mark is ours; no
+hot-track glow from app icons, no Aero Peek (our island peek stands in), no thumbnails; the Start menu keeps the search on
+top (7's sat at the foot) and has no right glass column of places; no scroll-bar part yet.
 
 **Mapping**
 
