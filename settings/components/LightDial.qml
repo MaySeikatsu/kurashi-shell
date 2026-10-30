@@ -212,6 +212,9 @@ Row {
         anchors.verticalCenter: parent.verticalCenter
         spacing: 4
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.fg
@@ -223,6 +226,9 @@ Row {
         }
         Text {
             id: note
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -237,6 +243,9 @@ Row {
         // W58 (K79, Shōjiki): whether the lamp sees the pointer over windows too, or why it keeps to the shell's surfaces.
         Text {
             id: reach
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             readonly property var pdoc: Light.pointerDoc
             visible: (ld.mode === "pointer" || ld.spotlight) && text !== ""
             width: parent.width

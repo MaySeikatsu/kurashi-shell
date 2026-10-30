@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import "../island"
+import "../decor"
 
 // One zone of a top or bottom bar as a row of runs (surfaces/Bar.qml `runsOf`): each run one group block under chromes with
 // groups — the island alone (its pill is its block), the window list a group of its own, every other stretch one group —
@@ -47,13 +48,26 @@ Row {
             BarGroup {
                 id: grp
                 around: inner
-                visible: run.modelData.kind !== "island" && Theme.groups && inner.width > 0
+                visible: run.modelData.kind !== "island" && Theme.groups && inner.width > 0 && Theme.decor("bar.group", "block") !== "none"
                 AnchorReport {
                     target: grp
                     key: run.modelData.key
                     output: zr.owner.outName
                     enabled: run.modelData.key !== "" && zr.owner.primary && grp.visible
                 }
+            }
+            // W53 (row 591): the look's well round the group that holds the tray (9x's sunken notification area, XP's tray);
+            // nothing is made while the look names none (TrayWell's `shown`).
+            readonly property bool hasTray: run.modelData.pieces.some(function (p) {
+                return p.entries.some(function (e) { return e.id === "tray" })
+            })
+            Loader {
+                active: run.hasTray && (Theme.slot("tray") !== "" || Theme.decor("tray.sunken", false) === true)
+                x: inner.x - grp.padX
+                y: grp.y
+                width: inner.width + 2 * grp.padX
+                height: Theme.barH - 8
+                sourceComponent: TrayWell { anchors.fill: parent }
             }
             Row {
                 id: inner

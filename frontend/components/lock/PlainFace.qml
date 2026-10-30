@@ -1,5 +1,6 @@
 import QtQuick
 import "../../core"
+import "../decor"
 import ".."
 
 // The plain lock face (W53.0b: was LockContent.qml, unchanged at rest, so every look keeps today's lock): one lock
@@ -150,6 +151,9 @@ FaceBase {
             animate: c.visible
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             text: {
                 var d = c.clock.date ? new Date(c.clock.date + "T12:00:00") : null
@@ -173,6 +177,12 @@ FaceBase {
             border.color: c.isError ? Theme.error : (Theme.ringW > 0 ? Theme.line
                 : (field.activeFocus ? Theme.fg : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)))
             SoftShadow { anchors.fill: parent; radius: box.radius }
+            // A text field is a well (W53, row 591): sunken under a bevel chrome, as Block { sunken } draws.
+            Loader {
+                anchors.fill: parent
+                active: Theme.bevelW > 0
+                sourceComponent: BevelEdge { sunk: true }
+            }
             // Keycap chrome: the field's hard shadow along the shadow vector (K67; a child below the field, drawn behind it).
             Rectangle {
                 z: -1
@@ -201,6 +211,9 @@ FaceBase {
             }
 
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { left: parent.left; leftMargin: Theme.pad + 6; verticalCenter: parent.verticalCenter }
                 visible: field.text === ""
                 text: c.promptText
@@ -236,6 +249,9 @@ FaceBase {
         }
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -248,6 +264,9 @@ FaceBase {
         }
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -260,6 +279,9 @@ FaceBase {
         }
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -275,6 +297,9 @@ FaceBase {
 
     // Veil: daemon away while locked. The session stays locked (compositor-enforced); input is inert.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !Store.live
         anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Theme.pad * 2 }
         text: I18n.tr("lockui.disconnected")

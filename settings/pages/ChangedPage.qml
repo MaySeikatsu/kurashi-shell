@@ -96,6 +96,9 @@ Flickable {
             text: I18n.tr("settings.ui.changed")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: col.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -104,6 +107,9 @@ Flickable {
             text: I18n.tr("settings.ui.changed_help")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: p.changedCount === 0
             width: col.width
             wrapMode: Text.WordWrap
@@ -132,6 +138,9 @@ Flickable {
                 Row {
                     spacing: Theme.gap
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         topPadding: Theme.gap
                         color: Theme.dim
                         font.pixelSize: Theme.fs
@@ -160,6 +169,9 @@ Flickable {
 
                         Text {
                             id: name
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             x: 0
                             y: 6
                             width: p.labelW
@@ -175,6 +187,9 @@ Flickable {
                             y: 4
                             spacing: Theme.gap
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 height: Theme.controlH - 8
                                 verticalAlignment: Text.AlignVCenter
                                 width: Math.min(implicitWidth, 200)
@@ -210,6 +225,9 @@ Flickable {
                         // nothing in effect.
                         Text {
                             id: heldLine
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             x: entry.valueX
                             y: line.height + Theme.gap / 2 + 4
                             width: Math.min(entry.width - entry.valueX, 480)

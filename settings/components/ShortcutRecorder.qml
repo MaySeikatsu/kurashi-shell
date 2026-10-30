@@ -244,6 +244,9 @@ Column {
                     border.color: Theme.outline
                     Text {
                         id: capText
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
                         color: Theme.fg
                         font.pixelSize: Theme.fs - 1
@@ -254,6 +257,9 @@ Column {
                 }
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: rec.recording || caps.parts.length === 0
                 anchors.verticalCenter: parent.verticalCenter
                 color: rec.recording ? Theme.fg : Theme.dim
@@ -278,6 +284,9 @@ Column {
 
     // While recording: how to leave, or why the key was not taken.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: rec.recording
         width: rec.width
         wrapMode: Text.WordWrap
@@ -293,6 +302,9 @@ Column {
         width: rec.width
         spacing: Theme.gap / 2
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.fg
@@ -349,6 +361,9 @@ Column {
             objectName: "keyline:" + rec.rowKey
             spacing: Theme.gap
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: Math.min(implicitWidth, rec.width - (link.visible ? link.width + Theme.gap : 0))
                 wrapMode: Text.WordWrap
                 color: modelData.error ? Theme.error : Theme.dim

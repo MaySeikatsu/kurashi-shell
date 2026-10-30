@@ -36,6 +36,9 @@ Row {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.verticalCenter: parent.verticalCenter
         width: Math.max(120, (ep.parent ? ep.parent.width : 420) - 256 - ep.spacing - 8)
         wrapMode: Text.WordWrap

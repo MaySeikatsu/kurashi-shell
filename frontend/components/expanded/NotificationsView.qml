@@ -56,6 +56,9 @@ Column {
         width: view.width
         spacing: Theme.gap
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: view.width - clearAll.width - Theme.gap
             height: clearAll.height
             verticalAlignment: Text.AlignVCenter
@@ -100,6 +103,9 @@ Column {
             width: dndRow.width - dndSwitch.width - (hourBtn.visible ? hourBtn.width + Theme.gap : 0) - Theme.gap
             spacing: 0
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -108,6 +114,9 @@ Column {
                 text: I18n.tr("island.notifications.dnd")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -133,6 +142,9 @@ Column {
     SlotHost { slot: "notifications.expanded.header"; width: view.width }
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.locked
         width: view.width
         wrapMode: Text.WordWrap
@@ -142,6 +154,9 @@ Column {
         text: I18n.tr("island.notifications.locked")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !view.locked && view.items.length === 0
         width: view.width
         color: Theme.dim
@@ -157,6 +172,9 @@ Column {
             width: view.width
             spacing: Theme.xs
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -177,6 +195,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.errText !== ""
         width: view.width
         wrapMode: Text.WordWrap

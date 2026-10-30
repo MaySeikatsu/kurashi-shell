@@ -23,6 +23,9 @@ Column {
     readonly property int displayCount: Object.keys((Store.docs["svc.workspaces"] || ({})).outputs || ({})).filter(function (k) { return k !== "*" }).length
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: view.width
         color: Theme.fg
         font.pixelSize: Theme.fsTitle
@@ -33,6 +36,9 @@ Column {
 
     // One row per display that can be adjusted: the built-in panel (the backlight) for now.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.present
         width: view.width
         elide: Text.ElideRight
@@ -66,6 +72,9 @@ Column {
         }
         Text {
             id: readout
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: Theme.controlH
             horizontalAlignment: Text.AlignRight
@@ -79,6 +88,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !view.loaded || !view.present
         width: view.width
         wrapMode: Text.WordWrap
@@ -88,6 +100,9 @@ Column {
         text: view.loaded ? I18n.tr("error.brightness.no_device") : "…"
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.displayCount > 1
         width: view.width
         wrapMode: Text.WordWrap
@@ -117,6 +132,9 @@ Column {
             id: nightCol
             anchors { left: moon.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 color: Theme.fg
                 font.pixelSize: Theme.fs
@@ -124,6 +142,9 @@ Column {
                 text: I18n.tr("island.brightness.night")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: Theme.dim

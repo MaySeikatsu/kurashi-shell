@@ -53,6 +53,9 @@ Item {
     }
     Text {
         id: glyph
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         color: q.open ? Theme.fgOnAccent : Theme.fg
         font.pixelSize: Theme.fs + 2

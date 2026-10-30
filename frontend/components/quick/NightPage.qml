@@ -64,6 +64,9 @@ Column {
             width: parent.width - nightSwitch.width - Theme.gap
             anchors.verticalCenter: nightSwitch.verticalCenter
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -72,6 +75,9 @@ Column {
                 text: I18n.tr("power.night.title")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
@@ -96,6 +102,9 @@ Column {
         pendingText: I18n.tr("island.quick.changing")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: np.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -114,6 +123,9 @@ Column {
         onMoved: v => { np.pendingK = Math.round((6500 - v * 5000) / 100) * 100; settle.restart() }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: np.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption

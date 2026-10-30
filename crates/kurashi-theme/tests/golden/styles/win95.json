@@ -92,7 +92,7 @@
   "decor.bar.edge": "",
   "decor.bar.fill": [],
   "decor.bar.gloss": 0.0,
-  "decor.bar.group": "block",
+  "decor.bar.group": "none",
   "decor.bevel.press_offset": 1,
   "decor.bevel.width": 1,
   "decor.border.color": "#c0c0c0",

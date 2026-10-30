@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import Quickshell.Services.Polkit
 import "../core"
 import "../components"
+import "../components/decor"
 
 // The polkit authentication agent and its dialog (K47 (5), docs/ux/polkit.md). The agent is Quickshell's `PolkitAgent`
 // (as illogical-impulse's `services/PolkitService.qml` and DMS's `Services/PolkitService.qml`): libpolkit-agent and the
@@ -173,13 +174,17 @@ Scope {
             }
             MouseArea { anchors.fill: parent; onPressed: field.forceActiveFocus() }
 
-            Item {
+            // The look's form (W53, row 591; decor/Entrance) on the dialog's own progress; `grow` (the default) keeps its
+            // rise and fade.
+            Entrance {
                 id: card
+                progress: win.p
+                edge: "top"
                 width: 420
                 height: body.implicitHeight + 2 * Theme.pad + 2 * blk.inset + Theme.shadowDy + 2 * Theme.xs
                 anchors.centerIn: parent
-                anchors.verticalCenterOffset: 12 * (1 - win.p)
-                opacity: Math.min(1, win.p * 1.4)
+                anchors.verticalCenterOffset: form === "grow" ? 12 * (1 - win.p) : 0
+                opacity: form === "grow" ? Math.min(1, win.p * 1.4) : (slides ? 1 : 1 - away)
                 Keys.onEscapePressed: win.cancel()
                 Accessible.role: Accessible.Dialog
                 Accessible.name: I18n.tr("polkit.a11y.dialog").replace("{message}", win.message)
@@ -223,6 +228,9 @@ Scope {
                         }
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         color: Theme.fg
@@ -232,6 +240,9 @@ Scope {
                         text: I18n.tr("polkit.title")
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
@@ -242,6 +253,9 @@ Scope {
                     }
                     // One identity: "as <user>". Several: one button each, the selected one primary.
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: win.identities.length < 2 && win.flow && win.flow.selectedIdentity
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
@@ -255,6 +269,9 @@ Scope {
                         width: parent.width
                         spacing: Theme.xs
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             color: Theme.dim
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
@@ -289,6 +306,12 @@ Scope {
                             border.color: win.failed ? Theme.error : (Theme.ringW > 0 ? Theme.line
                                 : (field.activeFocus ? Theme.fg : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)))
                             opacity: win.busy ? 0.6 : 1
+                            // A text field is a well (W53, row 591): sunken under a bevel chrome, as Block { sunken } draws.
+                            Loader {
+                                anchors.fill: parent
+                                active: Theme.bevelW > 0
+                                sourceComponent: BevelEdge { sunk: true }
+                            }
                             // The field's hard shadow along the shadow vector (K67; LockContent's field, the same shadow).
                             Rectangle {
                                 z: -1
@@ -316,6 +339,9 @@ Scope {
                                 size: Theme.fs + 4
                             }
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 anchors { left: keyIcon.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
                                 visible: field.text === ""
                                 text: win.prompt
@@ -348,6 +374,9 @@ Scope {
                     }
                     // polkit's own line (PAM info or error), else ours after a failure, else "Checking…" while busy.
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         readonly property string supp: String((win.flow && win.flow.supplementaryMessage) || "").trim()
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter

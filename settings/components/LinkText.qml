@@ -20,6 +20,9 @@ Item {
 
     Text {
         id: t
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.left: parent.left
         anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter

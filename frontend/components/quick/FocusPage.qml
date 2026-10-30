@@ -55,6 +55,9 @@ Column {
             width: parent.width - dndSwitch.width - Theme.gap
             anchors.verticalCenter: dndSwitch.verticalCenter
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -63,6 +66,9 @@ Column {
                 text: I18n.tr("island.quick.focus.dnd")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -86,6 +92,9 @@ Column {
         pendingText: I18n.tr("island.quick.changing")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: fp.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -109,6 +118,9 @@ Column {
         onActivated: fp.choose({on: true})
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: fp.errText !== ""
         width: fp.width
         wrapMode: Text.WordWrap

@@ -162,6 +162,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("tooltip.border", Role, r#""""#),
     // The tray well and separators between bar groups.
     k("tray.sunken", Bool, "false"),
+    // The bar's groups: a raised block round each (`block`, today's) or none, one strip (`none`: 98's taskbar, whose
+    // only well is the tray's) — contract row 596.
+    k("bar.group", Choice(&["block", "none"]), r#""block""#),
     k(
         "separator.style",
         Choice(&["line", "etched", "none"]),
@@ -186,13 +189,11 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.2: the tray well's fill ("" = the part's own): XP's lighter blue notification area.
     k("tray.fill", Role, r#""""#),
     // W53.2, the `bar` slot (a part drawn as the bar's ground, under its groups): its fill (one role solid, two a
-    // gradient; [] = the part's own), the screen-facing edge's light line ("" = the part's own), a gloss over the band
-    // (XP's taskbar), and whether the bar's groups keep a block of their own over it (`block`) or stand on the ground
-    // (`none`: a taskbar is one strip).
+    // gradient; [] = the part's own), the screen-facing edge's light line ("" = the part's own) and a gloss over the band
+    // (XP's taskbar). `bar.group` (above, row 596) says whether the groups keep their blocks over it.
     k("bar.fill", Roles, "[]"),
     k("bar.edge", Role, r#""""#),
     k("bar.gloss", Num(0.0, 1.0), "0.0"),
-    k("bar.group", Choice(&["block", "none"]), r#""block""#),
     // Type: bitmap text (no smoothing, sizes on a grid of `pixel_step` px).
     k("type.pixel", Bool, "false"),
     k("type.pixel_step", Int(1, 16), "1"),
