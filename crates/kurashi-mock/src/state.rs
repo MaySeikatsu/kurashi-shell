@@ -3271,7 +3271,9 @@ mod tests {
         let off = st.act("sound.cue", &json!({"name": "unlock"})).unwrap_err();
         assert_eq!((off.kind, off.msg.as_ref()), ("unavailable", "sound.off"));
         assert_eq!(
-            st.act("sound.cue", &json!({"name": "boom"})).unwrap_err().kind,
+            st.act("sound.cue", &json!({"name": "boom"}))
+                .unwrap_err()
+                .kind,
             "invalid"
         );
     }
