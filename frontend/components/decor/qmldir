@@ -13,3 +13,4 @@ PixelLabel 1.0 PixelLabel.qml
 Checker 1.0 Checker.qml
 CaptionGlyph 1.0 CaptionGlyph.qml
 PaneMark 1.0 PaneMark.qml
+WindowEdge 1.0 WindowEdge.qml

@@ -9,6 +9,7 @@ import "../components/sidebar"
 import "../components/bar"
 import "../components/bar/framegeom.js" as FG
 import "../components/modules" as M
+import "../components/decor" as Decor
 
 // The bar on one edge of one output (K71, docs/ux/layout.md): there while `runtime.layout` has `edges.<edge>.bar` for this
 // output, its rows (top, bottom) or columns (left, right) the edge's zones `start`, `center`, `end`, each entry a module
@@ -445,7 +446,15 @@ Scope {
                         anchors.topMargin: bar.edge === "bottom" ? -body.over : 0
                         anchors.rightMargin: bar.edge === "left" ? -body.over : 0
                         anchors.leftMargin: bar.edge === "right" ? -body.over : 0
-                        color: bb.clearStrip || bar.drawFloating ? "transparent" : Theme.surfaceAlpha
+                        color: bb.clearStrip || bar.drawFloating || ground.has ? "transparent" : Theme.surfaceAlpha
+                        // W53.2: the look's bar ground (`[slots] bar`: XP's glossy taskbar, 7's glass superbar) in place of the
+                        // strip's fill; nothing is made without one.
+                        Decor.BarGround {
+                            id: ground
+                            anchors.fill: parent
+                            active: has && !bar.drawFloating
+                            edge: bar.edge
+                        }
                         // The strip's inner edge, ruled in the outline (line chrome; 0 px under flat). While the island's shape is out on
                         // this bar (W30, IslandGeom.openL/R) the rule is left out under the shape's box, which draws the rule there
                         // itself, in step with the card: round the hanging card's fillets into its sides, never under a translucent
