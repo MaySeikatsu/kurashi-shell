@@ -1,0 +1,7 @@
+# The welcome lock face (W53.2, components/lock/WelcomeFace.qml): the glossy era's Welcome screen.
+"lockui.face.name.welcome" = "Welcome screen"
+"lockui.welcome.begin" = "To begin, type your password"
+"lockui.welcome.prompt" = "Type your password"
+"lockui.welcome.go" = "Unlock"
+"lockui.welcome.error_hint" = "Type your password again. Mind the case of the letters."
+"lockui.welcome.caps_hint" = "With Caps Lock on, your password may come out wrong. Press Caps Lock to turn it off."

@@ -1,0 +1,3 @@
+# The glass logon lock face (W53.2, components/lock/LogonGlassFace.qml): the glass era's logon screen. It shares the
+# welcome face's hints (lockface-welcome.toml) and the logon face's OK (lockface-logon.toml).
+"lockui.face.name.logon-glass" = "Glass logon screen"

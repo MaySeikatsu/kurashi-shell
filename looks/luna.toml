@@ -1,14 +1,102 @@
 name = "luna"
 label = "config.choice.look.luna"
 category = "retro"
-# After shellseikatsu `Services/Modes/Winxp.qml` and `Widgets/SurfaceFrame.qml` (W25; Windows XP "Luna"): beige
-# controls in a Luna-blue window frame with its title band, glossy buttons, slight rounding, Tahoma.
+# Windows XP SP2, Luna Blue (W53.2, docs/ux/styles.md §2): beige controls, windows in the glossy blue caption band with
+# its rounded top, 21 px plates and the red close plate, a 3 px blue frame; the blue taskbar with its light top edge,
+# the green "start" pill, the lighter blue tray; balloon tips; Tahoma (Wine's, LGPL, as the free stand-in) with the
+# caption in Trebuchet MS (Fira Sans) and "start" in Franklin Gothic italic (Libre Franklin); menus and tooltips fade in
+# ~200 ms, windows appear at once. Every number below was read from real XP captures at 1:1 (the brief's §2 cites them).
 [recipe]
 "theme.chrome" = "soft"
 "theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
+"theme.material.blur" = false
 "theme.shape.corners" = "rounded"
-"theme.shape.radius" = 11
+# XP's window corners (the caption's top: 8 px); buttons and fields come out at the small radius.
+"theme.shape.radius" = 8
 "theme.typography.family" = ["Tahoma", "Verdana", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# XP's Japanese UI face, then the free stand-ins.
+"theme.typography.family_jp" = ["MS UI Gothic", "BIZ UDPGothic", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
 frame = "luna"
+title = "gloss"
+start = "pill"
+tray = "gloss"
+bar = "gloss"
+menu = "flat"
+button = "gloss"
+tooltip = "balloon"
+lock = "welcome"
+sounds = "luna"
+
+[decor]
+# The caption: 29 px from the window's top edge to its client area (the active window, y 332–360), the band in the
+# caption body and glow roles with XP's light top line and dark foot, rounded 8 px at the top; bold Trebuchet 13 px, white
+# with a 1 px shadow; 21 × 21 plates 5 px in from the band's top and end, 2 px apart, rounded 3 px, the close plate red.
+"title.height" = 29
+"title.fill" = ["title", "title_end"]
+"title.fill_inactive" = ["title_inactive", "title_inactive_end"]
+"title.on" = "on_title"
+"title.on_inactive" = "surface_container_low"
+"title.fill_dir" = "vertical"
+"title.align" = "start"
+"title.weight" = 700
+"title.close" = "plate"
+"title.buttons" = "end"
+"title.radius" = 8
+"title.button_w" = 21
+"title.button_h" = 21
+"title.button_gap" = 2
+"title.inset" = 5
+"title.close_fill" = "error"
+"title.button_radius" = 3
+"title.family" = ["Trebuchet MS", "Fira Sans"]
+"title.size" = 13
+"title.text_effect" = "shadow"
+"title.gloss" = 0.5
+# The window frame: 3 px of blue (x 124–126: #0831d9, #166aee, #0855dd) round the client area.
+"border.width" = 3
+"border.color" = "title"
+# Menus: white, a full-width band in Luna blue with white text, a single grey rule between groups, square.
+"menu.row" = 22
+"menu.highlight" = "bar"
+"menu.separator" = "line"
+"menu.radius" = 0
+"menu.fill" = "accent"
+"menu.on" = "on_accent"
+"scroll.width" = 17
+"scroll.arrows" = true
+# Balloon tips: InfoWindow yellow in 1 px of black, 7 px corners, a tail to the anchor.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.tail" = true
+"tooltip.radius" = 7
+"tooltip.border" = "on_info"
+"tray.fill" = "accent_container"
+"separator.style" = "none"
+# Focus: XP kept 98's dotted rectangle inside buttons.
+"focus.style" = "dotted"
+"focus.offset" = -3
+"focus.width" = 1
+# The start pill: green, the label lower case, bold italic.
+"start.label" = true
+"start.fill" = ["secondary"]
+"start.family" = ["Franklin Gothic Medium", "Libre Franklin"]
+"start.size" = 18
+"start.italic" = true
+# The taskbar: Luna blue with its light top edge (the tray's blue), one strip (no block round each group).
+"bar.fill" = ["accent"]
+"bar.edge" = "accent_container"
+"bar.gloss" = 0.5
+"bar.group" = "none"
+"icon.size" = 16
+# Motion: menus, tooltips and balloons fade in ~200 ms; nothing slides or springs.
+"motion.style" = "fade"
+"motion.open_ms" = 200
+"motion.close_ms" = 150
+"motion.fast_ms" = 150
+"motion.open_curve" = [0.25, 0.1, 0.25, 1.0]
+"motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
+"motion.fast_curve" = [0.25, 0.1, 0.25, 1.0]
+"cursor" = "luna"
