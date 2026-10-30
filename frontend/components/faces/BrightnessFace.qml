@@ -43,6 +43,9 @@ FaceBase {
             animate: f.animate && f.live
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -68,6 +71,9 @@ FaceBase {
             size: Theme.fs + 3
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             Accessible.ignored: true
             anchors.horizontalCenter: parent.horizontalCenter
             visible: f.present

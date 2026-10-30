@@ -25,6 +25,9 @@ FaceBase {
             color: Theme.secondary
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs

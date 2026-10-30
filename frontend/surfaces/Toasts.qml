@@ -596,6 +596,7 @@ Scope {
                         contentOpacity: d.freed ? 1 : d.clamp01((d.t - 0.5) / 0.25)
                         carryDy: (win.flip ? -1 : 1) * (d.ly - d.restY)
                         swipeable: !d.leaving
+                        tip: true
                         onDismissed: root.dismiss(d.nid)
                         onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
                     }

@@ -22,6 +22,9 @@ Row {
             width: modelData < 0 ? Math.round(kc.keyW / 4) : kc.keyW
             height: kc.keyH + Theme.shadowDy
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: keyItem.modelData < 0
                 anchors.centerIn: parent
                 anchors.verticalCenterOffset: -Theme.shadowDy / 2
@@ -39,6 +42,9 @@ Row {
                 fill: keyItem.modelData < 2 ? Theme.container : Theme.selected
                 flatBorder: Theme.outline
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.centerIn: parent
                     color: keyItem.modelData < 2 ? Theme.fg : Theme.fgOnSelected
                     font.pixelSize: kc.digitSize

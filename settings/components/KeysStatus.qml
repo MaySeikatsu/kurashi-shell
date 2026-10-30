@@ -84,6 +84,9 @@ Column {
     }
     // The include line niri's config still needs, with Copy.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: ks.needsInclude
         width: ks.width
         wrapMode: Text.WordWrap
@@ -106,6 +109,9 @@ Column {
             border.color: Theme.containerHigh
             Text {
                 id: incText
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.verticalCenter: parent.verticalCenter
                 x: Theme.gap
                 width: parent.width - 2 * Theme.gap
@@ -126,6 +132,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: ks.copyState.indexOf("error") === 0
         width: ks.width
         wrapMode: Text.WordWrap

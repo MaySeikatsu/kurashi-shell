@@ -44,6 +44,9 @@ RoundBox {
 
     Text {
         id: txt
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         // On the accent fill the text takes on_accent (4.5:1); on the container, the normal foreground.
         color: b.primary ? Theme.fgOnAccent : Theme.fg

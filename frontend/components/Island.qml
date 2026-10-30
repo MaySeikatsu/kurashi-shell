@@ -226,6 +226,9 @@ Item {
             // A mod's face on a side bar that does not declare `vertical`: its glyph, the face's full text is the peek's.
             Text {
                 id: modGlyph
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: isl.vertical && isl.isModFace && !isl.modVertical
                 anchors.centerIn: parent
                 color: Theme.dim
@@ -237,6 +240,9 @@ Item {
         // The tail of a top or bottom bar (see tailW): the "as of" label at the right end while the face is stale.
         Text {
             id: staleLabel
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: isl.isStale && !isl.vertical
             anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             width: isl.staleW
@@ -253,6 +259,9 @@ Item {
             Accessible.role: Accessible.StaticText
             Accessible.name: isl.isStale ? I18n.tr("island.stale").replace("{t}", isl.timeOf(isl.staleOf(isl.shown))) : ""
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 Accessible.ignored: true
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
@@ -260,6 +269,9 @@ Item {
                 text: isl.isStale ? Qt.formatTime(new Date(isl.staleOf(isl.shown)), "hh") : ""
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 Accessible.ignored: true
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
@@ -334,6 +346,9 @@ Item {
         }
         Text {
             id: over
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: isl.overflowN > 0
             x: isl.vertical ? (extras.width - width) / 2 : (second.visible ? second.width + Theme.xs : 0)
             y: isl.vertical ? (second.visible ? second.height + Theme.xs : 0) : (extras.height - height) / 2

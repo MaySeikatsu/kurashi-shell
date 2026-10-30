@@ -72,6 +72,9 @@ Column {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: f.phase === "planned" && f.diff.length === 0
             color: Theme.dim
             font.pixelSize: Theme.fs - 1
@@ -79,6 +82,9 @@ Column {
             text: I18n.tr("settings.ui.no_changes")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: f.phase === "failed"
             width: f.width
             wrapMode: Text.WordWrap
