@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-win95
+Comment=The bevel era's black-outlined white arrow (W53.1, CC0, drawn in tools/styles/win95-assets.py)
+Inherits=default

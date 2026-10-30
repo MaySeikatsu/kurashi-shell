@@ -85,8 +85,8 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = [ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" ]; }) ]);
-      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" ]; }) ])";
+      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" ]; }) ]);
+      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" ]; }) ])";
       description = ''
         Fonts the shell draws with: its icon subset (nix/icon-font.nix, W41: the names the shell draws, also installed by
         the package), and Material Symbols (Rounded, and Sharp for line chrome) for the names the subset lacks (without
@@ -97,7 +97,8 @@ in
         OFL or free — DejaVu Sans (Lucida Grande), Fira Sans (Trebuchet MS), Libre Franklin (XP's start), BIZ UDPGothic
         (Japanese UI), Press Start 2P (16-bit pixel type) and M PLUS 1p (thin Japanese). The vendors' own families
         (Segoe, Tahoma, MS Sans Serif, SF, Lucida Grande) are never bundled and win when you have them; the stand-ins
-        nixpkgs lacks (Selawik, Wine Tahoma, W95FA, PixelMplus, Misaki) fall back along each look's chain.
+        nixpkgs lacks come from this flake where their licence allows (W95FA, OFL: nix/w95fa.nix, W53.1); the rest
+        (Selawik, Wine Tahoma, PixelMplus, Misaki) fall back along each look's chain.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };
