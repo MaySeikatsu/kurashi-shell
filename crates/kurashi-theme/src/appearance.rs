@@ -28,10 +28,11 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 /// The look slots (`[slots]`): each a component name the frontend's host for it loads; `""` (or left out) = the
-/// default, today's shell. `lock` and `sounds` are hosted by the lock surface and the daemon (W53.0b).
+/// default, today's shell. `lock` and `sounds` are hosted by the lock surface and the daemon (W53.0b); `bar` (W53.2) is
+/// the bar's ground (`decor/BarGround.qml`).
 pub const SLOTS: &[&str] = &[
     "frame", "title", "start", "tray", "menu", "scroll", "tooltip", "focus", "button", "slider",
-    "toggle", "lock", "sounds",
+    "toggle", "lock", "sounds", "bar",
 ];
 
 /// What a `[decor]` value may be.
@@ -107,6 +108,21 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("title.button_h", Int(0, 64), "0"),
     k("title.button_gap", Int(-1, 16), "-1"),
     k("title.inset", Int(-1, 16), "-1"),
+    // W53.2 (XP, 7): the close button's own width (7's 43 px gel beside 25 px keys; 0 = `title.button_w`) and fill role
+    // ("" = the part's own), the buttons' corner (-1 = the part's own), the title's face and size (the chain's first
+    // installed family is published as `font.title`; [] / 0 = the theme's), how the title stands off its band (XP's
+    // 1 px shadow, 7's soft glow behind dark text) and a gloss over the band (XP's light top and darker foot; 0 = flat).
+    k("title.close_w", Int(0, 96), "0"),
+    k("title.close_fill", Role, r#""""#),
+    k("title.button_radius", Int(-1, 16), "-1"),
+    k("title.family", Families, "[]"),
+    k("title.size", Int(0, 32), "0"),
+    k(
+        "title.text_effect",
+        Choice(&["none", "shadow", "glow"]),
+        r#""none""#,
+    ),
+    k("title.gloss", Num(0.0, 1.0), "0.0"),
     // A window border round a captioned card: width and role.
     k("border.width", Int(0, 8), "0"),
     k("border.color", Role, r#""outline""#),
@@ -141,6 +157,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("tooltip.fill", Role, r#""""#),
     k("tooltip.on", Role, r#""""#),
     k("tooltip.tail", Bool, "false"),
+    // W53.2: a tooltip's corner and border role (XP's and 7's balloon tips; -1 / "" = the part's own).
+    k("tooltip.radius", Int(-1, 16), "-1"),
+    k("tooltip.border", Role, r#""""#),
     // The tray well and separators between bar groups.
     k("tray.sunken", Bool, "false"),
     k(
@@ -158,6 +177,22 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("focus.width", Int(1, 4), "1"),
     // The start button's dress shows its label beside the mark.
     k("start.label", Bool, "false"),
+    // W53.2: the start button's fill (one role solid, two a gradient; [] = the part's own), the label's face (published
+    // as `font.start`), size (0 = the part's own) and slant (XP's italic "start").
+    k("start.fill", Roles, "[]"),
+    k("start.family", Families, "[]"),
+    k("start.size", Int(0, 32), "0"),
+    k("start.italic", Bool, "false"),
+    // W53.2: the tray well's fill ("" = the part's own): XP's lighter blue notification area.
+    k("tray.fill", Role, r#""""#),
+    // W53.2, the `bar` slot (a part drawn as the bar's ground, under its groups): its fill (one role solid, two a
+    // gradient; [] = the part's own), the screen-facing edge's light line ("" = the part's own), a gloss over the band
+    // (XP's taskbar), and whether the bar's groups keep a block of their own over it (`block`) or stand on the ground
+    // (`none`: a taskbar is one strip).
+    k("bar.fill", Roles, "[]"),
+    k("bar.edge", Role, r#""""#),
+    k("bar.gloss", Num(0.0, 1.0), "0.0"),
+    k("bar.group", Choice(&["block", "none"]), r#""block""#),
     // Type: bitmap text (no smoothing, sizes on a grid of `pixel_step` px).
     k("type.pixel", Bool, "false"),
     k("type.pixel_step", Int(1, 16), "1"),
