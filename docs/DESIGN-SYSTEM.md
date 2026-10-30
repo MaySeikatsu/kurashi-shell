@@ -166,7 +166,12 @@ default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<S
 
 Shipped parts: `title/Caption.qml` (a caption drawn from the metrics alone: solid or gradient fill, active and inactive,
 text side and weight, buttons in glyph/bevel/gel/plate/dot chrome on either side; it draws only buttons that act —
-close while `canClose`, the caller's `buttons`). `BevelEdge.qml` is the bevel any part may use.
+close while `canClose`, the caller's `buttons`). `BevelEdge.qml` is the bevel any part may use. W53.1 adds the bevel era's parts, named
+`classic` so any bevel look can use them: `title/Classic.qml` (raised `title.button_w` × `title.button_h` keys with their
+marks on whole pixels — it honours both TitleHost's names and Stage's `[{id, action}]`, `full`, `pressed(id)`),
+`start/Classic.qml` (a raised start button with an original four-pane mark), `tray/Status.qml` (a 1 px status well),
+`menu`, `scroll`, `tooltip`, `button`, `toggle` and `slider` `Classic.qml`, and the helpers `PixelLabel.qml` (bitmap type:
+native, unsmoothed, bold as GDI's overstrike) and `Checker.qml` (the 50 % dither); lock face `LogonFace.qml`.
 
 **Metrics** (`[decor]` in a look, `appearance::DECOR_KEYS`: one list with kinds, ranges and defaults, rule 3). Values
 are numbers, switches, words, palette **role names** (published as colours, never hex in a look), bézier curves or font
@@ -176,10 +181,10 @@ default filled in:
 
 | group | keys (default) |
 |---|---|
-| caption | `title.height` (24), `title.fill` ([title, title_end]), `title.fill_inactive`, `title.on` (on_title), `title.fill_dir` (horizontal), `title.align` (start), `title.weight` (700), `title.close` (glyph · bevel · gel · plate · dot), `title.buttons` (end · start), `title.radius` (-1) |
+| caption | `title.height` (24), `title.fill` ([title, title_end]), `title.fill_inactive`, `title.on` (on_title), `title.fill_dir` (horizontal), `title.align` (start), `title.weight` (700), `title.close` (glyph · bevel · gel · plate · dot), `title.buttons` (end · start), `title.radius` (-1), `title.on_inactive` ("" = `title.on`), `title.button_w`/`title.button_h` (0 = the part's own), `title.button_gap` (-1), `title.inset` (-1) |
 | window border | `border.width` (0), `border.color` (outline) |
 | bevel | `bevel.width` (1), `bevel.press_offset` (1) |
-| menu | `menu.row` (0 = own), `menu.highlight` (capsule · bar · inset), `menu.separator` (line · etched · space), `menu.radius` (-1) |
+| menu | `menu.row` (0 = own), `menu.highlight` (capsule · bar · inset), `menu.separator` (line · etched · space), `menu.radius` (-1), `menu.fill`/`menu.on` (the highlighted row's band and text roles; "" = the caller's selection) |
 | scroll bar | `scroll.width` (0 = own), `scroll.arrows` (false), `scroll.thumb` (pill · flat · bevel · gel) |
 | tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false) |
 | tray, separators | `tray.sunken` (false), `separator.style` (line · etched · none) |
