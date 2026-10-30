@@ -11,13 +11,37 @@ FrameBase {
     readonly property real r: Math.max(0, f.radius)
 
     // ---- card: window band ----
+    // W53.2: XP's 3 px window frame (measured on guidebookgallery.org's winxppro desktop, x 124–126 and 532–534: lit lines
+    // on the left and top, darker ones on the right and bottom) in the caption's role (`[decor] border.color`), and,
+    // for a card without a caption, the band's glossy trace along the top.
+    readonly property string borderRole: Theme.decor("border.color", "")
+    readonly property color frameC: borderRole !== "" ? borderRole : f.band
+    readonly property int frameW: Math.max(1, Theme.decor("border.width", 3))
+    Repeater {
+        model: f.card ? f.frameW : 0
+        Rectangle {
+            required property int index
+            anchors { fill: parent; margins: index }
+            radius: Math.max(0, f.r - index)
+            color: "transparent"
+            border.width: 1
+            border.color: index === 0 ? Qt.darker(f.frameC, 1.12) : index === 1 ? Qt.lighter(f.frameC, 1.12) : Qt.darker(f.frameC, 1.05)
+        }
+    }
+    // The darker right and bottom lines (XP lit its frames from the top left).
     Rectangle {
         visible: f.card
-        anchors.fill: parent
-        radius: f.r
-        color: "transparent"
-        border.width: 3
-        border.color: f.band
+        anchors { top: parent.top; bottom: parent.bottom; right: parent.right; topMargin: f.r; bottomMargin: f.r }
+        width: Math.min(2, f.frameW)
+        color: Qt.darker(f.frameC, 1.9)
+        opacity: 0.85
+    }
+    Rectangle {
+        visible: f.card
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: f.r; rightMargin: f.r }
+        height: Math.min(2, f.frameW)
+        color: Qt.darker(f.frameC, 1.9)
+        opacity: 0.85
     }
     Rectangle {
         visible: f.card
@@ -26,9 +50,9 @@ FrameBase {
         topLeftRadius: f.r
         topRightRadius: f.r
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.lighter(f.band, 1.45) }
-            GradientStop { position: 0.45; color: f.band }
-            GradientStop { position: 1.0; color: Qt.darker(f.band, 1.15) }
+            GradientStop { position: 0.0; color: Qt.lighter(f.frameC, 1.45) }
+            GradientStop { position: 0.45; color: f.frameC }
+            GradientStop { position: 1.0; color: Qt.darker(f.frameC, 1.15) }
         }
     }
 

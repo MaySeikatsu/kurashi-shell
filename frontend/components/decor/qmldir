@@ -1,3 +1,4 @@
+BarGround 1.0 BarGround.qml
 BevelEdge 1.0 BevelEdge.qml
 DecorHost 1.0 DecorHost.qml
 Entrance 1.0 Entrance.qml
@@ -9,3 +10,5 @@ TooltipStyle 1.0 TooltipStyle.qml
 TrayWell 1.0 TrayWell.qml
 PixelLabel 1.0 PixelLabel.qml
 Checker 1.0 Checker.qml
+CaptionGlyph 1.0 CaptionGlyph.qml
+PaneMark 1.0 PaneMark.qml
