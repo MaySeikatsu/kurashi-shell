@@ -123,6 +123,9 @@ SectionCard {
                         anchors.centerIn: parent
                         spacing: 2
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.fg
                             font.pixelSize: Theme.fs - 2
@@ -131,6 +134,9 @@ SectionCard {
                             text: I18n.tr("settings.layout.edge_short." + strip.e)
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.dim
                             font.pixelSize: Theme.fs - 3
@@ -179,6 +185,9 @@ SectionCard {
             onPicked: v => screen.moveBar(v)
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: screen.moveError !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -197,6 +206,9 @@ SectionCard {
                 width: parent.width
                 spacing: 2
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.fg
@@ -205,6 +217,9 @@ SectionCard {
                     text: I18n.fmt("settings.layout.unplaced", { name: Store.moduleName(unplacedRow.modelData.id) })
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.dim

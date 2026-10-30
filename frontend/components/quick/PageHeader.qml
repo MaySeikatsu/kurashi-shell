@@ -42,6 +42,9 @@ Item {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.verticalCenter: parent.verticalCenter
             anchors.verticalCenterOffset: -Theme.shadowDy / 2
             color: Theme.fg

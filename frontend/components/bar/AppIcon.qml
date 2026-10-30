@@ -27,6 +27,9 @@ Item {
         visible: ai.src !== "" && status === Image.Ready
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         visible: ai.kind === "letter"
         color: ai.color

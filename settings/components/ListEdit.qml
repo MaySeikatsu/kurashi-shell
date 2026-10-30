@@ -56,6 +56,9 @@ Flow {
 
             Text {
                 id: lbl
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.left: parent.left
                 anchors.leftMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
@@ -66,6 +69,9 @@ Flow {
             }
             Text {
                 id: cross
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.right: parent.right
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter

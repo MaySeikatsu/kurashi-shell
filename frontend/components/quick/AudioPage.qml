@@ -76,6 +76,9 @@ Column {
         onBack: aud.backRequested()
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !aud.avail
         width: aud.width
         wrapMode: Text.WordWrap
@@ -87,6 +90,9 @@ Column {
 
     // Output
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail
         width: aud.width
         color: Theme.dim
@@ -108,6 +114,9 @@ Column {
         width: aud.width
         spacing: Theme.gap
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width - sound.width - Theme.gap
             anchors.verticalCenter: sound.verticalCenter
             elide: Text.ElideRight
@@ -148,6 +157,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail && sinkRows.count === 0
         width: aud.width
         color: Theme.dim
@@ -163,6 +175,9 @@ Column {
 
     // Input
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail
         width: aud.width
         color: Theme.dim
@@ -178,6 +193,9 @@ Column {
             width: parent.width - mic.width - Theme.gap
             anchors.verticalCenter: mic.verticalCenter
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -186,6 +204,9 @@ Column {
                 text: I18n.tr("island.quick.audio.microphone")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 visible: aud.src.id !== undefined
                 color: Theme.dim
@@ -225,6 +246,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail && srcRows.count === 0
         width: aud.width
         color: Theme.dim
@@ -240,6 +264,9 @@ Column {
 
     // Applications: each playing stream, its level (0..150 %, the slider spans the full range) and mute.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail
         width: aud.width
         color: Theme.dim
@@ -248,6 +275,9 @@ Column {
         text: I18n.tr("island.quick.audio.apps")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.avail && streamRows.count === 0
         width: aud.width
         color: Theme.dim
@@ -266,6 +296,9 @@ Column {
             width: aud.width
             spacing: Theme.xs
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: stream.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -292,6 +325,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: aud.errText !== ""
         width: aud.width
         wrapMode: Text.WordWrap

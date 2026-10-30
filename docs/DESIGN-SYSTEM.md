@@ -187,7 +187,7 @@ default filled in:
 | menu | `menu.row` (0 = own), `menu.highlight` (capsule · bar · inset), `menu.separator` (line · etched · space), `menu.radius` (-1), `menu.fill`/`menu.on` (the highlighted row's band and text roles; "" = the caller's selection) |
 | scroll bar | `scroll.width` (0 = own), `scroll.arrows` (false), `scroll.thumb` (pill · flat · bevel · gel) |
 | tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false) |
-| tray, separators | `tray.sunken` (false), `separator.style` (line · etched · none) |
+| tray, separators, bar | `tray.sunken` (false), `separator.style` (line · etched · none), `bar.group` (block · none: no raised block round each bar group, one strip — row 596) |
 | focus | `focus.style` (ring · dotted · double · halo), `focus.offset` (0; negative = inside), `focus.width` (1) |
 | start | `start.label` (false) |
 | type | `type.pixel` (false), `type.pixel_step` (1) |

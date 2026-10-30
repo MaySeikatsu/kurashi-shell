@@ -21,6 +21,9 @@ Flow {
     spacing: Theme.gap / 2
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: 260
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
@@ -31,6 +34,9 @@ Flow {
         text: r.name
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -45,6 +51,9 @@ Flow {
         output: r.entry.output ?? ""
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -52,6 +61,9 @@ Flow {
         text: "→"
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.fg

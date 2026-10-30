@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "decor"
 
 // The menu of one tray item (K23): the tree kurashi-tray built, drawn in place. Submenus open inline,
 // indented. A pure view: a chosen entry is signalled (`chosen`) and the Stage sends tray.menu_event.
@@ -8,6 +9,8 @@ import "../core"
 // Right/Left open and close a submenu, Enter chooses (or opens a submenu). Esc is the Stage's.
 Item {
     id: menu
+    // The look's menu metrics (W53, row 591): today's where it leaves them.
+    MenuStyle { id: ms }
 
     // The tree as tray.menu returned it; null while it loads.
     property var tree: null
@@ -102,14 +105,23 @@ Item {
                 readonly property int indent: Theme.pad + modelData.depth * (Theme.pad + 4)
 
                 width: body.width
-                height: sep ? 9 : Theme.controlH
+                height: sep ? 9 : ms.rowH(Theme.controlH)
                 Accessible.role: Accessible.MenuItem
                 Accessible.name: e.label ?? ""
                 Accessible.checkable: e.toggle !== undefined
                 Accessible.checked: e.checked === true
 
+                // The look's row face (W53, row 591); today's line and capsule below while the look leaves them.
+                MenuRowFace {
+                    id: face
+                    anchors.fill: parent
+                    highlighted: row.current
+                    separator: row.sep
+                    enabled: row.live
+                    checked: row.e.checked === true
+                }
                 Rectangle {
-                    visible: row.sep
+                    visible: row.sep && face.ownSeparator
                     anchors {
                         left: parent.left
                         right: parent.right
@@ -122,9 +134,9 @@ Item {
                 }
 
                 Rectangle {
-                    visible: !row.sep
+                    visible: !row.sep && face.ownHighlight
                     anchors.fill: parent
-                    radius: Theme.rSm
+                    radius: ms.radius(Theme.rSm)
                     color: row.current ? Theme.containerHigh : "transparent"
                     border.width: row.current ? 1 : 0
                     border.color: Theme.outline
@@ -132,12 +144,15 @@ Item {
 
                 // Checkmark, or a radio dot for a radio entry: the state is the glyph, not colour alone.
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep
                     x: row.indent
                     width: 16
                     anchors.verticalCenter: parent.verticalCenter
                     horizontalAlignment: Text.AlignHCenter
-                    color: row.live ? Theme.fg : Theme.dim
+                    color: face.ink(row.live ? Theme.fg : Theme.dim)
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
                     text: row.e.toggle === "checkmark" ? (row.e.checked === true ? "✓" : "")
@@ -155,12 +170,15 @@ Item {
                 }
 
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep
                     x: row.indent + 44
                     anchors.verticalCenter: parent.verticalCenter
                     width: Math.max(0, body.width - x - 28)
                     elide: Text.ElideRight
-                    color: row.live ? Theme.fg : Theme.dim
+                    color: face.ink(row.live ? Theme.fg : Theme.dim)
                     opacity: row.e.enabled === false ? 0.5 : 1
                     font.pixelSize: Theme.fs
                     font.family: Theme.fam(text, Theme.families)
@@ -169,12 +187,15 @@ Item {
 
                 // A submenu's chevron, turned down while it is open.
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep && row.e.children !== undefined
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
                     anchors.verticalCenter: parent.verticalCenter
                     rotation: menu.isOpen(row.e.id) ? 90 : 0
-                    color: row.live ? Theme.fg : Theme.dim
+                    color: face.ink(row.live ? Theme.fg : Theme.dim)
                     font.pixelSize: Theme.fs + 2
                     text: "›"
                 }
@@ -192,6 +213,9 @@ Item {
 
         // Loading, an item with no menu, or the failure of tray.menu; nothing otherwise.
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: body.width
             visible: text !== ""
             wrapMode: Text.WordWrap
@@ -203,6 +227,9 @@ Item {
                 : menu.rows.length === 0 ? I18n.tr("frontend.tray.empty") : ""
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: body.width
             color: Theme.dim
             font.pixelSize: Theme.fsCaption

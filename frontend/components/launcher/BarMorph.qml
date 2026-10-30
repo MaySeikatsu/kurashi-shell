@@ -4,6 +4,7 @@ import Quickshell
 import "../../core"
 import ".."
 import "../island"
+import "../decor"
 
 // One surface that grows out of the bar (W34, docs/ux/motion.md "the bar reaches out"): the launcher and the notification
 // centre. The island's own machinery (Stage, W21/K42) — one MorphShape from the island pill's rect (IslandGeom) to the
@@ -53,6 +54,8 @@ Item {
     readonly property real cardRFar: Theme.rLg
 
     readonly property bool morph: onBar
+    // The look moves the sliding card in a form of its own (Entrance: slide, zoom, fade, flip): the slide here steps aside.
+    readonly property bool formed: !morph && form.form !== "grow" && form.form !== "none"
     // On screen: opening, open or folding back.
     property bool shown: false
     property bool gate: false
@@ -252,7 +255,7 @@ Item {
     // it slides otherwise. Owners build their window's BackgroundEffect region from it.
     readonly property bool blurOn: shown && (morph ? shapeW > 2 && bodyH > 2 : p > 0)
     readonly property real blurX: morph ? shapeCx - shapeW / 2 : shade
-    readonly property real blurY: morph ? (flip ? morphH - bodyTop - bodyH : bodyTop) : shade - slide * (1 - p)
+    readonly property real blurY: morph ? (flip ? morphH - bodyTop - bodyH : bodyTop) : shade - (formed ? 0 : slide * (1 - p))
     readonly property real blurW: morph ? shapeW : cardW
     readonly property real blurH: morph ? bodyH : cardH
     readonly property real blurRTop: morph ? (flip ? shape.rBot : shape.rTop) : (flip ? cardRFar : cardRNear)
@@ -380,9 +383,9 @@ Item {
         width: m.cardW
         height: m.cardH
         x: m.morph ? Math.round((m.morphW - width) / 2) : m.shade
-        y: m.morph ? (m.flip ? m.morphH - m.cardTop - height : m.cardTop) : m.shade - m.slide * (1 - m.p)
-        opacity: m.morph ? m.contentP : Math.min(1, m.p * 1.6)
-        scale: m.morph ? 0.98 + 0.02 * m.contentP : m.slideScale + (1 - m.slideScale) * m.p
+        y: m.morph ? (m.flip ? m.morphH - m.cardTop - height : m.cardTop) : m.shade - (m.formed ? 0 : m.slide * (1 - m.p))
+        opacity: m.morph ? m.contentP : (m.formed ? 1 : Math.min(1, m.p * 1.6))
+        scale: m.morph ? 0.98 + 0.02 * m.contentP : (m.formed ? 1 : m.slideScale + (1 - m.slideScale) * m.p)
         transformOrigin: m.flip ? Item.Bottom : Item.Top
         Item {
             id: reveal
@@ -399,12 +402,22 @@ Item {
             width: cutRight - cutLeft
             height: cutBottom - cutTop
             clip: m.morph
-            Item {
-                id: inner
+            // The look's form (W53, row 591; decor/Entrance): sliding in, the content arrives as the look moves (slide,
+            // zoom, fade, flip) on the card's own progress; `grow` (K74's, the default) leaves it to the slide above. The
+            // morph is the shape's own motion: the form stays out of it.
+            Entrance {
+                id: form
                 x: -reveal.cutLeft
                 y: -reveal.cutTop
                 width: card.width
                 height: card.height
+                progress: m.morph ? 1 : m.p
+                edge: m.flip ? "bottom" : "top"
+                Item {
+                    id: inner
+                    width: card.width
+                    height: card.height
+                }
             }
         }
     }

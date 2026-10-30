@@ -10,7 +10,8 @@ import ".."
 Block {
     required property Item around
     readonly property real padX: Theme.gap + 2
-    visible: Theme.groups && around.visible && around.width > 0
+    // (`[decor] bar.group = none`: one strip, no block round each group — 98's taskbar; contract row 596.)
+    visible: Theme.groups && around.visible && around.width > 0 && Theme.decor("bar.group", "block") !== "none"
     x: around.x - padX
     y: (parent.height - (Theme.barH - 8) - Math.abs(Theme.sinkY)) / 2 - Math.min(0, Theme.sinkY)
     width: around.width + 2 * padX

@@ -6,6 +6,9 @@ import "../../core"
 // It reads the island's document itself (one more subscriber to the same doc, refcounted), and only while it is shown.
 Text {
     id: note
+    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+    antialiasing: !Theme.pixelType
+    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
     property string face: ""
     Watch { doc: "runtime.island.main" }
     readonly property var at: ((Store.docs["runtime.island.main"] || ({})).stale_at || ({}))[face]

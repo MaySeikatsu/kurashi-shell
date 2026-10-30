@@ -189,7 +189,19 @@ impl State {
             // path for the lock surface to wait on.
             (
                 "runtime.lock",
-                json!({"locked": false, "busy": false, "failures": 0}),
+                json!({"locked": false, "busy": false, "failures": 0, "face": "plain"}),
+            ),
+            // W53.0b parity (contract row 565): sounds off, no cursor theme or decoration, as kurashid starts. A test turns
+            // the decoration on with `mock.doc` (`svc.cursor.decoration`) and moves the pointer the same way
+            // (`svc.pointer`: `{available, output, x, y}`, W58).
+            ("svc.sound", json!({"enabled": false, "cues": []})),
+            (
+                "svc.cursor",
+                json!({"theme": false, "state": "off", "decoration": ""}),
+            ),
+            (
+                "svc.pointer",
+                json!({"available": true, "output": null, "x": 0.0, "y": 0.0}),
             ),
             (
                 "bindings",
@@ -484,9 +496,56 @@ impl State {
             "ui.close" => self.patch(
                 "runtime.ui",
                 json!({"popup": false, "panel": "", "launcher": false, "tray": "", "face": "", "peek": null,
-                       "sidebar": null, "sidebar_output": null, "shown": null}),
+                       "sidebar": null, "sidebar_output": null, "shown": null, "title": null, "full": null}),
                 None,
             ),
+            // W53.0b parity (row 565): a title-bar button, as kurashid presses it (`title::press`) — on the buttons the
+            // card's `runtime.ui.title` names (a test sets it with `mock.doc`), the actions the config's `title_bar.*` say.
+            "ui.title" => {
+                let button = args["button"]
+                    .as_str()
+                    .ok_or_else(|| Fail::invalid(ARGS_INVALID))?
+                    .to_owned();
+                let cfg = self.data("config");
+                let s = |k: &str| cfg["values"][k]["value"].as_str().unwrap_or("").to_owned();
+                let settings = kurashid::title::Settings {
+                    buttons: s("title_bar.buttons"),
+                    close: s("title_bar.close"),
+                    maximize: s("title_bar.maximize"),
+                    minimize: s("title_bar.minimize"),
+                };
+                let mut ui = self.data("runtime.ui").clone();
+                let menu = ui["title"]["buttons"].as_array().and_then(|b| {
+                    b.iter()
+                        .find_map(|x| x["menu"].as_str().map(str::to_owned))
+                });
+                let before = ui.clone();
+                kurashid::title::press(&settings, &mut ui, &button, menu.as_deref())
+                    .map_err(Fail::invalid)?;
+                // What the press changed, as one merge patch; the title follows the card (gone with it) and its state.
+                let mut ops = json!({});
+                for k in ["popup", "panel", "launcher", "tray", "face", "peek", "full"] {
+                    if ui.get(k) != before.get(k) {
+                        ops[k] = ui.get(k).cloned().unwrap_or(Value::Null);
+                    }
+                }
+                if kurashid::title::card_key(&ui).is_none() {
+                    ops["title"] = Value::Null;
+                } else if before["title"].is_object() {
+                    let full = ui["full"].as_str().is_some()
+                        && ui["full"].as_str() == kurashid::title::card_key(&ui).as_deref();
+                    ops["title"] = json!({"full": full});
+                }
+                self.patch("runtime.ui", ops, None);
+            }
+            // Sounds are off in the mock (svc.sound.enabled false): every cue is refused as kurashid refuses it then.
+            "sound.cue" => {
+                let name = args["name"].as_str().unwrap_or("");
+                if !kurashid::sound::CUES.contains(&name) {
+                    return Err(Fail::invalid(ARGS_INVALID));
+                }
+                return Err(Fail::unavailable(kurashid::sound::REASON_OFF));
+            }
             // K71, as kurashid (rows 513, 523): a `hidden` component out or away as `<target>@<output>` in
             // `runtime.ui.shown`; a sidebar target is `sidebar.toggle`. The output defaults to the focused one.
             "layout.toggle" => {
@@ -3177,6 +3236,46 @@ mod tests {
             "output is required"
         );
         assert_eq!(held_ids(&st), vec![1], "a refused focus moves nothing");
+    }
+
+    /// W53.0b parity (row 565): the docs kurashid starts with, a title-bar button pressed as kurashid presses it, and a
+    /// sound cue refused while sounds are off.
+    #[test]
+    fn title_buttons_and_sound_cues_answer_as_kurashid() {
+        let mut st = state();
+        assert_eq!(st.data("runtime.lock")["face"], "plain");
+        assert_eq!(st.data("svc.sound")["enabled"], false);
+        assert_eq!(st.data("svc.cursor")["decoration"], "");
+        assert_eq!(st.data("svc.pointer")["available"], true);
+
+        let no_card = st.act("ui.title", &json!({"button": "close"})).unwrap_err();
+        assert_eq!(no_card.msg, kurashid::title::NO_BUTTON);
+        st.act("island.expand", &none()).unwrap();
+        let title = json!({"buttons": [{"id": "minimize", "action": "hide"},
+            {"id": "maximize", "action": "full_screen"}, {"id": "close", "action": "close"}], "full": false});
+        st.act(
+            "mock.doc",
+            &json!({"doc": "runtime.ui", "patch": {"title": title}}),
+        )
+        .unwrap();
+        st.act("ui.title", &json!({"button": "maximize"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["title"]["full"], true);
+        assert!(st.data("runtime.ui")["full"].is_string());
+        st.act("ui.title", &json!({"button": "maximize"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["title"]["full"], false);
+        st.act("ui.title", &json!({"button": "close"})).unwrap();
+        assert_eq!(st.data("runtime.ui")["panel"], "");
+        assert!(st.data("runtime.ui").get("title").is_none());
+        assert!(st.act("ui.title", &json!({})).is_err());
+
+        let off = st.act("sound.cue", &json!({"name": "unlock"})).unwrap_err();
+        assert_eq!((off.kind, off.msg.as_ref()), ("unavailable", "sound.off"));
+        assert_eq!(
+            st.act("sound.cue", &json!({"name": "boom"}))
+                .unwrap_err()
+                .kind,
+            "invalid"
+        );
     }
 
     fn held_ids(st: &State) -> Vec<u64> {

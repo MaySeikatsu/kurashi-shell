@@ -70,6 +70,9 @@ Block {
         }
         Text {
             id: txt
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: kb.label !== ""
             anchors.verticalCenter: parent.verticalCenter
             color: kb.primary ? kb.onSel : Theme.fg

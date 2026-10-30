@@ -143,6 +143,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("tooltip.tail", Bool, "false"),
     // The tray well and separators between bar groups.
     k("tray.sunken", Bool, "false"),
+    // The bar's groups: a raised block round each (`block`, today's) or none, one strip (`none`: 98's taskbar, whose
+    // only well is the tray's) — contract row 596.
+    k("bar.group", Choice(&["block", "none"]), r#""block""#),
     k(
         "separator.style",
         Choice(&["line", "etched", "none"]),

@@ -44,6 +44,9 @@ Row {
             }
             Text {
                 id: old
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: cell.p < 1 && cell.prev !== cell.ch
                 y: -cell.height * Math.min(1, cell.p)
                 opacity: 1 - Math.min(1, cell.p)
@@ -56,6 +59,9 @@ Row {
             }
             Text {
                 id: now
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 y: cell.height * (1 - cell.p)
                 text: cell.ch
                 color: ft.color
