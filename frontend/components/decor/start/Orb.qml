@@ -14,6 +14,8 @@ import ".."
 StartBase {
     id: st
     property real thickness: Theme.barH
+    // The start-menu skin the launcher draws while this dress is the look's (contract start/StartMenuBase.qml, row 563).
+    menu: Qt.resolvedUrl("GlassMenu.qml")
     signal clicked()
 
     readonly property var fills: Theme.decor("start.fill", [])
