@@ -85,6 +85,8 @@ pub const DECOR_KEYS: &[DecorKey] = &[
         r#"["title_inactive", "title_inactive_end"]"#,
     ),
     k("title.on", Role, r#""on_title""#),
+    // The text of an inactive caption ("" = `title.on`): 98's silver on grey.
+    k("title.on_inactive", Role, r#""""#),
     k(
         "title.fill_dir",
         Choice(&["horizontal", "vertical"]),
@@ -99,6 +101,12 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     ),
     k("title.buttons", Choice(&["end", "start"]), r#""end""#),
     k("title.radius", Int(-1, 24), "-1"),
+    // The caption buttons' size, the gap before the close button and the inset from the caption's edges (W53.1: 98's
+    // 16 × 14 buttons, 2 px apart from close, 2 px in); 0 / -1 = the part's own (a square from the caption's height).
+    k("title.button_w", Int(0, 64), "0"),
+    k("title.button_h", Int(0, 64), "0"),
+    k("title.button_gap", Int(-1, 16), "-1"),
+    k("title.inset", Int(-1, 16), "-1"),
     // A window border round a captioned card: width and role.
     k("border.width", Int(0, 8), "0"),
     k("border.color", Role, r#""outline""#),
@@ -118,6 +126,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
         r#""line""#,
     ),
     k("menu.radius", Int(-1, 24), "-1"),
+    // The highlighted row's fill and text roles ("" = the caller's selection colours): 9x's navy band with white text.
+    k("menu.fill", Role, r#""""#),
+    k("menu.on", Role, r#""""#),
     // Scroll bars: width, arrow buttons, the thumb's face.
     k("scroll.width", Int(0, 24), "0"),
     k("scroll.arrows", Bool, "false"),

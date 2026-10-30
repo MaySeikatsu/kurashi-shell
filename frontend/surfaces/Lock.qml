@@ -26,7 +26,7 @@ Item {
     // The output with the focused workspace; "" when unknown (every surface then shows the field).
     readonly property string focusedOutput: {
         var outs = (Store.docs["svc.workspaces"] || {}).outputs || {}
-        for (var name in outs)
+        for (var name in outs) if (name !== "*")
             for (var i = 0; i < outs[name].length; i++)
                 if (outs[name][i].focused) return name
         return ""

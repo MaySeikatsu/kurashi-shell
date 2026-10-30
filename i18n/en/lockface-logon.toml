@@ -1,0 +1,9 @@
+# The logon lock face (W53.1, components/lock/LogonFace.qml): the bevel era's "Welcome" dialog.
+"lockui.face.name.logon" = "Logon dialog"
+"lockui.logon.title" = "Welcome to {host}"
+"lockui.logon.instruction" = "Type your password to unlock this computer."
+"lockui.logon.user" = "User name:"
+"lockui.logon.password" = "Password:"
+"lockui.logon.ok" = "OK"
+"lockui.logon.cancel" = "Cancel"
+"lockui.logon.error_title" = "Unlock"
