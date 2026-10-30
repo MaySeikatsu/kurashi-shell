@@ -57,6 +57,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: bt.width - power.width - Theme.gap
             anchors.verticalCenter: power.verticalCenter
             elide: Text.ElideRight
@@ -75,6 +77,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !bt.powered
         width: bt.width
         wrapMode: Text.WordWrap
@@ -92,6 +96,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: bt.powered
         width: bt.width
         color: Theme.dim
@@ -105,6 +111,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: bt.powered && bt.paired.length === 0
         width: bt.width
         color: Theme.dim
@@ -115,6 +123,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: bt.powered && bt.discovering
         width: bt.width
         color: Theme.dim
@@ -129,6 +139,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: bt.errText !== ""
         width: bt.width
         wrapMode: Text.WordWrap
@@ -159,6 +171,8 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     elide: Text.ElideRight
                     color: Theme.fg
@@ -168,6 +182,8 @@ Column {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     elide: Text.ElideRight
                     color: Theme.dim

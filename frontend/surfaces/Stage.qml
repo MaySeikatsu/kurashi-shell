@@ -178,6 +178,8 @@ PanelWindow {
     readonly property var titleDoc: ui.title || null
     readonly property bool titled: titleDoc !== null && contentKind !== ""
     readonly property int titleH: titled ? Math.round(Theme.tok("decor.title.height", 28)) : 0
+    // Row 595: a captioned card's window frame, px (`decor.border.width`; 0 = today's 1 px outline).
+    readonly property int frameW: titled ? Math.max(0, Math.round(Theme.decor("border.width", 0))) : 0
     // Maximize = full screen: the largest card the output has room for, under (or over) its bar.
     readonly property bool full: titled && titleDoc.full === true
     readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
@@ -195,6 +197,8 @@ PanelWindow {
         Item {
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { left: parent.left; leftMargin: Theme.pad + 4; right: keys.left; rightMargin: Theme.gap
                           verticalCenter: parent.verticalCenter }
                 text: stage.cardTitle
@@ -1243,7 +1247,7 @@ PanelWindow {
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
         height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
-            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH
+            : stage.contentKind === "session" ? menu.implicitHeight : trayCol.implicitHeight) + 2 * stage.cardPad + stage.titleH + 2 * stage.frameW
         onWidthChanged: stage.recordSize()
         onHeightChanged: stage.recordSize()
         // K28: a slot filling or emptying grows or shrinks the card smoothly. Off until the view is in (the reveal is
@@ -1266,13 +1270,13 @@ PanelWindow {
         radius: Theme.rLg
         color: stage.morphMode || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
-        border.width: stage.morphMode || stage.ownChrome || cardPen.active ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        border.width: stage.morphMode || stage.ownChrome || cardPen.active || stage.frameW > 0 ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         Loader {
             id: cardPen
             z: 5
             anchors.fill: parent
-            active: Theme.penOutline && !stage.morphMode && !stage.ownChrome && card.visible
+            active: Theme.penOutline && !stage.morphMode && !stage.ownChrome && card.visible && stage.frameW === 0
             sourceComponent: PenOutline {
                 radius: card.radius
                 inset: 1
@@ -1340,15 +1344,17 @@ PanelWindow {
         Item {
             id: titleStrip
             visible: stage.titled
-            anchors { left: parent.left; right: parent.right; top: parent.top }
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.frameW }
             height: stage.titleH
             // TitleHost turns the daemon's buttons into the part's contract (TitleBase) and says each press (rows 560/591).
+            // The caption greys while the card does not hold the keyboard (row 595: the window is not the active one).
             TitleHost {
                 id: styleTitle
                 anchors.fill: parent
                 active: has && stage.titled
                 spec: stage.titleDoc
                 title: stage.cardTitle
+                focused: card.activeFocus
                 onPressed: (id) => Store.act("ui.title", { button: id })
             }
             Loader {
@@ -1361,8 +1367,8 @@ PanelWindow {
         Column {
             id: col
             visible: stage.viewing
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.cardPad }
-            anchors.topMargin: stage.cardPad + stage.titleH
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: stage.cardPad + stage.frameW }
+            anchors.topMargin: stage.cardPad + stage.titleH + stage.frameW
             spacing: Theme.pad
             // Its height is the view's implicit one (an explicit binding to it loops in Qt).
             Loader {
@@ -1381,18 +1387,20 @@ PanelWindow {
             id: menu
             visible: stage.contentKind === "session"
             active: stage.open && stage.contentKind === "session"
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
-            anchors.topMargin: Theme.pad + 4 + stage.titleH
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 + stage.frameW }
+            anchors.topMargin: Theme.pad + 4 + stage.titleH + stage.frameW
         }
 
         Column {
             id: trayCol
             visible: stage.contentKind === "tray"
-            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 }
-            anchors.topMargin: Theme.pad + 4 + stage.titleH
+            anchors { left: parent.left; right: parent.right; top: parent.top; margins: Theme.pad + 4 + stage.frameW }
+            anchors.topMargin: Theme.pad + 4 + stage.titleH + stage.frameW
             spacing: Theme.gap
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: trayCol.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -1402,6 +1410,8 @@ PanelWindow {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: text !== ""
                 width: trayCol.width
                 wrapMode: Text.WordWrap
@@ -1419,6 +1429,19 @@ PanelWindow {
                     Store.act("tray.menu_event", {id: stage.trayKey, item: item})
                     Store.act("ui.close")
                 }
+            }
+        }
+        // Row 595: under a captioned look the card is a window — its frame (`decor.border.width` px, 98's 3) drawn as the
+        // window edge: the light line outside (EDGE_RAISED on windows, measured on 98), the dark pair at the bottom right,
+        // the face's own px inside; in place of the 1 px outline.
+        Loader {
+            z: 6
+            anchors.fill: parent
+            active: stage.frameW > 0
+            sourceComponent: BevelEdge {
+                light: Theme.bevelLight2
+                light2: Theme.bevelLight
+                w: Theme.crisp(1, Screen.devicePixelRatio)
             }
         }
         }

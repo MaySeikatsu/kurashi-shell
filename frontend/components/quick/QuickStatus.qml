@@ -34,6 +34,8 @@ Flow {
                 spacing: 6
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
                     font.pixelSize: Theme.fs
@@ -43,6 +45,8 @@ Flow {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: seg.index < st.segments.length - 1
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.dim

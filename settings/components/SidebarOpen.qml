@@ -24,6 +24,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             height: Theme.controlH
             verticalAlignment: Text.AlignVCenter
             color: Theme.fg
@@ -47,6 +49,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: so.width
         wrapMode: Text.WordWrap
         color: Theme.dim
@@ -56,6 +60,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: so.error !== ""
         width: so.width
         wrapMode: Text.WordWrap

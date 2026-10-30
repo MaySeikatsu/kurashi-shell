@@ -6,6 +6,8 @@ import "../core"
 Text {
     id: st
     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+    antialiasing: !Theme.pixelType
+    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
     readonly property var s: (Store.theme && Store.theme.appearance && Store.theme.appearance.season) || ({})
     readonly property bool on: s.term !== undefined
     objectName: "season-status"

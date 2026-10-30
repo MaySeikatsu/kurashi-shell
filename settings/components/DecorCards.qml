@@ -91,6 +91,8 @@ Flow {
                 // Your own: no look of its own to show.
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !card.t
                     anchors.centerIn: parent
                     text: Theme.iconFamily !== "" ? "tune" : "⚙"
@@ -127,6 +129,8 @@ Flow {
                     radius: Math.min(card.tk("radius.lg", 12) * 0.6, 14)
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         x: 10; y: 6
                         text: "Aa あ"
                         font.family: card.tk("font.family", "sans-serif")
@@ -180,6 +184,8 @@ Flow {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: card.framed
                 anchors.right: scene.right
                 anchors.top: scene.top
@@ -197,6 +203,8 @@ Flow {
                 spacing: 4
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: card.on
                     text: Theme.iconFamily !== "" ? "check" : "✓"
                     font.family: Theme.iconFamily !== "" ? Theme.iconFamily : Theme.fam(text, Theme.families)
@@ -206,6 +214,8 @@ Flow {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: card.width - (card.on ? Theme.fs + 6 : 0)
                     elide: Text.ElideRight
                     text: I18n.tr(card.modelData.label)

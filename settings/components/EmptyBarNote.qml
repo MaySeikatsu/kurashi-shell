@@ -20,6 +20,8 @@ Item {
     Text {
         id: warning
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter

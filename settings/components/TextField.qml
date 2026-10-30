@@ -97,6 +97,7 @@ RoundBox {
         Accessible.name: f.label !== "" ? f.label : f.placeholder
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
             visible: input.text === "" && !input.activeFocus
             color: Theme.dim
             font: input.font

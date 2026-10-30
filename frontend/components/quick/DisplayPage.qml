@@ -24,6 +24,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: dp.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -41,6 +43,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !dp.present
         width: dp.width
         wrapMode: Text.WordWrap
@@ -53,6 +57,8 @@ Column {
         width: dp.width
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -61,6 +67,8 @@ Column {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim

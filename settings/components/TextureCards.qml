@@ -107,6 +107,8 @@ Column {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: modelData.name !== "none" && modelData.image === ""
                         anchors.centerIn: parent
                         color: Theme.dim
@@ -125,6 +127,8 @@ Column {
                         color: Theme.accent
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.centerIn: parent
                             color: Theme.fgOnAccent
                             font.pixelSize: 12
@@ -136,6 +140,8 @@ Column {
                 Text {
                     id: cap
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.top: face.bottom
                     anchors.topMargin: 4
                     width: card.width

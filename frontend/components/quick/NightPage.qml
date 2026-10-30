@@ -65,6 +65,8 @@ Column {
             anchors.verticalCenter: nightSwitch.verticalCenter
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -74,6 +76,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
@@ -99,6 +103,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: np.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -118,6 +124,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: np.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption

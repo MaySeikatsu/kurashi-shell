@@ -13,6 +13,8 @@ Item {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: kr.header
         x: 10
         anchors { bottom: parent.bottom; bottomMargin: 5 }
@@ -32,6 +34,8 @@ Item {
         Text {
             id: label
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: Math.min(implicitWidth, parent.width)
             elide: Text.ElideRight
             textFormat: Text.PlainText
@@ -43,6 +47,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: kr.selected && !!kr.entry.generic && kr.entry.generic !== kr.entry.name
             width: Math.max(0, parent.width - label.width - parent.spacing)
             anchors.baseline: label.baseline
@@ -75,6 +81,8 @@ Item {
                 Text {
                     id: capText
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.centerIn: parent
                     color: Theme.fg
                     font.pixelSize: Theme.fsCaption

@@ -24,6 +24,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: parent.width
         wrapMode: Text.WordWrap
         color: Theme.dim

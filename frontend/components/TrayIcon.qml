@@ -121,6 +121,8 @@ Item {
     // The letter of the disc sits above the relief, as a label does.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         visible: disc.visible
         color: Theme.fg

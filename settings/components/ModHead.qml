@@ -38,6 +38,8 @@ Column {
         Text {
             id: title
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: Math.min(implicitWidth, parent.width - switchRow.width - Theme.pad * 2)
@@ -64,6 +66,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 height: Theme.controlH
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.dim
@@ -75,6 +79,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: h.forced !== ""
         width: parent.width
         wrapMode: Text.WordWrap
@@ -85,6 +91,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: h.failure !== ""
         width: parent.width
         wrapMode: Text.WordWrap
@@ -98,6 +106,8 @@ Column {
     // "Running now" names what it runs for (I48, docs/ux/settings.md): a job with nothing to do is not listed.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: h.entry !== null && h.entry.running !== undefined
         width: parent.width
         wrapMode: Text.WordWrap
@@ -112,6 +122,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !!h.entry && !!h.entry.description
         width: parent.width
         wrapMode: Text.WordWrap
@@ -122,6 +134,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !!h.entry
         width: parent.width
         wrapMode: Text.WordWrap
@@ -140,6 +154,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             height: Theme.controlH - 8
             verticalAlignment: Text.AlignVCenter
             color: Theme.dim
@@ -154,6 +170,8 @@ Column {
                 spacing: 4
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     height: Theme.controlH - 8
                     verticalAlignment: Text.AlignVCenter
                     color: Theme.fg

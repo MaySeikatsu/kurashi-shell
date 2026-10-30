@@ -806,6 +806,8 @@ Scope {
                                         }
                                         Text {
                                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                            antialiasing: !Theme.pixelType
+                                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                             anchors.centerIn: parent
                                             visible: !img.visible && cell.modelData !== "+" && cell.modelData.charAt(0) !== "?"
                                             color: cell.focusedApp ? Theme.fgOnSelected : Theme.fg
@@ -972,6 +974,8 @@ Scope {
                                 Text {
                                     id: tipText
                                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                    antialiasing: !Theme.pixelType
+                                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                     anchors.centerIn: parent
                                     text: tip.text
                                     color: tipStyle.ink(Theme.fg)
@@ -1042,6 +1046,8 @@ Scope {
                                     width: menuBody.width - 2 * Theme.gap - 2 * menuBody.inset
                                     Text {
                                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                        antialiasing: !Theme.pixelType
+                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                         width: parent.width
                                         leftPadding: Theme.gap
                                         bottomPadding: Theme.xs
@@ -1076,6 +1082,8 @@ Scope {
                                             }
                                             Text {
                                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                                antialiasing: !Theme.pixelType
+                                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 x: Theme.gap
                                                 text: row.modelData.text
@@ -1090,6 +1098,8 @@ Scope {
                                     // Why Pin is inert, or why the write did not take (Shōjiki).
                                     Text {
                                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                        antialiasing: !Theme.pixelType
+                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                         visible: text !== ""
                                         width: parent.width
                                         leftPadding: Theme.gap

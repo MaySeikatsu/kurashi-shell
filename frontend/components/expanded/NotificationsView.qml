@@ -57,6 +57,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: view.width - clearAll.width - Theme.gap
             height: clearAll.height
             verticalAlignment: Text.AlignVCenter
@@ -102,6 +104,8 @@ Column {
             spacing: 0
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -111,6 +115,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -137,6 +143,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.locked
         width: view.width
         wrapMode: Text.WordWrap
@@ -147,6 +155,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !view.locked && view.items.length === 0
         width: view.width
         color: Theme.dim
@@ -163,6 +173,8 @@ Column {
             spacing: Theme.xs
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -184,6 +196,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.errText !== ""
         width: view.width
         wrapMode: Text.WordWrap

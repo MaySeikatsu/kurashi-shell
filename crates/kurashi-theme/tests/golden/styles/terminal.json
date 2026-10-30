@@ -88,6 +88,7 @@
   "color.title_inactive_end": "#979797",
   "color.warning": "#c4b080",
   "control.height": 36,
+  "decor.bar.group": "block",
   "decor.bevel.press_offset": 1,
   "decor.bevel.width": 1,
   "decor.border.color": "#6d6d6d",

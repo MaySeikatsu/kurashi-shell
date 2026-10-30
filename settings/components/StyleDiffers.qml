@@ -28,6 +28,8 @@ Flow {
     Text {
         id: line
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: Math.min(implicitWidth, sd.width)
         height: Math.max(implicitHeight, Theme.controlH)
         verticalAlignment: Text.AlignVCenter

@@ -56,6 +56,8 @@ Column {
             anchors.verticalCenter: dndSwitch.verticalCenter
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -65,6 +67,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: Theme.dim
@@ -89,6 +93,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: fp.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -113,6 +119,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: fp.errText !== ""
         width: fp.width
         wrapMode: Text.WordWrap

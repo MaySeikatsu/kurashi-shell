@@ -545,6 +545,30 @@ Scope {
                                 height: bar.vertical ? Math.max(0, modelData[1] - modelData[0]) : Theme.frameOutlineW
                             }
                         }
+                        // Row 596: under the bevel chrome the strip's screen-facing side is a window's raised edge — on a
+                        // bottom (or right) bar the light pair, `bevelLight2` outside then `bevelLight` (98's taskbar top,
+                        // measured); on a top (or left) bar the dark pair, `bevelDark` outside then `bevelDark2`.
+                        Loader {
+                            anchors.fill: parent
+                            active: Theme.bevelW > 0 && !bar.drawFloating && !bb.clearStrip
+                            sourceComponent: Item {
+                                readonly property real w: Theme.crisp(1, Screen.devicePixelRatio)
+                                readonly property bool lit: bar.edge === "bottom" || bar.edge === "right"
+                                Repeater {
+                                    model: 2
+                                    Rectangle {
+                                        required property int index
+                                        readonly property real at: index * parent.w
+                                        color: parent.lit ? (index === 0 ? Theme.bevelLight2 : Theme.bevelLight)
+                                                          : (index === 0 ? Theme.bevelDark : Theme.bevelDark2)
+                                        x: !bar.vertical ? 0 : (bar.edge === "right" ? at : parent.width - at - parent.w)
+                                        y: bar.vertical ? 0 : (bar.edge === "bottom" ? at : parent.height - at - parent.w)
+                                        width: bar.vertical ? parent.w : parent.width
+                                        height: bar.vertical ? parent.height : parent.w
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // One layout is active at a time: a row on top and bottom bars, a column on left and right. Nothing is made while
@@ -805,6 +829,8 @@ Scope {
                 Text {
                     id: hiddenT
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: vl.hiddenN > 0
                     width: bar.barH
                     horizontalAlignment: Text.AlignHCenter

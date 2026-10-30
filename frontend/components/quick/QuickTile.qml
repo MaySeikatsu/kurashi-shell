@@ -152,6 +152,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: tile.lit ? tile.onFg : Theme.fg
@@ -162,6 +164,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2

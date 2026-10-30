@@ -95,6 +95,8 @@ Item {
     Text {
         id: readout
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 72

@@ -152,6 +152,8 @@ FaceBase {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             text: {
                 var d = c.clock.date ? new Date(c.clock.date + "T12:00:00") : null
@@ -210,6 +212,8 @@ FaceBase {
 
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { left: parent.left; leftMargin: Theme.pad + 6; verticalCenter: parent.verticalCenter }
                 visible: field.text === ""
                 text: c.promptText
@@ -246,6 +250,8 @@ FaceBase {
 
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -259,6 +265,8 @@ FaceBase {
 
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -272,6 +280,8 @@ FaceBase {
 
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.horizontalCenter: parent.horizontalCenter
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
@@ -288,6 +298,8 @@ FaceBase {
     // Veil: daemon away while locked. The session stays locked (compositor-enforced); input is inert.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !Store.live
         anchors { bottom: parent.bottom; horizontalCenter: parent.horizontalCenter; bottomMargin: Theme.pad * 2 }
         text: I18n.tr("lockui.disconnected")

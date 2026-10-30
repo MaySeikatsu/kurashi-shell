@@ -63,6 +63,8 @@ Column {
     // Chosen apps, but no answer yet (the first export runs after the theme).
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: ex.chosen.length > 0 && ex.doc === undefined
         color: Theme.dim
         font.pixelSize: Theme.fs - 2
@@ -80,6 +82,8 @@ Column {
             spacing: 2
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideMiddle
                 color: Theme.fg
@@ -91,6 +95,8 @@ Column {
             // The desktop settings: what they are, what was set, what was in effect already.
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: t.settingsOnly
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -101,6 +107,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: t.settingsOnly && Array.isArray(t.modelData.set) && t.modelData.set.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -111,6 +119,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: t.settingsOnly && Array.isArray(t.modelData.same) && t.modelData.same.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -122,6 +132,8 @@ Column {
             // Files: where the file went, or that it is up to date.
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: !t.settingsOnly && !t.modelData.error && !!t.modelData.path
                 width: parent.width
                 elide: Text.ElideMiddle
@@ -133,6 +145,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: !!t.modelData.error
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -143,6 +157,8 @@ Column {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: Array.isArray(t.modelData.unknown) && t.modelData.unknown.length > 0
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -162,6 +178,8 @@ Column {
                     spacing: 2
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: row.modelData.present === true
                         width: parent.width
                         elide: Text.ElideMiddle
@@ -174,6 +192,8 @@ Column {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: row.modelData.present !== true
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -187,6 +207,8 @@ Column {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: row.modelData.stale === true
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -210,6 +232,8 @@ Column {
                             Text {
                                 id: lineText
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 anchors.verticalCenter: parent.verticalCenter
                                 x: Theme.gap
                                 width: parent.width - 2 * Theme.gap
@@ -231,6 +255,8 @@ Column {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: !!row.cp && !!row.cp.error
                         width: parent.width
                         wrapMode: Text.WordWrap

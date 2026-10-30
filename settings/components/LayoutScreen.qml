@@ -124,6 +124,8 @@ SectionCard {
                         spacing: 2
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.fg
                             font.pixelSize: Theme.fs - 2
@@ -133,6 +135,8 @@ SectionCard {
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.horizontalCenter: parent.horizontalCenter
                             color: strip.on ? Theme.fgOnAccent : Theme.dim
                             font.pixelSize: Theme.fs - 3
@@ -182,6 +186,8 @@ SectionCard {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: screen.moveError !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -201,6 +207,8 @@ SectionCard {
                 spacing: 2
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.fg
@@ -210,6 +218,8 @@ SectionCard {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     wrapMode: Text.WordWrap
                     color: Theme.dim

@@ -64,6 +64,8 @@ Column {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors { left: check.right; right: tag.left; leftMargin: Theme.gap; rightMargin: Theme.gap; verticalCenter: parent.verticalCenter }
             elide: Text.ElideRight
             color: row.current ? view.onSel : Theme.dim
@@ -74,6 +76,8 @@ Column {
         Text {
             id: tag
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
             visible: row.current
             color: view.onSel
@@ -97,6 +101,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: view.width
         color: Theme.fg
         font.pixelSize: Theme.fsTitle
@@ -129,6 +135,8 @@ Column {
         Text {
             id: readout
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: mute.height
             horizontalAlignment: Text.AlignRight
@@ -141,6 +149,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !view.avail
         width: view.width
         wrapMode: Text.WordWrap
@@ -163,6 +173,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.avail && view.sinks.length === 1
         width: view.width
         elide: Text.ElideRight
@@ -173,6 +185,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.avail && view.sinks.length === 0
         width: view.width
         color: Theme.dim
@@ -197,6 +211,8 @@ Column {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: view.width - micMute.width - micState.width - 2 * Theme.gap
             height: micMute.height
             elide: Text.ElideRight
@@ -209,6 +225,8 @@ Column {
         Text {
             id: micState
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: 64
             height: micMute.height
             horizontalAlignment: Text.AlignRight
@@ -230,6 +248,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.avail && view.source === null
         width: view.width
         color: Theme.dim
@@ -251,6 +271,8 @@ Column {
             spacing: Theme.gap
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: 96
                 height: Theme.controlH
                 elide: Text.ElideRight
@@ -283,6 +305,8 @@ Column {
             Text {
                 id: streamReadout
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: 44
                 height: Theme.controlH
                 horizontalAlignment: Text.AlignRight
@@ -296,6 +320,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.avail && view.streams.length === 0
         width: view.width
         color: Theme.dim
@@ -305,6 +331,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: view.errText !== ""
         width: view.width
         wrapMode: Text.WordWrap

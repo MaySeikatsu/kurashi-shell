@@ -120,6 +120,8 @@ Item {
                         Text {
                             id: lbl
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.centerIn: parent
                             color: chip.on ? Theme.fgOnSelected : Theme.fg
                             font.pixelSize: Theme.fs

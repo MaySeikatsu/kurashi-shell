@@ -39,6 +39,8 @@ Item {
             spacing: Theme.gap
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: ns.width - clearAll.width - Theme.gap
                 height: clearAll.height
                 verticalAlignment: Text.AlignVCenter
@@ -85,6 +87,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         elide: Text.ElideRight
                         color: Theme.fg
@@ -94,6 +98,8 @@ Item {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         elide: Text.ElideRight
                         color: Theme.dim
@@ -119,6 +125,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: ns.errText !== ""
             width: ns.width
             wrapMode: Text.WordWrap
@@ -153,6 +161,8 @@ Item {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: ns.locked || ns.items.length === 0
         y: list.y + Theme.pad
         width: ns.width

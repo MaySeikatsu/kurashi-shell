@@ -31,6 +31,7 @@ ModuleBase {
         open: m.open
         vertical: m.vertical
         pressed: hit.pressed
+        onClicked: m.activate()
         MouseArea {
             id: hit
             anchors.fill: parent

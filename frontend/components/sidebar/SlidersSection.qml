@@ -75,6 +75,8 @@ Column {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             x: micMark.x + micMark.width + Theme.gap
             width: micSwitch.x - x - Theme.gap
             height: mic.innerH

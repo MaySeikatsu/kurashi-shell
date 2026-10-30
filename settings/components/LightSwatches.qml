@@ -66,6 +66,8 @@ Column {
                     border.color: sw.on ? Theme.accent : Theme.outline
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
                         visible: sw.on || sw.modelData === "natural" || sw.modelData === "custom"
                         color: "#3a3530"
@@ -77,6 +79,8 @@ Column {
                 Text {
                     id: cap
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.top: dot.bottom
                     anchors.topMargin: 4
                     anchors.horizontalCenter: parent.horizontalCenter

@@ -30,6 +30,8 @@ Item {
         fill: Theme.selected
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: hd.user !== ""
             anchors.centerIn: parent
             color: Theme.color("color.on_selected", Theme.fg)
@@ -55,6 +57,8 @@ Item {
         anchors.verticalCenterOffset: -Theme.shadowDy / 2
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             elide: Text.ElideRight
             color: Theme.fg
@@ -65,6 +69,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             visible: text !== ""
             wrapMode: Text.WordWrap
