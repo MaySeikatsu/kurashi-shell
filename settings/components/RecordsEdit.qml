@@ -210,6 +210,9 @@ Column {
                 anchors.rightMargin: Theme.gap
                 anchors.verticalCenter: parent.verticalCenter
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     elide: Text.ElideRight
                     color: Theme.fg
@@ -218,6 +221,9 @@ Column {
                     text: (entry.index + 1) + ".  " + entry.name
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: text !== ""
                     width: parent.width
                     elide: Text.ElideRight
@@ -272,6 +278,9 @@ Column {
 
     // Nothing yet: say so, and offer the first one.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: rec.items.length === 0 && rec.formRow < 0
         width: rec.width
         wrapMode: Text.WordWrap
@@ -309,6 +318,9 @@ Column {
             anchors.margins: Theme.pad
             spacing: Theme.gap / 2
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 color: Theme.fg
                 font.pixelSize: Theme.fs
@@ -334,6 +346,9 @@ Column {
                     }
                     // The field's name, visible above its control (the control's own label is its accessible name only).
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: fieldBox.width
                         color: Theme.dim
                         font.pixelSize: Theme.fs - 2
@@ -375,6 +390,9 @@ Column {
                         onToggled: v => rec.setDraft(fieldBox.key, v)
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: fieldBox.err !== ""
                         width: fieldBox.width
                         wrapMode: Text.WordWrap
@@ -401,6 +419,9 @@ Column {
                 }
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: formCol.width
                 wrapMode: Text.WordWrap
                 color: Theme.dim

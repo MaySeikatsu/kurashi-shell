@@ -11,7 +11,10 @@ DecorHost {
     property bool pressed: false
     property bool open: false
     property bool vertical: false
+    // A dress that takes the pointer itself says `clicked()` (row 561's form); the host passes it on.
+    signal clicked()
     onLoaded: {
+        if (item.clicked !== undefined) item.clicked.connect(sh.clicked)
         item.label = Qt.binding(function () { return Theme.decor("start.label", false) ? I18n.tr("decor.start.label") : "" })
         item.pressed = Qt.binding(function () { return sh.pressed })
         item.open = Qt.binding(function () { return sh.open })

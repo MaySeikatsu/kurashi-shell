@@ -47,6 +47,9 @@ Item {
         }
         Text {
             id: readoutText
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             x: pill.innerW - width - 14
             width: 64
             height: pill.innerH

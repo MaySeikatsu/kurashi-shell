@@ -26,6 +26,9 @@ Column {
     }
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: v.valueLines.length === 0
         width: v.width
         wrapMode: Text.WordWrap
@@ -43,6 +46,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: v.sameLines.length > 0
         width: v.width
         wrapMode: Text.WordWrap
@@ -61,6 +67,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: v.held.length > 0
         color: Theme.dim
         font.pixelSize: Theme.fs - 1
@@ -83,6 +92,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: v.width
         wrapMode: Text.WordWrap
         color: Theme.dim
@@ -91,6 +103,9 @@ Column {
         text: I18n.fmt("settings.ui.profile_kept", { n: v.kept })
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: v.diagnostics.length > 0
         color: Theme.dim
         font.pixelSize: Theme.fs - 1

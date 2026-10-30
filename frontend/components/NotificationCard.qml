@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "decor"
 
 // One notification, shared by the toast stack and the center. Presentational: `item` is an entry
 // of svc.notifications.items; signals out. Body is the daemon-sanitised b/i/u/a subset, so
@@ -16,6 +17,12 @@ RoundBox {
     property bool bare: false
     property real contentOpacity: 1
     property real carryDy: 0
+    // A toast in a look that names a tooltip part is drawn as that tooltip (contract row 599: 98 had no balloons — an
+    // info-yellow box, its ink, the bold first line); the centre's cards keep the card.
+    property bool tip: false
+    TooltipStyle { id: ts }
+    readonly property bool asTip: tip && ts.has && !bare
+    readonly property color ink: asTip ? ts.ink(Theme.fg) : Theme.fg
     signal dismissed()
     signal invoked(string key)
 
@@ -30,17 +37,24 @@ RoundBox {
     width: 340
     implicitHeight: row.height + 2 * Theme.pad
     radius: Theme.rLg
-    color: bare ? "transparent" : Theme.panel
+    color: bare || asTip ? "transparent" : Theme.panel
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
     // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
-    border.width: pen.active || bare ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    border.width: pen.active || bare || asTip ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    // The look's tooltip under the content (row 599).
+    Loader {
+        anchors.fill: parent
+        active: c.asTip
+        source: active ? ts.part : ""
+        onLoaded: item.title = Qt.binding(function () { return c.item.summary || "" })
+    }
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
     Loader {
         id: pen
         z: 3
         anchors.fill: parent
-        active: Theme.penOutline && !c.bare
+        active: Theme.penOutline && !c.bare && !c.asTip
         sourceComponent: PenOutline {
             radius: c.radius
             color: c.border.color
@@ -54,7 +68,7 @@ RoundBox {
     Loader {
         anchors.fill: parent
         anchors.margins: Theme.outlineW
-        active: Theme.texShell && !Theme.texText && !c.bare
+        active: Theme.texShell && !Theme.texText && !c.bare && !c.asTip
         sourceComponent: Relief {
             anchors.fill: parent
             radius: Math.max(0, c.radius - Theme.outlineW)
@@ -66,18 +80,18 @@ RoundBox {
         z: 1
         anchors.fill: parent
         anchors.margins: Theme.outlineW
-        active: Theme.texShell && Theme.texText && !c.bare
+        active: Theme.texShell && Theme.texText && !c.bare && !c.asTip
         sourceComponent: Relief {
             anchors.fill: parent
             radius: Math.max(0, c.radius - Theme.outlineW)
             carry: Qt.point(windowCarry.x + c.x, windowCarry.y + c.carryDy)
         }
     }
-    SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare ? 0 : 1 }
+    SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare || c.asTip ? 0 : 1 }
     // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
     RoundBox {
         z: -1
-        visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && !c.bare
+        visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && !c.bare && !c.asTip
         x: Theme.sinkX
         y: Theme.sinkY
         width: c.width
@@ -158,17 +172,32 @@ RoundBox {
             width: parent.width - 32 - parent.spacing - closeBtn.width - parent.spacing
             spacing: Theme.xs
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
-                color: Theme.dim
+                color: c.asTip ? c.ink : Theme.dim
                 font.pixelSize: Theme.fsCaption
                 font.family: Theme.fam(text, Theme.families)
                 elide: Text.ElideRight
                 text: (c.item.app_name || "") + (c.item.time ? "  ·  " + Qt.formatTime(new Date(c.item.time), "hh:mm") : "")
             }
-            Text {
+            // The bold first line; under bitmap type as the bitmap era drew bold (PixelLabel's overstrike, row 597).
+            PixelLabel {
                 width: parent.width
-                visible: text !== ""
-                color: Theme.fg
+                visible: Theme.pixelType && text !== ""
+                color: c.ink
+                pixelSize: Theme.fs
+                weight: Theme.wBold
+                text: Theme.pixelType ? (c.item.summary || "") : ""
+            }
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                width: parent.width
+                visible: !Theme.pixelType && text !== ""
+                color: c.ink
                 font.pixelSize: Theme.fs
                 font.weight: Theme.wBold
                 font.family: Theme.fam(text, Theme.families)
@@ -178,9 +207,12 @@ RoundBox {
                 text: c.item.summary || ""
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 visible: text !== ""
-                color: Theme.fg
+                color: c.ink
                 font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
                 textFormat: Text.StyledText
@@ -213,6 +245,9 @@ RoundBox {
                         Accessible.name: modelData.label
                         Text {
                             id: lbl
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors.centerIn: parent
                             color: Theme.fg
                             font.pixelSize: Theme.fs

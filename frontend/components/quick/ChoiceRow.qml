@@ -55,6 +55,9 @@ Item {
         width: row.width - x - (strength.visible ? strength.width + Theme.gap : 0)
         anchors.verticalCenter: parent.verticalCenter
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             elide: Text.ElideRight
             color: Theme.fg
@@ -63,6 +66,9 @@ Item {
             text: row.title
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             visible: text !== ""
             elide: Text.ElideRight

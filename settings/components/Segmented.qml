@@ -59,6 +59,9 @@ Flow {
 
             Text {
                 id: lbl
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.centerIn: parent
                 // Text on the accent fill takes on_accent (4.5:1).
                 color: pill.on ? Theme.fgOnSelected : Theme.fg

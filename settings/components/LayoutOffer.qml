@@ -62,6 +62,9 @@ Column {
         spacing: Theme.gap
         Text {
             id: line
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: Math.min(implicitWidth, lo.width)
             height: Math.max(implicitHeight, Theme.controlH)
             verticalAlignment: Text.AlignVCenter
@@ -97,6 +100,9 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: lo.message !== ""
         width: lo.width
         wrapMode: Text.WordWrap

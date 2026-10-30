@@ -8,17 +8,23 @@ Column {
     id: pl
     property var lines: []
     property int maxWidth: 400
+    // The inks of the first line and the rest (a look's tooltip ink on its balloon, W53).
+    property color fg: Theme.fg
+    property color dim: Theme.dim
     spacing: 2
 
     Repeater {
         model: pl.lines
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             required property var modelData
             required property int index
             text: modelData
             width: Math.min(pl.maxWidth, implicitWidth)
             elide: Text.ElideRight
-            color: index === 0 ? Theme.fg : Theme.dim
+            color: index === 0 ? pl.fg : pl.dim
             font.pixelSize: index === 0 ? Theme.fs : Theme.fsCaption
             font.family: Theme.fam(text, Theme.families)
         }

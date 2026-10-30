@@ -13,6 +13,9 @@ Row {
     spacing: Theme.gap
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: line.width - (retry.visible ? retry.width + Theme.gap : 0)
         wrapMode: Text.WordWrap
         color: line.failed ? Theme.error : Theme.dim

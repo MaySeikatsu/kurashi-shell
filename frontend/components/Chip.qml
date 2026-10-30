@@ -30,6 +30,9 @@ Rectangle {
     }
     Text {
         id: t
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         color: Theme.ringW > 0 && c.fg === Theme.dim ? Theme.line : c.fg
         font.pixelSize: Theme.fsCaption

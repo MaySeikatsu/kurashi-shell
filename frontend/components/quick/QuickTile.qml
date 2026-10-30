@@ -151,6 +151,9 @@ Item {
             width: face.width - 2 * face.inset - x - tile.arrowW
             anchors.verticalCenter: parent.verticalCenter
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 elide: Text.ElideRight
                 color: tile.lit ? tile.onFg : Theme.fg
@@ -160,6 +163,9 @@ Item {
                 text: tile.label
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
