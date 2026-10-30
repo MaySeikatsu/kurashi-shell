@@ -7,6 +7,7 @@ import "../core/mods.js" as Mods
 import "../components"
 import "../components/expanded"
 import "../components/island"
+import "../components/decor"
 import "../components/bar/framegeom.js" as FG
 
 // Stage (ARCHITECTURE §4): overlay layer surface holding popups / OSD / island expansions, the
@@ -177,10 +178,6 @@ PanelWindow {
     readonly property var titleDoc: ui.title || null
     readonly property bool titled: titleDoc !== null && contentKind !== ""
     readonly property int titleH: titled ? Math.round(Theme.tok("decor.title.height", 28)) : 0
-    readonly property string titleFile: {
-        var n = String(Theme.tok("decor.title", ""))
-        return n === "" ? "" : n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
-    }
     // Maximize = full screen: the largest card the output has room for, under (or over) its bar.
     readonly property bool full: titled && titleDoc.full === true
     readonly property int fullW: screen ? screen.width - 2 * Theme.pad : 720
@@ -197,6 +194,7 @@ PanelWindow {
         id: plainTitle
         Item {
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 anchors { left: parent.left; leftMargin: Theme.pad + 4; right: keys.left; rightMargin: Theme.gap
                           verticalCenter: parent.verticalCenter }
                 text: stage.cardTitle
@@ -594,7 +592,9 @@ PanelWindow {
     // ---- W34: the peek's shape. On a top or bottom bar (springs on) a peek grows out of its widget's box (the request's x
     // and w) as the panels do — headless, out of the strip's edge or the widget's block — and its lines fade in once it
     // has; it folds back into the widget when it goes. The window covers the bar's strip, the widget and the card.
-    readonly property bool peekMorph: peekLayout && !peekSide && Theme.springOn
+    // (A look's tooltip part draws a free balloon: no morph out of the bar, W53 row 591.)
+    readonly property bool peekMorph: peekLayout && !peekSide && Theme.springOn && !peekTip.has
+    TooltipStyle { id: peekTip }
     // A peek with nothing to say (its lines empty: the timer's while none runs) draws nothing — no empty frame (I259).
     readonly property bool peekEmpty: {
         var l = peekLoader.item
@@ -692,8 +692,8 @@ PanelWindow {
             rBot: Theme.rSm
             edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
             neck: stage.joined ? 0 : Theme.rSm
-            // (I277: the peek is the bar's sheet, as the card it grows out of)
-            fill: Theme.surfaceAlpha
+            // (I277: the peek is the bar's sheet, as the card it grows out of; a look's tooltip fill, W53)
+            fill: peekTip.fill(Theme.surfaceAlpha)
             ringScale: 0.5
             flip: stage.peekFlip
         }
@@ -741,9 +741,9 @@ PanelWindow {
         width: Math.max(160, Math.min(stage.peekMaxW, peekLoader.implicitWidth + 2 * Theme.pad))
         height: peekLoader.implicitHeight + 2 * Theme.pad
         radius: Theme.rSm
-        color: stage.peekMorph ? "transparent" : Theme.surfaceAlpha
+        color: stage.peekMorph || peekTip.has ? "transparent" : peekTip.fill(Theme.surfaceAlpha)
         // K62: with a pen in effect the pen draws the outline (1 px further in: the frame clips its children).
-        border.width: peekPen.active || stage.peekMorph ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        border.width: peekPen.active || stage.peekMorph || peekTip.has ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         clip: true
         Loader {
@@ -770,8 +770,15 @@ PanelWindow {
         Loader {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
-            active: Theme.texShell && peekCard.visible && !stage.peekMorph
+            active: Theme.texShell && peekCard.visible && !stage.peekMorph && !peekTip.has
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, peekCard.radius - Theme.outlineW) }
+        }
+        // The look's tooltip part under the lines (W53, row 591; TooltipBase), its tail toward the bar.
+        Loader {
+            anchors.fill: parent
+            active: peekTip.has && peekCard.visible
+            source: active ? peekTip.part : ""
+            onLoaded: item.tailSide = Qt.binding(function () { return stage.shownEdge })
         }
         HoverHandler { onHoveredChanged: hovered ? Peeks.hold() : Peeks.leave() }
         TapHandler { onTapped: Peeks.dismiss() }
@@ -789,7 +796,12 @@ PanelWindow {
     }
     Component {
         id: peekLinesView
-        PeekLines { lines: stage.peekLinesOf(stage.shownSource); maxWidth: stage.peekMaxW - 2 * Theme.pad }
+        PeekLines {
+            lines: stage.peekLinesOf(stage.shownSource)
+            maxWidth: stage.peekMaxW - 2 * Theme.pad
+            fg: peekTip.ink(Theme.fg)
+            dim: peekTip.ink(Theme.dim)
+        }
     }
 
     // ---- the one shape (W21, W34; see the header). Everything here is in a top bar's frame ("local": y from the screen
@@ -1247,7 +1259,7 @@ PanelWindow {
         // The island's card (W21): the shape draws it; this holds the view where the grown shape will be, fading in after it.
         x: stage.morphMode ? stage.cardOutX - stage.boxL : 0
         y: stage.morphMode ? (stage.flip ? stage.morphH - stage.cardTop - height : stage.cardTop)
-            : -stage.slide * (1 - stage.p)   // above the surface edge = clipped away
+            : (inner.form === "grow" ? -stage.slide * (1 - stage.p) : 0)   // above the surface edge = clipped away
         opacity: stage.morphMode ? stage.contentP : 1
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
@@ -1311,12 +1323,16 @@ PanelWindow {
             width: cutRight - cutLeft
             height: cutBottom - cutTop
             clip: stage.morphMode
-        Item {
+        // The look's form (W53, row 591; decor/Entrance): sliding in, the card's content arrives as the look moves on the
+        // card's progress; `grow` (the default) leaves it to the card's slide, and the morph is the shape's own motion.
+        Entrance {
             id: inner
             x: -reveal.cutLeft
             y: -reveal.cutTop
             width: card.width
             height: card.height
+            progress: stage.morphMode ? 1 : stage.p
+            edge: "top"
 
         // W53.0b (K80): the card's title bar, where the style draws one (`runtime.ui.title`, the daemon's: the buttons
         // and what each does). The style's own strip (`decor.title`, components/decor/title/<Name>.qml) when it loads,
@@ -1326,21 +1342,18 @@ PanelWindow {
             visible: stage.titled
             anchors { left: parent.left; right: parent.right; top: parent.top }
             height: stage.titleH
-            Loader {
+            // TitleHost turns the daemon's buttons into the part's contract (TitleBase) and says each press (rows 560/591).
+            TitleHost {
                 id: styleTitle
                 anchors.fill: parent
-                active: stage.titled && stage.titleFile !== ""
-                source: active ? Qt.resolvedUrl("../components/decor/title/" + stage.titleFile + ".qml") : ""
-                onLoaded: {
-                    item.title = Qt.binding(function () { return stage.cardTitle })
-                    item.buttons = Qt.binding(function () { return stage.titleDoc ? stage.titleDoc.buttons : [] })
-                    item.full = Qt.binding(function () { return stage.full })
-                    item.pressed.connect(function (id) { Store.act("ui.title", { button: id }) })
-                }
+                active: has && stage.titled
+                spec: stage.titleDoc
+                title: stage.cardTitle
+                onPressed: (id) => Store.act("ui.title", { button: id })
             }
             Loader {
                 anchors.fill: parent
-                active: stage.titled && styleTitle.status !== Loader.Ready
+                active: stage.titled && !styleTitle.ready
                 sourceComponent: plainTitle
             }
         }
@@ -1379,6 +1392,7 @@ PanelWindow {
             anchors.topMargin: Theme.pad + 4 + stage.titleH
             spacing: Theme.gap
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: trayCol.width
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -1387,6 +1401,7 @@ PanelWindow {
                 text: stage.trayItem(stage.trayKey).title || I18n.tr("frontend.tray.menu")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: text !== ""
                 width: trayCol.width
                 wrapMode: Text.WordWrap

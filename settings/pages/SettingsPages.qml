@@ -422,6 +422,7 @@ Flickable {
             sourceComponent: cLayoutScreen
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.view.length === 0
             width: col.width
             wrapMode: Text.WordWrap
@@ -539,6 +540,7 @@ Flickable {
                                     Accessible.role: Accessible.Link
                                     Accessible.name: modelData.crumb
                                     Text {
+                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width
                                         elide: Text.ElideRight
@@ -602,6 +604,7 @@ Flickable {
             topPadding: Theme.pad
             spacing: Theme.gap
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 height: Theme.controlH - 8
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.dim

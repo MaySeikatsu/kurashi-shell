@@ -25,6 +25,7 @@ FaceBase {
             color: Theme.secondary
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs

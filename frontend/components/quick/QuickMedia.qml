@@ -40,6 +40,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 width: parent.width
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: parent.width
                     elide: Text.ElideRight
                     color: Theme.fg
@@ -48,6 +49,7 @@ Column {
                     text: String(mini.d.title ?? "")
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: parent.width
                     visible: text !== ""
                     elide: Text.ElideRight
@@ -88,6 +90,7 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: mini.errText !== ""
         width: mini.width
         wrapMode: Text.WordWrap

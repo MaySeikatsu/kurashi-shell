@@ -23,6 +23,7 @@ Column {
         width: so.width
         spacing: Theme.gap
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             height: Theme.controlH
             verticalAlignment: Text.AlignVCenter
             color: Theme.fg
@@ -45,6 +46,7 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: so.width
         wrapMode: Text.WordWrap
         color: Theme.dim
@@ -53,6 +55,7 @@ Column {
         text: I18n.fmt("sidebar.keys", { right: "Mod+Shift+N", left: "Mod+A" })
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: so.error !== ""
         width: so.width
         wrapMode: Text.WordWrap

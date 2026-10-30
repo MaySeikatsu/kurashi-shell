@@ -29,6 +29,7 @@ Item {
         radius: Theme.rFull
         fill: Theme.selected
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: hd.user !== ""
             anchors.centerIn: parent
             color: Theme.color("color.on_selected", Theme.fg)
@@ -53,6 +54,7 @@ Item {
         anchors.verticalCenter: avatar.verticalCenter
         anchors.verticalCenterOffset: -Theme.shadowDy / 2
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             elide: Text.ElideRight
             color: Theme.fg
@@ -62,6 +64,7 @@ Item {
             text: hd.user !== "" ? hd.user : I18n.tr("sidebar.header.user")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             visible: text !== ""
             wrapMode: Text.WordWrap

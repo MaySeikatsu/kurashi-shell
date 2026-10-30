@@ -74,6 +74,7 @@ Column {
             color: sl.micOn ? Theme.accent : Theme.dim
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             x: micMark.x + micMark.width + Theme.gap
             width: micSwitch.x - x - Theme.gap
             height: mic.innerH

@@ -119,6 +119,7 @@ Item {
                         Accessible.selected: chip.on
                         Text {
                             id: lbl
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.centerIn: parent
                             color: chip.on ? Theme.fgOnSelected : Theme.fg
                             font.pixelSize: Theme.fs

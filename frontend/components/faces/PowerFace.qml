@@ -38,6 +38,7 @@ FaceBase {
             color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -61,6 +62,7 @@ FaceBase {
             color: f.low ? Theme.error : (f.onBattery ? Theme.fg : Theme.tertiary)
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             Accessible.ignored: true
             visible: f.hasPct
             color: Theme.fg

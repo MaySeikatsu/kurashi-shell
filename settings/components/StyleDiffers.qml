@@ -27,6 +27,7 @@ Flow {
 
     Text {
         id: line
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: Math.min(implicitWidth, sd.width)
         height: Math.max(implicitHeight, Theme.controlH)
         verticalAlignment: Text.AlignVCenter

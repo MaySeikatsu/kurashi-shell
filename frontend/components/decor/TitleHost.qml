@@ -6,6 +6,11 @@ import "../../core"
 // and the host is 0 px tall (today's cards). Shōjiki: a caption draws only buttons that act — the close button only
 // with `canClose`, and `close` does what Esc does (the caller wires it to `ui.close`); minimize and maximize are the
 // caller's (W53.0b's title-bar switch and actions) and are drawn only where it sets `buttons`.
+// W53 integration (contract rows 560, 591): a Stage card passes the daemon's title document whole (`spec`:
+// `runtime.ui.title`, `{buttons: [{id, action, menu?}], full}`, ids left to right). The host turns it into the part's
+// contract — `canClose` while the daemon lists close, the other ids from the close button inward — and says
+// `pressed(id)` for every button, close included (each button's action is the daemon's: `ui.title {button}`). So a part
+// keeps TitleBase's shape; one that declares `full` (maximize shows restore) gets it.
 DecorHost {
     id: th
     slot: "title"
@@ -13,11 +18,18 @@ DecorHost {
     property string icon: ""
     // The window has focus (an inactive caption greys, as 9x/XP/7 do).
     property bool focused: true
-    property bool canClose: true
+    property var spec: null
+    readonly property var ids: spec && spec.buttons ? spec.buttons.map(function (b) { return b.id }) : null
+    property bool canClose: ids ? ids.indexOf("close") >= 0 : true
     // Extra buttons the caller gives actions to, in order from the close button inward: e.g. ["maximize", "minimize"].
-    property var buttons: []
+    property var buttons: ids ? ids.filter(function (i) { return i !== "close" }).reverse() : []
+    // The card is full screen (its maximize button restores).
+    property bool full: spec ? spec.full === true : false
     signal close()
     signal button(string name)
+    signal pressed(string id)
+    onClose: pressed("close")
+    onButton: (name) => pressed(name)
     // (A Loader's implicit size is its part's: 0 px tall without one.)
     onLoaded: {
         item.title = Qt.binding(function () { return th.title })
@@ -25,6 +37,7 @@ DecorHost {
         item.active = Qt.binding(function () { return th.focused })
         item.canClose = Qt.binding(function () { return th.canClose })
         item.buttons = Qt.binding(function () { return th.buttons })
+        if (item.full !== undefined) item.full = Qt.binding(function () { return th.full })
         item.close.connect(th.close)
         item.button.connect(th.button)
     }

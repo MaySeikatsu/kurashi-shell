@@ -76,6 +76,7 @@ Item {
             }
             Text {
                 id: txt
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 anchors.verticalCenter: parent.verticalCenter
                 // On the accent fill the text takes on_accent (4.5:1); on the container, the normal foreground.
                 color: b.primary ? Theme.fgOnAccent : Theme.fg

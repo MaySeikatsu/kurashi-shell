@@ -114,6 +114,7 @@ Item {
 
         Text {
             id: shownText
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.left: parent.left
             anchors.leftMargin: Theme.pad
             anchors.right: caret.left
@@ -127,6 +128,7 @@ Item {
         }
         Text {
             id: caret
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.right: parent.right
             anchors.rightMargin: Theme.pad
             anchors.verticalCenter: parent.verticalCenter
@@ -206,6 +208,7 @@ Item {
                     anchors.rightMargin: Theme.gap
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         width: parent.width
                         elide: Text.ElideRight
                         color: opt.pickable ? Theme.fg : Theme.dim
@@ -214,6 +217,7 @@ Item {
                         text: I18n.tr(opt.modelData.label)
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: opt.reasonText !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -226,6 +230,7 @@ Item {
                 // The chosen offer is marked by a tick, not only by its place in the list.
                 Text {
                     id: tick
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
                     anchors.verticalCenter: parent.verticalCenter

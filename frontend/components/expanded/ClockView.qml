@@ -94,6 +94,7 @@ Column {
             width: view.width - (aside.visible ? aside.width + Theme.gap : 0)
             spacing: Theme.xs
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: view.valid
                 width: parent.width
                 wrapMode: Text.WordWrap
@@ -122,6 +123,7 @@ Column {
             onClicked: view.shiftMonths(-1)
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: view.width - prevMonth.width - nextMonth.width - todayBtn.width - 3 * Theme.gap
             height: prevMonth.height
             font.weight: Theme.wMedium
@@ -261,6 +263,7 @@ Column {
                             corner: Theme.rSm + 3
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.centerIn: dayBlock
                             anchors.verticalCenterOffset: dayCell.numberMid - (dayBlock.y + dayBlock.height / 2)
                             visible: parent.inMonth
@@ -328,6 +331,7 @@ Column {
         width: view.width
         spacing: Theme.xs
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: view.valid
             width: parent.width
             color: Theme.dim
@@ -337,6 +341,7 @@ Column {
         }
         SlotHost { id: agendaHost; slot: "clock.expanded.day"; width: parent.width; extra: ({ date: view.selIso }) }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: agendaHost.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap

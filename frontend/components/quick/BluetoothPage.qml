@@ -60,6 +60,7 @@ Column {
             bt.act(connect ? "bluetooth.connect" : "bluetooth.disconnect", {address: address})
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: !bt.avail
         width: bt.width
         wrapMode: Text.WordWrap

@@ -23,6 +23,7 @@ Column {
         onBack: dp.backRequested()
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: dp.width
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
@@ -39,6 +40,7 @@ Column {
         onMoved: v => Store.intent("brightness.set", v, "qs:quick")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: !dp.present
         width: dp.width
         wrapMode: Text.WordWrap
@@ -50,6 +52,7 @@ Column {
     Column {
         width: dp.width
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -57,6 +60,7 @@ Column {
             text: I18n.tr("island.quick.display.night_light")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim

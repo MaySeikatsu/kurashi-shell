@@ -37,6 +37,7 @@ Column {
         height: Math.max(title.implicitHeight, switchRow.height)
         Text {
             id: title
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             width: Math.min(implicitWidth, parent.width - switchRow.width - Theme.pad * 2)
@@ -62,6 +63,7 @@ Column {
                 onToggled: v => h.setOn(v)
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 height: Theme.controlH
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.dim
@@ -72,6 +74,7 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: h.forced !== ""
         width: parent.width
         wrapMode: Text.WordWrap
@@ -81,6 +84,7 @@ Column {
         text: "⊘ " + h.forced
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: h.failure !== ""
         width: parent.width
         wrapMode: Text.WordWrap
@@ -93,6 +97,7 @@ Column {
     // --- what it is, does and costs --------------------------------------------------------------------
     // "Running now" names what it runs for (I48, docs/ux/settings.md): a job with nothing to do is not listed.
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: h.entry !== null && h.entry.running !== undefined
         width: parent.width
         wrapMode: Text.WordWrap
@@ -106,6 +111,7 @@ Column {
         Accessible.name: text
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: !!h.entry && !!h.entry.description
         width: parent.width
         wrapMode: Text.WordWrap
@@ -115,6 +121,7 @@ Column {
         text: h.entry && h.entry.description ? I18n.tr(h.entry.description) : ""
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: !!h.entry
         width: parent.width
         wrapMode: Text.WordWrap
@@ -132,6 +139,7 @@ Column {
         width: parent.width
         spacing: Theme.gap
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             height: Theme.controlH - 8
             verticalAlignment: Text.AlignVCenter
             color: Theme.dim
@@ -145,6 +153,7 @@ Column {
                 required property var modelData
                 spacing: 4
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     height: Theme.controlH - 8
                     verticalAlignment: Text.AlignVCenter
                     color: Theme.fg

@@ -334,6 +334,7 @@ Item {
             Accessible.role: Accessible.Button
             Accessible.name: I18n.tr("tasks.a11y.more").replace("{n}", tl.moreN)
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 anchors.centerIn: parent
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
@@ -396,6 +397,7 @@ Item {
                     width: box.width - 2 * Theme.gap
                     Text {
                         id: titleT
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         width: parent.width
                         elide: Text.ElideRight
                         color: peek.moving ? Theme.accent : Theme.fg
@@ -409,6 +411,7 @@ Item {
                     }
                     Text {
                         id: appT
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: !peek.moving
                         width: parent.width
                         elide: Text.ElideRight
@@ -478,6 +481,7 @@ Item {
                     width: menuBody.width - 2 * Theme.gap - 2 * menuBody.inset
                     // The window's title (fetched on open) and its app; for "+N" the count.
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         width: parent.width
                         leftPadding: Theme.gap
                         text: tl.menuId === -2 ? I18n.tr("tasks.a11y.more").replace("{n}", tl.moreN)
@@ -489,6 +493,7 @@ Item {
                         font.family: Theme.fam(text, Theme.families)
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: tl.menuId >= 0
                         width: parent.width
                         leftPadding: Theme.gap
@@ -513,6 +518,7 @@ Item {
                             Accessible.role: Accessible.MenuItem
                             Accessible.name: modelData.text
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                 anchors.verticalCenter: parent.verticalCenter
                                 x: Theme.gap
                                 width: parent.width - 2 * Theme.gap
@@ -528,6 +534,7 @@ Item {
                     }
                     // Why the last action did not take (Shōjiki: nothing changed).
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: tl.menuError !== ""
                         width: parent.width
                         leftPadding: Theme.gap

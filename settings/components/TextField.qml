@@ -1,5 +1,6 @@
 import QtQuick
 import "../core"
+import "decor"
 
 // Single-line editor. Enter and leaving the field emit `accepted` with the typed text. The typed text stays while the
 // daemon refuses it (the row says why, under the control) and follows the daemon's value once that changes, so an
@@ -46,6 +47,13 @@ RoundBox {
     // The daemon's value is shown whenever it changes while the field is not being edited.
     onValueChanged: if (!input.activeFocus) input.text = f.value
 
+    // A text field is a well (W53, row 591): sunken under a bevel chrome, as Block { sunken: true } draws it; nothing else.
+    Loader {
+        anchors.fill: parent
+        active: Theme.bevelW > 0
+        sourceComponent: BevelEdge { sunk: true }
+    }
+
     Rectangle {
         visible: f.showSwatch
         width: 14
@@ -88,6 +96,7 @@ RoundBox {
         Accessible.role: Accessible.EditableText
         Accessible.name: f.label !== "" ? f.label : f.placeholder
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: input.text === "" && !input.activeFocus
             color: Theme.dim
             font: input.font

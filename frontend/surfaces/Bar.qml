@@ -804,6 +804,7 @@ Scope {
                 // The count of the slots the column has no room for; it follows the last one that is shown.
                 Text {
                     id: hiddenT
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: vl.hiddenN > 0
                     width: bar.barH
                     horizontalAlignment: Text.AlignHCenter

@@ -106,6 +106,7 @@ Column {
                         color: Theme.outline
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: modelData.name !== "none" && modelData.image === ""
                         anchors.centerIn: parent
                         color: Theme.dim
@@ -123,6 +124,7 @@ Column {
                         radius: 9
                         color: Theme.accent
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.centerIn: parent
                             color: Theme.fgOnAccent
                             font.pixelSize: 12
@@ -133,6 +135,7 @@ Column {
                 }
                 Text {
                     id: cap
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.top: face.bottom
                     anchors.topMargin: 4
                     width: card.width

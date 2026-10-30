@@ -67,6 +67,7 @@ Item {
                   verticalCenter: lead.verticalCenter }
         spacing: 2
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             textFormat: Text.PlainText
             wrapMode: Text.Wrap
@@ -79,6 +80,7 @@ Item {
             text: cr.entry.binary ? I18n.tr("launcher.clip.binary") + " · " + (cr.entry.name || "") : (cr.entry.name || "")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             visible: cr.isImage
             textFormat: Text.PlainText
@@ -107,6 +109,7 @@ Item {
             Accessible.name: I18n.tr("launcher.clip.pinned")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             visible: cr.selected
             color: Theme.dim

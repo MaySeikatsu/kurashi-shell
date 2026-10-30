@@ -47,6 +47,7 @@ Item {
         }
         Text {
             id: readoutText
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             x: pill.innerW - width - 14
             width: 64
             height: pill.innerH

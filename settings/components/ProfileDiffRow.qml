@@ -21,6 +21,7 @@ Flow {
     spacing: Theme.gap / 2
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: 260
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
@@ -31,6 +32,7 @@ Flow {
         text: r.name
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -45,6 +47,7 @@ Flow {
         output: r.entry.output ?? ""
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -52,6 +55,7 @@ Flow {
         text: "→"
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.fg

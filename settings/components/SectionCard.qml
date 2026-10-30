@@ -51,6 +51,7 @@ Item {
                 spacing: Theme.gap
                 bottomPadding: Theme.gap / 2
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: Theme.iconFamily !== "" && c.icon !== ""
                     anchors.verticalCenter: parent.verticalCenter
                     font.family: Theme.iconFamily
@@ -60,6 +61,7 @@ Item {
                     text: c.icon
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
                     font.pixelSize: Theme.fs + 1

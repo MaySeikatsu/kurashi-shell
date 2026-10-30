@@ -6,6 +6,7 @@ import "../core"
 import "../components"
 import "../components/sidebar"
 import "../components/island"
+import "../components/decor"
 import "../components/bar/appicon.js" as AppIcons
 
 // The app dock (K51, docs/ux/dock.md) of one output: pinned apps (`dock.pinned`, desktop ids) then the running ones
@@ -804,6 +805,7 @@ Scope {
                                             size: Math.round(dock.icon * 0.5)
                                         }
                                         Text {
+                                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                             anchors.centerIn: parent
                                             visible: !img.visible && cell.modelData !== "+" && cell.modelData.charAt(0) !== "?"
                                             color: cell.focusedApp ? Theme.fgOnSelected : Theme.fg
@@ -940,26 +942,39 @@ Scope {
                             mask: Region {}
                             // Glass: the tooltip is the dock's sheet, blurred as it is (I296).
                             BackgroundEffect.blurRegion: Region { item: Theme.blur ? tipBox : null; radius: Theme.rSm }
+                            // The look's tooltip (W53, row 591): its fill and ink, or its part under the text.
+                            TooltipStyle { id: tipStyle }
                             RoundBox {
                                 id: tipBox
                                 width: tipText.implicitWidth + 2 * Theme.gap
                                 height: tipText.implicitHeight + Theme.gap
                                 radius: Theme.rSm
                                 // The dock's own sheet and material (I277)
-                                color: Theme.surfaceAlpha
-                                border.width: 1
+                                color: tipStyle.has ? "transparent" : tipStyle.fill(Theme.surfaceAlpha)
+                                border.width: tipStyle.has ? 0 : 1
                                 border.color: Theme.outline
                                 Loader {
                                     anchors.fill: parent
                                     anchors.margins: 1
-                                    active: Theme.texShell
+                                    active: Theme.texShell && !tipStyle.has
                                     sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, tipBox.radius - 1) }
+                                }
+                                Loader {
+                                    anchors.fill: parent
+                                    active: tipStyle.has
+                                    source: active ? tipStyle.part : ""
+                                    onLoaded: {
+                                        item.title = Qt.binding(function () { return tip.text })
+                                        item.tailSide = dock.edge === "bottom" ? "bottom" : dock.atTop ? "top"
+                                            : (dock.edge === "left" ? "left" : "right")
+                                    }
                                 }
                                 Text {
                                     id: tipText
+                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                     anchors.centerIn: parent
                                     text: tip.text
-                                    color: Theme.fg
+                                    color: tipStyle.ink(Theme.fg)
                                     font.pixelSize: Theme.fsCaption
                                     font.family: Theme.fam(text, Theme.families)
                                 }
@@ -1006,6 +1021,7 @@ Scope {
                                 focus: true
                                 Keys.onPressed: function (ev) { ev.accepted = dock.menuKeyPress(ev.key) }
                             }
+                            MenuStyle { id: menuStyle }
                             Block {
                                 id: menuBody
                                 readonly property rect at: dock.menuAt
@@ -1025,6 +1041,7 @@ Scope {
                                     y: Theme.gap
                                     width: menuBody.width - 2 * Theme.gap - 2 * menuBody.inset
                                     Text {
+                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                         width: parent.width
                                         leftPadding: Theme.gap
                                         bottomPadding: Theme.xs
@@ -1041,18 +1058,28 @@ Scope {
                                             id: row
                                             required property var modelData
                                             required property int index
+                                            readonly property bool current: (rowHover.hovered || dock.menuCurrent === index) && modelData.on
                                             width: col.width
-                                            height: Theme.controlH
-                                            radius: Theme.rSm
-                                            color: (rowHover.hovered || dock.menuCurrent === index) && modelData.on ? Theme.containerHigh : "transparent"
+                                            height: menuStyle.rowH(Theme.controlH)
+                                            radius: menuStyle.radius(Theme.rSm)
+                                            color: row.current && face.ownHighlight ? Theme.containerHigh : "transparent"
                                             opacity: modelData.on ? 1 : 0.5
                                             Accessible.role: Accessible.MenuItem
                                             Accessible.name: modelData.text
+                                            // The look's row face (W53, row 591); the capsule above while the look leaves it.
+                                            MenuRowFace {
+                                                id: face
+                                                anchors.fill: parent
+                                                highlighted: row.current
+                                                enabled: row.modelData.on
+                                                margin: Theme.gap
+                                            }
                                             Text {
+                                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 x: Theme.gap
                                                 text: row.modelData.text
-                                                color: Theme.fg
+                                                color: face.ink(Theme.fg)
                                                 font.pixelSize: Theme.fs
                                                 font.family: Theme.fam(text, Theme.families)
                                             }
@@ -1062,6 +1089,7 @@ Scope {
                                     }
                                     // Why Pin is inert, or why the write did not take (Shōjiki).
                                     Text {
+                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                         visible: text !== ""
                                         width: parent.width
                                         leftPadding: Theme.gap

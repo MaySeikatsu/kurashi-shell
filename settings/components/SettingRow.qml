@@ -160,6 +160,7 @@ Item {
             width: r.stacked ? body.width : r.labelW
             spacing: 2
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: r.stacked
                 width: parent.width
                 color: Theme.dim
@@ -169,6 +170,7 @@ Item {
                 text: I18n.tr("settings.appearance." + (r.row.choices_from || "") + ".what")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: !r.stacked
                 width: parent.width
                 color: r.inert ? Theme.dim : Theme.fg
@@ -178,6 +180,7 @@ Item {
                 text: I18n.tr(r.row.label)
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: text !== "" && !r.stacked
                 width: parent.width
                 color: Theme.dim
@@ -253,6 +256,7 @@ Item {
                         output: r.out
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: r.previewing
                         height: Theme.controlH
                         verticalAlignment: Text.AlignVCenter
@@ -295,6 +299,7 @@ Item {
                     required property var modelData
                     spacing: Theme.gap
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         width: Math.min(implicitWidth, ctlCol.width - (link.visible ? link.width + Theme.gap : 0))
                         wrapMode: Text.WordWrap
                         color: Theme.dim
@@ -311,6 +316,7 @@ Item {
                 }
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: r.error !== "" && !r.fieldRefusal
                 width: ctlCol.width
                 wrapMode: Text.WordWrap
