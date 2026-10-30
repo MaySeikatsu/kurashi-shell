@@ -1,0 +1,9 @@
+# ログオン ロック画面 (W53.1, components/lock/LogonFace.qml): ベベル時代の「ようこそ」ダイアログ。
+"lockui.face.name.logon" = "ログオン ダイアログ"
+"lockui.logon.title" = "{host} へようこそ"
+"lockui.logon.instruction" = "このコンピュータのロックを解除するには、パスワードを入力してください。"
+"lockui.logon.user" = "ユーザー名:"
+"lockui.logon.password" = "パスワード:"
+"lockui.logon.ok" = "OK"
+"lockui.logon.cancel" = "キャンセル"
+"lockui.logon.error_title" = "ロック解除"
