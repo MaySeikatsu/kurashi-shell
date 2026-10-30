@@ -731,12 +731,13 @@ mod tests {
         let doc = document(
             &store_with(
                 &root,
-                "schema_version = 2\n[theme]\nstyle = \"yorha\"\nlook = \"win95\"\n",
+                "schema_version = 2\n[theme]\nstyle = \"yorha\"\nlook = \"luna\"\n",
             ),
             &fonts,
             None,
         );
-        assert_eq!(doc["tokens"]["decor.frame"], "bevel");
+        // (win95 drew its edge with the bevel frame until W53.1 gave it the bevel chrome: luna keeps a frame.)
+        assert_eq!(doc["tokens"]["decor.frame"], "luna");
         assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
         assert_eq!(doc["appearance"]["overrides"], json!(["theme.look"]));
         let doc = document(

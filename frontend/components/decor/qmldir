@@ -7,3 +7,5 @@ StartHost 1.0 StartHost.qml
 TitleHost 1.0 TitleHost.qml
 TooltipStyle 1.0 TooltipStyle.qml
 TrayWell 1.0 TrayWell.qml
+PixelLabel 1.0 PixelLabel.qml
+Checker 1.0 Checker.qml

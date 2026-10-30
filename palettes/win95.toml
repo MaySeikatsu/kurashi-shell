@@ -1,34 +1,56 @@
-# Win95 — silver controls, navy title bars, the 3D bevel era. Light, and dark (K53). Roles after shellseikatsu
-# `_win95Palette()` (W25, K50). Meant for decor `win95` (frame `bevel`).
+# Win95 — Windows 98 SE, "Windows Standard": silver #c0c0c0 controls, the navy → blue caption gradient, the teal desk.
+# Light, and dark (K53). W53.1 (docs/ux/styles.md §1): every role the 98 desk shows is named here, measured from real 98
+# screenshots at 1:1 (GUIdebook, guidebookgallery.org/screenshots/win98 — the login dialog, the desktop with the Start
+# menu open), never left to the derivations: the face, the four bevel lines (push buttons: #ffffff/#dfdfdf over
+# #808080/#000000 — DkShadow is pure black in 98, 98.css's #0a0a0a is a softening), the caption ends active and inactive,
+# the tooltip yellow and the desk.
 name = "win95"
 kind = "pair"
 description = "Silver, navy and teal (decor win95)"
 
 [light]
-surface = "#c0c0c0"
-surface_container_lowest = "#dfdfdf"
-surface_container_low = "#c8c8c8"
+surface = "#c0c0c0"                   # ButtonFace
+surface_container_lowest = "#ffffff"  # Window: text fields and list wells are white
+surface_container_low = "#c0c0c0"
 surface_container = "#c0c0c0"
 surface_container_high = "#c0c0c0"
-surface_container_highest = "#d0d0d0"
+surface_container_highest = "#c0c0c0"
 on_surface = "#000000"
-on_surface_variant = "#222222"
-outline = "#808080"
-outline_variant = "#a0a0a0"
-accent = "#000080"                    # title bar navy
+on_surface_variant = "#000000"        # 98 drew secondary text black too; disabled text is embossed grey (GrayText #808080)
+outline = "#808080"                   # ButtonShadow
+outline_variant = "#dfdfdf"           # ButtonLight
+accent = "#000080"                    # Hilight: menu and list selection navy
+on_accent = "#ffffff"
 accent_container = "#000080"
 on_accent_container = "#ffffff"
-secondary = "#006a6a"                 # desktop teal
-tertiary = "#5e5e00"
-warning = "#6e5200"
-error = "#aa0000"
+secondary = "#008080"                 # the desk teal
+tertiary = "#808000"
+warning = "#808000"
+error = "#800000"
+on_error = "#ffffff"
+success = "#008000"
 line = "#000000"
 ring = "#ffffff"
+# W53.0a roles, named: the caption (ActiveTitle / GradientActiveTitle, InactiveTitle / GradientInactiveTitle, TitleText),
+# the bevel (ButtonHilight, ButtonLight, ButtonShadow, ButtonDkShadow), the tooltip (InfoWindow, InfoText), the desk.
+title = "#000080"
+title_end = "#1084d0"
+title_inactive = "#808080"
+title_inactive_end = "#b5b5b5"
+on_title = "#ffffff"
+bevel_light = "#ffffff"
+bevel_light2 = "#dfdfdf"
+bevel_dark2 = "#808080"
+bevel_dark = "#000000"
+info = "#ffffe1"
+on_info = "#000000"
+desk = "#008080"
 
-# Dark (K53: every palette has both schemes): a charcoal take on the bevel era: dark silver controls, Win98 title blue, teal.
+# Dark (K53: every palette has both schemes): a charcoal take on the bevel era: dark silver controls, the same navy caption,
+# teal.
 [dark]
 surface = "#333333"
-surface_container_lowest = "#262626"
+surface_container_lowest = "#1a1a1a"
 surface_container_low = "#383838"
 surface_container = "#3a3a3a"
 surface_container_high = "#3a3a3a"
@@ -46,3 +68,15 @@ warning = "#e8c040"
 error = "#ff6060"
 line = "#0a0a0a"
 ring = "#6e6e6e"
+title = "#000080"
+title_end = "#1084d0"
+title_inactive = "#4a4a4a"
+title_inactive_end = "#6a6a6a"
+on_title = "#ffffff"
+bevel_light = "#6e6e6e"
+bevel_light2 = "#4a4a4a"
+bevel_dark2 = "#1e1e1e"
+bevel_dark = "#000000"
+info = "#3a3a24"
+on_info = "#ffffff"
+desk = "#004848"

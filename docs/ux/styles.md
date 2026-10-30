@@ -76,36 +76,44 @@ is `round(dpr)` device px, never a blurred 1.25 px line (see "The shared system 
 ## 1. win95 — Windows 98 SE, "Windows Standard"
 
 **Reference.** The 98 SE desktop, with a teal ground, silver windows and a navy-to-blue caption. Screenshots:
-98.css demo <https://jdan.github.io/98.css/> [R]; GUIdebook Windows 98 gallery
-<https://guidebookgallery.org/screenshots/win98> (to verify the URL).
+98.css demo <https://jdan.github.io/98.css/> [R]; GUIdebook Windows 98 gallery <https://guidebookgallery.org/screenshots/win98>
+(verified). **[M] measured** (W53.1, 2026-10-30): pixels read at 1:1 from real 98 SE captures, 640 × 480, lossless —
+the logon dialog <https://guidebookgallery.org/pics/gui/startupshutdown/login/win98.png> ("login"), the desktop with the
+Start menu, a submenu, a tooltip and an inactive window <https://guidebookgallery.org/pics/gui/desktop/full/win98.png>
+("full") and the empty desktop <https://guidebookgallery.org/pics/gui/desktop/empty/win98.png> ("empty"); coordinates in
+those images. (Wikipedia's <https://en.wikipedia.org/wiki/File:Windows98.png> is scaled: not usable for pixels.)
 
 **Metrics**
 
 | part | value | source |
 |---|---|---|
-| caption height | 18 px (+1 border) | [W] sysmetrics `CaptionHeight` |
-| caption fill | active gradient `#000080 → #1084d0` (horizontal); inactive `#808080 → #b5b5b5` | [R] 98.css `--dialog-blue(-light)`, `--dialog-gray(-light)` |
-| caption text | bold, white, 11 px "MS Sans Serif" (8 pt), left, 3 px padding | [R] 98.css `.title-bar` (padding `3px 2px 3px 3px`) |
-| caption buttons | 16 × 14, raised bevel, 2 px gap before ×; only × kept (rules) | [R] 98.css |
-| window border | 1 + dialog frame 3 (fixed); sizing frame 4 | [W] sysmetrics |
-| face / highlight / light / shadow / dark | `#c0c0c0` / `#ffffff` / `#dfdfdf` / `#808080` / `#0a0a0a` | [R] 98.css `:root` (dark is `#000000` in Windows, to verify) |
-| raised bevel | outer: 1 px highlight top-left, 1 px dark bottom-right; inner: 1 px light top-left, 1 px shadow bottom-right | [R] `--border-raised-*` |
-| pressed | the pairs swap (sunken) and content moves 1 px down-right | [R] `:active` |
-| default button | an extra 1 px dark frame outside the raised bevel | [R] `.default` |
+| caption height | 18 px, from the frame's 3 px; the text bold white, 3 px in | [M] login y 92–109; [W] `CaptionHeight` |
+| caption fill | active `#000080 → #1084d0` (horizontal); inactive `#808080 → #b5b5b5` with **silver `#c0c0c0` text** | [M] login row 92 (ends `000181`…`1084d0`, 16-bit dither), full row 16 (`808080`…`b5b5b5`) |
+| caption buttons | 16 × 14, raised (white, `#dfdfdf` / `#808080`, black), 2 px in from the caption's top and right, minimize and maximize touching, **2 px gap before ×**; marks: × 8 × 7 in 2 px strokes at (4, 3), _ 6 × 2 at (4, 9), □ 9 × 9 with a 2 px top at (3, 2). Ours: all three, as the title switch says (K80 Decided 3) | [M] login x 510–543, full x 575–624 |
+| window border | dialog frame 3 px: outer `#dfdfdf` / black, inner white / `#808080`, then 1 px face (EDGE_RAISED: the light line is *outside* on windows, *inside* on push buttons) | [M] login x 90–92, x 546–548; [W] |
+| face / highlight / light / shadow / dark | `#c0c0c0` / `#ffffff` / `#dfdfdf` / `#808080` / **`#000000`** (98.css's `#0a0a0a` is a softening) | [M] every bevel in login and full |
+| raised bevel (push button) | outer: 1 px white top-left, 1 px black bottom-right; inner: 1 px `#dfdfdf` top-left, 1 px `#808080` bottom-right | [M] empty start button x 2–55, y 456–477 |
+| pressed | the pairs swap (sunken) and content moves 1 px down-right; the start button stays sunk while its menu is open, with a dotted rectangle inside | [M] full start button; [R] `:active` |
+| default button | an extra 1 px black frame outside the raised bevel (its bottom-right reads 2 px black) | [M] login OK x 461–535, y 122–144 |
 | field / well | sunken: outer shadow / highlight, inner dark / light; white fill; 21 px tall, padding 3 × 4 | [R] `--border-field` |
-| status well | 1 px: shadow top-left, light bottom-right | [R] `--border-status-field` |
-| button | min 75 × 23, padding 0 12, radius 0 | [R] |
+| status well | 1 px: shadow top-left, highlight bottom-right | [M] empty tray x 575–637, y 456–477 |
+| button | 75 × 23, label centred, radius 0 | [M] login OK and Cancel |
 | focus | 1 px dotted black rectangle, inset 4 px | [R] `outline-offset: -4px` |
 | scroll bar | 16 px wide (17 px horizontal), arrow buttons 16 × 17 raised, thumb raised face, track a 1 px checker of face and highlight | [W] `ScrollWidth` 16; [R] |
-| menu row | 18 px (+1); highlight navy `#000080`, white text; separator etched (1 px shadow over 1 px highlight); submenu ▸ at the right | [W] `MenuHeight`; colours [R] tree-view, to verify for menus |
-| tooltip | `#ffffe1` fill, 1 px black border, no shadow, 8 pt | to verify (Windows `COLOR_INFOBK`) |
+| menu row | 18 px (+1) in text menus; 20 px with 16 px icons (Start submenus), 36 px with 32 px icons (the Start menu); highlight navy `#000080` full width, white text; separator etched: 1 px `#808080` over 1 px white | [M] full: Favorites row y 156–191, Channels row y 156–175, separator y 375–376; [W] `MenuHeight` |
+| tooltip | `#ffffe1` fill, 1 px black border, no shadow, 8 pt | [M] full tooltip x 343, y 178–233 |
 | progress | sunken well, navy blocks 16 px wide with 2 px gaps | [R] `.progress-indicator.segmented` |
 | disabled text | embossed: shadow grey text with a 1 px highlight copy offset down-right | to verify |
-| desktop | teal `#008080` | [O] LockStyleRetro; to verify against 98 |
-| taskbar | 28 px, raised top edge; start button ~54 × 22 bold "Start" with mark; Quick Launch; task buttons with icon and title; tray a status well with 16 px icons and the clock | to verify (all) |
+| desktop | teal `#008080` | [M] empty (300, 200) |
+| taskbar | 28 px; top edge `#dfdfdf` then white (a window's raised edge); start button 54 × 22, 2 px from the screen's left, the 16 px mark 2 px inside the bevel, bold "Start" 3 px after it; task buttons 22 px tall; tray a 1 px status well 22 px tall, 2 px from the right edge, the clock right-aligned ~11 px in | [M] empty y 452–479, x 0–60 and 575–639 |
+| type | MS Sans Serif 8 pt: capitals and ascenders 9 px | [M] login "OK", "Cancel" (y 128–136, 158–166) |
 
-**Type.** MS Sans Serif 8 pt bitmap, 11 px, never smoothed. Free stand-ins: **W95FA** (licence to verify) or Fixedsys
-Excelsior (public domain, to verify), then the existing chain. "Pixelated MS Sans Serif" from 98.css is a converted
+**Type.** MS Sans Serif 8 pt bitmap, never smoothed (capitals 9 px, measured). Free stand-in: **W95FA** (Alina Sava,
+FontsArena; **SIL OFL 1.1**, verified from the archive's OFL.txt, <https://fontsarena.com/w95fa-by-alina-sava/>), packaged
+as `nix/w95fa.nix` (nixpkgs lacks it) and installed by the Home-Manager defaults. Its outlines sit on an 80-unit grid of a
+1000-unit em, so at 12 px with full hinting and no smoothing (`type.pixel_step = 12`) its capitals are 9 px, as MS Sans
+Serif's; a synthetic bold smears a pixel face, so bold is drawn as GDI's overstrike (`decor/PixelLabel.qml`). Fixedsys
+Excelsior (in nixpkgs) is monospaced: not a stand-in for the UI face. "Pixelated MS Sans Serif" from 98.css is a converted
 Microsoft bitmap: **not bundled**. ja: MS UI Gothic was the 98 ja UI font. Stand-ins are **PixelMplus12** (M+
 licence) for the bitmap feel, else **BIZ UDPGothic** (OFL). Bitmap rendering on: see "pixels" in the shared system.
 
@@ -124,8 +132,9 @@ licence) for the bitmap feel, else **BIZ UDPGothic** (OFL). Bitmap rendering on:
 | lock | "Welcome to <host>" logon dialog on the teal desktop | see lock face |
 
 **Lock face `logon`.** Teal ground (role `desk`). A centred 98 dialog: a caption with no buttons (nothing works on a
-lock), an original key glyph, and labels **User name** (the session user as text, not a fake field) and **Password**
-(a sunken well). OK = submit, Cancel = clear the field (`lock.cancel`). A bottom strip has one status well with the
+lock), an original key glyph, and labels **User name** (the session user, read-only: a sunken well on the face, as 9x drew
+a disabled field — never an editable fake) and **Password** (a sunken white well, asterisks). Built as
+`components/lock/LogonFace.qml` (W53.1) on 98's logon layout at 1:1 (458 px wide, measured from "login"). OK = submit, Cancel = clear the field (`lock.cancel`). A bottom strip has one status well with the
 clock: a real, honest time and no start button.
 - Error: a second modal dialog with an original stop glyph and an **OK** button. Enter or Esc dismisses it, and focus
   returns to the field.
