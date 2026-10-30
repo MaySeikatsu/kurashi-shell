@@ -170,30 +170,42 @@ it. The lock face exists only while locked.
 ## 2. luna — Windows XP SP2, Luna Blue
 
 **Reference.** The XP desktop with Luna Blue, the green start button, the blue taskbar and the Welcome screen.
-Screenshots: XP.css demo <https://botoxparty.github.io/XP.css/> [R]; GUIdebook XP gallery (to verify the URL).
+Screenshots: XP.css demo <https://botoxparty.github.io/XP.css/> [R]; GUIdebook XP Pro gallery
+<https://guidebookgallery.org/screenshots/winxppro> (verified). **[M] measured** (W53.2, 2026-10-30): pixels read at 1:1
+from real XP Pro captures, 800 × 600, lossless — the desktop with an active and an inactive window and the taskbar
+<https://guidebookgallery.org/pics/gui/desktop/full/winxppro.png> ("full"), the Start menu with a balloon tip
+<https://guidebookgallery.org/pics/gui/desktop/firstrun/winxppro-2-1.png> ("start"), the Welcome screen
+<https://guidebookgallery.org/pics/gui/startupshutdown/login/winxppro.png> ("welcome"); coordinates in those images.
 
 **Metrics**
 
 | part | value | source |
 |---|---|---|
-| caption | 28 px incl. the 1 px top border; vertical gradient `#0997ff 0 → #0053ee 8 % → #0050ee 40 % → #0066ff 88–93 % → #005bff 95 % → #003dd7 96–100 %` | [R] XP.css `_window.scss` |
-| caption text | Trebuchet MS 13 px, white, text shadow 1 px `#0f1089` | [R] (bold in XP: to verify) |
-| top corners | 8 px (window), 7 px right of the title band; bottom square | [R] |
-| frame | 3 px blue: insets `#0831d9`/`#00138c`, `#166aee`/`#001ea0`, `#0855dd`/`#003bda` | [R] |
-| caption buttons | 21 × 21, 2 px gap; × red (`#e0461e`-ish, to verify) with a white glyph | [R] size; colour to verify |
-| window face | `#ece9d8` | [R] `--surface` |
-| buttons | 3 px radius, 1 px `#003c74` border, white → `#ece9d8` gradient; hover: orange inner glow (`#f8b330`, to verify); default: blue inner border; pressed: darker gradient | to verify (XP.css `_button.scss`) |
-| fields | 1 px `#7f9db9` border, white fill (XP.css `--input-border-color #789dbc`) | [R]; `#7f9db9` to verify |
-| focus | dotted rectangle (as 98) inside buttons | to verify |
-| scroll bar | 17 px; pale-blue track; rounded blue thumb with grip lines; track shadow `#b9cdfa`/`#b6c9f7` | [R] `--scrollbar-*` |
-| menus | white, 1 px `#aca899` border, highlight `#316ac5` white text, soft drop shadow, 18–20 px rows | to verify |
-| tooltip | `#ffffe1`, 1 px black, drop shadow; **balloon tip**: rounded ~6 px (to verify), a tail toward its anchor, bold title with a 16 px icon, × | to verify |
-| taskbar | 30 px, blue gradient; start button green with italic lowercase "start" and the mark; task buttons rounded and glossy; tray a lighter blue well with a 1 px light left edge | to verify (all) |
+| caption | 29 px from the window's top edge to the client area; vertical: `#0058ee` edge, `#3f97ff` / `#2b90ff` bright line, a darker body `#0054e3`–`#0055e5`, a glow `#026afe` in the lower third (rows 19–24), `#004de3` / `#0043cf` at the foot (XP.css's 28 px is 1 short) | [M] full x 300, y 332–360 |
+| caption inactive | `#98b2e8` line, body `#7996de`, glow `#82a9e9`, foot `#7a93df`; text a pale `#d8e4f8`; the plates washed (close pink-grey `#ad6a82`) | [M] full x 600 / 780, y 12–41 |
+| caption text | bold, white, 1 px shadow; 13 px Trebuchet MS (Fira Sans stand-in), 24 px in after a 16 px icon 6 px in | [M] full x 130–148; [R] |
+| top corners | ~8 px at the top, square at the bottom | [M] full (zoomed x 118–178) |
+| frame | 3 px: left/top `#0831d9`, `#166aee`, `#0855dd`; right `#003ddc`, `#001da0`, `#00138c`; bottom `#074fea`, `#001ea0`, `#00138c` (lit top-left) | [M] full x 124–126, 532–534, y 512–514 |
+| caption buttons | 21 × 21 plates, 5 px from the caption's top and end, 2 px apart (close x 509–529, max 486–506, min 463–483); 1 px white rim, ~3 px corners; blue faces lit from the top left (`#5684f7` → `#1c6af4`); close red `#e35c3b` top → `#e77054` → `#d6461c` / `#b1300d` foot; white marks | [M] full row 348, col 520 |
+| window face | `#ece9d8` | [M] full (446, 300) |
+| buttons | 75 × 23; ~3 px corners; 1 px `#003c74` rim; white → `#f0f0ea` face; focused/default: a 2 px inner glow `#fff0cf`/`#fdd889` at the top, `#f8b330`/`#e59700` at the foot (hover is orange; the default's at rest blue) | [M] full "Connect" x 240, y 483–505 |
+| fields | 1 px `#7f9db9` rim, white, 22 px | [M] full x 300, y 446–468 |
+| focus | dotted rectangle inside buttons (as 98) | [R] XP.css |
+| scroll bar | 17 px; pale-blue track; rounded blue thumb with grip lines | [R] `--scrollbar-*` (no part yet: BACKLOG) |
+| menus | white, 1 px rim, a full-width highlight band, a single grey rule `#aca899` | [M] start; highlight `#316ac5` is XP's Hilight [R] — ours the taskbar blue (`accent`) |
+| balloon tip | `#ffffe1`, 1 px black, ~7 px corners, a straight wedge tail to the anchor, bold title with a 16 px icon, × | [M] start x 416–740, y 487–563 |
+| taskbar | 30 px: a `#3168d5` edge, a light `#3888e9`/`#4993e6` band, the body `#2257d5`→`#2663e0`, darker `#1e50c4`/`#1941a5` at the foot | [M] full x 100, y 570–599 |
+| start button | the bar's full height, x 0–95: green, square at the screen edge, rounded ~11 px on the other; `#3a7c3a` edge, `#8bbe8b` light band, body `#469d46`, foot `#2a743d`; a dark rim on the round end; lowercase bold italic "start" with a shadow | [M] full x 3 / 40 / 94, y 570–599 |
+| task buttons | 3 px from the top, 25 px tall; `#3980f4` with a `#4892f7` top; pressed (the active window) sunk `#1951bc` with a dark top `#123d94` | [M] full x 200, 620 |
+| tray | a lighter blue well the bar's height: a dark `#092e51` then a light `#22bce6` px on its left; `#16adf0`/`#19b9f3` top, body `#1290e8`–`#0d8dea`, `#095bc9` lines top and foot | [M] full x 707–799, y 570–599 |
+| Start menu | 64 px header (`#225cc5` edge, `#74abe8` line, `#1666ce` → `#4792ec`), a 2 px orange rule `#fb902b`, white left column, `#d3e5fa` places column, `#1854c2` rim, 41 px footer `#438be3` → `#0c56c0`, ~6 px top corners | [M] start x 0–379, y 92–569 |
+| Welcome | bands: header 0–77 `#00309c`, a 2 px light rule (`#afc8f6` in the middle, `#466dcd` at the ends), field `#5a7edc` lit from the top left (`#94b4ef`), the orange rule at y 504–505 (`#f99737` brightest at a quarter), footer 506–599 `#3934ad` → `#00309c`; a faint divider at x 398; user tile x 425 → the edge, y 253–331, `#1242a6` fading into the field, a gold picture frame 52 px (`#ffb600`/`#ffee00`), the field 161 × 25, a green 23 × 24 → button | [M] welcome |
 
-**Type.** Tahoma 8 pt (11 px) body; Trebuchet MS bold for captions; Franklin Gothic Medium Italic for "start" (to
-verify). Free stand-ins: **Wine Tahoma** (LGPL, metric-compatible: to verify), and **Libre Franklin** (OFL) italic
-for the start label. Trebuchet has no metric twin: Fira Sans (OFL) is the stand-in (to verify the fit). ja: MS UI
-Gothic / Tahoma fallback → **BIZ UDPGothic**.
+**Type.** Tahoma 8 pt (11 px) body; Trebuchet MS bold 13 px for captions; Franklin Gothic Medium Italic for "start".
+Free stand-ins: **Wine's Tahoma** (LGPL 2.1+; Wine draws it metric-compatible from `fonts/tahoma.sfd`; packaged as
+`nix/wine-tahoma.nix` with only its two Tahoma faces — the package's "MS Sans Serif" would win win95's chain over W95FA),
+**Fira Sans** (OFL) for Trebuchet (no metric twin; it reads close at 13 px bold), **Libre Franklin** (OFL) italic for the
+start label. ja: MS UI Gothic → **BIZ UDPGothic**.
 
 **Mapping**
 
@@ -218,10 +230,15 @@ password field and a green → button.
 - Fingerprint: a line under the name.
 
 shellseikatsu's XP face reveals the field on click. Ours shows it at once, because a keyboard-first lock must not
-need a click.
+need a click. Built as `components/lock/WelcomeFace.qml` (W53.2) on XP's Welcome at 1:1 proportions (the bands, rules,
+divider and tile measured from "welcome"; widgets at XP's 1024 × 768 sizes, scaled up on larger outputs). The picture's
+frame is gold as XP's selected tile (`tertiary` lifted), not white. The clock and date stand in the footer (XP showed
+none; every face shows the time). No "Turn off computer": nothing there would act.
 
-**Not copied.** Bliss, the flag, "Microsoft Windows XP" wordmarks, the XP sounds. Ours: an original gel mark in four
-pane colours from roles, and an original wallpaper-free gradient ground.
+**Not copied.** Bliss, the flag, "Microsoft Windows XP" wordmarks, the XP sounds and cursors. Ours: an original mark
+(`decor/PaneMark.qml`: four straight, softly lit panes in a slanted window, in the `error`, `secondary`, `accent` and
+`tertiary` roles — no wave, no flag), an original wallpaper-free gradient ground, cues synthesised and a pointer drawn
+in `tools/styles/xp7-assets.py` (CC0).
 
 **States.** Loading: the XP progress bar, green blocks with a moving glint while loading and visible only
 (`reduce_motion`: static blocks). Error: balloon. Offline: the greyed text style (`#aca899`, to verify).
@@ -241,32 +258,39 @@ pane colours from roles, and an original wallpaper-free gradient ground.
 ## 3. aero — Windows 7, Aero
 
 **Reference.** The Windows 7 desktop: glass captions and frames, the superbar with the round start orb, and the
-logon screen. Screenshots: 7.css demo <https://khang-nd.github.io/7.css/> [R]; GUIdebook 7 gallery (to verify the
-URL).
+logon screen. Screenshots: 7.css demo <https://khang-nd.github.io/7.css/> [R]. GUIdebook has no 7 gallery (its
+listing ends at Server 2003; checked 2026-10-30). **[P] primary, 1:1**: Microsoft's own Windows 7 UX guide captures
+on Microsoft Learn — the taskbar <https://learn.microsoft.com/en-us/windows/win32/uxguide/images/winenv-taskbar-image1.png>
+("taskbar") and a balloon <https://learn.microsoft.com/en-us/windows/win32/uxguide/images/ctrl-balloons-image2.png>
+("balloon"). **[M] measured**: a real 7 window at 1:1, <https://commons.wikimedia.org/wiki/File:SeaMonkey_2.46_on_Windows_7.png>
+("window": glass over a white page, so the glass reads pale). en.wikipedia's "Windows 7 SP1 screenshot.png" is scaled
+(640 × 480): layout only, no pixels.
 
 **Metrics**
 
 | part | value | source |
 |---|---|---|
-| window radius | 6 px (top), caption buttons 5 px | [R] 7.css `--w7-w-bdr`, `--w7-wct-bdr` |
-| frame | 6 px glass on every side (window and title padding) | [R] `--w7-w-space` |
-| caption | ~21 px of text area + 6 px frame (to verify); title left; glass shows the blurred desktop | [R] / to verify |
-| glass | base `#4580c4`; overlay `linear-gradient(to right, #ffffff66, #0000001a, #ffffff33)`; 135°/225° white highlights | [R] `--w7-w-bg`, `--w7-w-grad` |
-| window shadow | `2px 2px 10px 1px #000000b3`, inner 1 px `#fffa` rim | [R] |
-| caption buttons | min/max 29 × 19, × 48 × 19; × gradient `#e0a197e5 → #cf796a 25–50 % → #d54f36 50 %`; hover `#fb9d8b → #ee6d56 → #d42809`; pressed `#d1a894 → #b67562 → #7d0d01` | [R] |
-| controls | radius 3; border `#8e8f8f` (hover `#3c7fb1`, pressed `#6d91ab`, disabled `#adb2b5`); fill `#f2f2f2 45 % / #ebebeb 45 % → #cfcfcf`; hover `#eaf6fd 45 % / #bee6fd 45 % → #a7d9f5`; pressed `#e5f4fc → #c4e5f6 30–50 % / #98d1ef 50 % → #68b3db`; inner rim `#fffc` | [R] `_variables.scss` |
-| surface | `#f0f0f0`; font 9 pt Segoe UI | [R] |
-| list highlight | 1 px `#aaddfa`, fill `#fff9 → #e6ecf5cc 90 % → #fffc`, radius 3 | [R] `--w7-li-*` |
-| focus | dotted rectangle plus a blue inner glow on fields | to verify |
-| scroll bar | 17 px, glossy rounded thumb, hover blue | to verify |
-| menus | `#f0f0f0`, an icon gutter with an etched edge, highlight = the list-highlight capsule | to verify |
-| tooltip | white → `#e4e5f0` gradient, 1 px `#767676`, radius 2–3, soft shadow | to verify |
-| taskbar | 40 px glass; round orb overhanging the top edge (~54 px, to verify); icon buttons ~62 px wide (to verify) with a **hot-track glow** in the icon's dominant colour; tray chevron; two-line clock; Show Desktop strip at the far right (~15 px, to verify) | to verify |
+| window radius | ~6 px at all four corners | [M] window (zoomed x 0–60); [R] `--w7-w-bdr` |
+| frame | 8 px: a dark `#242b32` outer line, a light rim, 4 px glass, a light line, a dark `#5c6b7a` line at the client | [M] window x 14–21, 1061–1068 |
+| caption | 30 px from the outer edge to the client (y 12–41); the glass itself; the title dark, 12 px Segoe UI, in a soft white glow, after a 16 px icon | [M] window col 500 |
+| glass | translucent tint of the window colour (7's default "Sky", `#74b8fc`; reads `#b4d6f9` over white) with white highlights | [M] window; [R] 7.css `--w7-w-bg` `#4580c4` |
+| caption buttons | a joined group hanging from the top edge, 6 px from the end: min 28, max 28, close 48 × 19 (x 959–1061, y 13–31), sharing 1 px rims, bottom corners ~5 px; each face split at half height; close `#f2b4ac` → `#e1877a` above, `#d14e3b` → `#da8770` below; white marks with a dark `#535666` rim | [M] window row 21, cols 975 / 1030 |
+| window shadow | wide and soft (~14 px), dark | [M] window; [R] `2px 2px 10px 1px #000000b3` |
+| controls | radius 3; border `#8e8f8f` (hover `#3c7fb1`); fill `#f2f2f2` / `#ebebeb` split → `#cfcfcf`; hover `#eaf6fd` / `#bee6fd` → `#a7d9f5`; inner rim `#fffc` | [R] `_variables.scss`; [P] balloon's OK button |
+| surface | `#f0f0f0`; 9 pt Segoe UI | [R] |
+| list highlight | 1 px `#aaddfa`, fill `#fff9 → #e6ecf5cc 90 % → #fffc`, radius 3 | [R] `--w7-li-*`; [P] taskbar's jump list |
+| balloon | white → pale blue-grey, a grey rim, ~3 px corners, a soft shadow, a wedge tail; title in the accent blue with an icon | [P] balloon x 280–495 |
+| taskbar | 40 px (y 395–434): a dark px then a light px on its top edge, glass below | [P] taskbar col 580 |
+| orb | a ~39 px disc centred in a ~58 px start area (x 114–172), **inside** the 40 px bar (Vista's overhung it; 7's does not): dark glass, a white highlight over the upper half, a cyan glow rising at its foot | [P] taskbar col 140, row 415 |
+| task buttons | ~60 px wide, the bar's height, 1 px rims, 2–3 px apart; the running one lit | [P] taskbar x 173–297 |
+| logon screen | a deep blue field, a light bloom behind the tile, a 126 px picture in a glass frame, the name below, a ~225 × 25 field with a round → button; error = the message and OK in place of the field | **to verify**: no 1:1 capture of 7's logon was found (Commons and en.wikipedia searched 2026-10-30) — layout from memory, carried to BACKLOG |
+| focus | dotted rectangle, a blue glow on fields | to verify |
+| scroll bar | 17 px, glossy rounded thumb | to verify (no part yet: BACKLOG) |
 
 **Type.** Segoe UI 9 pt (12 px). Free stand-in: **Selawik**, "metrically compatible with Segoe UI" [P] (Microsoft
 Learn typography page, <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography>;
-repo <https://github.com/Microsoft/Selawik>; licence to verify, believed OFL). ja: Meiryo UI → **BIZ UDPGothic** /
-Noto Sans CJK JP.
+repo <https://github.com/Microsoft/Selawik>; **SIL OFL 1.1**, verified from the repository's licence 2026-10-30; nixpkgs
+lacks it: `nix/selawik.nix` from the 1.01 release). ja: Meiryo UI → **BIZ UDPGothic** / Noto Sans CJK JP.
 
 **Mapping**
 
@@ -288,9 +312,13 @@ blue → button. A wordmark sits low in the centre (host name).
 - Error: the field is replaced by the message and an **OK** button (7's own behaviour). Enter returns to the field.
 - Caps Lock: a balloon tip.
 
-shellseikatsu's Win7 face hard-codes its blues. Ours takes roles.
+shellseikatsu's Win7 face hard-codes its blues. Ours takes roles. Built as `components/lock/LogonGlassFace.qml`
+(W53.2); its sizes (the 154 px glass frame, the 126 px picture, the 225 × 25 field) are estimates until a 1:1 capture
+is found (BACKLOG). The clock and date sit low on the left (7's logon showed none; every face shows the time).
 
-**Not copied.** The orb's flag, the "Harmony" wallpaper and logon art, the "Windows 7 Ultimate" branding, the sounds.
+**Not copied.** The orb's flag, the "Harmony" wallpaper and logon art, the "Windows 7 Ultimate" branding, the sounds and
+cursors. Ours: the same original pane mark glowing inside the orb, an original pattern of light bands on the logon
+ground, cues and a pointer from `tools/styles/xp7-assets.py` (CC0).
 
 **States.** Loading: the glossy green progress bar; its shimmer only while loading and visible. Error: the inline
 message + OK. Offline: greyed glass.

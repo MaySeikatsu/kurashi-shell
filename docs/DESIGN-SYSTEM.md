@@ -148,7 +148,7 @@ bevels, OS colours, how things move, fonts, symbols, materials, controls — is 
 (rule 4). A family card writes toml and decor parts only.
 
 **Slots** (`[slots]` in a look, `appearance::SLOTS`): `frame`, `title`, `start`, `tray`, `menu`, `scroll`, `tooltip`,
-`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`. Each is a component name (a slug; `""` or left out = the
+`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`, `bar` (W53.2). Each is a component name (a slug; `""` or left out = the
 default, today's shell), published as `decor.<slot>`. A host loads `components/decor/<slot>/<Name>.qml` (kebab →
 Pascal, `DecorHost.qml`) and never compares the name; without a slot nothing is made and the caller draws its own
 default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<Slot>Base.qml`. Hosts:
@@ -161,6 +161,8 @@ default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<S
 | `MenuStyle` | menu | tray/dock menus, launcher rows: `rowH(own)`, `radius(own)`, `highlight`, `separator`, `rowBackground` | the caller's rows |
 | `ScrollStyle` | scroll | every ScrollBar: `width(own)`, `arrows`, `thumb`, `part` | the thin bar |
 | `TooltipStyle` | tooltip | dock tooltip, peeks: `fill(own)`, `ink(own)`, `tail`, `part` | the caller's |
+| `BarGround` | bar | under the bar's strip (W53.2: the strip leaves its own fill out while a part draws), `edge` | the strip's fill |
+| `WindowEdge` | (metrics) | a captioned Stage card under a look without the bevel chrome: `border.width` px of `border.color` (W53.2) | BevelEdge under bevel looks (row 595) |
 | `FocusRing` | (metrics) | every focusable control | `ring` 1 px |
 | `Entrance` | (metrics) | a surface's content, `progress` 0…1 from `edge` | `grow` = K74 (the wrapper does nothing) |
 
@@ -172,6 +174,20 @@ marks on whole pixels — it honours both TitleHost's names and Stage's `[{id, a
 `start/Classic.qml` (a raised start button with an original four-pane mark), `tray/Status.qml` (a 1 px status well),
 `menu`, `scroll`, `tooltip`, `button`, `toggle` and `slider` `Classic.qml`, and the helpers `PixelLabel.qml` (bitmap type:
 native, unsmoothed, bold as GDI's overstrike) and `Checker.qml` (the 50 % dither); lock face `LogonFace.qml`.
+W53.2 adds the glossy and glass eras' parts, named by idiom: `title/Gloss.qml` (a vertical glossy band with a bright top
+line and a dark foot, `title.gloss`; rounded `title.button_radius` plates with a light rim, the close plate in
+`title.close_fill`; the title in `font.title` with `title.text_effect`), `title/Glass.qml` (the card's glass as the
+band, a joined button group hanging from the top edge — `title.button_w` keys and a `title.close_w` gel — the title in a
+glow), `start/Pill.qml` (a glossy pill the bar's thickness, square on the screen side; `start.fill`, `font.start`,
+`start.size`, `start.italic`) with the skin `start/GlossMenu.qml` (header, rule, two-tone body, footer), `start/Orb.qml`
+(a glass sphere) with `start/GlassMenu.qml` (a glass frame round a white pane), `bar/Gloss.qml` and `bar/Glass.qml`
+(`bar.fill`, `bar.edge`, `bar.gloss`; contract `bar/BarBase.qml`, lit on the side facing the screen), `tray/Gloss.qml`
+(`tray.fill`), `tooltip/Balloon.qml` (one outline with a wedge tail, `tooltip.radius`, `tooltip.border`),
+`menu/Flat.qml` (a band, `menu.separator` honoured) and `menu/Capsule.qml` (7's list highlight), `button/Gloss.qml` and
+`button/Glass.qml`, the helpers `CaptionGlyph.qml` (×, _, □, restore at any size, with a rim) and `PaneMark.qml` (the
+original four-pane start mark from roles), and the lock faces `WelcomeFace.qml` and `LogonGlassFace.qml`.
+`frontend/StyleSheet.qml` shows every part of the look in effect and its lock face in any state on the sandbox's own
+Quickshell (`KURASHI_SHEET=parts|lock|lock-error|lock-caps|lock-busy|lock-wait|lock-prompt|lock-secondary`).
 
 **Metrics** (`[decor]` in a look, `appearance::DECOR_KEYS`: one list with kinds, ranges and defaults, rule 3). Values
 are numbers, switches, words, palette **role names** (published as colours, never hex in a look), bézier curves or font
@@ -181,15 +197,15 @@ default filled in:
 
 | group | keys (default) |
 |---|---|
-| caption | `title.height` (24), `title.fill` ([title, title_end]), `title.fill_inactive`, `title.on` (on_title), `title.fill_dir` (horizontal), `title.align` (start), `title.weight` (700), `title.close` (glyph · bevel · gel · plate · dot), `title.buttons` (end · start), `title.radius` (-1), `title.on_inactive` ("" = `title.on`), `title.button_w`/`title.button_h` (0 = the part's own), `title.button_gap` (-1), `title.inset` (-1) |
+| caption | `title.height` (24), `title.fill` ([title, title_end]), `title.fill_inactive`, `title.on` (on_title), `title.fill_dir` (horizontal), `title.align` (start), `title.weight` (700), `title.close` (glyph · bevel · gel · plate · dot), `title.buttons` (end · start), `title.radius` (-1), `title.on_inactive` ("" = `title.on`), `title.button_w`/`title.button_h` (0 = the part's own), `title.button_gap` (-1), `title.inset` (-1), `title.close_w` (0 = `button_w`), `title.close_fill` ("" = the part's), `title.button_radius` (-1), `title.family` ([]; resolved as `font.title`), `title.size` (0), `title.text_effect` (none · shadow · glow), `title.gloss` (0) |
 | window border | `border.width` (0), `border.color` (outline) |
 | bevel | `bevel.width` (1), `bevel.press_offset` (1) |
 | menu | `menu.row` (0 = own), `menu.highlight` (capsule · bar · inset), `menu.separator` (line · etched · space), `menu.radius` (-1), `menu.fill`/`menu.on` (the highlighted row's band and text roles; "" = the caller's selection) |
 | scroll bar | `scroll.width` (0 = own), `scroll.arrows` (false), `scroll.thumb` (pill · flat · bevel · gel) |
-| tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false) |
-| tray, separators, bar | `tray.sunken` (false), `separator.style` (line · etched · none), `bar.group` (block · none: no raised block round each bar group, one strip — row 596) |
+| tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false), `tooltip.radius` (-1), `tooltip.border` ("") |
+| tray, separators, bar | `tray.sunken` (false), `separator.style` (line · etched · none), `bar.group` (block · none: no raised block round each bar group, one strip — row 596), `tray.fill` (""), `bar.fill` ([]), `bar.edge` (""), `bar.gloss` (0) |
 | focus | `focus.style` (ring · dotted · double · halo), `focus.offset` (0; negative = inside), `focus.width` (1) |
-| start | `start.label` (false) |
+| start | `start.label` (false), `start.fill` ([]), `start.family` ([]; resolved as `font.start`), `start.size` (0), `start.italic` (false) |
 | type | `type.pixel` (false), `type.pixel_step` (1) |
 | symbols | `icons.family` ([] = the shell's), `icon.size` (0 = body + 4), `icon.scale` (1), `icon.fill`, `icon.weight` (-1 = the chrome's) |
 | motion | `motion.style` (grow · slide · zoom · fade · flip · stepped · rubber), `motion.steps` (4 frames at 60 Hz per step), `motion.{open,close,fast,effects}_ms` (0 = K74's), `motion.{…}_curve` ([] = K74's; 4 numbers = one cubic) |
