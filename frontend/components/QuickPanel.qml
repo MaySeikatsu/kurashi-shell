@@ -501,6 +501,7 @@ Item {
                 size: 15
             },
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: quick.battery
                 height: phone.statusH
                 verticalAlignment: Text.AlignVCenter
@@ -540,6 +541,7 @@ Item {
                         radius: Theme.rFull
                         fill: Theme.selected
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             visible: quick.userLetter !== ""
                             anchors.centerIn: parent
                             color: Theme.color("color.on_selected", Theme.fg)
@@ -564,6 +566,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: -Theme.shadowDy / 2
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             width: parent.width
                             elide: Text.ElideRight
                             color: Theme.fg
@@ -573,6 +576,7 @@ Item {
                             text: I18n.tr("frontend.quick.greeting." + quick.daypart)
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             width: parent.width
                             elide: Text.ElideRight
                             color: Theme.dim
@@ -799,6 +803,7 @@ Item {
                         border.color: Theme.outline
                         Text {
                             id: pillText
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             x: Theme.gap
                             width: pill.width - 2 * Theme.gap
                             anchors.verticalCenter: parent.verticalCenter

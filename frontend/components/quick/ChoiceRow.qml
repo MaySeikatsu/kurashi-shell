@@ -55,6 +55,7 @@ Item {
         width: row.width - x - (strength.visible ? strength.width + Theme.gap : 0)
         anchors.verticalCenter: parent.verticalCenter
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             elide: Text.ElideRight
             color: Theme.fg
@@ -63,6 +64,7 @@ Item {
             text: row.title
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             visible: text !== ""
             elide: Text.ElideRight

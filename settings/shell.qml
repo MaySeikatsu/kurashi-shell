@@ -408,6 +408,7 @@ ShellRoot {
                     accessibleName: I18n.tr("settings.sheet.close")
                     onClicked: win.dismiss()
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: Theme.iconFamily !== ""
                         anchors.centerIn: parent
                         font.family: Theme.iconFamily
@@ -422,6 +423,7 @@ ShellRoot {
                     anchors.rightMargin: win.sheet ? closeButton.width + 2 * Theme.pad : Theme.pad
                     spacing: Theme.gap
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.fg
                         font.pixelSize: Theme.fsTitle
@@ -458,6 +460,7 @@ ShellRoot {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: Theme.gap
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             height: Theme.controlH
                             verticalAlignment: Text.AlignVCenter
                             color: Theme.fg
@@ -477,6 +480,7 @@ ShellRoot {
                         }
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors.verticalCenter: parent.verticalCenter
                         width: Math.max(0, parent.width - x - Theme.pad)
                         elide: Text.ElideRight
@@ -500,6 +504,7 @@ ShellRoot {
                     anchors.margins: Theme.gap
                     spacing: Theme.gap
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors.verticalCenter: parent.verticalCenter
                         color: Theme.dim
                         font.pixelSize: Theme.fs
@@ -616,6 +621,7 @@ ShellRoot {
                                     // The selected page is a tonal pill with a bold label, so the choice is not colour alone.
                                     Text {
                                         id: navIcon
+                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                         visible: Theme.iconFamily !== "" && entry.icon !== "" && !entry.isMod
                                         x: Theme.pad
                                         anchors.verticalCenter: parent.verticalCenter
@@ -637,6 +643,7 @@ ShellRoot {
                                         border.color: entry.modOn ? Theme.statusOn : Theme.statusOff
                                     }
                                     Text {
+                                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                         x: entry.isMod ? Theme.pad + 18 : (navIcon.visible ? Theme.pad + 28 : Theme.pad)
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width - x - Theme.pad

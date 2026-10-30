@@ -19,6 +19,7 @@ Item {
 
     Text {
         id: warning
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter

@@ -248,6 +248,7 @@ Flickable {
             text: I18n.tr("settings.ui.profiles")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -256,6 +257,7 @@ Flickable {
             text: I18n.tr("settings.ui.profiles_help")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.profiles.length === 0
             color: Theme.dim
             font.pixelSize: Theme.fs
@@ -285,6 +287,7 @@ Flickable {
                     Accessible.name: tile.modelData.name + ", " + p.origin(tile.modelData)
                     Text {
                         id: n
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         x: Theme.pad
                         anchors.verticalCenter: parent.verticalCenter
                         // Text on the accent fill takes on_accent (4.5:1).
@@ -322,6 +325,7 @@ Flickable {
             width: parent.width
             spacing: Theme.gap
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: Theme.fg
@@ -355,6 +359,7 @@ Flickable {
                 }
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: p.reading
                 color: Theme.dim
                 font.pixelSize: Theme.fs
@@ -374,6 +379,7 @@ Flickable {
                     kept: p.keptUser
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: loadBox.width
                     wrapMode: Text.WordWrap
                     color: Theme.dim
@@ -387,6 +393,7 @@ Flickable {
         Rectangle { width: parent.width; height: 1; color: Theme.containerHigh }
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.bold: true
@@ -416,6 +423,7 @@ Flickable {
 
         // Export (profile.export): a path to write, and what the file leaves out because it names this machine.
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.bold: true
@@ -423,6 +431,7 @@ Flickable {
             text: I18n.tr("settings.ui.export_head")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -448,6 +457,7 @@ Flickable {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.selected === ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -457,6 +467,7 @@ Flickable {
             text: I18n.tr("settings.ui.export_pick")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.exportMsg !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -471,6 +482,7 @@ Flickable {
             width: parent.width
             spacing: Theme.gap / 2
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: p.exportLeftOut !== null && p.exportLeftOut.length === 0
                 width: leftOutBox.width
                 color: Theme.dim
@@ -479,6 +491,7 @@ Flickable {
                 text: I18n.tr("settings.ui.export_none_left")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: p.exportLeftOut !== null && p.exportLeftOut.length > 0
                 width: leftOutBox.width
                 wrapMode: Text.WordWrap
@@ -508,6 +521,7 @@ Flickable {
 
         // Import (profile.import): a file is reviewed first, the same way as a load; Apply loads it, Cancel drops it.
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             color: Theme.dim
             font.pixelSize: Theme.fs
             font.bold: true
@@ -515,6 +529,7 @@ Flickable {
             text: I18n.tr("settings.ui.import_head")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -541,6 +556,7 @@ Flickable {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.importText.trim() !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -550,6 +566,7 @@ Flickable {
             text: I18n.fmt("settings.ui.import_reads", { path: p.importPathOf(p.importText) })
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.importing
             color: Theme.dim
             font.pixelSize: Theme.fs
@@ -564,6 +581,7 @@ Flickable {
             spacing: Theme.gap
             Keys.onEscapePressed: event => { p.cancelReview(); event.accepted = true }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: reviewBox.width
                 wrapMode: Text.WordWrap
                 color: Theme.fg
@@ -582,6 +600,7 @@ Flickable {
                 diagnostics: p.review ? p.review.diagnostics : []
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: reviewBox.width
                 wrapMode: Text.WordWrap
                 color: Theme.dim
@@ -609,6 +628,7 @@ Flickable {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.importMsg !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -638,6 +658,7 @@ Flickable {
         }
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.message !== ""
             width: parent.width
             wrapMode: Text.WordWrap

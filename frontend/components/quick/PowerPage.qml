@@ -78,6 +78,7 @@ Column {
         onBack: pw.backRequested()
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: !pw.avail
         width: pw.width
         wrapMode: Text.WordWrap
@@ -87,6 +88,7 @@ Column {
         text: I18n.tr("island.quick.power.unavailable")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: pw.avail && pw.battery && pw.d.percent !== undefined
         width: pw.width
         color: Theme.fg
@@ -95,6 +97,7 @@ Column {
         text: Math.round(Number(pw.d.percent || 0)) + " %"
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: pw.avail && pw.battery && pw.stateLine() !== ""
         width: pw.width
         wrapMode: Text.WordWrap
@@ -104,6 +107,7 @@ Column {
         text: pw.stateLine()
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: pw.avail && !pw.battery
         width: pw.width
         color: Theme.fg
@@ -113,6 +117,7 @@ Column {
     }
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: pw.avail && pw.profiles.length > 0
         width: pw.width
         color: Theme.dim
@@ -139,6 +144,7 @@ Column {
         pendingText: I18n.tr("island.quick.changing")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: pw.avail && pw.profiles.length === 0 && pw.d.profile_reason !== undefined
         width: pw.width
         wrapMode: Text.WordWrap

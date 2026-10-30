@@ -13,7 +13,9 @@ Text {
     property string name: ""
     property string glyph: ""
     property bool filled: false
-    property int size: Theme.fs + 4
+    // The look's default icon size (`icon.size`: the body + 4 unless the look sets one), every icon times its `icon.scale`
+    // (W53, row 591).
+    property int size: Theme.iconSize
     // The font that draws the name: 0 the theme's icon family, 1 the full family of the same cut, 2 neither (the glyph).
     // Only `settle()` raises it, and a new name starts again at 0.
     property int tier: 0
@@ -22,10 +24,10 @@ Text {
     readonly property bool symbols: name !== "" && drawFamily !== "" && tier < 2
     text: symbols ? name : (glyph !== "" ? glyph : (name !== "" && Theme.iconFamily !== "" ? "•" : ""))
     font.family: symbols ? drawFamily : Theme.fam(glyph, Theme.families)
-    font.pixelSize: symbols ? size : Math.round(size * 0.8)
+    font.pixelSize: Math.round((symbols ? size : size * 0.8) * Theme.iconScale)
     font.variableAxes: symbols ? { "FILL": filled || Theme.iconFill > 0 ? 1 : 0, "wght": Theme.iconWeight, "opsz": 24 } : ({})
     color: Theme.fg
-    renderType: Text.QtRendering
+    renderType: Text.QtRendering   // (an icon font stays smooth under pixel type)
     verticalAlignment: Text.AlignVCenter
     horizontalAlignment: Text.AlignHCenter
     Accessible.ignored: true
@@ -34,7 +36,7 @@ Text {
     // so 1.5 × size tells them apart for every name of two or more letters. Handlers, not bindings: the width depends on
     // the family the tier picks.
     function settle() {
-        if (symbols && contentWidth > 1.5 * size)
+        if (symbols && contentWidth > 1.5 * font.pixelSize)
             tier = tier === 0 && fallbackFamily !== "" ? 1 : 2
     }
     onContentWidthChanged: settle()

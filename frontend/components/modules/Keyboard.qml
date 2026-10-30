@@ -26,6 +26,7 @@ ModuleBase {
     }
     Text {
         id: kbText
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         anchors.centerIn: parent
         color: Theme.fg
         font.pixelSize: Theme.fsCaption

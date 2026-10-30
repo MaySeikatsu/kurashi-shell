@@ -107,6 +107,7 @@ Flickable {
             text: I18n.tr("settings.ui.mods")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -115,6 +116,7 @@ Flickable {
             text: I18n.tr("settings.ui.mods_help")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -124,6 +126,7 @@ Flickable {
             text: "⊘ " + (p.forcedLoaded !== "" ? p.forcedLoaded : p.forcedEnabled)
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: p.loaded && p.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
@@ -133,6 +136,7 @@ Flickable {
             text: I18n.tr("settings.ui.mods_empty")
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: !p.loaded && !Store.live
             color: Theme.dim
             font.pixelSize: Theme.fs
@@ -200,6 +204,7 @@ Flickable {
                         Row {
                             spacing: Theme.gap
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                 color: Theme.fg
                                 font.pixelSize: Theme.fs
                                 font.bold: true
@@ -217,6 +222,7 @@ Flickable {
                             }
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             visible: text !== ""
                             width: parent.width
                             wrapMode: Text.WordWrap
@@ -226,6 +232,7 @@ Flickable {
                             text: entry.mod.description ? I18n.tr(entry.mod.description) : ""
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             visible: text !== ""
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
@@ -233,6 +240,7 @@ Flickable {
                             text: p.facts(entry.mod)
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             width: parent.width
                             wrapMode: Text.WordWrap
                             color: Theme.dim
@@ -243,6 +251,7 @@ Flickable {
                         }
                         // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             visible: entry.isLoaded
                             width: parent.width
                             wrapMode: Text.WordWrap
@@ -258,6 +267,7 @@ Flickable {
                     }
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: entry.invalid
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -267,6 +277,7 @@ Flickable {
                     text: "✕ " + p.problems(entry.mod)
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: entry.failure !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap

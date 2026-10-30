@@ -1,6 +1,7 @@
 import QtQuick
 import "../core"
 import "../components"
+import "../components/decor"
 
 // Session menu (runtime.ui.panel === "session", opened by the `session.menu` action), shown inside
 // the Stage card. A pure view: each entry sends one daemon action and nothing else. Lock runs at
@@ -26,6 +27,8 @@ Item {
     property int armed: -1      // entry index waiting for its confirming press
     property bool busy: false   // an action is in flight; presses are ignored until it answers
     property string errText: ""
+    // The look's menu (W53, row 591): its corner and, where it names a menu part, the part as each key's face.
+    MenuStyle { id: ms }
 
     // Five keys in a row (SekaiPop's power menu): icon over label, the armed one lit and asking to confirm.
     readonly property int keyW: 92
@@ -81,6 +84,7 @@ Item {
         spacing: Theme.gap
 
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             color: Theme.fg
             font.pixelSize: Theme.fsTitle
             font.weight: Theme.wBold
@@ -101,12 +105,19 @@ Item {
                     readonly property bool isArmed: menu.armed === index
                     width: menu.keyW
                     height: 96 + Theme.shadowDy
-                    radius: Theme.rLg
+                    radius: ms.radius(Theme.rLg)
                     pressed: tap.pressed
                     // An outlined chrome with no shadow (line): the keys are outlined boxes, no fill until lit.
                     fill: isArmed ? Theme.accent : (lit ? Theme.selected
-                        : (Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 ? "transparent" : Theme.containerHigh))
-                    flatBorder: lit && !isArmed ? Theme.outline : "transparent"
+                        : (Theme.outlineW > 0 && Theme.shadowDy <= 0 && Theme.softR <= 0 || ms.has ? "transparent" : Theme.containerHigh))
+                    flatBorder: lit && !isArmed && !ms.has ? Theme.outline : "transparent"
+                    Loader {
+                        anchors.fill: parent
+                        anchors.bottomMargin: Theme.shadowDy
+                        active: ms.has
+                        source: active ? ms.rowBackground : ""
+                        onLoaded: item.highlighted = Qt.binding(function () { return row.lit || row.isArmed })
+                    }
                     Column {
                         anchors.centerIn: parent
                         spacing: Theme.xs + 2
@@ -124,6 +135,7 @@ Item {
                             }
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             width: menu.keyW - 2 * Theme.gap
                             horizontalAlignment: Text.AlignHCenter
                             wrapMode: Text.WordWrap
@@ -141,6 +153,7 @@ Item {
             }
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: body.width
             visible: menu.errText !== ""
             wrapMode: Text.WordWrap
@@ -150,6 +163,7 @@ Item {
             text: menu.errText
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: body.width
             color: Theme.dim
             font.pixelSize: Theme.fs - 2

@@ -27,6 +27,7 @@ FaceBase {
             animate: f.animate && f.live
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             Accessible.ignored: true
             color: Theme.dim

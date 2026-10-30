@@ -50,6 +50,7 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: foot.errText !== ""
         width: foot.width
         wrapMode: Text.WordWrap

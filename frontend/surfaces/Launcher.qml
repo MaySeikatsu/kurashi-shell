@@ -4,6 +4,8 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/launcher"
+import "../components/island"
+import "../components/decor"
 
 // Launcher (M5): centred overlay with exclusive keyboard focus while open. The daemon owns the
 // open state (runtime.ui.launcher), the index, ranking and launching; this only renders results
@@ -64,6 +66,25 @@ PanelWindow {
     property var thumbs: ({})
     property var asked: ({})
     property var scr: Quickshell.screens.length > 0 ? Quickshell.screens[0] : null   // latched on open so the card never jumps outputs
+
+    // ---- W53 (K80 Decided 10, contract row 563): the start-menu skin. While the look dresses a start button (`decor.start`,
+    // data: no name is compared, rule 4) the launcher is its start menu: it hangs from the start button (IslandGeom's
+    // `start` origin, latched on open; the bar's start end without one), the rows over a footer with the session's keys,
+    // in the look's chrome — or in the dress's own skin (StartBase `menu`, contract start/StartMenuBase.qml) where it
+    // brings one. Every other look: today's launcher, unchanged.
+    readonly property bool skin: Theme.slot("start") !== ""
+    // The dress, made only while the menu is open, for its skin's url (it is not shown here).
+    StartHost { id: dressOf; visible: false; active: has && lp.skin && lp.want }
+    readonly property url skinUrl: dressOf.ready ? dressOf.item.menu : ""
+    property var startAt: null
+    readonly property string skinEdge: startAt && startAt.edge === "top" ? "top"
+        : (startAt ? "bottom" : (bars.atTop ? "top" : "bottom"))
+    readonly property real skinBand: skin && skinPart.ready ? skinPart.item.bandW : 0
+    readonly property real skinHeader: skin && skinPart.ready ? skinPart.item.headerH : 0
+    readonly property real skinFooter: skin ? Math.max(Theme.controlH + 2 * Theme.gap, skinPart.ready ? skinPart.item.footerH : 0) : 0
+    readonly property int skinW: 420
+    // The look's menu rows (row 591): its highlight's shape and corner, its part under each row.
+    MenuStyle { id: ms }
 
     function heightOf(r) {
         switch (r.kind) {
@@ -179,7 +200,17 @@ PanelWindow {
     BarConfig { id: bars; screen: lp.scr }
     // While the shape is out under a top or bottom bar, one vertical edge anchored (the compositor centres the surface
     // horizontally, so the shape's box is centred on the bar); none otherwise (idle, or no such bar): centred on the output.
-    anchors { top: morph.layout && !bars.atBottom; bottom: morph.layout && bars.atBottom }
+    // The start menu: its corner at the start button (the window's shade round the card counted), off its bar.
+    anchors {
+        top: skin ? skinEdge === "top" : morph.layout && !bars.atBottom
+        bottom: skin ? skinEdge !== "top" : morph.layout && bars.atBottom
+        left: skin
+    }
+    margins.left: skin ? Math.max(0, Math.min((scr ? scr.width : 1920) - implicitWidth,
+        (startAt ? startAt.x : Theme.pad) - morph.shade)) : 0
+    margins.top: skin && skinEdge === "top" ? Math.max(0, (startAt ? startAt.y + startAt.h + Theme.gap : bars.topInset) - morph.shade) : 0
+    margins.bottom: skin && skinEdge !== "top"
+        ? Math.max(0, (startAt && scr ? scr.height - startAt.y + Theme.gap : bars.bottomInset) - morph.shade) : 0
     implicitWidth: morph.width
     implicitHeight: morph.height
     exclusionMode: ExclusionMode.Ignore
@@ -208,6 +239,7 @@ PanelWindow {
     onWantChanged: {
         if (want) {
             scr = focusedScreen()
+            startAt = skin && scr ? IslandGeom.rectOf(scr.name, "start") : null
             results = []; sel = 0; err = ""; confirmClear = false
             thumbs = ({}); asked = ({})
             // Setting the text runs its query (onTextChanged); an unchanged text needs the run here.
@@ -229,8 +261,8 @@ PanelWindow {
     BarMorph {
         id: morph
         outName: lp.scr ? lp.scr.name : ""
-        onBar: bars.atTop || bars.atBottom
-        flip: bars.atBottom
+        onBar: !lp.skin && (bars.atTop || bars.atBottom)
+        flip: lp.skin ? lp.skinEdge !== "top" : bars.atBottom
         open: lp.want
         cardW: card.width
         cardH: card.height
@@ -243,11 +275,15 @@ PanelWindow {
         // panel outlined in ink (line).
         Item {
             id: card
-            width: 600
+            width: lp.skin ? lp.skinW + lp.skinBand : 600
             readonly property real inset: Theme.outlineW + Theme.ringW
             readonly property int footH: lp.footer ? Theme.gap + 18 : 0
+            // Where the content stands: the start-menu skin keeps a band on the left and a header on top (0 otherwise).
+            readonly property real l0: Theme.pad + inset + lp.skinBand
+            readonly property real t0: Theme.pad + inset + lp.skinHeader
+            readonly property real w0: width - l0 - Theme.pad - inset
             height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
-                + footH + (morph.morph ? 0 : Theme.shadowDy)
+                + footH + lp.skinHeader + lp.skinFooter + (morph.morph ? 0 : Theme.shadowDy)
             // W57 (K78): the launcher stands highest (level 4).
             Elevation {
                 visible: !morph.morph
@@ -257,7 +293,7 @@ PanelWindow {
                 level: 4
             }
             Block {
-                visible: !morph.morph
+                visible: !morph.morph && !skinPart.ready
                 anchors.fill: parent
                 radius: Theme.rLg + 4
                 fill: Theme.panel
@@ -265,16 +301,32 @@ PanelWindow {
                 // K62: the pen's salt for the card's outline (a surface knows who it is; its place moves as it opens).
                 penSeed: 0x1A0C
             }
+            // The dress's start-menu skin in place of the Block (row 563).
+            Loader {
+                id: skinPart
+                readonly property bool ready: status === Loader.Ready && item !== null
+                anchors.fill: parent
+                anchors.bottomMargin: Theme.shadowDy
+                active: lp.skin && lp.skinUrl !== ""
+                source: active ? lp.skinUrl : ""
+                onLoaded: {
+                    item.label = Qt.binding(function () { return Theme.decor("start.label", false) ? I18n.tr("decor.start.label") : "" })
+                    item.open = Qt.binding(function () { return lp.want })
+                    item.edge = Qt.binding(function () { return lp.skinEdge })
+                }
+            }
 
             Block {
                 id: box
-                x: Theme.pad + card.inset
-                y: Theme.pad + card.inset
-                width: card.width - 2 * x
+                x: card.l0
+                y: card.t0
+                width: card.w0
                 height: 44
                 radius: Theme.rFull
                 ringScale: 0
                 softScale: 0
+                // A text field is a well (row 591): sunken under a bevel chrome, nothing otherwise.
+                sunken: true
                 fill: Theme.surface
                 flatBorder: field.activeFocus ? Theme.accent : Theme.outline
                 penSeed: 0x1A0D
@@ -324,6 +376,7 @@ PanelWindow {
                         }
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
                         visible: field.text === "" && field.preeditText === ""
@@ -333,8 +386,10 @@ PanelWindow {
                     }
                     // The prefix modes, named while the field is empty.
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
-                        visible: field.text === "" && field.preeditText === ""
+                        // (not in the narrower start menu: the placeholder needs the room)
+                        visible: field.text === "" && field.preeditText === "" && !lp.skin
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.family: Theme.fam(text, Theme.families)
@@ -346,10 +401,11 @@ PanelWindow {
             // Failure line above the results (a failed launch or query). The results stay usable.
             Text {
                 id: errRow
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 visible: lp.err !== ""
-                x: Theme.pad + card.inset
+                x: card.l0
                 y: box.y + box.height + Theme.gap
-                width: card.width - 2 * x
+                width: card.w0
                 wrapMode: Text.WordWrap
                 color: Theme.fg
                 font.pixelSize: Theme.fs
@@ -360,9 +416,9 @@ PanelWindow {
             ListView {
                 id: list
                 visible: lp.mode !== "emoji"
-                x: Theme.pad + card.inset
+                x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
-                width: card.width - 2 * x
+                width: card.w0
                 height: lp.listH
                 clip: true
                 interactive: false
@@ -373,9 +429,10 @@ PanelWindow {
                 highlightMoveDuration: 0
                 // The selected row's highlight is one tonal block that springs to the row (keycap: outlined).
                 highlight: Block {
+                    visible: !ms.has && ms.highlight === "capsule"
                     width: list.width
                     height: list.currentItem ? list.currentItem.height - 2 : lp.rowH - 2
-                    radius: Theme.rLg
+                    radius: ms.radius(Theme.rLg)
                     ringScale: 0
                     softScale: 0
                     fill: Theme.selected
@@ -406,6 +463,12 @@ PanelWindow {
                     width: list.width
                     height: lp.heightOf(modelData)
 
+                    // The look's row face (W53, row 591) where it leaves today's springing highlight.
+                    MenuRowFace {
+                        anchors.fill: parent
+                        anchors.bottomMargin: 2
+                        highlighted: row.selected
+                    }
                     Item {
                         anchors.fill: parent
                         visible: !row.own
@@ -468,12 +531,14 @@ PanelWindow {
                                     color: row.isCalc ? Theme.fgOnAccent : Theme.dim
                                 }
                                 Text {
+                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                     anchors.centerIn: parent
                                     visible: row.isEmoji
                                     font.pixelSize: 24
                                     text: row.modelData.glyph || ""
                                 }
                                 Text {
+                                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                     anchors.centerIn: parent
                                     visible: row.kind === "app" || row.kind === "action"
                                     color: Theme.dim
@@ -496,6 +561,7 @@ PanelWindow {
                             anchors { left: ico.right; leftMargin: Theme.gap + 2; right: hint.left; rightMargin: 8
                                       verticalCenter: ico.verticalCenter }
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                 width: parent.width
                                 elide: Text.ElideRight
                                 wrapMode: row.isNote ? Text.Wrap : Text.NoWrap
@@ -508,6 +574,7 @@ PanelWindow {
                                     : (row.isWeb ? I18n.tr("launcher.web").replace("{q}", row.modelData.name) : row.modelData.name)
                             }
                             Text {
+                                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                 width: parent.width
                                 visible: !!row.modelData.generic
                                 elide: Text.ElideRight
@@ -520,6 +587,7 @@ PanelWindow {
                         // What Enter does on the selected row: launch, or copy a calculation.
                         Text {
                             id: hint
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
                             visible: row.selected && !row.isNote
                             color: Theme.dim
@@ -562,6 +630,7 @@ PanelWindow {
                             color: parent.asking ? Theme.error : Theme.dim
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors { left: parent.left; leftMargin: 40 + Theme.gap + 2; right: parent.right; rightMargin: 12
                                       verticalCenter: clearIcon.verticalCenter }
                             elide: Text.ElideRight
@@ -621,6 +690,7 @@ PanelWindow {
                     width: grid.cellWidth
                     height: grid.cellHeight
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: -Theme.shadowDy / 2
                         font.pixelSize: 30
@@ -638,13 +708,14 @@ PanelWindow {
             // Under the list: the mode's keys (clipboard, cheat sheet), or the selected emoji's name.
             Item {
                 visible: lp.footer
-                x: Theme.pad + card.inset
+                x: card.l0
                 y: list.y + lp.listH + Theme.gap
-                width: card.width - 2 * x
+                width: card.w0
                 height: 18
                 readonly property var cur: lp.results[lp.sel] || null
                 Text {
                     id: footLeft
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                     width: parent.width - footRight.implicitWidth - 24
                     visible: lp.mode === "emoji"
@@ -658,6 +729,7 @@ PanelWindow {
                 }
                 Text {
                     id: footRight
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
@@ -668,12 +740,34 @@ PanelWindow {
             }
 
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 anchors { centerIn: lp.mode === "emoji" ? grid : list }
                 visible: lp.results.length === 0
                 color: Theme.dim
                 font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("launcher.empty")
+            }
+
+            // The start menu's footer (row 563): the session's keys under the rows — lock at once, the rest through the
+            // session menu and its confirm (a start menu's "Shut down…" opens the shutdown dialog). The launcher closes
+            // first: the lock and the menu take the keyboard.
+            Row {
+                visible: lp.skin
+                anchors { right: parent.right; rightMargin: Theme.pad + card.inset; bottom: parent.bottom
+                          bottomMargin: (morph.morph ? 0 : Theme.shadowDy) + Theme.pad + card.inset
+                              + (lp.skinFooter - Theme.controlH) / 2 }
+                spacing: Theme.gap
+                Repeater {
+                    model: lp.skin ? [["action.session.lock", "lock", "session.lock"],
+                                      ["action.session.menu", "power_settings_new", "session.menu"]] : []
+                    delegate: Button {
+                        required property var modelData
+                        label: I18n.tr(modelData[0])
+                        icon: modelData[1]
+                        onClicked: { var a = modelData[2]; Store.act("ui.close", {}, function () { Store.act(a) }) }
+                    }
+                }
             }
         }
     }

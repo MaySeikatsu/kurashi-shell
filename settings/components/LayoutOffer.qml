@@ -62,6 +62,7 @@ Column {
         spacing: Theme.gap
         Text {
             id: line
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: Math.min(implicitWidth, lo.width)
             height: Math.max(implicitHeight, Theme.controlH)
             verticalAlignment: Text.AlignVCenter
@@ -97,6 +98,7 @@ Column {
         }
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: lo.message !== ""
         width: lo.width
         wrapMode: Text.WordWrap

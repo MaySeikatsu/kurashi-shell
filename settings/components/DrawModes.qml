@@ -23,6 +23,7 @@ Column {
         onPicked: v => Store.setValue(modes.rowKey, v, "")
     }
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: parent.width
         wrapMode: Text.WordWrap
         color: Theme.dim

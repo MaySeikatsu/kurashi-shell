@@ -20,6 +20,7 @@ Item {
 
     Text {
         id: t
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         anchors.left: parent.left
         anchors.leftMargin: 2
         anchors.verticalCenter: parent.verticalCenter

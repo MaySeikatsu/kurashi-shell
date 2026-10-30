@@ -12,6 +12,7 @@ Item {
     readonly property bool header: entry.kind === "keygroup"
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: kr.header
         x: 10
         anchors { bottom: parent.bottom; bottomMargin: 5 }
@@ -30,6 +31,7 @@ Item {
         spacing: 8
         Text {
             id: label
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             width: Math.min(implicitWidth, parent.width)
             elide: Text.ElideRight
             textFormat: Text.PlainText
@@ -40,6 +42,7 @@ Item {
             text: kr.entry.name || ""
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: kr.selected && !!kr.entry.generic && kr.entry.generic !== kr.entry.name
             width: Math.max(0, parent.width - label.width - parent.spacing)
             anchors.baseline: label.baseline
@@ -71,6 +74,7 @@ Item {
                 flatBorder: Theme.outline
                 Text {
                     id: capText
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.centerIn: parent
                     color: Theme.fg
                     font.pixelSize: Theme.fsCaption

@@ -30,6 +30,7 @@ ModuleBase {
             color: Theme.error
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             color: Theme.error
             font.pixelSize: Theme.fsCaption
             font.weight: Theme.wBold

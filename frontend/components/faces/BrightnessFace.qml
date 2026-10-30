@@ -43,6 +43,7 @@ FaceBase {
             animate: f.animate && f.live
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -68,6 +69,7 @@ FaceBase {
             size: Theme.fs + 3
         }
         Text {
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             Accessible.ignored: true
             anchors.horizontalCenter: parent.horizontalCenter
             visible: f.present

@@ -158,6 +158,7 @@ RoundBox {
             width: parent.width - 32 - parent.spacing - closeBtn.width - parent.spacing
             spacing: Theme.xs
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: parent.width
                 color: Theme.dim
                 font.pixelSize: Theme.fsCaption
@@ -166,6 +167,7 @@ RoundBox {
                 text: (c.item.app_name || "") + (c.item.time ? "  ·  " + Qt.formatTime(new Date(c.item.time), "hh:mm") : "")
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: parent.width
                 visible: text !== ""
                 color: Theme.fg
@@ -178,6 +180,7 @@ RoundBox {
                 text: c.item.summary || ""
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: parent.width
                 visible: text !== ""
                 color: Theme.fg
@@ -213,6 +216,7 @@ RoundBox {
                         Accessible.name: modelData.label
                         Text {
                             id: lbl
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.centerIn: parent
                             color: Theme.fg
                             font.pixelSize: Theme.fs

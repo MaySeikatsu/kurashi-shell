@@ -94,6 +94,7 @@ Item {
     }
     Text {
         id: readout
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         width: 72

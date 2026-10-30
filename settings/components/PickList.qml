@@ -162,6 +162,7 @@ Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: parent.width
                     // A path keeps its start and its last folder in view.
                     elide: l.paths ? Text.ElideMiddle : Text.ElideRight
@@ -171,6 +172,7 @@ Column {
                     text: (entry.index + 1) + ".  " + entry.name
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: entry.reason !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -218,6 +220,7 @@ Column {
 
     // A free list with no entries says so (and, for paths, what one looks like).
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: l.free && l.items.length === 0
         width: l.width
         wrapMode: Text.WordWrap

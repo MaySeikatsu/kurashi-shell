@@ -330,6 +330,7 @@ PanelWindow {
                 animate: desk.visible
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 anchors.horizontalCenter: parent.horizontalCenter
                 color: Theme.fg
                 font.pixelSize: Theme.fsTitle
@@ -417,6 +418,7 @@ PanelWindow {
                             border.color: Theme.line
                         }
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             visible: parent.day > 0
                             anchors.centerIn: parent
                             color: parent.isToday ? Theme.fgOnAccent : Theme.fg
@@ -492,6 +494,7 @@ PanelWindow {
                     }
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: parent.width
                     elide: Text.ElideRight
                     color: mediaCard.ink
@@ -501,6 +504,7 @@ PanelWindow {
                     text: desk.media.title || ""
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     width: parent.width
                     elide: Text.ElideRight
                     color: mediaCard.cover ? mediaCard.ink : Theme.dim
@@ -555,6 +559,7 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 Caption { text: desk.weather.place ? desk.weather.place.name : "" }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     color: Theme.fg
                     font.pixelSize: 34
                     font.weight: Font.Black
@@ -562,6 +567,7 @@ PanelWindow {
                     text: wcard.now.temp !== undefined ? Math.round(wcard.now.temp) + "°" : "—"
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     color: Theme.dim
                     font.pixelSize: Theme.fs - 1
                     font.family: Theme.fam(text, Theme.families)
@@ -591,6 +597,7 @@ PanelWindow {
             spacing: 2
             Caption { width: parent.width; text: ph.title }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: parent.width
                 wrapMode: Text.WordWrap
                 color: Theme.dim
@@ -686,6 +693,7 @@ PanelWindow {
                         width: parent.width
                         spacing: Theme.gap
                         Text {
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.verticalCenter: parent.verticalCenter
                             width: parent.width - cancelKey.width - doneKey.width - 2 * parent.spacing
                             elide: Text.ElideRight
@@ -710,6 +718,7 @@ PanelWindow {
                         }
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         width: parent.width
                         wrapMode: Text.WordWrap
                         color: Theme.dim
@@ -719,6 +728,7 @@ PanelWindow {
                                                : I18n.tr("frontend.desktop.edit.hint")
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: desk.anySwitchLocked
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -728,6 +738,7 @@ PanelWindow {
                         text: I18n.tr("frontend.desktop.edit.switch_locked")
                     }
                     Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         visible: desk.editError !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -749,6 +760,7 @@ PanelWindow {
                 border.color: Qt.alpha(Theme.accent, 0.7)
                 Text {
                     id: emptyText
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.centerIn: parent
                     width: parent.width - 2 * Theme.pad
                     horizontalAlignment: Text.AlignHCenter
@@ -964,6 +976,7 @@ PanelWindow {
                         border.color: Theme.line
                         Text {
                             id: hiddenText
+                            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             anchors.centerIn: parent
                             color: Theme.fgOnSelected
                             font.pixelSize: Theme.fsCaption

@@ -5,6 +5,7 @@ import "../core"
 // far (`theme.appearance.season`, the daemon's numbers). Nothing shows while the tint is off.
 Text {
     id: st
+    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
     readonly property var s: (Store.theme && Store.theme.appearance && Store.theme.appearance.season) || ({})
     readonly property bool on: s.term !== undefined
     objectName: "season-status"

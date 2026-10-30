@@ -70,6 +70,7 @@ Block {
         }
         Text {
             id: txt
+            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             visible: kb.label !== ""
             anchors.verticalCenter: parent.verticalCenter
             color: kb.primary ? kb.onSel : Theme.fg

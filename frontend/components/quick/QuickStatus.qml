@@ -33,6 +33,7 @@ Flow {
                 anchors.centerIn: parent
                 spacing: 6
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
                     font.pixelSize: Theme.fs
@@ -41,6 +42,7 @@ Flow {
                     text: seg.modelData.text
                 }
                 Text {
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     visible: seg.index < st.segments.length - 1
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.dim

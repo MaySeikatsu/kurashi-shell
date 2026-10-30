@@ -13,6 +13,7 @@ Row {
     spacing: Theme.gap
 
     Text {
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         width: line.width - (retry.visible ? retry.width + Theme.gap : 0)
         wrapMode: Text.WordWrap
         color: line.failed ? Theme.error : Theme.dim

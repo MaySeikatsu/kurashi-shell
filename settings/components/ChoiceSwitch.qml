@@ -66,6 +66,7 @@ Item {
         Row {
             anchors.fill: parent
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter
@@ -77,6 +78,7 @@ Item {
                 id: first
             }
             Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter

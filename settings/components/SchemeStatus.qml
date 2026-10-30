@@ -22,6 +22,7 @@ Flow {
 
     Text {
         id: line
+        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
         visible: ss.detail !== ""
         width: Math.min(implicitWidth, ss.width)
         height: Math.max(implicitHeight, Theme.controlH)
