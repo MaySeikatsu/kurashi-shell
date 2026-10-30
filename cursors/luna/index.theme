@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-luna
+Comment=The XP-era rounded arrow with a soft drop shadow (W53.2, CC0, drawn in tools/styles/xp7-assets.py)
+Inherits=default
