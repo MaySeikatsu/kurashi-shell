@@ -1,14 +1,87 @@
 name = "win95"
 label = "config.choice.look.win95"
 category = "retro"
-# After shellseikatsu `Services/Modes/Retro.qml` and `Widgets/BevelBorder.qml` (W25): silver controls with the
-# two-pixel outset bevel (sunken while pressed), square corners, fully opaque, no animation.
-# Line chrome makes the bar's groups and every key a block of its own; the bevel frame draws over its outline.
+# Windows 98 SE, "Windows Standard" (W53.1, docs/ux/styles.md §1): silver controls in the two-pixel bevel (push buttons
+# white/light over shadow/black, sunken while pressed), square corners, fully opaque, no blur, no animation (98 drew
+# menus and windows at once), the navy → blue caption with its 16 × 14 bevel buttons, a 1 px status well round the tray,
+# the dotted focus rectangle, MS Sans Serif's bitmap type (W95FA, OFL, as the free stand-in). Every number below was
+# read from real 98 screenshots at 1:1 (the brief's §1 cites them).
 [recipe]
-"theme.chrome" = "line"
+"theme.chrome" = "bevel"
 "theme.motion.profile" = "none"
 "theme.material.kind" = "solid"
+"theme.material.opacity" = 1.0
+"theme.material.blur" = false
 "theme.shape.corners" = "none"
-"theme.typography.family" = ["W95FA", "MS Sans Serif", "Tahoma", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# The user's own MS Sans Serif wins (a bitmap .fon Qt can draw), then the free W95FA, then the outline cuts.
+"theme.typography.family" = ["MS Sans Serif", "W95FA", "Microsoft Sans Serif", "Tahoma", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# 98's Japanese UI face, then the free pixel and UI stand-ins.
+"theme.typography.family_jp" = ["MS UI Gothic", "PixelMplus12", "BIZ UDPGothic", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
-frame = "bevel"
+title = "classic"
+start = "classic"
+tray = "status"
+menu = "classic"
+scroll = "classic"
+tooltip = "classic"
+button = "classic"
+toggle = "classic"
+slider = "classic"
+lock = "logon"
+sounds = "win95"
+
+[decor]
+# The caption: 18 px (Wine sysmetrics CaptionHeight), ActiveTitle → GradientActiveTitle left to right, white bold text at
+# the left; inactive grey → light grey with silver text; 16 × 14 raised buttons 2 px in from the caption's edges, the
+# close button 2 px apart from the others; no rounding.
+"title.height" = 18
+"title.fill" = ["title", "title_end"]
+"title.fill_inactive" = ["title_inactive", "title_inactive_end"]
+"title.on" = "on_title"
+"title.on_inactive" = "surface"
+"title.fill_dir" = "horizontal"
+"title.align" = "start"
+"title.weight" = 700
+"title.close" = "bevel"
+"title.buttons" = "end"
+"title.radius" = 0
+"title.button_w" = 16
+"title.button_h" = 14
+"title.button_gap" = 2
+"title.inset" = 2
+# The dialog frame round a captioned window: 3 px (Wine's dialog frame; light, highlight, face — face, shadow, black).
+"border.width" = 3
+"border.color" = "surface"
+"bevel.width" = 1
+"bevel.press_offset" = 1
+# Menus: 18 px rows (Wine MenuHeight), a full-width navy band with white text, etched separators, square.
+"menu.row" = 18
+"menu.highlight" = "bar"
+"menu.separator" = "etched"
+"menu.radius" = 0
+"menu.fill" = "accent"
+"menu.on" = "on_accent"
+# Scroll bars: 16 px (Wine ScrollWidth) with 16 px arrow buttons, a raised thumb on a checkered track.
+"scroll.width" = 16
+"scroll.arrows" = true
+"scroll.thumb" = "bevel"
+# The tooltip: InfoWindow yellow, black text, a 1 px black border, no tail (balloons came with 2000).
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.tail" = false
+"tray.sunken" = true
+"separator.style" = "etched"
+# Focus: the 1 px dotted rectangle inside the control (98.css: outline-offset -4 px on buttons).
+"focus.style" = "dotted"
+"focus.offset" = -4
+"focus.width" = 1
+"start.label" = true
+# Bitmap type: no smoothing, every size on the 12 px grid W95FA is drawn on (its 9 px capitals, as MS Sans Serif 8 pt).
+"type.pixel" = true
+"type.pixel_step" = 12
+"icon.size" = 16
+"icon.fill" = 1
+"motion.style" = "stepped"
+"motion.steps" = 4
+"cursor" = "win95"
