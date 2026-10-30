@@ -6,7 +6,7 @@ import "../../core"
 // (`highlight`: capsule = today's, bar = a full-width band as 9x/XP, inset = a band inside the menu's margin) and the
 // separator (`separator`: line = today's, etched = a dark and a light line, space = a gap). A look naming a menu part
 // (`[slots] menu`, contract `menu/MenuRowBase.qml`) draws each row's background instead: `rowBackground` loads it.
-Item {
+QtObject {
     readonly property string part: Theme.pascal(Theme.slot("menu"))
     readonly property bool has: part !== ""
     readonly property string highlight: Theme.decor("menu.highlight", "capsule")
