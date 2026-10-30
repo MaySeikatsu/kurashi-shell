@@ -5,6 +5,8 @@ import "../../core"
 // control under it belongs to the Stage.
 Text {
     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+    antialiasing: !Theme.pixelType
+    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
     width: parent.width
     color: Theme.fg
     font.pixelSize: Theme.fsTitle

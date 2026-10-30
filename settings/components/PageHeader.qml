@@ -5,6 +5,8 @@ import "../core"
 // below it as dim labels. Accent is for actions and state, never for text.
 Text {
     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+    antialiasing: !Theme.pixelType
+    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
     color: Theme.fg
     font.pixelSize: Theme.fsTitle
     font.family: Theme.fam(text, Theme.families)

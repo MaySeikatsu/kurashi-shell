@@ -29,6 +29,8 @@ ModuleBase {
     Text {
         id: t
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: m.vertical ? m.thickness : implicitWidth
         horizontalAlignment: m.vertical ? Text.AlignHCenter : Text.AlignLeft
         color: Theme.fg

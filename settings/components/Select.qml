@@ -115,6 +115,8 @@ Item {
         Text {
             id: shownText
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.left: parent.left
             anchors.leftMargin: Theme.pad
             anchors.right: caret.left
@@ -129,6 +131,8 @@ Item {
         Text {
             id: caret
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.right: parent.right
             anchors.rightMargin: Theme.pad
             anchors.verticalCenter: parent.verticalCenter
@@ -209,6 +213,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         elide: Text.ElideRight
                         color: opt.pickable ? Theme.fg : Theme.dim
@@ -218,6 +224,8 @@ Item {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: opt.reasonText !== ""
                         width: parent.width
                         wrapMode: Text.WordWrap
@@ -231,6 +239,8 @@ Item {
                 Text {
                     id: tick
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
                     anchors.verticalCenter: parent.verticalCenter

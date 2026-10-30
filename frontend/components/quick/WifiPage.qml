@@ -61,6 +61,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width - sw.width - Theme.gap
             anchors.verticalCenter: sw.verticalCenter
             elide: Text.ElideRight
@@ -88,6 +90,8 @@ Column {
         spacing: Theme.gap
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width - air.width - Theme.gap
             anchors.verticalCenter: air.verticalCenter
             elide: Text.ElideRight
@@ -106,6 +110,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !wifi.hasAirplane
         width: wifi.width
         wrapMode: Text.WordWrap
@@ -121,6 +127,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: wifi.scan.available !== false
         width: wifi.width
         color: Theme.dim
@@ -153,6 +161,8 @@ Column {
     // Why no list: the scan still answers, Wi-Fi is off, or nothing is in range. The daemon's reason is an i18n key.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: wifi.scan.available === false || wifi.loading || (wifi.scan.available === true && nets.count === 0)
         width: wifi.width
         wrapMode: Text.WordWrap

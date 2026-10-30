@@ -79,7 +79,10 @@ PanelWindow {
     property var startAt: null
     readonly property string skinEdge: startAt && startAt.edge === "top" ? "top"
         : (startAt ? "bottom" : (bars.atTop ? "top" : "bottom"))
-    readonly property real skinBand: skin && skinPart.ready ? skinPart.item.bandW : 0
+    // The band on the menu's side: the dress's skin keeps its own; the launcher's own start menu draws the start button's
+    // label up a band in the caption's fill where the look shows that label (98's banner) — data only, rule 4.
+    readonly property bool ownBanner: skin && !skinPart.ready && Theme.decor("start.label", false) === true
+    readonly property real skinBand: skin && skinPart.ready ? skinPart.item.bandW : (ownBanner ? 24 : 0)
     readonly property real skinHeader: skin && skinPart.ready ? skinPart.item.headerH : 0
     readonly property real skinFooter: skin ? Math.max(Theme.controlH + 2 * Theme.gap, skinPart.ready ? skinPart.item.footerH : 0) : 0
     readonly property int skinW: 420
@@ -316,6 +319,39 @@ PanelWindow {
                 }
             }
 
+            // The launcher's own start-menu banner (`ownBanner`): the caption's fill run up the side (`title.fill`, its
+            // second role at the top), the start label rotated up from the bottom, bold in the caption's ink.
+            Loader {
+                active: lp.ownBanner
+                x: card.inset + Theme.crisp(2 * Math.max(1, Theme.bevelW), Screen.devicePixelRatio) + 1
+                y: x
+                width: lp.skinBand - 2
+                height: card.height - (morph.morph ? 0 : Theme.shadowDy) - 2 * y
+                sourceComponent: Item {
+                    id: banner
+                    readonly property var fills: Theme.decor("title.fill", [])
+                    Rectangle {
+                        anchors.fill: parent
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: banner.fills.length > 1 ? banner.fills[1] : Theme.accent }
+                            GradientStop { position: 1; color: banner.fills.length > 0 ? banner.fills[0] : Theme.accent }
+                        }
+                    }
+                    PixelLabel {
+                        width: implicitWidth
+                        height: parent.width
+                        rotation: -90
+                        transformOrigin: Item.TopLeft
+                        x: 0
+                        y: parent.height - 6
+                        text: I18n.tr("decor.start.label")
+                        color: Theme.decor("title.on", "") !== "" ? Theme.decor("title.on", "") : Theme.fgOnAccent
+                        pixelSize: Theme.fsTitle + 2
+                        weight: Theme.wBold
+                    }
+                }
+            }
+
             Block {
                 id: box
                 x: card.l0
@@ -377,6 +413,7 @@ PanelWindow {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
                         visible: field.text === "" && field.preeditText === ""
@@ -387,6 +424,8 @@ PanelWindow {
                     // The prefix modes, named while the field is empty.
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                         // (not in the narrower start menu: the placeholder needs the room)
                         visible: field.text === "" && field.preeditText === "" && !lp.skin
@@ -402,6 +441,8 @@ PanelWindow {
             Text {
                 id: errRow
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: lp.err !== ""
                 x: card.l0
                 y: box.y + box.height + Theme.gap
@@ -465,6 +506,7 @@ PanelWindow {
 
                     // The look's row face (W53, row 591) where it leaves today's springing highlight.
                     MenuRowFace {
+                        id: rowFace
                         anchors.fill: parent
                         anchors.bottomMargin: 2
                         highlighted: row.selected
@@ -532,6 +574,8 @@ PanelWindow {
                                 }
                                 Text {
                                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                    antialiasing: !Theme.pixelType
+                                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                     anchors.centerIn: parent
                                     visible: row.isEmoji
                                     font.pixelSize: 24
@@ -539,6 +583,8 @@ PanelWindow {
                                 }
                                 Text {
                                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                    antialiasing: !Theme.pixelType
+                                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                     anchors.centerIn: parent
                                     visible: row.kind === "app" || row.kind === "action"
                                     color: Theme.dim
@@ -562,11 +608,13 @@ PanelWindow {
                                       verticalCenter: ico.verticalCenter }
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 width: parent.width
                                 elide: Text.ElideRight
                                 wrapMode: row.isNote ? Text.Wrap : Text.NoWrap
                                 maximumLineCount: 2
-                                color: row.selected ? Theme.fgOnSelected : Theme.fg
+                                color: rowFace.ink(row.selected ? Theme.fgOnSelected : Theme.fg)
                                 font.pixelSize: row.isCalc ? Theme.fsTitle + 2 : (row.isNote ? Theme.fs - 1 : Theme.fs)
                                 font.weight: row.isCalc || row.selected ? Theme.wBold : Theme.wMedium
                                 font.family: Theme.fam(text, Theme.families)
@@ -575,10 +623,12 @@ PanelWindow {
                             }
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 width: parent.width
                                 visible: !!row.modelData.generic
                                 elide: Text.ElideRight
-                                color: Theme.dim
+                                color: rowFace.ink(Theme.dim)
                                 font.pixelSize: Theme.fs - 2
                                 font.family: Theme.fam(text, Theme.families)
                                 text: row.modelData.generic || ""
@@ -588,9 +638,11 @@ PanelWindow {
                         Text {
                             id: hint
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
                             visible: row.selected && !row.isNote
-                            color: Theme.dim
+                            color: rowFace.ink(Theme.dim)
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
                             text: "↵ " + I18n.tr(row.copies ? "launcher.copy"
@@ -631,6 +683,8 @@ PanelWindow {
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             anchors { left: parent.left; leftMargin: 40 + Theme.gap + 2; right: parent.right; rightMargin: 12
                                       verticalCenter: clearIcon.verticalCenter }
                             elide: Text.ElideRight
@@ -691,6 +745,8 @@ PanelWindow {
                     height: grid.cellHeight
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
                         anchors.verticalCenterOffset: -Theme.shadowDy / 2
                         font.pixelSize: 30
@@ -716,6 +772,8 @@ PanelWindow {
                 Text {
                     id: footLeft
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
                     width: parent.width - footRight.implicitWidth - 24
                     visible: lp.mode === "emoji"
@@ -730,6 +788,8 @@ PanelWindow {
                 Text {
                     id: footRight
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
@@ -741,6 +801,8 @@ PanelWindow {
 
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { centerIn: lp.mode === "emoji" ? grid : list }
                 visible: lp.results.length === 0
                 color: Theme.dim

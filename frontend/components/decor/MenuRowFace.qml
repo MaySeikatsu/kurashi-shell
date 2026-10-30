@@ -20,7 +20,11 @@ Item {
     readonly property bool ownSeparator: !ms.has && ms.separator === "line"
     readonly property bool drawn: separator ? !ownSeparator : (!ownHighlight && (highlighted || ms.has))
     // The row's text on this face: the selection's ink on a band, else the caller's own.
-    function ink(own) { return highlighted && !separator && !ownHighlight && !ms.has ? Theme.fgOnSelected : own }
+    // (A look's `menu.on` wins on its band — a part's or ours — row 598.)
+    function ink(own) {
+        if (!highlighted || separator || ownHighlight) return own
+        return ms.has ? ms.ink(own) : ms.ink(Theme.fgOnSelected)
+    }
 
     Loader {
         anchors.fill: parent
@@ -45,7 +49,7 @@ Item {
             width: parent.width - 2 * x
             height: parent.height
             radius: ms.radius(0)
-            color: Theme.selected
+            color: ms.fill(Theme.selected)
         }
     }
     Component {

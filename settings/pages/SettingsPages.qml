@@ -423,6 +423,8 @@ Flickable {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: p.view.length === 0
             width: col.width
             wrapMode: Text.WordWrap
@@ -541,6 +543,8 @@ Flickable {
                                     Accessible.name: modelData.crumb
                                     Text {
                                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                        antialiasing: !Theme.pixelType
+                                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                         anchors.verticalCenter: parent.verticalCenter
                                         width: parent.width
                                         elide: Text.ElideRight
@@ -605,6 +609,8 @@ Flickable {
             spacing: Theme.gap
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 height: Theme.controlH - 8
                 verticalAlignment: Text.AlignVCenter
                 color: Theme.dim

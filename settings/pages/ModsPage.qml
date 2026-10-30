@@ -108,6 +108,8 @@ Flickable {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: parent.width
             wrapMode: Text.WordWrap
             color: Theme.dim
@@ -117,6 +119,8 @@ Flickable {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: p.forcedLoaded !== "" || p.forcedEnabled !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -127,6 +131,8 @@ Flickable {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: p.loaded && p.entries.length === 0
             width: parent.width
             wrapMode: Text.WordWrap
@@ -137,6 +143,8 @@ Flickable {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: !p.loaded && !Store.live
             color: Theme.dim
             font.pixelSize: Theme.fs
@@ -205,6 +213,8 @@ Flickable {
                             spacing: Theme.gap
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 color: Theme.fg
                                 font.pixelSize: Theme.fs
                                 font.bold: true
@@ -223,6 +233,8 @@ Flickable {
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             visible: text !== ""
                             width: parent.width
                             wrapMode: Text.WordWrap
@@ -233,6 +245,8 @@ Flickable {
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             visible: text !== ""
                             color: Theme.dim
                             font.pixelSize: Theme.fs - 2
@@ -241,6 +255,8 @@ Flickable {
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             width: parent.width
                             wrapMode: Text.WordWrap
                             color: Theme.dim
@@ -252,6 +268,8 @@ Flickable {
                         // "Running now" (K25, I48): what the mod runs for, or "Not running". Not in the sidebar.
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             visible: entry.isLoaded
                             width: parent.width
                             wrapMode: Text.WordWrap
@@ -268,6 +286,8 @@ Flickable {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: entry.invalid
                     width: parent.width
                     wrapMode: Text.WordWrap
@@ -278,6 +298,8 @@ Flickable {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: entry.failure !== ""
                     width: parent.width
                     wrapMode: Text.WordWrap

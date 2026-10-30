@@ -79,6 +79,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: !pw.avail
         width: pw.width
         wrapMode: Text.WordWrap
@@ -89,6 +91,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: pw.avail && pw.battery && pw.d.percent !== undefined
         width: pw.width
         color: Theme.fg
@@ -98,6 +102,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: pw.avail && pw.battery && pw.stateLine() !== ""
         width: pw.width
         wrapMode: Text.WordWrap
@@ -108,6 +114,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: pw.avail && !pw.battery
         width: pw.width
         color: Theme.fg
@@ -118,6 +126,8 @@ Column {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: pw.avail && pw.profiles.length > 0
         width: pw.width
         color: Theme.dim
@@ -145,6 +155,8 @@ Column {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         visible: pw.avail && pw.profiles.length === 0 && pw.d.profile_reason !== undefined
         width: pw.width
         wrapMode: Text.WordWrap

@@ -71,6 +71,8 @@ sounds = "win95"
 "tooltip.on" = "on_info"
 "tooltip.tail" = false
 "tray.sunken" = true
+# The taskbar is one strip: keys stand raised on it, no raised block round each group (the tray is the only well).
+"bar.group" = "none"
 "separator.style" = "etched"
 # Focus: the 1 px dotted rectangle inside the control (98.css: outline-offset -4 px on buttons).
 "focus.style" = "dotted"

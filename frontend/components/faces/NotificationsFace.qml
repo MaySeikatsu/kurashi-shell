@@ -31,6 +31,8 @@ FaceBase {
         Text {
             id: count
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             anchors.verticalCenter: parent.verticalCenter
             color: Theme.fg
             font.pixelSize: Theme.fs
@@ -66,6 +68,8 @@ FaceBase {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             Accessible.ignored: true
             anchors.horizontalCenter: parent.horizontalCenter
             visible: f.unread > 0

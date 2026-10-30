@@ -160,6 +160,8 @@ PanelWindow {
                 Text {
                     id: titleText
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width - dnd.width - clear.width - 2 * parent.spacing
                     anchors.verticalCenter: parent.verticalCenter
                     color: Theme.fg
@@ -203,6 +205,8 @@ PanelWindow {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     width: parent.width
                     horizontalAlignment: Text.AlignHCenter
                     color: Theme.dim
@@ -248,6 +252,8 @@ PanelWindow {
                             spacing: Theme.gap
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 color: Theme.dim
                                 font.pixelSize: Theme.fs - 2
                                 font.family: Theme.fam(text, Theme.families)

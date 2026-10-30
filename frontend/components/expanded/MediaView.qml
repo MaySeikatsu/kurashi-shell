@@ -103,6 +103,8 @@ Item {
 
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: view.width
             color: Theme.dim
             font.pixelSize: Theme.fsLabel
@@ -168,6 +170,8 @@ Item {
                     spacing: Theme.xs
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
@@ -180,6 +184,8 @@ Item {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: !view.idle && (view.d.artist ?? "") !== ""
                         width: parent.width
                         elide: Text.ElideRight
@@ -190,6 +196,8 @@ Item {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: !view.idle && (view.d.album ?? "") !== ""
                         width: parent.width
                         elide: Text.ElideRight
@@ -239,6 +247,8 @@ Item {
                     Text {
                         id: label
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors.centerIn: parent
                         color: chip.active ? Theme.fgOnSelected : Theme.dim
                         font.pixelSize: Theme.fsCaption
@@ -303,6 +313,8 @@ Item {
                 Text {
                     id: elapsed
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     color: Theme.fg
                     font.pixelSize: Theme.fsCaption
                     font.features: { "tnum": 1 }
@@ -311,6 +323,8 @@ Item {
                 }
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     anchors.right: parent.right
                     color: Theme.dim
                     font.pixelSize: Theme.fsCaption
@@ -322,6 +336,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: view.reason !== ""
             width: view.width
             wrapMode: Text.WordWrap
@@ -381,6 +397,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: view.transportReason !== ""
             width: view.width
             wrapMode: Text.WordWrap
@@ -421,6 +439,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { left: spk.right; right: parent.right; leftMargin: Theme.gap; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
                 elide: Text.ElideRight
                 color: Theme.fg
@@ -435,6 +455,8 @@ Item {
         SlotHost { slot: "media.expanded.below"; width: view.width }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             visible: view.errText !== ""
             width: view.width
             wrapMode: Text.WordWrap

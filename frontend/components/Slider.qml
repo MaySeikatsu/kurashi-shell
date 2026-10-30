@@ -106,6 +106,8 @@ Item {
     // Stands in for the level (VolumeFace draws the same mark for no audio). Dim: it is not an input.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         anchors.centerIn: parent
         visible: s.unavailable
         color: Theme.dim

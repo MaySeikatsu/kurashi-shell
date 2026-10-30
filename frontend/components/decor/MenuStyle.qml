@@ -13,6 +13,10 @@ QtObject {
     readonly property string separator: Theme.decor("menu.separator", "line")
     function rowH(own) { var v = Theme.decor("menu.row", 0); return v > 0 ? v : own }
     function radius(own) { var v = Theme.decor("menu.radius", -1); return v >= 0 ? v : own }
+    // The highlighted row's band and the text on it (`[decor] menu.fill` / `menu.on`, roles: 98's navy and white; row
+    // 598); the caller's own where the look leaves them.
+    function fill(own) { var v = Theme.decor("menu.fill", ""); return v !== "" ? Qt.color(v) : own }
+    function ink(own) { var v = Theme.decor("menu.on", ""); return v !== "" ? Qt.color(v) : own }
     // The look's row background (null without a menu part): a Loader's `source` for each row.
     readonly property url rowBackground: has ? Qt.resolvedUrl("menu/" + part + ".qml") : ""
 }

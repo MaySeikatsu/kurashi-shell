@@ -67,6 +67,8 @@ Item {
             anchors.fill: parent
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter
@@ -79,6 +81,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: s.cellW
                 height: parent.height
                 horizontalAlignment: Text.AlignHCenter

@@ -48,7 +48,7 @@ Row {
             BarGroup {
                 id: grp
                 around: inner
-                visible: run.modelData.kind !== "island" && Theme.groups && inner.width > 0
+                visible: run.modelData.kind !== "island" && Theme.groups && inner.width > 0 && Theme.decor("bar.group", "block") !== "none"
                 AnchorReport {
                     target: grp
                     key: run.modelData.key

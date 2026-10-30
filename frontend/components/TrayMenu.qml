@@ -145,6 +145,8 @@ Item {
                 // Checkmark, or a radio dot for a radio entry: the state is the glyph, not colour alone.
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep
                     x: row.indent
                     width: 16
@@ -169,6 +171,8 @@ Item {
 
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep
                     x: row.indent + 44
                     anchors.verticalCenter: parent.verticalCenter
@@ -184,6 +188,8 @@ Item {
                 // A submenu's chevron, turned down while it is open.
                 Text {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                     visible: !row.sep && row.e.children !== undefined
                     anchors.right: parent.right
                     anchors.rightMargin: Theme.pad
@@ -208,6 +214,8 @@ Item {
         // Loading, an item with no menu, or the failure of tray.menu; nothing otherwise.
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: body.width
             visible: text !== ""
             wrapMode: Text.WordWrap
@@ -220,6 +228,8 @@ Item {
         }
         Text {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+            antialiasing: !Theme.pixelType
+            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
             width: body.width
             color: Theme.dim
             font.pixelSize: Theme.fsCaption

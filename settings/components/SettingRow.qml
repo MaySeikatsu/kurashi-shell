@@ -161,6 +161,8 @@ Item {
             spacing: 2
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: r.stacked
                 width: parent.width
                 color: Theme.dim
@@ -171,6 +173,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: !r.stacked
                 width: parent.width
                 color: r.inert ? Theme.dim : Theme.fg
@@ -181,6 +185,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: text !== "" && !r.stacked
                 width: parent.width
                 color: Theme.dim
@@ -257,6 +263,8 @@ Item {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: r.previewing
                         height: Theme.controlH
                         verticalAlignment: Text.AlignVCenter
@@ -300,6 +308,8 @@ Item {
                     spacing: Theme.gap
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: Math.min(implicitWidth, ctlCol.width - (link.visible ? link.width + Theme.gap : 0))
                         wrapMode: Text.WordWrap
                         color: Theme.dim
@@ -317,6 +327,8 @@ Item {
             }
             Text {
                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 visible: r.error !== "" && !r.fieldRefusal
                 width: ctlCol.width
                 wrapMode: Text.WordWrap

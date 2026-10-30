@@ -229,6 +229,8 @@ Scope {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         color: Theme.fg
@@ -239,6 +241,8 @@ Scope {
                     }
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
@@ -250,6 +254,8 @@ Scope {
                     // One identity: "as <user>". Several: one button each, the selected one primary.
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         visible: win.identities.length < 2 && win.flow && win.flow.selectedIdentity
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
@@ -264,6 +270,8 @@ Scope {
                         spacing: Theme.xs
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                            antialiasing: !Theme.pixelType
+                            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                             color: Theme.dim
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)
@@ -332,6 +340,8 @@ Scope {
                             }
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                                antialiasing: !Theme.pixelType
+                                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 anchors { left: keyIcon.right; leftMargin: Theme.gap; verticalCenter: parent.verticalCenter }
                                 visible: field.text === ""
                                 text: win.prompt
@@ -365,6 +375,8 @@ Scope {
                     // polkit's own line (PAM info or error), else ours after a failure, else "Checking…" while busy.
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         readonly property string supp: String((win.flow && win.flow.supplementaryMessage) || "").trim()
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter

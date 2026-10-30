@@ -22,6 +22,8 @@ Flow {
 
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: 260
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
@@ -33,6 +35,8 @@ Flow {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -48,6 +52,8 @@ Flow {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.dim
@@ -56,6 +62,8 @@ Flow {
     }
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+        antialiasing: !Theme.pixelType
+        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         height: Theme.controlH
         verticalAlignment: Text.AlignVCenter
         color: Theme.fg
