@@ -18,8 +18,8 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 ---
 
 ## 2026-11-01 — session 18, part 2 (machine A, the user away): every W53 style family merged — K81
-**State:** `main` = 65153590 plus this docs commit. It is **not pushed**: everything after 4e6237e6 is local, and
-pushing waits for the user. Verification on main: VERIFY_LINE.
+**State:** `main` = 43614625 plus the handover fix-up. It is **not pushed**: everything after 4e6237e6 is local, and
+pushing waits for the user. Verification on main (after the fixes below): `just suites` 11/11 green on the first try, `just check` green, `nix build .#kurashi` built (`result`), test-styles on niri for kanso/washi/sekai with no QML error.
 No agents are running. Every W53 worktree, branch and `~/.cache/kurashi-agents-target/W53.*` build dir is deleted.
 
 **Merged since the first session-18 entry:**
