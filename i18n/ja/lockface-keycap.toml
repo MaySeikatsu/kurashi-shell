@@ -1,0 +1,7 @@
+# キーキャップのロック画面 (W53.7, components/lock/KeycapFace.qml): キーボードのようなロック — ドットの地、キーに載った
+# 時刻、Enter キー付きの長いキーのパスワード欄。
+"lockui.face.name.keycap" = "キーキャップ"
+"lockui.keycap.caps" = "Caps"
+"lockui.keycap.enter" = "ロック解除"
+# Qt の日付パターン（M = 月、d = 日、dddd = 曜日）。時刻の下のキー。
+"lockui.keycap.date_format" = "M月d日 dddd"

@@ -1,7 +1,9 @@
 name = "kami"
 label = "config.choice.look.kami"
 category = "inspired"
-# A notebook page (K60): dotted paper you can feel, blocks outlined by hand in pen, a handwritten type.
+# A notebook page (K60): dotted paper you can feel, blocks outlined by hand in pen, a handwritten type. W53.7
+# (docs/ux/styles.md §9): menus written right of the red margin rule, the chosen row underlined in the red pen; the scroll
+# bar a pencil line; tooltips and toasts notes torn from the page; the lock a notebook page with a handwritten clock.
 [recipe]
 "theme.chrome" = "line"
 "theme.motion.profile" = "expressive"
@@ -21,3 +23,18 @@ category = "inspired"
 "theme.pen.line" = "sketch"
 [slots]
 frame = "sketch"
+menu = "margin"
+scroll = "pencil"
+tooltip = "note"
+lock = "notebook"
+sounds = "kami"
+
+[decor]
+# Menus: the content starts right of the margin rule (14 px of lead; the rule 9 px in), no band — the red pen underlines.
+"menu.lead" = 14
+"menu.highlight" = "bar"
+"menu.separator" = "space"
+"menu.radius" = 0
+# A pencil line, 10 px of room.
+"scroll.width" = 10
+"cursor" = "kami"
