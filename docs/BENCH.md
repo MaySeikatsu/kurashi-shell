@@ -756,3 +756,36 @@ commits of each layer surface over the idle window; pass A reads the daemon's CP
   frame a second while it is visible (Ma), and it stops when the view closes.
 - Configs for the second row: `mods.enabled = ["timer"]`, `bar.enabled = false`, `desktop.enabled = false`,
   `island.main.faces = ["clock"]`; the countdown starts from the measured command (`timer.start`, 600 s) before the frontend runs.
+
+### 2026-11-01 — I330: every style at rest (machine A, real stack, `sh tools/bench/styles.sh`, session 18)
+One `measure.py` run per style (passes a and b, 20 s idle, load gate 1.5), config = the style alone, idle locking off,
+the K82 tree (feat/s18-depth-and-joins). The user's own session ran beside it (labelled loaded where the gate waited).
+
+| style | idle CPU % | wakeups/s | PSS 1 out (MiB) | PSS 2 out | idle commits/s | mapped | popup ms |
+|---|---|---|---|---|---|---|---|
+| aero | 0.0 | 0.1 | 131.0 | 141.9 | 0.0 | 3 | 7.5 |
+| aqua | 0.05 | 11.6 | 132.9 | 143.4 | 0.0 | 3 | 7.3 |
+| fluent | 0.0 | 0.1 | 133.1 | 141.0 | 0.0 | 3 | 7.3 |
+| glass | 0.05 | 11.6 | 132.9 | 143.4 | 0.0 | 3 | 9.1 |
+| hallownest | 0.0 | 0.1 | 132.9 | 143.4 | 1.05 | 3 | 7.5 |
+| kami | 0.0 | 0.1 | 132.9 | 139.9 | 0.0 | 3 | 8.4 |
+| kanso | 0.0 | 0.1 | 132.9 | 143.3 | 1.05 | 3 | 7.5 |
+| kawaii | 0.0 | 0.1 | 132.9 | 140.4 | 0.0 | 3 | 7.6 |
+| luna | 0.05 | 11.9 | 132.8 | 142.2 | 0.0 | 3 | 8.6 |
+| material | 0.0 | 0.1 | 132.9 | 142.4 | 0.0 | 3 | 7.7 |
+| ps2 | 0.05 | 12.1 | 131.9 | 142.3 | 0.0 | 3 | 7.6 |
+| sekai | 0.0 | 0.1 | 132.9 | 143.7 | 1.05 | 3 | 7.8 |
+| snes | 0.0 | 1.1 | 132.0 | 141.3 | 0.0 | 3 | 7.3 |
+| souls | 0.0 | 0.1 | 131.2 | 142.2 | 1.05 | 3 | 9.7 |
+| terminal | 0.0 | 0.1 | 131.1 | 141.5 | 0.0 | 3 | 7.2 |
+| vibrancy | 0.05 | 11.7 | 130.7 | 140.1 | 1.05 | 3 | 7.8 |
+| washi | 0.0 | 0.1 | 130.9 | 139.4 | 0.0 | 3 | 8.1 |
+| win95 | 0.05 | 11.6 | 130.9 | 139.1 | 0.0 | 3 | 7.7 |
+| yorha | 0.0 | 0.1 | 130.7 | 141.5 | 0.0 | 3 | 7.3 |
+
+
+- **Within budget:** idle CPU (≤ 0.05 %), mapped surfaces (3), popup latency (7–10 ms), PSS at one output (130.7–133.1
+  MiB against 150). **Over:** PSS per extra output +7.6 to +11.5 MiB against +6 (as before W53).
+- **Ma findings (BACKLOG I344):** aqua, glass, luna, ps2, vibrancy and win95 wake ~12 times a second at rest (the others
+  0.1); hallownest, kanso, sekai, souls and vibrancy commit ~1 frame a second at rest (the budget allows the minute flip).
+- Frame on (test-frame, same tree): washi + paper +22–26 MiB against frame off (two frontends), kanso +10 (I342).
