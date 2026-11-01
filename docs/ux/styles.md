@@ -711,13 +711,19 @@ surfaces).
 ## 8. ps2 — PS2 dashboard
 
 **Reference.** The PS2 boot and dashboard: a black void, translucent light towers, a deep blue floor glow, thin silver
-type, the two-choice main menu (Browser / System Configuration) and the memory-card browser. Screenshots: measured on the 640 × 448 captures in github.com/snow-developments/bios-launcher `design/references` (origin unknown, likely PCSX2; [R] tier, unconfirmed against hardware)
-(a reference capture from a console or PCSX2's BIOS screen; cite it in the card).
+type, the two-choice main menu (Browser / System Configuration) and the memory-card browser. Screenshots: measured on the 640 × 448 captures in github.com/snow-developments/bios-launcher `design/references` (origin unknown, likely PCSX2; [R] tier, unconfirmed against hardware). The boot towers, the clock screen and the System
+Configuration list are not among them: those rows stay [O].
 
 **Metrics.** Type is thin, silver-white, with a soft blue glow; the menu has 2 rows centred left of centre; a selected
 row glows ([M]: both items centred on x ≈ 0.675 of the width, cap tops at 0.446 and 0.520 of the height, pitch 33 of 448; selected text light blue, peak #4ac9fc; unselected #545454; the glow ≤ 2 px, no bar). Everything else is the existing `Ps2` frame's art.
 
-**Type.** Existing chain (SST → Zrnic → Inter). Lighter: Inter Light; ja **M PLUS 1p Light** (OFL).
+More [M] on those captures: the void is pure #000000; the main menu's ring of orbs (cores #aab8c3, halo #1a3449) left of
+the items; button hints at y 403–418 in #bababa; System Configuration's Clock Adjustment: the header in yellow #d2d22d,
+the selected item cyan #6fcdf5, its value #b0b8c0, black letterbox bars 55 px; the memory-card browser: a diagonal grey
+gradient (#979797 → #3c3c34), the header yellow, right-aligned.
+
+**Type.** Existing chain (SST → Zrnic → Inter). Lighter: Inter Light; ja **M PLUS 1p Light** (OFL). (The captures show a
+regular-weight neo-grotesque, Helvetica-like, not a thin one; the brief's thin type is kept as the user asked.)
 
 **Mapping**
 
@@ -751,6 +757,30 @@ full height.
 **Multi-output.** The towers paint once per output.
 
 **Budget.** The existing `Ps2` frame; the lock face only while locked.
+
+**Built (W53.5).** `looks/ps2.toml` (Inter Light / M PLUS 1p Light, `type.weight = 300`, a static blue glow round blocks,
+500/450 ms ease-in-out fades, `motion.style = fade`), `palettes/ps2.toml` (the void #000000, the selection's #4ac9fc as
+the accent, towers in `tertiary`), `profiles/ps2-desk.toml` (a thin strip along the top with the card-slot island and the
+clock at its end, the dock as the browser's icon row), `decor/{bar/Void,menu/Glow,scroll/Hairline,tooltip/Glow,
+slider/Glow,island/CardSlot}`, `lock/DashboardFace.qml` (towers rise once, a thin clock top right, the user as an original
+card slot, the underline field whose glow turns the error role, CAPS in small caps, a pulse only while PAM checks),
+`sounds/ps2` + `cursors/ps2` (soft detuned pads and a slim silver arrow with a blue glow, CC0). The launcher's rows glow
+from their start with the selected one in the light blue (`menu.on = accent`); quick settings and the sidebar's toggles
+are System Configuration rows with the value at the right (`quick.tiles = rows`, `quick.values = value`); the query is an
+underline field that glows while it has the keyboard; toasts are one box low on the screen, clear of the dock; Stage cards
+and the quick flyout carry the frame's faint towers and glow line. Shots: `frontend/shots/styles/ps2/`.
+
+**Still differs (W53.5, honest).**
+- The desk is not the void: the shell draws no wallpaper (the shots use plain black); the towers and floor glow live in
+  the lock face, and faintly in the cards' frame (BACKLOG: an opt-in ground layer from the look's frame).
+- The two-row main menu is a feel, not a layout: the launcher lists its results as rows; no orbs ring, no header in
+  yellow (no role for it), no letterbox bars.
+- Text glows only where a part draws it (the selected row's band, the field, the lock's clock), not on every label.
+- The fade timings are the brief's estimate (no source documents the dashboard's); grim cannot sample a 500 ms fade
+  finely enough to measure ours beyond "it fades".
+- Panels are translucent (0.72) without blur, so over a bright wallpaper they read grey, not void.
+- The dock's icons float without the browser's still reflection.
+- High contrast drops every glow; the towers in the lock's ground nearly vanish there (the contrast palette's tertiary).
 
 ---
 
