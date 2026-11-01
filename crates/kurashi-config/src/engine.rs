@@ -215,6 +215,11 @@ impl<S: SchemaView> Config<S> {
     // --- resolution -------------------------------------------------------------------------
 
     /// Effective value with provenance; `None` for keys no layer (not even the schema) knows.
+    /// Whether a loaded profile holds a global value of `key` (what [`Op::Release`] drops).
+    pub fn profile_holds(&self, key: &str) -> bool {
+        self.layers.profile.contains_key(&(key.to_owned(), None))
+    }
+
     pub fn resolve(&self, key: &str, output: Option<&str>) -> Option<Provenanced> {
         self.resolve_in(&self.layers, key, output)
     }
@@ -408,6 +413,16 @@ impl<S: SchemaView> Config<S> {
                     }
                     next.user
                         .retain(|(k, o), _| !(o == output && (k == key || k.starts_with(&prefix))));
+                }
+                Op::Release { key } => {
+                    if !self.known.contains(key) {
+                        errors.push(OpError::UnknownKey {
+                            index,
+                            key: key.clone(),
+                        });
+                        continue;
+                    }
+                    next.profile.remove(&(key.clone(), None));
                 }
             }
         }

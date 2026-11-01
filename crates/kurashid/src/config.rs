@@ -1584,7 +1584,9 @@ impl ConfigStore {
     }
 
     /// K53: applies a style (`theme.style.apply`) or a look (`theme.look.apply`) as one undoable change: every
-    /// appearance key of its kind the user set is reset, then the choice is set — so the pack is recreated exactly.
+    /// appearance key of its kind the user set is reset, and every one a loaded profile set is released from the
+    /// profile layer (K81: a profile saved with a `[theme]` held the look, so no style could show), then the choice is
+    /// set — so the pack is recreated exactly. The profile file itself is not touched.
     fn apply_pack(
         &self,
         kind: kurashi_theme::appearance::Kind,
@@ -1595,7 +1597,7 @@ impl ConfigStore {
             Kind::Style => (STYLE_KEYS, "theme.style"),
             Kind::Look => (LOOK_KEYS, "theme.look"),
         };
-        let user: Vec<&str> = {
+        let (user, held): (Vec<&str>, Vec<&str>) = {
             let cfg = self.cfg.lock().expect("config lock");
             // K55: a style makes light or dark follow it; the user's own mode is kept to come back to. A second style
             // keeps the first remembered mode (the user's, not the style's).
@@ -1629,7 +1631,8 @@ impl ConfigStore {
                     tracing::warn!(file = %file.display(), error = %e, "cannot keep the material before the pack");
                 }
             }
-            keys.iter()
+            let user = keys
+                .iter()
                 .copied()
                 .filter(|k| {
                     *k != key
@@ -1637,7 +1640,12 @@ impl ConfigStore {
                             .resolve(k, None)
                             .is_some_and(|p| p.source == Source::User)
                 })
-                .collect()
+                .collect();
+            let held = std::iter::once(key)
+                .chain(keys.iter().copied())
+                .filter(|k| cfg.profile_holds(k))
+                .collect();
+            (user, held)
         };
         let mut ops: Vec<ApplyOp> = user
             .into_iter()
@@ -1651,7 +1659,11 @@ impl ConfigStore {
             value: json!(name),
             output: None,
         });
-        self.apply(&ops)
+        let release = held
+            .into_iter()
+            .map(|k| Op::Release { key: k.into() })
+            .collect();
+        self.apply_with(&ops, release)
     }
 
     /// `{"values":{key: Provenanced}, "outputs":{name:{key: Provenanced}}, "history":{can_undo,
@@ -1946,9 +1958,15 @@ impl ConfigStore {
     }
 
     pub fn apply(&self, ops: &[ApplyOp]) -> Result<Committed, Vec<OpError>> {
+        self.apply_with(ops, Vec::new())
+    }
+
+    /// [`Self::apply`] plus engine ops no wire op names (`Op::Release`), committed as the same transaction.
+    fn apply_with(&self, ops: &[ApplyOp], extra: Vec<Op>) -> Result<Committed, Vec<OpError>> {
         let applied = {
             let mut cfg = self.cfg.lock().expect("config lock");
-            let wire = prepared(cfg.schema(), ops);
+            let mut wire = prepared(cfg.schema(), ops);
+            wire.extend(extra);
             let result = cfg.apply(&wire);
             result.map_err(|errs| {
                 errs.into_iter()

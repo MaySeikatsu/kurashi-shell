@@ -941,4 +941,58 @@ mod tests {
         assert_eq!(val("theme.colors.palette").value, "win95");
         let _ = std::fs::remove_dir_all(&root);
     }
+
+    /// K81: a profile saved with a `[theme]` held the look, palette, chrome and font above every style's recipe, so a
+    /// style applied over it changed only the ink. Applying a style releases those keys from the profile layer (one
+    /// undoable change; the profile's other keys and its file stay).
+    #[tokio::test]
+    async fn a_style_applied_over_a_profile_recreates_the_pack() {
+        let root =
+            std::env::temp_dir().join(format!("kurashid-style-profile-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let store = store_with(&root, "schema_version = 2\n[theme]\nstyle = \"glass\"\n");
+        let profile = "schema_version = 2\n[bar]\nheight = 30\n[theme]\nchrome = \"line\"\nlook = \"washi\"\nstyle = \"washi\"\n[theme.colors]\npalette = \"wa-iro\"\n[theme.typography]\nfamily = [\"Noto Serif\"]\n";
+        std::fs::create_dir_all(root.join("config/profiles")).unwrap();
+        std::fs::write(root.join("config/profiles/mine.toml"), profile).unwrap();
+        let mut actions = crate::actions::ActionRegistry::default();
+        store.register_actions(&mut actions);
+        actions
+            .invoke("profile.load", json!({"name": "mine"}))
+            .await
+            .unwrap();
+        let val = |k: &str| store.get(k, None).unwrap();
+        let held = kurashi_config::Source::Profile("mine".into());
+        assert_eq!(val("theme.look").source, held);
+        actions
+            .invoke("theme.style.apply", json!({"name": "sekai"}))
+            .await
+            .unwrap();
+        assert_eq!(val("theme.style").value, "sekai");
+        assert_eq!(val("theme.look").value, "sekai");
+        assert_eq!(val("theme.chrome").value, "keycap");
+        for k in [
+            "theme.look",
+            "theme.colors.palette",
+            "theme.typography.family",
+        ] {
+            assert!(
+                matches!(val(k).source, kurashi_config::Source::Theme(_)),
+                "{k}: {:?}",
+                val(k).source
+            );
+        }
+        assert!(store.appearance_overrides().is_empty());
+        // The profile's other keys stay, and so does its file.
+        assert_eq!(val("bar.height").value, 30);
+        assert_eq!(val("bar.height").source, held);
+        assert_eq!(
+            std::fs::read_to_string(root.join("config/profiles/mine.toml")).unwrap(),
+            profile
+        );
+        // One undo brings the profile's look back.
+        store.undo(false).unwrap();
+        assert_eq!(val("theme.look").value, "washi");
+        assert_eq!(val("theme.look").source, held);
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }
