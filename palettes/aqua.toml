@@ -1,40 +1,68 @@
-# Aqua — a macOS-like look: graphite / silver grounds that let the wallpaper talk, system blue accent (Apple's
-# published system colours). After shellseikatsu's `Macos` preset (W25, K50), which takes muted matugen colours.
-# Meant for decor `aqua` (frame `sheen`).
+# Aqua — Mac OS X 10.2 Jaguar – 10.4 Tiger: the pale pinstriped window grey, black Lucida Grande text, Aqua blue gel
+# (selection #3875d7, text selection #b5d5ff), the traffic lights' red, amber and green gels (close, minimize, zoom),
+# the pale yellow help tags, an Aqua blue desk. Light, and dark (K53: every palette has both; 10.x had no dark mode — a
+# graphite night of its own). W53.4 (docs/ux/styles.md §5): every role the 10.x desk shows is named here, never left to
+# the derivations. Meant for look `aqua`.
 name = "aqua"
 kind = "pair"
-description = "Graphite and silver with system blue (decor aqua)"
-
-[dark]
-surface = "#1e1e1e"
-surface_container_lowest = "#141414"
-surface_container_low = "#232323"
-surface_container = "#2c2c2e"
-surface_container_high = "#3a3a3c"
-surface_container_highest = "#48484a"
-on_surface = "#f5f5f7"
-on_surface_variant = "#a1a1a6"
-outline = "#7c7c80"
-outline_variant = "#48484a"
-accent = "#0a84ff"
-secondary = "#bf5af2"
-tertiary = "#30d158"
-warning = "#ffd60a"
-error = "#ff453a"
+description = "Mac OS X pinstripes and Aqua blue gel (decor aqua)"
 
 [light]
-surface = "#f5f5f7"
-surface_container_lowest = "#ffffff"
-surface_container_low = "#fafafc"
-surface_container = "#ffffff"
-surface_container_high = "#e8e8ed"
-surface_container_highest = "#d2d2d7"
-on_surface = "#1d1d1f"
-on_surface_variant = "#6e6e73"
-outline = "#8e8e93"
-outline_variant = "#d2d2d7"
-accent = "#0066cc"
-secondary = "#8944ab"
-tertiary = "#248a3d"
-warning = "#a05a00"
-error = "#d70015"
+surface = "#e8e8e8"                   # the window ground under its pinstripes
+surface_container_lowest = "#ffffff"  # fields and lists are white
+surface_container_low = "#f5f5f5"
+surface_container = "#ededed"         # windows, sheets, panels (pinstriped by the look)
+surface_container_high = "#dcdcdc"
+surface_container_highest = "#cdcdcd"
+on_surface = "#000000"
+on_surface_variant = "#4c4c4c"
+outline = "#7f7f7f"                   # control rims, the caption's and the menu bar's foot (macosx102 #757575–#7f7f7f)
+outline_variant = "#c4c4c4"
+accent = "#3672d4"                    # the selection blue (#3875d7, one step darker so white text keeps 4.5:1)
+on_accent = "#ffffff"
+accent_container = "#b5d5ff"          # the text selection
+on_accent_container = "#000000"
+secondary = "#6d84a8"                 # graphite blue
+tertiary = "#3a8f3a"
+success = "#4fa83d"                   # the zoom gel
+warning = "#e0a020"                   # the minimize gel
+error = "#d8372c"                     # the close gel
+# W53.0a roles: the caption band (a pale grey falling to a darker one; pinstriped by the look), the inactive caption,
+# the title's ink, the help tag's pale yellow, the Aqua blue desk.
+title = "#f4f4f4"
+title_end = "#e2e2e2"
+title_inactive = "#f2f2f2"
+title_inactive_end = "#e6e6e6"
+on_title = "#1a1a1a"
+info = "#ffffc7"
+on_info = "#000000"
+desk = "#2e6cc0"
+
+[dark]
+surface = "#2a2a2c"
+surface_container_lowest = "#18181a"
+surface_container_low = "#232325"
+surface_container = "#2e2e30"
+surface_container_high = "#3b3b3e"
+surface_container_highest = "#4a4a4d"
+on_surface = "#f2f2f2"
+on_surface_variant = "#b3b3b8"
+outline = "#7a7a80"
+outline_variant = "#48484c"
+accent = "#4a8be6"
+on_accent = "#ffffff"
+accent_container = "#24477a"
+on_accent_container = "#dbe8fb"
+secondary = "#8aa0c0"
+tertiary = "#5cb85c"
+success = "#5cbf47"
+warning = "#e8ad2c"
+error = "#e8483c"
+title = "#4a4a4d"
+title_end = "#36363a"
+title_inactive = "#3a3a3d"
+title_inactive_end = "#2f2f32"
+on_title = "#f0f0f0"
+info = "#4a4630"
+on_info = "#fbf7d8"
+desk = "#163a70"

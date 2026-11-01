@@ -452,6 +452,8 @@ kp down
 [ "$(Q previewState)" = 'theme.colors.palette="kanso"' ] || fail "palette cards: Down did not preview kanso ($(Q previewState))"
 kp return
 [ "$(val theme.colors.palette)" = '"kanso"' ] || fail "palette cards: Return did not keep kanso ($(val theme.colors.palette))"
+# (Return keeps a busy preview: the session closes when the daemon answers the apply — wait for that, W55.)
+for _ in $(seq 30); do [ "$(Q previewState)" = none ] && break; sleep 0.1; done
 [ "$(Q previewState)" = none ] || fail "palette cards: the preview is still open after Return"
 shot 14-palette-keyboard
 echo "keyboard K3: palette cards Down (preview), Return (kept): kanso"
@@ -1298,6 +1300,8 @@ echo "layout W3: Move bar to … took the bar and its zones to the bottom edge; 
 lfocus "pickrow:clock"
 kp delete
 wait_val edges.bottom.end '["volume","mods","recorder","keyboard","quick","tray","sidebar_right"]'
+# (the page lists the unplaced row once the config document reaches it — wait for that, W55)
+for _ in $(seq 30); do [ "$(Q present unplaced:clock)" = yes ] && break; sleep 0.1; done
 [ "$(Q present unplaced:clock)" = yes ] || fail "unplaced: Clock is not offered back once no zone holds it"
 lshot washi-dark-unplaced
 lfocus "unplaced:clock"

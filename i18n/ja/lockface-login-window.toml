@@ -1,0 +1,4 @@
+# ログインウインドウ ロック画面 (W53.4, components/lock/LoginWindowFace.qml): Mac OS X 10.x のログインウインドウ。
+"lockui.face.name.login-window" = "ログインウインドウ"
+"lockui.login_window.password" = "パスワード"
+"lockui.login_window.log_in" = "ログイン"

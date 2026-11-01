@@ -1,16 +1,119 @@
 name = "aqua"
 label = "config.choice.look.aqua"
-category = "inspired"
-# After shellseikatsu `Services/Modes/Macos.qml` and `Widgets/GlassSheen.qml` (W25): frosted, soft, deferential —
-# graphite glass with a specular rim, squircles, smooth and never bouncy; SF Pro when installed, Inter otherwise.
+category = "retro"
+# Mac OS X 10.2 Jaguar – 10.4 Tiger (W53.4, docs/ux/styles.md §5): pinstriped window grounds, the 22 px caption with the
+# three gel traffic lights on its left and the title centred in Lucida Grande (DejaVu Sans, Bitstream Vera's heir, as the
+# free stand-in); Aqua blue gel push buttons whose default button pulses three times, then rests; the white pinstriped
+# menu bar with our original mark at its start (never Apple's logo); menus with the blue gel band; the Dock's translucent
+# shelf with the black ▲ under running apps; sheets that drop out of the bar; the login window. Numbers from real 10.x
+# captures at 1:1 (the brief's §5 cites them).
 [recipe]
 "theme.chrome" = "soft"
 "theme.motion.profile" = "expressive"
-"theme.material.kind" = "translucent"
-"theme.material.blur" = true
-"theme.material.opacity" = 0.6
-"theme.shape.corners" = "squircle"
-"theme.shape.radius" = 24
-"theme.typography.family" = ["SF Pro Display", "SF Pro Text", "Helvetica Neue", "Inter", "Noto Sans CJK JP", "sans-serif"]
+"theme.material.kind" = "solid"
+"theme.material.blur" = false
+"theme.shape.corners" = "rounded"
+# 10.x's window corners (the caption's top); fields and buttons come out at the small radius.
+"theme.shape.radius" = 6
+"theme.typography.family" = ["Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# 10.x's Japanese UI face (Hiragino Kaku Gothic), then the free stand-in.
+"theme.typography.family_jp" = ["Hiragino Kaku Gothic ProN", "Hiragino Kaku Gothic Pro", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
-frame = "sheen"
+title = "lights"
+start = "mark"
+bar = "menu"
+dock = "shelf"
+menu = "gel"
+button = "gel"
+lock = "login-window"
+sounds = "aqua"
+
+[decor]
+# The caption: 22 px, the pale band falling to a darker grey (pinstriped like the window), the title centred in
+# Lucida Grande 13 px; the traffic lights on the left: 14 px gels, 7 px apart, 8 px in; close red, minimize amber, zoom
+# green, a glassy highlight on each; grey and paler while the window has no focus.
+"title.height" = 22
+"title.fill" = ["title", "title_end"]
+"title.fill_inactive" = ["title_inactive", "title_inactive_end"]
+"title.fill_dir" = "vertical"
+"title.on" = "on_title"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "center"
+"title.weight" = 400
+"title.size" = 13
+"title.family" = ["Lucida Grande", "DejaVu Sans"]
+"title.buttons" = "start"
+"title.radius" = 6
+"title.button_w" = 14
+"title.button_h" = 14
+"title.button_gap" = 7
+"title.inset" = 8
+"title.gloss" = 0.85
+"title.close_fill" = "error"
+"title.min_fill" = "warning"
+"title.max_fill" = "success"
+"border.width" = 1
+"border.color" = "outline"
+# Pinstripes: one darker px line every 4 px on window grounds, the menu bar and the caption.
+"pattern.kind" = "stripes"
+"pattern.period" = 4
+"pattern.strength" = 0.086
+# Menus: 19 px rows, the highlighted row the Aqua blue gel band from edge to edge with white text, a plain rule.
+"menu.row" = 19
+"menu.highlight" = "bar"
+"menu.separator" = "line"
+"menu.radius" = 0
+"menu.fill" = "accent"
+"menu.on" = "on_accent"
+"menu.gloss" = 0.7
+"scroll.width" = 15
+"scroll.thumb" = "gel"
+# Help tags: pale yellow, a grey hairline, no tail.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.radius" = 0
+"tooltip.border" = "outline"
+"separator.style" = "none"
+"focus.style" = "halo"
+"focus.width" = 3
+"focus.offset" = 0
+# The start dress: our mark in Jaguar's blue gel at the menu bar's start (no label).
+"start.label" = false
+"start.fill" = ["accent"]
+"start.gloss" = 0.8
+# The menu bar: white falling to a pale grey, pinstriped, a grey line under it; one strip.
+"bar.fill" = ["surface_container_lowest"]
+"bar.edge" = "outline"
+"bar.gloss" = 0.0
+"bar.group" = "none"
+# The Dock: a translucent white shelf with a glassy top line and a soft reflection of its icons; icons stand on it
+# without tiles; a black ▲ under every running app.
+"dock.fill" = ["surface_container_lowest", "surface_container_high"]
+"dock.radius" = 8
+"dock.reflection" = 0.3
+"dock.indicator" = "triangle"
+"dock.tiles" = "none"
+# Push buttons: Aqua's gel capsules; the default button in blue gel, pulsing three times when it appears.
+"button.radius" = -1
+"button.gloss" = 0.9
+"button.pulse" = 3
+"button.pulse_ms" = 1500
+# Motion: sheets slide down out of the bar (~250 ms, ease out); menus and panels fade out.
+"motion.style" = "slide"
+"motion.open_ms" = 250
+"motion.close_ms" = 200
+"motion.fast_ms" = 150
+"motion.open_curve" = [0.25, 0.1, 0.25, 1.0]
+"motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
+"motion.fast_curve" = [0.25, 0.1, 0.25, 1.0]
+"cursor" = "aqua"
+# Quick settings as a menu extra's drop-down (no phone): compact toggles, the sliders (W53.3's generic keys); toasts in the
+# top-right corner under the menu bar, as a small utility panel (10.x had no system notifications).
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+"toast.place" = "corner"
+# The Apple menu: the start mark opens the system's menu (typing searches, Spotlight's way); quick settings hang from the
+# menu bar square, pinstriped, their far corners rounded — a menu extra's drop-down.
+"start.form" = "menu"
+"flyout.hang" = true
