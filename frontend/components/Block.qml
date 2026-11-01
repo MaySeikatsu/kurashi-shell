@@ -182,14 +182,17 @@ Item {
                 // W53.5: the fill in hard bands, top to bottom, inside the outer grid pixel (the frame's outline and the
                 // rim's stepped corner stay the rim's).
                 Column {
+                    id: bands
                     visible: blk.banded
                     anchors.fill: parent
-                    anchors.margins: Math.max(blk.inset, Theme.grid(Screen.height))
+                    anchors.margins: Math.max(blk.inset, g)
+                    readonly property int g: Theme.grid(Screen.height)
+                    readonly property int n: blk.banded ? Theme.bandCount(height, g) : 0
                     Repeater {
-                        model: blk.banded ? Theme.fillBands : 0
+                        model: bands.n
                         Rectangle {
                             required property int index
-                            readonly property int n: Theme.fillBands
+                            readonly property int n: bands.n
                             readonly property real h0: Math.round(index * parent.height / n)
                             width: parent.width
                             height: Math.round((index + 1) * parent.height / n) - h0

@@ -20,11 +20,13 @@ Item {
         anchors.fill: parent
         anchors.margins: pd.g
         sourceComponent: Column {
+            id: col
+            readonly property int n: Theme.bandCount(height, pd.g)
             Repeater {
-                model: Theme.fillBands
+                model: col.n
                 Rectangle {
                     required property int index
-                    readonly property int n: Theme.fillBands
+                    readonly property int n: col.n
                     readonly property real h0: Math.round(index * parent.height / n)
                     width: parent.width
                     height: Math.round((index + 1) * parent.height / n) - h0

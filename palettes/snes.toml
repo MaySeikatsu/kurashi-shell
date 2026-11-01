@@ -1,54 +1,58 @@
-# SNES (W53.5, docs/ux/styles.md §7): the 16-bit RPG window — black screen, windows in hard blue bands (`title` at the
-# window's top → `title_end` at its foot, the look's `fill.band_*`), white text and borders, the controller's four face
-# colours (A red, B yellow, X blue, Y green: secondary, warning, data X = tertiary, success) as spice, a gold cursor
-# highlight. Dark is the RPG screen (the style's scheme); light is the console's own grey plastic with the US purple.
+# SNES (W53.5, docs/ux/styles.md §7): the 16-bit RPG window, measured on native 256 × 224 captures of Final Fantasy VI's
+# dialogue box (vgmuseum.com/end/snes/a/ff3w-004.gif) and menus (the FF wiki's FFVI_SNES_Menu.png, via the Wayback
+# Machine): black screen, windows in hard blue bands from #6060b8 at the top to #000050 at the foot (`title` → `title_end`,
+# the look's `fill.band_*`), a frame of white #f8f8f8, light grey #b8b8b8 and dark grey #606868 (ring, outline,
+# outline_variant), white text. The Super Famicom pad's face colours (Wikimedia Commons' "Super Famicom and Super NES
+# Controllers.jpg": X #3571c8, A #c34744, B #f8dd4d, Y #4fa173) as tertiary, secondary, warning, success; a gold cursor
+# highlight. Dark is the RPG screen (the style's scheme); light is the console's own grey plastic with the US purple
+# (the 101 model: grey #d3d3d3–#d9d7d8, buttons #6841b0–#714db4).
 name = "snes"
 kind = "pair"
 description = "RPG window blue on black, the four face colours (decor snes)"
 
 [dark]
 surface = "#000000"                   # the screen's black
-surface_container_lowest = "#000820"
-surface_container_low = "#081458"
-surface_container = "#102070"         # a window's middle band: tooltips, plain fills
-surface_container_high = "#1c3088"    # a small window (a key, a tile)
-surface_container_highest = "#22389a"
-title = "#2c42a6"                     # the window's top band
-title_end = "#0a1460"                 # the window's foot
+surface_container_lowest = "#080840"
+surface_container_low = "#101058"
+surface_container = "#181868"         # a window's middle band: tooltips, plain fills
+surface_container_high = "#202078"    # a small window (a key, a tile)
+surface_container_highest = "#282888"
+title = "#6060b8"                     # the window's top band (FF6's dialogue box, 12,12,23)
+title_end = "#000050"                 # the window's foot (0,0,10)
 on_title = "#ffffff"
 on_surface = "#f8f8f8"                # window text
-on_surface_variant = "#c8d0f0"
-outline = "#a8b0d0"
-outline_variant = "#30408c"
+on_surface_variant = "#c0c0d0"
+outline = "#b8b8b8"                   # the frame's light grey
+outline_variant = "#606868"           # the frame's inner dark grey
 accent = "#f8d050"                    # the cursor's highlight, gold
 on_accent = "#101010"
 accent_container = "#685010"
 on_accent_container = "#fff4c8"
-secondary = "#e04838"                 # A
-tertiary = "#4878e8"                  # X
-warning = "#f0c030"                   # B
-success = "#40b058"                   # Y
+secondary = "#e05048"                 # A
+tertiary = "#4880e0"                  # X
+warning = "#f8dd4d"                   # B
+success = "#4fa173"                   # Y
 error = "#ff6858"
 line = "#000000"                      # the window's dark outline
-ring = "#f8f8f8"                      # the window's white border
+ring = "#f8f8f8"                      # the frame's white
 desk = "#000000"
 
 # Light: the console itself — light-grey plastic, dark-grey text, the US purple buttons, windows a pale plastic band.
 [light]
-surface = "#b8b9b4"
-surface_container_lowest = "#dcddd8"
-surface_container_low = "#cfd0cb"
-surface_container = "#c6c7c2"
-surface_container_high = "#d4d5d0"
-surface_container_highest = "#aeafaa"
-title = "#e6e7e2"
-title_end = "#b4b5b0"
+surface = "#c8c8c6"
+surface_container_lowest = "#e2e2e0"
+surface_container_low = "#d6d6d4"
+surface_container = "#d0d0ce"
+surface_container_high = "#dadad8"
+surface_container_highest = "#b8b8b6"
+title = "#ececea"
+title_end = "#bebebc"
 on_title = "#1e1e26"
 on_surface = "#1e1e26"
 on_surface_variant = "#3a3a44"
-outline = "#54545e"
-outline_variant = "#8e8f8a"
-accent = "#4f43ae"                    # US purple
+outline = "#8e8e8c"
+outline_variant = "#6e6e6c"
+accent = "#5a40a8"                    # US purple
 on_accent = "#ffffff"
 accent_container = "#8a80dc"
 on_accent_container = "#161040"
@@ -58,5 +62,5 @@ warning = "#6e4c00"
 success = "#1f6e2c"
 error = "#a8231b"
 line = "#2e2e36"
-ring = "#f4f5f0"
+ring = "#fafaf8"
 desk = "#8e8f8a"
