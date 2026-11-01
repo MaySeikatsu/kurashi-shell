@@ -19,7 +19,7 @@ import ".."
 Item {
     id: tile
     implicitWidth: 160
-    implicitHeight: 56
+    implicitHeight: compact ? btnH + 30 : 56
     width: implicitWidth
     height: implicitHeight
     property string glyph: ""
@@ -39,8 +39,14 @@ Item {
     readonly property bool isTile: true   // the grid's arrows move between tiles only (a plain contribution is no tile)
 
     // The arrow zone's width: the chevron's, reserved with or without a page (the texts keep the same width, W42).
-    readonly property real arrowW: 22
+    readonly property real arrowW: compact ? 28 : 22
+    // W53.3 (`[decor] tile.radius`): the face's and the badge's corner — a pill (today's) or the look's own (11's 4 px).
+    readonly property real corner: Theme.decor("tile.radius", -1) >= 0 ? Theme.decor("tile.radius", -1) : Theme.rFull
     function inArrow(x) { return hasPage && x >= width - arrowW }
+    // W53.3 (`[decor] quick.tiles = compact`): 11's tile — a 48 px button with the icon (split by a hairline from the page's
+    // chevron when the tile has a page), the accent fill while on, and the label under the button; wide = today's pill.
+    readonly property bool compact: Theme.decor("quick.tiles", "wide") === "compact"
+    readonly property int btnH: 48
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
     readonly property bool connecting: req !== null && req.pending
@@ -102,8 +108,9 @@ Item {
     // A keycap pill (Block, K42): it sinks while pressed; flat chrome draws the same pill as a plain fill.
     Block {
         id: face
+        visible: !tile.compact
         anchors.fill: parent
-        radius: Theme.rFull
+        radius: tile.corner
         fill: tile.lit ? tile.onBg : Theme.containerHigh
         pressed: hit.pressed && !tile.connecting
         opacity: tile.reason !== "" ? 0.5 : 1
@@ -113,7 +120,7 @@ Item {
             anchors.fill: parent
             sourceComponent: Rectangle {
                 anchors.fill: parent
-                radius: height / 2
+                radius: Math.min(height / 2, tile.corner)
                 color: "transparent"
                 border.width: 2
                 border.color: Theme.error
@@ -125,7 +132,7 @@ Item {
             y: Math.round((face.faceH - 2 * face.inset - height) / 2)
             width: 30
             height: 30
-            radius: Theme.rFull
+            radius: tile.corner
             ringScale: 0
             softScale: 0
             relief: !tile.ownRelief
@@ -182,7 +189,7 @@ Item {
     // The arrow zone: the drill-down's chevron, made only while the tile has a page (its width is `arrowW` either way). The
     // zone is `hit`'s, below, so the chevron takes no click of its own.
     Loader {
-        active: tile.hasPage
+        active: tile.hasPage && !tile.compact
         width: tile.arrowW
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -194,6 +201,62 @@ Item {
             glyph: "›"
             size: 18
             color: tile.lit ? tile.onFg : Theme.dim
+        }
+    }
+    // The compact tile (W53.3): made only under `quick.tiles = compact`. Drawn from tokens: the accent and its ink while on,
+    // the control fill with a hairline at rest, the error ring when failed; dim while unavailable or forced (the reason is
+    // the tile's accessible description and its page's text, as before).
+    Loader {
+        active: tile.compact
+        anchors.fill: parent
+        sourceComponent: Item {
+            Rectangle {
+                id: cbtn
+                width: parent.width
+                height: tile.btnH
+                radius: tile.corner
+                color: tile.lit ? Theme.accent : Theme.containerHigh
+                border.width: tile.failed ? 2 : 1
+                border.color: tile.failed ? Theme.error : Qt.alpha(Theme.fg, tile.lit ? 0.0 : 0.08)
+                opacity: tile.inert ? 0.5 : (hit.pressed ? 0.85 : 1)
+                Icon {
+                    anchors.centerIn: parent
+                    anchors.horizontalCenterOffset: tile.hasPage ? -tile.arrowW / 2 : 0
+                    name: tile.connecting ? "sync" : tile.icon
+                    glyph: tile.glyph
+                    filled: tile.lit
+                    size: 18
+                    color: tile.lit ? Theme.fgOnAccent : Theme.fg
+                }
+                // The split: a hairline, then the page's chevron.
+                Rectangle {
+                    visible: tile.hasPage
+                    x: parent.width - tile.arrowW
+                    y: 10
+                    width: 1
+                    height: parent.height - 20
+                    color: Qt.alpha(tile.lit ? Theme.fgOnAccent : Theme.fg, 0.2)
+                }
+                Icon {
+                    visible: tile.hasPage
+                    x: parent.width - tile.arrowW + (tile.arrowW - width) / 2
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: "chevron_right"
+                    glyph: "›"
+                    size: 16
+                    color: tile.lit ? Theme.fgOnAccent : Theme.dim
+                }
+            }
+            Text {
+                anchors { left: parent.left; right: parent.right; top: cbtn.bottom; topMargin: 6 }
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+                color: tile.failed ? Theme.error : Theme.fg
+                opacity: tile.inert ? 0.6 : 1
+                font.pixelSize: Theme.fsCaption
+                font.family: Theme.fam(text, Theme.families)
+                text: tile.label
+            }
         }
     }
     // The one hit area (W42, was two): the arrow zone (the right `arrowW` px, with a page) opens the page with either button;
@@ -219,11 +282,11 @@ Item {
     Loader {
         active: tile.activeFocus
         width: parent.width
-        height: face.faceH
+        height: tile.compact ? tile.btnH : face.faceH
         sourceComponent: FocusRing {
             anchors.fill: parent
             shown: true
-            corner: height / 2
+            corner: tile.compact ? tile.corner : height / 2
         }
     }
 }

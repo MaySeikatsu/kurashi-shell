@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-fluent
+Comment=A slim white arrow with a soft shadow (W53.3, CC0, drawn in tools/styles/fluent-assets.py)
+Inherits=default

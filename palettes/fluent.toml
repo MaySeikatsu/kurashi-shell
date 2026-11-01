@@ -1,0 +1,85 @@
+# Fluent — Windows 11 22H2+, the default blue accent (W53.3, docs/ux/styles.md §4). Every role is WinUI 3's own colour
+# resource (microsoft-ui-xaml `controls/dev/CommonStyles/Common_themeresources_any.xaml`, MIT; the [P] source the brief
+# cites), composited where WinUI's is translucent: a role is opaque, so a translucent fill is drawn as it reads over the
+# surface it lies on (Mica's base #f3f3f3 / #202020, the flyouts' Acrylic fallback #f9f9f9 / #2c2c2c). The material's
+# translucency and blur come from the look. Light and dark (K53).
+name = "fluent"
+kind = "pair"
+description = "Mica grey, Acrylic flyouts, Windows blue (decor fluent)"
+
+[light]
+surface = "#f3f3f3"                   # SolidBackgroundFillColorBase: Mica's base
+surface_container_lowest = "#ffffff"  # SolidBackgroundFillColorQuarternary: an input while it has focus
+surface_container_low = "#f9f9f9"     # SolidBackgroundFillColorTertiary
+surface_container = "#f9f9f9"         # AcrylicBackgroundFillColorDefault's fallback: flyouts, Start, Quick Settings
+surface_container_high = "#fdfdfd"    # ControlFillColorDefault (#b3ffffff) over a flyout: buttons, tiles at rest
+surface_container_highest = "#ececec" # SubtleFillColorSecondary (#09000000) over Mica: a hovered row, a pressed key
+on_surface = "#1b1b1b"                # TextFillColorPrimary (#e4000000)
+on_surface_variant = "#616161"        # TextFillColorSecondary (#9e000000)
+outline = "#8a8a8a"                   # ControlStrongStrokeColorDefault (#72000000): a toggle's rim, a slider's rail
+outline_variant = "#e5e5e5"           # SurfaceStrokeColorFlyout / CardStrokeColorDefault (#0f000000)
+accent = "#005fb8"                    # AccentFillColorDefault = SystemAccentColorDark1 of the default blue (#0078d4)
+on_accent = "#ffffff"                 # TextOnAccentFillColorPrimary
+accent_container = "#cce4f7"
+on_accent_container = "#003e78"
+secondary = "#0067c0"                 # AccentTextFillColorPrimary
+on_secondary = "#ffffff"
+tertiary = "#8764b8"
+on_tertiary = "#ffffff"
+success = "#0f7b0f"                   # SystemFillColorSuccess
+on_success = "#ffffff"
+warning = "#9d5d00"                   # SystemFillColorCaution
+on_warning = "#ffffff"
+error = "#c42b1c"                     # SystemFillColorCritical (and the caption's close hover)
+on_error = "#ffffff"
+shadow = "#000000"
+line = "#e5e5e5"
+ring = "#ffffff"
+# W53.0a roles: a Windows 11 caption is Mica itself (no coloured title bar), active and inactive; tooltips are the
+# Acrylic flyout with primary text; the desk is the light Bloom's blue (an original flat ground, never the wallpaper).
+title = "#f3f3f3"
+title_end = "#f3f3f3"
+title_inactive = "#f3f3f3"
+title_inactive_end = "#f3f3f3"
+on_title = "#1b1b1b"
+info = "#f9f9f9"
+on_info = "#1b1b1b"
+desk = "#9ec3eb"
+
+# Dark: WinUI's Dark dictionary — Mica #202020, Acrylic #2c2c2c, the accent's Light2 (#60cdff) with black text on it.
+[dark]
+surface = "#202020"                   # SolidBackgroundFillColorBase
+surface_container_lowest = "#1c1c1c"  # SolidBackgroundFillColorSecondary / ControlFillColorInputActive (#b31e1e1e)
+surface_container_low = "#282828"     # SolidBackgroundFillColorTertiary
+surface_container = "#2c2c2c"         # AcrylicBackgroundFillColorDefault's fallback
+surface_container_high = "#373737"    # ControlFillColorDefault (#0fffffff) over a flyout
+surface_container_highest = "#3a3a3a" # SubtleFillColorSecondary (#0fffffff) over the flyout, hovered
+on_surface = "#ffffff"                # TextFillColorPrimary
+on_surface_variant = "#cfcfcf"        # TextFillColorSecondary (#c5ffffff)
+outline = "#9a9a9a"                   # ControlStrongStrokeColorDefault (#8bffffff)
+outline_variant = "#3d3d3d"           # SurfaceStrokeColorDefault over the flyout
+accent = "#60cdff"                    # AccentFillColorDefault = SystemAccentColorLight2
+on_accent = "#000000"                 # TextOnAccentFillColorPrimary (dark)
+accent_container = "#004a77"
+on_accent_container = "#cfeeff"
+secondary = "#99ebff"                 # AccentTextFillColorPrimary (dark)
+on_secondary = "#000000"
+tertiary = "#c5a8f0"
+on_tertiary = "#000000"
+success = "#6ccb5f"
+on_success = "#000000"
+warning = "#fce100"
+on_warning = "#000000"
+error = "#ff99a4"
+on_error = "#000000"
+shadow = "#000000"
+line = "#3d3d3d"
+ring = "#202020"
+title = "#202020"
+title_end = "#202020"
+title_inactive = "#202020"
+title_inactive_end = "#202020"
+on_title = "#ffffff"
+info = "#2c2c2c"
+on_info = "#ffffff"
+desk = "#0f2a55"

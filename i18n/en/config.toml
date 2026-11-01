@@ -30,6 +30,7 @@
 "config.choice.palette.win95" = "Win95"
 "config.choice.palette.luna" = "Luna"
 "config.choice.palette.aero" = "Aero"
+"config.choice.palette.fluent" = "Fluent"
 "config.choice.palette.ps2" = "PS2"
 "config.choice.palette.snes" = "SNES"
 "config.choice.palette.hallownest" = "Hallownest"

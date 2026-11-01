@@ -30,7 +30,10 @@ Item {
     // Test only (the log below): the chips' boxes in the bar's window, `[{id, x, y, w, h}]`.
     property var pillBoxes: function () { return [] }
 
-    readonly property int btn: Theme.barH - 12
+    // W53.3 (`[decor] task.mark`): `pill` marks every window (11's running and active indicators) and sizes the buttons
+    // as 11's taskbar keys — 8 px less than the bar, the icon 60 % of the key, a subtle plate for the focused window.
+    readonly property bool pillMarks: Theme.decor("task.mark", "focused") === "pill"
+    readonly property int btn: Theme.barH - (pillMarks ? 8 : 12)
     readonly property int spacing: Theme.xs
     readonly property string outName: screen ? screen.name : ""
     readonly property bool logOn: Quickshell.env("KURASHI_TASKS_LOG") === "1"
@@ -238,11 +241,13 @@ Item {
                 readonly property string iconKind: icon.kind
                 width: tl.btn
                 height: tl.btn
-                radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
-                color: focusedWin ? Theme.selected
+                radius: Theme.groups && !tl.pillMarks ? Math.min(width / 2, Theme.rFull) : Theme.rSm
+                color: tl.pillMarks ? (focusedWin || hover.hovered || tl.menuId === modelData
+                        ? Qt.alpha(Theme.containerHigh, focusedWin ? 0.9 : 0.6) : "transparent")
+                    : focusedWin ? Theme.selected
                     : (hover.hovered || tl.menuId === modelData ? Theme.containerHigh : "transparent")
-                border.width: focusedWin ? Theme.outlineW : 0
-                border.color: Theme.outlineColor
+                border.width: tl.pillMarks ? (focusedWin ? 1 : 0) : (focusedWin ? Theme.outlineW : 0)
+                border.color: tl.pillMarks ? Qt.alpha(Theme.fg, 0.07) : Theme.outlineColor
                 opacity: tl.dragId === modelData ? 0.35 : 1
                 Accessible.role: Accessible.Button
                 Accessible.name: I18n.tr(urgent ? "tasks.a11y.urgent" : (focusedWin ? "tasks.a11y.focused" : "tasks.a11y.window"))
@@ -254,22 +259,28 @@ Item {
                 AppIcon {
                     id: icon
                     anchors.centerIn: parent
-                    width: parent.width - 4
+                    width: tl.pillMarks ? Math.round(parent.width * 0.6) : parent.width - 4
                     height: width
                     appId: task.appId
                     entry: task.entry
-                    color: task.focusedWin ? Theme.fgOnSelected : Theme.fg
+                    color: task.focusedWin && !tl.pillMarks ? Theme.fgOnSelected : Theme.fg
                 }
                 // The focused window's mark (focus is not colour alone): under the button on a top or bottom bar, on its
-                // outer side on a side bar.
+                // outer side on a side bar. With pills every window has one inside the key's screen-side edge: 6 px in the
+                // secondary ink, the focused window's 16 px in the accent (its length says it, not only its colour).
                 Rectangle {
-                    visible: task.focusedWin
-                    x: tl.vertical ? (tl.edge === "left" ? -4 : parent.width + 1) : (parent.width - width) / 2
-                    y: tl.vertical ? (parent.height - height) / 2 : parent.height + 1
-                    width: tl.vertical ? 3 : 10
-                    height: tl.vertical ? 10 : 3
+                    readonly property int len: tl.pillMarks ? (task.focusedWin ? 16 : 6) : 10
+                    visible: task.focusedWin || tl.pillMarks
+                    x: tl.vertical ? (tl.pillMarks ? (tl.edge === "left" ? 2 : parent.width - 5) : (tl.edge === "left" ? -4 : parent.width + 1))
+                        : (parent.width - width) / 2
+                    y: tl.vertical ? (parent.height - height) / 2
+                        : (tl.pillMarks ? (tl.edge === "top" ? 2 : parent.height - 5) : parent.height + 1)
+                    width: tl.vertical ? 3 : len
+                    height: tl.vertical ? len : 3
                     radius: 1.5
-                    color: Theme.accent
+                    color: task.focusedWin ? Theme.accent : Theme.dim
+                    Behavior on width { enabled: Theme.timed && !tl.vertical; NumberAnimation { duration: Theme.fastMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.fastCurve } }
+                    Behavior on height { enabled: Theme.timed && tl.vertical; NumberAnimation { duration: Theme.fastMs; easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.fastCurve } }
                 }
                 // Urgent: a steady dot at the corner (its place, not only its colour, says it), after the hop.
                 Rectangle {
@@ -329,7 +340,7 @@ Item {
             visible: tl.moreN > 0
             width: tl.btn
             height: tl.btn
-            radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
+            radius: Theme.groups && !tl.pillMarks ? Math.min(width / 2, Theme.rFull) : Theme.rSm
             color: moreHover.hovered || tl.menuId === -2 ? Theme.containerHigh : "transparent"
             Accessible.role: Accessible.Button
             Accessible.name: I18n.tr("tasks.a11y.more").replace("{n}", tl.moreN)
