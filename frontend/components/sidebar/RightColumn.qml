@@ -22,6 +22,9 @@ Item {
     // column's foot (11's notification centre over its calendar); the column itself draws nothing. `flyItems`: their
     // plates, for the window's blur.
     readonly property bool flyouts: QsWindow.window ? QsWindow.window.flyouts === true : false
+    // W53.4: the flyouts stand at the end nearer the bar — at the foot over a bottom bar (11's), at the head under a top one
+    // (macOS's Notification Centre under its menu bar). The Sidebar says which.
+    property bool fromTop: false
     property var flyItems: []
     function noteFly() {
         var out = []
@@ -73,8 +76,8 @@ Item {
             width: flick.width
             height: Math.max(flick.height, implicitHeight)
             spacing: rc.flyouts ? 12 + 2 * Theme.pad : Theme.pad
-            // (flyouts: the room left over stands above them, so they stack at the foot)
-            Item { Layout.fillHeight: true; visible: rc.flyouts }
+            // (flyouts: the room left over stands above them, so they stack at the foot — or below them under a top bar)
+            Item { Layout.fillHeight: true; visible: rc.flyouts && !rc.fromTop }
             Repeater {
                 id: secRep
                 model: rc.sections
@@ -124,7 +127,7 @@ Item {
                 }
             }
             // Without a section that fills (notifications), the room left over stays below the sections, not between them.
-            Item { Layout.fillHeight: true; visible: rc.sections.indexOf("notifications") < 0 && !rc.flyouts }
+            Item { Layout.fillHeight: true; visible: (rc.sections.indexOf("notifications") < 0 && !rc.flyouts) || (rc.flyouts && rc.fromTop) }
         }
     }
     Component { id: headerC; HeaderSection {} }
