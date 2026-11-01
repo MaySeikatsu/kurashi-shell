@@ -857,20 +857,21 @@ Same depth, shorter. Each row names what it lacks today, the slots it would use 
 
 | look | reference | what is missing | slots | lock face |
 |---|---|---|---|---|
-| sekai | SekaiPop (keycap pop) | already deep; the lock's dot field is the plain face | none new | `plain` (keeps the dot field) |
+| sekai (deep: §9.7) | SekaiPop (keycap pop) | already deep; the lock's dot field is the plain face | menu, tooltip, scroll (W53.7) | `keycap` (keeps the dot field) |
 | kawaii (deep: §9.1) | Needy Streamer Overload's pastel desktop OS | its windows **have** a title band: use `title` (shared caption with rounded top, a heart × that works) | title, tooltip | `pastel-os`: a login window on a pastel desktop |
 | yorha (deep: §9.2) | NieR:Automata menus | the selection block (a dark bar sliding under the row), the menu's square bullets, a header rule | menu, title (thin header band) | `yorha`: a terminal-like "connect" panel |
 | souls (deep: §9.3) | Dark Souls menus | menu style (gold hairline highlight); lock wording | menu | `bonfire`: a dark ground, an ember glow, the field low centre; wrong password "Try again" in large serif, fading (never "YOU DIED": copyrighted phrasing and too much for an error) |
 | hallownest (deep: §9.4) | Hollow Knight menus | menu style (filigree ends round the selected row) | menu | `hollow`: fog ground, filigree above and below the field |
-| washi | paper and ink | fine as is; menu rows as ruled lines | menu | `plain` |
-| kami | a notebook page (K60) | fine; scroll bar as a pencil line | scroll | `plain` (paper) |
-| kanso | the plain form | the reference look: nothing to add | none | `plain` |
-| material | M3 (<https://m3.material.io/>) | M3 menus (radius 4, 48 px rows), tooltips (plain 4 px), the M3 focus ring (3 px), M3 lock (big clock) | menu, tooltip | `plain` |
-| glass | Vitreus/pleamar | fine; the future liquid-glass material belongs here | none | `plain` |
-| terminal | a terminal | menu as `> ` rows, scroll bar as `│█│`, tooltip as an inverse line | menu, scroll, tooltip | `tty`: a login prompt (`<host> login: <user>` / `Password:` with no echo of anything) |
+| washi (deep: §9.5) | paper and ink | fine as is; menu rows as ruled lines | menu, tooltip (W53.7) | `plain` |
+| kami (deep: §9.6) | a notebook page (K60) | fine; scroll bar as a pencil line | scroll, menu, tooltip (W53.7) | `notebook` (paper) |
+| kanso (deep: §9.8) | the plain form | the reference look: nothing to add | none | `plain` |
+| material (deep: §9.9) | M3 (<https://m3.material.io/>) | M3 menus (radius 4, 48 px rows), tooltips (plain 4 px), the M3 focus ring (3 px), M3 lock (big clock) | menu, tooltip, toggle, slider (W53.8) | `big-clock` |
+| glass (deep: §9.10) | Vitreus/pleamar | fine; the future liquid-glass material belongs here | none | `plain` |
+| terminal (deep: §9.11) | a terminal | menu as `> ` rows, scroll bar as `│█│`, tooltip as an inverse line | menu, scroll, tooltip | `tty`: a login prompt (`<host> login: <user>` / `Password:` with no echo of anything) |
 | soft | look only (palette styles) | none | none | `plain` |
 
-The fiction family (W53.6) is deep now: §9.1–§9.4 below, in the shape of §1–§8. The rows above stay as the brief's
+The fiction family (W53.6) is deep now: §9.1–§9.4 below; the japanese family (W53.7: washi, kami, sekai) and the
+modern one (W53.8: kanso, material, glass, terminal) are §9.5–§9.11, in the shape of §1–§8. The rows above stay as the brief's
 starting point. Every part they use is named by idiom and reads only `[decor]` keys, so any look can wear it (rule 4);
 the keys are listed in DESIGN-SYSTEM §4 ("W53.6"). Shots: `frontend/shots/styles/<style>/` (`desk-*` with the layout
 preset; `cmp-*` side by side with a reference crop).
@@ -1133,6 +1134,538 @@ an ornament rule under headers and around the lock's field, pointers either side
 Differs: our fleurs and ornaments are simpler than the game's corner curls and crests; the selection pointer is unmeasured;
 the launcher's footer keys (Lock, Session menu) are still boxed; the card's frame is a 1 px hairline where the game draws
 heavy corner filigree.
+
+### 9.5 washi — paper and ink
+
+**Reference.** Not an OS: a material and a hand. 和紙 *washi*, hand-made paper of kōzo (paper-mulberry) bark — long,
+thin, slightly bent fibres felted into a sheet that shows them against the light ([P] UNESCO, "Washi, craftsmanship of
+traditional Japanese hand-made paper", <https://ich.unesco.org/en/RL/washi-craftsmanship-of-traditional-japanese-hand-made-paper-01001>);
+墨 *sumi* ink, thinned to 薄墨 *usuzumi* for a wash; the 罫線 rules of Japanese letter paper (便箋) and account books,
+printed hairlines that stop short of the sheet's edge; 短冊 *tanzaku* slips; the 朱 / 紅 vermilion of a reader's mark
+or a seal. The shell already had washi's wa-iro palette (DESIGN-SYSTEM §6), the `paper` frame, the line chrome and the
+serif; W53.7 adds what the brief asked: ruled menu rows, an ink focus mark, a paper grain and an ink-bleed motion.
+
+**Metrics.** A material has no spec; every value below is ours, chosen against the references ([O] observed on paper
+and on period stationery, never measured from a screen):
+
+| part | value | source |
+|---|---|---|
+| paper grain | K59 `paper` stock (long fibres standing proud, a felted mottle, formation clouds; no visible repeat) at strength 0.35, tinted | `crates/kurashi-texture/src/paper.rs` (its own words: "a felted sheet with washi's character") |
+| menu row rule | 1 device px, the text's ink at 20 %, 6 px in from both sides | [O] 便箋 rules are printed fine and stop short of the edge |
+| separator | the rule doubled (二重罫), 2 px apart, 32 % | [O] account-book double rules |
+| chosen row | an ink wash: the text's ink 13 % → 7 % at 55 % → 0 at the end; a tapered beni stroke 4 px wide at the row's start | [O] a wide brush running dry; a reader's vermilion mark |
+| tooltip / toast | a slip: `surface_container_lowest`, a 1 px sumi hairline at 55 %, 2 px corners, a 2 px beni rule 4 px in at its start | [O] tanzaku / 付箋 |
+| focus | `brush`: a faint 1 px ring (28 %) and one tapered stroke under the control, ≥ 3 px at its thickest, in the text's ink | [O] a brush's 入り・送り・止め (entry, travel, stop) |
+| motion | `bleed`: fade with a blur clearing from 24 px; open 360 ms (0.2, 0, 0.1, 1), close 220 ms (0.4, 0, 1, 1), fast 180 ms | ours: calm, nothing springs |
+
+**Type.** Noto Serif (OFL) for Latin; **Noto Serif CJK JP** (Mincho, OFL) now carries Japanese too (`family_jp`: the ja
+chain was the sans before — K60), then Noto Sans CJK JP.
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| bar, cards, quick settings, sidebar | sheets of washi: the K59 paper relief, the `paper` frame, ink hairlines (line chrome) |
+| menus (tray, dock, launcher rows) | a ruled sheet: rules under the rows, an ink wash with a beni stroke on the chosen one |
+| tooltips, toasts | paper slips with a beni edge |
+| keyboard focus | a brush stroke under the control |
+| surfaces arriving | ink bleeding into paper |
+| lock | `plain` on the paper (the KeyClock tiles, the field), as §9 decided |
+
+**Lock face.** `plain` (§9): the plain face on washi paper — with the texture on, the graph-paper ruling the line chrome
+draws gives way to the paper's own grain.
+
+**Not copied.** No maker's paper pattern, no family crest or seal, no calligraphy sample: the stroke shapes are our
+own curves; the sounds are synthesised (`tools/styles/japanese-assets.py`, CC0).
+
+**States.** Loading, error, offline: the shell's own lines on the paper (no washi-specific loader). A disabled menu row
+keeps its rule and draws no wash.
+
+**Keyboard + a11y.** The brush mark is the keyboard focus only (focus-visible), in `on_surface` — 4.5:1 or better on every
+wa-iro container. High contrast: K42's flat chrome and the contrast palette; the wash and the stroke still draw in the
+contrast ink (`hc-*` shots). Large text: rows grow with the type, the rules stay hairlines. `reduce_motion`: no bleed, no
+blur (profile `none`).
+
+**Motion.** `motion.style = bleed` (new, any look): `Entrance` fades the surface in while a MultiEffect blur clears; the
+layer exists only while `progress < 1`, so a surface at rest has no effect and no cost. Times above.
+
+**Multi-output.** Nothing per output.
+
+**Budget.** The grain is the K59 sheet the shell already shares per window (kami runs the same machinery with
+`paper_dots`); the menu part is two Rectangles a row plus one gradient and one Shape on the chosen row; the slip is two
+Rectangles. 0 frames idle.
+
+**Built (W53.7).** `looks/washi.toml` (texture `paper` 0.35, `family_jp` Mincho, slots `menu = ruled`, `tooltip = slip`,
+`sounds = washi`; `[decor]` focus brush, bleed motion, `cursor = washi`), `decor/menu/Ruled.qml`, `decor/tooltip/Slip.qml`,
+the shared `focus.style = brush` and `motion.style = bleed` (Phase 0), `profiles/washi-desk.toml` (was `washi-calm`: the
+screen as a mounted scroll — a 10 px paper frame round the screen, a slim 32 px top bar, airy spacing, the clock and the
+month on the desk at the right), `sounds/washi` (a rustle to open, a soft brush knock to close, an original struck-bowl
+tone to notify and after a sheet's slide to unlock, two dull taps for an error) and `cursors/washi` (a brush: a sumi tuft
+on a bamboo handle, the tip the hotspot). Shots: `frontend/shots/styles/washi/` (the seven test-styles surfaces,
+`desk-*` with the preset, `hc-*`, `large-*`, `ja-*`, `desk-sheet-*`).
+
+**Identity (§9 "fine").** With the grain pinned off (`theme.texture.kind = none`), washi on this branch equals main's
+shots on the bar, the island's card, the sidebar, quick settings and the lock (only the clock's minute, the greeting and
+the notification times differ — the runs were minutes apart); the launcher differs by the ruled rows and the toast by
+the slip, as intended. With the grain on, every paper surface carries the K59 relief.
+
+**Still differs (W53.7, honest).**
+- The grain is the shell's K59 paper, not a scan of kōzo paper: fibres read at 1:1, but no chiri (bark specks) or
+  deckle edges.
+- The beni stroke and the focus stroke are smooth Béziers, not a real brush's split hairs or dry-brush (かすれ).
+- The menu's wash runs the whole row; a brush wash would start and stop a little irregularly.
+- No washi lock face of its own (plain, as §9 asked); a 掛け軸-style lock (a hanging scroll with the time in vertical
+  type) is a candidate for later.
+- The preset cannot set vertical (縦書き) type anywhere: the shell has no vertical text mode.
+
+---
+
+### 9.6 kami — a notebook page
+
+**Reference.** A Japanese school or office notebook: Kokuyo Campus–style pages (ruled or dot-ruled lines at 6–7 mm,
+a margin), written with a blue ballpoint and a pencil, corrected in red ([O] K60; the dot-ruled "ドット入り罫線" stock;
+Kokuyo's Campus line, <https://www.kokuyo-st.co.jp/stationery/campus/>, read as inspiration only — to verify the pitch).
+Exercise books print a red margin rule, often two lines; loose-leaf pages have punched holes. K60 already gave kami the
+paper (`paper_dots`), the sketch frame (two seeded pen passes), Kalam and Klee One and `theme.colors.ink = blue`.
+
+**Metrics.** Ours, after the references ([O]):
+
+| part | value | source |
+|---|---|---|
+| margin rule (menus, tooltips) | 1 device px in the accent (the red pen) at 70–75 %, 9 px in (`menu.lead` 14) | [O] exercise-book margins |
+| chosen row | a hand underline in the red pen: a closed Bézier 7 px tall, thickest in its first third, lifting at its end, from the rule + 10 px over 45 % of the row (≥ 120 px) | [O] a teacher's underline |
+| separator | pencil dashes 6 px long, 4 px apart, the ink at 40 % | [O] |
+| scroll bar | `scroll.width` 10: a 1 px graphite track at 28 % that bows ±1 px; the thumb a tapered stroke ~4.6 px at its middle, 62 % (85 % held or hovered) | [O] a pencil pressed and lifted |
+| tooltip / toast | the page's paper, four separate pen strokes (1.3 px) that overshoot the corners, the red margin rule 5 px in, a blue rule (`secondary` 35 %) where a line of writing sits | [O] a note torn from the page |
+| lock page | a 34 px writing pitch (× the output's scale), a double red margin at 14 % of the width (≥ 96 px), three punched holes at 18/50/82 % | [O] loose-leaf paper |
+
+**Type.** Kalam (OFL) and Klee One (OFL, ja), as K60; the lock's time is Kalam Bold at 196 px (× scale).
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| cards, bar, sidebars | pages (K60: dotted paper, pen outlines) |
+| menus | lines written right of the margin; the chosen one underlined in red |
+| scroll bars (an overflowing launcher list) | a pencil line |
+| tooltips, toasts | notes torn from the page |
+| lock | a notebook page: the date at its head, the time written large, name and password on the lines |
+
+**Lock face `notebook`.** The page: kami's paper and its K59 relief (the dots are its ruling; with the texture off the
+whole page is ruled in faint blue), the two writing lines ruled either way, a double red margin and three holes (the paper
+a shade darker: what lies under the page). The date at the head, right (`lockui.notebook.date_format`); the time written
+in the pen's ink with the colon in red; "Name:" and the user; "Password:" and the field on its line (echo off: the pen's
+dots; a PAM question relabels it and echoes when `prompt_echo`). Messages: a wrong password is a red ✗ and the message
+beside the line, wavy-underlined (no shake — a teacher's mark); Caps Lock is a note boxed in red in the margin, turned
+−7°; busy, the countdown, PAM's information and the fingerprint in pencil two lines below; what plays on the last free
+line; "daemon disconnected" in red. Other outputs: the page, the date, the time. Nothing moves: one paint per size.
+
+**Not copied.** No maker's cover, logo or ruling pattern by name; holes and margins are generic. Sounds and the pencil
+pointer are ours (CC0).
+
+**States.** Busy, countdown, PAM info, fingerprint, error, caps, disconnected: all drawn (lock); the menu's disabled
+rows keep the margin rule, no underline.
+
+**Keyboard + a11y.** The lock field has the keyboard on the first frame; Esc clears and cancels; the caps note has an
+accessible name. High contrast: the contrast palette's ink and accent (`hc-*`). Large text: the launcher's rows grow, the
+lock scales with the output, not the type (its sizes are page-relative) — see Still differs. ja: Klee One on the page.
+
+**Motion.** K60's: expressive, the pen never animates. The scroll thumb only follows the view.
+
+**Multi-output.** The lock's page scales per output (`s` from its size); the field only on the primary.
+
+**Budget.** The notebook face is Rectangles (≈ 32 rules, two margin lines, three holes), five Texts and one Shape;
+painted once. The scroll part is two Shapes; the margin part one Rectangle a row.
+
+**Built (W53.7).** `looks/kami.toml` (slots `menu = margin`, `scroll = pencil`, `tooltip = note`, `lock = notebook`,
+`sounds = kami`; `menu.lead` 14, `scroll.width` 10, `cursor = kami`), `decor/menu/Margin.qml`, `decor/scroll/Pencil.qml`,
+`decor/tooltip/Note.qml`, `lock/NotebookFace.qml` with `i18n/{en,ja}/lockface-notebook.toml`, `profiles/kami-desk.toml`
+(the bar as the page's header line, connected; the desk on the left as a planner's column: the time, the month),
+`sounds/kami` (a page turn to open, a pencil tick to close, two ticks to notify, two pencil strikes crossing out for an
+error, a page turn and a tick to unlock) and `cursors/kami` (a pencil: graphite, wood, a blue body, an eraser). Shots:
+`frontend/shots/styles/kami/`.
+
+**Still differs (W53.7, honest).**
+- The underline starts at the margin, not under the label's first letter: a menu part does not know where the caller's
+  text begins (launcher rows have an icon, tray rows do not).
+- The note's pen box is four smooth quadratic strokes, not K62's seeded pen (pressure, breaks): it does not match the
+  sketch frame's wobble exactly.
+- The lock's sizes follow the output, not large text (the page's pitch is the layout); a large-text lock keeps Kalam at
+  196 px but the 24 px labels do not grow.
+- The scroll bar shows only where a list overflows (the launcher's): the sidebars have no ScrollHost yet.
+- The I315 first-open delay of pen outlines is unchanged.
+
+---
+
+### 9.7 sekai — SekaiPop keycaps
+
+**Reference.** SekaiPop (<https://github.com/Blapples/SekaiPop>, `modules/common/widgets/Pill.qml`, K42 [R]): "one
+block, everywhere" — pop keycaps with an ink outline (`line`), a white ring between outline and fill (`ring`) and a hard
+shadow straight down the key sinks onto when pressed; a pastel ground with a dot field; rounded type; bouncy springs. K42
+built the chrome, the dot field and the KeyClock; W53.7 brings the keycap language to the parts that still drew the
+shell's defaults (menus, tooltips, scroll bars) and gives the lock its own face.
+
+**Metrics.** The keycap chrome's own (K42: `chrome.outline`, `chrome.ring`, `chrome.shadow` from the lively recipe);
+the parts add:
+
+| part | value | source |
+|---|---|---|
+| chosen menu row | a Block (keycap chrome) in `color.selected`, 2 px in from the row's sides, corner min(`radius.lg`, half the face) | K42 Pill.qml |
+| separator | ink dots 4 px, 10 px apart, `line` at 30 % (the dot field's) | K42 dot field |
+| tooltip / toast | a Block in `surface_container_high` (or `tooltip.fill`) | K42 |
+| scroll bar | `scroll.width` 14: a half-width groove in `surface_container_highest` with a thin ink outline; the thumb a Block, `ring` at rest, the accent under the pointer, pressed onto its shadow while held | ours, in K42's language |
+| lock | KeyClock 104 × 140 keys, 100 px digits (× scale); the date, user, caps and Enter as 44–56 px keys; the field a 380 px key | ours |
+
+**Type.** Nunito (OFL), M PLUS Rounded 1c for ja, as K42.
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| every block | a keycap (K42) |
+| menus | the chosen row a key |
+| tooltips, toasts | small keys |
+| scroll bars | a key in a groove |
+| lock | a keyboard: the time on keys, the date key, the user key, the password's long key and its Enter key |
+
+**Lock face `keycap`.** The plain face's dot field (dots growing toward the top-right and bottom-left), the KeyClock
+larger, the date on a wide key, then a row: the user's key (initial on an accent disc, the name), a lit ⇪ Caps key —
+latched down onto its shadow, shown only while Caps Lock is on (never an inert key) — the password as one long key, and an
+Enter key in the accent that submits on a click and sits pressed while PAM checks. A wrong password shakes the long key
+on the look's spring (one-shot; none under reduce motion), tints it toward the error role and shows a red key with the
+reason; busy, the countdown, PAM's information and the fingerprint on a small ring key; what plays under it;
+"daemon disconnected" at the foot. Other outputs: the field of dots, the time and the date.
+
+**Not copied.** No SekaiPop asset, wallpaper or character; its dot field and keycap idea are reimplemented from tokens
+(K42). The key clicks and pops are synthesised (CC0).
+
+**States.** As above for the lock; menus' disabled rows draw no key.
+
+**Keyboard + a11y.** The lock field has the keyboard; Return submits (as the Enter key); Esc clears. The Enter key and the
+caps key carry accessible names (`lockui.keycap.enter`, `lockui.caps_lock`). High contrast: K42 forces flat chrome, so the
+keys become plain contrast tiles (`hc-*`). Large text: keys grow with the type in the shell; the lock scales per output.
+
+**Motion.** K42's lively springs; the lock's shake and the KeyClock's digit drop are one-shot.
+
+**Multi-output.** The dot field and the keys per output; the field only on the primary.
+
+**Budget.** The face reuses KeyClock and Blocks (each a few Rectangles); the dot field is one Canvas painted once per size,
+as the plain face's. Parts: one Block on the chosen row, one per tooltip, two items for the scroll bar.
+
+**Built (W53.7).** `looks/sekai.toml` (slots `menu`, `tooltip`, `scroll`, `lock` = `keycap`, `sounds = sekai`;
+`scroll.width` 14, `cursor = sekai`), `decor/{menu,tooltip,scroll}/Keycap.qml`, `lock/KeycapFace.qml` with
+`i18n/{en,ja}/lockface-keycap.toml`, `profiles/sekai-desk.toml` (schema 7, floating draw, a 40 px bar, the desk on the
+right), `sounds/sekai` (a key press to open — the switch's click and the cap's thock —, a lighter release to close, two
+pops to notify, two dull thocks for an error, a three-key roll and two pops to unlock) and `cursors/sekai` (a white arrow
+with a thick ink outline and a hard ink shadow down-right). Shots: `frontend/shots/styles/sekai/`.
+
+**Still differs (W53.7, honest).**
+- In a tight menu (the style sheet's 19 px rows) the key's hard shadow eats the row; at the shell's 32 px rows it fits,
+  but the caller's text centres on the row, not on the key's face (a shadow's height lower).
+- The launcher's own highlight was already a keycap that springs from row to row; the menu part's key jumps (each row
+  draws its own) — the springing highlight stays where the caller keeps it (the launcher hides it for a part).
+- The Enter key's glyph is Material Symbols' `arrow_forward` (→ without the symbol font): `keyboard_return` is not in the shell's icon subset.
+- The sekai preset's `draw = floating` floats the bar's groups, not one floating bar (the shell's model).
+
+### 9.8 kanso — the plain form
+
+**Reference.** The shell itself (K53): flat tonal blocks, even rounding (18), a light translucency (0.85), calm
+expressive motion, Inter. Every other look is measured against it, so it gains nothing visible.
+
+**Built (W53.8).** Only what changes no pixel: `[slots] sounds = "kanso"` (`sounds/kanso`: quiet round sine tones with a
+soft wooden knock — a rising fifth unlocks, a soft falling second for an error, one tone notifies, a knock opens and a
+lower one closes) and `[decor] cursor = "kanso"` (`cursors/kanso`: a plain near-black arrow with a white rim and a faint
+shadow), both CC0 from `tools/styles/modern-assets.py` and off unless turned on; and `profiles/kanso-desk.toml`, the
+defaults written out (the top bar, dynamic, the island in the middle, the desk off) so loading it puts a changed layout
+back to the reference.
+
+**Identity.** Shot on nested niri at the same minute as main's tree (`git archive main`) with the same binaries: all 7
+test-styles surfaces pass test-styles' identity rule — bar 2 px, card 75, launcher 5, quick 100, sidebar 86, toast 2 px
+differing faintly, no strong pixel; the lock 7 strong px in one 1 × 7 column (the clock's colon/second).
+
+**Lock face.** `plain`.
+
+**Still differs.** Nothing by design.
+
+### 9.9 material — Material 3 / Android's Material You
+
+**Reference.** Material 3 (<https://m3.material.io/>) as Android 12–14 wears it: Material You's tonal palette, opaque
+surfaces whose tone (not a shadow) says how high they are, the shape scale, the 2024 "expressive" controls, and the
+phone's own system surfaces — the quick settings shade with its big rounded tiles, the navigation bar's active
+indicator, the lock screen's big stacked clock. m3.material.io renders its numbers with script, so they are read from the
+token sources the M3 site is generated from: **material-web** (`material-components/material-web`, Apache-2.0,
+`tokens/versions/latest/sass/*.scss`, read 2026-11-01) [P], and Android's own SystemUI resources (**AOSP**
+`frameworks/base/packages/SystemUI/res/values/dimens.xml` and `customization/res/values/dimens.xml`, branch
+`android14-release`, read 2026-11-01) [P].
+
+**Metrics.**
+
+| part | value | source |
+|---|---|---|
+| shape scale | extra-small 4, small 8, medium 12, large 16, extra-large 28, full | [P] `_md-sys-shape.scss` |
+| shell | `theme.shape.radius` 28 (sheets, dialogs, the quick shade), `shape.sm` 0.2857 (8), `shape.md` 0.4286 (12: cards) | `looks/material.toml` |
+| menu | container surface-container, corner extra-small 4, elevation level 2; list item 48 tall; selected item secondary-container | [P] `_md-comp-menu.scss` |
+| shell | `menu = state`: 48 px rows, no band — the state layer (on-surface 10 %) on the focused row, `selected` on a checked one, a full-width outline-variant divider; square rows | `decor/menu/State.qml` |
+| plain tooltip | container inverse-surface, corner extra-small 4, supporting text inverse-on-surface, body small | [P] `_md-comp-plain-tooltip.scss` |
+| shell | `tooltip = plain`, `info`/`on_info` = M3 baseline inverse-surface/inverse-on-surface (#e6e0e9/#322f35 dark, #322f35/#f5eff7 light); toasts drawn as it are snackbars | `decor/tooltip/Plain.qml`, `palettes/material.toml` |
+| focus indicator | thickness 3, outer offset 2, inner offset −3; colour secondary | [P] `_md-sys-state-focus-indicator.scss`, `tokens/_md-comp-focus-ring.scss` (`'color': secondary`) |
+| shell | `focus.style = ring`, `focus.width` 3, `focus.offset` 2, `focus.color = secondary` | `looks/material.toml` |
+| switch | track 52 × 32, 2 px outline off; handle 16 off, 24 on (or with icon), 28 pressed; selected icon 16; state layer 40; on: track primary, handle on-primary, icon primary; off: track surface-container-highest, handle and outline `outline` | [P] `_md-comp-switch.scss` |
+| shell | the same numbers; the check on the on handle, no icon off (Android's default) | `decor/toggle/Material.qml` |
+| slider (2024) | active/inactive track 16, inner corner 2, outer full; handle 4 × 44, 2 wide pressed/focused; 6 px either side of the handle; stop indicator 4, 4 from the end; active primary, inactive secondary-container, stop on-secondary-container | [P] `_md-comp-slider.scss`, `_md-comp-slider-xsmall.scss` |
+| shell | the shell's slider is 20 px tall: track 12, handle 28 (4 px past the track each side), the rest as M3 | `decor/slider/Material.qml` |
+| navigation bar | active indicator 64 × 32, full round, secondary-container; container 80, surface-container | [P] `_md-comp-navigation-bar.scss` |
+| shell | `workspace.mark = indicator`: the focused workspace on a 2:1 pill the bar's height less 8 (64 × 32 on the preset's 40 px bar), in `selected` (≈ secondary-container: #4c4659 vs M3's #4a4458) | `modules/Workspaces.qml` |
+| QS tiles | `qs_tile_height` 80 dp, `qs_corner_radius` 28 dp, margins 8, icon 20, start padding 16, text 14 sp | [P] AOSP 14 SystemUI `dimens.xml` l. 566–607 |
+| shell | the 160 × 56 tile (the W15 size contract) at the same ratio: 20 px corners; on = the whole tile in primary with its ink (`tile.active = fill`), the icon bare (`tile.well = false`) | `quick/QuickTile.qml` |
+| lock clock | `large_clock_text_size` 150 dp, hours over minutes, `keyguard_clock_line_spacing_scale` 0.7 | [P] AOSP 14 `customization/res/values/dimens.xml` |
+| shell | 200 px × the face's scale, each line 0.8 of the type size tall | `lock/BigClockFace.qml` |
+| motion | easing standard (0.2, 0, 0, 1), emphasized decelerate (0.05, 0.7, 0.1, 1), emphasized accelerate (0.3, 0, 0.8, 0.15); durations short1–4 50/100/150/200, medium1–4 250–400, long1–4 450–600 | [P] `_md-sys-motion.scss` |
+
+**Type.** Roboto Flex (OFL, Google Fonts — added to Home-Manager's `programs.kurashi.fonts`), then Roboto (Apache-2.0,
+already installed), Noto Sans CJK JP for Japanese (Android's own CJK face). The lock clock asks Roboto Flex for its wide,
+round cut (`font.variableAxes` `wdth` 125, `wght` 500); without Roboto Flex it is Roboto Medium. Material Symbols at
+`icon.fill` 0 (outlined) and `icon.weight` 400 — M3's defaults (fill 0, weight 400, grade 0, optical size 24); callers
+fill the icon of an on state as before.
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| bar | Android's status bar (preset: the clock at the start, the island where the camera cut-out is, status at the end) |
+| bottom bar (preset) | M3's navigation bar: the launcher and the workspaces centred, the focused one on the active indicator |
+| quick settings | the QS shade's tiles: 28 dp-corner tiles in two columns, an on tile solid primary, icons bare |
+| launcher | M3's search view: a full-round field, 48 px list rows with a state layer |
+| menus (tray, dock) | M3 menus: 48 px rows, state layer, divider |
+| tooltips, toasts | plain tooltips and snackbars in the inverse surface, 4 px |
+| switches, sliders | M3's switch with the check, the 2024 expressive slider |
+| Stage cards | surfaces of the tonal containers, 28 px (dialog) corners |
+| lock | `big-clock`: Android's lock screen |
+
+**Lock face `big-clock`.** The date line top left (Android's "smartspace" line, `lockui.big-clock.date_format`), the hours
+stacked over the minutes in the light primary (the accent role) in the upper middle, a small padlock above M3's
+full-round filled field ("Enter password") in the lower third, the supporting line under it, and — only when a reader is
+enrolled — the fingerprint mark low in the middle, where Android draws its under-display sensor. The ground stands in for
+the dimmed wallpaper (the session lock is opaque): the lowest surface with a primary-container wash from the top right
+and a `selected` wash from the bottom left, static. States: wrong password — the field's indicator and the supporting
+text in the error role ("Wrong password"), the padlock red, one short nudge of the field on M3's decelerate curve (none
+under reduce motion); Caps Lock — a ⇧ icon at the field's end and "Caps Lock is on"; busy — a circular indicator at the
+field's end (it turns only while PAM checks) and "Checking…"; the countdown, PAM's information and the fingerprint hint as
+the supporting text; a PAM question relabels the field (echo when it asks); "daemon disconnected" under the date. Other
+outputs: the ground, the date and the clock. The supporting line grows below the field and never moves it.
+
+**Not copied.** Google's and Android's logos, the Pixel's clock faces (Google Sans Clock is not used or imitated; Roboto
+Flex is the free face), Pixel wallpapers, Android's sounds and ringtones, the Android pointer. The cues are our own soft
+plucks; the pointer is our own rounded arrow (`tools/styles/material-assets.py`, CC0).
+
+**States.** Loading: the caller's words (M3's progress indicators are not drawn by the shell's loading line). Busy lock:
+the circular indicator. Unavailable tiles and sliders: 50 % (M3: 38 %), the reason as the subtitle. Disabled switch:
+50 %. Error: the error role, as M3.
+
+**Keyboard + a11y.** Tab reaches every control; the 3 px secondary ring 2 px outside (M3's focus indicator); switches
+flip with Space/Return; sliders step with the arrows (the host's). High contrast: the palette's contrast stage, the ring
+stays 3 px. Large text: the type scales, the switch and slider keep M3's sizes. ja: Noto Sans CJK JP, the lock's date as
+「M月d日 (ddd)」. Reduce motion: no nudge, no handle slides, the spinner does not turn.
+
+**Motion.** M3's emphasized easing is one two-segment path (the token `easing-emphasized` resolves to it, not to a single
+cubic). The look's curves take one cubic each, so they use the halves M3 gives for one-way moves: a surface **entering**
+decelerates on emphasized-decelerate (0.05, 0.7, 0.1, 1) over medium4 **400 ms**, one **leaving** accelerates on
+emphasized-accelerate (0.3, 0, 0.8, 0.15) over short4 **200 ms** — m3.material.io's "Easing and duration" pairs them
+exactly so (enter 400, exit 200) — small moves (a switch's handle, a slider's handle width) on standard (0.2, 0, 0, 1) at
+short4 200 ms, fades at short3 150 ms. Surfaces grow out of their bar (`motion.style = grow`, M3's container transform
+in spirit). Every animation is one-shot.
+
+**Multi-output.** Each output draws its own lock ground and clock; the field is on the focused one.
+
+**Budget.** No Canvas: the switch, slider and indicator are Rectangles; the lock ground is one Shape with two static
+gradients, painted once; the busy indicator is one Shape turned only while busy.
+
+**Built (W53.8).** `{looks,styles,palettes}/material.toml` (the shape scale, M3 menus/tooltips/focus/motion, the
+inverse-surface roles), `profiles/material-desk.toml` (the status bar on top, the navigation bar along the bottom, both
+40 px), `decor/{menu/State,tooltip/Plain,slider/Material,toggle/Material}.qml`, `lock/BigClockFace.qml`, the generic keys
+`workspace.mark` (`modules/Workspaces.qml`) and `tile.active`/`tile.well` (`quick/QuickTile.qml`), `sounds/material` +
+`cursors/material` (`tools/styles/material-assets.py`: soft plucks and a rounded dark arrow, CC0), Roboto Flex in the
+Home-Manager fonts. Shots: `frontend/shots/styles/material/` (the seven test-styles surfaces; `desk-*` with the preset;
+`light-*`, `hc-*`, `large-*`, `ja-*`; `controls-*` close-ups of the switch, slider, focus ring and tiles; `sheet-*` lock
+states and parts).
+
+**Still differs (W53.8, honest).**
+- Roboto Flex is in the Home-Manager list but not installed on the shot machine: every shot is Roboto, and the lock
+  clock's wide `wdth` 125 cut is untested (Roboto Medium stands in). Not Google Sans / Google Sans Clock (proprietary).
+- The launcher's field is the shell's Block with an accent outline while focused; M3's search bar is a full-round
+  surface-container-high container with no outline (caller `Launcher.qml`: needs a `field.form = filled` or similar).
+- Menus live inside Stage cards, so their container corner is the card's (28 px), not M3's 4 px; elevation level 2 is
+  the card's. Only the rows are M3's.
+- Quick settings: Android's shade (full width from the top edge, the brightness slider first, pages of tiles, the
+  "Edit" pencil) is not built — the tiles and their colours are; the tile is the shell's 160 × 56, not 80 dp tall.
+- The navigation bar has no labels under the destinations (M3's 80 dp bar has them) and the launcher's button is the
+  shell's icon button, not an M3 destination.
+- The switch shows no ✕ on its off handle (M3's "icons on both" option); the slider has no value label while dragged.
+- High contrast is the palette's contrast stage: the tonal look mostly holds, with no extra outlines on tiles.
+- Snackbars (toasts as the plain tooltip) overlap the preset's bottom bar by a few px (`toast.place = bottom` under a
+  bottom bar: caller `Toasts.qml`), and carry no action button in inverse-primary.
+- The lock ground stands in for the dimmed wallpaper; the "smartspace" line is the date only (no weather, no next alarm).
+- Loading shows the caller's words, not M3's circular or linear progress indicators.
+
+### 9.10 glass — Vitreus/pleamar (frosted glass)
+
+**Reference.** The shell's own glass after Vitreus/pleamar (K77 keeps the material name "glass" for a later
+liquid-glass material): frosted, blurred surfaces over the wallpaper, soft squircles (`theme.shape.corners = squircle`,
+radius 25), a light rim and a soft shadow, springs that settle (`lively`), Inter. Not an OS: there is nothing to
+measure against, so the look is checked against its own brief — the wallpaper must read through every surface, blurred,
+with no artefact at the edges.
+
+**Metrics.** Blur on (niri's ext-background-effect), opacity 0.62, radius 25 squircle, soft chrome, Inter; no `[decor]`
+geometry.
+
+**Row 608 check.** Under a translucent fill the elevation's two shadows are drawn through one layer with the shape
+knocked out, so they fall only outside it. On nested niri over a patterned wallpaper (`frontend/shots/styles/glass/*`,
+`desk-*`) the card's edges are even all round: the blurred checker reads through the fill, a light rim on every side,
+the shadow outside only — no lighter band down one side (the artefact row 608 fixed).
+
+**Type.** Inter, Noto Sans CJK JP.
+
+**Mapping.** Unchanged: frosted bar groups, island, cards, quick settings (the phone), sidebars.
+
+**Lock face.** `plain` (the frosted ground and the keycap clock of the plain face).
+
+**Sounds and pointer (W53.8).** `sounds/glass` (struck glass: inharmonic sine partials at 1, 2.32, 4.25 and 6.63 times
+the note, a 2 ms strike, long bright decays in a small airy room — two chimes a sixth apart unlock, a muted low pair for
+an error, one clear chime notifies, a soft ping rises for open and falls for close) and `cursors/glass` (a frosted white
+arrow, 82 % opaque, a cool rim and a soft shadow, supersampled), both from `tools/styles/modern-assets.py`, CC0, off
+unless the user turns them on.
+
+**Layout preset.** `profiles/glass-desk.toml` (was `glass-float`): everything floating a gap from the edges
+(`layout.draw = floating`), a 38 px bar for the squircle keys, the clock and month on the desk at the left.
+
+**Still differs.** Nothing measured against a reference (there is none); the liquid-glass material (refraction, a lens
+edge) waits for K77's `glass` material. Quick settings stay the opaque phone (K42) rather than glass.
+
+### 9.11 terminal — a text-mode terminal and its TUIs
+
+**Reference.** Not one product: the text terminal as people know it today — a dark screen, one monospace face, the
+Linux virtual console's login, and the text UIs that run in a terminal (fzf's finder line, htop's and Midnight
+Commander's boxed panels, tmux's status line and its inverse message line, dialog(1)'s boxes). Sources:
+- [P] agetty(8) (<https://man7.org/linux/man-pages/man8/agetty.8.html>): the issue file's escapes `\n` (host), `\l`
+  (tty), `\d` (date), `\t` (time) and the `<host> login:` prompt; `--autologin`/the user already given.
+- [P] login(1) (<https://man7.org/linux/man-pages/man1/login.1.html>; util-linux `login-utils/login.c`): the password is
+  read with echo off — nothing is printed, not a mask — and a failure prints `Login incorrect` before a new prompt.
+- [P] The Unicode Box Drawing block U+2500–U+257F (<https://www.unicode.org/charts/PDF/U2500.pdf>): ─ │ ┌ ┐ └ ┘ (light),
+  ═ ║ ╔ ╗ (double), ╭ ╮ ╯ ╰ (arc); U+2588 █ full block; U+25B2/25BC ▲ ▼.
+- [P] tmux(1) (<https://man7.org/linux/man-pages/man1/tmux.1.html>): `status-style` (one line along an edge, default
+  `bg=green,fg=black`), `message-style` (default `bg=yellow,fg=black`: the message line in a block of colour).
+- [P] Caret blink: Windows' default caret blink time is 530 ms (GetCaretBlinkTime,
+  <https://learn.microsoft.com/windows/win32/api/winuser/nf-winuser-getcaretblinktime>); GTK stops blinking after
+  `gtk-cursor-blink-timeout` = 10 s of no input (<https://docs.gtk.org/gtk4/property.Settings.gtk-cursor-blink-timeout.html>).
+- [O] fzf (<https://github.com/junegunn/fzf>, `man fzf`, `--pointer`): the current line marked by a pointer in the
+  gutter (`>` in its classic and `--no-unicode` form), its line on a slightly lighter band (`bg+`), the rest unchanged.
+- [O] Phosphor types: P1 (green, peak ≈ 525 nm) and P3 (amber, ≈ 602 nm) on monochrome terminals
+  (<https://en.wikipedia.org/wiki/Phosphor#Standard_phosphor_types>).
+- JetBrains Mono (<https://github.com/JetBrains/JetBrainsMono>, SIL OFL 1.1).
+
+**Metrics.**
+
+| part | value | source |
+|---|---|---|
+| type | JetBrains Mono at the body size (13 px: a 0.6 em advance = 7.8 px cell, ≈ 17 px line) | OFL; [P] the font's metrics |
+| corners | none, everywhere (`theme.shape.corners = none`) | a character cell has none |
+| card box | one device pixel, half a cell (4 px) inside the card, in the outline's ink (`frame.box = single`) | [P] U+250C ┌ at a cell's centre line |
+| menu row | the `>` pointer in a 16 px lead, bold, accent; the line on `surface_container_high` | [O] fzf |
+| separator | a rule of `─` glyphs in the outline's ink | [P] U+2500 |
+| scroll bar | 12 px: two 1 px strokes, the thumb whole character rows (17 px) of solid block, ▲ ▼ cells | [P] │ █ ▲ ▼ |
+| tooltip, toast | inverse video: `on_surface` ground, `surface` text, square, no border | [P] tmux `message-style` |
+| caret | a block one cell wide, the character under it in the ground's colour; blinks 530 ms on/off for 10 s after the last key, the move or the focus, then rests lit | [P] Windows 530 ms; GTK 10 s timeout |
+| status line | the bar one strip (`bar.group = none`), no separators; the preset puts it along the bottom, 26 px, flush | [P] tmux `status` |
+| focus | a 1 px ring in the text's ink, 2 px out | — |
+| motion | an 80 ms linear fade in, 60 ms out (`motion.style = fade`) | a terminal redraws, it does not animate |
+
+**Type.** JetBrains Mono (OFL, installed by the Home-Manager module), then IBM Plex Mono and Iosevka if present; ja:
+Noto Sans Mono CJK JP (two cells a character, as a CJK terminal). Symbols: Material Symbols **Sharp** (square ends, as the
+type), outline, weight 400.
+
+**Mapping**
+
+| our surface | becomes |
+|---|---|
+| bar | tmux's status line: one strip, the workspaces as its window list, the clock at the end |
+| launcher | a boxed dialog standing apart from the status line (`surface.join = false`): the query on a field with a block caret, the results as fzf lines with `>` and `│█│` |
+| Stage card / island card | a boxed window (the card's edge and the box half a cell in) |
+| quick settings | a plain boxed flyout (`quick.frame = flyout`), square tiles |
+| toasts | inverse-video message lines (tmux's message) |
+| menus (tray, dock) | fzf lines |
+| tooltips | inverse lines |
+| lock | the virtual console's login (`tty`) |
+
+**Lock face `tty`.** Top left of a dark screen (`surface_container_lowest`), in the look's mono at ≈ 1.45 × body:
+```
+kurashi 暮らし  <host>  tty1          (the issue line, dim)
+Sun 1 Nov 2026  11:09                 (\d \t)
+
+<host> login: maike
+Password: █
+```
+- **No echo at all:** the password field is `TextInput.NoEcho` — no dots, no stars, the cursor does not move, exactly as
+  login(1). A PAM question that asks for echo (`prompt_echo`) replaces `Password:` and shows what is typed.
+- **Error:** `Login incorrect` and a fresh `<host> login: <user>` line; the last three attempts stay above as scrollback.
+  PAM's other errors print their text in its place; PAM information prints as a line.
+- **Busy:** Enter leaves the line as typed and the cursor waits on the next line; nothing is printed (a tty's pause;
+  the field's accessible description says "Checking…").
+- **Caps Lock, the reader, the countdown, daemon disconnected:** bracketed or plain lines above the prompt while they
+  last (`[Caps Lock is on]`).
+- **Keys:** typing goes to the field from the first frame; Esc or Ctrl+U clear the line (the kill character).
+- **Other outputs:** the issue line and the date only.
+- The host name is the kernel's (`/proc/sys/kernel/hostname`, read once), "kurashi" without one.
+
+**Not copied.** No distribution's issue banner, logo or MOTD; no terminal emulator's or app's icon; fzf, tmux and htop are
+named as idioms only. Cues are our own square-wave beeps, the pointer our own 1-bit arrow.
+
+**States.** Loading: the caller's words (no spinner). Empty: the caller's line. Offline: the lock's bracketed line;
+elsewhere the shell's. Error: the lock's `Login incorrect`; inverse toasts.
+
+**Keyboard + a11y.** Every list keeps its keys; the `>` follows the selection. High contrast: the high-contrast palette
+draws the same boxes and inverse lines, so nothing depends on the grey band (`hc-*`). Large text: the cell grows with
+the type, so the box's inset, the scroll bar's rows and the caret grow with it (`large-*`). ja: the mono CJK face, the
+lock's prompts translated (`パスワード:`, `ログインが正しくありません`; `login:` stays as agetty prints it).
+`reduce_motion`: the 80 ms fade becomes a cut; the caret still blinks (it is a state cue, not motion) and stops after 10 s.
+
+**Motion.** A quick linear fade only. The caret's blink is the one loop, and it ends: 10 s after the last key it rests
+lit (Ma: 0 frames idle, also while the launcher or the lock waits with the keyboard).
+
+**Phosphor.** Two palettes are offered with the style: `phosphor` (P1 green #5cff8a on #07110a; light scheme: deep
+green on green-bar paper) and `phosphor-amber` (P3 amber #ffb43a on #120b03; light: brown on cream fanfold). Every role is
+one hue at several brightnesses, as a monochrome terminal drew normal, dim and bold.
+
+**Multi-output.** The lock's prompt on the focused output, the issue line on the others; everything else per output as
+usual.
+
+**Budget.** The box is two Rectangles per card, the scroll bar three plus two glyphs (made only while a list
+overflows), the caret one Rectangle and two Timers that stop.
+
+**Built (W53.8).** `looks/terminal.toml` (slots frame `box`, menu `prompt`, scroll `track`, tooltip `inverse`, lock
+`tty`, sounds `terminal`), `frames/Box.qml`, `decor/menu/Prompt.qml`, `decor/scroll/Track.qml`,
+`decor/tooltip/Inverse.qml`, `lock/TtyFace.qml`, `palettes/phosphor{,-amber}.toml`, `profiles/terminal-desk.toml` (was
+`terminal-dense`: the status line along the bottom, connected, compact, no desk), `sounds/terminal` + `cursors/terminal`
+(`tools/styles/modern-assets.py`: a speaker's square-wave beeps through a gentle low-pass — the bell blip, two low
+beeps, a rising pair, key ticks; a 1-bit white arrow with a black outline on a 12 × 19 grid, CC0). Shots:
+`frontend/shots/styles/terminal/` (`desk-*` with the preset, `phosphor-*`, `amber-*`, `hc-*`, `large-*`, `ja-*`,
+`desk-sheet-*` lock states and parts, the seven test-styles surfaces).
+
+**Still differs (W53.8, honest).**
+- The box reaches Blocks ≥ 120 × 64 and PanelDress panels (the launcher and the island's card once they stand apart, the
+  quick flyout). Notification cards, sidebar sections and the calendar are not Blocks: they keep the line chrome's edge,
+  not a box half a cell in.
+- A Stage card shows its own edge and the box inside it — two lines, which reads as a shadowed dialog box rather than
+  one ┌─┐.
+- No title in the box's top line (`┌─ Notifications ─┐`): a frame does not know its card's title.
+- The box is drawn with lines, not the font's glyphs (a glyph run never meets a card's pixel width exactly); at body
+  size they are the same one-pixel stroke.
+- The launcher's placeholder sits under the block caret, so its first letter is hidden while the field is empty
+  ("█earch apps…"; a terminal shows no placeholder at all). Caller fix listed for the lead.
+- With `surface.join = false` the launcher and the island's card stand mid-screen; quick settings open under the island,
+  not at the quick button (as snes, BACKLOG).
+- The lock's blink is a real blink, so a shot inside the first 10 s may catch the caret off.
+- No cursor themes beyond the arrow (text, resize, wait use the system's).
+
 
 ---
 
