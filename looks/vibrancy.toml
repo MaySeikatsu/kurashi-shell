@@ -91,3 +91,5 @@ sounds = "vibrancy"
 "centre.form" = "flyouts"
 "calendar.cells" = "flat"
 "toast.place" = "corner"
+# Spotlight stands centred over the output, not under the mark (W53.3's `start.menu`).
+"start.menu" = "center"

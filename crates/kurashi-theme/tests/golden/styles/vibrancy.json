@@ -179,7 +179,7 @@
   "decor.start.grid": 0,
   "decor.start.italic": false,
   "decor.start.label": false,
-  "decor.start.menu": "button",
+  "decor.start.menu": "center",
   "decor.start.size": 0,
   "decor.task.mark": "focused",
   "decor.tile.radius": -1,
