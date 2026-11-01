@@ -236,6 +236,8 @@ PanelWindow {
         var room = screen ? screen.width - 2 * Theme.pad : 720
         return Math.max(360, Math.min(want, 720, room))
     }
+    // W53.5: the width the view asks its card for (`cardWant`, ≥ 0), e.g. the calendar's grid in a wide pixel face.
+    readonly property int viewWant: view.item && view.item.cardWant !== undefined ? view.item.cardWant : 0
     Component { id: genericView; GenericView {} }
     Component { id: mediaView; MediaView {} }
     Component { id: notificationsView; NotificationsView {} }
@@ -1249,7 +1251,9 @@ PanelWindow {
         // I192: while the view is being made, the size it had last time (see `cachedSize`).
         readonly property bool fromCache: !stage.viewReady && stage.cachedSize !== null
         // W53.0b: a card made full screen by its title bar takes the room its output has (the title bar's own size).
-        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
+        // (W53.5: a view may ask for more with `cardWant` — the calendar's grid in a wide pixel face.)
+        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0
+            ? Math.max(400, Math.min(stage.viewWant, stage.fullW))
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
         height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight

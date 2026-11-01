@@ -5,8 +5,8 @@ import "../../core"
 // The title-screen face (W53.5, docs/ux/styles.md §7 "Lock face title-screen"): a 16-bit RPG's lock in two stages, every
 // size and place on the output's integer pixel grid (`g = Theme.grid(height)`: 2 logical px on 1080 lines), bitmap type
 // (8 × 8 at 8·g·k px), Rectangles without smoothing.
-// - The title: a black ground, an original blocky wordmark of the host name (white face, a hard extrusion one grid pixel
-//   per step in the X blue), the pad's four face colours as a diamond of dots (X top, A right, B bottom, Y left — roles),
+// - The title: a black ground, an original blocky wordmark of the host name (white face, a hard shadow one grid pixel
+//   down and right in the X blue), the pad's four face colours as a diamond of dots (X top, A right, B bottom, Y left — roles),
 //   and "PUSH ANY KEY", which blinks three times when it appears and then stays lit. The clock and date small at the top
 //   right. Never a console maker's logo, "Licensed by" or a "© year" line.
 // - The file select: an RPG window (a dark outline 1 g, a white border 2 g, corners stepped one grid pixel, the fill in
@@ -204,26 +204,17 @@ FaceBase {
         readonly property string word: c.host.toUpperCase()
         // The wordmark's scale: as large as fits 84 % of the width, 2..8.
         readonly property int k: Math.max(2, Math.min(8, Math.floor(c.width * 0.84 / Math.max(1, word.length * c.cell(1)))))
-        readonly property int depth: k
 
+        // The wordmark is the pixel face (Press Start 2P, Misaki's 8 x 8 kana and kanji) at a whole number of grid pixels
+        // per font pixel (`cell(k)` = 8 x k grid px), drawn without smoothing: every glyph pixel is a k x k block of grid
+        // pixels. Its shadow is one hard copy one grid pixel down and right in the X blue (tertiary), never a blur.
         Item {
             id: mark
-            width: face.implicitWidth + title.depth * c.g
-            height: face.implicitHeight + title.depth * c.g
+            width: face.implicitWidth + c.g
+            height: face.implicitHeight + c.g
             x: c.snap((c.width - width) / 2)
             y: c.snap(c.height * 0.26)
-            // The extrusion: one copy per grid pixel down and right, deepest first, in the X blue.
-            Repeater {
-                model: title.depth
-                PixText {
-                    required property int index
-                    k: title.k
-                    x: (title.depth - index) * c.g
-                    y: (title.depth - index) * c.g
-                    color: index === 0 ? Qt.darker(Theme.tertiary, 1.8) : Theme.tertiary
-                    text: title.word
-                }
-            }
+            PixText { k: title.k; x: c.g; y: c.g; color: Theme.tertiary; text: title.word }
             PixText { id: face; k: title.k; text: title.word }
         }
 
