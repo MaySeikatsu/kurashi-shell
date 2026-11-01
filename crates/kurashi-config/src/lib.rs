@@ -54,7 +54,7 @@ pub trait SchemaView {
 /// `(key, output)`; `None` is the global (all-outputs) slot.
 pub type Slot = (String, Option<String>);
 
-/// One mutation inside an [`Config::apply`] batch. Both target the `user` layer.
+/// One mutation inside an [`Config::apply`] batch. `Set` and `Reset` target the `user` layer, `Release` the `profile` one.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "op")]
 pub enum Op {
@@ -71,6 +71,9 @@ pub enum Op {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         output: Option<String>,
     },
+    /// Drops the loaded profile's global value of `key`, so the layers below it show again: a style or look applied
+    /// over a profile that set appearance keys recreates the pack (K53, K81). Daemon-internal; no wire op names it.
+    Release { key: String },
 }
 
 impl Op {
