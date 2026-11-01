@@ -258,8 +258,8 @@ FaceBase {
                 Icon {
                     anchors.centerIn: parent
                     anchors.verticalCenterOffset: -Theme.shadowDy / 2 + (enter.pressed && Theme.sinkY > 0 ? Theme.sinkY / 2 : 0)
-                    name: "keyboard_return"
-                    glyph: "↵"
+                    name: "arrow_forward"
+                    glyph: "→"
                     color: Theme.fgOnAccent
                     size: Math.round(28 * c.s)
                 }
