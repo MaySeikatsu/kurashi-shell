@@ -18,10 +18,17 @@ import "phone"
 Item {
     id: quick
     readonly property bool ownChrome: true
+    // W53.3 (`[decor] quick.frame`, `quick.tiles`; data, rule 4): the card's chrome — the phone (today's) or a plain flyout
+    // (the panel's material, 8 px of the look's radius, its hairline and the surfaces' elevation: 11's, the Macs') — and the
+    // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
+    readonly property bool flyout: Theme.decor("quick.frame", "phone") === "flyout"
+    readonly property bool compactTiles: Theme.decor("quick.tiles", "wide") === "compact"
+    readonly property int tileCols: compactTiles ? 3 : 2
+    readonly property real tileW: (quick.innerW - (tileCols - 1) * Theme.gap) / tileCols
     width: parent.width
-    height: phone.implicitHeight
-    // The width the rows take on the phone's screen.
-    readonly property real innerW: phone.screen.width - 2 * Theme.pad
+    height: flyout ? fly.implicitHeight : phone.implicitHeight
+    // The width the rows take on the phone's screen (the flyout's inside its padding).
+    readonly property real innerW: flyout ? fly.width - 2 * fly.side - 2 * Theme.pad : phone.screen.width - 2 * Theme.pad
 
     // Documents: the card's own (the tiles, the status, the levels) are watched while it is up.
     Watch { doc: "svc.network" }
@@ -353,8 +360,8 @@ Item {
         id: tileSlot
         slot: "quick.tiles"
         layout: "cells"
-        cellWidth: (quick.innerW - Theme.gap) / 2
-        cellHeight: 56
+        cellWidth: quick.tileW
+        cellHeight: quick.compactTiles ? 78 : 56
     }
     // The core tiles are the first `coreCount` cells; the contributions follow.
     readonly property int coreCount: 10
@@ -461,6 +468,7 @@ Item {
     // ---- the phone ----
     PhoneFrame {
         id: phone
+        visible: !quick.flyout
         theme: Theme
         width: quick.width
         contentHeight: (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad
@@ -518,8 +526,10 @@ Item {
         // The screen's content: the tiles and the page side by side, sliding inside the screen.
         Item {
             id: viewport
-            width: phone.area.width
-            height: phone.area.height
+            // (the flyout's area under `quick.frame = flyout`; the phone's screen otherwise)
+            parent: quick.flyout ? flyArea : phone.area
+            width: parent.width
+            height: parent.height
             clip: true
 
             Column {
@@ -532,6 +542,8 @@ Item {
                 // The greeting row (SekaiPop's user row): an avatar key, the time of day's greeting and the card's name.
                 Item {
                     id: hello
+                    // (a flyout has no greeting row, as 11's has none)
+                    visible: !quick.flyout
                     width: quick.innerW
                     height: avatar.height
                     Accessible.role: Accessible.Heading
@@ -596,6 +608,7 @@ Item {
                 }
                 QuickStatus {
                     id: statusLine
+                    visible: !quick.flyout
                     width: quick.innerW
                     segments: quick.statusSegments
                     onOpened: (target, from) => quick.openPage(target, from)
@@ -603,7 +616,7 @@ Item {
                 Grid {
                     id: grid
                     width: quick.innerW
-                    columns: 2
+                    columns: quick.tileCols
                     spacing: Theme.gap
                     // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
                     // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
@@ -614,10 +627,10 @@ Item {
                         if (i < 0) return
                         var to = -1
                         switch (event.key) {
-                        case Qt.Key_Up: to = i >= 2 ? i - 2 : -1; break
-                        case Qt.Key_Down: to = i + 2 < cells.length ? i + 2 : -1; break
-                        case Qt.Key_Left: to = i % 2 === 1 ? i - 1 : -1; break
-                        case Qt.Key_Right: to = i % 2 === 0 ? i + 1 : -1; break
+                        case Qt.Key_Up: to = i >= grid.columns ? i - grid.columns : -1; break
+                        case Qt.Key_Down: to = i + grid.columns < cells.length ? i + grid.columns : -1; break
+                        case Qt.Key_Left: to = i % grid.columns > 0 ? i - 1 : -1; break
+                        case Qt.Key_Right: to = i % grid.columns < grid.columns - 1 ? i + 1 : -1; break
                         default: return
                         }
                         if (to >= 0 && cells[to] !== null) cells[to].forceActiveFocus()
@@ -626,7 +639,7 @@ Item {
 
                     QuickTile {
                         id: tWifi
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "≋"
                         icon: quick.wifiOn ? "wifi" : "wifi_off"
                         label: I18n.tr("island.quick.tile.wifi")
@@ -640,7 +653,7 @@ Item {
                     }
                     QuickTile {
                         id: tBt
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "ᛒ"
                         icon: quick.btDoc.powered === true ? "bluetooth" : "bluetooth_disabled"
                         label: I18n.tr("island.quick.tile.bluetooth")
@@ -654,7 +667,7 @@ Item {
                     }
                     QuickTile {
                         id: tFocus
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "☾"
                         icon: "bedtime"
                         label: I18n.tr("island.quick.tile.focus")
@@ -668,7 +681,7 @@ Item {
                     }
                     QuickTile {
                         id: tAudio
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "♪"
                         icon: quick.muted ? "volume_off" : "volume_up"
                         label: I18n.tr("island.quick.tile.audio")
@@ -682,7 +695,7 @@ Item {
                     }
                     QuickTile {
                         id: tPower
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "⚡"
                         icon: quick.powerDoc.profile === "power-saver" ? "energy_savings_leaf" : "bolt"
                         label: I18n.tr("island.quick.tile.power")
@@ -697,7 +710,7 @@ Item {
                     }
                     QuickTile {
                         id: tDisplay
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "☼"
                         icon: "light_mode"
                         label: I18n.tr("island.quick.tile.display")
@@ -711,7 +724,7 @@ Item {
                     // compositor is the tile's reason, never a dead tile.
                     QuickTile {
                         id: tCaffeine
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "☕"
                         icon: "coffee"
                         label: I18n.tr("power.quick.caffeine")
@@ -726,7 +739,7 @@ Item {
                     }
                     QuickTile {
                         id: tNight
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "◐"
                         icon: "nightlight"
                         label: I18n.tr("power.night.title")
@@ -740,7 +753,7 @@ Item {
                     }
                     QuickTile {
                         id: tRecord
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "●"
                         icon: quick.recording ? "stop_circle" : "screen_record"
                         label: I18n.tr("power.quick.record")
@@ -756,7 +769,7 @@ Item {
                     }
                     QuickTile {
                         id: tDark
-                        width: (grid.width - grid.spacing) / 2
+                        width: quick.tileW
                         glyph: "☾"
                         icon: "dark_mode"
                         label: I18n.tr("island.quick.tile.dark")
@@ -866,6 +879,7 @@ Item {
                     }
                 }
                 QuickFooter {
+                    visible: !quick.flyout
                     width: quick.innerW
                     sessionOk: quick.sessionOk
                 }
@@ -887,6 +901,84 @@ Item {
                 onStatusChanged: if (status === Loader.Ready && item !== null)
                     Qt.callLater(function () { if (pageLoader.item !== null) pageLoader.item.focusFirst() })
             }
+        }
+    }
+
+    // ---- the flyout (W53.3, `quick.frame = flyout`): the panel's material in the look's radius with its hairline, over
+    // the surfaces' elevation; the tiles and pages inside its padding, and a footer band — the battery on the left, Settings
+    // and the session menu on the right (11's footer; it has no tile editor here, so no edit key: Shōjiki). Made only then.
+    Item {
+        id: fly
+        visible: quick.flyout
+        width: quick.width
+        // Room round the body for its shadow (a clipping card would cut it off).
+        readonly property real side: quick.flyout ? 12 : 0
+        readonly property real footH: 52
+        implicitHeight: quick.flyout
+            ? 2 * side + Theme.pad + (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad + footH : 0
+        Loader {
+            active: quick.flyout
+            anchors.fill: parent
+            anchors.margins: fly.side
+            sourceComponent: Item {
+                Elevation { anchors.fill: parent; radius: Theme.rLg; level: 3 }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: Theme.rLg
+                    color: Theme.panel
+                    border.width: 1
+                    border.color: Theme.color("color.outline_variant", "#e5e5e5")
+                }
+                // The footer band: the ground a step deeper, a hairline above it, the lower corners the flyout's.
+                Rectangle {
+                    x: 1
+                    y: parent.height - fly.footH
+                    width: parent.width - 2
+                    height: fly.footH - 1
+                    bottomLeftRadius: Math.max(0, Theme.rLg - 1)
+                    bottomRightRadius: Math.max(0, Theme.rLg - 1)
+                    color: Qt.alpha(Theme.surface, 0.55)
+                    Rectangle { width: parent.width; height: 1; color: Theme.color("color.outline_variant", "#e5e5e5") }
+                    Row {
+                        x: Theme.pad + 4
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 6
+                        visible: quick.battery
+                        Icon { name: quick.batteryIcon; glyph: "▮"; size: 16; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: Theme.fg
+                            font.pixelSize: Theme.fsLabel
+                            font.family: Theme.fam(text, Theme.families)
+                            text: quick.battery ? Math.round(Number(quick.powerDoc.percent)) + " %" : ""
+                        }
+                    }
+                    Row {
+                        anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+                        spacing: 4
+                        IconButton {
+                            icon: "settings"
+                            glyph: "⚙"
+                            a11y: I18n.tr("action.settings.open")
+                            onClicked: quick.openSettings("")
+                        }
+                        IconButton {
+                            icon: "power_settings_new"
+                            glyph: "⏻"
+                            a11y: I18n.tr("island.quick.session.power_menu")
+                            onClicked: Store.act("session.menu", {})
+                        }
+                    }
+                }
+            }
+        }
+        Item {
+            id: flyArea
+            // (the whole inner width: the tiles stand `Theme.pad` in from it, as on the phone's screen)
+            x: fly.side
+            y: fly.side + Theme.pad
+            width: Math.max(0, fly.width - 2 * fly.side)
+            height: Math.max(0, fly.implicitHeight - 2 * fly.side - 2 * Theme.pad - fly.footH)
         }
     }
 }

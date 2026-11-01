@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "decor"
 
 // Optimistic slider: follows the pointer locally while dragging, sends at most one intent per
 // frame (and only while the pointer is held, Ma), and shows the daemon value otherwise.
@@ -71,7 +72,7 @@ Item {
         color: Theme.ringW > 0 ? Theme.ring : s.track
         border.width: Theme.ringW > 0 ? Theme.outlineW : 0
         border.color: Theme.outlineColor
-        visible: !s.unavailable
+        visible: !s.unavailable && !face.has
         Rectangle {
             x: trackRect.border.width; y: trackRect.border.width
             width: Math.max(height, (parent.width - 2 * x) * s.shown); height: parent.height - 2 * y
@@ -94,7 +95,7 @@ Item {
         border.color: Theme.outlineColor
         anchors.verticalCenter: parent.verticalCenter
         x: (s.width - width) * s.shown
-        visible: !s.unavailable
+        visible: !s.unavailable && !face.has
         // The relief over the knob (its ring stays flat).
         Loader {
             active: s.ownRelief
@@ -103,6 +104,20 @@ Item {
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, handle.radius - handle.border.width) }
         }
     }
+    // W53.3: the look's slider part (`[slots] slider`, contract decor/slider/SliderBase.qml) draws the track, fill and
+    // thumb instead of the two above — 11's rail with its ringed thumb, 9x's trackbar; nothing is made without one.
+    DecorHost {
+        id: face
+        slot: "slider"
+        anchors.fill: parent
+        visible: !s.unavailable
+        onLoaded: {
+            item.value = Qt.binding(function () { return s.shown })
+            item.pressed = Qt.binding(function () { return s.dragging })
+            if (item.hovered !== undefined) item.hovered = Qt.binding(function () { return sliderHover.hovered })
+        }
+    }
+    HoverHandler { id: sliderHover; enabled: face.has }
     // Stands in for the level (VolumeFace draws the same mark for no audio). Dim: it is not an input.
     Text {
         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

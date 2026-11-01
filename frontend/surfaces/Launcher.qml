@@ -53,7 +53,7 @@ PanelWindow {
         for (var i = 0; i < results.length && h < maxListH; i++) h += heightOf(results[i])
         return h
     }
-    readonly property int listH: mode === "emoji"
+    readonly property int listH: startGrid ? startH : mode === "emoji"
         ? Math.max(1, Math.min(Math.ceil(results.length / cols), gridRows)) * cellH
         : Math.max(rowH, Math.min(contentH, maxListH))
     readonly property bool footer: mode !== "apps"
@@ -85,7 +85,57 @@ PanelWindow {
     readonly property real skinBand: skin && skinPart.ready ? skinPart.item.bandW : (ownBanner ? 24 : 0)
     readonly property real skinHeader: skin && skinPart.ready ? skinPart.item.headerH : 0
     readonly property real skinFooter: skin ? Math.max(Theme.controlH + 2 * Theme.gap, skinPart.ready ? skinPart.item.footerH : 0) : 0
-    readonly property int skinW: 420
+    // W53.3 (`[decor] start.grid`, columns; 0 = rows): the start menu's empty field shows the apps as a grid of icons with
+    // their names (11's Start) — the dock's pinned apps where there are any ("Pinned"), else the most used ("Apps") — and
+    // under it the most used of the rest in two columns ("Recommended"). Typing gives the ranked rows, as before.
+    readonly property int startCols: skin ? Math.max(0, Theme.decor("start.grid", 0)) : 0
+    readonly property bool startGrid: startCols > 0 && mode === "apps" && field.text === "" && field.preeditText === ""
+    readonly property int startRows: 3
+    readonly property int startCellH: 84
+    readonly property int recRowH: 52
+    readonly property int recCount: 6
+    readonly property int headH: 32
+    readonly property var pinnedIds: {
+        var p = bars.valueOf("dock.pinned", [])
+        return Array.isArray(p) ? p.filter(function (s) { return typeof s === "string" && s !== "" })
+                                   .map(function (s) { return s.replace(/\.desktop$/, "") }) : []
+    }
+    function appKey(r) { return String(r.id || "").replace(/\.desktop$/, "") }
+    readonly property var startApps: results.filter(function (r) { return r.kind === "app" })
+    readonly property var startPinned: {
+        var out = []
+        for (var i = 0; i < pinnedIds.length; i++)
+            for (var j = 0; j < startApps.length; j++)
+                if (appKey(startApps[j]) === pinnedIds[i]) { out.push(startApps[j]); break }
+        return out
+    }
+    readonly property bool hasPins: startPinned.length > 0
+    readonly property var startTop: (hasPins ? startPinned : startApps).slice(0, startCols * startRows)
+    readonly property var startRec: startApps.filter(function (r) { return lp.startTop.indexOf(r) < 0 }).slice(0, recCount)
+    // One flat selection over both parts: the grid's cells, then the recommended rows.
+    readonly property var startItems: startTop.concat(startRec)
+    readonly property int startH: headH + Math.max(1, Math.ceil(startTop.length / Math.max(1, startCols))) * startCellH
+        + (startRec.length > 0 ? Theme.gap * 2 + headH + Math.ceil(startRec.length / 2) * recRowH : 0)
+    // Up, down, left, right over the grid (`startCols` a row) and the recommended rows (two a row).
+    function startMove(dx, dy) {
+        var n = startItems.length, t = startTop.length
+        if (n === 0) return
+        var i = Math.max(0, Math.min(sel, n - 1))
+        if (dx !== 0) { sel = Math.max(0, Math.min(n - 1, i + dx)); return }
+        var j = i
+        if (i < t) {
+            j = i + dy * startCols
+            if (j >= t) j = n > t ? t + ((i % startCols) >= startCols / 2 && n > t + 1 ? 1 : 0) : i
+            if (j < 0) j = i
+        } else {
+            j = i + dy * 2
+            if (j < t) j = t > 0 ? Math.min(t - 1, Math.floor((t - 1) / startCols) * startCols
+                                                     + ((i - t) % 2 === 1 ? Math.floor(startCols / 2) : 0)) : i
+            if (j >= n) j = i
+        }
+        sel = j
+    }
+    readonly property int skinW: startCols > 0 ? 640 : 420
     // The look's menu rows (row 591): its highlight's shape and corner, its part under each row.
     MenuStyle { id: ms }
 
@@ -171,8 +221,9 @@ PanelWindow {
         })
     }
     function launch() {
-        if (sel < 0 || sel >= results.length) return
-        var r = results[sel]
+        var items = startGrid ? startItems : results
+        if (sel < 0 || sel >= items.length) return
+        var r = items[sel]
         if (r.kind === "clipclear") {
             if (!confirmClear) { confirmClear = true; return }
             confirmClear = false
@@ -209,8 +260,10 @@ PanelWindow {
         bottom: skin ? skinEdge !== "top" : morph.layout && bars.atBottom
         left: skin
     }
+    // (`[decor] start.menu = center`, W53.3: the menu stands centred over the output, as 11's Start over its centred taskbar.)
     margins.left: skin ? Math.max(0, Math.min((scr ? scr.width : 1920) - implicitWidth,
-        (startAt ? startAt.x : Theme.pad) - morph.shade)) : 0
+        Theme.decor("start.menu", "button") === "center" ? Math.round(((scr ? scr.width : 1920) - implicitWidth) / 2)
+            : (startAt ? startAt.x : Theme.pad) - morph.shade)) : 0
     margins.top: skin && skinEdge === "top" ? Math.max(0, (startAt ? startAt.y + startAt.h + Theme.gap : bars.topInset) - morph.shade) : 0
     margins.bottom: skin && skinEdge !== "top"
         ? Math.max(0, (startAt && scr ? scr.height - startAt.y + Theme.gap : bars.bottomInset) - morph.shade) : 0
@@ -391,11 +444,19 @@ PanelWindow {
                         if (lp.confirmClear) lp.confirmClear = false
                         else Store.act("ui.close")
                     }
-                    Keys.onDownPressed: lp.move(lp.mode === "emoji" ? lp.cols : 1)
-                    Keys.onUpPressed: lp.move(lp.mode === "emoji" ? -lp.cols : -1)
-                    // In the emoji grid the arrows move across a row; elsewhere they move the text cursor.
-                    Keys.onLeftPressed: (event) => { if (lp.mode === "emoji") lp.move(-1); else event.accepted = false }
-                    Keys.onRightPressed: (event) => { if (lp.mode === "emoji") lp.move(1); else event.accepted = false }
+                    Keys.onDownPressed: lp.startGrid ? lp.startMove(0, 1) : lp.move(lp.mode === "emoji" ? lp.cols : 1)
+                    Keys.onUpPressed: lp.startGrid ? lp.startMove(0, -1) : lp.move(lp.mode === "emoji" ? -lp.cols : -1)
+                    // In the emoji grid (and the start menu's) the arrows move across a row; elsewhere the text cursor.
+                    Keys.onLeftPressed: (event) => {
+                        if (lp.startGrid) lp.startMove(-1, 0)
+                        else if (lp.mode === "emoji") lp.move(-1)
+                        else event.accepted = false
+                    }
+                    Keys.onRightPressed: (event) => {
+                        if (lp.startGrid) lp.startMove(1, 0)
+                        else if (lp.mode === "emoji") lp.move(1)
+                        else event.accepted = false
+                    }
                     Keys.onReturnPressed: lp.launch()
                     Keys.onEnterPressed: lp.launch()
                     Keys.onPressed: (event) => {
@@ -456,7 +517,7 @@ PanelWindow {
 
             ListView {
                 id: list
-                visible: lp.mode !== "emoji"
+                visible: lp.mode !== "emoji" && !lp.startGrid
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
                 width: card.w0
@@ -465,7 +526,7 @@ PanelWindow {
                 interactive: false
                 // Only the rows on screen exist, so only their thumbnails are asked for (Ma).
                 cacheBuffer: 0
-                model: lp.mode !== "emoji" ? lp.results : []
+                model: lp.mode !== "emoji" && !lp.startGrid ? lp.results : []
                 currentIndex: lp.sel
                 highlightMoveDuration: 0
                 // The selected row's highlight is one tonal block that springs to the row (keycap: outlined).
@@ -708,6 +769,155 @@ PanelWindow {
                     if (currentIndex > 0 && lp.results[currentIndex - 1] && lp.results[currentIndex - 1].kind === "keygroup")
                         positionViewAtIndex(currentIndex - 1, ListView.Contain)
                     positionViewAtIndex(currentIndex, ListView.Contain)
+                }
+            }
+
+            // The start menu's apps (W53.3, `start.grid`): a heading, the grid of icons with their names, then the
+            // recommended rows. The selected item (the arrows) and the hovered one stand on the look's menu band.
+            Loader {
+                active: lp.startGrid
+                x: list.x
+                y: list.y
+                width: list.width
+                height: lp.listH
+                sourceComponent: Item {
+                    id: sv
+                    function ink(on) { return on ? ms.ink(Theme.fg) : Theme.fg }
+                    component Heading: Text {
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        height: lp.headH
+                        verticalAlignment: Text.AlignVCenter
+                        leftPadding: 24
+                        color: Theme.fg
+                        font.pixelSize: Theme.fs + 1
+                        font.weight: 600
+                        font.family: Theme.fam(text, Theme.families)
+                    }
+                    component AppPic: Item {
+                        id: ap
+                        property var app: ({})
+                        width: 32
+                        height: 32
+                        readonly property string src: ap.app.icon_path ? "file://" + ap.app.icon_path
+                            : (ap.app.icon ? Quickshell.iconPath(ap.app.icon, true) : "")
+                        Image {
+                            id: pic
+                            anchors.fill: parent
+                            source: ap.src
+                            sourceSize: Qt.size(64, 64)
+                            asynchronous: true
+                            visible: status === Image.Ready
+                        }
+                        Rectangle {
+                            anchors.fill: parent
+                            visible: !pic.visible
+                            radius: Theme.rSm
+                            color: Theme.containerHigh
+                            Text {
+                                anchors.centerIn: parent
+                                color: Theme.dim
+                                font.pixelSize: Theme.fs
+                                font.weight: Theme.wBold
+                                font.family: Theme.fam(text, Theme.families)
+                                text: String(ap.app.name || "?").charAt(0).toUpperCase()
+                            }
+                        }
+                    }
+                    component Plate: Rectangle {
+                        property bool on: false
+                        radius: ms.radius(Theme.rSm)
+                        color: on ? ms.fill(Theme.containerHigh) : "transparent"
+                    }
+                    Heading { id: h1; text: I18n.tr(lp.hasPins ? "launcher.start.pinned" : "launcher.start.apps") }
+                    Grid {
+                        id: cells
+                        y: h1.height
+                        x: 8
+                        columns: lp.startCols
+                        Repeater {
+                            model: lp.startTop
+                            Item {
+                                id: cell
+                                required property var modelData
+                                required property int index
+                                width: (sv.width - 16) / lp.startCols
+                                height: lp.startCellH
+                                Accessible.role: Accessible.Button
+                                Accessible.name: modelData.name || ""
+                                Plate { anchors.fill: parent; anchors.margins: 2; on: cell.index === lp.sel || cellHit.containsMouse }
+                                AppPic { app: cell.modelData; anchors.horizontalCenter: parent.horizontalCenter; y: 14 }
+                                Text {
+                                    anchors { left: parent.left; right: parent.right; margins: 4; top: parent.top; topMargin: 54 }
+                                    horizontalAlignment: Text.AlignHCenter
+                                    elide: Text.ElideRight
+                                    color: sv.ink(cell.index === lp.sel)
+                                    font.pixelSize: Theme.fsLabel
+                                    font.family: Theme.fam(text, Theme.families)
+                                    text: cell.modelData.name || ""
+                                }
+                                MouseArea {
+                                    id: cellHit
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: { lp.sel = cell.index; lp.launch() }
+                                }
+                            }
+                        }
+                    }
+                    Heading {
+                        id: h2
+                        visible: lp.startRec.length > 0
+                        y: cells.y + cells.height + Theme.gap * 2
+                        text: I18n.tr("launcher.start.recommended")
+                    }
+                    Grid {
+                        visible: h2.visible
+                        y: h2.y + h2.height
+                        x: 8
+                        columns: 2
+                        Repeater {
+                            model: lp.startRec
+                            Item {
+                                id: rec
+                                required property var modelData
+                                required property int index
+                                readonly property int at: lp.startTop.length + index
+                                width: (sv.width - 16) / 2
+                                height: lp.recRowH
+                                Accessible.role: Accessible.Button
+                                Accessible.name: modelData.name || ""
+                                Plate { anchors.fill: parent; anchors.margins: 2; on: rec.at === lp.sel || recHit.containsMouse }
+                                AppPic { id: rp; app: rec.modelData; x: 16; anchors.verticalCenter: parent.verticalCenter }
+                                Column {
+                                    anchors { left: rp.right; leftMargin: 12; right: parent.right; rightMargin: 8
+                                              verticalCenter: parent.verticalCenter }
+                                    Text {
+                                        width: parent.width
+                                        elide: Text.ElideRight
+                                        color: sv.ink(rec.at === lp.sel)
+                                        font.pixelSize: Theme.fsLabel
+                                        font.family: Theme.fam(text, Theme.families)
+                                        text: rec.modelData.name || ""
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        visible: text !== ""
+                                        elide: Text.ElideRight
+                                        color: Theme.dim
+                                        font.pixelSize: Theme.fsCaption
+                                        font.family: Theme.fam(text, Theme.families)
+                                        text: rec.modelData.generic || ""
+                                    }
+                                }
+                                MouseArea {
+                                    id: recHit
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: { lp.sel = rec.at; lp.launch() }
+                                }
+                            }
+                        }
+                    }
                 }
             }
 

@@ -1,0 +1,7 @@
+# カーテン ロック画面 (W53.3, components/lock/CurtainFace.qml): Windows 11 のロック — 時計のカーテン、次にサインイン。
+"lockui.face.name.curtain" = "カーテンとサインイン"
+"lockui.curtain.password" = "パスワード"
+"lockui.curtain.reveal" = "パスワードを表示"
+"lockui.curtain.submit" = "サインイン"
+"lockui.curtain.wrong" = "パスワードが正しくありません。もう一度入力してください。"
+"lockui.curtain.ok" = "OK"

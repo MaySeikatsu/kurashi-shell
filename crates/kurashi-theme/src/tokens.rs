@@ -248,7 +248,16 @@ pub fn build(
     for (n, v) in space_scale(axes.density) {
         px(&mut t, &format!("space.{n}"), v);
     }
-    for (n, v) in radius_steps(axes.shape, axes.radius) {
+    // W53.3: a look may set the small and middle steps' share of the large one (`[decor] shape.sm`/`shape.md`).
+    let steps = radius_steps(axes.shape, axes.radius);
+    let lg = steps[3].1;
+    for (n, v) in steps {
+        let share = format!("shape.{n}");
+        let v = if (n == "sm" || n == "md") && decor.metrics.contains_key(&share) {
+            (lg * dnum(&share)).round()
+        } else {
+            v
+        };
         px(&mut t, &format!("radius.{n}"), v);
     }
     // Genuinely circular things (knobs, avatars) keep a circle even when shape is `none`.
@@ -598,8 +607,11 @@ pub fn build(
     px(&mut t, "chrome.outline", ch.outline);
     px(&mut t, "chrome.ring", ch.ring);
     px(&mut t, "chrome.shadow", ch.shadow);
-    px(&mut t, "chrome.soft", ch.soft);
-    px(&mut t, "chrome.soft_dy", ch.soft_dy);
+    // W53.3 (`[decor] chrome.soft_scale`): how much of the soft shadow a block casts — Windows 11 draws its controls flat
+    // with a 1 px stroke and lifts only its flyouts (the surfaces' elevation, below, keeps the chrome's own).
+    let soft_k = dnum("chrome.soft_scale").clamp(0.0, 1.0);
+    px(&mut t, "chrome.soft", ch.soft * soft_k);
+    px(&mut t, "chrome.soft_dy", ch.soft_dy * soft_k);
     t.insert("chrome.press_scale".into(), json!(ch.press_scale));
     t.insert("chrome.groups".into(), json!(ch.groups));
     let frame_outline = match axes.frame_outline {
@@ -785,7 +797,12 @@ pub fn build(
     col(&mut t, "lock.fg", fg);
     col(&mut t, "tooltip.bg", fg); // inverse of the surface; same ratio as on_surface/surface
     col(&mut t, "tooltip.fg", surface);
-    col(&mut t, "focus.ring", accent);
+    // W53.3: a look may ink the ring in another role (`[decor] focus.color`: Windows 11's black/white).
+    let ring = match dv("focus.color").as_str() {
+        Some(r) if !r.is_empty() => g(r),
+        _ => accent,
+    };
+    col(&mut t, "focus.ring", ring);
     col(&mut t, "slider.track", g("surface_container_highest"));
     col(&mut t, "slider.fill", accent);
     col(&mut t, "slider.thumb", accent);

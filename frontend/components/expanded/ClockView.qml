@@ -63,6 +63,9 @@ Column {
     readonly property bool todayInView: valid && today.getFullYear() === year && today.getMonth() === month
     readonly property int todayDay: today.getDate()
     readonly property int cell: 36
+    // W53.3 (`[decor] calendar.cells = flat`): the days without keys — today an accent circle, the selected day a subtle one
+    // (11's calendar); `boxed` = today's small blocks.
+    readonly property bool flatCells: Theme.decor("calendar.cells", "boxed") === "flat"
 
     function select(date) { sel = new Date(date.getFullYear(), date.getMonth(), date.getDate()) }
     function shiftDays(n) { select(new Date(sel.getFullYear(), sel.getMonth(), sel.getDate() + n)) }
@@ -245,17 +248,18 @@ Column {
                         Accessible.name: inMonth ? view.loc.toString(new Date(view.year, view.month, day), view.headerFmt) : ""
                         Block {
                             id: dayBlock
-                            visible: dayCell.inMonth
+                            visible: dayCell.inMonth && (!view.flatCells || dayCell.isToday || dayCell.isSel)
                             // A grid of 31 keys: no soft shadow each (the card has one).
                             softScale: 0
                             x: 2
                             y: 2 - Math.round(Theme.shadowDy / 2)
                             width: parent.width - 4
                             height: parent.height - 4
-                            radius: Theme.rSm + 2
+                            radius: view.flatCells ? Math.min(width, height) / 2 : Theme.rSm + 2
                             ringScale: 0
                             animate: view.visible
-                            fill: dayCell.isToday ? Theme.accent : (dayCell.isSel ? Theme.selected : Theme.containerHigh)
+                            fill: dayCell.isToday ? Theme.accent
+                                : (dayCell.isSel ? (view.flatCells ? Qt.alpha(Theme.fg, 0.08) : Theme.selected) : Theme.containerHigh)
                             flatBorder: dayCell.isSel && !dayCell.isToday ? Qt.alpha(Theme.fg, 0.25) : "transparent"
                             pressed: dayTap.pressed
                         }
@@ -264,7 +268,7 @@ Column {
                             anchors.bottomMargin: Theme.shadowDy
                             anchors.margins: -1
                             shown: dayCell.isSel && cal.activeFocus
-                            corner: Theme.rSm + 3
+                            corner: view.flatCells ? dayBlock.width / 2 + 1 : Theme.rSm + 3
                         }
                         Text {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
@@ -274,7 +278,7 @@ Column {
                             anchors.verticalCenterOffset: dayCell.numberMid - (dayBlock.y + dayBlock.height / 2)
                             visible: parent.inMonth
                             color: parent.isToday ? Theme.fgOnAccent
-                                : (parent.isSel ? Theme.fgOnSelected : Theme.fg)
+                                : (parent.isSel && !view.flatCells ? Theme.fgOnSelected : Theme.fg)
                             font.pixelSize: Theme.fs
                             font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
                             font.family: Theme.fam(text, Theme.families)

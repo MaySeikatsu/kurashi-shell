@@ -145,3 +145,7 @@
 # Row 387, I40: the `>` rows that open Settings on a page ("Shortcut settings" = the Keys page; the cheat sheet is "Keyboard shortcuts").
 "launcher.cmd.shortcuts" = "ショートカットの設定"
 "launcher.cmd.settings_page" = "設定: {page}"
+# W53.3: スタート メニューのアプリ グリッド（`[decor] start.grid`）: ドックにピン留めしたアプリ、なければよく使うアプリ。その下に残りのよく使うアプリ。
+"launcher.start.pinned" = "ピン留め済み"
+"launcher.start.apps" = "アプリ"
+"launcher.start.recommended" = "おすすめ"

@@ -1,0 +1,90 @@
+name = "fluent"
+label = "config.choice.look.fluent"
+category = "inspired"
+# Windows 11 22H2+ (W53.3, docs/ux/styles.md §4), measured from WinUI 3's own resources (microsoft-ui-xaml, MIT) and
+# Microsoft Learn: Acrylic flyouts (translucent, blurred, a 1 px flyout stroke and a soft layered shadow), 8 px corners on
+# every flyout and 4 px on controls (OverlayCornerRadius / ControlCornerRadius), no title bars on flyouts, the taskbar as
+# one strip of 40 px buttons with the running pills, the decelerating Fluent motion (Fast Out Slow In 0,0,0,1 entering at
+# ControlNormalAnimationDuration 250 ms; Slow Out Fast In 1,0,1,1 leaving at the fast 167 ms), the two-ring focus
+# visual, Segoe UI Variable (the free Selawik as its stand-in, OFL) and outline symbols at a light weight.
+[recipe]
+"theme.chrome" = "soft"
+"theme.motion.profile" = "expressive"
+"theme.material.kind" = "translucent"
+"theme.material.blur" = true
+"theme.material.opacity" = 0.86
+"theme.shape.corners" = "rounded"
+"theme.shape.radius" = 8
+# The user's own Segoe UI Variable wins (never bundled), then the free Selawik (Segoe UI's metric twin), then the rest.
+"theme.typography.family" = ["Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", "Selawik", "Noto Sans", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# Windows 11's Japanese UI face, then the free stand-ins.
+"theme.typography.family_jp" = ["Yu Gothic UI", "BIZ UDPGothic", "Noto Sans CJK JP", "sans-serif"]
+
+[slots]
+start = "fluent"
+slider = "fluent"
+lock = "curtain"
+sounds = "fluent"
+
+[decor]
+# Controls 4 px within 8 px flyouts: the step radii as fractions of the look's radius (shape.sm, shape.md); the quick
+# settings' tiles 4 px too. Controls lie flat with their 1 px stroke: only the flyouts cast a shadow.
+"shape.sm" = 0.5
+"shape.md" = 0.5
+"tile.radius" = 4
+"chrome.soft_scale" = 0.0
+# Menus (MenuFlyoutItem): rows 32 px tall inside 2 px margins (36 px a row), a band 4 px in from the menu's sides with
+# 4 px corners in SubtleFillColorSecondary, primary text on it; separators a 1 px divider.
+"menu.row" = 36
+"menu.highlight" = "inset"
+"menu.radius" = 4
+"menu.separator" = "line"
+"menu.fill" = "surface_container_highest"
+"menu.on" = "on_surface"
+# Scroll bars (ScrollBar_themeresources): a 2 px rail that widens to 6 px with arrows while the pointer is near; 12 px room.
+"scroll.width" = 12
+"scroll.arrows" = true
+"scroll.thumb" = "pill"
+# Tooltips: the Acrylic flyout, primary text, 4 px corners, a 1 px stroke, no tail.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.tail" = false
+# The taskbar is one strip: buttons stand on it, no block round a group; every window shows its pill (6 × 3 grey, the
+# focused one 16 × 3 accent).
+"bar.group" = "none"
+"task.mark" = "pill"
+"separator.style" = "none"
+# The focus visual: a 2 px outer ring in primary text (black on light, white on dark) round a 1 px inner one in the
+# ground's colour, 3 px out from the control (FocusVisualPrimary/SecondaryThickness 2 and 1, FocusVisualMargin -3: 6 px in all).
+"focus.style" = "double"
+"focus.width" = 1
+"focus.offset" = 6
+"focus.color" = "on_surface"
+# Symbols: outline, light (Segoe Fluent Icons draws 1 px strokes at 16 px); the shell's Rounded cut at weight 300.
+"icon.fill" = 0
+"icon.weight" = 300
+# Motion: flyouts rise from their edge and fade in, decelerating; they leave fast, accelerating.
+"motion.style" = "slide"
+"motion.open_ms" = 250
+"motion.open_curve" = [0.0, 0.0, 0.0, 1.0]
+"motion.close_ms" = 167
+"motion.close_curve" = [1.0, 0.0, 1.0, 1.0]
+"motion.fast_ms" = 167
+"motion.fast_curve" = [0.0, 0.0, 0.0, 1.0]
+"motion.effects_ms" = 83
+"motion.effects_curve" = [0.0, 0.0, 0.0, 1.0]
+"cursor" = "fluent"
+# Start: the pinned grid six to a row (three rows), the recommended rows under it, the footer with the user and power.
+"start.grid" = 6
+"start.menu" = "center"
+# The taskbar clock: the time over the short date.
+"clock.lines" = 2
+# Quick Settings as 11's flyout (no phone): compact 3 × 2 toggle buttons with the label under them, the sliders, the footer.
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+# A floating right sidebar becomes 11's notification centre: its sections as flyouts stacked at its foot; flat calendar days.
+"centre.form" = "flyouts"
+"calendar.cells" = "flat"
+# Toasts stack bottom-right above the taskbar; the taskbar's keys stand 4 px apart.
+"toast.place" = "corner"
+"bar.gap" = 4
