@@ -30,6 +30,8 @@ lock = "big-clock"
 sounds = "material"
 
 [decor]
+# M3's linear progress indicator: the active part, a 4 dp gap, the track, a stop dot (I332).
+"progress.form" = "m3"
 # The shape scale as shares of the 28 px extra-large: small 8 (chips, buttons' small corners), medium 12 (cards).
 "shape.sm" = 0.2857
 "shape.md" = 0.4286

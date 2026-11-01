@@ -45,7 +45,7 @@ RoundBox {
     // The chrome's outline (K42, K45: keycap ink, soft rim, line outline; accent when urgent) and its shadow, hard or soft;
     // flat: a hairline.
     // K62: with a pen in effect the pen draws it instead (over the content's edge, like the border it replaces).
-    border.width: pen.active || bare || asTip ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+    border.width: pen.active || bare || asTip || frame.drawsOutline ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
     // The look's tooltip under the content (row 599).
     Loader {
         anchors.fill: parent
@@ -62,7 +62,7 @@ RoundBox {
         id: pen
         z: 3
         anchors.fill: parent
-        active: Theme.penOutline && !c.bare && !c.asTip
+        active: Theme.penOutline && !c.bare && !c.asTip && !frame.drawsOutline
         sourceComponent: PenOutline {
             radius: c.radius
             color: c.border.color
@@ -96,6 +96,16 @@ RoundBox {
         }
     }
     SoftShadow { anchors.fill: parent; radius: c.radius; amount: c.bare || c.asTip ? 0 : 1 }
+    // The look's frame over the card's edge, as every card-sized block wears it (I332; FrameHost: nothing without one).
+    FrameHost {
+        id: frame
+        z: 3
+        visible: !c.bare && !c.asTip
+        anchors.fill: parent
+        radius: c.radius
+        anchor: c
+        kind: "card"
+    }
     // The hard shadow along the shadow vector (K67, docs/ux/shadows.md): none at strength 0 or under flat and line chrome.
     RoundBox {
         z: -1

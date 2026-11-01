@@ -57,7 +57,16 @@
             # Shaders (K59): `qsb` compiles frontend/shaders/*.frag
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
-            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine wtype
+            self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine
+            # I331: `wtype` types only into a sandbox (its runtime dir under /tmp/kurashi-sb-*), never into the session's
+            # own focused window: an agent once ran it from its own shell and its keys reached the user's display.
+            (writeShellScriptBin "wtype" ''
+              case "''${XDG_RUNTIME_DIR:-}" in
+                /tmp/kurashi-sb-*) exec ${wtype}/bin/wtype "$@" ;;
+              esac
+              echo "wtype: refused: XDG_RUNTIME_DIR is not a kurashi sandbox (/tmp/kurashi-sb-*), so the keys would reach your own session's focused window (I331). Run it through the sandbox: tools/bench/niri-sandbox.sh spawn wtype ..." >&2
+              exit 2
+            '')
             # Bench harness
             strace (pkgs.perf or linuxPackages.perf) procps dbus hyperfine
           ]);
@@ -66,7 +75,7 @@
           # xdg data dirs, so sandbox screenshots show icons and every decor look without a system install.
           # The icon subset first (W41, row 445): the theme prefers it, and Material Symbols is the fallback.
           shellHook = ''
-            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ (callPackage ./nix/icon-font.nix { }) (callPackage ./nix/w95fa.nix { }) (callPackage ./nix/selawik.nix { }) (callPackage ./nix/wine-tahoma.nix { }) (callPackage ./nix/misaki.nix { }) fira-sans libre-franklin material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif cinzel eb-garamond cormorant (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" "DotGothic16" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ (callPackage ./nix/icon-font.nix { }) (callPackage ./nix/w95fa.nix { }) (callPackage ./nix/selawik.nix { }) (callPackage ./nix/wine-tahoma.nix { }) (callPackage ./nix/misaki.nix { }) fira-sans libre-franklin material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif cinzel eb-garamond cormorant (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" "DotGothic16" "RobotoFlex" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
             echo "kurashi dev shell — 'just' lists tasks"
           '';
         };

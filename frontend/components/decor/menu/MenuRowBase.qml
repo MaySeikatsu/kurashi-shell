@@ -7,4 +7,8 @@ Item {
     property bool enabled: true
     property bool separator: false
     property bool checked: false
+    // I332: where the row's label stands (px from the row's start, and its drawn width): a part that marks the label (an
+    // underline) marks it there. -1 / 0: the caller does not say (the part keeps its own place).
+    property real labelX: -1
+    property real labelW: 0
 }

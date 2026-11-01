@@ -152,9 +152,14 @@ PanelWindow {
 
     // ---- order -------------------------------------------------------------------------------------------------------
     readonly property var coreIds: ["clock", "calendar", "media", "weather"]
+    // A list nobody set (its default: every core card on the right) only restates "the cards stand on their side": it
+    // follows `desktop.side` (I332: glass-desk's `side = left` kept the month on the right). A set list is placed as set.
     function listOf(side) {
-        var o = bars.valueOf("desktop." + side, null)
-        return Array.isArray(o) ? o.filter(function (s) { return typeof s === "string" }) : (side === "right" ? coreIds : [])
+        var e = bars.entry("desktop." + side)
+        var o = e ? e.value : null
+        var dflt = !e || !e.source || e.source.kind === "default"
+        if (dflt) return []
+        return Array.isArray(o) ? o.filter(function (s) { return typeof s === "string" }) : []
     }
     readonly property var configLeft: listOf("left")
     readonly property var configRight: listOf("right")
@@ -368,21 +373,13 @@ PanelWindow {
                 }
             }
             // The day's progress (SekaiPop's clock card): how much of today has gone, from the minute patch.
-            Rectangle {
+            ProgressLine {
                 width: parent.width
                 height: Theme.keycap ? 12 : 6
-                radius: height / 2
-                color: Theme.keycap ? Theme.ring : Theme.containerHigh
-                border.width: Theme.outlineW > 0 ? Theme.outlineW : 0
-                border.color: Theme.line
-                readonly property real day: ((parseInt(desk.clock.hh) || 0) * 60 + (parseInt(desk.clock.mm) || 0)) / 1440
-                Rectangle {
-                    x: parent.border.width; y: parent.border.width
-                    height: parent.height - 2 * y
-                    width: Math.max(height, (parent.width - 2 * x) * parent.day)
-                    radius: height / 2
-                    color: Theme.accent
-                }
+                track: Theme.keycap ? Theme.ring : Theme.containerHigh
+                outlineWidth: Theme.outlineW > 0 ? Theme.outlineW : 0
+                outlineColor: Theme.line
+                frac: Math.max(1 / 1440, ((parseInt(desk.clock.hh) || 0) * 60 + (parseInt(desk.clock.mm) || 0)) / 1440)
             }
         }
     }

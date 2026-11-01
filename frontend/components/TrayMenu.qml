@@ -119,6 +119,8 @@ Item {
                     separator: row.sep
                     enabled: row.live
                     checked: row.e.checked === true
+                    labelX: label.x
+                    labelW: Math.min(label.width, label.contentWidth)
                 }
                 Rectangle {
                     visible: row.sep && face.ownSeparator
@@ -173,6 +175,7 @@ Item {
                     renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                     antialiasing: !Theme.pixelType
                     font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    id: label
                     visible: !row.sep
                     x: row.indent + 44
                     anchors.verticalCenter: parent.verticalCenter

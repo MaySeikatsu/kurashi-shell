@@ -431,6 +431,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
         Choice(&["text", "dots", "pulse"]),
         r#""text""#,
     ),
+    // I332: how a determinate progress line is drawn — a pill (today's) or Material 3's linear indicator (`m3`: the
+    // active part, a 4 dp gap, the rest of the track, a stop dot at its end).
+    k("progress.form", Choice(&["pill", "m3"]), r#""pill""#),
     // W53.5: the regular text weight (bold stays 300 heavier, at most 900): thin type as the PS2's (Light, 300).
     k("type.weight", Int(100, 900), "400"),
     // W53.5: the launcher and the island's cards grow out of the bar as one shape (true, W21's morph) or stand apart from

@@ -13,6 +13,9 @@ Item {
     property bool separator: false
     property bool enabled: true
     property bool checked: false
+    // I332: where the row's label stands and how wide it is drawn (MenuRowBase.labelX/labelW; -1: not said).
+    property real labelX: -1
+    property real labelW: 0
     // Where an `inset` band and a separator stop, from the row's sides.
     property real margin: Theme.pad
     MenuStyle { id: ms }
@@ -35,6 +38,10 @@ Item {
             item.separator = Qt.binding(function () { return f.separator })
             item.enabled = Qt.binding(function () { return f.enabled })
             item.checked = Qt.binding(function () { return f.checked })
+            if (item.labelX !== undefined) {
+                item.labelX = Qt.binding(function () { return f.labelX })
+                item.labelW = Qt.binding(function () { return f.labelW })
+            }
         }
     }
     Loader {

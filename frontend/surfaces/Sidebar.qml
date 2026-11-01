@@ -401,8 +401,8 @@ Scope {
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
                         bottomRightRadius: shape.sBR
-                        // W53.3: under flyouts the blur lies under each flyout's plate only (two: the notifications and
-                        // the calendar; a third section's plate stays unblurred, still drawn).
+                        // W53.3: under flyouts the blur lies under each flyout's plate only (up to four: the notifications,
+                        // the calendar and the sections after them; I325).
                         Region {
                             readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
                                 ? colLoader.item.flyItems : []
@@ -413,6 +413,18 @@ Scope {
                             readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
                                 ? colLoader.item.flyItems : []
                             item: plates.length > 1 ? plates[1] : null
+                            radius: Theme.rLg
+                        }
+                        Region {
+                            readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
+                                ? colLoader.item.flyItems : []
+                            item: plates.length > 2 ? plates[2] : null
+                            radius: Theme.rLg
+                        }
+                        Region {
+                            readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
+                                ? colLoader.item.flyItems : []
+                            item: plates.length > 3 ? plates[3] : null
                             radius: Theme.rLg
                         }
                     }

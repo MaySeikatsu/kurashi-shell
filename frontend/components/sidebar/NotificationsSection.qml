@@ -4,6 +4,7 @@ import "../../core"
 import ".."
 import "../expanded"
 import "../island"
+import "../decor" as Decor
 
 // The right sidebar's `notifications` (docs/ux/sidebar.md; ii `sidebarRight/CenterWidgetGroup.qml`): the title with Clear
 // all, do not disturb (the daemon's state; off: a one-hour choice), then every notification, newest first, as the shared
@@ -139,6 +140,15 @@ Item {
         }
     }
 
+    // The look's scroll bar over the list's end edge (the `scroll` slot; nothing without a part, I332).
+    Decor.ScrollHost {
+        z: 1
+        flick: list
+        visible: shown && list.visible
+        x: list.x + list.width - width
+        y: list.y
+        stepPx: 40
+    }
     // The list, scrolled inside the section.
     ListView {
         id: list

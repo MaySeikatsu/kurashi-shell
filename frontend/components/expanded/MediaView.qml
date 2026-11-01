@@ -282,19 +282,12 @@ Item {
                 function seekTo(f) { view.act("media.set_position", {us: Math.round(Math.max(0, Math.min(1, f)) * view.d.length_us)}) }
                 Keys.onLeftPressed: if (view.canSeek) view.seek(-5000000)
                 Keys.onRightPressed: if (view.canSeek) view.seek(5000000)
-                Rectangle {
+                ProgressLine {
                     id: track
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width
                     height: 10
-                    radius: 5
-                    color: Qt.alpha(Theme.fg, 0.12)
-                    Rectangle {
-                        height: parent.height
-                        radius: 5
-                        width: progress.shownFrac > 0 ? Math.max(height, parent.width * progress.shownFrac) : 0
-                        color: Theme.accent
-                    }
+                    frac: progress.shownFrac
                 }
                 MouseArea {
                     anchors.fill: parent

@@ -36,8 +36,11 @@ MenuRowBase {
     // The chosen row's underline.
     Loader {
         active: row.highlighted && row.enabled && !row.separator
-        x: row.ruleX + 10
-        width: Math.min(row.width - x - 12, Math.max(120, (row.width - x) * 0.45))
+        // Under the label where the caller says where it is (I332: it started at the margin, under the icon), the pen's
+        // run a little past both its ends; else from the margin, as before.
+        x: row.labelX >= 0 ? Math.max(row.ruleX + 4, row.labelX - 3) : row.ruleX + 10
+        width: row.labelX >= 0 && row.labelW > 0 ? Math.min(row.width - x - 4, row.labelW + 8)
+            : Math.min(row.width - x - 12, Math.max(120, (row.width - x) * 0.45))
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 3
         height: 7

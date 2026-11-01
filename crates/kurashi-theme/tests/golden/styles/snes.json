@@ -182,6 +182,7 @@
   "decor.pattern.period": 4,
   "decor.pattern.strength": 0.0,
   "decor.pixel": 2,
+  "decor.progress.form": "pill",
   "decor.quick.frame": "flyout",
   "decor.quick.tiles": "rows",
   "decor.quick.values": "pair",

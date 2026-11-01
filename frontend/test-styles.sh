@@ -37,6 +37,11 @@ printf '%s\n' 'theme.style = "kanso"' '[a11y]' 'reduce_motion = true' '[idle]' '
 for _ in $(seq 50); do K ping && break; sleep 0.2; done
 K ping || fail "kurashid did not answer (see $R/kurashid.log)"
 for _ in $(seq 100); do grep -q 'hello.*frontend' "$R/kurashid.log" 2>/dev/null && break; sleep 0.1; done
+# I333: two settle points before the first style's shots, so no style is shot mid-way. The launcher's first open builds
+# the daemon's app index (the first style shot an empty list); the audio service decides it has no server a moment
+# after start (the bar's volume ⊘ showed for some styles and not others).
+"$SB" act act launcher.toggle >/dev/null 2>&1; sleep 2; "$SB" act act ui.close >/dev/null 2>&1; sleep 0.6
+for _ in $(seq 50); do "$SB" act sub svc.audio --count 0 2>/dev/null | grep -q '"available":false' && break; sleep 0.1; done
 
 # Waits until the daemon has the style in effect, then a little for the frontend to paint it (motion is off).
 apply() {
