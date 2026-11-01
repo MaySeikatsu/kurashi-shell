@@ -720,7 +720,7 @@ mod tests {
         assert_eq!(doc["tokens"]["decor.frame"], "yorha", "{}", doc["error"]);
         assert_eq!(doc["appearance"]["style"], "yorha");
         // The style's own palette is in effect, at the theme layer.
-        assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
+        assert_eq!(doc["tokens"]["color.surface"], "#d6d1bb");
         assert!(
             doc["appearance"]["overrides"]
                 .as_array()
@@ -738,7 +738,7 @@ mod tests {
         );
         // (win95 drew its edge with the bevel frame until W53.1 gave it the bevel chrome: luna keeps a frame.)
         assert_eq!(doc["tokens"]["decor.frame"], "luna");
-        assert_eq!(doc["tokens"]["color.surface"], "#c9c5b0");
+        assert_eq!(doc["tokens"]["color.surface"], "#d6d1bb");
         assert_eq!(doc["appearance"]["overrides"], json!(["theme.look"]));
         let doc = document(
             &store_with(&root, "schema_version = 2\n[theme]\nstyle = \"sekai\"\n"),

@@ -1,0 +1,8 @@
+# The pastel-os lock face (W53.6, components/lock/PastelOsFace.qml): a login window on a pastel desktop, after Needy
+# Streamer Overload's desktop (our own words and marks).
+"lockui.face.name.pastel-os" = "Pastel login"
+"lockui.pastel.title" = "Log in to {host}"
+"lockui.pastel.hello" = "Welcome back"
+"lockui.pastel.prompt" = "Password"
+"lockui.pastel.ok" = "OK"
+"lockui.pastel.oops" = "Oops!"

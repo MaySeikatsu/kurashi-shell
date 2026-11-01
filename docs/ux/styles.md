@@ -858,10 +858,10 @@ Same depth, shorter. Each row names what it lacks today, the slots it would use 
 | look | reference | what is missing | slots | lock face |
 |---|---|---|---|---|
 | sekai | SekaiPop (keycap pop) | already deep; the lock's dot field is the plain face | none new | `plain` (keeps the dot field) |
-| kawaii | Needy Streamer Overload's pastel desktop OS | its windows **have** a title band: use `title` (shared caption with rounded top, a heart × that works) | title, tooltip | `pastel-os`: a login window on a pastel desktop |
-| yorha | NieR:Automata menus | the selection block (a dark bar sliding under the row), the menu's square bullets, a header rule | menu, title (thin header band) | `yorha`: a terminal-like "connect" panel |
-| souls | Dark Souls menus | menu style (gold hairline highlight); lock wording | menu | `bonfire`: a dark ground, an ember glow, the field low centre; wrong password "Try again" in large serif, fading (never "YOU DIED": copyrighted phrasing and too much for an error) |
-| hallownest | Hollow Knight menus | menu style (filigree ends round the selected row) | menu | `hollow`: fog ground, filigree above and below the field |
+| kawaii (deep: §9.1) | Needy Streamer Overload's pastel desktop OS | its windows **have** a title band: use `title` (shared caption with rounded top, a heart × that works) | title, tooltip | `pastel-os`: a login window on a pastel desktop |
+| yorha (deep: §9.2) | NieR:Automata menus | the selection block (a dark bar sliding under the row), the menu's square bullets, a header rule | menu, title (thin header band) | `yorha`: a terminal-like "connect" panel |
+| souls (deep: §9.3) | Dark Souls menus | menu style (gold hairline highlight); lock wording | menu | `bonfire`: a dark ground, an ember glow, the field low centre; wrong password "Try again" in large serif, fading (never "YOU DIED": copyrighted phrasing and too much for an error) |
+| hallownest (deep: §9.4) | Hollow Knight menus | menu style (filigree ends round the selected row) | menu | `hollow`: fog ground, filigree above and below the field |
 | washi | paper and ink | fine as is; menu rows as ruled lines | menu | `plain` |
 | kami | a notebook page (K60) | fine; scroll bar as a pencil line | scroll | `plain` (paper) |
 | kanso | the plain form | the reference look: nothing to add | none | `plain` |
@@ -869,6 +869,270 @@ Same depth, shorter. Each row names what it lacks today, the slots it would use 
 | glass | Vitreus/pleamar | fine; the future liquid-glass material belongs here | none | `plain` |
 | terminal | a terminal | menu as `> ` rows, scroll bar as `│█│`, tooltip as an inverse line | menu, scroll, tooltip | `tty`: a login prompt (`<host> login: <user>` / `Password:` with no echo of anything) |
 | soft | look only (palette styles) | none | none | `plain` |
+
+The fiction family (W53.6) is deep now: §9.1–§9.4 below, in the shape of §1–§8. The rows above stay as the brief's
+starting point. Every part they use is named by idiom and reads only `[decor]` keys, so any look can wear it (rule 4);
+the keys are listed in DESIGN-SYSTEM §4 ("W53.6"). Shots: `frontend/shots/styles/<style>/` (`desk-*` with the layout
+preset; `cmp-*` side by side with a reference crop).
+
+### 9.1 kawaii — Needy Streamer Overload's pastel desktop OS
+
+**Reference.** The game's in-game desktop (a 4:3 pastel panel pillarboxed on a dark synthwave ground; Win9x-like windows
+in pastel). **[M] measured** at 1:1 on the game's own Steam store captures (1920 × 1080 JPEG; every edge on even
+coordinates: **2 screen px per art pixel**):
+"K1" <https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1451940/ss_079abcf18d00cb4990c5eac37ee6508f9377c08f.1920x1080.jpg>
+(the desktop with several windows), "K2"
+<https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1451940/ss_cc7d0cc3fa98b44e9d8a790260872357c8b6c416.1920x1080.jpg>
+(a window, the taskbar and START), "K5"
+<https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1451940/ss_5046b50b55b80e2f98156486fb87ad33930e7ceb.1920x1080.jpg>
+(a dialog), "K6"
+<https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1451940/ss_c307ea74f79577d6ad54dbb3affff34141a8642d.1920x1080.jpg>
+(a list with its selection). The game shows no login or lock screen: the lock face is ours in its idiom.
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| pixel grid | 2 px per art pixel | [M] K2 row y 300, x 290–297 |
+| desk | `#f6e1fc`, light-blue (`#c4ebfa`) dashes 8 px tall, 14–16 px wide, stepping down-right in runs, repeating every 72 px down | [M] K2 x 600–900, y 4–44; K1 column x 244 |
+| window frame | 8 px, square: violet 2 px (`#4450b6`…`#5a4faf`), mint 4 px (`#88f0e7`), violet 2 px; radius 0 | [M] K2 column x 900, y 50–57 |
+| title band | 26 px (13 art px), flat `#edc9ed`; inactive flat grey `#dedede` (the mint turns grey too); body `#fcf9fd` | [M] K2 x 900, y 58–83; K1 x 1450 |
+| title text | violet `#643fb1`, pixel face, caps ~10 px; a 16 px icon before it | [M] K2 x 330–390, y 62–78 |
+| buttons | three square outlined keys 20 × 20 on a 24 px pitch: minimize (a bar), maximize (a nested square), close (×) — **no heart** in the game | [M] K1 row y 40, x 1594–1661 |
+| taskbar | 47 px, `#f4dbf9`, a 2 px white line along its top; START a 147 × 32 box, violet 2 px outline on top and sides, white foot, `#473952` label, a pixel logo | [M] K2 column x 1000, y 1020–1079; row y 1058 |
+| selection | a flat mint band `#7cf0b1` on grey `#c3c3c1` rows; selected text `#2d4899` | [M] K6 row y 440 |
+| cursor | a white arrow with a violet outline, notched | [M] K1 x 1360–1420 (by eye) |
+
+**Type.** A pixel sans with 2 px strokes. Stand-in: **DotGothic16** (Fontworks; **SIL OFL 1.1**,
+<https://raw.githubusercontent.com/google/fonts/main/ofl/dotgothic16/OFL.txt>; Latin and Japanese) from nixpkgs'
+`google-fonts`, installed by the Home-Manager defaults; on its 16-dot grid (`type.pixel_step = 16`, native rendering) its
+capitals are ~11 px, the game's ~10. PixelMplus12 (M+ licence) is named after it for users who have it. ja: the same.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the taskbar: `bar/Band` (`surface_container` with a white `bar.rule` on its inner edge), one strip; the launcher toggle the START box (`start/Tab` with `start.fill`, a pixel heart mark) | bottom edge from `kawaii-desk` |
+| Stage cards | windows: `title/Pixel` (26 px flat band, violet type, square outlined keys, a pixel-heart close), the banded frame (`border.line`) | inactive band grey |
+| launcher | a pastel window (`start/Panel` skin in the window's frame), mint selection with a heart | |
+| menus | `menu/Block`: mint band, a pixel heart at the selected row's start | |
+| tooltips | `tooltip/Balloon`: a white speech bubble, violet rim, tail | the game's speech bubbles |
+| scroll | `scroll/Rail` with heart caps (Settings only: no shell caller hosts ScrollStyle yet) | |
+| quick settings | a plain flyout (`quick.frame = flyout`) | |
+| lock | `pastel-os` | |
+
+**Lock face `pastel-os`** (`components/lock/PastelOsFace.qml`). The orchid desk with its light-blue dashes stepping down in
+runs (one Canvas paint per size) and a few pixel hearts and sparkles; a centred login window in the measured frame under a
+flat pink title band ("Log in to <host>", no buttons: nothing on a lock pretends to close), a big pixel heart for the
+picture, "Welcome back, <user>", the password field (white, a 2 px violet outline, ♥ for each character) and an **OK** key
+that submits. A taskbar strip along the foot holds only the clock.
+- Error: the window shakes once (none under reduce motion) and a pixel speech bubble under it says "Oops! Wrong password".
+- Caps Lock, busy, the countdown, PAM's information: that bubble.
+- Other outputs: the desk and the taskbar's clock.
+
+**States.** Busy and countdown in the bubble; disconnected in the taskbar clock's place; empty launcher → the launcher's own.
+
+**Keyboard + a11y.** A dotted focus (`focus.style = dotted`, inset 3 px, violet). High contrast: K42's flat contrast palette
+(the band and frame keep their shapes). Large text: the pixel face steps 16 → 32. Reduce motion: no rubber, no shake. ja:
+DotGothic16 covers it.
+
+**Motion.** `motion.style = rubber` (things pop in with a little overshoot), `lively` springs; the sparkle pointer trail
+(`cursor_decoration = sparkles`) only with the user's `cursor.decoration = style` switch (off by default).
+
+**Not copied.** The game's OS name, its logo, its characters (the streamer, the cat), its wallpapers, icons and sounds. Ours:
+an original pixel heart, our own dashes, CC0 chip cues and pointer (`tools/styles/fiction-assets.py`).
+
+**Built (W53.6) and still differs.** Matches: the 2 px art grid, the flat 26 px pink band with violet pixel type, square
+outlined keys 20 px on a 24 px pitch, the grey inactive band, the violet–mint–violet 8 px frame (new generic
+`border.line`), the mint selection band, the pale orchid taskbar with its white line and the violet-outlined START box
+(new `start/Tab` with `start.fill`), speech-bubble tooltips, the orchid desk with stepping dashes on the lock, a
+pink-on-white-and-violet pointer, chip cues. Differs: the close key is a pixel heart (the brief's wish; the game's is a
+square ×); the desk's dashes are on the lock only (the shell does not own the wallpaper); the type is DotGothic16 drawn
+unsmoothed at the shell's sizes (13 px body, its exact 16-dot grid only under large text) — a 16 px step wrapped quick
+settings and doubled to 32 under large text (lead review); quick tiles now grow with their type and never draw text outside; the game's 4:3 pillarbox is not imitated; the pixel
+logo on START is our heart.
+
+### 9.2 yorha — NieR:Automata's menus
+
+**Reference.** The pause and system menus: a beige parchment ground with a faint grid, dark brown-grey ink, list rows on
+pale bands each with a small square bullet, the selected row a dark block with the text inverted, headers in capitals
+over a thick-and-thin rule. **Not measured from a capture:** the W53.6 research found no openly downloadable menu
+capture — the Steam store set (appid 524220) shows scenes only and the fan wiki's files
+(<https://static.wikia.nocookie.net/nier/images/b/be/Automata_Menu.png>, "Automata Menu.png") answer 403 to scripts.
+The values below are the brief's (`#dad4bb`-ish) and **[O]** observation; every one is **to verify** against a capture
+(BACKLOG).
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| ground | parchment `#d6d1bb` (the brief's `#dad4bb` a shade deeper under the grid), a ruled grid every 8 px at 4.5 % | [O], to verify |
+| ink | `#4e4b42` | [O], to verify |
+| rows | a pale band `#c4bea6` under every row, a 2 px gap, a square bullet ~5 px at the row's start | [O], to verify |
+| selection | a solid `#4e4b42` block the row's width, text and bullet in the parchment; it wipes in from the left | [O], to verify |
+| header | capitals with wide tracking after a square bullet; a 2 px rule over a 1 px rule, 2 px apart | [O], to verify |
+| motion | short mechanical slides, no overshoot; soft electronic blips | [O] |
+
+**Type.** NieR:Automata's UI is set in FOT-Rodin (Fontworks, proprietary): named first, never bundled. Stand-in **Noto Sans**
+(OFL, present) for Latin and **M PLUS 1p** (OFL, already installed) after it for its Rodin-like Japanese; to verify the
+match against a capture.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | the menu's tab band: `bar/Band` (parchment, the grid, a double rule on its inner edge), one strip; the launcher toggle a word tab "■ MENU" (`start/Tab`) inverting while open | top edge from `yorha-desk` |
+| Stage cards | `title/Header`: a darker parchment band, ■ and the title in capitals, the thick-and-thin rule, dark square keys (`plate`) | |
+| menus, launcher | `menu/Block`: pale bands with bullets, the dark block wiping in | |
+| tooltips | `tooltip/Plate`: parchment with an ink hairline | |
+| scroll | `scroll/Rail` with square caps (Settings) | |
+| lock | `yorha` | |
+
+**Lock face `yorha`** (`components/lock/YorhaFace.qml`): a terminal-like connect panel — ■ CONNECT and the time over the
+thick-and-thin rule, then a log of lines (HOST, USER, DATE, LINK) each with its bullet, a dotted leader and a value, and
+the PASSCODE line as the field (■ for each character, a block cursor) under which a dark block wipes in while it has the
+keyboard. The lines appear one after another once (70 ms apart; all at once under reduce motion); the field has the
+keyboard from the first frame. LINK reads STANDBY, VERIFYING, DENIED (the line inverted, a REASON line under it), RETRY IN
+n S or DISCONNECTED; Caps Lock adds an inverted CAPS LOCK · ON line; PAM's information a NOTE line; a PAM question becomes
+the passcode line's label. Our own words (i18n `lockface-yorha`), never the game's.
+
+**States.** Busy = VERIFYING; offline = DISCONNECTED inverted; empty rows keep their bands.
+
+**Keyboard + a11y.** A 1 px ring in the ink; the block is the selection. High contrast keeps the bands' shapes. Reduce motion:
+no wipe, no slide, no reveal.
+
+**Motion.** `motion.style = slide`, open 240 ms on `[0.2, 0, 0, 1]` (fast start, dead stop), close 180 ms; the selection
+block wipes in (`menu.wipe`).
+
+**Not copied.** The YoRHa emblem, the game's words and system texts, its fonts and sounds. Ours: a plain square bullet, our
+own labels, CC0 blips.
+
+**Built (W53.6) and still differs.** Matches the idiom: pale row bands with square bullets and the inverted dark block wiping
+in, ruled-grid parchment, capitals over the thick-and-thin rule, the tab band with an inverting MENU tab, mechanical slides,
+the connect panel. Differs: **no capture measured** (every number to verify); Noto Sans stands in for Rodin; the game's
+header bands carry tab rows we do not have (our tabs are the bar's modules); its translucent menu over the game scene is an
+opaque ground here.
+
+### 9.3 souls — Dark Souls' menus
+
+**Reference.** Dark Souls (Remastered, 2018; the pinned era — DS3's menus differ). **[M] measured** on community captures
+at their size (1600 × 900 values × 1.2 to 1080p): the title menu
+<https://steamcommunity.com/sharedfiles/filedetails/?id=2006686123> ("title"), the system menu and a confirm dialog
+<https://steamcommunity.com/sharedfiles/filedetails/?id=1411968058> ("system"), an item card
+<https://steamcommunity.com/sharedfiles/filedetails/?id=3675649689> ("item"). The bonfire and the death message were not
+captured (the wiki's files answer 403): their rows are **to verify**.
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| ground | title screen `#000000`; the system panel `#0b0a0a` at ≥ 0.85 alpha; dialog `#090909` | [M] title; system (1180–1259, 150–189) |
+| selected row | a flat burnt-orange band, core `#502105`, 35 px tall, 3–5 px soft ends; **no gold hairline**; text warm white `#f5ede2`…`#fffefb` | [M] title x 781–1139, y 772–807; system CANCEL `#491c07` |
+| rows | 37 px pitch; text `#ffffff`, disabled `#737373`; rules between rows dim bronze `#221d17` | [M] title; system x 1000 |
+| headers | "System" white, caps 28 px; "Options" `#efefef`, caps 20 px | [M] system |
+| item card | nearly transparent (alpha ≤ 0.05), dark edges `#21170b`, hairlines `#1d160e` | [M] item |
+| bonfire ember | white-hot `#ffffe3`, gold `#e5bd5e` (a proxy from a gold effect) | [M] proxy only, to verify |
+| death message band | not measured | to verify |
+
+**Type.** Titles in an engraved roman (OptimusPrinceps is the fans' name for it — Manfred Klein's freeware, not OFL: named
+first, never bundled); stand-in **Cinzel** (OFL, <https://raw.githubusercontent.com/google/fonts/main/ofl/cinzel/OFL.txt>).
+The body is a Garamond: Adobe Garamond Pro named first, stand-in **Cormorant Garamond** (OFL, nixpkgs `cormorant`,
+<https://raw.githubusercontent.com/google/fonts/main/ofl/cormorantgaramond/OFL.txt>), then EB Garamond (OFL). ja: Noto Serif
+CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | a HUD shade: `bar/Band` fading inward (`bar.fade`) over a fading gold hairline; the launcher toggle "◆ MENU" in Cinzel | bottom edge from `souls-desk` |
+| Stage cards | `title/Header` without a band: the title in Cinzel over a gold hairline fading at both ends; a 1 px dim-gold frame; the `ornate` frame's corners | translucent near-black panels |
+| menus, launcher | `menu/Hairline`: the burnt-orange band with soft ends, between two dim-gold hairlines | |
+| tooltips | `tooltip/Plate`: near-black, dim-gold hairline | |
+| scroll | `scroll/Rail`, diamond caps (Settings) | |
+| lock | `bonfire` | |
+
+**Lock face `bonfire`** (`components/lock/BonfireFace.qml`): a near-black ground warming toward the lower middle, where an
+ember glow (the `tertiary` ember, a white-hot core) **flickers six times over ~1.3 s as the face appears, then rests** (0
+frames idle; still under reduce motion); the time small at the top in Cinzel over a fading gold rule, the date in small
+capitals; the user's name and the field low in the centre on a dark band between two fading gold hairlines.
+- Wrong password: **"Try again"** in a 76 px serif, a deep dull red, across a dark band through the middle of the screen that
+  fades in over 1.1 s, holds 1.4 s and fades out over 1.8 s (under reduce motion it stands until the next key) — never the
+  game's death message; the reason in small type under the field.
+- Caps Lock, busy, the countdown, PAM's information: an italic line under the field.
+
+**States.** Busy "Checking…"; offline: "daemon disconnected" under the date; empty launcher as the launcher's own.
+
+**Keyboard + a11y.** A 1 px gold ring. High contrast: flat contrast palette; the band keeps its shape. Reduce motion: no
+fades, no flicker. Large text: the serif grows.
+
+**Motion.** `motion.style = fade`: open 650 ms, close 520 ms, ease-in-out sine (`[0.37, 0, 0.63, 1]`) — slow dissolves.
+
+**Not copied.** The game's logo, its bonfire and coiled sword, the death phrase, its fonts, sounds and art. Ours: a soft glow,
+"Try again", CC0 low swells, a distant bell and an ember crackle.
+
+**Built (W53.6) and still differs.** Matches: the near-black translucent panels, the flat burnt-orange selected band with
+soft ends (measured), white serif type, bronze-dim rules, engraved capitals for headers, slow fades, the bonfire lock with
+its one-shot flicker and the large "Try again". Differs: gold hairlines along the selected row are the brief's (the game's
+title and system menus draw none: they are kept dim, in `outline`); the bonfire and the death band are unmeasured (to
+verify); our panels are framed by the `ornate` frame's corner ticks, which the game's system menu lacks.
+
+### 9.4 hallownest — Hollow Knight's menus
+
+**Reference.** Hollow Knight's menus and inventory. **[M] measured** on the Steam store captures (1920 × 1080): the charms
+screen <https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/ss_33a645903d6dd9beec39f272a3daf57174a6cc26.1920x1080.jpg>,
+a dialogue card with flourishes
+<https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/ss_b17396ebcbef87cd016c433927bb2dd7edb17660.1920x1080.jpg>,
+a blue street (ground)
+<https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/367520/ss_92c7e8f34c00bdb455070ecdd5b746f0d2f6d808.1920x1080.jpg>,
+and Pocket Tactics' charms capture <https://www.pockettactics.com/wp-content/sites/pockettactics/2021/12/hollow-knight-charms-3.jpg>
+("charms"). The main menu's selection pointer was not captured (the wiki's file answers 403): to verify.
+
+**Metrics**
+
+| part | value | source |
+|---|---|---|
+| ground | `#010101` at the corners, a `#21282b` bloom behind the centre; a street's haze `#4e5688`, `#08090e` at the top | [M] charms 60 px blocks; street |
+| headers | white `#ffffff`, caps 26 px (~37 px type), with flourishes either side (~430 × 51 px) and a crest under | [M] charms (895, 84); (456, 93) |
+| body | white, caps 19 px (~27 px type), line pitch ~37 px | [M] charms (1208–1687, 536–712) |
+| rules | a 5 px light rule `#cdd1d0` under lists; a footer flourish 582 × 41 px; corner curls ~210 × 175 px | [M] charms |
+| selection pointer | a pair of ornate pointers either side of the selected item | to verify |
+
+**Type.** Headers: Trajan Pro (Adobe, proprietary) named first; stand-in **Cinzel** (OFL). Body and menu items: Perpetua
+(Monotype, proprietary) named first; stand-in **Cormorant Garamond** (OFL), then EB Garamond. ja: Noto Serif CJK JP.
+
+**Mapping**
+
+| our surface | becomes | notes |
+|---|---|---|
+| bar | a HUD shade fading down (`bar/Band`, `bar.fade`), "❦ MENU" (a fleur and the word) | top edge from `hallownest-desk` |
+| Stage cards | `title/Header`: no band, the title centred in Cinzel capitals with wide tracking over an ornament rule (`title.rule = filigree`) | |
+| menus, launcher | `menu/Filigree`: no band; a pair of fleurs at the row's ends sweeping in | |
+| tooltips | `tooltip/Plate`: near-black, a cool hairline | |
+| scroll | `scroll/Rail`, diamond caps (Settings) | |
+| lock | `hollow` | |
+
+**Lock face `hollow`** (`components/lock/HollowFace.qml`): a blue-black ground with banks of pale-blue fog (static radial
+glows), the time in Cinzel at the top over an ornament, the date in an italic book serif; low in the centre the user's name
+in capitals, the field (a faint haze band, ◆ for each character, the prompt in spaced capitals) between an ornament above
+and a mirrored one below. Errors and Caps Lock fade in (700 ms, once) as a line under the lower ornament.
+
+**States.** Busy, countdown, PAM: that line; offline: under the date.
+
+**Keyboard + a11y.** A 1 px white ring. High contrast: flat palette, the ornaments stay. Reduce motion: no sweeps, no fades.
+
+**Motion.** `motion.style = fade`: open 420 ms on `[0.33, 0, 0.2, 1]`, close 340 ms; the fleurs sweep in from the row's ends
+over the fast time.
+
+**Not copied.** The game's logo, its knight and every sprite, the menu pointer sprite, Trajan and Perpetua, its sounds. Ours:
+an original fleur (Bullet.qml) and ornament (Filigree.qml), CC0 glassy tings and a music-box pair.
+
+**Lead review (W53.6).** The launcher was a generic dark list in a boxed panel (`desk-launcher-before.png`); now (`desk-launcher.png`) its rows are centred serif lines without boxes (`menu.align = center`), the icons dimmed and small (`menu.icons = dim`), the fleurs in room of their own at both ends (`menu.lead`/`menu.trail`: they never cover text; no Enter hint under centred rows), the field a line under the query (W53.5's `field.form = underline`) and the start menu a veil with an ornament over and under it (`start.skin = veil`). Cormorant reads a size small: `type.scale = 1.15`; the calendar's days take lining figures (an old-style "1" was an x-height stroke on today's white key).
+
+**Built (W53.6) and still differs.** Matches: white serif type on near-black with a blue haze, engraved capitals for headers,
+an ornament rule under headers and around the lock's field, pointers either side of the selected row, quiet fades.
+Differs: our fleurs and ornaments are simpler than the game's corner curls and crests; the selection pointer is unmeasured;
+the launcher's footer keys (Lock, Session menu) are still boxed; the card's frame is a 1 px hairline where the game draws
+heavy corner filigree.
 
 ---
 

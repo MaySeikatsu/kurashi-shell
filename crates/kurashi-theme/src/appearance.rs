@@ -48,7 +48,7 @@ pub enum DecorKind {
     Choice(&'static [&'static str]),
     /// A palette role's name (published as its colour); `""` = the component's own colour.
     Role,
-    /// One or two role names (a solid fill or a gradient's ends).
+    /// One or two role names (a solid fill or a gradient's ends); `[]` = the part's own.
     Roles,
     /// A QML `bezierCurve`: a cubic's four control numbers (`[x1, y1, x2, y2]`, ending at 1, 1), or whole segments of
     /// six numbers whose last point is 1, 1; `[]` = the motion profile's own.
@@ -98,7 +98,7 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("title.weight", Int(100, 900), "700"),
     k(
         "title.close",
-        Choice(&["glyph", "bevel", "gel", "plate", "dot"]),
+        Choice(&["glyph", "bevel", "gel", "plate", "dot", "heart"]),
         r#""glyph""#,
     ),
     k("title.buttons", Choice(&["end", "start"]), r#""end""#),
@@ -252,7 +252,7 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // (`brushed`: fine horizontal streaks). One tiled image under the content; `strength` is its darkening (0 = none).
     k(
         "pattern.kind",
-        Choice(&["none", "stripes", "brushed"]),
+        Choice(&["none", "stripes", "brushed", "grid", "dots", "checker"]),
         r#""none""#,
     ),
     k("pattern.period", Int(2, 8), "4"),
@@ -332,6 +332,72 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.5: `bottom` — one wide box centred low on the screen, over a bottom bar (an RPG's text box, the PS2's low line).
     // The gap between a horizontal bar's modules and groups, px (-1 = today's: the pad and the groups' insets).
     k("bar.gap", Int(-1, 32), "-1"),
+    // W53.6 (the fiction family — kawaii, yorha, souls, hallownest — and any look): marks share one vocabulary (`square`:
+    // NieR's bullet; `heart`: a pixel heart; `fleur`: a filigree spearhead, Hollow Knight's pointer; `diamond`). A mark at
+    // the highlighted menu row's start (`fleur`: at both ends, pointing in), a band every row has at rest ("" = none:
+    // NieR's pale bands under unselected items), hairlines along the highlighted row ("" = none: Dark Souls' gold) and a
+    // highlight that wipes in from the row's start (NieR's selection block; instant under reduce motion).
+    k(
+        "menu.mark",
+        Choice(&["none", "square", "heart", "fleur", "diamond"]),
+        r#""none""#,
+    ),
+    k("menu.rest", Role, r#""""#),
+    k("menu.line", Role, r#""""#),
+    k("menu.wipe", Bool, "false"),
+    // A caption as a header band: a mark before the title, the title in capitals with wide tracking, and a rule under the
+    // band (`single`, `double`: NieR's thick-and-thin rule; `filigree`: an ornament centred under it) in `title.rule_color`
+    // ("" = the title's ink). `title.close = heart` (above) is a pixel heart with the × in it.
+    k(
+        "title.mark",
+        Choice(&["none", "square", "heart", "fleur", "diamond"]),
+        r#""none""#,
+    ),
+    k("title.caps", Bool, "false"),
+    k(
+        "title.rule",
+        Choice(&["none", "single", "double", "filigree"]),
+        r#""none""#,
+    ),
+    k("title.rule_color", Role, r#""""#),
+    // The bar's ground (`bar/Band`): a rule along its inner edge (the same choices) and a fill that fades out toward the
+    // screen's middle (a game's HUD shade rather than a strip).
+    k(
+        "bar.rule",
+        Choice(&["none", "single", "double", "filigree"]),
+        r#""none""#,
+    ),
+    k("bar.fade", Bool, "false"),
+    // A scroll rail's end caps and a start dress's mark (`start/Tab`: a word tab with its mark, NieR's menu tabs).
+    k(
+        "scroll.cap",
+        Choice(&["none", "square", "diamond", "heart"]),
+        r#""none""#,
+    ),
+    k(
+        "start.mark",
+        Choice(&["none", "square", "heart", "fleur", "diamond"]),
+        r#""none""#,
+    ),
+    // The start dress's word with `start.label` (i18n `decor.start.label` "Start" or `decor.start.menu` "Menu").
+    k("start.word", Choice(&["start", "menu"]), r#""start""#),
+    // A window frame as a band between two lines (Needy Streamer Overload's violet–mint–violet frame): `border.line`'s
+    // role ("" = the frame of `border.width` alone, today's) `border.line_width` px wide on both sides of the band. It also
+    // outlines a boxed start dress (`start/Tab` with a `start.fill`).
+    k("border.line", Role, r#""""#),
+    k("border.line_width", Int(0, 4), "0"),
+    // W53.6 (lead review): a launcher row's text centred between its ends (`center`: Hollow Knight's centred serif rows) or
+    // from the start (today's); its icons shown (today's), dimmed and smaller, or hidden; room kept at the row's end for a
+    // menu part's mark (px; 0 = today's; W53.5's `menu.lead` keeps it at the start), so a mark never covers text.
+    k("menu.align", Choice(&["start", "center"]), r#""start""#),
+    k("menu.icons", Choice(&["show", "dim", "hide"]), r#""show""#),
+    k("menu.trail", Int(0, 48), "0"),
+    // W53.6 (lead review): every type size times this (a face with a small x-height, Cormorant's, reads as a size smaller
+    // than Inter's), before the pixel step; 1 = today's.
+    k("type.scale", Num(0.8, 1.5), "1.0"),
+    // W53.6 (lead review): a word tab's start-menu skin (`start/Tab`): a framed panel (today's) or a veil — no box, the
+    // panel's ground fading out at its edges, the look's caption rule over and under it (Hollow Knight's floating menus).
+    k("start.skin", Choice(&["panel", "veil"]), r#""panel""#),
     // W53.5 (snes, ps2; any look): a card's fill in this many hard bands, top to bottom from `fill.band_top` to
     // `fill.band_bottom` (roles; "" = the container lighter / darker) — 16-bit windows' banded gradient (0 = one fill).
     k("fill.bands", Int(0, 16), "0"),
@@ -432,7 +498,8 @@ impl DecorKey {
             Role => (v.as_str() == Some("") || role(v)).then(|| v.clone()),
             Roles => {
                 let a = v.as_array()?;
-                ((1..=2).contains(&a.len()) && a.iter().all(role)).then(|| v.clone())
+                // [] = the part's own (or none: W53.6's header band without a fill), one = solid, two = a gradient.
+                (a.len() <= 2 && a.iter().all(role)).then(|| v.clone())
             }
             Curve => {
                 let n: Vec<f64> = v

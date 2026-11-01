@@ -308,7 +308,8 @@ Column {
                             font.pixelSize: Theme.fs
                             font.weight: parent.isToday || parent.isSel ? Theme.wBold : Theme.wRegular
                             font.family: Theme.fam(text, Theme.families)
-                            font.features: { "tnum": 1 }
+                            // Lining figures too (W53.6): a book face's old-style "1" is an x-height stroke, unreadable in a key.
+                            font.features: { "tnum": 1, "lnum": 1 }
                             text: parent.day
                         }
                         // The day marks (row 71): one ModLoader per contribution, three at most, side by side under the number, on the
