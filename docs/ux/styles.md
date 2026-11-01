@@ -437,29 +437,52 @@ live blur on the bar. Acrylic = translucent + blur on the transient cards only.
 
 ## 5. aqua — Mac OS X 10.2 Jaguar – 10.4 Tiger
 
-**Reference.** Aqua's gel buttons, pinstripes, traffic lights, the 2D Dock and the login window.
-- Apple's archived HIG for the period: <https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/OSXHIGuidelines/>
-  [P] (static, but its window-part tables describe later releases; era values to verify).
-- Screenshots: GUIdebook Mac OS X 10.2 / 10.4 (to verify the URLs).
+**Reference.** Aqua's gel buttons, pinstripes, traffic lights, the Dock and the login window. **[M] measured** at 1:1
+(W53.4) on GUIdebook's captures: the Jaguar desktop <https://guidebookgallery.org/pics/gui/desktop/full/macosx102.png>
+("desktop": 1024 × 768, 22 px menu bar), a Jaguar Finder window
+<https://guidebookgallery.org/pics/gui/system/managers/filemanager/macosx102-1-1.png> ("finder"), the Jaguar log-out
+dialog <https://guidebookgallery.org/pics/gui/startupshutdown/logout/macosx102.png> ("dialog": a grey and a blue default
+button), the Panther desktop <https://guidebookgallery.org/pics/gui/desktop/full/macosx103-1-1.png>; and Tiger windows on
+Commons, <https://commons.wikimedia.org/wiki/File:TenFourFox_12_screenshot.png> ("tiger", RGBA with its corners) and
+"Firefox 3.0.3 running on Mac Tiger.png" (same lights, px for px). Apple's archived HIG
+<https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/OSXHIGuidelines/> [P] for idioms only.
 
 **Metrics**
 
 | part | value | source |
 |---|---|---|
-| title bar | 22 px, centred title in Lucida Grande 13 pt; pinstripe fill | to verify (HIG archive) |
-| traffic lights | three gel circles ~14 px (to verify) left, close red / minimize yellow / zoom green; glyph appears on hover of the group | to verify |
-| pinstripes | 1 px horizontal lines alternating white and `#efefef`-ish, period 2–4 px (to verify) on window and menu grounds; lighter in 10.3; gone in Tiger's windows | to verify |
-| buttons | gel capsules, 20–21 px tall; default button **aqua blue gel that pulses** (~1.5 s period, to verify); pressed darker gel | to verify |
-| focus | a blue halo ~3 px round fields and lists (`#7dadd9`-ish, to verify) | to verify |
-| scroll bar | 15 px, blue gel thumb with round ends, both arrows together at the bottom (option) | to verify |
-| menu bar | 22 px, white with pinstripes (10.2), Apple menu far left, bold app name, menu extras right | to verify |
-| menus | white at ~95 % opacity, rounded bottom corners ~5 px, highlight blue gel band, Lucida Grande 14 px rows (to verify) | to verify |
-| tooltip | pale yellow `#ffffc7`, 1 px grey border (to verify) | to verify |
-| Spotlight (10.4) | blue magnifier at the menu bar's far right → a drop-down panel: field on top, results grouped by kind with the kind in a left gutter | to verify |
-| Dock | a translucent white rounded strip (2D, pre-Leopard), magnification, a black ▲ under running apps | to verify |
+| menu bar | 22 px; pinstriped white: by row % 4 `#e9e9e9`, `#fafafa`, `#ffffff`, `#fafafa`; a `#d4d4d4` px then a `#757575` px at its foot (Panther: a smooth `#fafafa → #e5e5e5`, foot `#ababab`) | [M] desktop x 600, y 0–21; Panther x 600 |
+| open menu title | the blue gel band the bar's height, itself striped (`#285cb7`, `#346cbe`, `#3973c1`, `#336abd` by row % 4), foot `#103282` | [M] desktop x 100 |
+| title bar | 22 px; Jaguar pinstriped, fading `#eaeaea → #d9d9d9`, two white rows under its top, a `#7f7f7f` line under it; Tiger flat `#c9c9c9`; top corners ~8 px (Tiger, alpha fit); bottom corners square | [M] finder x 520, y 0–26; tiger 0,0 |
+| traffic lights | 14 px discs (Jaguar 13 × 14), 21 px apart centre to centre (Jaguar 22), the first 8 px in (Jaguar 9), centred in the bar; gel: a near-black rim (`#262626`/`#101010` at the top), the colour, a white highlight on the cap, the colour glowing up to its foot (red `#c35449 → #fe988b → #fdb4a7`; Tiger yellow `#f6b23f`, green `#89c342`); glyphs on hover; grey without focus | [M] finder x 23–35; tiger x 8–21, y 5–18 |
+| pinstripes | period 4 px on window grounds and the menu bar: one dark row, its neighbours a quarter as dark (the darkening 22, 5, 0, 5 of 255) | [M] finder x 300, y 23–49; desktop |
+| push buttons | 21 px capsules; default: rim `#0525a7`-ish, `#d2d6ee` top → `#85b5e4` → a seam `#5b9bdd` at half height → `#a8e7ff` glowing foot; plain: rim `#6f6f6f`, `#f5f5f5` → `#e7e7e7` → white foot; the default pulses (~1.5 s; ours 3 pulses then rests) | [M] dialog x 270 and 366, y 111–131 |
+| menus | 19 px rows; the highlight a full-width blue gel band (`#346cbe`/`#2c61b9`/`#3973c1`, striped like the bar); the menu white, translucent over the desk, pinstriped | [M] desktop x 240, y 22–63 |
+| scroll bar | 15 px track, 13 px blue gel thumb (`#0039b3` rim, `#799edc` light edge, `#3f8ae0` body, `#8dd8ff` glow) | [M] desktop x 558–573 |
+| focus | a ~3 px blue glow (`#8bb2d4` at its peak) round the field | [M] desktop x 437–441 |
+| Dock | a ~52 px translucent strip with a light top edge (`#98b1d0` over the blue desk); the ▲ and its size not readable | [M] desktop y 716–767 |
+| tooltip | pale yellow `#ffffc7`, 1 px grey border | to verify (no capture; BACKLOG) |
+| Spotlight (10.4) | blue magnifier at the menu bar's far right → a drop-down panel | to verify (no 10.4 desktop capture fetched; BACKLOG) |
 
 **Type.** Lucida Grande 13 pt. No free metric twin: **DejaVu Sans** (Bitstream Vera heritage, close in feel) at
 12.5 px (to verify the size match). ja: Hiragino Kaku Gothic → Noto Sans CJK JP.
+
+**Built (W53.4) and what still differs.** Matches 10.x: the 22 px pinstriped menu bar with its dark foot line and
+shade, our setting-sun mark in blue gel at its start (the open title as the striped blue gel band), the 22 px pinstriped
+caption with 14 px gel traffic lights 21 px apart, 8 px in, their highlights and hover marks, the title centred, grey
+lights without focus; pinstriped window grounds, menus and the start menu (a pull-down hanging from the bar, rounded far
+corners); Aqua gel push buttons in every Button (row 604), the default in blue gel pulsing three times then resting (0
+frames idle: measured 60 commits/s for ~4.5 s, then 0 — `frontend/shots/styles/aqua/`); the blue gel menu band; the
+3 px blue focus halo; the Dock's translucent shelf with a glassy lip, its icons straight on it, a black ▲ under a running
+app and (from the lead's request) a reflection shelf; the login window (brushed-metal header with our mark, pinstriped
+body, the halo field, the pulsing gel Log In, the shake, ⇪ in the field); pale yellow help tags; original cues and a
+pointer (`tools/styles/mac-assets.py`, CC0). Differs: the focused app's bold name in the menu bar (needs a display name in
+`svc.workspaces`, Contracts 8 — not in main); sheets slide from the bar's top edge rather than out of a window's caption;
+the Dock's reflection is Leopard's idea (10.5), drawn as data (`dock.reflection`, 0 = Tiger's flat strip); the
+Spotlight panel at the bar's right end is the launcher hanging from our mark (layout, K45); no scroll-bar gel (callers do
+not host `ScrollStyle` yet: BACKLOG); the window's bottom corners round like the top (the card has one radius); Tiger's
+flat grey caption is not the default (Jaguar's pinstripes are, as the brief pins); Lucida Grande is DejaVu Sans unless
+installed; a 1 px pinstripe at 1.5 scale is not device-crisp.
 
 **Mapping**
 
@@ -502,30 +525,46 @@ of the chosen row (2 blinks, ~70 ms each, to verify).
 
 ## 6. vibrancy — macOS Big Sur – Sonoma (new style)
 
-**Reference.** macOS 11–14: translucent vibrancy sidebars and menus, 24 px menu bar, Control Centre, Notification
-Centre with widgets, the rounded Dock, and the Sonoma lock screen.
-- HIG <https://developer.apple.com/design/human-interface-guidelines/> [P]: windows, the menu bar, materials. The
-  pages are script-rendered, so every number below is to verify against a measured screenshot.
-- Reviews with screenshots: <https://www.macstories.net/stories/macos-big-sur-the-macstories-review/>,
-  <https://eclecticlight.co/2021/03/19/window-controls-in-big-sur/>.
+**Reference.** macOS 11–14: translucent vibrancy sidebars and menus, the menu bar, Control Centre, Notification Centre
+with widgets, the rounded Dock, and the Sonoma lock screen. **[M] measured** at 1x (W53.4) on Commons:
+<https://commons.wikimedia.org/wiki/File:Firefox_136_screenshot,_macOS_Sonoma.png> ("sonoma": a 1280 × 775 window with its
+system shadow, light) and <https://commons.wikimedia.org/wiki/File:Spotlight_on_macOS_Big_Sur.png> ("spotlight"); a Monterey
+desktop thumbnail <https://commons.wikimedia.org/wiki/File:MacOS_Monterey.png> for proportions only (its scale is
+unresolved). HIG <https://developer.apple.com/design/human-interface-guidelines/> [P] for idioms. Commons throttled
+(HTTP 429) the rest of the candidates; what they would have shown stays "to verify" and is carried to BACKLOG.
 
 **Metrics**
 
 | part | value | source |
 |---|---|---|
-| window radius | 10 px (to verify) | |
-| title bar | 28 px plain, 52 px unified toolbar (to verify) | |
-| traffic lights | 12 px circles, 8 px apart (20 px pitch), 8 px from the edge (to verify) | |
-| menu bar | 24 px (37 px on notched displays), translucent, SF Pro 13 px, Control Centre icon and clock at the right | to verify |
-| menus | vibrancy, radius ~6 (to verify), 22 px rows, highlight = accent rounded rect inset 5 px | to verify |
-| Control Centre | modules in rounded tiles (radius ~12–16), a 2-column grid | to verify |
-| notifications | banners top-right, radius ~16, ~344 px wide (to verify) | to verify |
-| Dock | radius ~16–18, translucent, a dot under running apps | to verify |
-| focus | a 3–4 px accent halo outside the control (to verify) | to verify |
-| scroll bar | overlay, 7 px rounded thumb appearing while scrolling (to verify) | to verify |
+| window radius | ~10 px (alpha fit 9–10.5) | [M] sonoma corners |
+| window edge | a ~1 px line of ~10 % black just outside the window; a wide, bottom-heavy shadow (reach ~20 px up, ~56 px down) | [M] sonoma mid-edge profiles |
+| title bar | 28 px plain, 52 px unified toolbar (AppKit) | to verify (the capture is Firefox's own tab strip; BACKLOG) |
+| traffic lights | 12 px discs, 20 px apart centre to centre; flat fills `#fd5a57`, `#fcbc3b`, `#24ca4b` with a darker rim (`#df3a39`, `#dd9c28`, `#0baa33`); 8 px in under AppKit's title bar (Firefox's strip puts the first 13 px in) | [M] sonoma row y 60, x 69–120; the AppKit inset to verify |
+| Spotlight | a 680 px panel, corners ~10.5, a 1 px light ring; a 52 px field row with an 18 px magnifier, a 1 px `#d8d8d8` rule under it; the selection an inset (10 px) rounded (~5 px) `#5b9cfd` row 28 px tall | [M] spotlight |
+| menu bar | 24 px (37 on notched displays), translucent over the wallpaper, no line under it | to verify (Monterey's thumbnail scale unresolved; BACKLOG) |
+| menus | vibrancy, radius ~6, 22 px rows, the accent in a rounded rect inset 5 px | to verify (no open menu captured) |
+| Dock | floating a few px off the bottom (the thumbnail: 4 of 832 px), translucent, no hairline seen; a dark ~4 px dot under a running app | [M] Monterey thumbnail (proportions only) |
+| Control Centre, notifications, lock | tile radius ~12–16, banners ~344 px wide, radius ~16; Sonoma's lock: the date over a large time at the top, avatar, name and a capsule field at the bottom | to verify (nothing captured; BACKLOG) |
+| focus | a 3–4 px accent halo outside the control | to verify |
 
 **Type.** SF Pro (Apple licence, **never bundled**). Stand-in: **Inter** (OFL; the existing chain). ja: Hiragino Sans
 → Noto Sans CJK JP.
+
+**Built (W53.4) and what still differs.** Matches macOS 11–14: translucent grounds over the compositor's blur, 10 px
+(squircle) windows, the 28 px unified title bar with flat 12 px traffic lights 20 px apart in the measured hues and their
+hover marks (× − ⤢), the title centred and semibold; the translucent 24 px menu bar without a line, our mark flat in the
+text's ink at its start with an inset rounded highlight while open; the start menu as a vibrancy panel (double hairline
+rim, wide shadow) holding the launcher's field and rows; the accent's inset rounded menu highlight; the floating Dock
+(16 px corners, translucent, a light rim, icons without tiles, one dot under a running app); the halo focus; springs;
+the Sonoma lock (the date over a 112 px semibold time at the top, the round picture, the name and a frosted capsule
+field at the bottom, the fingerprint line only with a reader, shake, ⇪); original cues and a pointer. Differs: the lock's
+ground is an original gradient, not the user's blurred wallpaper (the session lock is opaque and the shell does not own
+the wallpaper); Spotlight hangs from the mark instead of floating at the screen's centre (layout, K45); Control Centre
+is today's quick-settings card (the phone frame) in the look's corners, not its module tiles, and Notification Centre's
+widgets are the sidebar's sections — both wait for W53.3's generic keys (`quick.frame = flyout`, `quick.tiles = compact`,
+`centre.form = flyouts`), which the lead sets for aqua and vibrancy at integration; no bold app name (Contracts 8); the menu bar's and Dock's sizes are not yet measured at 1x (to
+verify, BACKLOG); SF Pro is Inter unless installed.
 
 **Mapping**
 
