@@ -344,7 +344,12 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("island.reveal", Choice(&["none", "type"]), r#""none""#),
     k("island.reveal_cps", Int(5, 240), "40"),
     // W53.5: a text field as a box (today's) or a line under the text (`underline`: a name-entry line, the PS2's field).
-    k("field.form", Choice(&["box", "underline"]), r#""box""#),
+    // W53.8: `filled` — a filled bar with no outline (M3's search bar: full round, surface container high).
+    k(
+        "field.form",
+        Choice(&["box", "underline", "filled"]),
+        r#""box""#,
+    ),
     // W53.5: what loading shows — the caller's words (`text`, today's), the look's loading line with dots stepping after
     // it (`dots`: "NOW LOADING..."), or the words under a slow pulse (`pulse`). Only while loading.
     k(
