@@ -624,10 +624,20 @@ Scope {
                                 radius: Theme.rLg + 4
                                 level: 2
                             }
+                            // W53.4 (contract row 605): the look's dock body (`[slots] dock`: Mac OS X's shelf, macOS 11+'s
+                            // floating panel) in place of the block; nothing is made without one.
+                            DockGround {
+                                id: dockPart
+                                anchors.fill: parent
+                                visible: !dock.joined
+                                edge: dock.edge
+                                mirror: list
+                                icon: dock.icon
+                            }
                             // Floating: the look's block (chrome, shadow, relief), a gap off its edge.
                             Block {
                                 anchors.fill: parent
-                                visible: !dock.joined
+                                visible: !dock.joined && !dockPart.ready
                                 radius: Theme.rLg + 4
                                 fill: Theme.surfaceAlpha
                                 flatBorder: Theme.outline
@@ -735,6 +745,9 @@ Scope {
                                             && !!(Window.window && QsWindow.window && QsWindow.window.tileSheet))
                                         pressed: tap.pressed
                                         animate: win.visible
+                                        // W53.4: `[decor] dock.tiles = none` — the icons stand straight on the body, as on
+                                        // every Dock (the running mark says which is focused).
+                                        bare: !dockPart.tiles
                                         fill: cell.focusedApp ? Theme.selected
                                             // The tile whose menu is open stays lit (macOS); the redraw also commits the
                                             // window's keyboard change for the menu (a layer surface's change lands on its
@@ -839,8 +852,38 @@ Scope {
                                     }
                                     // One dot per window (max four, DMS), toward the screen edge; the focused one wider and
                                     // in the accent, so focus is not colour alone.
+                                    // W53.4: `[decor] dock.indicator` — `dot`: one per running app (macOS 11+), `triangle`:
+                                    // Mac OS X's ▲ pointing at the app, in the text's ink.
+                                    Item {
+                                        visible: !cell.isSep && cell.wins.length > 0 && dockPart.indicator !== "dots"
+                                        readonly property bool tri: dockPart.indicator === "triangle"
+                                        width: tri ? 7 : 4
+                                        height: tri ? 5 : 4
+                                        x: dock.horiz ? (cell.width - width) / 2 : (dock.edge === "left" ? 0 : dock.icon + 2)
+                                        y: dock.horiz ? dock.icon + Theme.shadowDy + (dock.atTop ? 0 : 1) : (dock.icon - height) / 2
+                                        rotation: dock.horiz ? (dock.atTop ? 180 : 0) : (dock.edge === "left" ? 90 : -90)
+                                        Rectangle {
+                                            visible: !parent.tri
+                                            anchors.fill: parent
+                                            radius: width / 2
+                                            color: Qt.alpha(Theme.fg, cell.focusedApp ? 0.85 : 0.6)
+                                        }
+                                        Shape {
+                                            visible: parent.tri
+                                            anchors.fill: parent
+                                            preferredRendererType: Shape.CurveRenderer
+                                            ShapePath {
+                                                strokeColor: "transparent"
+                                                fillColor: Theme.fg
+                                                startX: 3.5; startY: 0
+                                                PathLine { x: 7; y: 5 }
+                                                PathLine { x: 0; y: 5 }
+                                                PathLine { x: 3.5; y: 0 }
+                                            }
+                                        }
+                                    }
                                     Grid {
-                                        visible: !cell.isSep && cell.wins.length > 0
+                                        visible: !cell.isSep && cell.wins.length > 0 && dockPart.indicator === "dots"
                                         rows: dock.horiz ? 1 : Math.min(4, cell.wins.length)
                                         columns: dock.horiz ? Math.min(4, cell.wins.length) : 1
                                         spacing: 3

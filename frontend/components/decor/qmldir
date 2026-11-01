@@ -16,3 +16,4 @@ PaneMark 1.0 PaneMark.qml
 WindowEdge 1.0 WindowEdge.qml
 # W53.4 (aqua, vibrancy): the ground pattern, the dock host, the original menu mark.
 Pattern 1.0 Pattern.qml
+DockGround 1.0 DockGround.qml
