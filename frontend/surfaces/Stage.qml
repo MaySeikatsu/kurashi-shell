@@ -176,7 +176,14 @@ PanelWindow {
     // ---- W53.0b (K80): the title bar, as the daemon says (`runtime.ui.title`, absent: none — the style draws no title
     // bar, `title_bar.buttons` is off, or no card is open). Its height is the style's (`decor.title.height`, W53.0a).
     readonly property var titleDoc: ui.title || null
-    readonly property bool titled: titleDoc !== null && contentKind !== ""
+    // W53.4 (lead review): quick settings drawn as a flyout (`[decor] quick.frame = flyout`) are their own chrome — a menu
+    // extra's drop-down, Control Centre, 11's flyout — and get no caption or window frame round them.
+    readonly property bool flyoutView: ["quick", "power", "bluetooth"].indexOf(contentKind) >= 0
+        && Theme.decor("quick.frame", "phone") === "flyout"
+    readonly property bool titled: titleDoc !== null && contentKind !== "" && !flyoutView
+    // A flyout that hangs from its bar (`[decor] flyout.hang`, Mac OS X's menu extras) meets the bar's edge (BarConfig's
+    // 4 px inset left out; the flyout leaves out its own shadow room on that side).
+    readonly property bool hangs: flyoutView && Theme.decor("flyout.hang", false) === true
     readonly property int titleH: titled ? Math.round(Theme.tok("decor.title.height", 28)) : 0
     // Row 595: a captioned card's window frame, px (`decor.border.width`; 0 = today's 1 px outline).
     readonly property int frameW: titled ? Math.max(0, Math.round(Theme.decor("border.width", 0))) : 0
@@ -242,10 +249,10 @@ PanelWindow {
     Component { id: clockView; ClockView {} }
     Component { id: volumeView; VolumeView {} }
     Component { id: brightnessView; BrightnessView {} }
-    Component { id: quickView; QuickPanel {} }
+    Component { id: quickView; QuickPanel { fromBottom: stage.flip } }
     // The power and bluetooth faces' expanded views are the quick settings pages (I44): the card opens on that page.
-    Component { id: powerView; QuickPanel { startPage: "power" } }
-    Component { id: bluetoothView; QuickPanel { startPage: "bluetooth" } }
+    Component { id: powerView; QuickPanel { startPage: "power"; fromBottom: stage.flip } }
+    Component { id: bluetoothView; QuickPanel { startPage: "bluetooth"; fromBottom: stage.flip } }
     // A mod's Panel.qml (K26): the card's one Loader makes it, ModLoader destroys it when the mod is disabled.
     Component {
         id: modPanelView
@@ -293,9 +300,10 @@ PanelWindow {
         right: peekLayout ? shownEdge === "right" : (!morphLayout && aligned && (!bars.vertical || bars.edge === "right"))
     }
     margins {
-        top: peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0)) : (morphLayout ? 0 : bars.topInset)
+        top: peekLayout ? (shownEdge === "top" ? (peekMorph ? 0 : peekInset) : (peekSide ? peekTop : 0))
+            : (morphLayout ? 0 : bars.topInset - (hangs ? 4 : 0))
         bottom: peekLayout ? (shownEdge === "bottom" ? (peekMorph ? 0 : peekInset) : 0)
-            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset))
+            : (morphLayout ? 0 : (menuBeside ? Theme.pad : bars.bottomInset - (hangs ? 4 : 0)))
         left: peekLayout ? (shownEdge === "left" ? peekBarClear : (shownEdge === "right" ? 0 : (peekMorph ? peekBoxL : peekLeft)))
             : (morphLayout ? boxL : (menuBeside ? bars.insetOf(bars.edge) + Theme.barH + Theme.gap : 0))
         right: peekLayout ? (shownEdge === "right" ? peekBarClear : 0)

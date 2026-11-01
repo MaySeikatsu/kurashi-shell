@@ -4,6 +4,7 @@ import "../core"
 import "expanded"
 import "quick"
 import "phone"
+import "decor"
 
 // The quick settings card (K24, W13; docs/ux/quick-settings.md): the `quick` panel of runtime.ui, opened by the bar's button or
 // `quick.toggle`. The tiles are the view: a status sentence, ten core tiles (Wi-Fi, Bluetooth, Focus, Audio, Power, Display,
@@ -22,6 +23,10 @@ Item {
     // (the panel's material, 8 px of the look's radius, its hairline and the surfaces' elevation: 11's, the Macs') — and the
     // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
     readonly property bool flyout: Theme.decor("quick.frame", "phone") === "flyout"
+    // W53.4 (`[decor] flyout.hang`): the flyout hangs from its bar — square where it meets it (`fromBottom`: the bar is under
+    // it; the Stage says), its far corners rounded, the look's ground pattern across it (a Mac OS X menu extra's drop-down).
+    property bool fromBottom: false
+    readonly property bool hang: flyout && Theme.decor("flyout.hang", false) === true
     readonly property bool compactTiles: Theme.decor("quick.tiles", "wide") === "compact"
     readonly property int tileCols: compactTiles ? 3 : 2
     readonly property real tileW: (quick.innerW - (tileCols - 1) * Theme.gap) / tileCols
@@ -913,21 +918,30 @@ Item {
         width: quick.width
         // Room round the body for its shadow (a clipping card would cut it off).
         readonly property real side: quick.flyout ? 12 : 0
+        // A hanging flyout keeps no shadow room on its bar's side (it meets the bar there).
+        readonly property real sideTop: quick.hang && !quick.fromBottom ? 0 : side
+        readonly property real sideBottom: quick.hang && quick.fromBottom ? 0 : side
+        readonly property real rTop: quick.hang && !quick.fromBottom ? 0 : Theme.rLg
+        readonly property real rBottom: quick.hang && quick.fromBottom ? 0 : Theme.rLg
         readonly property real footH: 52
         implicitHeight: quick.flyout
-            ? 2 * side + Theme.pad + (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad + footH : 0
+            ? sideTop + sideBottom + Theme.pad + (quick.shownPage !== "" ? pageLoader.height : tilesPane.height) + Theme.pad + footH : 0
         Loader {
             active: quick.flyout
             anchors.fill: parent
-            anchors.margins: fly.side
+            anchors { leftMargin: fly.side; rightMargin: fly.side; topMargin: fly.sideTop; bottomMargin: fly.sideBottom }
             sourceComponent: Item {
-                Elevation { anchors.fill: parent; radius: Theme.rLg; level: 3 }
+                Elevation { anchors.fill: parent; radius: Theme.rLg; level: 3; cutTop: fly.rTop === 0; cutBottom: fly.rBottom === 0 }
                 Rectangle {
                     anchors.fill: parent
-                    radius: Theme.rLg
+                    topLeftRadius: fly.rTop
+                    topRightRadius: fly.rTop
+                    bottomLeftRadius: fly.rBottom
+                    bottomRightRadius: fly.rBottom
                     color: Theme.panel
                     border.width: 1
                     border.color: Theme.color("color.outline_variant", "#e5e5e5")
+                    Pattern { anchors.fill: parent; radius: Math.max(fly.rTop, fly.rBottom) }
                 }
                 // The footer band: the ground a step deeper, a hairline above it, the lower corners the flyout's.
                 Rectangle {
@@ -935,8 +949,8 @@ Item {
                     y: parent.height - fly.footH
                     width: parent.width - 2
                     height: fly.footH - 1
-                    bottomLeftRadius: Math.max(0, Theme.rLg - 1)
-                    bottomRightRadius: Math.max(0, Theme.rLg - 1)
+                    bottomLeftRadius: Math.max(0, fly.rBottom - 1)
+                    bottomRightRadius: Math.max(0, fly.rBottom - 1)
                     color: Qt.alpha(Theme.surface, 0.55)
                     Rectangle { width: parent.width; height: 1; color: Theme.color("color.outline_variant", "#e5e5e5") }
                     Row {
@@ -976,9 +990,9 @@ Item {
             id: flyArea
             // (the whole inner width: the tiles stand `Theme.pad` in from it, as on the phone's screen)
             x: fly.side
-            y: fly.side + Theme.pad
+            y: fly.sideTop + Theme.pad
             width: Math.max(0, fly.width - 2 * fly.side)
-            height: Math.max(0, fly.implicitHeight - 2 * fly.side - 2 * Theme.pad - fly.footH)
+            height: Math.max(0, fly.implicitHeight - fly.sideTop - fly.sideBottom - 2 * Theme.pad - fly.footH)
         }
     }
 }
