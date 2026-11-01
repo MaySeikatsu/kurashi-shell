@@ -603,11 +603,13 @@ PanelWindow {
             }
 
             // The look's scroll bar over the list's end edge (W53.7/8: the `scroll` slot's host; nothing without a part).
+            // The rows give way to it (its width and a gap), so no hint sits under the bar.
             ScrollHost {
+                id: listBar
                 z: 1
                 flick: list
                 visible: shown && list.visible
-                x: list.x + list.width - width
+                x: card.l0 + card.w0 - width
                 y: list.y
                 stepPx: lp.rowH
             }
@@ -616,7 +618,7 @@ PanelWindow {
                 visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
-                width: card.w0
+                width: card.w0 - (listBar.shown ? listBar.width + 4 : 0)
                 height: lp.listH
                 clip: true
                 interactive: false
