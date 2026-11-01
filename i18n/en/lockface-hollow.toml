@@ -1,0 +1,3 @@
+# The hollow lock face (W53.6, components/lock/HollowFace.qml): a still, foggy deep, after Hollow Knight's menus.
+"lockui.face.name.hollow" = "Hollow"
+"lockui.hollow.prompt" = "Password"

@@ -64,7 +64,8 @@ KDL
   {
     echo "export XDG_RUNTIME_DIR=$R NIRI_SOCKET=$NS WAYLAND_DISPLAY=$WD"
     echo "export XDG_CONFIG_HOME=$R/xdg/config XDG_STATE_HOME=$R/xdg/state XDG_DATA_HOME=$R/xdg/data XDG_CACHE_HOME=$R/xdg/cache"
-    echo "export KURASHI_DATA_DIR=$ROOT LC_ALL=C.UTF-8 KURASHI_SOCKET=$R/kurashi.sock"
+    # KURASHI_SB_LC_ALL=ja_JP.UTF-8 runs the shell in Japanese (W53.6: the styles' ja shots); C.UTF-8 otherwise.
+    echo "export KURASHI_DATA_DIR=$ROOT LC_ALL=${KURASHI_SB_LC_ALL:-C.UTF-8} KURASHI_SOCKET=$R/kurashi.sock"
     grep -E "DBUS_SESSION|POLKIT|NETNS|LD_PRELOAD" "$SWAYENV" || true
     echo "unset SWAYSOCK"
   } > "$NIRIENV"

@@ -15,7 +15,7 @@ DecorHost {
     signal clicked()
     onLoaded: {
         if (item.clicked !== undefined) item.clicked.connect(sh.clicked)
-        item.label = Qt.binding(function () { return Theme.decor("start.label", false) ? I18n.tr("decor.start.label") : "" })
+        item.label = Qt.binding(function () { return Theme.decor("start.label", false) ? I18n.tr(Theme.decor("start.word", "start") === "menu" ? "decor.start.menu" : "decor.start.label") : "" })
         item.pressed = Qt.binding(function () { return sh.pressed })
         item.open = Qt.binding(function () { return sh.open })
         item.vertical = Qt.binding(function () { return sh.vertical })

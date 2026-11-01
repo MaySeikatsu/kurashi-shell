@@ -1,14 +1,89 @@
 name = "souls"
 label = "config.choice.look.souls"
 category = "fiction"
-# After shellseikatsu `Services/Modes/DarkSouls.qml` and `Widgets/ThemeDecor/OrnateFrame.qml` (W25): leather black,
-# antique-gold hairlines with corner flourishes, ember accents, an engraved serif, solemn slow motion.
+# Dark Souls' menus (W53.6, docs/ux/styles.md §9.3): dark translucent panels over the scene with a thin antique-gold
+# hairline, the selected row a soft band between two gold hairlines that fade at their ends, headers in engraved capitals
+# over a fading gold rule, the body in a book serif (Cormorant Garamond for the game's Garamond, Cinzel for its engraved
+# titles: OFL), slow fades; the bonfire on the lock — an ember that flickers a few times and rests — and "Try again" in a
+# large serif for a wrong password (never the game's death message). Original cues and pointer. Numbers in §9.3.
 [recipe]
 "theme.chrome" = "line"
 "theme.motion.profile" = "expressive"
 "theme.motion.speed" = 0.8
-"theme.material.kind" = "solid"
+"theme.material.kind" = "translucent"
+"theme.material.opacity" = 0.84
+"theme.material.blur" = false
 "theme.shape.corners" = "none"
-"theme.typography.family" = ["OptimusPrinceps", "EB Garamond", "Noto Serif", "Noto Serif CJK JP", "serif"]
+"theme.typography.family" = ["Adobe Garamond Pro", "Cormorant Garamond", "EB Garamond", "Noto Serif", "Noto Serif CJK JP", "serif"]
+"theme.typography.family_jp" = ["Noto Serif CJK JP", "serif"]
+
 [slots]
 frame = "ornate"
+title = "header"
+bar = "band"
+start = "tab"
+menu = "hairline"
+scroll = "rail"
+tooltip = "plate"
+lock = "bonfire"
+sounds = "souls"
+
+[decor]
+# The caption as a menu header: no band (the panel's own dark), the title in engraved capitals (OptimusPrinceps when
+# installed, else Cinzel) at 17 px, a gold hairline under it fading at both ends; the × a bare glyph.
+"title.height" = 36
+"title.fill" = []
+"title.fill_inactive" = []
+"title.on" = "on_surface"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "start"
+"title.weight" = 400
+"title.size" = 17
+"title.family" = ["OptimusPrinceps", "Trajan Pro", "Cinzel", "EB Garamond"]
+"title.rule" = "single"
+"title.rule_color" = "accent"
+"title.close" = "glyph"
+"title.inset" = 14
+"border.width" = 1
+"border.color" = "outline"
+# Menus: no band at rest; the selected row the game's flat burnt-orange band (measured #502105) with soft ends, between
+# two dim-gold hairlines that fade the same way (the brief's gold; the game draws none there).
+"menu.highlight" = "bar"
+"menu.fill" = "accent_container"
+"menu.on" = "on_accent_container"
+"menu.line" = "outline"
+"menu.separator" = "line"
+"menu.radius" = 0
+"scroll.width" = 10
+"scroll.cap" = "diamond"
+"scroll.thumb" = "flat"
+"tooltip.fill" = "surface_container_lowest"
+"tooltip.on" = "on_surface"
+"tooltip.border" = "outline"
+"tooltip.radius" = 0
+"focus.style" = "ring"
+"focus.color" = "accent"
+# The bar: a HUD shade — dark at the screen's edge, fading inward over a gold hairline; one strip.
+"bar.fill" = ["surface_container_lowest", "surface"]
+"bar.fade" = true
+"bar.rule" = "single"
+"bar.edge" = "accent"
+"bar.group" = "none"
+"separator.style" = "none"
+"start.label" = true
+"start.word" = "menu"
+"start.mark" = "diamond"
+"start.family" = ["OptimusPrinceps", "Trajan Pro", "Cinzel"]
+# Slow fades: everything dissolves in rather than moving.
+"motion.style" = "fade"
+"motion.open_ms" = 650
+"motion.close_ms" = 520
+"motion.fast_ms" = 300
+"motion.open_curve" = [0.37, 0.0, 0.63, 1.0]
+"motion.close_curve" = [0.37, 0.0, 0.63, 1.0]
+"motion.fast_curve" = [0.37, 0.0, 0.63, 1.0]
+"cursor" = "souls"
+# Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
+"quick.frame" = "flyout"
+# Cormorant's small x-height set a step larger (lead review).
+"type.scale" = 1.1

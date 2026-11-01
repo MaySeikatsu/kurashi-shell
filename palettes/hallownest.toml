@@ -1,27 +1,37 @@
-# Hallownest — Hollow Knight: pale bone-white line work on deep blue-grey fog, infection amber. Dark, and light (K53). Roles
-# after shellseikatsu `_hollowPalette()` (W25, K50). Meant for decor `hallownest` (frame `hollow`).
+# Hallownest — Hollow Knight's menus (W53.6, docs/ux/styles.md §9.4): white type and filigree on a near-black ground with
+# a blue-violet haze behind the centre. Dark measured from Hollow Knight captures (the charms screen: #010101 corners,
+# #21282b centre bloom, #ffffff headers and body; a blue street: #4e5688 haze; coordinates in §9.4); light is the White
+# Palace: pale stone and void-black ink. Meant for the look `hallownest`.
 name = "hallownest"
 kind = "pair"
-description = "Pale bone on blue-grey fog (decor hallownest)"
+description = "White on void black with a blue haze (style hallownest)"
 
 [dark]
-surface = "#12161e"
-surface_container_lowest = "#0a0d13"
-surface_container_low = "#0f1319"
-surface_container = "#161c26"
-surface_container_high = "#1e2632"
-surface_container_highest = "#283242"
-on_surface = "#dce4ec"
-on_surface_variant = "#9aa8b8"
-outline = "#7d8da2"
-outline_variant = "#333f4e"
+surface = "#07080c"
+surface_container_lowest = "#010101"  # menu ground (measured)
+surface_container_low = "#0a0c12"     # top of a street (measured #08090e…#0a0c12)
+surface_container = "#11141c"
+surface_container_high = "#1a1f2b"
+surface_container_highest = "#262c3c"
+on_surface = "#ffffff"                # headers and body (measured)
+on_surface_variant = "#aab2c4"
+outline = "#8a93ad"
+outline_variant = "#2e3446"
 accent = "#e6edf2"                    # pale king white
-accent_container = "#3a4656"
-on_accent_container = "#eef4f8"
-secondary = "#7fa6c4"                 # crystal blue
+accent_container = "#2a3044"
+on_accent_container = "#ffffff"
+secondary = "#4e5688"                 # the haze (measured)
 tertiary = "#e8a83c"                  # infection amber
 warning = "#e8a83c"
 error = "#e0645a"
+title = "#07080c"
+title_end = "#07080c"
+title_inactive = "#07080c"
+title_inactive_end = "#07080c"
+on_title = "#ffffff"
+desk = "#010101"
+info = "#07080c"
+on_info = "#ffffff"
 
 # Light (K53: every palette has both schemes): the White Palace: pale stone and void-black ink, crystal blue, infection amber.
 [light]
@@ -42,3 +52,4 @@ secondary = "#3f6e94"
 tertiary = "#a8661a"
 warning = "#8a5a00"
 error = "#b03a30"
+desk = "#c8d1da"

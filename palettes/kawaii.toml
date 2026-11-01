@@ -1,28 +1,40 @@
-# Kawaii — Needy Streamer Overload's pastel desktop: pink ground, lavender window chrome, mint bubbles, plum ink.
-# Light, and dark (K53). Roles after shellseikatsu `_kawaiiPalette()` (W25, K50). Meant for decor `kawaii` (frame `kawaii`).
+# Kawaii — Needy Streamer Overload's pastel desktop OS (W53.6, docs/ux/styles.md §9.1): an orchid desk, white-violet
+# window bodies in a violet–mint–violet frame under a flat pink title band with violet pixel type, a mint selection band,
+# a pale orchid taskbar. Light measured from the game's Steam screenshots (1920 × 1080, 2 px per art pixel; coordinates in
+# §9.1); dark is the stream at night. Meant for the look `kawaii`.
 name = "kawaii"
 kind = "pair"
-description = "Pastel pink, lavender and mint (decor kawaii)"
+description = "Pastel orchid, violet and mint (style kawaii)"
 
 [light]
-surface = "#fbe4f0"
-surface_container_lowest = "#fff3f9"
-surface_container_low = "#fdebf4"
-surface_container = "#fff3f9"
-surface_container_high = "#f5d9e9"
-surface_container_highest = "#eecbdf"
-on_surface = "#5c3a4c"
-on_surface_variant = "#7d5670"
-outline = "#ce9bb8"
-outline_variant = "#e5c2d6"
-accent = "#d4568e"                    # pink, deepened from #f48fb8 for text-grade contrast
-accent_container = "#fad1e3"
-secondary = "#8a6cc4"                 # lavender
-tertiary = "#3f8f5a"                  # mint bubble
+surface = "#fcf9fd"                   # window body (measured)
+surface_container_lowest = "#ffffff"
+surface_container_low = "#faf2fb"
+surface_container = "#f4dbf9"         # taskbar (measured)
+surface_container_high = "#edc9ed"    # title band (measured)
+surface_container_highest = "#e2b6e6"
+on_surface = "#473952"                # START label (measured)
+on_surface_variant = "#6e5a80"
+outline = "#5a4faf"                   # violet frame line (measured #4450b6…#5a4faf)
+outline_variant = "#c8b1f6"
+accent = "#d14f92"                    # heart pink, deepened for text-grade contrast
+on_accent = "#ffffff"
+accent_container = "#7cf0b1"              # selection band mint (measured)
+on_accent_container = "#1d3b2b"
+secondary = "#643fb1"                 # title type violet (measured)
+tertiary = "#2f8a7f"
 warning = "#9a5a00"
 error = "#c23a55"
-line = "#c9b4e8"                      # lavender window chrome
-ring = "#fff3f9"
+line = "#5a4faf"
+ring = "#88f0e7"                      # the frame's mint band (measured; the keycap ring role, unused under line chrome)
+title = "#edc9ed"
+title_end = "#edc9ed"
+title_inactive = "#dedede"
+title_inactive_end = "#dedede"
+on_title = "#643fb1"
+desk = "#f6e1fc"                      # desktop ground (measured)
+info = "#ffffff"
+on_info = "#473952"
 
 # Dark (K53: every palette has both schemes): the stream at night: deep plum with neon pink, lavender and mint.
 [dark]
@@ -30,18 +42,29 @@ surface = "#2a1b2b"
 surface_container_lowest = "#1d121e"
 surface_container_low = "#241726"
 surface_container = "#2f2031"
-surface_container_high = "#3a283d"
-surface_container_highest = "#46314a"
+surface_container_high = "#4a2f5c"
+surface_container_highest = "#56386a"
 on_surface = "#fbe4f0"
 on_surface_variant = "#d9b3cb"
-outline = "#9a6f8c"
+outline = "#a58ef0"
 outline_variant = "#4f3a52"
 accent = "#f48fb8"
-accent_container = "#6e2d4f"
-on_accent_container = "#ffe0ee"
+accent_container = "#2f7a5a"
+on_accent_container = "#e8fff3"
 secondary = "#c4a8f0"
-tertiary = "#8fd8a8"
+tertiary = "#5fc9bf"
+on_tertiary = "#0f2826"
+success = "#5fd99a"
+on_success = "#0f2a1c"
 warning = "#f0c070"
 error = "#ff7a90"
-line = "#c9b4e8"
-ring = "#3a283d"
+line = "#a58ef0"
+ring = "#3f8f88"
+title = "#4a2f5c"
+title_end = "#4a2f5c"
+title_inactive = "#3a2c3c"
+title_inactive_end = "#3a2c3c"
+on_title = "#f4dbf9"
+desk = "#24162a"
+info = "#3a283d"
+on_info = "#fbe4f0"
