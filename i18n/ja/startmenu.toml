@@ -1,0 +1,8 @@
+# システムのメニューとしてのスタートメニュー (W53.4, `[decor] start.form = menu`: Mac OS X のアップルメニュー)。
+"startmenu.settings" = "システム設定…"
+"startmenu.recent" = "最近使った項目"
+"startmenu.sleep" = "スリープ"
+"startmenu.restart" = "再起動…"
+"startmenu.shutdown" = "システム終了…"
+"startmenu.lock" = "画面をロック"
+"startmenu.logout" = "{user} をログアウト…"

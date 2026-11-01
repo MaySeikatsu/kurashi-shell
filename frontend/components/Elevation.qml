@@ -34,6 +34,8 @@ Loader {
     readonly property real s: Theme.elevationStrength
     readonly property real dark: Theme.darkScheme ? 1.6 : 1
     readonly property color ink: Qt.rgba(Theme.line.r * 0.4, Theme.line.g * 0.4, Theme.line.b * 0.4, 1)
+    // The surface lets what lies under it show (a translucent material): its shadow must not (W53.4).
+    readonly property bool hollow: Theme.tok("color.surface_alpha", 1) < 0.999
 
     // The pointer's lamp on this output turns the key layer away from it (where it stands relative to the shape).
     readonly property var qsw: QsWindow.window
@@ -67,6 +69,32 @@ Loader {
         width: el.width + (el.cutLeft ? 0 : el.reach) + (el.cutRight ? 0 : el.reach)
         height: el.height + (el.cutTop ? 0 : el.reach) + (el.cutBottom ? 0 : el.reach)
         clip: el.cutLeft || el.cutRight || el.cutTop || el.cutBottom
+        // W53.4 (contract row 608): under a translucent material the shadow showed through the surface — its offset key
+        // layer left a lighter band along one side of every glass card (vibrancy, glass, aero). There the shadow is drawn
+        // through one layer with the shape's own rounded box knocked out, so it falls only outside; made only then
+        // (one paint per size, nothing per frame). Solid looks keep the two analytic layers alone.
+        layer.enabled: el.hollow
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskInverted: true
+            maskSource: knock
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 0.5
+        }
+        Item {
+            id: knock
+            anchors.fill: parent
+            visible: false
+            layer.enabled: el.hollow
+            Rectangle {
+                x: shape.x
+                y: shape.y
+                width: shape.width
+                height: shape.height
+                radius: Math.min(el.radius, Math.min(width, height) / 2)
+                color: "white"
+            }
+        }
         Item {
             id: shape
             x: el.cutLeft ? 0 : el.reach
