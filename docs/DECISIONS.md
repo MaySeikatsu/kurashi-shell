@@ -1068,3 +1068,8 @@ KWin — not measured.
   `theme.texture.kind = "none"`. The user may overrule this.
 - terminal sets `surface.join = false` (its cards stand apart, as a TUI's boxes do); `test-island-join` pins a square
   line look for its terminal cases.
+- (later the same day, user) **A style or look applied over a loaded profile releases the keys of its kind that the
+  profile holds** (`Op::Release`, engine-internal, in the same undoable change; the profile file is untouched, its
+  other keys stay). Before, a profile saved with a `[theme]` (the user's `default-v1`) pinned the look, palette, chrome
+  and font above every style, so switching styles changed only the ink. Test:
+  `theme::tests::a_style_applied_over_a_profile_recreates_the_pack`.
