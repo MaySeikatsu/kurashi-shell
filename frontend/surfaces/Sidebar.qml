@@ -794,7 +794,11 @@ Scope {
     }
     Component {
         id: rightC
-        RightColumn { sections: sb.sections; outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : "" }
+        RightColumn {
+            sections: sb.sections
+            outName: QsWindow.window && QsWindow.window.outName !== undefined ? QsWindow.window.outName : ""
+            fromTop: cfg.atTop && !cfg.atBottom
+        }
     }
     Component {
         id: leftC

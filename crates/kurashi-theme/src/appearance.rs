@@ -29,10 +29,10 @@ use serde_json::Value;
 
 /// The look slots (`[slots]`): each a component name the frontend's host for it loads; `""` (or left out) = the
 /// default, today's shell. `lock` and `sounds` are hosted by the lock surface and the daemon (W53.0b); `bar` (W53.2) is
-/// the bar's ground (`decor/BarGround.qml`).
+/// the bar's ground (`decor/BarGround.qml`); `dock` (W53.4) the dock's body (`decor/DockGround.qml`).
 pub const SLOTS: &[&str] = &[
     "frame", "title", "start", "tray", "menu", "scroll", "tooltip", "focus", "button", "slider",
-    "toggle", "lock", "sounds", "bar",
+    "toggle", "lock", "sounds", "bar", "dock",
 ];
 
 /// What a `[decor]` value may be.
@@ -240,6 +240,51 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("material.sheen", Num(0.0, 1.0), "0.0"),
     // The pixel grid (snes): positions and lines snap to it; 0 = none.
     k("pixel", Int(0, 8), "0"),
+    // W53.4 (Mac OS X, macOS): the caption's other two buttons' fill roles ("" = the part's own: Aqua's and macOS's
+    // traffic lights take `warning` and `success`; close is `title.close_fill`).
+    k("title.min_fill", Role, r#""""#),
+    k("title.max_fill", Role, r#""""#),
+    // A ground pattern on window-sized blocks (≥ 120 × 64: cards, panels, menus) and on the parts that ask for it (a
+    // menu bar, a caption): Aqua's pinstripes (`stripes`: one dark line every `pattern.period` px) or brushed metal
+    // (`brushed`: fine horizontal streaks). One tiled image under the content; `strength` is its darkening (0 = none).
+    k(
+        "pattern.kind",
+        Choice(&["none", "stripes", "brushed"]),
+        r#""none""#,
+    ),
+    k("pattern.period", Int(2, 8), "4"),
+    k("pattern.strength", Num(0.0, 1.0), "0.0"),
+    // The dock's body (the `dock` slot): its fill (one role solid, two a gradient; [] = the part's own), corner (-1 = the
+    // part's own), a reflection of the icons on its shelf (0 = none: Tiger's flat strip; Leopard's glass shelf showed
+    // one), how a running app is marked (`dots`: one per window, today's; `dot`: one per app, macOS 11+; `triangle`: Mac
+    // OS X's ▲) and whether each icon stands on a block of its own (`none`: icons straight on the body, as every Dock).
+    k("dock.fill", Roles, "[]"),
+    k("dock.radius", Int(-1, 32), "-1"),
+    k("dock.reflection", Num(0.0, 1.0), "0.0"),
+    k(
+        "dock.indicator",
+        Choice(&["dots", "dot", "triangle"]),
+        r#""dots""#,
+    ),
+    k("dock.tiles", Choice(&["block", "none"]), r#""block""#),
+    // Push buttons (the `button` slot): the corner (-1 = the part's own; a capsule at half the height), a gloss over
+    // the face (Aqua's gel; 0 = flat) and how many times the default button pulses once shown (Aqua's throbbing
+    // default button; 0 = never; it then rests: 0 frames idle), each pulse `button.pulse_ms` long.
+    k("button.radius", Int(-1, 32), "-1"),
+    k("button.gloss", Num(0.0, 1.0), "0.0"),
+    k("button.pulse", Int(0, 9), "0"),
+    k("button.pulse_ms", Int(200, 4000), "1500"),
+    // A start dress's gloss (Jaguar's gel mark; 0 = flat, as macOS 11+'s) and a menu row highlight's gloss (Aqua's
+    // gel band; 0 = flat).
+    k("start.gloss", Num(0.0, 1.0), "0.0"),
+    k("menu.gloss", Num(0.0, 1.0), "0.0"),
+    // What the start menu shows on an empty field: the launcher's search (`search`, today's) or the system's menu
+    // (`menu`: Mac OS X's Apple menu — settings, recent apps, sleep, restart, shut down, lock, log out as menu rows; typing
+    // turns it into the search, Spotlight's).
+    k("start.form", Choice(&["search", "menu"]), r#""search""#),
+    // A flyout that opens from a bar meets it square, its far corners rounded (Mac OS X's menus and menu extras); false =
+    // a floating flyout rounded all round (today's).
+    k("flyout.hang", Bool, "false"),
     // W53.3: the small and middle corner radii as fractions of the look's radius (`theme.shape.radius`, the large step):
     // K74's thirds by default; Windows 11's 4 px controls in 8 px flyouts are 0.5. A user's radius pin scales them all.
     k("shape.sm", Num(0.0, 1.0), "0.3333"),
@@ -426,6 +471,8 @@ const BUNDLED_LOOKS: &[(&str, &str)] = &[
     ("kami", include_str!("../../../looks/kami.toml")),
     ("sekai", include_str!("../../../looks/sekai.toml")),
     ("aqua", include_str!("../../../looks/aqua.toml")),
+    // W53.4: macOS 11–14 (Big Sur – Sonoma).
+    ("vibrancy", include_str!("../../../looks/vibrancy.toml")),
     // W25 identity looks, after shellseikatsu's `Services/Modes/*.qml` presets.
     ("win95", include_str!("../../../looks/win95.toml")),
     ("luna", include_str!("../../../looks/luna.toml")),
@@ -448,6 +495,7 @@ const BUNDLED_STYLES: &[(&str, &str)] = &[
     ("terminal", include_str!("../../../styles/terminal.toml")),
     ("sekai", include_str!("../../../styles/sekai.toml")),
     ("aqua", include_str!("../../../styles/aqua.toml")),
+    ("vibrancy", include_str!("../../../styles/vibrancy.toml")),
     ("win95", include_str!("../../../styles/win95.toml")),
     ("luna", include_str!("../../../styles/luna.toml")),
     ("aero", include_str!("../../../styles/aero.toml")),

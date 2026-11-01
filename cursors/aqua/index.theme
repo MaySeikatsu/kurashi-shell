@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-aqua
+Comment=The Mac OS X-era black arrow with a thin white outline and a soft shadow (W53.4, CC0, drawn in tools/styles/mac-assets.py)
+Inherits=default

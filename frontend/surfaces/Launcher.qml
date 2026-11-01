@@ -53,7 +53,7 @@ PanelWindow {
         for (var i = 0; i < results.length && h < maxListH; i++) h += heightOf(results[i])
         return h
     }
-    readonly property int listH: startGrid ? startH : mode === "emoji"
+    readonly property int listH: sysMenu ? sysH : startGrid ? startH : mode === "emoji"
         ? Math.max(1, Math.min(Math.ceil(results.length / cols), gridRows)) * cellH
         : Math.max(rowH, Math.min(contentH, maxListH))
     readonly property bool footer: mode !== "apps"
@@ -84,7 +84,7 @@ PanelWindow {
     readonly property bool ownBanner: skin && !skinPart.ready && Theme.decor("start.label", false) === true
     readonly property real skinBand: skin && skinPart.ready ? skinPart.item.bandW : (ownBanner ? 24 : 0)
     readonly property real skinHeader: skin && skinPart.ready ? skinPart.item.headerH : 0
-    readonly property real skinFooter: skin ? Math.max(Theme.controlH + 2 * Theme.gap, skinPart.ready ? skinPart.item.footerH : 0) : 0
+    readonly property real skinFooter: skin && !sysMenu ? Math.max(Theme.controlH + 2 * Theme.gap, skinPart.ready ? skinPart.item.footerH : 0) : 0
     // W53.3 (`[decor] start.grid`, columns; 0 = rows): the start menu's empty field shows the apps as a grid of icons with
     // their names (11's Start) — the dock's pinned apps where there are any ("Pinned"), else the most used ("Apps") — and
     // under it the most used of the rest in two columns ("Recommended"). Typing gives the ranked rows, as before.
@@ -136,6 +136,59 @@ PanelWindow {
         sel = j
     }
     readonly property int skinW: startCols > 0 ? 640 : 420
+    // W53.4 (`[decor] start.form = menu`, lead review): the start menu on an empty field is the system's menu — Mac OS X's
+    // Apple menu — as menu rows in the look's menu style: System Settings…, the recent apps, Sleep, Restart…, Shut Down…,
+    // Lock Screen, Log Out…; the arrows move, Return runs a row, a row ending in "…" asks again first (the session
+    // menu's own confirm words), Esc steps back. Typing turns it into the search (Spotlight's way). Rows only for what
+    // acts (Shōjiki): no About (no page says it), no Force Quit (no intent).
+    readonly property bool sysMenu: skin && Theme.decor("start.form", "search") === "menu" && mode === "apps"
+        && field.text === "" && field.preeditText === ""
+    property int sysSel: 0
+    property int armed: -1
+    readonly property string userName: String(Quickshell.env("USER") || "")
+    readonly property var sysRows: {
+        var r = [{ act: "settings.open", label: I18n.tr("startmenu.settings") }, { sep: true }]
+        var apps = startApps.slice(0, 5)
+        if (apps.length > 0) {
+            r.push({ head: I18n.tr("startmenu.recent") })
+            for (var i = 0; i < apps.length; i++) r.push({ app: apps[i], label: apps[i].name || apps[i].id })
+            r.push({ sep: true })
+        }
+        r.push({ act: "session.suspend", label: I18n.tr("startmenu.sleep") })
+        r.push({ act: "session.reboot", label: I18n.tr("startmenu.restart"), confirm: "frontend.session.confirm.reboot" })
+        r.push({ act: "session.poweroff", label: I18n.tr("startmenu.shutdown"), confirm: "frontend.session.confirm.poweroff" })
+        r.push({ sep: true })
+        r.push({ act: "session.lock", label: I18n.tr("startmenu.lock") })
+        r.push({ act: "session.logout", label: I18n.tr("startmenu.logout").replace("{user}", userName),
+                 confirm: "frontend.session.confirm.logout" })
+        return r
+    }
+    readonly property int sysRowH: ms.rowH(26)
+    function sysRowHeight(r) { return r.sep ? 9 : (r.head ? 22 : sysRowH) }
+    readonly property int sysH: {
+        var h = 0
+        for (var i = 0; i < sysRows.length; i++) h += sysRowHeight(sysRows[i])
+        return h
+    }
+    function sysPick(i) { return i >= 0 && i < sysRows.length && (sysRows[i].act !== undefined || sysRows[i].app !== undefined) }
+    function sysMove(d) {
+        var j = sysSel + d
+        while (j >= 0 && j < sysRows.length && !sysPick(j)) j += d
+        if (sysPick(j)) { sysSel = j; armed = -1 }
+    }
+    function sysRun(i) {
+        if (!sysPick(i)) return
+        var r = sysRows[i]
+        if (r.app) { sel = startApps.indexOf(r.app); var id = r.app.id
+            Store.act("launcher.launch", { id: id }, function (done, e) { if (e) lp.err = lp.errorText(e); else Store.act("ui.close") })
+            return }
+        if (r.confirm && armed !== i) { armed = i; return }
+        armed = -1
+        var act = r.act
+        // The launcher closes first: the lock, the session and Settings take the keyboard.
+        Store.act("ui.close", {}, function () { Store.act(act, {}) })
+    }
+    onSysMenuChanged: { sysSel = 0; armed = -1 }
     // The look's menu rows (row 591): its highlight's shape and corner, its part under each row.
     MenuStyle { id: ms }
 
@@ -264,9 +317,11 @@ PanelWindow {
     margins.left: skin ? Math.max(0, Math.min((scr ? scr.width : 1920) - implicitWidth,
         Theme.decor("start.menu", "button") === "center" ? Math.round(((scr ? scr.width : 1920) - implicitWidth) / 2)
             : (startAt ? startAt.x : Theme.pad) - morph.shade)) : 0
-    margins.top: skin && skinEdge === "top" ? Math.max(0, (startAt ? startAt.y + startAt.h + Theme.gap : bars.topInset) - morph.shade) : 0
+    // (W53.4: a start menu that hangs from its bar, `[decor] flyout.hang` — Mac OS X's menus — meets it, no gap)
+    readonly property int hangGap: Theme.decor("flyout.hang", false) === true ? 0 : Theme.gap
+    margins.top: skin && skinEdge === "top" ? Math.max(0, (startAt ? startAt.y + startAt.h + hangGap : bars.topInset) - morph.shade) : 0
     margins.bottom: skin && skinEdge !== "top"
-        ? Math.max(0, (startAt && scr ? scr.height - startAt.y + Theme.gap : bars.bottomInset) - morph.shade) : 0
+        ? Math.max(0, (startAt && scr ? scr.height - startAt.y + hangGap : bars.bottomInset) - morph.shade) : 0
     implicitWidth: morph.width
     implicitHeight: morph.height
     exclusionMode: ExclusionMode.Ignore
@@ -338,7 +393,8 @@ PanelWindow {
             readonly property real l0: Theme.pad + inset + lp.skinBand
             readonly property real t0: Theme.pad + inset + lp.skinHeader
             readonly property real w0: width - l0 - Theme.pad - inset
-            height: 2 * Theme.pad + 2 * inset + 44 + Theme.gap + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
+            // (a system menu keeps a menu's 4 px above and below its rows, not the search's padding)
+            height: (lp.sysMenu ? 8 : 2 * Theme.pad) + 2 * inset + (lp.sysMenu ? 0 : 44 + Theme.gap) + (lp.err !== "" ? errRow.height + Theme.gap : 0) + lp.listH
                 + footH + lp.skinHeader + lp.skinFooter + (morph.morph ? 0 : Theme.shadowDy)
             // W57 (K78): the launcher stands highest (level 4).
             Elevation {
@@ -410,7 +466,9 @@ PanelWindow {
                 x: card.l0
                 y: card.t0
                 width: card.w0
-                height: 44
+                // (the system menu keeps the field, focused and typing, out of sight: 0 px tall until the first key)
+                height: lp.sysMenu ? 0 : 44
+                opacity: lp.sysMenu ? 0 : 1
                 radius: Theme.rFull
                 ringScale: 0
                 softScale: 0
@@ -442,10 +500,11 @@ PanelWindow {
                     onTextChanged: if (lp.want) lp.run(text)
                     Keys.onEscapePressed: {
                         if (lp.confirmClear) lp.confirmClear = false
+                        else if (lp.armed >= 0) lp.armed = -1
                         else Store.act("ui.close")
                     }
-                    Keys.onDownPressed: lp.startGrid ? lp.startMove(0, 1) : lp.move(lp.mode === "emoji" ? lp.cols : 1)
-                    Keys.onUpPressed: lp.startGrid ? lp.startMove(0, -1) : lp.move(lp.mode === "emoji" ? -lp.cols : -1)
+                    Keys.onDownPressed: lp.sysMenu ? lp.sysMove(1) : lp.startGrid ? lp.startMove(0, 1) : lp.move(lp.mode === "emoji" ? lp.cols : 1)
+                    Keys.onUpPressed: lp.sysMenu ? lp.sysMove(-1) : lp.startGrid ? lp.startMove(0, -1) : lp.move(lp.mode === "emoji" ? -lp.cols : -1)
                     // In the emoji grid (and the start menu's) the arrows move across a row; elsewhere the text cursor.
                     Keys.onLeftPressed: (event) => {
                         if (lp.startGrid) lp.startMove(-1, 0)
@@ -457,8 +516,8 @@ PanelWindow {
                         else if (lp.mode === "emoji") lp.move(1)
                         else event.accepted = false
                     }
-                    Keys.onReturnPressed: lp.launch()
-                    Keys.onEnterPressed: lp.launch()
+                    Keys.onReturnPressed: lp.sysMenu ? lp.sysRun(lp.sysSel) : lp.launch()
+                    Keys.onEnterPressed: lp.sysMenu ? lp.sysRun(lp.sysSel) : lp.launch()
                     Keys.onPressed: (event) => {
                         var shift = (event.modifiers & Qt.ShiftModifier) !== 0
                         var ctrl = (event.modifiers & Qt.ControlModifier) !== 0
@@ -517,9 +576,9 @@ PanelWindow {
 
             ListView {
                 id: list
-                visible: lp.mode !== "emoji" && !lp.startGrid
+                visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
                 x: card.l0
-                y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + Theme.gap
+                y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
                 width: card.w0
                 height: lp.listH
                 clip: true
@@ -1014,18 +1073,82 @@ PanelWindow {
                 antialiasing: !Theme.pixelType
                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors { centerIn: lp.mode === "emoji" ? grid : list }
-                visible: lp.results.length === 0
+                // Nothing found for what was typed; an empty field is no question, and says nothing (lead review, W53.4).
+                visible: lp.results.length === 0 && field.text !== "" && !lp.sysMenu
                 color: Theme.dim
                 font.pixelSize: Theme.fs
                 font.family: Theme.fam(text, Theme.families)
                 text: I18n.tr("launcher.empty")
             }
 
+            // W53.4: the system menu's rows (`start.form = menu`), where the list stands: the look's menu row under the
+            // chosen one (its band, `ms.rowBackground`, else the selection colour), its ink on it; rules between groups; a
+            // group's name dimmed. The pointer chooses too. A row that asks again shows the session menu's words.
+            Column {
+                visible: lp.sysMenu
+                x: card.l0 - Theme.pad
+                y: card.inset + 4 + lp.skinHeader
+                width: card.w0 + 2 * Theme.pad
+                Repeater {
+                    model: lp.sysMenu ? lp.sysRows : []
+                    delegate: Item {
+                        id: srow
+                        required property var modelData
+                        required property int index
+                        readonly property bool on: index === lp.sysSel && lp.sysPick(index)
+                        width: parent.width
+                        height: lp.sysRowHeight(modelData)
+                        Accessible.role: modelData.sep ? Accessible.Separator : Accessible.MenuItem
+                        Accessible.name: modelData.label || modelData.head || ""
+                        Loader {
+                            anchors.fill: parent
+                            active: ms.has && !srow.modelData.head
+                            source: active ? ms.rowBackground : ""
+                            onLoaded: {
+                                item.highlighted = Qt.binding(function () { return srow.on })
+                                item.separator = Qt.binding(function () { return srow.modelData.sep === true })
+                            }
+                        }
+                        Rectangle {
+                            visible: !ms.has && srow.on
+                            anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
+                            radius: ms.radius(Theme.rSm)
+                            color: ms.fill(Theme.selected)
+                        }
+                        Rectangle {
+                            visible: !ms.has && srow.modelData.sep === true
+                            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 1 }
+                            height: 1
+                            color: Theme.color("color.outline_variant", "#c4c4c4")
+                        }
+                        Text {
+                            visible: !srow.modelData.sep
+                            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter
+                                      leftMargin: srow.modelData.app ? Theme.pad + 14 : Theme.pad; rightMargin: Theme.pad }
+                            elide: Text.ElideRight
+                            text: lp.armed === srow.index && srow.modelData.confirm ? I18n.tr(srow.modelData.confirm)
+                                : (srow.modelData.label || srow.modelData.head || "")
+                            color: srow.on ? ms.ink(Theme.fgOnSelected) : (srow.modelData.head ? Theme.dim : Theme.fg)
+                            font.pixelSize: srow.modelData.head ? Theme.fsCaption : Theme.fs
+                            font.weight: lp.armed === srow.index ? Theme.wBold : Theme.wRegular
+                            font.family: Theme.fam(text, Theme.families)
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: lp.sysPick(srow.index)
+                            hoverEnabled: true
+                            onEntered: if (lp.sysSel !== srow.index) { lp.sysSel = srow.index; lp.armed = -1 }
+                            onClicked: lp.sysRun(srow.index)
+                        }
+                    }
+                }
+            }
+
             // The start menu's footer (row 563): the session's keys under the rows — lock at once, the rest through the
             // session menu and its confirm (a start menu's "Shut down…" opens the shutdown dialog). The launcher closes
             // first: the lock and the menu take the keyboard.
             Row {
-                visible: lp.skin
+                visible: lp.skin && !lp.sysMenu
                 anchors { right: parent.right; rightMargin: Theme.pad + card.inset; bottom: parent.bottom
                           bottomMargin: (morph.morph ? 0 : Theme.shadowDy) + Theme.pad + card.inset
                               + (lp.skinFooter - Theme.controlH) / 2 }

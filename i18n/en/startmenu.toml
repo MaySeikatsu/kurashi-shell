@@ -1,0 +1,8 @@
+# The start menu as the system's menu (W53.4, `[decor] start.form = menu`: Mac OS X's Apple menu).
+"startmenu.settings" = "System Settings…"
+"startmenu.recent" = "Recent Items"
+"startmenu.sleep" = "Sleep"
+"startmenu.restart" = "Restart…"
+"startmenu.shutdown" = "Shut Down…"
+"startmenu.lock" = "Lock Screen"
+"startmenu.logout" = "Log Out {user}…"

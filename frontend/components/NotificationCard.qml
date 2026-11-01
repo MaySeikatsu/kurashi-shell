@@ -20,6 +20,10 @@ RoundBox {
     // A toast in a look that names a tooltip part is drawn as that tooltip (contract row 599: 98 had no balloons — an
     // info-yellow box, its ink, the bold first line); the centre's cards keep the card.
     property bool tip: false
+    // Contract row 603 (W53.4): a balloon's tail (`[decor] tooltip.tail`) points toward the toast's anchor — `tailSide`
+    // the edge it hangs from ("top" under a top bar, "bottom" over a bottom one, "none": no tail), `tailAt` px along it.
+    property string tailSide: "none"
+    property real tailAt: width / 2
     TooltipStyle { id: ts }
     readonly property bool asTip: tip && ts.has && !bare
     readonly property color ink: asTip ? ts.ink(Theme.fg) : Theme.fg
@@ -47,7 +51,11 @@ RoundBox {
         anchors.fill: parent
         active: c.asTip
         source: active ? ts.part : ""
-        onLoaded: item.title = Qt.binding(function () { return c.item.summary || "" })
+        onLoaded: {
+            item.title = Qt.binding(function () { return c.item.summary || "" })
+            item.tailSide = Qt.binding(function () { return c.tailSide })
+            item.tailAt = Qt.binding(function () { return c.tailAt })
+        }
     }
     border.color: urgent ? Theme.accent : (Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline)
     Loader {

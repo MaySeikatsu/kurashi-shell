@@ -5,6 +5,7 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/island"
+import "../components/decor"
 import "../components/pen.js" as Pen
 import "../core/corner.js" as Corner
 
@@ -141,6 +142,7 @@ Scope {
         LightSense {}
 
         BarConfig { id: bars; screen: win.screen }
+        TooltipStyle { id: tipStyle }
         // The drip: a top or bottom bar. Then one vertical edge is anchored (the compositor centres the window on the bar)
         // with margin 0, so the window reaches the bar's edge; it covers the bar's strip only while toasts are up (it is
         // unmapped otherwise) and takes input on the cards only.
@@ -188,7 +190,10 @@ Scope {
         // The bar's groups float as blocks (no strip under the island): the drip leaves the pill's foot; else the strip's edge.
         readonly property bool joined: Theme.groups && (Theme.shadowDy > 0 || Theme.softR > 0)
         readonly property real rootY: joined ? pillTop + pillH : Theme.barH
-        readonly property real top0: drip ? Theme.barH + Theme.gap + 4 : padT + (Theme.groups ? Theme.gap : 0)
+        // Contract row 603 (W53.4): a look whose toasts are balloons with a tail (`[decor] tooltip.tail`: XP, 7) points the
+        // nearest one's tail at the island, so under a bar the stack keeps the tail's room (Balloon's 18 px) above it.
+        readonly property bool tailed: drip && tipStyle.has && tipStyle.tail
+        readonly property real top0: drip ? Theme.barH + Theme.gap + 4 + (tailed ? 18 : 0) : padT + (Theme.groups ? Theme.gap : 0)
         readonly property real cardX: drip ? (width - cardW) / 2 : padL
         readonly property real neckCx: width / 2 + (pill ? Math.max(-cardW / 2 + 40, Math.min(cardW / 2 - 40, pill.dx)) : 0)
         // The width the drip leaves the bar with: a strip lets the whole body hang from it; a pill only its flat foot, and the
@@ -600,6 +605,9 @@ Scope {
                         carryDy: (win.flip ? -1 : 1) * (d.ly - d.restY)
                         swipeable: !d.leaving
                         tip: true
+                        // Row 603: the nearest balloon's tail toward the island (its wedge, 14 px wide, centred on it).
+                        tailSide: win.tailed && d.index === 0 ? (win.flip ? "bottom" : "top") : "none"
+                        tailAt: win.neckCx - win.cardX - 7
                         onDismissed: root.dismiss(d.nid)
                         onInvoked: key => Store.act("notify.invoke", { id: d.nid, key: key })
                     }

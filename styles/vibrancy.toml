@@ -1,0 +1,9 @@
+name = "vibrancy"
+label = "config.choice.style.vibrancy"
+category = "inspired"
+# macOS 11 Big Sur – 14 Sonoma (W53.4, docs/ux/styles.md §6): vibrancy (translucency over a blur), rounded windows, the
+# flat traffic lights, the translucent menu bar, Control Centre and the floating Dock; light by default, as macOS ships.
+look = "vibrancy"
+palette = "vibrancy"
+[recipe]
+"theme.colors.scheme" = "light"
