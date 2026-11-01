@@ -1,0 +1,3 @@
+# Sonoma ロック画面 (W53.4, components/lock/SonomaFace.qml): macOS 14 のロック画面。
+"lockui.face.name.sonoma" = "Sonoma ロック画面"
+"lockui.sonoma.prompt" = "パスワードを入力"

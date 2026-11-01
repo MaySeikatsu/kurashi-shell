@@ -35,6 +35,9 @@ Item {
     property bool pressed: false
     // A well (K80): drawn pressed in at rest — the bevel's pairs swapped. Only a bevel look draws it.
     property bool sunken: false
+    // W53.4 (row 604): a look's part draws this block's face (a push button's `[slots] button`): no fill, outline, shadow,
+    // glow, press motion or frame of its own — only the content.
+    property bool bare: false
     // A hairline when the chrome has no outline of its own (flat cards, popups).
     property color flatBorder: "transparent"
     property bool animate: visible
@@ -69,7 +72,7 @@ Item {
     // The hard shadow along the shadow vector (K67: `Theme.sinkX/Y`, straight down by `Theme.shadowDy` by default). The
     // block keeps `Theme.shadowDy` of room below its face whatever the vector; a longer or sideways shadow reaches past it.
     Rectangle {
-        visible: Theme.sinkX !== 0 || Theme.sinkY !== 0
+        visible: (Theme.sinkX !== 0 || Theme.sinkY !== 0) && !blk.bare
         x: Theme.sinkX
         y: Theme.sinkY
         width: blk.width
@@ -106,15 +109,15 @@ Item {
         width: blk.width
         height: blk.faceH
         // The press sinks the face onto its shadow, along the vector.
-        x: Theme.sinkX * pressP
-        y: Theme.sinkY * pressP
-        scale: 1 - (1 - Theme.pressScale) * pressP
+        x: blk.bare ? 0 : Theme.sinkX * pressP
+        y: blk.bare ? 0 : Theme.sinkY * pressP
+        scale: blk.bare ? 1 : 1 - (1 - Theme.pressScale) * pressP
         // W53.0a: the glow (a role's colour) and the bloom (the face's own, lighter) round the face: two static halos, made
         // only while the look has either; small things inside blocks glow as little as they cast shadows (`softScale`).
         Loader {
             z: -1
             anchors.fill: parent
-            active: (Theme.glow > 0 || Theme.bloom > 0) && blk.softScale > 0
+            active: (Theme.glow > 0 || Theme.bloom > 0) && blk.softScale > 0 && !blk.bare
             sourceComponent: Item {
                 RectangularShadow {
                     anchors.fill: parent
@@ -138,7 +141,7 @@ Item {
         SoftShadow {
             anchors.fill: parent
             radius: blk.radius
-            amount: blk.softScale
+            amount: blk.bare ? 0 : blk.softScale
         }
         Rectangle {
             id: rim
@@ -147,6 +150,7 @@ Item {
             readonly property color fillC: blk.ringW > 0 ? Theme.ring : face.shownFill
             // A frame that draws the outline itself (kami's pen), or the pen (K62), replaces the straight line.
             readonly property real lineW: over.item !== null && over.item.hidesOutline ? 0 : blk.outlineWidth
+            visible: !blk.bare
             color: blk.sq ? "transparent" : fillC
             border.width: blk.sq ? 0 : lineW
             border.color: blk.outlineInk
@@ -167,9 +171,19 @@ Item {
             id: under
             readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && !Theme.texText
             readonly property bool sheen: Theme.sheen > 0 && blk.fill.a > 0
-            active: blk.flashes || relief || sheen
+            // W53.4: the look's ground pattern (Aqua's pinstripes) on a window-sized block with a fill of its own (cards,
+            // panels, menus; ≥ 120 × 64 as a frame's card kind), never on keys and tiles.
+            readonly property bool pattern: blk.fill.a > 0 && blk.width >= 120 && blk.faceH >= 64
+                && Theme.decor("pattern.kind", "none") !== "none" && Theme.decor("pattern.strength", 0) > 0
+            active: !blk.bare && (blk.flashes || relief || sheen || pattern)
             anchors.fill: parent
             sourceComponent: Item {
+                Loader {
+                    active: under.pattern
+                    anchors.fill: parent
+                    anchors.margins: blk.inset
+                    sourceComponent: Pattern { radius: face.innerR }
+                }
                 // W53.0a: the sheen (Vista/7 glass buttons): a light gloss over the upper half of the fill, fading out.
                 Rectangle {
                     visible: under.sheen
@@ -217,12 +231,12 @@ Item {
             anchors.bottomMargin: blk.inset - blk.shift
             anchors.rightMargin: blk.inset - blk.shift
             radius: face.innerR
-            color: blk.ringW > 0 && !blk.sq ? face.shownFill : "transparent"
+            color: blk.ringW > 0 && !blk.sq && !blk.bare ? face.shownFill : "transparent"
             antialiasing: true
             Loader {
                 z: -1
                 anchors.fill: parent
-                active: blk.sq && blk.ringW > 0
+                active: blk.sq && blk.ringW > 0 && !blk.bare
                 sourceComponent: SquircleRect { radius: face.innerR; color: face.shownFill }
             }
             // K62: the pen's text modifiers draw the content (text, icons) through one layer while any is in effect;
@@ -238,7 +252,7 @@ Item {
         Loader {
             id: over
             readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && Theme.texText
-            active: relief || Theme.frame !== "" || (Theme.penOutline && blk.outlineWidth > 0) || Theme.bevelW > 0
+            active: !blk.bare && (relief || Theme.frame !== "" || (Theme.penOutline && blk.outlineWidth > 0) || Theme.bevelW > 0)
             anchors.fill: parent
             sourceComponent: Item {
                 // The frame or the pen draws the outline: the rim leaves its straight line out.

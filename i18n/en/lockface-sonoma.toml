@@ -1,0 +1,3 @@
+# The Sonoma lock face (W53.4, components/lock/SonomaFace.qml): macOS 14's lock screen.
+"lockui.face.name.sonoma" = "Sonoma lock screen"
+"lockui.sonoma.prompt" = "Enter Password"

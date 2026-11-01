@@ -1,0 +1,31 @@
+# vibrancy's layout preset (W53.4, K80): the translucent 24 px menu bar along the top — our mark's menu first, the island
+# in the middle, the menu extras, Control Centre (quick settings) and the clock at the end, as macOS 11–14 — and the
+# floating Dock at the bottom, a gap off the screen's edge (docs/ux/styles.md §6). Offered with the style ("Also use its
+# layout"), never applied by itself (K45).
+schema_version = 7
+
+[theme]
+style = "vibrancy"
+
+[bar]
+height = 24
+
+[edges.top]
+bar = true
+start = ["launcher", "workspaces"]
+center = ["island"]
+end = ["volume", "mods", "recorder", "keyboard", "tray", "quick", "clock"]
+
+[dock]
+enabled = true
+edge = "bottom"
+visibility = "always"
+draw = "floating"
+icon_size = 48
+
+# Notification Centre: notifications over the calendar widget, floating at the top right under the menu bar (the look's
+# `centre.form = flyouts` makes each a flyout); no quick tiles there — they are Control Centre's.
+[sidebar.right]
+sections = ["notifications", "calendar"]
+width = 360
+draw = "floating"

@@ -148,7 +148,7 @@ bevels, OS colours, how things move, fonts, symbols, materials, controls — is 
 (rule 4). A family card writes toml and decor parts only.
 
 **Slots** (`[slots]` in a look, `appearance::SLOTS`): `frame`, `title`, `start`, `tray`, `menu`, `scroll`, `tooltip`,
-`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`, `bar` (W53.2). Each is a component name (a slug; `""` or left out = the
+`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`, `bar` (W53.2), `dock` (W53.4). Each is a component name (a slug; `""` or left out = the
 default, today's shell), published as `decor.<slot>`. A host loads `components/decor/<slot>/<Name>.qml` (kebab →
 Pascal, `DecorHost.qml`) and never compares the name; without a slot nothing is made and the caller draws its own
 default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<Slot>Base.qml`. Hosts:
@@ -162,6 +162,8 @@ default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<S
 | `ScrollStyle` | scroll | every ScrollBar: `width(own)`, `arrows`, `thumb`, `part` | the thin bar |
 | `TooltipStyle` | tooltip | dock tooltip, peeks: `fill(own)`, `ink(own)`, `tail`, `part` | the caller's |
 | `BarGround` | bar | under the bar's strip (W53.2: the strip leaves its own fill out while a part draws), `edge` | the strip's fill |
+| `DockGround` | dock | the dock's floating body (W53.4, row 605: the Block steps aside while a part draws), `edge`, `mirror` (the icon list), `icon`; `tiles`, `indicator` for the caller | the dock's Block |
+| `Pattern` | (metrics) | window-sized Blocks (≥ 120 × 64 with a fill), the Stage card's ground, parts that ask (a menu bar, a caption, a dock, a skin) | nothing |
 | `WindowEdge` | (metrics) | a captioned Stage card under a look without the bevel chrome: `border.width` px of `border.color` (W53.2) | BevelEdge under bevel looks (row 595) |
 | `Slider` (W53.3) | slider | every Slider: the part draws track, fill and thumb for `value`, `pressed` (and `hovered` where it has one) | the shell's rail and knob |
 | `FocusRing` | (metrics) | every focusable control | `ring` 1 px |
@@ -187,6 +189,20 @@ glow), `start/Pill.qml` (a glossy pill the bar's thickness, square on the screen
 `menu/Flat.qml` (a band, `menu.separator` honoured) and `menu/Capsule.qml` (7's list highlight), `button/Gloss.qml` and
 `button/Glass.qml`, the helpers `CaptionGlyph.qml` (×, _, □, restore at any size, with a rim) and `PaneMark.qml` (the
 original four-pane start mark from roles), and the lock faces `WelcomeFace.qml` and `LogonGlassFace.qml`.
+W53.4 adds the Mac eras' parts: `title/Lights.qml` (the traffic lights — close, minimize, zoom always in the Mac's order
+on `title.buttons`' side, a button the daemon does not list leaves its place empty; `title.close_fill`/`min_fill`/`max_fill`
+roles brought to a lamp's brightness; gels with `title.gloss`, flat discs at 0; marks on hover of the group; the band
+patterned), `bar/Menu.qml` (a menu bar: `bar.fill` at the material's alpha, the pattern, a hairline in `bar.edge` and
+a shade beyond it while opaque), `start/Mark.qml` (the menu bar's first item: `MenuMark.qml`, an original setting-sun
+mark — never Apple's logo — gel with `start.gloss`; held open it is a menu title: the full-height `menu.fill` band under
+`menu.highlight = bar`, an inset rounded one otherwise) with the skins `start/DropMenu.qml` (a pull-down hanging square
+from the bar, 5 px far corners, patterned) and `start/Popover.qml` (a vibrancy panel, double hairline rim),
+`button/Gel.qml` (Aqua's capsule gel; the default button pulses `button.pulse` times, then rests), `menu/Gel.qml` (a
+gel band, `menu.gloss`), `dock/Shelf.qml` (the Dock's body: translucent `dock.fill`, a glassy lip, with
+`dock.reflection` a shelf line and the icons' mirror under it — one ShaderEffectSource redrawn only when the icons
+change), the helper `Pattern.qml` (one tiled image from `decor/textures/`, tools/styles/patterns.py, CC0) and the lock
+faces `LoginWindowFace.qml` and `SonomaFace.qml`. Push buttons host the button slot (row 604: `Button.qml`, the Block
+`bare` under the part; `ButtonBase.ink` names the label's ink) and a toast balloon's tail points at the island (row 603).
 `frontend/StyleSheet.qml` shows every part of the look in effect and its lock face in any state on the sandbox's own
 Quickshell (`KURASHI_SHEET=parts|lock|lock-error|lock-caps|lock-busy|lock-wait|lock-prompt|lock-secondary`).
 
@@ -205,6 +221,7 @@ default filled in:
 | scroll bar | `scroll.width` (0 = own), `scroll.arrows` (false), `scroll.thumb` (pill · flat · bevel · gel) |
 | tooltip | `tooltip.fill`, `tooltip.on` ("" = own), `tooltip.tail` (false), `tooltip.radius` (-1), `tooltip.border` ("") |
 | tray, separators, bar | `tray.sunken` (false), `separator.style` (line · etched · none), `bar.group` (block · none: no raised block round each bar group, one strip — row 596), `tray.fill` (""), `bar.fill` ([]), `bar.edge` (""), `bar.gloss` (0) |
+| Mac eras (W53.4) | `title.min_fill`, `title.max_fill` ("" = warning, success), `pattern.kind` (none · stripes · brushed), `pattern.period` (4), `pattern.strength` (0), `dock.fill` ([]), `dock.radius` (-1), `dock.reflection` (0), `dock.indicator` (dots · dot · triangle), `dock.tiles` (block · none), `button.radius` (-1), `button.gloss` (0), `button.pulse` (0), `button.pulse_ms` (1500), `start.gloss` (0), `menu.gloss` (0), `start.form` (search · menu: the system's menu on an empty start field), `flyout.hang` (false: flyouts and start skins meet their bar square) |
 | focus | `focus.style` (ring · dotted · double · halo), `focus.offset` (0; negative = inside), `focus.width` (1) |
 | start | `start.label` (false), `start.fill` ([]), `start.family` ([]; resolved as `font.start`), `start.size` (0), `start.italic` (false) |
 | type | `type.pixel` (false), `type.pixel_step` (1) |
