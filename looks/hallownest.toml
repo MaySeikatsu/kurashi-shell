@@ -84,3 +84,13 @@ sounds = "hallownest"
 "cursor" = "hallownest"
 # Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
 "quick.frame" = "flyout"
+# The launcher as the game's menus (lead review): rows centred in the serif with no boxes, icons dimmed and small, the
+# fleurs' room kept at both ends of a row (they never cover text), the field a line under the query, the start menu a
+# veil with an ornament over and under it rather than a framed panel; Cormorant's small x-height set a step larger.
+"menu.align" = "center"
+"menu.icons" = "dim"
+"menu.lead" = 20
+"menu.trail" = 20
+"field.form" = "underline"
+"start.skin" = "veil"
+"type.scale" = 1.15

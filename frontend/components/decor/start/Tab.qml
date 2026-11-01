@@ -12,8 +12,8 @@ import ".."
 StartBase {
     id: st
     property real thickness: Theme.barH
-    // The start-menu skin: a game menu's plain panel (no banner).
-    menu: Qt.resolvedUrl("Panel.qml")
+    // The start-menu skin (`[decor] start.skin`): a framed panel or a veil without a box (no banner either way).
+    menu: Qt.resolvedUrl(Theme.pascal(Theme.decor("start.skin", "panel")) + ".qml")
     signal clicked()
 
     readonly property bool down: pressed || open || hit.pressed

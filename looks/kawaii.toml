@@ -27,10 +27,11 @@ lock = "pastel-os"
 sounds = "kawaii"
 
 [decor]
-# The art pixel: 2 screen px (measured), and the type on DotGothic16's 16-dot grid.
-"pixel" = 2
+# The type drawn unsmoothed (DotGothic16 is a dot face) at the shell's own sizes — 13 px body, exactly its 16-dot grid
+# under large text — not snapped to 16 px steps: those wrapped quick settings and doubled to 32 under large text (lead
+# review). No `pixel` grid either: that is the 16-bit looks' virtual screen; the caption's art pixel is its own 2 px.
 "type.pixel" = true
-"type.pixel_step" = 16
+"type.pixel_step" = 1
 # The caption: a flat 26 px pink band (grey without focus), violet type after the icon, square outlined keys 20 px on a
 # 24 px pitch, the close one a pixel heart.
 "title.height" = 26

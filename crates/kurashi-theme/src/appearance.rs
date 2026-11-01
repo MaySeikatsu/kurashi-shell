@@ -386,6 +386,18 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // outlines a boxed start dress (`start/Tab` with a `start.fill`).
     k("border.line", Role, r#""""#),
     k("border.line_width", Int(0, 4), "0"),
+    // W53.6 (lead review): a launcher row's text centred between its ends (`center`: Hollow Knight's centred serif rows) or
+    // from the start (today's); its icons shown (today's), dimmed and smaller, or hidden; room kept at the row's end for a
+    // menu part's mark (px; 0 = today's; W53.5's `menu.lead` keeps it at the start), so a mark never covers text.
+    k("menu.align", Choice(&["start", "center"]), r#""start""#),
+    k("menu.icons", Choice(&["show", "dim", "hide"]), r#""show""#),
+    k("menu.trail", Int(0, 48), "0"),
+    // W53.6 (lead review): every type size times this (a face with a small x-height, Cormorant's, reads as a size smaller
+    // than Inter's), before the pixel step; 1 = today's.
+    k("type.scale", Num(0.8, 1.5), "1.0"),
+    // W53.6 (lead review): a word tab's start-menu skin (`start/Tab`): a framed panel (today's) or a veil — no box, the
+    // panel's ground fading out at its edges, the look's caption rule over and under it (Hollow Knight's floating menus).
+    k("start.skin", Choice(&["panel", "veil"]), r#""panel""#),
     // W53.5 (snes, ps2; any look): a card's fill in this many hard bands, top to bottom from `fill.band_top` to
     // `fill.band_bottom` (roles; "" = the container lighter / darker) — 16-bit windows' banded gradient (0 = one fill).
     k("fill.bands", Int(0, 16), "0"),
