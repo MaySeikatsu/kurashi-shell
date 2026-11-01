@@ -281,6 +281,8 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.5 (snes, ps2; any look): a card's fill in this many hard bands, top to bottom from `fill.band_top` to
     // `fill.band_bottom` (roles; "" = the container lighter / darker) — 16-bit windows' banded gradient (0 = one fill).
     k("fill.bands", Int(0, 16), "0"),
+    // Each band this tall instead (grid pixels on a pixel grid, else px; 0 = `fill.bands` bands): FF6's 5-row bands.
+    k("fill.band_h", Int(0, 64), "0"),
     k("fill.band_top", Role, r#""""#),
     k("fill.band_bottom", Role, r#""""#),
     // W53.5: the island's line types itself out once when its face changes (`type`: an RPG text box), at this many

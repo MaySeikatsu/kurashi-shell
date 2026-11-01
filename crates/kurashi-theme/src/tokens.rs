@@ -285,14 +285,16 @@ pub fn build(
     // W53.5: bitmap type grows by whole steps only — large text (a type scale above 1) multiplies every snapped size by
     // the next whole number (×2 for 1.25), so an 8 × 8 face at ×2 becomes ×4, never a blurred ×2.5. The pixel grid
     // (`[decor] pixel`) grows with it: `pixel.scale`.
-    let whole = if step > 1.0 {
+    // (Only on a pixel grid, `[decor] pixel` > 0: other bitmap looks keep snapping the scaled size to one step.)
+    let grid = dnum("pixel") > 0.0;
+    let whole = if step > 1.0 && grid {
         axes.type_scale.clamp(1.0, 3.0).ceil()
     } else {
         1.0
     };
     t.insert(
         "pixel.scale".into(),
-        json!(if dnum("pixel") > 0.0 {
+        json!(if grid {
             axes.type_scale.clamp(1.0, 3.0).ceil() as i64
         } else {
             1
@@ -303,8 +305,10 @@ pub fn build(
         px(
             &mut t,
             &format!("font.size.{n}"),
-            if step > 1.0 {
+            if step > 1.0 && grid {
                 (v / step).round().max(1.0) * step * whole
+            } else if step > 1.0 {
+                (size / step).round().max(1.0) * step
             } else {
                 size
             },

@@ -40,6 +40,7 @@ sounds = "ps2"
 "menu.row" = 34
 "menu.highlight" = "bar"
 "menu.separator" = "space"
+"menu.on" = "accent"
 "menu.radius" = 0
 "scroll.width" = 8
 "scroll.thumb" = "flat"

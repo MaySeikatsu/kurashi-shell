@@ -109,6 +109,7 @@
   "decor.cursor_decoration": "",
   "decor.field.form": "box",
   "decor.fill.band_bottom": "",
+  "decor.fill.band_h": 0,
   "decor.fill.band_top": "",
   "decor.fill.bands": 0,
   "decor.focus": "",

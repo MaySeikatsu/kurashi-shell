@@ -5,10 +5,10 @@ import "../../core"
 // Cards: faint light towers rising from the bottom (one Canvas paint), a few sparkle motes and a blue glow line along
 // the bottom edge. Small blocks: the glow line. Ground: the void with a deep blue floor glow and taller towers that
 // rise once when the surface appears (only while `animate`). The original's motes drift forever; here they stand
-// still (Ma: an idle shell renders no frames). Tower blue = accent, deep blue = tertiary.
+// still (Ma: an idle shell renders no frames). Tower blue = tertiary lifted, deep blue = tertiary (the accent is the selection's light blue, W53.5).
 FrameBase {
     id: f
-    readonly property color blue: Theme.accent
+    readonly property color blue: Qt.lighter(Theme.tertiary, 1.15)
     readonly property color deep: Theme.tertiary
 
     function hash(x) { var s = Math.sin(x * 12.9898) * 43758.5453; return s - Math.floor(s) }
