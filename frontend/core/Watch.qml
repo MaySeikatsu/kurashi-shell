@@ -18,5 +18,10 @@ QtObject {
     onDocChanged: sync()
     onActiveChanged: sync()
     Component.onCompleted: sync()
-    Component.onDestruction: { active = false; sync() }
+    // Inline, not `active = false; sync()`: during teardown the object's own functions may already be gone
+    // ("sync is not a function", seen on nested niri).
+    Component.onDestruction: {
+        if (_held !== "") Store.unwatch(_held)
+        _held = ""
+    }
 }
