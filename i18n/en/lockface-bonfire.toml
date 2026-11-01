@@ -1,0 +1,4 @@
+# The bonfire lock face (W53.6, components/lock/BonfireFace.qml): a resting place in the dark, after Dark Souls' menus.
+"lockui.face.name.bonfire" = "Bonfire"
+"lockui.bonfire.prompt" = "Password"
+"lockui.bonfire.again" = "Try again"
