@@ -113,3 +113,7 @@ sounds = "aqua"
 "quick.frame" = "flyout"
 "quick.tiles" = "compact"
 "toast.place" = "corner"
+# The Apple menu: the start mark opens the system's menu (typing searches, Spotlight's way); quick settings hang from the
+# menu bar square, pinstriped, their far corners rounded — a menu extra's drop-down.
+"start.form" = "menu"
+"flyout.hang" = true
