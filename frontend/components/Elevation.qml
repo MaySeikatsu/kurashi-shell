@@ -41,28 +41,31 @@ Loader {
     readonly property var qsw: QsWindow.window
     readonly property bool lamp: Theme.elevationPointer && Light.wanted && Light.k > 0 && !!qsw && !!qsw.screen
         && Light.output === qsw.screen.name
+    // The lamp held on this output (the wallpaper's light, the spotlight's pin: Light.heldLamp) under follow: the shadow
+    // falls away from it here, its length from how low it stands (I338: the relief's light and the shadows are one).
+    readonly property point held: {
+        var h = Light.heldLamp(qsw)
+        return h ? h : Qt.point(-1e9, -1e9)
+    }
+    readonly property bool pinned: held.x > -1e8
     readonly property point centre: {
-        if (!lamp) return Qt.point(0, 0)
+        if (!lamp && !pinned) return Qt.point(0, 0)
         var o = Light.originOf(qsw), p = el.mapToItem(null, el.width / 2, el.height / 2)
         return Qt.point(o.x + p.x, o.y + p.y)
     }
-    readonly property real wantX: {
-        if (!lamp) return Theme.elevationDir[0]
-        var dx = centre.x - Light.x, dy = centre.y - Light.y, n = Math.hypot(dx, dy)
-        return n < 1 ? Theme.elevationDir[0] : dx / n
-    }
-    readonly property real wantY: {
-        if (!lamp) return Theme.elevationDir[1]
-        var dx = centre.x - Light.x, dy = centre.y - Light.y, n = Math.hypot(dx, dy)
-        return n < 1 ? Theme.elevationDir[1] : dy / n
-    }
+    readonly property var want: lamp ? Light.awayFrom(Light.x, Light.y, centre.x, centre.y, Theme.elevationDir)
+        : pinned ? Light.awayFrom(held.x, held.y, centre.x, centre.y, Theme.elevationDir) : Theme.elevationDir
+    readonly property real wantX: want[0]
+    readonly property real wantY: want[1]
+    // The key's length factor (the daemon's for a directional light, the lamp's height here for a held or pointer lamp).
+    readonly property real len: want[2]
     property real ux: wantX
     property real uy: wantY
     Behavior on ux { enabled: el.lamp && el.visible && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
     Behavior on uy { enabled: el.lamp && el.visible && Theme.springOn; NumberAnimation { duration: Theme.longMs; easing.type: Easing.OutCubic } }
 
     // How far the shadow reaches past the shape (blur and the key's offset): the clip's margin on uncut sides.
-    readonly property real reach: Math.max(l[0] * s, l[2] * Theme.elevationDir[2] * s + l[3] * Math.max(0.5, s)) + 2
+    readonly property real reach: Math.max(l[0] * s, l[2] * 2 * s + l[3] * Math.max(0.5, s)) + 2
     sourceComponent: Item {
         x: el.cutLeft ? 0 : -el.reach
         y: el.cutTop ? 0 : -el.reach
@@ -111,8 +114,8 @@ Loader {
         RectangularShadow {
             anchors.fill: parent
             radius: Math.min(el.radius, Math.min(width, height) / 2)
-            offset.x: el.ux * el.mirrorX * el.l[2] * Theme.elevationDir[2] * el.s
-            offset.y: el.uy * el.mirrorY * el.l[2] * Theme.elevationDir[2] * el.s
+            offset.x: el.ux * el.mirrorX * el.l[2] * el.len * el.s
+            offset.y: el.uy * el.mirrorY * el.l[2] * el.len * el.s
             blur: el.l[3] * Math.max(0.5, el.s)
             spread: -1
             color: Qt.alpha(el.ink, Math.min(0.9, el.l[4] * el.s * el.dark))

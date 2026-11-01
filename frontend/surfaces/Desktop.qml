@@ -66,13 +66,37 @@ PanelWindow {
     readonly property int keyLift: Math.max(0, editKey.height - Theme.pad + 2)
     readonly property int colTop: Math.max(28, keyLift + 8)
     readonly property int sideGap: 32
+    // I338: room round the cards for their elevation (level 2: Elevation.qml's reach), outside the input region; the
+    // window grows by it and the cards stand where they stood.
+    readonly property int room: Theme.elevationMode === "off" || Theme.elevationStrength <= 0 ? 0
+        : Math.ceil(Math.max(26 * Theme.elevationStrength, 12 * Theme.elevationStrength + 14 * Math.max(0.5, Theme.elevationStrength))) + 2
     margins {
-        top: zoneOf("top") + colTop - keyLift
-        left: desk.both ? 0 : zoneOf("left") + sideGap
-        right: desk.both ? 0 : zoneOf("right") + sideGap
+        top: Math.max(0, zoneOf("top") + colTop - keyLift - room)
+        left: desk.both ? 0 : Math.max(0, zoneOf("left") + sideGap - room)
+        right: desk.both ? 0 : Math.max(0, zoneOf("right") + sideGap - room)
     }
-    implicitWidth: desk.cardW
-    implicitHeight: Math.max(1, Math.max(leftCol.height, rightCol.height) + keyLift)
+    // (how much of the room the margin could give: the cards keep their place on the output)
+    readonly property int padTop: Math.min(room, zoneOf("top") + colTop - keyLift)
+    readonly property int padSide: desk.both ? 0 : Math.min(room, zoneOf(desk.leftOn || !desk.rightOn ? "left" : "right") + sideGap)
+    implicitWidth: desk.both ? 0 : desk.cardW + padSide + room
+    implicitHeight: Math.max(1, Math.max(leftCol.height, rightCol.height) + keyLift + padTop + room)
+
+    // I322: the cards' backdrop blur (glass): each card's rounded box, never the gaps between them.
+    property var blurSlots: []
+    function addBlur(it) { if (blurSlots.indexOf(it) < 0) blurSlots = blurSlots.concat([it]) }
+    function dropBlur(it) { var l = blurSlots.filter(function (e) { return e !== it }); if (l.length !== blurSlots.length) blurSlots = l }
+    readonly property int blurR: Theme.rLg + 4
+    BackgroundEffect.blurRegion: Region {
+        item: Theme.blur && desk.blurSlots.length > 0 ? desk.blurSlots[0] : null
+        radius: desk.blurR
+        Region { item: Theme.blur && desk.blurSlots.length > 1 ? desk.blurSlots[1] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 2 ? desk.blurSlots[2] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 3 ? desk.blurSlots[3] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 4 ? desk.blurSlots[4] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 5 ? desk.blurSlots[5] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 6 ? desk.blurSlots[6] : null; radius: desk.blurR }
+        Region { item: Theme.blur && desk.blurSlots.length > 7 ? desk.blurSlots[7] : null; radius: desk.blurR }
+    }
     // While both columns stand only they take the pointer (the desk between them is the windows' and the wallpaper's).
     mask: Region {
         item: leftCol
@@ -639,6 +663,9 @@ PanelWindow {
 
     Item {
         id: root
+        // (inside the elevation's room: the window's top and side margins gave up `padTop` / `padSide` for it)
+        x: desk.both ? 0 : (desk.leftOn || !desk.rightOn ? desk.padSide : desk.room)
+        y: desk.padTop
         width: desk.both ? desk.width : desk.cardW
         height: Math.max(leftCol.height, rightCol.height) + desk.keyLift
         focus: true
@@ -869,6 +896,17 @@ PanelWindow {
                         if (next) next.forceActiveFocus()
                         event.accepted = true
                     }
+
+                    // I338: the card stands on the desk at level 2, its shadow from the shell's light; I322: its blur.
+                    Elevation {
+                        visible: slot.showReal && !slot.dragging
+                        anchors.fill: real
+                        radius: Theme.rLg + 4
+                        level: 2
+                    }
+                    readonly property bool blurs: slot.showReal && real.item !== null
+                    onBlursChanged: blurs ? desk.addBlur(real) : desk.dropBlur(real)
+                    Component.onDestruction: desk.dropBlur(real)
 
                     // The card itself: made while it is shown (a mod's card keeps its subscriptions for as long as it shows, and
                     // says itself when it has nothing to show) and while editing. A hidden card is not made outside edit mode

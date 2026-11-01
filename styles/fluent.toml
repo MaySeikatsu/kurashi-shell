@@ -9,3 +9,5 @@ palette = "fluent"
 [recipe]
 "theme.colors.scheme" = "light"
 "theme.density" = "regular"
+# 11's flyouts have no title bar: the island's cards none either until the switch is turned on (I325, user).
+"title_bar.buttons" = "off"

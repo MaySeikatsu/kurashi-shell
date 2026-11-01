@@ -308,6 +308,11 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.3: the share of the soft chrome's shadow a block casts (1 = today's; 0 = flat controls, the surfaces keep their
     // elevation) and the corner of the quick settings' tiles (-1 = a pill, today's).
     k("chrome.soft_scale", Num(0.0, 1.0), "1.0"),
+    // I338 (session 18): what casts the surfaces' elevation besides the surfaces, while it is on — the share a block (a
+    // button, a key, a tile, a card) casts where the chrome has no shadow of its own (flat, line, bevel: 1 = a small key
+    // shadow from the shell's light; 0 = blocks lie flat), and the share an icon's glyph casts (0 = none, today's).
+    k("elevation.blocks", Num(0.0, 1.0), "1.0"),
+    k("elevation.icons", Num(0.0, 1.0), "0.0"),
     k("tile.radius", Int(-1, 24), "-1"),
     // W53.3 (lead review): the quick settings card's chrome — a phone (K42, today's) or a plain flyout of the panel's
     // material — and its tiles: wide pills in two columns (today's) or compact buttons in three, the label under them.
@@ -542,11 +547,13 @@ pub const LOOK_KEYS: &[&str] = &[
     "theme.material.kind",
     "theme.material.opacity",
     "theme.material.blur",
+    "theme.material.elevation",
     "theme.motion.profile",
     "theme.motion.speed",
     "theme.typography.family",
     "theme.typography.family_jp",
     "theme.texture.kind",
+    "theme.texture.scope",
     "theme.texture.strength",
     "theme.texture.scale",
     "theme.texture.wrinkles",
@@ -565,6 +572,7 @@ pub const LOOK_KEYS: &[&str] = &[
 /// The material keys a look or style sets (K59): the user's own come back with `theme.texture.restore`.
 pub const TEXTURE_KEYS: &[&str] = &[
     "theme.texture.kind",
+    "theme.texture.scope",
     "theme.texture.strength",
     "theme.texture.scale",
     "theme.texture.wrinkles",
@@ -602,6 +610,19 @@ pub const STYLE_KEYS: &[&str] = &[
     "theme.texture.wrinkles",
     "theme.texture.tint",
     "theme.colors.ink",
+    "theme.material.elevation",
+    "theme.texture.scope",
+    "theme.texture.depth",
+    "theme.texture.shadows",
+    "theme.texture.cracks",
+    "theme.texture.crack_style",
+    "theme.pen.line",
+    "theme.pen.pressure",
+    "theme.pen.breaks",
+    "theme.pen.fade",
+    "theme.pen.wobble",
+    // A style may say whether its cards wear a title bar (fluent: none, I325); applying another style resets it.
+    "title_bar.buttons",
 ];
 
 /// The categories Settings groups packs by, in its order. A pack naming another one is `custom`.

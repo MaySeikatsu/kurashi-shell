@@ -580,6 +580,11 @@ fn refused_reason(kind: Kind) -> &'static str {
     }
 }
 
+/// I322: kurashi's surfaces on the top and overlay layers blur what lies behind them — the windows — not only the
+/// wallpaper. niri blurs a layer surface in "xray" mode (the wallpaper alone) unless a rule says otherwise; this file is
+/// the include of ours niri already reads, so the rule rides with the binds (the Home-Manager module writes the same).
+pub const NIRI_LAYER_RULES: &str = "\n// Kurashi's panels blur the windows behind them, not only the wallpaper (niri's layer surfaces blur in xray mode\n// otherwise).\nlayer-rule {\n    match namespace=\"^kurashi-\" layer=\"top\"\n    match namespace=\"^kurashi-\" layer=\"overlay\"\n    background-effect {\n        xray false\n    }\n}\n";
+
 /// The stub a file of ours becomes while `keys.write` is off: an include that names it keeps working (niri refuses a
 /// config whose include is missing), and binds nothing.
 fn stub(kind: Kind) -> String {
@@ -590,6 +595,7 @@ fn stub(kind: Kind) -> String {
     );
     if kind == Kind::Niri {
         s.push_str("binds {\n}\n");
+        s.push_str(NIRI_LAYER_RULES);
     }
     s
 }
@@ -658,6 +664,7 @@ fn render_niri(entries: &[Entry], kurashi: &Path, titles: &[String]) -> String {
         ));
     }
     s.push_str("}\n");
+    s.push_str(NIRI_LAYER_RULES);
     s
 }
 

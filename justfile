@@ -99,3 +99,4 @@ webdock:
 shaders:
     qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/relief.frag.qsb frontend/shaders/relief.frag
     qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/pen_text.frag.qsb frontend/shaders/pen_text.frag
+    qsb --glsl "100es,120,150" --hlsl 50 --msl 12 -o frontend/shaders/sheet_shadow.frag.qsb frontend/shaders/sheet_shadow.frag

@@ -111,6 +111,9 @@ Scope {
         property var fillets: []
         property var rules: []
         property var arcs: []
+        // I338: the hole [x0, y0, x1, y1, radius] (output px) and the part of it whose shadow this strip draws.
+        property var hole: [0, 0, 0, 0, 0]
+        property rect own: Qt.rect(0, 0, 0, 0)
         readonly property bool holder: host.holds(edge)
 
         screen: host.modelData
@@ -145,6 +148,15 @@ Scope {
             item: Theme.blur ? pieces.fillAt(0) : null
             Region { item: Theme.blur && pieces.fillCount > 1 ? pieces.fillAt(1) : null }
             Region { item: Theme.blur && pieces.fillCount > 2 ? pieces.fillAt(2) : null }
+        }
+
+        // The sheet's shadow into the hole (I338, K78 decision 4): the strip's room on its inner side holds it.
+        SheetShadow {
+            anchors.fill: parent
+            x0: strip.hole[0]; y0: strip.hole[1]; x1: strip.hole[2]; y1: strip.hole[3]; radius: strip.hole[4]
+            origin: Qt.point(strip.ox, strip.oy)
+            own: strip.own
+            opacity: pieces.opacity
         }
 
         FramePieces {
@@ -191,6 +203,13 @@ Scope {
             readonly property var rightP: FG.side(g, false)
             function sideFrom(e) { return FG.sideFrom(g, e) }
             function sideTo(e) { return FG.sideTo(g, e) }
+            // I338: the sheet's shadow into the hole. Every window of the sheet grows by `room` on its inner side; the hole
+            // (an edge without a sheet lies far off: nothing casts there) and who paints which part of it — the top and
+            // bottom windows (strips or the bars carrying them) their depth plus the room, the sides the rest, split down
+            // the middle (FG.shadowOwn, the bars' rule too).
+            readonly property int room: Theme.sheetReach
+            readonly property var hole: FG.hole(g)
+            readonly property var own: FG.shadowOwn(g, room)
 
             // Made in this order on purpose (see the header): top and bottom first, then the sides — once the top and
             // bottom surfaces (or the bars that carry them) exist: a nested loader would otherwise finish, and map, first.
@@ -205,8 +224,9 @@ Scope {
                     host: fr
                     edge: "top"
                     anchors { top: true; left: true; right: true }
-                    implicitHeight: Math.max(1, strips.topP.d)
+                    implicitHeight: Math.max(1, strips.topP.d) + strips.room
                     ox: 0; oy: 0
+                    hole: strips.hole; own: strips.own.top
                     fills: strips.topP.fills; fillets: strips.topP.fillets; rules: strips.topP.rules; arcs: strips.topP.arcs
                 }
             }
@@ -217,8 +237,9 @@ Scope {
                     host: fr
                     edge: "bottom"
                     anchors { bottom: true; left: true; right: true }
-                    implicitHeight: Math.max(1, strips.bottomP.d)
-                    ox: 0; oy: strips.sh - Math.max(1, strips.bottomP.d)
+                    implicitHeight: Math.max(1, strips.bottomP.d) + strips.room
+                    ox: 0; oy: strips.sh - Math.max(1, strips.bottomP.d) - strips.room
+                    hole: strips.hole; own: strips.own.bottom
                     fills: strips.bottomP.fills; fillets: strips.bottomP.fillets; rules: strips.bottomP.rules; arcs: strips.bottomP.arcs
                 }
             }
@@ -228,10 +249,11 @@ Scope {
                     host: fr
                     edge: "left"
                     anchors { left: true; top: true; bottom: true }
-                    implicitWidth: strips.leftP.w
+                    implicitWidth: strips.leftP.w + strips.room
                     margins.top: strips.leftP.y0 - strips.sideFrom("left")
                     margins.bottom: strips.sh - strips.leftP.y1 - strips.sideTo("left")
                     ox: 0; oy: strips.leftP.y0
+                    hole: strips.hole; own: strips.own.left
                     fills: strips.leftP.fills; rules: strips.leftP.rules
                 }
             }
@@ -241,10 +263,11 @@ Scope {
                     host: fr
                     edge: "right"
                     anchors { right: true; top: true; bottom: true }
-                    implicitWidth: strips.rightP.w
+                    implicitWidth: strips.rightP.w + strips.room
                     margins.top: strips.rightP.y0 - strips.sideFrom("right")
                     margins.bottom: strips.sh - strips.rightP.y1 - strips.sideTo("right")
-                    ox: strips.rightP.x; oy: strips.rightP.y0
+                    ox: strips.rightP.x - strips.room; oy: strips.rightP.y0
+                    hole: strips.hole; own: strips.own.right
                     fills: strips.rightP.fills; rules: strips.rightP.rules
                 }
             }

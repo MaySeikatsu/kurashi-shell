@@ -17,6 +17,8 @@ category = "inspired"
 "theme.texture.tint" = true
 # K61: the dots and fibres cast faint shadows; the pen swells and thins a little.
 "theme.texture.shadows" = "on"
+# Notebook sheets lie on the desk: they cast soft shadows away from the light (I338).
+"theme.material.elevation" = "follow"
 "theme.pen.pressure" = 0.35
 # Every outline as its blocks' (session 17): the text's ink, sketched — the frame, the island, cards and sidebars too.
 "theme.outline_ink" = "text"
@@ -30,6 +32,8 @@ lock = "notebook"
 sounds = "kami"
 
 [decor]
+# Doodled symbols sit on the page with a faint pencil shadow (I338).
+"elevation.icons" = 0.5
 # Menus: the content starts right of the margin rule (14 px of lead; the rule 9 px in), no band — the red pen underlines.
 "menu.lead" = 14
 "menu.highlight" = "bar"

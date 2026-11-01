@@ -1059,7 +1059,10 @@ PanelWindow {
     // strip's own opacity (0 when the two are equal; the strip's colour shows there, as the rest of the bar's).
     readonly property real stripA: Theme.surfaceAlpha.a
     readonly property real headA: stripA >= 0.999 ? Theme.panel.a : Math.max(0, (Theme.panel.a - stripA) / (1 - stripA))
-    readonly property color headFill: Qt.alpha(shapeFill, lerp(Theme.panel.a, headA, tgrow))
+    // I337: on a strip (no block of its own to join: line, flat, bevel) the open card hangs from the bar's edge by its
+    // fillets — the head, the part inside the bar, melts into the strip as it grows (the face rides on the strip), so no
+    // box with corners of its own stands in the bar. Joined, the head is the island's block and keeps the panel's fill.
+    readonly property color headFill: Qt.alpha(shapeFill, lerp(Theme.panel.a, joined ? headA : 0, tgrow))
     // The neck of a headless joined shape: under the block the origin stands in (its bar group, or the pill), as near the
     // body's centre as the block's flat foot allows — so it slides along the block with the body — and letting go once
     // the body has travelled past the block (the card then floats under the bar; it is caught again on the way back).
@@ -1137,15 +1140,17 @@ PanelWindow {
         }
         // W57 (K78): the card's elevation; cut along the bar it grows out of (one sheet with it).
         Elevation {
-            visible: shape.h > 1
+            // I337: a card grown out of a strip casts from the bar's edge down (the bar is the same sheet), never onto it.
+            readonly property real topY: stage.joined || !stage.morphMode ? shape.y0 : Math.max(shape.y0, stage.barEdgeY)
+            visible: shape.h > 1 && shape.y0 + shape.h - topY > 1
             opacity: stage.shapeFade
             x: shape.x0
-            y: shape.y0
+            y: topY
             width: shape.w
-            height: shape.h
+            height: shape.y0 + shape.h - topY
             radius: Math.min(shape.rTop, shape.rBot)
             level: 3
-            cutTop: stage.joined
+            cutTop: stage.joined || stage.morphMode
             mirrorY: stage.flip ? -1 : 1
         }
         MorphShape {

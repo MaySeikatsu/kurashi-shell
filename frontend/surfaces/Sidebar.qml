@@ -123,6 +123,11 @@ Scope {
             readonly property string joinStart: !floating && sl.joins ? free(sl.joins.start) : ""
             readonly property string joinEnd: !floating && sl.joins ? free(sl.joins.end) : ""
             readonly property int joinR: Math.max(0, sb.num(sl.radius, floating ? 0 : ShellLayout.joinRadius))
+            // I341: a floating column on a framed output stands concentric with the frame's hole — its corners the hole's
+            // radius less the gap it keeps (K74, Theme.nested), so the gap is one width all round the hole's corner; on an
+            // output without a frame, the look's radius.
+            readonly property int floatR: (lay.frame || {}).on === true && (lay.frame.radius || 0) > 0
+                ? Theme.nested(lay.frame.radius, inset) : Theme.rLg
             // A docked bar on the sidebar's own side: its outer side meets the bar (one sheet).
             readonly property var sideEdge: edges[sb.side] || ({})
             readonly property bool sideBar: !floating && sideEdge.bar === true && sideEdge.draw !== "floating"
@@ -418,7 +423,7 @@ Scope {
                     property var tileSheet: tilesLoader.item
                     // I269: a section's plate lies `pad` inside the column's corner: concentric with it (the column's
                     // corner: the look's radius floating, the hole's joined).
-                    readonly property int sectionR: Theme.nested(col.floating ? Theme.rLg : col.joinR, Theme.pad)
+                    readonly property int sectionR: Theme.nested(col.floating ? col.floatR : col.joinR, Theme.pad)
                     // W53.3 (`[decor] centre.form = flyouts`): a floating right column draws no body — its sections are
                     // flyouts of their own (RightColumn), blurred each where it lies.
                     readonly property bool flyouts: col.floating && sb.side === "right"
@@ -585,7 +590,7 @@ Scope {
                                 y: shape.bodyRect.y
                                 width: shape.bodyRect.width
                                 height: shape.bodyRect.height
-                                radius: Theme.rLg
+                                radius: col.floatR
                                 // The column is drawn mirrored for the left side (the Scale above): mirror the shadow's x
                                 // back so it falls the way the light says on both sides (K67, row 421).
                                 mirror: sb.side === "left" ? -1 : 1
@@ -597,7 +602,7 @@ Scope {
                                 y: shape.bodyRect.y
                                 width: shape.bodyRect.width
                                 height: shape.bodyRect.height
-                                radius: col.floating ? Theme.rLg : col.joinR
+                                radius: col.floating ? col.floatR : col.joinR
                                 level: 2
                                 cutTop: win.openT
                                 cutBottom: win.openB
@@ -624,7 +629,7 @@ Scope {
                                 squareOuter: !col.floating
                                 // K74: a joined column's free corners are corners of the window cut into the sheet: the
                                 // layout's one radius, as its fillets (0 = connected, straight)
-                                radius: col.floating ? Theme.rLg : col.joinR
+                                radius: col.floating ? col.floatR : col.joinR
                                 flipX: sb.side === "left"
                                 // Where the neighbour rules its edge (line chrome; floating keycap groups draw no strip).
                                 ruled: !col.floating && Theme.frameOutline

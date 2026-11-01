@@ -351,6 +351,16 @@ in
             lib.mapAttrsToList niriBindLine (lib.filterAttrs (_: action: action != null) cfg.niri.binds.keys)
           )}
           }
+
+          // Kurashi's panels blur the windows behind them, not only the wallpaper (niri's layer surfaces blur in xray mode
+          // otherwise).
+          layer-rule {
+              match namespace="^kurashi-" layer="top"
+              match namespace="^kurashi-" layer="overlay"
+              background-effect {
+                  xray false
+              }
+          }
         '';
       };
 

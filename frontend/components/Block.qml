@@ -146,6 +146,25 @@ Item {
                 }
             }
         }
+        // I338: where the chrome casts no shadow of its own (flat, line, bevel) and elevation is on, a block lifts a little off
+        // what it stands on — a small key shadow along the surfaces' light (`elevation.dir`), `elevation.blocks` of it (the
+        // look's), `softScale` for small things inside other blocks. Not under a see-through fill: it would show through.
+        Loader {
+            z: -1
+            anchors.fill: parent
+            readonly property real amount: Theme.elevBlocks * blk.softScale
+            active: amount > 0 && !blk.bare && Theme.softR <= 0 && Theme.sinkX === 0 && Theme.sinkY === 0
+                && face.shownFill.a > 0.99 && blk.width > 0
+            sourceComponent: RectangularShadow {
+                readonly property real a: parent ? parent.amount : 0
+                offset.x: Theme.elevationDir[0] * 2 * Theme.elevationDir[2] * Theme.elevationStrength * a
+                offset.y: Theme.elevationDir[1] * 2 * Theme.elevationDir[2] * Theme.elevationStrength * a
+                blur: 6 * Math.max(0.5, Theme.elevationStrength) * a
+                spread: -1
+                radius: Math.min(face.r, Math.min(width, height) / 2)
+                color: Qt.alpha(Theme.elevInk, Math.min(0.9, 0.2 * Theme.elevationStrength * (Theme.darkScheme ? 1.6 : 1) * a))
+            }
+        }
         // The soft shadow (soft chrome): made only while the theme has one and this block casts it.
         SoftShadow {
             anchors.fill: parent

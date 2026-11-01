@@ -49,4 +49,24 @@ Text {
     readonly property string families: Theme.iconFamily + "|" + fallbackFamily
     onNameChanged: retry()
     onFamiliesChanged: retry()
+
+    // I338: while elevation is on and the look lets icons cast (`elevation.icons`), the glyph lifts a hair off its ground:
+    // a crisp copy in the shadows' ink under it, a px or two along the surfaces' light. Static (made once per glyph).
+    Loader {
+        z: -1
+        active: Theme.elevIcons > 0 && ic.text !== "" && ic.color.a > 0
+        sourceComponent: Text {
+            readonly property real d: Math.max(1, Math.round(1.5 * Theme.elevationDir[2] * Theme.elevationStrength))
+            x: Math.round(Theme.elevationDir[0] * d)
+            y: Math.round(Theme.elevationDir[1] * d)
+            width: ic.width
+            height: ic.height
+            text: ic.text
+            font: ic.font
+            renderType: ic.renderType
+            verticalAlignment: ic.verticalAlignment
+            horizontalAlignment: ic.horizontalAlignment
+            color: Qt.alpha(Theme.elevInk, Math.min(0.6, 0.45 * Theme.elevIcons * (Theme.darkScheme ? 1.6 : 1)))
+        }
+    }
 }

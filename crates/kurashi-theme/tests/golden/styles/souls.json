@@ -122,6 +122,8 @@
   "decor.dock.radius": -1,
   "decor.dock.reflection": 0.0,
   "decor.dock.tiles": "block",
+  "decor.elevation.blocks": 1.0,
+  "decor.elevation.icons": 0.0,
   "decor.field.blink": -1,
   "decor.field.caret": "bar",
   "decor.field.form": "box",
