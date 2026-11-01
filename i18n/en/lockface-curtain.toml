@@ -1,0 +1,7 @@
+# The curtain lock face (W53.3, components/lock/CurtainFace.qml): Windows 11's lock — the clock curtain, then the sign-in.
+"lockui.face.name.curtain" = "Curtain and sign-in"
+"lockui.curtain.password" = "Password"
+"lockui.curtain.reveal" = "Show password"
+"lockui.curtain.submit" = "Sign in"
+"lockui.curtain.wrong" = "The password is incorrect. Try again."
+"lockui.curtain.ok" = "OK"

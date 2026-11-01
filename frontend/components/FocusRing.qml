@@ -75,13 +75,14 @@ Rectangle {
             border.width: 2 * Theme.focusW
             border.color: fr.stroke
             radius: Math.max(0, fr.corner + Theme.focusOffset)
-            // The inner ring contrasts with the outer one: the ground's colour.
+            // The inner ring contrasts with the outer one: white over a dark outer ring, black over a light one, at 70 %
+            // (WinUI's FocusStrokeColorInner, #b3ffffff / #b3000000) — so a ring inked for a dark ground keeps its pair.
             Rectangle {
                 anchors.fill: parent
                 anchors.margins: parent.border.width
                 color: "transparent"
                 border.width: Theme.focusW
-                border.color: Theme.surface
+                border.color: fr.stroke.hslLightness < 0.5 ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(0, 0, 0, 0.7)
                 radius: Math.max(0, parent.radius - parent.border.width)
             }
         }

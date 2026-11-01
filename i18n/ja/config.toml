@@ -31,6 +31,7 @@
 "config.choice.palette.win95" = "Win95"
 "config.choice.palette.luna" = "ルナ"
 "config.choice.palette.aero" = "エアロ"
+"config.choice.palette.fluent" = "フルーエント"
 "config.choice.palette.ps2" = "PS2"
 "config.choice.palette.snes" = "スーファミ"
 "config.choice.palette.hallownest" = "ハロウネスト"
