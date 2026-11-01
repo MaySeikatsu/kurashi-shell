@@ -18,6 +18,9 @@ Python's standard library only; deterministic (fixed seeds), so a rerun reproduc
 building blocks (wav writer, envelopes, FM bell, filters, the Xcursor writer) come from mac-assets.py beside it.
 """
 import importlib.util
+import sys
+
+sys.dont_write_bytecode = True
 import math
 import os
 import random
