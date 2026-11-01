@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-vibrancy
+Comment=The macOS 11-14-era black arrow with a thicker white outline and a larger, softer shadow (W53.4, CC0, drawn in tools/styles/mac-assets.py)
+Inherits=default

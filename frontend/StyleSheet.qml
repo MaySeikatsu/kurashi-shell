@@ -106,6 +106,54 @@ ShellRoot {
                     }
                 }
             }
+            // W53.4: a window ground with the look's pattern, and the dock body (`[slots] dock`) under five stand-in icons
+            // (its reflection mirrors them), the running mark under two.
+            Row {
+                spacing: 40
+                Rectangle {
+                    width: 260
+                    height: 84
+                    radius: Theme.rLg
+                    color: Theme.container
+                    border.width: 1
+                    border.color: Theme.outline
+                    Pattern { anchors.fill: parent; radius: parent.radius }
+                    Text { anchors.centerIn: parent; text: "Window ground"; color: Theme.fg; font.family: Theme.families[0]; font.pixelSize: Theme.fs }
+                }
+                Item {
+                    width: icons.width + 24
+                    height: 48 + 6 + 24
+                    DockGround {
+                        id: dg
+                        anchors.fill: parent
+                        edge: "bottom"
+                        mirror: icons
+                        icon: 48
+                    }
+                    Row {
+                        id: icons
+                        x: 12; y: 12
+                        spacing: 6
+                        Repeater {
+                            model: [Theme.accent, Theme.error, Theme.warning, Theme.tertiary, Theme.secondary]
+                            Rectangle {
+                                required property color modelData
+                                width: 48; height: 48; radius: 11
+                                gradient: Gradient {
+                                    GradientStop { position: 0; color: Qt.lighter(modelData, 1.4) }
+                                    GradientStop { position: 1; color: modelData }
+                                }
+                            }
+                        }
+                    }
+                    Text {
+                        x: 12 + 24 - width / 2; y: 12 + 48 + 1
+                        text: dg.indicator === "triangle" ? "▲" : dg.indicator === "dot" ? "●" : "• •"
+                        color: Theme.fg
+                        font.pixelSize: dg.indicator === "triangle" ? 6 : 5
+                    }
+                }
+            }
             Row {
                 spacing: 40
                 // Menu rows: normal, highlighted, a separator, normal.

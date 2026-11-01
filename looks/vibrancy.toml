@@ -1,0 +1,95 @@
+name = "vibrancy"
+label = "config.choice.look.vibrancy"
+category = "inspired"
+# macOS 11 Big Sur – 14 Sonoma (W53.4, docs/ux/styles.md §6): vibrancy — translucent grounds over the compositor's
+# blur — rounded 10 px windows, the 28 px title bar with the flat traffic lights (12 px, no gloss) and the title centred
+# in SF Pro (Inter, OFL, as the free stand-in); the translucent 24 px menu bar with our original mark at its start (never
+# Apple's logo); menus with the accent's inset rounded highlight; the floating Dock with one dot under a running app;
+# Control Centre's rounded modules; banners top right; the Sonoma lock screen. Springs, never bouncy. Numbers from real
+# macOS 11–14 captures (the brief's §6 cites them). Not macOS 26's Liquid Glass (K77: that waits for the glass material).
+[recipe]
+"theme.chrome" = "soft"
+"theme.motion.profile" = "calm"
+"theme.material.kind" = "translucent"
+"theme.material.blur" = true
+"theme.material.opacity" = 0.74
+"theme.shape.corners" = "squircle"
+"theme.shape.radius" = 10
+"theme.typography.family" = ["SF Pro Text", "SF Pro Display", "Inter", "Noto Sans CJK JP", "sans-serif"]
+# macOS's Japanese UI face (Hiragino Sans), then the free stand-in.
+"theme.typography.family_jp" = ["Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans CJK JP", "sans-serif"]
+
+[slots]
+title = "lights"
+start = "mark"
+bar = "menu"
+dock = "shelf"
+menu = "gel"
+lock = "sonoma"
+sounds = "vibrancy"
+
+[decor]
+# The title bar: 28 px, one tone with the window (unified), the title centred, semibold 13 px; the traffic lights flat
+# 12 px discs 8 px apart, their first edge 8 px in, a hairline rim each; grey while the window has no focus.
+"title.height" = 28
+"title.fill" = ["title"]
+"title.fill_inactive" = ["title_inactive"]
+"title.fill_dir" = "vertical"
+"title.on" = "on_title"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "center"
+"title.weight" = 600
+"title.size" = 13
+"title.family" = ["SF Pro Text", "Inter"]
+"title.buttons" = "start"
+"title.radius" = 10
+"title.button_w" = 12
+"title.button_h" = 12
+"title.button_gap" = 8
+"title.inset" = 8
+"title.gloss" = 0.0
+"title.close_fill" = "error"
+"title.min_fill" = "warning"
+"title.max_fill" = "success"
+# Menus: 22 px rows, the highlight the flat accent in a rounded rect inset 5 px (the gel part at gloss 0), white text.
+"menu.row" = 22
+"menu.highlight" = "inset"
+"menu.separator" = "line"
+"menu.radius" = 4
+"menu.fill" = "accent"
+"menu.on" = "on_accent"
+"menu.gloss" = 0.0
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.radius" = 4
+"separator.style" = "none"
+"focus.style" = "halo"
+"focus.width" = 3
+"focus.offset" = 0
+# The start dress: our mark in the text's ink at the menu bar's start, flat (no label).
+"start.label" = false
+"start.fill" = ["on_surface"]
+"start.gloss" = 0.0
+# The menu bar: translucent over the blur, no line under it; one strip.
+"bar.fill" = ["surface"]
+"bar.gloss" = 0.0
+"bar.group" = "none"
+# The Dock: floating, rounded 16 px, translucent with a hairline rim; icons without tiles; one dot under a running app.
+"dock.fill" = ["surface_container"]
+"dock.radius" = 16
+"dock.reflection" = 0.0
+"dock.indicator" = "dot"
+"dock.tiles" = "none"
+# Motion: popovers and Control Centre modules zoom and fade from their source on springs.
+"motion.style" = "zoom"
+"cursor" = "vibrancy"
+# Control Centre: quick settings as a vibrancy flyout of compact modules (no phone); Notification Centre: the floating
+# right sidebar's sections as flyouts with flat calendar days; banners in the top-right corner under the menu bar
+# (W53.3's generic keys).
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+"centre.form" = "flyouts"
+"calendar.cells" = "flat"
+"toast.place" = "corner"
+# Spotlight stands centred over the output, not under the mark (W53.3's `start.menu`).
+"start.menu" = "center"

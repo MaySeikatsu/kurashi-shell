@@ -341,6 +341,7 @@ const BUNDLED: &[(&str, &str)] = &[
     ),
     ("material", include_str!("../../../palettes/material.toml")),
     ("aqua", include_str!("../../../palettes/aqua.toml")),
+    ("vibrancy", include_str!("../../../palettes/vibrancy.toml")),
     ("yorha", include_str!("../../../palettes/yorha.toml")),
     ("kawaii", include_str!("../../../palettes/kawaii.toml")),
     ("win95", include_str!("../../../palettes/win95.toml")),
