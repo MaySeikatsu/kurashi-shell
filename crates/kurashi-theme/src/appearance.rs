@@ -221,7 +221,9 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // style's hold (frames at 60 Hz per step), the timed durations (0 = K74's) and curves ([] = K74's).
     k(
         "motion.style",
-        Choice(&["grow", "slide", "zoom", "fade", "flip", "stepped", "rubber", "bleed"]),
+        Choice(&[
+            "grow", "slide", "zoom", "fade", "flip", "stepped", "rubber", "bleed",
+        ]),
         r#""grow""#,
     ),
     k("motion.steps", Int(1, 30), "4"),
@@ -456,11 +458,7 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // The bar's workspaces on a horizontal bar: the chrome's own marks (`own`: dots, or numbered keys where groups are
     // blocks — today's) or M3's navigation bar (`indicator`: each workspace its number, the focused one on the active
     // indicator, a tonal pill in `selected` with its ink; the others bare in the variant ink).
-    k(
-        "workspace.mark",
-        Choice(&["own", "indicator"]),
-        r#""own""#,
-    ),
+    k("workspace.mark", Choice(&["own", "indicator"]), r#""own""#),
     // -- W53.8 terminal keys --
 ];
 
