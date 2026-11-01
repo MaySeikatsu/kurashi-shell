@@ -179,7 +179,7 @@ Scope {
             top: drip ? 0 : bars.topInset - padT
             right: drip ? 0 : bars.rightInset - padR
             // (a corner stack over a bottom bar: its "top" room is the bar's side, mirrored as the drip's is)
-            bottom: drip ? 0 : bottomBox ? bars.bottomInset + 2 * Theme.gap + dockRoom
+            bottom: drip ? 0 : bottomBox ? bars.bottomEdgeInset + 2 * Theme.gap + dockRoom
                 : bars.bottomInset - Math.min(shade + slackT, bars.bottomInset)
         }
 
