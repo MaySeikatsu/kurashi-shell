@@ -1,0 +1,15 @@
+# The title-screen lock face (W53.5, components/lock/TitleScreenFace.qml): a 16-bit RPG's title, then its file select.
+"lockui.face.name.title-screen" = "Title screen"
+"lockui.title.push" = "PUSH ANY KEY"
+"lockui.title.start" = "Start: any key opens the sign-in"
+"lockui.title.file" = "FILE 1"
+"lockui.title.password" = "PASSWORD"
+"lockui.title.wrong" = "That's not it."
+"lockui.title.loading" = "NOW LOADING"
+"lockui.title.retry_in" = "Try again in {s}."
+"lockui.title.caps" = "CAPS"
+"lockui.title.caps_on" = "Caps Lock is on"
+"lockui.title.caps_off" = "Caps Lock is off"
+"lockui.title.message" = "Message"
+# Qt date pattern (ddd = weekday, d = day, MMM = month) for the small date under the clock.
+"lockui.title.date_format" = "ddd d MMM"

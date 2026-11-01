@@ -145,8 +145,11 @@ Scope {
         // with margin 0, so the window reaches the bar's edge; it covers the bar's strip only while toasts are up (it is
         // unmapped otherwise) and takes input on the cards only.
         // W53.3 (`[decor] toast.place = corner`): a look may stack them in the corner at the bar's end instead (11's).
-        readonly property bool drip: (bars.atTop || bars.atBottom) && Theme.decor("toast.place", "island") !== "corner"
-        readonly property bool flip: bars.atBottom
+        readonly property bool drip: (bars.atTop || bars.atBottom) && Theme.decor("toast.place", "island") === "island"
+        // W53.5 (`toast.place = bottom`): one wide box centred low on the screen, over a bottom bar (an RPG's text box, the
+        // PS2's low line); the stack grows upward from it.
+        readonly property bool bottomBox: Theme.decor("toast.place", "island") === "bottom"
+        readonly property bool flip: bars.atBottom || bottomBox
         readonly property bool springing: Theme.springOn && visible
         // Without one: below a top edge, at the right, clear of a right bar (as before W34).
         readonly property int shade: Theme.softR
@@ -165,16 +168,17 @@ Scope {
         readonly property int padL: shade + slackL
         readonly property int padR: Math.min(shade + slackR, bars.rightInset)
         readonly property int padT: Math.min(shade + slackT, bars.topInset)
-        anchors { top: !bars.atBottom; bottom: bars.atBottom; right: !drip }
+        anchors { top: !flip; bottom: flip; right: !drip && !bottomBox }
         margins {
             top: drip ? 0 : bars.topInset - padT
             right: drip ? 0 : bars.rightInset - padR
             // (a corner stack over a bottom bar: its "top" room is the bar's side, mirrored as the drip's is)
-            bottom: drip ? 0 : bars.bottomInset - Math.min(shade + slackT, bars.bottomInset)
+            bottom: drip ? 0 : bottomBox ? bars.bottomInset + 2 * Theme.gap
+                : bars.bottomInset - Math.min(shade + slackT, bars.bottomInset)
         }
 
         // ---- geometry, in a top bar's frame ("local": y from the bar's screen edge); mirrored for a bottom bar.
-        readonly property real cardW: 340
+        readonly property real cardW: bottomBox ? 600 : 340
         // Room beside the stack for a flicked card to fly and fade in (the window is mapped only while toasts are up).
         readonly property int slackX: 160 + Theme.softR
         readonly property var pill: drip && visible ? IslandGeom.pillOf(root.outName) : null

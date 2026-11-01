@@ -32,7 +32,7 @@ use serde_json::Value;
 /// the bar's ground (`decor/BarGround.qml`).
 pub const SLOTS: &[&str] = &[
     "frame", "title", "start", "tray", "menu", "scroll", "tooltip", "focus", "button", "slider",
-    "toggle", "lock", "sounds", "bar",
+    "toggle", "lock", "sounds", "bar", "island",
 ];
 
 /// What a `[decor]` value may be.
@@ -145,6 +145,8 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // The highlighted row's fill and text roles ("" = the caller's selection colours): 9x's navy band with white text.
     k("menu.fill", Role, r#""""#),
     k("menu.on", Role, r#""""#),
+    // W53.5: room (px) a menu row keeps at its start for the look's cursor (snes's hand); callers indent their content by it.
+    k("menu.lead", Int(0, 64), "0"),
     // Scroll bars: width, arrow buttons, the thumb's face.
     k("scroll.width", Int(0, 24), "0"),
     k("scroll.arrows", Bool, "false"),
@@ -261,16 +263,40 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.3 (lead review): the quick settings card's chrome — a phone (K42, today's) or a plain flyout of the panel's
     // material — and its tiles: wide pills in two columns (today's) or compact buttons in three, the label under them.
     k("quick.frame", Choice(&["phone", "flyout"]), r#""phone""#),
-    k("quick.tiles", Choice(&["wide", "compact"]), r#""wide""#),
+    k("quick.tiles", Choice(&["wide", "compact", "rows"]), r#""wide""#),
+    // W53.5: `rows` (a config screen: one row per switch, the label at the left and its value at the right) shows the
+    // value as both words with the chosen one lit (`pair`: 16-bit RPG configs' "ON  OFF") or as the chosen word (`value`:
+    // the PS2's System Configuration).
+    k("quick.values", Choice(&["pair", "value"]), r#""value""#),
     // The right sidebar's form: one column (today's) or, while it floats, its sections as separate flyouts stacked at its
     // foot (11's notification centre over its calendar); the calendar's days as boxed keys (today's) or flat, today a circle.
     k("centre.form", Choice(&["column", "flyouts"]), r#""column""#),
     k("calendar.cells", Choice(&["boxed", "flat"]), r#""boxed""#),
     // Where toasts stand under a top or bottom bar: out of the island (W34, today's) or in the screen's corner at the
     // bar's end, stacked (11's bottom-right).
-    k("toast.place", Choice(&["island", "corner"]), r#""island""#),
+    k("toast.place", Choice(&["island", "corner", "bottom"]), r#""island""#),
+    // W53.5: `bottom` — one wide box centred low on the screen, over a bottom bar (an RPG's text box, the PS2's low line).
     // The gap between a horizontal bar's modules and groups, px (-1 = today's: the pad and the groups' insets).
     k("bar.gap", Int(-1, 32), "-1"),
+    // W53.5 (snes, ps2; any look): a card's fill in this many hard bands, top to bottom from `fill.band_top` to
+    // `fill.band_bottom` (roles; "" = the container lighter / darker) — 16-bit windows' banded gradient (0 = one fill).
+    k("fill.bands", Int(0, 16), "0"),
+    k("fill.band_top", Role, r#""""#),
+    k("fill.band_bottom", Role, r#""""#),
+    // W53.5: the island's line types itself out once when its face changes (`type`: an RPG text box), at this many
+    // characters a second; reduce motion shows it whole.
+    k("island.reveal", Choice(&["none", "type"]), r#""none""#),
+    k("island.reveal_cps", Int(5, 240), "40"),
+    // W53.5: a text field as a box (today's) or a line under the text (`underline`: a name-entry line, the PS2's field).
+    k("field.form", Choice(&["box", "underline"]), r#""box""#),
+    // W53.5: what loading shows — the caller's words (`text`, today's), the look's loading line with dots stepping after
+    // it (`dots`: "NOW LOADING..."), or the words under a slow pulse (`pulse`). Only while loading.
+    k("loading.form", Choice(&["text", "dots", "pulse"]), r#""text""#),
+    // W53.5: the regular text weight (bold stays 300 heavier, at most 900): thin type as the PS2's (Light, 300).
+    k("type.weight", Int(100, 900), "400"),
+    // W53.5: the launcher and the island's cards grow out of the bar as one shape (true, W21's morph) or stand apart from
+    // it as windows of their own (false: a 16-bit RPG window, a PS2 panel), drawn as blocks with the look's frame.
+    k("surface.join", Bool, "true"),
 ];
 
 /// The `[decor]` key named `key`.

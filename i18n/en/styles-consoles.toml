@@ -1,0 +1,6 @@
+# W53.5 (snes, ps2): copy the consoles' parts show. Generic keys any look may use.
+# A config row's two words (`[decor] quick.values = pair`): the chosen one lit.
+"island.quick.value.on" = "ON"
+"island.quick.value.off" = "OFF"
+# The loading line (`[decor] loading.form = dots`): dots step after it while something loads.
+"frontend.loading.line" = "NOW LOADING"

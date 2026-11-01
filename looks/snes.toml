@@ -1,14 +1,82 @@
 name = "snes"
 label = "config.choice.look.snes"
 category = "retro"
-# After shellseikatsu `Services/Modes/Snes.qml` and `Widgets/ThemeDecor/SnesFrame.qml` (W25): console-plastic grey,
-# hard blocky keys, the logo's four dots and the purple buttons, chunky pixel type, quick motion.
+# The Super Famicom / PAL SNES and its 16-bit RPG menus (W53.5, docs/ux/styles.md §7): every window an RPG window — a
+# white border two grid pixels wide inside a dark outline, its corners stepped, the fill in hard blue bands (no smooth
+# gradient) — the whole shell on one integer pixel grid (`pixel`: the output's height / 224 / 2, so ×2 on 1080 lines and
+# still whole device pixels at scale 1.5), Press Start 2P's 8 × 8 type (OFL) with Misaki's 8 × 8 kana and kanji
+# (nix/misaki.nix), the hand cursor that jumps from row to row, windows that grow in four held steps with no easing, the
+# island as a text box that types its line out once, quick settings as a config screen ("ON  OFF").
 [recipe]
-"theme.chrome" = "keycap"
+"theme.chrome" = "flat"
 "theme.motion.profile" = "expressive"
-"theme.motion.speed" = 1.6
 "theme.material.kind" = "solid"
-"theme.shape.corners" = "none"
-"theme.typography.family" = ["Press Start 2P", "JetBrains Mono", "Noto Sans Mono CJK JP", "monospace"]
+"theme.material.opacity" = 1.0
+"theme.material.blur" = false
+# Two grid pixels at ×2: the RPG window's stepped corner (aliased: no antialiasing on a pixel grid).
+"theme.shape.corners" = "rounded"
+"theme.shape.radius" = 4
+"theme.typography.family" = ["Press Start 2P", "MisakiGothic2nd", "JetBrains Mono", "monospace"]
+"theme.typography.family_jp" = ["MisakiGothic2nd", "MisakiGothic", "PixelMplus10", "DotGothic16", "Noto Sans CJK JP", "monospace"]
+
 [slots]
 frame = "snes"
+bar = "window"
+menu = "hand"
+scroll = "pixel"
+tooltip = "window"
+island = "text-box"
+slider = "gauge"
+lock = "title-screen"
+sounds = "snes"
+
+[decor]
+# The pixel grid: one grid pixel = round(output height / 224 / 2) logical px (2 on 1080 lines), each output its own.
+"pixel" = 2
+# 8 × 8 type on the grid: every size a whole number of 16 px (8 font pixels × 2); large text doubles it.
+"type.pixel" = true
+"type.pixel_step" = 16
+# The RPG window's fill: six hard bands from the light blue at its top to the deep blue at its foot.
+"fill.bands" = 6
+"fill.band_top" = "title"
+"fill.band_bottom" = "title_end"
+# The HUD strip: one window along the edge, no blocks round the groups.
+"bar.group" = "none"
+"separator.style" = "none"
+# Menus: 16 px rows (two 8 px lines' pitch), no band — the hand points at the row; no separators but a gap.
+"menu.row" = 32
+"menu.highlight" = "bar"
+"menu.separator" = "space"
+"menu.lead" = 36
+"menu.radius" = 0
+"scroll.width" = 16
+"scroll.arrows" = true
+"scroll.thumb" = "flat"
+"tooltip.fill" = "surface_container"
+"tooltip.on" = "on_surface"
+"tooltip.radius" = 4
+"focus.style" = "dotted"
+"focus.offset" = -4
+"focus.width" = 2
+"focus.color" = "on_surface"
+# Stepped motion: a window grows in four steps, each held two frames at 60 Hz (133 ms), no easing.
+"motion.style" = "stepped"
+"motion.steps" = 2
+"motion.open_ms" = 133
+"motion.close_ms" = 133
+"motion.fast_ms" = 67
+"motion.effects_ms" = 67
+"icon.fill" = 1
+"icon.weight" = 700
+"cursor" = "snes"
+# The config screen, the text box, the name-entry line, the loading line.
+"quick.frame" = "flyout"
+"quick.tiles" = "rows"
+"quick.values" = "pair"
+"island.reveal" = "type"
+"island.reveal_cps" = 40
+"toast.place" = "bottom"
+"field.form" = "underline"
+"surface.join" = false
+"loading.form" = "dots"
+"calendar.cells" = "flat"
