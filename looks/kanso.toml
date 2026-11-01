@@ -11,3 +11,11 @@ category = "modern"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 18
 "theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]
+
+# W53.8 (docs/ux/styles.md "kanso"): a quiet cue set (round sine tones, a soft knock; off unless `theme.sounds`) and a plain
+# arrow (off unless `cursor.theme = style`). Neither changes a pixel of the shell.
+[slots]
+sounds = "kanso"
+
+[decor]
+"cursor" = "kanso"

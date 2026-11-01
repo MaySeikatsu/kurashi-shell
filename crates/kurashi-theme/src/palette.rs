@@ -356,6 +356,12 @@ const BUNDLED: &[(&str, &str)] = &[
     ),
     ("souls", include_str!("../../../palettes/souls.toml")),
     ("kami", include_str!("../../../palettes/kami.toml")),
+    // W53.8: terminal's phosphor options (a green-screen's P1, an amber P3).
+    ("phosphor", include_str!("../../../palettes/phosphor.toml")),
+    (
+        "phosphor-amber",
+        include_str!("../../../palettes/phosphor-amber.toml"),
+    ),
 ];
 
 pub fn bundled_names() -> Vec<&'static str> {
