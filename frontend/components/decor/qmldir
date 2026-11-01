@@ -25,3 +25,5 @@ Rule 1.0 Rule.qml
 # W53.5 (snes, ps2)
 PixelArt 1.0 PixelArt.qml
 PanelDress 1.0 PanelDress.qml
+# W53.7/W53.8 (washi, kami, sekai, kanso, material, glass, terminal): the scroll slot's host on lists.
+ScrollHost 1.0 ScrollHost.qml

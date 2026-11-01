@@ -475,11 +475,13 @@ PanelWindow {
                 // W53.5 (`[decor] field.form = underline`): the field is a line under the query — an RPG's name-entry line
                 // (whole grid pixels, a block cursor), the PS2's glowing underline — with no box, frame or well.
                 readonly property bool underline: Theme.decor("field.form", "box") === "underline"
-                framed: !underline
+                // W53.8 (`filled`): M3's search bar — the container-high tone, no outline, no well.
+                readonly property bool filled: Theme.decor("field.form", "box") === "filled"
+                framed: !underline && !filled
                 // A text field is a well (row 591): sunken under a bevel chrome, nothing otherwise.
-                sunken: !underline
-                fill: underline ? "transparent" : Theme.surface
-                flatBorder: underline ? "transparent" : (field.activeFocus ? Theme.accent : Theme.outline)
+                sunken: !underline && !filled
+                fill: underline ? "transparent" : (filled ? Theme.containerHigh : Theme.surface)
+                flatBorder: underline || filled ? "transparent" : (field.activeFocus ? Theme.accent : Theme.outline)
                 penSeed: 0x1A0D
                 FieldLine {
                     visible: box.underline
@@ -500,7 +502,10 @@ PanelWindow {
                     id: field
                     anchors { fill: parent; leftMargin: searchIcon.x + searchIcon.width + 8; rightMargin: 14 }
                     // The name-entry line's block cursor on a pixel grid (a whole character cell), else the caret.
-                    cursorDelegate: box.underline && Theme.pixelType ? blockCaret : null
+                    // W53.8: the look's caret (`field.caret`, `field.blink`: a terminal's block that stops blinking).
+                    cursorDelegate: box.underline && Theme.pixelType ? blockCaret
+                        : (Theme.decor("field.caret", "bar") !== "bar" || Theme.decor("field.blink", -1) >= 0 ? lookCaret : null)
+                    Component { id: lookCaret; Caret { ground: box.underline ? Theme.surface : box.fill } }
                     Component {
                         id: blockCaret
                         Rectangle {
@@ -558,6 +563,9 @@ PanelWindow {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
                         anchors.fill: parent
+                        // (a block caret stands before the words, as a terminal's cursor before its prompt's text)
+                        anchors.leftMargin: Theme.decor("field.caret", "bar") === "block" ? Math.round(phFm.averageCharacterWidth) : 0
+                        FontMetrics { id: phFm; font: field.font }
                         verticalAlignment: Text.AlignVCenter
                         visible: field.text === "" && field.preeditText === ""
                         color: Theme.dim
@@ -599,12 +607,23 @@ PanelWindow {
                 text: lp.err
             }
 
+            // The look's scroll bar over the list's end edge (W53.7/8: the `scroll` slot's host; nothing without a part).
+            // The rows give way to it (its width and a gap), so no hint sits under the bar.
+            ScrollHost {
+                id: listBar
+                z: 1
+                flick: list
+                visible: shown && list.visible
+                x: card.l0 + card.w0 - width
+                y: list.y
+                stepPx: lp.rowH
+            }
             ListView {
                 id: list
                 visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
                 x: card.l0
                 y: lp.err !== "" ? errRow.y + errRow.height + Theme.gap : box.y + box.height + (lp.sysMenu ? 0 : Theme.gap)
-                width: card.w0
+                width: card.w0 - (listBar.shown ? listBar.width + 4 : 0)
                 height: lp.listH
                 clip: true
                 interactive: false

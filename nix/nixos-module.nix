@@ -123,7 +123,7 @@ in
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
       # The icon subset first (W41, row 445): the greeter draws the shell's icons, and Material Symbols is its fallback.
-      default = [ (pkgs.callPackage ./icon-font.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ]);
+      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond cormorant roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" "DotGothic16" "RobotoFlex" ]; }) ]);
       defaultText = lib.literalExpression "the Home-Manager module's `programs.kurashi.fonts`";
       description = "System fonts for the greeter (it runs as the greeter user, without the user's fonts); [ ] to manage them yourself.";
     };

@@ -1,0 +1,8 @@
+# ノートのロック画面 (W53.7, components/lock/NotebookFace.qml): ノートの一ページ — 上に日付、大きな手書きの時刻、罫線の上
+# に名前とパスワード、赤ペンの印。
+"lockui.face.name.notebook" = "ノートのページ"
+"lockui.notebook.name" = "名前："
+"lockui.notebook.password" = "パスワード："
+"lockui.notebook.caps" = "CAPS"
+# Qt の日付パターン（yyyy = 年、M = 月、d = 日、dddd = 曜日）。ページの上。
+"lockui.notebook.date_format" = "yyyy年M月d日 dddd"

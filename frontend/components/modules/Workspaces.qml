@@ -102,6 +102,52 @@ ModuleBase {
             }
         }
     }
+    // W53.8 (`[decor] workspace.mark = indicator`): M3's navigation bar — each workspace its number, the focused one on the
+    // active indicator (a full-round pill in the tonal `selected` with its ink: md.comp.navigation-bar.active-indicator,
+    // secondary-container, 64 x 32 in an 80 dp bar; here twice as wide as tall, the bar's height less its pad), the
+    // others bare in the variant ink, empty ones fainter. The pill widens to the focused item.
+    readonly property bool navMark: Theme.decor("workspace.mark", "own") === "indicator"
+    Component {
+        id: navPill
+        Item {
+            id: np
+            required property var modelData
+            anchors.verticalCenter: parent ? parent.verticalCenter : undefined
+            height: Math.max(22, Math.min(32, m.thickness - 8))
+            width: modelData.focused ? Math.round(height * 2) : Math.round(height * 1.1)
+            Behavior on width {
+                enabled: m.live && Theme.motionKind !== "none"
+                NumberAnimation { duration: Theme.stdMs; easing.type: Easing.OutCubic }
+            }
+            Rectangle {
+                anchors.fill: parent
+                radius: height / 2
+                visible: np.modelData.focused || navTap.pressed || navHover.hovered
+                color: np.modelData.focused ? Theme.selected : Qt.alpha(Theme.fg, navTap.pressed ? 0.10 : 0.08)
+            }
+            Text {
+                anchors.centerIn: parent
+                color: np.modelData.focused ? Theme.color("color.on_selected", Theme.fg)
+                    : Qt.alpha(Theme.color("color.on_surface_variant", Theme.dim), np.modelData.occupied ? 1 : 0.6)
+                font.pixelSize: Theme.fsCaption + 1
+                font.weight: np.modelData.focused ? Theme.wBold : Theme.wMedium
+                font.family: Theme.fam(text, Theme.families)
+                text: np.modelData.idx ?? ""
+            }
+            HoverHandler { id: navHover }
+            TapHandler { id: navTap; onTapped: Store.act("workspace.focus", {id: np.modelData.id}) }
+            // A window dragged over this workspace (W36): a ring round the item.
+            Rectangle {
+                visible: m.dragWs === np.modelData.id
+                anchors.fill: parent
+                anchors.margins: -3
+                radius: height / 2
+                color: "transparent"
+                border.width: 2
+                border.color: Theme.accent
+            }
+        }
+    }
     Component {
         id: columnPill
         Item {
@@ -134,11 +180,11 @@ ModuleBase {
     Row {
         id: row
         visible: !m.vertical
-        spacing: Theme.groups ? Theme.xs + 1 : Theme.gap
+        spacing: m.navMark ? 2 : (Theme.groups ? Theme.xs + 1 : Theme.gap)
         Repeater {
             id: repH
             model: m.vertical ? [] : m.pills
-            delegate: Theme.groups ? keyPill : dotPill
+            delegate: m.navMark ? navPill : (Theme.groups ? keyPill : dotPill)
             onItemAdded: Qt.callLater(m.publish, repH)
             onItemRemoved: Qt.callLater(m.publish, repH)
         }

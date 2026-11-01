@@ -1,0 +1,9 @@
+# The tty lock face (W53.8, components/lock/TtyFace.qml): a virtual console's login.
+"lockui.face.name.tty" = "Console login"
+# The issue line over the prompt ({host}: the machine's name).
+"lockui.tty.issue" = "kurashi 暮らし  {host}  tty1"
+# Qt date pattern for the issue line's date.
+"lockui.tty.date_format" = "ddd d MMM yyyy"
+"lockui.tty.login" = "{host} login:"
+"lockui.tty.password" = "Password:"
+"lockui.tty.incorrect" = "Login incorrect"

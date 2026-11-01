@@ -1,0 +1,7 @@
+# The big-clock lock face (W53.8, components/lock/BigClockFace.qml): Android's Material You lock screen — the hours over
+# the minutes, the date at the top left, the password as a pill field.
+"lockui.face.name.big-clock" = "Big clock"
+"lockui.big-clock.prompt" = "Enter password"
+"lockui.big-clock.wrong" = "Wrong password"
+# Qt date pattern (ddd = short weekday, MMM = short month, d = day) for the line at the top left.
+"lockui.big-clock.date_format" = "ddd, MMM d"

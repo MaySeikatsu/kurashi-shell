@@ -1,0 +1,7 @@
+# tty のロック画面（W53.8, components/lock/TtyFace.qml）：仮想コンソールのログイン。
+"lockui.face.name.tty" = "コンソールログイン"
+"lockui.tty.issue" = "kurashi 暮らし  {host}  tty1"
+"lockui.tty.date_format" = "yyyy年M月d日 (ddd)"
+"lockui.tty.login" = "{host} login:"
+"lockui.tty.password" = "パスワード:"
+"lockui.tty.incorrect" = "ログインが正しくありません"

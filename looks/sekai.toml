@@ -1,7 +1,9 @@
 name = "sekai"
 label = "config.choice.look.sekai"
 category = "inspired"
-# After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type.
+# After SekaiPop: pop keycaps on a pastel ground, bouncy springs, rounded type (K42). W53.7 (docs/ux/styles.md §9): the
+# keycap language reaches menus (the chosen row a key on its hard shadow), tooltips and toasts (small keys), the scroll
+# bar (a key in a groove) and the lock (the dot field, the time on keys, the field a long key with its Enter key).
 [recipe]
 "theme.chrome" = "keycap"
 "theme.motion.profile" = "lively"
@@ -9,3 +11,15 @@ category = "inspired"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 23
 "theme.typography.family" = ["Nunito", "M PLUS Rounded 1c", "Noto Sans CJK JP", "sans-serif"]
+[slots]
+menu = "keycap"
+tooltip = "keycap"
+scroll = "keycap"
+lock = "keycap"
+sounds = "sekai"
+
+[decor]
+"menu.highlight" = "bar"
+"menu.separator" = "space"
+"scroll.width" = 14
+"cursor" = "sekai"

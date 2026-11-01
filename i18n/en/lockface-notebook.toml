@@ -1,0 +1,8 @@
+# The notebook lock face (W53.7, components/lock/NotebookFace.qml): a page of the notebook — the date at its head, the
+# time written large, the name and the password on the ruled lines, the red pen's marks.
+"lockui.face.name.notebook" = "Notebook page"
+"lockui.notebook.name" = "Name:"
+"lockui.notebook.password" = "Password:"
+"lockui.notebook.caps" = "CAPS"
+# Qt date pattern (dddd = weekday, d = day, MMMM = month, yyyy = year) at the head of the page.
+"lockui.notebook.date_format" = "dddd, d MMMM yyyy"

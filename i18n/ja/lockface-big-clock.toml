@@ -1,0 +1,7 @@
+# 大きな時計のロック (W53.8, components/lock/BigClockFace.qml): Android の Material You ロック画面 — 時の下に分、左上に
+# 日付、丸いフィールドのパスワード。
+"lockui.face.name.big-clock" = "大きな時計"
+"lockui.big-clock.prompt" = "パスワードを入力"
+"lockui.big-clock.wrong" = "パスワードが違います"
+# Qt の日付パターン（M = 月、d = 日、ddd = 短い曜日）。左上の行。
+"lockui.big-clock.date_format" = "M月d日 (ddd)"
