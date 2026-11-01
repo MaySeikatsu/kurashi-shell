@@ -1,0 +1,7 @@
+# ようこそ ロック画面 (W53.2, components/lock/WelcomeFace.qml): 光沢の時代の「ようこそ」画面。
+"lockui.face.name.welcome" = "ようこそ画面"
+"lockui.welcome.begin" = "パスワードを入力して始めてください"
+"lockui.welcome.prompt" = "パスワードを入力してください"
+"lockui.welcome.go" = "ロック解除"
+"lockui.welcome.error_hint" = "もう一度パスワードを入力してください。大文字と小文字に注意してください。"
+"lockui.welcome.caps_hint" = "Caps Lock がオンのため、パスワードが正しく入力されない可能性があります。Caps Lock キーを押してオフにしてください。"

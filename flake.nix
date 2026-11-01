@@ -66,7 +66,7 @@
           # xdg data dirs, so sandbox screenshots show icons and every decor look without a system install.
           # The icon subset first (W41, row 445): the theme prefers it, and Material Symbols is the fallback.
           shellHook = ''
-            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ (callPackage ./nix/icon-font.nix { }) (callPackage ./nix/w95fa.nix { }) material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
+            export XDG_DATA_DIRS="${pkgs.lib.concatMapStringsSep ":" (f: "${f}/share") (with pkgs; [ (callPackage ./nix/icon-font.nix { }) (callPackage ./nix/w95fa.nix { }) (callPackage ./nix/selawik.nix { }) (callPackage ./nix/wine-tahoma.nix { }) fira-sans libre-franklin material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-serif (google-fonts.override { fonts = [ "Kalam" "KleeOne" ]; }) ])}''${XDG_DATA_DIRS:+:$XDG_DATA_DIRS}"
             echo "kurashi dev shell — 'just' lists tasks"
           '';
         };

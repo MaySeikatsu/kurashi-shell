@@ -823,6 +823,19 @@ fn decor_is_validated_data_with_every_default() {
     assert_eq!(t["decor.menu.row"], 0);
     assert_eq!(t["decor.tooltip.on"], "");
     assert_eq!(t["decor.border.color"], t["color.outline"]);
+    // W53.2: a part's own face resolves to its first installed family, "" without one (the theme's then).
+    assert_eq!(t["decor.bar"], "");
+    assert_eq!(t["font.title"], "");
+    assert_eq!(t["font.start"], "");
+    i.decor = decor_of(
+        "[decor]\n\"title.family\" = [\"Trebuchet MS\", \"Inter\"]\n\"start.fill\" = [\"secondary\"]\n",
+    );
+    let t = resolve(&i, &fonts()).unwrap().tokens;
+    assert_eq!(t["font.title"], "Inter");
+    assert_eq!(
+        t["decor.start.fill"],
+        serde_json::json!([t["color.secondary"]])
+    );
 }
 
 /// W53.0a: the motion personality — a look's own curves and durations, the rubber band, the stepped staircase — and

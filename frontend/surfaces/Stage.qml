@@ -1438,11 +1438,17 @@ PanelWindow {
             z: 6
             anchors.fill: parent
             active: stage.frameW > 0
-            sourceComponent: BevelEdge {
-                light: Theme.bevelLight2
-                light2: Theme.bevelLight
-                w: Theme.crisp(1, Screen.devicePixelRatio)
+            // W53.2: a look without the bevel chrome draws its own window frame (XP's blue, 7's glass) round the card.
+            sourceComponent: Theme.bevelW > 0 ? bevelFrame : edgeFrame
+            Component {
+                id: bevelFrame
+                BevelEdge {
+                    light: Theme.bevelLight2
+                    light2: Theme.bevelLight
+                    w: Theme.crisp(1, Screen.devicePixelRatio)
+                }
             }
+            Component { id: edgeFrame; WindowEdge { radius: card.radius } }
         }
         }
         }

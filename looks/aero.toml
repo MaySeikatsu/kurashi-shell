@@ -1,16 +1,94 @@
 name = "aero"
 label = "config.choice.look.aero"
 category = "retro"
-# After shellseikatsu `Services/Modes/Win7.qml`, `Widgets/GlassSheen.qml` and `Widgets/SurfaceFrame.qml` (W25;
-# Windows 7 "Aero"): translucent glass with a specular sheen in a glass window band, aero blue, Segoe UI.
+# Windows 7, Aero (W53.2, docs/ux/styles.md §3): translucent glass over a blur — the window frame and caption are the
+# glass, the content a light face — with the dark caption text in a soft glow and the joined button group hanging from the
+# top edge (the red gel close); the smoky glass superbar with the round orb; balloon tips; Segoe UI (Selawik, OFL, as the
+# free stand-in); windows open with a short fade and zoom from 0.95. Numbers from real 7 captures at 1:1 and 7.css (the
+# brief's §3 cites them).
 [recipe]
 "theme.chrome" = "soft"
 "theme.motion.profile" = "expressive"
 "theme.material.kind" = "translucent"
 "theme.material.blur" = true
-"theme.material.opacity" = 0.78
+"theme.material.opacity" = 0.82
 "theme.shape.corners" = "rounded"
-"theme.shape.radius" = 18
-"theme.typography.family" = ["Segoe UI", "Noto Sans", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# 7's window corners (6 px, 7.css --w7-w-bdr; the capture's corner).
+"theme.shape.radius" = 6
+"theme.typography.family" = ["Segoe UI", "Selawik", "Noto Sans", "DejaVu Sans", "Noto Sans CJK JP", "sans-serif"]
+# 7's Japanese UI face, then the free stand-ins.
+"theme.typography.family_jp" = ["Meiryo UI", "Meiryo", "BIZ UDPGothic", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
 frame = "aero"
+title = "glass"
+start = "orb"
+bar = "glass"
+menu = "capsule"
+button = "glass"
+tooltip = "balloon"
+lock = "logon-glass"
+sounds = "aero"
+
+[decor]
+# The caption: 30 px from the window's outer edge to its client area (y 12–41), the glass itself (the "Sky" role over the
+# blur), the title dark in Segoe UI 9 pt (12 px) with 7's glow; the buttons a joined group hanging from the top edge 6 px
+# from the end (x 959–1061): 28 × 19 keys and a 48 px close gel, sharing 1 px rims, the group's bottom corners 5 px.
+"title.height" = 30
+"title.fill" = ["title"]
+"title.fill_inactive" = ["title_inactive"]
+"title.on" = "on_title"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "start"
+"title.weight" = 400
+"title.close" = "gel"
+"title.buttons" = "end"
+"title.radius" = 6
+"title.button_w" = 28
+"title.button_h" = 19
+"title.button_gap" = 0
+"title.inset" = 6
+"title.close_w" = 48
+"title.close_fill" = "error"
+"title.button_radius" = 5
+"title.family" = ["Segoe UI", "Selawik"]
+"title.size" = 12
+"title.text_effect" = "glow"
+# The window frame: 8 px of glass (a dark outer line, a light rim, the glass, a light line, a dark line at the content).
+"border.width" = 8
+"border.color" = "title"
+# Menus and lists: 7's capsule highlight, a rule after the icon gutter.
+"menu.row" = 22
+"menu.highlight" = "capsule"
+"menu.separator" = "line"
+"menu.radius" = 3
+"scroll.width" = 17
+"scroll.arrows" = true
+# Balloon tips and tooltips: white to a pale blue-grey, a grey rim, 3 px corners, a soft shadow, a tail.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.tail" = true
+"tooltip.radius" = 3
+"tooltip.border" = "outline"
+"separator.style" = "none"
+"focus.style" = "dotted"
+"focus.offset" = -3
+"focus.width" = 1
+# The orb: 7's darker glass blue; no label (7 showed none).
+"start.label" = false
+"start.fill" = ["title_end"]
+# The superbar: smoky glass in 7's darker glass blue, a dark and a light line on its top edge, one strip.
+"bar.fill" = ["title_end"]
+"bar.gloss" = 0.5
+"bar.group" = "none"
+# The glass sheen on every block (Vista/7).
+"material.sheen" = 0.35
+# Motion: windows and flyouts fade in with a short zoom from 0.95 (~200 ms), out faster.
+"motion.style" = "zoom"
+"motion.open_ms" = 200
+"motion.close_ms" = 150
+"motion.fast_ms" = 150
+"motion.open_curve" = [0.1, 0.9, 0.2, 1.0]
+"motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
+"motion.fast_curve" = [0.1, 0.9, 0.2, 1.0]
+"cursor" = "aero"
