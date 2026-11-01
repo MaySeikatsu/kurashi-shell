@@ -1300,6 +1300,8 @@ echo "layout W3: Move bar to … took the bar and its zones to the bottom edge; 
 lfocus "pickrow:clock"
 kp delete
 wait_val edges.bottom.end '["volume","mods","recorder","keyboard","quick","tray","sidebar_right"]'
+# (the page lists the unplaced row once the config document reaches it — wait for that, W55)
+for _ in $(seq 30); do [ "$(Q present unplaced:clock)" = yes ] && break; sleep 0.1; done
 [ "$(Q present unplaced:clock)" = yes ] || fail "unplaced: Clock is not offered back once no zone holds it"
 lshot washi-dark-unplaced
 lfocus "unplaced:clock"
