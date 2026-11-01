@@ -513,14 +513,21 @@ lights without focus; pinstriped window grounds, menus and the start menu (a pul
 corners); Aqua gel push buttons in every Button (row 604), the default in blue gel pulsing three times then resting (0
 frames idle: measured 60 commits/s for ~4.5 s, then 0 — `frontend/shots/styles/aqua/`); the blue gel menu band; the
 3 px blue focus halo; quick settings as a menu extra's drop-down of compact toggles and toasts as a small panel in the
-top-right corner under the menu bar (W53.3's `quick.frame`, `quick.tiles`, `toast.place`); the Dock's translucent shelf with a glassy lip, its icons straight on it, a black ▲ under a running
+top-right corner under the menu bar (W53.3's `quick.frame`, `quick.tiles`, `toast.place`) — the drop-down hangs from the
+bar square, pinstriped, its far corners rounded, no caption (`flyout.hang`); the Apple menu: our mark opens the system's
+menu as menu rows with the gel band — System Settings…, Recent Items (the launcher's most-used apps), Sleep, Restart…,
+Shut Down…, Lock Screen, Log Out <user>… (a "…" row asks again in the session menu's words), the arrows and Return, the
+pointer — hanging flush from the bar (`start.form = menu`); typing turns it into the search, Spotlight's way; the Dock's
+translucent shelf with a glassy lip, its icons straight on it, a black ▲ under a running
 app and (from the lead's request) a reflection shelf; the login window (brushed-metal header with our mark, pinstriped
 body, the halo field, the pulsing gel Log In, the shake, ⇪ in the field); pale yellow help tags; original cues and a
 pointer (`tools/styles/mac-assets.py`, CC0). Differs: the focused app's bold name in the menu bar (needs a display name in
 `svc.workspaces`, Contracts 8 — not in main); sheets slide from the bar's top edge rather than out of a window's caption;
 the Dock's reflection is Leopard's idea (10.5), drawn as data (`dock.reflection`, 0 = Tiger's flat strip); the
-Spotlight panel at the bar's right end is the launcher hanging from our mark (layout, K45); no scroll-bar gel (callers do
-not host `ScrollStyle` yet: BACKLOG); the window's bottom corners round like the top (the card has one radius); Tiger's
+Spotlight is reached by typing in the Apple menu or by the launcher key, not by a magnifier at the bar's right end (no
+module for it yet); the Apple menu has no About (no page says it) and no Force Quit (no intent): Shōjiki; gel scroll bars
+are blocked:
+no caller hosts `ScrollStyle` yet, so `scroll.thumb = gel` draws nothing (BACKLOG); the window's bottom corners round like the top (the card has one radius); Tiger's
 flat grey caption is not the default (Jaguar's pinstripes are, as the brief pins); Lucida Grande is DejaVu Sans unless
 installed; a 1 px pinstripe at 1.5 scale is not device-crisp.
 
@@ -603,8 +610,10 @@ ground is an original gradient, not the user's blurred wallpaper (the session lo
 the wallpaper); Spotlight stands centred over the output (`start.menu = center`) but hangs from the menu bar, 420 px wide (the
 start skin's width), not 680 px a quarter down the screen; Control Centre
 is the quick settings' flyout of compact toggles (W53.3's `quick.frame = flyout`, `quick.tiles = compact`), not its
-grouped module tiles with their own sliders; Notification Centre is the floating sidebar's sections as flyouts with flat
-calendar days (`centre.form = flyouts`, `calendar.cells = flat`), not its widget gallery; no bold app name (Contracts 8); the menu bar's and Dock's sizes are not yet measured at 1x (to
+grouped module tiles with their own sliders; Notification Centre (the preset's right sidebar: notifications over the calendar,
+floating, 360 px) stands as two flyouts at the top right under the menu bar with flat calendar days (`centre.form =
+flyouts`, `calendar.cells = flat`; flyouts stack at the end nearer the bar), not macOS's widget gallery; no caption on
+Control Centre (a flyout is its own chrome); no bold app name (Contracts 8); the menu bar's and Dock's sizes are not yet measured at 1x (to
 verify, BACKLOG); SF Pro is Inter unless installed.
 
 **Mapping**
