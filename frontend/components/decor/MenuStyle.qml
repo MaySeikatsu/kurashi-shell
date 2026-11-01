@@ -12,8 +12,9 @@ QtObject {
     readonly property string highlight: Theme.decor("menu.highlight", "capsule")
     readonly property string separator: Theme.decor("menu.separator", "line")
     // W53.5: px a row keeps at its start for the look's cursor (`[decor] menu.lead`): callers indent their content by it.
-    readonly property int lead: Theme.decor("menu.lead", 0)
-    function rowH(own) { var v = Theme.decor("menu.row", 0); return v > 0 ? v : own }
+    readonly property int lead: Theme.decor("menu.lead", 0) * Theme.pixelScale
+    // (A look's own row grows with its pixel grid under large text: `pixel.scale`, 1 elsewhere.)
+    function rowH(own) { var v = Theme.decor("menu.row", 0); return v > 0 ? v * Theme.pixelScale : own }
     function radius(own) { var v = Theme.decor("menu.radius", -1); return v >= 0 ? v : own }
     // The highlighted row's band and the text on it (`[decor] menu.fill` / `menu.on`, roles: 98's navy and white; row
     // 598); the caller's own where the look leaves them.

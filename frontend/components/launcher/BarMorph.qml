@@ -172,13 +172,16 @@ Item {
         springs.snap()
         if (open) follow(); else m.hidden()
     }
+    // W53.5: a stepped look (`motion.kind = stepped`) moves on its own staircases and times: opening on the open curve,
+    // folding on the close one (K74's enter curve otherwise).
+    readonly property bool stepped: Theme.motionKind === "stepped"
     NumberAnimation {
         id: anim
         target: m
         property: "p"
-        duration: Theme.stdMs
+        duration: m.stepped ? (anim.to > anim.from ? Theme.openMs : Theme.closeMs) : Theme.stdMs
         easing.type: Easing.BezierSpline
-        easing.bezierCurve: Theme.enterCurve
+        easing.bezierCurve: m.stepped ? (anim.to > anim.from ? Theme.openCurve : Theme.closeCurve) : Theme.enterCurve
         onFinished: if (m.p <= 0 && !m.open) { m.shown = false; m.hidden() }
     }
     // The growth starts on the first presented frame (the window is mapped and sized by then), not on the request. The

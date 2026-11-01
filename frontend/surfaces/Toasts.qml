@@ -150,6 +150,10 @@ Scope {
         // PS2's low line); the stack grows upward from it.
         readonly property bool bottomBox: Theme.decor("toast.place", "island") === "bottom"
         readonly property bool flip: bars.atBottom || bottomBox
+        // (and clear of a dock that always stands along the bottom: its icons and their padding)
+        readonly property int dockRoom: bottomBox && bars.valueOf("dock.enabled", false) === true
+            && bars.valueOf("dock.edge", "bottom") === "bottom" && bars.valueOf("dock.visibility", "") === "always"
+            ? bars.valueOf("dock.icon_size", 44) + 2 * Theme.pad + Theme.gap : 0
         readonly property bool springing: Theme.springOn && visible
         // Without one: below a top edge, at the right, clear of a right bar (as before W34).
         readonly property int shade: Theme.softR
@@ -173,7 +177,7 @@ Scope {
             top: drip ? 0 : bars.topInset - padT
             right: drip ? 0 : bars.rightInset - padR
             // (a corner stack over a bottom bar: its "top" room is the bar's side, mirrored as the drip's is)
-            bottom: drip ? 0 : bottomBox ? bars.bottomInset + 2 * Theme.gap
+            bottom: drip ? 0 : bottomBox ? bars.bottomInset + 2 * Theme.gap + dockRoom
                 : bars.bottomInset - Math.min(shade + slackT, bars.bottomInset)
         }
 
