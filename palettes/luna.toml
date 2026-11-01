@@ -1,30 +1,44 @@
-# Luna — Windows XP: beige control chrome (#ECE9D8), Luna-blue accent, the green "start" highlight. Light, and dark (K53).
-# Roles after shellseikatsu `_winxpPalette()` (W25, K50). Meant for decor `luna` (frame `luna`).
+# Luna — Windows XP SP2, Luna Blue: the beige face (#ECE9D8), the blue caption and taskbar, the green start button, the
+# lighter blue tray, the orange of the Welcome screen. Light, and dark (K53). W53.2 (docs/ux/styles.md §2): every role the
+# XP desk shows is named here, measured from real XP captures at 1:1 (guidebookgallery.org: pics/gui/desktop/full/
+# winxppro.png, .../desktop/firstrun/winxppro-2-1.png, .../startupshutdown/login/winxppro.png), never left to the
+# derivations. Meant for look `luna`.
 name = "luna"
 kind = "pair"
 description = "XP beige with Luna blue (decor luna)"
 
 [light]
-surface = "#ece9d8"
-surface_container_lowest = "#ffffff"
+surface = "#ece9d8"                   # the window face ("Remote Desktop Connection" at y 446)
+surface_container_lowest = "#ffffff"  # fields and lists are white
 surface_container_low = "#f4f2e9"
 surface_container = "#f4f2e9"
 surface_container_high = "#ddd9c3"
 surface_container_highest = "#cfc9ae"
-on_surface = "#1a1a1a"
+on_surface = "#000000"
 on_surface_variant = "#4a4636"
-outline = "#8a8674"
-outline_variant = "#b8b49e"
-accent = "#245edc"
-accent_container = "#c2d9f7"
-on_accent_container = "#0a246a"
-secondary = "#2f8a2b"                 # start-button green
-tertiary = "#b5650e"
+outline = "#7f9db9"                   # field and list borders (the "Computer:" combo, x 210)
+outline_variant = "#aca899"           # menu frames and rules
+accent = "#245edc"                    # the taskbar's body (x 100, y 586) — Luna's own blue
+on_accent = "#ffffff"
+accent_container = "#1290e8"          # the notification area's lighter blue (x 770, y 575)
+on_accent_container = "#ffffff"
+secondary = "#3c983c"                 # the start button's green body (x 40, y 580)
+tertiary = "#e8892e"                  # the Welcome screen's and the Start menu's orange rule (y 504, y 157)
 warning = "#9a5b00"
-error = "#c42b1c"
+error = "#c42b1c"                     # the close plate's red (lit by the caption part: #e35c3b at its top)
 success = "#2f8a2b"
+# W53.0a roles, named: the caption body and glow (y 342 #0055e5, y 353 #026afe), inactive (#7996de, #82a9e9), its text,
+# the balloon's InfoWindow yellow and black, and the Welcome screen's field.
+title = "#0055e5"
+title_end = "#026afe"
+title_inactive = "#7996de"
+title_inactive_end = "#82a9e9"
+on_title = "#ffffff"
+info = "#ffffe1"
+on_info = "#000000"
+desk = "#5a7edc"
 
-# Dark (K53: every palette has both schemes): XP's Royale Noir: glossy black with Luna blue and the start-button green.
+# Dark (K53: every palette has both schemes): XP's Royale Noir — glossy black chrome with Luna blue and the start green.
 [dark]
 surface = "#1e1f24"
 surface_container_lowest = "#121316"
@@ -36,11 +50,19 @@ on_surface = "#f0efe8"
 on_surface_variant = "#b8b6a8"
 outline = "#6c7080"
 outline_variant = "#3a3d46"
-accent = "#6b9af2"
-accent_container = "#1c3f8f"
-on_accent_container = "#dde8ff"
-secondary = "#5cc456"
+accent = "#3a6fd8"
+accent_container = "#2a5fb8"
+on_accent_container = "#ffffff"
+secondary = "#3fa53f"
 tertiary = "#e8923a"
 warning = "#e8b04a"
-error = "#f0645a"
+error = "#d8442e"
 success = "#5cc456"
+title = "#2b2f38"
+title_end = "#4a5262"
+title_inactive = "#3a3d46"
+title_inactive_end = "#50545f"
+on_title = "#ffffff"
+info = "#3a3a24"
+on_info = "#ffffff"
+desk = "#1a2a50"

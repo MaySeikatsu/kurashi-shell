@@ -1,0 +1,2 @@
+# ガラスのログオン ロック画面 (W53.2, components/lock/LogonGlassFace.qml)。ヒントは lockface-welcome.toml、OK は lockface-logon.toml と共有。
+"lockui.face.name.logon-glass" = "ガラスのログオン画面"

@@ -1,27 +1,39 @@
-# Aero — Windows 7: cool glassy blue-white surfaces over blur, aero-blue accent. Light, and dark (K53). Roles after
-# shellseikatsu `_win7Palette()` (W25, K50). Meant for decor `aero` (frame `aero`).
+# Aero — Windows 7: light #f0f0f0 bodies in glass frames, the default "Sky" glass colour, 7's selection blue. Light, and
+# dark (K53). W53.2 (docs/ux/styles.md §3): roles from real 7 captures at 1:1 (Microsoft's Windows 7 UX guide images on
+# learn.microsoft.com/…/uxguide/images/, commons.wikimedia.org "SeaMonkey 2.46 on Windows 7.png") and 7.css' measured
+# variables. Meant for look `aero`.
 name = "aero"
 kind = "pair"
 description = "Aero glass blue-white (decor aero)"
 
 [light]
-surface = "#dce9f2"
-surface_container_lowest = "#f4fafe"
-surface_container_low = "#e8f1f8"
-surface_container = "#e8f1f8"
-surface_container_high = "#cbdeec"
-surface_container_highest = "#bad2e5"
-on_surface = "#0e2a3a"
-on_surface_variant = "#3a5666"
-outline = "#6a93ae"
-outline_variant = "#a9c7dc"
-accent = "#1f6fa3"
-accent_container = "#cde6f5"
-on_accent_container = "#0a3a5a"
+surface = "#eef2f7"                   # 7's #f0f0f0 face with the glass's hint of blue
+surface_container_lowest = "#ffffff"
+surface_container_low = "#f7f9fc"
+surface_container = "#f2f5f9"
+surface_container_high = "#e3eaf2"
+surface_container_highest = "#d5dfea"
+on_surface = "#1e1e1e"
+on_surface_variant = "#4c607a"        # 7's grey-blue secondary text and headings (#1e395b family)
+outline = "#8e8f8f"                   # control borders (7.css --w7-el-bd)
+outline_variant = "#d5dfe5"           # rules in jump lists and menus
+accent = "#1c69c4"
+accent_container = "#cce8ff"          # list and menu hover (7's #cce8ff)
+on_accent_container = "#000000"
 secondary = "#2f7fb0"
 tertiary = "#3f8fbf"
 warning = "#8a5a00"
-error = "#c42b1c"
+error = "#c74532"                     # the close gel's red (the capture's lower half, x 1030, y 22: #d14e3b)
+# W53.0a roles: the glass (7's default "Sky", #74b8fc; 7.css' darker #4580c4 for the superbar and orb), inactive glass,
+# the caption's dark text, the tooltip and balloon white, the logon screen's blue.
+title = "#74b8fc"
+title_end = "#4580c4"
+title_inactive = "#b9d1ea"
+title_inactive_end = "#9fbedf"
+on_title = "#000000"
+info = "#ffffff"
+on_info = "#1e1e1e"
+desk = "#1c5a9e"
 
 # Dark (K53: every palette has both schemes): Windows 7 with a black glass colour: deep blue-black glass, sky-blue accent.
 [dark]
@@ -41,4 +53,12 @@ on_accent_container = "#d8eefc"
 secondary = "#5aa8d8"
 tertiary = "#7fc4e8"
 warning = "#e8b04a"
-error = "#f06a5a"
+error = "#e0583f"
+title = "#2c4f74"
+title_end = "#1d3550"
+title_inactive = "#26384b"
+title_inactive_end = "#1d2c3c"
+on_title = "#ffffff"
+info = "#1f3245"
+on_info = "#e4f0f8"
+desk = "#0b1f3a"

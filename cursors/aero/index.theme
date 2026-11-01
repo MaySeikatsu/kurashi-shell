@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-aero
+Comment=The Windows 7-era slim arrow with a softer shadow (W53.2, CC0, drawn in tools/styles/xp7-assets.py)
+Inherits=default

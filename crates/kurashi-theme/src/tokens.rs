@@ -697,6 +697,25 @@ pub fn build(
         json!(r2(dnum("material.sheen") * deco)),
     );
     decor_tokens(&mut t, p, decor);
+    // W53.2: a part's own face (`[decor] title.family`, `start.family`): the chain's first installed family as
+    // `font.title` / `font.start`, "" when none is (the part then takes the theme's). `icons.family` resolves above.
+    for d in DECOR_KEYS {
+        let Some(part) = d.key.strip_suffix(".family") else {
+            continue;
+        };
+        if d.kind != DecorKind::Families || d.key == "icons.family" {
+            continue;
+        }
+        let own = dv(d.key)
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .find(|f| fonts.is_installed(f))
+            .unwrap_or("")
+            .to_string();
+        t.insert(format!("font.{part}"), json!(own));
+    }
     t.insert("chrome.outline_alpha".into(), json!(oa));
     col(&mut t, "chrome.soft_color", g("shadow"));
     t.insert(
