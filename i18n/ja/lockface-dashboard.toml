@@ -1,0 +1,9 @@
+# ダッシュボード ロック (W53.5, components/lock/DashboardFace.qml): コンソールのダッシュボードの空間、細い時計、カード
+# スロットとしてのユーザー、柔らかな青い光の下線フィールド。
+"lockui.face.name.dashboard" = "ダッシュボード"
+"lockui.dashboard.password" = "パスワード"
+"lockui.dashboard.wrong" = "パスワードが違います。"
+"lockui.dashboard.caps" = "Caps Lock"
+"lockui.dashboard.user" = "ユーザー {name}"
+# Qt の日付パターン（M = 月、d = 日、dddd = 曜日）。時計の下。
+"lockui.dashboard.date_format" = "M月d日 dddd"

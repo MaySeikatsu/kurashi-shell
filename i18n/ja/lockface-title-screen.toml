@@ -1,0 +1,14 @@
+# タイトル画面 ロック (W53.5, components/lock/TitleScreenFace.qml): 16 ビット RPG のタイトル、次にファイル選択。
+"lockui.face.name.title-screen" = "タイトル画面"
+"lockui.title.push" = "なにかキーをおしてください"
+"lockui.title.start" = "スタート：なにかキーでサインインへ"
+"lockui.title.file" = "ファイル 1"
+"lockui.title.password" = "あいことば"
+"lockui.title.wrong" = "ちがうようだ。"
+"lockui.title.loading" = "よみこみちゅう"
+"lockui.title.retry_in" = "あと {s} びょう まってね。"
+"lockui.title.caps" = "CAPS"
+"lockui.title.caps_on" = "Caps Lock がオンです"
+"lockui.title.caps_off" = "Caps Lock はオフです"
+# Qt の日付パターン（ddd = 曜日、M = 月、d = 日）。時計の下の小さな日付。
+"lockui.title.date_format" = "M/d (ddd)"

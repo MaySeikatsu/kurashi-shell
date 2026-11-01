@@ -102,7 +102,7 @@ Item {
                 readonly property bool live: menu.selectable(index)
                 readonly property bool current: menu.cursor === index && live
                 // Depth shifts the row; the mark and icon columns keep labels aligned across rows.
-                readonly property int indent: Theme.pad + modelData.depth * (Theme.pad + 4)
+                readonly property int indent: Theme.pad + ms.lead + modelData.depth * (Theme.pad + 4)
 
                 width: body.width
                 height: sep ? 9 : ms.rowH(Theme.controlH)
@@ -211,18 +211,15 @@ Item {
             }
         }
 
-        // Loading, an item with no menu, or the failure of tray.menu; nothing otherwise.
-        Text {
-            renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-            antialiasing: !Theme.pixelType
-            font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+        // Loading (as the look says it: LoadingText), an item with no menu, or the failure of tray.menu; nothing otherwise.
+        LoadingText {
             width: body.width
             visible: text !== ""
             wrapMode: Text.WordWrap
             color: menu.errText !== "" ? Theme.error : Theme.dim
             font.pixelSize: Theme.fs
-            font.family: Theme.fam(text, Theme.families)
-            text: menu.errText !== "" ? menu.errText
+            loading: menu.errText === "" && menu.tree === null
+            words: menu.errText !== "" ? menu.errText
                 : menu.tree === null ? I18n.tr("frontend.tray.loading")
                 : menu.rows.length === 0 ? I18n.tr("frontend.tray.empty") : ""
         }

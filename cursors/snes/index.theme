@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-snes
+Comment=A chunky white arrow with a near-black outline on a 16 px grid (W53.5, CC0, drawn in tools/styles/consoles-assets.py)
+Inherits=default

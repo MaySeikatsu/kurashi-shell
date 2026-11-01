@@ -22,3 +22,6 @@ MenuMark 1.0 MenuMark.qml
 Bullet 1.0 Bullet.qml
 Filigree 1.0 Filigree.qml
 Rule 1.0 Rule.qml
+# W53.5 (snes, ps2)
+PixelArt 1.0 PixelArt.qml
+PanelDress 1.0 PanelDress.qml

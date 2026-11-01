@@ -1,15 +1,72 @@
 name = "ps2"
 label = "config.choice.look.ps2"
 category = "retro"
-# After shellseikatsu `Services/Modes/Ps2.qml` and `Widgets/ThemeDecor/Ps2Frame.qml` (W25; the PS2 dashboard):
-# void black, translucent light towers and blue glow lines, thin silver type, solemn calm motion.
+# The PS2 boot and dashboard (W53.5, docs/ux/styles.md §8): a black void with translucent light towers and a deep blue
+# floor glow (the `ps2` frame's ground), thin silver type with a soft blue glow (Inter Light, M PLUS 1p Light), the main
+# menu's glowing rows, System Configuration's rows with their values at the right, translucent panels with a blue glow
+# line, slow ease-in-out fades of half a second, the island as a memory-card slot (an original glyph, never the card's
+# silhouette).
 [recipe]
-"theme.chrome" = "soft"
+"theme.chrome" = "flat"
 "theme.motion.profile" = "expressive"
 "theme.material.kind" = "translucent"
-"theme.material.opacity" = 0.92
+"theme.material.opacity" = 0.72
+"theme.material.blur" = false
 "theme.shape.corners" = "rounded"
-"theme.shape.radius" = 9
-"theme.typography.family" = ["SST", "Zrnic", "Inter", "Noto Sans CJK JP", "sans-serif"]
+"theme.shape.radius" = 6
+"theme.typography.family" = ["Inter Light", "Inter", "Noto Sans", "sans-serif"]
+"theme.typography.family_jp" = ["M PLUS 1p Light", "M PLUS 1p", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
 frame = "ps2"
+bar = "void"
+menu = "glow"
+scroll = "hairline"
+tooltip = "glow"
+island = "card-slot"
+slider = "glow"
+lock = "dashboard"
+sounds = "ps2"
+
+[decor]
+# Thin type: the regular weight is Light, bold is Regular.
+"type.weight" = 300
+# A soft blue glow round panels and selected rows (static halos; high contrast drops them).
+"material.glow" = 0.35
+"material.glow_color" = "accent"
+"material.glow_radius" = 18
+"bar.group" = "none"
+"separator.style" = "none"
+"menu.row" = 34
+"menu.highlight" = "bar"
+"menu.separator" = "space"
+"menu.on" = "accent"
+"menu.radius" = 0
+"scroll.width" = 8
+"scroll.thumb" = "flat"
+"tooltip.fill" = "surface_container_lowest"
+"tooltip.on" = "on_surface"
+"focus.style" = "halo"
+"focus.color" = "accent"
+# Slow fades: everything eases in and out over half a second, no overshoot.
+"motion.style" = "fade"
+"motion.open_ms" = 500
+"motion.open_curve" = [0.42, 0.0, 0.58, 1.0]
+"motion.close_ms" = 450
+"motion.close_curve" = [0.42, 0.0, 0.58, 1.0]
+"motion.fast_ms" = 400
+"motion.fast_curve" = [0.42, 0.0, 0.58, 1.0]
+"motion.effects_ms" = 400
+"motion.effects_curve" = [0.42, 0.0, 0.58, 1.0]
+"icon.fill" = 0
+"icon.weight" = 200
+"cursor" = "ps2"
+# System Configuration: rows with the value at the right; the query as an underline field; toasts a line low on screen.
+"quick.frame" = "flyout"
+"quick.tiles" = "rows"
+"quick.values" = "value"
+"toast.place" = "bottom"
+"field.form" = "underline"
+"surface.join" = false
+"loading.form" = "pulse"
+"calendar.cells" = "flat"
