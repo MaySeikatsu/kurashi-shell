@@ -263,7 +263,11 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.3 (lead review): the quick settings card's chrome — a phone (K42, today's) or a plain flyout of the panel's
     // material — and its tiles: wide pills in two columns (today's) or compact buttons in three, the label under them.
     k("quick.frame", Choice(&["phone", "flyout"]), r#""phone""#),
-    k("quick.tiles", Choice(&["wide", "compact", "rows"]), r#""wide""#),
+    k(
+        "quick.tiles",
+        Choice(&["wide", "compact", "rows"]),
+        r#""wide""#,
+    ),
     // W53.5: `rows` (a config screen: one row per switch, the label at the left and its value at the right) shows the
     // value as both words with the chosen one lit (`pair`: 16-bit RPG configs' "ON  OFF") or as the chosen word (`value`:
     // the PS2's System Configuration).
@@ -274,7 +278,11 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("calendar.cells", Choice(&["boxed", "flat"]), r#""boxed""#),
     // Where toasts stand under a top or bottom bar: out of the island (W34, today's) or in the screen's corner at the
     // bar's end, stacked (11's bottom-right).
-    k("toast.place", Choice(&["island", "corner", "bottom"]), r#""island""#),
+    k(
+        "toast.place",
+        Choice(&["island", "corner", "bottom"]),
+        r#""island""#,
+    ),
     // W53.5: `bottom` — one wide box centred low on the screen, over a bottom bar (an RPG's text box, the PS2's low line).
     // The gap between a horizontal bar's modules and groups, px (-1 = today's: the pad and the groups' insets).
     k("bar.gap", Int(-1, 32), "-1"),
@@ -293,7 +301,11 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("field.form", Choice(&["box", "underline"]), r#""box""#),
     // W53.5: what loading shows — the caller's words (`text`, today's), the look's loading line with dots stepping after
     // it (`dots`: "NOW LOADING..."), or the words under a slow pulse (`pulse`). Only while loading.
-    k("loading.form", Choice(&["text", "dots", "pulse"]), r#""text""#),
+    k(
+        "loading.form",
+        Choice(&["text", "dots", "pulse"]),
+        r#""text""#,
+    ),
     // W53.5: the regular text weight (bold stays 300 heavier, at most 900): thin type as the PS2's (Light, 300).
     k("type.weight", Int(100, 900), "400"),
     // W53.5: the launcher and the island's cards grow out of the bar as one shape (true, W21's morph) or stand apart from

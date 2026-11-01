@@ -378,11 +378,15 @@ PanelWindow {
             } else { anim.stop(); anim.from = p; anim.to = 0; anim.start() }
         }
     }
+    // W53.5: a stepped look (`motion.kind = stepped`) opens on its own staircase and time and folds on its close one; the
+    // card itself grows out of its middle (below), so the content's Entrance stays still.
+    readonly property bool stepped: Theme.motionKind === "stepped"
     NumberAnimation {
         id: anim
         target: stage; property: "p"
-        duration: Theme.stdMs
-        easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve
+        duration: stage.stepped ? (anim.to > anim.from ? Theme.openMs : Theme.closeMs) : Theme.stdMs
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: stage.stepped ? (anim.to > anim.from ? Theme.openCurve : Theme.closeCurve) : Theme.enterCurve
         onFinished: if (stage.p <= 0 && !stage.open) stage.shown = false
     }
     Connections {
@@ -1269,6 +1273,11 @@ PanelWindow {
         opacity: stage.morphMode ? stage.contentP : 1
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
+        // W53.5: a stepped look's card grows out of its middle in held steps (FF6's boxes open from the centre strip).
+        transform: Scale {
+            origin.y: card.height / 2
+            yScale: stage.stepped && !stage.morphMode ? Math.max(0.001, stage.p) : 1
+        }
         radius: Theme.rLg
         color: stage.morphMode || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
@@ -1344,8 +1353,8 @@ PanelWindow {
             y: -reveal.cutTop
             width: card.width
             height: card.height
-            progress: stage.morphMode ? 1 : stage.p
-            edge: "top"
+            progress: stage.morphMode || stage.stepped ? 1 : stage.p
+            edge: stage.flip ? "bottom" : "top"
 
         // W53.0b (K80): the card's title bar, where the style draws one (`runtime.ui.title`, the daemon's: the buttons
         // and what each does). The style's own strip (`decor.title`, components/decor/title/<Name>.qml) when it loads,

@@ -17,7 +17,7 @@ MenuRowBase {
         anchors.fill: parent
         sourceComponent: PixelArt {
             px: row.g
-            x: Math.max(0, Math.round((Theme.decor("menu.lead", 0) - width) / 2 / row.g) * row.g)
+            x: Math.max(0, Math.round((Theme.decor("menu.lead", 0) * Theme.pixelScale - width) / 2 / row.g) * row.g)
             anchors.verticalCenter: parent.verticalCenter
             inks: ({ "#": Theme.color("color.line", "#000000"), "w": Theme.color("color.ring", "#f8f8f8"),
                      "g": Theme.color("color.outline", "#b8b8b8"), "d": Theme.color("color.outline_variant", "#606868") })
