@@ -1,0 +1,11 @@
+name = "fluent"
+label = "config.choice.style.fluent"
+category = "inspired"
+# Windows 11 (W53.3, docs/ux/styles.md §4): the fluent look (Acrylic, 8 px, the decelerating motion, the start button,
+# the lock curtain) in the fluent palette, light as 11 ships; its dark scheme is WinUI's Dark dictionary. Its layout
+# (the centred taskbar at the bottom) is the `fluent-desk` preset, offered with the style, never applied by itself (K45).
+look = "fluent"
+palette = "fluent"
+[recipe]
+"theme.colors.scheme" = "light"
+"theme.density" = "regular"
