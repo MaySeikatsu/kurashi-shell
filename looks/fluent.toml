@@ -22,6 +22,7 @@ category = "inspired"
 
 [slots]
 start = "fluent"
+slider = "fluent"
 lock = "curtain"
 sounds = "fluent"
 
@@ -54,10 +55,10 @@ sounds = "fluent"
 "task.mark" = "pill"
 "separator.style" = "none"
 # The focus visual: a 2 px outer ring in primary text (black on light, white on dark) round a 1 px inner one in the
-# ground's colour, 3 px outside the control (FocusVisualPrimary/SecondaryThickness, FocusVisualMargin -3).
+# ground's colour, 3 px out from the control (FocusVisualPrimary/SecondaryThickness 2 and 1, FocusVisualMargin -3: 6 px in all).
 "focus.style" = "double"
 "focus.width" = 1
-"focus.offset" = 3
+"focus.offset" = 6
 "focus.color" = "on_surface"
 # Symbols: outline, light (Segoe Fluent Icons draws 1 px strokes at 16 px); the shell's Rounded cut at weight 300.
 "icon.fill" = 0

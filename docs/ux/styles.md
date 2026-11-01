@@ -362,23 +362,34 @@ notification centre flyouts, and the lock curtain. Primary docs:
 - Typography <https://learn.microsoft.com/en-us/windows/apps/design/signature-experiences/typography>
 - Mica <https://learn.microsoft.com/en-us/windows/apps/design/style/mica>
 - Timing <https://learn.microsoft.com/en-us/windows/apps/design/motion/timing-and-easing>
+- WinUI 3's own resources (microsoft-ui-xaml, MIT; `main`, read 2026-10-30) — **[P]** for every number they hold:
+  `controls/dev/CommonStyles/{Common_themeresources_any,CornerRadius_themeresources,Slider_themeresources,
+  MenuFlyout_themeresources,ScrollBar_themeresources,ToolTip_themeresources,Button_themeresources}.xaml`,
+  `controls/dev/Materials/Acrylic/AcrylicBrush_themeresources.xaml`, `controls/dev/TitleBar/TitleBar_themeresources.xaml`
+  (<https://github.com/microsoft/microsoft-ui-xaml/tree/main/controls/dev>).
+- Focus visuals <https://learn.microsoft.com/en-us/windows/apps/develop/input/guidelines-for-visualfeedback>
 
-**Metrics**
+**Metrics** (W53.3: what the WinUI sources and Learn give, and what fluent draws; **[O]** = observed on 11, not measured
+from a capture — no free, lossless 1:1 Windows 11 capture was found, see "Still differs")
 
-| part | value | source |
-|---|---|---|
-| radius | 8 px top-level (windows, flyouts, dialogs); 4 px in-page controls and tooltips; 4 px bars (progress, scroll, slider); 0 where two straight edges meet or where a flyout joins what opened it | [P] geometry |
-| title bar | 32 px (48 px with a search box or person picture); icon 16 px at 16 px from the edge; title 16 px after it, Caption style | [P] titlebar |
-| caption buttons | full-bleed backplates; glyphs E921/E922/E8BB; states rest, hover, pressed, active, inactive; 46 px wide (to verify); × hover red `#c42b1c` (to verify) | [P] / to verify |
-| type ramp | Caption 12/16, Body 14/20, Body Strong 14/20 semibold, Body Large 18/24, Subtitle 20/28, Title 28/36, Title Large 40/52, Display 68/92; minimum 12 px regular, 14 px semibold; no bold, no italic | [P] typography |
-| materials | **Mica** (opaque, wallpaper-tinted, sampled once) for long-lived surfaces; **Acrylic** (blurred, translucent) for transient ones; both fall back to a solid colour with transparency off, on battery saver, or when inactive | [P] mica |
-| layer fill | content layer `LayerFillColorDefault` = a low-opacity solid over Mica (value to verify) | [P] |
-| focus | two rings: 2 px outer (primary, black/white) + 1 px inner (secondary) following the control's radius | to verify (`FocusVisualPrimaryThickness`/`SecondaryThickness`, microsoft-ui-xaml) |
-| controls | 32 px tall buttons (to verify); 1 px border with a lighter bottom edge ("elevation border", to verify) | to verify |
-| scroll bar | a 2 px rail that widens to ~6 px with arrows on hover (to verify) | to verify |
-| menus | Acrylic, 8 px radius, item rows ~32 px with 4 px radius highlights inset 4 px (to verify) | radius [P]; rest to verify |
-| shadow | flyouts: a soft 32 px blur at ~0.28 alpha (to verify) | to verify |
-| taskbar | 48 px (to verify), centred icons, Start mark first; running = a 3 × 6 px grey pill under the icon, active = 3 × 16 px accent pill (to verify); right: chevron, a grouped network/volume/battery button, two-line clock and date | to verify |
+| part | value | source | fluent draws |
+|---|---|---|---|
+| radius | `OverlayCornerRadius` 8 (flyouts, dialogs, windows), `ControlCornerRadius` 4 (controls, tooltips); 0 where two straight edges meet | [P] CornerRadius_themeresources, geometry | `theme.shape.radius` 8; `[decor] shape.sm`/`shape.md` 0.5 → 4 px controls; `tile.radius` 4 |
+| title bar | `TitleBarCompactHeight` 32, `TitleBarExpandedHeight` 48, icon 16 (`TitleBarIconMaxWidth`), 16 px after it; deactivated at 0.5 opacity | [P] TitleBar_themeresources | not drawn: 11's flyouts have no title bar, and every Stage card is a flyout here (the `title` slot stays `""`) |
+| caption buttons | 46 × 32, close hover `SystemFillColorCritical` #c42b1c | [O] 46 px; [P] colour | — (no title bar) |
+| type ramp | Caption 12/16, Body 14/20, Body Strong 14/20 semibold, Subtitle 20/28, Title 28/36, Display 68/92 | [P] typography | Selawik (Segoe UI's metric twin, OFL) after Segoe UI Variable; semibold 600 for headings and the lock clock |
+| materials | Mica for long-lived windows (opaque, wallpaper-tinted); **Acrylic** for flyouts and the taskbar: tint #fcfcfc at 0 / luminosity 0.85, fallback #f9f9f9 (light); #2c2c2c at 0.15 / 0.96 (dark) | [P] AcrylicBrush_themeresources, mica; taskbar [O] | translucent 0.86 + niri blur on every surface (the bar too: 11's taskbar blurs); surface #f3f3f3 / #202020 (Mica base), flyouts #f9f9f9 / #2c2c2c |
+| colours | `TextFillColorPrimary` #e4000000 / #ffffff, `Secondary` #9e000000 / #c5ffffff, `ControlStrongStroke` #72000000 / #8bffffff, `SurfaceStrokeColorFlyout` #0f000000 / #33000000, accent `AccentFillColorDefault` = SystemAccentColorDark1 #005fb8 (light) / Light2 #60cdff (dark) of the default blue #0078d4 | [P] Common_themeresources_any | `palettes/fluent.toml`, every role composited over the surface it lies on |
+| focus | primary ring 2 px outside a secondary 1 px one; `FocusStrokeColorOuter` #e4000000 / #ffffff, `Inner` #b3ffffff / #b3000000; WinUI 3 controls set `FocusVisualMargin` −3 | [P] visual feedback, Common_themeresources_any | `focus.style = double`, `focus.color = on_surface` (new key: 11's ring is primary text, not the accent), extent 6 px; the inner line contrasts with the outer one (FocusRing) |
+| controls | `ButtonPadding` 11,5,11,6 (32 px), 1 px `ControlStrokeColorDefault` border; no shadow | [P] Button_themeresources | soft chrome with `chrome.soft_scale = 0` (new key): 1 px rim, no block shadow; the flyouts keep their elevation |
+| slider | rail 4 px (`SliderTrackThemeHeight`), corner 2; thumb 18 × 18, corner 10, inner dot 12 (14 hover, 10 pressed) | [P] Slider_themeresources | `slider/Fluent.qml`, hosted by `Slider.qml` (new host) |
+| scroll bar | `ScrollBarSize` 12; a 2 px rail (`ScrollBarThumbOffset` 2) that expands after 0.4 s over 167 ms; corner 3 | [P] ScrollBar_themeresources | `scroll.width` 12 + arrows (only Settings hosts ScrollStyle yet) |
+| menus | `MenuFlyoutItemThemePadding` 11,8,11,9, `MenuFlyoutItemMargin` 4,2,4,2, `MenuFlyoutThemeMinHeight` 32; separator 1 px; Acrylic, 8 px | [P] MenuFlyout_themeresources | `menu.row` 36, `menu.highlight = inset`, `menu.radius` 4, the band `SubtleFillColorSecondary` |
+| tooltip | padding 9,6,9,8, 1 px border, 12 px text, max 320 | [P] ToolTip_themeresources | `tooltip.fill/on` (no part: a tooltip part would turn toasts into tooltips, row 599) |
+| shadow | flyouts lift (elevation 32) | [O] | the surfaces' elevation (K78) under soft chrome |
+| taskbar | 48 px; 40 px keys, icons 24; centred start + apps; running = a 6 × 3 grey pill, focused = 16 × 3 accent pill, inside the key's bottom; right: chevron, input language, the grouped network/volume/battery key, two-line clock and date, the notification bell | [O] | `fluent-desk` bar 48; `task.mark = pill` (new); `clock.lines = 2` (new); start/Fluent 40 × 40 |
+| Start | ~640 wide, search box on top, "Pinned" 6 × 3 grid (icon 32, name under it), "Recommended" in two columns, footer band with avatar + name and power, centred over the taskbar | [O] | `start.grid = 6`, `start.menu = center` (new keys); start/FluentMenu footer; the grid shows the dock's pins ("Pinned"), else the most used ("Apps") |
+| motion | `ControlNormalAnimationDuration` 250, Fast 167, Faster 83; enter `cubic-bezier(0,0,0,1)`, exit `(1,0,1,1)` | [P] timing | `motion.open/close/fast/effects_*`, `motion.style = slide` |
 
 **Type.** Segoe UI Variable → **Selawik** [P]. ja: Yu Gothic UI → **BIZ UDPGothic** / Noto Sans CJK JP.
 
@@ -386,14 +397,14 @@ notification centre flyouts, and the lock curtain. Primary docs:
 
 | our surface | becomes | notes |
 |---|---|---|
-| bar | the taskbar; the start dress on the launcher toggle; the grouped tray button **is** our Quick module; the clock **is** the sidebar toggle | the bar is Mica (translucent + tint, no blur: Mica samples the wallpaper, it does not blur live) |
+| bar | the taskbar; the start dress on the launcher toggle; the grouped tray button **is** our Quick module; the clock opens the calendar (the island's clock card) and the bell (`sidebar_right`) the notification centre | 11's taskbar blurs what lies under it (Acrylic, [O]): translucent + blur, as the flyouts (W53.3 corrects the draft's "Mica, no blur") |
 | island | a taskbar flyout (Acrylic, 8 px) for peek/expanded | |
 | Stage cards | flyouts: Acrylic, 8 px, **no title bar** (11 flyouts have none) | the `title` slot is `""` for fluent |
-| sidebar | notification centre (top) + calendar (bottom), each an Acrylic panel, 12 px apart (to verify) | |
+| sidebar | notification centre (top) + calendar (bottom), each an Acrylic panel, 12 px apart [O] | W53.3: still one column flush with the edge (see "Still differs") |
 | dock | pinned centre icons with running pills (same idiom as the bar) | |
 | launcher | the 11 Start: search box on top (pill-ish 4 px), "Pinned" grid of 6 columns with app labels, "Recommended" list; footer with avatar + name left, power right | |
 | quick settings | the 11 Quick Settings flyout: tiles in a 3 × 2 grid with a split chevron for detail, sliders below, a footer row (battery, edit, settings) | already close to ours: tile shape and spacing are the work |
-| toasts | 11 toasts: bottom-right above the bar, Acrylic, 8 px, 364 px wide (to verify), app icon + name header, × on hover | |
+| toasts | 11 toasts: bottom-right above the bar, Acrylic, 8 px, ~364 px wide [O], app icon + name header, × on hover | W53.3: Acrylic, 8 px, header with the app; placed where the island's toasts go, not bottom-right |
 | lock | lock curtain → sign-in | |
 
 **Lock face `curtain`.** Two stages, as 11 does it:
@@ -430,8 +441,27 @@ This maps onto `motion.kind = timed` with the look's own curves (new look keys, 
 **Multi-output.** The taskbar per bar (11 shows it on every screen); the lock curtain on each output, the sign-in on
 the focused one.
 
-**Budget.** Mica = the existing translucent material with a wallpaper tint (theme-side, once per wallpaper). No
-live blur on the bar. Acrylic = translucent + blur on the transient cards only.
+**Budget.** Acrylic = the translucent material + the compositor's blur (niri), on the bar too (11's taskbar blurs).
+Mica (a wallpaper tint sampled once) is not drawn: fluent has no long-lived window surfaces (no title bars).
+
+**Built (W53.3).** `{palettes,looks,styles}/fluent.toml`, `profiles/fluent-desk.toml`, `decor/start/{Fluent,FluentMenu}`,
+`decor/slider/Fluent`, `lock/CurtainFace`, `sounds/fluent` + `cursors/fluent` (`tools/styles/fluent-assets.py`, CC0),
+`nix/selawik.nix` (OFL 1.1). New generic `[decor]` keys: `shape.sm`/`shape.md`, `focus.color`, `task.mark`,
+`start.grid`, `start.menu`, `clock.lines`, `chrome.soft_scale`, `tile.radius`; Slider hosts the `slider` slot. Shots:
+`frontend/shots/styles/fluent/` (`desk-*` light, `dark-*` dark, with the preset; the seven test-styles surfaces;
+`focus-ring*.png` at 3×). The lock: a typed character on the curtain lifts it and stays in the box (`desk-lock-signin`).
+
+**Still differs (W53.3, honest).**
+- Quick settings keep the shell's two-column tiles with a subtitle (4 px corners now); 11 has 3 × 2 compact tiles with
+  the label under them, sliders below and a footer (battery, edit, settings).
+- The notification centre and calendar are one sidebar column flush with the screen's edge, not two floating flyouts.
+- Toasts stand where the island's do, not bottom-right above the taskbar.
+- Mica's wallpaper tint is not drawn (the theme does not sample the wallpaper for it); the lock ground is an original
+  gradient from `desk` and the accent, since the lock surface does not know the wallpaper.
+- Icons: the shell's Material Symbols (Rounded, weight 300, outline) stand in for Segoe Fluent Icons (Microsoft licence).
+- No "All apps" view or pinned management in Start; Start's pins are the dock's (`dock.pinned`).
+- The sign-in's veil is a dim scrim, not a blur of the ground; the 46 × 32 caption buttons are not drawn (no title bars).
+- The taskbar/Start measurements are [O]: no free lossless 1:1 capture of 11 was found for pixel reads (BACKLOG).
 
 ---
 
