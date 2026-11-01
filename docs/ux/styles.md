@@ -657,21 +657,28 @@ modules scale+fade from their glyph.
 
 **Reference.** The console itself, not an OS (the SNES had no system menu): light-grey plastic, the four-colour
 button cluster (A red, B yellow, X blue, Y green on the Super Famicom and PAL pad), and 16-bit game menus (the RPG
-window: a blue vertical gradient inside a white 2–3 px rounded border, a white hand-pointer cursor; to verify against
-period screenshots). Native resolution 256 × 224, so the scale is ×4 on 1080p (to verify the grid).
+window: a blue vertical gradient inside a white 2–3 px rounded border, a white hand-pointer cursor; measured below on
+period screenshots). Native resolution 256 × 224, so the scale is ×4 on 1080p ([M]: 1080 / 224 = 4.8; the shell takes half, ×2 — see Metrics).
 
 **Metrics.** Everything is on a **pixel grid** of `pixel` = round(min output height / 224 / 2) logical px (the look's
-`[decor] pixel`, to verify the tune). Measured in grid pixels:
+`[decor] pixel`, a divisor: `pixel = 2`, [M] below). Measured in grid pixels:
 
-| part | value |
-|---|---|
-| window border | 2 px white + 1 px dark outline, corners cut 1 px |
-| window fill | blue vertical gradient in 4–8 hard **bands**, not smooth |
-| cursor | an 8 × 8 hand or ▶ that jumps row to row |
-| text | an 8 × 8 font, line height 2 × 8 |
+| part | value | source |
+|---|---|---|
+| window border | FF6 dialogue: 3 px — #f8f8f8, #b8b8b8, #606868 from the outside in, the corner cut; FF6 menu: a 4 px bevel #f8f8f8/#d8d8d8/#808080/#505050; DQ6: 1 px dark outline + 2 px white #f0f0e8; FF4: grey, white, grey | [M] `vgmuseum.com/end/snes/a/ff3w-004.gif`; FF wiki `FFVI_SNES_Menu.png`, `FFIV_SNES_Menu.png` (Wayback copies); `en.wikipedia.org/wiki/File:Dragonquest6.png` |
+| shell | the brief's dark outline 1 grid px, then FF6's three rings, 1 grid px each; corners stepped (aliased radius 4 at ×2) | `frames/Snes.qml` |
+| window fill | FF6 dialogue: box-relative hard bands **5 rows** tall, #6060b8 (12,12,23) → #000050 (0,0,10) over 72 px; FF6 menu: screen-space 10-row bands from #5050d0; FF4: solid #000063; CT: a noisy grey-blue | [M] as above |
+| shell | box-relative bands `fill.band_h = 5` grid px, `title` #6060b8 → `title_end` #000050 | `palettes/snes.toml` |
+| cursor | FF6: a 16 × 16 hand (outline #181828, white, greys #a0c0c0/#789898), its tip 4 px left of the text; FF4: 16 × 14 | [M] |
+| shell | an original 16 × 12 glove in `menu.lead` (36 px), jumping row to row | `menu/Hand.qml` |
+| text | FF6: white with a black shadow 1 px right and down ([C] `text.asm` UpdateDlgText), 8 px advance, cap 7–8; line pitch 15 (dialogue), 16 (config); disabled grey #787878 | [M], [C] github.com/everything8215/ff6 |
+| shell | Press Start 2P at 16 px (8 × 8 at ×2), no shadow | `looks/snes.toml` |
+| config | FF6 Config: labels teal #00d8d8 at x 24, option A at x 112, B at x 176, rows every 16 px; the chosen value white, the other grey #7b7b7b | [M] FF wiki `FFVI_Config_SNES.png`; [C] `menu_text.en.inc` |
+| text box | FF6: 240 × 72 at (8, 8), three lines seen, no "next" mark in two captures; CT: full width, ~80 px, top at y 8 or bottom at y 131 | [M] |
+| pad colours | Super Famicom: X #3571c8, A #c34744, B #f8dd4d, Y #4fa173; US: purple #524eb0, lavender #b4b8e6 | [M] Wikimedia Commons `Super_Famicom_and_Super_NES_Controllers.jpg` (a photo: lighting-dependent) |
 
-**Type.** **Press Start 2P** (OFL) at multiples of 8 px; ja **PixelMplus10** or **Misaki** (8 × 8; licence to
-verify). Bitmap rendering on.
+**Type.** **Press Start 2P** (OFL, Google Fonts) at 16 px; ja **Misaki Gothic 2nd** (8 × 8, Little Limit's free licence,
+`nix/misaki.nix`), PixelMplus10 and DotGothic16 after it. Bitmap rendering on.
 
 **Mapping**
 
@@ -709,25 +716,78 @@ window greys to two bands.
 on black with no gradient. Large text: the grid scales ×2 (8 → 16). `reduce_motion`: no typing-out, the text appears
 whole.
 
-**Motion.** **Stepped**: windows open by growing in 4 frames at 60 Hz (to verify against games), the cursor jumps, no
+**Motion.** **Stepped**: windows open by growing in 4 frames at 60 Hz ([C]: Final Fantasy VI opens its dialogue box in five steps of 8 px strip pairs from the centre, one per update — window.asm `DlgOpenMaskTbl`; the shell grows in 4, one frame each, 67 ms), the cursor jumps, no
 easing. A new `motion.kind = stepped` with `motion.steps` (shared system).
 
 **Multi-output.** Each output computes its own grid pixel.
 
 **Budget.** No Canvas per block: the banded gradient is a few Rectangles.
 
+**Built (W53.5).** `{palettes,looks,styles}/snes.toml` (dark = the RPG screen, the style's scheme; light = the console's
+grey plastic and US purple), `profiles/snes-desk.toml` (the HUD strip along the bottom, the island's text box in its
+middle, toasts as the box above it), `frames/Snes.qml`, `decor/{bar/Window,menu/Hand,scroll/Pixel,tooltip/Window,
+slider/Gauge,island/TextBox}`, `lock/TitleScreenFace.qml`, `sounds/snes` + `cursors/snes` (`tools/styles/consoles-assets.py`:
+pulse-wave blips and an original pixel arrow, CC0), `nix/misaki.nix`. The whole shell sits on the output's pixel grid
+(`Theme.grid`: ×2 on 1080 lines, aliased edges, whole device px at 1.5); every card (Block, the Stage's card, the quick
+flyout, toasts, the launcher) is an RPG window with FF6's rings and 5-row bands; the island types its line out once
+(`island.reveal`, 40 characters a second) and shows the box's ▼ when done; quick settings and the sidebar's toggles are a
+config screen ("ON  OFF", the chosen word lit, the hand on the focused row); the launcher's query is a name-entry line
+with a block caret, its rows have the hand; loading lines read "NOW LOADING" with stepping dots; windows grow in 4 held
+steps (`motion.style = stepped`, 67 ms); the cards stand apart from the bar (`surface.join = false`) as RPG windows do.
+The lock: the title (an original blocky wordmark of the host name, the X/A/B/Y diamond, PUSH ANY KEY blinking three times,
+then lit), then FILE 1 with the password as a name-entry line and the first key carried over; the error typed out in a
+text box, the CAPS lamp, the countdown, NOW LOADING while PAM checks. Shots: `frontend/shots/styles/snes/` (`desk-*` with
+the preset, `light-*`, `hc-*`, `large-*`, `ja-*`, `scale15-*`, `motion-*` strips, `sheet-lock-*`, the seven test-styles
+surfaces).
+
+**Still differs (W53.5, honest).**
+- Text has no drop shadow (FF6 draws white over a black 1 px shadow); the shell's Texts draw one ink. Config labels are
+  white, not FF6's teal (no teal role).
+- One type size: every size is 16 px (8 × 8 at ×2), so long labels elide ("Blueto…") where FF6 would abbreviate.
+- The grid is per output, but the type step is one global token: on an output whose grid is not 2 px (1440 lines: 3 px)
+  the borders follow the output and the text stays 16 px.
+- The band gradient is box-relative (FF6's dialogue box), not FF6 menus' screen-space gradient; high contrast draws one
+  solid navy fill with the white ring, not black.
+- Windows grow by the shell's stepped staircase on the surface's own entrance (`Entrance`), not FF6's centre-out strip
+  mask; the launcher and the island's cards slide rather than grow from the centre.
+- Small blocks (keys, chips, the launcher button) are tiny windows with round, aliased corners — the console had no
+  buttons on screen; the dock has no hand (its menu rows do).
+- No ▲▼ "more" arrows blink at list ends (static ones are drawn by the scroll part only where a ScrollBar shows).
+- No wallpaper: the shell draws none, so the desk is whatever the user has (the shots use plain black).
+- At scale 1.25 a 2 px grid pixel is 2.5 device px and blurs (BACKLOG).
+- Large text doubles the grid as asked (16 → 32 px): the config rows, the hand and the calendar's cells grow with it (the
+  card widens to its grid), but the quick card's labels truncate to a letter or two ("W…", "B…"), the calendar's Today key
+  is tighter than its word and the bar's island box is shorter than the type.
+- (Lead review) The calendar sizes its day cells from the type: two digits' advance, the day block's inset and a grid
+  pixel between neighbours (36 px at least; 40 at ×2, 76 under large text), and the card asks for that width
+  (`cardWant`); the month header falls back to "Nov 2026" where the long name does not fit. The title's wordmark is the
+  pixel face at a whole number of grid pixels per font pixel, no smoothing (5 colours in the 1:1 crop,
+  `lock-wordmark-1to1.png`), its shadow one hard copy one grid pixel down-right in tertiary.
+- With `surface.join = false` and a top bar, quick settings open under the island, not at the quick button (BACKLOG; the
+  bottom-bar preset puts them at the bar's end).
+- Measured: at scale 1.5 one column of the HUD strip reads black 3, #f8f8f8 3, #b8b8b8 3, #606868 3 device px, then four
+  bands of 12 — no half-tones (`scale15-bar.png`). The stepped growth: one captured intermediate frame is exactly 0.75 of
+  the card's height, centred (`motion-stepped.png`, held 8 frames a step for the capture); the published open curve has
+  four plateaus at 0.25, 0.5, 0.75 and 1 — grim cannot sample 67 ms any finer.
+
 ---
 
 ## 8. ps2 — PS2 dashboard
 
 **Reference.** The PS2 boot and dashboard: a black void, translucent light towers, a deep blue floor glow, thin silver
-type, the two-choice main menu (Browser / System Configuration) and the memory-card browser. Screenshots: to verify
-(a reference capture from a console or PCSX2's BIOS screen; cite it in the card).
+type, the two-choice main menu (Browser / System Configuration) and the memory-card browser. Screenshots: measured on the 640 × 448 captures in github.com/snow-developments/bios-launcher `design/references` (origin unknown, likely PCSX2; [R] tier, unconfirmed against hardware). The boot towers, the clock screen and the System
+Configuration list are not among them: those rows stay [O].
 
 **Metrics.** Type is thin, silver-white, with a soft blue glow; the menu has 2 rows centred left of centre; a selected
-row glows (to verify against a capture). Everything else is the existing `Ps2` frame's art.
+row glows ([M]: both items centred on x ≈ 0.675 of the width, cap tops at 0.446 and 0.520 of the height, pitch 33 of 448; selected text light blue, peak #4ac9fc; unselected #545454; the glow ≤ 2 px, no bar). Everything else is the existing `Ps2` frame's art.
 
-**Type.** Existing chain (SST → Zrnic → Inter). Lighter: Inter Light; ja **M PLUS 1p Light** (OFL).
+More [M] on those captures: the void is pure #000000; the main menu's ring of orbs (cores #aab8c3, halo #1a3449) left of
+the items; button hints at y 403–418 in #bababa; System Configuration's Clock Adjustment: the header in yellow #d2d22d,
+the selected item cyan #6fcdf5, its value #b0b8c0, black letterbox bars 55 px; the memory-card browser: a diagonal grey
+gradient (#979797 → #3c3c34), the header yellow, right-aligned.
+
+**Type.** Existing chain (SST → Zrnic → Inter). Lighter: Inter Light; ja **M PLUS 1p Light** (OFL). (The captures show a
+regular-weight neo-grotesque, Helvetica-like, not a thin one; the brief's thin type is kept as the user asked.)
 
 **Mapping**
 
@@ -756,11 +816,39 @@ silhouette. Cues are our own soft pads.
 **Keyboard + a11y.** Arrows plus Tab. High contrast: no glow, solid white lines. `reduce_motion`: towers appear at
 full height.
 
-**Motion.** Slow fades of 400–600 ms (to verify), ease-in-out, no overshoot.
+**Motion.** Slow fades of 400–600 ms (not documented anywhere found: kept as the brief's estimate, 400–500 ms), ease-in-out, no overshoot.
 
 **Multi-output.** The towers paint once per output.
 
 **Budget.** The existing `Ps2` frame; the lock face only while locked.
+
+**Built (W53.5).** `looks/ps2.toml` (Inter Light / M PLUS 1p Light, `type.weight = 300`, a static blue glow round blocks,
+500/450 ms ease-in-out fades, `motion.style = fade`), `palettes/ps2.toml` (the void #000000, the selection's #4ac9fc as
+the accent, towers in `tertiary`), `profiles/ps2-desk.toml` (a thin strip along the top with the card-slot island and the
+clock at its end, the dock as the browser's icon row), `decor/{bar/Void,menu/Glow,scroll/Hairline,tooltip/Glow,
+slider/Glow,island/CardSlot}`, `lock/DashboardFace.qml` (towers rise once, a thin clock top right, the user as an original
+card slot, the underline field whose glow turns the error role, CAPS in small caps, a pulse only while PAM checks),
+`sounds/ps2` + `cursors/ps2` (soft detuned pads and a slim silver arrow with a blue glow, CC0). After the lead's review
+the ground's towers are light, not columns: each painted once per size into its own Canvas — a wide faint halo, a body
+and a bright core added together, faded out toward the top, continued faintly under the floor line as a reflection — and
+revealed by a clip that rises once; further towers narrower, shorter, dimmer and deeper blue, behind the near ones; a floor
+glow and a hairline of light where they stand (`lock-towers-before-after.png`). The launcher's rows glow
+from their start with the selected one in the light blue (`menu.on = accent`); quick settings and the sidebar's toggles
+are System Configuration rows with the value at the right (`quick.tiles = rows`, `quick.values = value`); the query is an
+underline field that glows while it has the keyboard; toasts are one box low on the screen, clear of the dock; Stage cards
+and the quick flyout carry the frame's faint towers and glow line. Shots: `frontend/shots/styles/ps2/`.
+
+**Still differs (W53.5, honest).**
+- The desk is not the void: the shell draws no wallpaper (the shots use plain black); the towers and floor glow live in
+  the lock face, and faintly in the cards' frame (BACKLOG: an opt-in ground layer from the look's frame).
+- The two-row main menu is a feel, not a layout: the launcher lists its results as rows; no orbs ring, no header in
+  yellow (no role for it), no letterbox bars.
+- Text glows only where a part draws it (the selected row's band, the field, the lock's clock), not on every label.
+- The fade timings are the brief's estimate (no source documents the dashboard's); grim cannot sample a 500 ms fade
+  finely enough to measure ours beyond "it fades".
+- Panels are translucent (0.72) without blur, so over a bright wallpaper they read grey, not void.
+- The dock's icons float without the browser's still reflection.
+- High contrast drops every glow; the towers in the lock's ground nearly vanish there (the contrast palette's tertiary).
 
 ---
 
@@ -858,7 +946,7 @@ A fifth chrome next to flat, keycap, soft and line:
 - **Bitmap text.**
   - New look keys `theme.typography.pixel` (bool) and `theme.typography.pixel_step` (px). When on, text uses
     `renderType: Text.NativeRendering`, full hinting, no smoothing, and sizes snapped to multiples of the step.
-  - Under fractional scaling the step rounds to device pixels (to verify on niri at 1.25).
+  - Under fractional scaling the step rounds to device pixels (W53.5: on a pixel grid the step and the grid are whole logical px, so whole device px at 1.5 and 2 — shot on nested niri at 1.5; at 1.25 a 2 px grid pixel is 2.5 device px and blurs: BACKLOG).
   - Large text multiplies by whole steps.
 - **Fonts.** Font chains as today (fontconfig, first installed). Proprietary families (Segoe, Tahoma, SF, Lucida
   Grande, MS Sans Serif) are named first and used **only when the user has them**, never bundled. Free stand-ins come
@@ -871,7 +959,7 @@ A fifth chrome next to flat, keycap, soft and line:
   | W95FA | MS Sans Serif | to verify |
   | Press Start 2P | SNES pixel type | OFL |
   | PixelMplus | ja pixel type | M+ licence |
-  | Misaki | ja 8 × 8 | to verify |
+  | Misaki | ja 8 × 8 | free licence (littlelimit.net/font.htm: "Unlimited permission is granted to use, copy, and distribute them, with or without modification"), `nix/misaki.nix` (W53.5) |
   | Libre Franklin | XP "start" | OFL |
   | BIZ UDPGothic | ja UI | OFL |
   | M PLUS 1p | ja thin | OFL |

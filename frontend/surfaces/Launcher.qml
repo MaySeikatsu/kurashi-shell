@@ -472,11 +472,20 @@ PanelWindow {
                 radius: Theme.rFull
                 ringScale: 0
                 softScale: 0
+                // W53.5 (`[decor] field.form = underline`): the field is a line under the query — an RPG's name-entry line
+                // (whole grid pixels, a block cursor), the PS2's glowing underline — with no box, frame or well.
+                readonly property bool underline: Theme.decor("field.form", "box") === "underline"
+                framed: !underline
                 // A text field is a well (row 591): sunken under a bevel chrome, nothing otherwise.
-                sunken: true
-                fill: Theme.surface
-                flatBorder: field.activeFocus ? Theme.accent : Theme.outline
+                sunken: !underline
+                fill: underline ? "transparent" : Theme.surface
+                flatBorder: underline ? "transparent" : (field.activeFocus ? Theme.accent : Theme.outline)
                 penSeed: 0x1A0D
+                FieldLine {
+                    visible: box.underline
+                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 8; rightMargin: 8 }
+                    focused: field.activeFocus
+                }
                 Icon {
                     id: searchIcon
                     x: 14
@@ -490,6 +499,19 @@ PanelWindow {
                 TextInput {
                     id: field
                     anchors { fill: parent; leftMargin: searchIcon.x + searchIcon.width + 8; rightMargin: 14 }
+                    // The name-entry line's block cursor on a pixel grid (a whole character cell), else the caret.
+                    cursorDelegate: box.underline && Theme.pixelType ? blockCaret : null
+                    Component {
+                        id: blockCaret
+                        Rectangle {
+                            width: Math.round(field.font.pixelSize * 0.75)
+                            height: field.font.pixelSize
+                            y: Math.round((field.height - height) / 2)
+                            antialiasing: false
+                            color: Theme.fg
+                            visible: field.cursorVisible
+                        }
+                    }
                     color: Theme.fg
                     font.pixelSize: Theme.fsTitle
                     font.weight: Theme.wMedium
@@ -532,6 +554,7 @@ PanelWindow {
                         }
                     }
                     Text {
+                        id: placeholder
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
                         anchors.fill: parent
@@ -548,7 +571,9 @@ PanelWindow {
                         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                         anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                         // (not in the narrower start menu: the placeholder needs the room)
+                        // (and only where it fits beside the placeholder: a wide pixel face leaves no room)
                         visible: field.text === "" && field.preeditText === "" && !lp.skin
+                            && placeholder.contentWidth + implicitWidth + Theme.gap <= parent.width
                         color: Theme.dim
                         font.pixelSize: Theme.fsCaption
                         font.family: Theme.fam(text, Theme.families)
@@ -636,7 +661,7 @@ PanelWindow {
                         visible: !row.own
                         Item {
                             id: ico
-                            x: 10; anchors.verticalCenter: parent.verticalCenter
+                            x: 10 + ms.lead; anchors.verticalCenter: parent.verticalCenter
                             anchors.verticalCenterOffset: -Theme.shadowDy / 2
                             width: 30; height: 30
                             // Row 380 (I190): the file the daemon resolved from the icon theme, loaded asynchronously (off the GUI

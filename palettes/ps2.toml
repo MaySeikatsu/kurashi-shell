@@ -5,7 +5,7 @@ kind = "pair"
 description = "Void black and tower blue (decor ps2)"
 
 [dark]
-surface = "#0a0c14"
+surface = "#000000"                   # the void (measured pure black on the main menu)
 surface_container_lowest = "#040609"
 surface_container_low = "#080a10"
 surface_container = "#10141f"
@@ -15,8 +15,8 @@ on_surface = "#e8ecf5"
 on_surface_variant = "#9aa4b8"
 outline = "#5a6888"
 outline_variant = "#28304a"
-accent = "#7fa8e8"                    # tower blue
-accent_container = "#1e3a66"
+accent = "#4ac9fc"                    # the selected row's light blue (measured peak #4ac9fc)
+accent_container = "#1a3449"            # the orbs' halo
 on_accent_container = "#cde0fa"
 secondary = "#c8cfde"                 # silver
 tertiary = "#7b88f0"                  # deep blue, lifted for contrast

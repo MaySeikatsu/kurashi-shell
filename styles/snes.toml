@@ -6,5 +6,5 @@ category = "retro"
 look = "snes"
 palette = "snes"
 [recipe]
-"theme.colors.scheme" = "light"
+"theme.colors.scheme" = "dark"
 "theme.density" = "compact"

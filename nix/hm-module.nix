@@ -85,8 +85,8 @@ in
 
     fonts = lib.mkOption {
       type = lib.types.listOf lib.types.package;
-      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" ]; }) ]);
-      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" ]; }) ])";
+      default = [ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ "Kalam" "KleeOne" "PressStart2P" "MPLUS1p" ]; }) ]);
+      defaultText = lib.literalExpression "[ (pkgs.callPackage ./icon-font.nix { }) (pkgs.callPackage ./w95fa.nix { }) (pkgs.callPackage ./selawik.nix { }) (pkgs.callPackage ./wine-tahoma.nix { }) (pkgs.callPackage ./misaki.nix { }) ] ++ (with pkgs; [ material-symbols nunito inter jetbrains-mono noto-fonts noto-fonts-cjk-sans noto-fonts-cjk-serif quicksand comic-neue cinzel eb-garamond roboto dejavu_fonts fira-sans libre-franklin biz-ud-gothic (google-fonts.override { fonts = [ \"Kalam\" \"KleeOne\" \"PressStart2P\" \"MPLUS1p\" ]; }) ])";
       description = ''
         Fonts the shell draws with: its icon subset (nix/icon-font.nix, W41: the names the shell draws, also installed by
         the package), and Material Symbols (Rounded, and Sharp for line chrome) for the names the subset lacks (without
@@ -98,7 +98,8 @@ in
         (Japanese UI), Press Start 2P (16-bit pixel type) and M PLUS 1p (thin Japanese). The vendors' own families
         (Segoe, Tahoma, MS Sans Serif, SF, Lucida Grande) are never bundled and win when you have them; the stand-ins
         nixpkgs lacks come from this flake where their licence allows (W95FA, OFL: nix/w95fa.nix, W53.1; Selawik, OFL: nix/selawik.nix, and Wine's Tahoma, LGPL:
-        nix/wine-tahoma.nix, W53.2); the rest (PixelMplus, Misaki) fall back along each look's chain.
+        nix/wine-tahoma.nix, W53.2; Misaki, free to use and redistribute: nix/misaki.nix, W53.5, the 8x8 Japanese pixel
+        faces); PixelMplus still falls back along each look's chain.
         Installed with fontconfig enabled; set to [ ] to manage fonts yourself.
       '';
     };

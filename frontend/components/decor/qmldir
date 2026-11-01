@@ -18,3 +18,6 @@ WindowEdge 1.0 WindowEdge.qml
 Pattern 1.0 Pattern.qml
 DockGround 1.0 DockGround.qml
 MenuMark 1.0 MenuMark.qml
+# W53.5 (snes, ps2)
+PixelArt 1.0 PixelArt.qml
+PanelDress 1.0 PanelDress.qml

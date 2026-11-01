@@ -148,7 +148,7 @@ bevels, OS colours, how things move, fonts, symbols, materials, controls — is 
 (rule 4). A family card writes toml and decor parts only.
 
 **Slots** (`[slots]` in a look, `appearance::SLOTS`): `frame`, `title`, `start`, `tray`, `menu`, `scroll`, `tooltip`,
-`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`, `bar` (W53.2), `dock` (W53.4). Each is a component name (a slug; `""` or left out = the
+`focus`, `button`, `slider`, `toggle`, `lock`, `sounds`, `bar` (W53.2), `dock` (W53.4), `island` (W53.5). Each is a component name (a slug; `""` or left out = the
 default, today's shell), published as `decor.<slot>`. A host loads `components/decor/<slot>/<Name>.qml` (kebab →
 Pascal, `DecorHost.qml`) and never compares the name; without a slot nothing is made and the caller draws its own
 default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<Slot>Base.qml`. Hosts:
@@ -168,6 +168,7 @@ default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<S
 | `Slider` (W53.3) | slider | every Slider: the part draws track, fill and thumb for `value`, `pressed` (and `hovered` where it has one) | the shell's rail and knob |
 | `FocusRing` | (metrics) | every focusable control | `ring` 1 px |
 | `Entrance` | (metrics) | a surface's content, `progress` 0…1 from `edge` | `grow` = K74 (the wrapper does nothing) |
+| `DecorHost` in `Island` (W53.5) | island | over the island's pill (contract `island/IslandBase.qml`: `face`, `vertical`, `typing`; out: `radius` ≥ 0 = the pill's corner, `lead` px kept at its start for a mark) | the pill (radius full, no mark) |
 
 Shipped parts: `title/Caption.qml` (a caption drawn from the metrics alone: solid or gradient fill, active and inactive,
 text side and weight, buttons in glyph/bevel/gel/plate/dot chrome on either side; it draws only buttons that act —
@@ -203,6 +204,18 @@ gel band, `menu.gloss`), `dock/Shelf.qml` (the Dock's body: translucent `dock.fi
 change), the helper `Pattern.qml` (one tiled image from `decor/textures/`, tools/styles/patterns.py, CC0) and the lock
 faces `LoginWindowFace.qml` and `SonomaFace.qml`. Push buttons host the button slot (row 604: `Button.qml`, the Block
 `bare` under the part; `ButtonBase.ink` names the label's ink) and a toast balloon's tail points at the island (row 603).
+W53.5 adds the consoles' parts. snes: `frames/Snes.qml` (every block an RPG window on the pixel grid — a dark outline, then
+the white, light-grey and dark-grey rings of Final Fantasy VI's dialogue frame, one grid pixel each, aliased corners),
+`bar/Window.qml` (the HUD strip: the same window across the bar), `menu/Hand.qml` (no band; the selected row's original
+pixel hand in `menu.lead`), `scroll/Pixel.qml`, `tooltip/Window.qml`, `slider/Gauge.qml` (an HP-gauge slider),
+`island/TextBox.qml` (the text box with its ▼ once the line is out) and lock face `TitleScreenFace.qml`. ps2: the `Ps2`
+frame (towers now `tertiary`), `bar/Void.qml`, `menu/Glow.qml` (a band of light fading from the row's start, a glow line
+at its foot), `scroll/Hairline.qml`, `tooltip/Glow.qml`, `slider/Glow.qml`, `island/CardSlot.qml` (an original upright
+slot glyph, not the memory card's silhouette) and lock face `DashboardFace.qml`. Helpers any look may use:
+`decor/PixelArt.qml` (a picture from rows of characters on a grid of `px`, one Rectangle per run, no Canvas),
+`decor/PanelDress.qml` (a Block's banded fill and frame for a panel that is not a Block: the Stage's card, the quick
+flyout), `components/FieldLine.qml` (`field.form = underline`) and `components/LoadingText.qml` (`loading.form`). A Stage view may ask its
+card for more width with `cardWant` (px; the calendar does, sizing its day cells from the type's two-digit advance).
 `frontend/StyleSheet.qml` shows every part of the look in effect and its lock face in any state on the sandbox's own
 Quickshell (`KURASHI_SHEET=parts|lock|lock-error|lock-caps|lock-busy|lock-wait|lock-prompt|lock-secondary`).
 
@@ -229,6 +242,7 @@ default filled in:
 | motion | `motion.style` (grow · slide · zoom · fade · flip · stepped · rubber), `motion.steps` (4 frames at 60 Hz per step), `motion.{open,close,fast,effects}_ms` (0 = K74's), `motion.{…}_curve` ([] = K74's; 4 numbers = one cubic) |
 | materials | `material.glow` (0), `material.glow_color` (accent), `material.glow_radius` (12), `material.bloom` (0), `material.bloom_radius` (16), `material.sheen` (0) |
 | pixel grid | `pixel` (0) |
+| W53.5 (snes, ps2; any look) | `pixel` (0 · 1…8: a **divisor**, not the grid pixel — one grid pixel = round(the output's logical height / 224 / `pixel`) px, so `pixel = 2` is ×2 on 1080 lines, whole device px at 1.5 too; each output its own, `Theme.grid(Screen.height)`; ×`pixel.scale` under large text), `fill.bands` (0: a card's fill — a Block ≥ 120 × 64, the Stage's card, the quick flyout — in this many hard bands; 0/1 = one fill; high contrast sends 0), `fill.band_h` (0; each band this many grid px instead: FF6's 5), `fill.band_top`/`fill.band_bottom` (roles; "" = the container lighter/darker), `menu.lead` (0: px a menu row keeps at its start for the look's cursor; the launcher, tray, dock and quick rows indent by it), `quick.tiles = rows` (one column of config rows: the look's menu row, the label left, the value right) with `quick.values` (pair · value: both words with the chosen lit — "ON  OFF", `island.quick.value.*` — or the chosen word), `toast.place = bottom` (one wide box centred low, over a bottom bar), `island.reveal` (none · type) and `island.reveal_cps` (40: the line types out once per face change, one character's width at a time; motion off shows it whole), `field.form` (box · underline: the launcher's query on a line — a name-entry line with a block caret on a pixel grid, a glowing hairline elsewhere), `loading.form` (text · dots · pulse: "NOW LOADING" with stepping dots, `frontend.loading.line`, or a slow pulse; only while loading), `type.weight` (400: the regular weight; medium +100, bold +300), `surface.join` (true: the launcher and the island's cards grow out of the bar, W21; false: they stand apart as blocks with the look's frame) |
 | W53.3 (fluent, any look) | `shape.sm`/`shape.md` (0.3333/0.6667: the small and middle radii as shares of the large), `focus.color` ("" = accent; a role), `task.mark` (focused · pill: every window's pill, the focused one long), `start.grid` (0 = rows; columns of the start menu's app grid with Recommended under it), `start.menu` (button · center), `clock.lines` (1 · 2: time over date), `chrome.soft_scale` (1: the share of the soft shadow a block casts; surfaces keep their elevation), `tile.radius` (-1 = pill), `quick.frame` (phone · flyout: the quick settings card as K42's phone or a plain flyout of the panel's material, the look's radius, a hairline and elevation, a footer band), `quick.tiles` (wide · compact: two columns of pills, or three of 48 px buttons — the icon, a split chevron for a page, the accent while on — with the label under them), `centre.form` (column · flyouts: a floating right sidebar's sections as flyouts of their own, 12 px apart, stacked at its foot, each blurred), `calendar.cells` (boxed · flat: today an accent circle), `toast.place` (island · corner: under a top or bottom bar, toasts stack in the corner at the bar's end), `bar.gap` (-1 = the pad and the groups' insets; px between a horizontal bar's modules) |
 
 **Palette roles** (derived when a palette leaves them out, as `line`/`ring`): `title`, `title_end`, `title_inactive`,
@@ -251,6 +265,12 @@ surface that adopts it), the look's own curves and durations replace K74's timed
 and `stepped` makes `motion.kind = stepped` (a timed kind: `Theme.timed` holds) whose curves are staircases — each step
 held `motion.steps` frames — so every timed surface moves in jumps. Profile `none` (reduce motion forces it) wins over
 all of it: kind and style `none`, no curves.
+
+**Pixel type on a grid (W53.5).** With `pixel` > 0 a `type.pixel` look's sizes are whole steps and large text multiplies
+them by the next whole number (`ceil(type scale)`: ×2 for 1.25) — never a blurred ×2.5 — and publishes `pixel.scale` so
+the grid doubles with it; without a grid a bitmap look still snaps the scaled size to one step (win95 unchanged). On a grid
+a Block's edges are drawn without antialiasing (a small radius is a stepped corner) and a press flashes instead of
+shrinking (a scaled pixel blurs).
 
 **Type and symbols.** A look's `theme.typography.family`/`family_jp` chains (free stand-ins installed by Home-Manager,
 nothing proprietary bundled). `type.pixel` publishes `font.pixel` (Text `renderType: NativeRendering`) and snaps every

@@ -3,6 +3,7 @@ import "../core"
 import "../core/mods.js" as Mods
 import "faces"
 import "island"
+import "decor"
 
 // Island (島): the daemon decides the face (runtime.island.*); this only morphs between faces, and shows what the
 // decision adds beside it: the secondary activity as a minimal glyph and "+N" for the rest (K30), and "as of" when the
@@ -133,7 +134,28 @@ Item {
     readonly property real chromeIn: Theme.outlineW + Theme.ringW * 0.5
     // While the pointer is on the island the pill grows a few px (with the peek), on a spring.
     readonly property real grow: pointerIn && !vertical ? 1 : 0
-    readonly property real pillW: faceW + 2 * Theme.pad + tailW + 2 * chromeIn + grow * 2 * Theme.xs
+    readonly property real pillW: faceW + 2 * Theme.pad + tailW + 2 * chromeIn + grow * 2 * Theme.xs + lead
+
+    // W53.5: the look's island part (`[slots] island`, decor/island/<Name>.qml, contract IslandBase): drawn over the pill,
+    // it may ask for its own corner (`radius` ≥ 0) and keep room at the pill's start for a mark (`lead`, top and bottom
+    // bars). Nothing is made without one (rule 4: the name is data).
+    readonly property real lead: !vertical && islandPart.ready ? islandPart.item.lead : 0
+    readonly property real pillRadius: islandPart.ready && islandPart.item.radius >= 0 ? islandPart.item.radius : Theme.rFull
+    // The typing (`island.reveal = type`): `typed` characters of `charW` shown, counting up at `island.reveal_cps` a second
+    // from a face change; only while motion is on (reduce motion shows the line whole) and only until the line is out.
+    readonly property bool typesOut: Theme.decor("island.reveal", "none") === "type" && Theme.timed && !vertical
+    readonly property real charW: Math.max(4, Theme.pixelType ? Theme.fs : Math.round(Theme.fs * 0.6))
+    property real typed: 0
+    readonly property bool typing: typer.running
+    NumberAnimation {
+        id: typer
+        target: isl
+        property: "typed"
+        from: 0
+        to: Math.ceil((isl.faceW + 2 * Theme.pad) / isl.charW) + 1
+        duration: 1000 * to / Math.max(1, Theme.decor("island.reveal_cps", 40))
+    }
+    onShownChanged: if (typesOut && animate) typer.restart()
     readonly property real extrasW: extras.visible ? Theme.xs + extras.width : 0
     // A side bar's pill: the faces' column with a little air above and below, and the stale time stacked at the foot.
     readonly property int vpad: Theme.xs + 2
@@ -170,7 +192,7 @@ Item {
         y: 0
         width: isl.vertical ? isl.width : isl.pillW
         height: isl.pillH
-        radius: Theme.rFull
+        radius: isl.pillRadius
         ringScale: 0.5
         // A short soft shadow: the bar's window ends a few px under the pill.
         softScale: 0.3
@@ -189,11 +211,30 @@ Item {
             SpringAnimation { spring: Theme.spring; damping: Theme.damping; epsilon: 0.25 }
         }
 
+        DecorHost {
+            id: islandPart
+            slot: "island"
+            anchors.fill: parent
+            onLoaded: {
+                item.vertical = Qt.binding(function () { return isl.vertical })
+                item.face = Qt.binding(function () { return isl.shown })
+                item.typing = Qt.binding(function () { return isl.typing })
+            }
+        }
+        // W53.5 (`[decor] island.reveal = type`): the line types itself out once when the face changes — this clip opens
+        // one character's width at a time (an RPG text box); at rest it is wider than the faces and clips nothing.
+        Item {
+            id: typeClip
+            readonly property real fullW: isl.vertical ? parent.width : parent.width - isl.tailW - isl.lead
+            x: isl.vertical ? 0 : isl.lead
+            width: isl.typing ? Math.min(fullW, Math.floor(isl.typed) * isl.charW + Theme.pad) : fullW
+            height: parent.height
+            clip: isl.typing
         Item {
             id: faces
             x: isl.vertical ? 0 : 0
             y: isl.vertical ? isl.vpad : 0
-            width: isl.vertical ? parent.width : parent.width - isl.tailW
+            width: typeClip.fullW
             height: isl.vertical ? isl.faceH : parent.height
             clip: true
 
@@ -235,6 +276,7 @@ Item {
                 font.pixelSize: Theme.fs
                 text: isl.glyphOf(isl.face)
             }
+        }
         }
 
         // The tail of a top or bottom bar (see tailW): the "as of" label at the right end while the face is stale.

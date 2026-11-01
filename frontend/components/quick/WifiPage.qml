@@ -159,17 +159,14 @@ Column {
         pendingText: I18n.tr("island.quick.connecting")
     }
     // Why no list: the scan still answers, Wi-Fi is off, or nothing is in range. The daemon's reason is an i18n key.
-    Text {
-        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
-        antialiasing: !Theme.pixelType
-        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+    LoadingText {
         visible: wifi.scan.available === false || wifi.loading || (wifi.scan.available === true && nets.count === 0)
         width: wifi.width
         wrapMode: Text.WordWrap
         color: Theme.dim
         font.pixelSize: Theme.fsCaption
-        font.family: Theme.fam(text, Theme.families)
-        text: wifi.loading ? I18n.tr("island.quick.wifi.scanning")
+        loading: wifi.loading
+        words: wifi.loading ? I18n.tr("island.quick.wifi.scanning")
             : wifi.scan.available === false ? I18n.tr(String(wifi.scan.reason || "island.quick.network.unavailable"))
             : I18n.tr("island.quick.wifi.none")
     }

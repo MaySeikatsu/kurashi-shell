@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import "../../core"
 import ".."
+import "../decor"
 
 // A quick-settings tile (W13, docs/ux/quick-settings.md; the W15 size contract, CONTRACT-CHANGE row 76): the one tile of the
 // card, core or a mod's `quick.tiles` contribution. Its implicit size is 160 x 56 px, so a host lays it out at that size,
@@ -19,7 +20,7 @@ import ".."
 Item {
     id: tile
     implicitWidth: 160
-    implicitHeight: compact ? btnH + 30 : 56
+    implicitHeight: rows ? rowH : (compact ? btnH + 30 : 56)
     width: implicitWidth
     height: implicitHeight
     property string glyph: ""
@@ -47,6 +48,14 @@ Item {
     // chevron when the tile has a page), the accent fill while on, and the label under the button; wide = today's pill.
     readonly property bool compact: Theme.decor("quick.tiles", "wide") === "compact"
     readonly property int btnH: 48
+    // W53.5 (`[decor] quick.tiles = rows`): a config screen's row — the look's menu row (its cursor or band while the row
+    // has the keyboard or the pointer; MenuRowFace), the label at the left and the value at the right: both words with the
+    // chosen one lit (`quick.values = pair`: a 16-bit RPG's "ON  OFF") or the chosen word (`value`: the PS2's System
+    // Configuration); a page's chevron after it. Dim while unavailable or forced, the error colour when failed.
+    readonly property bool rows: Theme.decor("quick.tiles", "wide") === "rows"
+    readonly property bool pair: Theme.decor("quick.values", "value") === "pair"
+    MenuStyle { id: rowStyle }
+    readonly property int rowH: rowStyle.rowH(40)
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
     readonly property bool connecting: req !== null && req.pending
@@ -108,7 +117,7 @@ Item {
     // A keycap pill (Block, K42): it sinks while pressed; flat chrome draws the same pill as a plain fill.
     Block {
         id: face
-        visible: !tile.compact
+        visible: !tile.compact && !tile.rows
         anchors.fill: parent
         radius: tile.corner
         fill: tile.lit ? tile.onBg : Theme.containerHigh
@@ -189,7 +198,7 @@ Item {
     // The arrow zone: the drill-down's chevron, made only while the tile has a page (its width is `arrowW` either way). The
     // zone is `hit`'s, below, so the chevron takes no click of its own.
     Loader {
-        active: tile.hasPage && !tile.compact
+        active: tile.hasPage && !tile.compact && !tile.rows
         width: tile.arrowW
         anchors.top: parent.top
         anchors.bottom: parent.bottom
@@ -259,6 +268,78 @@ Item {
             }
         }
     }
+    Loader {
+        active: tile.rows
+        anchors.fill: parent
+        sourceComponent: Item {
+            id: rowItem
+            readonly property bool sel: tile.activeFocus || hit.containsMouse
+            readonly property color ink: rowFace.ink(tile.failed ? Theme.error : Theme.fg)
+            MenuRowFace {
+                id: rowFace
+                anchors.fill: parent
+                highlighted: rowItem.sel
+                enabled: !tile.inert
+                checked: tile.lit
+            }
+            Text {
+                renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                antialiasing: !Theme.pixelType
+                font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                anchors { left: parent.left; leftMargin: Theme.pad + rowStyle.lead; verticalCenter: parent.verticalCenter
+                          right: value.left; rightMargin: Theme.gap }
+                elide: Text.ElideRight
+                color: rowItem.ink
+                opacity: tile.inert ? 0.55 : 1
+                font.pixelSize: Theme.fs
+                font.family: Theme.fam(text, Theme.families)
+                text: tile.label
+            }
+            Row {
+                id: value
+                anchors { right: chev.left; rightMargin: tile.hasPage ? Theme.xs : 0; verticalCenter: parent.verticalCenter }
+                spacing: Theme.fs
+                readonly property bool words: tile.pair && tile.toggles && tile.req !== null && !tile.inert && !tile.failed
+                    && !tile.connecting
+                Repeater {
+                    model: value.words ? [true, false] : []
+                    Text {
+                        required property bool modelData
+                        renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                        antialiasing: !Theme.pixelType
+                        font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                        color: modelData === tile.on ? rowItem.ink : Theme.dim
+                        opacity: modelData === tile.on ? 1 : 0.6
+                        font.pixelSize: Theme.fs
+                        font.family: Theme.fam(text, Theme.families)
+                        text: I18n.tr(modelData ? "island.quick.value.on" : "island.quick.value.off")
+                    }
+                }
+                Text {
+                    visible: !value.words
+                    renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
+                    antialiasing: !Theme.pixelType
+                    font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+                    width: Math.min(implicitWidth, tile.width * 0.5)
+                    elide: Text.ElideRight
+                    color: tile.failed ? Theme.error : (tile.lit ? rowItem.ink : Theme.dim)
+                    font.pixelSize: Theme.fs
+                    font.family: Theme.fam(text, Theme.families)
+                    text: tile.shownSubtitle
+                }
+            }
+            Icon {
+                id: chev
+                anchors { right: parent.right; rightMargin: Theme.pad; verticalCenter: parent.verticalCenter }
+                width: tile.hasPage ? implicitWidth : 0
+                visible: tile.hasPage
+                name: "chevron_right"
+                glyph: "›"
+                size: 16
+                color: Theme.dim
+            }
+        }
+    }
     // The one hit area (W42, was two): the arrow zone (the right `arrowW` px, with a page) opens the page with either button;
     // the main zone toggles on a left click and takes the secondary action on a right one. A click needs its press and its
     // release in one zone, as the two areas gave: a drag across the seam is no click.
@@ -268,6 +349,7 @@ Item {
         // The whole tile: a tile with no page toggles on its right `arrowW` px too (no dead strip where no chevron
         // shows; row 478, lead).
         anchors.fill: parent
+        hoverEnabled: tile.rows
         acceptedButtons: Qt.LeftButton | Qt.RightButton
         onPressed: mouse => { fromArrow = tile.inArrow(mouse.x) }
         onClicked: mouse => {
@@ -280,7 +362,7 @@ Item {
     }
     // The keyboard focus ring (DESIGN-SYSTEM §7): made only while the tile holds the focus, in the same place (W42).
     Loader {
-        active: tile.activeFocus
+        active: tile.activeFocus && !(tile.rows && rowStyle.has)
         width: parent.width
         height: tile.compact ? tile.btnH : face.faceH
         sourceComponent: FocusRing {
