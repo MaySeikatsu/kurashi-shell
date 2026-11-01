@@ -563,6 +563,9 @@ PanelWindow {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                         antialiasing: !Theme.pixelType
                         anchors.fill: parent
+                        // (a block caret stands before the words, as a terminal's cursor before its prompt's text)
+                        anchors.leftMargin: Theme.decor("field.caret", "bar") === "block" ? Math.round(phFm.averageCharacterWidth) : 0
+                        FontMetrics { id: phFm; font: field.font }
                         verticalAlignment: Text.AlignVCenter
                         visible: field.text === "" && field.preeditText === ""
                         color: Theme.dim
