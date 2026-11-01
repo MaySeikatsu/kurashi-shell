@@ -1052,3 +1052,19 @@ KWin — not measured.
   **Every style ships a Layout Preset** (opt-in); the Windows styles a **start button** opening the launcher in a
   start-menu skin. **Cursor personality** (a stylised cursor theme, a cursor trail/decoration on W58's effects sheet)
   per style, **off by default**.
+
+## K81 — W53's decor keys are additive tokens; hosts own the parts; washi gains its paper (2026-11-01, session 18; lead, W53.0–W53.8)
+- Every key the style families needed went into `[decor]` (`DECOR_KEYS`, DESIGN-SYSTEM §4) or a new `[slots]` entry;
+  the `theme` document publishes them all (PROTOCOL §8, K81 note). They are additions only — each family's merge kept
+  every older golden's existing values (CONTRACT-CHANGE rows 590–623, accepted).
+- A slot only shows where a caller hosts it: TitleHost, WindowEdge, MenuStyle/MenuRowFace, ScrollHost (launcher list
+  only, BACKLOG), TooltipStyle, TrayWell, StartHost, BarGround, DockGround, the button and toggle slots, Caret.
+  A look without the slot is pixel-identical (kanso, checked by `test-styles.sh` against main's shots).
+- `Elevation.qml` knocks the shape out of its shadows under translucent fills (row 608): a glass card no longer shows
+  its own shadow through itself. Fluent, aero, glass and vibrancy shots changed with it; solid looks are unchanged.
+- **washi gains K59's `paper` grain (0.35, tinted), ruled menus, paper slips, a brush focus mark and an ink-bleed
+  motion.** washi is the default style (K53, the user's choice), so this changes the default look on every surface. Plan §9 asked only
+  for ruled menu rows; the lead accepted the grain after review on niri (subtle, reads as paper). One key undoes it:
+  `theme.texture.kind = "none"`. The user may overrule this.
+- terminal sets `surface.join = false` (its cards stand apart, as a TUI's boxes do); `test-island-join` pins a square
+  line look for its terminal cases.

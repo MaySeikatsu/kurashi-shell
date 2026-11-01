@@ -17,6 +17,50 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-01 — session 18, part 2 (machine A, the user away): every W53 style family merged — K81
+**State:** `main` = 65153590 plus this docs commit. It is **not pushed**: everything after 4e6237e6 is local, and
+pushing waits for the user. Verification on main: VERIFY_LINE.
+No agents are running. Every W53 worktree, branch and `~/.cache/kurashi-agents-target/W53.*` build dir is deleted.
+
+**Merged since the first session-18 entry:**
+- 875eeecf, 0f0795d5/61b99e6d: W53.0a/0b, the visual system and the personality plumbing.
+- d7ee9177: win95.
+- 418a7691: the W53 integration (callers host every slot).
+- 2d82aaeb: luna/aero.
+- 421a28d8: fluent.
+- b0978f4f: aqua/vibrancy, including Elevation's knock-out under translucent fills (row 608).
+- 25d896ee: snes/ps2.
+- bca78169: kawaii/yorha/souls/hallownest.
+- 65153590: washi/kami/sekai and kanso/material/glass/terminal.
+- 5c670bc8: Watch.qml teardown TypeError.
+- 52fc7fad: settings/test.sh K7/K10 waits.
+- 8339a722: the bundled packs are parsed once. Every apply had parsed all of them: release 35 → 50–65 ms, debug ~0.9 s.
+- 2c559e00: sekai's Keycap scroll part loads in Settings (it used Block).
+- 6104036e: the settings test's mods race.
+
+Each family got its own personality, a layout preset (`<style>-desk`), a cursor and a cue set (both off by default).
+The Windows styles got a start button. Each family was handed back once with specifics, then accepted on niri shots
+(`frontend/shots/styles/<style>/`). CONTRACT-CHANGE rows 590–623 are accepted as K81. PROGRESS S18.5–S18.5f.
+
+**Next steps (ordered):**
+1. Ask the user to look at each family on their own niri and collect their verdicts. Two things to raise:
+   - washi, the default style, now carries a paper grain (K81). One key undoes it: `theme.texture.kind = "none"`.
+   - I322: blur on the user's niri. They will report on this build.
+2. Push `main` once the user agrees.
+3. Close the family gaps, one card per family (I324–I328 and I332).
+4. Measure W53 (I330): `just bench` per style, scale 1.5, ja and high contrast for the Windows and macOS families, and
+   listen to the sounds and see the cursors on niri.
+5. Fix the test flakes (I333) and the test infra (I329), and guard wtype in `niri-sandbox.sh` (I331).
+
+**Open decisions:**
+- fluent's title slot is `""`, so the title-bar switch does nothing under fluent (I325). Draw Windows 11 caption buttons,
+  or keep the switch inert with its reason?
+- washi's grain on by default (K81): the user may overrule it.
+
+**Risks:** the W53.3 wtype incident (I331). 7 key events may have reached the user's focused window on 2026-10-30.
+
+---
+
 ## 2026-10-29 — session 18 (machine A): the kami fillet, today's bugs, corners, the pointer light, elevation, the styles wave started — K78–K80
 **State (updated 2026-10-30 ~01:10):** `main` = 61b99e6d (pushed up to 4e6237e6; later merges **not pushed**): W53.0a
 (visual system) + W53.0b (personality plumbing) + high contrast keeps a bevel (row 590) + cursor decor keys (row 593);
@@ -176,28 +220,3 @@ strings, process name `kurashid`).
 
 **Risks:** the first `nix build` on machine B is a cold one (~11 min there or more). HM/NixOS installs keep the same
 paths (`$out/share/kurashi/...`, `$out/bin/...`); the binaries in `$out/bin` are now small wrappers.
-
----
-
-## 2026-10-28 — session 16, part 2 (machine A, the user away for 3 h): squircles, nested corners, the top dock, sidebar layouts, palettes, the style-rework card — K75
-**State:** branches `feat/w49-squircle` → `w50-dock-top` → `w51-sidebar-mode` → `w52-palettes` (stacked) merged into
-`main` locally (`--no-ff`), **not pushed** — push when the user agrees. `nix build .#default` run on the merged `main`
-afterwards so `nix run .` starts without a compile (until a tracked file changes; see I290–I293 for making rebuilds
-cheap). No subagents (user's rule). Scratch: `/tmp/kurashi-lead-logs/` (dev.sh sandbox with the user's config, bursts).
-
-**Built (K75 addenda):** real squircle corners (`core/corner.js`, `Corner.squircled`, `SquircleRect`; radius ×1.3 under
-squircle; leftovers I288) · `Theme.nested(outer, inset)` — Settings navigation and the sidebar's section plates are
-concentric (rest of I269 open) · `dock.edge = top`, and a dock joined to a sliding bar rides its edge (I282) ·
-`sidebar.<side>.mode` stack / pages, core sections as pages, wrapping tabs (I283) · catppuccin, rose-pine, tokyo-night
-are palettes, not styles (schema v6, `v5_to_v6` keeps a config's look) · I242 empty output names refused · I259 empty
-peeks draw nothing · I244 mod pages' names translated and sorted · stale rows I148, I205 (dnd) closed.
-**Written, not built:** `docs/tasks/W53-styles.md` (I289) — the user's style rework (Windows 95…11, macOS, consoles;
-new decor components; a lock screen per style; shellseikatsu's LockStyle*.qml as inspiration). I290–I293: build-time
-proposals.
-
-**Next steps (ordered):**
-1. The user's review of today's work on niri (blur at corners, the sidebar band while sliding, popups' sheet, click-away,
-   squircle looks — aqua/glass —, the top dock, the sidebar layouts).
-2. W53 (I289): UX brief `docs/ux/styles.md` first, then the system card, then one card per family (the card says how).
-3. I290–I293 if the user wants faster builds (they asked for ideas; nothing changed in `nix/package.nix` yet).
-4. The rest of I269 (Stage views, desk tiles), I288 (squircle leftovers), I280 (style vs profile look), I284/I285 previews.
