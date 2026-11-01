@@ -145,3 +145,7 @@
 # Row 387, I40: the `>` rows that open Settings on a page ("Shortcut settings" = the Keys page; the cheat sheet is "Keyboard shortcuts").
 "launcher.cmd.shortcuts" = "Shortcut settings"
 "launcher.cmd.settings_page" = "Settings: {page}"
+# W53.3: the start menu's app grid (`[decor] start.grid`): the dock's pinned apps, else the most used; then the most used of the rest.
+"launcher.start.pinned" = "Pinned"
+"launcher.start.apps" = "Apps"
+"launcher.start.recommended" = "Recommended"

@@ -40,6 +40,8 @@ Item {
 
     // The arrow zone's width: the chevron's, reserved with or without a page (the texts keep the same width, W42).
     readonly property real arrowW: 22
+    // W53.3 (`[decor] tile.radius`): the face's and the badge's corner — a pill (today's) or the look's own (11's 4 px).
+    readonly property real corner: Theme.decor("tile.radius", -1) >= 0 ? Theme.decor("tile.radius", -1) : Theme.rFull
     function inArrow(x) { return hasPage && x >= width - arrowW }
 
     readonly property bool inert: reason !== "" || forcedBy !== ""
@@ -103,7 +105,7 @@ Item {
     Block {
         id: face
         anchors.fill: parent
-        radius: Theme.rFull
+        radius: tile.corner
         fill: tile.lit ? tile.onBg : Theme.containerHigh
         pressed: hit.pressed && !tile.connecting
         opacity: tile.reason !== "" ? 0.5 : 1
@@ -113,7 +115,7 @@ Item {
             anchors.fill: parent
             sourceComponent: Rectangle {
                 anchors.fill: parent
-                radius: height / 2
+                radius: Math.min(height / 2, tile.corner)
                 color: "transparent"
                 border.width: 2
                 border.color: Theme.error
@@ -125,7 +127,7 @@ Item {
             y: Math.round((face.faceH - 2 * face.inset - height) / 2)
             width: 30
             height: 30
-            radius: Theme.rFull
+            radius: tile.corner
             ringScale: 0
             softScale: 0
             relief: !tile.ownRelief

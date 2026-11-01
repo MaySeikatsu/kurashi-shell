@@ -13,6 +13,7 @@ apps
 arrow_back
 arrow_back_ios_new
 arrow_downward
+arrow_forward
 arrow_forward_ios
 arrow_upward
 artist
