@@ -83,3 +83,11 @@ sounds = "vibrancy"
 # Motion: popovers and Control Centre modules zoom and fade from their source on springs.
 "motion.style" = "zoom"
 "cursor" = "vibrancy"
+# Control Centre: quick settings as a vibrancy flyout of compact modules (no phone); Notification Centre: the floating
+# right sidebar's sections as flyouts with flat calendar days; banners in the top-right corner under the menu bar
+# (W53.3's generic keys).
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+"centre.form" = "flyouts"
+"calendar.cells" = "flat"
+"toast.place" = "corner"
