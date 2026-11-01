@@ -280,6 +280,8 @@ ShellRoot {
             function openChoice(key: string): void { settingsPages.openControl(key) }
             // Mods test (B8): the refusal line a row shows, empty when none is shown.
             function modRefusal(id: string): string { return modsPage.failures[id] ? modsPage.failures[id].text : "" }
+            // Mods test (B8): requests the daemon has not answered yet (a mod's enable is answered once it runs).
+            function unanswered(): int { return Object.keys(Store.pending).length }
             // Keyboard test: the control that has keyboard focus: its objectName, else its accessible name.
             function focused(): string {
                 const f = keys.Window.activeFocusItem

@@ -379,7 +379,8 @@ Q mod demo-blur true
 # The enable is answered once the mod runs; any change that goes through clears the refusal lines (B8), so the refused
 # enable is sent after that answer, not raced against it.
 for _ in $(seq 25); do [[ "$(K '{"t":"cfg.get","id":"m0","key":"mods.enabled"}')" == *demo-blur* ]] && break; sleep 0.2; done
-sleep 0.5
+for _ in $(seq 50); do [ "$(Q unanswered)" = 0 ] && break; sleep 0.2; done
+[ "$(Q unanswered)" = 0 ] || fail "mods: the enable of demo-blur was not answered"
 Q mod broken-demo true
 for _ in $(seq 25); do [ -n "$(Q modRefusal broken-demo)" ] && break; sleep 0.2; done
 shot 6-mods
