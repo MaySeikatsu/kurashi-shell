@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-material
+Comment=A rounded dark arrow with a white rim and a soft shadow (W53.8, CC0, drawn in tools/styles/material-assets.py)
+Inherits=default

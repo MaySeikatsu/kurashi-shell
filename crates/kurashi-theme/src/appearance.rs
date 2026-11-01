@@ -382,6 +382,14 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     ),
     // -- W53.7 japanese keys --
     // -- W53.8 material keys --
+    // The bar's workspaces on a horizontal bar: the chrome's own marks (`own`: dots, or numbered keys where groups are
+    // blocks — today's) or M3's navigation bar (`indicator`: each workspace its number, the focused one on the active
+    // indicator, a tonal pill in `selected` with its ink; the others bare in the variant ink).
+    k(
+        "workspace.mark",
+        Choice(&["own", "indicator"]),
+        r#""own""#,
+    ),
     // -- W53.8 terminal keys --
 ];
 
