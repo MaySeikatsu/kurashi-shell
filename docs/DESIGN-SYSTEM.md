@@ -198,7 +198,8 @@ at its foot), `scroll/Hairline.qml`, `tooltip/Glow.qml`, `slider/Glow.qml`, `isl
 slot glyph, not the memory card's silhouette) and lock face `DashboardFace.qml`. Helpers any look may use:
 `decor/PixelArt.qml` (a picture from rows of characters on a grid of `px`, one Rectangle per run, no Canvas),
 `decor/PanelDress.qml` (a Block's banded fill and frame for a panel that is not a Block: the Stage's card, the quick
-flyout), `components/FieldLine.qml` (`field.form = underline`) and `components/LoadingText.qml` (`loading.form`).
+flyout), `components/FieldLine.qml` (`field.form = underline`) and `components/LoadingText.qml` (`loading.form`). A Stage view may ask its
+card for more width with `cardWant` (px; the calendar does, sizing its day cells from the type's two-digit advance).
 `frontend/StyleSheet.qml` shows every part of the look in effect and its lock face in any state on the sandbox's own
 Quickshell (`KURASHI_SHEET=parts|lock|lock-error|lock-caps|lock-busy|lock-wait|lock-prompt|lock-secondary`).
 

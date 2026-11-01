@@ -705,8 +705,14 @@ surfaces).
 - No ▲▼ "more" arrows blink at list ends (static ones are drawn by the scroll part only where a ScrollBar shows).
 - No wallpaper: the shell draws none, so the desk is whatever the user has (the shots use plain black).
 - At scale 1.25 a 2 px grid pixel is 2.5 device px and blurs (BACKLOG).
-- Large text doubles the grid as asked (16 → 32 px): the config rows and the hand grow with it, but the labels truncate
-  to a letter or two ("W…", "B…") in the quick card's width.
+- Large text doubles the grid as asked (16 → 32 px): the config rows, the hand and the calendar's cells grow with it (the
+  card widens to its grid), but the quick card's labels truncate to a letter or two ("W…", "B…"), the calendar's Today key
+  is tighter than its word and the bar's island box is shorter than the type.
+- (Lead review) The calendar sizes its day cells from the type: two digits' advance, the day block's inset and a grid
+  pixel between neighbours (36 px at least; 40 at ×2, 76 under large text), and the card asks for that width
+  (`cardWant`); the month header falls back to "Nov 2026" where the long name does not fit. The title's wordmark is the
+  pixel face at a whole number of grid pixels per font pixel, no smoothing (5 colours in the 1:1 crop,
+  `lock-wordmark-1to1.png`), its shadow one hard copy one grid pixel down-right in tertiary.
 - With `surface.join = false` and a top bar, quick settings open under the island, not at the quick button (BACKLOG; the
   bottom-bar preset puts them at the bar's end).
 - Measured: at scale 1.5 one column of the HUD strip reads black 3, #f8f8f8 3, #b8b8b8 3, #606868 3 device px, then four
@@ -772,7 +778,11 @@ the accent, towers in `tertiary`), `profiles/ps2-desk.toml` (a thin strip along 
 clock at its end, the dock as the browser's icon row), `decor/{bar/Void,menu/Glow,scroll/Hairline,tooltip/Glow,
 slider/Glow,island/CardSlot}`, `lock/DashboardFace.qml` (towers rise once, a thin clock top right, the user as an original
 card slot, the underline field whose glow turns the error role, CAPS in small caps, a pulse only while PAM checks),
-`sounds/ps2` + `cursors/ps2` (soft detuned pads and a slim silver arrow with a blue glow, CC0). The launcher's rows glow
+`sounds/ps2` + `cursors/ps2` (soft detuned pads and a slim silver arrow with a blue glow, CC0). After the lead's review
+the ground's towers are light, not columns: each painted once per size into its own Canvas — a wide faint halo, a body
+and a bright core added together, faded out toward the top, continued faintly under the floor line as a reflection — and
+revealed by a clip that rises once; further towers narrower, shorter, dimmer and deeper blue, behind the near ones; a floor
+glow and a hairline of light where they stand (`lock-towers-before-after.png`). The launcher's rows glow
 from their start with the selected one in the light blue (`menu.on = accent`); quick settings and the sidebar's toggles
 are System Configuration rows with the value at the right (`quick.tiles = rows`, `quick.values = value`); the query is an
 underline field that glows while it has the keyboard; toasts are one box low on the screen, clear of the dock; Stage cards
