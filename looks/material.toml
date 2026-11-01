@@ -1,12 +1,77 @@
 name = "material"
 label = "config.choice.look.material"
 category = "modern"
-# After shellseikatsu `Services/Modes/Material.qml` (W25): the M3 purist — opaque tonal surfaces carry depth, no
-# shadows, constant rounding, emphasized damped easing, Roboto.
+# Material 3 (W53.8, docs/ux/styles.md "material"; m3.material.io, numbers from material-web's token sources and AOSP
+# SystemUI): opaque tonal surfaces carry depth (no shadows on controls), the shape scale (4 px menus and tooltips, 8 px
+# small, 12 px cards, 28 px sheets and dialogs), Android's quick settings tiles (28 dp corners on 80 dp, the on tile the
+# primary all over, the icon bare), the 2024 expressive slider, the switch with its check in the thumb, menus of 48 px
+# rows with a state layer, plain tooltips and snackbars in the inverse surface, the 3 px focus indicator 2 px out in
+# secondary, emphasized motion (decelerate in, accelerate out), the navigation bar's active indicator under the focused
+# workspace, Android's big stacked lock clock, Roboto Flex (then Roboto) and Material Symbols at weight 400.
 [recipe]
 "theme.chrome" = "flat"
 "theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "rounded"
-"theme.shape.radius" = 18
-"theme.typography.family" = ["Roboto", "Noto Sans CJK JP", "sans-serif"]
+# md.sys.shape.corner.extra-large (28 dp): sheets, dialogs, the quick settings shade; the smaller steps below.
+"theme.shape.radius" = 28
+"theme.typography.family" = ["Roboto Flex", "Roboto", "Noto Sans CJK JP", "sans-serif"]
+"theme.typography.family_jp" = ["Noto Sans CJK JP", "Noto Sans JP", "sans-serif"]
+
+[slots]
+menu = "state"
+tooltip = "plain"
+slider = "material"
+toggle = "material"
+lock = "big-clock"
+sounds = "material"
+
+[decor]
+# The shape scale as shares of the 28 px extra-large: small 8 (chips, buttons' small corners), medium 12 (cards).
+"shape.sm" = 0.2857
+"shape.md" = 0.4286
+# Menus (md.comp.menu): 48 px list items on the surface-container, square rows inside the container's 4 px corner, a
+# state layer under the focused row, a full-width outline-variant divider.
+"menu.row" = 48
+"menu.highlight" = "bar"
+"menu.radius" = 0
+"menu.separator" = "line"
+# Plain tooltips (md.comp.plain-tooltip): inverse-surface, inverse-on-surface, corner-extra-small 4 px, no tail.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.radius" = 4
+"tooltip.tail" = false
+# The focus indicator (md.sys.state.focus-indicator: thickness 3, outer offset 2; material-web's focus ring: secondary).
+"focus.style" = "ring"
+"focus.width" = 3
+"focus.offset" = 2
+"focus.color" = "secondary"
+# Material Symbols as M3 sets them (outlined, weight 400; the on state filled, as the callers do).
+"icon.fill" = 0
+"icon.weight" = 400
+# Android's quick settings (AOSP SystemUI dimens: qs_corner_radius 28 dp on qs_tile_height 80 dp — 20 px on the shell's
+# 56 px tile): the on tile in primary with its ink, the icon bare on the tile; a plain flyout, not the phone.
+"quick.frame" = "flyout"
+"quick.tiles" = "wide"
+"tile.radius" = 20
+"tile.active" = "fill"
+"tile.well" = false
+# M3's navigation bar on the workspaces: the focused one on the active indicator.
+"workspace.mark" = "indicator"
+"calendar.cells" = "flat"
+# Snackbars: one box low in the centre (md.comp.snackbar), drawn by the tooltip part (inverse surface, 4 px).
+"toast.place" = "bottom"
+# Emphasized motion (md.sys.motion, material-web tokens): M3's emphasized easing is a two-segment path; its halves are
+# the tokens for a one-way move — elements entering decelerate (0.05, 0.7, 0.1, 1) over medium4 400 ms, elements leaving
+# accelerate (0.3, 0, 0.8, 0.15) over short4 200 ms (m3.material.io "Easing and duration": enter 400, exit 200). Small
+# moves on the standard curve (0.2, 0, 0, 1) at short4 200 ms, fades at short3 150 ms.
+"motion.style" = "grow"
+"motion.open_ms" = 400
+"motion.open_curve" = [0.05, 0.7, 0.1, 1.0]
+"motion.close_ms" = 200
+"motion.close_curve" = [0.3, 0.0, 0.8, 0.15]
+"motion.fast_ms" = 200
+"motion.fast_curve" = [0.2, 0.0, 0.0, 1.0]
+"motion.effects_ms" = 150
+"motion.effects_curve" = [0.2, 0.0, 0.0, 1.0]
+"cursor" = "material"

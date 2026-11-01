@@ -1,0 +1,26 @@
+# material's layout preset (W53.8, K80 Decided 9; docs/ux/styles.md "material"): the shell as an Android phone's screen
+# in Material You — a slim status bar on top (the clock at its start as Android 12+ puts it, the island where the camera
+# cut-out sits, the status icons and quick settings at its end) and M3's navigation bar along the bottom: the launcher
+# and the workspaces centred, the focused one on the 64 × 32 active indicator (md.comp.navigation-bar; both bars 40 px
+# — one height for every edge — so the indicator keeps M3's 64 × 32; M3's 80 dp bar holds labels too). Snackbars stand
+# low in the middle (the look's `toast.place = bottom`). Offered with the style ("Also use its layout"), never applied by
+# itself (K45).
+schema_version = 7
+
+[theme]
+style = "material"
+
+[bar]
+height = 40
+
+[edges.top]
+bar = true
+start = ["clock"]
+center = ["island"]
+end = ["volume", "mods", "recorder", "keyboard", "tray", "quick", "sidebar_right"]
+
+[edges.bottom]
+bar = true
+start = []
+center = ["launcher", "workspaces"]
+end = []
