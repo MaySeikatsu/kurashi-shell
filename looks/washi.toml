@@ -1,7 +1,11 @@
 name = "washi"
 label = "config.choice.look.washi"
 category = "inspired"
-# Paper and ink: wa-iro on a light ground, fine ink lines, small corners, a serif hand.
+# Paper and ink: wa-iro on a light ground, fine ink lines, small corners, a serif hand (W53.7, docs/ux/styles.md §9).
+# The sheet is washi — K59's `paper` stock (long kozo fibres that stand a little proud, a felted mottle, no repeat) at a
+# light strength, a warm tint; menus are ruled sheets (a hairline rule under every row, the chosen row an ink wash with a
+# beni stroke at its start); tooltips and toasts are paper slips; keyboard focus is a brush stroke under the control;
+# surfaces arrive as ink bleeds into paper (a calm fade while a blur clears).
 [recipe]
 "theme.chrome" = "line"
 "theme.motion.profile" = "expressive"
@@ -9,5 +13,35 @@ category = "inspired"
 "theme.shape.corners" = "rounded"
 "theme.shape.radius" = 9
 "theme.typography.family" = ["Noto Serif", "Noto Serif CJK JP", "serif"]
+# Mincho for Japanese: the serif's own CJK cut (the shell's ja chain was fixed to the sans before K60).
+"theme.typography.family_jp" = ["Noto Serif CJK JP", "Noto Sans CJK JP", "serif"]
+"theme.texture.kind" = "paper"
+"theme.texture.strength" = 0.35
+"theme.texture.tint" = true
 [slots]
 frame = "paper"
+menu = "ruled"
+tooltip = "slip"
+sounds = "washi"
+
+[decor]
+# The ink focus mark: a faint ring and one tapered stroke under the control, in sumi (the text's ink).
+"focus.style" = "brush"
+"focus.color" = "on_surface"
+"focus.width" = 1
+# Menus: rows on hairline rules, the separator a double rule; the wash fills the whole row (no capsule).
+"menu.highlight" = "bar"
+"menu.separator" = "line"
+"menu.radius" = 0
+# Slips: square-ish paper, 2 px corners.
+"tooltip.radius" = 2
+# Ink settling into paper: a slow fade whose blur clears (open 360 ms decelerating, close 220 ms), nothing springs.
+"motion.style" = "bleed"
+"motion.open_ms" = 360
+"motion.open_curve" = [0.2, 0.0, 0.1, 1.0]
+"motion.close_ms" = 220
+"motion.close_curve" = [0.4, 0.0, 1.0, 1.0]
+"motion.fast_ms" = 180
+"motion.fast_curve" = [0.2, 0.0, 0.1, 1.0]
+"motion.effects_ms" = 200
+"cursor" = "washi"
