@@ -262,9 +262,17 @@ if [[ " $DECORS " == *" washi "* ]]; then
   # The band at the left edge, the cut beside it, the fillet's corner under the bar's end and the cut past its arc.
   bg=$(pixel 960 700)
   [ "$(pixel 3 600)" != "$bg" ] || fail "no band at the left edge"
-  [ "$(pixel $((T + 2)) 600)" = "$bg" ] || fail "something drawn in the cut beside the left band"
+  # (I338, K82: the sheet casts its shadow into the cut — washi follows the light — so a cut pixel is the ground or a shade
+  # of it, never lighter: never the band's paper.)
+  shade_of() { local p=($1) b=($2); [ ${#p[@]} = 3 ] && [ ${p[0]} -le $((b[0] + 3)) ] && [ ${p[1]} -le $((b[1] + 3)) ] && [ ${p[2]} -le $((b[2] + 3)) ]; }
+  shade_of "$(pixel $((T + 2)) 600)" "$bg" || fail "something drawn in the cut beside the left band"
   [ "$(pixel $((T + 1)) $((BARH + 1)))" != "$bg" ] || fail "no fillet under the bar's left end"
-  [ "$(pixel $((T + RAD - 2)) $((BARH + RAD - 2)))" = "$bg" ] || fail "the fillet reaches past its arc"
+  shade_of "$(pixel $((T + RAD - 2)) $((BARH + RAD - 2)))" "$bg" || fail "the fillet reaches past its arc"
+  # The sheet's shadow (K82): just under the bar it darkens the cut; 60 px further in it has faded to the ground.
+  under=($(pixel 960 $((BARH + 2)))) far=($(pixel 960 $((BARH + 60)))) g=($bg)
+  say "sheet shadow: under the bar ${under[*]}, 60 px in ${far[*]}, ground ${g[*]}"
+  [ $(( g[0] + g[1] + g[2] - under[0] - under[1] - under[2] )) -ge 6 ] || fail "the band casts no shadow under the bar"
+  [ "${far[*]}" = "$bg" ] || fail "the band's shadow does not fade out 60 px into the cut"
   [ "$(pixel 3 $((SH - 3)))" != "$bg" ] || fail "no band at the bottom-left corner"
 
   off=$(stat -c %s "$R/qs.log"); QS_ENV=KURASHI_FRAME_LOG=1 scene washi reserve-off
