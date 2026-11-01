@@ -1301,6 +1301,15 @@ PanelWindow {
             active: Theme.texShell && Theme.texText && !stage.morphMode && !stage.ownChrome
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
         }
+        // W53.4: the look's ground pattern (Aqua's pinstripes) on the window's ground, under the views; made only while the
+        // look has one.
+        Loader {
+            anchors.fill: parent
+            anchors.margins: Theme.outlineW
+            active: !stage.morphMode && !stage.ownChrome && Theme.decor("pattern.kind", "none") !== "none"
+                && Theme.decor("pattern.strength", 0) > 0
+            sourceComponent: Pattern { radius: card.radius }
+        }
         // The Stage's one keyboard focus holder. The menus are driven from here and never take
         // focus themselves (a second holder would clear this flag for good). Esc closes whichever panel.
         focus: true
