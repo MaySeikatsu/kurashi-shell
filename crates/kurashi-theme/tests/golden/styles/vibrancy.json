@@ -131,7 +131,7 @@
   "decor.material.glow_color": "#0066cc",
   "decor.material.glow_radius": 12,
   "decor.material.sheen": 0.0,
-  "decor.menu": "",
+  "decor.menu": "gel",
   "decor.menu.fill": "#0066cc",
   "decor.menu.gloss": 0.0,
   "decor.menu.highlight": "inset",
