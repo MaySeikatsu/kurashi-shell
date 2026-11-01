@@ -178,6 +178,8 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     ),
     k("focus.offset", Int(-8, 8), "0"),
     k("focus.width", Int(1, 4), "1"),
+    // The ring's colour ("" = the accent, today's): Windows 11's focus visual is primary text, not the accent (W53.3).
+    k("focus.color", Role, r#""""#),
     // The start button's dress shows its label beside the mark.
     k("start.label", Bool, "false"),
     // W53.2: the start button's fill (one role solid, two a gradient; [] = the part's own), the label's face (published
@@ -238,6 +240,24 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("material.sheen", Num(0.0, 1.0), "0.0"),
     // The pixel grid (snes): positions and lines snap to it; 0 = none.
     k("pixel", Int(0, 8), "0"),
+    // W53.3: the small and middle corner radii as fractions of the look's radius (`theme.shape.radius`, the large step):
+    // K74's thirds by default; Windows 11's 4 px controls in 8 px flyouts are 0.5. A user's radius pin scales them all.
+    k("shape.sm", Num(0.0, 1.0), "0.3333"),
+    k("shape.md", Num(0.0, 1.0), "0.6667"),
+    // W53.3: the window list's marks — `focused` (today's: the focused window's accent bar) or `pill` (every window a
+    // short pill in the secondary ink, the focused one long in the accent: Windows 11's running and active indicators).
+    k("task.mark", Choice(&["focused", "pill"]), r#""focused""#),
+    // W53.3: the start menu's apps as a grid of this many columns while its field is empty (11's pinned grid and its
+    // recommended rows); 0 = the launcher's rows.
+    k("start.grid", Int(0, 8), "0"),
+    // W53.3: where the start menu stands — at its start button (`button`, 9x/XP/7) or centred over the output (11).
+    k("start.menu", Choice(&["button", "center"]), r#""button""#),
+    // W53.3: the bar clock's lines on a horizontal bar — 1 (today's) or 2: the time over the date (7–11's taskbar clock).
+    k("clock.lines", Int(1, 2), "1"),
+    // W53.3: the share of the soft chrome's shadow a block casts (1 = today's; 0 = flat controls, the surfaces keep their
+    // elevation) and the corner of the quick settings' tiles (-1 = a pill, today's).
+    k("chrome.soft_scale", Num(0.0, 1.0), "1.0"),
+    k("tile.radius", Int(-1, 24), "-1"),
 ];
 
 /// The `[decor]` key named `key`.
@@ -397,6 +417,7 @@ const BUNDLED_LOOKS: &[(&str, &str)] = &[
     ("win95", include_str!("../../../looks/win95.toml")),
     ("luna", include_str!("../../../looks/luna.toml")),
     ("aero", include_str!("../../../looks/aero.toml")),
+    ("fluent", include_str!("../../../looks/fluent.toml")),
     ("ps2", include_str!("../../../looks/ps2.toml")),
     ("snes", include_str!("../../../looks/snes.toml")),
     ("kawaii", include_str!("../../../looks/kawaii.toml")),
@@ -417,6 +438,7 @@ const BUNDLED_STYLES: &[(&str, &str)] = &[
     ("win95", include_str!("../../../styles/win95.toml")),
     ("luna", include_str!("../../../styles/luna.toml")),
     ("aero", include_str!("../../../styles/aero.toml")),
+    ("fluent", include_str!("../../../styles/fluent.toml")),
     ("ps2", include_str!("../../../styles/ps2.toml")),
     ("snes", include_str!("../../../styles/snes.toml")),
     ("kawaii", include_str!("../../../styles/kawaii.toml")),
