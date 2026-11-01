@@ -241,7 +241,7 @@ Item {
                 readonly property string iconKind: icon.kind
                 width: tl.btn
                 height: tl.btn
-                radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
+                radius: Theme.groups && !tl.pillMarks ? Math.min(width / 2, Theme.rFull) : Theme.rSm
                 color: tl.pillMarks ? (focusedWin || hover.hovered || tl.menuId === modelData
                         ? Qt.alpha(Theme.containerHigh, focusedWin ? 0.9 : 0.6) : "transparent")
                     : focusedWin ? Theme.selected
@@ -340,7 +340,7 @@ Item {
             visible: tl.moreN > 0
             width: tl.btn
             height: tl.btn
-            radius: Theme.groups ? Math.min(width / 2, Theme.rFull) : Theme.rSm
+            radius: Theme.groups && !tl.pillMarks ? Math.min(width / 2, Theme.rFull) : Theme.rSm
             color: moreHover.hovered || tl.menuId === -2 ? Theme.containerHigh : "transparent"
             Accessible.role: Accessible.Button
             Accessible.name: I18n.tr("tasks.a11y.more").replace("{n}", tl.moreN)
