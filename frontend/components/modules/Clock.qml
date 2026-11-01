@@ -10,6 +10,13 @@ ModuleBase {
     id: m
     Watch { doc: "svc.clock"; active: m.live }
     readonly property var clock: Store.docs["svc.clock"] || ({})
+    // W53.3 (`[decor] clock.lines = 2`): on a horizontal bar the time over the short date, right-aligned, in the caption
+    // size and regular weight (7–11's taskbar clock). The date is the daemon's; nothing more ticks.
+    readonly property bool twoLines: !vertical && Theme.decor("clock.lines", 1) === 2
+    readonly property string shortDate: {
+        var d = clock.date ? new Date(clock.date + "T12:00:00") : null
+        return d ? d.toLocaleDateString(Qt.locale((Store.docs["i18n"] || {}).locale || "en"), Locale.ShortFormat) : ""
+    }
     width: vertical ? thickness : t.implicitWidth
     height: t.implicitHeight
     // The two lines' height, measured on a text that does not change: a hidden Text is not laid out, so its own implicit
@@ -32,12 +39,14 @@ ModuleBase {
         antialiasing: !Theme.pixelType
         font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
         width: m.vertical ? m.thickness : implicitWidth
-        horizontalAlignment: m.vertical ? Text.AlignHCenter : Text.AlignLeft
+        horizontalAlignment: m.vertical ? Text.AlignHCenter : (m.twoLines ? Text.AlignRight : Text.AlignLeft)
         color: Theme.fg
-        font.pixelSize: Theme.fs
-        font.weight: m.vertical ? Font.Normal : Theme.wBold
+        font.pixelSize: m.twoLines ? Theme.fsLabel : Theme.fs
+        font.weight: m.vertical || m.twoLines ? Font.Normal : Theme.wBold
         font.family: Theme.fam(text, Theme.families)
+        lineHeight: m.twoLines ? 1.15 : 1
         text: (m.clock.hh ?? "--") + (m.vertical ? "\n" : ":") + (m.clock.mm ?? "--")
+            + (m.twoLines && m.shortDate !== "" ? "\n" + m.shortDate : "")
     }
     // The peek waits for the core source `clock:main` (CONTRACT-CHANGE row 550: kurashid's `ui.peek` accepts only mod, tray
     // and island sources, and the Stage draws only those). Until the lead takes the row, nothing is asked (no refused act

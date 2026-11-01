@@ -165,6 +165,7 @@ default, so a look without it stays pixel-identical. Contracts: `decor/<slot>/<S
 | `DockGround` | dock | the dock's floating body (W53.4, row 605: the Block steps aside while a part draws), `edge`, `mirror` (the icon list), `icon`; `tiles`, `indicator` for the caller | the dock's Block |
 | `Pattern` | (metrics) | window-sized Blocks (≥ 120 × 64 with a fill), the Stage card's ground, parts that ask (a menu bar, a caption, a dock, a skin) | nothing |
 | `WindowEdge` | (metrics) | a captioned Stage card under a look without the bevel chrome: `border.width` px of `border.color` (W53.2) | BevelEdge under bevel looks (row 595) |
+| `Slider` (W53.3) | slider | every Slider: the part draws track, fill and thumb for `value`, `pressed` (and `hovered` where it has one) | the shell's rail and knob |
 | `FocusRing` | (metrics) | every focusable control | `ring` 1 px |
 | `Entrance` | (metrics) | a surface's content, `progress` 0…1 from `edge` | `grow` = K74 (the wrapper does nothing) |
 
@@ -228,6 +229,7 @@ default filled in:
 | motion | `motion.style` (grow · slide · zoom · fade · flip · stepped · rubber), `motion.steps` (4 frames at 60 Hz per step), `motion.{open,close,fast,effects}_ms` (0 = K74's), `motion.{…}_curve` ([] = K74's; 4 numbers = one cubic) |
 | materials | `material.glow` (0), `material.glow_color` (accent), `material.glow_radius` (12), `material.bloom` (0), `material.bloom_radius` (16), `material.sheen` (0) |
 | pixel grid | `pixel` (0) |
+| W53.3 (fluent, any look) | `shape.sm`/`shape.md` (0.3333/0.6667: the small and middle radii as shares of the large), `focus.color` ("" = accent; a role), `task.mark` (focused · pill: every window's pill, the focused one long), `start.grid` (0 = rows; columns of the start menu's app grid with Recommended under it), `start.menu` (button · center), `clock.lines` (1 · 2: time over date), `chrome.soft_scale` (1: the share of the soft shadow a block casts; surfaces keep their elevation), `tile.radius` (-1 = pill), `quick.frame` (phone · flyout: the quick settings card as K42's phone or a plain flyout of the panel's material, the look's radius, a hairline and elevation, a footer band), `quick.tiles` (wide · compact: two columns of pills, or three of 48 px buttons — the icon, a split chevron for a page, the accent while on — with the label under them), `centre.form` (column · flyouts: a floating right sidebar's sections as flyouts of their own, 12 px apart, stacked at its foot, each blurred), `calendar.cells` (boxed · flat: today an accent circle), `toast.place` (island · corner: under a top or bottom bar, toasts stack in the corner at the bar's end), `bar.gap` (-1 = the pad and the groups' insets; px between a horizontal bar's modules) |
 
 **Palette roles** (derived when a palette leaves them out, as `line`/`ring`): `title`, `title_end`, `title_inactive`,
 `title_inactive_end`, `on_title` (accent → 45 % lighter; outline → 30 % lighter; the best ink); `bevel_light`,

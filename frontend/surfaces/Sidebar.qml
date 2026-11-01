@@ -390,12 +390,26 @@ Scope {
                     BackgroundEffect.blurRegion: Region {
                         x: win.realX(win.shX0, win.blurX1)
                         y: win.blurY0
-                        width: Theme.blur ? Math.max(0, win.blurX1 - win.shX0) : 0
-                        height: Theme.blur ? Math.max(0, win.blurY1 - win.blurY0) : 0
+                        width: Theme.blur && !win.flyouts ? Math.max(0, win.blurX1 - win.shX0) : 0
+                        height: Theme.blur && !win.flyouts ? Math.max(0, win.blurY1 - win.blurY0) : 0
                         topLeftRadius: shape.sTL
                         topRightRadius: shape.sTR
                         bottomLeftRadius: shape.sBL
                         bottomRightRadius: shape.sBR
+                        // W53.3: under flyouts the blur lies under each flyout's plate only (two: the notifications and
+                        // the calendar; a third section's plate stays unblurred, still drawn).
+                        Region {
+                            readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
+                                ? colLoader.item.flyItems : []
+                            item: plates.length > 0 ? plates[0] : null
+                            radius: Theme.rLg
+                        }
+                        Region {
+                            readonly property var plates: win.flyouts && Theme.blur && colLoader.item && colLoader.item.flyItems
+                                ? colLoader.item.flyItems : []
+                            item: plates.length > 1 ? plates[1] : null
+                            radius: Theme.rLg
+                        }
                     }
 
                     readonly property string outName: col.out
@@ -405,6 +419,10 @@ Scope {
                     // I269: a section's plate lies `pad` inside the column's corner: concentric with it (the column's
                     // corner: the look's radius floating, the hole's joined).
                     readonly property int sectionR: Theme.nested(col.floating ? Theme.rLg : col.joinR, Theme.pad)
+                    // W53.3 (`[decor] centre.form = flyouts`): a floating right column draws no body — its sections are
+                    // flyouts of their own (RightColumn), blurred each where it lies.
+                    readonly property bool flyouts: col.floating && sb.side === "right"
+                        && Theme.decor("centre.form", "column") === "flyouts"
                     readonly property point sheetCarry: Qt.point(0, 0)
                     Loader { id: tilesLoader; active: Theme.texOn && Theme.texTilePx > 0; sourceComponent: TileSheet {} }
                     LightSense {}
@@ -562,7 +580,7 @@ Scope {
                             height: win.height
                             transform: Scale { xScale: sb.side === "left" ? -1 : 1; origin.x: win.boxW / 2 }
                             SoftShadow {
-                                visible: col.floating && shape.shown
+                                visible: col.floating && shape.shown && !win.flyouts
                                 x: shape.bodyRect.x
                                 y: shape.bodyRect.y
                                 width: shape.bodyRect.width
@@ -574,7 +592,7 @@ Scope {
                             }
                             // W57 (K78): the column's elevation, cut where it joins the band, a bar or the screen's edge.
                             Elevation {
-                                visible: shape.shown
+                                visible: shape.shown && !win.flyouts
                                 x: shape.bodyRect.x
                                 y: shape.bodyRect.y
                                 width: shape.bodyRect.width
@@ -588,6 +606,8 @@ Scope {
                             }
                             ColumnShape {
                                 id: shape
+                                // (drawn as nothing under flyouts: `shown` keeps its geometry for the content and the input)
+                                opacity: win.flyouts ? 0 : 1
                                 anchors.fill: parent
                                 x0: win.shX0
                                 x1: win.shX1

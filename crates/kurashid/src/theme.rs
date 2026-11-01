@@ -755,7 +755,7 @@ mod tests {
         assert_eq!(doc["appearance"]["look"], "kanso");
         let shown = previews(&store_with(&root, "schema_version = 2\n"), &fonts, None);
         assert!(shown["styles"].as_array().unwrap().len() > 10);
-        assert_eq!(shown["looks"].as_array().unwrap().len(), 19);
+        assert_eq!(shown["looks"].as_array().unwrap().len(), 20);
         assert!(shown["palettes"].as_array().unwrap().len() > 10);
         let _ = std::fs::remove_dir_all(&root);
     }

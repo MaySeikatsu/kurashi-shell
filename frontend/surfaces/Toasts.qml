@@ -146,7 +146,8 @@ Scope {
         // The drip: a top or bottom bar. Then one vertical edge is anchored (the compositor centres the window on the bar)
         // with margin 0, so the window reaches the bar's edge; it covers the bar's strip only while toasts are up (it is
         // unmapped otherwise) and takes input on the cards only.
-        readonly property bool drip: bars.atTop || bars.atBottom
+        // W53.3 (`[decor] toast.place = corner`): a look may stack them in the corner at the bar's end instead (11's).
+        readonly property bool drip: (bars.atTop || bars.atBottom) && Theme.decor("toast.place", "island") !== "corner"
         readonly property bool flip: bars.atBottom
         readonly property bool springing: Theme.springOn && visible
         // Without one: below a top edge, at the right, clear of a right bar (as before W34).
@@ -170,6 +171,8 @@ Scope {
         margins {
             top: drip ? 0 : bars.topInset - padT
             right: drip ? 0 : bars.rightInset - padR
+            // (a corner stack over a bottom bar: its "top" room is the bar's side, mirrored as the drip's is)
+            bottom: drip ? 0 : bars.bottomInset - Math.min(shade + slackT, bars.bottomInset)
         }
 
         // ---- geometry, in a top bar's frame ("local": y from the bar's screen edge); mirrored for a bottom bar.
