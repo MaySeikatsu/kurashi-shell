@@ -65,6 +65,17 @@ Column {
     // A day's cell: 36 px, or wider where two digits of the type do not fit (W53.5: a wide pixel face, large text) — two
     // glyphs' advance, the day block's 2 px inset each side, and a grid pixel (or 2 px) of air between the digits' cells.
     TextMetrics { id: twoDigits; font.pixelSize: Theme.fs; font.family: Theme.families[0]; font.features: { "tnum": 1 }; text: "28" }
+    // W53.5: the month's long name and whether it fits the header between its keys (measured apart from the header's Text,
+    // whose family follows its text: no binding loop).
+    readonly property string monthLong: valid ? loc.toString(first, monthFmt) : ""
+    TextMetrics {
+        id: monthM
+        font.pixelSize: Theme.fsLabel
+        font.weight: Theme.wMedium
+        font.family: Theme.fam(view.monthLong, Theme.families)
+        text: view.monthLong
+    }
+    readonly property bool monthFits: monthM.advanceWidth <= monthText.width
     readonly property int cell: Math.max(36, Math.ceil(twoDigits.advanceWidth) + 4 + 2 * Math.max(2, Theme.grid(Screen.height)))
     // The card width this view asks the Stage for (its grid, the week column and the card's padding); 0 = the card's own.
     readonly property int cardWant: 7 * cell + weekW + 2 * (Theme.pad + 4) + 8
@@ -144,18 +155,10 @@ Column {
             verticalAlignment: Text.AlignVCenter
             color: Theme.fg
             font.pixelSize: Theme.fsLabel
-            font.family: Theme.fam(text, Theme.families)
+            font.family: Theme.fam(view.monthLong, Theme.families)
             // W53.5: the short month where the long one does not fit (a wide pixel face, large text), then an ellipsis.
             elide: Text.ElideRight
-            // (its own font, not the Text's: the Text's family follows its text, which follows this — a loop)
-            TextMetrics {
-                id: monthM
-                font.pixelSize: Theme.fsLabel
-                font.weight: Theme.wMedium
-                font.family: Theme.fam(text, Theme.families)
-                text: view.valid ? view.loc.toString(view.first, view.monthFmt) : ""
-            }
-            text: monthM.advanceWidth <= width || !view.valid ? monthM.text
+            text: view.monthFits || !view.valid ? view.monthLong
                 : view.loc.toString(view.first, view.lang === "ja" ? view.monthFmt : "MMM yyyy")
         }
         KeyButton {
