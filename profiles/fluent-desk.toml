@@ -23,3 +23,10 @@ bar = true
 start = ["island"]
 center = ["launcher", "windows"]
 end = ["mods", "recorder", "tray", "keyboard", "volume", "quick", "clock", "sidebar_right"]
+
+# 11's notification centre: the notifications over the calendar, floating at the bottom right, 360 px wide (the look's
+# `centre.form = flyouts` makes each section a flyout of its own). The quick tiles stay in Quick Settings.
+[sidebar.right]
+sections = ["notifications", "calendar"]
+width = 360
+draw = "floating"

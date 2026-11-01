@@ -400,11 +400,11 @@ from a capture — no free, lossless 1:1 Windows 11 capture was found, see "Stil
 | bar | the taskbar; the start dress on the launcher toggle; the grouped tray button **is** our Quick module; the clock opens the calendar (the island's clock card) and the bell (`sidebar_right`) the notification centre | 11's taskbar blurs what lies under it (Acrylic, [O]): translucent + blur, as the flyouts (W53.3 corrects the draft's "Mica, no blur") |
 | island | a taskbar flyout (Acrylic, 8 px) for peek/expanded | |
 | Stage cards | flyouts: Acrylic, 8 px, **no title bar** (11 flyouts have none) | the `title` slot is `""` for fluent |
-| sidebar | notification centre (top) + calendar (bottom), each an Acrylic panel, 12 px apart [O] | W53.3: still one column flush with the edge (see "Still differs") |
+| sidebar | notification centre (top) + calendar (bottom), each an Acrylic panel, 12 px apart [O] | W53.3: `centre.form = flyouts` + the preset's floating 360 px column: two flyouts at the bottom right; flat days (`calendar.cells`) |
 | dock | pinned centre icons with running pills (same idiom as the bar) | |
 | launcher | the 11 Start: search box on top (pill-ish 4 px), "Pinned" grid of 6 columns with app labels, "Recommended" list; footer with avatar + name left, power right | |
-| quick settings | the 11 Quick Settings flyout: tiles in a 3 × 2 grid with a split chevron for detail, sliders below, a footer row (battery, edit, settings) | already close to ours: tile shape and spacing are the work |
-| toasts | 11 toasts: bottom-right above the bar, Acrylic, 8 px, ~364 px wide [O], app icon + name header, × on hover | W53.3: Acrylic, 8 px, header with the app; placed where the island's toasts go, not bottom-right |
+| quick settings | the 11 Quick Settings flyout: tiles in a 3 × 2 grid with a split chevron for detail, sliders below, a footer row (battery, edit, settings) | W53.3: `quick.frame = flyout`, `quick.tiles = compact`, footer band (battery, Settings, session menu; no edit key) |
+| toasts | 11 toasts: bottom-right above the bar, Acrylic, 8 px, ~364 px wide [O], app icon + name header, × on hover | W53.3: `toast.place = corner`: bottom-right above the taskbar |
 | lock | lock curtain → sign-in | |
 
 **Lock face `curtain`.** Two stages, as 11 does it:
@@ -447,21 +447,30 @@ Mica (a wallpaper tint sampled once) is not drawn: fluent has no long-lived wind
 **Built (W53.3).** `{palettes,looks,styles}/fluent.toml`, `profiles/fluent-desk.toml`, `decor/start/{Fluent,FluentMenu}`,
 `decor/slider/Fluent`, `lock/CurtainFace`, `sounds/fluent` + `cursors/fluent` (`tools/styles/fluent-assets.py`, CC0),
 `nix/selawik.nix` (OFL 1.1). New generic `[decor]` keys: `shape.sm`/`shape.md`, `focus.color`, `task.mark`,
-`start.grid`, `start.menu`, `clock.lines`, `chrome.soft_scale`, `tile.radius`; Slider hosts the `slider` slot. Shots:
+`start.grid`, `start.menu`, `clock.lines`, `chrome.soft_scale`, `tile.radius`, `quick.frame`, `quick.tiles`,
+`centre.form`, `calendar.cells`, `toast.place`, `bar.gap`; Slider hosts the `slider` slot. Shots:
 `frontend/shots/styles/fluent/` (`desk-*` light, `dark-*` dark, with the preset; the seven test-styles surfaces;
 `focus-ring*.png` at 3×). The lock: a typed character on the curtain lifts it and stays in the box (`desk-lock-signin`).
 
-**Still differs (W53.3, honest).**
-- Quick settings keep the shell's two-column tiles with a subtitle (4 px corners now); 11 has 3 × 2 compact tiles with
-  the label under them, sliders below and a footer (battery, edit, settings).
-- The notification centre and calendar are one sidebar column flush with the screen's edge, not two floating flyouts.
-- Toasts stand where the island's do, not bottom-right above the taskbar.
+**Still differs (W53.3, honest; after the lead's review).**
+- Quick settings: the flyout (`quick.frame = flyout`) with 11's compact tiles, the levels and a footer (battery, Settings,
+  the session menu) — but all ten tiles show (11 shows six and pages the rest), there is no edit key (no tile editor
+  exists: a key that does nothing would be inert chrome), and the volume level stays the shell's row (the Slider part is
+  hosted, but the sandbox has no audio, so `slider/Fluent` was not seen).
+- The notification centre: two flyouts at the bottom right (`centre.form = flyouts` with the preset's floating 360 px
+  column, notifications and calendar only) — the notifications flyout keeps a fixed least height rather than growing with
+  its cards; the calendar has no collapse chevron; a third section would lie unblurred.
+- Toasts stack bottom-right above the taskbar (`toast.place = corner`); they keep the shell's card (header with the app,
+  ×), not 11's exact toast layout.
 - Mica's wallpaper tint is not drawn (the theme does not sample the wallpaper for it); the lock ground is an original
   gradient from `desk` and the accent, since the lock surface does not know the wallpaper.
 - Icons: the shell's Material Symbols (Rounded, weight 300, outline) stand in for Segoe Fluent Icons (Microsoft licence).
-- No "All apps" view or pinned management in Start; Start's pins are the dock's (`dock.pinned`).
-- The sign-in's veil is a dim scrim, not a blur of the ground; the 46 × 32 caption buttons are not drawn (no title bars).
+- Start: no "All apps" view or pin management; its pins are the dock's (`dock.pinned`).
+- The sign-in's veil is a dim scrim, not a blur of the ground; the 46 × 32 caption buttons are not drawn (no title bars:
+  the `title` slot stays `""`, so the title-bar switch does nothing under fluent — an open question for the user).
 - The taskbar/Start measurements are [O]: no free lossless 1:1 capture of 11 was found for pixel reads (BACKLOG).
+- Not measured or shot yet: `just bench` (idle frames, PSS), ja, high contrast, large text, reduced transparency, scale
+  1.5. Every shot ran with reduced motion.
 
 ---
 
