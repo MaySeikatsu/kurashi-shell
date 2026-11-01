@@ -36,6 +36,8 @@ sounds = "material"
 "menu.highlight" = "bar"
 "menu.radius" = 0
 "menu.separator" = "line"
+# The launcher's query as M3's search bar (md.comp.search-bar): full round, surface-container-high, no outline.
+"field.form" = "filled"
 # Plain tooltips (md.comp.plain-tooltip): inverse-surface, inverse-on-surface, corner-extra-small 4 px, no tail.
 "tooltip.fill" = "info"
 "tooltip.on" = "on_info"

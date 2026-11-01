@@ -475,11 +475,13 @@ PanelWindow {
                 // W53.5 (`[decor] field.form = underline`): the field is a line under the query — an RPG's name-entry line
                 // (whole grid pixels, a block cursor), the PS2's glowing underline — with no box, frame or well.
                 readonly property bool underline: Theme.decor("field.form", "box") === "underline"
-                framed: !underline
+                // W53.8 (`filled`): M3's search bar — the container-high tone, no outline, no well.
+                readonly property bool filled: Theme.decor("field.form", "box") === "filled"
+                framed: !underline && !filled
                 // A text field is a well (row 591): sunken under a bevel chrome, nothing otherwise.
-                sunken: !underline
-                fill: underline ? "transparent" : Theme.surface
-                flatBorder: underline ? "transparent" : (field.activeFocus ? Theme.accent : Theme.outline)
+                sunken: !underline && !filled
+                fill: underline ? "transparent" : (filled ? Theme.containerHigh : Theme.surface)
+                flatBorder: underline || filled ? "transparent" : (field.activeFocus ? Theme.accent : Theme.outline)
                 penSeed: 0x1A0D
                 FieldLine {
                     visible: box.underline
