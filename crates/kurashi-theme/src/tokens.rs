@@ -282,20 +282,38 @@ pub fn build(
     };
     t.insert("font.pixel".into(), json!(pixel_type));
     px(&mut t, "font.pixel_step", step);
+    // W53.5: bitmap type grows by whole steps only — large text (a type scale above 1) multiplies every snapped size by
+    // the next whole number (×2 for 1.25), so an 8 × 8 face at ×2 becomes ×4, never a blurred ×2.5. The pixel grid
+    // (`[decor] pixel`) grows with it: `pixel.scale`.
+    let whole = if step > 1.0 {
+        axes.type_scale.clamp(1.0, 3.0).ceil()
+    } else {
+        1.0
+    };
+    t.insert(
+        "pixel.scale".into(),
+        json!(if dnum("pixel") > 0.0 {
+            axes.type_scale.clamp(1.0, 3.0).ceil() as i64
+        } else {
+            1
+        }),
+    );
     for (n, v) in TYPE_SCALE {
         let size = v * axes.type_scale.clamp(0.5, 3.0);
         px(
             &mut t,
             &format!("font.size.{n}"),
             if step > 1.0 {
-                (size / step).round().max(1.0) * step
+                (v / step).round().max(1.0) * step * whole
             } else {
                 size
             },
         );
     }
-    for (n, w) in [("regular", 400), ("medium", 500), ("bold", 700)] {
-        t.insert(format!("font.weight.{n}"), json!(w));
+    // W53.5: a look's regular weight (`[decor] type.weight`: the PS2's Light); medium and bold keep their distance.
+    let base = dnum("type.weight").clamp(100.0, 900.0) as i64;
+    for (n, w) in [("regular", 0), ("medium", 100), ("bold", 300)] {
+        t.insert(format!("font.weight.{n}"), json!((base + w).min(900)));
     }
     let (fam, n1) = resolve_chain(&axes.font_chain, fonts);
     let (fam_jp, n2) = resolve_chain(&axes.font_chain_jp, fonts);
@@ -709,6 +727,10 @@ pub fn build(
         json!(r2(dnum("material.sheen") * deco)),
     );
     decor_tokens(&mut t, p, decor);
+    // W53.5: the banded fill is decoration: high contrast draws one solid fill (a white border on black, no gradient).
+    if high_contrast {
+        t.insert("decor.fill.bands".into(), json!(0));
+    }
     // W53.2: a part's own face (`[decor] title.family`, `start.family`): the chain's first installed family as
     // `font.title` / `font.start`, "" when none is (the part then takes the theme's). `icons.family` resolves above.
     for d in DECOR_KEYS {

@@ -1085,7 +1085,7 @@ Scope {
                                                 antialiasing: !Theme.pixelType
                                                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                x: Theme.gap
+                                                x: Theme.gap + menuStyle.lead
                                                 text: row.modelData.text
                                                 color: face.ink(Theme.fg)
                                                 font.pixelSize: Theme.fs

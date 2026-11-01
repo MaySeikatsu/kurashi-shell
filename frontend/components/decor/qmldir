@@ -14,3 +14,6 @@ Checker 1.0 Checker.qml
 CaptionGlyph 1.0 CaptionGlyph.qml
 PaneMark 1.0 PaneMark.qml
 WindowEdge 1.0 WindowEdge.qml
+# W53.5 (snes, ps2)
+PixelArt 1.0 PixelArt.qml
+PanelDress 1.0 PanelDress.qml

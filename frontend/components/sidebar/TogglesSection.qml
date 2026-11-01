@@ -120,7 +120,9 @@ Item {
     readonly property var micReq: rqMic
     readonly property var sinkReq: rqSink
 
-    readonly property real cellW: (width - Theme.gap) / 2
+    // W53.5 (`[decor] quick.tiles = rows`): one column of config rows (QuickTile draws them).
+    readonly property int cols: Theme.decor("quick.tiles", "wide") === "rows" ? 1 : 2
+    readonly property real cellW: cols > 1 ? (width - Theme.gap) / 2 : width
     SlotHost {
         id: tileSlot
         slot: "quick.tiles"
@@ -140,8 +142,8 @@ Item {
     Grid {
         id: grid
         width: tg.width
-        columns: 2
-        spacing: Theme.gap
+        columns: tg.cols
+        spacing: tg.cols > 1 ? Theme.gap : 0
         // As the quick card: Up and Down within a column, Left and Right between the columns.
         Keys.onPressed: event => {
             var cs = tg.cells(), i = -1
@@ -149,10 +151,10 @@ Item {
             if (i < 0) return
             var to = -1
             switch (event.key) {
-            case Qt.Key_Up: to = i >= 2 ? i - 2 : -1; break
-            case Qt.Key_Down: to = i + 2 < cs.length ? i + 2 : -1; break
-            case Qt.Key_Left: to = i % 2 === 1 ? i - 1 : -1; break
-            case Qt.Key_Right: to = i % 2 === 0 ? i + 1 : -1; break
+            case Qt.Key_Up: to = i >= tg.cols ? i - tg.cols : -1; break
+            case Qt.Key_Down: to = i + tg.cols < cs.length ? i + tg.cols : -1; break
+            case Qt.Key_Left: to = tg.cols > 1 && i % 2 === 1 ? i - 1 : -1; break
+            case Qt.Key_Right: to = tg.cols > 1 && i % 2 === 0 ? i + 1 : -1; break
             default: return
             }
             if (to >= 0 && cs[to] !== null) cs[to].forceActiveFocus()

@@ -216,10 +216,11 @@ Column {
                         font.pixelSize: Theme.fsCaption
                         font.family: Theme.fam(text, Theme.families)
                         // Column 0 is the week's first day. Qt numbers Monday 1 to Sunday 7, JS numbers Sunday 0.
-                        text: {
-                            var dow = (view.firstDow + index) % 7
-                            return view.loc.standaloneDayName(dow === 0 ? 7 : dow, Locale.ShortFormat)
-                        }
+                        readonly property int qd: { var dow = (view.firstDow + index) % 7; return dow === 0 ? 7 : dow }
+                        // W53.5: the narrow name where the short one does not fit the cell (a wide pixel face).
+                        id: dayName
+                        TextMetrics { id: dayM; font: dayName.font; text: view.loc.standaloneDayName(dayName.qd, Locale.ShortFormat) }
+                        text: dayM.advanceWidth <= width - 2 ? dayM.text : view.loc.standaloneDayName(qd, Locale.NarrowFormat)
                     }
                 }
                 Repeater {

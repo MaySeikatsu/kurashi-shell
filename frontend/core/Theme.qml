@@ -148,6 +148,19 @@ Singleton {
     readonly property int iconSize: tok("icon.size", fs + 4)
     readonly property real iconScale: tok("icon.scale", 1)
     readonly property int pixelGrid: tok("decor.pixel", 0)
+    // W53.5: the pixel grid of one output (`[decor] pixel` > 0: snes) — one grid pixel in logical px, from the output's own
+    // height (pass `Screen.height`): round(height / 224 / pixel), at least 1, doubled under large text (`pixel.scale`).
+    // 0 without a grid. Whole logical px, so a grid pixel stays whole device px at scale 1.5 (2 → 3) as at 1 and 2.
+    readonly property int pixelScale: tok("pixel.scale", 1)
+    function grid(h) {
+        if (pixelGrid <= 0) return 0
+        return Math.max(1, Math.round((h > 0 ? h : 1080) / 224 / pixelGrid)) * pixelScale
+    }
+    // W53.5: a card's fill in hard bands (`[decor] fill.bands`, 0 = one fill) from `bandTop` to `bandBottom` (16-bit RPG
+    // windows); high contrast sends 0.
+    readonly property int fillBands: tok("decor.fill.bands", 0)
+    readonly property color bandTop: colorOr("decor.fill.band_top", Qt.lighter(containerHigh, 1.3))
+    readonly property color bandBottom: colorOr("decor.fill.band_bottom", Qt.darker(containerHigh, 1.4))
     // A hairline that stays one device pixel (`round(dpr) / dpr` logical px): bevels and captions stay crisp at 1.25.
     function crisp(w, dpr) { return Math.max(1, Math.round(w * (dpr || 1))) / (dpr || 1) }
     readonly property int iconFill: tok("icon.fill", 0)

@@ -28,6 +28,9 @@ import "decor"
 // pairs swapped while pressed or `sunken` (a text field, the tray well), the content moved `Theme.bevelPress` px down
 // and right while pressed (no sink, no shrink, no flash); and the materials next to blur — a glow and a bloom under the
 // face, a sheen on its upper half — each made only while the look has it (0 frames idle).
+// W53.5: a card-sized block (the frame's "card": ≥ 120 × 64) of a look with `[decor] fill.bands` draws its fill in that
+// many hard bands, `Theme.bandTop` → `Theme.bandBottom` (16-bit RPG windows); on a pixel grid (`Theme.pixelGrid`) the
+// block's edges are drawn without antialiasing, so a small radius is a stepped corner, as pixel art draws it.
 Item {
     id: blk
     property color fill: Theme.containerHigh
@@ -46,6 +49,8 @@ Item {
     property real softScale: 1
     // K62: the pen's salt for this block's outline (≥ 0); -1 = the block's place in its parent (pen.js `salt`).
     property int penSeed: -1
+    // W53.5: false keeps the look's frame off this block (a text field drawn as an underline: `[decor] field.form`).
+    property bool framed: true
     readonly property real ringW: Theme.ringW * ringScale
     // The content sits inside the outline, the ring and both bevel pairs.
     readonly property real inset: Theme.outlineW + ringW + 2 * Theme.bevelW
@@ -54,7 +59,8 @@ Item {
     default property alias content: fillRect.data
     // The press a chrome has: a sink (hard shadow), a shrink (press scale), a bevel's swap, else a flash of the fill (also
     // a keycap whose shadow is set to nothing: K67, nothing to sink onto).
-    readonly property bool flashes: Theme.sinkX === 0 && Theme.sinkY === 0 && Theme.pressScale >= 1 && Theme.bevelW === 0
+    // (On a pixel grid a block never shrinks — a scaled pixel blurs — it flashes instead.)
+    readonly property bool flashes: Theme.sinkX === 0 && Theme.sinkY === 0 && (Theme.pressScale >= 1 || !smoothEdges) && Theme.bevelW === 0
     // How far the content moves down and right while pressed (a bevel's press; 0 for every other chrome).
     readonly property int shift: pressed ? Theme.bevelPress : 0
     // The outline this block draws (0: none): the chrome's, else the flat hairline.
@@ -63,6 +69,9 @@ Item {
     // I281: a squircle look draws the shadow, the rim and the ring's fill as squircles (SquircleRect, made only then);
     // a pill (its corner half the face or more) stays round.
     readonly property bool sq: Theme.squircle > 0 && Math.min(blk.radius, blk.faceH / 2) < Math.min(blk.width, blk.faceH) / 2 - 0.5
+    // W53.5: the banded fill (card-sized blocks with a fill, while the look has bands) and the pixel grid's hard edges.
+    readonly property bool banded: Theme.fillBands > 1 && fill.a > 0 && width >= 120 && faceH >= 64
+    readonly property bool smoothEdges: Theme.pixelGrid <= 0
 
     implicitHeight: Theme.controlH + Theme.shadowDy
 
@@ -108,7 +117,7 @@ Item {
         // The press sinks the face onto its shadow, along the vector.
         x: Theme.sinkX * pressP
         y: Theme.sinkY * pressP
-        scale: 1 - (1 - Theme.pressScale) * pressP
+        scale: blk.smoothEdges ? 1 - (1 - Theme.pressScale) * pressP : 1
         // W53.0a: the glow (a role's colour) and the bloom (the face's own, lighter) round the face: two static halos, made
         // only while the look has either; small things inside blocks glow as little as they cast shadows (`softScale`).
         Loader {
@@ -150,7 +159,7 @@ Item {
             color: blk.sq ? "transparent" : fillC
             border.width: blk.sq ? 0 : lineW
             border.color: blk.outlineInk
-            antialiasing: true
+            antialiasing: blk.smoothEdges
             Loader {
                 anchors.fill: parent
                 active: blk.sq
@@ -167,9 +176,33 @@ Item {
             id: under
             readonly property bool relief: blk.relief && blk.fill.a > 0 && Theme.texShell && !Theme.texText
             readonly property bool sheen: Theme.sheen > 0 && blk.fill.a > 0
-            active: blk.flashes || relief || sheen
+            active: blk.flashes || relief || sheen || blk.banded
             anchors.fill: parent
             sourceComponent: Item {
+                // W53.5: the fill in hard bands, top to bottom, inside the outer grid pixel (the frame's outline and the
+                // rim's stepped corner stay the rim's).
+                Column {
+                    visible: blk.banded
+                    anchors.fill: parent
+                    anchors.margins: Math.max(blk.inset, Theme.grid(Screen.height))
+                    Repeater {
+                        model: blk.banded ? Theme.fillBands : 0
+                        Rectangle {
+                            required property int index
+                            readonly property int n: Theme.fillBands
+                            readonly property real h0: Math.round(index * parent.height / n)
+                            width: parent.width
+                            height: Math.round((index + 1) * parent.height / n) - h0
+                            antialiasing: blk.smoothEdges
+                            topLeftRadius: index === 0 ? face.innerR : 0
+                            topRightRadius: index === 0 ? face.innerR : 0
+                            bottomLeftRadius: index === n - 1 ? face.innerR : 0
+                            bottomRightRadius: index === n - 1 ? face.innerR : 0
+                            color: Qt.alpha(Qt.tint(Theme.bandTop, Qt.alpha(Theme.bandBottom, n > 1 ? index / (n - 1) : 0)),
+                                            blk.fill.a)
+                        }
+                    }
+                }
                 // W53.0a: the sheen (Vista/7 glass buttons): a light gloss over the upper half of the fill, fading out.
                 Rectangle {
                     visible: under.sheen
@@ -278,6 +311,7 @@ Item {
                 // The decor pack's frame over the face's edge: nothing is made while the pack has none.
                 FrameHost {
                     id: frameHost
+                    visible: blk.framed
                     anchors.fill: parent
                     radius: face.r
                     pressed: blk.pressed

@@ -849,7 +849,9 @@ PanelWindow {
         : (originRect !== null && originRect.edge !== "" ? originRect.edge : (pillGeom !== null ? pillGeom.edge : bars.edge))
     readonly property var morphBar: IslandGeom.barOf(outName, morphEdge)
     readonly property real barInset: morphBar ? morphBar.inset : bars.insetOf(morphEdge)
-    readonly property bool morphMode: (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
+    // W53.5 (`[decor] surface.join = false`): a look whose cards stand apart from the bar never morphs.
+    readonly property bool morphMode: Theme.decor("surface.join", true) !== false
+        && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
         && (headMode || panelKinds.indexOf(contentKind) >= 0)
     readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
@@ -1284,6 +1286,13 @@ PanelWindow {
                 lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
                 seed: 0x57A6E
             }
+        }
+        // W53.5: the look's banded fill and frame round the card (an RPG window, the PS2's glow line), under the views;
+        // not while the shape draws the card, nor round a view with its own chrome.
+        Loader {
+            anchors.fill: parent
+            active: !stage.morphMode && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
+            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
         }
         // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
         // island morphs, where the shape draws the card.

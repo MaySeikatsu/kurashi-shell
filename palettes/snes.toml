@@ -1,50 +1,62 @@
-# SNES — console-plastic grey, US-purple buttons, the logo's red, yellow and green as spice. Light, and dark (K53). Roles after
-# shellseikatsu `_snesPalette()` (W25, K50). Meant for decor `snes` (frame `snes`).
+# SNES (W53.5, docs/ux/styles.md §7): the 16-bit RPG window — black screen, windows in hard blue bands (`title` at the
+# window's top → `title_end` at its foot, the look's `fill.band_*`), white text and borders, the controller's four face
+# colours (A red, B yellow, X blue, Y green: secondary, warning, data X = tertiary, success) as spice, a gold cursor
+# highlight. Dark is the RPG screen (the style's scheme); light is the console's own grey plastic with the US purple.
 name = "snes"
 kind = "pair"
-description = "Console grey and US purple (decor snes)"
+description = "RPG window blue on black, the four face colours (decor snes)"
 
+[dark]
+surface = "#000000"                   # the screen's black
+surface_container_lowest = "#000820"
+surface_container_low = "#081458"
+surface_container = "#102070"         # a window's middle band: tooltips, plain fills
+surface_container_high = "#1c3088"    # a small window (a key, a tile)
+surface_container_highest = "#22389a"
+title = "#2c42a6"                     # the window's top band
+title_end = "#0a1460"                 # the window's foot
+on_title = "#ffffff"
+on_surface = "#f8f8f8"                # window text
+on_surface_variant = "#c8d0f0"
+outline = "#a8b0d0"
+outline_variant = "#30408c"
+accent = "#f8d050"                    # the cursor's highlight, gold
+on_accent = "#101010"
+accent_container = "#685010"
+on_accent_container = "#fff4c8"
+secondary = "#e04838"                 # A
+tertiary = "#4878e8"                  # X
+warning = "#f0c030"                   # B
+success = "#40b058"                   # Y
+error = "#ff6858"
+line = "#000000"                      # the window's dark outline
+ring = "#f8f8f8"                      # the window's white border
+desk = "#000000"
+
+# Light: the console itself — light-grey plastic, dark-grey text, the US purple buttons, windows a pale plastic band.
 [light]
 surface = "#b8b9b4"
-surface_container_lowest = "#cdcec9"
-surface_container_low = "#c2c3be"
-surface_container = "#cdcec9"
-surface_container_high = "#c2c3be"
+surface_container_lowest = "#dcddd8"
+surface_container_low = "#cfd0cb"
+surface_container = "#c6c7c2"
+surface_container_high = "#d4d5d0"
 surface_container_highest = "#aeafaa"
+title = "#e6e7e2"
+title_end = "#b4b5b0"
+on_title = "#1e1e26"
 on_surface = "#1e1e26"
 on_surface_variant = "#3a3a44"
 outline = "#54545e"
 outline_variant = "#8e8f8a"
 accent = "#4f43ae"                    # US purple
+on_accent = "#ffffff"
 accent_container = "#8a80dc"
 on_accent_container = "#161040"
-secondary = "#a8231b"                 # logo red
-tertiary = "#6e4c00"                  # logo yellow, darkened for text on grey
+secondary = "#a8231b"
+tertiary = "#2a4fa8"
 warning = "#6e4c00"
+success = "#1f6e2c"
 error = "#a8231b"
-success = "#1f6e2c"                   # logo green
 line = "#2e2e36"
-ring = "#dcddd8"
-
-# Dark (K53: every palette has both schemes): the console in charcoal: dark plastic, lilac buttons, the logo's red, yellow and green.
-[dark]
-surface = "#2a2b2f"
-surface_container_lowest = "#1e1f22"
-surface_container_low = "#25262a"
-surface_container = "#303136"
-surface_container_high = "#393a40"
-surface_container_highest = "#44454c"
-on_surface = "#e4e5e0"
-on_surface_variant = "#b8b9b4"
-outline = "#8e8f8a"
-outline_variant = "#4a4b52"
-accent = "#a89cf0"
-accent_container = "#4f43ae"
-on_accent_container = "#ece8ff"
-secondary = "#e8605a"
-tertiary = "#e8c040"
-warning = "#e8c040"
-error = "#f06058"
-success = "#5ac46a"
-line = "#0e0e12"
-ring = "#54555c"
+ring = "#f4f5f0"
+desk = "#8e8f8a"

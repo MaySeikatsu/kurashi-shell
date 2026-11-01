@@ -1,60 +1,39 @@
 import QtQuick
 import "../../core"
 
-// SNES (decor snes; shellseikatsu `Widgets/ThemeDecor/SnesFrame.qml`, `Panels/Lockscreen/LockStyleSnes.qml`). Cards:
-// the console's hard plastic seams (a double border), the logo's four dots top-left and the two purple buttons
-// top-right. Small blocks: nothing (the keycap chrome is the console's buttons). Ground: the logo dots large above the
-// column and the purple slide switches below it. Dots: secondary (red), tertiary (yellow), success (green), accent.
-// W42: each part is a Loader, so a block of the other kind builds none of it. A `visible` tree was made for every block
-// (a small one built ~30 hidden items, ~0.75 ms, for nothing drawn); the drawing is the same, in the same order.
+// SNES (W53.5, docs/ux/styles.md §7): every block a 16-bit RPG window, on the output's pixel grid (`Theme.grid`, one grid
+// pixel = 2 px on 1080 lines; whole device px at scale 1.5 too). Cards: a dark outline one grid pixel wide (`line`), a
+// white border two grid pixels wide inside it (`ring`), both with the look's small radius drawn without antialiasing — a
+// stepped corner, as the pixel art has it — over the block's banded fill (Block, `[decor] fill.bands`). Small blocks (keys,
+// tiles, the island's text box): the outline and a border one grid pixel wide. Ground (the plain lock face under this
+// look): the screen's black with the controller's four face colours as a diamond of pixel dots (X blue on top, A red at
+// the right, B yellow below, Y green at the left). Colours are roles (rule 4); static (one paint per size and colour).
 FrameBase {
     id: f
-    readonly property var dots: [Theme.secondary, Theme.color("color.warning", "#e8a818"),
-                                 Theme.color("color.success", "#3a9e48"), Theme.color("color.data.1", "#2e5fb8")]
-    readonly property color purple: Theme.accent
-
-    component Dots: Row {
-        id: dr
-        property real size: 6
-        spacing: size / 2
-        Repeater {
-            model: f.dots
-            Rectangle { required property color modelData; width: dr.size; height: dr.size; color: modelData }
-        }
-    }
-    component Pill: Rectangle {
-        width: 14; height: 7
-        radius: height / 2
-        color: f.purple
-        border.width: 1
-        border.color: Qt.darker(f.purple, 1.6)
-    }
+    readonly property int g: Math.max(1, Theme.grid(Screen.height) || 2)
+    readonly property color dark: Theme.color("color.line", "#000000")
+    readonly property color white: Theme.color("color.ring", "#f8f8f8")
+    readonly property int border: card ? 2 * g : g
 
     Loader {
-        active: f.card
+        active: !f.ground
         anchors.fill: parent
         sourceComponent: Item {
-            anchors.fill: parent
             Rectangle {
-                anchors { fill: parent; margins: 4 }
+                anchors.fill: parent
+                radius: f.radius
+                antialiasing: false
                 color: "transparent"
-                border.width: 2
-                border.color: Theme.outline
-                opacity: 0.6
+                border.width: f.g
+                border.color: f.dark
             }
             Rectangle {
-                anchors { fill: parent; margins: 7 }
+                anchors { fill: parent; margins: f.g }
+                radius: Math.max(0, f.radius - f.g)
+                antialiasing: false
                 color: "transparent"
-                border.width: 1
-                border.color: Theme.color("color.outline_variant", "#90918c")
-                opacity: 0.8
-            }
-            Dots { x: 12; y: 10 }
-            Row {
-                anchors { right: parent.right; top: parent.top; rightMargin: 12; topMargin: 9 }
-                spacing: 4
-                Pill {}
-                Pill {}
+                border.width: f.border
+                border.color: f.white
             }
         }
     }
@@ -64,32 +43,23 @@ FrameBase {
         active: f.ground
         anchors.fill: parent
         sourceComponent: Item {
-            anchors.fill: parent
-            Rectangle {
-                anchors.fill: parent
-                gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.lighter(Theme.surface, 1.06) }
-                    GradientStop { position: 1.0; color: Qt.darker(Theme.surface, 1.08) }
+            Rectangle { anchors.fill: parent; color: Theme.surface }
+            Item {
+                id: cluster
+                readonly property int d: 6 * f.g
+                width: 3 * d; height: 3 * d
+                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.verticalCenter; bottomMargin: 120 }
+                Repeater {
+                    model: [[1, 0, "color.tertiary"], [2, 1, "color.secondary"], [1, 2, "color.warning"], [0, 1, "color.success"]]
+                    Rectangle {
+                        required property var modelData
+                        x: modelData[0] * cluster.d; y: modelData[1] * cluster.d
+                        width: cluster.d; height: cluster.d
+                        radius: f.g
+                        antialiasing: false
+                        color: Theme.color(modelData[2], "#ffffff")
+                    }
                 }
-            }
-            // The cartridge slot.
-            Rectangle {
-                anchors { horizontalCenter: parent.horizontalCenter; top: parent.top; topMargin: parent.height * 0.08 }
-                width: Math.min(parent.width * 0.5, 640)
-                height: 18
-                color: Qt.darker(Theme.surface, 1.35)
-                border.width: 2
-                border.color: Theme.line
-            }
-            Dots {
-                anchors { horizontalCenter: parent.horizontalCenter; bottom: parent.verticalCenter; bottomMargin: 230 }
-                size: 18
-            }
-            Row {
-                anchors { horizontalCenter: parent.horizontalCenter; top: parent.verticalCenter; topMargin: 220 }
-                spacing: 18
-                Pill { width: 56; height: 22 }
-                Pill { width: 56; height: 22 }
             }
         }
     }

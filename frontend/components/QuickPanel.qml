@@ -4,6 +4,7 @@ import "../core"
 import "expanded"
 import "quick"
 import "phone"
+import "decor"
 
 // The quick settings card (K24, W13; docs/ux/quick-settings.md): the `quick` panel of runtime.ui, opened by the bar's button or
 // `quick.toggle`. The tiles are the view: a status sentence, ten core tiles (Wi-Fi, Bluetooth, Focus, Audio, Power, Display,
@@ -23,7 +24,11 @@ Item {
     // tiles — wide pills in two columns (today's) or compact buttons in three with the label under them (11's).
     readonly property bool flyout: Theme.decor("quick.frame", "phone") === "flyout"
     readonly property bool compactTiles: Theme.decor("quick.tiles", "wide") === "compact"
-    readonly property int tileCols: compactTiles ? 3 : 2
+    // W53.5 (`quick.tiles = rows`): a config screen — one row per switch, its value at the right (QuickTile).
+    readonly property bool rowTiles: Theme.decor("quick.tiles", "wide") === "rows"
+    MenuStyle { id: quickMenu }
+    readonly property int rowTileH: quickMenu.rowH(40)
+    readonly property int tileCols: rowTiles ? 1 : (compactTiles ? 3 : 2)
     readonly property real tileW: (quick.innerW - (tileCols - 1) * Theme.gap) / tileCols
     width: parent.width
     height: flyout ? fly.implicitHeight : phone.implicitHeight
@@ -361,7 +366,7 @@ Item {
         slot: "quick.tiles"
         layout: "cells"
         cellWidth: quick.tileW
-        cellHeight: quick.compactTiles ? 78 : 56
+        cellHeight: quick.rowTiles ? quick.rowTileH : (quick.compactTiles ? 78 : 56)
     }
     // The core tiles are the first `coreCount` cells; the contributions follow.
     readonly property int coreCount: 10
@@ -617,7 +622,7 @@ Item {
                     id: grid
                     width: quick.innerW
                     columns: quick.tileCols
-                    spacing: Theme.gap
+                    spacing: quick.rowTiles ? 0 : Theme.gap
                     // Up and Down move within a column, Left and Right between the two columns; Right on a tile opens its page.
                     // The cells are quick.tileCells(): the core tiles, then the contributions (a plain contribution's cell is null).
                     Keys.onPressed: event => {
@@ -928,6 +933,18 @@ Item {
                     color: Theme.panel
                     border.width: 1
                     border.color: Theme.color("color.outline_variant", "#e5e5e5")
+                }
+                // W53.5: the look's banded fill and frame (an RPG window, the PS2's glow line); nothing without them.
+                Loader {
+                    anchors.fill: parent
+                    active: Theme.frame !== "" || Theme.fillBands > 1
+                    sourceComponent: PanelDress { radius: Theme.rLg; alpha: Theme.panel.a; frame: false }
+                }
+                Loader {
+                    z: 2
+                    anchors.fill: parent
+                    active: Theme.frame !== ""
+                    sourceComponent: PanelDress { radius: Theme.rLg; bands: false }
                 }
                 // The footer band: the ground a step deeper, a hairline above it, the lower corners the flyout's.
                 Rectangle {
