@@ -108,3 +108,8 @@ sounds = "aqua"
 "motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
 "motion.fast_curve" = [0.25, 0.1, 0.25, 1.0]
 "cursor" = "aqua"
+# Quick settings as a menu extra's drop-down (no phone): compact toggles, the sliders (W53.3's generic keys); toasts in the
+# top-right corner under the menu bar, as a small utility panel (10.x had no system notifications).
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+"toast.place" = "corner"
