@@ -278,6 +278,13 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // gel band; 0 = flat).
     k("start.gloss", Num(0.0, 1.0), "0.0"),
     k("menu.gloss", Num(0.0, 1.0), "0.0"),
+    // What the start menu shows on an empty field: the launcher's search (`search`, today's) or the system's menu
+    // (`menu`: Mac OS X's Apple menu — settings, recent apps, sleep, restart, shut down, lock, log out as menu rows; typing
+    // turns it into the search, Spotlight's).
+    k("start.form", Choice(&["search", "menu"]), r#""search""#),
+    // A flyout that opens from a bar meets it square, its far corners rounded (Mac OS X's menus and menu extras); false =
+    // a floating flyout rounded all round (today's).
+    k("flyout.hang", Bool, "false"),
     // W53.3: the small and middle corner radii as fractions of the look's radius (`theme.shape.radius`, the large step):
     // K74's thirds by default; Windows 11's 4 px controls in 8 px flyouts are 0.5. A user's radius pin scales them all.
     k("shape.sm", Num(0.0, 1.0), "0.3333"),

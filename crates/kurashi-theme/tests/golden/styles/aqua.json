@@ -120,6 +120,7 @@
   "decor.dock.radius": 8,
   "decor.dock.reflection": 0.3,
   "decor.dock.tiles": "none",
+  "decor.flyout.hang": true,
   "decor.focus": "",
   "decor.focus.color": "",
   "decor.focus.offset": 0,
@@ -191,6 +192,7 @@
   "decor.start.fill": [
     "#3672d4"
   ],
+  "decor.start.form": "menu",
   "decor.start.gloss": 0.8,
   "decor.start.grid": 0,
   "decor.start.italic": false,

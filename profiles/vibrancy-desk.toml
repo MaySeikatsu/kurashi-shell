@@ -22,3 +22,10 @@ edge = "bottom"
 visibility = "always"
 draw = "floating"
 icon_size = 48
+
+# Notification Centre: notifications over the calendar widget, floating at the top right under the menu bar (the look's
+# `centre.form = flyouts` makes each a flyout); no quick tiles there — they are Control Centre's.
+[sidebar.right]
+sections = ["notifications", "calendar"]
+width = 360
+draw = "floating"
