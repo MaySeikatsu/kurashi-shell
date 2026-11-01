@@ -147,7 +147,14 @@ Column {
             font.family: Theme.fam(text, Theme.families)
             // W53.5: the short month where the long one does not fit (a wide pixel face, large text), then an ellipsis.
             elide: Text.ElideRight
-            TextMetrics { id: monthM; font: monthText.font; text: view.valid ? view.loc.toString(view.first, view.monthFmt) : "" }
+            // (its own font, not the Text's: the Text's family follows its text, which follows this — a loop)
+            TextMetrics {
+                id: monthM
+                font.pixelSize: Theme.fsLabel
+                font.weight: Theme.wMedium
+                font.family: Theme.fam(text, Theme.families)
+                text: view.valid ? view.loc.toString(view.first, view.monthFmt) : ""
+            }
             text: monthM.advanceWidth <= width || !view.valid ? monthM.text
                 : view.loc.toString(view.first, view.lang === "ja" ? view.monthFmt : "MMM yyyy")
         }
@@ -229,7 +236,12 @@ Column {
                         readonly property int qd: { var dow = (view.firstDow + index) % 7; return dow === 0 ? 7 : dow }
                         // W53.5: the narrow name where the short one does not fit the cell (a wide pixel face).
                         id: dayName
-                        TextMetrics { id: dayM; font: dayName.font; text: view.loc.standaloneDayName(dayName.qd, Locale.ShortFormat) }
+                        TextMetrics {
+                            id: dayM
+                            font.pixelSize: Theme.fsCaption
+                            font.family: Theme.fam(text, Theme.families)
+                            text: view.loc.standaloneDayName(dayName.qd, Locale.ShortFormat)
+                        }
                         text: dayM.advanceWidth <= width - 2 ? dayM.text : view.loc.standaloneDayName(qd, Locale.NarrowFormat)
                     }
                 }
