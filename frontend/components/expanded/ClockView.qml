@@ -62,7 +62,12 @@ Column {
     readonly property int weeks: valid ? Math.ceil((lead + count) / 7) : 0
     readonly property bool todayInView: valid && today.getFullYear() === year && today.getMonth() === month
     readonly property int todayDay: today.getDate()
-    readonly property int cell: 36
+    // A day's cell: 36 px, or wider where two digits of the type do not fit (W53.5: a wide pixel face, large text) — two
+    // glyphs' advance, the day block's 2 px inset each side, and a grid pixel (or 2 px) of air between the digits' cells.
+    TextMetrics { id: twoDigits; font.pixelSize: Theme.fs; font.family: Theme.families[0]; font.features: { "tnum": 1 }; text: "28" }
+    readonly property int cell: Math.max(36, Math.ceil(twoDigits.advanceWidth) + 4 + 2 * Math.max(2, Theme.grid(Screen.height)))
+    // The card width this view asks the Stage for (its grid, the week column and the card's padding); 0 = the card's own.
+    readonly property int cardWant: 7 * cell + weekW + 2 * (Theme.pad + 4) + 8
     // W53.3 (`[decor] calendar.cells = flat`): the days without keys — today an accent circle, the selected day a subtle one
     // (11's calendar); `boxed` = today's small blocks.
     readonly property bool flatCells: Theme.decor("calendar.cells", "boxed") === "flat"
@@ -119,7 +124,7 @@ Column {
         spacing: Theme.gap
         KeyButton {
             id: prevMonth
-            side: 28
+            side: Math.max(28, Theme.fs + 12)
             iconSize: Theme.fs + 6
             icon: "chevron_left"
             glyph: "‹"
@@ -131,6 +136,7 @@ Column {
             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
             antialiasing: !Theme.pixelType
             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
+            id: monthText
             width: view.width - prevMonth.width - nextMonth.width - todayBtn.width - 3 * Theme.gap
             height: prevMonth.height
             font.weight: Theme.wMedium
@@ -139,11 +145,15 @@ Column {
             color: Theme.fg
             font.pixelSize: Theme.fsLabel
             font.family: Theme.fam(text, Theme.families)
-            text: view.valid ? view.loc.toString(view.first, view.monthFmt) : ""
+            // W53.5: the short month where the long one does not fit (a wide pixel face, large text), then an ellipsis.
+            elide: Text.ElideRight
+            TextMetrics { id: monthM; font: monthText.font; text: view.valid ? view.loc.toString(view.first, view.monthFmt) : "" }
+            text: monthM.advanceWidth <= width || !view.valid ? monthM.text
+                : view.loc.toString(view.first, view.lang === "ja" ? view.monthFmt : "MMM yyyy")
         }
         KeyButton {
             id: nextMonth
-            side: 28
+            side: Math.max(28, Theme.fs + 12)
             iconSize: Theme.fs + 6
             icon: "chevron_right"
             glyph: "›"
@@ -153,7 +163,7 @@ Column {
         }
         KeyButton {
             id: todayBtn
-            side: 28
+            side: Math.max(28, Theme.fs + 12)
             primary: true
             label: I18n.tr("island.clock.today")
             enabled: view.valid
