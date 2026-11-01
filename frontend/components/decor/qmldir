@@ -18,3 +18,7 @@ WindowEdge 1.0 WindowEdge.qml
 Pattern 1.0 Pattern.qml
 DockGround 1.0 DockGround.qml
 MenuMark 1.0 MenuMark.qml
+# W53.6 (kawaii, yorha, souls, hallownest): marks, the ornament rule and rules any part may draw.
+Bullet 1.0 Bullet.qml
+Filigree 1.0 Filigree.qml
+Rule 1.0 Rule.qml
