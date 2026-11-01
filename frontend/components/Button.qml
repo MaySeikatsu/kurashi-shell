@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "decor"
 
 // Text button. `label` is already translated by the caller (I18n.tr). Emits `clicked`; the caller
 // decides which action/intent that means. Reachable by Tab; Return, Enter and Space press it.
@@ -41,10 +42,25 @@ Item {
     Accessible.role: Accessible.Button
     Accessible.name: b.label
 
+    // W53.4 (contract row 604): the look's push-button face (`[slots] button`, contract decor/button/ButtonBase.qml: XP's
+    // and 7's glossy and glass buttons, Aqua's gel) under the content; the Block then draws only the content (`bare`).
+    // Without the slot nothing is made and the Block is the button, as before.
+    DecorHost {
+        id: part
+        slot: "button"
+        anchors.fill: parent
+        onLoaded: {
+            item.pressed = Qt.binding(function () { return area.pressed && b.enabled })
+            item.hovered = Qt.binding(function () { return hover.hovered && b.enabled })
+            item.primary = Qt.binding(function () { return b.primary })
+        }
+    }
+    readonly property bool parted: part.ready
     Block {
         id: blk
         anchors.fill: parent
         radius: b.radius
+        bare: b.parted
         pressed: area.pressed && b.enabled
         fill: hover.hovered && b.enabled && Theme.groups ? (b.boxed && !b.primary ? Qt.alpha(Theme.fg, 0.08) : Qt.tint(b.base, Qt.alpha(Theme.fg, 0.08))) : b.base
         flatBorder: hover.hovered && b.enabled ? Theme.fg : "transparent"
@@ -81,7 +97,7 @@ Item {
                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 anchors.verticalCenter: parent.verticalCenter
                 // On the accent fill the text takes on_accent (4.5:1); on the container, the normal foreground.
-                color: b.primary ? Theme.fgOnAccent : Theme.fg
+                color: b.parted && part.item.ink.a > 0 ? part.item.ink : b.primary ? Theme.fgOnAccent : Theme.fg
                 font.pixelSize: Theme.fs
                 font.weight: Theme.wMedium
                 font.family: Theme.fam(text, Theme.families)
