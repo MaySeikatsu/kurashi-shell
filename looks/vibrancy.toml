@@ -24,6 +24,7 @@ title = "lights"
 start = "mark"
 bar = "menu"
 dock = "shelf"
+menu = "gel"
 lock = "sonoma"
 sounds = "vibrancy"
 
@@ -50,13 +51,14 @@ sounds = "vibrancy"
 "title.close_fill" = "error"
 "title.min_fill" = "warning"
 "title.max_fill" = "success"
-# Menus: 22 px rows, the highlight the accent in a rounded rect inset 5 px, white text.
+# Menus: 22 px rows, the highlight the flat accent in a rounded rect inset 5 px (the gel part at gloss 0), white text.
 "menu.row" = 22
 "menu.highlight" = "inset"
 "menu.separator" = "line"
 "menu.radius" = 4
 "menu.fill" = "accent"
 "menu.on" = "on_accent"
+"menu.gloss" = 0.0
 "tooltip.fill" = "info"
 "tooltip.on" = "on_info"
 "tooltip.radius" = 4
