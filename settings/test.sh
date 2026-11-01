@@ -452,6 +452,8 @@ kp down
 [ "$(Q previewState)" = 'theme.colors.palette="kanso"' ] || fail "palette cards: Down did not preview kanso ($(Q previewState))"
 kp return
 [ "$(val theme.colors.palette)" = '"kanso"' ] || fail "palette cards: Return did not keep kanso ($(val theme.colors.palette))"
+# (Return keeps a busy preview: the session closes when the daemon answers the apply — wait for that, W55.)
+for _ in $(seq 30); do [ "$(Q previewState)" = none ] && break; sleep 0.1; done
 [ "$(Q previewState)" = none ] || fail "palette cards: the preview is still open after Return"
 shot 14-palette-keyboard
 echo "keyboard K3: palette cards Down (preview), Return (kept): kanso"
