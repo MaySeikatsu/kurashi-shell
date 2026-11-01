@@ -512,7 +512,8 @@ caption with 14 px gel traffic lights 21 px apart, 8 px in, their highlights and
 lights without focus; pinstriped window grounds, menus and the start menu (a pull-down hanging from the bar, rounded far
 corners); Aqua gel push buttons in every Button (row 604), the default in blue gel pulsing three times then resting (0
 frames idle: measured 60 commits/s for ~4.5 s, then 0 — `frontend/shots/styles/aqua/`); the blue gel menu band; the
-3 px blue focus halo; the Dock's translucent shelf with a glassy lip, its icons straight on it, a black ▲ under a running
+3 px blue focus halo; quick settings as a menu extra's drop-down of compact toggles and toasts as a small panel in the
+top-right corner under the menu bar (W53.3's `quick.frame`, `quick.tiles`, `toast.place`); the Dock's translucent shelf with a glassy lip, its icons straight on it, a black ▲ under a running
 app and (from the lead's request) a reflection shelf; the login window (brushed-metal header with our mark, pinstriped
 body, the halo field, the pulsing gel Log In, the shake, ⇪ in the field); pale yellow help tags; original cues and a
 pointer (`tools/styles/mac-assets.py`, CC0). Differs: the focused app's bold name in the menu bar (needs a display name in
@@ -595,14 +596,15 @@ unresolved). HIG <https://developer.apple.com/design/human-interface-guidelines/
 hover marks (× − ⤢), the title centred and semibold; the translucent 24 px menu bar without a line, our mark flat in the
 text's ink at its start with an inset rounded highlight while open; the start menu as a vibrancy panel (double hairline
 rim, wide shadow) holding the launcher's field and rows; the accent's inset rounded menu highlight; the floating Dock
-(16 px corners, translucent, a light rim, icons without tiles, one dot under a running app); the halo focus; springs;
-the Sonoma lock (the date over a 112 px semibold time at the top, the round picture, the name and a frosted capsule
+(16 px corners, translucent, a light rim, icons without tiles, one dot under a running app); the halo focus; banners in the
+top-right corner (`toast.place = corner`); springs; the Sonoma lock (the date over a 112 px semibold time at the top, the round picture, the name and a frosted capsule
 field at the bottom, the fingerprint line only with a reader, shake, ⇪); original cues and a pointer. Differs: the lock's
 ground is an original gradient, not the user's blurred wallpaper (the session lock is opaque and the shell does not own
-the wallpaper); Spotlight hangs from the mark instead of floating at the screen's centre (layout, K45); Control Centre
-is today's quick-settings card (the phone frame) in the look's corners, not its module tiles, and Notification Centre's
-widgets are the sidebar's sections — both wait for W53.3's generic keys (`quick.frame = flyout`, `quick.tiles = compact`,
-`centre.form = flyouts`), which the lead sets for aqua and vibrancy at integration; no bold app name (Contracts 8); the menu bar's and Dock's sizes are not yet measured at 1x (to
+the wallpaper); Spotlight stands centred over the output (`start.menu = center`) but hangs from the menu bar, 420 px wide (the
+start skin's width), not 680 px a quarter down the screen; Control Centre
+is the quick settings' flyout of compact toggles (W53.3's `quick.frame = flyout`, `quick.tiles = compact`), not its
+grouped module tiles with their own sliders; Notification Centre is the floating sidebar's sections as flyouts with flat
+calendar days (`centre.form = flyouts`, `calendar.cells = flat`), not its widget gallery; no bold app name (Contracts 8); the menu bar's and Dock's sizes are not yet measured at 1x (to
 verify, BACKLOG); SF Pro is Inter unless installed.
 
 **Mapping**
