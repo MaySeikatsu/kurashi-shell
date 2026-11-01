@@ -1,0 +1,9 @@
+# The dashboard lock face (W53.5, components/lock/DashboardFace.qml): the console dashboard's void, a thin clock, the user
+# as a card slot and an underline field with a soft blue glow.
+"lockui.face.name.dashboard" = "Dashboard"
+"lockui.dashboard.password" = "Password"
+"lockui.dashboard.wrong" = "That password is not right."
+"lockui.dashboard.caps" = "Caps Lock"
+"lockui.dashboard.user" = "User {name}"
+# Qt date pattern (dddd = weekday, d = day, MMMM = month) under the clock.
+"lockui.dashboard.date_format" = "dddd, d MMMM"

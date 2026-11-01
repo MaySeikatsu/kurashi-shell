@@ -185,6 +185,9 @@ start_daemon C
 K() { "$BIN/kurashi" raw "$1"; }
 # The value and the layer of a key, as the daemon says them (cfg.get).
 val() { K "{\"t\":\"cfg.get\",\"id\":\"v\",\"key\":\"$1\"}" | python3 -c 'import json,sys; m=json.loads(sys.stdin.readline()); print(json.dumps(m["v"]["value"], ensure_ascii=False, separators=(",", ":")))'; }
+# Waits up to 5 s for a key to read a value (W55: conditions, not fixed sleeps); 0 when it does. The caller fails with the
+# value it last read.
+val_is() { for _ in $(seq 50); do [ "$(val "$1")" = "$2" ] && return 0; sleep 0.1; done; return 1; }
 src() { K "{\"t\":\"cfg.get\",\"id\":\"s\",\"key\":\"$1\"}" | python3 -c 'import json,sys; m=json.loads(sys.stdin.readline()); print(m["v"]["source"]["kind"])'; }
 
 # History (K27): one change before Settings starts, so the daemon already has something to undo. The seed is an
@@ -515,9 +518,9 @@ Q goto island
 Q focusList >/dev/null
 tab_to "pickrow:clock"
 kp tab return
-[ "$(val island.main.faces)" = '["media","clock","notifications"]' ] || fail "pick list: move down did not reorder ($(val island.main.faces))"
+val_is island.main.faces '["media","clock","notifications"]' || fail "pick list: move down did not reorder ($(val island.main.faces))"
 kp tab return
-[ "$(val island.main.faces)" = '["clock","media","notifications"]' ] || fail "pick list: moving back up did not reorder ($(val island.main.faces))"
+val_is island.main.faces '["clock","media","notifications"]' || fail "pick list: moving back up did not reorder ($(val island.main.faces))"
 echo "keyboard K7: pick list moved a row down and back up with its buttons"
 shot 16-island-pick-list
 
@@ -576,7 +579,7 @@ kp right
 [[ "$(Q previewState)" == theme.shape.radius=* ]] || fail "radius: Right did not preview ($(Q previewState))"
 shot_now 20b-preview-radius
 Q putBack
-[ "$(val theme.shape.radius)" = "$radius0" ] || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius))"
+val_is theme.shape.radius "$radius0" || fail "radius: Put back did not restore $radius0 ($(val theme.shape.radius))"
 echo "keyboard K10: Right previewed the radius; Put back restored $radius0"
 
 # K11. the font chain previews too: Delete on a family is a preview (Keep or Put back); Put back restores the chain.
