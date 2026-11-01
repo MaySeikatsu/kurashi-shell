@@ -1,14 +1,86 @@
 name = "kawaii"
 label = "config.choice.look.kawaii"
 category = "fiction"
-# After shellseikatsu `Services/Modes/Kawaii.qml` and `Widgets/ThemeDecor/KawaiiFrame.qml` (W25; Needy Streamer
-# Overload): pastel pink, lavender window chrome with a title band, pixel hearts, rounded friendly type, springs.
+# Needy Streamer Overload's pastel desktop OS (W53.6, docs/ux/styles.md §9.1), measured on the game's Steam screenshots at
+# 2 px per art pixel: square windows in a violet–mint–violet frame (2 + 4 + 2 px) under a flat 26 px pink title band with
+# the title in violet pixel type (DotGothic16, OFL) and square outlined buttons — the close one a pixel heart (the
+# brief's; the game's is a square ×); a mint selection band with a heart; a pale orchid taskbar with a white top line and
+# a violet-outlined START box; speech-bubble tooltips; pixel hearts and sparkles; springy motion. The lock: a login
+# window on the pastel desk. Original cues, pointer and an optional sparkle trail (off by default).
 [recipe]
-"theme.chrome" = "soft"
+"theme.chrome" = "line"
 "theme.motion.profile" = "lively"
 "theme.material.kind" = "solid"
-"theme.shape.corners" = "rounded"
-"theme.shape.radius" = 16
-"theme.typography.family" = ["Quicksand", "Comic Neue", "Nunito", "M PLUS Rounded 1c", "Noto Sans CJK JP", "sans-serif"]
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["DotGothic16", "PixelMplus12", "M PLUS 1p", "Noto Sans CJK JP", "sans-serif"]
+"theme.typography.family_jp" = ["DotGothic16", "PixelMplus12", "M PLUS 1p", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
 frame = "kawaii"
+title = "pixel"
+bar = "band"
+start = "tab"
+menu = "block"
+scroll = "rail"
+tooltip = "balloon"
+lock = "pastel-os"
+sounds = "kawaii"
+
+[decor]
+# The art pixel: 2 screen px (measured), and the type on DotGothic16's 16-dot grid.
+"pixel" = 2
+"type.pixel" = true
+"type.pixel_step" = 16
+# The caption: a flat 26 px pink band (grey without focus), violet type after the icon, square outlined keys 20 px on a
+# 24 px pitch, the close one a pixel heart.
+"title.height" = 26
+"title.fill" = ["title"]
+"title.fill_inactive" = ["title_inactive"]
+"title.on" = "on_title"
+"title.on_inactive" = "on_surface_variant"
+"title.weight" = 400
+"title.size" = 16
+"title.button_w" = 20
+"title.button_gap" = 4
+"title.inset" = 4
+"title.close" = "heart"
+"title.radius" = 0
+# The window frame: 8 px — a 2 px violet line, a 4 px mint band, a 2 px violet line (measured).
+"border.width" = 8
+"border.color" = "ring"
+"border.line" = "outline"
+"border.line_width" = 2
+# Lists: the selected row a mint band with a heart at its start (measured #7cf0b1).
+"menu.highlight" = "bar"
+"menu.fill" = "accent_container"
+"menu.on" = "on_accent_container"
+"menu.mark" = "heart"
+"menu.separator" = "line"
+"menu.radius" = 0
+"scroll.width" = 12
+"scroll.cap" = "heart"
+"scroll.thumb" = "flat"
+# Tooltips: a white speech bubble with a violet rim and a tail.
+"tooltip.fill" = "info"
+"tooltip.on" = "on_info"
+"tooltip.border" = "outline"
+"tooltip.radius" = 6
+"tooltip.tail" = true
+"focus.style" = "dotted"
+"focus.color" = "outline"
+"focus.offset" = -3
+# The taskbar: pale orchid with a white line along its screen-facing edge; one strip; START a violet-outlined box.
+"bar.fill" = ["surface_container"]
+"bar.rule" = "single"
+"bar.edge" = "surface_container_lowest"
+"bar.group" = "none"
+"separator.style" = "none"
+"start.label" = true
+"start.word" = "start"
+"start.mark" = "heart"
+"start.fill" = ["surface_container"]
+# Bouncy: things pop in with a little overshoot.
+"motion.style" = "rubber"
+"cursor" = "kawaii"
+"cursor_decoration" = "sparkles"
+"quick.frame" = "flyout"
