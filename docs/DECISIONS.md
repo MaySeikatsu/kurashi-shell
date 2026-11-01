@@ -1073,3 +1073,44 @@ KWin — not measured.
   other keys stay). Before, a profile saved with a `[theme]` (the user's `default-v1`) pinned the look, palette, chrome
   and font above every style, so switching styles changed only the ink. Test:
   `theme::tests::a_style_applied_over_a_profile_recreates_the_pack`.
+
+## K82 — Depth reaches the whole sheet under one light; cards come out where they were opened (2026-11-01, session 18; user, lead)
+Evidence: the user on their niri ("the elevation … applies almost nowhere … independent from the shell's light system";
+the washi island card standing in the bar as a box; a floating sidebar not concentric with the frame; "spawn at the same
+position … not sometimes in the middle"; Noctalia's panel position option). Measured live on the user's DP-2: the dock's
+level-2 shadow differed in 1 % of its pixels; the band under the bar cast nothing at all (BACKLOG I337–I341).
+- **The sheet casts too** (K78 decision 4, built now): the frame band and docked bars cast the key layer into the hole —
+  `SheetShadow` (frontend/shaders/sheet_shadow.frag: the Gaussian-blurred rounded rect in Wallace's erf form, CC0,
+  inverted inside the hole, ±½ LSB dither). Each strip and each docked bar grows by `Theme.sheetReach` on its inner side
+  (outside input, blur region and zone, which stay explicit); `FG.shadowOwn` gives every hole pixel one owner (top and
+  bottom windows to their depth plus the room, the sides the rest split down the middle) — no seam, no double darkness.
+  Floating bars and desk cards cast at level 2 (their windows grow by the reach); a card grown out of a strip casts from
+  the bar's edge down, never onto the bar.
+- **One light.** Under `elevation.mode = follow` a lamp held on the output (the spotlight's pin, the wallpaper's lamp) is
+  a point light for the shadows as for the relief: each surface's shadow falls away from it at the surface's own place,
+  longer the lower it stands (`Light.heldLamp`, `Light.awayFrom`: tan 40° / tan elevation, 0.5…2). Static lights keep
+  the daemon's `elevation.dir`. The pointer lamp follows the pointer screen-wide only where the compositor reports it
+  (`svc.pointer`, niri main — I316); on niri 26.04 only over shell surfaces.
+- **Per style.** `theme.material.elevation` is a look key (in `LOOK_KEYS` and `STYLE_KEYS`, so a style resets it): washi
+  and kami follow the light, material is static (M3's levels), the rest keep auto (soft/keycap static, flat/line off).
+  New decor keys: `elevation.blocks` (0–1, default 1: a block casts a small key shadow where the chrome has none of its
+  own — flat, line, bevel — never under a see-through fill) and `elevation.icons` (0–1, default 0: a glyph's crisp
+  print shadow; washi and kami 0.5). `STYLE_KEYS` now holds every look key (texture depth/shadows/cracks, the pen,
+  scope) — before, a style left the user's pen and relief settings standing — plus `title_bar.buttons`, the one
+  non-`theme.` key a pack may set (fluent ships with none).
+- **washi's paper reaches the wallpaper** (`theme.texture.scope = shell_wallpaper` in the look): a style used to keep
+  whatever scope was chosen before it.
+- **Strip chromes hang cards from the bar.** On a strip (no block to join: line, flat, bevel) an open island card's head
+  melts into the strip (its fill fades to nothing as it grows) and the card hangs from the bar's edge by its fillets;
+  before, the head stayed a box with its own corners in the bar.
+- **A floating sidebar on a framed output is concentric with the hole**: its radius is the hole's less its gap (K74,
+  `Theme.nested`), so the gap is one width round the corner.
+- **Cards come out where they were opened** (`bar.popups = module | centre`, default module; `bar.popups_other`: modules
+  that open the other way — Noctalia's panel position, per module). Every bar module registers as an origin
+  (`module:<id>`) and notes a press (a passive PointHandler, or Enter); an island view opened from a module hangs from it
+  instead of growing out of the pill; under centre a panel comes out under the island. Keys and the CLI keep today's
+  places.
+- **niri blurs what is behind.** niri's layer surfaces blur in xray mode (the wallpaper alone) unless a rule says
+  otherwise; the niri include kurashi already ships (`kurashi-binds.kdl`, Home-Manager or kurashid) now carries a
+  `layer-rule` turning xray off for `^kurashi-` on the top and overlay layers (validated with `niri validate`, 26.04).
+  Desk cards gained their blur region (they had none).

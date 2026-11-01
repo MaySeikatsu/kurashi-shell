@@ -66,7 +66,11 @@ Loader {
 
     // How far the shadow reaches past the shape (blur and the key's offset): the clip's margin on uncut sides.
     readonly property real reach: Math.max(l[0] * s, l[2] * 2 * s + l[3] * Math.max(0.5, s)) + 2
+    // (The loaded root fills the Loader — a Loader of explicit size resizes its item to itself — so the clip box is a child
+    // that keeps its own size: it reaches `reach` past every side that is not cut. I338: the root itself as the clip box
+    // was resized to the shape, so a cut shadow was also cut at the shape's other sides.)
     sourceComponent: Item {
+      Item {
         x: el.cutLeft ? 0 : -el.reach
         y: el.cutTop ? 0 : -el.reach
         width: el.width + (el.cutLeft ? 0 : el.reach) + (el.cutRight ? 0 : el.reach)
@@ -122,4 +126,5 @@ Loader {
         }
         }
     }
+      }
 }

@@ -905,6 +905,8 @@ Scope {
                                     HoverHandler {
                                         id: hover
                                         enabled: !cell.isSep
+                                        // (a tile is a button: the pointing hand, the style's own where it brings one — I328)
+                                        cursorShape: Qt.PointingHandCursor
                                         onHoveredChanged: {
                                             if (hovered) { dock.tipTile = tile; dock.tipKey = cell.modelData }
                                             else if (dock.tipKey === cell.modelData) dock.tipKey = ""
