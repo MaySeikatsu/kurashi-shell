@@ -1,0 +1,8 @@
+# パステルのロック画面 (W53.6, components/lock/PastelOsFace.qml): Needy Streamer Overload のデスクトップにならった、
+# パステルの机の上のログイン窓 (言葉と印は自前)。
+"lockui.face.name.pastel-os" = "パステル ログイン"
+"lockui.pastel.title" = "{host} にログイン"
+"lockui.pastel.hello" = "おかえり"
+"lockui.pastel.prompt" = "パスワード"
+"lockui.pastel.ok" = "OK"
+"lockui.pastel.oops" = "あれれ？"
