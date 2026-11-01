@@ -1,0 +1,4 @@
+# The login window lock face (W53.4, components/lock/LoginWindowFace.qml): Mac OS X 10.x's login window.
+"lockui.face.name.login-window" = "Login window"
+"lockui.login_window.password" = "Password"
+"lockui.login_window.log_in" = "Log In"
