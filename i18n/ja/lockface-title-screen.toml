@@ -10,6 +10,5 @@
 "lockui.title.caps" = "CAPS"
 "lockui.title.caps_on" = "Caps Lock がオンです"
 "lockui.title.caps_off" = "Caps Lock はオフです"
-"lockui.title.message" = "メッセージ"
 # Qt の日付パターン（ddd = 曜日、M = 月、d = 日）。時計の下の小さな日付。
 "lockui.title.date_format" = "M/d (ddd)"

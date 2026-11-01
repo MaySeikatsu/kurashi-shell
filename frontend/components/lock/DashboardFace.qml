@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Effects
 import Quickshell
 import "../../core"
+import "../frames"
 
 // The dashboard face (W53.5, docs/ux/styles.md §8 "Lock face dashboard"): the console dashboard's void as a lock.
 // - The ground is the `ps2` frame's own (frames/Ps2.qml, kind "ground"): the void, the deep blue floor glow, light towers
@@ -142,6 +143,17 @@ FaceBase {
     }
 
     // ---- the slot, the name, the field (the focused output) ------------------------------------------------------------
+    // A soft shade of the void behind them, so a tower never runs through the words (static, one paint).
+    Glow {
+        visible: c.primary
+        x: panel.x - width * 0.3
+        y: panel.y + panel.height / 2 - height / 2
+        width: panel.width * 1.9
+        height: panel.height * 2.6
+        color: c.color
+        alpha: 0.85
+        mid: 0.6
+    }
     Item {
         id: panel
         visible: c.primary
@@ -217,17 +229,21 @@ FaceBase {
             Item { width: 1; height: 40 }
 
             // PAM's question over the line (the password's own label is the placeholder).
-            Text {
+            Item {
                 width: parent.width
-                height: c.followUp ? implicitHeight + 6 : 0
-                opacity: c.followUp ? 1 : 0
-                Behavior on opacity { Fade {} }
-                elide: Text.ElideRight
-                text: c.followUp ? c.promptText : ""
-                color: Qt.alpha(c.silver, 0.82)
-                font.pixelSize: 15
-                font.weight: c.light
-                font.family: Theme.fam(text, Theme.families)
+                height: c.followUp ? askText.implicitHeight + 6 : 0
+                Text {
+                    id: askText
+                    width: parent.width
+                    opacity: c.followUp ? 1 : 0
+                    Behavior on opacity { Fade {} }
+                    elide: Text.ElideRight
+                    text: c.followUp ? c.promptText : ""
+                    color: Qt.alpha(c.silver, 0.82)
+                    font.pixelSize: 16
+                    font.weight: c.light
+                    font.family: Theme.fam(text, Theme.families)
+                }
             }
 
             // The underline field.
@@ -320,30 +336,39 @@ FaceBase {
             Item { width: 1; height: 10 }
 
             // Caps Lock: thin small caps under the line.
-            Text {
-                height: c.capsLock ? implicitHeight + 4 : 0
-                opacity: c.capsLock ? 1 : 0
-                Behavior on opacity { Fade {} }
-                text: I18n.tr("lockui.dashboard.caps")
-                color: Qt.alpha(c.silver, 0.85)
-                font.pixelSize: 14
-                font.weight: c.light
-                font.capitalization: Font.SmallCaps
-                font.letterSpacing: 2
-                font.family: Theme.fam(text, Theme.families)
+            Item {
+                width: parent.width
+                height: c.capsLock ? capsText.implicitHeight + 4 : 0
+                Text {
+                    id: capsText
+                    width: parent.width
+                    opacity: c.capsLock ? 1 : 0
+                    Behavior on opacity { Fade {} }
+                    text: I18n.tr("lockui.dashboard.caps")
+                    color: Qt.alpha(c.silver, 0.85)
+                    font.pixelSize: 15
+                    font.weight: c.light
+                    font.capitalization: Font.SmallCaps
+                    font.letterSpacing: 2
+                    font.family: Theme.fam(text, Theme.families)
+                }
             }
             // The error: fades in in the error role.
-            Text {
+            Item {
                 width: parent.width
-                height: c.errorShown ? implicitHeight + 4 : 0
-                opacity: c.errorShown ? 1 : 0
-                Behavior on opacity { Fade {} }
-                wrapMode: Text.Wrap
-                text: c.errorText
-                color: Theme.error
-                font.pixelSize: 15
-                font.weight: c.light
-                font.family: Theme.fam(text, Theme.families)
+                height: c.errorShown ? errText.implicitHeight + 4 : 0
+                Text {
+                    id: errText
+                    width: parent.width
+                    opacity: c.errorShown ? 1 : 0
+                    Behavior on opacity { Fade {} }
+                    wrapMode: Text.Wrap
+                    text: c.errorText
+                    color: Theme.error
+                    font.pixelSize: 16
+                    font.weight: c.light
+                    font.family: Theme.fam(text, Theme.families)
+                }
             }
             // Busy, the countdown, PAM's information, the fingerprint, "daemon disconnected".
             Text {
@@ -353,7 +378,7 @@ FaceBase {
                 wrapMode: Text.Wrap
                 text: c.statusText
                 color: Qt.alpha(c.silver, 0.72)
-                font.pixelSize: 15
+                font.pixelSize: 16
                 font.weight: c.light
                 font.family: Theme.fam(text, Theme.families)
                 Accessible.role: Accessible.StaticText

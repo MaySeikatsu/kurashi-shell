@@ -10,6 +10,5 @@
 "lockui.title.caps" = "CAPS"
 "lockui.title.caps_on" = "Caps Lock is on"
 "lockui.title.caps_off" = "Caps Lock is off"
-"lockui.title.message" = "Message"
 # Qt date pattern (ddd = weekday, d = day, MMM = month) for the small date under the clock.
 "lockui.title.date_format" = "ddd d MMM"
