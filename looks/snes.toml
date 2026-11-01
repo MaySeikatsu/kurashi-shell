@@ -45,7 +45,7 @@ sounds = "snes"
 # The HUD strip: one window along the edge, no blocks round the groups.
 "bar.group" = "none"
 "separator.style" = "none"
-# Menus: 16 px rows (two 8 px lines' pitch), no band — the hand points at the row; no separators but a gap.
+# Menus: rows 16 grid px apart (FF6 Config's pitch: 32 px at ×2), no band — the hand points at the row; a gap, no rule.
 "menu.row" = 32
 "menu.highlight" = "bar"
 "menu.separator" = "space"

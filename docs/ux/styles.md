@@ -705,6 +705,14 @@ surfaces).
 - No ▲▼ "more" arrows blink at list ends (static ones are drawn by the scroll part only where a ScrollBar shows).
 - No wallpaper: the shell draws none, so the desk is whatever the user has (the shots use plain black).
 - At scale 1.25 a 2 px grid pixel is 2.5 device px and blurs (BACKLOG).
+- Large text doubles the grid as asked (16 → 32 px): the config rows and the hand grow with it, but the labels truncate
+  to a letter or two ("W…", "B…") in the quick card's width.
+- With `surface.join = false` and a top bar, quick settings open under the island, not at the quick button (BACKLOG; the
+  bottom-bar preset puts them at the bar's end).
+- Measured: at scale 1.5 one column of the HUD strip reads black 3, #f8f8f8 3, #b8b8b8 3, #606868 3 device px, then four
+  bands of 12 — no half-tones (`scale15-bar.png`). The stepped growth: one captured intermediate frame is exactly 0.75 of
+  the card's height, centred (`motion-stepped.png`, held 8 frames a step for the capture); the published open curve has
+  four plateaus at 0.25, 0.5, 0.75 and 1 — grim cannot sample 67 ms any finer.
 
 ---
 
