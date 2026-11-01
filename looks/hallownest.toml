@@ -1,16 +1,96 @@
 name = "hallownest"
 label = "config.choice.look.hallownest"
 category = "fiction"
-# After shellseikatsu `Services/Modes/HollowKnight.qml` and `Widgets/ThemeDecor/HollowFrame.qml` (W25): pale
-# bone line work on blue-grey fog, symmetrical filigree with a centre diamond, engraved capitals, drifting calm.
+# Hollow Knight's menus (W53.6, docs/ux/styles.md §9.4): white type on a fog-blue black, engraved capitals for headers
+# (Cinzel for the game's Trajan: OFL) over an ornament rule, a book serif for the rest (Cormorant Garamond for its
+# Perpetua: OFL), the selected row framed by a pair of fleurs that sweep in from its ends (our own filigree, never the
+# game's art), soft fades; the hollow lock: fog, the time over an ornament, the field between two ornaments. Original
+# cues and pointer. Numbers in §9.4.
 [recipe]
 "theme.chrome" = "line"
 "theme.motion.profile" = "expressive"
 "theme.motion.speed" = 0.85
 "theme.material.kind" = "translucent"
-"theme.material.opacity" = 0.94
-"theme.shape.corners" = "rounded"
-"theme.shape.radius" = 11
-"theme.typography.family" = ["Trajan Pro", "Cinzel", "Noto Serif", "Noto Serif CJK JP", "serif"]
+"theme.material.opacity" = 0.9
+"theme.material.blur" = true
+"theme.shape.corners" = "none"
+"theme.typography.family" = ["Perpetua", "Cormorant Garamond", "EB Garamond", "Noto Serif", "Noto Serif CJK JP", "serif"]
+"theme.typography.family_jp" = ["Noto Serif CJK JP", "serif"]
+
 [slots]
 frame = "hollow"
+title = "header"
+bar = "band"
+start = "tab"
+menu = "filigree"
+scroll = "rail"
+tooltip = "plate"
+lock = "hollow"
+sounds = "hallownest"
+
+[decor]
+# The caption as a menu header: no band, the title centred in engraved capitals with wide tracking, an ornament rule
+# under it; the × a bare glyph at the end.
+"title.height" = 44
+"title.fill" = []
+"title.fill_inactive" = []
+"title.on" = "on_surface"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "center"
+"title.caps" = true
+"title.weight" = 400
+"title.size" = 16
+"title.family" = ["Trajan Pro 3", "Trajan Pro", "Cinzel", "EB Garamond"]
+"title.rule" = "filigree"
+"title.rule_color" = "on_surface"
+"title.close" = "glyph"
+"title.inset" = 14
+"border.width" = 1
+"border.color" = "outline_variant"
+# Menus: no band; the selected row framed by a pair of fleurs in bone white that sweep in from its ends.
+"menu.highlight" = "bar"
+"menu.mark" = "fleur"
+"menu.line" = "on_surface"
+"menu.on" = "on_surface"
+"menu.separator" = "line"
+"menu.radius" = 0
+"scroll.width" = 10
+"scroll.cap" = "diamond"
+"scroll.thumb" = "flat"
+"tooltip.fill" = "surface_container_lowest"
+"tooltip.on" = "on_surface"
+"tooltip.border" = "outline_variant"
+"tooltip.radius" = 0
+"focus.style" = "ring"
+"focus.color" = "on_surface"
+# The bar: a shade fading inward, no strip edge; one strip.
+"bar.fill" = ["surface_container_lowest", "surface"]
+"bar.fade" = true
+"bar.rule" = "none"
+"bar.group" = "none"
+"separator.style" = "none"
+"start.label" = true
+"start.word" = "menu"
+"start.mark" = "fleur"
+"start.family" = ["Trajan Pro 3", "Trajan Pro", "Cinzel"]
+# Soft fades.
+"motion.style" = "fade"
+"motion.open_ms" = 420
+"motion.close_ms" = 340
+"motion.fast_ms" = 220
+"motion.open_curve" = [0.33, 0.0, 0.2, 1.0]
+"motion.close_curve" = [0.4, 0.0, 0.68, 0.06]
+"motion.fast_curve" = [0.33, 0.0, 0.2, 1.0]
+"cursor" = "hallownest"
+# Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
+"quick.frame" = "flyout"
+# The launcher as the game's menus (lead review): rows centred in the serif with no boxes, icons dimmed and small, the
+# fleurs' room kept at both ends of a row (they never cover text), the field a line under the query, the start menu a
+# veil with an ornament over and under it rather than a framed panel; Cormorant's small x-height set a step larger.
+"menu.align" = "center"
+"menu.icons" = "dim"
+"menu.lead" = 20
+"menu.trail" = 20
+"field.form" = "underline"
+"start.skin" = "veil"
+"type.scale" = 1.15

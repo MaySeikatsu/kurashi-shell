@@ -1,27 +1,37 @@
-# Souls — Dark Souls' menus: leather black, antique-gold hairlines, ember accents, bone text. Dark, and light (K53).
-# Roles after shellseikatsu `_dsoulsPalette()` (W25, K50). Meant for decor `souls` (frame `ornate`).
+# Souls — Dark Souls' menus (W53.6, docs/ux/styles.md §9.3): near-black panels ruled with dim bronze lines, white type,
+# the selected row a flat burnt-orange band with soft ends, antique gold for the engraved headers' hairlines, ember for the
+# bonfire. Dark measured from Dark Souls Remastered captures (coordinates in §9.3); light is an item's vellum.
+# Meant for the look `souls`.
 name = "souls"
 kind = "pair"
-description = "Leather black and antique gold (decor souls)"
+description = "Near-black, bronze rules, burnt-orange selection (style souls)"
 
 [dark]
-surface = "#14110d"
-surface_container_lowest = "#0a0806"
-surface_container_low = "#100d0a"
-surface_container = "#1a1610"
-surface_container_high = "#242017"
-surface_container_highest = "#302a1e"
-on_surface = "#d8cfb8"                # bone
-on_surface_variant = "#a39878"
-outline = "#8a7444"                   # gold hairline
-outline_variant = "#3a3222"
+surface = "#0c0b0a"                   # system panel (measured #0b0a0a)
+surface_container_lowest = "#060606"  # dialog ground (measured)
+surface_container_low = "#0a0908"
+surface_container = "#12100d"
+surface_container_high = "#1b1712"
+surface_container_highest = "#2a221a"
+on_surface = "#f2efe9"                # menu text (measured white #efefef…#ffffff, a touch warm)
+on_surface_variant = "#a8a29a"
+outline = "#7a6440"                   # dim gold hairline
+outline_variant = "#241d16"           # bronze row rule (measured #221d17)
 accent = "#c9a45c"                    # antique gold
-accent_container = "#7a3a1e"          # rust selection band
-on_accent_container = "#f0d8c0"
-secondary = "#a8966a"                 # worn brass
-tertiary = "#d0743a"                  # ember
+accent_container = "#502105"          # selected band core (measured)
+on_accent_container = "#fff4ea"       # selected text (measured #f5ede2…#fffefb)
+secondary = "#a8966a"
+tertiary = "#e5a24a"                  # ember (proxy #e5bd5e, warmer)
 warning = "#d0a050"
-error = "#d0503c"
+error = "#c8402c"
+title = "#0c0b0a"
+title_end = "#0c0b0a"
+title_inactive = "#0c0b0a"
+title_inactive_end = "#0c0b0a"
+on_title = "#f2efe9"
+desk = "#000000"                      # title screen ground (measured)
+info = "#0c0b0a"
+on_info = "#f2efe9"
 
 # Light (K53: every palette has both schemes): an item's parchment: aged vellum, leather-brown ink, deep gold and ember.
 [light]
@@ -36,9 +46,10 @@ on_surface_variant = "#4a3e2a"
 outline = "#8a7444"
 outline_variant = "#c0b08a"
 accent = "#7a5a1e"
-accent_container = "#e6cf9c"
+accent_container = "#e6b98c"
 on_accent_container = "#2a1c08"
 secondary = "#6e5e36"
 tertiary = "#a8481c"
 warning = "#8a5a10"
 error = "#a8301e"
+desk = "#d6cba9"

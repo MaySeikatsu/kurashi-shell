@@ -20,6 +20,11 @@ QtObject {
     // 598); the caller's own where the look leaves them.
     function fill(own) { var v = Theme.decor("menu.fill", ""); return v !== "" ? Qt.color(v) : own }
     function ink(own) { var v = Theme.decor("menu.on", ""); return v !== "" ? Qt.color(v) : own }
+    // W53.6 (lead review): the row's text centred (`center`) or from the start; its icons shown, dimmed or hidden; and the
+    // room a row keeps at its end for a menu part's mark (px; `lead` keeps it at the start), so marks never cover text.
+    readonly property string align: Theme.decor("menu.align", "start")
+    readonly property string icons: Theme.decor("menu.icons", "show")
+    readonly property int trail: Theme.decor("menu.trail", 0) * Theme.pixelScale
     // The look's row background (null without a menu part): a Loader's `source` for each row.
     readonly property url rowBackground: has ? Qt.resolvedUrl("menu/" + part + ".qml") : ""
 }

@@ -301,7 +301,8 @@ pub fn build(
         }),
     );
     for (n, v) in TYPE_SCALE {
-        let size = v * axes.type_scale.clamp(0.5, 3.0);
+        // W53.6: the look's `type.scale` (a small x-height face set a step larger).
+        let size = v * axes.type_scale.clamp(0.5, 3.0) * dnum("type.scale").clamp(0.8, 1.5);
         px(
             &mut t,
             &format!("font.size.{n}"),

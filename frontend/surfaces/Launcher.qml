@@ -680,7 +680,11 @@ PanelWindow {
                         visible: !row.own
                         Item {
                             id: ico
+                            // W53.6: `[decor] menu.icons` dims or hides the icon.
                             x: 10 + ms.lead; anchors.verticalCenter: parent.verticalCenter
+                            visible: ms.icons !== "hide"
+                            opacity: ms.icons === "dim" ? 0.55 : 1
+                            scale: ms.icons === "dim" ? 0.7 : 1
                             anchors.verticalCenterOffset: -Theme.shadowDy / 2
                             width: 30; height: 30
                             // Row 380 (I190): the file the daemon resolved from the icon theme, loaded asynchronously (off the GUI
@@ -768,13 +772,19 @@ PanelWindow {
                             }
                         }
                         Column {
-                            anchors { left: ico.right; leftMargin: Theme.gap + 2; right: hint.left; rightMargin: 8
+                            // W53.6: `menu.align = center` sets the text centred between the row's ends (no hint: that room is
+                            // the marks'); the icon keeps its place at the start.
+                            readonly property bool centred: ms.align === "center"
+                            readonly property real side: (ico.visible ? ico.x + ico.width : 10 + ms.lead) + Theme.gap + 2
+                            anchors { left: parent.left; leftMargin: centred ? Math.max(side, 12 + ms.trail) : side; right: centred ? parent.right : hint.left
+                                      rightMargin: centred ? Math.max(side, 12 + ms.trail) : 8
                                       verticalCenter: ico.verticalCenter }
                             Text {
                                 renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                                 antialiasing: !Theme.pixelType
                                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 width: parent.width
+                                horizontalAlignment: parent.centred ? Text.AlignHCenter : Text.AlignLeft
                                 elide: Text.ElideRight
                                 wrapMode: row.isNote ? Text.Wrap : Text.NoWrap
                                 maximumLineCount: 2
@@ -790,6 +800,7 @@ PanelWindow {
                                 antialiasing: !Theme.pixelType
                                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                                 width: parent.width
+                                horizontalAlignment: parent.centred ? Text.AlignHCenter : Text.AlignLeft
                                 visible: !!row.modelData.generic
                                 elide: Text.ElideRight
                                 color: rowFace.ink(Theme.dim)
@@ -804,8 +815,8 @@ PanelWindow {
                             renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering
                             antialiasing: !Theme.pixelType
                             font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
-                            anchors { right: parent.right; rightMargin: 12; verticalCenter: ico.verticalCenter }
-                            visible: row.selected && !row.isNote
+                            anchors { right: parent.right; rightMargin: 12 + ms.trail; verticalCenter: ico.verticalCenter }
+                            visible: row.selected && !row.isNote && ms.align !== "center"
                             color: rowFace.ink(Theme.dim)
                             font.pixelSize: Theme.fsCaption
                             font.family: Theme.fam(text, Theme.families)

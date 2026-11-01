@@ -1,13 +1,90 @@
 name = "yorha"
 label = "config.choice.look.yorha"
 category = "fiction"
-# After shellseikatsu `Services/Modes/Nier.qml` and `Widgets/ThemeDecor/YorhaFrame.qml` (W25): parchment and
-# olive ink, dead-flat sharp rectangles, scanlines and the double rule, a serif hand, damped motion.
+# NieR:Automata's menus (W53.6, docs/ux/styles.md §9.2): a parchment ground with a faint ruled grid and scanlines, dark
+# brown-grey ink, dead-flat square boxes; every list row a pale band with a square bullet, the selected one a dark block
+# that wipes in from the row's start with its text inverted; headers in capitals with the square bullet over the thick-
+# and-thin rule; the bar as the menu's tab band; mechanical sliding motion; the lock a terminal-like connect panel.
+# Original cues (soft blips) and pointer. Numbers in §9.2.
 [recipe]
 "theme.chrome" = "flat"
 "theme.motion.profile" = "expressive"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
-"theme.typography.family" = ["Noto Serif", "Noto Serif CJK JP", "serif"]
+"theme.typography.family" = ["FOT-Rodin Pro", "Noto Sans", "Noto Sans CJK JP", "sans-serif"]
+"theme.typography.family_jp" = ["FOT-Rodin Pro", "Noto Sans CJK JP", "sans-serif"]
+
 [slots]
 frame = "yorha"
+title = "header"
+bar = "band"
+start = "tab"
+menu = "block"
+scroll = "rail"
+tooltip = "plate"
+lock = "yorha"
+sounds = "yorha"
+
+[decor]
+# The caption as the menu's header band: a darker parchment band, the square bullet and the title in capitals, the
+# thick-and-thin rule under it; buttons as dark square keys with parchment marks.
+"title.height" = 34
+"title.fill" = ["surface_container_high"]
+"title.fill_inactive" = ["surface_container"]
+"title.on" = "on_surface"
+"title.on_inactive" = "on_surface_variant"
+"title.align" = "start"
+"title.caps" = true
+"title.mark" = "square"
+"title.weight" = 500
+"title.size" = 15
+"title.rule" = "double"
+"title.rule_color" = "on_surface"
+"title.close" = "plate"
+"title.button_w" = 18
+"title.inset" = 10
+"border.width" = 1
+"border.color" = "outline"
+# The ground's faint ruled grid (cards, panels, menus, the caption, the bar).
+"pattern.kind" = "grid"
+"pattern.period" = 8
+"pattern.strength" = 0.045
+# Lists: a pale band under every row with its square bullet; the selected row a dark block wiping in, text inverted.
+"menu.highlight" = "bar"
+"menu.fill" = "on_surface"
+"menu.on" = "surface"
+"menu.rest" = "surface_container_high"
+"menu.mark" = "square"
+"menu.wipe" = true
+"menu.separator" = "line"
+"menu.radius" = 0
+"scroll.width" = 10
+"scroll.cap" = "square"
+"scroll.thumb" = "flat"
+"tooltip.fill" = "surface_container_lowest"
+"tooltip.on" = "on_surface"
+"tooltip.border" = "on_surface"
+"tooltip.radius" = 0
+"focus.style" = "ring"
+"focus.color" = "on_surface"
+# The bar: the menu's tab band — flat parchment, the grid, the thick-and-thin rule along its inner edge; one strip; the
+# launcher toggle a word tab (MENU with its bullet) that inverts while open.
+"bar.fill" = ["surface"]
+"bar.rule" = "double"
+"bar.edge" = "on_surface"
+"bar.group" = "none"
+"separator.style" = "none"
+"start.label" = true
+"start.word" = "menu"
+"start.mark" = "square"
+# Mechanical: panels slide in fast and stop dead, no overshoot.
+"motion.style" = "slide"
+"motion.open_ms" = 240
+"motion.close_ms" = 180
+"motion.fast_ms" = 140
+"motion.open_curve" = [0.2, 0.0, 0.0, 1.0]
+"motion.close_curve" = [0.4, 0.0, 1.0, 1.0]
+"motion.fast_curve" = [0.2, 0.0, 0.0, 1.0]
+"cursor" = "yorha"
+# Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
+"quick.frame" = "flyout"

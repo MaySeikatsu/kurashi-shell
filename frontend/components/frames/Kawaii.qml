@@ -2,8 +2,8 @@ import QtQuick
 import "../../core"
 
 // Kawaii / Needy Streamer Overload (decor kawaii; shellseikatsu `Widgets/ThemeDecor/KawaiiFrame.qml`,
-// `Panels/Lockscreen/LockStyleKawaii.qml`). Cards: the NSO window — a lavender title band with three tiny window
-// buttons, a pastel checker strip, a pink double border, pixel hearts and sparkles. Small blocks that are wide (bar
+// `Panels/Lockscreen/LockStyleKawaii.qml`). Cards: a pink double border, pixel hearts and sparkles (the window's
+// caption is the look's `title` slot, W53.6). Small blocks that are wide (bar
 // groups, pills): a checker strip along the bottom. Ground: a pastel checkered desktop with scattered pixel hearts.
 // Pink = accent, lavender = secondary, the bubble = tertiary, paper = ring, ink = text.
 FrameBase {
@@ -51,7 +51,8 @@ FrameBase {
         }
     }
 
-    // ---- card: pink double border, title band with window buttons, checker strip, hearts ----
+    // ---- card: pink double border, hearts and sparkles (W53.6: the band with three window buttons and its checker strip
+    // went — inert chrome now that the look's `title` slot draws a working caption; over a taller tile it covered the label)
     Item {
         visible: f.card
         anchors.fill: parent
@@ -69,31 +70,6 @@ FrameBase {
             color: "transparent"
             border.width: 1
             border.color: f.lavender
-        }
-        Rectangle {
-            anchors { top: parent.top; left: parent.left; right: parent.right; margins: 6 }
-            height: 8
-            topLeftRadius: Math.max(0, f.radius - 6)
-            topRightRadius: Math.max(0, f.radius - 6)
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: f.lavender }
-                GradientStop { position: 1.0; color: Qt.lighter(f.lavender, 1.12) }
-            }
-            Row {
-                anchors { right: parent.right; rightMargin: Math.max(5, f.radius * 0.5); verticalCenter: parent.verticalCenter }
-                spacing: 3
-                Repeater {
-                    model: 3
-                    Rectangle { width: 6; height: 6; radius: 1.5; color: f.paper; border.width: 1; border.color: f.ink; opacity: 0.85 }
-                }
-            }
-        }
-        Checker {
-            x: 6 + f.cornerInset * 0.3
-            y: 14
-            w: f.width - 2 * x
-            opacity: 0.5
         }
         PixelHeart { visible: f.width > 180; x: 14 + f.cornerInset; y: f.height - 18; px: 2; opacity: 0.7 }
         PixelHeart { visible: f.width > 180; x: f.width - 26 - f.cornerInset; y: f.height - 20; px: 1.6; tone: f.lavender }

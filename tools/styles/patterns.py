@@ -6,6 +6,9 @@
 - `stripes-<n>.png` (1 × n px, n = 2…8): Aqua's pinstripes — one dark row per period fading into its neighbours (see
   `stripes`). The part sets the strength (the Image's opacity), the palette the colour underneath: the tile itself
   carries no colour.
+- `grid-<n>.png` (n × n px): a ruled grid — one dark row and one dark column per period (W53.6: NieR's faint menu grid).
+- `dots-<n>.png` (n × n px): one dark pixel per period cell (a pixel polka for pastel desktops).
+- `checker-<n>.png` (2n × 2n px): a checker of n px cells, two of the four dark (pastel pixel grounds).
 - `brushed.png` (256 × 64 px): brushed metal — black streaks of varying alpha along x, each row its own blend of a few
   sines with whole periods over the tile's width, so the tile repeats without a seam.
 Python's standard library only (zlib, struct, math, random with a fixed seed): a rerun reproduces the committed files.
@@ -40,6 +43,18 @@ def stripes(n):
     return [[(0, 0, 0, int(round(255 * ((1 + math.cos(2 * math.pi * y / n)) / 2) ** 2)))] for y in range(n)]
 
 
+def grid(n):
+    return [[(0, 0, 0, 255 if (x == 0 or y == 0) else 0) for x in range(n)] for y in range(n)]
+
+
+def dots(n):
+    return [[(0, 0, 0, 255 if (x == 0 and y == 0) else 0) for x in range(n)] for y in range(n)]
+
+
+def checker(n):
+    return [[(0, 0, 0, 255 if ((x // n) + (y // n)) % 2 == 0 else 0) for x in range(2 * n)] for y in range(2 * n)]
+
+
 def brushed(w=256, h=64, seed=1984):
     rnd = random.Random(seed)
     rows = []
@@ -58,4 +73,7 @@ if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for n in range(2, 9):
         png(os.path.join(OUT, "stripes-%d.png" % n), 1, n, stripes(n))
+        png(os.path.join(OUT, "grid-%d.png" % n), n, n, grid(n))
+        png(os.path.join(OUT, "dots-%d.png" % n), n, n, dots(n))
+        png(os.path.join(OUT, "checker-%d.png" % n), 2 * n, 2 * n, checker(n))
     png(os.path.join(OUT, "brushed.png"), 256, 64, brushed())
