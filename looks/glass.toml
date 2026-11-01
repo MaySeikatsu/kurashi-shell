@@ -11,3 +11,11 @@ category = "modern"
 "theme.shape.corners" = "squircle"
 "theme.shape.radius" = 25
 "theme.typography.family" = ["Inter", "Noto Sans CJK JP", "sans-serif"]
+
+# W53.8 (docs/ux/styles.md "glass"): struck-glass chimes as cues (off unless `theme.sounds`) and a frosted arrow (off
+# unless `cursor.theme = style`).
+[slots]
+sounds = "glass"
+
+[decor]
+"cursor" = "glass"

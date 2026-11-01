@@ -73,9 +73,13 @@ Item {
 
     // The on state (K42, I51): the tonal `color.selected` and its ink, the icon filled; component tokens quick.tile.on.*
     // win when a theme document has them. (`Theme.onSelected` reads back as black, like onAccent: the token is read here.)
-    readonly property color onBg: Theme.color("quick.tile.on.bg", Theme.selected)
+    // W53.8 (`[decor] tile.active = fill`, Android 12+'s tiles): an on tile is the accent all over, its texts and icon in
+    // the accent's ink; `tile.well = false`: the icon stands bare on the tile, no round badge (Android's).
+    readonly property bool fillOn: Theme.decor("tile.active", "icon") === "fill"
+    readonly property bool well: Theme.decor("tile.well", true) !== false
+    readonly property color onBg: fillOn ? Theme.accent : Theme.color("quick.tile.on.bg", Theme.selected)
     readonly property color onBadge: Theme.color("quick.tile.on.badge", Theme.accent)
-    readonly property color onFg: Theme.color("quick.tile.on.fg", Theme.color("color.on_selected", Theme.fg))
+    readonly property color onFg: fillOn ? Theme.fgOnAccent : Theme.color("quick.tile.on.fg", Theme.color("color.on_selected", Theme.fg))
     // A Material Symbols name (Icon.qml); `glyph` is the text drawn without the font (and a mod tile's only mark).
     property string icon: ""
     // K61 (docs/ux/texture.md "Controls"): the badge's icon lies under the relief, as the face's own Block relief lies under
@@ -150,14 +154,14 @@ Item {
             softScale: 0
             relief: !tile.ownRelief
             animate: face.animate
-            fill: tile.failed ? Theme.error : (tile.lit ? tile.onBadge : Theme.container)
+            fill: tile.failed ? Theme.error : (!tile.well ? "transparent" : (tile.lit ? tile.onBadge : Theme.container))
             Icon {
                 anchors.centerIn: parent
                 name: tile.failed ? "refresh" : (tile.connecting ? "more_horiz" : tile.icon)
                 glyph: tile.failed ? "↻" : (tile.connecting ? "…" : tile.glyph)
                 filled: tile.lit
                 size: 18
-                color: tile.failed ? Theme.surface : (tile.lit ? Theme.fgOnAccent : Theme.fg)
+                color: tile.failed ? Theme.surface : (!tile.well ? (tile.lit ? tile.onFg : Theme.fg) : (tile.lit ? Theme.fgOnAccent : Theme.fg))
             }
             // The relief over the badge's fill and icon, inside its outline (the outline stays flat, as Block's).
             Loader {

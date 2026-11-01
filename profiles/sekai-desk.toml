@@ -1,8 +1,14 @@
-# SekaiPop's desktop: pop keycaps, a taller bar for the keys, the desk widgets on the right.
-schema_version = 3
+# sekai's layout preset (K42, W53.7; K80 Decided 9): SekaiPop's desktop — the bar's keys floating free of the edge (every
+# corner rounded, the keycaps' hard shadows on the wallpaper), a taller bar for the keys, and the desk widgets on the
+# right: the time on keys, the month, what plays. Offered with the style ("Also use its layout"), never applied by itself
+# (K45).
+schema_version = 7
 
 [theme]
 style = "sekai"
+
+[layout]
+draw = "floating"
 
 [bar]
 height = 40

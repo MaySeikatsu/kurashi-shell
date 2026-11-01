@@ -31,3 +31,4 @@ RoundPen 1.0 RoundPen.qml
 Elevation 1.0 Elevation.qml
 LoadingText 1.0 LoadingText.qml
 FieldLine 1.0 FieldLine.qml
+Caret 1.0 Caret.qml

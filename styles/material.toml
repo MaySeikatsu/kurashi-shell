@@ -1,8 +1,9 @@
 name = "material"
 label = "config.choice.style.material"
 category = "modern"
-# After shellseikatsu `Services/Modes/Material.qml` (W25): the M3 purist — opaque tonal surfaces carry depth, no
-# shadows, constant rounding, emphasized damped easing, Roboto.
+# Material 3 and Android's Material You (W53.8, docs/ux/styles.md "material"): opaque tonal surfaces, the M3 shape scale,
+# Android's quick settings tiles, the expressive slider and the switch with its check, emphasized motion, the big stacked
+# lock clock, Roboto Flex. Its layout preset `material-desk`: a status bar and M3's navigation bar.
 look = "material"
 palette = "material"
 [recipe]

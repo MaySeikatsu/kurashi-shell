@@ -1,0 +1,7 @@
+# The keycap lock face (W53.7, components/lock/KeycapFace.qml): the lock as a keyboard — the dot field, the time on
+# keys, the password as one long key with its Enter key.
+"lockui.face.name.keycap" = "Keycaps"
+"lockui.keycap.caps" = "Caps"
+"lockui.keycap.enter" = "Unlock"
+# Qt date pattern (dddd = weekday, d = day, MMMM = month) on the key under the time.
+"lockui.keycap.date_format" = "dddd, d MMMM"

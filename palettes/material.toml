@@ -24,6 +24,9 @@ secondary = "#ccc2dc"
 tertiary = "#efb8c8"
 warning = "#e8c26b"
 error = "#f2b8b5"
+# M3's inverse surface and its ink (plain tooltips, snackbars).
+info = "#e6e0e9"
+on_info = "#322f35"
 
 [light]
 surface = "#fef7ff"
@@ -44,3 +47,5 @@ secondary = "#625b71"
 tertiary = "#7d5260"
 warning = "#7d5700"
 error = "#b3261e"
+info = "#322f35"
+on_info = "#f5eff7"

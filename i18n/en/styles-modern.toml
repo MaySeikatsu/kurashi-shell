@@ -1,0 +1,4 @@
+# W53.8 (kanso, glass, terminal): copy their parts and options show.
+# terminal's phosphor palettes (palettes/phosphor.toml, phosphor-amber.toml).
+"config.choice.palette.phosphor" = "Phosphor green"
+"config.choice.palette.phosphor-amber" = "Phosphor amber"

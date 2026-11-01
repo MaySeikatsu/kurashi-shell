@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Effects
 import "../../core"
 
 // Entrance (W53.0a, K80; docs/ux/styles.md "Motion kinds"): the form a surface arrives and leaves in, as the look says
@@ -12,6 +13,8 @@ import "../../core"
 //            exactly the pixel grid;
 //   zoom     scales up from 0.92 while it fades in;
 //   fade     fades only;
+//   bleed    W53.7 (washi): fades in while a blur clears, as ink settles into paper — the blur's layer exists only
+//            while the surface moves;
 //   flip     turns in about the axis along `edge`, as a card flips (with a fade);
 //   none     motion off (reduce motion): no form at all.
 // Nothing runs while `progress` rests (0 frames idle); the transforms are plain properties, no layer.
@@ -26,7 +29,13 @@ Item {
     readonly property bool slides: form === "slide" || form === "rubber"
     // Overshoot (rubber) may carry progress past 1: the slide follows it, the fade does not.
     readonly property real travel: 1 - progress
-    opacity: form === "zoom" || form === "fade" || form === "flip" ? 1 - away : 1
+    opacity: form === "zoom" || form === "fade" || form === "flip" || form === "bleed" ? 1 - away : 1
+    layer.enabled: form === "bleed" && away > 0.001
+    layer.effect: MultiEffect {
+        blurEnabled: true
+        blurMax: 24
+        blur: Math.min(1, en.away * 1.4)
+    }
     transform: [
         Translate {
             x: en.slides && en.horizontal ? (en.edge === "left" ? -1 : 1) * en.width * en.travel : 0
