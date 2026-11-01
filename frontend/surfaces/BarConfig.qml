@@ -98,5 +98,7 @@ Scope {
     // thickness), else the screen-edge margin.
     readonly property int topInset: atTop ? insetOf("top") + Theme.barH + 4 : Theme.gap
     readonly property int bottomInset: atBottom ? insetOf("bottom") + Theme.barH + 4 : Theme.gap
+    // (any bar on the bottom edge, also the second of two — a top status bar over a bottom navigation bar, W53.8)
+    readonly property int bottomEdgeInset: hasBar("bottom") ? insetOf("bottom") + Theme.barH + 4 : Theme.gap
     readonly property int rightInset: atRight ? insetOf("right") + Theme.barH + 4 : Theme.gap
 }
