@@ -20,7 +20,11 @@ import "../decor"
 Item {
     id: tile
     implicitWidth: 160
-    implicitHeight: rows ? rowH : (compact ? btnH + 30 : 56)
+    // W53.6 (lead review): the wide tile grows with its type — the label's line and two subtitle lines must fit inside it
+    // (a 16 px pixel face, large text); today's fonts keep 56 px.
+    implicitHeight: rows ? rowH : (compact ? btnH + 30 : Math.max(56, Math.ceil(labelMetrics.height + 2 * 0.85 * subMetrics.height) + 14))
+    FontMetrics { id: labelMetrics; font.pixelSize: Theme.fs; font.weight: Theme.wBold; font.family: Theme.fam(tile.label, Theme.families) }
+    FontMetrics { id: subMetrics; font.pixelSize: Theme.fsCaption; font.family: Theme.fam(tile.label, Theme.families) }
     width: implicitWidth
     height: implicitHeight
     property string glyph: ""
@@ -184,7 +188,8 @@ Item {
                 font.hintingPreference: Theme.pixelType ? Font.PreferFullHinting : Font.PreferDefaultHinting
                 width: parent.width
                 wrapMode: Text.WordWrap
-                maximumLineCount: 2
+                // Never past the tile's face: as many lines as the room under the label holds (2 at most), elided.
+                maximumLineCount: Math.max(1, Math.min(2, Math.floor((face.height - 2 * face.inset - 8 - labelMetrics.height) / (0.85 * subMetrics.height))))
                 lineHeight: 0.85
                 elide: Text.ElideRight
                 color: tile.failed ? Theme.error : (tile.lit ? tile.onFg : Theme.dim)

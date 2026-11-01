@@ -1,0 +1,4 @@
+# 篝火のロック画面 (W53.6, components/lock/BonfireFace.qml): Dark Souls のメニューにならった、闇の中の休息所。
+"lockui.face.name.bonfire" = "篝火"
+"lockui.bonfire.prompt" = "パスワード"
+"lockui.bonfire.again" = "もう一度"

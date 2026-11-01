@@ -1,0 +1,18 @@
+# The yorha lock face (W53.6, components/lock/YorhaFace.qml): a terminal-like connect panel, after NieR:Automata's
+# system screens (our own words, never the game's).
+"lockui.face.name.yorha" = "Connect terminal"
+"lockui.yorha.title" = "Connect"
+"lockui.yorha.host" = "Host"
+"lockui.yorha.user" = "User"
+"lockui.yorha.date" = "Date"
+"lockui.yorha.link" = "Link"
+"lockui.yorha.standby" = "STANDBY"
+"lockui.yorha.verifying" = "VERIFYING"
+"lockui.yorha.denied" = "DENIED"
+"lockui.yorha.retry" = "RETRY IN {s} S"
+"lockui.yorha.disconnected" = "DISCONNECTED"
+"lockui.yorha.caps" = "Caps Lock"
+"lockui.yorha.on" = "ON"
+"lockui.yorha.info" = "Note"
+"lockui.yorha.reason" = "Reason"
+"lockui.yorha.passcode" = "Passcode"
