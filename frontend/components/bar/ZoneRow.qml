@@ -14,7 +14,9 @@ Row {
     property var runs: []
     // Where the window list's room ends (the next zone's left edge, in this row's parent): the start zone's list fits up to it.
     property real limit: 0
-    spacing: Theme.pad + 2 * zr.owner.groupInset
+    // W53.3 (`[decor] bar.gap`): a look's own gap between runs and modules (11's taskbar packs its keys 4 px apart).
+    readonly property int barGap: Theme.decor("bar.gap", -1)
+    spacing: barGap >= 0 ? barGap : Theme.pad + 2 * zr.owner.groupInset
     // The group blocks' spans along the bar, in this row's parent (the bar's rule leaves a gap under them, I305).
     readonly property var groupSpans: {
         var out = []
@@ -73,7 +75,7 @@ Row {
                 id: inner
                 anchors.verticalCenter: parent.verticalCenter
                 anchors.verticalCenterOffset: run.modelData.kind === "island" ? 0 : -Theme.shadowDy / 2
-                spacing: Theme.pad
+                spacing: zr.barGap >= 0 ? zr.barGap : Theme.pad
                 Repeater {
                     id: pieceRep
                     model: run.modelData.pieces
@@ -90,7 +92,7 @@ Row {
                         }
                         visible: presentN > 0
                         anchors.verticalCenter: parent ? parent.verticalCenter : undefined
-                        spacing: modelData.tight ? zr.owner.tightSpacing : Theme.pad
+                        spacing: modelData.tight ? zr.owner.tightSpacing : (zr.barGap >= 0 ? zr.barGap : Theme.pad)
                         Repeater {
                             id: hostRep
                             model: piece.modelData.entries

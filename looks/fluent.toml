@@ -79,3 +79,12 @@ sounds = "fluent"
 "start.menu" = "center"
 # The taskbar clock: the time over the short date.
 "clock.lines" = 2
+# Quick Settings as 11's flyout (no phone): compact 3 × 2 toggle buttons with the label under them, the sliders, the footer.
+"quick.frame" = "flyout"
+"quick.tiles" = "compact"
+# A floating right sidebar becomes 11's notification centre: its sections as flyouts stacked at its foot; flat calendar days.
+"centre.form" = "flyouts"
+"calendar.cells" = "flat"
+# Toasts stack bottom-right above the taskbar; the taskbar's keys stand 4 px apart.
+"toast.place" = "corner"
+"bar.gap" = 4

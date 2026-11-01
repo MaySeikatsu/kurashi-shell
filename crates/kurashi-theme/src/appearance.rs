@@ -258,6 +258,19 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // elevation) and the corner of the quick settings' tiles (-1 = a pill, today's).
     k("chrome.soft_scale", Num(0.0, 1.0), "1.0"),
     k("tile.radius", Int(-1, 24), "-1"),
+    // W53.3 (lead review): the quick settings card's chrome — a phone (K42, today's) or a plain flyout of the panel's
+    // material — and its tiles: wide pills in two columns (today's) or compact buttons in three, the label under them.
+    k("quick.frame", Choice(&["phone", "flyout"]), r#""phone""#),
+    k("quick.tiles", Choice(&["wide", "compact"]), r#""wide""#),
+    // The right sidebar's form: one column (today's) or, while it floats, its sections as separate flyouts stacked at its
+    // foot (11's notification centre over its calendar); the calendar's days as boxed keys (today's) or flat, today a circle.
+    k("centre.form", Choice(&["column", "flyouts"]), r#""column""#),
+    k("calendar.cells", Choice(&["boxed", "flat"]), r#""boxed""#),
+    // Where toasts stand under a top or bottom bar: out of the island (W34, today's) or in the screen's corner at the
+    // bar's end, stacked (11's bottom-right).
+    k("toast.place", Choice(&["island", "corner"]), r#""island""#),
+    // The gap between a horizontal bar's modules and groups, px (-1 = today's: the pad and the groups' insets).
+    k("bar.gap", Int(-1, 32), "-1"),
 ];
 
 /// The `[decor]` key named `key`.

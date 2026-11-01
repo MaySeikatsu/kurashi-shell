@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import "../../core"
 import "../../core/mods.js" as Mods
 import ".."
@@ -16,6 +17,17 @@ Item {
     id: rc
     property var sections: []
     property string outName: ""
+    // W53.3 (`[decor] centre.form = flyouts`, while the column floats; the window says so): every section is a flyout of
+    // its own — the panel's material in the look's radius with its hairline and elevation — 12 px apart and stacked at the
+    // column's foot (11's notification centre over its calendar); the column itself draws nothing. `flyItems`: their
+    // plates, for the window's blur.
+    readonly property bool flyouts: QsWindow.window ? QsWindow.window.flyouts === true : false
+    property var flyItems: []
+    function noteFly() {
+        var out = []
+        for (var i = 0; i < secRep.count; i++) { var s = secRep.itemAt(i); if (s && s.visible && s.plate) out.push(s.plate) }
+        flyItems = out
+    }
 
     // ---- a tile's page over the sections ----
     property Component pageC: null
@@ -44,7 +56,7 @@ Item {
         easing.bezierCurve: Theme.enterCurve
         onFinished: if (rc.slide <= 0) rc.pageC = null
     }
-    clip: true
+    clip: !flyouts
 
     Flickable {
         id: flick
@@ -60,15 +72,41 @@ Item {
             id: lay
             width: flick.width
             height: Math.max(flick.height, implicitHeight)
-            spacing: Theme.pad
+            spacing: rc.flyouts ? 12 + 2 * Theme.pad : Theme.pad
+            // (flyouts: the room left over stands above them, so they stack at the foot)
+            Item { Layout.fillHeight: true; visible: rc.flyouts }
             Repeater {
+                id: secRep
                 model: rc.sections
+                onItemAdded: Qt.callLater(rc.noteFly)
+                onItemRemoved: Qt.callLater(rc.noteFly)
                 delegate: Loader {
                     id: sec
                     required property var modelData
                     readonly property string sid: String(modelData)
                     readonly property var modRef: Mods.panelOf(sid)
-                    readonly property bool fills: sid === "notifications"
+                    readonly property bool fills: sid === "notifications" && !rc.flyouts
+                    // The flyout's plate, `Theme.pad` round the section (made only under flyouts).
+                    property Item plate: plateLoader.item
+                    onVisibleChanged: if (rc) Qt.callLater(rc.noteFly)
+                    Loader {
+                        id: plateLoader
+                        z: -1
+                        active: rc.flyouts
+                        anchors.fill: parent
+                        anchors.margins: -Theme.pad
+                        onLoaded: if (rc) Qt.callLater(rc.noteFly)
+                        sourceComponent: Item {
+                            Elevation { anchors.fill: parent; radius: Theme.rLg; level: 3 }
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: Theme.rLg
+                                color: Theme.panel
+                                border.width: 1
+                                border.color: Theme.color("color.outline_variant", "#e5e5e5")
+                            }
+                        }
+                    }
                     Layout.fillWidth: true
                     Layout.fillHeight: fills
                     Layout.preferredHeight: fills ? (item ? item.minHeight : 0) : (item ? item.implicitHeight : 0)
@@ -86,7 +124,7 @@ Item {
                 }
             }
             // Without a section that fills (notifications), the room left over stays below the sections, not between them.
-            Item { Layout.fillHeight: true; visible: rc.sections.indexOf("notifications") < 0 }
+            Item { Layout.fillHeight: true; visible: rc.sections.indexOf("notifications") < 0 && !rc.flyouts }
         }
     }
     Component { id: headerC; HeaderSection {} }

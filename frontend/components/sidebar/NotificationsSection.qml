@@ -12,8 +12,10 @@ import "../island"
 // The list is the daemon's; this only orders it. Watches svc.notifications and runtime.lock while the sidebar is open.
 Item {
     id: ns
-    // The least height that keeps two cards in view; the column gives it the rest of the output.
-    readonly property int minHeight: head.height + Theme.gap + 180
+    // The least height that keeps a card in view; the column gives it the rest of the output.
+    // (W53.3: one card's room, was two — the column with every section and a six-week month fits a 1080 px output with a
+    // bottom bar; the list still takes every pixel the column has to spare)
+    readonly property int minHeight: head.height + Theme.gap + 72
     implicitHeight: minHeight
 
     Watch { doc: "svc.notifications" }
