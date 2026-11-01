@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-terminal
+Comment=A 1-bit arrow, white with a black outline, on a 12 × 19 grid (W53.8, CC0, drawn in tools/styles/modern-assets.py)
+Inherits=default

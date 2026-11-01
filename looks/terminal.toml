@@ -1,11 +1,77 @@
 name = "terminal"
 label = "config.choice.look.terminal"
 category = "modern"
-# A terminal's honesty: ink outlines on mono, square corners, sharp icons, quick and calm.
+# A terminal's honesty (W53.8, docs/ux/styles.md "terminal"): the shell as a text-mode UI — JetBrains Mono (OFL) for
+# everything, square corners, ink lines, cards boxed with box-drawing lines half a cell in (htop's and mc's panels), menus
+# as a fuzzy finder's lines with the `>` pointer, the scroll bar as `│█│` (a cell-wide channel, the thumb whole rows of
+# full blocks), tooltips and toasts as inverse-video lines (tmux's message line), a block caret that blinks for ten
+# seconds after the last key and then rests lit, the bar as one status line (no blocks round its groups), motion that
+# only cuts in quickly (an 80 ms fade), Material Symbols' Sharp cut, a virtual console's login as the lock, a speaker's
+# beeps as cues. The green or amber phosphor is a palette option (`phosphor`, `phosphor-amber`).
 [recipe]
 "theme.chrome" = "line"
 "theme.motion.profile" = "expressive"
 "theme.motion.speed" = 1.6
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
-"theme.typography.family" = ["JetBrains Mono", "Noto Sans Mono CJK JP", "monospace"]
+"theme.typography.family" = ["JetBrains Mono", "IBM Plex Mono", "Iosevka", "Noto Sans Mono CJK JP", "monospace"]
+"theme.typography.family_jp" = ["Noto Sans Mono CJK JP", "Noto Sans CJK JP", "monospace"]
+
+[slots]
+frame = "box"
+menu = "prompt"
+scroll = "track"
+tooltip = "inverse"
+lock = "tty"
+sounds = "terminal"
+
+[decor]
+# Cards: a single box-drawing line half a character cell inside (┌─┐).
+"frame.box" = "single"
+# Menus: fzf's line — the `>` pointer in a 16 px lead, a faint band, the text unchanged; a `─` rule between groups.
+"menu.highlight" = "bar"
+"menu.separator" = "line"
+"menu.lead" = 16
+"menu.radius" = 0
+"menu.fill" = "surface_container_high"
+"menu.on" = "on_surface"
+# The scroll bar: `│█│`, one cell wide with ▲ ▼ cells at its ends.
+"scroll.width" = 12
+"scroll.arrows" = true
+"scroll.thumb" = "flat"
+# Tooltips and toasts: inverse video, square.
+"tooltip.fill" = "on_surface"
+"tooltip.on" = "surface"
+"tooltip.radius" = 0
+# The status line: one strip, no block round each group, no separators.
+"bar.group" = "none"
+"separator.style" = "none"
+# The block caret: blinks 10 s after the last key, the move or the focus, then rests lit.
+"field.caret" = "block"
+"field.blink" = 10
+# Focus: a 1 px ring in the text's ink, 2 px out.
+"focus.style" = "ring"
+"focus.width" = 1
+"focus.offset" = 2
+"focus.color" = "on_surface"
+# Symbols: the Sharp cut (square ends, as the type), outline, regular weight.
+"icons.family" = ["Material Symbols Sharp"]
+"icon.fill" = 0
+"icon.weight" = 400
+# Motion: a cut, softened only to a quick linear fade (a terminal redraws; it does not animate).
+"motion.style" = "fade"
+"motion.open_ms" = 80
+"motion.close_ms" = 60
+"motion.fast_ms" = 60
+"motion.effects_ms" = 60
+"motion.open_curve" = [0.0, 0.0, 1.0, 1.0]
+"motion.close_curve" = [0.0, 0.0, 1.0, 1.0]
+"motion.fast_curve" = [0.0, 0.0, 1.0, 1.0]
+"motion.effects_curve" = [0.0, 0.0, 1.0, 1.0]
+"cursor" = "terminal"
+# The launcher and the island's card stand apart from the status line as boxed windows (a TUI's dialog box), not grown
+# out of the bar.
+"surface.join" = false
+# Quick settings as a plain flyout of the panel (no phone), its tiles square.
+"quick.frame" = "flyout"
+"tile.radius" = 0

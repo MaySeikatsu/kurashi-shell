@@ -1,0 +1,4 @@
+[Icon Theme]
+Name=kurashi-glass
+Comment=A frosted white arrow with a bright rim and a soft shadow (W53.8, CC0, drawn in tools/styles/modern-assets.py)
+Inherits=default

@@ -1,0 +1,31 @@
+# 蛍光体 phosphor — a monochrome terminal's green P1 phosphor (peak ≈ 525 nm, rendered #33ff66-ish) on a tube's near-black
+# glass: one hue in several brightnesses, as a green-screen terminal showed every attribute (normal, dim, bold). An option
+# for the `terminal` style (W53.8). The light scheme is the same terminal's printout: deep green ink on the pale green of
+# continuous-feed "green-bar" paper (K53: every palette authors both).
+name = "phosphor"
+kind = "pair"
+description = "Green phosphor on black (terminal)"
+
+[dark]
+surface = "#07110a"
+on_surface = "#5cff8a"
+on_surface_variant = "#36c060"
+outline = "#2a8a46"
+outline_variant = "#174d28"
+accent = "#9dffb6"
+secondary = "#3fd46a"
+tertiary = "#2bb055"
+warning = "#c8ff70"
+error = "#f0ff9a"
+
+[light]
+surface = "#e8f4e8"
+on_surface = "#0f3d1c"
+on_surface_variant = "#2c5e3a"
+outline = "#5f8f6c"
+outline_variant = "#b6d4bd"
+accent = "#13692f"
+secondary = "#2d7a45"
+tertiary = "#4a8a5c"
+warning = "#5a6a00"
+error = "#9a2a1a"

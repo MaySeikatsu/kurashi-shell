@@ -1,0 +1,30 @@
+# 蛍光体 phosphor-amber — a monochrome terminal's amber P3 phosphor (peak ≈ 602 nm, rendered #ffb000-ish) on near-black:
+# one hue in several brightnesses. An option for the `terminal` style (W53.8). The light scheme is its printout: deep brown
+# ink on cream fanfold paper (K53: every palette authors both).
+name = "phosphor-amber"
+kind = "pair"
+description = "Amber phosphor on black (terminal)"
+
+[dark]
+surface = "#120b03"
+on_surface = "#ffb43a"
+on_surface_variant = "#c88a24"
+outline = "#8f6118"
+outline_variant = "#4d340c"
+accent = "#ffd27a"
+secondary = "#e89a20"
+tertiary = "#c47f14"
+warning = "#ffe08a"
+error = "#fff0b0"
+
+[light]
+surface = "#f6eedc"
+on_surface = "#4a2a00"
+on_surface_variant = "#6e4a14"
+outline = "#a07c40"
+outline_variant = "#dccba0"
+accent = "#8a4f00"
+secondary = "#9a6418"
+tertiary = "#a87a34"
+warning = "#7a5a00"
+error = "#a0281a"
