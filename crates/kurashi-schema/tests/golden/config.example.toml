@@ -44,6 +44,16 @@
 # edge), and of an edge's modules.
 #   range: 16..=96, step 2 (px) · per-output
 # height = 32
+#
+# Cards open — Where the card a bar module opens comes out: under the module that was
+# clicked, or at the bar's centre, under the island.
+#   choices: "module" | "centre" · since schema v7
+# popups = "module"
+#
+# Modules that open the other way — These modules' cards open at the bar's centre while
+# cards open under their module, or under their module while cards open at the centre.
+#   choices: from `modules` (resolved at runtime) · since schema v7
+# popups_other = []
 
 # [edges.top]
 #

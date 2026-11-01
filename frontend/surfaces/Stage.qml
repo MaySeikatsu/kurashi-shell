@@ -115,6 +115,9 @@ PanelWindow {
     // the view fades out first, then the content swaps and the shape springs from where it is to the new card.
     onWantedKindChanged: {
         if (wantedKind === "" || (wantedKind === "island" && !ui.panel && ui.popup !== true)) return
+        // I340: the bar module this card was opened from — pressed on this output just now — else none (a key, the CLI).
+        var lp = IslandGeom.lastPress
+        openedFrom = lp.output === outName && Date.now() - lp.t < 1500 ? lp.mid : ""
         if (shown && open && morphLayout && !gate && contentKind !== wantedKind && contentP > 0.01 && Theme.quickMs > 0) {
             pendingKind = wantedKind
             if (!swap.running) swap.start()
@@ -126,6 +129,21 @@ PanelWindow {
     }
     property string pendingKind: ""
     readonly property bool swapping: pendingKind !== ""
+    // I340 (`bar.popups`, `bar.popups_other`): where a card a bar module opened comes out — under that module (`fromModule`:
+    // an island view too then hangs from the module instead of growing out of the pill) or at the bar's centre (`toCentre`:
+    // a panel too then comes out under the island, not under its widget). The island's own pill is always its own origin.
+    property string openedFrom: ""
+    function placeOf(mid) {
+        var g = String(bars.valueOf("bar.popups", "module")) === "centre" ? "centre" : "module"
+        var other = bars.valueOf("bar.popups_other", []) || []
+        return other.indexOf(mid) >= 0 ? (g === "module" ? "centre" : "module") : g
+    }
+    readonly property bool fromModule: {
+        var rev = IslandGeom.revision
+        return openedFrom !== "" && openedFrom !== "island" && placeOf(openedFrom) === "module"
+            && IslandGeom.rectOf(outName, "module:" + openedFrom) !== null
+    }
+    readonly property bool toCentre: openedFrom !== "" && openedFrom !== "island" && placeOf(openedFrom) === "centre"
     Timer {
         id: swap
         interval: 90
@@ -847,7 +865,7 @@ PanelWindow {
         when: stage.shown
         restoreMode: Binding.RestoreNone
     }
-    readonly property bool headMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null
+    readonly property bool headMode: islandKinds.indexOf(contentKind) >= 0 && pillGeom !== null && !fromModule
     // Row 512 (K71: a bar on each edge, floating or docked): the bar the shape grows from — the island's own bar for its
     // views (`pillOf().edge`), the bar of the widget a panel grew out of (`rectOf().edge`), else the island's bar, else
     // "the bar" (BarConfig) — and that bar's inset (a floating bar's band + gap). The local frame below counts y from that
@@ -866,7 +884,7 @@ PanelWindow {
     // W53.5 (`[decor] surface.join = false`): a look whose cards stand apart from the bar never morphs.
     readonly property bool morphMode: Theme.decor("surface.join", true) !== false
         && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
-        && (headMode || panelKinds.indexOf(contentKind) >= 0)
+        && (headMode || panelKinds.indexOf(contentKind) >= 0 || fromModule)
     readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
     // keeps the card's, so a peek coming and going costs no extra reconfigure (test-peek's reduced-motion frame budget).
@@ -893,9 +911,12 @@ PanelWindow {
     // box (QuickButton, TrayIcon); one not on this output (or none: the session menu) gives the pill, else the bar's centre.
     // A group's block, and the pill, end their face at a fixed place in the bar (Bar.qml's Group, Island's pill).
     readonly property real groupFoot: barInset + (flip ? Theme.barH - 4 + Theme.shadowDy / 2 : Theme.barH - 4 - Theme.shadowDy / 2)
-    readonly property string originKey: contentKind === "quick" ? "quick"
+    readonly property string ownKey: contentKind === "quick" ? "quick"
         : (contentKind === "tray" ? "tray:" + shownTray
         : (contentKind === "mod" ? "mod:" + shownPanelMod + ":" + shownPanel.substring("panel:".length) : ""))
+    // (a panel's own widget is the finer origin — a tray icon, not the whole tray; I340 the module's box else, or none
+    // when its cards come out at the centre)
+    readonly property string originKey: toCentre ? "" : (ownKey !== "" ? ownKey : (fromModule ? "module:" + openedFrom : ""))
     readonly property var origin: {
         if (!shown || headMode) return { x: pillOutCx - pillW / 2, w: pillW, e: pillTop + pillH, kind: "pill" }
         var r = originRect
@@ -911,7 +932,7 @@ PanelWindow {
     // under that widget, centred on it and kept Theme.pad inside the output — the container transform: the card is the
     // button grown, and its neck stays on the button's block where the groups float. The island's views and the session
     // menu (no widget) rest centred under the pill. A tray menu without its icon on this output keeps the tray's end.
-    readonly property bool restsUnder: panelKinds.indexOf(contentKind) >= 0 && origin.kind === "widget"
+    readonly property bool restsUnder: (panelKinds.indexOf(contentKind) >= 0 || fromModule) && origin.kind === "widget"
     // Session 15: kept inside what stands on the output's sides — the frame's band and its inner corner, a side bar —
     // not over them (a quick card under the bar's end lay on the right band and its fillet).
     readonly property var outLay: ShellLayout.of(screen ? screen.name : "")
