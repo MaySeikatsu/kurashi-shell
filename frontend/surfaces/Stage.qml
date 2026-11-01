@@ -243,6 +243,8 @@ PanelWindow {
         var room = screen ? screen.width - 2 * Theme.pad : 720
         return Math.max(360, Math.min(want, 720, room))
     }
+    // W53.5: the width the view asks its card for (`cardWant`, ≥ 0), e.g. the calendar's grid in a wide pixel face.
+    readonly property int viewWant: view.item && view.item.cardWant !== undefined ? view.item.cardWant : 0
     Component { id: genericView; GenericView {} }
     Component { id: mediaView; MediaView {} }
     Component { id: notificationsView; NotificationsView {} }
@@ -386,11 +388,15 @@ PanelWindow {
             } else { anim.stop(); anim.from = p; anim.to = 0; anim.start() }
         }
     }
+    // W53.5: a stepped look (`motion.kind = stepped`) opens on its own staircase and time and folds on its close one; the
+    // card itself grows out of its middle (below), so the content's Entrance stays still.
+    readonly property bool stepped: Theme.motionKind === "stepped"
     NumberAnimation {
         id: anim
         target: stage; property: "p"
-        duration: Theme.stdMs
-        easing.type: Easing.BezierSpline; easing.bezierCurve: Theme.enterCurve
+        duration: stage.stepped ? (anim.to > anim.from ? Theme.openMs : Theme.closeMs) : Theme.stdMs
+        easing.type: Easing.BezierSpline
+        easing.bezierCurve: stage.stepped ? (anim.to > anim.from ? Theme.openCurve : Theme.closeCurve) : Theme.enterCurve
         onFinished: if (stage.p <= 0 && !stage.open) stage.shown = false
     }
     Connections {
@@ -857,7 +863,9 @@ PanelWindow {
         : (originRect !== null && originRect.edge !== "" ? originRect.edge : (pillGeom !== null ? pillGeom.edge : bars.edge))
     readonly property var morphBar: IslandGeom.barOf(outName, morphEdge)
     readonly property real barInset: morphBar ? morphBar.inset : bars.insetOf(morphEdge)
-    readonly property bool morphMode: (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
+    // W53.5 (`[decor] surface.join = false`): a look whose cards stand apart from the bar never morphs.
+    readonly property bool morphMode: Theme.decor("surface.join", true) !== false
+        && (morphEdge === "top" || morphEdge === "bottom") && (morphBar !== null || bars.hasBar(morphEdge))
         && (headMode || panelKinds.indexOf(contentKind) >= 0)
     readonly property bool flip: morphEdge === "bottom"
     // The window takes the morph's geometry (the box, the bar's strip and the slack) only while the shape is out; idle, it
@@ -1251,7 +1259,9 @@ PanelWindow {
         // I192: while the view is being made, the size it had last time (see `cachedSize`).
         readonly property bool fromCache: !stage.viewReady && stage.cachedSize !== null
         // W53.0b: a card made full screen by its title bar takes the room its output has (the title bar's own size).
-        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0 ? 400
+        // (W53.5: a view may ask for more with `cardWant` — the calendar's grid in a wide pixel face.)
+        width: stage.full ? stage.fullW : fromCache ? stage.cachedSize.w : ["media", "clock", "quick", "power", "bluetooth"].indexOf(stage.contentKind) >= 0
+            ? Math.max(400, Math.min(stage.viewWant, stage.fullW))
             : (stage.contentKind === "mod" ? stage.modCardWidth
             : (stage.contentKind === "session" ? Math.max(360, menu.implicitWidth + 2 * (Theme.pad + 4)) : 360))
         height: stage.full ? stage.fullH : fromCache ? stage.cachedSize.h : (stage.viewing ? col.implicitHeight
@@ -1275,6 +1285,11 @@ PanelWindow {
         opacity: stage.morphMode ? stage.contentP : 1
         scale: stage.morphMode ? 0.98 + 0.02 * stage.contentP : 1
         transformOrigin: stage.flip ? Item.Bottom : Item.Top
+        // W53.5: a stepped look's card grows out of its middle in held steps (FF6's boxes open from the centre strip).
+        transform: Scale {
+            origin.y: card.height / 2
+            yScale: stage.stepped && !stage.morphMode ? Math.max(0.001, stage.p) : 1
+        }
         radius: Theme.rLg
         color: stage.morphMode || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
@@ -1292,6 +1307,13 @@ PanelWindow {
                 lineWidth: Theme.outlineW > 0 ? Theme.outlineW : 1
                 seed: 0x57A6E
             }
+        }
+        // W53.5: the look's banded fill and frame round the card (an RPG window, the PS2's glow line), under the views;
+        // not while the shape draws the card, nor round a view with its own chrome.
+        Loader {
+            anchors.fill: parent
+            active: !stage.morphMode && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
+            sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
         }
         // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
         // island morphs, where the shape draws the card.
@@ -1352,8 +1374,8 @@ PanelWindow {
             y: -reveal.cutTop
             width: card.width
             height: card.height
-            progress: stage.morphMode ? 1 : stage.p
-            edge: "top"
+            progress: stage.morphMode || stage.stepped ? 1 : stage.p
+            edge: stage.flip ? "bottom" : "top"
 
         // W53.0b (K80): the card's title bar, where the style draws one (`runtime.ui.title`, the daemon's: the buttons
         // and what each does). The style's own strip (`decor.title`, components/decor/title/<Name>.qml) when it loads,

@@ -1,50 +1,66 @@
-# SNES — console-plastic grey, US-purple buttons, the logo's red, yellow and green as spice. Light, and dark (K53). Roles after
-# shellseikatsu `_snesPalette()` (W25, K50). Meant for decor `snes` (frame `snes`).
+# SNES (W53.5, docs/ux/styles.md §7): the 16-bit RPG window, measured on native 256 × 224 captures of Final Fantasy VI's
+# dialogue box (vgmuseum.com/end/snes/a/ff3w-004.gif) and menus (the FF wiki's FFVI_SNES_Menu.png, via the Wayback
+# Machine): black screen, windows in hard blue bands from #6060b8 at the top to #000050 at the foot (`title` → `title_end`,
+# the look's `fill.band_*`), a frame of white #f8f8f8, light grey #b8b8b8 and dark grey #606868 (ring, outline,
+# outline_variant), white text. The Super Famicom pad's face colours (Wikimedia Commons' "Super Famicom and Super NES
+# Controllers.jpg": X #3571c8, A #c34744, B #f8dd4d, Y #4fa173) as tertiary, secondary, warning, success; a gold cursor
+# highlight. Dark is the RPG screen (the style's scheme); light is the console's own grey plastic with the US purple
+# (the 101 model: grey #d3d3d3–#d9d7d8, buttons #6841b0–#714db4).
 name = "snes"
 kind = "pair"
-description = "Console grey and US purple (decor snes)"
+description = "RPG window blue on black, the four face colours (decor snes)"
 
+[dark]
+surface = "#000000"                   # the screen's black
+surface_container_lowest = "#080840"
+surface_container_low = "#101058"
+surface_container = "#181868"         # a window's middle band: tooltips, plain fills
+surface_container_high = "#202078"    # a small window (a key, a tile)
+surface_container_highest = "#282888"
+title = "#6060b8"                     # the window's top band (FF6's dialogue box, 12,12,23)
+title_end = "#000050"                 # the window's foot (0,0,10)
+on_title = "#ffffff"
+on_surface = "#f8f8f8"                # window text
+on_surface_variant = "#c0c0d0"
+outline = "#b8b8b8"                   # the frame's light grey
+outline_variant = "#606868"           # the frame's inner dark grey
+accent = "#f8d050"                    # the cursor's highlight, gold
+on_accent = "#101010"
+accent_container = "#685010"
+on_accent_container = "#fff4c8"
+secondary = "#e05048"                 # A
+tertiary = "#4880e0"                  # X
+warning = "#f8dd4d"                   # B
+success = "#4fa173"                   # Y
+error = "#ff6858"
+line = "#000000"                      # the window's dark outline
+ring = "#f8f8f8"                      # the frame's white
+desk = "#000000"
+
+# Light: the console itself — light-grey plastic, dark-grey text, the US purple buttons, windows a pale plastic band.
 [light]
-surface = "#b8b9b4"
-surface_container_lowest = "#cdcec9"
-surface_container_low = "#c2c3be"
-surface_container = "#cdcec9"
-surface_container_high = "#c2c3be"
-surface_container_highest = "#aeafaa"
+surface = "#c8c8c6"
+surface_container_lowest = "#e2e2e0"
+surface_container_low = "#d6d6d4"
+surface_container = "#d0d0ce"
+surface_container_high = "#dadad8"
+surface_container_highest = "#b8b8b6"
+title = "#ececea"
+title_end = "#bebebc"
+on_title = "#1e1e26"
 on_surface = "#1e1e26"
 on_surface_variant = "#3a3a44"
-outline = "#54545e"
-outline_variant = "#8e8f8a"
-accent = "#4f43ae"                    # US purple
+outline = "#8e8e8c"
+outline_variant = "#6e6e6c"
+accent = "#5a40a8"                    # US purple
+on_accent = "#ffffff"
 accent_container = "#8a80dc"
 on_accent_container = "#161040"
-secondary = "#a8231b"                 # logo red
-tertiary = "#6e4c00"                  # logo yellow, darkened for text on grey
+secondary = "#a8231b"
+tertiary = "#2a4fa8"
 warning = "#6e4c00"
+success = "#1f6e2c"
 error = "#a8231b"
-success = "#1f6e2c"                   # logo green
 line = "#2e2e36"
-ring = "#dcddd8"
-
-# Dark (K53: every palette has both schemes): the console in charcoal: dark plastic, lilac buttons, the logo's red, yellow and green.
-[dark]
-surface = "#2a2b2f"
-surface_container_lowest = "#1e1f22"
-surface_container_low = "#25262a"
-surface_container = "#303136"
-surface_container_high = "#393a40"
-surface_container_highest = "#44454c"
-on_surface = "#e4e5e0"
-on_surface_variant = "#b8b9b4"
-outline = "#8e8f8a"
-outline_variant = "#4a4b52"
-accent = "#a89cf0"
-accent_container = "#4f43ae"
-on_accent_container = "#ece8ff"
-secondary = "#e8605a"
-tertiary = "#e8c040"
-warning = "#e8c040"
-error = "#f06058"
-success = "#5ac46a"
-line = "#0e0e12"
-ring = "#54555c"
+ring = "#fafaf8"
+desk = "#8e8f8a"
