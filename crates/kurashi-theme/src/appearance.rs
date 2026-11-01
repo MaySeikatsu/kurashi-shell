@@ -176,7 +176,7 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // Keyboard focus (FocusRing): style, offset (negative = inside), width.
     k(
         "focus.style",
-        Choice(&["ring", "dotted", "double", "halo"]),
+        Choice(&["ring", "dotted", "double", "halo", "brush"]),
         r#""ring""#,
     ),
     k("focus.offset", Int(-8, 8), "0"),
@@ -221,7 +221,7 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // style's hold (frames at 60 Hz per step), the timed durations (0 = K74's) and curves ([] = K74's).
     k(
         "motion.style",
-        Choice(&["grow", "slide", "zoom", "fade", "flip", "stepped", "rubber"]),
+        Choice(&["grow", "slide", "zoom", "fade", "flip", "stepped", "rubber", "bleed"]),
         r#""grow""#,
     ),
     k("motion.steps", Int(1, 30), "4"),
@@ -357,6 +357,32 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     // W53.5: the launcher and the island's cards grow out of the bar as one shape (true, W21's morph) or stand apart from
     // it as windows of their own (false: a 16-bit RPG window, a PS2 panel), drawn as blocks with the look's frame.
     k("surface.join", Bool, "true"),
+    // W53.7/W53.8 (washi, kami, sekai, kanso, material, glass, terminal; any look). `focus.style = brush` (above): an ink
+    // stroke under the control, thick in its middle and thinning to both ends, over a faint ring; `motion.style = bleed`:
+    // a fade whose blur clears as ink settles into paper (the blur exists only while moving).
+    // The text caret's form — a bar (today's), a block one character wide (a terminal's) or an underscore — and how
+    // long it blinks after the last key or the focus (s; -1 = the toolkit's own blink, today's; 0 = steady): it rests lit
+    // after that (Ma).
+    k(
+        "field.caret",
+        Choice(&["bar", "block", "underscore"]),
+        r#""bar""#,
+    ),
+    k("field.blink", Int(-1, 60), "-1"),
+    // A quick settings tile that is on: the icon's well lit (`icon`, today's) or the whole tile in the accent with its
+    // ink (`fill`: Android 12+'s tiles); the icon in a round well (true, today's) or bare on the tile (Android's).
+    k("tile.active", Choice(&["icon", "fill"]), r#""icon""#),
+    k("tile.well", Bool, "true"),
+    // W53.8 (terminal): the box a card's frame draws with — none (the chrome's line) or the type's own box-drawing
+    // lines (`single` ┌─┐, `double` ╔═╗, `round` ╭─╮), a half cell inside the card.
+    k(
+        "frame.box",
+        Choice(&["none", "single", "double", "round"]),
+        r#""none""#,
+    ),
+    // -- W53.7 japanese keys --
+    // -- W53.8 material keys --
+    // -- W53.8 terminal keys --
 ];
 
 /// The `[decor]` key named `key`.

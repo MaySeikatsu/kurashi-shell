@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import "../core"
+import "decor"
 
 // On/off switch (Wi-Fi and Bluetooth in quick settings). The state is the knob's side and the accent fill,
 // not colour alone. Reachable by Tab; Space, Return and Enter, or a click, flip it. Emits `toggled(on)`.
@@ -18,8 +19,26 @@ Item {
 
     function flip() { if (sw.enabled) sw.toggled(!sw.checked) }
 
-    implicitWidth: track.width
-    implicitHeight: Theme.controlH
+    // W53.7/8 (K80): the look's toggle part (`[slots] toggle`, contract decor/toggle/ToggleBase.qml) draws the switch
+    // instead of the track and knob — a check box (9x), M3's switch with its thumb icon; nothing is made without one.
+    DecorHost {
+        id: part
+        slot: "toggle"
+        anchors.centerIn: parent
+        width: item ? item.implicitWidth : 0
+        height: item ? item.implicitHeight : 0
+        onLoaded: {
+            item.checked = Qt.binding(function () { return sw.checked })
+            item.pressed = Qt.binding(function () { return tap.pressed })
+            if (item.hasOwnProperty("enabled")) item.enabled = Qt.binding(function () { return sw.enabled })
+            if (item.hasOwnProperty("hovered")) item.hovered = Qt.binding(function () { return hover.hovered })
+            if (item.hasOwnProperty("focused")) item.focused = Qt.binding(function () { return sw.activeFocus })
+        }
+    }
+    HoverHandler { id: hover; enabled: part.has }
+
+    implicitWidth: part.ready ? part.width : track.width
+    implicitHeight: part.ready ? Math.max(Theme.controlH, part.height) : Theme.controlH
     activeFocusOnTab: sw.enabled
     Keys.onSpacePressed: sw.flip()
     Keys.onReturnPressed: sw.flip()
@@ -30,6 +49,7 @@ Item {
 
     Rectangle {
         id: track
+        visible: !part.has
         anchors.centerIn: parent
         width: Theme.ringW > 0 ? 46 : 40
         height: Theme.ringW > 0 ? 26 : 22
@@ -72,12 +92,13 @@ Item {
     }
 
     FocusRing {
-        anchors.fill: track
+        anchors.fill: part.ready ? part : track
         anchors.margins: -3
         shown: sw.activeFocus
-        corner: track.radius > 0 ? track.radius + 3 : 0
+        corner: part.ready ? (part.item.corner !== undefined ? part.item.corner + 3 : 0) : (track.radius > 0 ? track.radius + 3 : 0)
     }
     TapHandler {
+        id: tap
         enabled: sw.enabled
         onTapped: sw.flip()
     }

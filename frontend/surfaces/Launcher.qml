@@ -500,7 +500,10 @@ PanelWindow {
                     id: field
                     anchors { fill: parent; leftMargin: searchIcon.x + searchIcon.width + 8; rightMargin: 14 }
                     // The name-entry line's block cursor on a pixel grid (a whole character cell), else the caret.
-                    cursorDelegate: box.underline && Theme.pixelType ? blockCaret : null
+                    // W53.8: the look's caret (`field.caret`, `field.blink`: a terminal's block that stops blinking).
+                    cursorDelegate: box.underline && Theme.pixelType ? blockCaret
+                        : (Theme.decor("field.caret", "bar") !== "bar" || Theme.decor("field.blink", -1) >= 0 ? lookCaret : null)
+                    Component { id: lookCaret; Caret { ground: box.underline ? Theme.surface : box.fill } }
                     Component {
                         id: blockCaret
                         Rectangle {
@@ -599,6 +602,15 @@ PanelWindow {
                 text: lp.err
             }
 
+            // The look's scroll bar over the list's end edge (W53.7/8: the `scroll` slot's host; nothing without a part).
+            ScrollHost {
+                z: 1
+                flick: list
+                visible: shown && list.visible
+                x: list.x + list.width - width
+                y: list.y
+                stepPx: lp.rowH
+            }
             ListView {
                 id: list
                 visible: lp.mode !== "emoji" && !lp.startGrid && !lp.sysMenu
