@@ -5,6 +5,7 @@ import "../../core"
 import "../../core/mods.js" as Mods
 import ".."
 import "../expanded"
+import "../decor" as Decor
 
 // The right sidebar's column (docs/ux/sidebar.md): `sidebar.right.sections`, its sections, top to bottom — `header`, `toggles`,
 // `sliders`, `notifications`, `calendar` (ClockView: the month grid and the agenda slot), `media` (MediaView, while
@@ -153,6 +154,24 @@ Item {
     }
     Component { id: modC; ModSection {} }
 
+    // The look's scroll bar over the list's end edge (the `scroll` slot; nothing without a part, I332).
+    Decor.ScrollHost {
+        z: 1
+        flick: flick
+        visible: shown && flick.visible
+        x: flick.x + flick.width - width
+        y: flick.y
+        stepPx: 40
+    }
+    // The look's scroll bar over the list's end edge (the `scroll` slot; nothing without a part, I332).
+    Decor.ScrollHost {
+        z: 1
+        flick: pageFlick
+        visible: shown && pageFlick.visible
+        x: pageFlick.x + pageFlick.width - width
+        y: pageFlick.y
+        stepPx: 40
+    }
     // The page: the quick card's page component, made while it is shown; a long list scrolls.
     Flickable {
         id: pageFlick

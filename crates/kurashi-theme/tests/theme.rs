@@ -664,12 +664,17 @@ fn bad_palettes_are_rejected() {
 
 #[test]
 fn styles_and_looks_change_looks_never_layout() {
-    // K45, K53: packs name theme keys only; bar edge/height, desk cards and the island stay the user's.
+    // K45, K53: packs name theme keys only; bar edge/height, desk cards and the island stay the user's. The one exception
+    // is appearance outside `theme.`: whether the cards wear a title bar (K80; fluent ships none, I325).
     use kurashi_theme::appearance::{Kind, all_in, find, layer};
     for kind in [Kind::Look, Kind::Style] {
         for p in all_in(kind, &[]) {
             for (key, _) in &p.recipe {
-                assert!(key.starts_with("theme."), "{} sets {key}", p.name);
+                assert!(
+                    key.starts_with("theme.") || key == "title_bar.buttons",
+                    "{} sets {key}",
+                    p.name
+                );
             }
         }
     }
@@ -1037,6 +1042,7 @@ fn style_input(name: &str) -> ThemeInput {
             }
             "theme.material.opacity" => i.axes.opacity = f,
             "theme.material.blur" => i.axes.blur = v.as_bool().unwrap_or(false),
+            "theme.material.elevation" => i.axes.elevation = s,
             "theme.shape.corners" => {
                 i.axes.shape = match s.as_str() {
                     "none" => Shape::None,

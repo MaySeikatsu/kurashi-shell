@@ -121,6 +121,10 @@ Singleton {
     // `revision` on every (un)registration, so a binding that calls rectOf() re-reads.
     property var origins: ({})
     property int revision: 0
+    // I340: the bar module last pressed (or run by key) — `{output, mid, t}` — so the Stage knows which module a card it
+    // opens came from (a module opens its card through an action, which does not say where it was pressed).
+    property var lastPress: ({ output: "", mid: "", t: 0 })
+    function notePress(output, mid) { lastPress = { output: output, mid: mid, t: Date.now() } }
     function register(output, key, item, by) {
         if (output === "" || key === "" || !item) return
         var o = origins[output] || ({})

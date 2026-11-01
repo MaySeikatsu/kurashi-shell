@@ -12,6 +12,10 @@ MenuRowBase {
         anchors.fill: parent
         anchors.leftMargin: 2
         anchors.rightMargin: 2
+        // I332: the key's face is the whole row and its hard shadow hangs below it (into the gap callers leave between rows,
+        // under the next row's content), so a tight row (19 px) is not half shadow.
+        anchors.bottomMargin: -Theme.shadowDy
+        z: 1
         active: row.highlighted && row.enabled && !row.separator
         sourceComponent: Block {
             fill: Theme.selected

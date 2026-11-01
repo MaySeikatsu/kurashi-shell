@@ -18,6 +18,10 @@ category = "inspired"
 "theme.texture.kind" = "paper"
 "theme.texture.strength" = 0.35
 "theme.texture.tint" = true
+# The wallpaper is the same sheet: the paper reaches the desktop too (I339).
+"theme.texture.scope" = "shell_wallpaper"
+# Sheets of paper lift off the desk in the room's light: the surfaces cast soft shadows away from it (I338).
+"theme.material.elevation" = "follow"
 [slots]
 frame = "paper"
 menu = "ruled"
@@ -25,6 +29,8 @@ tooltip = "slip"
 sounds = "washi"
 
 [decor]
+# The ink of the symbols lifts a hair off the sheet: a faint print shadow (I338).
+"elevation.icons" = 0.5
 # The ink focus mark: a faint ring and one tapered stroke under the control, in sumi (the text's ink).
 "focus.style" = "brush"
 "focus.color" = "on_surface"

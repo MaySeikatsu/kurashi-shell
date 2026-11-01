@@ -49,4 +49,11 @@ Text {
     readonly property string families: Theme.iconFamily + "|" + fallbackFamily
     onNameChanged: retry()
     onFamiliesChanged: retry()
+
+    // I338: while elevation is on and the look lets icons cast (`elevation.icons`), the glyph lifts a hair off its ground —
+    // a crisp 1 px print shadow in the shadows' ink, below it while the light is above (Raised), above it otherwise
+    // (Sunken). Qt's own text style: drawn with the glyph in one text node (a second Text per icon made a kami sidebar's
+    // first opening a frame late, test-sidebars).
+    style: Theme.elevIcons > 0 ? (Theme.elevationDir[1] >= 0 ? Text.Raised : Text.Sunken) : Text.Normal
+    styleColor: Qt.alpha(Theme.elevInk, Math.min(0.6, 0.45 * Theme.elevIcons * (Theme.darkScheme ? 1.6 : 1)))
 }

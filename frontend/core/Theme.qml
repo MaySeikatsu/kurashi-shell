@@ -104,6 +104,15 @@ Singleton {
     readonly property real elevationStrength: tok("elevation.strength", 1)
     readonly property var elevationDir: tok("elevation.dir", [0, 1, 1])
     readonly property bool elevationPointer: tok("elevation.pointer", false)
+    // I338: what else casts while elevation is on (the look's `elevation.blocks` / `elevation.icons`, 0 while it is off),
+    // and the shadows' ink: the line colour darkened, tinted toward the look rather than a neutral grey (Elevation.qml's).
+    readonly property real elevBlocks: elevationMode === "off" ? 0 : decor("elevation.blocks", 0)
+    readonly property real elevIcons: elevationMode === "off" ? 0 : decor("elevation.icons", 0)
+    readonly property color elevInk: Qt.rgba(line.r * 0.4, line.g * 0.4, line.b * 0.4, 1)
+    // I338: the room the sheet (frame band, docked bars) keeps on its inner side for its shadow into the hole
+    // (components/SheetShadow.qml: the key's distance × the longest length factor + 3 σ); 0 while elevation is off.
+    readonly property int sheetReach: elevationMode === "off" || elevationStrength <= 0 ? 0
+        : Math.ceil(8 * Math.max(0.5, elevationStrength) + 15 * Math.max(0.5, elevationStrength)) + 2
     readonly property bool darkScheme: surface.hslLightness < 0.5
     // Bar groups stand as blocks of their own (keycap, soft, line) instead of sitting on one strip (flat).
     readonly property bool groups: tok("chrome.groups", false)

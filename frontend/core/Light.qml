@@ -119,4 +119,23 @@ Singleton {
         var oy = a.top ? zt + m.top : (a.bottom ? s.height - zb - w.height - m.bottom : zt + (s.height - zt - zb - w.height) / 2)
         return Qt.point(ox, oy)
     }
+
+    // W57 (I338): the surfaces' shadows and the relief share one light. Under `elevation.mode = follow` a lamp held on
+    // the output — the wallpaper's light (`light.lamp`) or the spotlight's pin (`light.pin`), fractions of the output — is
+    // a point light: a shadow falls away from it at the surface's own place, longer the lower the lamp stands there
+    // (tan 40° / tan elevation, 0.5…2, as the daemon's directional rule). null without one: `elevation.dir` then.
+    function heldLamp(win) {
+        if (Theme.elevationMode !== "follow" || !win || !win.screen) return null
+        var held = Theme.lightMode === "wallpaper" ? Theme.tok("light.lamp", null)
+            : (Theme.lightMode === "spotlight" ? Theme.lightPin : null)
+        if (!held || held.length !== 2) return null
+        return Qt.point(held[0] * win.screen.width, held[1] * win.screen.height)
+    }
+    // [ux, uy, length factor] for a shadow at output point (px, py), away from a lamp at (lx, ly); `fallback` at the lamp.
+    function awayFrom(lx, ly, px, py, fallback) {
+        var dx = px - lx, dy = py - ly, n = Math.hypot(dx, dy)
+        if (n < 1) return fallback
+        var k = Math.max(0.5, Math.min(2, 0.8391 * n / Math.max(1, Theme.lightHeight)))
+        return [dx / n, dy / n, k]
+    }
 }

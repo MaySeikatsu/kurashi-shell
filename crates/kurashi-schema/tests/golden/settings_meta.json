@@ -68,6 +68,44 @@
               "step": 2,
               "type": "int",
               "unit": "px"
+            },
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.popup_place.module",
+                  "value": "module"
+                },
+                {
+                  "label": "config.choice.popup_place.centre",
+                  "value": "centre"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "module",
+              "help": "config.bar.popups.help",
+              "key": "bar.popups",
+              "label": "config.bar.popups.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "choice"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "modules",
+              "control": "pick_list",
+              "couplings": [],
+              "default": [],
+              "help": "config.bar.popups_other.help",
+              "key": "bar.popups_other",
+              "label": "config.bar.popups_other.label",
+              "per_output": false,
+              "restart": false,
+              "since": 7,
+              "type": "string_list"
             }
           ]
         },

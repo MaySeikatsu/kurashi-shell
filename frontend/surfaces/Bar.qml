@@ -222,8 +222,11 @@ Scope {
             // ---- geometry: the body (the bar itself) inside the window ----
             // A floating bar's window reaches from its edge (margin 0, as a zone holder must: its margin would add to its
             // zone) and round the body by the look's shadow; a carrying bar's reaches past the bar by the frame's fillets.
-            readonly property int shadowRoom: bar.drawFloating && Theme.lifted
-                ? Math.ceil(Math.max(Math.abs(Theme.sinkX), Math.abs(Theme.sinkY), Theme.shadowDy) + Theme.softR) : 0
+            // (I338: and a floating bar's elevation, level 2 — Elevation.qml's reach)
+            readonly property int elevRoom: bar.drawFloating && Theme.elevationMode !== "off" && Theme.elevationStrength > 0
+                ? Math.ceil(Math.max(26 * Theme.elevationStrength, 12 * Theme.elevationStrength + 14 * Math.max(0.5, Theme.elevationStrength))) + 2 : 0
+            readonly property int shadowRoom: Math.max(elevRoom, bar.drawFloating && Theme.lifted
+                ? Math.ceil(Math.max(Math.abs(Theme.sinkX), Math.abs(Theme.sinkY), Theme.shadowDy) + Theme.softR) : 0)
             readonly property int edgeRoom: bar.drawFloating ? bar.inset : 0
             readonly property int awayRoom: shadowRoom
             readonly property int startRoom: Math.min(shadowRoom, bar.startOff)
@@ -255,7 +258,19 @@ Scope {
             function liftOn(e) { return e === bar.edge ? ownLift : IslandGeom.liftOf(bar.outName, e) }
             // Where the cut stands on edge `e` now, from the screen's edge: its band, a docked bar's thickness, less its lift.
             function cutOf(e) { return bar.bandBeside(e) + (FG.docked(bar.lay, e) ? bar.barH : 0) - liftOn(e) }
-            readonly property int thick: edgeRoom + bar.barH + awayRoom + carryDepth
+            // I338 (K78 decision 4): a docked bar is the sheet's edge and casts the sheet's shadow into the hole, short-reached,
+            // in its own room on the inner side (components/SheetShadow.qml); with the frame the hole and who paints which
+            // part of it are the frame's (FG.hole, FG.shadowOwn), without it the hole is the screen beyond the bar.
+            readonly property int sheetRoom: bar.drawFloating ? 0 : Theme.sheetReach
+            readonly property var sheetHole: {
+                if (bar.carries && g !== null) return FG.hole(g)
+                var far = 100000, sw = bar.scr ? bar.scr.width : 0, sh = bar.scr ? bar.scr.height : 0, d = bar.inset + bar.barH
+                return [bar.edge === "left" ? d : -far, bar.edge === "top" ? d : -far,
+                        bar.edge === "right" ? sw - d : sw + far, bar.edge === "bottom" ? sh - d : sh + far, 0]
+            }
+            readonly property rect sheetOwn: bar.carries && g !== null ? FG.shadowOwn(g, sheetRoom)[bar.edge]
+                : Qt.rect(-100000, -100000, 200000, 200000)
+            readonly property int thick: edgeRoom + bar.barH + awayRoom + carryDepth + sheetRoom
             // The side bar's start and end on the output: a holder is placed inside the zones of the holders mapped before it
             // (the top and bottom bars or the frame's strips; shell.qml's order), so its margins count from there.
             readonly property int zoneBeforeTop: bar.vertical && bar.holdsZone ? Light.zoneOf(win, "top") : 0
@@ -395,6 +410,15 @@ Scope {
                 }
             }
 
+            SheetShadow {
+                anchors.fill: parent
+                x0: win.sheetHole[0]; y0: win.sheetHole[1]; x1: win.sheetHole[2]; y1: win.sheetHole[3]; radius: win.sheetHole[4]
+                origin: win.sheetOrigin
+                own: win.sheetOwn
+                // (a sliding bar's shadow goes with it; the band a carrying bar leaves stays)
+                opacity: bar.carries ? 1 : Math.min(1, bar.shownAmt)
+            }
+
             Item {
                 id: body
                 // At rest: past the edge room, the start room and (bottom, right) the carried depth.
@@ -438,6 +462,14 @@ Scope {
                     readonly property bool floatingGroups: Theme.groups && Theme.lifted && !bar.vertical
                     readonly property bool clearStrip: floatingGroups && !bar.drawFloating && !bar.frameOn
                     readonly property bool live: bar.shownAmt > 0
+
+                    // I338: a floating bar stands off the sheet at level 2 (its shadow from the shell's light).
+                    Elevation {
+                        visible: bar.drawFloating
+                        anchors.fill: parent
+                        radius: Math.min(width, height) / 2
+                        level: 2
+                    }
 
                     Rectangle {
                         id: bg

@@ -22,11 +22,17 @@ category = "inspired"
 
 [slots]
 start = "fluent"
+# 11's caption (WinUI TitleBar): drawn only where the title-bar switch is on; the fluent style ships it off.
+title = "fluent"
 slider = "fluent"
 lock = "curtain"
 sounds = "fluent"
 
 [decor]
+# The caption (when switched on): WinUI's 32 px TitleBar, Caption type (12 px, regular).
+"title.height" = 32
+"title.size" = 12
+"title.weight" = 400
 # Controls 4 px within 8 px flyouts: the step radii as fractions of the look's radius (shape.sm, shape.md); the quick
 # settings' tiles 4 px too. Controls lie flat with their 1 px stroke: only the flyouts cast a shadow.
 "shape.sm" = 0.5

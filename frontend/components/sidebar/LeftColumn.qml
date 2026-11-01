@@ -4,6 +4,7 @@ import "../../core"
 import "../../core/mods.js" as Mods
 import ".."
 import "../island"
+import "../decor" as Decor
 
 // The left sidebar's column (docs/ux/sidebar.md; ii `sidebarLeft/SidebarLeftContent.qml`: a tab bar over the panes):
 // one tab per `sidebar.left.sections` entry `mod:<id>:<panel>` whose mod is on and has that panel, the tab bar on top, the panel
@@ -84,6 +85,15 @@ Item {
                 onClicked: lc.current = index
             }
         }
+    }
+    // The look's scroll bar over the list's end edge (the `scroll` slot; nothing without a part, I332).
+    Decor.ScrollHost {
+        z: 1
+        flick: pane
+        visible: shown && pane.visible
+        x: pane.x + pane.width - width
+        y: pane.y
+        stepPx: 40
     }
     // The tab's panel.
     Flickable {

@@ -231,6 +231,9 @@ for c in ${JOIN_CASES:-$ORDER}; do
   [ -n "$spec" ] || fail "unknown case $c"
   read -r edge keep rest <<<"$spec"
   IFS='|' read -r -a lines <<<"$rest"
+  # (K82: washi follows the light and the sheet casts into the cut; the outline checks read lines, so the shadows are
+  # off here — test-frame checks the sheet's shadow, the shots on niri the cards'.)
+  lines+=('theme.material.elevation = "off"')
   run_case "$c" "$edge" "$keep" "${lines[@]}"
 done
 echo "test-island-join: ok"

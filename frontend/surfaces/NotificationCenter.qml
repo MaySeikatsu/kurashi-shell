@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import "../core"
 import "../components"
 import "../components/launcher"
+import "../components/decor" as Decor
 
 // Notification center: content-sized overlay, shown while the daemon's runtime.ui.panel is "notifications" (opened by
 // the island `notifications` face, `notifications.center`). Unmapped while closed: nothing is rendered.
@@ -229,6 +230,15 @@ PanelWindow {
                 }
             }
 
+            // The look's scroll bar over the list's end edge (the `scroll` slot; nothing without a part, I332).
+            Decor.ScrollHost {
+                z: 1
+                flick: list
+                visible: shown && list.visible
+                x: list.x + list.width - width
+                y: list.y
+                stepPx: 40
+            }
             Flickable {
                 id: list
                 visible: win.items.length > 0

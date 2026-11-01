@@ -32,6 +32,22 @@ Thickness of every bar in logical pixels (its width on a left or right edge), an
 - range: `16..=96`, step `2` (px)
 - per-output
 
+#### `bar.popups` — Cards open
+
+Where the card a bar module opens comes out: under the module that was clicked, or at the bar's centre, under the island.
+
+- type: `choice` · default: `"module"`
+- choices: `"module"` | `"centre"`
+- since schema v7
+
+#### `bar.popups_other` — Modules that open the other way
+
+These modules' cards open at the bar's centre while cards open under their module, or under their module while cards open at the centre.
+
+- type: `string_list` · default: `[]`
+- choices: from `modules` (resolved at runtime)
+- since schema v7
+
 ### Frame
 
 #### `layout.frame.enabled` — Screen frame

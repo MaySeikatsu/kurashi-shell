@@ -1,6 +1,7 @@
 import QtQuick
 import "../../core"
 import ".." as C
+import "../island" as Isl
 
 // Loads one zone entry (`runtime.layout` zones, K72: `{id, kind: core|mod, mod?, provide?}`) as its module: a core one by
 // id (this directory), a mod's glance through ModLoader (ModWidget). An id it does not know draws nothing (the daemon
@@ -46,7 +47,7 @@ Item {
     Accessible.role: keys ? Accessible.Button : Accessible.NoRole
     Accessible.name: keys ? a11yName : ""
     Accessible.focusable: activeFocusOnTab
-    function activate() { if (item) item.activate() }
+    function activate() { if (item) { Isl.IslandGeom.notePress(output, mid); item.activate() } }
     Keys.onReturnPressed: activate()
     Keys.onEnterPressed: activate()
     Keys.onSpacePressed: activate()
@@ -55,6 +56,20 @@ Item {
         anchors.margins: 1
         corner: Theme.rSm
         shown: host.activeFocus
+    }
+
+    // I340: every module on a top or bottom bar is an origin a card can come out of (`module:<id>`), and says when it is
+    // pressed (a passive point handler: the module's own handlers keep the press), so the card a press opens comes out
+    // under it, or at the bar's centre (`bar.popups`, `bar.popups_other`; Stage.qml).
+    Isl.AnchorReport {
+        target: host
+        key: host.mid !== "" ? "module:" + host.mid : ""
+        output: host.output
+        enabled: !host.vertical && host.present
+    }
+    PointHandler {
+        acceptedButtons: Qt.AllButtons
+        onActiveChanged: if (active) Isl.IslandGeom.notePress(host.output, host.mid)
     }
 
     readonly property var core: ({

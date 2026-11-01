@@ -102,6 +102,22 @@ shoot() { # shoot <decor> <name>: the screen (half size), and each bar's edge at
 }
 pixel() { grim -t ppm -g "$1,$2 1x1" - | tail -c 3 | od -An -tu1 | xargs; }
 BG="143 184 200"
+# I338 (K82): the background, or a shadow cast on it (each channel no lighter than the background's): not a bar's fill.
+bg_or_shade() { local p=($1) b=($BG); [ ${#p[@]} = 3 ] && [ ${p[0]} -le $((b[0] + 3)) ] && [ ${p[1]} -le $((b[1] + 3)) ] && [ ${p[2]} -le $((b[2] + 3)) ]; }
+# I338 (K82): a docked bar's window keeps room on its inner side for the sheet's shadow (Theme.sheetReach; 0 with elevation
+# off): its outer edge, its start and its length are the bar's, its thickness the bar's plus that room (at most 40 px).
+# bar_is "<x y w h shown>" <edge> <x y w h of the bar itself>
+bar_is() {
+  local g=($1) e=$2 x=$3 y=$4 w=$5 h=$6 r=0
+  [ "${g[4]:-}" = shown ] || return 1
+  case $e in
+    top) r=$((g[3] - h)); [ "${g[0]}" = "$x" ] && [ "${g[1]}" = "$y" ] && [ "${g[2]}" = "$w" ] || return 1 ;;
+    bottom) r=$((g[3] - h)); [ "${g[0]}" = "$x" ] && [ "${g[1]}" = $((y - r)) ] && [ "${g[2]}" = "$w" ] || return 1 ;;
+    left) r=$((g[2] - w)); [ "${g[0]}" = "$x" ] && [ "${g[1]}" = "$y" ] && [ "${g[3]}" = "$h" ] || return 1 ;;
+    right) r=$((g[2] - w)); [ "${g[0]}" = $((x - r)) ] && [ "${g[1]}" = "$y" ] && [ "${g[3]}" = "$h" ] || return 1 ;;
+  esac
+  [ $r -ge 0 ] && [ $r -le 40 ]
+}
 # The last logged place of module `id`: "<edge> <zone> x0 y0 x1 y1", or "" when no bar shows it.
 zone_of() {
   wait_settled 0.8 0.3   # (was a fixed 0.8 s)
@@ -177,7 +193,7 @@ if want zones; then
     expect_zone clock top end "$d top+bottom"
     expect_zone volume bottom start "$d top+bottom"
     w=$(bar_win bottom); say "$d top+bottom: bottom bar window $w"
-    case "$w" in "0 $((SH - BARH)) $SW $BARH shown") ;; *) fail "$d top+bottom: the bottom bar's window is '$w'" ;; esac
+    bar_is "$w" bottom 0 $((SH - BARH)) $SW $BARH || fail "$d top+bottom: the bottom bar's window is '$w'"
 
     # A module moved to another zone of another bar: the clock from the top's end to the bottom's center.
     mark moved
@@ -196,7 +212,7 @@ if want zones; then
     expect_zone island left center "$d left"
     expect_zone clock left end "$d left"
     w=$(bar_win left); say "$d left: window $w"
-    case "$w" in "0 0 $BARH $SH shown") ;; *) fail "$d left: the bar's window is '$w', not 0 0 $BARH $SH" ;; esac
+    bar_is "$w" left 0 0 $BARH $SH || fail "$d left: the bar's window is '$w', not 0 0 $BARH $SH (and its shadow's room)"
 
     # Three edges: top, bottom and a right bar between them.
     reset_layout
@@ -206,7 +222,7 @@ if want zones; then
       'edges.right.end=["tray","recorder","keyboard","sidebar_right"]'
     shoot "$d" three
     w=$(bar_win right); say "$d three: right window $w"
-    case "$w" in "$((SW - BARH)) $BARH $BARH $((SH - 2 * BARH)) shown") ;; *) fail "$d three: the right bar's window is '$w'" ;; esac
+    bar_is "$w" right $((SW - BARH)) $BARH $BARH $((SH - 2 * BARH)) || fail "$d three: the right bar's window is '$w'"
     expect_zone volume bottom end "$d three"
 
     # All four edges: the horizontal bars own the corners, the side bars run between them.
@@ -220,7 +236,7 @@ if want zones; then
     for e in left right; do
       w=$(bar_win $e); say "$d four: $e window $w"
       x=$([ $e = left ] && echo 0 || echo $((SW - BARH)))
-      case "$w" in "$x $BARH $BARH $((SH - 2 * BARH)) shown") ;; *) fail "$d four: the $e bar's window is '$w', not $x $BARH $BARH $((SH - 2 * BARH))" ;; esac
+      bar_is "$w" $e $x $BARH $BARH $((SH - 2 * BARH)) || fail "$d four: the $e bar's window is '$w', not $x $BARH $BARH $((SH - 2 * BARH)) (and its shadow's room)"
     done
     expect_zone volume left end "$d four"
     window_rect; say "$d four: test window at $rect"
@@ -245,7 +261,7 @@ if want draw; then
         w=$(bar_win top); say "$d $mode, frame $fr: top window $w"
         if [ $mode = floating ]; then
           # A pill `inset` from its edge: the screen's top rows and its first columns show what is under the bar.
-          [ $fr = off ] && { [ "$(pixel $((SW / 2)) 2)" = "$BG" ] || fail "$d floating: the bar reaches the screen's edge"; }
+          [ $fr = off ] && { bg_or_shade "$(pixel $((SW / 2)) 2)" || fail "$d floating: the bar reaches the screen's edge"; }
           band=0; [ $fr = on ] && band=8
           [ "$(pixel $((SW / 2)) $((8 + band + BARH / 2)))" != "$BG" ] || fail "$d floating, frame $fr: no bar where the pill stands"
         elif [ "$d" != sekai ] || [ $fr = on ]; then

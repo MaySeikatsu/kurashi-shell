@@ -246,6 +246,26 @@ pub struct Bar {
     /// Thickness of every bar in logical pixels (its width on a left or right edge), and of an edge's modules.
     #[kurashi(default = 32, range = 16..=96, step = 2, unit = "px", per_output)]
     pub height: u32,
+    /// Cards open
+    /// Where the card a bar module opens comes out: under the module that was clicked, or at the bar's centre, under
+    /// the island.
+    #[kurashi(default = PopupPlace::Module, since = 7)]
+    pub popups: PopupPlace,
+    /// Modules that open the other way
+    /// These modules' cards open at the bar's centre while cards open under their module, or under their module while
+    /// cards open at the centre.
+    #[kurashi(default = strings(&[]), choices_from = "modules", since = 7)]
+    pub popups_other: Vec<String>,
+}
+
+/// Where a bar module's card comes out (I340; Noctalia's "panel position": at the widget or centred).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, KurashiSchema)]
+#[kurashi(i18n = "popup_place")]
+pub enum PopupPlace {
+    /// Under the module
+    Module,
+    /// At the bar's centre
+    Centre,
 }
 
 /// The top bar's zones: the left sidebar's button, the workspaces and the window list; the island; then the volume,

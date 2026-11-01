@@ -132,3 +132,24 @@ function side(g, left) {
     }
     return { x: x, y0: y0, y1: y1, w: Math.max(1, bw), fills: fills, rules: rules }
 }
+
+// I338: the hole the sheet's shadow falls into, [x0, y0, x1, y1, radius] in output px. An edge with no sheet (no band,
+// no docked bar) lies far off, so nothing casts from the screen's edge there.
+function hole(g) {
+    var far = 100000, o = g.o
+    return [o.left > 0 ? o.left : -far, o.top > 0 ? o.top : -far,
+            o.right > 0 ? g.sw - o.right : g.sw + far, o.bottom > 0 ? g.sh - o.bottom : g.sh + far, g.r]
+}
+// Who paints which part of the hole's shadow (output rects {x, y, width, height}): the top and bottom windows (strips, or
+// bars that carry them) down to their depth plus `room`, which is where their windows end; the side windows between them,
+// split down the middle. One owner per pixel: no seam, no double darkness.
+function shadowOwn(g, room) {
+    var W = g.sw, H = g.sh
+    var t = Math.ceil(across(g, true).d) + room, b = H - Math.ceil(across(g, false).d) - room
+    return {
+        top: Qt.rect(0, 0, W, t),
+        bottom: Qt.rect(0, b, W, H - b),
+        left: Qt.rect(0, t, Math.floor(W / 2), Math.max(0, b - t)),
+        right: Qt.rect(Math.floor(W / 2), t, W - Math.floor(W / 2), Math.max(0, b - t))
+    }
+}
