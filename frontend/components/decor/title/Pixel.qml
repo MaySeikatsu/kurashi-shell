@@ -166,7 +166,7 @@ TitleBase {
                 }
                 Cells {
                     visible: b.isClose && cap.heart
-                    px: Math.max(1, Math.round(cap.p / 2))
+                    px: Math.max(1, Math.round(cap.btn / 10))
                     anchors.centerIn: parent
                     anchors.verticalCenterOffset: (hit.pressed ? cap.p : 0) - Math.round(cap.btn * 0.08)
                     cells: cap.crossCells
