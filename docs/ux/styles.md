@@ -947,8 +947,9 @@ outlined keys 20 px on a 24 px pitch, the grey inactive band, the violet–mint�
 `border.line`), the mint selection band, the pale orchid taskbar with its white line and the violet-outlined START box
 (new `start/Tab` with `start.fill`), speech-bubble tooltips, the orchid desk with stepping dashes on the lock, a
 pink-on-white-and-violet pointer, chip cues. Differs: the close key is a pixel heart (the brief's wish; the game's is a
-square ×); the desk's dashes are on the lock only (the shell does not own the wallpaper); captions at 16 px make quick
-settings' second lines wrap (the pixel step lifts every size to 16); the game's 4:3 pillarbox is not imitated; the pixel
+square ×); the desk's dashes are on the lock only (the shell does not own the wallpaper); the type is DotGothic16 drawn
+unsmoothed at the shell's sizes (13 px body, its exact 16-dot grid only under large text) — a 16 px step wrapped quick
+settings and doubled to 32 under large text (lead review); quick tiles now grow with their type and never draw text outside; the game's 4:3 pillarbox is not imitated; the pixel
 logo on START is our heart.
 
 ### 9.2 yorha — NieR:Automata's menus
@@ -1125,10 +1126,12 @@ over the fast time.
 **Not copied.** The game's logo, its knight and every sprite, the menu pointer sprite, Trajan and Perpetua, its sounds. Ours:
 an original fleur (Bullet.qml) and ornament (Filigree.qml), CC0 glassy tings and a music-box pair.
 
+**Lead review (W53.6).** The launcher was a generic dark list in a boxed panel (`desk-launcher-before.png`); now (`desk-launcher.png`) its rows are centred serif lines without boxes (`menu.align = center`), the icons dimmed and small (`menu.icons = dim`), the fleurs in room of their own at both ends (`menu.lead`/`menu.trail`: they never cover text; no Enter hint under centred rows), the field a line under the query (W53.5's `field.form = underline`) and the start menu a veil with an ornament over and under it (`start.skin = veil`). Cormorant reads a size small: `type.scale = 1.15`; the calendar's days take lining figures (an old-style "1" was an x-height stroke on today's white key).
+
 **Built (W53.6) and still differs.** Matches: white serif type on near-black with a blue haze, engraved capitals for headers,
 an ornament rule under headers and around the lock's field, pointers either side of the selected row, quiet fades.
 Differs: our fleurs and ornaments are simpler than the game's corner curls and crests; the selection pointer is unmeasured;
-the fleurs at a launcher row's end overlap its "↵ Open" hint; the card's frame is a 1 px hairline where the game draws
+the launcher's footer keys (Lock, Session menu) are still boxed; the card's frame is a 1 px hairline where the game draws
 heavy corner filigree.
 
 ---

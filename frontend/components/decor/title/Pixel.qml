@@ -16,7 +16,8 @@ TitleBase {
     id: cap
     property bool full: false
 
-    readonly property int p: Math.max(1, Theme.decor("pixel", 2))
+    // The art pixel: the look's `pixel` grid where it has one, else 2 px (the pastel desktop's, measured).
+    readonly property int p: Theme.decor("pixel", 0) > 0 ? Theme.decor("pixel", 0) : 2
     readonly property var fills: Theme.decor(active ? "title.fill" : "title.fill_inactive", [])
     readonly property color from: fills.length > 0 ? fills[0] : Theme.containerHigh
     readonly property color to: fills.length > 1 ? fills[1] : from

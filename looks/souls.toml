@@ -85,3 +85,5 @@ sounds = "souls"
 "cursor" = "souls"
 # Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
 "quick.frame" = "flyout"
+# Cormorant's small x-height set a step larger (lead review).
+"type.scale" = 1.1
