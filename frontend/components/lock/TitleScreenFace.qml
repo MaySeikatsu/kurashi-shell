@@ -111,18 +111,19 @@ FaceBase {
         Rectangle { x: parent.cut; width: parent.width - 2 * parent.cut; height: parent.height; color: parent.fill; antialiasing: false }
         Rectangle { y: parent.cut; width: parent.width; height: parent.height - 2 * parent.cut; color: parent.fill; antialiasing: false }
     }
-    // The RPG window: a dark outline 1 g, a white border 2 g, every corner stepped by one grid pixel, the fill in hard
-    // bands (or one solid fill; `grey`: offline, two grey bands). Its size grows with `open` (0..1) about its centre.
+    // The RPG window: the snes frame's rings (frames/Snes.qml: a dark outline, then white, light grey and dark grey — Final
+    // Fantasy VI's dialogue frame — one grid pixel each), every corner stepped by one grid pixel, the fill in hard bands
+    // (`fill.band_h` grid pixels each), black in high contrast (no bands); `grey`: offline, two grey bands. Its size grows with `open` (0..1) about its centre.
     component RpgWindow: Item {
         id: w
         property real open: 1
         property int fullW: 0
         property int fullH: 0
         property bool grey: false
-        readonly property int n: grey ? 2 : (c.banded ? Theme.fillBands : 1)
+        readonly property int n: grey ? 2 : (c.banded ? Theme.bandCount(fillArea.height, c.g) : 1)
         function greyed(col) { return Qt.hsla(col.hslHue, 0, col.hslLightness, 1) }
         function band(i) {
-            if (!c.banded && !grey) return Theme.container
+            if (!c.banded && !grey) return Theme.surface
             var a = c.banded ? Theme.bandTop : Theme.container
             var b = c.banded ? Theme.bandBottom : Qt.darker(Theme.container, 1.5)
             var t = n <= 1 ? 0 : i / (n - 1)
@@ -134,10 +135,12 @@ FaceBase {
         visible: open > 0
         Notched { anchors.fill: parent; fill: c.lineInk }
         Notched { anchors.fill: parent; anchors.margins: c.g; fill: c.white }
+        Notched { anchors.fill: parent; anchors.margins: 2 * c.g; fill: Theme.color("color.outline", "#b8b8b8") }
+        Notched { anchors.fill: parent; anchors.margins: 3 * c.g; fill: Theme.color("color.outline_variant", "#606868") }
         Item {
             id: fillArea
             anchors.fill: parent
-            anchors.margins: 3 * c.g
+            anchors.margins: 4 * c.g
             clip: true
             Repeater {
                 model: w.n
@@ -150,7 +153,7 @@ FaceBase {
                     antialiasing: false
                 }
             }
-            // The fill's own corners stepped too (the border's white shows through).
+            // The fill's own corners stepped too (the frame's inner ring shows through).
             Repeater {
                 model: 4
                 Rectangle {
@@ -158,7 +161,7 @@ FaceBase {
                     x: index % 2 === 0 ? 0 : fillArea.width - c.g
                     y: index < 2 ? 0 : fillArea.height - c.g
                     width: c.g; height: c.g
-                    color: c.white
+                    color: Theme.color("color.outline_variant", "#606868")
                     antialiasing: false
                 }
             }
