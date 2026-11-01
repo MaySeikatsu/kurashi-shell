@@ -24,6 +24,7 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 use serde_json::Value;
 
@@ -851,14 +852,7 @@ pub fn user_dir(kind: Kind) -> Option<PathBuf> {
 /// Every pack of a kind: the bundled ones in their order, then the ones in `dirs` (a pack of the same name replaces
 /// the bundled one in place). Unreadable or invalid files are skipped with a warning.
 pub fn all_in(kind: Kind, dirs: &[PathBuf]) -> Vec<Pack> {
-    let bundled = match kind {
-        Kind::Look => BUNDLED_LOOKS,
-        Kind::Style => BUNDLED_STYLES,
-    };
-    let mut out: Vec<Pack> = bundled
-        .iter()
-        .filter_map(|(n, src)| parse(kind, src, n, true).ok())
-        .collect();
+    let mut out: Vec<Pack> = bundled(kind).to_vec();
     for dir in dirs {
         let Ok(rd) = std::fs::read_dir(dir) else {
             continue;
@@ -888,6 +882,22 @@ pub fn all_in(kind: Kind, dirs: &[PathBuf]) -> Vec<Pack> {
         }
     }
     out
+}
+
+/// The bundled packs of a kind, parsed once: they are compiled in, and every apply looks a style up (W53's packs made a
+/// parse of all of them cost ~20 ms in release, ~0.8 s in a debug build).
+fn bundled(kind: Kind) -> &'static [Pack] {
+    static LOOKS: OnceLock<Vec<Pack>> = OnceLock::new();
+    static STYLES: OnceLock<Vec<Pack>> = OnceLock::new();
+    let (cell, src) = match kind {
+        Kind::Look => (&LOOKS, BUNDLED_LOOKS),
+        Kind::Style => (&STYLES, BUNDLED_STYLES),
+    };
+    cell.get_or_init(|| {
+        src.iter()
+            .filter_map(|(n, s)| parse(kind, s, n, true).ok())
+            .collect()
+    })
 }
 
 fn warn(path: &Path, e: &str) {
