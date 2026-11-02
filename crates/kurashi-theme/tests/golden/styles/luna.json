@@ -443,7 +443,7 @@
       "tier": "mesh"
     },
     "crt": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "flash"
@@ -508,7 +508,7 @@
       "tier": "layer"
     },
     "drop": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [],
       "overshoot": false,
@@ -634,7 +634,7 @@
       "tier": "mesh"
     },
     "genie": {
-      "available": false,
+      "available": true,
       "family": "sheet",
       "flags": [
         "vestibular"
