@@ -104,16 +104,20 @@ qml_errors() {
 }
 # The session menu under the pill, below the bar's strip (the clock may turn between two shots).
 CROP="860,44 840x316"
-# act_settled <action…>: the action, then the panel's region changes (a first open makes its view first: I192) and settles.
+# act_settled <must> <action…>: the action, then the panel's region changes (a first open makes its view first: I192)
+# and settles. must = 0: a scrubbed open may hold the shape inside the bar's strip, where the region does not change.
 changed() { [ "$(screen_hash "$CROP")" != "$1" ]; }
 act_settled() {
-  local before; before=$(screen_hash "$CROP")
+  local must=$1 before; shift
+  before=$(screen_hash "$CROP")
   K act "$@" >/dev/null || fail "act $* failed"
-  wait_until 10 changed "$before" || fail "act $*: the panel's region did not change in 10 s"
+  if ! wait_until 10 changed "$before"; then
+    [ "$must" = 0 ] || fail "act $*: the panel's region did not change in 10 s"
+  fi
   wait_settled 8 0.8 "$CROP"
 }
-open_panel() { act_settled session.menu; }
-close_panel() { act_settled ui.close; }
+open_panel() { act_settled "${1:-1}" session.menu; }
+close_panel() { act_settled 1 ui.close; }
 shot() { grim -g "$CROP" "$OUT/$1.png"; }
 ae() { { magick compare -metric AE "$OUT/$1.png" "$OUT/$2.png" null: 2>&1 || true; } | awk '{print int($1)}'; }
 commits() { tail -c +"$(( $1 + 1 ))" "$2" | grep -cE 'wl_surface#[0-9]+\.commit\(' || true; }
@@ -126,7 +130,7 @@ for cs in $CASES; do
   for p in $SCRUBS; do
     start_fe "$R/qs-$tag-$p.log" KURASHI_MOTION_SCRUB="$p"
     wait_for "$R/qs-$tag-$p.log" "motion: scrub $p" 5 || fail "$tag: no 'motion: scrub $p' line"
-    open_panel
+    open_panel 0
     shot "$tag-$p"
     qml_errors "$R/qs-$tag-$p.log"
     # (the daemon keeps the panel open for the next frontend otherwise; a scrubbed close never lands, so no wait)
