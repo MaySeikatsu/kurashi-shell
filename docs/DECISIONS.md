@@ -1114,3 +1114,42 @@ level-2 shadow differed in 1 % of its pixels; the band under the bar cast nothin
   otherwise; the niri include kurashi already ships (`kurashi-binds.kdl`, Home-Manager or kurashid) now carries a
   `layer-rule` turning xray off for `^kurashi-` on the top and overlay layers (validated with `niri validate`, 26.04).
   Desk cards gained their blur region (they had none).
+
+## K83 — The motion engine: timing × form × choreography × accents, per surface, bundled as motion packs (2026-11-02, session 19; user, lead)
+Evidence: the user (session 19) asked to split motion into separately settable parts — curves, animation styles, profiles
+per style — with a dedicated motion menu and custom curves and styles, keeping today's motion. Today the axes are fused:
+`theme.motion.profile` picks kind + curves + springs together, and a look's `[decor] motion.*` (K80, W53.0a) overrides
+form and curves out of the user's reach and without provenance. Prior art read for the brief (`docs/ux/motion-engine.md`
+§2): Hyprland's named beziers + per-event style lines, Compiz's Animation plugin catalogue (Magic Lamp, Fold, Roll Up,
+Burn), KWin's effect plugins and global speed, niri's springs/easings and custom window shaders
+(https://github.com/YaLTeR/niri/wiki/Configuration:-Animations), SwiftUI's `duration + bounce` springs, Material 3
+Expressive's spatial/effects spring split (https://m3.material.io/styles/motion/overview), cubic-bezier.com/easings.net.
+- **Five axes.** *Timing* = a curve per role (open · close · fast · effects): cubic (segments) · spring(response, bounce)
+  · steps(n) · linear; the kind is derived from the curve, never a separate control. *Form* = what progress does to the
+  whole surface, per surface class and direction. *Choreography* = content timing (late · with · cascade), stagger,
+  origin, retarget. *Accents* = squash, jelly, overshoot cap, shadow during motion. *Speed* stays.
+- **Motion packs** (`motion/<id>.toml`, built-in and `$XDG_CONFIG_HOME/kurashi/motion/`) bundle all axes as a profile.
+  `theme.motion.profile` becomes a pack id (today's four values stay valid ids — no rename, no schema bump); a style's
+  recipe recommends one at its provenance layer (K53); per-axis user keys override (`theme.motion.timing.*`,
+  `theme.motion.form[.<surface>].{open,close}`, `theme.motion.{content,stagger_ms,squash,jelly,shadow}`; `""`/`-1` =
+  the profile's). Precedence: default < style's profile < user profile < user axis < a11y force.
+- **Looks stop carrying motion.** fluent, aqua, material, snes, ps2 and kawaii's `[decor] motion.*` move into packs of
+  the same names, referenced by their styles; the decor keys go (pack-side data, no user migration). Resolved tokens for
+  every style stay identical — the legacy `motion.timed.*`, `motion.spring.*`, `motion.kind`, `motion.style` remain,
+  derived from the new ones, until every surface reads the new tokens.
+- **Two form families.** Shape forms keep the live vector shape (join, neck, shadow, carried material, blur follow every
+  frame; retarget morphs). Sheet forms capture the card into one layer only while 0 < p < 1 and warp it (GridMesh vertex
+  shaders, fragment passes); the hinge stays on the bar, the static shadow fades out and the warp shades itself, a
+  translucent fill draws solid while warped and blur returns at rest; retarget finishes the form, then morphs.
+- **Today's springs bit-exact:** calm and lively become the internal curve kind `spring_q` (K42's SpringAnimation-unit
+  integrator), not re-fitted. User springs use the analytic `spring(response, bounce)` (mass 1, SwiftUI's mapping),
+  which maps 1:1 onto niri's `damping-ratio`/`stiffness`.
+- **Custom styles**: declarative recipes (tracks over progress, validated by the daemon, one generic evaluator) in user
+  packs; code forms only through QML-tier mods with precompiled `.qsb`; no raw GLSL in config.
+- **Ma and budget** as acceptance (brief §11): idle 0 frames/layers/timers; motion frame CPU p95 ≤ 8 ms; mesh GPU ≤ 4 ms;
+  sheet-form PSS ≤ +12 MiB, back to baseline within 2 s.
+- **The user's answers (session 19):** D1 reduce motion forces a `reduced` profile of short fades (≤ 150 ms, no movement,
+  no flash) instead of cuts. D2 sheet forms keep the hinge joined to the bar. D3 the island takes **every** form and
+  follows the default unless `theme.motion.island.follow` is off, then its own `form.island.*` (the form animates the
+  pill → card opening; faces and peeks keep K42's springs). D4 kami → origami, terminal → phosphor (CRT), aqua and
+  vibrancy → genie on the dock and toasts; washi unchanged; the other new packs ship as offers.

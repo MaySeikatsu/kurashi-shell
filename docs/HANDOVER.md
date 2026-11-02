@@ -17,6 +17,44 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-02 — session 19 (machine A): the motion engine planned (K83, W59); screenshot privacy audit
+**State:** `main` = the merge of `feat/s19-motion-engine` (docs: the plan; shots untracked). **History was rewritten**
+(user's choice, I345): every `*/shots/` path is gone from all commits (`git filter-repo`), and `main` plus the remote
+branches were force-pushed, so every SHA in older handover entries is now stale. The pre-rewrite backup is a bundle:
+`~/Projects/kurashi-shell-backup-2026-11-02.bundle`. **Machine B and every other clone must re-clone** (or
+`git fetch && git reset --hard origin/main` on a clean tree). One subagent ran (the user allowed one): the read-only
+screenshot audit.
+
+**Done:**
+- Motion engine planned with the user: brief `docs/ux/motion-engine.md` (prior art incl. Hyprland, Compiz, KWin, niri,
+  SwiftUI, M3 Expressive; five axes timing × form × choreography × accents × speed; motion packs; 25 forms in two
+  families — shape and sheet; curve presets and the custom curve syntax; the Motion page and curve editor; engine
+  architecture; budget), K83 with the user's answers (D1 reduce motion = short fades via a `reduced` profile; D2 sheet
+  forms keep the hinge joined; D3 the island takes every form and follows the default unless `theme.motion.island.follow`
+  is off; D4 kami → origami, terminal → phosphor (CRT), aqua/vibrancy → genie on dock and toasts, washi unchanged).
+- Cards `docs/tasks/W59-motion-engine.md` (waves + **frozen contract**: schema keys, token shapes, pack format, frontend
+  interfaces) and W59.0–W59.9. BACKLOG I346–I350. PROGRESS S19.1.
+- Screenshots (I345): the audit found the user's prompt and hostname, the real sysmon process list, the wallpaper folder
+  and the installed-app list in committed shots. They are now gitignored (`**/shots/`; `tools/golden/ref*/` and
+  `archive/` stay tracked), purged from history and force-pushed. The shots stay on disk for reviews. Card W60 removes
+  the root cause: the sandbox keeps the real HOME and XDG dirs.
+
+**Next steps (ordered):**
+1. W60 (sandbox isolation) before the next shot-heavy card. Until it lands, don't share sandbox shots outside this machine.
+2. W59.0 (lead): the contract exactly as `W59-motion-engine.md` says; push `main`; then spawn W59.1 ∥ W59.2.
+3. W59.3 ∥ W59.6, then W59.4 → W59.5, then W59.7 ∥ W59.8, then W59.9 (user verdicts on origami, phosphor, genie).
+4. Implementation goes on `feat/w59-motion-engine` (the cards merge into it). When W59.9 passes, open **one PR** from
+   it to `main` (the user asked for a PR once the feature is finished). PR body ends with the Claude Code line, and
+   commits carry no AI attribution (CLAUDE.md).
+
+**Open decisions:** none for W59.0–W59.6. Later: which offer packs (sumi, pop, liquid, glitch, ember, outline, pudding)
+any style should recommend — in the style review (I336).
+
+**Risks:** sheet forms capture a card into a layer while moving — PSS and GPU budget per form must be measured on B's iGPU
+(brief §11); niri's grammar for `custom-shader` and `cubic-bezier` must be validated against the installed niri (W59.9).
+
+---
+
 ## 2026-11-01 — session 18, part 3 (machine A, the user at their niri): depth across the shell, joins, popups — K82
 **State:** branch `feat/s18-depth-and-joins` (merged into `main` with `--no-ff` once `just check` and `just suites`
 pass on it; see the merge commit). `main` was pushed at a774738f at the start of this part (user's go-ahead); the work
@@ -206,36 +244,5 @@ check (`apps-wrapped`).
 **Risks:** Settings now shares the shell's Theme file — a Theme change reaches both apps (Settings-only members are at
 the end of it). Schema v7 keys were renamed on this branch before release (`frame_outline_ink/stroke` → `outline_ink`
 and `pen.line = sketch`); a config that set the old keys on the branch reads them as unknown.
-
----
-
-## 2026-10-29 — session 17, part 2 (machine A): the user's niri review, schema v7, the test workflow — K77
-**State:** `feat/w54-schema-v7` (one subagent, card W54) and `feat/s17-review-fixes` merged into `main` (`--no-ff`), **not
-pushed** (push when the user agrees; part 1 and session 16's merges are unpushed too). `nix build .#kurashi` run on the
-merged `main` (306 s: Rust changed, deps cached). Config files migrate to schema v7 on the daemon's first start.
-
-**User rules (new, in CLAUDE.md and memory):** niri is the lead platform for every visual check
-(`tools/bench/niri-sandbox.sh`: niri nested in the invisible sway sandbox, real blur); suites run in parallel with
-`just suites` (`--changed` while iterating; a failure re-runs alone, only that counts) — never one by one.
-
-**Merged (K77):** blur regions from numbers following the drawn shape (morph cards, peeks, dock/sidebar slides, dock
-tooltip/menu, task list popups) · the dock's overshoot keeps its foot on the band · the frame draws joined fillets' tails
-on its rule row; a docked bar carries the frame's rule over its body · schema v7: Solid/Translucent (+ blur, default off),
-`theme.shape.squircle` → `shape.squircle_k`, `theme.frame_outline` → `frame.outline` (auto: keycap, line), hover sidebars
-keep space only while out (`reserve_open`) · idle fixes: zones as int properties, PenOutline repaints on content.
-**Verified:** merge set via `just suites` (28 min wall vs ~81 serial), frame alone incl. idle, pen ×2, look, `just check`
-(1254 tests); on nested niri: every fix above by screenshots/pixel dumps, old code reproducing each bug first; Settings
-shows the new controls.
-
-**Next steps (ordered):**
-1. The user's live check on niri of K77 (blur on the real wallpaper, the sidebar band while sliding — I296 not
-   reproduced after the region fix —, dock texture after a Sheet change — I298 not reproduced, mask re-grab is a guess —,
-   keycap frame outline weight I305).
-2. W55 (fast suites: condition waits, motion off, fewer restarts, idle window) — card ready.
-3. W53 styles (UX brief first); I294 (looks/styles/palettes at run time) first if style edits pile up.
-4. The rest of I269, I288, I280, I284/I285; I304 (layer stacking by map order), I306 (mock tokens), I308 (pen idle flake).
-
-**Risks:** blur default changed to off (translucent looks without a blur key stay unblurred; a user file with
-`blur = true`, no kind and a translucent look now blurs — see K77). Tracked screenshots were regenerated by the suites.
 
 ---

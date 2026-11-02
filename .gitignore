@@ -10,3 +10,8 @@ tools/bench/results/
 .claude/worktrees/
 shots-sandbox/
 .claude/settings.local.json
+
+# Review screenshots stay local (I345): sandbox shots can show real data. `tools/golden/ref*/` (read by `just golden`)
+# is not under a shots dir and stays tracked; the frozen bakeoff archive keeps its own.
+**/shots/
+!archive/bakeoff-probes/*/shots/
