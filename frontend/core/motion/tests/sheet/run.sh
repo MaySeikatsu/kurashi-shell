@@ -10,6 +10,8 @@
 # Shots: frontend/shots/motion/sheet/<form>-<scene>-<p>.png (gitignored; read them).
 #   nix develop -c frontend/core/motion/tests/sheet/run.sh
 #   SHEET_CASES="fold:panel roll:sidebar" SHEET_PS="0.3 0.7" nix develop -c frontend/core/motion/tests/sheet/run.sh
+#   a look, a scheme and a scale (W59.8: the variants are shot into their own folders with SHEET_OUT):
+#   SHEET_STYLE=washi SHEET_SCHEME=dark SHEET_SCALE=1.5 SHEET_OUT=$PWD/frontend/shots/motion/sheet-washi-dark-1.5 …
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -17,8 +19,13 @@ ROOT=$(cd "$HERE/../../../../.." && pwd)
 NAME=${KURASHI_SB_PREFIX:-}w59-sheet
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHEET_OUT:-$ROOT/frontend/shots/motion/sheet}
-CASES=${SHEET_CASES:-fold:panel fold:bottom fold:launcher roll:sidebar roll:right book:panel crumple:launcher crumple:toast}
+CASES=${SHEET_CASES:-fold:panel fold:bottom fold:launcher roll:sidebar roll:right book:panel crumple:launcher crumple:toast fan:panel fan:bottom fan:launcher fan:leftpanel noren:panel noren:sidebar noren:toast}
 PS=${SHEET_PS:-0.15 0.5 0.85}
+# The look (theme.style), the scheme (light | dark | empty = the config's) and the output's scale (1 or 1.5, the 1.5 output
+# being 2880×1620 at scale 1.5 — the same 1920×1080 logical screen the regions are written in).
+STYLE=${SHEET_STYLE:-kami}
+SCHEME=${SHEET_SCHEME:-}
+SCALE=${SHEET_SCALE:-1}
 mkdir -p "$OUT"
 fail() { echo "sheet: $*" >&2; exit 1; }
 
@@ -58,18 +65,23 @@ env DBUS_SYSTEM_BUS_ADDRESS="unix:path=$R/no-system-bus" \
 pids+=("$!")
 wait_until 10 K ping || fail "kurashid did not come up (see $R/server.log)"
 # (the scenes' regions are on a 1920×1080 output)
-swaymsg output '*' resolution 1920x1080 >/dev/null 2>&1 || true
+if [ "$SCALE" = 1.5 ]; then
+  swaymsg output '*' resolution 2880x1620 scale 1.5 >/dev/null 2>&1 || true
+else
+  swaymsg output '*' resolution 1920x1080 >/dev/null 2>&1 || true
+fi
 swaymsg output '*' bg '#8fb8c8' solid_color >/dev/null 2>&1 || true
 
 ipc() { timeout 10 qs ipc -p "$H" call sheet "$@"; }
 # The scenes' regions (the harness's card rects, with room for what a form draws past them).
 region() {
   case $1 in
-    panel|bottom) echo "540,0 680x1080" ;;
-    launcher) echo "560,0 800x600" ;;
+    panel|bottom) echo "200,0 1320x1080" ;;
+    launcher) echo "300,0 1320x800" ;;
     sidebar) echo "0,0 420x1080" ;;
     right) echo "1500,0 420x1080" ;;
     toast) echo "1300,0 620x200" ;;
+    leftpanel) echo "0,0 700x1080" ;;
   esac
 }
 shot() { grim -g "$1" "$OUT/$2.png"; }
@@ -86,6 +98,8 @@ surface_of() { case $1 in sidebar|right) echo sidebar ;; toast) echo toast ;; la
 for cs in $CASES; do
   form=${cs%%:*}; scene=${cs#*:}; tag=$form-$scene; surf=$(surface_of "$scene"); g=$(region "$scene")
   echo "-- $tag"
+  K set theme.style "$STYLE" >/dev/null || fail "$tag: theme.style $STYLE refused"
+  if [ -n "$SCHEME" ]; then K set theme.colors.scheme "$SCHEME" >/dev/null || fail "$tag: theme.colors.scheme $SCHEME refused"; fi
   K set "theme.motion.form.$surf.open" "$form" >/dev/null || fail "$tag: theme.motion.form.$surf.open refused"
   K set "theme.motion.form.$surf.close" "$form" >/dev/null || fail "$tag: theme.motion.form.$surf.close refused"
   log=$R/h-$tag.log

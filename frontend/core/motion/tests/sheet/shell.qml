@@ -14,6 +14,7 @@ import "frontend/components/motion"
 // so FormHost latches and loads it as on a real surface. Driven over IPC (`qs ipc call sheet …`), every frame is
 // deterministic:
 //   scene <name>     panel | launcher | sidebar | toast | bottom (a panel on a bottom bar) | right (a sidebar on the right)
+//                    | leftpanel (a panel on a left bar: the hinge is vertical)
 //   at <p>           hold progress at p (a transition starts from the rest it left: 1 → close, 0 → open)
 //   play <to>        run the Driver to 0 or 1 on the theme's curves (the real timing; reversal: play again mid-way)
 //   info             the sheet's state (form, family, busy, handover values)
@@ -33,7 +34,9 @@ ShellRoot {
         sidebar: { x: 0, y: 0, w: 380, h: 1000, edge: "left", surface: "sidebar", ox: -1, ow: 0 },
         right: { x: 1540, y: 0, w: 380, h: 1000, edge: "right", surface: "sidebar", ox: -1, ow: 0 },
         toast: { x: 1500, y: 12, w: 400, h: 104, edge: "right", surface: "toast", ox: -1, ow: 0 },
-        bottom: { x: 560, y: 0, w: 620, h: 430, edge: "bottom", surface: "panel", ox: 820, ow: 120 }
+        bottom: { x: 560, y: 0, w: 620, h: 430, edge: "bottom", surface: "panel", ox: 820, ow: 120 },
+        // (W59.8a: a panel on a side bar — the hinge is vertical, so a sheet's ribs and rows swap roles)
+        leftpanel: { x: 0, y: 300, w: 620, h: 430, edge: "left", surface: "panel", ox: -1, ow: 0 }
     })
     readonly property var sc: scenes[sceneName] || scenes.panel
 
@@ -64,7 +67,8 @@ ShellRoot {
         var s = host.children[host.children.length - 1].item
         return "p=" + host.progress.toFixed(3) + " form=" + host.form + " family=" + host.family + " dir=" + host.dir
             + " busy=" + host.busy + (s ? " shadowK=" + s.shadowK.toFixed(3) + " filletK=" + s.filletK.toFixed(3)
-            + " nd=" + (s.nd || "-") + " na=" + (s.na || "-") : "") + " light=" + Theme.lightDirToken
+            + " nd=" + (s.nd || "-") + " na=" + (s.na || "-") + " n=" + (s.ribs || s.strips || "-") : "")
+            + " light=" + Theme.lightDirToken
     }
 
     Driver {
