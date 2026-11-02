@@ -30,7 +30,11 @@ TransformForm {
     property QtObject base: null
     readonly property string baseComp: prep.ok && bases[prep.base] !== undefined ? bases[prep.base] : ""
     onBaseCompChanged: makeBase()
-    Component.onCompleted: makeBase()
+    // One line per host that takes a recipe (as the sheet layers log theirs): the suites check a recipe ran.
+    Component.onCompleted: {
+        makeBase()
+        if (host && host.surface !== undefined) console.log("motion: recipe " + host.form + " on " + host.surface)
+    }
     Component.onDestruction: { dropMask(); if (base) base.destroy() }
     function makeBase() {
         if (base) { base.destroy(); base = null }
