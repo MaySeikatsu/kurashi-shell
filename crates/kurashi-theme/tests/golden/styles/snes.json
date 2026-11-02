@@ -922,6 +922,26 @@
   "motion.kind": "stepped",
   "motion.long_ms": 500,
   "motion.profile": "snes",
+  "motion.profile_curve.close": {
+    "kind": "steps",
+    "ms": 67,
+    "n": 4
+  },
+  "motion.profile_curve.effects": {
+    "kind": "steps",
+    "ms": 50,
+    "n": 3
+  },
+  "motion.profile_curve.fast": {
+    "kind": "steps",
+    "ms": 50,
+    "n": 3
+  },
+  "motion.profile_curve.open": {
+    "kind": "steps",
+    "ms": 67,
+    "n": 4
+  },
   "motion.quick_ms": 120,
   "motion.spring.damping": 0.45,
   "motion.spring.on": true,

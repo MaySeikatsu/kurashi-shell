@@ -911,6 +911,18 @@
   "motion.kind": "none",
   "motion.long_ms": 0,
   "motion.profile": "win95",
+  "motion.profile_curve.close": {
+    "kind": "none"
+  },
+  "motion.profile_curve.effects": {
+    "kind": "none"
+  },
+  "motion.profile_curve.fast": {
+    "kind": "none"
+  },
+  "motion.profile_curve.open": {
+    "kind": "none"
+  },
   "motion.quick_ms": 0,
   "motion.spring.damping": 1.0,
   "motion.spring.on": false,

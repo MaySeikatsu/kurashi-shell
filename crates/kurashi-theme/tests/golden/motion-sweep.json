@@ -29,6 +29,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -105,6 +135,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.42,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.1,
+        0.9,
+        0.2,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.1,
+        0.9,
+        0.2,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -181,6 +259,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -257,6 +365,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -333,6 +453,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -409,6 +559,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.42,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.25,
+        0.1,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 250,
+      "points": [
+        0.25,
+        0.1,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -485,6 +683,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -561,6 +789,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -637,6 +877,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 83,
+      "points": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -713,6 +983,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 167,
+      "points": [
+        1.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 83,
+      "points": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 167,
+      "points": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 250,
+      "points": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -789,6 +1107,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 66,
+      "points": [
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -865,6 +1213,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -941,6 +1301,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1023,6 +1413,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.42,
+        1.67,
+        0.21,
+        0.9,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.38,
+        1.21,
+        0.22,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1105,6 +1549,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -1187,6 +1661,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -1269,6 +1755,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 588,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.4
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 235,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.4
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.4
+    },
     "motion.quick_ms": 141,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1345,6 +1861,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 588,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.4,
+        0.0,
+        0.68,
+        0.06,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 235,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 259,
+      "points": [
+        0.33,
+        0.0,
+        0.2,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 494,
+      "points": [
+        0.33,
+        0.0,
+        0.2,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 141,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1421,6 +1985,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 471,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.72
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 188,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.72
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.72
+    },
     "motion.quick_ms": 113,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -1497,6 +2091,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -1573,6 +2179,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1655,6 +2291,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.42,
+        1.67,
+        0.21,
+        0.9,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.38,
+        1.21,
+        0.22,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1737,6 +2427,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -1819,6 +2539,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -1901,6 +2633,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -1983,6 +2745,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.42,
+        1.67,
+        0.21,
+        0.9,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.38,
+        1.21,
+        0.22,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2065,6 +2881,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -2147,6 +2993,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -2229,6 +3087,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2311,6 +3199,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.34,
+        1.56,
+        0.64,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.34,
+        1.56,
+        0.64,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2393,6 +3335,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -2475,6 +3447,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -2557,6 +3541,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2633,6 +3647,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.42,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.25,
+        0.1,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.25,
+        0.1,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2709,6 +3771,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -2785,6 +3877,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -2861,6 +3965,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -2937,6 +4071,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.3,
+        0.0,
+        0.8,
+        0.15,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 150,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.7,
+        0.1,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -3013,6 +4195,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 120,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -3089,6 +4301,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -3165,6 +4389,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -3241,6 +4495,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 450,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -3317,6 +4619,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 320,
+      "points": [
+        0.42,
+        0.0,
+        0.58,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -3393,6 +4725,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -3469,6 +4813,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -3551,6 +4925,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.42,
+        1.67,
+        0.21,
+        0.9,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.38,
+        1.21,
+        0.22,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -3633,6 +5061,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -3715,6 +5173,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -3797,6 +5267,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 67,
+      "n": 4
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 50,
+      "n": 3
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 50,
+      "n": 3
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 67,
+      "n": 4
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4017,6 +5507,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 67,
+      "n": 4
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 50,
+      "n": 3
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 50,
+      "n": 3
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 67,
+      "n": 4
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4237,6 +5747,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 54,
+      "n": 3
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 40,
+      "n": 2
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 40,
+      "n": 2
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 54,
+      "n": 3
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -4409,6 +5939,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -4509,6 +6051,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 625,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 250,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 150,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4585,6 +6157,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 625,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 650,
+      "points": [
+        0.37,
+        0.0,
+        0.63,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 250,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 375,
+      "points": [
+        0.37,
+        0.0,
+        0.63,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 813,
+      "points": [
+        0.37,
+        0.0,
+        0.63,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 150,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4661,6 +6281,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.56
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.56
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 2.56
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -4737,6 +6387,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -4813,6 +6475,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 313,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 6.4
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 38,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 6.4
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 6.4
+    },
     "motion.quick_ms": 75,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4889,6 +6581,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 313,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 38,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 38,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 38,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 50,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 75,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -4965,6 +6705,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 250,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 5.12
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 30,
+      "points": [
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 5.12
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 5.12
+    },
     "motion.quick_ms": 60,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -5041,6 +6811,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -5117,6 +6899,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -5199,6 +7011,60 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 400,
+      "points": [
+        0.05,
+        0.0,
+        0.13333333333333333,
+        0.06,
+        0.16666666666666666,
+        0.4,
+        0.20833333333333334,
+        0.82,
+        0.25,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 350,
+      "points": [
+        0.42,
+        1.67,
+        0.21,
+        0.9,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 500,
+      "points": [
+        0.38,
+        1.21,
+        0.22,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -5281,6 +7147,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -5363,6 +7259,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -5445,6 +7353,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -5521,6 +7459,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 220,
+      "points": [
+        0.4,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 180,
+      "points": [
+        0.2,
+        0.0,
+        0.1,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 360,
+      "points": [
+        0.2,
+        0.0,
+        0.1,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -5597,6 +7583,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -5673,6 +7689,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -5749,6 +7777,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 400,
+      "n": 6
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 200,
+      "n": 3
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 350,
+      "n": 5
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 500,
+      "n": 7
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -6053,6 +8101,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 400,
+      "n": 6
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 200,
+      "n": 3
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 350,
+      "n": 5
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 500,
+      "n": 7
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -6357,6 +8425,26 @@
     "motion.kind": "stepped",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "kind": "steps",
+      "ms": 320,
+      "n": 5
+    },
+    "motion.profile_curve.effects": {
+      "kind": "steps",
+      "ms": 160,
+      "n": 2
+    },
+    "motion.profile_curve.fast": {
+      "kind": "steps",
+      "ms": 280,
+      "n": 4
+    },
+    "motion.profile_curve.open": {
+      "kind": "steps",
+      "ms": 400,
+      "n": 6
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -6613,6 +8701,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,
@@ -6713,6 +8813,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 500,
     "motion.profile": "calm",
+    "motion.profile_curve.close": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.45,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 4.0
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -6789,6 +8919,54 @@
     "motion.kind": "timed",
     "motion.long_ms": 500,
     "motion.profile": "expressive",
+    "motion.profile_curve.close": {
+      "kind": "cubic",
+      "ms": 180,
+      "points": [
+        0.4,
+        0.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 200,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "kind": "cubic",
+      "ms": 140,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.open": {
+      "kind": "cubic",
+      "ms": 240,
+      "points": [
+        0.2,
+        0.0,
+        0.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
     "motion.quick_ms": 120,
     "motion.spring.damping": 0.45,
     "motion.spring.on": true,
@@ -6865,6 +9043,36 @@
     "motion.kind": "spring",
     "motion.long_ms": 400,
     "motion.profile": "lively",
+    "motion.profile_curve.close": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.effects": {
+      "kind": "cubic",
+      "ms": 160,
+      "points": [
+        0.34,
+        0.8,
+        0.34,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    "motion.profile_curve.fast": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
+    "motion.profile_curve.open": {
+      "damping": 0.26,
+      "kind": "spring_q",
+      "ms": 0,
+      "spring": 3.2
+    },
     "motion.quick_ms": 96,
     "motion.spring.damping": 0.26,
     "motion.spring.on": true,
@@ -6941,6 +9149,18 @@
     "motion.kind": "none",
     "motion.long_ms": 0,
     "motion.profile": "none",
+    "motion.profile_curve.close": {
+      "kind": "none"
+    },
+    "motion.profile_curve.effects": {
+      "kind": "none"
+    },
+    "motion.profile_curve.fast": {
+      "kind": "none"
+    },
+    "motion.profile_curve.open": {
+      "kind": "none"
+    },
     "motion.quick_ms": 0,
     "motion.spring.damping": 1.0,
     "motion.spring.on": false,

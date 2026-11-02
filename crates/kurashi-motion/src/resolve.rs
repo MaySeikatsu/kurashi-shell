@@ -312,6 +312,14 @@ impl Resolver<'_> {
         self.curve_of(spec, notes)
     }
 
+    /// A role's duration before speed as the profile alone has it: the pack's, else K74's.
+    fn pack_role_ms(&self, i: usize) -> f64 {
+        match self.timing.map_or(0, |t| t[i].ms) {
+            p if p > 0 => f64::from(p),
+            _ => K74[i].1,
+        }
+    }
+
     /// A role's duration before speed: the user's, the pack's, else K74's.
     fn role_ms(&self, i: usize) -> f64 {
         let user = self.user.map_or(0, |u| u.timing_ms[i]);
@@ -486,21 +494,49 @@ impl Resolver<'_> {
             };
             t.insert(format!("motion.timed.{n}_curve"), json!(timed));
 
-            // The new token: what the role runs on now.
-            let token = if base == Base::None {
-                json!({"kind": "none"})
-            } else if let Some(c) = &user {
-                self.curve_token(c, dur, i)
-            } else if stepped {
-                json!({"kind": "steps", "ms": dur, "n": steps_n.clamp(1, 60)})
-            } else if springs && n != "effects" {
-                json!({"kind": "spring_q", "ms": 0, "spring": spring_k, "damping": damping})
-            } else if let Some(c) = &own_pack {
-                self.curve_token(c, dur, i)
+            // The new token: what the role runs on now; and what the profile alone would run on (Settings: "the profile
+            // would use …", rule 1 — Settings cannot resolve packs itself), the same without the user's curve and ms.
+            let user_ms = self.user.is_some_and(|u| u.timing_ms[i] > 0);
+            let pack_ms = self.timing.is_some_and(|t| t[i].ms > 0);
+            let pdur = duration_ms(self.pack_role_ms(i), base, speed);
+            let p_steps = ((pdur as f64) / (hold * 1000.0 / 60.0)).round() as usize;
+            let p_timed = own_pack
+                .as_ref()
+                .and_then(Curve::cubic_points)
+                .unwrap_or_else(|| {
+                    if style == "rubber" && n != "close" && n != "effects" {
+                        rubber.cubic_points().expect("cubic")
+                    } else {
+                        k74.cubic_points().expect("cubic")
+                    }
+                });
+            let (token, profile) = if base == Base::None {
+                (json!({"kind": "none"}), json!({"kind": "none"}))
             } else {
-                json!({"kind": "cubic", "ms": dur, "points": timed})
+                let profile = if stepped {
+                    json!({"kind": "steps", "ms": pdur, "n": p_steps.clamp(1, 60)})
+                } else if springs && n != "effects" {
+                    json!({"kind": "spring_q", "ms": 0, "spring": spring_k, "damping": damping})
+                } else if let Some(c) = &own_pack {
+                    self.curve_token(c, pdur, pack_ms)
+                } else {
+                    json!({"kind": "cubic", "ms": pdur, "points": p_timed})
+                };
+                let token = if let Some(c) = &user {
+                    self.curve_token(c, dur, user_ms)
+                } else if stepped {
+                    json!({"kind": "steps", "ms": dur, "n": steps_n.clamp(1, 60)})
+                } else if springs && n != "effects" {
+                    json!({"kind": "spring_q", "ms": 0, "spring": spring_k, "damping": damping})
+                } else if let Some(c) = &own_pack {
+                    self.curve_token(c, dur, user_ms || pack_ms)
+                } else {
+                    json!({"kind": "cubic", "ms": dur, "points": timed})
+                };
+                (token, profile)
             };
             t.insert(format!("motion.curve.{n}"), token);
+            t.insert(format!("motion.profile_curve.{n}"), profile);
         }
 
         // Springs (K42): overshoot of arrivals (QML Easing.OutBack amplitude) and a spring for retargetable morphs (QML
@@ -597,8 +633,10 @@ impl Resolver<'_> {
         t.insert("motion.accent.shadow".into(), json!(shadow));
     }
 
-    /// A written curve as its `motion.curve.<role>` token; `dur` is the role's duration after speed.
-    fn curve_token(&self, c: &Curve, dur: i64, role: usize) -> Value {
+    /// A written curve as its `motion.curve.<role>` token; `dur` is the role's duration after speed and `explicit`
+    /// whether that duration was set for this curve (the user's own for any curve; the pack's for the pack's own curve):
+    /// a spring takes it as its response, else keeps its own (a pack's duration does not reshape the user's spring).
+    fn curve_token(&self, c: &Curve, dur: i64, explicit: bool) -> Value {
         match c {
             Curve::Cubic(_) | Curve::Linear => {
                 json!({"kind": "cubic", "ms": dur, "points": c.cubic_points()})
@@ -607,10 +645,7 @@ impl Resolver<'_> {
                 response_ms,
                 bounce,
             } => {
-                // The response is the role's duration when the user set one (brief §4), else the spring's own.
-                let set = self.user.is_some_and(|u| u.timing_ms[role] > 0)
-                    || self.timing.is_some_and(|t| t[role].ms > 0);
-                let ms = if set {
+                let ms = if explicit {
                     dur
                 } else {
                     duration_ms(*response_ms, self.base, self.speed)
@@ -698,6 +733,25 @@ mod tests {
         let t = res(&req);
         assert_eq!(t["motion.style"], "slide");
         assert_eq!(t["motion.timed.effects_ms"], 83);
+    }
+
+    /// A user's spring keeps its own response on a pack that sets the role's duration (washi: open 360 ms); the pack's
+    /// duration shapes only the pack's own curves, and the user's own duration still wins over the spring's.
+    #[test]
+    fn a_users_spring_keeps_its_response_over_the_packs_duration() {
+        let mut req = Request::profile("washi");
+        req.axes.timing[0] = "spring(550ms, 0.45)".into();
+        let t = res(&req);
+        assert_eq!(
+            t["motion.curve.open"],
+            json!({"kind": "spring", "ms": 550, "response": 550, "bounce": 0.45})
+        );
+        req.axes.timing_ms[0] = 300;
+        let t = res(&req);
+        assert_eq!(t["motion.curve.open"]["response"], 300);
+        // What washi alone would run on, for Settings: its own curve at its own 360 ms, whatever the user set.
+        assert_eq!(t["motion.profile_curve.open"]["kind"], "cubic");
+        assert_eq!(t["motion.profile_curve.open"]["ms"], 360);
     }
 
     #[test]
