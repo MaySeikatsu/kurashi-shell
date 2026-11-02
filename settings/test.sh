@@ -248,6 +248,10 @@ motion_en() {
     || fail "motion M1: the sections are $(Q sections)"
   mshot page
   echo "motion M1: the page opens with the preview stage, the gallery, the curve editors and the forms table"
+  # Ma: the page at rest draws nothing (no timer, no animation runs by itself; the ball plays only on Play).
+  sleep 1; f1=$(Q frames); sleep 3; f2=$(Q frames)
+  [ "$f1" = "$f2" ] || fail "motion M1: the page drew $((f2 - f1)) frames in 3 s at rest"
+  echo "motion M1: idle, 0 frames in 3 s"
 
   # M2. a profile: the gallery's pick is one change; the theme document follows and the row reads "you".
   Q pick theme.motion.profile '"calm"'

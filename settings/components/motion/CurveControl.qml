@@ -158,21 +158,28 @@ Column {
             Accessible.role: Accessible.Graphic
             Accessible.name: I18n.fmt("motion.ui.curve.graph", { name: cc.label, curve: cc.nameOf(graph.curve) })
         }
-        SpringPlot {
-            id: plot
-            visible: cc.openTab === "spring"
-            key: cc.rowKey
-            label: cc.label
-            response: cc.springResponse
-            bounce: cc.springBounce
+        // The plot and the preset tiles are made only while their tab is open (26 small canvases per row otherwise).
+        Loader {
+            id: plotHost
+            active: cc.openTab === "spring"
+            visible: active
+            sourceComponent: SpringPlot {
+                key: cc.rowKey
+                label: cc.label
+                response: cc.springResponse
+                bounce: cc.springBounce
+            }
         }
-        CurvePresets {
-            visible: cc.openTab === "presets"
+        Loader {
+            active: cc.openTab === "presets"
+            visible: active
             width: Math.min(cc.width, 520)
-            key: cc.rowKey
-            current: cc.value === "" ? "" : (cc.parsed && cc.parsed.ok && cc.parsed.type === "preset" ? cc.parsed.id : "")
-            enabled: cc.editable
-            onPicked: id => cc.write(id)
+            sourceComponent: CurvePresets {
+                key: cc.rowKey
+                current: cc.value === "" ? "" : (cc.parsed && cc.parsed.ok && cc.parsed.type === "preset" ? cc.parsed.id : "")
+                enabled: cc.editable
+                onPicked: id => cc.write(id)
+            }
         }
 
         // Beside the graph: what is drawn in words, and the tab's own controls.
@@ -186,7 +193,7 @@ Column {
                 width: parent.width
                 font.family: "monospace"
                 small: true
-                text: cc.openTab === "spring" ? CM.canonicalCurve(plot.curve)
+                text: cc.openTab === "spring" ? CM.canonicalCurve({ kind: "spring", response: cc.springResponse, bounce: cc.springBounce })
                     : cc.openTab === "steps" ? "steps(" + cc.stepsN + ")"
                     : (cc.shown ? cc.nameOf(cc.shown) : I18n.tr("motion.ui.curve.none"))
             }
@@ -309,7 +316,7 @@ Column {
                 label: I18n.tr("motion.ui.curve.play")
                 accessibleName: I18n.fmt("motion.ui.curve.play_name", { name: cc.label })
                 enabled: cc.openTab === "spring" || (!!graph.curve && graph.curve.kind !== "spring_q")
-                onClicked: cc.openTab === "spring" ? plot.play() : graph.play()
+                onClicked: cc.openTab === "spring" ? (plotHost.item && plotHost.item.play()) : graph.play()
             }
         }
     }

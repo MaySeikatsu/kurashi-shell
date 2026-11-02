@@ -132,6 +132,6 @@
 "motion.ui.profile.undo" = "Undo"
 "motion.ui.preview.title" = "Preview"
 "motion.ui.preview.pending" = "A small bar with a button for each kind of surface will open its sample card here with these settings, slowed down or scrubbed frame by frame. It arrives with the shell's new motion forms."
-"motion.ui.a11y.on" = "Reduce motion is on: surfaces fade briefly instead of moving, whatever is set below."
+"motion.ui.a11y.on" = "Reduce motion is on: surfaces fade briefly instead of moving."
 "motion.ui.a11y.off" = "Reduce motion is off."
 "motion.ui.form.none" = "no animation"
