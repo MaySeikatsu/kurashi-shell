@@ -1,0 +1,3 @@
+# Lively (K42, W34): bouncy springs, quicker small controls, squash and stretch. A base only (K83).
+name = "lively"
+base = "lively"

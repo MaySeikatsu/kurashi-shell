@@ -1,0 +1,18 @@
+# Aqua (Mac OS X 10.2–10.4) — Motion: sheets slide down out of the bar (~250 ms, ease out); menus and panels fade out.
+# Moved from looks/aqua.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "aqua"
+base = "expressive"
+
+[timing]
+open = "ease"
+open_ms = 250
+close = "ease-in"
+close_ms = 200
+fast = "ease"
+fast_ms = 150
+
+[form]
+open = "slide"
+close = "slide"
+
+[accents]

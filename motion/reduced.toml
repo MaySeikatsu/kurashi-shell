@@ -1,0 +1,27 @@
+# Reduce motion (K83 D1): what `a11y.reduce_motion` forces — every surface fades in and out in at most 150 ms on the
+# effects curve (it never overshoots); nothing grows, slides, folds or flashes; no springs, no accents (macOS's "replace
+# movement with dissolves", WCAG 2.3.3). Whole: no style's pack underneath, no per-axis key over it.
+name = "reduced"
+base = "reduced"
+
+[timing]
+open = "effects"
+open_ms = 150
+close = "effects"
+close_ms = 120
+fast = "effects"
+fast_ms = 120
+effects = "effects"
+effects_ms = 150
+
+[form]
+open = "fade"
+close = "fade"
+
+[accents]
+content = "with"
+stagger_ms = 0
+squash = 0.0
+jelly = 0.0
+overshoot_cap = 0.0
+shadow = "fade"
