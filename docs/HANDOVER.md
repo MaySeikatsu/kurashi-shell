@@ -26,25 +26,21 @@ style defaults (kami origami, terminal phosphor, aqua/vibrancy genie), niri `the
 `just suites` (before W59.3's follow-ups): 11/13 — recipes fixed since; **sidebars USS +11 MiB** (handed to W59.9a).
 **User rules this session:** at most **two** agents at once (memory `max-two-agents`); screenshots stay local (I345).
 
-W59.6b (Settings live preview + gallery thumbnail) is merged too (c8e5ff1c; its full `settings/test.sh` was green; rows
-690–692 await a decision: the settings links — accept as rows 650/663; `FormHost.forceForm`; per-pack preview data).
-**One agent branch may be finished but unmerged** (its agent was still running at the session's end):
-- `feat/w59-9a-surface-polish` (worktree `.claude/worktrees/agent-a30f10a30628a8d36`, card `docs/tasks/W59.9a-*.md`):
-  liquid, shape forms on toast/dock/sidebar, iris press point, seamless landings, **+ the sidebar USS leak and the false
-  "form grow is unknown" warnings**.
+W59.6b (Settings live preview, c8e5ff1c) and W59.9a (liquid; shape forms on toast/dock/sidebar; iris from the press
+point; seamless sheet landings; **the sidebar USS leak and the false "grow is unknown" warnings fixed**; a2f43d6c) are
+merged too — **every form is available, no agent is running, no worktree is left.** Rows 690–692 (W59.6b) await a
+decision. Not yet re-run after the last merges: `just suites` (W59.9a ran it green except settings M10 and
+edge-modules, both fixed in a2f43d6c).
 
 **Next steps (short, in order):**
-1. For the branch above: `git log feat/w59-motion-engine..<branch>`; if the work looks complete, merge `--no-ff` into
-   `feat/w59-motion-engine`, run its card's acceptance (W59.9a: `frontend/test-sidebars.sh` alone must pass the USS check;
-   `frontend/test-motion.sh`), then remove the worktree/branch and
-   `~/.cache/kurashi-agents-target/W59.9a`. If a branch is half-done, merge only what passes and file the rest.
+1. `nix develop -c just check` and `just suites` (merge set) — expect green; fix what is not.
 2. README previews: `nix develop -c tools/motion-previews.sh` (session menu), plus `MOTION_SURFACE=sidebar … roll` and
    `MOTION_SURFACE=toast … drop crumple`; look at **every** frame sheet in `/tmp/kurashi-motion-previews/review/` for personal
    data (I345) before `git add docs/media/motion/`; README §Motion already points at those files.
-3. `just check` and `just suites` (merge set) green; PROGRESS row; push the branch (ask the user first) and
+3. PROGRESS row; push the branch (ask the user first) and
    `gh pr create --base main --head feat/w59-motion-engine` with a summary of K83 and the previews.
 
-**Deferred (BACKLOG/W59.9 notes, not blocking the PR):** `tools/bench/motion.sh` (agents measured 1.2–1.6 ms CPU per
+**Deferred (BACKLOG/W59.9 notes, not blocking the PR):** the dock has no FormHost yet (aqua's genie on the dock falls back to slide; toasts do genie), drop's bead ignores `pressAt`, kami's pen outline varies run to run, `tools/bench/motion.sh` (agents measured 1.2–1.6 ms CPU per
 frame, idle 0), crumple's mid-frames read as cloth, drop wants ≥ 500 ms and genie ≥ 400 ms curves, fold PSS on kami
 (+58 MiB once), I346–I363.
 
