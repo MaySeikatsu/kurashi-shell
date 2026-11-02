@@ -18,7 +18,6 @@
 #   MOTION_CASES="washi:calm snes:expressive" MOTION_SCRUBS="0.5 1" nix develop -c frontend/test-motion.sh
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
-[ -z "${MOTION_TRACE:-}" ] || set -x
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${KURASHI_SB_PREFIX:-}w59-motion
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
