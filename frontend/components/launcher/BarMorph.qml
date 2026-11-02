@@ -128,7 +128,8 @@ Item {
         id: run
         surface: m.surface
         want: m.open && m.shown && !m.gate && m.morph
-        hold: !springs.settled
+        // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
+        hold: !springs.settled && Math.abs(springs.h - m.closedFoot) > 1 && Math.abs(springs.h - m.cardFoot) > 1
         fromCx: m.pillCx
         fromW: m.pillW
         fromTop: m.pillTop

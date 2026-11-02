@@ -687,7 +687,7 @@ PanelWindow {
         surface: "peek"
         role: "fast"
         want: stage.peekOut && stage.peekMorph
-        hold: !peekSprings.settled
+        hold: !peekSprings.settled && Math.abs(peekSprings.h - stage.peekE) > 1 && Math.abs(peekSprings.h - stage.peekInset - peekCard.height) > 1
         fromCx: stage.peekOriginCx - stage.peekBoxL
         fromW: stage.peekOriginW
         fromTop: stage.peekBarInset + 4
@@ -1101,7 +1101,8 @@ PanelWindow {
         id: run
         surface: stage.formSurface
         want: stage.formWant
-        hold: !springs.settled
+        // (a growth mid-way keeps its form through a reversal; from either rest a new form is taken)
+        hold: !springs.settled && Math.abs(springs.h - stage.closedFoot) > 1 && Math.abs(springs.h - stage.cardFoot) > 1
         fromCx: stage.morphMode ? stage.originCx - stage.boxL : stage.formFrameW / 2
         fromW: stage.morphMode ? stage.closedW : stage.formFrameW * 0.3
         fromTop: stage.morphMode ? stage.originTop : 0
