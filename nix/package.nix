@@ -32,6 +32,8 @@ let
     (fs.maybeMissing ../frontend/shots)
     (fs.maybeMissing ../settings/shots)
     (fs.maybeMissing ../greeter/shots)
+    # W59.2's qmltestrunner tests and their Quickshell stub are for `frontend/test-motion.sh`, not the package.
+    (fs.maybeMissing ../frontend/core/motion/tests)
   ];
 
   # What the Rust build reads: the workspace plus the files our crates embed with include_str! (looks, styles and
