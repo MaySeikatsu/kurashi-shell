@@ -44,8 +44,10 @@ QtObject {
     property real sh: 0
     readonly property bool settled: !driver.running
 
-    // (K83 accents; derived from the spring tokens before W59.1: 3 % … 8 %, lively's squash)
-    readonly property real cap: Theme.motionAccent("overshoot_cap")
+    // K42's soft limit (3 % for calm's damping … 8 % for lively's) is the morph's own; a profile's overshoot cap (K83
+    // accent; W59.1 publishes 1 = none of its own) only tightens it. Squash: the accent (lively's 0.06).
+    readonly property real cap: Math.min(Theme.motionAccent("overshoot_cap"),
+        Math.max(0.03, Math.min(0.08, 0.03 + (0.45 - Theme.damping) * 0.26)))
     readonly property real squash: Theme.motionAccent("squash")
     // The kind of the profile's open curve picks the runner: "cubic"/"steps"/"linear" timed, "spring" closed form,
     // "spring_q" K42's integrator (`advance`), "none" (with `on` false) a cut.

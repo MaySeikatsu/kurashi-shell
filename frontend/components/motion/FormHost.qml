@@ -6,12 +6,13 @@ import "../../core"
 // closes in, drawn from one progress. A surface puts its content inside and drives `progress` (0 gone … 1 in place;
 // past 1 while a curve overshoots) from its own Driver or morph; FormHost picks the form from the tokens
 // (`Theme.motionForm(surface, direction)`) and **latches** it when a transition starts (progress leaves 0 or 1), so a
-// reversal mid-way continues the form in flight and a token change lands on the next transition. By family:
-//   shape      (grow; later expand, iris, stamp, outline, liquid, drop): the silhouette is the morph's (MorphSprings,
-//              MorphShape): FormHost only names the form, the content is left alone;
-//   transform  (slide, rubber, zoom, fade, flip, bleed, stepped): a small object from `forms/<Form>.qml` (TransformForm)
-//              yields opacity, translate, scale, rotation and blur, and FormHost applies them to itself — plain
-//              properties, a layer only for bleed while it shows;
+// reversal mid-way continues the form in flight and a token change lands on the next transition. What it draws:
+//   transform  today's content forms (W53's slide, rubber, zoom, fade, flip, bleed, stepped; the meta files them under
+//              `shape`): a small object from `forms/<Form>.qml` (TransformForm) yields opacity, translate, scale,
+//              rotation and blur, and FormHost applies them to itself — plain properties, a layer only for bleed while it
+//              shows. Keyed on the component (`transforms`), not on the family;
+//   shape      the rest of the `shape` family (grow; later expand, iris, stamp, outline, liquid, drop): the silhouette is
+//              the morph's (MorphSprings, MorphShape): FormHost only names the form, the content is left alone;
 //   sheet      (fold, roll, book, crumple, genie, crt …; W59.4+): `forms/<Form>.qml` (a SheetForm) is loaded only while
 //              0 < p < 1 and gets {source, progress, edge, origin, params, size, direction, surface, form}; it captures
 //              `source` (the content) into its own layer and draws it warped. A sheet form whose meta says it is not
@@ -42,7 +43,7 @@ Item {
     readonly property string dir: busy && latchedDir !== "" ? latchedDir : nextDir
     readonly property string form: busy && latchedForm !== "" ? latchedForm : Theme.motionForm(surface, nextDir)
     readonly property var meta: Theme.formMeta(form)
-    readonly property string family: form === "" || form === "none" ? "none" : (meta ? meta.family : "transform")
+    readonly property string family: form === "" || form === "none" ? "none" : (meta ? meta.family : "unknown")
     readonly property var params: Theme.formParams(form)
     onBusyChanged: {
         if (busy) { latchedDir = nextDir; latchedForm = Theme.motionForm(surface, latchedDir) }
@@ -59,13 +60,13 @@ Item {
         bleed: "Bleed", stepped: "Stepped" })
     property var failed: ({})
     readonly property bool sheetOk: family === "sheet" && meta && meta.available !== false && !failed[form]
-    readonly property string transformComp: family === "shape" || family === "none" || sheetOk ? ""
-        : family === "sheet" ? "Fade" : (transforms[form] || "Fade")
+    readonly property string transformComp: transforms[form] !== undefined ? transforms[form]
+        : family === "shape" || family === "none" || sheetOk ? "" : "Fade"
     onTransformCompChanged: loadTransform()
     onFormChanged: checkForm()
     function checkForm() {
         if (transformComp === "Fade" && form !== "fade")
-            warnOnce(form, family === "sheet" ? "is not available" : "has no component")
+            warnOnce(form, family === "sheet" ? "is not available" : "is unknown")
     }
     property var warned: ({})
     function warnOnce(f, why) {

@@ -19,7 +19,7 @@ TestCase {
         compare(Theme.motionCurve("close").ms, 400)
         compare(Theme.motionForm("panel", "open"), "grow")
         compare(Theme.formMeta("grow").family, "shape")
-        compare(Theme.formMeta("bleed").family, "transform")
+        compare(Theme.formMeta("bleed").family, "shape")
         compare(Theme.formMeta("nope"), null)
         compare(Theme.motionAccent("content"), "late")
         compare(Theme.motionAccent("jelly"), 0)

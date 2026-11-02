@@ -278,8 +278,8 @@ Singleton {
         }
         return 0
     }
-    // A form's meta: {family: "shape" | "sheet" | "transform", surfaces, retarget, overshoot, flags, tier, available}
-    // (`motion.forms`); before W59.1 the table of today's forms. null: no such form.
+    // A form's meta: {family: "shape" | "sheet", surfaces, retarget, overshoot, flags, tier, available} (`motion.forms`);
+    // before W59.1 a table of today's forms as W59.1 publishes them. null: no such form.
     readonly property var formsMeta: tok("motion.forms", null) || builtinForms
     function formMeta(form) { var m = formsMeta[form]; return m === undefined ? null : m }
     readonly property var builtinForms: {
@@ -289,14 +289,14 @@ Singleton {
         }
         return {
             grow: f("shape", "transform", [], true),
-            slide: f("transform", "transform", [], true),
-            rubber: f("transform", "transform", [], true),
-            zoom: f("transform", "transform", ["vestibular"], false),
-            fade: f("transform", "transform", [], false),
-            flip: f("transform", "transform", ["vestibular"], false),
-            bleed: f("transform", "layer", [], false),
-            stepped: f("transform", "transform", [], false),
-            none: f("none", "transform", [], false)
+            slide: f("shape", "transform", [], true),
+            rubber: f("shape", "transform", [], true),
+            zoom: f("shape", "transform", [], false),
+            fade: f("shape", "transform", [], false),
+            flip: f("shape", "transform", [], false),
+            bleed: f("shape", "layer", [], false),
+            stepped: f("shape", "transform", [], false),
+            none: f("shape", "transform", [], false)
         }
     }
     // How visible bar content stays while the daemon is away (reconnect veil).
