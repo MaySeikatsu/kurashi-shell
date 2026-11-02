@@ -9,8 +9,9 @@ import "curves.js" as C
 // nothing runs). The curve comes from the owner — Driver reads no tokens, so Settings can preview a draft curve:
 //   curves: Theme.motionCurves   ({open, close, fast, effects}: picked by `role`; "auto" = open the opening way)
 //   curve: {kind: "cubic", ms: 300, points: […]}   (wins over role/curves)
-// Outputs: `value`, `velocity` (units/s), `progress` (eased fraction of the current travel from `from`; past 1 while a
-// curve overshoots; 1 at rest), `running`, `direction` ("open"/"close", the way the last travel went).
+// Outputs: `value`, `velocity` (units/s), `progress` (eased fraction of the current travel from `from`: 0 as it starts,
+// past 1 while a curve overshoots, 1 at rest), `running`, `direction` ("open"/"close", the way the last travel went).
+// A 0 → 1 reveal hands its `value` (not `progress`, which restarts at 0 for a close) to a FormHost.
 // KURASHI_MOTION_SCRUB=<p> (read once) holds every travel at p: shots by progress, not by sleeping; p = 1 is the rest.
 // `track(p)`/`release(v)` hand the travel to a gesture or Settings' scrubber and back.
 QtObject {
@@ -91,6 +92,7 @@ QtObject {
         from = value
         if (scrub >= 0) { hold(goal); return }
         elapsed = 0
+        progress = 0
         if (next.kind === "spring_q") {
             st.x = value; st.v = moving ? velocity : 0; st.acc = 0
         } else if (next.kind === "spring") {
@@ -152,29 +154,35 @@ QtObject {
         fa.running = false; running = false; tracking = false
         value = v; from = v; velocity = 0; progress = 1; d.target = v
     }
-    // A gesture holds the value at fraction p of the travel from `from` to `to`; the velocity follows the hand.
+    // A gesture (or Settings' scrubber) holds the value at fraction p of a travel `a` → `b` (default: the last travel,
+    // `from` → `to`; 0 → 1 when there was none); the velocity follows the hand.
+    property real ta: 0
+    property real tb: 1
     property real tAt: 0
-    function track(p) {
+    function track(p, a, b) {
+        if (!tracking) {
+            ta = a === undefined ? from : a
+            tb = b === undefined ? to : b
+            if (Math.abs(tb - ta) < 1e-9) { ta = 0; tb = 1 }
+        }
         var now = Date.now()
-        var v = from + (to - from) * p
-        if (tracking && now > tAt) velocity = (v - value) * 1000 / (now - tAt)
-        else velocity = 0
+        var v = ta + (tb - ta) * p
+        velocity = tracking && now > tAt ? (v - value) * 1000 / (now - tAt) : 0
         tAt = now
         fa.running = false; running = false; tracking = true
         value = v
         progress = p
     }
-    // Let go with velocity `v` (fractions of the travel per second; the tracked one when omitted): to the nearer end
-    // (`to` or `from`, projected 100 ms on), on the curve; `landed(at)` says which. `to` stays the owner's.
+    // Let go with velocity `v` (fractions of the travel per second; the hand's when omitted): on to the nearer end (`b` or
+    // `a`, projected 100 ms on) on the curve, keeping the velocity; `landed(at)` says which. `to` stays the owner's.
     function release(v) {
         if (!tracking) return
-        var span = to - from
-        var pv = v === undefined ? (Math.abs(span) < 1e-9 ? 0 : velocity / span) : v
+        var span = tb - ta
+        var pv = v === undefined ? velocity / span : v
         velocity = pv * span
-        var p = Math.abs(span) < 1e-9 ? 1 : (value - from) / span
-        var end = p + pv * 0.1 >= 0.5 ? to : from
+        var end = (value - ta) / span + pv * 0.1 >= 0.5 ? tb : ta
         tracking = false
-        running = true   // (keeps the velocity: a release is a retarget mid-flight)
+        running = true   // (a release is a retarget mid-flight: go() keeps the velocity)
         go(end)
     }
 
