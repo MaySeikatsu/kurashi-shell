@@ -137,10 +137,10 @@ pub const FORMS: &[FormMeta] = &[
     f("stamp",    Shape, but(s("bar") | s("dock") | s("sidebar")),             Morph,  true,  0,          Transform, false),
     f("outline",  Shape, but(s("bar")),                                        Morph,  false, 0,          Transform, false),
     // W59.4: paper.
-    f("fold",     Sheet, CARDS | s("peek") | s("toast") | s("sidebar") | s("menu"), Finish, false, VESTIBULAR, Mesh, false),
-    f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      false),
-    f("roll",     Sheet, CARDS | s("sidebar") | s("bar") | s("toast") | s("dock") | s("menu"), Finish, false, VESTIBULAR, Mesh, false),
-    f("crumple",  Sheet, CARDS | s("toast") | s("peek"),                       Finish, false, VESTIBULAR, Mesh,      false),
+    f("fold",     Sheet, CARDS | s("peek") | s("toast") | s("sidebar") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
+    f("book",     Sheet, CARDS,                                                Finish, false, VESTIBULAR, Mesh,      true),
+    f("roll",     Sheet, CARDS | s("sidebar") | s("bar") | s("toast") | s("dock") | s("menu"), Finish, false, VESTIBULAR, Mesh, true),
+    f("crumple",  Sheet, CARDS | s("toast") | s("peek"),                       Finish, false, VESTIBULAR, Mesh,      true),
     // W59.5.
     f("genie",    Sheet, CARDS | s("dock") | s("toast") | s("peek") | s("menu"), Finish, false, VESTIBULAR, Mesh,  false),
     f("crt",      Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     false),
@@ -245,7 +245,7 @@ mod tests {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
-        for id in ["fold", "genie", "crt", "glitch"] {
+        for id in ["genie", "crt", "glitch"] {
             assert!(!form(id).unwrap().available, "{id}");
         }
         let m = meta();

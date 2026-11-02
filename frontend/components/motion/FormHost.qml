@@ -49,6 +49,10 @@ Item {
         if (busy) { latchedDir = nextDir; latchedForm = Theme.motionForm(surface, latchedDir) }
         else { lastRest = progress >= 1 ? 1 : 0; latchedForm = ""; latchedDir = "" }
     }
+    // (row 656: a jump straight from one rest to the other — a cut, motion off, a snap — never passes through busy; the
+    // next transition must still take the direction away from where it now rests.)
+    // (Tested on the value itself: `busy` may not have re-evaluated yet inside this handler.)
+    onProgressChanged: if (progress === 0 || progress === 1) lastRest = progress
     Component.onCompleted: {
         if (!busy) lastRest = progress >= 1 ? 1 : 0
         loadTransform()
@@ -108,6 +112,14 @@ Item {
     Item { id: body; anchors.fill: parent }
 
     // --- sheet forms (W59.4+) ---
+    // The handover a surface applies while a sheet form warps its card (row 656, brief §5): its elevation shadow ×
+    // `sheetShadow` (out over the first 10 % of a close, in over the last 10 % of an open; the shadow stays OUTSIDE
+    // `source`), the join's fillets × `sheetFillets` (in over the last 15 %), a translucent fill drawn solid (the sheet
+    // composites it itself) and no compositor blur region while `sheetBlurOff`. 1 / false at rest and for other forms.
+    readonly property real sheetShadow: sheet.item && sheet.item.shadowK !== undefined ? sheet.item.shadowK : 1
+    readonly property real sheetFillets: sheet.item && sheet.item.filletK !== undefined ? sheet.item.filletK : 1
+    readonly property bool sheetSolid: !!sheet.item
+    readonly property bool sheetBlurOff: !!sheet.item
     function pascal(n) {
         return n.split("-").map(function (w) { return w.charAt(0).toUpperCase() + w.slice(1) }).join("")
     }

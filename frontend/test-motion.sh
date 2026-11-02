@@ -276,4 +276,9 @@ for fc in $FORM_CASES; do
   K reset theme.motion.form.open >/dev/null || true; K reset theme.motion.form.close >/dev/null || true
   bar_edge top || true
 done
+
+# W59.4: the sheet forms (fold, roll, book, crumple) in their harness, in a sandbox of their own (MOTION_SHEETS=0 skips).
+if [ "${MOTION_SHEETS:-1}" != 0 ]; then
+  "$ROOT/frontend/core/motion/tests/sheet/run.sh" || fail "the sheet forms failed (frontend/core/motion/tests/sheet/run.sh)"
+fi
 echo "test-motion: ok (shots in $OUT)"
