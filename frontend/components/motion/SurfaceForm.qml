@@ -84,9 +84,23 @@ QtObject {
         // (from rest the Driver stands where the surface stood: open at 1, gone at 0)
         drv.snap(dir === "open" ? 0 : 1)
     }
+    property bool quiet: false
+    // The way the transition goes, set before it starts — a card-level FormHost's `direction` (bound to the surface's own
+    // state it could still read the old way when the form's progress leaves its rest and FormHost latches).
+    property string dir: "close"
     onWantChanged: {
-        latch(want ? "open" : "close")
-        drv.to = want ? 1 : 0
+        dir = want ? "open" : "close"
+        if (quiet) return
+        latch(dir)
+        var t = want ? 1 : 0
+        if (drv.to !== t) drv.to = t
+        else if (drv.value !== t && !drv.running) drv.go()
+    }
+    // A surface that is already in place when it is made (a toast that budded today's way): wanted, at rest, no form yet.
+    function standOpen() {
+        quiet = true; want = true; quiet = false
+        drv.snap(1)
+        drv.to = 1
     }
     // Snap to the wanted end (a retarget hands the shape to the surface's springs; the surface hid).
     function finish() { drv.snap(want ? 1 : 0) }

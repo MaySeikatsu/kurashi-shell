@@ -149,13 +149,21 @@ Item {
     // This shape holds the island (see the header).
     property bool holds: false
     function take() {
-        if (outName !== "" && IslandGeom.takenOn === "") { IslandGeom.takenOn = outName; holds = true }
+        if (outName !== "" && IslandGeom.takenOn === "" && !cardHost.sheetSolid) { IslandGeom.takenOn = outName; holds = true }
     }
     function release() {
         if (holds && IslandGeom.takenOn === outName) IslandGeom.takenOn = ""
         holds = false
     }
     Component.onDestruction: release()
+    // K83 (row 656): while a sheet form warps the card the bar keeps its pill (the head gives way with the shape).
+    Connections {
+        target: cardHost
+        function onSheetSolidChanged() {
+            if (cardHost.sheetSolid) m.release()
+            else if (m.shown && m.open && !m.gate) m.take()
+        }
+    }
 
     // Test only (KURASHI_MORPH_DEBUG=1): when the growth starts, and the springs twice a second while the shape is out.
     readonly property bool debugLog: Quickshell.env("KURASHI_MORPH_DEBUG") === "1"
@@ -288,7 +296,7 @@ Item {
     onContentWantedChanged: contentP = contentWanted ? 1 : 0
     // (a shape form shows the content itself: no fade after it)
     Behavior on contentP {
-        enabled: m.morph && m.shown && Theme.quickMs > 0 && run.mode !== "shape"
+        enabled: m.morph && m.shown && Theme.quickMs > 0 && !run.formed
         NumberAnimation { duration: m.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
 
@@ -297,7 +305,8 @@ Item {
     // it slides otherwise. Owners build their window's BackgroundEffect region from it.
     // (K83: off while a shape form fades the card in, draws only its outline, or opens an iris — a box of blur would
     // stand outside it; it returns as the card stands)
-    readonly property bool blurOn: shown && (morph ? shapeW > 2 && bodyH > 2 && (!sf || (sf.below >= 0.999 && sf.irisR < 0)) : p > 0)
+    readonly property bool blurOn: shown && !cardHost.sheetBlurOff
+        && (morph ? shapeW > 2 && bodyH > 2 && (!sf || (sf.below >= 0.999 && sf.irisR < 0)) : p > 0)
     readonly property real blurX: morph ? shapeCx - shapeW / 2 : shade
     readonly property real blurY: morph ? (flip ? morphH - bodyTop - bodyH : bodyTop) : shade - (formed ? 0 : slide * (1 - p))
     readonly property real blurW: morph ? shapeW : cardW
@@ -320,8 +329,10 @@ Item {
         height: m.height
         edge: m.flip ? "bottom" : "top"
         origin: Qt.rect(m.pillCx - m.pillW / 2, m.flip ? m.morphH - m.closedFoot : m.pillTop, m.pillW, m.pillH)
-        direction: m.open ? "open" : "close"
+        direction: run.dir
         progress: run.sheet ? run.p : 1
+        // (the card itself, its own fill drawn while a sheet warps it; the shape under it gives way: row 656)
+        source: card
         visible: !run.sheet || run.p > 0
     Item {
         id: formLayer
@@ -351,6 +362,7 @@ Item {
         }
         SoftShadow {
             visible: shape.h > 1
+            opacity: cardHost.sheetShadow
             x: shape.x0
             y: shape.y0
             width: shape.w
@@ -382,6 +394,7 @@ Item {
             headFill: m.headFill
             ringScale: 0.5 + 0.5 * m.ttint
             flip: m.flip
+            fade: cardHost.sheetFillets
         }
         // The fill alone, in white, as the relief's mask (I168), redrawn only when the path changes.
         Shape {
@@ -416,6 +429,7 @@ Item {
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
+        opacity: cardHost.sheetFillets
         width: m.morphW
         height: m.morphH
         transform: Scale { yScale: m.flip ? -1 : 1; origin.y: m.morphH / 2 }
@@ -434,7 +448,7 @@ Item {
     // The island's face in the shape's head, where the pill was (only while this shape holds the island).
     CompactFace {
         id: headFace
-        active: m.shown && m.morph && m.holds
+        active: m.shown && m.morph && m.holds && !cardHost.sheetSolid
         visible: active
         face: m.pillGeom ? (m.pillGeom.face || "clock") : "clock"
         animate: m.shown
@@ -455,6 +469,15 @@ Item {
         opacity: m.morph ? (m.sf ? m.sf.content : m.contentP) : (m.formed ? 1 : Math.min(1, m.p * 1.6))
         scale: m.morph ? (m.sf ? 1 : 0.98 + 0.02 * m.contentP) : (m.formed ? 1 : m.slideScale + (1 - m.slideScale) * m.p)
         transformOrigin: m.flip ? Item.Bottom : Item.Top
+        // K83 (row 656): the card's own fill and outline while a sheet form captures it (the shape gives way).
+        Rectangle {
+            visible: m.morph && cardHost.sheetSolid
+            anchors.fill: parent
+            radius: Theme.rLg
+            color: Theme.surface
+            border.width: Theme.outlineW > 0 ? Theme.outlineW : 1
+            border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
+        }
         // K83 (stamp): the card scales with its shape about the bar's edge.
         transform: Scale {
             origin.x: m.shapeCx - card.x

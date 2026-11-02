@@ -345,7 +345,7 @@ PanelWindow {
     // Behind the card as drawn: a morphing card's body follows the springs every frame (the blur never stands ahead of
     // the shape, I295, and a grown card is blurred at rest, I296); the head and the neck's fillets stay unblurred.
     BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
-        : peekLayout ? (peekMorph ? (peekShapeBox.visible && !peekSf ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs ? shapeBlur : emptyRegion) : (run.busy && run.mode === "shape" ? emptyRegion : cardBlur)))
+        : peekLayout ? (peekMorph ? (peekShapeBox.visible && !peekSf ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs && !cardHost.sheetBlurOff ? shapeBlur : emptyRegion) : (run.busy && run.mode === "shape" || cardHost.sheetBlurOff ? emptyRegion : cardBlur)))
     // K83: a shape form that fades its card in (stamp) or draws only an outline keeps the blur off until the card stands
     // (a blurred box before its card would show); an iris blurs inside its circle (shapeBlur's ellipse).
     readonly property bool formBlurs: !sf || sf.below >= 0.999
@@ -754,7 +754,7 @@ PanelWindow {
         origin: Qt.rect(stage.peekOriginCx - stage.peekOriginW / 2 - stage.peekBoxL,
             stage.peekFlip ? stage.peekBoxH - stage.peekE : stage.peekBarInset + 4,
             stage.peekOriginW, Math.max(1, stage.peekE - stage.peekBarInset - 4))
-        direction: stage.peekOut ? "open" : "close"
+        direction: peekRun.dir
         progress: peekRun.sheet ? peekRun.p : 1
         visible: !peekRun.sheet || peekRun.p > 0
     Item {
@@ -1125,6 +1125,10 @@ PanelWindow {
     readonly property real lift: sf ? sf.lift : 0
     // The content's cut to the shape (a stamp scales the card with its shape instead) and its opacity in a shape form.
     readonly property bool cutsContent: !sf || sf.clipsContent
+    // K83 (W59.4 handover, row 656): while a sheet form warps the card, the card draws its own fill, border and material
+    // (solid: the sheet composites it) — it is the sheet's `source` — and the shape under it gives way: its elevation ×
+    // `sheetShadow`, the shape (neck, fillets, body) × `sheetFillets`, the bar keeps its pill, no compositor blur.
+    readonly property bool morphDraws: morphMode && !cardHost.sheetSolid
     // The origin's top (local), for the outline's first rects: the pill's, else the widget's box, else the bar's.
     readonly property real originTop: {
         if (headMode || origin.kind === "pill") return pillTop
@@ -1138,7 +1142,7 @@ PanelWindow {
         target: IslandGeom
         property: "takenOn"
         value: stage.outName
-        when: stage.taken && stage.morphMode && stage.headMode && !stage.handedToView
+        when: stage.taken && stage.morphMode && stage.headMode && !stage.handedToView && !cardHost.sheetSolid
     }
     // A view with its own chrome (the phone) takes over from the shape once it is in: the shape dissolves into it and the
     // bar gets its pill back while the view stands; closing brings the shape back to fold into the pill.
@@ -1274,7 +1278,7 @@ PanelWindow {
     }
     // (a shape form shows the content itself: no fade after it)
     Behavior on contentP {
-        enabled: stage.shown && Theme.quickMs > 0 && run.mode !== "shape"
+        enabled: stage.shown && Theme.quickMs > 0 && !run.formed
         NumberAnimation { duration: stage.contentWanted ? 160 : 90; easing.type: Easing.OutCubic }
     }
     onShownChanged: if (!shown) run.reset()
@@ -1295,8 +1299,9 @@ PanelWindow {
         origin: Qt.rect(stage.originCx - stage.closedW / 2 - stage.boxL,
             stage.flip ? stage.morphH - stage.closedFoot : stage.originTop,
             stage.closedW, Math.max(1, stage.closedFoot - stage.originTop))
-        direction: stage.open ? "open" : "close"
+        direction: run.dir
         progress: run.sheet ? run.p : 1
+        source: card
         // (a sheet form at 0: nothing yet; its layer exists only while 0 < p < 1)
         visible: !run.sheet || run.p > 0
     Item {
@@ -1321,7 +1326,7 @@ PanelWindow {
         // every morphing panel casts it).
         SoftShadow {
             visible: stage.joined && stage.headMode
-            opacity: stage.shapeFade
+            opacity: stage.shapeFade * cardHost.sheetShadow
             x: stage.pillCx - stage.pillW / 2
             y: stage.pillTop
             width: stage.pillW
@@ -1331,7 +1336,7 @@ PanelWindow {
         }
         SoftShadow {
             visible: shape.h > 1
-            opacity: stage.shapeFade
+            opacity: stage.shapeFade * cardHost.sheetShadow
             x: shape.x0
             y: shape.y0
             width: shape.w
@@ -1345,7 +1350,7 @@ PanelWindow {
             // I337: a card grown out of a strip casts from the bar's edge down (the bar is the same sheet), never onto it.
             readonly property real topY: stage.joined || !stage.morphMode ? shape.y0 : Math.max(shape.y0, stage.barEdgeY)
             visible: shape.h > 1 && shape.y0 + shape.h - topY > 1
-            opacity: stage.shapeFade * (1 - stage.lift)
+            opacity: stage.shapeFade * (1 - stage.lift) * cardHost.sheetShadow
             x: shape.x0
             y: topY
             width: shape.w
@@ -1358,7 +1363,7 @@ PanelWindow {
         // K83 (stamp): the card still above the screen casts one level higher, the shadow tightening as it lands.
         Elevation {
             visible: cardElev.visible && stage.lift > 0.001
-            opacity: stage.shapeFade * stage.lift
+            opacity: stage.shapeFade * stage.lift * cardHost.sheetShadow
             x: cardElev.x
             y: cardElev.y
             width: cardElev.width
@@ -1393,7 +1398,7 @@ PanelWindow {
             neck: stage.neckR
             fill: stage.shapeFill
             headFill: stage.headMode ? stage.headFill : stage.shapeFill
-            fade: stage.shapeFade
+            fade: stage.shapeFade * cardHost.sheetFillets
             ringScale: 0.5 + 0.5 * stage.ttint
             flip: stage.flip
             barCx: stage.outW / 2 - stage.boxL
@@ -1438,7 +1443,7 @@ PanelWindow {
         readonly property bool on: Theme.texShell && shape.visible && shape.w > 2 && shape.h > 2
         z: Theme.texText ? 2 : 0
         visible: on
-        opacity: stage.shapeFade
+        opacity: stage.shapeFade * cardHost.sheetFillets
         width: stage.morphW
         height: stage.morphH
         transform: Scale { yScale: stage.flip ? -1 : 1; origin.y: stage.morphH / 2 }
@@ -1457,7 +1462,7 @@ PanelWindow {
     // The island's face, in the shape's head where the pill was (it moves to the card's centre as the shape widens).
     CompactFace {
         id: headFace
-        active: stage.shown && stage.morphMode && stage.headMode
+        active: stage.shown && stage.morphMode && stage.headMode && !cardHost.sheetSolid
         // Not visible while idle: its geometry follows the pill (hover), and a visible item that moves costs a frame (Ma).
         visible: active
         face: stage.pillGeom ? (stage.pillGeom.face || "clock") : "clock"
@@ -1527,15 +1532,15 @@ PanelWindow {
             }
         ]
         radius: Theme.rLg
-        color: stage.morphMode || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, Theme.panel.a)
+        color: stage.morphDraws || stage.ownChrome ? "transparent" : Qt.alpha(Theme.surface, cardHost.sheetSolid ? 1 : Theme.panel.a)
         // K62: with a pen in effect the pen draws the card's outline (1 px further in: the card clips its children).
-        border.width: stage.morphMode || stage.ownChrome || cardPen.active || stage.frameW > 0 ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
+        border.width: stage.morphDraws || stage.ownChrome || cardPen.active || stage.frameW > 0 ? 0 : (Theme.outlineW > 0 ? Theme.outlineW : 1)
         border.color: Theme.outlineW > 0 ? Theme.outlineColor : Theme.outline
         Loader {
             id: cardPen
             z: 5
             anchors.fill: parent
-            active: Theme.penOutline && !stage.morphMode && !stage.ownChrome && card.visible && stage.frameW === 0
+            active: Theme.penOutline && !stage.morphDraws && !stage.ownChrome && card.visible && stage.frameW === 0
             sourceComponent: PenOutline {
                 radius: card.radius
                 inset: 1
@@ -1548,7 +1553,7 @@ PanelWindow {
         // not while the shape draws the card, nor round a view with its own chrome.
         Loader {
             anchors.fill: parent
-            active: !stage.morphMode && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
+            active: !stage.morphDraws && !stage.ownChrome && (Theme.frame !== "" || Theme.fillBands > 1)
             sourceComponent: PanelDress { radius: card.radius; alpha: Theme.panel.a }
         }
         // K59: the card is a material area (its fill is the panel's); the relief lies under the views. Off while the
@@ -1556,7 +1561,7 @@ PanelWindow {
         Loader {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
-            active: Theme.texShell && !Theme.texText && !stage.morphMode && !stage.ownChrome
+            active: Theme.texShell && !Theme.texText && !stage.morphDraws && !stage.ownChrome
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
         }
         // With `texture.text` the relief lies over the views too: their text and icons sink into the same sheet.
@@ -1564,7 +1569,7 @@ PanelWindow {
             z: 1
             anchors.fill: parent
             anchors.margins: Theme.outlineW
-            active: Theme.texShell && Theme.texText && !stage.morphMode && !stage.ownChrome
+            active: Theme.texShell && Theme.texText && !stage.morphDraws && !stage.ownChrome
             sourceComponent: Relief { anchors.fill: parent; radius: Math.max(0, card.radius - Theme.outlineW) }
         }
         // W53.4: the look's ground pattern (Aqua's pinstripes) on the window's ground, under the views; made only while the
@@ -1572,7 +1577,7 @@ PanelWindow {
         Loader {
             anchors.fill: parent
             anchors.margins: Theme.outlineW
-            active: !stage.morphMode && !stage.ownChrome && Theme.decor("pattern.kind", "none") !== "none"
+            active: !stage.morphDraws && !stage.ownChrome && Theme.decor("pattern.kind", "none") !== "none"
                 && Theme.decor("pattern.strength", 0) > 0
             sourceComponent: Pattern { radius: card.radius }
         }
