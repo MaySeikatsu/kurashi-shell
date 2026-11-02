@@ -253,6 +253,8 @@ Flickable {
     }
     // The settings test (W44): whether an item named so is on the page.
     function present(name) { return findNamed(col, name) !== null }
+    // Settings › Motion's preview stage (the settings test drives it: shell.qml `preview`), or null off that page.
+    function motionPreview() { return findNamed(col, "motion-preview") }
     // How many settings a search looked through (the empty-search line names its scope, UX brief "empty search").
     readonly property int scopeCount: Store.allRows().length
 
@@ -289,9 +291,14 @@ Flickable {
             if (y - top < 80) y = top
             break
         }
-        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
+        p.contentY = Math.max(0, Math.min(y - Theme.pad - p.stickOver(y), p.contentHeight - p.height))
         return hit
     }
+    // Settings › Motion's sticky preview stage (W59.6b): how far it is moved down to stay at the page's top, its height,
+    // and the room a row below it needs so a jump does not land under it.
+    readonly property real stuck: motionTop.active ? Math.max(0, p.contentY - col.y - motionTop.y) : 0
+    readonly property real stuckH: motionTop.active && motionTop.item ? motionTop.item.children[0].height : 0
+    function stickOver(y) { return p.stuckH > 0 && y > col.y + motionTop.y + p.stuckH ? p.stuckH + Theme.gap : 0 }
     function reveal(key, focusIt) {
         p.pinKey = ""
         Qt.callLater(function () {
@@ -403,7 +410,7 @@ Flickable {
         var it = findNamed(col, name)
         if (!it) return
         var y = it.mapToItem(p.contentItem, 0, 0).y
-        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
+        p.contentY = Math.max(0, Math.min(y - Theme.pad - p.stickOver(y), p.contentHeight - p.height))
     }
     // A reason's link: the setting that controls this row, wherever it is.
     function openKey(key) {
@@ -440,14 +447,20 @@ Flickable {
             modId: p.modId
             onPageRequested: id => p.pageRequested(id)
         }
-        // Settings › Motion: the preview stage on top and the reduce-motion line under it (W59.6). Only on that page.
+        // Settings › Motion: the preview stage on top and the reduce-motion line under it (W59.6). Only on that page. The
+        // stage is sticky (brief §8 item 1): scrolled past, it stays at the page's top over the rows (W59.6b).
         Loader {
+            id: motionTop
             width: col.width
+            z: 2
             active: !p.searching && p.pageId === "motion"
             visible: active
             sourceComponent: Column {
                 spacing: Theme.gap
-                MotionPreview { width: parent.width }
+                MotionPreview {
+                    width: parent.width
+                    transform: Translate { y: p.stuck }
+                }
                 MotionA11y { onOpenKey: key => p.openKey(key) }
             }
         }

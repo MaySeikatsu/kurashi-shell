@@ -12,3 +12,8 @@ MotionTabs 1.0 MotionTabs.qml
 MotionText 1.0 MotionText.qml
 ProfileValue 1.0 ProfileValue.qml
 RecipeList 1.0 RecipeList.qml
+FormHost 1.0 FormHost.qml
+Accents 1.0 Accents.qml
+Stagger 1.0 Stagger.qml
+SampleCard 1.0 SampleCard.qml
+MotionThumb 1.0 MotionThumb.qml

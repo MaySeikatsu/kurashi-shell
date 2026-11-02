@@ -8,7 +8,8 @@ import "curvemath.js" as CM
 // layers, cfg.why). Picking one is a single change, with Undo right under the cards. Keyboard as a radio group: Tab
 // enters at the chosen card, arrows move, Return or Space picks. The picker of theme.motion.profile (SettingRow.picker):
 // the row's provenance, Reset and reasons (reduce motion forces `reduced`) stay under it. A card's moving thumbnail comes
-// with the preview stage (W59.2's forms); until the daemon publishes each pack's curves only the profile in effect is drawn.
+// from the shell's own forms (MotionThumb, W59.6b); until the daemon publishes each pack's forms and curves (CONTRACT-CHANGE
+// 625) only the profile in effect has one.
 Column {
     id: pg
     property string rowKey: "theme.motion.profile"
@@ -114,6 +115,21 @@ Column {
             width: parent.width - 2 * Theme.gap
             spacing: 2
             onImplicitHeightChanged: pg.grow(implicitHeight + 2 * Theme.gap)
+            // The profile in effect: a still of its opening (a panel at p = 0.5), playing once while the card is hovered or
+            // focused (W59.6b); the other cards get theirs once the daemon publishes each pack's forms (CONTRACT-CHANGE 625).
+            Loader {
+                objectName: "profile-thumb:" + card.modelData.value
+                active: card.on
+                visible: active
+                width: parent.width
+                height: active ? 52 : 0
+                sourceComponent: MotionThumb {
+                    width: parent ? parent.width : 152
+                    height: 52
+                    name: card.name
+                    active: card.activeFocus || cardHover.hovered
+                }
+            }
             // The curve the profile in effect opens on; the other cards get theirs with the daemon's pack previews.
             Canvas {
                 id: still
@@ -168,6 +184,7 @@ Column {
                 text: "⊘ " + card.why
             }
         }
+        HoverHandler { id: cardHover }
         MouseArea {
             anchors.fill: parent
             enabled: pg.editable && card.pickable
