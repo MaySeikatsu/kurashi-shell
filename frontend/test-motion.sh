@@ -5,8 +5,8 @@
 #           K42 loop, springs, steps, retarget; Driver (rest, landing, cuts, spring velocity through a retarget, cubic slope
 #           matching, track/release); the Theme's motion readers with today's tokens and with W59.1's — skipped when
 #           qmltestrunner is not on PATH;
-#   scrub   per case (a style and a motion profile: expressive, calm, lively, fluent's and snes' own) the session menu (a
-#           Stage panel) opened with KURASHI_MOTION_SCRUB at 0.15, 0.5, 0.85 and 1 (one frontend per value: the variable
+#   scrub   per case (a style and a motion profile: expressive, calm, lively; fluent, snes, kawaii and vibrancy on their
+#           own) the session menu (a Stage panel) opened with KURASHI_MOTION_SCRUB at 0.15, 0.5, 0.85 and 1 (one frontend per value: the variable
 #           is read once): every Driver and morph holds there, so the shots are by progress, not by sleeping. Asserted:
 #           the frontend logs `motion: scrub <p>`; p = 1 equals the panel at rest without scrub, pixel for pixel, and that
 #           the motion-off frame (profile none; ≤ 16 px: lively's neck fillets differ at rest, on main too); p < 1 differs
@@ -22,7 +22,7 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${KURASHI_SB_PREFIX:-}w59-motion
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MOTION_OUT:-$ROOT/frontend/shots/motion}
-CASES=${MOTION_CASES:-washi:expressive washi:calm sekai:lively fluent:expressive snes:expressive}
+CASES=${MOTION_CASES:-washi:expressive washi:calm sekai:lively fluent:expressive snes:expressive kawaii:lively vibrancy:calm}
 SCRUBS=${MOTION_SCRUBS:-0.15 0.5 0.85 1}
 # Styles whose Stage card is not a morph (snes: no join) reveal on the Stage's own animation until W59.3 puts it on a
 # Driver: their scrubbed frames may equal rest (said, not failed).
