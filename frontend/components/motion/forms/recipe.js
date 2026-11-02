@@ -13,16 +13,19 @@ var REST = { opacity: 1, scale: 1, scale_x: 1, scale_y: 1, translate_along: 0, t
 // QQuickRotation's distance to the plane: rotate_x/rotate_y look as a QML Rotation (and `flip`) does.
 var PLANE = 1024
 
+// A list as the token holds it: a JS array, or a sequence a document store hands over (Settings' Store).
+function isList(x) { return !!x && typeof x === "object" && typeof x.length === "number" }
+
 // The token prepared once (per recipe): its tracks with their curves prepared, and what it needs drawn.
 function prepare(token) {
     var out = { ok: false, tracks: [], pivot: "centre", base: "", blurMax: 0, clip: false, layer: false }
-    if (!token || token.ok !== true || !Array.isArray(token.tracks)) return out
+    if (!token || token.ok !== true || !isList(token.tracks)) return out
     out.ok = true
     out.pivot = token.pivot || "centre"
     out.base = token.base || ""
     for (var i = 0; i < token.tracks.length; i++) {
         var t = token.tracks[i]
-        if (!t || !Array.isArray(t.keys) || t.keys.length === 0 || REST[t.prop] === undefined) continue
+        if (!t || !isList(t.keys) || t.keys.length === 0 || REST[t.prop] === undefined) continue
         out.tracks.push({ prop: t.prop, keys: t.keys, px: t.unit === "px", c: t.curve ? C.prepare(t.curve) : null })
         if (t.prop === "blur") {
             for (var j = 0; j < t.keys.length; j++) out.blurMax = Math.max(out.blurMax, t.keys[j][1])

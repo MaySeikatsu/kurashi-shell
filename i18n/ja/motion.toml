@@ -261,3 +261,6 @@
 "config.diag.recipe.curve" = "トラック {track}（{prop}）：曲線「{curve}」が正しくありません。{error}"
 "config.diag.recipe.curve_name" = "トラック {track}（{prop}）：「{curve}」という曲線を持つモーションパックがありません。"
 "config.diag.recipe.unit" = "トラック {track}（{prop}）：単位「{unit}」は使えません。単位を取るのは translate のトラックだけで、fraction か px です。"
+"motion.ui.recipe.sep" = "、"
+"motion.ui.recipe.where_all_open" = "すべての面（開くとき）"
+"motion.ui.recipe.where_all_close" = "すべての面（閉じるとき）"

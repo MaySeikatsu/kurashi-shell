@@ -154,4 +154,10 @@ Column {
             }
         }
     }
+
+    // The user's own forms (W59.7): recipes from the motion packs, under the table whose pickers list them.
+    Item { width: 1; height: Theme.gap }
+    Rectangle { width: parent.width; height: 1; color: Theme.containerHigh }
+    Item { width: 1; height: Theme.gap }
+    RecipeList { width: ft.width; onOpenKey: key => ft.openKey(key) }
 }

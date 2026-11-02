@@ -261,3 +261,6 @@
 "config.diag.recipe.curve" = "Track {track} ({prop}): the curve “{curve}” is not valid. {error}"
 "config.diag.recipe.curve_name" = "Track {track} ({prop}): no motion pack has a curve called “{curve}”."
 "config.diag.recipe.unit" = "Track {track} ({prop}): unit “{unit}” is not possible; only translate tracks take a unit, fraction or px."
+"motion.ui.recipe.sep" = ", "
+"motion.ui.recipe.where_all_open" = "every surface (opening)"
+"motion.ui.recipe.where_all_close" = "every surface (closing)"
