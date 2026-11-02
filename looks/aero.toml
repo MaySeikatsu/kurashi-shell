@@ -8,7 +8,7 @@ category = "retro"
 # brief's §3 cites them).
 [recipe]
 "theme.chrome" = "soft"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "aero"
 "theme.material.kind" = "translucent"
 "theme.material.blur" = true
 "theme.material.opacity" = 0.82
@@ -83,12 +83,4 @@ sounds = "aero"
 "bar.group" = "none"
 # The glass sheen on every block (Vista/7).
 "material.sheen" = 0.35
-# Motion: windows and flyouts fade in with a short zoom from 0.95 (~200 ms), out faster.
-"motion.style" = "zoom"
-"motion.open_ms" = 200
-"motion.close_ms" = 150
-"motion.fast_ms" = 150
-"motion.open_curve" = [0.1, 0.9, 0.2, 1.0]
-"motion.close_curve" = [0.42, 0.0, 1.0, 1.0]
-"motion.fast_curve" = [0.1, 0.9, 0.2, 1.0]
 "cursor" = "aero"

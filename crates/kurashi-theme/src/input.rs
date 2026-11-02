@@ -96,14 +96,10 @@ pub enum FrameOutline {
     Off,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum MotionProfile {
-    /// Timed curves after Caelestia's (M3 expressive): surfaces grow out of their edge and overshoot a little (K74).
-    Expressive,
-    Calm,
-    Lively,
-    None,
-}
+/// What motion resolves from (K83): the profile (a motion pack) in effect, the style's, the user's per-axis keys and
+/// reduce motion — `kurashi_motion` turns it into the `motion.*` tokens. Today's profiles are pack ids
+/// (`MotionRequest::profile("calm")`).
+pub use kurashi_motion::Request as MotionRequest;
 
 /// How a block of chrome is drawn (K42, K45): flat fills; keycaps — outline, light ring, fill and a
 /// hard shadow straight down that the block sinks into when pressed; soft — a hairline rim and a
@@ -158,7 +154,7 @@ pub struct Axes {
     pub material: Material,
     pub opacity: f64,
     pub blur: bool,
-    pub motion: MotionProfile,
+    pub motion: MotionRequest,
     pub motion_speed: f64,
     pub density: Density,
     pub chrome: Chrome,
@@ -185,7 +181,7 @@ impl Default for Axes {
             material: Material::Translucent,
             opacity: 0.82,
             blur: true,
-            motion: MotionProfile::Expressive,
+            motion: MotionRequest::default(),
             motion_speed: 1.0,
             density: Density::Regular,
             chrome: Chrome::Flat,

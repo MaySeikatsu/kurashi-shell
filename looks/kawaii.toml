@@ -9,7 +9,7 @@ category = "fiction"
 # window on the pastel desk. Original cues, pointer and an optional sparkle trail (off by default).
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "lively"
+"theme.motion.profile" = "kawaii"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
 "theme.typography.family" = ["DotGothic16", "PixelMplus12", "M PLUS 1p", "Noto Sans CJK JP", "sans-serif"]
@@ -80,8 +80,6 @@ sounds = "kawaii"
 "start.word" = "start"
 "start.mark" = "heart"
 "start.fill" = ["surface_container"]
-# Bouncy: things pop in with a little overshoot.
-"motion.style" = "rubber"
 "cursor" = "kawaii"
 "cursor_decoration" = "sparkles"
 "quick.frame" = "flyout"

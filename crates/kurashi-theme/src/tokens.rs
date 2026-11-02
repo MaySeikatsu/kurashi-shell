@@ -8,7 +8,7 @@ use crate::ThemeError;
 use crate::appearance::{DECOR_KEYS, DecorKind, SLOTS};
 use crate::color::{BLACK, Rgb, WHITE, contrast, ensure_contrast};
 use crate::fonts::{FontProvider, resolve_chain};
-use crate::input::{Axes, Chrome, Decor, Density, FrameOutline, Material, MotionProfile, Shape};
+use crate::input::{Axes, Chrome, Decor, Density, FrameOutline, Material, Shape};
 use crate::palette::{Palette, ROLES};
 
 /// The squircle's control-point ratio at `theme.shape.squircle` 0 (a circle's quarter, `K_CIRCLE` in corner.js) and 1.
@@ -82,54 +82,6 @@ pub fn radius_steps(shape: Shape, r: f64) -> [(&'static str, f64); 5] {
     ]
 }
 
-/// (name, base ms) before speed/profile.
-const DURATIONS: [(&str, f64); 5] = [
-    ("instant", 0.0),
-    ("quick", 120.0),
-    ("standard", 220.0),
-    ("emphasized", 320.0),
-    ("long", 500.0),
-];
-
-pub fn duration_ms(base: f64, profile: MotionProfile, speed: f64) -> i64 {
-    let speed = speed.clamp(0.25, 4.0);
-    let profile_k = match profile {
-        MotionProfile::None => return 0,
-        MotionProfile::Calm | MotionProfile::Expressive => 1.0,
-        MotionProfile::Lively => 0.8,
-    };
-    (base * profile_k / speed).round() as i64
-}
-
-/// Cubic-bezier control points per easing role.
-pub fn easing(profile: MotionProfile) -> [(&'static str, [f64; 4]); 4] {
-    match profile {
-        MotionProfile::None => {
-            ["enter", "exit", "emphasized", "continuous"].map(|n| (n, [0.0, 0.0, 1.0, 1.0]))
-        }
-        // Caelestia's (M3 expressive) default spatial curve on arrival, its accelerating exit.
-        MotionProfile::Expressive => [
-            ("enter", [0.38, 1.21, 0.22, 1.0]),
-            ("exit", [0.3, 0.0, 0.8, 0.15]),
-            ("emphasized", [0.05, 0.7, 0.1, 1.0]),
-            ("continuous", [0.2, 0.0, 0.0, 1.0]),
-        ],
-        MotionProfile::Calm => [
-            ("enter", [0.05, 0.7, 0.1, 1.0]),
-            ("exit", [0.3, 0.0, 0.8, 0.15]),
-            ("emphasized", [0.2, 0.0, 0.0, 1.0]),
-            ("continuous", [0.4, 0.0, 0.2, 1.0]),
-        ],
-        // Slight overshoot on arrival; exits stay crisp.
-        MotionProfile::Lively => [
-            ("enter", [0.34, 1.4, 0.64, 1.0]),
-            ("exit", [0.3, 0.0, 0.8, 0.15]),
-            ("emphasized", [0.3, 1.2, 0.3, 1.0]),
-            ("continuous", [0.4, 0.0, 0.2, 1.0]),
-        ],
-    }
-}
-
 const TYPE_SCALE: [(&str, f64); 5] = [
     ("caption", 11.0),
     ("label", 12.0),
@@ -150,33 +102,6 @@ fn at_least(c: Rgb, bg: Rgb, min: f64, toward: Rgb) -> Rgb {
         .map(|i| c.mix(toward, f64::from(i) / 20.0))
         .find(|m| contrast(*m, bg) >= min)
         .unwrap_or(toward)
-}
-
-/// A staircase as a QML `bezierCurve` (W53.0a, `motion.style = stepped`): `n` equal steps, each taken at once and then
-/// held, in straight segments — a surface moves in visible jumps (16-bit menus) whatever the frame rate.
-pub fn stepped_curve(n: usize) -> Vec<f64> {
-    let n = n.clamp(1, 60);
-    let r = |v: f64| (v * 1e4).round() / 1e4;
-    let mut c = Vec::with_capacity(n * 12);
-    for k in 0..n {
-        let (x0, x1) = (k as f64 / n as f64, (k + 1) as f64 / n as f64);
-        let (y0, y1) = (x0, x1);
-        let xj = x0 + (x1 - x0).min(0.002) / 2.0;
-        // The jump (x0, y0) → (xj, y1), then the hold (xj, y1) → (x1, y1); straight lines: c1 = start, c2 = end.
-        c.extend([x0, y0, xj, y1, xj, y1].map(r));
-        c.extend([xj, y1, x1, y1, x1, y1].map(r));
-    }
-    c
-}
-
-/// A look's curve (`[decor] motion.*_curve`) as a `bezierCurve` list: a cubic's four numbers get their end (1, 1).
-fn curve_value(v: &Value) -> Option<Vec<f64>> {
-    let n: Vec<f64> = v.as_array()?.iter().filter_map(Value::as_f64).collect();
-    match n.len() {
-        0 => None,
-        4 => Some([n[0], n[1], n[2], n[3], 1.0, 1.0].to_vec()),
-        _ => Some(n),
-    }
 }
 
 /// The slot names and `[decor]` metrics as `decor.<name>` tokens, every default filled in (W53.0a); a role is published
@@ -400,137 +325,19 @@ pub fn build(
     );
     t.insert("icon.scale".into(), json!(dnum("icon.scale")));
 
-    for (n, base) in DURATIONS {
-        t.insert(
-            format!("motion.{n}_ms"),
-            json!(duration_ms(base, axes.motion, axes.motion_speed)),
-        );
-    }
-    for (n, b) in easing(axes.motion) {
-        t.insert(format!("motion.easing.{n}"), json!(b));
-    }
-    t.insert(
-        "motion.profile".into(),
-        json!(match axes.motion {
-            MotionProfile::Expressive => "expressive",
-            MotionProfile::Calm => "calm",
-            MotionProfile::Lively => "lively",
-            MotionProfile::None => "none",
-        }),
-    );
-    // K74: how surfaces move. `timed` (expressive): Caelestia's curves (M3 expressive, read 2026-10-28 from
-    // caelestia-dots/shell `plugin/src/Caelestia/Config/tokens.hpp`) — a surface grows out of its edge on the default
-    // spatial curve (500 ms, overshoots ~6 %) and folds back on the emphasized one (400 ms), its content fading on the
-    // effects curve; `spring` (calm, lively): the spring family below; `none`: cuts. Curves are QML `bezierCurve` lists
-    // (segments of c1, c2, end; the last point 1, 1).
-    // W53.0a (K80): a look's motion personality on top — the form surfaces move in (`motion.style`: grow is K74's, the
-    // others are drawn by the surfaces that adopt them), its own durations and curves (`[decor] motion.*`), and the
-    // `stepped` style, whose kind quantises every timed curve into jumps held `motion.steps` frames at 60 Hz. The profile
-    // `none` (reduce motion forces it) still wins: no curves, no steps.
-    let style = dv("motion.style");
-    let style = style.as_str().unwrap_or("grow");
-    let stepped = style == "stepped";
-    t.insert(
-        "motion.kind".into(),
-        json!(match axes.motion {
-            MotionProfile::None => "none",
-            _ if stepped => "stepped",
-            MotionProfile::Expressive => "timed",
-            _ => "spring",
-        }),
-    );
-    t.insert(
-        "motion.style".into(),
-        json!(if axes.motion == MotionProfile::None {
-            "none"
-        } else {
-            style
-        }),
-    );
-    let hold = dnum("motion.steps").max(1.0);
-    t.insert("motion.steps".into(), json!(hold as i64));
-    // A rubber-band look overshoots on arrival unless it names its own curves.
-    let rubber = [0.34, 1.56, 0.64, 1.0, 1.0, 1.0].to_vec();
-    for (n, ms, curve) in [
-        ("open", 500.0, [0.38, 1.21, 0.22, 1.0, 1.0, 1.0].to_vec()),
-        (
-            "close",
-            400.0,
-            [
-                0.05,
-                0.0,
-                2.0 / 15.0,
-                0.06,
-                1.0 / 6.0,
-                0.4,
-                5.0 / 24.0,
-                0.82,
-                0.25,
-                1.0,
-                1.0,
-                1.0,
-            ]
-            .to_vec(),
-        ),
-        ("fast", 350.0, [0.42, 1.67, 0.21, 0.9, 1.0, 1.0].to_vec()),
-        ("effects", 200.0, [0.34, 0.8, 0.34, 1.0, 1.0, 1.0].to_vec()),
-    ] {
-        let base = match dnum(&format!("motion.{n}_ms")) {
-            v if v > 0.0 => v,
-            _ => ms,
-        };
-        let dur = duration_ms(base, axes.motion, axes.motion_speed);
-        t.insert(format!("motion.timed.{n}_ms"), json!(dur));
-        let own = curve_value(&dv(&format!("motion.{n}_curve")));
-        let curve = if stepped {
-            stepped_curve(((dur as f64) / (hold * 1000.0 / 60.0)).round() as usize)
-        } else if let Some(c) = own {
-            c
-        } else if style == "rubber" && n != "close" && n != "effects" {
-            rubber.clone()
-        } else {
-            curve
-        };
-        t.insert(format!("motion.timed.{n}_curve"), json!(curve));
-    }
-
-    // Springs (K42): overshoot of arrivals (QML Easing.OutBack amplitude) and a spring for
-    // retargetable morphs (QML SpringAnimation `spring`/`damping`). Calm settles without a bounce,
-    // keycap chrome bounces more, `none` has no spring at all (`motion.spring.on` false).
-    let overshoot = match (axes.motion, axes.chrome) {
-        (MotionProfile::None, _) => 0.0,
-        (MotionProfile::Calm | MotionProfile::Expressive, _) => 0.6,
-        (MotionProfile::Lively, Chrome::Flat) => 1.4,
-        (MotionProfile::Lively, Chrome::Keycap) => 2.2,
-        (MotionProfile::Lively, Chrome::Soft) => 1.0,
-        (MotionProfile::Lively, Chrome::Line | Chrome::Bevel) => 0.4,
+    // Motion (K83): the profile in effect — a motion pack over the style's, the user's per-axis keys, reduce motion —
+    // resolved by kurashi-motion into today's tokens (`motion.kind`, `motion.timed.*`, `motion.spring.*`, …, derived
+    // exactly as before) and the engine's (`motion.curve.*`, `motion.form.*`, `motion.accent.*`, `motion.forms`).
+    let chrome = match axes.chrome {
+        Chrome::Flat => "flat",
+        Chrome::Keycap => "keycap",
+        Chrome::Soft => "soft",
+        Chrome::Line => "line",
+        Chrome::Bevel => "bevel",
     };
-    t.insert("motion.spring.overshoot".into(), json!(overshoot));
-    let (spring, damping) = match axes.motion {
-        MotionProfile::None => (0.0, 1.0),
-        // (Expressive: what is not moved on its curves yet springs as calm does.)
-        MotionProfile::Calm | MotionProfile::Expressive => (4.0, 0.45),
-        MotionProfile::Lively => (3.2, 0.26),
-    };
-    let sk = axes.motion_speed.clamp(0.25, 4.0);
-    t.insert(
-        "motion.spring.on".into(),
-        json!(axes.motion != MotionProfile::None),
-    );
-    t.insert(
-        "motion.spring.spring".into(),
-        json!((spring * sk * 100.0).round() / 100.0),
-    );
-    t.insert("motion.spring.damping".into(), json!(damping));
-    // W34 (rows 360, 363): squash and stretch mid-morph and the neck's wobble on landing — lively only (docs/ux/motion.md).
-    t.insert(
-        "motion.spring.squash".into(),
-        json!(if axes.motion == MotionProfile::Lively {
-            0.06
-        } else {
-            0.0
-        }),
-    );
+    let motion = kurashi_motion::resolve::resolve(&axes.motion, axes.motion_speed, chrome);
+    t.extend(motion.tokens);
+    notes.extend(motion.notes);
 
     // --- controls (touch targets stay >= 32 px even when compact) ---
     let ck = match axes.density {

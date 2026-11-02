@@ -446,7 +446,7 @@ fn status_warn_is_aa_text_on_the_surface() {
 fn axes_scales() {
     let mut i = ThemeInput::default();
     i.axes.shape = Shape::None;
-    i.axes.motion = MotionProfile::None;
+    i.axes.motion = MotionRequest::profile("none");
     i.axes.density = Density::Compact;
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["radius.md"], 0);
@@ -458,7 +458,7 @@ fn axes_scales() {
 
     let mut i = ThemeInput::default();
     i.axes.motion_speed = 2.0;
-    i.axes.motion = MotionProfile::Calm;
+    i.axes.motion = MotionRequest::profile("calm");
     i.axes.radius = 27.0;
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["motion.standard_ms"], 110);
@@ -843,19 +843,21 @@ fn decor_is_validated_data_with_every_default() {
     );
 }
 
-/// W53.0a: the motion personality — a look's own curves and durations, the rubber band, the stepped staircase — and
-/// reduce motion (profile none) still wins over all of them.
+/// W53.0a, K83: the motion personality — a profile's own curves and durations, the rubber band, the stepped staircase,
+/// the user's per-axis keys over them — and the profile `none` still wins over all of them.
 #[test]
 fn motion_styles_curves_and_steps() {
     let mut i = input("wa-iro", Scheme::Dark);
     let k74 = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(k74["motion.kind"], "timed");
     assert_eq!(k74["motion.style"], "grow");
-    i.decor = decor_of(
-        "[decor]\n\"motion.open_ms\" = 300\n\"motion.open_curve\" = [0.2, 0.0, 0.0, 1.0]\n\"motion.style\" = \"rubber\"\n",
-    );
+    i.axes.motion = MotionRequest::profile("kawaii");
+    i.axes.motion.axes.timing[0] = "cubic-bezier(0.2, 0, 0, 1)".into();
+    i.axes.motion.axes.timing_ms[0] = 300;
     let t = resolve(&i, &fonts()).unwrap().tokens;
-    assert_eq!(t["motion.timed.open_ms"], 300);
+    assert_eq!(t["motion.style"], "rubber");
+    // Lively's durations are 0.8 of the role's.
+    assert_eq!(t["motion.timed.open_ms"], 240);
     assert_eq!(
         t["motion.timed.open_curve"],
         serde_json::json!([0.2, 0.0, 0.0, 1.0, 1.0, 1.0])
@@ -868,7 +870,8 @@ fn motion_styles_curves_and_steps() {
         t["motion.timed.close_curve"],
         k74["motion.timed.close_curve"]
     );
-    i.decor = decor_of("[decor]\n\"motion.style\" = \"stepped\"\n\"motion.steps\" = 5\n");
+    i.axes.motion = MotionRequest::profile("snes");
+    i.axes.motion.axes.timing_ms[0] = 500;
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["motion.kind"], "stepped");
     let c: Vec<f64> = t["motion.timed.open_curve"]
@@ -877,16 +880,18 @@ fn motion_styles_curves_and_steps() {
         .iter()
         .map(|v| v.as_f64().unwrap())
         .collect();
-    // 500 ms in holds of 5 frames at 60 Hz: 6 steps, two straight segments each, ending at 1, 1; x never goes back.
-    assert_eq!(c.len(), 6 * 12);
+    // 500 ms in holds of 1 frame at 60 Hz: 30 steps, two straight segments each, ending at 1, 1; x never goes back.
+    assert_eq!(c.len(), 30 * 12);
     assert_eq!(&c[c.len() - 2..], &[1.0, 1.0]);
     let xs: Vec<f64> = c.chunks(2).map(|p| p[0]).collect();
     assert!(xs.windows(2).all(|w| w[1] >= w[0]), "{xs:?}");
-    i.axes.motion = MotionProfile::None;
+    i.axes.motion.profile = "none".into();
+    i.axes.motion.style_profile = "snes".into();
     let t = resolve(&i, &fonts()).unwrap().tokens;
     assert_eq!(t["motion.kind"], "none");
     assert_eq!(t["motion.style"], "none");
     assert_eq!(t["motion.timed.open_ms"], 0);
+    assert_eq!(t["motion.form.panel.open"], "none");
 }
 
 /// W53.0a: bitmap type sits on its grid; a style's own icon font wins when installed and the shell's is its fallback.
@@ -1052,13 +1057,10 @@ fn style_input(name: &str) -> ThemeInput {
             }
             "theme.shape.radius" => i.axes.radius = f,
             "theme.shape.squircle" => i.axes.squircle = f,
+            // K83: the style's (its look's) motion pack — the profile in effect and the one under a user's pick.
             "theme.motion.profile" => {
-                i.axes.motion = match s.as_str() {
-                    "none" => MotionProfile::None,
-                    "calm" => MotionProfile::Calm,
-                    "lively" => MotionProfile::Lively,
-                    _ => MotionProfile::Expressive,
-                }
+                i.axes.motion.profile = s.clone();
+                i.axes.motion.style_profile = s;
             }
             "theme.motion.speed" => i.axes.motion_speed = f,
             "theme.density" => {
@@ -1109,21 +1111,22 @@ fn motion_sweep(resolve_with: impl Fn(&str, &str) -> TokenMap) {
 
 /// The motion tokens that existed before K83 (the new families are left out of the sweep).
 fn is_legacy_motion(k: &str) -> bool {
-    !["motion.curve.", "motion.form", "motion.accent.", "motion.recipe."]
-        .iter()
-        .any(|n| k.starts_with(n))
+    ![
+        "motion.curve.",
+        "motion.form",
+        "motion.accent.",
+        "motion.recipe.",
+    ]
+    .iter()
+    .any(|n| k.starts_with(n))
 }
 
 #[test]
 fn motion_sweep_every_style_and_profile() {
     motion_sweep(|style, p| {
+        // The user picks a profile over the style's (K83: the style's pack stays underneath).
         let mut i = style_input(style);
-        i.axes.motion = match p {
-            "none" => MotionProfile::None,
-            "calm" => MotionProfile::Calm,
-            "lively" => MotionProfile::Lively,
-            _ => MotionProfile::Expressive,
-        };
+        i.axes.motion.profile = p.into();
         resolve(&i, &fonts()).unwrap().tokens
     });
 }

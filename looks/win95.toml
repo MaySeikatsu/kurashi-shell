@@ -8,7 +8,7 @@ category = "retro"
 # read from real 98 screenshots at 1:1 (the brief's §1 cites them).
 [recipe]
 "theme.chrome" = "bevel"
-"theme.motion.profile" = "none"
+"theme.motion.profile" = "win95"
 "theme.material.kind" = "solid"
 "theme.material.opacity" = 1.0
 "theme.material.blur" = false
@@ -84,6 +84,4 @@ sounds = "win95"
 "type.pixel_step" = 12
 "icon.size" = 16
 "icon.fill" = 1
-"motion.style" = "stepped"
-"motion.steps" = 4
 "cursor" = "win95"
