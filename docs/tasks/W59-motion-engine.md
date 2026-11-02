@@ -50,6 +50,7 @@ motion.curve.<role>                 role ∈ open close fast effects
     {"kind":"spring","ms":550,"response":550,"bounce":0.45}
     {"kind":"spring_q","ms":0,"spring":4.0,"damping":0.45}      (K42 integrator; calm, lively)
     {"kind":"steps","ms":67,"n":4}
+motion.profile_curve.<role>         same shape: what the profile alone would run on (no user curve/ms) — Settings' "the profile would use …"
 motion.form.<surface>.open|close    "fold"                    (resolved: user surface > user default > pack surface > pack default)
 motion.form_params.<form>           {"panels":3,"axes":2,"crease":0.35}   (only forms in use)
 motion.accent.squash|jelly|overshoot_cap|stagger_ms  numbers;  motion.accent.content "late|with|cascade";  motion.accent.shadow "carry|fade"

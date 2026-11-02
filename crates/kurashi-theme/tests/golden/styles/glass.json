@@ -929,6 +929,36 @@
   "motion.kind": "spring",
   "motion.long_ms": 400,
   "motion.profile": "lively",
+  "motion.profile_curve.close": {
+    "damping": 0.26,
+    "kind": "spring_q",
+    "ms": 0,
+    "spring": 3.2
+  },
+  "motion.profile_curve.effects": {
+    "kind": "cubic",
+    "ms": 160,
+    "points": [
+      0.34,
+      0.8,
+      0.34,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.fast": {
+    "damping": 0.26,
+    "kind": "spring_q",
+    "ms": 0,
+    "spring": 3.2
+  },
+  "motion.profile_curve.open": {
+    "damping": 0.26,
+    "kind": "spring_q",
+    "ms": 0,
+    "spring": 3.2
+  },
   "motion.quick_ms": 96,
   "motion.spring.damping": 0.26,
   "motion.spring.on": true,

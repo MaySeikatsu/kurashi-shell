@@ -953,6 +953,54 @@
   "motion.kind": "timed",
   "motion.long_ms": 625,
   "motion.profile": "souls",
+  "motion.profile_curve.close": {
+    "kind": "cubic",
+    "ms": 650,
+    "points": [
+      0.37,
+      0.0,
+      0.63,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.effects": {
+    "kind": "cubic",
+    "ms": 250,
+    "points": [
+      0.34,
+      0.8,
+      0.34,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.fast": {
+    "kind": "cubic",
+    "ms": 375,
+    "points": [
+      0.37,
+      0.0,
+      0.63,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.open": {
+    "kind": "cubic",
+    "ms": 813,
+    "points": [
+      0.37,
+      0.0,
+      0.63,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "motion.quick_ms": 150,
   "motion.spring.damping": 0.45,
   "motion.spring.on": true,

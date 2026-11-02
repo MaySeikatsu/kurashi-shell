@@ -947,6 +947,54 @@
   "motion.kind": "timed",
   "motion.long_ms": 500,
   "motion.profile": "washi",
+  "motion.profile_curve.close": {
+    "kind": "cubic",
+    "ms": 220,
+    "points": [
+      0.4,
+      0.0,
+      1.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.effects": {
+    "kind": "cubic",
+    "ms": 200,
+    "points": [
+      0.34,
+      0.8,
+      0.34,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.fast": {
+    "kind": "cubic",
+    "ms": 180,
+    "points": [
+      0.2,
+      0.0,
+      0.1,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.open": {
+    "kind": "cubic",
+    "ms": 360,
+    "points": [
+      0.2,
+      0.0,
+      0.1,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "motion.quick_ms": 120,
   "motion.spring.damping": 0.45,
   "motion.spring.on": true,
