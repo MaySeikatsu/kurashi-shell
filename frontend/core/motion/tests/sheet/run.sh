@@ -8,10 +8,11 @@
 #   a real run on the theme's curves (play 0, then 1 before it lands) ends on the rest frame;
 #   every layer made was released, no QML errors.
 # W59.5: a case is form:scene[:style[:scheme]] — the style's motion profile with it (kami origami, terminal phosphor,
-# washi sumi, aqua aqua, glass liquid), the scheme light or dark (else the style's). crt cases also sweep p in 0.05
-# steps both ways and hold the photosensitivity rule (brief §11): the region's mean luminance moves ≤ 0.2 a step, and
-# at most one rise-and-fall of ≥ 0.1 per transition. SHEET_SCALE=1.5 runs the output at 1.5× (2880×1620 px, the same
-# 1920×1080 layout).
+# washi sumi, aqua aqua, glass liquid; W59.8b: yorha glitch, souls and hallownest ember, snes and ps2 their own), the scheme
+# light or dark (else the style's). crt and glitch cases also sweep p in 0.05 steps both ways and hold the photosensitivity
+# rule (brief §11): the region's mean luminance moves ≤ 0.2 a step, and at most one rise-and-fall of ≥ 0.1 per transition.
+# The open of pixelate, glitch and dissolve is shot too (W59.8b: each is a function of p, so it runs as the close does).
+# SHEET_SCALE=1.5 runs the output at 1.5× (2880×1620 px, the same 1920×1080 layout).
 # Shots: frontend/shots/motion/sheet/<form>-<scene>[-<style>[-<scheme>]]-<p>.png (gitignored; read them).
 #   nix develop -c frontend/core/motion/tests/sheet/run.sh
 #   SHEET_CASES="fold:panel roll:sidebar" SHEET_PS="0.3 0.7" nix develop -c frontend/core/motion/tests/sheet/run.sh
@@ -27,7 +28,9 @@ BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${SHEET_OUT:-$ROOT/frontend/shots/motion/sheet}
 CASES=${SHEET_CASES:-fold:panel fold:bottom fold:launcher roll:sidebar roll:right book:panel crumple:launcher crumple:toast \
 genie:module:aqua genie:dock:aqua:dark genie:toast:aqua crt:panel:terminal crt:launcher:terminal:light drop:toast:washi \
-drop:panel:washi:dark drop:module:washi fan:panel fan:bottom fan:launcher fan:leftpanel noren:panel noren:sidebar noren:toast}
+drop:panel:washi:dark drop:module:washi fan:panel fan:bottom fan:launcher fan:leftpanel noren:panel noren:sidebar noren:toast \
+pixelate:panel:snes:light pixelate:launcher:ps2:dark glitch:panel:yorha:light glitch:launcher:yorha:dark \
+dissolve:panel:souls:dark dissolve:module:souls:light dissolve:launcher:hallownest:dark}
 PS=${SHEET_PS:-0.15 0.5 0.85}
 # The look (theme.style), the scheme (light | dark | empty = the config's) and the output's scale (1 or 1.5, the 1.5 output
 # being 2880×1620 at scale 1.5 — the same 1920×1080 logical screen the regions are written in).
@@ -98,7 +101,8 @@ region() {
 # A style's motion profile (W59.5's cases name a style; W59.4's run on kami's origami).
 profile_of() {
   case $1 in
-    terminal) echo phosphor ;; washi) echo sumi ;; aqua|vibrancy) echo aqua ;; glass) echo liquid ;; *) echo origami ;;
+    terminal) echo phosphor ;; washi) echo sumi ;; aqua|vibrancy) echo aqua ;; glass) echo liquid ;;
+    yorha) echo glitch ;; souls|hallownest) echo ember ;; snes) echo snes ;; ps2) echo ps2 ;; *) echo origami ;;
   esac
 }
 # The region's mean luminance (Rec. 709, 0 … 1).
@@ -168,8 +172,9 @@ for cs in $CASES; do
     echo "sheet: $tag p=$p: $d px from rest"
   done
   grep -q "motion: sheet layer up $surf $form" "$log" || fail "$tag: no 'motion: sheet layer up $surf $form' line"
-  # W59.5's forms draw an open differently from a close (crt's afterglow, drop's evaporation): the open too, from rest 0.
-  case $form in genie|crt|drop)
+  # W59.5's forms draw an open differently from a close (crt's afterglow, drop's evaporation), and W59.8b's dissolve condenses
+  # from embers, glitch and pixelate run their frames forwards: the open too, from rest 0.
+  case $form in genie|crt|drop|dissolve|glitch|pixelate)
     ipc at 0 >/dev/null
     wait_settled 4 0.3 "$g"
     for p in $PS; do
@@ -182,8 +187,8 @@ for cs in $CASES; do
     ipc at 1 >/dev/null
     wait_settled 4 0.3 "$g" ;;
   esac
-  # crt: the photosensitivity rule over a sweep each way (0.05 steps: about a frame each at phosphor's timing)
-  if [ "$form" = crt ]; then
+  # crt and glitch: the photosensitivity rule over a sweep each way (0.05 steps: about a frame each at phosphor's timing)
+  if [ "$form" = crt ] || [ "$form" = glitch ]; then
     ipc at 0 >/dev/null
     for dir in open close; do
       ls=()

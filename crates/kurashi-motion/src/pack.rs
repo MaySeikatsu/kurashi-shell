@@ -678,10 +678,13 @@ my-snap = "segments(0.1 0 0.2 0.5 0.5 0.6, 0.6 0.7 0.9 1 1 1)"
             "phosphor",
             "sumi",
             "genie",
+            // W59.8b: their forms have landed (glitch = glitch/dissolve, ember = fade/dissolve).
+            "glitch",
+            "ember",
         ] {
             assert!(r.find(id).unwrap().available(), "{id}");
         }
-        for id in ["glitch", "pop", "liquid", "outline", "ember"] {
+        for id in ["pop", "liquid", "outline"] {
             assert!(!r.find(id).unwrap().available(), "{id}");
         }
     }

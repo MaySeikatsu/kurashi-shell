@@ -149,9 +149,9 @@ pub const FORMS: &[FormMeta] = &[
     // W59.8: wave 3.
     f("fan",      Sheet, CARDS | s("peek") | s("menu"),                        Finish, false, VESTIBULAR, Mesh,      true),
     f("noren",    Sheet, CARDS | s("sidebar") | s("toast"),                    Finish, false, 0,          Mesh,      true),
-    f("pixelate", Sheet, ALL,                                                  Finish, false, 0,          Layer,     false),
-    f("glitch",   Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     false),
-    f("dissolve", Sheet, ALL,                                                  Finish, false, 0,          Layer,     false),
+    f("pixelate", Sheet, ALL,                                                  Finish, false, 0,          Layer,     true),
+    f("glitch",   Sheet, ALL,                                                  Finish, false, FLASH,      Layer,     true),
+    f("dissolve", Sheet, ALL,                                                  Finish, false, 0,          Layer,     true),
 ];
 
 /// The form with this id.
@@ -245,9 +245,10 @@ mod tests {
         for id in LEGACY {
             assert!(form(id).unwrap().available, "{id}");
         }
-        for id in ["liquid", "fan", "glitch"] {
-            assert!(!form(id).unwrap().available, "{id}");
+        for id in ["fan", "noren", "fold", "pixelate", "glitch", "dissolve"] {
+            assert!(form(id).unwrap().available, "{id}");
         }
+        assert!(!form("liquid").unwrap().available);
         let m = meta();
         assert_eq!(m["fold"]["family"], "sheet");
         assert_eq!(m["fold"]["flags"], json!(["vestibular"]));

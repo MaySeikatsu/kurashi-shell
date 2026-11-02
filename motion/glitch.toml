@@ -1,6 +1,6 @@
 # Glitch (an offer for yorha): cards arrive in offset slices with an RGB split that decays (< 3 Hz, never full-screen)
 # and burn away when they close. The snap curve: harsh, then a long glide.
-# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+# A draft (W59.1): its forms landed in W59.8b (glitch, dissolve), so it is offered; W59.9 tunes it on niri.
 name = "glitch"
 base = "expressive"
 
