@@ -287,7 +287,7 @@ default filled in:
 | start | `start.label` (false), `start.fill` ([]), `start.family` ([]; resolved as `font.start`), `start.size` (0), `start.italic` (false) |
 | type | `type.pixel` (false), `type.pixel_step` (1) |
 | symbols | `icons.family` ([] = the shell's), `icon.size` (0 = body + 4), `icon.scale` (1), `icon.fill`, `icon.weight` (-1 = the chrome's) |
-| motion | `motion.style` (grow · slide · zoom · fade · flip · stepped · rubber), `motion.steps` (4 frames at 60 Hz per step), `motion.{open,close,fast,effects}_ms` (0 = K74's), `motion.{…}_curve` ([] = K74's; 4 numbers = one cubic) |
+| motion | **moved to motion packs (K83)**: a look no longer carries `motion.*`; its style recommends a motion pack (`motion/<id>.toml`, §9) |
 | materials | `material.glow` (0), `material.glow_color` (accent), `material.glow_radius` (12), `material.bloom` (0), `material.bloom_radius` (16), `material.sheen` (0) |
 | pixel grid | `pixel` (0) |
 | W53.5 (snes, ps2; any look) | `pixel` (0 · 1…8: a **divisor**, not the grid pixel — one grid pixel = round(the output's logical height / 224 / `pixel`) px, so `pixel = 2` is ×2 on 1080 lines, whole device px at 1.5 too; each output its own, `Theme.grid(Screen.height)`; ×`pixel.scale` under large text), `fill.bands` (0: a card's fill — a Block ≥ 120 × 64, the Stage's card, the quick flyout — in this many hard bands; 0/1 = one fill; high contrast sends 0), `fill.band_h` (0; each band this many grid px instead: FF6's 5), `fill.band_top`/`fill.band_bottom` (roles; "" = the container lighter/darker), `menu.lead` (0: px a menu row keeps at its start for the look's cursor; the launcher, tray, dock and quick rows indent by it), `quick.tiles = rows` (one column of config rows: the look's menu row, the label left, the value right) with `quick.values` (pair · value: both words with the chosen lit — "ON  OFF", `island.quick.value.*` — or the chosen word), `toast.place = bottom` (one wide box centred low, over a bottom bar), `island.reveal` (none · type) and `island.reveal_cps` (40: the line types out once per face change, one character's width at a time; motion off shows it whole), `field.form` (box · underline: the launcher's query on a line — a name-entry line with a block caret on a pixel grid, a glowing hairline elsewhere), `loading.form` (text · dots · pulse: "NOW LOADING" with stepping dots, `frontend.loading.line`, or a slow pulse; only while loading), `type.weight` (400: the regular weight; medium +100, bold +300), `surface.join` (true: the launcher and the island's cards grow out of the bar, W21; false: they stand apart as blocks with the look's frame) |
@@ -311,11 +311,9 @@ contrast keeps the bevel** (K80 amends K42): the theme draws it in the contrast 
 `on_surface_variant`/`outline`) — the schema's coupling still forces `flat` until the daemon can exempt one value
 (CONTRACT-CHANGE).
 
-**Motion personality.** `motion.style` is the form (`Theme.motionStyle`; `Entrance.qml` draws slide/zoom/fade/flip for a
-surface that adopts it), the look's own curves and durations replace K74's timed ones, `rubber` overshoots on arrival,
-and `stepped` makes `motion.kind = stepped` (a timed kind: `Theme.timed` holds) whose curves are staircases — each step
-held `motion.steps` frames — so every timed surface moves in jumps. Profile `none` (reduce motion forces it) wins over
-all of it: kind and style `none`, no curves.
+**Motion personality** (K80, generalised by K83): what moved here is now the motion engine of §9 — a style recommends a
+motion pack (`theme.motion.profile` in its recipe); the looks' former `[decor] motion.*` are the packs of the same names,
+bit-exact. Profile `none` and reduce motion (the `reduced` pack) still win over all of it.
 
 **Pixel type on a grid (W53.5).** With `pixel` > 0 a `type.pixel` look's sizes are whole steps and large text multiplies
 them by the next whole number (`ceil(type scale)`: ×2 for 1.25) — never a blurred ×2.5 — and publishes `pixel.scale` so
@@ -450,3 +448,25 @@ face picker / pin. Scroll → cycle faces. Arbitration lives in the daemon (ARCH
 - Motion explains state change; no idle loops in core. Decorative motion only in mods, gated.
 - Every animation has an owner and a visibility gate; hidden = stopped.
 - Interruptible: reversing mid-animation continues from the current value.
+
+### The motion engine (K83, `docs/ux/motion-engine.md`)
+Five axes, each settable on its own in Settings › Motion and bundled as a **motion pack** (`motion/<id>.toml`, the user's
+in `~/.config/kurashi/motion/`):
+- **Timing** — a curve per role (`open`, `close`, `fast`, `effects`): a preset, `cubic-bezier(…)`, `segments(…)`,
+  `spring(<ms>, <bounce>)` (mass 1, SwiftUI's response/bounce), `steps(n)`, `linear` (`kurashi_motion::curve`). The kind is
+  the curve's; K42's calm/lively springs are the internal `spring_q`, bit-exact. Tokens `motion.curve.<role>`, and
+  `motion.profile_curve.<role>` for what the profile alone would run on.
+- **Form** — what progress does to a surface, per surface class (`island panel peek launcher centre toast sidebar dock bar
+  osd menu dialog`) and direction (`motion.form.<surface>.<open|close>`). Shape forms keep the live joined shape (grow,
+  expand, liquid, iris, stamp, outline, and the content forms slide/zoom/fade/flip/bleed/stepped); sheet forms capture the
+  card into one layer only while moving and warp it (fold, book, roll, crumple, genie, crt, drop, fan, noren, pixelate,
+  glitch, dissolve). The hinge stays joined to the bar; the elevation shadow, the join's fillets and the blur region hand
+  over to the warp (`FormHost.sheet*`). User recipes (keyframe tracks) are forms too (`motion.recipe.<id>`).
+- **Choreography** — content late · with · cascade (one progress, no timers), the origin (the pressed module), retarget.
+- **Accents** — squash, jelly, the overshoot cap, the shadow during motion (`motion.accent.*`).
+- **Speed** — one multiplier.
+A pack has a `base` (expressive · calm · lively · none · reduced: what K42/K74's machinery does under it) and its blocks
+layer over the style's pack. Precedence: default < the style's pack < the user's profile < the user's per-axis keys <
+reduce motion (the `reduced` pack: fades ≤ 150 ms, no vestibular or flash forms). Rows that a pack does not move read
+inert with their reason (Shōjiki). Frontend: `core/motion/{curves.js,Driver.qml}`, `components/motion/{FormHost,
+SurfaceForm,ShapeForm,SheetForm,Accents,Stagger}.qml` and `forms/`; scrub any frame with `KURASHI_MOTION_SCRUB=<p>`.
