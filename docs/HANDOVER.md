@@ -17,6 +17,31 @@ Updated at the **end of every session** (K14). Newest entry on top; keep the las
 
 ---
 
+## 2026-11-02 — session 19, part 3 (machine A): W59 finished — check + suites green, README previews, PR
+**State:** branch `feat/w59-motion-engine` pushed to origin (112 commits over `main`); the PR to `main` is the user's
+to merge. `just check` green (1339 tests) and `just suites` 13/13 green on 2026-11-02. No agent ran, no worktree is left.
+
+**Done:**
+- `nix/icon-names.txt` regenerated (W59.6b's "compare" string made `check-icon-names` fail).
+- `test-sidebars.sh`'s slide part pins `theme.motion.form.sidebar.{open,close} = slide`. Since D4 kami opens the
+  column with origami (a formed path, no freeze or rest hooks), all 8 kami cases and the following `none` case failed.
+  kami's origami on the sidebar is test-motion's job.
+- README previews: 18 forms on the session menu (`docs/media/motion/*.webp`, 1.4 MB total, each ≤ 148 KB). Every frame
+  sheet was reviewed: only the session menu, the clock and the generated wallpaper. The 6 forms the README does not show
+  (slide, zoom, fade, flip, bleed, stepped) are not committed.
+- **Not committed:** the sidebar roll preview showed the login name in the sidebar header (I364, needs W60). The toast
+  run filmed no toast (I365). roll/drop/crumple are on the session menu instead.
+
+**Next steps (ordered):**
+1. The user merges the PR (`--no-ff` is GitHub's merge commit); then `git switch main && git pull`.
+2. W60 (sandbox isolation: own HOME and user), then I364/I365 (sidebar and toast previews).
+3. The user's verdicts on origami, phosphor and genie (W59.9 acceptance, PROGRESS UX column); `tools/bench/motion.sh`
+   rows on A and B's iGPU (W59.9, not done); then the W59.9 deferred list below and I346–I365.
+
+**Open decisions:** rows 690–692 (W59.6b) still await the user.
+
+---
+
 ## 2026-11-02 — session 19, part 2 (machine A): the motion engine built — W59.0–W59.8 merged; finish and open the PR
 **State:** branch `feat/w59-motion-engine` (not pushed; `main` = e2bc7d68 on origin after the history rewrite). Merged
 into it: W59.0 contract, W59.1 daemon/packs, W59.2 runtime, W59.3 surfaces, W59.4 paper forms, W59.5 genie/crt/drop,
