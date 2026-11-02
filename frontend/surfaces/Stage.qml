@@ -345,7 +345,7 @@ PanelWindow {
     // Behind the card as drawn: a morphing card's body follows the springs every frame (the blur never stands ahead of
     // the shape, I295, and a grown card is blurred at rest, I296); the head and the neck's fillets stay unblurred.
     BackgroundEffect.blurRegion: !Theme.blur ? emptyRegion
-        : peekLayout ? (peekMorph ? (peekShapeBox.visible ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs ? shapeBlur : emptyRegion) : (run.busy && run.mode === "shape" ? emptyRegion : cardBlur)))
+        : peekLayout ? (peekMorph ? (peekShapeBox.visible && !peekSf ? peekShapeBlur : emptyRegion) : peekBlur) : (!shown ? emptyRegion : (morphMode ? (shapeBox.visible && formBlurs ? shapeBlur : emptyRegion) : (run.busy && run.mode === "shape" ? emptyRegion : cardBlur)))
     // K83: a shape form that fades its card in (stamp) or draws only an outline keeps the blur off until the card stands
     // (a blurred box before its card would show); an iris blurs inside its circle (shapeBlur's ellipse).
     readonly property bool formBlurs: !sf || sf.below >= 0.999
@@ -675,12 +675,36 @@ PanelWindow {
     MorphSprings {
         id: peekSprings
         stiffness: 2
-        on: Theme.springOn && stage.peekHeld
+        on: Theme.springOn && stage.peekHeld && !(peekRun.formed && (peekRun.busy || !stage.peekOut))
         expanding: stage.peekOut
         cxTo: stage.peekOut ? stage.peekLeft + peekCard.width / 2 : stage.peekOriginCx
         wTo: stage.peekOut ? peekCard.width : stage.peekOriginW
         hTo: stage.peekOut ? stage.peekInset + peekCard.height : stage.peekE
     }
+    // ---- K83 (W59.3): the peek's form (`peek`, on the `fast` curve: a peek is a glance). `grow` and today's forms keep its
+    // springs; expand, iris, stamp and outline draw its shape from one progress, as the cards' (SurfaceForm).
+    SurfaceForm {
+        id: peekRun
+        surface: "peek"
+        role: "fast"
+        want: stage.peekOut && stage.peekMorph
+        hold: !peekSprings.settled
+        fromCx: stage.peekOriginCx - stage.peekBoxL
+        fromW: stage.peekOriginW
+        fromTop: stage.peekBarInset + 4
+        fromFoot: stage.peekE
+        fromR: Theme.rSm
+        toCx: stage.peekLeft + peekCard.width / 2 - stage.peekBoxL
+        toW: peekCard.width
+        toTop: stage.peekInset
+        toFoot: stage.peekInset + peekCard.height
+        toR: Theme.rSm
+        edgeY: stage.peekEdgeY
+        // Folded back in its form: the peek is gone.
+        onLanded: at => { if (at <= 0 && !stage.peekOut) { peekAnim.stop(); stage.peekP = 0; stage.peekHeld = false } }
+    }
+    onPeekHeldChanged: if (!peekHeld) peekRun.reset()
+    readonly property QtObject peekSf: peekRun.mode === "shape" && peekRun.busy ? peekRun.shape : null
     readonly property bool peekNear: peekSprings.pw > 0.9 && peekSprings.ph > 0.6 && peekSprings.pcx > 0.9
     onPeekNearChanged: peekFadeIn()
     function peekFadeIn() {
@@ -691,16 +715,19 @@ PanelWindow {
     Connections {
         target: peekSprings
         function onHChanged() {
+            if (peekRun.formed && (peekRun.busy || peekRun.p > 0)) return
             if (stage.peekMorph && !stage.peekOut && !stage.peekWanted && Math.abs(peekSprings.h - stage.peekE) <= 1
                     && Math.abs(peekSprings.w - stage.peekOriginW) <= 3) {
                 peekAnim.stop(); stage.peekP = 0; stage.peekHeld = false
             }
         }
     }
-    readonly property real peekGrow: clamp01((peekSprings.hOut - peekE) / Math.max(1, peekInset + peekCard.height - peekE))
-    readonly property real peekShapeW: Math.max(0, peekSprings.wOut * (1 - peekSprings.squeeze))
-    readonly property real peekShapeCx: peekSprings.cxOut - peekBoxL
-    readonly property real peekBodyTop: joined ? lerp(peekE, peekInset, peekGrow) : peekEdgeY
+    readonly property real peekGrow: peekSf ? peekSf.grow : clamp01((peekSprings.hOut - peekE) / Math.max(1, peekInset + peekCard.height - peekE))
+    readonly property real peekShapeW: peekSf ? peekSf.w * peekSf.sx : Math.max(0, peekSprings.wOut * (1 - peekSprings.squeeze))
+    readonly property real peekShapeCx: peekSf ? peekSf.cx : peekSprings.cxOut - peekBoxL
+    readonly property real peekFoot: peekSf ? peekEdgeY + (peekSf.foot - peekEdgeY) * peekSf.sy : peekSprings.hOut
+    readonly property real peekBodyTop0: joined ? lerp(peekE, peekInset, peekGrow) : peekEdgeY
+    readonly property real peekBodyTop: peekSf && peekBodyTop0 > peekEdgeY ? peekEdgeY + (peekBodyTop0 - peekEdgeY) * peekSf.sy : peekBodyTop0
     readonly property real peekNeckRoom: Math.max(0, peekShapeW / 2 - Theme.rSm - 8)
     // As the panels' neck: under the widget's group, as near the body's centre as the group's flat foot allows.
     readonly property var peekHome: {
@@ -717,6 +744,31 @@ PanelWindow {
     readonly property real peekNeckHi: peekHome ? Math.max(peekNeckLo, peekHome.x + peekHome.w - Math.min(Theme.rFull, (Theme.barH - 8) / 2) - Theme.rSm - 8 - peekBoxL) : peekNeckLo
     readonly property real peekNeckWant: Math.max(peekNeckLo, Math.min(peekNeckHi, peekShapeCx))
     readonly property real peekNeckCx: Math.max(peekShapeCx - peekNeckRoom, Math.min(peekShapeCx + peekNeckRoom, peekNeckWant))
+    // K83 (W59.3): the peek's card-level form host (a sheet form, W59.4, captures the whole peek: shape and lines).
+    FormHost {
+        id: peekHost
+        surface: "peek"
+        width: stage.peekBoxR - stage.peekBoxL
+        height: stage.peekBoxH
+        edge: stage.peekFlip ? "bottom" : "top"
+        origin: Qt.rect(stage.peekOriginCx - stage.peekOriginW / 2 - stage.peekBoxL,
+            stage.peekFlip ? stage.peekBoxH - stage.peekE : stage.peekBarInset + 4,
+            stage.peekOriginW, Math.max(1, stage.peekE - stage.peekBarInset - 4))
+        direction: stage.peekOut ? "open" : "close"
+        progress: peekRun.sheet ? peekRun.p : 1
+        visible: !peekRun.sheet || peekRun.p > 0
+    Item {
+        id: peekForm
+        width: stage.peekBoxR - stage.peekBoxL
+        height: stage.peekBoxH
+        // (the peek's lines are inside too: an expand cuts them at its foot, an iris shows them through its circle)
+        layer.enabled: stage.peekSf !== null && stage.peekMorph
+        layer.effect: FormMask {
+            form: peekRun.shape
+            keep: stage.peekEdgeY - (Theme.outlineW > 0 || stage.joined ? 0 : 1)
+            flipped: stage.peekFlip
+            cut: peekRun.form === "expand"
+        }
     Item {
         id: peekShapeBox
         visible: stage.peekMorph && !stage.peekEmpty
@@ -742,11 +794,11 @@ PanelWindow {
             neckF: Theme.rSm
             neckCx: stage.peekNeckCx
             attach: stage.clamp01(1 - Math.abs(stage.peekNeckCx - stage.peekNeckWant) / 32)
-            neckScale: peekSprings.neckScale
+            neckScale: stage.peekSf ? 1 : peekSprings.neckScale
             x0: stage.peekShapeCx - stage.peekShapeW / 2
             y0: stage.peekBodyTop
             w: stage.peekShapeW
-            h: Math.max(0, peekSprings.hOut - stage.peekBodyTop)
+            h: Math.max(0, stage.peekFoot - stage.peekBodyTop)
             rTop: Theme.rSm
             rBot: Theme.rSm
             edgeY: stage.joined ? stage.peekE : stage.peekEdgeY
@@ -819,7 +871,14 @@ PanelWindow {
             }
         }
         // (nothing drawn for an empty peek, I259; its loader stays to learn when there are lines again)
-        opacity: stage.peekEmpty ? 0 : stage.peekP
+        // (K83: a shape form shows the lines as it says: through its mask, scaled with it, after the outline)
+        opacity: stage.peekEmpty ? 0 : (stage.peekSf ? stage.peekSf.content : stage.peekP)
+        transform: Scale {
+            origin.x: stage.peekShapeCx - peekCard.x
+            origin.y: (stage.peekFlip ? stage.peekBoxH - stage.peekEdgeY : stage.peekEdgeY) - peekCard.y
+            xScale: stage.peekSf ? stage.peekSf.sx : 1
+            yScale: stage.peekSf ? stage.peekSf.sy : 1
+        }
         // It slides in from its bar: down from a top bar, up from a bottom bar, out from a side bar.
         x: stage.peekMorph ? stage.peekLeft - stage.peekBoxL
             : (stage.shownEdge === "left" ? -1 : (stage.shownEdge === "right" ? 1 : 0)) * stage.peekSlide * (1 - stage.peekP)
@@ -848,6 +907,14 @@ PanelWindow {
             active: stage.peekLayout
             sourceComponent: stage.shownKind === "mod" ? peekModView : (stage.shownKind === "" ? null : peekLinesView)
         }
+    }
+    }
+    }
+    OutlineRects {
+        width: stage.peekBoxR - stage.peekBoxL
+        height: stage.peekBoxH
+        rects: stage.peekSf && stage.peekSf.outline ? stage.peekSf.rects : []
+        transform: Scale { yScale: stage.peekFlip ? -1 : 1; origin.y: stage.peekBoxH / 2 }
     }
     Component {
         id: peekModView

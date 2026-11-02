@@ -20,6 +20,8 @@ QtObject {
     property string surface: "panel"
     property bool want: false
     property bool hold: false
+    // The curve role: "auto" (open the opening way, close back) or one role for both ways ("fast": a peek, brief §6).
+    property string role: "auto"
     // Forms this surface draws as shapes (a surface without a morph may serve fewer).
     property var shapes: ["expand", "iris", "stamp", "outline"]
     // The ShapeForm's inputs (see forms/ShapeForm.qml), bound by the surface.
@@ -96,6 +98,7 @@ QtObject {
 
     property Driver drv: Driver {
         curves: Theme.motionCurves
+        role: r.role
         enabled: r.formed
         keepVelocity: true
         onLanded: at => r.landed(at)

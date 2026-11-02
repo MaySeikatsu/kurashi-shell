@@ -13,20 +13,30 @@
 #           from rest (the panel is mid-way);
 #   rest    the same panel without scrub, opened and closed: after the close no `motion: sheet layer` line and 0 surface
 #           commits in 5 s once the close has landed (WAYLAND_DEBUG; not across a minute's turn: the clock).
-# Shots: frontend/shots/motion/<style>-<profile>-<p>.png, …-rest.png, …-off.png (gitignored; read them).
+#   forms   (W59.3) the surface matrix: per form case (style:profile:edge[:light|dark]) and per surface class (panel: the session
+#           menu; island: the clock's card out of the pill; centre: the notification centre) × form (today's, then expand,
+#           iris, stamp, outline: `theme.motion.form.{open,close}`, the island following, D3), scrubbed at every p:
+#           p = 1 equals that surface's motion-off frame (profile none), p < 1 differs; at p = 0.5 a reversal (the close
+#           mid-way continues the open's form) and a quick → session retarget mid-way draw without a QML error. Each shot
+#           also asserts the form was latched (`motion: form` lines are failures). Off: MOTION_FORM_CASES="".
+# Shots: frontend/shots/motion/<style>-<profile>-<p>.png, …-rest.png, …-off.png, forms/<case>-<surface>-<form>-<p>.png
+# (gitignored; read them).
 #   nix develop -c frontend/test-motion.sh
 #   MOTION_CASES="washi:calm snes:expressive" MOTION_SCRUBS="0.5 1" nix develop -c frontend/test-motion.sh
+#   MOTION_CASES="" MOTION_FORM_CASES="kami:expressive:bottom" MOTION_FORMS="iris" nix develop -c frontend/test-motion.sh
 # Binaries from $KURASHI_BIN_DIR (kurashid, kurashi), else $CARGO_TARGET_DIR/debug.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 NAME=${KURASHI_SB_PREFIX:-}w59-motion
 BIN=${KURASHI_BIN_DIR:-${CARGO_TARGET_DIR:-$ROOT/target}/debug}
 OUT=${MOTION_OUT:-$ROOT/frontend/shots/motion}
-CASES=${MOTION_CASES:-washi:expressive washi:calm sekai:lively fluent:expressive snes:expressive kawaii:lively vibrancy:calm}
+CASES=${MOTION_CASES-washi:expressive washi:calm sekai:lively fluent:expressive snes:expressive kawaii:lively vibrancy:calm}
 SCRUBS=${MOTION_SCRUBS:-0.15 0.5 0.85 1}
-# Styles whose Stage card is not a morph (snes: no join) reveal on the Stage's own animation until W59.3 puts it on a
-# Driver: their scrubbed frames may equal rest (said, not failed).
-PENDING=${MOTION_PENDING:-snes}
+# (W59.3 put the Stage's own reveal, a look's whose cards stand apart, on a Driver: every case scrubs now.)
+PENDING=${MOTION_PENDING:-}
+FORM_CASES=${MOTION_FORM_CASES-washi:expressive:top sekai:lively:bottom kami:expressive:top:dark}
+FORMS=${MOTION_FORMS:-expand iris stamp outline}
+SURFACES=${MOTION_SURFACES:-panel island centre}
 mkdir -p "$OUT"
 fail() { echo "test-motion: $*" >&2; exit 1; }
 
@@ -180,5 +190,90 @@ for cs in $CASES; do
   d=$(ae "$tag-rest" "$tag-off")
   [ "$d" -le "${MOTION_OFF_SLACK:-16}" ] || fail "$tag: the panel at rest differs from the motion-off frame in $d px"
   echo "test-motion: $tag rest vs off: $d px; idle 0 commits in 5 s"
+done
+
+# ---- forms: the surface matrix (W59.3) ----
+FO=$OUT/forms
+mkdir -p "$FO"
+# The pixels two shots differ in, the clock's pill left out (a minute may turn between them).
+fae() {
+  local c="rectangle 360,0 640,46"
+  [ "$edge" = bottom ] && c="rectangle 360,534 640,580"
+  { magick compare -metric AE <(magick "$1" -fill black -draw "$c" png:-) <(magick "$2" -fill black -draw "$c" png:-) null: 2>&1 || true; } \
+    | awk '{print int($1)}'
+}
+open_of() { case $1 in panel) echo session.menu ;; island) echo island.expand ;; centre) echo notifications.center ;; esac; }
+bar_edge() {
+  local e
+  for e in top bottom left right; do
+    if K --json get "edges.$e.bar" | grep -q '"value":true'; then
+      [ "$e" = "$1" ] || K act layout.bar.move "{\"from\":\"$e\",\"to\":\"$1\"}" >/dev/null
+      return
+    fi
+  done
+  return 1
+}
+form_errors() {
+  qml_errors "$1"
+  if grep -E 'motion: form .* (failed to load|is not available|is unknown on (panel|centre|launcher))' "$1" | grep -v 'grow is unknown' >/dev/null; then
+    grep 'motion: form' "$1" | head -5 >&2; fail "a form did not load (see $1)"
+  fi
+}
+for fc in $FORM_CASES; do
+  IFS=: read -r style prof edge scheme <<< "$fc"
+  echo "-- forms $fc"
+  K set theme.style "$style" >/dev/null || fail "theme.style $style refused"
+  K set theme.colors.scheme "${scheme:-light}" >/dev/null || fail "theme.colors.scheme ${scheme:-light} refused"
+  bar_edge "$edge" || fail "no bar to move to $edge"
+  # 1000 × 580 round the bar's centre, from its edge (the output's size from sway).
+  read -r OW OH < <(timeout 10 swaymsg -t get_outputs | python3 -c "import json,sys; o=json.load(sys.stdin)[0]['rect']; print(o['width'], o['height'])")
+  if [ "$edge" = bottom ]; then FCROP="$(( OW / 2 - 500 )),$(( OH - 580 )) 1000x580"; else FCROP="$(( OW / 2 - 500 )),0 1000x580"; fi
+  K reset theme.motion.form.open >/dev/null || true; K reset theme.motion.form.close >/dev/null || true
+  # The motion-off frame of every surface.
+  K set theme.motion.profile none >/dev/null
+  start_fe "$R/qs-forms-$style-off.log"
+  for sfc in $SURFACES; do
+    K act "$(open_of "$sfc")" >/dev/null; sleep 1.2; wait_settled 8 0.8 "$FCROP"
+    grim -g "$FCROP" "$FO/$style-$edge-$sfc-off.png"
+    K act ui.close >/dev/null; sleep 0.8
+  done
+  form_errors "$R/qs-forms-$style-off.log"
+  stop_fe
+  K set theme.motion.profile "$prof" >/dev/null
+  for form in $FORMS; do
+    K set theme.motion.form.open "$form" >/dev/null || fail "theme.motion.form.open $form refused"
+    K set theme.motion.form.close "$form" >/dev/null
+    for p in $SCRUBS; do
+      log=$R/qs-forms-$style-$form-$p.log
+      start_fe "$log" KURASHI_MOTION_SCRUB="$p"
+      for sfc in $SURFACES; do
+        tag=$style-$edge-$sfc-$form-$p
+        K act "$(open_of "$sfc")" >/dev/null; sleep 1.2; wait_settled 8 0.8 "$FCROP"
+        grim -g "$FCROP" "$FO/$tag.png"
+        if [ "$p" = 0.5 ] && [ "$sfc" = panel ]; then
+          # A reversal mid-way: the close continues the open's form from where it stands.
+          K act ui.close >/dev/null; sleep 1; grim -g "$FCROP" "$FO/$style-$edge-$sfc-$form-reverse.png"
+          # A retarget mid-way: quick settings, then the session menu, while the form holds the card.
+          K act quick.toggle >/dev/null; sleep 0.8; K act session.menu >/dev/null; sleep 1
+          grim -g "$FCROP" "$FO/$style-$edge-$sfc-$form-retarget.png"
+        fi
+        K act ui.close >/dev/null; sleep 0.6
+      done
+      form_errors "$log"
+      grep -q "motion: scrub $p" "$log" || fail "$fc $form: no 'motion: scrub $p' line"
+      stop_fe
+      for sfc in $SURFACES; do
+        d=$(fae "$FO/$style-$edge-$sfc-$form-$p.png" "$FO/$style-$edge-$sfc-off.png")
+        if [ "$p" = 1 ]; then
+          [ "${d:-1}" -le "${MOTION_OFF_SLACK:-16}" ] || fail "$fc $sfc $form: p = 1 differs from motion off in $d px"
+        else
+          [ "${d:-0}" -gt 0 ] || fail "$fc $sfc $form: p = $p looks like rest (the form held nothing?)"
+        fi
+        echo "test-motion: forms $style $edge $sfc $form p=$p: $d px from motion off"
+      done
+    done
+  done
+  K reset theme.motion.form.open >/dev/null || true; K reset theme.motion.form.close >/dev/null || true
+  bar_edge top || true
 done
 echo "test-motion: ok (shots in $OUT)"
