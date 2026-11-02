@@ -316,7 +316,8 @@ Scope {
                 // ---- the drip: `t` 0 … 1 (snaps at 0.8), started on the first presented frame; then the spring back.
                 property real t: bud ? 0 : 1
                 // Without a drip (a side bar, no bar): the card slides in from the screen's edge as it fades in (W36).
-                property real enter: !bud && !form && !win.drip && root.animated && Theme.stdMs > 0 ? 0 : 1
+                // (W59.9a: a toast that opens in a form is not drawn until its form takes it, on its first frame)
+                property real enter: form || (!bud && !win.drip && root.animated && Theme.stdMs > 0) ? 0 : 1
                 property bool waiting: bud || form || enter < 1
                 property bool detached: !bud
                 property bool freed: !bud
@@ -356,7 +357,7 @@ Scope {
                     target: d.waiting ? d.Window.window : null
                     function onFrameSwapped() {
                         d.waiting = false
-                        if (d.form) tRun.want = true
+                        if (d.form) { tRun.want = true; d.enter = 1 }
                         else if (d.bud) budAnim.start()
                         else enterAnim.start()
                     }

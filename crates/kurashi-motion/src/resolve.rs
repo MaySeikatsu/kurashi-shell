@@ -839,9 +839,7 @@ mod tests {
         assert_eq!(out.tokens["motion.form.panel.open"], "liquid");
         assert_eq!(out.tokens["motion.form.sidebar.open"], "slide");
         assert!(
-            out.notes
-                .iter()
-                .any(|n| n.contains(forms::REASON_SURFACE)),
+            out.notes.iter().any(|n| n.contains(forms::REASON_SURFACE)),
             "{:?}",
             out.notes
         );
