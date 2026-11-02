@@ -5,13 +5,12 @@ category = "modern"
 # everything, square corners, ink lines, cards boxed with box-drawing lines half a cell in (htop's and mc's panels), menus
 # as a fuzzy finder's lines with the `>` pointer, the scroll bar as `│█│` (a cell-wide channel, the thumb whole rows of
 # full blocks), tooltips and toasts as inverse-video lines (tmux's message line), a block caret that blinks for ten
-# seconds after the last key and then rests lit, the bar as one status line (no blocks round its groups), motion that
-# only cuts in quickly (an 80 ms fade), Material Symbols' Sharp cut, a virtual console's login as the lock, a speaker's
+# seconds after the last key and then rests lit, the bar as one status line (no blocks round its groups), motion like
+# an old CRT — a dot, a line, the picture, and an afterglow when it switches off (K83 D4, the `phosphor` pack), Material Symbols' Sharp cut, a virtual console's login as the lock, a speaker's
 # beeps as cues. The green or amber phosphor is a palette option (`phosphor`, `phosphor-amber`).
 [recipe]
 "theme.chrome" = "line"
-"theme.motion.profile" = "expressive"
-"theme.motion.speed" = 1.6
+"theme.motion.profile" = "phosphor"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
 "theme.typography.family" = ["JetBrains Mono", "IBM Plex Mono", "Iosevka", "Noto Sans Mono CJK JP", "monospace"]
@@ -58,16 +57,6 @@ sounds = "terminal"
 "icons.family" = ["Material Symbols Sharp"]
 "icon.fill" = 0
 "icon.weight" = 400
-# Motion: a cut, softened only to a quick linear fade (a terminal redraws; it does not animate).
-"motion.style" = "fade"
-"motion.open_ms" = 80
-"motion.close_ms" = 60
-"motion.fast_ms" = 60
-"motion.effects_ms" = 60
-"motion.open_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.close_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.fast_curve" = [0.0, 0.0, 1.0, 1.0]
-"motion.effects_curve" = [0.0, 0.0, 1.0, 1.0]
 "cursor" = "terminal"
 # The launcher and the island's card stand apart from the status line as boxed windows (a TUI's dialog box), not grown
 # out of the bar.

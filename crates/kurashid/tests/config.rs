@@ -261,15 +261,21 @@ async fn a11y_mode_forces_coupled_keys_and_theme_follows() {
         .apply(&[set("a11y.reduce_motion", json!(true))])
         .unwrap();
     let p = f.store.get("theme.motion.profile", None).unwrap();
-    assert_eq!(p.value, json!("none"));
+    // K83 (D1): reduce motion forces the `reduced` profile: short fades instead of cuts.
+    assert_eq!(p.value, json!("reduced"));
     assert_eq!(p.source, Source::Forced("accessibility".into()));
     assert_eq!(p.forced_by.as_deref(), Some("a11y.reduce_motion"));
     let after = hub.snapshot("theme").unwrap().1;
-    assert_eq!(
-        after["tokens"]["motion.standard_ms"],
-        json!(0),
-        "motion off"
-    );
+    let t = &after["tokens"];
+    assert_eq!(t["motion.profile"], json!("reduced"));
+    let fade = t["motion.standard_ms"].as_i64().unwrap();
+    assert!(fade > 0 && fade <= 150, "a short fade, not a cut: {fade}");
+    assert_eq!(t["motion.style"], json!("fade"));
+    assert_eq!(t["motion.form.panel.open"], json!("fade"));
+    assert_eq!(t["motion.form.island.close"], json!("fade"));
+    assert_eq!(t["motion.spring.on"], json!(false));
+    assert_eq!(t["motion.curve.open"]["kind"], json!("cubic"));
+    assert!(t["motion.curve.open"]["ms"].as_i64().unwrap() <= 150);
 
     f.store.undo(false).unwrap();
     assert_eq!(

@@ -8,7 +8,7 @@ category = "fiction"
 # Original cues (soft blips) and pointer. Numbers in §9.2.
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "yorha"
 "theme.material.kind" = "solid"
 "theme.shape.corners" = "none"
 "theme.typography.family" = ["FOT-Rodin Pro", "Noto Sans", "Noto Sans CJK JP", "sans-serif"]
@@ -77,14 +77,6 @@ sounds = "yorha"
 "start.label" = true
 "start.word" = "menu"
 "start.mark" = "square"
-# Mechanical: panels slide in fast and stop dead, no overshoot.
-"motion.style" = "slide"
-"motion.open_ms" = 240
-"motion.close_ms" = 180
-"motion.fast_ms" = 140
-"motion.open_curve" = [0.2, 0.0, 0.0, 1.0]
-"motion.close_curve" = [0.4, 0.0, 1.0, 1.0]
-"motion.fast_curve" = [0.2, 0.0, 0.0, 1.0]
 "cursor" = "yorha"
 # Quick settings as a plain flyout of the panel's material (no phone), toasts as before.
 "quick.frame" = "flyout"

@@ -1,0 +1,23 @@
+# Liquid (an offer for glass): the pressed module's own shape flows into the card through a neck that stretches and
+# snaps; width leads, height lags.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "liquid"
+base = "expressive"
+
+[timing]
+open = "fluid"
+close = "fluid"
+close_ms = 420
+fast = "fluid"
+fast_ms = 350
+effects = "effects"
+effects_ms = 200
+
+[form]
+open = "liquid"
+close = "liquid"
+
+[params.liquid]
+neck = 0.5
+
+[accents]

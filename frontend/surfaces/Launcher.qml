@@ -371,6 +371,7 @@ PanelWindow {
     }
     BarMorph {
         id: morph
+        surface: "launcher"
         outName: lp.scr ? lp.scr.name : ""
         onBar: !lp.skin && (bars.atTop || bars.atBottom)
         flip: lp.skin ? lp.skinEdge !== "top" : bars.atBottom

@@ -13,7 +13,7 @@
 use std::sync::Arc;
 
 use kurashi_theme::{
-    Axes, Colorblind, ContrastLevel, Density, FontProvider, Material, MotionProfile, Scheme, Shape,
+    Axes, Colorblind, ContrastLevel, Density, FontProvider, Material, MotionRequest, Scheme, Shape,
     Source, ThemeInput,
 };
 use serde_json::{Value, json};
@@ -190,12 +190,7 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         },
         opacity: f(store, "theme.material.opacity", 0.85),
         blur: b(store, "theme.material.blur"),
-        motion: match s(store, "theme.motion.profile").as_str() {
-            "none" => MotionProfile::None,
-            "lively" => MotionProfile::Lively,
-            "calm" => MotionProfile::Calm,
-            _ => MotionProfile::Expressive,
-        },
+        motion: motion_request(store),
         motion_speed: f(store, "theme.motion.speed", 1.0),
         density: match s(store, "theme.density").as_str() {
             "compact" => Density::Compact,
@@ -261,6 +256,71 @@ pub fn input_with(store: &ConfigStore, picture: Option<&std::path::Path>) -> The
         // W53.0a: the look in effect's slots and `[decor]` (its frame was `decor.frame` before; the same value).
         decor: look_decor(store),
         ..ThemeInput::default()
+    }
+}
+
+/// K83: what the motion tokens resolve from — the profile in effect (a motion pack; reduce motion forces `reduced`), the
+/// one the style or look recommends (its `theme:` layer value, whose forms and curves show under a timing-only profile
+/// such as calm), the user's per-axis `theme.motion.*` keys, and the user's packs (`$XDG_CONFIG_HOME/kurashi/motion`).
+fn motion_request(store: &ConfigStore) -> MotionRequest {
+    use kurashi_theme::appearance::{Kind, find, layer};
+    use kurashi_theme::kurashi_motion::forms::SURFACES;
+    use kurashi_theme::kurashi_motion::pack::{ROLES, user_dir};
+    let int = |key: &str, dflt: i64| {
+        store
+            .get(key, None)
+            .and_then(|p| p.value.as_i64())
+            .unwrap_or(dflt)
+    };
+    let style = find(Kind::Style, &s(store, "theme.style"));
+    let look = find(Kind::Look, &s(store, "theme.look"));
+    let style_profile = layer(style.as_ref(), look.as_ref())
+        .into_iter()
+        .find(|(k, ..)| k == "theme.motion.profile")
+        .and_then(|(_, v, _)| v.as_str().map(String::from))
+        .unwrap_or_default();
+    let mut axes = kurashi_theme::kurashi_motion::Axes {
+        form: (
+            s(store, "theme.motion.form.open"),
+            s(store, "theme.motion.form.close"),
+        ),
+        island_follow: store
+            .get("theme.motion.form.island.follow", None)
+            .and_then(|p| p.value.as_bool())
+            .unwrap_or(true),
+        content: s(store, "theme.motion.content"),
+        stagger_ms: int("theme.motion.stagger_ms", -1),
+        squash: f(store, "theme.motion.squash", -1.0),
+        jelly: f(store, "theme.motion.jelly", -1.0),
+        shadow: s(store, "theme.motion.shadow"),
+        windows: s(store, "theme.motion.windows"),
+        ..Default::default()
+    };
+    for (i, role) in ROLES.iter().enumerate() {
+        axes.timing[i] = s(store, &format!("theme.motion.timing.{role}"));
+        axes.timing_ms[i] = int(&format!("theme.motion.timing.{role}_ms"), 0).clamp(0, 3000) as u32;
+    }
+    for surface in SURFACES {
+        let pair = (
+            s(store, &format!("theme.motion.form.{surface}.open")),
+            s(store, &format!("theme.motion.form.{surface}.close")),
+        );
+        if !pair.0.is_empty() || !pair.1.is_empty() {
+            axes.surfaces.insert(surface.to_owned(), pair);
+        }
+    }
+    // A profile Settings cannot offer now (its forms have not landed) is not in effect: the style's applies (Shōjiki).
+    let profile = store
+        .get("theme.motion.profile", None)
+        .filter(|p| p.reason.as_deref() != Some(crate::config::REASON_CHOICE_UNAVAILABLE))
+        .and_then(|p| p.value.as_str().map(String::from))
+        .unwrap_or_else(|| style_profile.clone());
+    MotionRequest {
+        profile,
+        style_profile,
+        axes,
+        reduce_motion: b(store, "a11y.reduce_motion"),
+        user_dirs: user_dir().into_iter().collect(),
     }
 }
 

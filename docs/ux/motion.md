@@ -1,4 +1,7 @@
 # UX brief — one motion language: everything grows out of the bar (wave 34)
+> **Superseded in part (K83, session 19):** the motion engine (`docs/ux/motion-engine.md`) generalises this brief — `grow`
+> is one form among many, profiles are motion packs, and every surface takes its form per class. What follows still
+> describes `grow`, the necks and the springs exactly.
 > **Note (K71, session 14):** the sidebar no longer grows out of the bar button — it slides in from its screen edge
 > (`docs/ux/layout.md`); every other surface's motion here stands.
 

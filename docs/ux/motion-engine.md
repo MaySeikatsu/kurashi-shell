@@ -168,6 +168,140 @@ zoom, depth) and `flash` (luminance steps) — what reduce motion and photosensi
    Qt 6 can't compile GLSL at run time); it appears in the pickers with the mod's name. Raw GLSL in config is not
    offered (security and quality: a broken shader would blank a surface).
 
+### Recipes — the reference (W59.7, as built)
+A recipe is your own animation, written in a motion pack — no code, nothing to compile. Put it in any `.toml` file in
+`~/.config/kurashi/motion/` (`$XDG_CONFIG_HOME/kurashi/motion/`). Every recipe that is valid becomes a form like the
+built-in ones: it is listed in every form picker of Settings › Motion (by its label), any `theme.motion.form.*` key may
+name it, and the pack it is in may use it as its own forms. A pack is read again when the shell starts or the appearance
+changes (no file watch yet).
+
+```toml
+[recipes.<id>]               # the id: lowercase letters, digits and dashes; not a built-in form's (fold, slide …)
+label = "…"                  # what the pickers show (plain text, or an i18n key); default: the id
+base = "slide"               # optional: a content form the tracks run on top of — slide rubber zoom fade flip bleed stepped
+pivot = "centre"             # what scale, rotate and skew turn about: centre · edge (the side it comes from) · origin
+[[recipes.<id>.track]]       # 1–12 tracks, one per prop
+prop = "scale"
+keys = [[0, 0.6], [0.7, 1.06], [1, 1]]   # 1–16 keys [progress, value]; progress 0 = closed … 1 = open, rising
+curve = "ease-out"           # optional easing of each segment between two keys (CSS keyframes); default linear
+unit = "px"                  # translate tracks only: fraction (of the surface's size, default) or px
+```
+
+| prop | range | at rest | meaning |
+|---|---|---|---|
+| `opacity` | 0 … 1 | 1 | |
+| `scale` · `scale_x` · `scale_y` | 0 … 3 | 1 | size (both, width, height), about the pivot |
+| `translate_along` | −2 … 2 (px: ±4000) | 0 | along the way the surface comes in; positive = toward its edge (up for a card from a top bar) |
+| `translate_across` | −2 … 2 (px: ±4000) | 0 | parallel to that edge; positive = right (top/bottom edges) or down (side edges) |
+| `rotate_x` · `rotate_y` · `rotate_z` | −180 … 180 ° | 0 | tilt top/bottom, tilt left/right (with perspective, as `flip`), turn in the plane |
+| `skew_x` · `skew_y` | −60 … 60 ° | 0 | slant |
+| `blur` | 0 … 64 px | 0 | draws through a layer while it moves |
+| `clip_inset` | 0 … 0.5 | 0 | cuts every side by that fraction of the size |
+| `clip_iris` | 0 … 1 | 1 | a circle round the pivot; 1 reaches the farthest corner |
+| `clip_wipe` | 0 … 1 | 1 | uncovers the surface from its edge |
+
+**How it runs.** One generic `components/motion/forms/Recipe.qml` evaluates every track from the surface's one progress
+(no timers). The progress itself already moves on the role's curve (`timing.open` / `timing.close`), so a track's own
+`curve` shapes only its segments — presets (`ease-out`, `snap`, `rubber`, …), written curves (`cubic-bezier(…)`,
+`steps(4)`, `spring(400ms, 0.4)`) and a pack's named `[curves]` all work. Before its first key a track holds that key's
+value. A **close runs the same tracks from 1 back to 0**. Progress past 1 (an overshooting role curve) is clamped: write
+an overshoot as keys (`[0.7, 1.06]`). The transforms apply to the surface's content, as the other content forms do; a
+blur or a clip makes a layer only while the surface is away from rest, and it is released at rest (Ma).
+
+**The rest rule.** At progress 1 every prop must be at rest, so an open surface is exactly the motion-off frame: a track
+whose last key is before 1 is held to its rest value from there, and a key at 1 with any other value is an error.
+
+**Checked by the daemon**, each with a reason Settings shows in words under the recipe (`config.diag.recipe.*`): unknown
+prop or key, a form's own param (`fold.crease`: not animatable by recipes yet), a prop animated twice, no keys or more
+than 16, more than 12 tracks, a key that is no `[number, number]`, progress outside 0 … 1 or going back, a value out of
+its range, a key at 1 off rest, a curve that does not parse or names no pack's curve, a unit on a non-translate track,
+an unknown base or pivot, an id that is a built-in form's or not an identifier, the same id in two packs (the first
+pack, in file-name order, counts). **A recipe with any problem is skipped whole**; a profile or a setting naming it falls
+back to the next form in line (the surface's default, then the profile's).
+
+**Reduce motion.** A recipe that turns more than 30° (`rotate_*`) or scales outside 0.8 … 1.2 (`scale*`) — or sits on
+`flip` — is flagged `vestibular` automatically; under reduce motion it never plays (the `reduced` profile fades) and
+Settings says so on its card.
+
+**In Settings › Motion › Your animations** every recipe has a card: its pack and file (with *Open the pack file*), what it
+animates, where it is in use, the reduce-motion note, a small preview (*Play opening* / *Play closing*, and a scrubber
+for any frame) drawn by the same `Recipe.qml` the shell runs; a skipped recipe lists its reasons instead.
+
+**Three worked examples** — `crates/kurashi-motion/tests/recipes-brief.toml`, verbatim (the crate's tests and
+`frontend/test-recipes.sh` load this file, so the examples cannot drift):
+
+```toml
+# ~/.config/kurashi/motion/mine.toml — a motion pack with three recipes (docs/ux/motion-engine.md §5 "Recipes").
+# Its recipes show in every form picker; picking the profile "mine" also uses them as its forms.
+name = "mine"
+label = "Mine"
+description = "Pops in with a tilt; toasts drop in, sidebars slide in through a blur."
+
+[form]
+open = "pop-tilt"
+close = "fade"
+[form.toast]
+open = "drop-squash"
+[form.sidebar]
+open = "slide-blur"
+close = "slide-blur"
+
+# 1. Pop and tilt: grows from 60 % past its full size and tips back level as it settles.
+[recipes.pop-tilt]
+label = "Pop and tilt"
+[[recipes.pop-tilt.track]]
+prop = "scale"
+keys = [[0, 0.6], [0.7, 1.06], [1, 1]]
+curve = "ease-out"
+[[recipes.pop-tilt.track]]
+prop = "rotate_z"
+keys = [[0, -6], [0.7, 1.5], [1, 0]]
+curve = "ease-out"
+[[recipes.pop-tilt.track]]
+prop = "opacity"
+keys = [[0, 0], [0.35, 1]]
+
+# 2. Drop and squash: falls 48 px into place, squashes against its edge and springs back.
+[recipes.drop-squash]
+label = "Drop and squash"
+pivot = "edge"
+[[recipes.drop-squash.track]]
+prop = "translate_along"
+unit = "px"
+keys = [[0, 48], [0.55, 0]]
+curve = "ease-in"
+[[recipes.drop-squash.track]]
+prop = "scale_y"
+keys = [[0, 1.08], [0.55, 1.08], [0.7, 0.86], [0.85, 1.03], [1, 1]]
+curve = "ease-in-out"
+[[recipes.drop-squash.track]]
+prop = "scale_x"
+keys = [[0, 0.95], [0.55, 0.95], [0.7, 1.1], [0.85, 0.98], [1, 1]]
+curve = "ease-in-out"
+[[recipes.drop-squash.track]]
+prop = "opacity"
+keys = [[0, 0], [0.25, 1]]
+
+# 3. Slide with blur: today's slide, seen through a blur that clears before it lands.
+[recipes.slide-blur]
+label = "Slide with blur"
+base = "slide"
+[[recipes.slide-blur.track]]
+prop = "blur"
+keys = [[0, 24], [0.8, 0]]
+curve = "ease-out"
+[[recipes.slide-blur.track]]
+prop = "opacity"
+keys = [[0, 0], [0.5, 1]]
+```
+- *Pop and tilt* starts at 60 % of its size — a zoom, so it is `vestibular`: reduce motion skips it.
+- *Drop and squash* stays within 0.8 … 1.2 and turns nothing; its squash is about the edge it hangs from (`pivot = "edge"`),
+  so it stays joined to its bar.
+- *Slide with blur* runs today's `slide` underneath and adds a blur that clears by 80 % of the way.
+
+**Not yet** (card W59.7 leaves them open): tracks on a sheet form's params with a sheet `base` (fold, roll, genie … — they
+need SheetForm to take a recipe), a recipe per surface class (recipes serve every class), and a file watch on the packs.
+
 ## 6. Surfaces — where forms apply
 Fixed classes (a schema struct, so Settings can generate a table): `island` · `panel` (Stage cards: quick, tray,
 session, mod panels) · `peek` · `launcher` · `centre` · `toast` · `sidebar` · `dock` · `bar` (hover/auto-hide reveal) ·
@@ -176,7 +310,7 @@ a value forced elsewhere shows why it's inert (rule 2). Defaults: `peek`, `osd`,
 lightest form (a fold on a 40-px peek is noise); `toast` has its own open/close (drop, crumple, flick).
 **The island** (D3, user): "It should get every animation style too and also use it by default. The animation style for
 the island should be able to be set up separately though … a setting to follow the animation or use its own." So the
-island takes **every** form, and **follows** the default form unless `theme.motion.island.follow` is off; then its own
+island takes **every** form, and **follows** the default form unless `theme.motion.form.island.follow` is off; then its own
 `theme.motion.form.island.{open,close}` apply (inert with the reason while following — the `screen_corners_follow`
 pattern, K74). What a form animates on the island is its **open/close** (pill → card and back): the pill is the origin
 and the hinge (the card unfolds, rolls or pours out of the pill). Face changes in the pill (clock → volume) and hover
@@ -293,4 +427,4 @@ pickable, but no style recommends them until the user says so in the style revie
 - Reduce motion and photosensitivity rules hold (shots under reduce motion: fades only).
 - `frontend/test-motion.sh` (new) green in `just suites`; `just check`; bench rows within §11's budget; idle 0 frames.
 - Profiles of §12 (origami, phosphor, aqua's genie) accepted by the user on their niri (UX column in PROGRESS).
-- The island: every form opens and closes it out of the pill; `island.follow` off + its own form works; faces and peeks keep K42.
+- The island: every form opens and closes it out of the pill; `form.island.follow` off + its own form works; faces and peeks keep K42.

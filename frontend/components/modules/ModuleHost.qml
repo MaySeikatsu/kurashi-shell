@@ -69,7 +69,9 @@ Item {
     }
     PointHandler {
         acceptedButtons: Qt.AllButtons
-        onActiveChanged: if (active) Isl.IslandGeom.notePress(host.output, host.mid)
+        // (W59.9a: and where in the module, so an iris opens from the press)
+        onActiveChanged: if (active) Isl.IslandGeom.notePress(host.output, host.mid,
+            point.position.x / Math.max(1, host.width), point.position.y / Math.max(1, host.height))
     }
 
     readonly property var core: ({

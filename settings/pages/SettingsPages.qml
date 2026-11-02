@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls.Basic as QQC
 import "../core"
 import "../components"
+import "../components/motion"
 
 // Renders `schema.settings` rows for one page, or for every page matching a search query. A search hit shows its
 // breadcrumb (page › section › label); choosing one emits jumpRequested, and so does a reason's link to the setting
@@ -70,8 +71,9 @@ Flickable {
     property string layoutEdge: "top"
     // Related pages (UX brief, settings 7): the pages whose settings act on this one's, when they exist.
     readonly property var relatedPages: {
-        var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility"],
-                  accessibility: ["appearance"], layout: ["dock", "sidebar"], dock: ["layout"], sidebar: ["layout"] }
+        var m = { island: ["notifications"], notifications: ["island"], appearance: ["accessibility", "motion"],
+                  accessibility: ["appearance", "motion"], layout: ["dock", "sidebar"], dock: ["layout"], sidebar: ["layout"],
+                  motion: ["appearance", "accessibility"] }
         var ps = p.structure
         return (m[p.pageId] || []).filter(function (id) {
             return ps.some(function (x) { return x.id === id })
@@ -91,7 +93,9 @@ Flickable {
         typography: "text_fields", modes: "accessibility_new", main: "toggle_on", clock: "schedule",
         server: "notifications", apps: "apps", widgets: "widgets", idle: "bedtime", night_light: "nightlight",
         recorder: "screen_record", dock: "dock_to_bottom", texture: "texture", light: "light_mode",
-        pen: "ink_pen", settings_app: "web_asset", shortcuts: "keyboard"
+        pen: "ink_pen", settings_app: "web_asset", shortcuts: "keyboard",
+        "motion.profile": "animation", "motion.timing": "speed", "motion.forms": "category", "motion.choreography": "stack",
+        "motion.windows": "web_asset"
     })
     function sectionIcon(pageId, id) {
         return sectionIcons[pageId + "." + id] || sectionIcons[id] || (pageId.indexOf("mods.") === 0 ? "extension" : "tune")
@@ -118,6 +122,12 @@ Flickable {
     function pickerOf(key) {
         var r = Store.rowOf(key)
         if (r && r.row.control === "shortcut") return cShortcut
+        // K83 (W59.6): a curve row is the curve editor; the motion profile its gallery; a form row the form picker.
+        if (r && r.row.control === "curve") return cCurve
+        if (key === "theme.motion.profile") return cProfiles
+        if (r && r.row.choices_from === "motion.forms") return cFormPicker
+        // A number whose lowest value means "the profile's" (-1 or 0): "From the profile (…)", never the raw sentinel.
+        if (/^theme\.motion\.(jelly|squash|stagger_ms|timing\.[a-z]+_ms)$/.test(key)) return cProfileValue
         return p.pickers[key] ? (p.extraOf(key) ?? null) : null
     }
     function extraOf(key) {
@@ -147,6 +157,11 @@ Flickable {
     Component { id: cKeysStatus; KeysStatus {} }
     Component { id: cShortcut; ShortcutRecorder {} }
     Component { id: cDrawModes; DrawModes {} }
+    Component { id: cCurve; CurveControl {} }
+    Component { id: cProfiles; ProfileGallery {} }
+    Component { id: cFormPicker; FormPicker {} }
+    Component { id: cProfileValue; ProfileValue {} }
+    Component { id: cFormsTable; FormsTable { onOpenKey: key => p.openKey(key) } }
     // The note under the selected edge's header when its bar has no modules (Settings › Layout; EmptyBarNote).
     Component {
         id: cEmptyBar
@@ -194,7 +209,8 @@ Flickable {
                 rowsByKey[r.key] = r
                 if (q === "" && Store.isPackRow(r)) (p.packCompanions[r.choices_from] || []).forEach(function (k) { taken[k] = true })
             }) })
-            var sections = q === "" && pages[i].id === "layout" ? p.layoutSections(pages[i].sections) : pages[i].sections
+            var sections = q === "" && pages[i].id === "layout" ? p.layoutSections(pages[i].sections)
+                : q === "" && pages[i].id === "motion" ? p.motionSections(pages[i].sections) : pages[i].sections
             for (var j = 0; j < sections.length; j++) {
                 var s = sections[j]
                 var rows = s.rows.filter(function (r) {
@@ -225,8 +241,20 @@ Flickable {
         const first = list.filter(function (s) { return s.id === want })
         return first.concat(list.filter(function (s) { return s.id !== want && !/_edge$/.test(s.id) }))
     }
+    // Settings › Motion (W59.6, brief docs/ux/motion-engine.md §8): the forms section keeps its two defaults as rows; the
+    // per-surface forms and the island's switch are one table under them (FormsTable), so they leave the section's rows. A
+    // search shows them as rows, as any other.
+    function motionSections(list) {
+        return list.map(function (s) {
+            if (s.id !== "forms") return s
+            return { id: s.id, label: s.label, rows: s.rows.filter(function (r) {
+                return r.key === "theme.motion.form.open" || r.key === "theme.motion.form.close" }) }
+        })
+    }
     // The settings test (W44): whether an item named so is on the page.
     function present(name) { return findNamed(col, name) !== null }
+    // Settings › Motion's preview stage (the settings test drives it: shell.qml `preview`), or null off that page.
+    function motionPreview() { return findNamed(col, "motion-preview") }
     // How many settings a search looked through (the empty-search line names its scope, UX brief "empty search").
     readonly property int scopeCount: Store.allRows().length
 
@@ -263,9 +291,14 @@ Flickable {
             if (y - top < 80) y = top
             break
         }
-        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
+        p.contentY = Math.max(0, Math.min(y - Theme.pad - p.stickOver(y), p.contentHeight - p.height))
         return hit
     }
+    // Settings › Motion's sticky preview stage (W59.6b): how far it is moved down to stay at the page's top, its height,
+    // and the room a row below it needs so a jump does not land under it.
+    readonly property real stuck: motionTop.active ? Math.max(0, p.contentY - col.y - motionTop.y) : 0
+    readonly property real stuckH: motionTop.active && motionTop.item ? motionTop.item.children[0].height : 0
+    function stickOver(y) { return p.stuckH > 0 && y > col.y + motionTop.y + p.stuckH ? p.stuckH + Theme.gap : 0 }
     function reveal(key, focusIt) {
         p.pinKey = ""
         Qt.callLater(function () {
@@ -377,7 +410,7 @@ Flickable {
         var it = findNamed(col, name)
         if (!it) return
         var y = it.mapToItem(p.contentItem, 0, 0).y
-        p.contentY = Math.max(0, Math.min(y - Theme.pad, p.contentHeight - p.height))
+        p.contentY = Math.max(0, Math.min(y - Theme.pad - p.stickOver(y), p.contentHeight - p.height))
     }
     // A reason's link: the setting that controls this row, wherever it is.
     function openKey(key) {
@@ -413,6 +446,23 @@ Flickable {
             visible: !p.searching && p.modId !== ""
             modId: p.modId
             onPageRequested: id => p.pageRequested(id)
+        }
+        // Settings › Motion: the preview stage on top and the reduce-motion line under it (W59.6). Only on that page. The
+        // stage is sticky (brief §8 item 1): scrolled past, it stays at the page's top over the rows (W59.6b).
+        Loader {
+            id: motionTop
+            width: col.width
+            z: 2
+            active: !p.searching && p.pageId === "motion"
+            visible: active
+            sourceComponent: Column {
+                spacing: Theme.gap
+                MotionPreview {
+                    width: parent.width
+                    transform: Translate { y: p.stuck }
+                }
+                MotionA11y { onOpenKey: key => p.openKey(key) }
+            }
         }
         // Settings › Layout: the screen with the edges, above the selected edge's section (LayoutScreen). Only on that page.
         Loader {
@@ -596,6 +646,13 @@ Flickable {
                                     }
                                 }
                             }
+                        }
+                        // Settings › Motion: the forms per surface, as one table under the two defaults (motionSections).
+                        Loader {
+                            width: sec.width - 2 * Theme.pad
+                            active: pageOf === "motion" && !p.searching && sec.modelData.id === "forms"
+                            visible: active
+                            sourceComponent: cFormsTable
                         }
                     }
                 }

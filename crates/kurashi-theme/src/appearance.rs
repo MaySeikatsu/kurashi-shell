@@ -51,9 +51,6 @@ pub enum DecorKind {
     Role,
     /// One or two role names (a solid fill or a gradient's ends); `[]` = the part's own.
     Roles,
-    /// A QML `bezierCurve`: a cubic's four control numbers (`[x1, y1, x2, y2]`, ending at 1, 1), or whole segments of
-    /// six numbers whose last point is 1, 1; `[]` = the motion profile's own.
-    Curve,
     /// Font families, the first installed one wins; `[]` = the shell's own.
     Families,
     /// A shipped set's name (a slug: `cursors/<name>/` in the package); `""` = none (W53.0b, contract row 593).
@@ -71,7 +68,7 @@ const fn k(key: &'static str, kind: DecorKind, default: &'static str) -> DecorKe
     DecorKey { key, kind, default }
 }
 
-use DecorKind::{Bool, Choice, Curve, Families, Int, Name, Num, Role, Roles};
+use DecorKind::{Bool, Choice, Families, Int, Name, Num, Role, Roles};
 
 /// Every `[decor]` key a look may set (W53.0a, docs/ux/styles.md "Metrics, as data"), with the default that keeps
 /// today's shell. Numbers are logical px unless named otherwise; `0` (or `-1` where 0 is a size) means the component's
@@ -218,24 +215,8 @@ pub const DECOR_KEYS: &[DecorKey] = &[
     k("icon.scale", Num(0.5, 2.0), "1.0"),
     k("icon.fill", Int(-1, 1), "-1"),
     k("icon.weight", Int(-1, 900), "-1"),
-    // Motion personality (on top of K74's profiles; reduce motion still wins): the form surfaces move in, the stepped
-    // style's hold (frames at 60 Hz per step), the timed durations (0 = K74's) and curves ([] = K74's).
-    k(
-        "motion.style",
-        Choice(&[
-            "grow", "slide", "zoom", "fade", "flip", "stepped", "rubber", "bleed",
-        ]),
-        r#""grow""#,
-    ),
-    k("motion.steps", Int(1, 30), "4"),
-    k("motion.open_ms", Int(0, 2000), "0"),
-    k("motion.close_ms", Int(0, 2000), "0"),
-    k("motion.fast_ms", Int(0, 2000), "0"),
-    k("motion.effects_ms", Int(0, 2000), "0"),
-    k("motion.open_curve", Curve, "[]"),
-    k("motion.close_curve", Curve, "[]"),
-    k("motion.fast_curve", Curve, "[]"),
-    k("motion.effects_curve", Curve, "[]"),
+    // (K83: a look's motion — `motion.style`, `motion.steps`, the timed curves and durations — moved into motion packs,
+    // `motion/<look>.toml`, which the look recommends as `theme.motion.profile`.)
     // Materials next to blur: a glow round blocks (its role and reach), a bloom of the block's own colour, a glossy sheen
     // on the upper half (Vista/7). 0 = none; static, nothing runs per frame.
     k("material.glow", Num(0.0, 1.0), "0.0"),
@@ -507,21 +488,6 @@ impl DecorKey {
                 let a = v.as_array()?;
                 // [] = the part's own (or none: W53.6's header band without a fill), one = solid, two = a gradient.
                 (a.len() <= 2 && a.iter().all(role)).then(|| v.clone())
-            }
-            Curve => {
-                let n: Vec<f64> = v
-                    .as_array()?
-                    .iter()
-                    .map(Value::as_f64)
-                    .collect::<Option<_>>()?;
-                let ok = match n.len() {
-                    0 | 4 => true,
-                    l if l % 6 == 0 => n[l - 2] == 1.0 && n[l - 1] == 1.0,
-                    _ => false,
-                };
-                // x stays within the animation's 0..1; y may overshoot.
-                let xs_ok = n.chunks(2).all(|p| (0.0..=1.0).contains(&p[0]));
-                (ok && xs_ok && n.iter().all(|f| f.is_finite())).then(|| v.clone())
             }
             Families => {
                 let a = v.as_array()?;

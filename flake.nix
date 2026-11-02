@@ -54,7 +54,7 @@
             # Frontend default (K3 candidate 1) + headless test compositor; niri nested in it is the lead platform for
             # visual checks (tools/bench/niri-sandbox.sh), imagemagick joins its bursts
             quickshell sway grim wayland-utils niri imagemagick
-            # Shaders (K59): `qsb` compiles frontend/shaders/*.frag
+            # Shaders (K59, K83): `just shaders` compiles frontend/shaders/**/*.{frag,vert} with `qsb`
             qt6.qtshadertools
             # Web dock host (K39) + typing into it in sandbox tests
             self.packages.${pkgs.stdenv.hostPlatform.system}.quickshell-webengine

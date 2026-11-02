@@ -804,6 +804,40 @@ mod tests {
                 niri_validate(&cfg, &format!("{profile}/{radius}"));
             }
         }
+        // K83 (W59.9): windows following the profile's own curves — a cubic with overshoot, a spring, and K42's spring_q
+        // (which falls back to the family's spring).
+        let mut follow = theme("dark", 18, "expressive");
+        let tok = follow["tokens"].as_object_mut().unwrap();
+        for (k, v) in [
+            ("motion.kind", json!("timed")),
+            ("motion.spring.on", json!(true)),
+            ("motion.spring.damping", json!(0.45)),
+            ("motion.windows", json!("follow")),
+            (
+                "motion.curve.open",
+                json!({"kind": "cubic", "ms": 500, "points": [0.38, 1.21, 0.22, 1.0, 1.0, 1.0]}),
+            ),
+            (
+                "motion.curve.close",
+                json!({"kind": "spring", "ms": 550, "response": 550, "bounce": 0.45}),
+            ),
+            (
+                "motion.curve.fast",
+                json!({"kind": "spring_q", "ms": 0, "spring": 4.0, "damping": 0.45}),
+            ),
+        ] {
+            tok.insert(k.into(), v);
+        }
+        let dir = tempfile::tempdir().unwrap();
+        export_into(dir.path(), &follow, &["niri"], "", &desktop);
+        let cfg = dir.path().join("config.kdl");
+        std::fs::write(&cfg, "include \"niri/kurashi.kdl\"\n").unwrap();
+        let text = std::fs::read_to_string(dir.path().join("niri/kurashi.kdl")).unwrap();
+        assert!(
+            text.contains("curve \"cubic-bezier\" 0.38 1.21 0.22 1"),
+            "{text}"
+        );
+        niri_validate(&cfg, "windows follow the profile");
         let dir = tempfile::tempdir().unwrap();
         export_into(
             dir.path(),

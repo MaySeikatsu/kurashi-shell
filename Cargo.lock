@@ -1201,6 +1201,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "kurashi-motion"
+version = "0.0.1"
+dependencies = [
+ "proptest",
+ "serde_json",
+ "thiserror",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "kurashi-notify"
 version = "0.0.1"
 dependencies = [
@@ -1220,6 +1230,7 @@ dependencies = [
 name = "kurashi-schema"
 version = "0.0.1"
 dependencies = [
+ "kurashi-motion",
  "kurashi-schema-derive",
  "serde",
  "serde_json",
@@ -1269,6 +1280,7 @@ name = "kurashi-theme"
 version = "0.0.1"
 dependencies = [
  "image",
+ "kurashi-motion",
  "material-colors",
  "serde",
  "serde_json",

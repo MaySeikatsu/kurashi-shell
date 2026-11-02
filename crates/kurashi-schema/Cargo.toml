@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 kurashi-schema-derive = { path = "../kurashi-schema-derive" }
+kurashi-motion = { path = "../kurashi-motion" }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true

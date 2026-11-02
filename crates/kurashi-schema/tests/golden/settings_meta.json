@@ -1635,74 +1635,6 @@
           ]
         },
         {
-          "id": "motion",
-          "label": "settings.section.motion",
-          "rows": [
-            {
-              "advanced": false,
-              "choices": [
-                {
-                  "label": "config.choice.motion_profile.expressive",
-                  "value": "expressive"
-                },
-                {
-                  "label": "config.choice.motion_profile.calm",
-                  "value": "calm"
-                },
-                {
-                  "label": "config.choice.motion_profile.lively",
-                  "value": "lively"
-                },
-                {
-                  "label": "config.choice.motion_profile.none",
-                  "value": "none"
-                }
-              ],
-              "control": "select",
-              "couplings": [
-                {
-                  "forces": "none",
-                  "key": "a11y.reduce_motion",
-                  "kind": "overridden_by",
-                  "reason": "settings.inert.overridden_by"
-                }
-              ],
-              "default": "expressive",
-              "help": "config.theme.motion.profile.help",
-              "key": "theme.motion.profile",
-              "label": "config.theme.motion.profile.label",
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "type": "choice"
-            },
-            {
-              "advanced": true,
-              "control": "slider",
-              "couplings": [
-                {
-                  "key": "theme.motion.profile",
-                  "kind": "requires",
-                  "op": "ne",
-                  "reason": "settings.inert.requires",
-                  "value": "none"
-                }
-              ],
-              "default": 1.0,
-              "help": "config.theme.motion.speed.help",
-              "key": "theme.motion.speed",
-              "label": "config.theme.motion.speed.label",
-              "max": 3.0,
-              "min": 0.25,
-              "per_output": false,
-              "restart": false,
-              "since": 1,
-              "step": 0.05,
-              "type": "float"
-            }
-          ]
-        },
-        {
           "id": "layout",
           "label": "settings.section.layout",
           "rows": [
@@ -3213,6 +3145,1016 @@
               "per_output": false,
               "restart": false,
               "since": 7,
+              "type": "choice"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "motion",
+      "label": "settings.page.motion",
+      "sections": [
+        {
+          "id": "profile",
+          "label": "settings.section.profile",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.profiles",
+              "control": "select",
+              "couplings": [
+                {
+                  "forces": "reduced",
+                  "key": "a11y.reduce_motion",
+                  "kind": "overridden_by",
+                  "reason": "settings.inert.overridden_by"
+                }
+              ],
+              "default": "expressive",
+              "help": "config.theme.motion.profile.help",
+              "key": "theme.motion.profile",
+              "label": "config.theme.motion.profile.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 1.0,
+              "help": "config.theme.motion.speed.help",
+              "key": "theme.motion.speed",
+              "label": "config.theme.motion.speed.label",
+              "max": 3.0,
+              "min": 0.25,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.05,
+              "type": "float"
+            }
+          ]
+        },
+        {
+          "id": "timing",
+          "label": "settings.section.timing",
+          "rows": [
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.open.help",
+              "key": "theme.motion.timing.open",
+              "label": "config.theme.motion.timing.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.close.help",
+              "key": "theme.motion.timing.close",
+              "label": "config.theme.motion.timing.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.fast.help",
+              "key": "theme.motion.timing.fast",
+              "label": "config.theme.motion.timing.fast.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": false,
+              "control": "curve",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.timing.effects.help",
+              "key": "theme.motion.timing.effects",
+              "label": "config.theme.motion.timing.effects.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "curve"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.open_ms.help",
+              "key": "theme.motion.timing.open_ms",
+              "label": "config.theme.motion.timing.open_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.close_ms.help",
+              "key": "theme.motion.timing.close_ms",
+              "label": "config.theme.motion.timing.close_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.fast_ms.help",
+              "key": "theme.motion.timing.fast_ms",
+              "label": "config.theme.motion.timing.fast_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": 0,
+              "help": "config.theme.motion.timing.effects_ms.help",
+              "key": "theme.motion.timing.effects_ms",
+              "label": "config.theme.motion.timing.effects_ms.label",
+              "max": 3000,
+              "min": 0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            }
+          ]
+        },
+        {
+          "id": "forms",
+          "label": "settings.section.forms",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.open.help",
+              "key": "theme.motion.form.open",
+              "label": "config.theme.motion.form.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.close.help",
+              "key": "theme.motion.form.close",
+              "label": "config.theme.motion.form.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "control": "toggle",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": true,
+              "help": "config.theme.motion.form.island.follow.help",
+              "key": "theme.motion.form.island.follow",
+              "label": "config.theme.motion.form.island.follow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "bool"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.form.island.follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": false
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.island.open.help",
+              "key": "theme.motion.form.island.open",
+              "label": "config.theme.motion.form.island.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": false,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.form.island.follow",
+                  "kind": "requires",
+                  "op": "eq",
+                  "reason": "settings.inert.requires",
+                  "value": false
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.island.close.help",
+              "key": "theme.motion.form.island.close",
+              "label": "config.theme.motion.form.island.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.panel.open.help",
+              "key": "theme.motion.form.panel.open",
+              "label": "config.theme.motion.form.panel.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.panel.close.help",
+              "key": "theme.motion.form.panel.close",
+              "label": "config.theme.motion.form.panel.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.peek.open.help",
+              "key": "theme.motion.form.peek.open",
+              "label": "config.theme.motion.form.peek.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.peek.close.help",
+              "key": "theme.motion.form.peek.close",
+              "label": "config.theme.motion.form.peek.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.launcher.open.help",
+              "key": "theme.motion.form.launcher.open",
+              "label": "config.theme.motion.form.launcher.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.launcher.close.help",
+              "key": "theme.motion.form.launcher.close",
+              "label": "config.theme.motion.form.launcher.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.centre.open.help",
+              "key": "theme.motion.form.centre.open",
+              "label": "config.theme.motion.form.centre.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.centre.close.help",
+              "key": "theme.motion.form.centre.close",
+              "label": "config.theme.motion.form.centre.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.toast.open.help",
+              "key": "theme.motion.form.toast.open",
+              "label": "config.theme.motion.form.toast.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.toast.close.help",
+              "key": "theme.motion.form.toast.close",
+              "label": "config.theme.motion.form.toast.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.sidebar.open.help",
+              "key": "theme.motion.form.sidebar.open",
+              "label": "config.theme.motion.form.sidebar.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.sidebar.close.help",
+              "key": "theme.motion.form.sidebar.close",
+              "label": "config.theme.motion.form.sidebar.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.dock.open.help",
+              "key": "theme.motion.form.dock.open",
+              "label": "config.theme.motion.form.dock.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.dock.close.help",
+              "key": "theme.motion.form.dock.close",
+              "label": "config.theme.motion.form.dock.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.bar.open.help",
+              "key": "theme.motion.form.bar.open",
+              "label": "config.theme.motion.form.bar.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.bar.close.help",
+              "key": "theme.motion.form.bar.close",
+              "label": "config.theme.motion.form.bar.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.osd.open.help",
+              "key": "theme.motion.form.osd.open",
+              "label": "config.theme.motion.form.osd.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.osd.close.help",
+              "key": "theme.motion.form.osd.close",
+              "label": "config.theme.motion.form.osd.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.menu.open.help",
+              "key": "theme.motion.form.menu.open",
+              "label": "config.theme.motion.form.menu.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.menu.close.help",
+              "key": "theme.motion.form.menu.close",
+              "label": "config.theme.motion.form.menu.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.dialog.open.help",
+              "key": "theme.motion.form.dialog.open",
+              "label": "config.theme.motion.form.dialog.open.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            },
+            {
+              "advanced": true,
+              "choices": [],
+              "choices_from": "motion.forms",
+              "control": "select",
+              "couplings": [
+                {
+                  "key": "theme.motion.profile",
+                  "kind": "requires",
+                  "op": "ne",
+                  "reason": "settings.inert.requires",
+                  "value": "none"
+                }
+              ],
+              "default": "",
+              "help": "config.theme.motion.form.dialog.close.help",
+              "key": "theme.motion.form.dialog.close",
+              "label": "config.theme.motion.form.dialog.close.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "string"
+            }
+          ]
+        },
+        {
+          "id": "choreography",
+          "label": "settings.section.choreography",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.motion_content.profile",
+                  "value": "profile"
+                },
+                {
+                  "label": "config.choice.motion_content.late",
+                  "value": "late"
+                },
+                {
+                  "label": "config.choice.motion_content.with",
+                  "value": "with"
+                },
+                {
+                  "label": "config.choice.motion_content.cascade",
+                  "value": "cascade"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "profile",
+              "help": "config.theme.motion.content.help",
+              "key": "theme.motion.content",
+              "label": "config.theme.motion.content.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [],
+              "default": -1,
+              "help": "config.theme.motion.stagger_ms.help",
+              "key": "theme.motion.stagger_ms",
+              "label": "config.theme.motion.stagger_ms.label",
+              "max": 60,
+              "min": -1,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "int",
+              "unit": "ms"
+            },
+            {
+              "advanced": true,
+              "control": "slider",
+              "couplings": [],
+              "default": -1.0,
+              "help": "config.theme.motion.squash.help",
+              "key": "theme.motion.squash",
+              "label": "config.theme.motion.squash.label",
+              "max": 0.15,
+              "min": -1.0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.01,
+              "type": "float"
+            },
+            {
+              "advanced": false,
+              "control": "slider",
+              "couplings": [],
+              "default": -1.0,
+              "help": "config.theme.motion.jelly.help",
+              "key": "theme.motion.jelly",
+              "label": "config.theme.motion.jelly.label",
+              "max": 1.0,
+              "min": -1.0,
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "step": 0.05,
+              "type": "float"
+            },
+            {
+              "advanced": true,
+              "choices": [
+                {
+                  "label": "config.choice.motion_shadow.profile",
+                  "value": "profile"
+                },
+                {
+                  "label": "config.choice.motion_shadow.carry",
+                  "value": "carry"
+                },
+                {
+                  "label": "config.choice.motion_shadow.fade",
+                  "value": "fade"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "profile",
+              "help": "config.theme.motion.shadow.help",
+              "key": "theme.motion.shadow",
+              "label": "config.theme.motion.shadow.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
+              "type": "choice"
+            }
+          ]
+        },
+        {
+          "id": "windows",
+          "label": "settings.section.windows",
+          "rows": [
+            {
+              "advanced": false,
+              "choices": [
+                {
+                  "label": "config.choice.motion_windows.off",
+                  "value": "off"
+                },
+                {
+                  "label": "config.choice.motion_windows.follow",
+                  "value": "follow"
+                }
+              ],
+              "control": "select",
+              "couplings": [],
+              "default": "off",
+              "help": "config.theme.motion.windows.help",
+              "key": "theme.motion.windows",
+              "label": "config.theme.motion.windows.label",
+              "per_output": false,
+              "restart": false,
+              "since": 1,
               "type": "choice"
             }
           ]

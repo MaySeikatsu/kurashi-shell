@@ -168,36 +168,6 @@
   "decor.menu.separator": "line",
   "decor.menu.trail": 0,
   "decor.menu.wipe": false,
-  "decor.motion.close_curve": [
-    0.3,
-    0.0,
-    0.8,
-    0.15
-  ],
-  "decor.motion.close_ms": 200,
-  "decor.motion.effects_curve": [
-    0.2,
-    0.0,
-    0.0,
-    1.0
-  ],
-  "decor.motion.effects_ms": 150,
-  "decor.motion.fast_curve": [
-    0.2,
-    0.0,
-    0.0,
-    1.0
-  ],
-  "decor.motion.fast_ms": 200,
-  "decor.motion.open_curve": [
-    0.05,
-    0.7,
-    0.1,
-    1.0
-  ],
-  "decor.motion.open_ms": 400,
-  "decor.motion.steps": 4,
-  "decor.motion.style": "grow",
   "decor.pattern.kind": "none",
   "decor.pattern.period": 4,
   "decor.pattern.strength": 0.0,
@@ -319,6 +289,60 @@
   "island.fg_dim": "#cac4d0",
   "lock.bg": "#0f0d13",
   "lock.fg": "#e6e0e9",
+  "motion.accent.content": "late",
+  "motion.accent.jelly": 0.0,
+  "motion.accent.overshoot_cap": 1.0,
+  "motion.accent.shadow": "carry",
+  "motion.accent.squash": 0.0,
+  "motion.accent.stagger_ms": 0,
+  "motion.curve.close": {
+    "kind": "cubic",
+    "ms": 200,
+    "points": [
+      0.3,
+      0.0,
+      0.8,
+      0.15,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.curve.effects": {
+    "kind": "cubic",
+    "ms": 150,
+    "points": [
+      0.2,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.curve.fast": {
+    "kind": "cubic",
+    "ms": 200,
+    "points": [
+      0.2,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.curve.open": {
+    "kind": "cubic",
+    "ms": 400,
+    "points": [
+      0.05,
+      0.7,
+      0.1,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "motion.easing.continuous": [
     0.2,
     0.0,
@@ -344,10 +368,621 @@
     0.15
   ],
   "motion.emphasized_ms": 320,
+  "motion.form.bar.close": "grow",
+  "motion.form.bar.open": "grow",
+  "motion.form.centre.close": "grow",
+  "motion.form.centre.open": "grow",
+  "motion.form.dialog.close": "grow",
+  "motion.form.dialog.open": "grow",
+  "motion.form.dock.close": "grow",
+  "motion.form.dock.open": "grow",
+  "motion.form.island.close": "grow",
+  "motion.form.island.open": "grow",
+  "motion.form.launcher.close": "grow",
+  "motion.form.launcher.open": "grow",
+  "motion.form.menu.close": "grow",
+  "motion.form.menu.open": "grow",
+  "motion.form.osd.close": "grow",
+  "motion.form.osd.open": "grow",
+  "motion.form.panel.close": "grow",
+  "motion.form.panel.open": "grow",
+  "motion.form.peek.close": "grow",
+  "motion.form.peek.open": "grow",
+  "motion.form.sidebar.close": "grow",
+  "motion.form.sidebar.open": "grow",
+  "motion.form.toast.close": "grow",
+  "motion.form.toast.open": "grow",
+  "motion.forms": {
+    "bleed": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "book": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "launcher",
+        "centre",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "crt": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "flash"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "crumple": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "dissolve": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "drop": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "osd",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "expand": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "fade": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "fan": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "menu",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "flip": {
+      "available": true,
+      "family": "shape",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "fold": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "menu",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "genie": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "dock",
+        "menu",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "glitch": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "flash"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "grow": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": true,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "iris": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "liquid": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": true,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre"
+      ],
+      "tier": "transform"
+    },
+    "none": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "noren": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "outline": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "pixelate": {
+      "available": true,
+      "family": "sheet",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "roll": {
+      "available": true,
+      "family": "sheet",
+      "flags": [
+        "vestibular"
+      ],
+      "overshoot": false,
+      "retarget": "finish",
+      "surfaces": [
+        "island",
+        "panel",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "menu",
+        "dialog"
+      ],
+      "tier": "mesh"
+    },
+    "rubber": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": true,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "slide": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": true,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "stamp": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": true,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "dialog"
+      ],
+      "tier": "layer"
+    },
+    "stepped": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    },
+    "zoom": {
+      "available": true,
+      "family": "shape",
+      "flags": [],
+      "overshoot": false,
+      "retarget": "morph",
+      "surfaces": [
+        "island",
+        "panel",
+        "peek",
+        "launcher",
+        "centre",
+        "toast",
+        "sidebar",
+        "dock",
+        "bar",
+        "osd",
+        "menu",
+        "dialog"
+      ],
+      "tier": "transform"
+    }
+  },
   "motion.instant_ms": 0,
   "motion.kind": "timed",
   "motion.long_ms": 500,
-  "motion.profile": "expressive",
+  "motion.profile": "material",
+  "motion.profile_curve.close": {
+    "kind": "cubic",
+    "ms": 200,
+    "points": [
+      0.3,
+      0.0,
+      0.8,
+      0.15,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.effects": {
+    "kind": "cubic",
+    "ms": 150,
+    "points": [
+      0.2,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.fast": {
+    "kind": "cubic",
+    "ms": 200,
+    "points": [
+      0.2,
+      0.0,
+      0.0,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
+  "motion.profile_curve.open": {
+    "kind": "cubic",
+    "ms": 400,
+    "points": [
+      0.05,
+      0.7,
+      0.1,
+      1.0,
+      1.0,
+      1.0
+    ]
+  },
   "motion.quick_ms": 120,
   "motion.spring.damping": 0.45,
   "motion.spring.on": true,
@@ -393,6 +1028,7 @@
     1.0
   ],
   "motion.timed.open_ms": 400,
+  "motion.windows": "off",
   "osd.bg": "#36343b",
   "osd.fg": "#e6e0e9",
   "outline.ink": "outline",

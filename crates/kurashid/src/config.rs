@@ -31,6 +31,11 @@ pub const REASON_PENDING_RESTART: &str = "settings.pending.restart";
 pub const REASON_MOD_DISABLED: &str = "mods.disabled";
 /// Reason of a value outside the options its `choices_from` source offers (I9, K21).
 pub const REASON_CHOICE_UNAVAILABLE: &str = "settings.choice.unavailable";
+/// K83 (rows 643/644): a motion axis while nothing moves — reduce motion's fades, or a profile that does not move.
+pub const REASON_MOTION_REDUCED: &str = "settings.inert.motion.reduced";
+pub const REASON_MOTION_STILL: &str = "settings.inert.motion.still";
+/// K83 (row 644): a surface's form that cannot serve that surface (the forms meta's `surfaces`).
+pub const REASON_MOTION_SURFACE: &str = "settings.inert.motion.surface";
 /// The island instance the `island.main.*` keys configure; its document lists the faces.
 const ISLAND_DOC: &str = "runtime.island.main";
 /// System faces: transient-only, governed by `island.main.system_events` and never by the list, so they are no
@@ -38,7 +43,7 @@ const ISLAND_DOC: &str = "runtime.island.main";
 const TRANSIENT_FACES: [&str; 4] = ["volume", "brightness", "power", "bluetooth"];
 /// The choice sources the core offers (I9). A mod's `choices:<source>` may not take one of these
 /// names: its offers would replace the core's.
-pub const CORE_SOURCES: [&str; 11] = [
+pub const CORE_SOURCES: [&str; 14] = [
     "lock.faces",
     "actions",
     "modules",
@@ -50,6 +55,9 @@ pub const CORE_SOURCES: [&str; 11] = [
     "looks",
     "sidebar.sections",
     "sidebar.tabs",
+    "motion.profiles",
+    "motion.forms",
+    "motion.still",
 ];
 
 /// The config files' migrations (user file, profiles, managed.toml; `schema_version`).
@@ -695,6 +703,13 @@ impl Offer {
         }
     }
 
+    /// Offered but not selectable now, with the reason (a value naming it is not in effect: `offered`).
+    fn unavailable(mut self, reason: &str) -> Self {
+        self.enabled = false;
+        self.reason = Some(reason.into());
+        self
+    }
+
     fn in_group(mut self, group: &str) -> Self {
         self.group = Some(group.into());
         self
@@ -842,6 +857,59 @@ fn offers_now(
             all(Kind::Look)
                 .into_iter()
                 .map(|d| Offer::on(&d.name, d.label).in_group(&d.category))
+                .collect(),
+        );
+    }
+    // K83: the motion profiles are the motion packs (built in and the user's, `$XDG_CONFIG_HOME/kurashi/motion`); the
+    // forms are kurashi-motion's forms meta. A form whose frontend has not landed yet is no option (a value naming one is
+    // not in effect); a pack built on such forms is offered disabled, with the reason, until they have.
+    {
+        use kurashi_theme::kurashi_motion::{forms, pack};
+        let packs = pack::Registry::load(&pack::user_dir().into_iter().collect::<Vec<_>>());
+        offers.insert(
+            "motion.profiles".to_string(),
+            packs
+                .packs
+                .iter()
+                .map(|p| {
+                    let o = Offer::on(&p.id, p.label.clone());
+                    if p.available() {
+                        o
+                    } else {
+                        o.unavailable(forms::REASON_UNAVAILABLE)
+                    }
+                })
+                .collect(),
+        );
+        offers.insert(
+            "motion.forms".to_string(),
+            std::iter::once(Offer::on("", "config.choice.motion.form.profile".into()))
+                .chain(
+                    forms::FORMS
+                        .iter()
+                        .filter(|m| m.available)
+                        .map(|m| Offer::on(m.id, format!("config.choice.motion.form.{}", m.id))),
+                )
+                // W59.7: the packs' valid recipes, by their own label, after the built-in forms (a skipped one is no
+                // option; Settings' recipe list says why).
+                .chain(
+                    kurashi_theme::kurashi_motion::recipe::collect(&packs)
+                        .0
+                        .into_iter()
+                        .filter(|r| r.ok())
+                        .map(|r| Offer::on(&r.id, r.label)),
+                )
+                .collect(),
+        );
+        // The profiles under which nothing moves but fades or nothing at all (base `none` or `reduced`): every other
+        // motion axis is not in effect under them (rows 643; `decorate`). No key offers from it; it is read only there.
+        offers.insert(
+            "motion.still".to_string(),
+            packs
+                .packs
+                .iter()
+                .filter(|p| matches!(p.base, Some(pack::Base::None | pack::Base::Reduced)))
+                .map(|p| Offer::on(&p.id, p.label.clone()))
                 .collect(),
         );
     }
@@ -1029,6 +1097,38 @@ impl ModTable {
 
 /// Whether the offers of a `choices_from` source take `value`, a string or a list of strings.
 /// `None` while the source is not known (nothing to judge).
+/// K83 (CONTRACT-CHANGE 643, 644): why a `theme.motion.*` row is not in effect, beyond its `requires`. Under the
+/// `reduced` profile (reduce motion) or a profile that does not move (`motion.still`: base none, e.g. win95's) no other
+/// motion axis applies — the resolver ignores them; a surface's own form that the forms meta does not let serve that
+/// surface is skipped by the resolver (it falls back along the chain).
+fn motion_inert(
+    key: &str,
+    value: &Value,
+    value_of: &dyn Fn(&str) -> Option<Value>,
+    offers: &BTreeMap<String, Vec<Offer>>,
+) -> Option<&'static str> {
+    const PROFILE: &str = "theme.motion.profile";
+    let rest = key.strip_prefix("theme.motion.")?;
+    if key == PROFILE {
+        return None;
+    }
+    let profile = value_of(PROFILE)?;
+    if profile.as_str() == Some("reduced") {
+        return Some(REASON_MOTION_REDUCED);
+    }
+    if offered(offers, "motion.still", &profile) == Some(true) {
+        return Some(REASON_MOTION_STILL);
+    }
+    // `form.<surface>.open|close` naming a form that cannot serve the surface.
+    let surface = rest
+        .strip_prefix("form.")
+        .and_then(|r| r.strip_suffix(".open").or_else(|| r.strip_suffix(".close")))?;
+    let id = value.as_str().filter(|s| !s.is_empty())?;
+    let meta = kurashi_theme::kurashi_motion::forms::form(id)?;
+    (kurashi_theme::kurashi_motion::forms::SURFACES.contains(&surface) && !meta.serves(surface))
+        .then_some(REASON_MOTION_SURFACE)
+}
+
 fn offered(offers: &BTreeMap<String, Vec<Offer>>, source: &str, value: &Value) -> Option<bool> {
     let options = offers.get(source)?;
     let ok = |v: &Value| {
@@ -1759,6 +1859,9 @@ impl ConfigStore {
         } else if choice_gone {
             // I9: never rejected, just not in effect while the source does not offer it.
             p.reason = Some(REASON_CHOICE_UNAVAILABLE.into());
+        } else if let Some(reason) = motion_inert(key, &p.value, &value_of, &cfg.schema().offers) {
+            // (No `inert_by`: K21 keeps it for `requires`; the reason's own text names reduce motion or the profile.)
+            p.reason = Some(reason.into());
         } else if self
             .started
             .get()
@@ -1868,6 +1971,11 @@ impl ConfigStore {
     /// Republishes `schema.settings` with the sources' current options, for a source that changed
     /// without a config change (the island registered a face, a mod's palette came and went). The
     /// `config` document follows, since a value may now be outside its options (I9).
+    /// A motion pack was added, edited or removed (I358): offers, inert reasons and the theme (a listener) follow.
+    pub fn packs_changed(&self) {
+        self.publish();
+    }
+
     pub fn refresh_choices(&self) {
         self.publish_settings();
         self.publish_document();
@@ -2292,6 +2400,40 @@ impl ConfigStore {
                 })))
             }
         });
+        // K83 (row 664, rule 1): Settings' "Open the pack file" — the daemon opens a motion pack in the user's editor
+        // (xdg-open), and only a `.toml` inside the user's motion folder, never any other path a client names.
+        actions.register(
+            "motion.pack.open",
+            "action.motion.pack.open",
+            move |v| async move {
+                use kurashi_theme::kurashi_motion::pack::user_dir;
+                let path = v
+                    .get("path")
+                    .and_then(Value::as_str)
+                    .ok_or_else(|| ActionError::Invalid(ARGS_INVALID.into()))?;
+                let dir = user_dir()
+                    .and_then(|d| d.canonicalize().ok())
+                    .ok_or_else(|| {
+                        ActionError::Unavailable("motion: no user motion folder".into())
+                    })?;
+                let file = std::path::Path::new(path)
+                    .canonicalize()
+                    .map_err(|_| ActionError::Invalid(ARGS_INVALID.into()))?;
+                if file.parent() != Some(dir.as_path())
+                    || file.extension().is_none_or(|x| x != "toml")
+                {
+                    return Err(ActionError::Invalid(ARGS_INVALID.into()));
+                }
+                tokio::process::Command::new("xdg-open")
+                    .arg(&file)
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null())
+                    .spawn()
+                    .map(|_| Some(json!({"opened": file})))
+                    .map_err(|e| ActionError::Unavailable(format!("xdg-open: {e}")))
+            },
+        );
         let app = Arc::new(app);
         let me = self.clone();
         actions.register("settings.open", "action.settings.open", move |v| {
@@ -2469,6 +2611,96 @@ fn reap(mut child: Child) {
 mod tests {
     use super::*;
 
+    /// K83 rows 643/644: the motion axes read inert under reduce motion and a profile that does not move, and a
+    /// surface's form the forms meta does not let serve it reads inert; the profile row itself never.
+    #[test]
+    fn motion_axes_are_inert_where_nothing_of_theirs_moves() {
+        use kurashi_theme::kurashi_motion::forms;
+        let mut offers = BTreeMap::new();
+        offers.insert(
+            "motion.still".to_string(),
+            vec![Offer::on("win95", String::new())],
+        );
+        let cfg = |profile: &'static str, a11y: bool| {
+            move |k: &str| match k {
+                "theme.motion.profile" => Some(json!(profile)),
+                "a11y.reduce_motion" => Some(json!(a11y)),
+                _ => None,
+            }
+        };
+        let inert = |key: &str, v: Value, f: &dyn Fn(&str) -> Option<Value>| {
+            motion_inert(key, &v, f, &offers)
+        };
+
+        assert_eq!(
+            inert(
+                "theme.motion.profile",
+                json!("reduced"),
+                &cfg("reduced", true)
+            ),
+            None
+        );
+        assert_eq!(
+            inert("theme.motion.timing.open", json!(""), &cfg("reduced", true)),
+            Some(REASON_MOTION_REDUCED)
+        );
+        assert_eq!(
+            inert("theme.motion.jelly", json!(0.4), &cfg("reduced", false)),
+            Some(REASON_MOTION_REDUCED)
+        );
+        assert_eq!(
+            inert("theme.motion.speed", json!(1.0), &cfg("win95", false)),
+            Some(REASON_MOTION_STILL)
+        );
+        assert_eq!(
+            inert("theme.motion.speed", json!(1.0), &cfg("expressive", false)),
+            None
+        );
+
+        // A form and a surface it does not serve, as the meta says; the same form on a surface it serves is in effect.
+        let (form, not, yes) = forms::FORMS
+            .iter()
+            .find_map(|m| {
+                let not = forms::SURFACES.iter().find(|s| !m.serves(s))?;
+                let yes = forms::SURFACES.iter().find(|s| m.serves(s))?;
+                Some((m.id, *not, *yes))
+            })
+            .expect("some form serves only some surfaces");
+        assert_eq!(
+            inert(
+                &format!("theme.motion.form.{not}.open"),
+                json!(form),
+                &cfg("expressive", false)
+            ),
+            Some(REASON_MOTION_SURFACE)
+        );
+        assert_eq!(
+            inert(
+                &format!("theme.motion.form.{yes}.close"),
+                json!(form),
+                &cfg("expressive", false)
+            ),
+            None
+        );
+        // The defaults for every surface are never refused for one surface.
+        assert_eq!(
+            inert(
+                "theme.motion.form.open",
+                json!(form),
+                &cfg("expressive", false)
+            ),
+            None
+        );
+        assert_eq!(
+            inert(
+                &format!("theme.motion.form.{not}.open"),
+                json!(""),
+                &cfg("expressive", false)
+            ),
+            None
+        );
+    }
+
     /// I241: `settings.open {page: "bar"}` opens `layout`; every other page keeps its id, a mod's page included.
     #[test]
     fn the_bar_page_opens_layout() {
@@ -2639,6 +2871,8 @@ mod tests {
 enum Touched {
     Config,
     Profiles,
+    /// K83 (I358): a motion pack in `motion/` changed — the offers and the theme follow without a config change.
+    Motion,
 }
 
 /// `profiles/<name>.toml`, or the profiles directory itself (created or removed: the list changes).
@@ -2657,6 +2891,7 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
     let paths = store.paths();
     let names = [paths.user_file(), paths.managed_file()];
     let profiles = paths.user_profiles_dir();
+    let motion = paths.config_dir.join("motion");
     let dir = paths.config_dir.clone();
     std::fs::create_dir_all(&dir).ok();
     let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Touched>();
@@ -2671,6 +2906,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
             let _ = tx.send(Touched::Config);
         } else if ev.paths.iter().any(|p| is_profile_event(p, &profiles)) {
             let _ = tx.send(Touched::Profiles);
+        } else if ev.paths.iter().any(|p| is_profile_event(p, &motion)) {
+            let _ = tx.send(Touched::Motion);
         }
     })?;
     watcher.watch(&dir, RecursiveMode::Recursive)?;
@@ -2688,6 +2925,8 @@ pub fn watch(store: Arc<ConfigStore>) -> notify::Result<notify::RecommendedWatch
                 // Reloads and publishes the whole `config` document.
                 Touched::Config => store.reload(),
                 Touched::Profiles => store.publish_document(),
+                // The packs are read again by the offers and the theme on a publish (both load them fresh).
+                Touched::Motion => store.packs_changed(),
             }
         }
     });

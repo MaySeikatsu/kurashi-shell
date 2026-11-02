@@ -7,6 +7,7 @@ import "../components"
 import "../components/sidebar"
 import "../components/island"
 import "../components/decor"
+import "../components/motion"
 import "../components/bar/appicon.js" as AppIcons
 
 // The app dock (K51, docs/ux/dock.md) of one output: pinned apps (`dock.pinned`, desktop ids) then the running ones
@@ -282,13 +283,38 @@ Scope {
 
             // 0 = hidden (the window unmapped), 1 = shown; it moves only on a change: on Caelestia's curves while the motion
             // is timed (K74: it grows out of its edge and overshoots a little; Glide), else on the enter curve.
-            readonly property real shownAmt: Theme.timed ? glide.value : easedAmt
+            // K83 (W59.9a): while a shape form (expand, iris, stamp, outline) opens or closes the dock it stands at rest and
+            // the form draws it (`dRun`, the window's ShapeLayer); the slide runs underneath, unseen, so a form that ends
+            // hands back to where the slide is.
+            readonly property bool formDraws: dRun.mode === "shape" && (dRun.busy || dRun.want)
+            readonly property real shownAmt: formDraws ? 1 : Theme.timed ? glide.value : easedAmt
             // The motion starts on the window's first presented frame after it is mapped (as the sidebar's and the Stage's):
             // started with the map, its first frames ran before the compositor showed the window, and the dock came up
             // nearly out already — a jump (I278).
             property bool presented: false
             readonly property bool growing: wantShown && presented
             readonly property Glide glide: Glide { to: dock.growing ? 1 : 0 }
+            // The dock's form (K83, `dock`): the shape forms only — a sheet form has no host here yet (it keeps the slide).
+            // In the window's frame (ShapeLayer: along the edge, away from it): the body stands `edgeGap` off its edge and
+            // `room` in along it on every side; the origin is a third of the body at its middle, on the edge's line.
+            readonly property real formAlong: horiz ? bodyW : bodyH
+            readonly property SurfaceForm dRun: SurfaceForm {
+                surface: "dock"
+                shapes: ["expand", "iris", "stamp", "outline"]
+                sheets: false
+                want: dock.growing
+                fromCx: dock.room + dock.formAlong / 2
+                fromW: dock.formAlong * 0.3
+                fromTop: 0
+                fromFoot: dock.edgeGap
+                fromR: Theme.rSm
+                toCx: dock.room + dock.formAlong / 2
+                toW: dock.formAlong
+                toTop: dock.edgeGap
+                toFoot: dock.edgeGap + dock.bodyAcross
+                toR: Theme.rLg
+                edgeY: dock.edgeGap
+            }
             property real easedAmt: growing ? 1 : 0
             Behavior on easedAmt {
                 enabled: Theme.springOn && !Theme.timed
@@ -475,8 +501,9 @@ Scope {
                     BackgroundEffect.blurRegion: Region {
                         x: win.blurBox.x
                         y: win.blurBox.y
-                        width: Theme.blur && dock.shownAmt > 0 ? win.blurBox.width : 0
-                        height: Theme.blur && dock.shownAmt > 0 ? win.blurBox.height : 0
+                        // (K83, W59.9a: none while a shape form masks the dock — it would show the body's rect)
+                        width: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.width : 0
+                        height: Theme.blur && dock.shownAmt > 0 && !dock.dRun.busy ? win.blurBox.height : 0
                         topLeftRadius: dock.joined ? joinedShape.sTL : Theme.rLg + 4
                         topRightRadius: dock.joined ? joinedShape.sTR : Theme.rLg + 4
                         bottomLeftRadius: dock.joined ? joinedShape.sBL : Theme.rLg + 4
@@ -535,6 +562,11 @@ Scope {
                             y: dock.atTop ? -slider.away - dock.lift : (dock.horiz ? slider.away + dock.lift : 0)
                         }
                         opacity: Store.live ? 1 : Theme.staleOpacity
+                        // K83 (W59.9a): a shape form draws the dock through its mask while it moves (a plain item else).
+                        ShapeLayer {
+                            anchors.fill: parent
+                            run: dock.dRun
+                            edge: dock.edge
 
                         // The joined body (K71): flush on its edge, concave fillets of the layout's radius into it (the
                         // island's neck turned to the band; 0 = connected's straight sides), its free corners rounded. In
@@ -951,6 +983,7 @@ Scope {
                                     }
                                 }
                             }
+                        }
                         }
                     }
                     }

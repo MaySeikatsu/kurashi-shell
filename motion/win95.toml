@@ -1,0 +1,16 @@
+# Windows 95: no animation; a window would open in four held steps.
+# Moved from looks/win95.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "win95"
+base = "none"
+
+[timing]
+
+
+[form]
+open = "stepped"
+close = "stepped"
+
+[params.stepped]
+hold = 4
+
+[accents]

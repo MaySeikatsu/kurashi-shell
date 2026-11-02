@@ -8,7 +8,7 @@ category = "retro"
 # silhouette).
 [recipe]
 "theme.chrome" = "flat"
-"theme.motion.profile" = "expressive"
+"theme.motion.profile" = "ps2"
 "theme.material.kind" = "translucent"
 "theme.material.opacity" = 0.72
 "theme.material.blur" = false
@@ -48,16 +48,6 @@ sounds = "ps2"
 "tooltip.on" = "on_surface"
 "focus.style" = "halo"
 "focus.color" = "accent"
-# Slow fades: everything eases in and out over half a second, no overshoot.
-"motion.style" = "fade"
-"motion.open_ms" = 500
-"motion.open_curve" = [0.42, 0.0, 0.58, 1.0]
-"motion.close_ms" = 450
-"motion.close_curve" = [0.42, 0.0, 0.58, 1.0]
-"motion.fast_ms" = 400
-"motion.fast_curve" = [0.42, 0.0, 0.58, 1.0]
-"motion.effects_ms" = 400
-"motion.effects_curve" = [0.42, 0.0, 0.58, 1.0]
 "icon.fill" = 0
 "icon.weight" = 200
 "cursor" = "ps2"

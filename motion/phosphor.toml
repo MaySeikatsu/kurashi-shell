@@ -1,0 +1,36 @@
+# Phosphor (terminal, K83 D4): cards switch on like an old CRT — a dot, a line, the picture with bloom and scanlines —
+# and collapse to a dot with an afterglow. Flash-safe (one luminance step ≤ 20 %). Menus step in six frames.
+# A draft (W59.1): W59.9 tunes it on niri once its forms have landed; offered once they are available.
+name = "phosphor"
+base = "expressive"
+
+[timing]
+# Ease-in (W59.5): the tube lingers on the dot (~4 frames) and the line (~7), then the picture swings open — crt
+# eases the opening itself, so it still lands softly.
+open = "cubic-bezier(0.4, 0, 1, 1)"
+open_ms = 360
+# Linear and long enough for the tube's off (W59.5): collapse 136 ms, line to dot 85 ms, the dot's afterglow 120 ms
+# (crt draws them on p 1 → 0.6 → 0.35 → 0).
+close = "cubic-bezier(0, 0, 1, 1)"
+close_ms = 340
+fast = "steps(6)"
+fast_ms = 100
+effects = "cubic-bezier(0, 0, 1, 1)"
+effects_ms = 80
+
+[form]
+open = "crt"
+close = "crt"
+[form.menu]
+open = "stepped"
+close = "stepped"
+
+[params.crt]
+glow = 0.6
+scanlines = 0.5
+
+[params.stepped]
+hold = 1
+
+[accents]
+content = "with"

@@ -44,6 +44,14 @@ pub enum ValidationError {
     InvalidColor { key: String, got: String },
     #[error("`{key}` must be an action id like `island.expand` (or empty), got {got:?}")]
     InvalidAction { key: String, got: String },
+    /// K83: `why_key` is the i18n key of the reason (`config.diag.curve.*`).
+    #[error("`{key}` is not a motion curve ({why}), got {got:?}")]
+    InvalidCurve {
+        key: String,
+        got: String,
+        why: String,
+        why_key: &'static str,
+    },
     #[error("`{key}` must not be empty")]
     EmptyList { key: String },
     /// A row or field of a `records` value is wrong (K38, MODS.md "Records"). `key` is the path
@@ -119,6 +127,43 @@ impl ValidationError {
             "“{key}” must be an action id like island.expand.",
         ),
         ("error.config.empty_list", "“{key}” must not be empty."),
+        // K83: why a motion curve is refused (kurashi_motion::CurveError::key).
+        (
+            "error.config.curve.syntax",
+            "“{key}” is not a curve: write a preset, cubic-bezier(x1, y1, x2, y2), spring(ms, bounce) or steps(n).",
+        ),
+        (
+            "error.config.curve.count",
+            "“{key}”: a cubic takes 4 numbers, segments 6 per segment.",
+        ),
+        (
+            "error.config.curve.x_range",
+            "“{key}”: the x of every point must be between 0 and 1.",
+        ),
+        (
+            "error.config.curve.y_range",
+            "“{key}”: the y of every point must be between -1 and 2.",
+        ),
+        (
+            "error.config.curve.order",
+            "“{key}”: a segment’s points must not go back in time.",
+        ),
+        (
+            "error.config.curve.end",
+            "“{key}”: the last segment must end at 1, 1.",
+        ),
+        (
+            "error.config.curve.spring_range",
+            "“{key}”: a spring’s duration must be 50–3000 ms and its bounce -0.5–0.9.",
+        ),
+        (
+            "error.config.curve.steps_range",
+            "“{key}”: steps must be between 1 and 60.",
+        ),
+        (
+            "error.config.curve.not_cubic",
+            "“{key}”: this easing has no cubic form; use a spring.",
+        ),
     ];
 
     pub fn i18n_key(&self) -> &'static str {
@@ -131,6 +176,7 @@ impl ValidationError {
             Self::InvalidColor { .. } => "error.config.invalid_color",
             Self::InvalidAction { .. } => "error.config.invalid_action",
             Self::EmptyList { .. } => "error.config.empty_list",
+            Self::InvalidCurve { why_key, .. } => why_key,
             Self::Record { problem, .. } => problem.i18n_key(),
         }
     }
@@ -145,6 +191,7 @@ impl ValidationError {
             | Self::InvalidColor { key, .. }
             | Self::InvalidAction { key, .. }
             | Self::EmptyList { key }
+            | Self::InvalidCurve { key, .. }
             | Self::Record { key, .. } => key,
         }
     }

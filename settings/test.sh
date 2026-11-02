@@ -210,6 +210,468 @@ shot() { sleep 1; grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 # No settle delay: a search flash or a tooltip is only on screen for a moment.
 shot_now() { grim -o HEADLESS-1 "$SHOTS/$1.png"; [ -s "$SHOTS/$1.png" ]; }
 
+# --- W59.6 (K83; docs/ux/motion-engine.md §3, §4, §8, §11): Settings › Motion. -------------------------------------------
+# M1 the page opens with its preview stage, the reduce-motion line, the profile gallery, the curve
+# editors and the forms table; M2 a profile picked → the theme document's motion.profile changes and the row reads "you";
+# M3 `cubic-bezier(0.2, 2.5, 0.3, 1)` typed into a curve's paste field → refused with its reason, nothing applied; M4 a
+# Hyprland curve typed → written canonical; M5 a handle moved by keyboard (arrows, Shift) → Return applies it, Escape puts a
+# nudge back; M6 the tabs by keyboard (Presets, a pick), a spring and steps; M7 the island's own forms once it stops following;
+# M8 reduce motion on → the profile is forced and the page says so; P1–P8 the preview stage (W59.6b, below).
+# Shots: settings/shots/motion/ (local, I345).
+# `SETTINGS_PART=motion settings/test.sh` runs only this part (both languages) after the app starts.
+mshot() { sleep 1; mkdir -p "$SHOTS/motion"; grim -o HEADLESS-1 "$SHOTS/motion/$1.png"; [ -s "$SHOTS/motion/$1.png" ]; }
+# A keyboard of the part's own when the run has none open yet (a keyboard that goes away drops the focus: one for the part).
+mkeys() {
+  [ -n "$kbd_pid" ] && return 0
+  rm -f "$R/keys.fifo"; mkfifo "$R/keys.fifo"
+  python3 -I tools/bench/wl_keys.py --serve < "$R/keys.fifo" & kbd_pid=$!; pids+=("$kbd_pid")
+  exec 3> "$R/keys.fifo"
+}
+mkp() { for k in "$@"; do echo "$k" >&3; sleep 0.15; done; sleep 0.2; }
+mtab_to() {   # <objectName or accessible name> [max]
+  for _ in $(seq "${2:-200}"); do [ "$(Q focused)" = "$1" ] && return 0; echo tab >&3; sleep 0.12; done
+  fail "motion: Tab never reached $1 ($(Q focused))"
+}
+# A token of the theme document as JSON (the first snapshot of a subscription).
+mtoken() { timeout 5 "$BIN/kurashi" --json sub theme --count 0 | python3 -I -c 'import json,sys; d=json.loads(sys.stdin.readline()); t=d.get("tokens") or d.get("v",{}).get("tokens") or d.get("data",{}).get("tokens") or {}; print(json.dumps(t.get(sys.argv[1])))' "$1"; }
+# The daemon's reason on a key (K21), or "-" when it gives none.
+why() { K "{\"t\":\"cfg.get\",\"id\":\"w\",\"key\":\"$1\"}" | python3 -c 'import json,sys; m=json.loads(sys.stdin.readline()); print(m["v"].get("reason") or "-")'; }
+# Waits up to 5 s for the page to show an item named so.
+mwait_present() { for _ in $(seq 50); do [ "$(Q present "$1")" = yes ] && return 0; sleep 0.1; done; fail "motion: $2 ($1 is not on the page)"; }
+mwait_val() { for _ in $(seq 50); do [ "$(val "$1")" = "$2" ] && return 0; sleep 0.1; done; fail "motion: $1 is $(val "$1"), expected $2"; }
+motion_en() {
+  mkeys
+  Q goto motion
+  for _ in $(seq 50); do [ "$(Q current)" = motion ] && break; sleep 0.2; done
+  [ "$(Q current)" = motion ] || fail "motion: the page did not open ($(Q current))"
+  Q scroll 0
+  for n in motion-preview motion-a11y:off profiles:theme.motion.profile curve:theme.motion.timing.open \
+           curve:theme.motion.timing.effects forms-table forms-line:island form:theme.motion.form.open; do
+    [ "$(Q present "$n")" = yes ] || fail "motion M1: $n is not on the page"
+  done
+  [[ "$(Q sections)" == *motion.profile*motion.timing*motion.forms*motion.choreography*motion.windows* ]] \
+    || fail "motion M1: the sections are $(Q sections)"
+  mshot page
+  echo "motion M1: the page opens with the preview stage, the gallery, the curve editors and the forms table"
+  # Ma: the page at rest draws nothing (no timer, no animation runs by itself; the ball plays only on Play).
+  sleep 1; f1=$(Q frames); sleep 3; f2=$(Q frames)
+  [ "$f1" = "$f2" ] || fail "motion M1: the page drew $((f2 - f1)) frames in 3 s at rest"
+  echo "motion M1: idle, 0 frames in 3 s"
+
+  # M2. a profile: the gallery's pick is one change; the theme document follows and the row reads "you".
+  Q pick theme.motion.profile '"calm"'
+  mwait_val theme.motion.profile '"calm"'
+  [ "$(src theme.motion.profile)" = user ] || fail "motion M2: the profile's layer is $(src theme.motion.profile)"
+  for _ in $(seq 50); do [ "$(mtoken motion.profile)" = '"calm"' ] && break; sleep 0.1; done
+  [ "$(mtoken motion.profile)" = '"calm"' ] || fail "motion M2: the theme's motion.profile is $(mtoken motion.profile)"
+  mshot profile-calm
+  echo "motion M2: profile calm picked; the theme document says calm and the row says you"
+  K '{"t":"apply","id":"m2","ops":[{"reset":"theme.motion.profile"}]}' | grep -q applied || fail "motion M2: reset refused"
+
+  # M3. a refused curve, typed: the reason under the row, the text kept, nothing applied.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "Closing as text"
+  Q scrollTo curve:theme.motion.timing.close
+  mkp c u b i c - b e z i e r "(" 0 . 2 , space 2 . 5 , space 0 . 3 , space 1 ")" return
+  for _ in $(seq 30); do [ -n "$(Q rowError theme.motion.timing.close)" ] && break; sleep 0.1; done
+  [[ "$(Q rowError theme.motion.timing.close)" == *"between -1 and 2"* ]] \
+    || fail "motion M3: the refusal reads '$(Q rowError theme.motion.timing.close)'"
+  [ "$(val theme.motion.timing.close)" = '""' ] || fail "motion M3: a refused curve was applied ($(val theme.motion.timing.close))"
+  mshot curve-refused
+  echo "motion M3: cubic-bezier(0.2, 2.5, 0.3, 1) refused: $(Q rowError theme.motion.timing.close)"
+
+  # M4. Hyprland's x0, y0, x1, y1 typed over it: written in the canonical form.
+  mkp ctrl+a backspace 0 . 3 , space 0 , space 0 . 8 , space 0 . 1 5 return
+  mwait_val theme.motion.timing.close '"cubic-bezier(0.3, 0, 0.8, 0.15)"'
+  [ -z "$(Q rowError theme.motion.timing.close)" ] || fail "motion M4: the refusal stayed"
+  echo "motion M4: 0.3, 0, 0.8, 0.15 written as cubic-bezier(0.3, 0, 0.8, 0.15)"
+
+  # M5. a handle by keyboard: Escape puts a nudge back; Up Up Shift+Right then Return writes the moved curve.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "curve-handle:theme.motion.timing.open:1"
+  mkp up escape
+  sleep 0.3
+  [ "$(val theme.motion.timing.open)" = '""' ] || fail "motion M5: Escape did not put the nudge back ($(val theme.motion.timing.open))"
+  mkp up up shift+right
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-handle-draft
+  mkp return
+  for _ in $(seq 50); do [[ "$(val theme.motion.timing.open)" == '"cubic-bezier('* ]] && break; sleep 0.1; done
+  [[ "$(val theme.motion.timing.open)" == '"cubic-bezier('* ]] || fail "motion M5: the handle edit was not written ($(val theme.motion.timing.open))"
+  [ "$(src theme.motion.timing.open)" = user ] || fail "motion M5: the curve's layer is $(src theme.motion.timing.open)"
+  mshot curve-cubic
+  # The profile's own curve (K83 profile_curve) is drawn under the user's, named.
+  [ "$(Q present curve-reference:theme.motion.timing.open)" = yes ] || fail "motion M5: the profile's curve is not drawn for reference"
+  echo "motion M5: handle 1 moved by keyboard: $(val theme.motion.timing.open); the profile's curve drawn under it"
+
+  # M6. the tabs by keyboard: Quick moves' Presets, the first tile, Right, Return picks Emphasized. A spring and steps drawn.
+  Q scroll 0; Q focusList >/dev/null
+  mtab_to "curve-tab:theme.motion.timing.fast:cubic"
+  mkp right right right
+  [ "$(Q focused)" = "curve-tab:theme.motion.timing.fast:presets" ] || fail "motion M6: the arrows did not open Presets ($(Q focused))"
+  mkp tab
+  [[ "$(Q focused)" == curve-preset:theme.motion.timing.fast:* ]] || fail "motion M6: Tab did not enter the presets ($(Q focused))"
+  mkp right return
+  mwait_val theme.motion.timing.fast '"emphasized"'
+  Q scrollTo curve:theme.motion.timing.fast
+  mshot curve-presets
+  K '{"t":"apply","id":"m6","ops":[{"set":"theme.motion.timing.open","value":"spring(550ms, 0.45)"},{"set":"theme.motion.timing.close","value":"steps(6)"}]}' \
+    | grep -q applied || fail "motion M6: a spring and steps were refused"
+  sleep 0.5
+  [ "$(Q present spring-stats:theme.motion.timing.open)" = yes ] || fail "motion M6: the spring's plot is not shown"
+  # What the profile alone runs on keeps the profile's curve, not the user's spring (the "would use" line reads it).
+  [[ "$(mtoken motion.profile_curve.open)" != *response* ]] || fail "motion M6: profile_curve.open carries the user's spring"
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-spring
+  Q scrollTo curve:theme.motion.timing.close
+  mshot curve-steps
+  echo "motion M6: Presets by keyboard (emphasized), a spring with its overshoot and settle time, steps"
+
+  # M7. the island: following the default its own pickers are inert; off, they are its own.
+  Q scrollTo forms-table
+  mshot forms-follow
+  K '{"t":"apply","id":"m7","ops":[{"set":"theme.motion.form.island.follow","value":false},{"set":"theme.motion.form.toast.open","value":"fade"},{"set":"theme.motion.form.panel.open","value":"iris"},{"set":"theme.motion.form.launcher.open","value":"zoom"},{"set":"theme.motion.form.centre.open","value":"slide"},{"set":"theme.motion.form.peek.open","value":"fold"},{"set":"theme.motion.form.dock.close","value":"grow"}]}' \
+    | grep -q applied || fail "motion M7: refused"
+  sleep 0.5
+  Q scrollTo forms-table
+  mshot forms-own
+  echo "motion M7: the forms table, following and on its own"
+
+  # M9. a value whose -1 means "the profile's" (jelly) reads "From the profile (…)", never -1; an own value, then back.
+  [ "$(Q present inherit-on:theme.motion.jelly)" = yes ] || fail "motion M9: jelly does not say it follows the profile"
+  [ "$(Q present slider:theme.motion.jelly)" = yes ] || fail "motion M9: jelly has no slider"
+  Q scrollTo slider:theme.motion.jelly
+  mshot accent-follow
+  K '{"t":"apply","id":"m9a","ops":[{"set":"theme.motion.jelly","value":0.4}]}' | grep -q applied || fail "motion M9: refused"
+  for _ in $(seq 50); do [ "$(Q present inherit-on:theme.motion.jelly)" = no ] && break; sleep 0.1; done
+  [ "$(Q present inherit-on:theme.motion.jelly)" = no ] || fail "motion M9: an own jelly still says it follows the profile"
+  mshot accent-own
+  K '{"t":"apply","id":"m9b","ops":[{"reset":"theme.motion.jelly"}]}' | grep -q applied || fail "motion M9: the reset was refused"
+  mwait_present inherit-on:theme.motion.jelly "M9: the reset did not go back to the profile's"
+  echo "motion M9: jelly from the profile, own, and back"
+
+  # M10. the gallery: packs whose animations are not built are folded into one group at the end.
+  # (which packs are unbuilt changes as forms land: the first the daemon offers disabled — origami was, until W59.4)
+  local later; later=$(timeout 5 "$BIN/kurashi" --json sub schema.settings --count 0 | python3 -I -c '
+import json,sys
+d=json.loads(sys.stdin.readline())["data"]
+for pg in d.get("pages",[]):
+    for se in pg["sections"]:
+        for r in se["rows"]:
+            if r["key"]=="theme.motion.profile":
+                print(next((c["value"] for c in r.get("choices",[]) if c.get("enabled") is False),"")); sys.exit()')
+  # (since W59.9a every pack is built: then the folded group must not show at all)
+  if [ -n "$later" ]; then
+    [ "$(Q present profiles-later)" = yes ] || fail "motion M10: no folded group for the packs that are not built"
+    [ "$(Q present "profile:$later")" = no ] || fail "motion M10: the unbuilt pack $later shows outside its group"
+  else
+    [ "$(Q present profiles-later)" = no ] || fail "motion M10: every pack is built, yet the folded group shows"
+  fi
+  Q scroll 0
+  mshot gallery
+  echo "motion M10: unbuilt packs folded into one group"
+
+  # M8. reduce motion: the profile is forced (its row says by what), the page's line says so.
+  K '{"t":"apply","id":"m8","ops":[{"set":"a11y.reduce_motion","value":true}]}' | grep -q applied || fail "motion M8: refused"
+  for _ in $(seq 50); do [ "$(Q present motion-a11y:on)" = yes ] && break; sleep 0.1; done
+  [ "$(Q present motion-a11y:on)" = yes ] || fail "motion M8: the page does not say reduce motion is on"
+  [ "$(src theme.motion.profile)" = forced ] || fail "motion M8: the profile is not forced ($(src theme.motion.profile))"
+  # The axes say why they do nothing now, in the daemon's words (K83 inert pass): a curve row and a plain slider alike.
+  [ "$(why theme.motion.timing.open)" = settings.inert.motion.reduced ] \
+    || fail "motion M8: timing.open's reason is $(why theme.motion.timing.open)"
+  mwait_present reason:theme.motion.timing.open:daemon "M8: the opening curve does not say reduce motion is on"
+  mwait_present reason:theme.motion.speed:daemon "M8: the speed does not say reduce motion is on"
+  Q scroll 0
+  mshot reduced
+  echo "motion M8: reduce motion forces the profile; the page and every axis say so"
+  K '{"t":"apply","id":"m8b","ops":[{"reset":"a11y.reduce_motion"}]}' | grep -q applied || fail "motion M8: the reset was refused"
+  for _ in $(seq 50); do [ "$(Q present reason:theme.motion.speed:daemon)" = no ] && break; sleep 0.1; done
+  [ "$(Q present reason:theme.motion.speed:daemon)" = no ] || fail "motion M8: speed still says it is inert"
+
+  # M8b. a profile that does not move (win95's): the axes say so.
+  K '{"t":"apply","id":"m8c","ops":[{"set":"theme.motion.profile","value":"win95"}]}' | grep -q applied \
+    || fail "motion M8b: the win95 profile was refused"
+  for _ in $(seq 50); do [ "$(why theme.motion.speed)" = settings.inert.motion.still ] && break; sleep 0.1; done
+  [ "$(why theme.motion.speed)" = settings.inert.motion.still ] || fail "motion M8b: speed's reason is $(why theme.motion.speed)"
+  mwait_present reason:theme.motion.speed:daemon "M8b: the speed does not say the profile does not move"
+  Q scrollTo curve:theme.motion.timing.open
+  mshot still
+  echo "motion M8b: a profile that does not move: the axes say so"
+  K '{"t":"apply","id":"m8d","ops":[{"reset":"theme.motion.profile"}]}' | grep -q applied || fail "motion M8b: the reset was refused"
+
+  # M8c. a form the surface cannot use (fold on the bar): the line says the default plays; the cell stays editable.
+  K '{"t":"apply","id":"m8e","ops":[{"set":"theme.motion.form.bar.open","value":"fold"}]}' | grep -q applied \
+    || fail "motion M8c: fold on the bar was refused"
+  # The daemon says either: the bar's offers leave fold out (I9, checked first) or the forms meta does not let it serve.
+  for _ in $(seq 50); do [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] && break; sleep 0.1; done
+  [[ "$(why theme.motion.form.bar.open)" == settings.@(inert.motion.surface|choice.unavailable) ]] \
+    || fail "motion M8c: bar.open's reason is $(why theme.motion.form.bar.open)"
+  mwait_present forms-reason:bar:unavailable "M8c: the bar's line does not say its form cannot be used"
+  Q scrollTo forms-line:bar
+  mshot surface
+  [ "$(Q present form-inert:theme.motion.form.bar.open)" = no ] || fail "motion M8c: the bar's cell cannot be changed back"
+  [ "$(Q present form-inert:theme.motion.form.bar.close)" = no ] || fail "motion M8c: the bar's closing cell is inert"
+  echo "motion M8c: a form the surface cannot use: said on its line, and the cell can be changed back"
+  K '{"t":"apply","id":"m8f","ops":[{"reset":"theme.motion.form.bar.open"}]}' | grep -q applied || fail "motion M8c: the reset was refused"
+  # Dark, then back to the baseline the later steps expect.
+  K '{"t":"apply","id":"m9","ops":[{"set":"theme.colors.scheme","value":"dark"}]}' | grep -q applied || fail "motion: dark refused"
+  sleep 1
+  Q scroll 0
+  mshot page-dark
+  Q scrollTo curve:theme.motion.timing.open
+  mshot curve-spring-dark
+  K '{"t":"apply","id":"m10","ops":[{"reset":"theme.colors.scheme"},{"reset":"theme.motion"}]}' | grep -q applied || fail "motion: the reset was refused"
+  motion_preview
+  Q goto layout
+}
+motion_ja() {
+  Q goto motion
+  for _ in $(seq 50); do [ "$(Q current)" = motion ] && break; sleep 0.2; done
+  Q scroll 0
+  mshot ja-page
+  K '{"t":"apply","id":"mj","ops":[{"set":"theme.motion.timing.open","value":"spring(550ms, 0.45)"}]}' | grep -q applied || fail "motion ja: refused"
+  sleep 0.5
+  Q scrollTo curve:theme.motion.timing.open
+  mshot ja-curve-spring
+  Q scrollTo forms-table
+  mshot ja-forms
+  K '{"t":"apply","id":"mj2","ops":[{"reset":"theme.motion"}]}' | grep -q applied || fail "motion ja: reset refused"
+  Q scroll 0
+  sleep 1
+  Q stage play "panel open" >/dev/null
+  pv_until "s['surface']=='panel' and s['open'] and s['value']==1 and not s['running']" "ja: the panel's card did not open"
+  mshot ja-preview
+  echo "motion ja: the page, a spring, the forms table and the preview stage in Japanese"
+}
+# --- W59.6b (brief docs/ux/motion-engine.md §8 item 1, §10, §11): the Motion page's preview stage. ------------------------
+# P1 every class's sample card opens and closes (through the shell's FormHost and forms) and rests with no layer; 0 frames
+# in 3 s after; P2 the bar by keyboard (Tab enters at the class shown, Left moves, Space opens and closes); P3 ¼× stretches
+# the stage's own curve (4× the opening's ms), the speed setting untouched; P4 a sheet form (fold) and a transform (slide)
+# held at p by the scrubber equal the shell's frame of the same form at the same p and size: the sheet harness
+# (frontend/core/motion/tests/sheet/shell.qml, copied with its card at the preview card's size) held there too — the same
+# form latched, its layer up in both, the drawn region of the card (diff against the closed frame) within 0.05; let go it
+# lands and the layer goes; P5 Compare (hold) plays the form before the last change, let go the one now; P6 the window off
+# screen (another workspace) mid-play: 0 frames for 3 s, and it rests with no layer; P7 reduce motion: the stage runs
+# fades; P8 the gallery's thumbnail of the profile in effect. Shots: settings/shots/motion/preview-* (local, I345).
+pvs() { Q stage state x; }
+pv_until() {   # <python condition on s> <what failed>
+  for _ in $(seq 80); do
+    pvs | python3 -I -c "import json,sys; s=json.load(sys.stdin); sys.exit(0 if ($1) else 1)" && return 0
+    sleep 0.1
+  done
+  fail "motion preview: $2 ($(pvs))"
+}
+# The settings window's content origin on the screen (sway's tree).
+pv_origin() {
+  swaymsg -t get_tree -r | python3 -I -c '
+import json,sys
+def walk(n):
+    if n.get("app_id")=="org.quickshell" and n.get("pid"):
+        print(n["rect"]["x"]+n["window_rect"]["x"], n["rect"]["y"]+n["window_rect"]["y"]); sys.exit()
+    for c in n.get("nodes",[])+n.get("floating_nodes",[]): walk(c)
+walk(json.load(sys.stdin))'
+}
+# The drawn region of a frame against the closed one, as fractions of the region: "x0 y0 x1 y1".
+pv_bbox() {
+  magick "$1" "$2" -compose difference -composite -colorspace Gray -threshold 6% -bordercolor black -border 1 \
+    -format '%@ %w %h' info: | python3 -I -c '
+import sys,re
+s=sys.stdin.read().split()
+w,h=int(s[1])-2,int(s[2])-2
+m=re.match(r"(\d+)x(\d+)\+(\d+)\+(\d+)",s[0]); bw,bh,bx,by=map(int,m.groups()); bx-=1; by-=1
+print("%.3f %.3f %.3f %.3f" % (bx/w, by/h, (bx+bw)/w, (by+bh)/h))'
+}
+# <form> <class> <harness scene> <p>: the preview's frame at p against the shell's (the harness's) at p.
+pv_frame() {
+  local form=$1 cls=$2 scene=$3 p=$4 O=$R/pv-frame wx wy cx cy cw ch hx hy hw hh hp
+  mkdir -p "$O"
+  K "{\"t\":\"apply\",\"id\":\"pf\",\"ops\":[{\"set\":\"theme.motion.form.$cls.open\",\"value\":\"$form\"}]}" | grep -q applied \
+    || fail "motion P4: $form on $cls refused"
+  for _ in $(seq 50); do [ "$(mtoken "motion.form.$cls.open")" = "\"$form\"" ] && break; sleep 0.1; done
+  # (the change plays once: let it land, then close the card)
+  sleep 1
+  Q stage at "$cls 0" >/dev/null; Q stage release x >/dev/null
+  pv_until "s['surface']=='$cls' and s['value']==0 and not s['running'] and not s['layer']" "$cls did not close"
+  read -r wx wy < <(pv_origin)
+  IFS=, read -r cx cy cw ch <<< "$(Q stage card x | tr -d '[]')"
+  local G="$((wx + cx)),$((wy + cy)) ${cw}x${ch}"
+  grim -g "$G" "$O/p0.png"
+  Q stage at "$cls $p" >/dev/null
+  pv_until "s['form']=='$form' and s['busy'] and s['tracking'] and abs(s['value']-$p)<1e-3" "$form not held at $p"
+  sleep 0.4
+  grim -g "$G" "$O/pp.png"
+  local ps; ps=$(pvs)
+  Q stage at "$cls 0" >/dev/null; Q stage release x >/dev/null
+  pv_until "s['value']==0 and not s['layer']" "$cls did not close after the hold"
+  # The shell's frame: the sheet harness, its scene's card at the preview card's size, held at p of an opening.
+  local H=$R/pv-harness
+  rm -rf "$H"; mkdir -p "$H"
+  cp frontend/core/motion/tests/sheet/shell.qml "$H/"
+  ln -sfn "$ROOT/frontend" "$H/frontend"
+  read -r hx hy hw hh < <(python3 -I -c '
+import re,sys
+p,sc,w,h=sys.argv[1:]
+s=open(p).read()
+m=re.search(sc+r": \{ x: (\d+), y: (\d+), w: \d+, h: \d+", s)
+s=s[:m.start()]+"%s: { x: %s, y: %s, w: %s, h: %s" % (sc, m.group(1), m.group(2), w, h)+s[m.end():]
+# (its sample rows are laid out for a big card: at this size they are clipped to the card, as in the preview)
+s=s.replace("id: card\n", "id: card\n                clip: true\n", 1)
+open(p,"w").write(s)
+print(m.group(1), m.group(2), w, h)' "$H/shell.qml" "$scene" "$cw" "$ch")
+  local HG="$hx,$hy ${hw}x${hh}"
+  grim -g "$HG" "$O/h0.png"
+  SHEET_SCENE=$scene qs -p "$H" > "$R/pv-harness.log" 2>&1 & hp=$!
+  for _ in $(seq 50); do timeout 5 qs ipc -p "$H" call sheet info 2>/dev/null | grep -q "form=" && break; sleep 0.2; done
+  timeout 5 qs ipc -p "$H" call sheet at 0 >/dev/null
+  local hs; hs=$(timeout 5 qs ipc -p "$H" call sheet at "$p")
+  sleep 0.6
+  grim -g "$HG" "$O/hp.png"
+  kill "$hp" 2>/dev/null; wait "$hp" 2>/dev/null || true
+  # The same form, family and direction on both; for a sheet form, its layer up on both.
+  [[ "$hs" == *"form=$form "*"dir=open busy=true"* ]] || fail "motion P4: the shell's frame is not $form opening ($hs)"
+  local fam; fam=$(python3 -I -c 'import json,sys; print(json.loads(sys.argv[1])["family"])' "$ps")
+  [[ "$hs" == *"family=$fam "* ]] || fail "motion P4: the families differ (preview $fam; shell $hs)"
+  if [ "$fam" = sheet ]; then
+    [[ "$ps" == *'"layer":true'* ]] || fail "motion P4: the preview's $form has no layer at $p ($ps)"
+    grep -aq "motion: sheet layer up [a-z]* $form" "$R/pv-harness.log" \
+      || fail "motion P4: the shell's $form raised no layer"
+  fi
+  local pb hb; pb=$(pv_bbox "$O/p0.png" "$O/pp.png"); hb=$(pv_bbox "$O/h0.png" "$O/hp.png")
+  python3 -I -c '
+import sys
+a=list(map(float,sys.argv[1].split())); b=list(map(float,sys.argv[2].split()))
+sys.exit(0 if max(abs(x-y) for x,y in zip(a,b)) <= 0.05 else 1)' "$pb" "$hb" \
+    || fail "motion P4: $form at $p on $cls draws $pb in the preview, $hb on the shell"
+  cp "$O/pp.png" "$SHOTS/motion/preview-$form-$cls-$p.png"
+  cp "$O/hp.png" "$SHOTS/motion/preview-$form-$cls-$p-shell.png"
+  echo "motion P4: $form on $cls at $p — the preview's frame ($pb) is the shell's ($hb)"
+}
+motion_preview() {
+  local classes="island panel peek launcher centre toast sidebar dock bar osd menu dialog" c
+  Q scroll 0
+  [ "$(Q stage state x)" != none ] || fail "motion P1: no preview stage on the page"
+  # P1. every class opens and closes; at rest no layer.
+  for c in $classes; do
+    Q stage toggle "$c" >/dev/null
+    pv_until "s['surface']=='$c' and s['open'] and s['value']==1 and not s['running'] and not s['layer']" "$c did not open"
+    [ "$c" = island ] && mshot preview-island
+    [ "$c" = toast ] && mshot preview-toast
+    Q stage toggle "$c" >/dev/null
+    pv_until "s['surface']=='$c' and not s['open'] and s['value']==0 and not s['running'] and not s['layer']" "$c did not close"
+  done
+  sleep 1; f1=$(Q frames); sleep 3; f2=$(Q frames)
+  [ "$f1" = "$f2" ] || fail "motion P1: the stage drew $((f2 - f1)) frames in 3 s at rest after playing"
+  echo "motion P1: every class's sample card opened and closed; at rest no layer, 0 frames in 3 s"
+
+  # P2. the bar by keyboard: Tab enters at the class shown (dialog, the last one), Left moves to the bar, Space opens it.
+  Q focusList >/dev/null
+  mtab_to "preview-class:dialog"
+  mkp left
+  [ "$(Q focused)" = "preview-class:bar" ] || fail "motion P2: Left did not move along the bar ($(Q focused))"
+  mkp space
+  pv_until "s['surface']=='bar' and s['open'] and s['value']==1 and not s['running']" "Space did not open the bar's card"
+  mkp space
+  pv_until "s['surface']=='bar' and not s['open'] and s['value']==0 and not s['running']" "Space did not close the bar's card"
+  echo "motion P2: the bar by keyboard — Tab, Left, Space opens and closes"
+
+  # P3. ¼×: the stage's curve takes four times as long; the speed setting stays.
+  local ms1; ms1=$(pvs | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["ms"])')
+  Q stage speed 0.25 >/dev/null
+  pv_until "abs(s['ms']-4*$ms1)<1" "¼× did not stretch the curve ($ms1 ms)"
+  Q stage toggle panel >/dev/null
+  sleep 0.3
+  pv_until "s['running'] and 0<s['value']<1" "¼× is not under way after 0.3 s"
+  pv_until "s['value']==1 and not s['running']" "¼× did not land"
+  [ "$(val theme.motion.speed)" = 1.0 ] || [ "$(val theme.motion.speed)" = 1 ] || fail "motion P3: the speed setting moved ($(val theme.motion.speed))"
+  Q stage speed 1 >/dev/null
+  echo "motion P3: ¼× runs the opening in $((4 * ms1)) ms instead of $ms1; the speed setting untouched"
+
+  # P4. scrubbed frames equal the shell's (a sheet form, then a transform form, then a sheet on a side).
+  pv_frame fold panel panel 0.5
+  pv_frame slide panel panel 0.5
+  pv_frame roll sidebar sidebar 0.5
+  # The hold lets go to the nearer rest; the layer goes with it.
+  Q stage at "panel 0.6" >/dev/null
+  mshot preview-scrub
+  Q stage release x >/dev/null
+  pv_until "s['value']==1 and not s['running'] and not s['tracking'] and not s['layer']" "the scrubber's let-go did not land open"
+  echo "motion P4: let go at 0.6, it lands open and the layer goes"
+
+  # P5. Compare: the panel's form was fold before slide; held, fold plays, let go, slide.
+  K '{"t":"apply","id":"p5a","ops":[{"set":"theme.motion.form.panel.open","value":"fold"}]}' | grep -q applied || fail "motion P5: refused"
+  sleep 1
+  K '{"t":"apply","id":"p5b","ops":[{"set":"theme.motion.form.panel.open","value":"slide"}]}' | grep -q applied || fail "motion P5: refused"
+  pv_until "s['canCompare'] and s['surface']=='panel'" "Compare is not offered after a change"
+  sleep 1
+  Q stage speed 0.25 >/dev/null
+  Q stage compare 1 >/dev/null
+  pv_until "s['comparing'] and s['busy'] and s['form']=='fold'" "Compare did not play the form before (fold)"
+  mshot preview-compare
+  Q stage compare 0 >/dev/null
+  pv_until "not s['comparing'] and s['busy'] and s['form']=='slide'" "letting go of Compare did not play the form now (slide)"
+  pv_until "not s['running']" "the comparison did not land"
+  echo "motion P5: Compare held plays fold (before), let go plays slide (now)"
+
+  # P6. the window off screen mid-play: no frames, and it rests with no layer.
+  K '{"t":"apply","id":"p6","ops":[{"set":"theme.motion.form.panel.open","value":"fold"}]}' | grep -q applied || fail "motion P6: refused"
+  sleep 2
+  local ws; ws=$(swaymsg -t get_workspaces -r | python3 -I -c 'import json,sys; print([w["name"] for w in json.load(sys.stdin) if w["focused"]][0])')
+  Q stage play "panel open" >/dev/null
+  swaymsg '[app_id="org.quickshell"] move container to workspace 9' >/dev/null
+  sleep 0.5; f1=$(Q frames); sleep 3; f2=$(Q frames)
+  [ "$f1" = "$f2" ] || fail "motion P6: $((f2 - f1)) frames in 3 s with the window off screen"
+  pv_until "not s['running'] and not s['layer'] and not s['busy']" "off screen, the stage did not come to rest"
+  swaymsg '[app_id="org.quickshell"] move container to workspace '"$ws" >/dev/null
+  swaymsg "workspace $ws" >/dev/null
+  Q stage speed 1 >/dev/null
+  sleep 0.5
+  echo "motion P6: off screen mid-play, 0 frames in 3 s; it rests with no layer"
+
+  # P7. reduce motion: what runs is a fade.
+  K '{"t":"apply","id":"p7","ops":[{"set":"a11y.reduce_motion","value":true}]}' | grep -q applied || fail "motion P7: refused"
+  for _ in $(seq 50); do [ "$(mtoken motion.form.panel.open)" = '"fade"' ] && break; sleep 0.1; done
+  sleep 1
+  Q stage at "panel 0.5" >/dev/null
+  pv_until "s['form']=='fade' and s['busy'] and not s['layer']" "under reduce motion the panel does not fade"
+  mshot preview-reduced
+  Q stage release x >/dev/null
+  pv_until "not s['running'] and not s['tracking']" "the fade did not land"
+  K '{"t":"apply","id":"p7b","ops":[{"reset":"a11y.reduce_motion"},{"reset":"theme.motion"}]}' | grep -q applied || fail "motion P7: reset refused"
+  echo "motion P7: under reduce motion the stage runs a fade"
+
+  # P8. the gallery: the profile in effect has its thumbnail (a still of its opening).
+  sleep 1
+  local prof; prof=$(val theme.motion.profile | tr -d '"')
+  mwait_present "profile-thumb:$prof" "P8: the profile in effect ($prof) has no thumbnail"
+  Q scrollTo profiles:theme.motion.profile
+  mshot preview-gallery
+  echo "motion P8: the profile in effect shows its thumbnail"
+  Q scroll 0
+}
+qml_errors() {
+  if grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to assign|SyntaxError|Expected token|anchors' \
+      "$R/settings.log" | sed 's/\x1b\[[0-9;]*m//g' | grep -q .; then
+    grep -aE 'ReferenceError|TypeError|is not a function|Cannot assign|Unable to assign|SyntaxError|Expected token|anchors' \
+      "$R/settings.log" | sed 's/\x1b\[[0-9;]*m//g' | head -20
+    fail "QML errors in the settings log"
+  fi
+}
+if [ "${SETTINGS_PART:-}" = motion ]; then
+  motion_en
+  exec 3>&-; kbd_pid=""
+  qml_errors
+  kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
+  sleep 0.5
+  start_daemon ja_JP.UTF-8
+  start_qs "" motion
+  for _ in $(seq 100); do Q current >/dev/null 2>&1 && break; sleep 0.2; done
+  sleep 1.5
+  motion_ja
+  qml_errors
+  echo "ok (motion part, $HOST host): $SHOTS/motion/"; ls "$SHOTS/motion"
+  exit 0
+fi
+
 # 0. the deep link: the palette row's page opens by itself once the schema is in (the check is the page, the shot shows
 #    the row in place; its flash is over after a second).
 for _ in $(seq 50); do [ "$(Q current)" = appearance ] && break; sleep 0.2; done
@@ -663,7 +1125,8 @@ shot 10b-cli-change
 Q mod media false
 for _ in $(seq 50); do [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] && break; sleep 0.2; done
 [[ "$(K '{"t":"cfg.get","id":"m1","key":"mods.enabled"}')" != *media* ]] || fail "mods: media is still on after mod.disable"
-want="mods.demo-blur,layout,appearance,accessibility,island,mods.media,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
+# W59.0 added the motion page (K83); media sorts before it by name.
+want="mods.demo-blur,layout,appearance,mods.media,motion,accessibility,island,notifications,launcher,desktop,power,dock,sidebar,keys,@changed,@mods,@profiles"
 for _ in $(seq 50); do [ "$(Q navOrder)" = "$want" ] && break; sleep 0.2; done
 [ "$(Q navOrder)" = "$want" ] || fail "sidebar: order is $(Q navOrder), expected $want"
 Q goto layout
@@ -1413,6 +1876,9 @@ K '{"t":"apply","id":"cl2","ops":[{"reset":"theme.colors.scheme"},{"reset":"them
 wait_ap look kanso
 Q goto layout
 
+# W59.6: Settings › Motion (the part defined after the start; SETTINGS_PART=motion runs it alone).
+motion_en
+
 # Japanese copy (UX brief: "ja copy lengths"): the same shell with the daemon's locale set to ja_JP.UTF-8.
 kill "$qs_pid" "$daemon_pid" 2>/dev/null || true
 sleep 0.5
@@ -1427,6 +1893,7 @@ sleep 1.5
 shot ja-page-link-records
 Q goto layout
 lshot ja-layout-top
+motion_ja
 Q goto appearance
 shot ja-appearance
 Q goto power

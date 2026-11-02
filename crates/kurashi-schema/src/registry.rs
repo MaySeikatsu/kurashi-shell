@@ -254,6 +254,21 @@ pub fn validate_value(m: &KeyMeta, v: &Value) -> Result<(), ValidationError> {
                 })
             }
         }
+        // K83: the curve grammar lives in kurashi-motion; a pack's curve name passes here and is the resolver's to find.
+        Ty::Curve => {
+            let s = v.as_str().ok_or_else(wrong)?;
+            if s.is_empty() {
+                return Ok(());
+            }
+            kurashi_motion::curve::parse(s)
+                .map(drop)
+                .map_err(|e| ValidationError::InvalidCurve {
+                    key: key(),
+                    got: s.into(),
+                    why: e.to_string(),
+                    why_key: e.key(),
+                })
+        }
         // The one validator for records (K38): the same check the manifest's default goes through.
         Ty::Records => c
             .record

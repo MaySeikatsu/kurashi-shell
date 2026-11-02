@@ -50,7 +50,9 @@ pub mod __private;
 pub use error::{SchemaError, ValidationError};
 pub use generate::{control_kind, docs_markdown, example_toml, i18n_en, settings_meta, toml_value};
 pub use kurashi_schema_derive::KurashiSchema;
-pub use leaf::{ActionId, Color, Ctx, FontFamilies, KurashiLeaf, KurashiNode, strings};
+pub use leaf::{
+    ActionId, Color, Ctx, FontFamilies, KurashiLeaf, KurashiNode, MotionCurve, strings,
+};
 pub use meta::{Choice, CmpOp, Constraints, Coupling, Flags, KeyMeta, Text, Ty};
 pub use records::{FieldType, RecordField, RecordProblem, RecordSpec, check_record_field};
 pub use registry::{Registry, validate_value};

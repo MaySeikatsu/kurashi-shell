@@ -105,6 +105,7 @@ PanelWindow {
 
     BarMorph {
         id: morph
+        surface: "centre"
         // The slide keeps the card where it was: past the margins' room for the shadow.
         x: morph.morph ? 0 : win.padL - morph.shade
         y: morph.morph ? 0 : win.padT + win.lead - morph.shade

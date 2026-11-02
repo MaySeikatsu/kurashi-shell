@@ -74,6 +74,17 @@ impl ActionId {
     }
 }
 
+/// A motion curve's text (K83; settings control: the curve editor); `""` = the motion profile's.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct MotionCurve(pub String);
+
+impl MotionCurve {
+    /// `""`: the profile's curve.
+    pub fn profile() -> Self {
+        Self(String::new())
+    }
+}
+
 /// `default = strings(&["a", "b"])` for `Vec<String>` fields.
 pub fn strings(items: &[&str]) -> Vec<String> {
     items.iter().map(|s| (*s).to_owned()).collect()
@@ -144,6 +155,15 @@ impl KurashiLeaf for FontFamilies {
     }
     fn to_value(&self) -> Value {
         Value::from(self.0.clone())
+    }
+}
+
+impl KurashiLeaf for MotionCurve {
+    fn ty() -> Ty {
+        Ty::Curve
+    }
+    fn to_value(&self) -> Value {
+        Value::String(self.0.clone())
     }
 }
 

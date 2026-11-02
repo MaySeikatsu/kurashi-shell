@@ -1,0 +1,19 @@
+# Washi — Ink settling into paper: a slow fade whose blur clears (open 360 ms decelerating, close 220 ms), nothing springs.
+# Moved from looks/washi.toml's `[decor] motion.*` (W53, K80) unchanged (K83).
+name = "washi"
+base = "expressive"
+
+[timing]
+open = "cubic-bezier(0.2, 0, 0.1, 1)"
+open_ms = 360
+close = "cubic-bezier(0.4, 0, 1, 1)"
+close_ms = 220
+fast = "cubic-bezier(0.2, 0, 0.1, 1)"
+fast_ms = 180
+effects_ms = 200
+
+[form]
+open = "bleed"
+close = "bleed"
+
+[accents]

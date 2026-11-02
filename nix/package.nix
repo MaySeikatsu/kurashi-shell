@@ -32,11 +32,13 @@ let
     (fs.maybeMissing ../frontend/shots)
     (fs.maybeMissing ../settings/shots)
     (fs.maybeMissing ../greeter/shots)
+    # W59.2's qmltestrunner tests and their Quickshell stub are for `frontend/test-motion.sh`, not the package.
+    (fs.maybeMissing ../frontend/core/motion/tests)
   ];
 
   # What the Rust build reads: the workspace plus the files our crates embed with include_str! (looks, styles and
-  # palettes in kurashi-theme, the doctor's strings in kurashi) and the IPC fixtures. An edit to these still rebuilds
-  # our crates — never the deps.
+  # palettes in kurashi-theme, the motion packs in kurashi-motion, the doctor's strings in kurashi) and the IPC
+  # fixtures. An edit to these still rebuilds our crates — never the deps.
   rustSrc = fs.toSource {
     root = ../.;
     fileset = fs.unions [
@@ -46,6 +48,7 @@ let
       ../fixtures
       ../looks
       ../styles
+      ../motion
       ../palettes
       ../i18n/en/doctor.toml
       ../i18n/ja/doctor.toml
@@ -66,6 +69,7 @@ let
       ../templates
       ../looks
       ../styles
+      ../motion
       ../frontend
       ../settings
       ../mods

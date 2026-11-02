@@ -305,6 +305,8 @@ Item {
                 model: r.reasons
                 delegate: Row {
                     required property var modelData
+                    // The settings test reads which reasons a row shows (W59.6).
+                    objectName: "reason:" + r.row.key + ":" + modelData.kind
                     spacing: Theme.gap
                     Text {
                         renderType: Theme.pixelType ? Text.NativeRendering : Text.QtRendering

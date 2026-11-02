@@ -1,0 +1,37 @@
+# Genie (an offer; aqua and vibrancy take genie on the dock and toasts, K83 D4): cards pour out of the module you pressed
+# like a genie out of its lamp, and back into it — the sides bend into a funnel, then the body slides through it.
+# A draft (W59.5): W59.9 tunes it on niri with the aqua pack.
+name = "genie"
+base = "expressive"
+
+[timing]
+# macOS's minimise takes about half a second: a soft start (the bend), a firm pour.
+open = "cubic-bezier(0.25, 0.1, 0.25, 1)"
+open_ms = 460
+close = "cubic-bezier(0.4, 0, 0.6, 1)"
+close_ms = 420
+fast = "standard"
+fast_ms = 220
+effects = "effects"
+effects_ms = 180
+
+[form]
+open = "genie"
+close = "genie"
+# (genie needs room and an origin: the strips and the OSD slide or fade)
+[form.sidebar]
+open = "slide"
+close = "slide"
+[form.bar]
+open = "slide"
+close = "slide"
+[form.osd]
+open = "fade"
+close = "fade"
+
+[params.genie]
+bend = 0.5
+
+[accents]
+content = "with"
+shadow = "fade"
