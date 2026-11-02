@@ -378,15 +378,14 @@ PanelWindow {
         topRightRadius: stage.flip ? shape.rBot : shape.rTop
         bottomLeftRadius: stage.flip ? shape.rTop : shape.rBot
         bottomRightRadius: stage.flip ? shape.rTop : shape.rBot
-        // (K83, iris: only inside the circle; else an ellipse round everything)
+        // (K83, iris: only inside the circle; otherwise an empty union, so the region is exactly today's)
         Region {
             readonly property bool on: stage.sf !== null && stage.sf.irisR >= 0
-            readonly property real r: on ? stage.sf.irisR : 100000
-            readonly property real cy: on ? (stage.flip ? stage.morphH - stage.sf.irisY : stage.sf.irisY) : stage.morphH / 2
-            intersection: Intersection.Intersect
+            readonly property real r: on ? stage.sf.irisR : 0
+            intersection: on ? Intersection.Intersect : Intersection.Combine
             shape: RegionShape.Ellipse
-            x: Math.round((on ? stage.sf.irisX : stage.morphW / 2) - r)
-            y: Math.round(cy - r)
+            x: on ? Math.round(stage.sf.irisX - r) : 0
+            y: on ? Math.round((stage.flip ? stage.morphH - stage.sf.irisY : stage.sf.irisY) - r) : 0
             width: Math.round(2 * r)
             height: Math.round(2 * r)
         }
